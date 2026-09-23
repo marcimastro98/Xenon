@@ -427,6 +427,7 @@ function weatherTileSections() {
   const w = (typeof hubSettings === 'object' && hubSettings && hubSettings.weather) || {};
   const src = w.tile && typeof w.tile === 'object' ? w.tile : {};
   return {
+    compact: src.hero === 'compact',
     metrics: src.metrics !== false,
     hourly: src.hourly !== false,
     forecast: src.forecast !== false,
@@ -502,6 +503,55 @@ function buildWeatherHeroCard(data) {
     if (chips.children.length) card.appendChild(chips);
   }
   return card;
+}
+
+// The one-line alternative to the hero card (GitHub #130: "I just want the next
+// hours/days, with a summary of the current temp/feels like"). Icon, temperature
+// and condition on the left, feels-like / wind / rain on the right, each honouring
+// its field toggle. It is still the button that opens the full weather view, so
+// shrinking the hero costs nothing that the big card could do.
+function buildWeatherCompactBar(data) {
+  const bar = document.createElement('button');
+  bar.type = 'button';
+  bar.className = 'weather-tile-card weather-tile-compact';
+  bar.addEventListener('click', () => { if (typeof toggleWeatherDetails === 'function') toggleWeatherDetails(); });
+
+  const ok = !!(data && data.ok);
+  const state = ok ? classifyWeatherState(data) : 'state-offline';
+  const night = ok && isWeatherNight(data.sunrise, data.sunset);
+  setWeatherStateClass(bar, state);
+  bar.classList.toggle('is-night', !!night);
+  bar.classList.toggle('weather-tile--stale', ok && !!data.stale);
+  const place = ok ? ([data.location, data.region, data.country].filter(Boolean).join(', ') || t('weather_local')) : '';
+  bar.title = place ? `${t('weather_open')} (${place})` : t('weather_open');
+
+  const icon = document.createElement('span');
+  icon.className = `weather-mini-icon ${state}`;
+  icon.setAttribute('aria-hidden', 'true');
+  const temp = document.createElement('span');
+  temp.className = 'weather-compact-temp';
+  temp.textContent = ok ? `${toDisplayTemp(data.tempC)}°` : '--°';
+  const cond = document.createElement('span');
+  cond.className = 'weather-compact-condition';
+  cond.textContent = ok ? (data.condition || t('weather_title')) : weatherErrorLabel(data);
+  bar.append(icon, temp, cond);
+
+  if (ok) {
+    const stats = document.createElement('span');
+    stats.className = 'weather-compact-stats';
+    [
+      ['feels', data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°` : '--', 'weather_metric_feels'],
+      ['wind', displayWind(data.windKph), 'weather_metric_wind'],
+      ['rain', displayPrecip(data.precipMM), 'weather_metric_rain'],
+    ].forEach(([id, value, key]) => {
+      if (!weatherFieldEnabled(id)) return;
+      const chip = createWeatherHeroChip(value, key);
+      chip.className = `weather-compact-stat weather-compact-stat--${id}`;
+      stats.appendChild(chip);
+    });
+    if (stats.children.length) bar.appendChild(stats);
+  }
+  return bar;
 }
 
 // The 8 detail metrics as [id, element] pairs, filtered by the per-field
@@ -607,7 +657,8 @@ function renderWeatherTile() {
     // tint matching the hero's sky — the whole widget reads as one scene.
     setWeatherStateClass(root, state);
     root.classList.toggle('is-night', !!night);
-    root.appendChild(buildWeatherHeroCard(data));
+    root.classList.toggle('weather-tile-root--compact', sec.compact);
+    root.appendChild(sec.compact ? buildWeatherCompactBar(data) : buildWeatherHeroCard(data));
 
     if (ok) {
       const body = document.createElement('div');

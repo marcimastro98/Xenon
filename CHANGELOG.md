@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **The Weather tile can show current conditions on one line.** Asked for on GitHub (#130): *"Is there a way to not waste that entire screen space on that blue background with a moon? I just want the next hours/days, with a summary of the current temp/feels like."*
+
+  **Settings → Weather → Current conditions → One line** swaps the big animated card for a single row: the condition icon, the temperature and the condition on the left, and feels-like, wind and precipitation on the right. Everything below it, details, hours and days, gets the space the card used to take.
+
+  The obvious catch was that the big card is also the button that opens the full weather view, so shrinking it could have cost you the way in. It doesn't: the row is that button now. Each value on the right follows the same **Details to show** toggles as the big card, and on a narrow tile they step aside from the right, wind and precipitation first, so feels-like is the last one to go.
+
+  It stays a strip across the top at any size. The wide layout that puts the card beside the sections was the other way to save height, and the request was clear that it needed the width for other things, so a compact tile never switches to it. The big card stays the default, and the modal is unchanged.
+
 - **A widget can turn the dashboard's page.** The same move the new page shortcuts make, handed to the SDK: a control-room tile with a button per page, or one that brings the media page up when something starts playing.
 
   `{ type: 'dashboardPage', page: 'work' }`, or `next` / `prev` / `back`. Only the screen the widget is on turns — pages belong to a device's own layout, so a phone and a desk PC do not have the same ones and neither should follow the other's widget — and a page this screen does not have is refused rather than redirected somewhere arbitrary.

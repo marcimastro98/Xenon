@@ -8086,7 +8086,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Native canvas Ambient scenes (client-owned, like customThemes).
   ambientScenes: Object.freeze([]),
   contentInstalls: Object.freeze([]),
-  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
+  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ hero: 'full', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // Mirrors js/settings.js: 'off' | 'minimal' | 'wave'. Read by
   // audioLevelsWanted(): anything but 'off' is a first-party reason to run the
@@ -8550,7 +8550,8 @@ function normalizeSettingsWeather(value) {
     ? Number(source.forecastDays) : DEFAULT_HUB_SETTINGS.weather.forecastDays;
   const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
   const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
-  const tile = {};
+  // 'full' | 'compact' — mirror of WEATHER_TILE_HEROES in js/settings.js.
+  const tile = { hero: ['full', 'compact'].includes(srcTile.hero) ? srcTile.hero : defTile.hero };
   ['metrics', 'hourly', 'forecast'].forEach(k => { tile[k] = typeof srcTile[k] === 'boolean' ? srcTile[k] : defTile[k]; });
   const srcFields = srcTile.fields && typeof srcTile.fields === 'object' ? srcTile.fields : {};
   const fields = {};

@@ -37,6 +37,10 @@ const WEATHER_REFRESH_CHOICES = Object.freeze([10, 15, 30, 60, 120, 180]);
 // so on that provider the forecast simply shows what's available.
 const WEATHER_FORECAST_DAY_CHOICES = Object.freeze([1, 2, 3, 4, 5, 6, 7]);
 const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
+// How the tile draws current conditions: the big animated card, or one line
+// (icon, temperature, feels-like) so hours and days get the space (GitHub #130).
+// Mirrored in server.js normalizeSettingsWeather.
+const WEATHER_TILE_HEROES = Object.freeze(['full', 'compact']);
 // Individually toggleable weather fields: the 3 hero chips + the 8 detail
 // metrics. Hiding one removes it from both the dashboard tile and the modal.
 const WEATHER_FIELD_IDS = Object.freeze([
@@ -367,7 +371,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     // Which extra sections the standalone Weather tile shows below the hero card
     // (the topbar chip + modal are unaffected). All on by default. `fields`
     // toggles individual detail chips/metrics and applies to the tile AND modal.
-    tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
+    // `hero` is 'full' (the big card) or 'compact' (a single line).
+    tile: Object.freeze({ hero: 'full', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // The Media tile's waveform: 'off' | 'minimal' | 'wave'. An ADDITION to that
@@ -1007,7 +1012,7 @@ function sanitizeWeatherCity(value) {
 function normalizeWeatherTile(value) {
   const src = value && typeof value === 'object' ? value : {};
   const def = DEFAULT_HUB_SETTINGS.weather.tile;
-  const out = {};
+  const out = { hero: WEATHER_TILE_HEROES.includes(src.hero) ? src.hero : def.hero };
   WEATHER_TILE_SECTIONS.forEach(k => { out[k] = typeof src[k] === 'boolean' ? src[k] : def[k]; });
   const srcFields = src.fields && typeof src.fields === 'object' ? src.fields : {};
   const fields = {};
@@ -8926,6 +8931,11 @@ function syncWeatherSettingsControls() {
     // Guarded updateWeatherForecastDays neutralizes this label-sync 'change' dispatch.
     daysSelect.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  document.querySelectorAll('.settings-weather-hero[data-weather-hero]').forEach(btn => {
+    const active = btn.dataset.weatherHero === weather.tile.hero;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
   WEATHER_TILE_SECTIONS.forEach(key => {
     const cb = $('settings-weather-tile-' + key);
     if (cb) cb.checked = weather.tile[key] !== false;
@@ -9029,6 +9039,22 @@ function updateWeatherForecastDays(value) {
   syncWeatherSettingsControls();
   if (typeof renderWeatherTile === 'function') renderWeatherTile();
   if (typeof renderWeatherDetails === 'function') renderWeatherDetails();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+// Big card or one line for the tile's current conditions. Tile only: the
+// modal always has the room for the full hero.
+function updateWeatherTileHero(hero) {
+  if (!WEATHER_TILE_HEROES.includes(hero)) return;
+  const tile = normalizeWeatherTile(hubSettings.weather && hubSettings.weather.tile);
+  if (tile.hero === hero) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, tile: { ...tile, hero } },
+  });
+  commitWeatherChange();
+  syncWeatherSettingsControls();
+  if (typeof renderWeatherTile === 'function') renderWeatherTile();
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 

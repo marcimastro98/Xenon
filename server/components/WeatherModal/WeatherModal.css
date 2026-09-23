@@ -880,7 +880,7 @@
 .weather-tile-root:not(.has-body) .weather-tile-card { flex: 1 1 auto; }
 /* With sections: the hero is a substantial top card; the sections flow below and
    the tile scrolls. Square off the hero's bottom where it meets the body. */
-.weather-tile-root.has-body .weather-tile-card {
+.weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-card {
   flex: 0 0 auto;
   min-height: clamp(118px, 33cqmin, 260px);
   border-bottom-left-radius: 0;
@@ -1026,8 +1026,8 @@
    full modal) so the info uses the width instead of forcing a long vertical
    scroll. Portrait/square tiles keep the stacked layout above. */
 @container (min-width: 560px) and (min-aspect-ratio: 13/10) {
-  .weather-tile-root.has-body { flex-direction: row; height: 100%; min-height: 0; }
-  .weather-tile-root.has-body .weather-tile-card {
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) { flex-direction: row; height: 100%; min-height: 0; }
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-card {
     width: clamp(260px, 38%, 480px);
     height: 100%;
     min-height: 0;
@@ -1036,7 +1036,7 @@
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
-  .weather-tile-root.has-body .weather-tile-body {
+  .weather-tile-root.has-body:not(.weather-tile-root--compact) .weather-tile-body {
     flex: 1 1 auto;
     height: 100%;
     min-width: 0;
@@ -1100,14 +1100,98 @@
 .weather-tile-root.state-fog   .weather-tile-body { background: linear-gradient(180deg, rgba(130,138,148,0.14), transparent 42%); }
 .weather-tile-root.state-moon  .weather-tile-body,
 .weather-tile-root.is-night    .weather-tile-body { background: linear-gradient(180deg, rgba(44,62,116,0.20), transparent 46%); }
-/* In the landscape (side-by-side) layout the wash comes from the hero on the left. */
+/* In the landscape (side-by-side) layout the wash comes from the hero on the left.
+   The compact bar never goes sideways, so its wash stays top-down. */
 @container (min-width: 560px) and (min-aspect-ratio: 13/10) {
-  .weather-tile-root.state-sun   .weather-tile-body { background: linear-gradient(90deg, rgba(92,179,240,0.12), transparent 34%); }
-  .weather-tile-root.state-cloud .weather-tile-body { background: linear-gradient(90deg, rgba(116,130,143,0.14), transparent 34%); }
-  .weather-tile-root.state-rain  .weather-tile-body { background: linear-gradient(90deg, rgba(81,104,125,0.16), transparent 34%); }
-  .weather-tile-root.state-storm .weather-tile-body { background: linear-gradient(90deg, rgba(90,70,130,0.16), transparent 34%); }
-  .weather-tile-root.state-snow  .weather-tile-body { background: linear-gradient(90deg, rgba(154,180,205,0.14), transparent 34%); }
-  .weather-tile-root.state-fog   .weather-tile-body { background: linear-gradient(90deg, rgba(130,138,148,0.14), transparent 34%); }
-  .weather-tile-root.state-moon  .weather-tile-body,
-  .weather-tile-root.is-night    .weather-tile-body { background: linear-gradient(90deg, rgba(44,62,116,0.20), transparent 38%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-sun   .weather-tile-body { background: linear-gradient(90deg, rgba(92,179,240,0.12), transparent 34%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-cloud .weather-tile-body { background: linear-gradient(90deg, rgba(116,130,143,0.14), transparent 34%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-rain  .weather-tile-body { background: linear-gradient(90deg, rgba(81,104,125,0.16), transparent 34%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-storm .weather-tile-body { background: linear-gradient(90deg, rgba(90,70,130,0.16), transparent 34%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-snow  .weather-tile-body { background: linear-gradient(90deg, rgba(154,180,205,0.14), transparent 34%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-fog   .weather-tile-body { background: linear-gradient(90deg, rgba(130,138,148,0.14), transparent 34%); }
+  .weather-tile-root:not(.weather-tile-root--compact).state-moon  .weather-tile-body,
+  .weather-tile-root:not(.weather-tile-root--compact).is-night    .weather-tile-body { background: linear-gradient(90deg, rgba(44,62,116,0.20), transparent 38%); }
+}
+
+/* ── Compact hero: current conditions on one line (GitHub #130) ──
+   Settings → Weather → Current conditions → One line. The big card gives way to
+   a single row so hours and days get the tile. It keeps the card's sky gradient
+   (.weather-tile-card.state-*) and stays the button that opens the full view.
+   It never goes side by side: a strip across the top is the whole point, and
+   the landscape rules above are scoped away from it. */
+.weather-tile-card.weather-tile-compact {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(7px, 2cqi, 12px);
+  width: 100%;
+  min-height: 0;
+  padding: clamp(7px, 1.8cqi, 12px) clamp(10px, 2.8cqi, 16px);
+  border: 0;
+  border-radius: inherit;
+  text-align: left;
+  font: inherit;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.6s ease;
+}
+.weather-tile-root--compact.has-body .weather-tile-compact {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* Nothing below it: the row IS the tile, so fill it and centre the line. */
+.weather-tile-root--compact:not(.has-body) .weather-tile-compact { flex: 1 1 auto; }
+.weather-tile-compact .weather-mini-icon { width: 26px; height: 22px; }
+.weather-compact-temp {
+  flex: 0 0 auto;
+  font-size: clamp(20px, 5cqi, 28px);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.weather-compact-condition {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(12px, 2.6cqi, 14px);
+  color: rgba(255,255,255,0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.weather-compact-stats {
+  flex: 0 0 auto;
+  display: flex;
+  gap: clamp(9px, 2.6cqi, 16px);
+  margin-left: auto;
+}
+.weather-compact-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+.weather-compact-stat b {
+  font-size: clamp(12px, 2.8cqi, 15px);
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.weather-compact-stat em {
+  font-style: normal;
+  font-size: clamp(8px, 1.9cqi, 10px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.72);
+  white-space: nowrap;
+}
+/* Narrow tiles shed from the right, keeping feels-like to the last: it is the
+   one number the request named. */
+@container (max-width: 380px) {
+  .weather-compact-stat--wind,
+  .weather-compact-stat--rain { display: none; }
+}
+@container (max-width: 230px) {
+  .weather-compact-condition { display: none; }
 }

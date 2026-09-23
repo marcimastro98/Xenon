@@ -2105,6 +2105,13 @@
             </div>
           </div>
           <div class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_hero">Condizioni attuali</span><span class="settings-hint" data-i18n="settings_weather_hero_hint">solo widget dashboard</span></span>
+            <div class="settings-segmented" role="group" aria-label="Condizioni attuali" data-i18n-aria-label="settings_weather_hero">
+              <button class="settings-weather-hero settings-segment-btn" type="button" data-weather-hero="full" onclick="updateWeatherTileHero('full')" aria-pressed="true" data-i18n="settings_weather_hero_full">Scheda grande</button>
+              <button class="settings-weather-hero settings-segment-btn" type="button" data-weather-hero="compact" onclick="updateWeatherTileHero('compact')" aria-pressed="false" data-i18n="settings_weather_hero_compact">Una riga</button>
+            </div>
+          </div>
+          <div class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_weather_tile">Nel widget mostra</span><span class="settings-hint" data-i18n="settings_weather_tile_hint">solo widget dashboard</span></span>
             <div class="settings-toggle-grid">
               <label class="settings-toggle-row">
