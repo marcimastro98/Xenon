@@ -72,6 +72,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **A Deck key's Hold works from a touchscreen on macOS.** Reported on Discord by someone with three AppleScripts on one key, Tap, Double and Hold, where Hold never fired.
+
+  macOS has no touch support for USB touchscreens, so apps like Touchscreen Gestures turn your touches into mouse clicks, and a long press into a right click. The Deck only counted a hold when the left button stayed down for half a second, so on that setup Hold could not happen, and the right click ran the Tap action instead. A right click on a key now runs its Hold action straight away. This also gives you a quick way to reach Hold with a mouse. Keys without a Hold action behave as before, and a long press on a touchscreen with real touch input works exactly as it did.
+
 - **An update no longer resets the style you gave each card.** Reported on GitHub (#130): *"there is a (minor) bug on update where all of the opacity settings I set per card reset."*
 
   At startup the dashboard reads your saved layout a moment before the part of the code that checks a card's style has loaded. Until now, a style it could not check yet was treated as no style at all. Usually that did no harm, because the copy on the PC arrived straight after and put everything back. But if anything saved the layout in that short window, which the first start after an update makes more likely, the stripped version counted as the newer one and replaced the copy on the PC. After that there was nothing left to restore it from.

@@ -1160,8 +1160,17 @@
     }
 
     node.addEventListener('pointerdown', (e) => {
-      if (e.button != null && e.button > 0) return;       // primary button / touch only
       holdFired = false;
+      // A right click is a hold. On macOS a touchscreen has no touch events: a
+      // driver app (Touchscreen Gestures and the like) turns a long press into a
+      // right click, so without this the hold trigger could never fire there.
+      if (e.button === 2 && hasHold) {
+        holdFired = true;
+        if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+        fire('hold');
+        return;
+      }
+      if (e.button != null && e.button > 0) return;       // primary button / touch only
       if (hasHold) holdTimer = setTimeout(() => {
         holdFired = true;
         if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
