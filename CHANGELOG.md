@@ -72,6 +72,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **A custom widget follows its own tile's accent and background.** Reported by a widget author: the Accent set in a tile's customization showed on the tile, while the widget inside it kept drawing the dashboard's global accent.
+
+  Xenon hands each widget the colours of the tile it sits in, read from the tile itself. Two of those colours, accent and background, are set up so that a theme change fades smoothly, and the browser hands those two back in a different format from the others. The step that tidies the colours before sending them only understood the usual one, so it threw both away and sent the global colours instead. It now understands both formats. The tile's accent and background reach the widget, and every other colour was already arriving correctly.
+
 - **The slideshow keeps changing pictures while you play.** Reported on GitHub (#130): *"the photos changing still freeze when in game on the latest version."*
 
   **Stop GIFs while gaming**, on by default, was meant to spare the game an animated GIF redrawing itself every frame. It did more than its name said: it also stopped the rotation, so a folder of photos sat on the same picture for the whole session. On a Xeneon Edge the screen is right next to the game and you look at it the whole time, so that was the wrong trade.
