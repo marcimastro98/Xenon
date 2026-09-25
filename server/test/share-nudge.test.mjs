@@ -8,7 +8,9 @@
 // keep an invitation from becoming a nag.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from 'node:fs';
+// A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
+const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const CARD = readFileSync(new URL('../js/share-nudge.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');

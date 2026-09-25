@@ -50,7 +50,9 @@ test('an unhandled pipe error really does kill the process', () => {
   // longer load-bearing and this whole file should be re-derived, not deleted.
   const bare = runProbe('bare');
   assert.equal(bare.alive, false, 'writing into a dying child no longer crashes — re-check the hosts');
-  assert.match(bare.out, /EPIPE/, `expected an EPIPE crash, got: ${bare.out.slice(0, 300)}`);
+  // The same broken pipe has two names: EPIPE on POSIX, "write EOF" on Windows,
+  // where libuv reports a pipe closed by the other end as end-of-file.
+  assert.match(bare.out, /EPIPE|write EOF/, `expected a broken-pipe crash, got: ${bare.out.slice(0, 300)}`);
 });
 
 test("an 'error' handler on the pipe is all it takes to survive", () => {
