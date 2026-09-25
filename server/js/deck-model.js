@@ -230,6 +230,9 @@ function normalizeKey(raw, cols, rows) {
       if (raw.state.value != null) key.state.value = clampStr(raw.state.value, 200);
       // Home Assistant entity binding: the entity id whose live state drives .is-on.
       if (raw.state.entity) key.state.entity = clampStr(raw.state.entity, 80);
+      // Output-device binding: the device id the key is on for (same id the
+      // audioDevice picker stores; 260 = the action's own cap).
+      if (raw.state.device) key.state.device = clampStr(raw.state.device, 260);
     }
     // Optional alternate face while the bound state is ON (a toggle key that
     // changes glyph/label/colour per state). Same caps/validation as the base face.
@@ -963,7 +966,7 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning', 'outputDevice'];
 
 // HA state strings that read as "on" for an entity binding without an explicit
 // value to match — covers switches/lights, covers, media, presence, locks,
@@ -1174,6 +1177,10 @@ function evaluateKeyState(state, snapshot) {
       if (state.name) { const t = bag[String(state.name).toLowerCase()]; return !!(t && t.status === 'running'); }   // bag keys are lowercased
       return Object.values(bag).some((t) => t && t.status === 'running');
     }
+    // The default audio output is this device: an Output device key lights for
+    // its own device, a toggle key shows its second face for the second one.
+    // Fed from the live audio list, so a change made in the OS shows up too.
+    case 'outputDevice':    return !!state.device && state.device === snapshot.outputDevice;
     default:                return false;
   }
 }

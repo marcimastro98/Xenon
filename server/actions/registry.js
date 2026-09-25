@@ -570,6 +570,16 @@ function createRegistry(deps) {
           const r = await d.audioDevice(device);
           return r && r.ok === false ? { ok: false, error: r.error || 'audio_device_failed' } : { ok: true };
         }
+        case 'audioDeviceToggle': {
+          // Same shape check as audioDevice, twice; which of the two to switch
+          // to is decided in the dep against the live list (pickToggleDevice).
+          if (typeof d.audioDeviceToggle !== 'function') return { ok: false, error: 'unavailable' };
+          const a = String(action.deviceA || '').trim();
+          const b = String(action.deviceB || '').trim();
+          if (!a || !b || a.length > 260 || b.length > 260) return { ok: false, error: 'no_device' };
+          const r = await d.audioDeviceToggle(a, b);
+          return r && r.ok === false ? { ok: false, error: r.error || 'audio_device_failed' } : { ok: true };
+        }
         case 'obsSceneNext': {
           if (typeof d.obsNext !== 'function') return { ok: false, error: 'obs_unavailable' };
           await d.obsNext();
@@ -894,4 +904,18 @@ function resolveOutputDevice(id, speakers) {
   return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
+// The output a toggle key switches to: the second device when the first is the
+// current default, the first in every other case (the second is current, or
+// neither is, e.g. a third output was picked from the OS). Both must be in the
+// live list, through the same check as a single device: a toggle is not a way
+// around it. Null when either is missing, so an unplugged headset reads as
+// "not connected" instead of the key quietly doing half of its job.
+function pickToggleDevice(a, b, speakers) {
+  const first = resolveOutputDevice(a, speakers);
+  const second = resolveOutputDevice(b, speakers);
+  if (!first || !second) return null;
+  const current = (Array.isArray(speakers) ? speakers : []).find((s) => s && s.isDefault);
+  return current && current.id === first.id ? second : first;
+}
+
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice, pickToggleDevice };

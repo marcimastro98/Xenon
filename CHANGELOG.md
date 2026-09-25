@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **One Deck key that switches between two audio outputs.** Asked for on Discord by someone who had built it by hand on a Mac: a shell script that flipped the sound between the monitor's speakers and a USB DAC, and then told Xenon which one was on so the key could change its icon.
+
+  **Switch between two outputs**, in the Audio actions, does all of it. Pick the two devices from the list of what is connected, and each press moves the sound to the other one. If the sound is on a third device, the first press goes to the first one.
+
+  The key's **Look while active** now shows up when the second device is playing, and it follows the output that is really active, not the last press. Change the output from the Windows sound settings or the Mac menu bar and the key catches up by itself, within a few seconds on Windows and within about half a minute on a Mac, which the script could never do. After a press on the key itself it changes straight away. A plain **Output device** key does the same thing for its own device: it lights up while that device is the one playing. Keys you already have pick this up the next time you save them.
+
+  If one of the two devices is unplugged, the key tells you that device is not connected instead of switching to the one that is left. On a Mac, switching outputs still needs SwitchAudioSource (`brew install switchaudio-osx`), the same as the Output device key.
+
 - **Ambient can be the screen Xenon starts on.** Asked for on Discord by someone whose Ambient scene is their whole dashboard: *"On startup/restart I need to press the button in the top left for ambient mode. Having the option to skip that and boot straight into what the button press would take me to would be swell."*
 
   **Settings → Ambient → Open at startup** does exactly that. Every time Xenon starts, the PC boots or the app reloads after an update, your scene opens on its own and stays up until you close it.

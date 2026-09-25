@@ -31,6 +31,7 @@
       if (D() && d && d.speaker && Number.isFinite(Number(d.speaker.volume))) {
         D().refreshStates({ masterVolume: Number(d.speaker.volume), speakerMuted: !!d.speaker.muted });
       }
+      if (D() && d && !d.unavailable) D().refreshStates({ outputDevice: (d.speaker && d.speaker.id) || '' });
     });
     on('media', (d) => {
       if (!D()) return;

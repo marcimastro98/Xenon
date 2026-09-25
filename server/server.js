@@ -87,7 +87,7 @@ const icsFeeds = require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.
-const { createRegistry, resolveOutputDevice, isBlockedOpenPath } = require('./actions/registry');
+const { createRegistry, resolveOutputDevice, pickToggleDevice, isBlockedOpenPath } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
@@ -6002,6 +6002,19 @@ const deckRegistryDeps = {
     let info;
     try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
     const match = resolveOutputDevice(wanted, info && info.speakers);
+    if (!match) return { ok: false, error: 'unknown_device' };
+    await svvExec(['/SetDefault', match.id, 'all']);
+    cachedSpeakerId = match.id;
+    cachedSpeakerName = match.name || cachedSpeakerName;
+    return { ok: true };
+  },
+  // Flip between two outputs. Which one is decided against the live list, so a
+  // key pressed right after the output was changed from the OS still goes the
+  // right way; the same resolveOutputDevice check guards both ids.
+  audioDeviceToggle: async (a, b) => {
+    let info;
+    try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
+    const match = pickToggleDevice(a, b, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
     await svvExec(['/SetDefault', match.id, 'all']);
     cachedSpeakerId = match.id;

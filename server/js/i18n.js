@@ -31164,6 +31164,77 @@ Object.assign(i18n.nl, {
 });
 
 
+// v4.11.10 - an Output device key that flips between two outputs, and the
+// "device not connected" reason both output keys can now give. One overlay per
+// language, same as the Voicemeeter set above.
+Object.assign(i18n.it, {
+  deck_act_audioDeviceToggle: 'Alterna tra due uscite audio',
+  deck_param_deviceA: 'Prima uscita (aspetto normale)',
+  deck_param_deviceB: 'Seconda uscita (Aspetto quando attivo)',
+  deck_err_unknown_device: 'quel dispositivo di uscita ora non è collegato',
+  deck_act_audioDevice: 'Dispositivo di uscita',
+});
+Object.assign(i18n.en, {
+  deck_act_audioDeviceToggle: 'Switch between two outputs',
+  deck_param_deviceA: 'First output (normal look)',
+  deck_param_deviceB: 'Second output (Look while active)',
+  deck_err_unknown_device: 'that output device is not connected right now',
+});
+Object.assign(i18n.ko, {
+  deck_act_audioDeviceToggle: '두 출력 장치 간 전환',
+  deck_param_deviceA: '첫 번째 출력(기본 모양)',
+  deck_param_deviceB: '두 번째 출력(켜짐 상태 모양)',
+  deck_err_unknown_device: '해당 출력 장치가 지금 연결되어 있지 않습니다',
+});
+Object.assign(i18n.ja, {
+  deck_act_audioDeviceToggle: '2つの出力を切り替え',
+  deck_param_deviceA: '1つ目の出力（通常の表示）',
+  deck_param_deviceB: '2つ目の出力（オン時の表示）',
+  deck_err_unknown_device: 'その出力デバイスは現在接続されていません',
+});
+Object.assign(i18n.zh, {
+  deck_act_audioDeviceToggle: '在两个输出设备间切换',
+  deck_param_deviceA: '第一个输出（普通外观）',
+  deck_param_deviceB: '第二个输出（激活时外观）',
+  deck_err_unknown_device: '该输出设备当前未连接',
+});
+Object.assign(i18n.es, {
+  deck_act_audioDeviceToggle: 'Alternar entre dos salidas',
+  deck_param_deviceA: 'Primera salida (aspecto normal)',
+  deck_param_deviceB: 'Segunda salida (Aspecto al estar activo)',
+  deck_err_unknown_device: 'ese dispositivo de salida no está conectado ahora',
+});
+Object.assign(i18n.fr, {
+  deck_act_audioDeviceToggle: 'Basculer entre deux sorties',
+  deck_param_deviceA: 'Première sortie (apparence normale)',
+  deck_param_deviceB: 'Deuxième sortie (Apparence quand actif)',
+  deck_err_unknown_device: 'ce périphérique de sortie n’est pas connecté pour le moment',
+});
+Object.assign(i18n.de, {
+  deck_act_audioDeviceToggle: 'Zwischen zwei Ausgängen wechseln',
+  deck_param_deviceA: 'Erster Ausgang (normales Aussehen)',
+  deck_param_deviceB: 'Zweiter Ausgang (Aussehen wenn aktiv)',
+  deck_err_unknown_device: 'dieses Ausgabegerät ist gerade nicht angeschlossen',
+});
+Object.assign(i18n.pt, {
+  deck_act_audioDeviceToggle: 'Alternar entre duas saídas',
+  deck_param_deviceA: 'Primeira saída (aspeto normal)',
+  deck_param_deviceB: 'Segunda saída (Aspeto quando ativo)',
+  deck_err_unknown_device: 'esse dispositivo de saída não está ligado neste momento',
+});
+Object.assign(i18n.ru, {
+  deck_act_audioDeviceToggle: 'Переключение между двумя выходами',
+  deck_param_deviceA: 'Первый выход (обычный вид)',
+  deck_param_deviceB: 'Второй выход (Вид при активном состоянии)',
+  deck_err_unknown_device: 'это устройство вывода сейчас не подключено',
+});
+Object.assign(i18n.nl, {
+  deck_act_audioDeviceToggle: 'Wisselen tussen twee uitgangen',
+  deck_param_deviceA: 'Eerste uitgang (normaal uiterlijk)',
+  deck_param_deviceB: 'Tweede uitgang (Uiterlijk indien actief)',
+  deck_err_unknown_device: 'dat uitvoerapparaat is nu niet aangesloten',
+});
+
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)

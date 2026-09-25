@@ -1381,6 +1381,12 @@
       const find = (pred) => steps0.find(pred);
       if (find((s) => s.type === 'micMute')) return { source: 'micMuted' };
       if (find((s) => s.type === 'volume' && s.params && s.params.mode === 'mute')) return { source: 'speakerMuted' };
+      // Output keys follow the real default output: a toggle wears its second
+      // face while its second device is on, a single-device key lights for its own.
+      const tgl = find((s) => s.type === 'audioDeviceToggle' && s.params && s.params.deviceB);
+      if (tgl) return { source: 'outputDevice', device: tgl.params.deviceB };
+      const dev = find((s) => s.type === 'audioDevice' && s.params && s.params.device);
+      if (dev) return { source: 'outputDevice', device: dev.params.device };
       if (find((s) => s.type === 'obsRecord')) return { source: 'obsRecording' };
       if (find((s) => s.type === 'obsStream')) return { source: 'obsStreaming' };
       const scn = find((s) => s.type === 'obsScene' && s.params && s.params.scene);
