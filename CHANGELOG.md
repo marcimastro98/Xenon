@@ -72,6 +72,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **The slideshow keeps changing pictures while you play.** Reported on GitHub (#130): *"the photos changing still freeze when in game on the latest version."*
+
+  **Stop GIFs while gaming**, on by default, was meant to spare the game an animated GIF redrawing itself every frame. It did more than its name said: it also stopped the rotation, so a folder of photos sat on the same picture for the whole session. On a Xeneon Edge the screen is right next to the game and you look at it the whole time, so that was the wrong trade.
+
+  Now a game only keeps animated images still. The photos carry on changing at the time you set, each new one loading behind the current picture and taking its place when it is ready, so the tile never flashes blank. The back and forward arrows work during a game too; before, they did nothing until the game closed. The slideshow still stops completely when nobody can see it, with the dashboard hidden or Settings open over it. The hint under the option now says what it does.
+
 - **A Deck key's Hold works from a touchscreen on macOS.** Reported on Discord by someone with three AppleScripts on one key, Tap, Double and Hold, where Hold never fired.
 
   macOS has no touch support for USB touchscreens, so apps like Touchscreen Gestures turn your touches into mouse clicks, and a long press into a right click. The Deck only counted a hold when the left button stayed down for half a second, so on that setup Hold could not happen, and the right click ran the Tap action instead. A right click on a key now runs its Hold action straight away. This also gives you a quick way to reach Hold with a mouse. Keys without a Hold action behave as before, and a long press on a touchscreen with real touch input works exactly as it did.
