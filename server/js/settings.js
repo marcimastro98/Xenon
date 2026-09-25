@@ -11078,63 +11078,88 @@ async function aiCliRefresh(provider, fresh) {
   const guide = $('settings-cli-guide');
   if (guide) { guide.href = info.guide; guide.textContent = _aiCliText('settings_cli_guide', info); }
   const statusEl = $('settings-cli-status');
+  const detailEl = $('settings-cli-detail');
   if (statusEl) { statusEl.textContent = t('settings_cli_checking'); statusEl.dataset.state = 'checking'; }
-  const [st, list] = await Promise.all([
-    fetch('/api/ai/cli/status?provider=' + provider + (fresh ? '&fresh=1' : '')).then(r => r.json()).catch(() => null),
-    fetch('/api/ai/cli/models?provider=' + provider).then(r => r.json()).catch(() => null),
-  ]);
+  if (detailEl) { detailEl.textContent = ''; detailEl.hidden = true; }
+  _aiCliRenderModels(provider, null);   // "loading" until the program answers
+  const q = (fresh ? '&fresh=1' : '');
+  // Independent: the list shows as soon as it arrives, whatever the status does.
+  const getJson = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  getJson('/api/ai/cli/models?provider=' + provider + q).then((list) => {
+    if (seq !== _aiCliSeq) return;
+    _aiCliRenderModels(provider, (list && Array.isArray(list.models)) ? list.models : []);
+  });
+  const st = await getJson('/api/ai/cli/status?provider=' + provider + q);
   if (seq !== _aiCliSeq) return;   // the user switched provider meanwhile
-  if (statusEl) {
-    let k = 'settings_cli_unknown', state = 'warn';
-    if (!st || st.ok === false) k = 'settings_cli_unknown';
-    else if (!st.installed) { k = 'settings_cli_not_installed'; state = 'bad'; }
-    else if (st.loggedIn === false) { k = 'settings_cli_not_logged_in'; state = 'bad'; }
-    else if (st.loggedIn === true && /api.?key/i.test(String(st.method || ''))) { k = 'settings_cli_api_key'; state = 'warn'; }
-    else if (st.loggedIn === true) { k = 'settings_cli_ready'; state = 'ok'; }
-    statusEl.textContent = _aiCliText(k, info, { version: (st && st.version) || '' });
-    statusEl.dataset.state = state;
-  }
-  _aiCliRenderModels(provider, (list && Array.isArray(list.models)) ? list.models : []);
+  if (!statusEl) return;
+  let k = 'settings_cli_unknown', state = 'warn', detail = '';
+  if (!st || st.ok === false) {
+    // No answer at all: most often a dashboard newer than the Xenon running it.
+    k = 'settings_cli_no_server';
+  } else if (!st.installed) { k = 'settings_cli_not_installed'; state = 'bad'; }
+  else if (st.loggedIn === false) { k = 'settings_cli_not_logged_in'; state = 'bad'; }
+  else if (st.loggedIn === true && /api.?key/i.test(String(st.method || ''))) { k = 'settings_cli_api_key'; state = 'warn'; }
+  else if (st.loggedIn === true) { k = 'settings_cli_ready'; state = 'ok'; }
+  else if (st.detail) detail = t('settings_cli_detail').replace('{detail}', String(st.detail));
+  if (st && st.loggedIn === true && st.plan) detail = t('settings_cli_plan').replace('{plan}', String(st.plan));
+  statusEl.textContent = _aiCliText(k, info, { version: (st && st.version) || '' });
+  statusEl.dataset.state = state;
+  if (detailEl) { detailEl.textContent = detail; detailEl.hidden = !detail; }
 }
+// `models` null = still loading. Each entry is { id, label, version?, resolved? }
+// exactly as the program described it; nothing here invents a model.
+let _aiCliModels = [];
 function _aiCliRenderModels(provider, models) {
   const info = AI_CLI_INFO[provider];
   const sel = $('settings-cli-model');
-  const cust = $('settings-cli-model-custom');
   if (!sel || !info) return;
   const cur = normalizeCliModel(hubSettings && hubSettings[info.key]);
   sel.replaceChildren();
   const add = (value, label) => { const o = document.createElement('option'); o.value = value; o.textContent = label; sel.appendChild(o); return o; };
-  add('default', t('settings_cli_model_default'));
-  const ids = new Set(['default']);
-  for (const m of models) {
-    if (!m || typeof m.id !== 'string' || ids.has(m.id)) continue;
-    ids.add(m.id);
-    // "Opus" for `opus` needs no second name; "GPT-6-Astra" for `gpt-6-astra` neither.
-    const same = !m.label || String(m.label).toLowerCase() === m.id.toLowerCase();
-    add(m.id, same ? (m.label || m.id) : m.label + ' (' + m.id + ')');
+  if (models === null) {
+    add(cur, t('settings_cli_models_loading')).disabled = true;
+    sel.value = cur;
+    _aiCliShowUsed(null);
+    return;
   }
-  // A saved model the program no longer lists (or one typed by hand) stays.
-  if (!ids.has(cur)) add(cur, cur);
-  add('__custom__', t('ai_model_custom'));
+  _aiCliModels = models.filter(m => m && typeof m.id === 'string');
+  const ids = new Set();
+  // "Opus" + "Opus 5.5" reads as "Opus 5.5"; the default keeps its own name.
+  const withVersion = (label, version) => {
+    const l = String(label), v = String(version || '');
+    if (!v || v.toLowerCase() === l.toLowerCase()) return l;
+    return v.toLowerCase().startsWith(l.toLowerCase()) ? v : l + ' · ' + v;
+  };
+  // The program's own "default" (Claude Code lists it) reads as ours, localized.
+  const def = _aiCliModels.find(m => m.id === 'default');
+  add('default', withVersion(t('settings_cli_model_default'), def && def.version));
+  ids.add('default');
+  for (const m of _aiCliModels) {
+    if (ids.has(m.id)) continue;
+    ids.add(m.id);
+    add(m.id, withVersion(m.label || m.id, m.version));
+  }
+  // A saved model the program no longer lists stays selectable, marked as such.
+  if (!ids.has(cur)) add(cur, t('settings_cli_model_saved').replace('{model}', cur));
   sel.value = cur;
-  if (cust) cust.hidden = true;
+  _aiCliShowUsed(cur);
+}
+// "In use: claude-opus-5-5": the exact model the chosen entry resolves to today.
+function _aiCliShowUsed(id) {
+  const el = $('settings-cli-model-used');
+  if (!el) return;
+  const m = id ? _aiCliModels.find(x => x.id === id) : null;
+  const resolved = m && m.resolved && m.resolved !== m.id ? m.resolved : '';
+  el.textContent = resolved ? t('ai_model_resolved').replace('{model}', resolved) : '';
+  el.hidden = !resolved;
 }
 function onAiCliModelSelect(value) {
   const provider = hubSettings && hubSettings.aiProvider;
   const info = AI_CLI_INFO[provider];
   if (!info) return;
-  const cust = $('settings-cli-model-custom');
-  if (value === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
-  if (cust) cust.hidden = true;
   hubSettings = normalizeSettings({ ...hubSettings, [info.key]: normalizeCliModel(value) });
   saveHubSettings();
-}
-function updateAiCliModelCustom(value) {
-  const provider = hubSettings && hubSettings.aiProvider;
-  const info = AI_CLI_INFO[provider];
-  if (!info) return;
-  hubSettings = normalizeSettings({ ...hubSettings, [info.key]: normalizeCliModel(value) });
-  saveHubSettings();
+  _aiCliShowUsed(normalizeCliModel(value));
 }
 function aiCliRecheck() {
   const provider = hubSettings && hubSettings.aiProvider;

@@ -42,9 +42,9 @@ const claudeRun = require('./claude-run');
 const PROVIDERS = Object.freeze(['claudecode', 'codex']);
 const TIMEOUT_MS = 180000;          // a long reasoning answer, not a hung child
 const TOOL_TIMEOUT_MS = 300000;     // a turn that may call several dashboard tools
-const STATUS_TIMEOUT_MS = 15000;
+const STATUS_TIMEOUT_MS = 30000;  // a first start on Windows can take a while
 const STATUS_TTL_MS = 30000;
-const MODELS_TTL_MS = 6 * 60 * 60 * 1000;
+const MODELS_TTL_MS = 60 * 60 * 1000;   // Settings asks for a fresh list whenever it opens
 const MAX_ACTIVE = 2;               // concurrent turns; the quota is shared and finite
 const MAX_PROMPT_CHARS = 60000;     // history is trimmed from the oldest turn
 const MAX_STDOUT = 4 * 1024 * 1024;
@@ -156,7 +156,69 @@ async function runWithOptional(exe, build, optional, opts) {
   return run(exe, build(skip), opts);
 }
 
-// ── status ──────────────────────────────────────────────────────────────────
+// ── status and models ───────────────────────────────────────────────────────
+// Claude Code answers both through the control protocol of its stream-json
+// mode, the one Anthropic's own Agent SDK speaks: an `initialize` request gets
+// back, among other things, the models this account can use today (with the
+// exact model each one currently resolves to) and the account's plan. No user
+// message is sent, so no model is called and no quota is spent; the program
+// exits when its input closes. It is the same list its own /model picker
+// shows, so it moves when Anthropic ships a model, with no change here.
+const INIT_TIMEOUT_MS = 45000;      // a cold start on Windows is slow; this is not on the chat path
+const initCache = { at: 0, value: null };
+async function claudeInit({ fresh = false } = {}) {
+  if (!fresh && initCache.value && Date.now() - initCache.at < MODELS_TTL_MS) return initCache.value;
+  const exe = await claudeRun.resolveExecutable();
+  if (!exe) return null;
+  const req = JSON.stringify({ type: 'control_request', request_id: 'xenon-init', request: { subtype: 'initialize' } }) + '\n';
+  const r = await runWithOptional(exe, (skip) => {
+    const a = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--tools', ''];
+    for (const f of ['--safe-mode', '--no-session-persistence']) if (!skip.has(f)) a.push(f);
+    return a;
+  }, ['--safe-mode', '--no-session-persistence'], { input: req, env: childEnv('claudecode'), cwd: await workDir(), timeoutMs: INIT_TIMEOUT_MS });
+  const value = parseClaudeInit(r.stdout);
+  if (value) { initCache.at = Date.now(); initCache.value = value; }
+  return value;
+}
+// The `initialize` control_response: models [{ value, displayName,
+// description: "Opus 5.5 · Best for …", resolvedModel }], account { … }.
+function parseClaudeInit(out) {
+  for (const line of String(out || '').split(/\r?\n/)) {
+    let j;
+    try { j = JSON.parse(line); } catch { continue; }
+    if (!j || j.type !== 'control_response' || !j.response || j.response.subtype !== 'success') continue;
+    const r = j.response.response || {};
+    const models = (Array.isArray(r.models) ? r.models : [])
+      .filter((m) => m && typeof m.value === 'string' && (m.value === 'default' || MODEL_RE.test(m.value)))
+      .map((m) => {
+        const desc = typeof m.description === 'string' ? m.description : '';
+        return {
+          id: m.value,
+          label: String(m.displayName || m.value).slice(0, 60),
+          // "Opus 5.5" out of "Opus 5.5 · Best for everyday, complex tasks":
+          // the version, which is language-neutral; the rest is English prose.
+          version: desc.split(' · ')[0].trim().slice(0, 40),
+          resolved: typeof m.resolvedModel === 'string' ? m.resolvedModel.slice(0, 80) : '',
+        };
+      })
+      .slice(0, 40);
+    const acct = r.account && typeof r.account === 'object' ? r.account : null;
+    const plan = acct && typeof acct.subscriptionType === 'string' ? acct.subscriptionType.slice(0, 40) : '';
+    return { models, plan, hasAccount: !!acct && Object.keys(acct).length > 0 };
+  }
+  return null;
+}
+
+// Why a status came back unknown, in the program's own words where it gave
+// any: shown under the status so a problem on someone's PC can be told apart
+// from another (a timeout, an older program, an error it printed).
+function why(r, label) {
+  if (!r) return label + ': no answer';
+  if (r.timedOut) return label + ': timed out';
+  const tail = (String(r.stderr || '').trim() || String(r.stdout || '').trim()).split(/\r?\n/).slice(-2).join(' ').slice(0, 200);
+  return label + ': exit ' + r.code + (tail ? ' · ' + tail : '');
+}
+
 const statusCache = new Map();   // provider → { at, value }
 async function status(provider, { fresh = false } = {}) {
   if (!isCliProvider(provider)) return { provider, installed: false, loggedIn: false };
@@ -167,22 +229,35 @@ async function status(provider, { fresh = false } = {}) {
   if (!exe) {
     value = { provider, installed: false, loggedIn: false };
   } else {
-    const env = childEnv(provider);
-    const opts = { env, timeoutMs: STATUS_TIMEOUT_MS, cwd: await workDir() };
-    const ver = await run(exe, ['--version'], opts);
+    const opts = { env: childEnv(provider), timeoutMs: STATUS_TIMEOUT_MS, cwd: await workDir() };
+    // In parallel: a cold start is the slow part, and it is paid once.
+    const [ver, auth, init] = await Promise.all([
+      run(exe, ['--version'], opts),
+      run(exe, provider === 'claudecode' ? ['auth', 'status'] : ['login', 'status'], opts),
+      provider === 'claudecode' ? claudeInit({ fresh }) : Promise.resolve(null),
+    ]);
     const version = (String(ver.stdout).match(/\d+\.\d+\.\d+/) || [''])[0];
-    value = Object.assign({ provider, installed: true, version }, provider === 'claudecode'
-      ? parseClaudeAuth((await run(exe, ['auth', 'status'], opts)).stdout)
-      : parseCodexLogin(await run(exe, ['login', 'status'], opts)));
+    const login = provider === 'claudecode' ? parseClaudeAuth(auth.stdout) : parseCodexLogin(auth);
+    value = { provider, installed: true, version, loggedIn: login.loggedIn, method: login.method, plan: (init && init.plan) || '' };
+    // An older Claude Code without `auth status`: an account in the
+    // initialize answer is proof enough that it is signed in.
+    if (value.loggedIn === null && init && init.hasAccount) value.loggedIn = true;
+    if (value.loggedIn === null) value.detail = [!version ? why(ver, '--version') : '', why(auth, provider === 'claudecode' ? 'auth status' : 'login status')].filter(Boolean).join(' | ');
   }
   statusCache.set(provider, { at: Date.now(), value });
   return value;
 }
-// `claude auth status` prints JSON: { loggedIn, authMethod, ... }.
+// `claude auth status` prints JSON: { loggedIn, authMethod, ... }. Anything
+// around it (an update notice, a warning) is tolerated: the object is taken
+// from the first "{" to the last "}".
 function parseClaudeAuth(out) {
+  const text = String(out || '');
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
   try {
-    const j = JSON.parse(String(out || '').trim());
-    return { loggedIn: j.loggedIn === true, method: typeof j.authMethod === 'string' ? j.authMethod.slice(0, 40) : '' };
+    if (a < 0 || b <= a) throw new Error('no json');
+    const j = JSON.parse(text.slice(a, b + 1));
+    if (typeof j.loggedIn !== 'boolean') throw new Error('no loggedIn');
+    return { loggedIn: j.loggedIn, method: typeof j.authMethod === 'string' ? j.authMethod.slice(0, 40) : '' };
   } catch { return { loggedIn: null, method: '' }; }
 }
 // `codex login status` prints a sentence and exits 0 either way, so the words
@@ -196,12 +271,19 @@ function parseCodexLogin(r) {
   return { loggedIn: null, method: '' };
 }
 
-// ── models ──────────────────────────────────────────────────────────────────
+// The models the program offers this account today. Claude Code: its own
+// list, from `initialize` above. Codex: its own catalog, `codex debug models`
+// (the ones it marks `visibility: "list"` are the ones its picker shows).
+// Only if the program cannot be asked does Claude Code fall back to its
+// family aliases, which it resolves to the newest model of each family.
 let codexModels = { at: 0, list: null };
-async function models(provider) {
-  if (provider === 'claudecode') return CLAUDE_MODELS.slice();
+async function models(provider, { fresh = false } = {}) {
+  if (provider === 'claudecode') {
+    const init = await claudeInit({ fresh }).catch(() => null);
+    return init && init.models.length ? init.models : CLAUDE_MODELS.map((m) => Object.assign({ version: '', resolved: '' }, m));
+  }
   if (provider !== 'codex') return [];
-  if (codexModels.list && Date.now() - codexModels.at < MODELS_TTL_MS) return codexModels.list;
+  if (!fresh && codexModels.list && Date.now() - codexModels.at < MODELS_TTL_MS) return codexModels.list;
   const exe = await resolveCodex();
   if (!exe) return [];
   const r = await run(exe, ['debug', 'models'], { env: childEnv('codex'), timeoutMs: 30000, cwd: await workDir() });
@@ -209,8 +291,6 @@ async function models(provider) {
   if (list.length) codexModels = { at: Date.now(), list };
   return list;
 }
-// `codex debug models` renders the catalog the program itself uses; the ones
-// it marks `visibility: "list"` are the ones its own picker shows.
 function parseCodexModels(out) {
   let j;
   try { j = JSON.parse(String(out || '')); } catch { return []; }
@@ -417,8 +497,11 @@ async function chat({ provider, model, systemText, history, tools, executeTool }
   if (!prompt) throw new CliError('cli_empty');
   const exe = await resolveExe(provider);
   if (!exe) throw new CliError('cli_not_installed');
-  // A known "not signed in" answers at once; unknown (null) still tries.
-  if ((await status(provider)).loggedIn === false) throw new CliError('cli_not_logged_in');
+  // A recent "not signed in" answers at once. Only a cached one: a cold status
+  // check starts the program three times, which a chat turn must not wait for,
+  // and the program itself says so anyway when it is not signed in.
+  const known = statusCache.get(provider);
+  if (known && Date.now() - known.at < STATUS_TTL_MS && known.value.loggedIn === false) throw new CliError('cli_not_logged_in');
   if (active >= MAX_ACTIVE) throw new CliError('cli_busy');
   active++;
   const mcpTools = (mcpUrl && typeof executeTool === 'function') ? geminiToolsToMcp(tools) : [];
@@ -452,5 +535,5 @@ module.exports = {
   isCliProvider, sanitizeModel, status, models, chat, oneShot, CliError,
   configure, handleMcp,
   // exposed for unit tests
-  _internal: { buildPrompt, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseCodexLogin, parseCodexModels, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE },
+  _internal: { buildPrompt, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseClaudeInit, parseCodexLogin, parseCodexModels, statusCache, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE },
 };

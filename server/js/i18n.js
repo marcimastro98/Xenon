@@ -31240,6 +31240,11 @@ Object.assign(i18n.nl, {
 // Codex, run as installed and signed in by the user (server/ai-cli.js).
 // {app} is the program's name, {cmd} what to run to sign in, {ver} its version.
 Object.assign(i18n.it, {
+  settings_cli_no_server: "Il server di Xenon non ha risposto a questa richiesta. Se hai appena aggiornato Xenon, riavvialo.",
+  settings_cli_detail: "Dettagli: {detail}",
+  settings_cli_plan: "Abbonamento: {plan}",
+  settings_cli_models_loading: "Caricamento dei modelli…",
+  settings_cli_model_saved: "{model} (salvato, non più nell'elenco)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "Con {app} Xenon AI usa il tuo abbonamento invece di una chiave API: risponde il programma {app} installato su questo PC, con il login che hai fatto tu. Xenon non vede né conserva le tue credenziali.",
@@ -31264,6 +31269,11 @@ Object.assign(i18n.it, {
   ai_cli_failed: "{app} ha risposto con un errore:",
 });
 Object.assign(i18n.en, {
+  settings_cli_no_server: "Xenon's server did not answer this request. If you have just updated Xenon, restart it.",
+  settings_cli_detail: "Details: {detail}",
+  settings_cli_plan: "Plan: {plan}",
+  settings_cli_models_loading: "Loading models…",
+  settings_cli_model_saved: "{model} (saved, no longer listed)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "With {app}, Xenon AI uses your subscription instead of an API key: the {app} program installed on this PC answers, signed in by you. Xenon never sees or stores your credentials.",
@@ -31288,6 +31298,11 @@ Object.assign(i18n.en, {
   ai_cli_failed: "{app} answered with an error:",
 });
 Object.assign(i18n.ko, {
+  settings_cli_no_server: "Xenon 서버가 이 요청에 응답하지 않았습니다. Xenon을 방금 업데이트했다면 다시 시작하세요.",
+  settings_cli_detail: "세부 정보: {detail}",
+  settings_cli_plan: "요금제: {plan}",
+  settings_cli_models_loading: "모델을 불러오는 중…",
+  settings_cli_model_saved: "{model} (저장됨, 목록에 더 이상 없음)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "{app}를 선택하면 Xenon AI가 API 키 대신 구독을 사용합니다. 이 PC에 설치되어 직접 로그인한 {app} 프로그램이 답변하며, Xenon은 로그인 정보를 보거나 저장하지 않습니다.",
@@ -31312,6 +31327,11 @@ Object.assign(i18n.ko, {
   ai_cli_failed: "{app} 오류:",
 });
 Object.assign(i18n.ja, {
+  settings_cli_no_server: "Xenon のサーバーがこの要求に応答しませんでした。Xenon を更新したばかりなら、再起動してください。",
+  settings_cli_detail: "詳細: {detail}",
+  settings_cli_plan: "プラン: {plan}",
+  settings_cli_models_loading: "モデルを読み込み中…",
+  settings_cli_model_saved: "{model}（保存済み、一覧にはもうありません）",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "{app} を選ぶと、Xenon AI は API キーの代わりにサブスクリプションを使います。この PC にインストールされ、あなたがサインインした {app} が回答します。Xenon が認証情報を見たり保存したりすることはありません。",
@@ -31336,6 +31356,11 @@ Object.assign(i18n.ja, {
   ai_cli_failed: "{app} からエラーが返されました:",
 });
 Object.assign(i18n.zh, {
+  settings_cli_no_server: "Xenon 服务器没有响应此请求。如果你刚更新了 Xenon，请重新启动它。",
+  settings_cli_detail: "详细信息：{detail}",
+  settings_cli_plan: "订阅：{plan}",
+  settings_cli_models_loading: "正在加载模型…",
+  settings_cli_model_saved: "{model}（已保存，已不在列表中）",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "选择 {app} 后，Xenon AI 使用你的订阅而不是 API 密钥：由本机安装并由你登录的 {app} 程序回答。Xenon 不会查看或保存你的登录凭据。",
@@ -31360,6 +31385,11 @@ Object.assign(i18n.zh, {
   ai_cli_failed: "{app} 返回错误：",
 });
 Object.assign(i18n.es, {
+  settings_cli_no_server: "El servidor de Xenon no respondió a esta solicitud. Si acabas de actualizar Xenon, reinícialo.",
+  settings_cli_detail: "Detalles: {detail}",
+  settings_cli_plan: "Plan: {plan}",
+  settings_cli_models_loading: "Cargando modelos…",
+  settings_cli_model_saved: "{model} (guardado, ya no aparece en la lista)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "Con {app}, Xenon AI usa tu suscripción en lugar de una clave API: responde el programa {app} instalado en este PC, con la sesión que iniciaste tú. Xenon nunca ve ni guarda tus credenciales.",
@@ -31384,6 +31414,11 @@ Object.assign(i18n.es, {
   ai_cli_failed: "{app} respondió con un error:",
 });
 Object.assign(i18n.fr, {
+  settings_cli_no_server: "Le serveur de Xenon n’a pas répondu à cette demande. Si tu viens de mettre Xenon à jour, redémarre-le.",
+  settings_cli_detail: "Détails : {detail}",
+  settings_cli_plan: "Abonnement : {plan}",
+  settings_cli_models_loading: "Chargement des modèles…",
+  settings_cli_model_saved: "{model} (enregistré, plus dans la liste)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "Avec {app}, Xenon AI utilise ton abonnement au lieu d’une clé API : c’est le programme {app} installé sur ce PC qui répond, avec la connexion que tu as faite toi-même. Xenon ne voit ni ne conserve tes identifiants.",
@@ -31408,6 +31443,11 @@ Object.assign(i18n.fr, {
   ai_cli_failed: "{app} a répondu avec une erreur :",
 });
 Object.assign(i18n.de, {
+  settings_cli_no_server: "Der Xenon-Server hat auf diese Anfrage nicht geantwortet. Wenn du Xenon gerade aktualisiert hast, starte es neu.",
+  settings_cli_detail: "Details: {detail}",
+  settings_cli_plan: "Abo: {plan}",
+  settings_cli_models_loading: "Modelle werden geladen…",
+  settings_cli_model_saved: "{model} (gespeichert, nicht mehr in der Liste)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "Mit {app} nutzt Xenon AI dein Abo statt eines API-Schlüssels: Es antwortet das auf diesem PC installierte Programm {app}, bei dem du dich selbst angemeldet hast. Xenon sieht und speichert deine Zugangsdaten nie.",
@@ -31432,6 +31472,11 @@ Object.assign(i18n.de, {
   ai_cli_failed: "{app} hat mit einem Fehler geantwortet:",
 });
 Object.assign(i18n.pt, {
+  settings_cli_no_server: "O servidor da Xenon não respondeu a este pedido. Se acabaste de atualizar a Xenon, reinicia-a.",
+  settings_cli_detail: "Detalhes: {detail}",
+  settings_cli_plan: "Subscrição: {plan}",
+  settings_cli_models_loading: "A carregar modelos…",
+  settings_cli_model_saved: "{model} (guardado, já não está na lista)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "Com o {app}, a Xenon AI usa a tua subscrição em vez de uma chave API: responde o programa {app} instalado neste PC, com a sessão que tu iniciaste. A Xenon nunca vê nem guarda as tuas credenciais.",
@@ -31456,6 +31501,11 @@ Object.assign(i18n.pt, {
   ai_cli_failed: "O {app} respondeu com um erro:",
 });
 Object.assign(i18n.ru, {
+  settings_cli_no_server: "Сервер Xenon не ответил на этот запрос. Если вы только что обновили Xenon, перезапустите его.",
+  settings_cli_detail: "Подробности: {detail}",
+  settings_cli_plan: "Подписка: {plan}",
+  settings_cli_models_loading: "Загрузка моделей…",
+  settings_cli_model_saved: "{model} (сохранено, больше нет в списке)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "С {app} Xenon AI использует вашу подписку вместо API-ключа: отвечает программа {app}, установленная на этом ПК, в которую вы вошли сами. Xenon не видит и не хранит ваши учётные данные.",
@@ -31480,6 +31530,11 @@ Object.assign(i18n.ru, {
   ai_cli_failed: "{app} ответил ошибкой:",
 });
 Object.assign(i18n.nl, {
+  settings_cli_no_server: "De Xenon-server heeft niet op dit verzoek geantwoord. Als je Xenon net hebt bijgewerkt, start het dan opnieuw.",
+  settings_cli_detail: "Details: {detail}",
+  settings_cli_plan: "Abonnement: {plan}",
+  settings_cli_models_loading: "Modellen laden…",
+  settings_cli_model_saved: "{model} (opgeslagen, niet meer in de lijst)",
   ai_provider_claudecode: 'Claude Code',
   ai_provider_codex: 'Codex',
   settings_cli_intro: "Met {app} gebruikt Xenon AI je abonnement in plaats van een API-sleutel: het programma {app} op deze pc antwoordt, met de aanmelding die je zelf hebt gedaan. Xenon ziet en bewaart je inloggegevens nooit.",

@@ -411,3 +411,67 @@ test('the bridge refuses to send its token anywhere but this machine', () => {
   const src = read('../ai-mcp-bridge.js');
   assert.match(src, /u\.protocol !== 'http:' \|\| !\['127\.0\.0\.1', 'localhost', '\[::1\]'\]\.includes\(u\.hostname\)/);
 });
+
+// ── the models on offer today ─────────────────────────────────────────────
+
+// Claude Code's answer to the `initialize` control request (the one Anthropic's
+// Agent SDK sends for supportedModels()), trimmed from a real run of 2.1.282.
+const INIT_SAMPLE = [
+  { type: 'active_goal', value: null },
+  { type: 'control_response', response: { subtype: 'success', request_id: 'xenon-init', response: {
+    commands: [{ name: 'x' }],
+    models: [
+      { value: 'default', resolvedModel: 'claude-sonnet-5', displayName: 'Default (recommended)', description: 'Sonnet 5 · Efficient for routine tasks' },
+      { value: 'sonnet', resolvedModel: 'claude-sonnet-5', displayName: 'Sonnet', description: 'Sonnet 5 · Efficient for routine tasks' },
+      { value: 'claude-fable-5-1', resolvedModel: 'claude-fable-5-1', displayName: 'Fable', description: 'Fable 5.1 · Most capable for your hardest and longest-running tasks' },
+      { value: 'opus', resolvedModel: 'claude-opus-5-5', displayName: 'Opus', description: 'Opus 5.5 · Best for everyday, complex tasks' },
+      { value: 'haiku', resolvedModel: 'claude-haiku-4-5-20251001', displayName: 'Haiku', description: 'Haiku 4.5 · Fastest for quick answers' },
+      { value: '--evil', displayName: 'x', description: 'y' },
+    ],
+    account: { subscriptionType: 'Claude Max', apiProvider: 'firstParty' },
+  } } },
+].map((l) => JSON.stringify(l)).join('\n');
+
+test("Claude Code's model list is the one it gives this account today, exact models included", () => {
+  const r = I.parseClaudeInit(INIT_SAMPLE);
+  assert.deepEqual(r.models.map((m) => [m.id, m.label, m.version, m.resolved]), [
+    ['default', 'Default (recommended)', 'Sonnet 5', 'claude-sonnet-5'],
+    ['sonnet', 'Sonnet', 'Sonnet 5', 'claude-sonnet-5'],
+    ['claude-fable-5-1', 'Fable', 'Fable 5.1', 'claude-fable-5-1'],
+    ['opus', 'Opus', 'Opus 5.5', 'claude-opus-5-5'],
+    ['haiku', 'Haiku', 'Haiku 4.5', 'claude-haiku-4-5-20251001'],
+  ], 'and never an id that could read as a flag');
+  assert.equal(r.plan, 'Claude Max');
+  assert.equal(r.hasAccount, true);
+  assert.equal(I.parseClaudeInit('{"type":"result"}\nnot json'), null);
+});
+
+test('asking for the list sends no message, so it costs no quota', () => {
+  const src = read('../ai-cli.js');
+  const at = src.indexOf('async function claudeInit(');
+  const body = src.slice(at, src.indexOf('\n}\n', at));
+  assert.match(body, /request: \{ subtype: 'initialize' \}/);
+  assert.doesNotMatch(body, /"type":\s*"user"|type: 'user'/, 'no user turn, so the model is never called');
+  assert.match(body, /'--tools', ''/);
+});
+
+test("`auth status` is read even with a notice around the JSON, and unknown says why", () => {
+  assert.deepEqual(I.parseClaudeAuth('Update available: 2.2.0\r\n{\r\n  "loggedIn": true,\r\n  "authMethod": "claude.ai"\r\n}\r\n'), { loggedIn: true, method: 'claude.ai' });
+  assert.deepEqual(I.parseClaudeAuth('{"something":"else"}'), { loggedIn: null, method: '' });
+  const src = read('../ai-cli.js');
+  assert.match(src, /if \(value\.loggedIn === null && init && init\.hasAccount\) value\.loggedIn = true;/);
+  assert.match(src, /if \(value\.loggedIn === null\) value\.detail = /);
+});
+
+test('the Settings picker shows the program\'s list, with no free-text "custom" entry', () => {
+  const H = read('../index.html');
+  const panel = H.slice(H.indexOf('id="settings-cli-panel"'), H.indexOf('id="settings-anthropic-panel"'));
+  assert.doesNotMatch(panel, /settings-cli-model-custom/);
+  assert.match(panel, /id="settings-cli-model-used"/);
+  assert.match(panel, /id="settings-cli-detail"/);
+  const S = read('../js/settings.js');
+  const at = S.indexOf('function _aiCliRenderModels(');
+  const body = S.slice(at, S.indexOf('\n}\n', at));
+  assert.doesNotMatch(body, /__custom__/);
+  assert.match(S, /\/api\/ai\/cli\/models\?provider=' \+ provider \+ q/);
+});

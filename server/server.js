@@ -17704,11 +17704,13 @@ const handleRequest = async (req, res) => {
     catch (e) { json({ ok: false, error: 'status_failed' }); }
 
   } else if (reqPath === '/api/ai/cli/models' && req.method === 'GET') {
-    // The models the program itself offers: Claude Code's aliases, Codex's own
-    // catalog (`codex debug models`). 'default' is always an option on top.
+    // The models the program itself offers this account today: Claude Code's
+    // own list (its `initialize` answer, what its /model picker shows), Codex's
+    // own catalog (`codex debug models`). `fresh=1` when Settings opens, so the
+    // picker is never older than the program.
     const provider = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
     if (!aiCli.isCliProvider(provider)) { json({ ok: false, error: 'bad_provider' }); return; }
-    try { json({ ok: true, provider, models: await aiCli.models(provider) }); }
+    try { json({ ok: true, provider, models: await aiCli.models(provider, { fresh: urlObj.searchParams.get('fresh') === '1' }) }); }
     catch (e) { json({ ok: true, provider, models: [] }); }
 
   } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
