@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Thanks for downloading Xenon</title>
+<meta name="description" content="Your Xenon download has started. What to do next on Windows, macOS and Linux, and how to support the project if you want to.">
+<!-- Reached only from a download button, so there is nothing here for a search
+     engine: it stays out of the index and out of sitemap.xml. -->
+<meta name="robots" content="noindex, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  1140px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  /* Header right cluster + language picker: same markup and behaviour as the
+     FAQ, so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+
+  /* ── The download line ── */
+  .toast {
+    margin-top: 22px; display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--line); background: var(--g-1); border-radius: 2px;
+    padding: 11px 16px; font-size: 14.5px; color: var(--muted);
+  }
+  .toast > span:last-child { flex: 1; min-width: 0; }
+  .toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text); flex: none; animation: tk-pulse 1.6s ease-in-out infinite; }
+  .toast[data-state="none"] .dot { display: none; }
+  .toast code { font-size: 12.5px; }
+  @keyframes tk-pulse { 50% { opacity: .25; } }
+
+  /* ── Two columns: the thanks and the next steps on the left, the support
+     card on the right. On a phone the card comes straight after the thanks,
+     before the steps, which is where a person still has the page in view. ── */
+  .hero {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px;
+    grid-template-areas: "intro card" "next card";
+    padding: 40px 0 96px; align-items: start;
+  }
+  .intro { grid-area: intro; }
+  .next  { grid-area: next; border-top: 1px solid var(--line); padding-top: 22px; }
+  .card  { grid-area: card; }
+
+  .shot { margin: 0 0 30px; }
+  .shot img {
+    display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 32 / 9;
+    object-fit: cover; border: 1px solid var(--line); border-radius: 2px;
+  }
+  .shot figcaption, .eyebrow {
+    margin-top: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1.04; letter-spacing: -0.02em; margin: 0 0 18px; text-wrap: balance; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; max-width: 34em; }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .eyebrow { margin: 0 0 14px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+  .steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; color: var(--muted); font-size: 15px; counter-increment: s; }
+  .steps li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono); font-size: 12px; color: var(--text); padding-top: 3px; }
+  .steps strong { color: var(--text); font-weight: 600; }
+
+  /* ── Support card ── */
+  .card {
+    background: var(--g-1); border: 1px solid var(--line-2); border-radius: 3px;
+    padding: 26px; display: grid; gap: 18px;
+  }
+  .card h2 { margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
+  .card .sub { margin: -8px 0 0; color: var(--muted); font-size: 15px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: 2px; padding: 3px; gap: 3px; background: var(--g-0); }
+  .seg button {
+    font-family: var(--sans); font-size: 14.5px; font-weight: 600; padding: 9px 10px; border: 0; border-radius: 1px;
+    background: none; color: var(--muted); cursor: pointer; transition: background var(--d-state), color var(--d-state);
+  }
+  .seg button[aria-pressed="true"] { background: var(--text); color: var(--g-0); }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: start; text-align: left;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 2px; background: var(--g-0);
+    color: var(--muted); font: inherit; cursor: pointer; width: 100%;
+    transition: border-color var(--d-state);
+  }
+  .opt:hover { border-color: var(--line-2); }
+  .opt[aria-checked="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+  .opt .price { font-family: var(--mono); font-size: 19px; font-weight: 500; color: var(--text); line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .opt .price small { display: block; font-size: 10px; letter-spacing: .06em; color: var(--dim); text-transform: uppercase; font-weight: 400; }
+  .opt .name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--text); font-weight: 600; font-size: 15.5px; }
+  .opt .what { display: block; font-size: 13.5px; line-height: 1.5; margin-top: 3px; }
+  .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); border: 1px solid currentColor; border-radius: 2px; padding: 1px 5px; font-weight: 500; }
+
+  .go {
+    display: flex; align-items: center; justify-content: center; gap: 10px; text-align: center;
+    background: var(--text); color: var(--g-0); text-decoration: none;
+    font-weight: 700; font-size: 16px; padding: 15px 20px; border-radius: 3px;
+    transition: background var(--d-state);
+  }
+  .go:hover { background: var(--muted); }
+  .go:active { transform: translateY(1px); }
+  .go svg { width: 17px; height: 17px; flex: none; }
+  .hint { margin: -8px 0 0; font-family: var(--mono); font-size: 11.5px; color: var(--dim); text-align: center; line-height: 1.6; }
+  .hint b { color: var(--text); font-weight: 500; }
+  .foot { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 6px; font-size: 13.5px; color: var(--dim); }
+  .foot a { color: var(--muted); }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; grid-template-areas: "intro" "card" "next"; gap: 40px; padding: 28px 0 64px; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    .back { display: none; }
+    .card { padding: 20px 16px; }
+    .opt { grid-template-columns: 64px 1fr; gap: 10px; padding: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .toast .dot { animation: none; } }
+</style>
+<link rel="stylesheet" href="/site.css">
+</head>
+<body data-track-view="thanks_view">
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <div class="head-right">
+      <a class="back" href="/" data-i18n="t.nav.back">← Back to the site</a>
+      <div class="lang" id="lang">
+        <button class="navbtn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></svg>
+          <span id="lang-cur">EN</span>
+        </button>
+        <div class="lang-menu" id="lang-menu" role="listbox">
+          <button type="button" data-lang="en" role="option">English<span class="nat">EN</span></button>
+          <button type="button" data-lang="es" role="option">Español<span class="nat">ES</span></button>
+          <button type="button" data-lang="it" role="option">Italiano<span class="nat">IT</span></button>
+          <button type="button" data-lang="ko" role="option">한국어<span class="nat">KO</span></button>
+          <button type="button" data-lang="ja" role="option">日本語<span class="nat">JA</span></button>
+          <button type="button" data-lang="zh" role="option">中文<span class="nat">ZH</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <!-- Filled by the script below from ?f=. Without a script the page still
+         reads correctly and points at the download page. -->
+    <div class="toast" id="toast" role="status" data-state="none">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="toast-text">Pick your file on the <a href="download.html">download page</a>.</span>
+    </div>
+
+    <section class="hero">
+      <div class="intro">
+        <figure class="shot">
+          <img src="images/ambient-edge-poster.webp" alt="" width="1600" height="450">
+          <figcaption data-i18n="t.shot">Ambient scene on a CORSAIR Xeneon Edge</figcaption>
+        </figure>
+        <h1 data-i18n="t.h1">Thanks for downloading Xenon</h1>
+        <p class="lede" data-i18n="t.lede1">Xenon is written by one person, with no ads and no investors. It keeps going because people support it.</p>
+        <p class="lede"><strong data-i18n="t.lede2">The app stays free and complete even if you never give anything.</strong></p>
+      </div>
+
+      <div class="next">
+        <p class="eyebrow" data-i18n="t.next">What happens now</p>
+        <ol class="steps" id="steps"></ol>
+      </div>
+
+      <aside class="card" aria-labelledby="sup-h">
+        <h2 id="sup-h" data-i18n="t.card.h">Want to help?</h2>
+        <p class="sub" data-i18n="t.card.sub">Supporters get the monthly supporter drops, the Discord role and their name on the site.</p>
+
+        <div class="seg" role="group" aria-labelledby="sup-h">
+          <button type="button" id="seg-once" data-mode="once" aria-pressed="true" data-i18n="t.seg.once">One-time</button>
+          <button type="button" id="seg-sub" data-mode="sub" aria-pressed="false" data-i18n="t.seg.sub">Membership</button>
+        </div>
+
+        <div class="opts" role="radiogroup" aria-labelledby="sup-h" id="opts"></div>
+
+        <a class="go" id="go" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="thanks_pass">
+          <svg viewBox="0 0.25 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.6 12c-2.1 4.4-9.6 9-9.6 9z"/></svg>
+          <span id="go-label">Continue on Buy Me a Coffee</span>
+        </a>
+        <p class="hint" id="hint"></p>
+
+        <div class="foot">
+          <span data-i18n="t.foot.pay">Payment happens on Buy Me a Coffee. Xenon never sees your card details.</span>
+          <a href="https://buymeacoffee.com/marcimastro98/goals/share/720743" target="_blank" rel="noopener" data-i18n="t.foot.goal">See how close the code-signing certificate fund is</a>
+        </div>
+      </aside>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="faq.html">FAQ</a> · <a href="download.html">Download</a> · <a href="linux.html">Linux</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+
+<script>
+const I18N = {
+ "en": {
+  "t.title": "Thanks for downloading Xenon",
+  "t.nav.back": "← Back to the site",
+  "t.toast.started": "Your download of {file} has started. Nothing happened? <a id='manual'>Download it manually</a>.",
+  "t.toast.none": "Pick your file on the <a href='/download.html'>download page</a>.",
+  "t.shot": "Ambient scene on a CORSAIR Xeneon Edge",
+  "t.h1": "Thanks for downloading Xenon",
+  "t.lede1": "Xenon is written by one person, with no ads and no investors. It keeps going because people support it.",
+  "t.lede2": "The app stays free and complete even if you never give anything.",
+  "t.next": "What happens now",
+  "t.win.1": "<strong>Open Xenon-Setup-x64.exe.</strong> If Windows shows a blue box, click <strong>More info</strong>, then <strong>Run anyway</strong>. It appears because the installer is not code-signed yet, and <a href='/faq.html#warnings'>the FAQ explains why</a>.",
+  "t.win.2": "<strong>Press Complete setup.</strong> The app opens by itself and offers it. It installs Node.js, the sensor readers and the task that starts Xenon when you sign in, showing you each step. A few minutes, once.",
+  "t.mac.1": "<strong>Open the .dmg and start Xenon.</strong> One file for Apple Silicon and Intel, macOS 11 or later. If macOS says it cannot check the app, <a href='/faq.html#mac-linux'>the FAQ has the fix</a>.",
+  "t.setup.2": "<strong>Let it set itself up.</strong> The first launch offers to prepare the dashboard in a terminal window, and verifies the download before extracting anything.",
+  "t.linux.1": "<strong>Make the AppImage executable and run it.</strong> <code>chmod +x</code> is all it needs. <a href='/linux.html'>The Linux page</a> lists what works on X11 and on Wayland.",
+  "t.linux.pkg.1": "<strong>Install the package and open Xenon.</strong> The .deb is for Debian and Ubuntu, the .rpm for Fedora and openSUSE. <a href='/linux.html'>The Linux page</a> has the details.",
+  "t.step.3": "<strong>Pick the screen.</strong> A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. <a href='/phone.html'>Pairing a phone</a> takes about thirty seconds.",
+  "t.card.h": "Want to help?",
+  "t.card.sub": "Supporters get the monthly supporter drops, the Discord role and their name on the site.",
+  "t.seg.once": "One-time",
+  "t.seg.sub": "Membership",
+  "t.coffee.name": "A coffee",
+  "t.coffee.what": "One month of supporter drops, the Discord role and your name on the site.",
+  "t.pass.name": "Supporter pass",
+  "t.pass.what": "Five months of drops, paid once. Nothing renews by itself.",
+  "t.free.name": "Another amount",
+  "t.free.what": "Each coffee is $5. The more you give, the longer the drops keep coming.",
+  "t.month.name": "Monthly",
+  "t.month.what": "Drops arrive every month while you stay. Cancel whenever you like.",
+  "t.year.name": "A whole year",
+  "t.year.what": "Twelve months of drops, plus a theme I build for you, one request a month.",
+  "t.unit.once": "one-time",
+  "t.unit.free": "you choose",
+  "t.unit.month": "a month",
+  "t.unit.year": "a year",
+  "t.tag.pick": "Recommended",
+  "t.tag.theme": "Custom theme",
+  "t.go.once": "Continue on Buy Me a Coffee",
+  "t.go.sub": "Join on Buy Me a Coffee",
+  "t.hint.coffee": "On Buy Me a Coffee, leave it at <b>1 coffee</b>",
+  "t.hint.pass": "On Buy Me a Coffee, choose <b>5 coffees</b>",
+  "t.hint.free": "On Buy Me a Coffee, choose <b>how many coffees</b>",
+  "t.hint.month": "On the Membership page, pick <b>the monthly plan</b>",
+  "t.hint.year": "On the Membership page, pick <b>the yearly plan</b>",
+  "t.foot.pay": "Payment happens on Buy Me a Coffee. Xenon never sees your card details.",
+  "t.foot.goal": "See how close the code-signing certificate fund is"
+ },
+ "it": {
+  "t.title": "Grazie per aver scaricato Xenon",
+  "t.nav.back": "← Torna al sito",
+  "t.toast.started": "Il download di {file} è partito. Non succede nulla? <a id='manual'>Scaricalo a mano</a>.",
+  "t.toast.none": "Scegli il file giusto nella <a href='/download.html'>pagina di download</a>.",
+  "t.shot": "Scena Ambient su un CORSAIR Xeneon Edge",
+  "t.h1": "Grazie per aver scaricato Xenon",
+  "t.lede1": "Xenon lo scrive una persona sola, senza pubblicità e senza investitori. Va avanti grazie a chi lo sostiene.",
+  "t.lede2": "L'app resta gratis e completa anche se non doni nulla.",
+  "t.next": "Cosa succede adesso",
+  "t.win.1": "<strong>Apri Xenon-Setup-x64.exe.</strong> Se Windows mostra la finestra blu, clicca <strong>Ulteriori informazioni</strong> e poi <strong>Esegui comunque</strong>. Compare perché l'installer non è ancora firmato, e <a href='/faq.html#warnings'>le FAQ spiegano il motivo</a>.",
+  "t.win.2": "<strong>Premi Complete setup.</strong> L'app si apre da sola e te lo propone. Installa Node.js, i lettori dei sensori e l'avvio automatico all'accesso, mostrandoti ogni passaggio. Qualche minuto, una volta sola.",
+  "t.mac.1": "<strong>Apri il .dmg e avvia Xenon.</strong> Un solo file per Apple Silicon e Intel, da macOS 11 in su. Se macOS dice che non può verificare l'app, <a href='/faq.html#mac-linux'>nelle FAQ trovi la soluzione</a>.",
+  "t.setup.2": "<strong>Lascia che si configuri.</strong> Al primo avvio ti propone di preparare la dashboard in una finestra del terminale, e verifica il download prima di estrarre qualsiasi cosa.",
+  "t.linux.1": "<strong>Rendi eseguibile l'AppImage e avviala.</strong> Basta <code>chmod +x</code>. <a href='/linux.html'>La pagina Linux</a> dice cosa funziona su X11 e su Wayland.",
+  "t.linux.pkg.1": "<strong>Installa il pacchetto e apri Xenon.</strong> Il .deb è per Debian e Ubuntu, l'.rpm per Fedora e openSUSE. I dettagli sono nella <a href='/linux.html'>pagina Linux</a>.",
+  "t.step.3": "<strong>Scegli lo schermo.</strong> Un monitor in più, un tablet, il telefono o un CORSAIR Xeneon Edge. <a href='/phone.html'>Collegare un telefono</a> richiede una trentina di secondi.",
+  "t.card.h": "Vuoi darmi una mano?",
+  "t.card.sub": "Chi sostiene Xenon riceve i drop mensili per sostenitori, il ruolo su Discord e il nome sul sito.",
+  "t.seg.once": "Una volta",
+  "t.seg.sub": "Abbonamento",
+  "t.coffee.name": "Un caffè",
+  "t.coffee.what": "Un mese di drop per sostenitori, il ruolo su Discord e il tuo nome sul sito.",
+  "t.pass.name": "Pass sostenitore",
+  "t.pass.what": "Cinque mesi di drop, pagati una volta sola. Niente si rinnova da solo.",
+  "t.free.name": "Un altro importo",
+  "t.free.what": "Ogni caffè vale $5. Più ne offri, più a lungo ricevi i drop.",
+  "t.month.name": "Mensile",
+  "t.month.what": "I drop arrivano ogni mese finché resti. Disdici quando vuoi.",
+  "t.year.name": "Un anno intero",
+  "t.year.what": "Dodici mesi di drop, più un tema che costruisco per te, una richiesta al mese.",
+  "t.unit.once": "una volta",
+  "t.unit.free": "scegli tu",
+  "t.unit.month": "al mese",
+  "t.unit.year": "all'anno",
+  "t.tag.pick": "Consigliato",
+  "t.tag.theme": "Tema su misura",
+  "t.go.once": "Continua su Buy Me a Coffee",
+  "t.go.sub": "Abbonati su Buy Me a Coffee",
+  "t.hint.coffee": "Su Buy Me a Coffee lascia <b>1 caffè</b>",
+  "t.hint.pass": "Su Buy Me a Coffee scegli <b>5 caffè</b>",
+  "t.hint.free": "Su Buy Me a Coffee scegli <b>quanti caffè vuoi</b>",
+  "t.hint.month": "Nella pagina Membership scegli <b>il piano mensile</b>",
+  "t.hint.year": "Nella pagina Membership scegli <b>il piano annuale</b>",
+  "t.foot.pay": "Il pagamento avviene su Buy Me a Coffee. Xenon non vede mai i dati della tua carta.",
+  "t.foot.goal": "Guarda a che punto è la raccolta per il certificato di firma"
+ },
+ "es": {
+  "t.title": "Gracias por descargar Xenon",
+  "t.nav.back": "← Volver al sitio",
+  "t.toast.started": "La descarga de {file} ha empezado. ¿No pasa nada? <a id='manual'>Descárgalo a mano</a>.",
+  "t.toast.none": "Elige tu archivo en la <a href='/download.html'>página de descarga</a>.",
+  "t.shot": "Escena Ambient en una CORSAIR Xeneon Edge",
+  "t.h1": "Gracias por descargar Xenon",
+  "t.lede1": "Xenon lo escribe una sola persona, sin anuncios ni inversores. Sigue adelante gracias a quienes lo apoyan.",
+  "t.lede2": "La app sigue siendo gratis y completa aunque no des nada.",
+  "t.next": "Qué pasa ahora",
+  "t.win.1": "<strong>Abre Xenon-Setup-x64.exe.</strong> Si Windows muestra un aviso azul, pulsa <strong>Más información</strong> y luego <strong>Ejecutar de todas formas</strong>. Aparece porque el instalador aún no está firmado, y <a href='/faq.html#warnings'>las FAQ explican por qué</a>.",
+  "t.win.2": "<strong>Pulsa Complete setup.</strong> La app se abre sola y te lo ofrece. Instala Node.js, los lectores de sensores y la tarea que inicia Xenon al entrar en tu sesión, mostrándote cada paso. Unos minutos, una sola vez.",
+  "t.mac.1": "<strong>Abre el .dmg e inicia Xenon.</strong> Un solo archivo para Apple Silicon e Intel, desde macOS 11. Si macOS dice que no puede comprobar la app, <a href='/faq.html#mac-linux'>las FAQ tienen la solución</a>.",
+  "t.setup.2": "<strong>Deja que se configure.</strong> El primer inicio ofrece preparar el panel en una ventana de terminal, y verifica la descarga antes de extraer nada.",
+  "t.linux.1": "<strong>Haz ejecutable la AppImage y ábrela.</strong> Basta con <code>chmod +x</code>. <a href='/linux.html'>La página de Linux</a> cuenta qué funciona en X11 y en Wayland.",
+  "t.linux.pkg.1": "<strong>Instala el paquete y abre Xenon.</strong> El .deb es para Debian y Ubuntu, el .rpm para Fedora y openSUSE. Los detalles están en <a href='/linux.html'>la página de Linux</a>.",
+  "t.step.3": "<strong>Elige la pantalla.</strong> Un monitor de sobra, una tablet, tu móvil o una CORSAIR Xeneon Edge. <a href='/phone.html'>Vincular un móvil</a> lleva unos treinta segundos.",
+  "t.card.h": "¿Quieres echarme una mano?",
+  "t.card.sub": "Quienes apoyan Xenon reciben los lanzamientos mensuales para patrocinadores, el rol en Discord y su nombre en el sitio.",
+  "t.seg.once": "Una vez",
+  "t.seg.sub": "Membresía",
+  "t.coffee.name": "Un café",
+  "t.coffee.what": "Un mes de lanzamientos para patrocinadores, el rol en Discord y tu nombre en el sitio.",
+  "t.pass.name": "Pase de patrocinador",
+  "t.pass.what": "Cinco meses de lanzamientos, pagados una sola vez. Nada se renueva solo.",
+  "t.free.name": "Otra cantidad",
+  "t.free.what": "Cada café vale $5. Cuanto más das, más tiempo recibes los lanzamientos.",
+  "t.month.name": "Mensual",
+  "t.month.what": "Los lanzamientos llegan cada mes mientras sigas. Cancela cuando quieras.",
+  "t.year.name": "Un año entero",
+  "t.year.what": "Doce meses de lanzamientos, más un tema que construyo para ti, una petición al mes.",
+  "t.unit.once": "una vez",
+  "t.unit.free": "tú eliges",
+  "t.unit.month": "al mes",
+  "t.unit.year": "al año",
+  "t.tag.pick": "Recomendado",
+  "t.tag.theme": "Tema a medida",
+  "t.go.once": "Continuar en Buy Me a Coffee",
+  "t.go.sub": "Unirme en Buy Me a Coffee",
+  "t.hint.coffee": "En Buy Me a Coffee deja <b>1 café</b>",
+  "t.hint.pass": "En Buy Me a Coffee elige <b>5 cafés</b>",
+  "t.hint.free": "En Buy Me a Coffee elige <b>cuántos cafés</b>",
+  "t.hint.month": "En la página Membership elige <b>el plan mensual</b>",
+  "t.hint.year": "En la página Membership elige <b>el plan anual</b>",
+  "t.foot.pay": "El pago se hace en Buy Me a Coffee. Xenon nunca ve los datos de tu tarjeta.",
+  "t.foot.goal": "Mira cuánto falta para el certificado de firma"
+ },
+ "ko": {
+  "t.title": "Xenon을 다운로드해 주셔서 감사합니다",
+  "t.nav.back": "← 사이트로 돌아가기",
+  "t.toast.started": "{file} 다운로드가 시작되었습니다. 아무 일도 없나요? <a id='manual'>직접 다운로드</a>하세요.",
+  "t.toast.none": "<a href='/download.html'>다운로드 페이지</a>에서 파일을 고르세요.",
+  "t.shot": "CORSAIR Xeneon Edge의 Ambient 장면",
+  "t.h1": "Xenon을 다운로드해 주셔서 감사합니다",
+  "t.lede1": "Xenon은 한 사람이 만듭니다. 광고도 투자자도 없고, 후원해 주는 분들 덕분에 계속됩니다.",
+  "t.lede2": "아무것도 후원하지 않아도 앱은 무료이고 완전합니다.",
+  "t.next": "이제 할 일",
+  "t.win.1": "<strong>Xenon-Setup-x64.exe를 여세요.</strong> Windows가 파란 창을 띄우면 <strong>추가 정보</strong>를 누른 뒤 <strong>실행</strong>을 누르세요. 설치 파일이 아직 코드 서명되지 않아서 나타납니다. <a href='/faq.html#warnings'>이유는 FAQ에 있습니다</a>.",
+  "t.win.2": "<strong>Complete setup을 누르세요.</strong> 앱이 저절로 열리고 이 버튼을 보여 줍니다. Node.js, 센서 리더, 로그인할 때 Xenon을 시작하는 작업을 설치하며 단계마다 보여 줍니다. 몇 분이면 되고, 한 번만 하면 됩니다.",
+  "t.mac.1": "<strong>.dmg를 열고 Xenon을 실행하세요.</strong> Apple Silicon과 Intel 모두 파일 하나로, macOS 11 이상입니다. macOS가 앱을 확인할 수 없다고 하면 <a href='/faq.html#mac-linux'>FAQ에 해결 방법이 있습니다</a>.",
+  "t.setup.2": "<strong>설정은 앱에 맡기세요.</strong> 처음 실행하면 터미널 창에서 대시보드를 준비할지 묻고, 무엇이든 풀기 전에 다운로드를 검증합니다.",
+  "t.linux.1": "<strong>AppImage에 실행 권한을 주고 실행하세요.</strong> <code>chmod +x</code>면 충분합니다. X11과 Wayland에서 무엇이 되는지는 <a href='/linux.html'>Linux 페이지</a>에 있습니다.",
+  "t.linux.pkg.1": "<strong>패키지를 설치하고 Xenon을 여세요.</strong> .deb는 Debian과 Ubuntu용, .rpm은 Fedora와 openSUSE용입니다. 자세한 내용은 <a href='/linux.html'>Linux 페이지</a>에 있습니다.",
+  "t.step.3": "<strong>화면을 고르세요.</strong> 남는 모니터, 태블릿, 휴대폰 또는 CORSAIR Xeneon Edge. <a href='/phone.html'>휴대폰 연결</a>은 30초 정도 걸립니다.",
+  "t.card.h": "도와주시겠어요?",
+  "t.card.sub": "후원자는 매달 서포터 드롭, Discord 역할, 그리고 사이트에 이름을 받습니다.",
+  "t.seg.once": "한 번",
+  "t.seg.sub": "멤버십",
+  "t.coffee.name": "커피 한 잔",
+  "t.coffee.what": "서포터 드롭 한 달, Discord 역할, 그리고 사이트에 이름.",
+  "t.pass.name": "서포터 패스",
+  "t.pass.what": "드롭 다섯 달, 한 번만 결제합니다. 저절로 갱신되지 않습니다.",
+  "t.free.name": "다른 금액",
+  "t.free.what": "커피 한 잔은 $5입니다. 많이 후원할수록 드롭을 더 오래 받습니다.",
+  "t.month.name": "매달",
+  "t.month.what": "멤버로 있는 동안 매달 드롭이 옵니다. 언제든 해지할 수 있습니다.",
+  "t.year.name": "일 년 전체",
+  "t.year.what": "열두 달 동안 드롭을 받고, 제가 직접 만들어 드리는 테마가 더해집니다. 요청은 한 달에 하나씩.",
+  "t.unit.once": "한 번",
+  "t.unit.free": "직접 선택",
+  "t.unit.month": "매달",
+  "t.unit.year": "매년",
+  "t.tag.pick": "추천",
+  "t.tag.theme": "맞춤 테마",
+  "t.go.once": "Buy Me a Coffee에서 계속",
+  "t.go.sub": "Buy Me a Coffee에서 가입",
+  "t.hint.coffee": "Buy Me a Coffee에서 <b>커피 1잔</b> 그대로 두세요",
+  "t.hint.pass": "Buy Me a Coffee에서 <b>커피 5잔</b>을 고르세요",
+  "t.hint.free": "Buy Me a Coffee에서 <b>원하는 잔 수</b>를 고르세요",
+  "t.hint.month": "Membership 페이지에서 <b>월간 플랜</b>을 고르세요",
+  "t.hint.year": "Membership 페이지에서 <b>연간 플랜</b>을 고르세요",
+  "t.foot.pay": "결제는 Buy Me a Coffee에서 이뤄집니다. Xenon은 카드 정보를 볼 수 없습니다.",
+  "t.foot.goal": "코드 서명 인증서 모금이 얼마나 남았는지 보기"
+ },
+ "ja": {
+  "t.title": "Xenon をダウンロードしていただきありがとうございます",
+  "t.nav.back": "← サイトに戻る",
+  "t.toast.started": "{file} のダウンロードが始まりました。始まらない場合は<a id='manual'>手動でダウンロード</a>してください。",
+  "t.toast.none": "<a href='/download.html'>ダウンロードページ</a>でファイルを選んでください。",
+  "t.shot": "CORSAIR Xeneon Edge の Ambient シーン",
+  "t.h1": "Xenon をダウンロードしていただきありがとうございます",
+  "t.lede1": "Xenon はひとりで作っています。広告も投資家もなく、支援してくれる人たちのおかげで続いています。",
+  "t.lede2": "何も支援しなくても、アプリは無料で機能も欠けません。",
+  "t.next": "このあとの流れ",
+  "t.win.1": "<strong>Xenon-Setup-x64.exe を開きます。</strong> Windows が青い画面を出したら <strong>詳細情報</strong> をクリックし、<strong>実行</strong> を選びます。インストーラーにまだコード署名がないために出る画面で、<a href='/faq.html#warnings'>理由は FAQ にあります</a>。",
+  "t.win.2": "<strong>Complete setup を押します。</strong> アプリが自動で開き、このボタンを表示します。Node.js、センサーの読み取り機能、サインイン時に Xenon を起動するタスクを、手順をひとつずつ見せながらインストールします。数分、一度だけです。",
+  "t.mac.1": "<strong>.dmg を開いて Xenon を起動します。</strong> Apple Silicon と Intel の両方に対応した 1 ファイルで、macOS 11 以降が対象です。macOS がアプリを確認できないと表示したら、<a href='/faq.html#mac-linux'>FAQ に対処法があります</a>。",
+  "t.setup.2": "<strong>あとはセットアップに任せます。</strong> 初回起動時にターミナルでダッシュボードを準備するか尋ね、何かを展開する前にダウンロードを検証します。",
+  "t.linux.1": "<strong>AppImage に実行権限を付けて起動します。</strong> <code>chmod +x</code> だけで十分です。X11 と Wayland で何が動くかは <a href='/linux.html'>Linux のページ</a>にあります。",
+  "t.linux.pkg.1": "<strong>パッケージをインストールして Xenon を開きます。</strong> .deb は Debian と Ubuntu 用、.rpm は Fedora と openSUSE 用です。詳しくは <a href='/linux.html'>Linux のページ</a>へ。",
+  "t.step.3": "<strong>画面を選びます。</strong> 空いているモニター、タブレット、スマートフォン、または CORSAIR Xeneon Edge。<a href='/phone.html'>スマートフォンの接続</a>は 30 秒ほどです。",
+  "t.card.h": "応援してもらえますか？",
+  "t.card.sub": "支援者には毎月のサポーター向けドロップ、Discord のロール、そしてサイトへのお名前掲載があります。",
+  "t.seg.once": "一回",
+  "t.seg.sub": "メンバーシップ",
+  "t.coffee.name": "コーヒー一杯",
+  "t.coffee.what": "サポーター向けドロップ一か月分、Discord のロール、そしてサイトにお名前。",
+  "t.pass.name": "サポーターパス",
+  "t.pass.what": "ドロップ五か月分を一度だけ。自動更新はありません。",
+  "t.free.name": "ほかの金額",
+  "t.free.what": "コーヒー一杯は $5 です。多いほど、ドロップを長く受け取れます。",
+  "t.month.name": "毎月",
+  "t.month.what": "続けている間、毎月ドロップが届きます。いつでも解約できます。",
+  "t.year.name": "まるごと一年",
+  "t.year.what": "十二か月分のドロップに加えて、あなたのために作るテーマがひとつ。リクエストは月にひとつまで。",
+  "t.unit.once": "一回",
+  "t.unit.free": "自由に",
+  "t.unit.month": "毎月",
+  "t.unit.year": "毎年",
+  "t.tag.pick": "おすすめ",
+  "t.tag.theme": "オーダーテーマ",
+  "t.go.once": "Buy Me a Coffee で続ける",
+  "t.go.sub": "Buy Me a Coffee で参加する",
+  "t.hint.coffee": "Buy Me a Coffee では <b>コーヒー 1 杯</b> のままで",
+  "t.hint.pass": "Buy Me a Coffee で <b>コーヒー 5 杯</b> を選択",
+  "t.hint.free": "Buy Me a Coffee で <b>好きな杯数</b> を選択",
+  "t.hint.month": "Membership ページで <b>月額プラン</b> を選択",
+  "t.hint.year": "Membership ページで <b>年額プラン</b> を選択",
+  "t.foot.pay": "お支払いは Buy Me a Coffee で行われます。Xenon がカード情報を見ることはありません。",
+  "t.foot.goal": "コード署名証明書の募金状況を見る"
+ },
+ "zh": {
+  "t.title": "感谢下载 Xenon",
+  "t.nav.back": "← 返回网站",
+  "t.toast.started": "{file} 已开始下载。没有反应？<a id='manual'>手动下载</a>。",
+  "t.toast.none": "请在<a href='/download.html'>下载页面</a>选择你的文件。",
+  "t.shot": "CORSAIR Xeneon Edge 上的 Ambient 场景",
+  "t.h1": "感谢下载 Xenon",
+  "t.lede1": "Xenon 由一个人开发，没有广告，也没有投资人。它能继续下去，靠的是支持它的人。",
+  "t.lede2": "即使你什么都不付，应用也一样免费、完整。",
+  "t.next": "接下来",
+  "t.win.1": "<strong>打开 Xenon-Setup-x64.exe。</strong> 如果 Windows 弹出蓝色窗口，点击<strong>更多信息</strong>，再点<strong>仍要运行</strong>。出现这个窗口是因为安装程序还没有代码签名，<a href='/faq.html#warnings'>FAQ 里有原因说明</a>。",
+  "t.win.2": "<strong>点击 Complete setup。</strong> 应用会自动打开并显示这个按钮。它会安装 Node.js、传感器读取组件，以及登录时启动 Xenon 的任务，每一步都会展示给你。几分钟，只需一次。",
+  "t.mac.1": "<strong>打开 .dmg 并启动 Xenon。</strong> 一个文件同时支持 Apple Silicon 和 Intel，需要 macOS 11 或更高版本。如果 macOS 提示无法验证该应用，<a href='/faq.html#mac-linux'>FAQ 里有解决办法</a>。",
+  "t.setup.2": "<strong>让它自己完成设置。</strong> 首次启动时会询问是否在终端窗口中准备仪表盘，并在解压任何内容之前先验证下载。",
+  "t.linux.1": "<strong>给 AppImage 加上执行权限并运行。</strong> 只需要 <code>chmod +x</code>。哪些功能在 X11 和 Wayland 下可用，请看 <a href='/linux.html'>Linux 页面</a>。",
+  "t.linux.pkg.1": "<strong>安装软件包并打开 Xenon。</strong> .deb 适用于 Debian 和 Ubuntu，.rpm 适用于 Fedora 和 openSUSE。详情见 <a href='/linux.html'>Linux 页面</a>。",
+  "t.step.3": "<strong>选择屏幕。</strong> 闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 都可以。<a href='/phone.html'>配对手机</a>大约需要三十秒。",
+  "t.card.h": "愿意帮我一把吗？",
+  "t.card.sub": "支持者每月可获得支持者专属内容、Discord 身份组，名字还会出现在网站上。",
+  "t.seg.once": "一次性",
+  "t.seg.sub": "会员",
+  "t.coffee.name": "一杯咖啡",
+  "t.coffee.what": "一个月的支持者专属内容、Discord 身份组，以及你的名字出现在网站上。",
+  "t.pass.name": "支持者通行证",
+  "t.pass.what": "五个月的专属内容，一次付清。不会自动续费。",
+  "t.free.name": "其他金额",
+  "t.free.what": "每杯咖啡 $5。给得越多，收到专属内容的时间就越长。",
+  "t.month.name": "按月",
+  "t.month.what": "只要你还在，每月都会收到专属内容。随时可以取消。",
+  "t.year.name": "整整一年",
+  "t.year.what": "十二个月的专属内容，外加一套我为你制作的主题，每月可提一次需求。",
+  "t.unit.once": "一次",
+  "t.unit.free": "自选",
+  "t.unit.month": "每月",
+  "t.unit.year": "每年",
+  "t.tag.pick": "推荐",
+  "t.tag.theme": "定制主题",
+  "t.go.once": "前往 Buy Me a Coffee 继续",
+  "t.go.sub": "在 Buy Me a Coffee 加入",
+  "t.hint.coffee": "在 Buy Me a Coffee 上保持 <b>1 杯咖啡</b>",
+  "t.hint.pass": "在 Buy Me a Coffee 上选择 <b>5 杯咖啡</b>",
+  "t.hint.free": "在 Buy Me a Coffee 上选择 <b>想要的杯数</b>",
+  "t.hint.month": "在 Membership 页面选择 <b>月付方案</b>",
+  "t.hint.year": "在 Membership 页面选择 <b>年付方案</b>",
+  "t.foot.pay": "付款在 Buy Me a Coffee 完成，Xenon 看不到你的银行卡信息。",
+  "t.foot.goal": "看看代码签名证书的筹款进度"
+ }
+};
+</script>
+<script>
+  // The thanks page. A download button elsewhere on the site sends the visitor
+  // here with ?f=<asset> (see /download-flow.js), and this page starts that
+  // download itself, the way blender.org does after its download button.
+  (function () {
+    const REL = 'https://github.com/marcimastro98/Xenon/releases/latest/download/';
+    // Only these names are ever downloaded. The parameter comes from the URL,
+    // and anything outside this list is ignored rather than fetched, so the
+    // page cannot be turned into a redirect to somewhere else.
+    const ASSETS = {
+      'Xenon-Setup-x64.exe': 'win',
+      'Xenon-macOS-universal.dmg': 'mac',
+      'Xenon-Linux-x86_64.AppImage': 'linux',
+      'Xenon-Linux-x86_64.deb': 'linux-pkg',
+      'Xenon-Linux-x86_64.rpm': 'linux-pkg',
+    };
+    const STEPS = {
+      win: ['t.win.1', 't.win.2', 't.step.3'],
+      mac: ['t.mac.1', 't.setup.2', 't.step.3'],
+      linux: ['t.linux.1', 't.setup.2', 't.step.3'],
+      'linux-pkg': ['t.linux.pkg.1', 't.setup.2', 't.step.3'],
+    };
+
+    // The supporter tiers the home page already offers, with the same prices.
+    // Buy Me a Coffee has no way to receive an amount from a link, so every
+    // option carries a hint that says what to pick once the visitor lands there.
+    const BMC = 'https://www.buymeacoffee.com/marcimastro98';
+    const OPTS = {
+      once: [
+        { id: 'coffee', price: '$5', unit: 't.unit.once', url: BMC },
+        { id: 'pass', price: '$25', unit: 't.unit.once', url: BMC, tag: 't.tag.pick' },
+        { id: 'free', price: '$?', unit: 't.unit.free', url: BMC },
+      ],
+      sub: [
+        { id: 'month', price: '$5', unit: 't.unit.month', url: BMC + '/membership' },
+        { id: 'year', price: '$50', unit: 't.unit.year', url: BMC + '/membership', tag: 't.tag.theme' },
+      ],
+    };
+    const DEFAULT = { once: 'pass', sub: 'year' };
+
+    let file = null;
+    try { file = new URLSearchParams(location.search).get('f'); } catch (e) { /* old browser */ }
+    if (!Object.prototype.hasOwnProperty.call(ASSETS, file)) file = null;
+    // No file (someone opened the page directly): the Windows steps are the
+    // likeliest ones, and the download line points at the download page.
+    const os = file ? ASSETS[file] : 'win';
+
+    let mode = 'once';
+    let pick = DEFAULT.once;
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const XT = (k) => (window.XT ? window.XT(k) : k);
+
+    function renderToast() {
+      const toast = $('toast');
+      const text = $('toast-text');
+      if (!file) {
+        toast.dataset.state = 'none';
+        text.innerHTML = XT('t.toast.none');
+        return;
+      }
+      toast.dataset.state = 'started';
+      text.innerHTML = XT('t.toast.started').replace('{file}', '<code>' + esc(file) + '</code>');
+      const manual = $('manual');
+      if (manual) {
+        manual.href = REL + file;
+        // Its own event, so the hub's download counter is not bumped twice for
+        // one person: the button that brought them here already counted.
+        manual.setAttribute('data-track', 'download_manual');
+        manual.setAttribute('data-track-location', 'thanks');
+      }
+    }
+
+    function renderSteps() {
+      $('steps').innerHTML = STEPS[os].map((k) => '<li><span>' + XT(k) + '</span></li>').join('');
+    }
+
+    function renderOpts() {
+      $('opts').innerHTML = OPTS[mode].map((o) =>
+        '<button type="button" class="opt" role="radio" data-id="' + o.id + '" aria-checked="' + (o.id === pick) + '">' +
+          '<span class="price">' + o.price + '<small>' + esc(XT(o.unit)) + '</small></span>' +
+          '<span><span class="name">' + esc(XT('t.' + o.id + '.name')) +
+            (o.tag ? ' <span class="tag">' + esc(XT(o.tag)) + '</span>' : '') + '</span>' +
+          '<span class="what">' + esc(XT('t.' + o.id + '.what')) + '</span></span>' +
+        '</button>').join('');
+      const o = OPTS[mode].find((x) => x.id === pick);
+      const go = $('go');
+      go.href = o.url;
+      go.setAttribute('data-track-location', 'thanks_' + o.id);
+      $('go-label').textContent = XT(mode === 'sub' ? 't.go.sub' : 't.go.once');
+      $('hint').innerHTML = XT('t.hint.' + o.id);
+    }
+
+    function render() { renderToast(); renderSteps(); renderOpts(); }
+    window.__thanksRender = render;
+
+    $('opts').addEventListener('click', (e) => {
+      const b = e.target.closest('.opt');
+      if (!b) return;
+      pick = b.dataset.id;
+      renderOpts();
+      const again = $('opts').querySelector('[data-id="' + pick + '"]');
+      if (again) again.focus();
+    });
+    document.querySelectorAll('.seg button').forEach((b) => {
+      b.addEventListener('click', () => {
+        mode = b.dataset.mode;
+        pick = DEFAULT[mode];
+        document.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        renderOpts();
+      });
+    });
+
+    // Start the download a moment after the page is up, so the thanks is on
+    // screen first. GitHub answers with an attachment, so the browser saves the
+    // file and this page stays where it is. Coming back to the page through the
+    // history does not start a second download: a restored page never re-runs
+    // this script, and a fresh load from the history is told apart by its type.
+    if (file) {
+      let back = false;
+      try {
+        const nav = performance.getEntriesByType('navigation')[0];
+        back = !!nav && nav.type === 'back_forward';
+      } catch (e) { /* older browser: download as normal */ }
+      if (!back) setTimeout(() => { location.href = REL + file; }, 900);
+    }
+  })();
+
+  // Same engine and same storage key as the home page and the FAQ, so a
+  // visitor's language choice carries across the site.
+  (function () {
+    const LANGS = ['en', 'es', 'it', 'ko', 'ja', 'zh'];
+    const KEY = 'xenon.site.lang';
+    let cur = 'en';
+    window.XT = (k) => {
+      const d = I18N[cur] || I18N.en;
+      return d[k] != null ? d[k] : (I18N.en[k] != null ? I18N.en[k] : '');
+    };
+    function apply(lang) {
+      cur = LANGS.includes(lang) ? lang : 'en';
+      document.documentElement.lang = cur;
+      document.title = window.XT('t.title');
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const v = window.XT(el.dataset.i18n); if (v) el.textContent = v;
+      });
+      const c = document.getElementById('lang-cur'); if (c) c.textContent = cur.toUpperCase();
+      document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
+      if (window.__thanksRender) window.__thanksRender();
+      try { localStorage.setItem(KEY, cur); } catch (e) { /* private mode */ }
+    }
+    const box = document.getElementById('lang');
+    const btn = document.getElementById('lang-btn');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = box.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', () => { box.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); });
+    document.querySelectorAll('#lang-menu button').forEach((b) => {
+      b.addEventListener('click', () => { apply(b.dataset.lang); box.classList.remove('open'); });
+    });
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+    apply(saved || (navigator.language || 'en').slice(0, 2));
+  })();
+</script>
+<script src="/analytics.js" defer></script>
+</body>
+</html>
