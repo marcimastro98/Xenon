@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { createRegistry, pickToggleDevice } from '../actions/registry.js';
+import * as sdk from '../sdk-widgets.js';
 
 const require = createRequire(import.meta.url);
 const { actionSpec, validateAction } = require('../js/deck-actions.js');
@@ -157,4 +158,33 @@ test('every language names the key, its two pickers and the not-connected reason
       if (l !== 'en') assert.notEqual(ctx.__i18n[l][k], ctx.__i18n.en[k], `${l}.${k} is still English`);
     }
   }
+});
+
+// ── widgets ───────────────────────────────────────────────────────────────
+
+test('a widget reaches it through the audioDevice grant it may already have', () => {
+  // Same act as audioDevice, choosing an output from the live list, so no new
+  // line in the permission dialog and no widening of any other grant.
+  assert.ok(sdk.SDK_ACTION_CATEGORIES.audioDevice.includes('audioDeviceToggle'));
+  for (const [cat, types] of Object.entries(sdk.SDK_ACTION_CATEGORIES)) {
+    if (cat !== 'audioDevice') assert.ok(!types.includes('audioDeviceToggle'), `${cat} must not carry it`);
+  }
+  assert.ok(sdk.SDK_ACTION_TYPES.includes('audioDeviceToggle'));
+  // The host's own copy, which gates the bridge before anything is sent.
+  assert.match(read('../js/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle'\],/);
+});
+
+test('a package can ship it as a Deck macro when it declares the grant', () => {
+  const macro = { id: 'flip', name: 'Flip output', steps: [{ action: { type: 'audioDeviceToggle', deviceA: LG.id, deviceB: DAC.id } }] };
+  const ok = sdk.normalizeManifest({ api: 1, name: 'Out', actions: ['audioDevice'], deck: { actions: [macro] } }, 'out');
+  assert.equal(ok.ok, true);
+  assert.equal(ok.manifest.deck.actions[0].steps[0].action.type, 'audioDeviceToggle');
+  const noGrant = sdk.normalizeManifest({ api: 1, name: 'Out', actions: ['volume'], deck: { actions: [macro] } }, 'out');
+  assert.equal(noGrant.ok, false, 'not without the grant');
+});
+
+test('the SDK guide documents it', () => {
+  const DOC = read('../../docs/WIDGET_SDK.md');
+  assert.match(DOC, /### 5f\. Moving the sound between two outputs: `audioDeviceToggle` \(v4\.11\.10\)/);
+  assert.match(DOC, /\| `audioDevice` \| `audioDevice`, `audioDeviceToggle` \|/, 'generated reference is current');
 });

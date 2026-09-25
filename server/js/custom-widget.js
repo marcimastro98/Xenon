@@ -28,7 +28,7 @@
   const ACTION_CATEGORIES = {
     media: ['media', 'mediaSeek'],
     volume: ['volume', 'appVolume', 'appMute'],
-    audioDevice: ['audioDevice'],
+    audioDevice: ['audioDevice', 'audioDeviceToggle'],
     mic: ['micMute'],
     lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
     chroma: ['chromaColor', 'chromaOff'],

@@ -96,6 +96,9 @@ test('audioDevice is its own SDK category, never folded into volume', () => {
   // Widening `volume` would hand every already-approved widget a power its user
   // never agreed to, with no second prompt.
   assert.ok(!sdk.SDK_ACTION_CATEGORIES.volume.includes('audioDevice'));
-  assert.deepEqual([...sdk.SDK_ACTION_CATEGORIES.audioDevice], ['audioDevice']);
+  assert.ok(!sdk.SDK_ACTION_CATEGORIES.volume.includes('audioDeviceToggle'));
+  // The toggle (v4.11.10) is the same act, choosing an output from the live
+  // list, so it lives in this grant and nowhere else.
+  assert.deepEqual([...sdk.SDK_ACTION_CATEGORIES.audioDevice], ['audioDevice', 'audioDeviceToggle']);
   assert.ok(sdk.SDK_ACTION_TYPES.includes('audioDevice'));
 });

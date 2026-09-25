@@ -13,6 +13,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   If one of the two devices is unplugged, the key tells you that device is not connected instead of switching to the one that is left. On a Mac, switching outputs still needs SwitchAudioSource (`brew install switchaudio-osx`), the same as the Output device key.
 
+  Widgets can do it too. `{ type: 'audioDeviceToggle', deviceA, deviceB }` is part of the existing **audioDevice** permission, so a widget that can already choose your speakers does not need to ask again, and it can ship the toggle as a Deck macro. Xenon decides which way to go at the moment of the press, so a widget never switches the wrong way because its last audio update was a few seconds old. Documented in [WIDGET_SDK.md](docs/WIDGET_SDK.md) → *Moving the sound between two outputs*.
+
 - **Ambient can be the screen Xenon starts on.** Asked for on Discord by someone whose Ambient scene is their whole dashboard: *"On startup/restart I need to press the button in the top left for ambient mode. Having the option to skip that and boot straight into what the button press would take me to would be swell."*
 
   **Settings → Ambient → Open at startup** does exactly that. Every time Xenon starts, the PC boots or the app reloads after an update, your scene opens on its own and stays up until you close it.
