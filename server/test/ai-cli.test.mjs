@@ -21,7 +21,8 @@ const require = createRequire(import.meta.url);
 const cli = require('../ai-cli.js');
 const aiLocal = require('../ai-local.js');
 const I = cli._internal;
-const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+// CRLF on a Windows checkout: the source slices below look for LF only.
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // ── providers and models ──────────────────────────────────────────────────
 
@@ -474,4 +475,24 @@ test('the Settings picker shows the program\'s list, with no free-text "custom" 
   const body = S.slice(at, S.indexOf('\n}\n', at));
   assert.doesNotMatch(body, /__custom__/);
   assert.match(S, /\/api\/ai\/cli\/models\?provider=' \+ provider \+ q/);
+});
+
+test('on plans whose names carry the version, the English description is not taken for one', () => {
+  // Measured on a Claude Max account: displayName "Opus 5.5", description a sentence.
+  const out = JSON.stringify({ type: 'control_response', response: { subtype: 'success', response: { models: [
+    { value: 'default', displayName: 'Default (recommended)', description: 'Opus 5.5 · Most capable for ambitious work', resolvedModel: 'claude-opus-5-5' },
+    { value: 'opus', displayName: 'Opus 5.5', description: 'Most capable for ambitious work', resolvedModel: 'claude-opus-5-5' },
+    { value: 'claude-opus-4-8', displayName: 'Opus 4.8', description: 'Best for everyday, complex tasks', resolvedModel: 'claude-opus-4-8' },
+  ] } } });
+  assert.deepEqual(I.parseClaudeInit(out).models.map((m) => [m.label, m.version]), [
+    ['Default (recommended)', 'Opus 5.5'], ['Opus 5.5', ''], ['Opus 4.8', ''],
+  ]);
+});
+
+test('Codex is also found inside its desktop app and the VS Code / Cursor extension', () => {
+  const src = read('../ai-cli.js');
+  assert.match(src, /path\.join\(process\.env\.LOCALAPPDATA, 'OpenAI', 'Codex', 'bin'\)/);
+  assert.match(src, /\['\.vscode', '\.vscode-insiders', '\.cursor'\]/);
+  assert.match(src, /\/\^openai\\.chatgpt-\/i/);
+  assert.match(src, /const copy = await newestCodexCopy\(\);/, 'after PATH, never instead of it');
 });

@@ -9,7 +9,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+// LF only, so the slice below finds the function's end on a CRLF checkout too.
+const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 /** bindActionKey, cut out of deck.js and wired to stubs that record what fired. */
 function loadBinder() {
