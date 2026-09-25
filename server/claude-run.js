@@ -394,6 +394,10 @@ module.exports = {
   createRunner,
   MAX_PROMPT,
   MAX_RUNS,
+  // Shared with ai-cli.js (the Claude Code chat provider), so there is one
+  // answer to "where is claude" and one PATH probe.
+  resolveExecutable,
+  whichRaw,
   // exposed for unit tests
   _internal: { str, projectId, readCwdFromTranscript, resolveExecutable },
 };

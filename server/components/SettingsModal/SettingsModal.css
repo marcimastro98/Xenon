@@ -2119,6 +2119,16 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
    display:none to override the flex display when the local provider is active. */
 #settings-gemini-key-row[hidden] { display: none; }
 
+/* Claude Code / Codex: the program's state, coloured by what the user must do. */
+#settings-cli-panel > * + * { margin-top: 12px; }
+.settings-cli-state { display: flex; flex-direction: column; gap: 6px; }
+.settings-cli-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.settings-cli-actions .settings-btn { width: auto; }
+#settings-cli-status { font-weight: 500; }
+#settings-cli-status[data-state="ok"] { color: var(--color-success); }
+#settings-cli-status[data-state="bad"] { color: var(--color-danger); }
+#settings-cli-status[data-state="warn"] { color: var(--color-warn); }
+
 .ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .ai-hw-line { font-weight: 600; }
 .ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }

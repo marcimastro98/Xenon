@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **Xenon AI can use your Claude or ChatGPT subscription instead of an API key.** Two new providers in **Settings → Xenon AI**: **Claude Code** and **Codex**. Xenon AI then answers through the official Claude Code or Codex program installed on your PC, signed in with your own Claude or ChatGPT plan, so there is nothing to pay per message.
+
+  Xenon never sees, stores or forwards your credentials: you sign in inside the program, through Anthropic's or OpenAI's own sign-in, and Xenon only asks the program for an answer. This is also the only way Anthropic allows a Claude subscription to be used outside its own apps, which is why Xenon does not offer a "Sign in with Claude" button.
+
+  The settings panel tells you whether the program is installed and signed in, and if not, exactly what to run. You pick the model from the ones the program offers your account: Fable, Opus, Sonnet or Haiku for Claude Code, and Codex's own list for Codex, or leave it on the program's default.
+
+  What to expect. It is a little slower than an API key, a few seconds per answer, because the program starts for each one. It uses the same subscription limits you code with. It is chat only for now: through these two providers the assistant cannot change settings, Deck keys, lights or anything else on the PC, and it says so instead of pretending. Voice works and stays on the free local speech. The features you start yourself (AI search, the disk advisor, Performance Mode planning) use your subscription too, while Bit's automatic one-liners never do.
+
 - **One Deck key that switches between two audio outputs.** Asked for on Discord by someone who had built it by hand on a Mac: a shell script that flipped the sound between the monitor's speakers and a USB DAC, and then told Xenon which one was on so the key could change its icon.
 
   **Switch between two outputs**, in the Audio actions, does all of it. Pick the two devices from the list of what is connected, and each press moves the sound to the other one. If the sound is on a third device, the first press goes to the first one.
