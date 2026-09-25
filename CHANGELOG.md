@@ -11,13 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   The settings panel tells you whether the program is installed and signed in, and if not, exactly what to run. You pick the model from the ones the program offers your account: Fable, Opus, Sonnet or Haiku for Claude Code, and Codex's own list for Codex, or leave it on the program's default.
 
-  What to expect. It is a little slower than an API key, a few seconds per answer, because the program starts for each one. It uses the same subscription limits you code with. It is chat only for now: through these two providers the assistant cannot change settings, Deck keys, lights or anything else on the PC, and it says so instead of pretending. Voice works and stays on the free local speech. The features you start yourself (AI search, the disk advisor, Performance Mode planning) use your subscription too, while Bit's automatic one-liners never do.
+  The assistant can do everything it does with the other providers: change the theme, set up Deck keys, add tasks and timers, control lights and media, search the web, and the rest. Xenon's own tools reach the program through a small bridge that lives for a single answer, with a key of its own that stops working when the answer is done. The program's own tools, such as its terminal and file access, stay switched off: through Xenon it can only use Xenon's tools.
+
+  What to expect. It is slower than an API key: a few seconds for a plain answer, around ten when it uses a tool, because the program starts for each answer. It uses the same subscription limits you code with. Voice works and stays on the free local speech. The features you start yourself (AI search, the disk advisor, Performance Mode planning) use your subscription too, while Bit's automatic one-liners never do.
 
 - **One Deck key that switches between two audio outputs.** Asked for on Discord by someone who had built it by hand on a Mac: a shell script that flipped the sound between the monitor's speakers and a USB DAC, and then told Xenon which one was on so the key could change its icon.
 
   **Switch between two outputs**, in the Audio actions, does all of it. Pick the two devices from the list of what is connected, and each press moves the sound to the other one. If the sound is on a third device, the first press goes to the first one.
 
-  The key's **Look while active** now shows up when the second device is playing, and it follows the output that is really active, not the last press. Change the output from the Windows sound settings or the Mac menu bar and the key catches up by itself, within a few seconds on Windows and within about half a minute on a Mac, which the script could never do. After a press on the key itself it changes straight away. A plain **Output device** key does the same thing for its own device: it lights up while that device is the one playing. Keys you already have pick this up the next time you save them.
+  The key's **Look while active** now shows up when the second device is playing, and it follows the output that is really active, not the last press. Change the output from the Windows sound settings or the Mac menu bar and the key catches up by itself within a few seconds, which the script could never do. After a press on the key itself it changes straight away. A plain **Output device** key does the same thing for its own device: it lights up while that device is the one playing. Keys you already have pick this up the next time you save them.
 
   If one of the two devices is unplugged, the key tells you that device is not connected instead of switching to the one that is left. On a Mac, switching outputs still needs SwitchAudioSource (`brew install switchaudio-osx`), the same as the Output device key.
 
@@ -90,6 +92,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **The voice orb no longer needs a Gemini key when Xenon AI runs on Claude or ChatGPT.** Push-to-talk in the chat already transcribed your voice with the matching provider, but the voice orb sent it to Gemini whatever you had chosen, so with Claude or ChatGPT and no Gemini key it could not hear you. It now uses the free local transcription with Claude, and OpenAI's own transcription with ChatGPT, exactly like the chat does.
+
 - **A custom widget follows its own tile's accent and background.** Reported by a widget author: the Accent set in a tile's customization showed on the tile, while the widget inside it kept drawing the dashboard's global accent.
 
   Xenon hands each widget the colours of the tile it sits in, read from the tile itself. Two of those colours, accent and background, are set up so that a theme change fades smoothly, and the browser hands those two back in a different format from the others. The step that tidies the colours before sending them only understood the usual one, so it threw both away and sent the global colours instead. It now understands both formats. The tile's accent and background reach the widget, and every other colour was already arriving correctly.

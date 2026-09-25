@@ -1870,10 +1870,9 @@ action: { type: 'audioDeviceToggle', deviceA: speakersId, deviceB: headsetId }
   ask the user for anything they have not already approved.
 - To show which one is on, read `speaker.id` from the `audio` stream (or the
   entry in `speakers[]` with `isDefault: true`). The stream is polled about
-  every 8 seconds; on a Mac, a change made from the menu bar can take up to
-  about half a minute to show, because the device list is read at most every
-  30 seconds there. After your own action succeeds, expect the next `audio`
-  push to carry the new device.
+  every 8 seconds, so a change made from the OS (the Windows sound settings,
+  the Mac menu bar) shows within that. After your own action succeeds, expect
+  the next `audio` push to carry the new device.
 - On macOS, switching needs `SwitchAudioSource` (`brew install
   switchaudio-osx`), the same as the `audioDevice` action; without it the
   answer names what is missing.

@@ -492,3 +492,19 @@ test('parseHelperWindows: garbage returns null, so the osascript path still gets
   }
   assert.deepEqual(dc.parseHelperWindows('{"windows":[]}', false), []);
 });
+
+// The default output, fresh. system_profiler's list is cached for 30s because it
+// costs a second, so an output switched from the menu bar reached the dashboard
+// (and an Output device Deck key's face) up to half a minute late. The name
+// SwitchAudioSource reports wins when it is one of the listed outputs; any other
+// answer leaves the list as it was.
+test('withCurrentOutput: the current output from SwitchAudioSource wins, when it is a listed one', () => {
+  const devices = { outputs: [{ name: 'LG UltraFine Display Audio', isDefault: true }, { name: 'HIFI USB AUDIO', isDefault: false }], inputs: [{ name: 'Mic', isDefault: true }] };
+  const fresh = dc.withCurrentOutput(devices, 'HIFI USB AUDIO\n');
+  assert.deepEqual(fresh.outputs.map((o) => o.isDefault), [false, true]);
+  assert.deepEqual(fresh.inputs, devices.inputs, 'inputs untouched');
+  assert.deepEqual(devices.outputs.map((o) => o.isDefault), [true, false], 'the cached list is not mutated');
+  for (const unknown of [null, '', 'AirPods Pro', undefined]) {
+    assert.equal(dc.withCurrentOutput(devices, unknown), devices, JSON.stringify(unknown));
+  }
+});

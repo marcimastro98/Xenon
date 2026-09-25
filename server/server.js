@@ -165,6 +165,7 @@ const PORT = (() => {
   const raw = parseInt(process.env.XENON_PORT, 10);
   return Number.isInteger(raw) && raw > 0 && raw <= 65535 ? raw : 3030;
 })();
+aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge reaches Xenon's tools
 
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
@@ -7286,7 +7287,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // searches key-free via DuckDuckGo. Use an explicit non-Gemini allowlist:
       // the Gemini main tool loop calls executeAiTool WITHOUT a `provider` dep, so
       // `provider` is undefined there and must fall to the grounded branch.
-      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic')
+      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic' || aiCli.isCliProvider(provider))
         ? await aiLocal.localWebSearch(fnArgs.query)
         : await _geminiWebSearch(fnArgs.query, apiKey);
       fnResult = searchRes.error
@@ -17074,21 +17075,27 @@ const handleRequest = async (req, res) => {
 
       if (aiCli.isCliProvider(provider)) {
         // The user's own subscription, through the official Claude Code / Codex
-        // program (see ai-cli.js for what that may and may not do). Chat only in
-        // this version: none of Xenon's tools reach the model, so the prompt
-        // says so plainly rather than let it claim it changed something.
+        // program (see ai-cli.js for what that may and may not do). Xenon's tools
+        // reach the model over MCP (ai-mcp-bridge.js) and run through the very
+        // same executeAiTool as every other provider; the program's own tools
+        // (shell, files, web) stay off.
         const settings = await readHubSettings().catch(() => null);
         const cliModel = aiCli.sanitizeModel(settings && (provider === 'claudecode' ? settings.claudeCodeModel : settings.codexModel));
-        const _cliMemory = (settings && settings.aiMemory !== false && aiMemory.count() > 0) ? aiMemory.formatForPrompt() : '';
-        const SYS_CLI = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
-          'You are Xenon, a helpful AI assistant embedded in Xenon, a real-time dashboard the user runs on a spare screen (a second monitor, a touchscreen, a phone or tablet).' +
-          ' Answer any question the user asks from your general knowledge.' +
-          ' In this mode you cannot see or change anything on the user\'s PC or dashboard: no settings, Deck keys, lights, media, apps, notes, timers or web search. If the user asks for one of those, say briefly that it is not available when Xenon AI runs through their Claude Code or Codex subscription, and that it works with an API provider selected in Settings. Never claim to have done something you could not do.' +
-          (_cliMemory ? ' ' + _cliMemory : '') + _summaryText;
-        const systemText = SYS_CLI + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG;
+        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const SYS_MCP = ' Your tools come from the "xenon" MCP server; their names may carry a prefix such as mcp__xenon__. You have no other tools: no shell, no file access, no web browsing except the web_search tool.';
+        const systemText = SYS_BASE + SYS_MCP + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
         try {
-          const result = await aiCli.chat({ provider, model: cliModel, systemText, history: currentMessages });
-          json({ text: result.text, clientActions: [], newContent: result.newContent });
+          const result = await aiCli.chat({
+            provider, model: cliModel, systemText, history: currentMessages,
+            tools: AI_FUNCTIONS,
+            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              provider,
+            }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
         } catch (e) {
           const code = (e && e.code) || 'cli_failed';
           res.writeHead(code === 'cli_failed' ? 502 : 400, { 'Content-Type': 'application/json' });
@@ -17629,10 +17636,26 @@ const handleRequest = async (req, res) => {
         res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
       }
       let sttText;
-      // Local whisper for every provider that brings no speech API of its own
-      // that Xenon can use: Ollama, and a Claude Code / Codex subscription
-      // (which must not quietly need a Gemini key just to hear the user).
-      if (sttProvider === 'ollama' || aiCli.isCliProvider(sttProvider)) {
+      // Each provider hears the user the way /api/transcribe does, so none of
+      // them quietly needs a Gemini key: local whisper for Ollama, Claude (no
+      // speech API) and a Claude Code / Codex subscription; OpenAI's own speech
+      // model, with its server-only key, for ChatGPT. Before this, the voice orb
+      // sent Claude and ChatGPT to Gemini and failed without a Gemini key.
+      if (sttProvider === 'openai') {
+        const s = await readHubSettings().catch(() => null);
+        const openaiKey = String((s && s.openaiApiKey) || '').trim();
+        if (!openaiKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        process.stdout.write(`[STT] OpenAI transcribe lang=${sttLang}\n`);
+        try {
+          sttText = await aiOpenai.stt({ apiKey: openaiKey, wavBuffer: wavData, lang: sttLang, model: providerModelFor('openai', 'stt', s) });
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      } else if (sttProvider === 'ollama' || sttProvider === 'anthropic' || aiCli.isCliProvider(sttProvider)) {
         process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
         try {
           sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
@@ -17653,6 +17676,22 @@ const handleRequest = async (req, res) => {
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai/cli/mcp' && req.method === 'POST') {
+    // Xenon's tools for a Claude Code / Codex turn, asked for by the MCP bridge
+    // (ai-mcp-bridge.js) that the program started. The token names one live
+    // turn and dies with it; ai-cli.js refuses everything else, and each call
+    // runs through executeAiTool exactly as it does for the other providers.
+    try {
+      const raw = await readBodyBuffer(req, 256 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const out = await aiCli.handleMcp(String(req.headers['x-xenon-mcp-token'] || ''), body);
+      res.writeHead(out.status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(out.body));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'bad_request' }));
     }
 
   } else if (reqPath === '/api/ai/cli/status' && req.method === 'GET') {

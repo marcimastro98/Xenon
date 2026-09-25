@@ -19,10 +19,11 @@
 //    run as published, with documented flags.
 //  - NEVER a shell. argv arrays only, the prompt goes in on stdin, so nothing
 //    the user types can become syntax (same invariant as claude-run.js).
-//  - NEVER tools. Chat only: Claude Code runs with `--tools ""`, Codex with its
-//    shell tools switched off, both in an empty scratch folder. Xenon's own
-//    dashboard tools are a later step (over MCP), not something these agents
-//    get by reaching the disk.
+//  - NEVER the program's own tools. Claude Code runs with `--tools ""`, Codex
+//    with its shell tools switched off, both in an empty scratch folder. What
+//    they get instead is XENON's tools, the same ones every other provider
+//    has, over MCP: ai-mcp-bridge.js, started by the program for one turn and
+//    forwarding each call back here with a token that dies with the turn.
 //  - NEVER an API key by accident. The key variables are removed from the
 //    child's environment: someone who picked "use my subscription" must not be
 //    billed per token because ANTHROPIC_API_KEY happened to be set.
@@ -35,10 +36,12 @@ const os = require('os');
 const path = require('path');
 const fsp = require('fs').promises;
 const { spawn } = require('child_process');
+const crypto = require('crypto');
 const claudeRun = require('./claude-run');
 
 const PROVIDERS = Object.freeze(['claudecode', 'codex']);
 const TIMEOUT_MS = 180000;          // a long reasoning answer, not a hung child
+const TOOL_TIMEOUT_MS = 300000;     // a turn that may call several dashboard tools
 const STATUS_TIMEOUT_MS = 15000;
 const STATUS_TTL_MS = 30000;
 const MODELS_TTL_MS = 6 * 60 * 60 * 1000;
@@ -250,16 +253,97 @@ function buildPrompt(history) {
   return lines.length ? head + lines.join('\n\n') + tail : last.text.slice(0, MAX_PROMPT_CHARS);
 }
 
+// ── Xenon's tools, over MCP ─────────────────────────────────────────────────
+// A session lives for exactly one turn: minted before the program starts,
+// dropped when it exits. The bridge proves which turn it belongs to with the
+// token; there is no other way in, and a call for a tool the turn was not
+// given is refused here whatever the program asks for.
+const BRIDGE = path.join(__dirname, 'ai-mcp-bridge.js');
+let mcpUrl = '';
+function configure(opts) {
+  if (opts && typeof opts.port === 'number') mcpUrl = 'http://127.0.0.1:' + opts.port + '/api/ai/cli/mcp';
+}
+const toolSessions = new Map();   // token → { tools, names, executeTool, clientActions }
+function openToolSession(tools, executeTool) {
+  const token = crypto.randomBytes(24).toString('hex');
+  toolSessions.set(token, {
+    tools, names: new Set(tools.map((t) => t.name)), executeTool, clientActions: [],
+  });
+  return token;
+}
+async function handleMcp(token, body) {
+  const sess = typeof token === 'string' && token ? toolSessions.get(token) : null;
+  if (!sess) return { status: 403, body: { error: 'unknown_session' } };
+  const op = body && body.op;
+  if (op === 'list') return { status: 200, body: { tools: sess.tools } };
+  if (op !== 'call') return { status: 400, body: { error: 'bad_op' } };
+  const name = typeof body.name === 'string' ? body.name : '';
+  if (!sess.names.has(name)) return { status: 200, body: { content: [{ type: 'text', text: JSON.stringify({ error: 'unknown_tool' }) }], isError: true } };
+  const args = body.args && typeof body.args === 'object' && !Array.isArray(body.args) ? body.args : {};
+  try {
+    const r = (await sess.executeTool(name, args)) || {};
+    for (const a of r.clientActions || []) sess.clientActions.push(a);
+    const content = [{ type: 'text', text: JSON.stringify(r.fnResult === undefined ? { ok: true } : r.fnResult) }];
+    // capture_screen hands back a JPEG; both programs show MCP images to the model.
+    if (typeof r.pendingScreenImage === 'string' && r.pendingScreenImage) content.push({ type: 'image', data: r.pendingScreenImage, mimeType: 'image/jpeg' });
+    return { status: 200, body: { content } };
+  } catch (e) {
+    return { status: 200, body: { content: [{ type: 'text', text: JSON.stringify({ error: String((e && e.message) || e).slice(0, 300) }) }], isError: true } };
+  }
+}
+// Gemini-style declarations (what server.js builds) → MCP tools. Same schema
+// rewrite the Anthropic provider does: lowercase types, recursive.
+const TYPE_MAP = { OBJECT: 'object', STRING: 'string', NUMBER: 'number', INTEGER: 'integer', BOOLEAN: 'boolean', ARRAY: 'array' };
+function toJsonSchema(schema) {
+  if (!schema || typeof schema !== 'object') return { type: 'object', properties: {} };
+  const out = {};
+  if (schema.type) out.type = TYPE_MAP[schema.type] || String(schema.type).toLowerCase();
+  if (schema.description) out.description = schema.description;
+  if (Array.isArray(schema.enum)) out.enum = schema.enum.slice();
+  if (schema.properties && typeof schema.properties === 'object') {
+    out.properties = {};
+    for (const [k, v] of Object.entries(schema.properties)) out.properties[k] = toJsonSchema(v);
+  }
+  if (Array.isArray(schema.required)) out.required = schema.required.slice();
+  if (schema.items) out.items = toJsonSchema(schema.items);
+  if (out.type === 'object' && !out.properties) out.properties = {};
+  return out;
+}
+function geminiToolsToMcp(fns) {
+  return (Array.isArray(fns) ? fns : [])
+    .filter((f) => f && typeof f.name === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(f.name))
+    .map((f) => ({ name: f.name, description: String(f.description || ''), inputSchema: toJsonSchema(f.parameters || { type: 'OBJECT', properties: {} }) }));
+}
+function bridgeEnv(token) { return { XENON_MCP_URL: mcpUrl, XENON_MCP_TOKEN: token }; }
+
 // ── one turn ────────────────────────────────────────────────────────────────
 class CliError extends Error {
   constructor(code, message) { super(message || code); this.code = code; }
 }
 const NOT_LOGGED_RE = /not logged in|please run \/login|log ?in (?:first|required)|invalid api key|unauthori[sz]ed|authentication/i;
 
-function claudeArgs(systemText, model, skip) {
+// Hooks off and CLAUDE.md ignored, whichever way it runs. Without tools the
+// program's safe mode does all of it; with tools it cannot be used, because
+// safe mode also drops the MCP servers passed on the command line (measured on
+// 2.1.282), so the same is asked for piece by piece: `disableAllHooks` keeps
+// the user's own hooks quiet (Xenon installs some of its own for the Claude
+// tile, and one of them waits for a touchscreen approval), `claudeMdExcludes`
+// keeps their CLAUDE.md out of Xenon's chat, and skills and every other MCP
+// server stay out too.
+const CLAUDE_QUIET = JSON.stringify({ disableAllHooks: true, claudeMdExcludes: ['**/CLAUDE.md', '**/CLAUDE.local.md'] });
+function claudeArgs(systemText, model, skip, token) {
   const a = ['-p', '--output-format', 'json', '--tools', ''];
-  for (const f of ['--safe-mode', '--no-session-persistence']) if (!skip.has(f)) a.push(f);
+  if (!token && !skip.has('--safe-mode')) a.push('--safe-mode');
+  if (!skip.has('--no-session-persistence')) a.push('--no-session-persistence');
   if (!skip.has('--permission-prompts')) a.push('--permission-prompts', 'none');
+  if (token) {
+    const mcp = { mcpServers: { xenon: { type: 'stdio', command: process.execPath, args: [BRIDGE], env: bridgeEnv(token) } } };
+    a.push('--settings', CLAUDE_QUIET);
+    if (!skip.has('--disable-slash-commands')) a.push('--disable-slash-commands');
+    // Xenon's server and nothing else; its tools pre-approved, since a print
+    // run has nobody to ask and each tool already carries its own checks.
+    a.push('--strict-mcp-config', '--mcp-config', JSON.stringify(mcp), '--allowedTools', 'mcp__xenon');
+  }
   if (systemText) a.push('--system-prompt', systemText);
   if (model !== 'default') a.push('--model', model);
   return a;
@@ -282,13 +366,27 @@ function parseClaude(r) {
 // there (a `--disable` of an unknown feature is a hard error), so an older or
 // newer Codex that renamed one still runs, just with that switch ignored.
 const CODEX_OFF = Object.freeze(['shell_tool', 'unified_exec', 'apps', 'plugins', 'browser_use', 'computer_use', 'image_generation', 'hooks']);
-function codexArgs(systemText, model, dir, skip) {
+function codexArgs(systemText, model, dir, skip, token) {
   const a = ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir];
   for (const f of ['--ephemeral', '--ignore-user-config', '--ignore-rules']) if (!skip.has(f)) a.push(f);
   // -c values are TOML; a JSON string literal is a valid TOML basic string, so
   // the instructions arrive as one string whatever they contain.
   if (systemText) a.push('-c', 'developer_instructions=' + JSON.stringify(systemText));
   for (const f of CODEX_OFF) a.push('-c', 'features.' + f + '=false');
+  if (token) {
+    // Xenon's tools as Codex's one MCP server (user config is ignored above, so
+    // it is the only one). `approve`: an exec run has nobody to ask, and each
+    // tool already carries its own checks. Unknown keys are warnings in Codex,
+    // so an older one without per-server approval still starts.
+    const env = bridgeEnv(token);
+    a.push('-c', 'mcp_servers.xenon.command=' + JSON.stringify(process.execPath));
+    a.push('-c', 'mcp_servers.xenon.args=' + JSON.stringify([BRIDGE]));
+    a.push('-c', 'mcp_servers.xenon.env={' + Object.keys(env).map((k) => k + '=' + JSON.stringify(env[k])).join(',') + '}');
+    a.push('-c', 'mcp_servers.xenon.startup_timeout_sec=20');
+    a.push('-c', 'mcp_servers.xenon.tool_timeout_sec=150');
+    a.push('-c', 'mcp_servers.xenon.default_tools_approval_mode="approve"');
+    a.push('-c', 'approval_policy="never"');
+  }
   if (model !== 'default') a.push('-m', model);
   a.push('-');   // the prompt comes on stdin
   return a;
@@ -311,7 +409,9 @@ function parseCodex(r) {
 }
 
 let active = 0;
-async function chat({ provider, model, systemText, history }) {
+// `tools` (Gemini-style declarations) + `executeTool` give the model Xenon's
+// tools for this turn; without them it is a plain answer, as for a summary.
+async function chat({ provider, model, systemText, history, tools, executeTool }) {
   if (!isCliProvider(provider)) throw new CliError('cli_bad_provider');
   const prompt = buildPrompt(history);
   if (!prompt) throw new CliError('cli_empty');
@@ -321,19 +421,23 @@ async function chat({ provider, model, systemText, history }) {
   if ((await status(provider)).loggedIn === false) throw new CliError('cli_not_logged_in');
   if (active >= MAX_ACTIVE) throw new CliError('cli_busy');
   active++;
+  const mcpTools = (mcpUrl && typeof executeTool === 'function') ? geminiToolsToMcp(tools) : [];
+  const token = mcpTools.length ? openToolSession(mcpTools, executeTool) : '';
   try {
     const m = sanitizeModel(model);
     const sys = String(systemText || '');
     const dir = await workDir();
-    const opts = { input: prompt, env: childEnv(provider), cwd: dir, timeoutMs: TIMEOUT_MS, abortOn: provider === 'codex' ? /waiting for network/i : null };
+    const opts = { input: prompt, env: childEnv(provider), cwd: dir, timeoutMs: token ? TOOL_TIMEOUT_MS : TIMEOUT_MS, abortOn: provider === 'codex' ? /waiting for network/i : null };
     const r = provider === 'claudecode'
-      ? await runWithOptional(exe, (skip) => claudeArgs(sys, m, skip), ['--safe-mode', '--no-session-persistence', '--permission-prompts'], opts)
-      : await runWithOptional(exe, (skip) => codexArgs(sys, m, dir, skip), ['--ephemeral', '--ignore-user-config', '--ignore-rules'], opts);
+      ? await runWithOptional(exe, (skip) => claudeArgs(sys, m, skip, token), ['--safe-mode', '--no-session-persistence', '--permission-prompts', '--disable-slash-commands'], opts)
+      : await runWithOptional(exe, (skip) => codexArgs(sys, m, dir, skip, token), ['--ephemeral', '--ignore-user-config', '--ignore-rules'], opts);
     if (r.timedOut) throw new CliError('cli_timeout');
     if (r.aborted) throw new CliError('cli_offline');
     const out = provider === 'claudecode' ? parseClaude(r) : parseCodex(r);
-    return { text: out.text, model: out.model, clientActions: [], newContent: { role: 'model', parts: [{ text: out.text }] } };
+    const clientActions = token ? toolSessions.get(token).clientActions.slice() : [];
+    return { text: out.text, model: out.model, clientActions, newContent: { role: 'model', parts: [{ text: out.text }] } };
   } finally {
+    if (token) toolSessions.delete(token);
     active--;
   }
 }
@@ -346,6 +450,7 @@ async function oneShot({ provider, model, systemText, userText }) {
 module.exports = {
   PROVIDERS, CLAUDE_MODELS, TIMEOUT_MS,
   isCliProvider, sanitizeModel, status, models, chat, oneShot, CliError,
+  configure, handleMcp,
   // exposed for unit tests
-  _internal: { buildPrompt, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseCodexLogin, parseCodexModels, childEnv, runWithOptional, UNKNOWN_FLAG_RE },
+  _internal: { buildPrompt, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseCodexLogin, parseCodexModels, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE },
 };

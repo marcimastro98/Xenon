@@ -916,6 +916,31 @@ function buildAudioRows(devices, vol) {
   return rows;
 }
 
+// Which output is the default RIGHT NOW. system_profiler knows too, but costs
+// about a second and is cached for 30s above, so a switch made from the menu
+// bar reached the dashboard (and an Output device Deck key's face) up to half a
+// minute late. SwitchAudioSource, the tool output switching already needs,
+// answers in milliseconds. Without it nothing changes: the cached answer stands.
+// A missing tool is remembered for a while rather than spawned every poll.
+const SAS_MISSING_RETRY_MS = 5 * 60 * 1000;
+let sasMissingAt = 0;
+async function currentOutputName() {
+  if (sasMissingAt && Date.now() - sasMissingAt < SAS_MISSING_RETRY_MS) return null;
+  const out = await runSoft('SwitchAudioSource', ['-c', '-t', 'output'], 3000);
+  if (out === null) { sasMissingAt = Date.now(); return null; }
+  sasMissingAt = 0;
+  return String(out).trim() || null;
+}
+// Pure: the device list with its default taken from `current`, when `current`
+// is one of the listed outputs. Anything else (no answer, a name the list does
+// not have) leaves the list exactly as system_profiler reported it.
+function withCurrentOutput(devices, current) {
+  const d = devices || { outputs: [], inputs: [] };
+  const name = typeof current === 'string' ? current.trim() : '';
+  if (!name || !Array.isArray(d.outputs) || !d.outputs.some((o) => o && o.name === name)) return d;
+  return Object.assign({}, d, { outputs: d.outputs.map((o) => Object.assign({}, o, { isDefault: o.name === name })) });
+}
+
 const AUDIO_ROWS_TTL_MS = 900;
 let audioRowsCache = { rows: null, at: 0 };
 
@@ -927,7 +952,8 @@ async function audioRows() {
   const settings = await osa('get volume settings', 5000);
   // Let a failed read surface: an empty-but-working mixer would be a lie.
   if (settings === null) throw new Error('osascript volume read failed');
-  const rows = buildAudioRows(await audioDevices(), parseVolumeSettings(settings));
+  const devices = withCurrentOutput(await audioDevices(), await currentOutputName());
+  const rows = buildAudioRows(devices, parseVolumeSettings(settings));
   audioRowsCache = { rows, at: Date.now() };
   return rows;
 }
@@ -1239,5 +1265,5 @@ module.exports = {
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
   parseIoregDisks,
-  buildAudioRows, isCaptureTarget, ratioToPct,
+  buildAudioRows, isCaptureTarget, ratioToPct, withCurrentOutput,
 };
