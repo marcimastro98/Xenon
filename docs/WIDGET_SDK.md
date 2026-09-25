@@ -280,7 +280,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
 - `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
-- `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: call `xenon.refresh('network')` at whatever cadence your graph wants (900ms floor)
+- `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -649,9 +649,18 @@ not a sensor, and the permission dialog says so in those words.
   and one that appears mid-session (a VPN coming up) starts at `null` rather
   than reporting a spike the size of its lifetime counter. `Number(null)` is
   `0`, so guard with `v != null` or an unknown will draw as idle.
-- **It is a PULL stream.** Call `xenon.refresh('network')` at the cadence your
-  graph wants — the floor is 900ms — and the answer arrives as an ordinary
-  `data` frame. It is pulled rather than pushed because the reading costs a
+- **It is a PULL stream.** Send a `refresh` message at the cadence your graph
+  wants — the floor is 900ms — and the answer arrives as an ordinary `data`
+  frame, followed by a `refresh_result`:
+
+  ```js
+  window.parent.postMessage({ xenonSdk: 1, type: 'refresh', id: 1, stream: 'network' }, '*');
+  ```
+
+  It is the same message the lazy Discord streams use (see *`data`* above), so
+  the same rules apply: the grant is required, and a hidden tile or a background
+  service frame is refused — refresh while `visibility` says you are seen, and
+  stop when it says you are not. It is pulled rather than pushed because the reading costs a
   collector run (a PowerShell round trip on Windows), and pushing it to every
   dashboard would make every install pay for a widget almost nobody has. While
   no granted widget is on screen asking, nothing runs at all.
@@ -707,8 +716,9 @@ allow the user to select which ones to display individually."* `streams:
   sensor read, and that wakes a spun-down mechanical disk every few seconds.
   Until that can be charged only to whoever asked for it, the honest answer is
   `null` rather than a number that costs other people their drives spinning up.
-- **It is a PULL stream.** `xenon.refresh('diskIo')` at your graph's cadence
-  (900ms floor; the reading is cached 2s). On Windows it is three CIM queries,
+- **It is a PULL stream.** Send `{ xenonSdk: 1, type: 'refresh', id, stream:
+  'diskIo' }` at your graph's cadence, exactly as for `network` above (900ms
+  floor; the reading is cached 2s). On Windows it is three CIM queries,
   which is why nobody who has not asked for it pays for it — nothing runs while
   no granted widget is on screen.
 - **`id` is stable enough to key settings on, `model` is what you show.** On
