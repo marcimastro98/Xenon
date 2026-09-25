@@ -48,9 +48,12 @@ function voiceForLang(lang) {
 
 // The canonical AI-provider clamp, shared by the server and (mirrored) the
 // client. 'ollama' is this module's own local provider; 'openai'/'anthropic' are
-// the cloud ChatGPT/Claude providers handled by ai-openai.js / ai-anthropic.js.
+// the cloud ChatGPT/Claude providers handled by ai-openai.js / ai-anthropic.js;
+// 'claudecode'/'codex' are the user's own subscription through the official
+// Claude Code / Codex program (ai-cli.js).
+const AI_PROVIDERS = Object.freeze(['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex']);
 function sanitizeProvider(value) {
-  return (value === 'ollama' || value === 'openai' || value === 'anthropic') ? value : 'gemini';
+  return AI_PROVIDERS.includes(value) && value !== 'gemini' ? value : 'gemini';
 }
 
 // Whitelist keys OR a custom model tag: lowercase letters/digits . _ : - , max 60.
@@ -1340,6 +1343,7 @@ async function installWhisper(serverDir, onProgress) {
 }
 
 module.exports = {
+  AI_PROVIDERS,
   DEFAULT_OLLAMA_URL,
   MODEL_WHITELIST,
   MODEL_REQUIREMENTS,

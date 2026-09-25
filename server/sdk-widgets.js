@@ -86,7 +86,14 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // approved for "raise and lower", and folding device switching in would widen
   // that grant retroactively, with no prompt. Server-side the id is checked
   // against the live OUTPUT enumeration only — see the audioDevice dep.
-  audioDevice: Object.freeze(['audioDevice']),
+  //
+  // `audioDeviceToggle` (v4.11.10) joins this EXISTING category, the call made
+  // for spotifyPlayUri and for the same reason: it is the same kind of act and
+  // no more of it. Flipping between two outputs is two `audioDevice` calls with
+  // the choice made for you, both ids go through the same live-list check, and
+  // a widget granted this could already move the sound to either device. It
+  // stays inside "choose which speakers your sound comes out of".
+  audioDevice: Object.freeze(['audioDevice', 'audioDeviceToggle']),
   mic: Object.freeze(['micMute']),
   lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),

@@ -298,6 +298,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.Deck && d && d.speaker && Number.isFinite(Number(d.speaker.volume))) {
           window.Deck.refreshStates({ masterVolume: Number(d.speaker.volume) });
         }
+        // ...and output-device keys follow which output is the default.
+        if (window.Deck && d && !d.unavailable) {
+          window.Deck.refreshStates({ outputDevice: (d.speaker && d.speaker.id) || '' });
+        }
         if (window.CustomWidget) window.CustomWidget.onData('audio', d);
       } catch {}
     });

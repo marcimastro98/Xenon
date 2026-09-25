@@ -28,7 +28,7 @@
   const ACTION_CATEGORIES = {
     media: ['media', 'mediaSeek'],
     volume: ['volume', 'appVolume', 'appMute'],
-    audioDevice: ['audioDevice'],
+    audioDevice: ['audioDevice', 'audioDeviceToggle'],
     mic: ['micMute'],
     lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
     chroma: ['chromaColor', 'chromaOff'],
@@ -498,6 +498,22 @@
     return hs.styleMode === 'retro' ? 'retro' : 'glass';
   }
 
+  // --accent and --bg are registered <color>s (@property in global.css, so a
+  // theme change animates), and a registered colour computes to rgb(...), not
+  // the hex it was set as. normalizeHex only reads hex, so a tile's own accent
+  // or background fell back to the global one before reaching the widget.
+  // Turned back into #rrggbb here; anything else passes through unchanged.
+  function computedHex(value) {
+    const raw = String(value || '').trim();
+    const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+%?))?\s*\)$/i.exec(raw);
+    if (!m) return raw;
+    // Fully transparent has no colour to hand over: let the fallback apply.
+    if (m[4] != null && parseFloat(m[4]) === 0) return '';
+    return '#' + [m[1], m[2], m[3]]
+      .map((v) => Math.max(0, Math.min(255, Math.round(Number(v)))).toString(16).padStart(2, '0'))
+      .join('');
+  }
+
   function themePayload(entry) {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
     // Resolved 12h/24h preference (auto/12/24 → boolean) so a widget rendering
@@ -526,7 +542,7 @@
     if (entry && entry.frame && window.ThemePalette) {
       try {
         const cs = getComputedStyle(entry.frame);
-        const read = (name, fallback) => ThemePalette.normalizeHex(cs.getPropertyValue(name), fallback);
+        const read = (name, fallback) => ThemePalette.normalizeHex(computedHex(cs.getPropertyValue(name)), fallback);
         const base = p || ThemePalette.derive({
           accent: hs.accent, background: hs.background, text: hs.text,
           contrastGuard: hs.contrastGuard,

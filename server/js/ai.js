@@ -16,14 +16,16 @@ const AI_RECENT_KEEP = 16;      // raw turns kept verbatim after a fold (the res
 // Current AI provider config from hub settings (defaults to Gemini).
 function _aiProviderCfg() {
   const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
-  const provider = ['ollama', 'openai', 'anthropic'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
-  // The model the client advertises. For openai/anthropic the server reads the
-  // model from its own settings (server-only key path), so this is informational
-  // there; for ollama it selects the local model.
+  const provider = ['ollama', 'openai', 'anthropic', 'claudecode', 'codex'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
+  // The model the client advertises. For openai/anthropic and the Claude Code /
+  // Codex subscriptions the server reads the model from its own settings, so
+  // this is informational there; for ollama it selects the local model.
   let model = 'auto';
   if (provider === 'openai') model = typeof s.openaiModel === 'string' ? s.openaiModel : 'auto';
   else if (provider === 'anthropic') model = typeof s.anthropicModel === 'string' ? s.anthropicModel : 'auto';
   else if (provider === 'ollama') model = typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto';
+  else if (provider === 'claudecode') model = typeof s.claudeCodeModel === 'string' ? s.claudeCodeModel : 'default';
+  else if (provider === 'codex') model = typeof s.codexModel === 'string' ? s.codexModel : 'default';
   return {
     provider,
     model,
@@ -37,6 +39,9 @@ function _aiProviderReady() {
   const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
   const p = _aiProviderCfg().provider;
   if (p === 'ollama') return true;
+  // The program itself knows whether the user is signed in; the server asks it
+  // and answers a turn with a clear reason when not, so there is no key to check.
+  if (p === 'claudecode' || p === 'codex') return true;
   if (p === 'openai') return !!s.openaiApiKeySet;
   if (p === 'anthropic') return !!s.anthropicApiKeySet;
   return geminiKeyReady(s);
@@ -98,8 +103,20 @@ function _aiMaybeSummarize(apiKey) {
     .finally(() => { _aiSummarizing = false; });
 }
 
+// Claude Code / Codex answer with a reason code (ai-cli.js). Each one names the
+// program and, where the user can fix it, what to run.
+const AI_CLI_APPS = { claudecode: { app: 'Claude Code', login: 'claude' }, codex: { app: 'Codex', login: 'codex login' } };
+function _aiFormatCliError(code, detail) {
+  const p = _aiProviderCfg().provider;
+  const who = AI_CLI_APPS[p] || AI_CLI_APPS.claudecode;
+  const fill = (k) => t(k).replace('{app}', who.app).replace('{cmd}', who.login);
+  if (code === 'cli_failed') return fill('ai_cli_failed') + (detail ? ' ' + detail : '');
+  return fill('ai_' + code);
+}
+
 function _aiFormatApiError(err) {
   const msg = (err && err.message) || String(err || '');
+  if (/^cli_(not_installed|not_logged_in|timeout|busy|offline|failed)$/.test(msg)) return _aiFormatCliError(msg, err && err.detail);
   const isKeyError   = /API_KEY|api key|invalid key/i.test(msg);
   const isQuotaError = /quota|rate.?limit|429|free_tier/i.test(msg);
   const retryMatch   = msg.match(/retry in ([\d.]+)s/i);
@@ -405,7 +422,9 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
 
     if (!response.ok) {
       const errMsg = (data && data.error) ? data.error : `${t('ai_http_error')} ${response.status}`;
-      throw new Error(errMsg);
+      const err = new Error(errMsg);
+      if (data && data.detail) err.detail = String(data.detail);
+      throw err;
     }
 
     let pickerOpened = false;

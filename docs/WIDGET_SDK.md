@@ -282,7 +282,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
-- `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
+- `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
 - `stocks` — the quotes/indices the user follows (same payload the Stocks tile gets)
 - `football` — followed teams' fixtures, live scores and results
@@ -1530,7 +1530,7 @@ the same gate Deck keys go through):
 |----------|---------|
 | `media` | `{ type: 'media', cmd: 'playpause' \| 'next' \| 'previous' }`, `{ type: 'mediaSeek', position }` — seek to an absolute position in seconds. `position` must be finite and non-negative; fractional values are rounded to the nearest whole second and the registry caps them at 24 hours before the active player may clamp them to the track. A live/non-seekable source returns `not_seekable` or `unavailable`. While dragging a timeline, preview locally and send one action on pointer release instead of fighting the bridge's 250 ms action rate limit. |
 | `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' \| 'set', value }`, `{ type: 'appVolume', app, mode, value }`, `{ type: 'appMute', app, mode }` — `app` is the `proc` field from the `audio` stream. Note `appVolume` with `mode:'set'` does **not** unmute: raise a muted app and send `appMute` too, or nothing comes out. |
-| `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. |
+| `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. `{ type: 'audioDeviceToggle', deviceA, deviceB }` (v4.11.10) flips between two of them in one call: see *Moving the sound between two outputs* below. |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
 | `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off`; `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
@@ -1850,6 +1850,43 @@ action: { type: 'vmMacro', index: '3', mode: 'toggle' }
 Windows only, and only while Voicemeeter is running. There is no setting to
 switch on: having it installed is the whole opt-in.
 
+### 5f. Moving the sound between two outputs: `audioDeviceToggle` (v4.11.10)
+
+The Deck's *Switch between two outputs* key, reachable from a widget:
+speakers and headphones, a monitor's speakers and a DAC, one button.
+
+```js
+action: { type: 'audioDeviceToggle', deviceA: speakersId, deviceB: headsetId }
+// { ok: true } — or { ok: false, error: 'unknown_device' | 'no_device' | 'audio_unavailable' | … }
+```
+
+```json
+{ "actions": ["audioDevice"], "streams": ["audio"] }
+```
+
+- **Which way it goes is decided by the host**, against the live list at the
+  moment of the call: to `deviceB` when `deviceA` is the current default, to
+  `deviceA` in every other case, including when the sound is on a third
+  device. You do not need to know the current output to send it, which is the
+  point: a widget that decides from its own last `audio` payload can be up to
+  8 seconds out of date and go the wrong way.
+- **Both ids are `speakers[].id` values** from the `audio` stream, exactly as
+  for `audioDevice`, and both go through the same check against the live
+  output list. If either one is not connected right now, nothing is switched
+  and the answer is `unknown_device`: the toggle never quietly falls back to
+  the one device that is left.
+- **Same grant as `audioDevice`**, not a new one. It moves the sound to one of
+  two devices your widget could already choose one at a time, so it does not
+  ask the user for anything they have not already approved.
+- To show which one is on, read `speaker.id` from the `audio` stream (or the
+  entry in `speakers[]` with `isDefault: true`). The stream is polled about
+  every 8 seconds, so a change made from the OS (the Windows sound settings,
+  the Mac menu bar) shows within that. After your own action succeeds, expect
+  the next `audio` push to carry the new device.
+- On macOS, switching needs `SwitchAudioSource` (`brew install
+  switchaudio-osx`), the same as the `audioDevice` action; without it the
+  answer names what is missing.
+
 <!-- SDK-REFERENCE:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
 ### Capability reference (auto-generated)
 
@@ -1863,7 +1900,7 @@ the user granted, and every action is re-validated server-side.
 
 | Category | Action types |
 |----------|--------------|
-| `audioDevice` | `audioDevice` |
+| `audioDevice` | `audioDevice`, `audioDeviceToggle` |
 | `browser` | `browserOpen` |
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` |

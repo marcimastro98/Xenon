@@ -73,6 +73,7 @@ const themePalette = require('./js/theme-palette.js'); // single owner of the se
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
+const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const aiModels = require('./ai-models');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
@@ -87,7 +88,7 @@ const icsFeeds = require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.
-const { createRegistry, resolveOutputDevice, isBlockedOpenPath } = require('./actions/registry');
+const { createRegistry, resolveOutputDevice, pickToggleDevice, isBlockedOpenPath } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
@@ -164,6 +165,7 @@ const PORT = (() => {
   const raw = parseInt(process.env.XENON_PORT, 10);
   return Number.isInteger(raw) && raw > 0 && raw <= 65535 ? raw : 3030;
 })();
+aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge reaches Xenon's tools
 
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
@@ -410,6 +412,15 @@ function providerModelFor(provider, role, settings) {
   if (!key) return '';
   const apiKey = provider === 'openai' ? s.openaiApiKey : s.anthropicApiKey;
   return aiModels.resolve(provider, role, s[key], apiKey);
+}
+
+// One answer through the user's Claude Code / Codex subscription (ai-cli.js),
+// for the features a person starts themselves: a search, a button, the fold of
+// their own conversation. Automatic background ones never come here.
+async function cliOneShot(provider, systemText, userText, settings) {
+  const s = settings || (await readHubSettings().catch(() => null)) || {};
+  const model = provider === 'claudecode' ? s.claudeCodeModel : s.codexModel;
+  return aiCli.oneShot({ provider, model, systemText, userText });
 }
 
 // Core Xenon AI function declarations — the always-available tools (dashboard,
@@ -6008,6 +6019,19 @@ const deckRegistryDeps = {
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
   },
+  // Flip between two outputs. Which one is decided against the live list, so a
+  // key pressed right after the output was changed from the OS still goes the
+  // right way; the same resolveOutputDevice check guards both ids.
+  audioDeviceToggle: async (a, b) => {
+    let info;
+    try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
+    const match = pickToggleDevice(a, b, info && info.speakers);
+    if (!match) return { ok: false, error: 'unknown_device' };
+    await svvExec(['/SetDefault', match.id, 'all']);
+    cachedSpeakerId = match.id;
+    cachedSpeakerName = match.name || cachedSpeakerName;
+    return { ok: true };
+  },
   // Task-list mutations (the `tasks` action category). All go through writeTasks,
   // which normalises (assigns id/createdAt, caps text to 200, drops empties) and
   // broadcasts the updated `tasks` stream — so the Tasks tile and every granted
@@ -6759,7 +6783,8 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     // Voice output per provider: Ollama and Claude (no speech API) use the free
     // local Edge neural TTS; ChatGPT uses OpenAI TTS (its server-only key comes
     // from settings); Gemini uses Gemini TTS with the request's key.
-    const useLocal = provider === 'ollama' || provider === 'anthropic';
+    // Claude Code / Codex bring no speech of their own either, so they share it.
+    const useLocal = provider === 'ollama' || provider === 'anthropic' || aiCli.isCliProvider(provider);
     const useOpenai = provider === 'openai';
     let openaiKey = '';
     if (useOpenai) { const s = await readHubSettings().catch(() => null); openaiKey = String((s && s.openaiApiKey) || '').trim(); }
@@ -7262,7 +7287,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // searches key-free via DuckDuckGo. Use an explicit non-Gemini allowlist:
       // the Gemini main tool loop calls executeAiTool WITHOUT a `provider` dep, so
       // `provider` is undefined there and must fall to the grounded branch.
-      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic')
+      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic' || aiCli.isCliProvider(provider))
         ? await aiLocal.localWebSearch(fnArgs.query)
         : await _geminiWebSearch(fnArgs.query, apiKey);
       fnResult = searchRes.error
@@ -8232,7 +8257,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
-  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'claudecode' | 'codex' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
   // ChatGPT (OpenAI) + Claude (Anthropic): server-mediated cloud providers. Keys
@@ -8244,6 +8269,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   openaiTtsModel: 'auto',
   anthropicApiKey: '',
   anthropicModel: 'auto',
+  // Claude Code / Codex (ai-cli.js): 'default' lets the program choose.
+  claudeCodeModel: 'default',
+  codexModel: 'default',
   // Gemini models, one per role. `auto` (or `auto:<family>`) follows whatever the
   // user's key can reach — see ai-models.js — so a model Google ships tomorrow is
   // in use without an app update, while a concrete id here is a pin kept forever.
@@ -9679,6 +9707,8 @@ function normalizeHubSettings(value) {
     openaiTtsModel: aiOpenai.sanitizeSpeechModel(source.openaiTtsModel, 'tts'),
     anthropicApiKey: String(source.anthropicApiKey || '').trim().slice(0, 200),
     anthropicModel: aiAnthropic.sanitizeModel(source.anthropicModel),
+    claudeCodeModel: aiCli.sanitizeModel(source.claudeCodeModel),
+    codexModel: aiCli.sanitizeModel(source.codexModel),
     // Gemini, one per role. Same sanitizer for all four: `auto`/`auto:<family>`
     // or a concrete id, anything else falls back to `auto`.
     geminiModel: aiGemini.sanitizeModel(source.geminiModel),
@@ -13504,6 +13534,12 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
       const text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500 });
       return _normalizePerfPlan(text, names);
     }
+    if (aiCli.isCliProvider(provider)) {
+      // Started by the user switching Performance Mode on, so it may use their
+      // subscription; slower than an API call, and the plan waits for it.
+      const text = await cliOneShot(provider, 'You output only a single JSON object, never prose or markdown.', prompt);
+      return _normalizePerfPlan(text, names);
+    }
     if (!key) return null;
     const text = await _geminiGenerateJSON(prompt, key);
     return _normalizePerfPlan(text, names);
@@ -17037,6 +17073,37 @@ const handleRequest = async (req, res) => {
         return;
       }
 
+      if (aiCli.isCliProvider(provider)) {
+        // The user's own subscription, through the official Claude Code / Codex
+        // program (see ai-cli.js for what that may and may not do). Xenon's tools
+        // reach the model over MCP (ai-mcp-bridge.js) and run through the very
+        // same executeAiTool as every other provider; the program's own tools
+        // (shell, files, web) stay off.
+        const settings = await readHubSettings().catch(() => null);
+        const cliModel = aiCli.sanitizeModel(settings && (provider === 'claudecode' ? settings.claudeCodeModel : settings.codexModel));
+        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const SYS_MCP = ' Your tools come from the "xenon" MCP server; their names may carry a prefix such as mcp__xenon__. You have no other tools: no shell, no file access, no web browsing except the web_search tool.';
+        const systemText = SYS_BASE + SYS_MCP + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
+        try {
+          const result = await aiCli.chat({
+            provider, model: cliModel, systemText, history: currentMessages,
+            tools: AI_FUNCTIONS,
+            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              provider,
+            }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
+        } catch (e) {
+          const code = (e && e.code) || 'cli_failed';
+          res.writeHead(code === 'cli_failed' ? 502 : 400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: code, detail: code === 'cli_failed' ? String((e && e.message) || '').slice(0, 400) : undefined }));
+        }
+        return;
+      }
+
       if (provider === 'openai' || provider === 'anthropic') {
         // Server-mediated cloud providers (ChatGPT / Claude). Their keys are
         // SERVER-ONLY, so read them from settings — never from the request body.
@@ -17205,6 +17272,9 @@ const handleRequest = async (req, res) => {
         if (!provKey) { json({ summary: prev }); return; }
         const out = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 400 }).catch(() => '');
         if (out) summary = String(out).trim().slice(0, 2000);
+      } else if (aiCli.isCliProvider(provider)) {
+        const out = await cliOneShot(provider, sysText, userText).catch(() => '');
+        if (out) summary = String(out).trim().slice(0, 2000);
       } else {
         if (!apiKey) { json({ summary: prev }); return; }
         const out = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 400).catch(() => '');
@@ -17288,6 +17358,10 @@ const handleRequest = async (req, res) => {
         const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
         const provModel = providerModelFor(provider, 'chat', settings);
         if (provKey) text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 100 }).catch(() => '');
+      } else if (aiCli.isCliProvider(provider)) {
+        // Bit speaks up on its own, so it never spends the user's Claude Code /
+        // Codex subscription: an empty line sends the client to its phrase bank.
+        text = '';
       } else {
         if (apiKey) text = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 100).catch(() => '');
       }
@@ -17562,7 +17636,26 @@ const handleRequest = async (req, res) => {
         res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
       }
       let sttText;
-      if (sttProvider === 'ollama') {
+      // Each provider hears the user the way /api/transcribe does, so none of
+      // them quietly needs a Gemini key: local whisper for Ollama, Claude (no
+      // speech API) and a Claude Code / Codex subscription; OpenAI's own speech
+      // model, with its server-only key, for ChatGPT. Before this, the voice orb
+      // sent Claude and ChatGPT to Gemini and failed without a Gemini key.
+      if (sttProvider === 'openai') {
+        const s = await readHubSettings().catch(() => null);
+        const openaiKey = String((s && s.openaiApiKey) || '').trim();
+        if (!openaiKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        process.stdout.write(`[STT] OpenAI transcribe lang=${sttLang}\n`);
+        try {
+          sttText = await aiOpenai.stt({ apiKey: openaiKey, wavBuffer: wavData, lang: sttLang, model: providerModelFor('openai', 'stt', s) });
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      } else if (sttProvider === 'ollama' || sttProvider === 'anthropic' || aiCli.isCliProvider(sttProvider)) {
         process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
         try {
           sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
@@ -17584,6 +17677,39 @@ const handleRequest = async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+
+  } else if (reqPath === '/api/ai/cli/mcp' && req.method === 'POST') {
+    // Xenon's tools for a Claude Code / Codex turn, asked for by the MCP bridge
+    // (ai-mcp-bridge.js) that the program started. The token names one live
+    // turn and dies with it; ai-cli.js refuses everything else, and each call
+    // runs through executeAiTool exactly as it does for the other providers.
+    try {
+      const raw = await readBodyBuffer(req, 256 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const out = await aiCli.handleMcp(String(req.headers['x-xenon-mcp-token'] || ''), body);
+      res.writeHead(out.status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(out.body));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'bad_request' }));
+    }
+
+  } else if (reqPath === '/api/ai/cli/status' && req.method === 'GET') {
+    // Claude Code / Codex: is the program there, and is the user signed in to
+    // it. Asked by Settings; `fresh=1` skips the 30s cache so the answer
+    // changes as soon as the user has signed in.
+    const provider = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
+    if (!aiCli.isCliProvider(provider)) { json({ ok: false, error: 'bad_provider' }); return; }
+    try { json(Object.assign({ ok: true }, await aiCli.status(provider, { fresh: urlObj.searchParams.get('fresh') === '1' }))); }
+    catch (e) { json({ ok: false, error: 'status_failed' }); }
+
+  } else if (reqPath === '/api/ai/cli/models' && req.method === 'GET') {
+    // The models the program itself offers: Claude Code's aliases, Codex's own
+    // catalog (`codex debug models`). 'default' is always an option on top.
+    const provider = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
+    if (!aiCli.isCliProvider(provider)) { json({ ok: false, error: 'bad_provider' }); return; }
+    try { json({ ok: true, provider, models: await aiCli.models(provider) }); }
+    catch (e) { json({ ok: true, provider, models: [] }); }
 
   } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
     // Live model list for the picker, fetched from each provider's own models
@@ -17636,7 +17762,7 @@ const handleRequest = async (req, res) => {
       // transcribe. Ollama and Claude (no speech API) use local whisper.cpp;
       // ChatGPT uses OpenAI Whisper with its server-only key. No Gemini key
       // required. Errors degrade gracefully (HTTP 200, empty text).
-      if (tProvider === 'ollama' || tProvider === 'anthropic' || tProvider === 'openai') {
+      if (tProvider === 'ollama' || tProvider === 'anthropic' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
         if (!audioB64) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'missing_params' })); return;
@@ -17731,7 +17857,7 @@ const handleRequest = async (req, res) => {
       }
       // Non-Gemini providers return a ready WAV. Ollama and Claude use the free
       // local Edge neural TTS; ChatGPT uses OpenAI TTS (server-only key).
-      if (ttsProvider === 'ollama' || ttsProvider === 'anthropic' || ttsProvider === 'openai') {
+      if (ttsProvider === 'ollama' || ttsProvider === 'anthropic' || ttsProvider === 'openai' || aiCli.isCliProvider(ttsProvider)) {
         try {
           let wavBuf;
           if (ttsProvider === 'openai') {
@@ -18527,6 +18653,8 @@ const handleRequest = async (req, res) => {
         const provModel = providerModelFor(provider, 'chat', settings);
         if (!provKey) { json({ ok: false, error: 'no_provider' }); return; }
         text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
+      } else if (aiCli.isCliProvider(provider)) {
+        text = await cliOneShot(provider, sysText, userText, settings).catch(() => '');
       } else {
         const key = settings && settings.geminiApiKey;
         if (!key) { json({ ok: false, error: 'no_provider' }); return; }
@@ -18729,6 +18857,8 @@ const handleRequest = async (req, res) => {
         text = await mod.oneShot({
           apiKey: key, model, systemText: sysText, userText, maxTokens: 1500,
         }).catch(() => '');
+      } else if (aiCli.isCliProvider(provider)) {
+        text = await cliOneShot(provider, sysText, userText, settings).catch(() => '');
       } else {
         const key = settings && settings.geminiApiKey;
         if (!key) { json({ ok: false, error: 'no_provider' }); return; }

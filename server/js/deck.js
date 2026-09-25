@@ -24,7 +24,7 @@
   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
-  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, scriptStates: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN };
+  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, scriptStates: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN, outputDevice: '' };
   // Latest OBS program-scene thumbnail; painted onto one host key by applyScenePreview.
   let scenePreview = { scene: '', image: '' };
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
@@ -857,6 +857,9 @@
       // path was right, with no way to tell a refused path from one that failed
       // to launch. The key still flashes; now it also says why.
       if (!(data && data.ok)) reportActionError(data && data.error);
+      // The output just changed: ask now rather than wait for the next audio
+      // tick, so the key's face follows the press instead of trailing it.
+      if (data && data.ok && (action.type === 'audioDevice' || action.type === 'audioDeviceToggle')) pollOutputDevice();
       return !!(data && data.ok);
     } catch (e) { return false; }
   }
@@ -870,6 +873,7 @@
     launch_failed: ['deck_err_launch_failed', 'the app would not start'],
     blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
     unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
+    unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
     // Voicemeeter. Every one of these is something the person holding the
     // machine can fix — install it, start it, pick a strip their edition has —
     // which is the bar this map sets. The opaque ones (read/write refused by
@@ -2500,6 +2504,7 @@
       }
     }
     scheduleHaWatchSync();   // the rendered key set may have changed its HA bindings
+    syncOutputWatch();       // ...and whether any key follows the audio output
   }
 
   // ── HA entity subscriptions for bound keys ─────────────────────────────────
@@ -3108,9 +3113,43 @@
     }
   }
 
+  // ── which audio output is active ────────────────────────────────────────
+  // A key bound to 'outputDevice' needs the default output, which rides the
+  // `audio` SSE event. The server only runs that poll while something has asked
+  // for /audio in the last two minutes (audioPollWanted), and a deck of output
+  // keys asks for nothing else, so while one is on screen the deck asks once a
+  // minute: that keeps the server's 8s poll going and seeds the state at once.
+  const OUTPUT_WATCH_MS = 60000;
+  let outputWatchTimer = null;
+  async function pollOutputDevice() {
+    try {
+      const res = await fetch((typeof SERVER !== 'undefined' ? SERVER : '') + '/audio');
+      const d = await res.json();
+      if (d && !d.unavailable) refreshStates({ outputDevice: (d.speaker && d.speaker.id) || '' });
+    } catch { /* offline: keep the last known face */ }
+  }
+  function setOutputWatch(wanted) {
+    if (wanted && !outputWatchTimer) {
+      outputWatchTimer = setInterval(() => { if (!document.hidden) pollOutputDevice(); }, OUTPUT_WATCH_MS);
+      pollOutputDevice();
+    } else if (!wanted && outputWatchTimer) {
+      clearInterval(outputWatchTimer); outputWatchTimer = null;
+    }
+  }
+
+  function syncOutputWatch() {
+    let wanted = false;
+    document.querySelectorAll('.deck-key[data-state-bound]').forEach((node) => {
+      if (node._deckState && node._deckState.source === 'outputDevice') wanted = true;
+    });
+    setOutputWatch(wanted);
+  }
+
   // Toggle .is-on for every state-bound key node against the current snapshot.
   function applyKeyStates() {
+    let wantsOutput = false;
     document.querySelectorAll('.deck-key[data-state-bound]').forEach((node) => {
+      if (node._deckState && node._deckState.source === 'outputDevice') wantsOutput = true;
       const on = window.DeckModel.evaluateKeyState(node._deckState, stateSnapshot);
       node.classList.toggle('is-on', on);
       applyStateStyle(node, on);
@@ -3123,6 +3162,7 @@
     });
     applyLiveFaces();
     applySliderValues();
+    setOutputWatch(wantsOutput);
   }
 
   // Merge a partial state update (e.g. { micMuted: true }) and re-apply. Called

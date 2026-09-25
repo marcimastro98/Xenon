@@ -497,6 +497,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   anthropicApiKey: '',
   anthropicApiKeySet: false,
   anthropicModel: 'auto',
+  // Claude Code / Codex (the user's own subscription, ai-cli.js). 'default'
+  // lets the program choose; no key, the program has its own sign-in.
+  claudeCodeModel: 'default',
+  codexModel: 'default',
   geminiModel: 'auto',
   geminiModelPro: 'auto',
   geminiModelTts: 'auto',
@@ -834,6 +838,10 @@ const BG_CUSTOM_CODE_MAX = 60000;
 // An older build normalizes an unknown kind to 'auto', which is the safe
 // direction — the window stays visible rather than disappearing.
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
+// Every provider id Xenon AI knows, mirrored from ai-local.js AI_PROVIDERS.
+// Up here because normalizeSettings reads them at load (see SURFACE_KINDS).
+const AI_PROVIDER_IDS = ['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex'];
+const AI_CLI_PROVIDERS = ['claudecode', 'codex'];
 // How often the sensor readings refresh, in ms. Mirrors SENSOR_RATE_MS in
 // server.js — the server clamps to this same set, so an out-of-range value
 // saved by anything else lands back on the default rather than being honoured.
@@ -1623,6 +1631,13 @@ function normalizeFanLabels(value) {
 // field writes. So the case fold matters most here — `AUTO` stored as a pin from
 // this function is what the server then dutifully sends to the provider. The four
 // others repeat the rule; test/ai-model-sentinel-sync.test.mjs holds them level.
+// Mirror of ai-cli.js sanitizeModel: 'default' (the program chooses) or a
+// model name that starts with a letter or digit, so it can never read as a flag.
+function normalizeCliModel(value) {
+  const v = typeof value === 'string' ? value.trim() : '';
+  return v && v !== 'default' && /^[A-Za-z0-9][A-Za-z0-9._:[\]-]{0,63}$/.test(v) ? v : 'default';
+}
+
 function normalizeModelChoice(value) {
   const v = typeof value === 'string' ? value.trim() : '';
   const low = v.toLowerCase();
@@ -1755,7 +1770,7 @@ function normalizeSettings(source) {
     // every readiness check reads (see `geminiKeyReady`).
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
     geminiApiKeySet: value.geminiApiKeySet === true || !!String(value.geminiApiKey || '').trim(),
-    aiProvider: ['ollama', 'openai', 'anthropic'].includes(value.aiProvider) ? value.aiProvider : 'gemini',
+    aiProvider: AI_PROVIDER_IDS.includes(value.aiProvider) ? value.aiProvider : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'
       && /^[a-z0-9._:-]+$/.test(value.ollamaModel)
       && value.ollamaModel.length <= 60)
@@ -1771,6 +1786,8 @@ function normalizeSettings(source) {
     anthropicApiKey: String(value.anthropicApiKey || '').trim().slice(0, 200),
     anthropicApiKeySet: value.anthropicApiKeySet === true || !!String(value.anthropicApiKey || '').trim(),
     anthropicModel: normalizeModelChoice(value.anthropicModel),
+    claudeCodeModel: normalizeCliModel(value.claudeCodeModel),
+    codexModel: normalizeCliModel(value.codexModel),
     // Gemini, one per role. Same shape as the two above: `auto` / `auto:<family>`
     // follows the provider's releases, a concrete id is a pin. The server
     // resolves them (ai-models.js); the client only stores the choice.
@@ -10511,6 +10528,7 @@ function _reflectAiProviderRows(provider) {
   show('settings-gemini-models', provider === 'gemini');
   show('settings-openai-panel', provider === 'openai');
   show('settings-anthropic-panel', provider === 'anthropic');
+  show('settings-cli-panel', AI_CLI_PROVIDERS.includes(provider));
 }
 
 // Reflect the persisted provider settings into the AI controls. Safe to call
@@ -10521,7 +10539,7 @@ function syncAiProviderControls() {
   if (!panel || !modelSel) return;
 
   const cfg = hubSettings || {};
-  const provider = ['ollama', 'openai', 'anthropic'].includes(cfg.aiProvider) ? cfg.aiProvider : 'gemini';
+  const provider = AI_PROVIDER_IDS.includes(cfg.aiProvider) ? cfg.aiProvider : 'gemini';
   document.querySelectorAll('input[name="aiProvider"]').forEach((r) => {
     r.checked = (r.value === provider);
   });
@@ -10536,6 +10554,7 @@ function syncAiProviderControls() {
   const oReset = $('settings-openai-reset'); if (oReset) oReset.hidden = !cfg.openaiApiKeySet;
   const aReset = $('settings-anthropic-reset'); if (aReset) aReset.hidden = !cfg.anthropicApiKeySet;
   if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') _aiLoadProviderModels(provider);
+  if (AI_CLI_PROVIDERS.includes(provider)) aiCliRefresh(provider, false);
 
   const urlInput = $('ai-ollama-url');
   if (urlInput) urlInput.value = cfg.ollamaUrl || 'http://localhost:11434';
@@ -10581,7 +10600,7 @@ function persistAiProviderSettings() {
     : modelSel.value;
   hubSettings = normalizeSettings({
     ...hubSettings,
-    aiProvider: (checked && ['ollama', 'openai', 'anthropic'].includes(checked.value)) ? checked.value : 'gemini',
+    aiProvider: (checked && AI_PROVIDER_IDS.includes(checked.value)) ? checked.value : 'gemini',
     ollamaModel: model,
     ollamaUrl: (urlInput && urlInput.value.trim()) || 'http://localhost:11434',
   });
@@ -10783,6 +10802,7 @@ function initAiProviderSettings() {
       _reflectAiProviderRows(r.value);
       persistAiProviderSettings();
       if (r.value === 'ollama') { await aiLocalScan(); await aiLocalRefreshStatus(); await aiLocalSyncAutostart(); }
+      else if (AI_CLI_PROVIDERS.includes(r.value)) aiCliRefresh(r.value, true);
       else _aiLoadProviderModels(r.value);
     });
   });
@@ -11034,6 +11054,92 @@ function onAiModelSelect(key, value) {
 }
 
 function onOpenaiModelSelect(v) { onAiModelSelect('openaiModel', v); }
+
+// ── Claude Code / Codex (the user's own subscription) ───────────────────────
+// One panel for both. It says whether the program is installed and signed in,
+// with what to run when it is not, and offers the models the program itself
+// lists. Nothing here handles a credential: sign-in happens in the program.
+const AI_CLI_INFO = {
+  claudecode: { app: 'Claude Code', login: 'claude auth login', guide: 'https://code.claude.com/docs/en/setup', key: 'claudeCodeModel' },
+  codex: { app: 'Codex', login: 'codex login', guide: 'https://developers.openai.com/codex/cli', key: 'codexModel' },
+};
+let _aiCliSeq = 0;
+function _aiCliText(k, info, extra) {
+  let s = t(k).replace(/\{app\}/g, info.app).replace(/\{cmd\}/g, info.login);
+  if (extra && extra.version != null) s = s.replace(/\{ver\}/g, extra.version ? ' ' + extra.version : '');
+  return s;
+}
+async function aiCliRefresh(provider, fresh) {
+  const info = AI_CLI_INFO[provider];
+  if (!info) return;
+  const seq = ++_aiCliSeq;
+  const intro = $('settings-cli-intro');
+  if (intro) intro.textContent = _aiCliText('settings_cli_intro', info);
+  const guide = $('settings-cli-guide');
+  if (guide) { guide.href = info.guide; guide.textContent = _aiCliText('settings_cli_guide', info); }
+  const statusEl = $('settings-cli-status');
+  if (statusEl) { statusEl.textContent = t('settings_cli_checking'); statusEl.dataset.state = 'checking'; }
+  const [st, list] = await Promise.all([
+    fetch('/api/ai/cli/status?provider=' + provider + (fresh ? '&fresh=1' : '')).then(r => r.json()).catch(() => null),
+    fetch('/api/ai/cli/models?provider=' + provider).then(r => r.json()).catch(() => null),
+  ]);
+  if (seq !== _aiCliSeq) return;   // the user switched provider meanwhile
+  if (statusEl) {
+    let k = 'settings_cli_unknown', state = 'warn';
+    if (!st || st.ok === false) k = 'settings_cli_unknown';
+    else if (!st.installed) { k = 'settings_cli_not_installed'; state = 'bad'; }
+    else if (st.loggedIn === false) { k = 'settings_cli_not_logged_in'; state = 'bad'; }
+    else if (st.loggedIn === true && /api.?key/i.test(String(st.method || ''))) { k = 'settings_cli_api_key'; state = 'warn'; }
+    else if (st.loggedIn === true) { k = 'settings_cli_ready'; state = 'ok'; }
+    statusEl.textContent = _aiCliText(k, info, { version: (st && st.version) || '' });
+    statusEl.dataset.state = state;
+  }
+  _aiCliRenderModels(provider, (list && Array.isArray(list.models)) ? list.models : []);
+}
+function _aiCliRenderModels(provider, models) {
+  const info = AI_CLI_INFO[provider];
+  const sel = $('settings-cli-model');
+  const cust = $('settings-cli-model-custom');
+  if (!sel || !info) return;
+  const cur = normalizeCliModel(hubSettings && hubSettings[info.key]);
+  sel.replaceChildren();
+  const add = (value, label) => { const o = document.createElement('option'); o.value = value; o.textContent = label; sel.appendChild(o); return o; };
+  add('default', t('settings_cli_model_default'));
+  const ids = new Set(['default']);
+  for (const m of models) {
+    if (!m || typeof m.id !== 'string' || ids.has(m.id)) continue;
+    ids.add(m.id);
+    // "Opus" for `opus` needs no second name; "GPT-6-Astra" for `gpt-6-astra` neither.
+    const same = !m.label || String(m.label).toLowerCase() === m.id.toLowerCase();
+    add(m.id, same ? (m.label || m.id) : m.label + ' (' + m.id + ')');
+  }
+  // A saved model the program no longer lists (or one typed by hand) stays.
+  if (!ids.has(cur)) add(cur, cur);
+  add('__custom__', t('ai_model_custom'));
+  sel.value = cur;
+  if (cust) cust.hidden = true;
+}
+function onAiCliModelSelect(value) {
+  const provider = hubSettings && hubSettings.aiProvider;
+  const info = AI_CLI_INFO[provider];
+  if (!info) return;
+  const cust = $('settings-cli-model-custom');
+  if (value === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
+  if (cust) cust.hidden = true;
+  hubSettings = normalizeSettings({ ...hubSettings, [info.key]: normalizeCliModel(value) });
+  saveHubSettings();
+}
+function updateAiCliModelCustom(value) {
+  const provider = hubSettings && hubSettings.aiProvider;
+  const info = AI_CLI_INFO[provider];
+  if (!info) return;
+  hubSettings = normalizeSettings({ ...hubSettings, [info.key]: normalizeCliModel(value) });
+  saveHubSettings();
+}
+function aiCliRecheck() {
+  const provider = hubSettings && hubSettings.aiProvider;
+  if (AI_CLI_PROVIDERS.includes(provider)) aiCliRefresh(provider, true);
+}
 function onAnthropicModelSelect(v) { onAiModelSelect('anthropicModel', v); }
 
 // Remove a saved OpenAI/Anthropic key. Sends key='' with *Set=false, which the

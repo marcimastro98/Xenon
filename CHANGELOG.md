@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **Xenon AI can use your Claude or ChatGPT subscription instead of an API key.** Two new providers in **Settings → Xenon AI**: **Claude Code** and **Codex**. Xenon AI then answers through the official Claude Code or Codex program installed on your PC, signed in with your own Claude or ChatGPT plan, so there is nothing to pay per message.
+
+  Xenon never sees, stores or forwards your credentials: you sign in inside the program, through Anthropic's or OpenAI's own sign-in, and Xenon only asks the program for an answer. This is also the only way Anthropic allows a Claude subscription to be used outside its own apps, which is why Xenon does not offer a "Sign in with Claude" button.
+
+  The settings panel tells you whether the program is installed and signed in, and if not, exactly what to run. You pick the model from the ones the program offers your account: Fable, Opus, Sonnet or Haiku for Claude Code, and Codex's own list for Codex, or leave it on the program's default.
+
+  The assistant can do everything it does with the other providers: change the theme, set up Deck keys, add tasks and timers, control lights and media, search the web, and the rest. Xenon's own tools reach the program through a small bridge that lives for a single answer, with a key of its own that stops working when the answer is done. The program's own tools, such as its terminal and file access, stay switched off: through Xenon it can only use Xenon's tools.
+
+  What to expect. It is slower than an API key: a few seconds for a plain answer, around ten when it uses a tool, because the program starts for each answer. It uses the same subscription limits you code with. Voice works and stays on the free local speech. The features you start yourself (AI search, the disk advisor, Performance Mode planning) use your subscription too, while Bit's automatic one-liners never do.
+
+- **One Deck key that switches between two audio outputs.** Asked for on Discord by someone who had built it by hand on a Mac: a shell script that flipped the sound between the monitor's speakers and a USB DAC, and then told Xenon which one was on so the key could change its icon.
+
+  **Switch between two outputs**, in the Audio actions, does all of it. Pick the two devices from the list of what is connected, and each press moves the sound to the other one. If the sound is on a third device, the first press goes to the first one.
+
+  The key's **Look while active** now shows up when the second device is playing, and it follows the output that is really active, not the last press. Change the output from the Windows sound settings or the Mac menu bar and the key catches up by itself within a few seconds, which the script could never do. After a press on the key itself it changes straight away. A plain **Output device** key does the same thing for its own device: it lights up while that device is the one playing. Keys you already have pick this up the next time you save them.
+
+  If one of the two devices is unplugged, the key tells you that device is not connected instead of switching to the one that is left. On a Mac, switching outputs still needs SwitchAudioSource (`brew install switchaudio-osx`), the same as the Output device key.
+
+  Widgets can do it too. `{ type: 'audioDeviceToggle', deviceA, deviceB }` is part of the existing **audioDevice** permission, so a widget that can already choose your speakers does not need to ask again, and it can ship the toggle as a Deck macro. Xenon decides which way to go at the moment of the press, so a widget never switches the wrong way because its last audio update was a few seconds old. Documented in [WIDGET_SDK.md](docs/WIDGET_SDK.md) → *Moving the sound between two outputs*.
+
 - **Ambient can be the screen Xenon starts on.** Asked for on Discord by someone whose Ambient scene is their whole dashboard: *"On startup/restart I need to press the button in the top left for ambient mode. Having the option to skip that and boot straight into what the button press would take me to would be swell."*
 
   **Settings → Ambient → Open at startup** does exactly that. Every time Xenon starts, the PC boots or the app reloads after an update, your scene opens on its own and stays up until you close it.
@@ -72,6 +92,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **The voice orb no longer needs a Gemini key when Xenon AI runs on Claude or ChatGPT.** Push-to-talk in the chat already transcribed your voice with the matching provider, but the voice orb sent it to Gemini whatever you had chosen, so with Claude or ChatGPT and no Gemini key it could not hear you. It now uses the free local transcription with Claude, and OpenAI's own transcription with ChatGPT, exactly like the chat does.
+
+- **A custom widget follows its own tile's accent and background.** Reported by a widget author: the Accent set in a tile's customization showed on the tile, while the widget inside it kept drawing the dashboard's global accent.
+
+  Xenon hands each widget the colours of the tile it sits in, read from the tile itself. Two of those colours, accent and background, are set up so that a theme change fades smoothly, and the browser hands those two back in a different format from the others. The step that tidies the colours before sending them only understood the usual one, so it threw both away and sent the global colours instead. It now understands both formats. The tile's accent and background reach the widget, and every other colour was already arriving correctly.
+
+- **The slideshow keeps changing pictures while you play.** Reported on GitHub (#130): *"the photos changing still freeze when in game on the latest version."*
+
+  **Stop GIFs while gaming**, on by default, was meant to spare the game an animated GIF redrawing itself every frame. It did more than its name said: it also stopped the rotation, so a folder of photos sat on the same picture for the whole session. On a Xeneon Edge the screen is right next to the game and you look at it the whole time, so that was the wrong trade.
+
+  Now a game only keeps animated images still. The photos carry on changing at the time you set, each new one loading behind the current picture and taking its place when it is ready, so the tile never flashes blank. The back and forward arrows work during a game too; before, they did nothing until the game closed. The slideshow still stops completely when nobody can see it, with the dashboard hidden or Settings open over it. The hint under the option now says what it does.
+
 - **A Deck key's Hold works from a touchscreen on macOS.** Reported on Discord by someone with three AppleScripts on one key, Tap, Double and Hold, where Hold never fired.
 
   macOS has no touch support for USB touchscreens, so apps like Touchscreen Gestures turn your touches into mouse clicks, and a long press into a right click. The Deck only counted a hold when the left button stayed down for half a second, so on that setup Hold could not happen, and the right click ran the Tap action instead. A right click on a key now runs its Hold action straight away. This also gives you a quick way to reach Hold with a mouse. Keys without a Hold action behave as before, and a long press on a touchscreen with real touch input works exactly as it did.

@@ -165,6 +165,7 @@ function _aiHasKey() {
   // ChatGPT/Claude use the server-only *Set flags; Gemini uses its browser key.
   const p = hubSettings.aiProvider;
   if (p === 'ollama') return true;
+  if (p === 'claudecode' || p === 'codex') return true;   // the program's own sign-in
   if (p === 'openai') return !!hubSettings.openaiApiKeySet;
   if (p === 'anthropic') return !!hubSettings.anthropicApiKeySet;
   return geminiKeyReady(hubSettings);

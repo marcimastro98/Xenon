@@ -22,6 +22,11 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
   .filter((f) => f.endsWith('.js'))
   .map((f) => readFileSync(new URL('../actions/' + f, import.meta.url), 'utf8'))
   .join('\n');
+// And some registry cases hand their whole job to a dep defined in server.js,
+// which names the failure itself: `unknown_device` is the audioDevice dep's
+// answer for an output that is not in the live list, and the registry only
+// passes it on.
+const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 
 const KEYS = [
   'deck_err_title', 'deck_err_not_found', 'deck_err_bad_app_path',
@@ -54,7 +59,7 @@ test('every explained code is one the registry emits', () => {
     // Quoted anywhere in the registry: some are returned literally, others as a
     // fallback (`r.error || 'launch_failed'`), and both are codes it can emit.
     const quoted = new RegExp("'" + code + "'");
-    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS),
+    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS) || quoted.test(SERVER),
       `${code} is explained on screen but no dispatcher or provider emits it`);
   }
 });

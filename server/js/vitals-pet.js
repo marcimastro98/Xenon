@@ -209,6 +209,9 @@
       const pet = petCfg();
       if (pet.aiRoasts !== true) return bank();
       if (typeof _aiProviderReady !== 'function' || typeof _aiProviderCfg !== 'function' || !_aiProviderReady()) return bank();
+      // Bit speaks up on its own: it never spends a Claude Code / Codex
+      // subscription (the server refuses too), so skip the round trip.
+      if (['claudecode', 'codex'].includes(_aiProviderCfg().provider)) return bank();
       const now = Date.now();
       if (now - lastAiAt < NAG_GLOBAL_GAP_MS) return bank();
       lastAiAt = now;

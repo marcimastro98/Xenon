@@ -74,6 +74,13 @@ const ACTION_CATALOG = [
   // none of them is an id. `requires` hides the key where there is no audio
   // control to enumerate with, rather than offering one that always fails.
   { type: 'audioDevice', group: 'audio', requires: 'soundVolumeView', labelKey: 'deck_act_audioDevice', params: [{ name: 'device', kind: 'audioDevice' }] },
+  // One key that flips between two outputs: speakers and headphones, a monitor
+  // and a DAC. Asked for on Discord by someone doing it with a shell script,
+  // SwitchAudioSource and a curl to /state/set for the icon. Same picker and
+  // the same live-list check as the key above; the key's state follows which
+  // output is really active (deck-model 'outputDevice'), so its second face
+  // is right even when the output is changed from the OS instead.
+  { type: 'audioDeviceToggle', group: 'audio', requires: 'soundVolumeView', labelKey: 'deck_act_audioDeviceToggle', params: [{ name: 'deviceA', kind: 'audioDevice' }, { name: 'deviceB', kind: 'audioDevice' }] },
   { type: 'obsScene',  group: 'obs', labelKey: 'deck_act_obsScene',  params: [{ name: 'scene',  kind: 'obsScene' }] },
   { type: 'obsSceneNext', group: 'obs', labelKey: 'deck_act_obsSceneNext', params: [] },
   { type: 'obsRecord', group: 'obs', labelKey: 'deck_act_obsRecord', params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },

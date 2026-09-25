@@ -245,11 +245,23 @@
     // A slideshow is watched, not operated; only signals that mean the pixels
     // genuinely aren't being seen belong here.
     function globalFreeze() {
-      if (document.hidden) return true;            // nobody can see it, by definition
+      if (unseen()) return true;
       const c = cfg();
       const cls = document.body.classList;
-      // A game wants the frames more than the tile does.
+      // A game wants the frames more than the tile does. This stills the picture,
+      // it does not stop the rotation: see unseen().
       if (c.pauseGame !== false && (cls.contains('game-mode') || cls.contains('perf-active'))) return true;
+      return false;
+    }
+    // The signals that mean nobody can see the tile at all, so the rotation stops
+    // too. A game is not one of them. On a Xeneon Edge the screen sits right next
+    // to the game and is watched the whole time; what a game should not pay for
+    // is a GIF decoding every frame, not a new photo every few seconds. Stopping
+    // the rotation there froze the slideshow on one picture for a whole session
+    // (reported on #130: "the photos changing still freeze when in game").
+    function unseen() {
+      if (document.hidden) return true;            // nobody can see it, by definition
+      const cls = document.body.classList;
       // A frosted overlay (Settings, Store, import, drop) blurs the tile out of
       // sight, and a GIF decoding under a backdrop-filter forces the whole blur
       // to recompute every frame — the exact GPU drain ambient-freeze.js pauses
@@ -276,7 +288,10 @@
       // Only worth freezing something actually decoded; an image mid-load has no
       // frame to keep and will paint normally when it arrives.
       if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return;
-      const rendered = Math.max(img.clientWidth, img.clientHeight) || 0;
+      // A picture loading behind the still (see paintTile) is hidden and has no
+      // box of its own; the still fills the same stage, so measure that instead.
+      const rendered = Math.max(img.clientWidth, img.clientHeight)
+        || Math.max(ui.freeze.clientWidth, ui.freeze.clientHeight) || 0;
       const target = Math.min(FREEZE_MAX_PX, Math.max(64, Math.round(rendered * (window.devicePixelRatio || 1))));
       const scale = Math.min(1, target / Math.max(img.naturalWidth, img.naturalHeight));
       const cv = ui.freeze;
@@ -292,7 +307,12 @@
     }
 
     function thawTile(ui) {
-      if (!ui.frozen) return;
+      // Not frozen but the still is up: the next picture was loading behind it
+      // (see paintTile). Its src is already the current one, so just show it.
+      if (!ui.frozen) {
+        if (!ui.freeze.hidden) { ui.freeze.hidden = true; ui.img.hidden = false; }
+        return;
+      }
       ui.frozen = false;
       ui.freeze.hidden = true;
       ui.img.hidden = false;
@@ -469,6 +489,14 @@
       // Only touch src when it actually changes — re-setting it would restart an
       // animated GIF from frame 0 on every unrelated repaint.
       if (ui.src !== uri && !ui.frozen) { ui.img.src = uri; ui.src = uri; }
+      else if (ui.src !== uri && wantFreeze) {
+        // The rotation moved on while the tile is still (a game is running). Load
+        // the next picture behind the still, which stays up until it arrives: the
+        // load handler freezes the new one in its place, so the tile goes straight
+        // from one still to the next with no blank frame in between.
+        ui.frozen = false;
+        ui.img.src = uri; ui.src = uri;
+      }
       ui.img.alt = imgs[s.idx].name || '';
       // Freeze AFTER the src is settled, so the frame we keep is the current image.
       if (wantFreeze) freezeTile(ui);
@@ -503,10 +531,11 @@
       // slow cadence so it follows the disk without the user reopening Settings.
       // refreshFolder() rebuilds the playlist only when the count actually moved.
       if (cfg().source === 'folder') refreshFolder(false);
-      // Frozen means the pixels aren't being seen, so don't advance either:
-      // rotating would fetch and decode a new image every interval for nothing.
-      // Per-tile visibility is still checked below, as it always was.
-      if (globalFreeze()) { schedule(); return; }
+      // Nobody can see the tile, so don't advance: rotating would fetch and decode
+      // a new image every interval for nothing. A game only stills the picture;
+      // the rotation carries on (see unseen()). Per-tile visibility is still
+      // checked below, as it always was.
+      if (unseen()) { schedule(); return; }
       const imgs = playlist();
       if (!document.hidden && imgs.length > 1) {
         let moved = false;
