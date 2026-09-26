@@ -20,6 +20,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { headerHtml, footerHtml } from './site-chrome.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
@@ -459,6 +460,7 @@ ${related.map((o) =>
      ground first. /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
 <script src="/theme.js" defer></script>
+<script src="/chrome.js" defer></script>
 
 <meta property="og:type" content="${SOFTWARE_KINDS.has(e.kind) ? 'product' : 'article'}">
 <meta property="og:site_name" content="Xenon">
@@ -486,12 +488,7 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap">
-    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
-    <a class="top-cta" href="/catalog/">All community items →</a>
-  </div>
-</header>
+${headerHtml()}
 
 <div class="wrap">
   <nav class="crumb" aria-label="Breadcrumb">
@@ -531,13 +528,8 @@ ${facts.map(([k, v]) => `        <li><b>${k}</b><span>${v}</span></li>`).join('\
   </main>
 </div>
 
-<footer>
-  <div class="wrap">
-    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
-    <a href="/submit/">Publish yours</a> · <a href="${REPO}" rel="noopener">GitHub</a>
-    ${modified ? `<span> · Updated ${esc(modified)}</span>` : ''}
-  </div>
-</footer>
+${modified ? `<p class="wrap updated">Updated ${esc(modified)}</p>` : ''}
+${footerHtml()}
 
 </body>
 </html>
@@ -671,6 +663,7 @@ function creatorPage(c) {
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
 <script src="/theme.js" defer></script>
+<script src="/chrome.js" defer></script>
 <meta property="og:type" content="profile">
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="en_US">
@@ -705,12 +698,7 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap">
-    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
-    <a class="top-cta" href="/catalog/">All community items →</a>
-  </div>
-</header>
+${headerHtml()}
 
 <div class="wrap">
   <nav class="crumb" aria-label="Breadcrumb">
@@ -739,12 +727,7 @@ ${cards}
   </main>
 </div>
 
-<footer>
-  <div class="wrap">
-    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
-    <a href="/submit/">Publish yours</a> · <a href="${REPO}" rel="noopener">GitHub</a>
-  </div>
-</footer>
+${footerHtml()}
 
 <script>
 (function () {
