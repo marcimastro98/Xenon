@@ -94,8 +94,12 @@ enum HotkeyHost {
         let combos = Array((args.isEmpty ? ["alt+space"] : args).prefix(maxCombos))
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
+        // The handler is a C function pointer, so the closure may capture
+        // nothing. An unqualified `firedIndex` inside a static method is
+        // `self.firedIndex` and captures the metatype, which Swift refuses here;
+        // naming the type keeps it a plain static call.
         let installed = InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
-            if let index = firedIndex(event) {
+            if let index = HotkeyHost.firedIndex(event) {
                 emit(.obj([("event", .s("hotkey")), ("index", .i(index))]))
             }
             return noErr
