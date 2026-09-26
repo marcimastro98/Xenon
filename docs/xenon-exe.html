@@ -242,11 +242,11 @@
       <a href="#remove">How to remove it</a>
     </nav>
 
-    <h2 id="short"><span class="h2n">01</span>The short answer</h2>
+    <h2 id="short">The short answer</h2>
     <p><strong>Xenon does not install a file called <code>xenon.exe</code>.</strong> Not the installer, not the app, not the background service. If Task Manager is showing you a process spelled exactly <code>xenon.exe</code>, it is almost certainly something else that happens to share the name, and the list below will tell you within a minute which of the two you are looking at.</p>
     <p>If instead you are looking at <code>xenon-native.exe</code> or <code>xenon-helper.exe</code>, those are ours, and the rest of this page says exactly what each one does.</p>
 
-    <h2 id="list"><span class="h2n">02</span>What Xenon does run on Windows</h2>
+    <h2 id="list">What Xenon does run on Windows</h2>
     <p>Four things of its own:</p>
     <div class="tablewrap"><table>
       <thead><tr><th>File</th><th>What it is</th></tr></thead>
@@ -266,7 +266,7 @@
       <li><strong>Sunshine</strong> and <strong>Tailscale</strong>, only if you turn on remote PC control.</li>
     </ul>
 
-    <h2 id="check"><span class="h2n">03</span>How to check what you actually have</h2>
+    <h2 id="check">How to check what you actually have</h2>
     <ol>
       <li>In Task Manager, right-click the process and choose <strong>Open file location</strong>. If it is not under <code>%LOCALAPPDATA%\Xenon</code> or <code>%LOCALAPPDATA%\Programs\Xenon</code>, it is not this project.</li>
       <li>Right-click the file, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab. Since version 4.11.9, <code>Xenon-Setup-x64.exe</code>, <code>xenon-native.exe</code> and <code>xenon-helper.exe</code> are signed, and that tab shows the publisher. Files from older releases carry no signature, so for those the hash in the next step is the check.</li>
@@ -276,14 +276,14 @@
       <li>Paste the file into <a href="https://www.virustotal.com/" rel="noopener">VirusTotal</a>. A handful of engines flagging it while the rest come back clean is the signature of a reputation problem, not of malware. Everything flagging it is a different story.</li>
     </ol>
 
-    <h2 id="notmine"><span class="h2n">04</span>If you never installed Xenon</h2>
+    <h2 id="notmine">If you never installed Xenon</h2>
     <p>Then whatever you are looking at is not from here, and we would rather say so plainly than claim a process we did not start. Check the file location and the publisher as above. Nothing on this site will remove software we did not install, and no page here will ask you to download a "cleaner" to get rid of it: that is the usual shape of the scam that follows a search like this one.</p>
 
-    <h2 id="flagged"><span class="h2n">05</span>If it is ours and Defender flagged it</h2>
+    <h2 id="flagged">If it is ours and Defender flagged it</h2>
     <p>That can still happen. Since version 4.11.9 the installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a signed file can still be flagged.</p>
     <p>The <a href="faq.html#warnings">FAQ explains the two kinds of detection</a>, which one the name of the warning tells you about, and how to add the exclusion if you want to keep using it. The short version: a name ending in <code>!cl</code> is the machine-learning verdict about reputation; a plain name is a behavioural signature reacting to an installer that carries a script that downloads code, which is also an accurate description of something you would not want. Neither is proof of anything on its own, which is why steps 2 and 3 above exist.</p>
 
-    <h2 id="remove"><span class="h2n">06</span>How to remove it completely</h2>
+    <h2 id="remove">How to remove it completely</h2>
     <p>Settings → Apps → Installed apps → Xenon → Uninstall, or run <code>UNINSTALL.bat</code> from the folder you extracted if you installed the classic way. It removes both folders, the scheduled task and the tray app. The temperature components installed through winget are separate programs and are uninstalled separately, from the same Apps list.</p>
 
     <div class="card accent">
