@@ -217,6 +217,15 @@
 .sys-optimize-btn.is-loading { opacity: 0.75; cursor: progress; }
 .sys-optimize-btn.is-loading svg { animation: sys-optimize-spin 0.8s linear infinite; transform-origin: center; }
 @keyframes sys-optimize-spin { to { transform: rotate(360deg); } }
+/* A session is running: the button reads "Restore" and is filled with the
+   accent, so a session left on is visible from the dashboard. Static, no
+   animation: it is shown exactly while animations are paused. */
+.sys-optimize-btn.is-active {
+  color: #fff;
+  background: rgba(var(--accent-rgb), 0.85);
+  border-color: rgba(var(--accent-rgb), 1);
+}
+.sys-optimize-btn.is-active:hover { background: rgba(var(--accent-rgb), 1); }
 .settings-btn-ghost {
   background: transparent;
   border: 1px solid var(--glass-border);

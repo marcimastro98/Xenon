@@ -278,6 +278,29 @@
   background: rgba(0, 0, 0, 0.35);
 }
 
+/* Paused by performance mode: a message plus a "Show anyway" button. The overlay
+   is click-through by default, so the paused state turns pointer events back on. */
+.browser-loading.is-paused {
+  padding: 16px;
+  text-align: center;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+.browser-paused-resume {
+  min-height: 36px;
+  padding: 7px 16px;
+  border: 1px solid rgba(var(--accent-rgb, 90 130 255), 0.5);
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb, 90 130 255), 0.14);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.browser-paused-resume:hover { background: rgba(var(--accent-rgb, 90 130 255), 0.24); }
+
 /* Was a single centred line. It now carries an action button under the text
    where Xenon can install a browser itself, so it stacks. */
 .browser-unavailable {

@@ -195,10 +195,31 @@
   }
 
   // ── Streaming gate (visible AND not suspended by game/performance mode) ────────
+  // `perfOverride` is the user asking for this tile anyway (the "Show anyway"
+  // button, or opening a camera full size). It lasts until performance mode ends.
   function applyTileState(tile) {
-    const want = tile.onScreen && !perfPaused;
+    const want = tile.onScreen && !(perfPaused && !tile.perfOverride);
     if (want && !tile.pulling) startPulling(tile);
     else if (!want && tile.pulling) stopPulling(tile);
+    syncPaused(tile);
+  }
+
+  // Paused snapshots stay on the last frame, which on a camera reads as "nothing is
+  // happening". Say it is paused, over the grid, with a way to bring it back.
+  function syncPaused(tile) {
+    const grid = tile.mount && tile.mount.querySelector('.up-grid');
+    const paused = !!grid && perfPaused && !tile.perfOverride;
+    if (grid) grid.classList.toggle('up-grid--paused', paused);
+    if (!paused) { if (tile.pausedEl) { tile.pausedEl.remove(); tile.pausedEl = null; } return; }
+    if (tile.pausedEl && tile.pausedEl.isConnected) return;
+    const bar = el('div', 'up-paused');
+    bar.appendChild(el('span', 'up-paused-msg', t('browser_perf_paused', 'Paused while Performance Mode is on.')));
+    const btn = el('button', 'up-paused-resume', t('browser_perf_resume', 'Show anyway'));
+    btn.type = 'button';
+    btn.addEventListener('click', () => { tile.perfOverride = true; applyTileState(tile); });
+    bar.appendChild(btn);
+    tile.mount.appendChild(bar);
+    tile.pausedEl = bar;
   }
 
   function evalPerfPause() {
@@ -212,6 +233,7 @@
     } catch (e) { pause = false; }
     if (pause === perfPaused) return;
     perfPaused = pause;
+    if (!pause) tiles.forEach((tile) => { tile.perfOverride = false; });
     tiles.forEach((tile) => applyTileState(tile));
   }
 
@@ -413,6 +435,8 @@
       return cam;
     });
     tile.mount.replaceChildren(grid);
+    tile.pausedEl = null;
+    syncPaused(tile);
     if (tile.pulling) tick(tile);
   }
 
@@ -449,6 +473,9 @@
   // ── Expand one camera to a full-viewport overlay (portal to <body>). ───────────
   function openExpand(tile, cam) {
     if (tile.overlay) closeExpand(tile);
+    // Opening a camera full size is asking to see it now: a frozen snapshot here
+    // would pass for a live one.
+    if (perfPaused && !tile.perfOverride) { tile.perfOverride = true; applyTileState(tile); }
     const overlay = el('div', 'up-overlay');
     // A fixed 16:9 frame (the Protect snapshot's own aspect) that CLIPS the image,
     // so zoom/pan preview here exactly as they'll crop the live tile card.
