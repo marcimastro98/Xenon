@@ -166,7 +166,14 @@
   async function startLogin(card, btn) {
     btn.disabled = true;
     const r = await api(BASE + '/login', { method: 'POST' });
-    if (!r || !r.ok || !r.authUrl) { btn.disabled = false; setNote(card, t('streaming_error', 'Could not start login. Try again.')); return; }
+    if (!r || !r.ok || !r.authUrl) {
+      btn.disabled = false;
+      // Never the bare sentence: the code and the server's own words, when any.
+      const code = (r && r.error) || (r ? '' : 'no_server');
+      const detail = r && typeof r.detail === 'string' ? r.detail : '';
+      setNote(card, t('streaming_error', 'Could not start login. Try again.') + (code ? ' (' + code + ')' : '') + (detail ? ' — “' + detail + '”' : ''));
+      return;
+    }
     window.open(r.authUrl, '_blank', 'noopener');
     card.querySelectorAll('.streaming-login, .streaming-err').forEach(n => n.remove());
     const wait = el('div', 'streaming-login');

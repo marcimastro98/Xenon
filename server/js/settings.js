@@ -5253,6 +5253,7 @@ function applySurfaceKind(kind, state) {
 let _settingsCat = 'appearance';
 function settingsSetCategory(cat) {
   _settingsCat = cat;
+  if (cat === 'appearance') refreshMediaVizStatus();
   const content = document.getElementById('settings-content');
   if (content) {
     content.dataset.cat = cat;
@@ -8421,6 +8422,39 @@ function syncMediaVisualizerControl() {
     btn.setAttribute('aria-pressed', String(active));
   });
   if (window.MediaViz) window.MediaViz.setStyle(mode);
+  // Only while the line can be seen: this sync also runs on every settings
+  // hydrate, and a status nobody is looking at is a request for nothing.
+  const group = $('settings-media-viz-status') && $('settings-media-viz-status').closest('[data-settings-cat]');
+  if (group && !group.hidden) refreshMediaVizStatus();
+}
+
+// Whether the wave CAN be drawn here, said next to the switch. Without Xenon
+// Helper there is no measurement and no fallback, and the strip simply stayed
+// empty: asked on Discord as "how do I install xenon helper for media
+// visualization?" by someone who had turned it on and seen nothing happen.
+// /audio/levels/status already knew why; nothing on screen was asking it.
+let _mediaVizStatusSeq = 0;
+async function refreshMediaVizStatus(recheck) {
+  const el = $('settings-media-viz-status');
+  if (!el) return;
+  const seq = ++_mediaVizStatusSeq;
+  let st = null;
+  try { const r = await fetch('/audio/levels/status'); st = r.ok ? await r.json() : null; } catch { st = null; }
+  if (seq !== _mediaVizStatusSeq) return;
+  const on = mediaVisualizerMode() !== 'off';
+  let key = '', state = 'warn';
+  if (!st) key = '';
+  else if (st.platform && st.platform !== 'win32') key = 'settings_media_viz_st_platform';
+  else if (!st.available || st.failure === 'no-helper') { key = 'settings_media_viz_st_missing'; state = 'bad'; }
+  else if (st.failure === 'helper-too-old') { key = 'settings_media_viz_st_old'; state = 'bad'; }
+  else if (st.failure === 'helper-failed') { key = 'settings_media_viz_st_failed'; state = 'bad'; }
+  else if (on) { key = 'settings_media_viz_st_ok'; state = 'ok'; }
+  el.textContent = key ? t(key).replace('{version}', (st && st.minVersion) || '') : '';
+  el.dataset.state = state;
+  el.hidden = !key;
+  // A helper too old for metering is only found out once it is started, which
+  // switching the wave on has just asked for: look again in a moment.
+  if (on && !recheck && st && st.available && !st.failure) setTimeout(() => refreshMediaVizStatus(true), 4000);
 }
 
 function updateMediaVisualizer(mode) {

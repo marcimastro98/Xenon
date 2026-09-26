@@ -92,6 +92,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **Settings now tells you whether the Media tile's sound wave can work on your PC.** Asked on Discord: *"how do I install xenon helper for media visualization?"* The wave draws the sound the playing app is really making, and that measurement only exists through Xenon Helper on Windows. Without it the wave simply stayed empty and nothing said why. Next to the wave switch you now see whether Xenon Helper is running, missing, too old or stopped, and what to do about it: running INSTALL.bat again installs or updates it. On a Mac or Linux it says the wave is Windows only, instead of suggesting an install that cannot help.
+
+  Worth knowing if your player seems ignored: the wave, like the Media tile, follows what Windows reports as playing. Some players, Winamp among them, only report it with a small plugin.
+
+- **A streaming login that fails now says why.** Reported on Discord: connecting Discord ended in *"Could not start login. Try again"* and nothing else. That sentence was where every failure without a message of its own ended up: an error inside Xenon, a server that did not answer, or credentials that were missing. Each one now shows its reason and, where there is one, Xenon's own words about it. The same goes for Twitch, YouTube and Spotify.
+
 - **The voice orb no longer needs a Gemini key when Xenon AI runs on Claude or ChatGPT.** Push-to-talk in the chat already transcribed your voice with the matching provider, but the voice orb sent it to Gemini whatever you had chosen, so with Claude or ChatGPT and no Gemini key it could not hear you. It now uses the free local transcription with Claude, and OpenAI's own transcription with ChatGPT, exactly like the chat does.
 
 - **A custom widget follows its own tile's accent and background.** Reported by a widget author: the Accent set in a tile's customization showed on the tile, while the widget inside it kept drawing the dashboard's global accent.

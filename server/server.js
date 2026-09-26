@@ -14402,6 +14402,7 @@ const handleRequest = async (req, res) => {
     json({
       ok: true,
       wanted: audioLevelsWanted(),
+      platform: process.platform,   // meters exist on Windows only; Settings says so elsewhere
       available: audioLevels.available(),
       running: audioLevels.isRunning(),
       failure: audioLevels.failure(),
@@ -19494,7 +19495,12 @@ const handleRequest = async (req, res) => {
       const r = await discordRpc.login();
       refreshDiscordWatch();
       json(r);
-    } catch (e) { err500(e.message); }
+    } catch (e) {
+      // JSON, never a bare 500: the page reads the reason from the body, and a
+      // plain-text error left it with nothing but "Could not start login".
+      console.error('[discord] login route failed:', e && e.message);
+      json({ ok: false, error: 'login_failed', detail: String((e && e.message) || e).slice(0, 200) });
+    }
 
   } else if (reqPath === '/stream/discord/logout' && req.method === 'POST') {
     // Watch down FIRST: logout's close() would otherwise schedule a reconnect

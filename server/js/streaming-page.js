@@ -256,21 +256,45 @@
     return box;
   }
 
+  // The login POST, read so that a failure always carries its reason. The shared
+  // api() helper answers null for anything that is not JSON, and null could
+  // only be shown as the bare "Could not start login": a server error page, a
+  // dropped connection and a real refusal all looked the same. Reported on
+  // Discord with exactly that message and nothing else to go on.
+  async function postLogin(path) {
+    let res;
+    try { res = await fetch(path, { method: 'POST' }); }
+    catch { return { ok: false, error: 'no_server' }; }
+    const text = await res.text().catch(() => '');
+    try { return JSON.parse(text); }
+    catch { return { ok: false, error: 'http_' + res.status, detail: String(text || '').trim().slice(0, 200) }; }
+  }
+
+  // Any failure without a sentence of its own still says what it was: the
+  // code, and the words behind it when there are any.
+  function genericLoginError(r) {
+    const code = (r && r.error) || '';
+    const detail = (r && typeof r.detail === 'string') ? r.detail : '';
+    if (code === 'no_server') return t('streaming_no_server', 'Xenon did not answer. If you have just updated Xenon, restart it and try again.');
+    return t('streaming_error', 'Could not start login. Try again.')
+      + (code ? ' (' + code + ')' : '') + (detail ? ' — “' + detail + '”' : '');
+  }
+
   async function startLogin(cfg, card, btn) {
     btn.disabled = true;
     // RPC (Discord): one blocking POST that resolves when the user approves the
     // consent dialog in the Discord desktop app — no code to type, no polling.
     if (cfg.flow === 'rpc') {
       showRpcWaiting(card);
-      const r = await api(cfg.base + '/login', { method: 'POST' });
+      const r = await postLogin(cfg.base + '/login');
       if (r && r.ok) { render(); return; }
       card.querySelectorAll('.streaming-login').forEach(n => n.remove());
       btn.disabled = false;
       setNote(card, rpcLoginError(r));
       return;
     }
-    const r = await api(cfg.base + '/login', { method: 'POST' });
-    if (!r || !r.ok) { btn.disabled = false; setNote(card, t('streaming_error', 'Could not start login. Try again.')); return; }
+    const r = await postLogin(cfg.base + '/login');
+    if (!r || !r.ok) { btn.disabled = false; setNote(card, genericLoginError(r)); return; }
     showCode(card, r);
     pollLogin(cfg, r.deviceCode, r.interval || 5);
   }
@@ -312,8 +336,12 @@
         return withDetail(t('streaming_token_failed', 'Login failed while exchanging the code. Check the Client Secret and that the redirect URL is exactly http://localhost.'));
       case 'token_network_failed':
         return withDetail(t('streaming_discord_network', 'Discord authorized, but this PC could not reach discord.com to finish the login. Check VPN, firewall or proxy settings and try Connect again.'));
+      case 'no_client':
+        return t('streaming_discord_noclient', 'Xenon has no Discord Client ID and Client Secret yet. Enter them under Edit credentials, then press Connect.');
+      case 'login_failed':
+        return withDetail(t('streaming_login_failed', 'The login failed inside Xenon, not in Discord. Try once more, and if it keeps happening, tell us on the Xenon Discord with the reason shown here.'));
       default:
-        return withDetail(t('streaming_error', 'Could not start login. Try again.'));
+        return genericLoginError(r);
     }
   }
 

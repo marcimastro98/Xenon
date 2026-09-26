@@ -570,6 +570,14 @@ function createDiscordProvider(deps) {
   // report ("Could not start login") always has a matching server-side line with
   // Discord's real words — before this, login failures were completely silent.
   function loginFail(error, detail) {
+    // Only reason CODES travel as `error`. An unexpected exception's message
+    // (a TypeError, a disk error while saving the token) arrived here as if it
+    // were one, matched nothing on the page and was shown as the bare generic
+    // "Could not start login"; it now travels as the detail of `login_failed`.
+    if (!/^[a-z][a-z0-9_]{0,40}$/.test(String(error || ''))) {
+      detail = detail || error;
+      error = 'login_failed';
+    }
     const d = errDetail(detail);
     console.error('[discord] login failed:', error + (d ? ' — ' + d : ''));
     const out = { ok: false, error };

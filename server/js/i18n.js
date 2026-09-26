@@ -1333,7 +1333,7 @@ const i18n = {
     settings_themes: 'Temi', settings_themes_hint: 'lo stile dell\'interfaccia; salva, importa ed esporta temi completi', settings_theme_mode: 'Modalità', settings_personalize: 'Personalizza', settings_personalize_hint: 'colori, superficie e tipografia', settings_theme_import: 'Importa tema…', settings_theme_remove: 'Rimuovi tema', theme_imported_default: 'Tema importato', settings_theme_save: 'Salva tema attuale', theme_custom_default: 'Tema personalizzato', theme_name_prompt: 'Nome del tema', settings_theme_rename: 'Rinomina (doppio tocco)',
     settings_media_viz_head: 'Riquadro Media',
     settings_media_viz_head_hint: 'onda sonora sotto la copertina',
-    settings_media_viz_note: 'Disegna il suono che l\'app sta davvero producendo, con i colori della copertina. Non cambia nulla del riquadro: si aggiunge sotto, e con Nessuna non viene disegnato niente. Minimal e una riga sottile che respira, Onda e la versione piena. Serve Windows con Xenon Helper installato: senza di lui il livello audio non si puo misurare e non esiste un ripiego. La misurazione parte solo quando scegli Minimal o Onda.',
+    settings_media_viz_note: 'Disegna il suono che l\'app sta davvero producendo, con i colori della copertina. Non cambia nulla del riquadro: si aggiunge sotto, e con Nessuna non viene disegnato niente. Minimal è una riga sottile che respira, Onda è la versione piena. Serve Windows con Xenon Helper installato: senza di lui il livello audio non si può misurare e non esiste un ripiego. La misurazione parte solo quando scegli Minimal o Onda.',
     settings_media_viz_off: 'Nessuna',
     settings_media_viz_minimal: 'Minimal',
     settings_media_viz_wave: 'Onda',
@@ -31557,6 +31557,119 @@ Object.assign(i18n.nl, {
   ai_cli_busy: "{app} beantwoordt al een ander verzoek. Probeer het zo opnieuw.",
   ai_cli_offline: "{app} kan het internet niet bereiken. Controleer de verbinding en probeer het opnieuw.",
   ai_cli_failed: "{app} antwoordde met een fout:",
+});
+
+// v4.11.10 - saying WHY: whether Xenon Helper can measure the Media tile's
+// wave, and the real reason behind a streaming login that fails.
+Object.assign(i18n.it, {
+  settings_media_viz_st_platform: "Disponibile solo su Windows: il livello del suono arriva da Xenon Helper, che esiste solo lì.",
+  settings_media_viz_st_missing: "Xenon Helper non è installato, quindi l'onda non può essere disegnata. Esegui di nuovo INSTALL.bat: installa quello che manca.",
+  settings_media_viz_st_old: "Xenon Helper è troppo vecchio per l'onda (serve la versione {version} o successiva). Esegui di nuovo INSTALL.bat per aggiornarlo.",
+  settings_media_viz_st_failed: "Xenon Helper si è fermato mentre misurava il suono. Riavvia Xenon; se succede di nuovo, esegui INSTALL.bat (a volte è l'antivirus a bloccarlo).",
+  settings_media_viz_st_ok: "Xenon Helper è attivo: l'onda compare quando il riquadro Media mostra qualcosa in riproduzione.",
+  streaming_no_server: "Xenon non ha risposto. Se lo hai appena aggiornato, riavvialo e riprova.",
+  streaming_discord_noclient: "Xenon non ha ancora il Client ID e il Client Secret di Discord. Inseriscili in Modifica credenziali, poi premi Collega.",
+  streaming_login_failed: "L'accesso non è riuscito dentro Xenon, non in Discord. Riprova una volta; se continua, scrivici sul Discord di Xenon con il motivo indicato qui.",
+});
+Object.assign(i18n.en, {
+  settings_media_viz_st_platform: "Windows only: the sound level comes from Xenon Helper, which only exists there.",
+  settings_media_viz_st_missing: "Xenon Helper is not installed, so the wave cannot be drawn. Run INSTALL.bat again: it installs whatever is missing.",
+  settings_media_viz_st_old: "Xenon Helper is too old for the wave (it needs version {version} or newer). Run INSTALL.bat again to update it.",
+  settings_media_viz_st_failed: "Xenon Helper stopped while measuring the sound. Restart Xenon; if it happens again, run INSTALL.bat (an antivirus is sometimes what blocks it).",
+  settings_media_viz_st_ok: "Xenon Helper is running: the wave appears while the Media tile shows something playing.",
+  streaming_no_server: "Xenon did not answer. If you have just updated it, restart it and try again.",
+  streaming_discord_noclient: "Xenon has no Discord Client ID and Client Secret yet. Enter them under Edit credentials, then press Connect.",
+  streaming_login_failed: "The login failed inside Xenon, not in Discord. Try once more, and if it keeps happening, tell us on the Xenon Discord with the reason shown here.",
+});
+Object.assign(i18n.ko, {
+  settings_media_viz_st_platform: "Windows 전용: 소리 크기는 Windows에만 있는 Xenon Helper에서 가져옵니다.",
+  settings_media_viz_st_missing: "Xenon Helper가 설치되어 있지 않아 웨이브를 그릴 수 없습니다. INSTALL.bat을 다시 실행하면 빠진 구성 요소를 설치합니다.",
+  settings_media_viz_st_old: "Xenon Helper가 웨이브에 쓰기에는 너무 오래되었습니다({version} 이상 필요). INSTALL.bat을 다시 실행해 업데이트하세요.",
+  settings_media_viz_st_failed: "Xenon Helper가 소리를 측정하다가 멈췄습니다. Xenon을 다시 시작하고, 다시 발생하면 INSTALL.bat을 실행하세요(백신 프로그램이 막는 경우가 있습니다).",
+  settings_media_viz_st_ok: "Xenon Helper가 실행 중입니다. 미디어 타일에 재생 중인 항목이 표시되면 웨이브가 나타납니다.",
+  streaming_no_server: "Xenon이 응답하지 않았습니다. 방금 업데이트했다면 다시 시작한 뒤 다시 시도하세요.",
+  streaming_discord_noclient: "Xenon에 아직 Discord Client ID와 Client Secret이 없습니다. 자격 증명 편집에서 입력한 뒤 연결을 누르세요.",
+  streaming_login_failed: "로그인이 Discord가 아닌 Xenon 안에서 실패했습니다. 한 번 더 시도하고, 계속되면 여기 표시된 이유와 함께 Xenon Discord에 알려 주세요.",
+});
+Object.assign(i18n.ja, {
+  settings_media_viz_st_platform: "Windows のみ: 音量レベルは Windows にしかない Xenon Helper から取得します。",
+  settings_media_viz_st_missing: "Xenon Helper がインストールされていないため、ウェーブを表示できません。INSTALL.bat をもう一度実行すると、足りないものをインストールします。",
+  settings_media_viz_st_old: "Xenon Helper がウェーブには古すぎます（{version} 以降が必要）。INSTALL.bat をもう一度実行して更新してください。",
+  settings_media_viz_st_failed: "Xenon Helper が音の測定中に停止しました。Xenon を再起動し、再発する場合は INSTALL.bat を実行してください（ウイルス対策ソフトがブロックしていることがあります）。",
+  settings_media_viz_st_ok: "Xenon Helper は動作中です。メディアタイルで何かが再生中のときにウェーブが表示されます。",
+  streaming_no_server: "Xenon が応答しませんでした。更新したばかりなら、再起動してもう一度お試しください。",
+  streaming_discord_noclient: "Xenon にはまだ Discord の Client ID と Client Secret がありません。「認証情報を編集」で入力してから「連携」を押してください。",
+  streaming_login_failed: "ログインは Discord ではなく Xenon の中で失敗しました。もう一度お試しください。続く場合は、ここに表示された理由を添えて Xenon の Discord でお知らせください。",
+});
+Object.assign(i18n.zh, {
+  settings_media_viz_st_platform: "仅限 Windows：声音电平来自只在 Windows 上存在的 Xenon Helper。",
+  settings_media_viz_st_missing: "未安装 Xenon Helper，因此无法绘制波形。请重新运行 INSTALL.bat，它会安装缺少的部分。",
+  settings_media_viz_st_old: "Xenon Helper 版本过旧，无法用于波形（需要 {version} 或更高版本）。请重新运行 INSTALL.bat 进行更新。",
+  settings_media_viz_st_failed: "Xenon Helper 在测量声音时停止了。请重启 Xenon；如果再次发生，请运行 INSTALL.bat（有时是杀毒软件拦截了它）。",
+  settings_media_viz_st_ok: "Xenon Helper 正在运行：当媒体磁贴显示正在播放的内容时，波形就会出现。",
+  streaming_no_server: "Xenon 没有响应。如果你刚更新过，请重启后再试。",
+  streaming_discord_noclient: "Xenon 还没有 Discord 的 Client ID 和 Client Secret。请在“编辑凭据”中填写，然后点击“连接”。",
+  streaming_login_failed: "登录是在 Xenon 内部失败的，而不是在 Discord。请再试一次；如果仍然失败，请带上这里显示的原因在 Xenon 的 Discord 告诉我们。",
+});
+Object.assign(i18n.es, {
+  settings_media_viz_st_platform: "Solo en Windows: el nivel del sonido viene de Xenon Helper, que solo existe allí.",
+  settings_media_viz_st_missing: "Xenon Helper no está instalado, así que la onda no se puede dibujar. Vuelve a ejecutar INSTALL.bat: instala lo que falte.",
+  settings_media_viz_st_old: "Xenon Helper es demasiado antiguo para la onda (necesita la versión {version} o posterior). Vuelve a ejecutar INSTALL.bat para actualizarlo.",
+  settings_media_viz_st_failed: "Xenon Helper se detuvo mientras medía el sonido. Reinicia Xenon; si vuelve a pasar, ejecuta INSTALL.bat (a veces es el antivirus el que lo bloquea).",
+  settings_media_viz_st_ok: "Xenon Helper está activo: la onda aparece cuando el panel Media muestra algo en reproducción.",
+  streaming_no_server: "Xenon no respondió. Si acabas de actualizarlo, reinícialo y vuelve a intentarlo.",
+  streaming_discord_noclient: "Xenon aún no tiene el Client ID y el Client Secret de Discord. Introdúcelos en Editar credenciales y pulsa Conectar.",
+  streaming_login_failed: "El inicio de sesión falló dentro de Xenon, no en Discord. Inténtalo otra vez y, si sigue pasando, avísanos en el Discord de Xenon con el motivo que aparece aquí.",
+});
+Object.assign(i18n.fr, {
+  settings_media_viz_st_platform: "Windows uniquement : le niveau du son vient de Xenon Helper, qui n’existe que là.",
+  settings_media_viz_st_missing: "Xenon Helper n’est pas installé, l’onde ne peut donc pas être dessinée. Relance INSTALL.bat : il installe ce qui manque.",
+  settings_media_viz_st_old: "Xenon Helper est trop ancien pour l’onde (il faut la version {version} ou plus récente). Relance INSTALL.bat pour le mettre à jour.",
+  settings_media_viz_st_failed: "Xenon Helper s’est arrêté en mesurant le son. Redémarre Xenon ; si ça recommence, lance INSTALL.bat (c’est parfois l’antivirus qui le bloque).",
+  settings_media_viz_st_ok: "Xenon Helper est actif : l’onde apparaît quand la tuile Media affiche quelque chose en lecture.",
+  streaming_no_server: "Xenon n’a pas répondu. Si tu viens de le mettre à jour, redémarre-le et réessaie.",
+  streaming_discord_noclient: "Xenon n’a pas encore le Client ID et le Client Secret de Discord. Saisis-les dans Modifier les identifiants, puis appuie sur Connecter.",
+  streaming_login_failed: "La connexion a échoué dans Xenon, pas dans Discord. Réessaie une fois, et si ça continue, préviens-nous sur le Discord de Xenon avec la raison affichée ici.",
+});
+Object.assign(i18n.de, {
+  settings_media_viz_st_platform: "Nur unter Windows: Der Tonpegel kommt von Xenon Helper, den es nur dort gibt.",
+  settings_media_viz_st_missing: "Xenon Helper ist nicht installiert, daher kann die Welle nicht gezeichnet werden. Führe INSTALL.bat erneut aus: Es installiert, was fehlt.",
+  settings_media_viz_st_old: "Xenon Helper ist für die Welle zu alt (benötigt Version {version} oder neuer). Führe INSTALL.bat erneut aus, um ihn zu aktualisieren.",
+  settings_media_viz_st_failed: "Xenon Helper hat beim Messen des Tons angehalten. Starte Xenon neu; passiert es wieder, führe INSTALL.bat aus (manchmal blockiert ihn ein Virenschutz).",
+  settings_media_viz_st_ok: "Xenon Helper läuft: Die Welle erscheint, sobald die Media-Kachel etwas Laufendes zeigt.",
+  streaming_no_server: "Xenon hat nicht geantwortet. Wenn du es gerade aktualisiert hast, starte es neu und versuche es erneut.",
+  streaming_discord_noclient: "Xenon hat noch keine Discord Client ID und kein Client Secret. Trage sie unter Zugangsdaten bearbeiten ein und tippe dann auf Verbinden.",
+  streaming_login_failed: "Die Anmeldung ist in Xenon fehlgeschlagen, nicht in Discord. Versuche es noch einmal, und wenn es weiter passiert, melde dich im Xenon-Discord mit dem hier angezeigten Grund.",
+});
+Object.assign(i18n.pt, {
+  settings_media_viz_st_platform: "Só no Windows: o nível do som vem do Xenon Helper, que só existe aí.",
+  settings_media_viz_st_missing: "O Xenon Helper não está instalado, por isso a onda não pode ser desenhada. Executa de novo o INSTALL.bat: instala o que faltar.",
+  settings_media_viz_st_old: "O Xenon Helper é demasiado antigo para a onda (precisa da versão {version} ou mais recente). Executa de novo o INSTALL.bat para o atualizar.",
+  settings_media_viz_st_failed: "O Xenon Helper parou enquanto media o som. Reinicia a Xenon; se voltar a acontecer, executa o INSTALL.bat (por vezes é o antivírus que o bloqueia).",
+  settings_media_viz_st_ok: "O Xenon Helper está ativo: a onda aparece quando o painel Media mostra algo a tocar.",
+  streaming_no_server: "A Xenon não respondeu. Se acabaste de a atualizar, reinicia-a e tenta novamente.",
+  streaming_discord_noclient: "A Xenon ainda não tem o Client ID e o Client Secret do Discord. Introduz-os em Editar credenciais e depois carrega em Ligar.",
+  streaming_login_failed: "O início de sessão falhou dentro da Xenon, não no Discord. Tenta mais uma vez e, se continuar, avisa-nos no Discord da Xenon com o motivo indicado aqui.",
+});
+Object.assign(i18n.ru, {
+  settings_media_viz_st_platform: "Только в Windows: уровень звука берётся из Xenon Helper, который есть только там.",
+  settings_media_viz_st_missing: "Xenon Helper не установлен, поэтому волну нельзя нарисовать. Запустите INSTALL.bat ещё раз: он установит недостающее.",
+  settings_media_viz_st_old: "Xenon Helper слишком старый для волны (нужна версия {version} или новее). Запустите INSTALL.bat ещё раз, чтобы обновить его.",
+  settings_media_viz_st_failed: "Xenon Helper остановился во время измерения звука. Перезапустите Xenon; если повторится, запустите INSTALL.bat (иногда его блокирует антивирус).",
+  settings_media_viz_st_ok: "Xenon Helper работает: волна появляется, когда плитка Media показывает что-то воспроизводимое.",
+  streaming_no_server: "Xenon не ответил. Если вы только что обновили его, перезапустите и попробуйте снова.",
+  streaming_discord_noclient: "У Xenon ещё нет Client ID и Client Secret для Discord. Введите их в разделе «Изменить учётные данные», затем нажмите «Подключить».",
+  streaming_login_failed: "Вход не удался внутри Xenon, а не в Discord. Попробуйте ещё раз, а если повторится, напишите нам в Discord Xenon, указав причину, показанную здесь.",
+});
+Object.assign(i18n.nl, {
+  settings_media_viz_st_platform: "Alleen op Windows: het geluidsniveau komt van Xenon Helper, die alleen daar bestaat.",
+  settings_media_viz_st_missing: "Xenon Helper is niet geïnstalleerd, dus de golf kan niet worden getekend. Voer INSTALL.bat opnieuw uit: het installeert wat ontbreekt.",
+  settings_media_viz_st_old: "Xenon Helper is te oud voor de golf (versie {version} of nieuwer nodig). Voer INSTALL.bat opnieuw uit om hem bij te werken.",
+  settings_media_viz_st_failed: "Xenon Helper stopte tijdens het meten van het geluid. Start Xenon opnieuw; gebeurt het weer, voer dan INSTALL.bat uit (soms blokkeert een virusscanner hem).",
+  settings_media_viz_st_ok: "Xenon Helper draait: de golf verschijnt zodra de Media-tegel iets toont dat speelt.",
+  streaming_no_server: "Xenon gaf geen antwoord. Als je het net hebt bijgewerkt, start het dan opnieuw en probeer het nog eens.",
+  streaming_discord_noclient: "Xenon heeft nog geen Discord Client ID en Client Secret. Vul ze in onder Inloggegevens bewerken en druk dan op Verbinden.",
+  streaming_login_failed: "Het inloggen mislukte in Xenon, niet in Discord. Probeer het nog een keer, en als het blijft gebeuren, laat het ons weten op de Xenon-Discord met de reden die hier staat.",
 });
 
 function t(key) {

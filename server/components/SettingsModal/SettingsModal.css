@@ -2128,6 +2128,12 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 #settings-cli-status[data-state="ok"] { color: var(--color-success); }
 #settings-cli-status[data-state="bad"] { color: var(--color-danger); }
 #settings-cli-status[data-state="warn"] { color: var(--color-warn); }
+/* Media tile wave: whether Xenon Helper can measure the sound here. */
+.settings-media-viz-status { display: block; margin-top: 8px; font-weight: 500; }
+.settings-media-viz-status[hidden] { display: none; }
+.settings-media-viz-status[data-state="ok"] { color: var(--color-success); }
+.settings-media-viz-status[data-state="bad"] { color: var(--color-danger); }
+.settings-media-viz-status[data-state="warn"] { color: var(--color-warn); }
 
 .ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .ai-hw-line { font-weight: 600; }
