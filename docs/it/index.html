@@ -344,18 +344,25 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .unit figcaption b { display: block; color: var(--fg); font: 700 19px/1.3 var(--f-text); margin-bottom: 4px; }
 .scale-note { margin: 26px 0 0; font-size: 15.5px; color: var(--fg-3); }
 
-/* Widgets: one screen region large, two beside it, then every name as text. */
-.wg { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 32px 24px; align-items: start; }
-.wg figure { margin: 0; display: grid; gap: 14px; }
-.wg img { display: block; width: 100%; height: auto; border-radius: 8px; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 24px 44px -30px rgba(0,0,0,.6); }
-.wg figcaption { font-size: 16.5px; line-height: 1.45; color: var(--fg-2); max-width: 52ch; }
-.wg figcaption b { display: block; color: var(--fg); font: 700 20px/1.3 var(--f-text); margin-bottom: 4px; }
-.wg .big { grid-column: 1 / span 7; }
-.wg .side { grid-column: 8 / span 5; display: grid; gap: 32px; }
-.names { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 28px 24px; margin-top: 64px; }
-.names h3 { font-size: 18px; margin-bottom: 10px; }
-.names h3 span { color: var(--fg-3); font-weight: 600; margin-left: 6px; font-variant-numeric: tabular-nums; }
-.names ul { list-style: none; margin: 0; padding: 0; columns: 1; font-size: 16.5px; line-height: 1.75; color: var(--fg-2); }
+/* Widgets: three real captures at close to the size they were taken, each
+   beside its family of widgets, named as the app's "+" picker names them and
+   drawn with the picker's own line icons. The names are quiet on purpose: the
+   capture is what sells, the list is the index beside it. */
+.ws-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ws { display: grid; gap: clamp(64px, 7vw, 104px); }
+.ws-row { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); grid-template-rows: auto auto 1fr; column-gap: 24px; align-items: start; }
+.ws-shot { grid-column: 1 / span 7; grid-row: 1 / -1; display: block; width: 100%; height: auto; border-radius: 10px; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 2px 4px rgba(0,0,0,.08), 0 22px 44px -28px rgba(0,0,0,.45); }
+.ws-cat, .ws-lede, .ws-list { grid-column: 9 / span 4; }
+.ws-cat { grid-row: 1; margin: 0; display: flex; align-items: baseline; gap: 12px; font: 760 clamp(28px, 1vw + 20px, 36px)/1.05 var(--f-display); letter-spacing: -0.012em; }
+.ws-n { font: 600 18px/1 var(--f-text); color: var(--fg-3); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.ws-lede { grid-row: 2; margin: 12px 0 0; font-size: 17px; line-height: 1.5; color: var(--fg-2); max-width: 44ch; }
+.ws-list { grid-row: 3; list-style: none; margin: 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 20px; }
+.ws-list li { display: flex; align-items: center; gap: 10px; min-height: 36px; font: 400 16.5px/1.25 var(--f-text); color: var(--fg); min-width: 0; }
+.ws-list svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--fg-3); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ws-end { margin-top: clamp(48px, 5vw, 72px); display: grid; gap: 10px; max-width: 72ch; }
+.ws-end p { margin: 0; font-size: 17px; line-height: 1.55; color: var(--fg-2); }
+.ws-more a { color: var(--fg); font-weight: 700; margin-left: 14px; text-underline-offset: 0.18em; white-space: nowrap; }
+.ws-more a:first-of-type { margin-left: 4px; }
 
 /* Controls: four names, one fact each. Text only, no boxes. */
 .ctl { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 40px 24px; }
@@ -365,47 +372,78 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 
 /* Catalog */
 .promo-block { margin-bottom: 32px; --mono: var(--f-text); --sans: var(--f-text); }
-.cat { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 36px 24px; }
-.item { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: center; }
-.item .th { display: block; aspect-ratio: 32 / 9; border-radius: 6px; overflow: hidden; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 18px 34px -26px rgba(0,0,0,.6); }
-.item .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.item h3 { font-size: 20px; margin: 0 0 2px; }
-.item p { margin: 0; font-size: 15.5px; color: var(--fg-2); line-height: 1.45; }
-.item a.more { display: inline-block; margin-top: 8px; font-size: 16px; font-weight: 600; }
-.tier-pill { font-weight: 700; color: var(--fg); }
-.cat-more { margin-top: 36px; font-size: 17px; font-weight: 700; }
+/* The catalog shelf: six entries in one grid, the picture first. Strips
+   (32:9 shots) sit whole on the dark ground instead of being cropped. */
+.shelf { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 44px 24px; }
+.shelf .item { margin: 0; min-width: 0; }
+.shelf .th { display: block; aspect-ratio: 2 / 1; border-radius: 10px; overflow: hidden; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 24px 44px -30px rgba(0,0,0,.6); }
+.shelf .th img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.shelf .th img.strip { object-fit: contain; object-position: center; }
+.shelf h3 { margin: 16px 0 0; font: 700 20px/1.25 var(--f-text); overflow-wrap: anywhere; }
+.shelf h3 a { color: var(--fg); text-decoration: none; }
+.shelf h3 a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+.shelf .meta { margin: 6px 0 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); }
+.shelf .meta b { color: var(--fg); font-weight: 700; }
+.shelf .meta b.sup { color: var(--beta-fg); }
+.cat-more { margin-top: 40px; font-size: 17px; font-weight: 700; display: flex; flex-wrap: wrap; gap: 12px 32px; }
 
-/* Supporters */
+/* Create: the three ways on the left; on the right the first widget of the SDK
+   guide, its two files and the widget itself running in a sandboxed frame,
+   taking the theme colour the way it would on the dashboard. */
+.make { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; row-gap: 40px; align-items: start; }
+.ways { grid-column: 1 / span 5; margin: 0; display: grid; gap: 30px; }
+.ways dt { font: 700 21px/1.3 var(--f-text); color: var(--fg); }
+.ways dd { margin: 6px 0 0; font-size: 17px; line-height: 1.55; color: var(--fg-2); max-width: 46ch; }
+.ways dd a { color: var(--fg); font-weight: 700; text-underline-offset: 0.18em; }
+.ways .pub { padding-top: 26px; border-top: 1px solid var(--room-3); }
+.sdk { grid-column: 7 / -1; margin: 0; min-width: 0; }
+.sdk-well { background: var(--well); border-radius: 14px; padding: 14px; display: grid; gap: 12px; box-shadow: 0 0 0 1px var(--well-rim), 0 34px 60px -40px rgba(0,0,0,.75); }
+.sdk-tile { height: 210px; border-radius: 12px; background: #101318; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); overflow: hidden; }
+.sdk-tile iframe { display: block; width: 100%; height: 100%; border: 0; color-scheme: normal; }
+.sdk-files { display: flex; gap: 6px; }
+.sdk-files button { font: 500 14.5px/1 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; color: #9aa3b2; background: transparent; border: 0; border-radius: 8px; padding: 10px 12px; min-height: 40px; cursor: pointer; }
+.sdk-files button[aria-selected="true"] { color: #eef1f6; background: #1a1e25; }
+.sdk-files button:hover { color: #eef1f6; }
+.sdk-code { margin: 0; height: 250px; overflow: auto; padding: 16px 18px; border-radius: 10px; background: #0c0e12; color: #d3d9e3; font: 14px/1.6 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; tab-size: 2; scrollbar-color: #2b313b transparent; }
+.sdk-code .c { color: #7c8594; }
+.sdk figcaption { margin-top: 14px; font-size: 16px; line-height: 1.5; color: var(--fg-2); max-width: 60ch; }
+
+/* Supporters. The names come first and are set like the billing block of a
+   film poster: the three largest contributions biggest, then the active
+   members, then everyone else, each tier under its own small label, all on
+   one left edge. Type only; the one colour is the underline of "Your name". */
+.bill { margin: 0 0 clamp(56px, 6vw, 88px); display: grid; gap: clamp(26px, 2.6vw, 38px); }
+.bill-tier { min-width: 0; }
+.bill-lab { margin: 0 0 8px; font: 600 15px/1.3 var(--f-text); color: var(--fg-2); letter-spacing: 0; }
+.bill ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.5em; row-gap: 0.12em; }
+.bill li { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.bill-t1 ul { font: 800 clamp(44px, 5.4vw, 88px)/0.98 var(--f-display); letter-spacing: -0.024em; column-gap: 0.42em; }
+.bill-t2 ul { font: 700 clamp(28px, 2.3vw + 6px, 44px)/1.15 var(--f-display); letter-spacing: -0.012em; }
+.bill-t3 ul { font: 400 clamp(22px, 1.1vw + 11px, 28px)/1.3 var(--f-display); color: var(--fg); }
+.bill .us { letter-spacing: -0.09em; margin-right: 0.09em; }
+.bill-you a { color: var(--fg-2); text-decoration: underline; text-decoration-color: var(--lit); text-decoration-thickness: 2px; text-underline-offset: 0.2em; }
+.bill-you a:hover { color: var(--fg); }
+.bill-note { margin: 0; font-size: 15.5px; line-height: 1.5; color: var(--fg-3); max-width: 76ch; }
+
+/* The three offers, on one surface, each closing on a key: the recommended
+   one lit, the other two the Deck's dark caps. */
 .tiers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; }
-.tier { display: grid; align-content: start; gap: 6px; padding: 26px 26px 28px; text-decoration: none; background: var(--room-2); border-radius: 14px; transition: background-color .15s, transform .11s; }
+.tier { display: flex; flex-direction: column; gap: 6px; padding: 26px 26px 26px; text-decoration: none; color: var(--fg); background: var(--room-2); border-radius: 14px; transition: background-color .15s; }
 .tier:hover { background: var(--room-3); text-decoration: none; }
-.tier:active { transform: translateY(1px); }
 .tier-price { font: 780 46px/1 var(--f-display); letter-spacing: -0.015em; }
 .tier-price small { font: 600 17px/1 var(--f-text); color: var(--fg-2); margin-left: 6px; letter-spacing: 0; }
 .tier-name { font: 700 19px/1.3 var(--f-text); margin-top: 6px; }
-.tier-what { font-size: 16px; line-height: 1.5; color: var(--fg-2); }
-.tier-go { margin-top: 12px; font-weight: 700; font-size: 16px; text-decoration: underline; text-underline-offset: 0.2em; }
-.tier.pick { background: var(--fg); color: var(--room); }
-.tier.pick .tier-what, .tier.pick small { color: color-mix(in oklab, var(--room) 78%, var(--fg)); }
-.tier.pick:hover { background: color-mix(in oklab, var(--fg) 88%, var(--room)); }
+.tier-what { font-size: 16px; line-height: 1.5; color: var(--fg-2); margin-bottom: 18px; }
+.tier-go { margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center; min-height: 50px; padding: 0 26px; border-radius: 12px;
+  font: 700 18px/1 var(--f-display); letter-spacing: 0.004em; color: #E7E9EE;
+  background: radial-gradient(135% 90% at 50% -16%, rgba(255,255,255,.14), transparent 52%), linear-gradient(180deg, #1D212A, #14171F 58%, #0C0E14);
+  border: 1px solid #000; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -4px 8px rgba(0,0,0,.45), 0 10px 20px -14px rgba(0,0,0,.7);
+  transition: transform .11s cubic-bezier(.2,.8,.2,1), filter .15s; }
+.tier.pick .tier-go { color: #fff; background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
+  border-color: color-mix(in oklab, var(--lit) 70%, #000); box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38), 0 12px 24px -16px rgba(0,0,0,.75); }
+.tier:hover .tier-go { filter: brightness(1.12); }
+.tier:active .tier-go { transform: translateY(2px) scale(.985); }
 .sup-note { margin: 22px 0 0; font-size: 16px; color: var(--fg-2); max-width: 70ch; }
-/* The people who support it. The top three (ranked by the supporter build)
-   stand apart in a warm tint; everyone else is one uniform name tag, with a
-   gold dot for an active membership. */
-.wall { margin-top: 48px; }
-.wall-lead { margin: 0 0 18px; font-size: 17px; color: var(--fg-2); }
-.wall-top { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
-.wall-top li { display: grid; gap: 6px; padding: 20px 22px; border-radius: 14px; background: color-mix(in oklab, #D69A17 16%, var(--room-2)); }
-.wall-top .nm { font: 760 26px/1.1 var(--f-display); color: var(--fg); letter-spacing: -0.01em; overflow-wrap: anywhere; }
-.wall-top .rk { display: inline-flex; align-items: center; gap: 7px; font: 700 14.5px/1 var(--f-text); color: color-mix(in oklab, #B07A0C 80%, var(--fg)); }
-.wall-top .rk::before { content: "\2605"; color: #D69A17; font-size: 15px; }
-.wall-all { display: flex; flex-wrap: wrap; gap: 8px; }
-.wall-all li, .wall-top li { list-style: none; }
-.wall ul { margin: 0; padding: 0; }
-.wall-all li { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 9px; background: var(--room-2); font: 600 16px/1.2 var(--f-text); color: var(--fg); }
-.wall-all li.m::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #D69A17; flex: 0 0 auto; }
-.wall-key { margin: 14px 0 0; font-size: 15px; color: var(--fg-3); display: inline-flex; align-items: center; gap: 8px; }
-.wall-key::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #D69A17; }
 
 /* Install */
 .inst { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; }
@@ -454,11 +492,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .menu-btn { display: inline-flex; }
   .hero-copy { grid-column: 1 / span 7; }
   .hero-act { grid-column: 8 / span 5; }
-  .wg .big, .wg .side { grid-column: 1 / -1; }
-  .wg .side { grid-template-columns: 1fr 1fr; }
-  .names { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .tiers, .inst { grid-template-columns: 1fr; max-width: 640px; }
-  .wall-top { grid-template-columns: 1fr; }
+  .ws-shot { grid-column: 1 / span 7; }
+  .ws-cat, .ws-lede, .ws-list { grid-column: 8 / span 5; }
+  .ws-list { grid-template-columns: 1fr; }
+  .shelf { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .ways, .sdk { grid-column: 1 / -1; }
+  .sdk { order: -1; }
   .ft-brand { grid-column: 1 / -1; }
   .ft-col { grid-column: span 4; }
   .sec-head h2, .sec-head p { grid-column: 1 / -1; }
@@ -466,6 +506,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 .hd.open .mnav { display: block; position: absolute; left: 0; right: 0; top: 64px; background: var(--room-2); padding: 12px var(--pad) 24px; box-shadow: 0 24px 40px -24px rgba(0,0,0,.4); }
 .mnav ul { list-style: none; margin: 0; padding: 0; display: grid; }
 .mnav a { display: block; padding: 14px 0; font-size: 19px; font-weight: 600; text-decoration: none; }
+
+/* Widgets on a narrow screen: the name of the family, its line, the capture,
+   then the names, one family after the other. */
+@media (max-width: 860px) {
+  .ws-row { display: flex; flex-direction: column; }
+  .ws-cat { order: 1; } .ws-lede { order: 2; } .ws-shot { order: 3; margin-top: 22px; } .ws-list { order: 4; margin-top: 18px; grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
 
 /* ── Phone: its own logic, not the desktop shrunk ───────────────────── */
 @media (max-width: 700px) {
@@ -495,11 +542,15 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .u-mon, .u-edge { grid-column: 1 / -1; }
   .u-ph .dv-stack { width: 42%; }
   .scale-note { display: none; }
-  .wg .side { grid-template-columns: 1fr; }
-  .names { grid-template-columns: 1fr 1fr; margin-top: 44px; }
   .ctl > div { grid-column: 1 / -1; }
-  .cat { grid-template-columns: 1fr; }
-  .item { grid-template-columns: 1fr; gap: 12px; }
+  .shelf { grid-template-columns: 1fr; gap: 36px; }
+  .ws-list { column-gap: 14px; }
+  .ws-list li { font-size: 15.5px; gap: 9px; }
+  .ws-more a { display: inline-block; margin: 6px 16px 0 0; }
+  .ws-more a:first-of-type { margin-left: 0; }
+  .shelf .item:nth-child(n+5) { display: none; }
+  .sdk-tile { height: 150px; }
+  .sdk-code { height: 220px; font-size: 13.5px; }
   .inst-notes p { grid-column: 1 / -1; }
   dl.pp { grid-template-columns: 1fr; gap: 4px; }
   dl.pp dd { margin-bottom: 16px; }
@@ -508,7 +559,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 @media (prefers-reduced-motion: reduce) {
   .dev.on .scr .now { animation: none; }
   .js .dev:not(.on) .scr .now { opacity: 1; }
-  .scr .next, .key, .tier { transition: none; }
+  .scr .next, .key, .tier, .tier-go { transition: none; }
 }
 @media (forced-colors: active) {
   .key, .hd-dl.lit { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }
@@ -532,10 +583,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <a class="brand" href="/" aria-label="Xenon"><span class="mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
     <nav aria-label="Main">
       <ul>
-        <li><a href="#screens" data-i18n="nav.screens">Schermi</a></li>
         <li><a href="#widgets" data-i18n="nav.widgets">Widget</a></li>
         <li><a href="/demo/" data-i18n="nav.demo">Demo</a></li>
-        <li><a href="/catalog/" data-i18n="nav.themes">Temi</a></li>
+        <li><a href="/catalog/" data-i18n="nav.catalog">Catalogo</a></li>
+        <li><a href="/create/" data-i18n="nav.create">Crea</a></li>
         <li><a href="#support" data-i18n="nav.support">Sostieni</a></li>
         <li><a href="/faq.html" data-i18n="nav.help">Aiuto</a></li>
       </ul>
@@ -565,7 +616,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <ul>
       <li><a href="#screens" data-i18n="nav.screens">Schermi</a></li>
       <li><a href="#widgets" data-i18n="nav.widgets">Widget</a></li>
-      <li><a href="/catalog/" data-i18n="nav.themes">Temi</a></li>
+      <li><a href="/catalog/" data-i18n="nav.catalog">Catalogo</a></li>
+      <li><a href="/create/" data-i18n="nav.create">Crea</a></li>
       <li><a href="#support" data-i18n="nav.support">Sostieni</a></li>
       <li><a href="/demo/" data-i18n="nav.demo">Demo</a></li>
       <li><a href="#install" data-i18n="nav.install">Installazione</a></li>
@@ -654,27 +706,77 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   </section>
 
   <section class="sec" id="widgets" aria-labelledby="h-widgets">
+    <svg class="ws-sprite" aria-hidden="true" focusable="false">
+      <symbol id="wi-system" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="10" y="10" width="4" height="4"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></symbol>
+      <symbol id="wi-fans" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M12 10c0-3.5 1.5-6 4-6 1.8 0 2.6 1.6 1.6 3.1C16.5 8.7 14 10 12 10ZM14 12c3.5 0 6 1.5 6 4 0 1.8-1.6 2.6-3.1 1.6C15.3 16.5 14 14 14 12ZM12 14c0 3.5-1.5 6-4 6-1.8 0-2.6-1.6-1.6-3.1C7.5 15.3 10 14 12 14ZM10 12c-3.5 0-6-1.5-6-4 0-1.8 1.6-2.6 3.1-1.6C8.7 7.5 10 10 10 12Z"/></symbol>
+      <symbol id="wi-power" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></symbol>
+      <symbol id="wi-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10v4M5.5 10.5v3M9 10.5v3"/></symbol>
+      <symbol id="wi-disk" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9h-6.5"/></symbol>
+      <symbol id="wi-audio" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></symbol>
+      <symbol id="wi-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+      <symbol id="wi-secondscreen" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M15 7l3 3-3 3"/></symbol>
+      <symbol id="wi-remote" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+      <symbol id="wi-smarthome" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></symbol>
+      <symbol id="wi-unifi" viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 4.6-2.6a1 1 0 0 1 1.5.9v7.4a1 1 0 0 1-1.5.9L16 14"/><circle cx="9" cy="12" r="2.5"/></symbol>
+      <symbol id="wi-lighting" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2h6c0-.8.4-1.5 1-2A7 7 0 0 0 12 2Z"/></symbol>
+      <symbol id="wi-claude" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2c.35 2.6 1.05 3.3 3.6 3.6-2.55.35-3.25 1.05-3.6 3.6-.35-2.55-1.05-3.25-3.6-3.6 2.55-.35 3.25-1.05 3.6-3.6Z"/></symbol>
+      <symbol id="wi-media" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></symbol>
+      <symbol id="wi-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.4 7.2L4 21l1.8-5.6A8 8 0 1 1 21 12Z"/></symbol>
+      <symbol id="wi-browser" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M7 5.5h.01M10 5.5h.01"/></symbol>
+      <symbol id="wi-slideshow" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m4 17 4.5-4 3.5 2.5 3-2.5L20 17"/></symbol>
+      <symbol id="wi-twitch" viewBox="0 0 24 24"><path d="M5 3h14v10l-4 4h-3l-3 3v-3H5z"/><path d="M11 8v3M15 8v3"/></symbol>
+      <symbol id="wi-twitchwatch" viewBox="0 0 24 24"><path d="M5 3h14v10l-4 4h-3l-3 3v-3H5z"/><path d="M10 7.5l4 2.5-4 2.5z"/></symbol>
+      <symbol id="wi-youtube" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z"/></symbol>
+      <symbol id="wi-youtubelive" viewBox="0 0 24 24"><rect x="2" y="9" width="20" height="12" rx="4"/><path d="M10 12l5 3-5 3z"/><path d="M6.5 6.5a6 6 0 0 1 11 0"/></symbol>
+      <symbol id="wi-obs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.4"/></symbol>
+      <symbol id="wi-discord" viewBox="0 0 24 24"><path d="M8 4h8l3 4 1.5 8-4 2-1.5-2.5M8 4 5 8l-1.5 8 4 2L9 15.5"/><circle cx="9.2" cy="12" r="1.1"/><circle cx="14.8" cy="12" r="1.1"/></symbol>
+      <symbol id="wi-spotify" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M7.5 10c3-.8 6-.5 8.5 1M8 13c2.3-.6 4.6-.4 6.5.9M8.5 15.6c1.7-.4 3.4-.3 4.9.7"/></symbol>
+      <symbol id="wi-streamerbot" viewBox="0 0 24 24"><path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M9 11h.01M15 11h.01M9 15h6"/></symbol>
+      <symbol id="wi-wavelink" viewBox="0 0 24 24"><path d="M6 3v18M12 3v18M18 3v18"/><path d="M4 8h4M10 14h4M16 6h4"/></symbol>
+      <symbol id="wi-deck" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+      <symbol id="wi-agenda" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+      <symbol id="wi-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></symbol>
+      <symbol id="wi-tasks" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></symbol>
+      <symbol id="wi-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6"/></symbol>
+      <symbol id="wi-notes" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></symbol>
+      <symbol id="wi-weather" viewBox="0 0 24 24"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/><path d="M12 2v1.5M4 6l1 1M20 6l-1 1"/></symbol>
+      <symbol id="wi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></symbol>
+      <symbol id="wi-transfer" viewBox="0 0 24 24"><path d="M7 20V8"/><path d="m3 12 4-4 4 4"/><path d="M17 4v12"/><path d="m13 12 4 4 4-4"/></symbol>
+      <symbol id="wi-phone" viewBox="0 0 24 24"><path d="M6.5 3h3l1.5 4-2 1.4a12 12 0 0 0 5.6 5.6l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3Z"/></symbol>
+      <symbol id="wi-stocks" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></symbol>
+      <symbol id="wi-football" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.3h-5.6L7.5 10.3 12 7Z"/><path d="M12 3v4M20.5 9.5l-3.7 2.7M18 20l-2.8-4.4M6 20l2.8-4.4M3.5 9.5l3.7 2.7"/></symbol>
+      <symbol id="wi-news" viewBox="0 0 24 24"><path d="M4 5h13v14a2 2 0 0 1-2 2H5a2 2 0 0 1-1-3.8"/><path d="M17 8h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/></symbol>
+      <symbol id="wi-notifications" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+      <symbol id="wi-vitals" viewBox="0 0 24 24"><path d="M12 21S3.8 15.9 2.9 10.8A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.1 4.4C20.2 15.9 12 21 12 21Z"/><path d="M7 12h2.4l1.3-2.6 2 4.4 1.4-1.8H17"/></symbol>
+    </svg>
     <div class="w">
       <div class="sec-head">
         <h2 id="h-widgets" data-i18n="widgets.h2">Widget</h2>
-        <p data-i18n="widgets.p">40 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.</p>
+        <p data-i18n="widgets.p">41 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.</p>
       </div>
-      <div class="wg">
-        <figure class="big"><img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="The System widget: CPU, GPU, memory, disk and network graphs" data-i18n-alt="wg.sys.alt"><figcaption><b data-i18n="wg.sys.t">Sistema</b><span data-i18n="wg.sys.p">CPU, GPU, memoria, disco e rete, con lo storico, e gli FPS reali dentro i giochi.</span></figcaption></figure>
-        <div class="side">
-          <figure><img src="/images/home/crop-media.webp" width="832" height="572" loading="lazy" decoding="async" alt="The Playback widget with the track that is playing" data-i18n-alt="wg.med.alt"><figcaption><b data-i18n="wg.med.t">Riproduzione</b><span data-i18n="wg.med.p">Cosa sta suonando in qualsiasi lettore, con i comandi, il volume e il microfono.</span></figcaption></figure>
-          <figure><img src="/images/home/crop-calendar.webp" width="820" height="572" loading="lazy" decoding="async" alt="The Calendar widget with the next events" data-i18n-alt="wg.cal.alt"><figcaption><b data-i18n="wg.cal.t">Calendario</b><span data-i18n="wg.cal.p">I tuoi eventi, anche da feed .ics, con attività, timer e note nello stesso riquadro.</span></figcaption></figure>
-        </div>
+      <div class="ws">
+      <div class="ws-row">
+        <img class="ws-shot" src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="The System widget: CPU, GPU, memory, disk and network graphs" data-i18n-alt="wg.sys.alt">
+        <h3 class="ws-cat" id="ws-sys"><span data-i18n="cat.system">Sistema</span><span class="ws-n">13</span></h3>
+        <p class="ws-lede" data-i18n="ws.sys.p">CPU, GPU, memoria, disco e rete con lo storico, gli FPS reali dentro i giochi, e poi audio, luci, casa smart e telecamere.</p>
+        <ul class="ws-list" aria-labelledby="ws-sys"><li><svg aria-hidden="true"><use href="#wi-system"/></svg><span data-i18n="ix.system">Sistema</span></li><li><svg aria-hidden="true"><use href="#wi-fans"/></svg><span data-i18n="ix.fans">Ventole</span></li><li><svg aria-hidden="true"><use href="#wi-power"/></svg><span data-i18n="ix.power">Energia</span></li><li><svg aria-hidden="true"><use href="#wi-battery"/></svg><span data-i18n="ix.battery">Batterie</span></li><li><svg aria-hidden="true"><use href="#wi-disk"/></svg><span data-i18n="ix.disk">Spazio su disco</span></li><li><svg aria-hidden="true"><use href="#wi-audio"/></svg><span data-i18n="ix.audio">Volume</span></li><li><svg aria-hidden="true"><use href="#wi-mic"/></svg><span data-i18n="ix.mic">Microfono</span></li><li><svg aria-hidden="true"><use href="#wi-secondscreen"/></svg><span data-i18n="ix.secondscreen">Secondo schermo</span></li><li><svg aria-hidden="true"><use href="#wi-remote"/></svg><span data-i18n="ix.remote">Controllo remoto</span></li><li><svg aria-hidden="true"><use href="#wi-smarthome"/></svg><span data-i18n="ix.smarthome">Casa smart</span></li><li><svg aria-hidden="true"><use href="#wi-unifi"/></svg><span data-i18n="ix.unifi">Telecamere</span></li><li><svg aria-hidden="true"><use href="#wi-lighting"/></svg><span data-i18n="ix.lighting">Illuminazione</span></li><li><svg aria-hidden="true"><use href="#wi-claude"/></svg><span>Claude Code</span></li></ul>
       </div>
-      <div class="names">
-        <div><h3><span data-i18n="cat.prod">Produttività</span><span>14</span></h3>
-          <ul><li data-i18n="ix.agenda">Agenda</li><li data-i18n="ix.calendar">Calendario</li><li data-i18n="ix.tasks">Attività</li><li data-i18n="ix.timer">Timer</li><li data-i18n="ix.notes">Note</li><li data-i18n="ix.weather">Meteo</li><li data-i18n="ix.search">Ricerca</li><li data-i18n="ix.transfer">Trasferimento file</li><li data-i18n="ix.phone">Telefono</li><li data-i18n="ix.stocks">Borsa</li><li data-i18n="ix.football">Calcio</li><li data-i18n="ix.news">Notizie</li><li data-i18n="ix.notifications">Notifiche</li><li data-i18n="ix.vitals">Vitals</li></ul></div>
-        <div><h3><span data-i18n="cat.system">Sistema</span><span>13</span></h3>
-          <ul><li data-i18n="ix.system">Sistema</li><li data-i18n="ix.fans">Ventole</li><li data-i18n="ix.power">Energia</li><li data-i18n="ix.battery">Batterie</li><li data-i18n="ix.disk">Spazio su disco</li><li data-i18n="ix.audio">Volume</li><li data-i18n="ix.mic">Microfono</li><li data-i18n="ix.secondscreen">Secondo schermo</li><li data-i18n="ix.remote">Controllo remoto</li><li data-i18n="ix.smarthome">Casa smart</li><li data-i18n="ix.unifi">Telecamere</li><li data-i18n="ix.lighting">Illuminazione</li><li>Claude Code</li></ul></div>
-        <div><h3><span data-i18n="cat.stream">Streaming</span><span>10</span></h3>
-          <ul><li>Twitch Live</li><li>Twitch</li><li>YouTube</li><li>YouTube Live</li><li>OBS</li><li>Discord</li><li>Spotify</li><li>Streamer.bot</li><li>Wave Link</li><li>Deck</li></ul></div>
-        <div><h3><span data-i18n="cat.media">Media</span><span>4</span></h3>
-          <ul><li data-i18n="ix.media">Riproduzione</li><li data-i18n="ix.chat">Chat</li><li data-i18n="ix.browser">Browser</li><li data-i18n="ix.slideshow">Presentazione</li></ul></div>
+      <div class="ws-row">
+        <img class="ws-shot" src="/images/home/crop-media.webp" width="832" height="572" loading="lazy" decoding="async" alt="The Playback widget with the track that is playing" data-i18n-alt="wg.med.alt">
+        <h3 class="ws-cat" id="ws-med"><span data-i18n="ws.media.t">Media e streaming</span><span class="ws-n">14</span></h3>
+        <p class="ws-lede" data-i18n="ws.media.p">Cosa suona in qualsiasi lettore, con i comandi, e le tue dirette: Twitch, YouTube, OBS, Discord, Streamer.bot e Wave Link.</p>
+        <ul class="ws-list" aria-labelledby="ws-med"><li><svg aria-hidden="true"><use href="#wi-media"/></svg><span data-i18n="ix.media">Riproduzione</span></li><li><svg aria-hidden="true"><use href="#wi-chat"/></svg><span data-i18n="ix.chat">Chat</span></li><li><svg aria-hidden="true"><use href="#wi-browser"/></svg><span data-i18n="ix.browser">Browser</span></li><li><svg aria-hidden="true"><use href="#wi-slideshow"/></svg><span data-i18n="ix.slideshow">Presentazione</span></li><li><svg aria-hidden="true"><use href="#wi-twitch"/></svg><span>Twitch Live</span></li><li><svg aria-hidden="true"><use href="#wi-twitchwatch"/></svg><span>Twitch</span></li><li><svg aria-hidden="true"><use href="#wi-youtube"/></svg><span>YouTube</span></li><li><svg aria-hidden="true"><use href="#wi-youtubelive"/></svg><span>YouTube Live</span></li><li><svg aria-hidden="true"><use href="#wi-obs"/></svg><span>OBS</span></li><li><svg aria-hidden="true"><use href="#wi-discord"/></svg><span>Discord</span></li><li><svg aria-hidden="true"><use href="#wi-spotify"/></svg><span>Spotify</span></li><li><svg aria-hidden="true"><use href="#wi-streamerbot"/></svg><span>Streamer.bot</span></li><li><svg aria-hidden="true"><use href="#wi-wavelink"/></svg><span>Wave Link</span></li><li><svg aria-hidden="true"><use href="#wi-deck"/></svg><span>Deck</span></li></ul>
+      </div>
+      <div class="ws-row">
+        <img class="ws-shot" src="/images/home/crop-calendar.webp" width="820" height="572" loading="lazy" decoding="async" alt="The Calendar widget with the next events" data-i18n-alt="wg.cal.alt">
+        <h3 class="ws-cat" id="ws-prod"><span data-i18n="cat.prod">Produttività</span><span class="ws-n">14</span></h3>
+        <p class="ws-lede" data-i18n="ws.prod.p">I tuoi eventi, anche da feed .ics, con attività, timer e note nello stesso riquadro, e poi meteo, notizie, borsa e calcio.</p>
+        <ul class="ws-list" aria-labelledby="ws-prod"><li><svg aria-hidden="true"><use href="#wi-agenda"/></svg><span data-i18n="ix.agenda">Agenda</span></li><li><svg aria-hidden="true"><use href="#wi-calendar"/></svg><span data-i18n="ix.calendar">Calendario</span></li><li><svg aria-hidden="true"><use href="#wi-tasks"/></svg><span data-i18n="ix.tasks">Attività</span></li><li><svg aria-hidden="true"><use href="#wi-timer"/></svg><span data-i18n="ix.timer">Timer</span></li><li><svg aria-hidden="true"><use href="#wi-notes"/></svg><span data-i18n="ix.notes">Note</span></li><li><svg aria-hidden="true"><use href="#wi-weather"/></svg><span data-i18n="ix.weather">Meteo</span></li><li><svg aria-hidden="true"><use href="#wi-search"/></svg><span data-i18n="ix.search">Ricerca</span></li><li><svg aria-hidden="true"><use href="#wi-transfer"/></svg><span data-i18n="ix.transfer">Trasferimento file</span></li><li><svg aria-hidden="true"><use href="#wi-phone"/></svg><span data-i18n="ix.phone">Telefono</span></li><li><svg aria-hidden="true"><use href="#wi-stocks"/></svg><span data-i18n="ix.stocks">Borsa</span></li><li><svg aria-hidden="true"><use href="#wi-football"/></svg><span data-i18n="ix.football">Calcio</span></li><li><svg aria-hidden="true"><use href="#wi-news"/></svg><span data-i18n="ix.news">Notizie</span></li><li><svg aria-hidden="true"><use href="#wi-notifications"/></svg><span data-i18n="ix.notifications">Notifiche</span></li><li><svg aria-hidden="true"><use href="#wi-vitals"/></svg><span data-i18n="ix.vitals">Vitals</span></li></ul>
+      </div>
+      </div>
+      <div class="ws-end">
+        <p data-i18n="ws.end.p">In modalità Layout il + di ogni pagina apre l’elenco completo. Un widget può anche entrare come scheda in un altro, come Volume e Microfono dentro Sistema.</p>
+        <p class="ws-more"><span data-i18n="ws.more">Oltre a questi 41, i widget del catalogo e quelli che fai tu, anche senza codice.</span> <a href="/catalog/" data-i18n="cat.more">Sfoglia il catalogo</a> <a href="/create/#widgets" data-i18n="ws.make">Crea un widget</a></p>
       </div>
     </div>
   </section>
@@ -701,8 +803,106 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <p id="cat-p" data-i18n="cat.p">Temi, widget e scene fatti per Xenon, gratis o per i sostenitori. Ognuno si installa da un codice, con un'anteprima prima.</p>
       </div>
       <div class="promo-block" data-promo-block></div>
-      <div class="cat" id="cat"></div>
-      <p class="cat-more"><a href="/catalog/" data-i18n="cat.more">Sfoglia il catalogo</a></p>
+      <div class="shelf" id="cat"></div>
+      <p class="cat-more"><a href="/catalog/" data-i18n="cat.more">Sfoglia il catalogo</a><a href="/submit/" data-i18n="cat.submit">Pubblica il tuo</a></p>
+    </div>
+  </section>
+
+  <section class="sec" id="make" aria-labelledby="h-make">
+    <div class="w">
+      <div class="sec-head">
+        <h2 id="h-make" data-i18n="make.h2">Crea</h2>
+        <p data-i18n="make.p">Temi, sfondi animati, pagine, profili Deck e widget si fanno nell’app o con il codice, e si condividono come un solo codice che chiunque può incollare in Xenon.</p>
+      </div>
+      <div class="make">
+        <dl class="ways">
+          <div><dt data-i18n="make.app.t">Nell’app, senza codice</dt><dd data-i18n-html="make.app.p">Temi, sfondi, pagine, tasti del Deck e widget semplici hanno ciascuno un editor nell’app. <a href="/create/">La guida per creare</a></dd></div>
+          <div><dt data-i18n="make.ai.t">Con Xenon AI</dt><dd data-i18n="make.ai.p">Chiedi un tema synthwave o una pagina per lo streaming, e l’assistente lo costruisce sotto i tuoi occhi. Resta spento finché non lo accendi in Impostazioni, AI.</dd></div>
+          <div><dt data-i18n="make.code.t">Con il codice</dt><dd data-i18n-html="make.code.p">Un widget è una cartella con un manifest e un file HTML. Può leggere i sensori, la musica e l’agenda, e comandare musica, volume, luci o OBS, con i permessi che approva chi lo installa. <a href="/create/#sdk">Documentazione dell’SDK</a></dd></div>
+          <div class="pub"><dt data-i18n="make.pub.t">Nel catalogo</dt><dd data-i18n-html="make.pub.p">Quando è pronto, lo mandi. Ogni voce viene controllata a mano prima di comparire, con il tuo nome. <a href="/submit/">Pubblica nel catalogo</a></dd></div>
+        </dl>
+        <figure class="sdk">
+          <div class="sdk-well">
+            <div class="sdk-tile"><iframe id="sdk-frame" sandbox="allow-scripts" loading="lazy" tabindex="-1" srcdoc="&lt;!doctype html&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;style&gt;
+  :root { --accent:#b57bff; --text:#f1ecfa; }
+  body { margin:0; display:grid; place-items:center; height:100vh;
+         background:transparent; color:var(--text); font-family:system-ui; }
+  #t  { font-size:16vw; font-weight:700; color:var(--accent);
+         text-shadow:0 0 22px color-mix(in srgb,var(--accent),transparent 50%); }
+&lt;/style&gt;
+&lt;div id=&quot;t&quot;&gt;--:--&lt;/div&gt;
+&lt;script&gt;
+  // use this tile&#x27;s complete, contrast-checked palette
+  function applyTheme(theme) {
+    const p = theme &amp;&amp; (theme.palette || theme); // fallback for older Xenon
+    if (!p) return;
+    if (p.accent) document.documentElement.style.setProperty(&#x27;--accent&#x27;, p.accent);
+    if (p.text) document.documentElement.style.setProperty(&#x27;--text&#x27;, p.text);
+  }
+  addEventListener(&#x27;message&#x27;, e =&gt; {
+    const m = e.data;
+    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp;
+        (m.type === &#x27;init&#x27; || m.type === &#x27;theme&#x27;)) applyTheme(m.theme);
+  });
+  // tick the clock every second
+  const pad = n =&gt; String(n).padStart(2,&#x27;0&#x27;);
+  setInterval(() =&gt; {
+    const d = new Date();
+    document.getElementById(&#x27;t&#x27;).textContent = pad(d.getHours())+&#x27;:&#x27;+pad(d.getMinutes());
+  }, 1000);
+  // say hello so Xenon starts talking to us
+  parent.postMessage({ xenonSdk:1, type:&#x27;hello&#x27; }, &#x27;*&#x27;);
+&lt;/script&gt;"></iframe></div>
+            <div class="sdk-files" role="tablist" aria-label="neon-clock">
+              <button type="button" role="tab" id="sdk-t1" aria-selected="true" aria-controls="sdk-p1">manifest.json</button>
+              <button type="button" role="tab" id="sdk-t2" aria-selected="false" aria-controls="sdk-p2" tabindex="-1">index.html</button>
+            </div>
+            <pre class="sdk-code" id="sdk-p1" role="tabpanel" aria-labelledby="sdk-t1" tabindex="0"><code>{
+  "api": 1,
+  "id": "neon-clock",
+  "name": "Neon Clock",
+  "entry": "index.html",
+  "streams": [],
+  "actions": []
+}</code></pre>
+            <pre class="sdk-code" id="sdk-p2" role="tabpanel" aria-labelledby="sdk-t2" tabindex="0" hidden><code>&lt;!doctype html&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;style&gt;
+  :root { --accent:#b57bff; --text:#f1ecfa; }
+  body { margin:0; display:grid; place-items:center; height:100vh;
+         background:transparent; color:var(--text); font-family:system-ui; }
+  #t  { font-size:16vw; font-weight:700; color:var(--accent);
+         text-shadow:0 0 22px color-mix(in srgb,var(--accent),transparent 50%); }
+&lt;/style&gt;
+&lt;div id="t"&gt;--:--&lt;/div&gt;
+&lt;script&gt;
+  <span class="c">// use this tile's complete, contrast-checked palette</span>
+  function applyTheme(theme) {
+    const p = theme &amp;&amp; (theme.palette || theme); <span class="c">// fallback for older Xenon</span>
+    if (!p) return;
+    if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+    if (p.text) document.documentElement.style.setProperty('--text', p.text);
+  }
+  addEventListener('message', e =&gt; {
+    const m = e.data;
+    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp;
+        (m.type === 'init' || m.type === 'theme')) applyTheme(m.theme);
+  });
+  <span class="c">// tick the clock every second</span>
+  const pad = n =&gt; String(n).padStart(2,'0');
+  setInterval(() =&gt; {
+    const d = new Date();
+    document.getElementById('t').textContent = pad(d.getHours())+':'+pad(d.getMinutes());
+  }, 1000);
+  <span class="c">// say hello so Xenon starts talking to us</span>
+  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
+&lt;/script&gt;</code></pre>
+          </div>
+          <figcaption data-i18n="make.cap">Neon Clock, il primo widget della guida all’SDK: questi due file, in funzione su questa pagina. Prende il colore del tema mostrato in alto, come farebbe sulla dashboard.</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 
@@ -712,6 +912,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <h2 id="h-sup" data-i18n="sup.h2">Sostenitori</h2>
         <p data-i18n="sup.p">Xenon è gratis e lo fa uno sviluppatore solo. Chi lo sostiene riceve i drop mensili del catalogo, e lo tiene in vita.</p>
       </div>
+      <div class="bill" id="bill" hidden></div>
       <div class="tiers" id="tiers">
         <a class="tier" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_coffee">
           <span class="tier-price" data-i18n-html="tier.1.price">5 $ <small>una volta</small></span>
@@ -733,7 +934,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         </a>
       </div>
       <p class="sup-note" data-i18n="sup.note">L'app resta gratuita e completa anche senza. I codici arrivano via email e si sbloccano in Impostazioni, Supporto.</p>
-      <div class="wall" id="wall" hidden></div>
     </div>
   </section>
 
@@ -881,7 +1081,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         "A voice assistant with Gemini, OpenAI, Anthropic, local models, Claude Code and Codex",
         "Claude Code permission prompts answered from the touchscreen",
         "File transfer between the PC and a paired phone or tablet",
-        "40 widgets on a 24-column grid, up to 8 pages",
+        "41 widgets on a 24-column grid, up to 8 pages",
         "Themes, animated backgrounds, Ambient scenes, a community catalog and a widget SDK",
         "Runs on a CORSAIR Xeneon Edge, a spare monitor, a tablet or a phone"
       ]
@@ -921,7 +1121,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "skip": "Skip to content",
     "nav.screens": "Screens",
     "nav.widgets": "Widgets",
-    "nav.themes": "Themes",
+    "nav.catalog": "Catalog",
+    "nav.create": "Create",
     "nav.support": "Support",
     "nav.help": "Help",
     "nav.download": "Download",
@@ -980,20 +1181,19 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Drawn to scale: a 27-inch monitor, the 14.5-inch Edge, an 11-inch tablet and a 6.1-inch phone.",
     "beta": "Beta",
     "widgets.h2": "Widgets",
-    "widgets.p": "40 built in. Resize them and place them on a 24-column grid, across up to 8 pages.",
+    "widgets.p": "41 built in. Resize them and place them on a 24-column grid, across up to 8 pages.",
     "wg.sys.alt": "The System widget: CPU, GPU, memory, disk and network graphs",
-    "wg.sys.t": "System",
-    "wg.sys.p": "CPU, GPU, memory, disk and network, with history, and real frame rates inside games.",
     "wg.med.alt": "The Playback widget with the track that is playing",
-    "wg.med.t": "Playback",
-    "wg.med.p": "What is playing in any player, with the controls, the volume and the microphone.",
     "wg.cal.alt": "The Calendar widget with the next events",
-    "wg.cal.t": "Calendar",
-    "wg.cal.p": "Your events, also from .ics feeds, with tasks, timers and notes in the same tile.",
+    "ws.media.t": "Media and streaming",
+    "ws.sys.p": "CPU, GPU, memory, disk and network with their history, the real frame rate inside games, and then audio, lights, smart home and cameras.",
+    "ws.media.p": "What is playing in any player, with its controls, and your streams: Twitch, YouTube, OBS, Discord, Streamer.bot and Wave Link.",
+    "ws.prod.p": "Your events, also from .ics feeds, with tasks, timers and notes in the same tile, and then weather, news, stocks and football.",
+    "ws.end.p": "In Layout mode the + on every page opens the full list. A widget can also sit inside another as a tab, like Volume and Microphone inside System.",
+    "ws.more": "Beyond these 41: the widgets in the catalog, and the ones you make, also without code.",
+    "ws.make": "Make a widget",
     "cat.prod": "Productivity",
     "cat.system": "System",
-    "cat.stream": "Streaming",
-    "cat.media": "Media",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendar",
     "ix.tasks": "Tasks",
@@ -1036,10 +1236,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.p": "Themes, widgets and scenes made for Xenon, free or for supporters. Each one installs from a code, with a preview first.",
     "cat.p.n": "{n} themes, widgets and scenes, free or for supporters, {c} of them by community authors. Each one installs from a code, with a preview first.",
     "cat.more": "Browse the catalog",
+    "cat.submit": "Publish yours",
     "cat.sup": "Supporters",
     "cat.free": "Free",
     "cat.by": "by {a}",
     "cat.details": "Details",
+    "make.h2": "Create",
+    "make.p": "Themes, animated backgrounds, pages, Deck profiles and widgets are made in the app or in code, and shared as a single code that anyone can paste into Xenon.",
+    "make.app.t": "In the app, without code",
+    "make.app.p": "Themes, backgrounds, pages, Deck keys and simple widgets each have an editor in the app. <a href=\"/create/\">The maker’s guide</a>",
+    "make.ai.t": "With Xenon AI",
+    "make.ai.p": "Ask for a synthwave theme or a page for streaming, and the assistant builds it while you watch. It stays off until you turn it on in Settings, AI.",
+    "make.code.t": "In code",
+    "make.code.p": "A widget is a folder with a manifest and an HTML file. It can read the sensors, the music and the agenda, and control music, volume, lights or OBS, with the permissions the person installing it approves. <a href=\"/create/#sdk\">SDK documentation</a>",
+    "make.pub.t": "In the catalog",
+    "make.pub.p": "When it is ready, send it in. Every entry is checked by hand before it appears, with your name on it. <a href=\"/submit/\">Publish in the catalog</a>",
+    "make.cap": "Neon Clock, the first widget in the SDK guide: these two files, running on this page. It takes the colour of the theme shown at the top, as it would on the dashboard.",
+    "make.frame": "Neon Clock, the example widget from the SDK guide, running",
     "kind.theme": "theme",
     "kind.bundle": "pack",
     "kind.widget": "widget",
@@ -1060,9 +1273,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Twelve months of drops, plus a theme built for you, one request a month. Choose the yearly option on the membership page; it renews each year until you stop it.",
     "tier.go": "Support",
     "sup.note": "The app stays free and complete without it. Codes arrive by email and unlock in Settings, Support.",
-    "sup.wall": "Thank you to the {n} people who support it.",
-    "sup.top": "Top supporter",
-    "sup.member": "Active member",
+    "bill.top": "Top supporters",
+    "bill.mem": "Active members",
+    "bill.rest": "With the support of",
+    "bill.you": "Your name",
+    "bill.you.sr": "Your name here: see the ways to support Xenon",
+    "bill.when": "Updated {d}.",
+    "bill.note": "Anyone who supports Xenon appears here within a day, with the first word of their name or a nickname they ask for, and no link. Removed on request.",
     "inst.h2": "Install",
     "inst.p": "One installer per system. It sets up the app, the dashboard engine and the start at login.",
     "dl.you": "Your system",
@@ -1116,7 +1333,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "skip": "Vai al contenuto",
     "nav.screens": "Schermi",
     "nav.widgets": "Widget",
-    "nav.themes": "Temi",
+    "nav.catalog": "Catalogo",
+    "nav.create": "Crea",
     "nav.support": "Sostieni",
     "nav.help": "Aiuto",
     "nav.download": "Scarica",
@@ -1175,20 +1393,19 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Disegnati in scala: un monitor da 27 pollici, l'Edge da 14,5, un tablet da 11 e un telefono da 6,1.",
     "beta": "Beta",
     "widgets.h2": "Widget",
-    "widgets.p": "40 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.",
+    "widgets.p": "41 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.",
     "wg.sys.alt": "Il widget Sistema: grafici di CPU, GPU, memoria, disco e rete",
-    "wg.sys.t": "Sistema",
-    "wg.sys.p": "CPU, GPU, memoria, disco e rete, con lo storico, e gli FPS reali dentro i giochi.",
     "wg.med.alt": "Il widget Riproduzione con il brano in ascolto",
-    "wg.med.t": "Riproduzione",
-    "wg.med.p": "Cosa sta suonando in qualsiasi lettore, con i comandi, il volume e il microfono.",
     "wg.cal.alt": "Il widget Calendario con i prossimi eventi",
-    "wg.cal.t": "Calendario",
-    "wg.cal.p": "I tuoi eventi, anche da feed .ics, con attività, timer e note nello stesso riquadro.",
+    "ws.media.t": "Media e streaming",
+    "ws.sys.p": "CPU, GPU, memoria, disco e rete con lo storico, gli FPS reali dentro i giochi, e poi audio, luci, casa smart e telecamere.",
+    "ws.media.p": "Cosa suona in qualsiasi lettore, con i comandi, e le tue dirette: Twitch, YouTube, OBS, Discord, Streamer.bot e Wave Link.",
+    "ws.prod.p": "I tuoi eventi, anche da feed .ics, con attività, timer e note nello stesso riquadro, e poi meteo, notizie, borsa e calcio.",
+    "ws.end.p": "In modalità Layout il + di ogni pagina apre l’elenco completo. Un widget può anche entrare come scheda in un altro, come Volume e Microfono dentro Sistema.",
+    "ws.more": "Oltre a questi 41, i widget del catalogo e quelli che fai tu, anche senza codice.",
+    "ws.make": "Crea un widget",
     "cat.prod": "Produttività",
     "cat.system": "Sistema",
-    "cat.stream": "Streaming",
-    "cat.media": "Media",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendario",
     "ix.tasks": "Attività",
@@ -1231,10 +1448,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.p": "Temi, widget e scene fatti per Xenon, gratis o per i sostenitori. Ognuno si installa da un codice, con un'anteprima prima.",
     "cat.p.n": "{n} temi, widget e scene, gratis o per i sostenitori, di cui {c} fatti dalla community. Ognuno si installa da un codice, con un'anteprima prima.",
     "cat.more": "Sfoglia il catalogo",
+    "cat.submit": "Pubblica il tuo",
     "cat.sup": "Sostenitori",
     "cat.free": "Gratis",
     "cat.by": "di {a}",
     "cat.details": "Dettagli",
+    "make.h2": "Crea",
+    "make.p": "Temi, sfondi animati, pagine, profili Deck e widget si fanno nell’app o con il codice, e si condividono come un solo codice che chiunque può incollare in Xenon.",
+    "make.app.t": "Nell’app, senza codice",
+    "make.app.p": "Temi, sfondi, pagine, tasti del Deck e widget semplici hanno ciascuno un editor nell’app. <a href=\"/create/\">La guida per creare</a>",
+    "make.ai.t": "Con Xenon AI",
+    "make.ai.p": "Chiedi un tema synthwave o una pagina per lo streaming, e l’assistente lo costruisce sotto i tuoi occhi. Resta spento finché non lo accendi in Impostazioni, AI.",
+    "make.code.t": "Con il codice",
+    "make.code.p": "Un widget è una cartella con un manifest e un file HTML. Può leggere i sensori, la musica e l’agenda, e comandare musica, volume, luci o OBS, con i permessi che approva chi lo installa. <a href=\"/create/#sdk\">Documentazione dell’SDK</a>",
+    "make.pub.t": "Nel catalogo",
+    "make.pub.p": "Quando è pronto, lo mandi. Ogni voce viene controllata a mano prima di comparire, con il tuo nome. <a href=\"/submit/\">Pubblica nel catalogo</a>",
+    "make.cap": "Neon Clock, il primo widget della guida all’SDK: questi due file, in funzione su questa pagina. Prende il colore del tema mostrato in alto, come farebbe sulla dashboard.",
+    "make.frame": "Neon Clock, il widget di esempio della guida all’SDK, in funzione",
     "kind.theme": "tema",
     "kind.bundle": "pacchetto",
     "kind.widget": "widget",
@@ -1255,9 +1485,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Dodici mesi di drop, più un tema fatto per te, una richiesta al mese. Scegli l'opzione annuale nella pagina della membership; si rinnova ogni anno finché non la fermi.",
     "tier.go": "Sostieni",
     "sup.note": "L'app resta gratuita e completa anche senza. I codici arrivano via email e si sbloccano in Impostazioni, Supporto.",
-    "sup.wall": "Grazie alle {n} persone che lo sostengono.",
-    "sup.top": "Tra i maggiori sostenitori",
-    "sup.member": "Membro attivo",
+    "bill.top": "I maggiori sostenitori",
+    "bill.mem": "Membri attivi",
+    "bill.rest": "Con il sostegno di",
+    "bill.you": "Il tuo nome",
+    "bill.you.sr": "Il tuo nome qui: vedi come sostenere Xenon",
+    "bill.when": "Aggiornato il {d}.",
+    "bill.note": "Chi sostiene Xenon compare qui entro un giorno, con la prima parola del nome o un soprannome che chiede, e nessun link. Si toglie su richiesta.",
     "inst.h2": "Installazione",
     "inst.p": "Un installer per ogni sistema. Prepara l'app, il motore della dashboard e l'avvio al login.",
     "dl.you": "Il tuo sistema",
@@ -1311,7 +1545,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "skip": "Saltar al contenido",
     "nav.screens": "Pantallas",
     "nav.widgets": "Widgets",
-    "nav.themes": "Temas",
+    "nav.catalog": "Catálogo",
+    "nav.create": "Crear",
     "nav.support": "Apoyar",
     "nav.help": "Ayuda",
     "nav.download": "Descargar",
@@ -1370,20 +1605,19 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Dibujados a escala: un monitor de 27 pulgadas, el Edge de 14,5, una tablet de 11 y un teléfono de 6,1.",
     "beta": "Beta",
     "widgets.h2": "Widgets",
-    "widgets.p": "40 incluidos. Cámbialos de tamaño y colócalos en una cuadrícula de 24 columnas, en hasta 8 páginas.",
+    "widgets.p": "41 incluidos. Cámbialos de tamaño y colócalos en una cuadrícula de 24 columnas, en hasta 8 páginas.",
     "wg.sys.alt": "El widget Sistema: gráficas de CPU, GPU, memoria, disco y red",
-    "wg.sys.t": "Sistema",
-    "wg.sys.p": "CPU, GPU, memoria, disco y red, con historial, y los FPS reales dentro de los juegos.",
     "wg.med.alt": "El widget Reproducción con la canción que está sonando",
-    "wg.med.t": "Reproducción",
-    "wg.med.p": "Lo que suena en cualquier reproductor, con los controles, el volumen y el micrófono.",
     "wg.cal.alt": "El widget Calendario con los próximos eventos",
-    "wg.cal.t": "Calendario",
-    "wg.cal.p": "Tus eventos, también desde feeds .ics, con tareas, temporizadores y notas en el mismo recuadro.",
+    "ws.media.t": "Multimedia y streaming",
+    "ws.sys.p": "CPU, GPU, memoria, disco y red con su historial, los FPS reales dentro de los juegos, y además audio, luces, casa inteligente y cámaras.",
+    "ws.media.p": "Lo que suena en cualquier reproductor, con sus controles, y tus directos: Twitch, YouTube, OBS, Discord, Streamer.bot y Wave Link.",
+    "ws.prod.p": "Tus eventos, también de feeds .ics, con tareas, temporizadores y notas en el mismo panel, y además tiempo, noticias, bolsa y fútbol.",
+    "ws.end.p": "En el modo Diseño, el + de cada página abre la lista completa. Un widget también puede ir dentro de otro como pestaña, como Volumen y Micrófono dentro de Sistema.",
+    "ws.more": "Además de estos 41, los widgets del catálogo y los que hagas tú, también sin código.",
+    "ws.make": "Crear un widget",
     "cat.prod": "Productividad",
     "cat.system": "Sistema",
-    "cat.stream": "Streaming",
-    "cat.media": "Multimedia",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendario",
     "ix.tasks": "Tareas",
@@ -1426,10 +1660,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.p": "Temas, widgets y escenas hechos para Xenon, gratis o para mecenas. Cada uno se instala desde un código, con una vista previa antes.",
     "cat.p.n": "{n} temas, widgets y escenas, gratis o para mecenas, {c} de ellos de autores de la comunidad. Cada uno se instala desde un código, con una vista previa antes.",
     "cat.more": "Explorar el catálogo",
+    "cat.submit": "Publica el tuyo",
     "cat.sup": "Mecenas",
     "cat.free": "Gratis",
     "cat.by": "por {a}",
     "cat.details": "Detalles",
+    "make.h2": "Crear",
+    "make.p": "Temas, fondos animados, páginas, perfiles de Deck y widgets se hacen en la app o con código, y se comparten como un solo código que cualquiera puede pegar en Xenon.",
+    "make.app.t": "En la app, sin código",
+    "make.app.p": "Temas, fondos, páginas, teclas del Deck y widgets sencillos tienen cada uno un editor en la app. <a href=\"/create/\">La guía para crear</a>",
+    "make.ai.t": "Con Xenon AI",
+    "make.ai.p": "Pide un tema synthwave o una página para streaming, y el asistente lo construye mientras miras. Está apagado hasta que lo actives en Ajustes, IA.",
+    "make.code.t": "Con código",
+    "make.code.p": "Un widget es una carpeta con un manifiesto y un archivo HTML. Puede leer los sensores, la música y la agenda, y controlar música, volumen, luces u OBS, con los permisos que aprueba quien lo instala. <a href=\"/create/#sdk\">Documentación del SDK</a>",
+    "make.pub.t": "En el catálogo",
+    "make.pub.p": "Cuando esté listo, envíalo. Cada entrada se revisa a mano antes de aparecer, con tu nombre. <a href=\"/submit/\">Publicar en el catálogo</a>",
+    "make.cap": "Neon Clock, el primer widget de la guía del SDK: estos dos archivos, funcionando en esta página. Toma el color del tema que se ve arriba, como lo haría en el panel.",
+    "make.frame": "Neon Clock, el widget de ejemplo de la guía del SDK, en funcionamiento",
     "kind.theme": "tema",
     "kind.bundle": "pack",
     "kind.widget": "widget",
@@ -1450,9 +1697,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Doce meses de drops, más un tema hecho para ti, una petición al mes. Elige la opción anual en la página de membresía; se renueva cada año hasta que la canceles.",
     "tier.go": "Apoyar",
     "sup.note": "La app sigue siendo gratis y completa sin esto. Los códigos llegan por correo y se desbloquean en Ajustes, Apoya a Xenon.",
-    "sup.wall": "Gracias a las {n} personas que lo apoyan.",
-    "sup.top": "Mecenas destacado",
-    "sup.member": "Miembro activo",
+    "bill.top": "Los mayores mecenas",
+    "bill.mem": "Miembros activos",
+    "bill.rest": "Con el apoyo de",
+    "bill.you": "Tu nombre",
+    "bill.you.sr": "Tu nombre aquí: mira cómo apoyar Xenon",
+    "bill.when": "Actualizado el {d}.",
+    "bill.note": "Quien apoya Xenon aparece aquí en un día, con la primera palabra de su nombre o un apodo que pida, y sin enlace. Se quita si lo pide.",
     "inst.h2": "Instalación",
     "inst.p": "Un instalador por sistema. Instala la app, el motor del panel y el arranque al iniciar sesión.",
     "dl.you": "Tu sistema",
@@ -1506,7 +1757,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "skip": "本文へスキップ",
     "nav.screens": "画面",
     "nav.widgets": "ウィジェット",
-    "nav.themes": "テーマ",
+    "nav.catalog": "カタログ",
+    "nav.create": "つくる",
     "nav.support": "支援",
     "nav.help": "ヘルプ",
     "nav.download": "ダウンロード",
@@ -1565,20 +1817,19 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "実際の比率で描いています。27インチのモニター、14.5インチのEdge、11インチのタブレット、6.1インチのスマートフォンです。",
     "beta": "ベータ",
     "widgets.h2": "ウィジェット",
-    "widgets.p": "40種類を内蔵しています。サイズを変えて24列のグリッドに配置でき、ページは最大8枚まで使えます。",
+    "widgets.p": "41種類を内蔵しています。サイズを変えて24列のグリッドに配置でき、ページは最大8枚まで使えます。",
     "wg.sys.alt": "システムウィジェット。CPU、GPU、メモリ、ディスク、ネットワークのグラフ",
-    "wg.sys.t": "システム",
-    "wg.sys.p": "CPU、GPU、メモリ、ディスク、ネットワークを履歴付きで表示します。ゲーム中は実際のフレームレートも表示します。",
     "wg.med.alt": "再生中の曲を表示した再生ウィジェット",
-    "wg.med.t": "再生",
-    "wg.med.p": "どのプレーヤーで再生中の曲も、操作ボタン、音量、マイクとあわせて表示します。",
     "wg.cal.alt": "次の予定を表示したカレンダーウィジェット",
-    "wg.cal.t": "カレンダー",
-    "wg.cal.p": "予定を表示します。.icsフィードにも対応し、タスク、タイマー、メモも同じタイルにまとめられます。",
+    "ws.media.t": "メディアと配信",
+    "ws.sys.p": "CPU、GPU、メモリ、ディスク、ネットワークを履歴つきで表示し、ゲーム内の実際のFPSも。さらにオーディオ、ライト、スマートホーム、カメラ。",
+    "ws.media.p": "どのプレーヤーで再生中の曲もコントロールつきで表示。配信はTwitch、YouTube、OBS、Discord、Streamer.bot、Wave Link。",
+    "ws.prod.p": "予定は.icsフィードからも取り込み、タスク、タイマー、メモと同じタイルに。さらに天気、ニュース、株価、サッカー。",
+    "ws.end.p": "レイアウトモードでは、各ページの＋から全ウィジェットの一覧が開きます。ウィジェットは別のウィジェットのタブにもでき、システムの中に音量とマイクが入っているのがその例です。",
+    "ws.more": "この41個に加えて、カタログのウィジェットや、自分で作ったウィジェットも使えます。コードなしでも作れます。",
+    "ws.make": "ウィジェットを作る",
     "cat.prod": "生産性",
     "cat.system": "システム",
-    "cat.stream": "配信",
-    "cat.media": "メディア",
     "ix.agenda": "予定",
     "ix.calendar": "カレンダー",
     "ix.tasks": "タスク",
@@ -1621,10 +1872,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.p": "Xenon用のテーマ、ウィジェット、シーンです。無料のものとサポーター向けのものがあります。どれもコードからインストールでき、先にプレビューを確認できます。",
     "cat.p.n": "テーマ、ウィジェット、シーンが{n}件。無料のものとサポーター向けのものがあり、そのうち{c}件はコミュニティの作者によるものです。どれもコードからインストールでき、先にプレビューを確認できます。",
     "cat.more": "カタログを見る",
+    "cat.submit": "作品を公開",
     "cat.sup": "サポーター",
     "cat.free": "無料",
     "cat.by": "作者: {a}",
     "cat.details": "詳細",
+    "make.h2": "つくる",
+    "make.p": "テーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェットは、アプリの中かコードで作れます。作ったものは1つのコードとして共有でき、誰でもXenonに貼り付けられます。",
+    "make.app.t": "アプリの中で、コードなしで",
+    "make.app.p": "テーマ、背景、ページ、Deckのキー、シンプルなウィジェットには、それぞれアプリ内のエディターがあります。<a href=\"/create/\">作り方ガイド</a>",
+    "make.ai.t": "Xenon AIで",
+    "make.ai.p": "シンセウェーブのテーマや配信用のページを頼むと、アシスタントが目の前で組み立てます。設定の「AI」でオンにするまでは動きません。",
+    "make.code.t": "コードで",
+    "make.code.p": "ウィジェットは、マニフェストとHTMLファイルが入ったフォルダーです。センサー、音楽、予定を読み取り、音楽、音量、ライト、OBSを操作できます。権限はインストールする人が承認します。<a href=\"/create/#sdk\">SDKドキュメント</a>",
+    "make.pub.t": "カタログへ",
+    "make.pub.p": "完成したら送ってください。すべての作品は掲載前に手作業で確認され、あなたの名前で公開されます。<a href=\"/submit/\">カタログに公開</a>",
+    "make.cap": "Neon Clock。SDKガイドの最初のウィジェットで、この2つのファイルがこのページで動いています。ダッシュボードと同じように、上に表示中のテーマの色になります。",
+    "make.frame": "SDKガイドのサンプルウィジェット Neon Clock（動作中）",
     "kind.theme": "テーマ",
     "kind.bundle": "パック",
     "kind.widget": "ウィジェット",
@@ -1645,9 +1909,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "新作12か月分に加えて、あなた専用のテーマを制作します（リクエストは月1回）。メンバーシップのページで年額プランを選んでください。停止するまで毎年更新されます。",
     "tier.go": "支援する",
     "sup.note": "支援しなくても、アプリは無料ですべての機能を使えます。コードはメールで届き、「設定」の「Xenonを応援」で有効にできます。",
-    "sup.wall": "支えてくれている {n} 人に感謝します。",
-    "sup.top": "トップサポーター",
-    "sup.member": "継続メンバー",
+    "bill.top": "トップサポーター",
+    "bill.mem": "継続メンバー",
+    "bill.rest": "ご支援いただいた皆さん",
+    "bill.you": "あなたの名前",
+    "bill.you.sr": "ここにあなたの名前を：Xenonの支援方法を見る",
+    "bill.when": "{d}更新。",
+    "bill.note": "Xenonを支援した人は1日以内にここに載ります。名前の最初の単語か希望のニックネームで、リンクはつきません。希望があれば削除します。",
     "inst.h2": "インストール",
     "inst.p": "OSごとにインストーラーがひとつあります。アプリ、ダッシュボードエンジン、ログイン時の自動起動をセットアップします。",
     "dl.you": "お使いのシステム",
@@ -1701,7 +1969,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "skip": "본문으로 건너뛰기",
     "nav.screens": "화면",
     "nav.widgets": "위젯",
-    "nav.themes": "테마",
+    "nav.catalog": "카탈로그",
+    "nav.create": "만들기",
     "nav.support": "후원",
     "nav.help": "도움말",
     "nav.download": "다운로드",
@@ -1760,20 +2029,19 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "27인치 모니터, 14.5인치 Edge, 11인치 태블릿, 6.1인치 휴대폰을 실제 비율로 그렸습니다.",
     "beta": "베타",
     "widgets.h2": "위젯",
-    "widgets.p": "40개가 기본으로 들어 있습니다. 크기를 바꿔 24열 그리드에 배치하고, 최대 8개 페이지에 나눠 둘 수 있습니다.",
+    "widgets.p": "41개가 기본으로 들어 있습니다. 크기를 바꿔 24열 그리드에 배치하고, 최대 8개 페이지에 나눠 둘 수 있습니다.",
     "wg.sys.alt": "시스템 위젯: CPU, GPU, 메모리, 디스크, 네트워크 그래프",
-    "wg.sys.t": "시스템",
-    "wg.sys.p": "CPU, GPU, 메모리, 디스크, 네트워크를 기록과 함께 보여 주고, 게임 안에서는 실제 프레임 레이트를 표시합니다.",
     "wg.med.alt": "재생 중인 트랙이 표시된 재생 위젯",
-    "wg.med.t": "재생",
-    "wg.med.p": "어떤 플레이어에서 재생 중이든 곡 정보를 보여 주며, 컨트롤, 볼륨, 마이크도 함께 있습니다.",
     "wg.cal.alt": "다가오는 일정이 표시된 캘린더 위젯",
-    "wg.cal.t": "캘린더",
-    "wg.cal.p": ".ics 피드의 일정까지 보여 주며, 작업, 타이머, 메모도 같은 타일에서 다룹니다.",
+    "ws.media.t": "미디어와 스트리밍",
+    "ws.sys.p": "CPU, GPU, 메모리, 디스크, 네트워크를 기록과 함께 보여 주고 게임 속 실제 FPS도 보여 줍니다. 그 밖에 오디오, 조명, 스마트 홈, 카메라.",
+    "ws.media.p": "어느 플레이어에서 재생 중인 곡이든 컨트롤과 함께 보여 주고, 방송은 Twitch, YouTube, OBS, Discord, Streamer.bot, Wave Link.",
+    "ws.prod.p": ".ics 피드까지 포함한 일정과 할 일, 타이머, 메모를 한 타일에. 그 밖에 날씨, 뉴스, 주식, 축구.",
+    "ws.end.p": "레이아웃 모드에서 각 페이지의 +를 누르면 전체 목록이 열립니다. 위젯을 다른 위젯 안에 탭으로 넣을 수도 있습니다. 시스템 안의 볼륨과 마이크처럼요.",
+    "ws.more": "이 41개 외에도 카탈로그의 위젯과 직접 만든 위젯을 쓸 수 있고, 코드 없이도 만들 수 있습니다.",
+    "ws.make": "위젯 만들기",
     "cat.prod": "생산성",
     "cat.system": "시스템",
-    "cat.stream": "스트리밍",
-    "cat.media": "미디어",
     "ix.agenda": "일정",
     "ix.calendar": "캘린더",
     "ix.tasks": "작업",
@@ -1816,10 +2084,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.p": "Xenon용으로 만든 테마, 위젯, 장면입니다. 무료 또는 후원자용이며, 모두 코드로 설치하고 설치 전에 미리 보기를 확인할 수 있습니다.",
     "cat.p.n": "테마, 위젯, 장면 {n}개가 있으며 무료 또는 후원자용입니다. 그중 {c}개는 커뮤니티 제작자가 만들었습니다. 모두 코드로 설치하고 설치 전에 미리 보기를 확인할 수 있습니다.",
     "cat.more": "카탈로그 둘러보기",
+    "cat.submit": "내 작품 올리기",
     "cat.sup": "후원자",
     "cat.free": "무료",
     "cat.by": "{a} 제작",
     "cat.details": "자세히",
+    "make.h2": "만들기",
+    "make.p": "테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯은 앱 안에서 또는 코드로 만들 수 있고, 누구나 Xenon에 붙여 넣을 수 있는 코드 하나로 공유됩니다.",
+    "make.app.t": "앱에서, 코드 없이",
+    "make.app.p": "테마, 배경, 페이지, Deck 키, 간단한 위젯마다 앱 안에 편집기가 있습니다. <a href=\"/create/\">만들기 가이드</a>",
+    "make.ai.t": "Xenon AI로",
+    "make.ai.p": "신스웨이브 테마나 스트리밍용 페이지를 부탁하면 어시스턴트가 보는 앞에서 만들어 줍니다. 설정의 AI에서 켜기 전까지는 꺼져 있습니다.",
+    "make.code.t": "코드로",
+    "make.code.p": "위젯은 매니페스트와 HTML 파일이 든 폴더입니다. 센서, 음악, 일정을 읽고 음악, 볼륨, 조명, OBS를 제어할 수 있으며, 권한은 설치하는 사람이 승인합니다. <a href=\"/create/#sdk\">SDK 문서</a>",
+    "make.pub.t": "카탈로그에",
+    "make.pub.p": "완성되면 보내 주세요. 모든 항목은 게시 전에 직접 검토되며, 여러분의 이름으로 올라갑니다. <a href=\"/submit/\">카탈로그에 올리기</a>",
+    "make.cap": "Neon Clock, SDK 가이드의 첫 위젯입니다. 이 두 파일이 이 페이지에서 실행되고 있습니다. 대시보드에서처럼 위에 보이는 테마의 색을 따라갑니다.",
+    "make.frame": "SDK 가이드의 예제 위젯 Neon Clock, 실행 중",
     "kind.theme": "테마",
     "kind.bundle": "팩",
     "kind.widget": "위젯",
@@ -1840,9 +2121,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "12개월분 콘텐츠와 함께 나를 위해 만든 테마를 받습니다(요청은 한 달에 한 번). 멤버십 페이지에서 연간 옵션을 선택하세요. 중단할 때까지 매년 갱신됩니다.",
     "tier.go": "후원하기",
     "sup.note": "후원하지 않아도 앱은 무료이며 모든 기능을 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.",
-    "sup.wall": "후원해 주시는 {n}명께 감사드립니다.",
-    "sup.top": "최고 후원자",
-    "sup.member": "활동 멤버",
+    "bill.top": "최고 후원자",
+    "bill.mem": "활동 멤버",
+    "bill.rest": "함께 후원해 주신 분들",
+    "bill.you": "당신의 이름",
+    "bill.you.sr": "여기에 당신의 이름을: Xenon 후원 방법 보기",
+    "bill.when": "{d} 업데이트.",
+    "bill.note": "Xenon을 후원한 사람은 하루 안에 이름의 첫 단어나 원하는 닉네임으로, 링크 없이 여기에 표시됩니다. 요청하면 지웁니다.",
     "inst.h2": "설치",
     "inst.p": "시스템마다 설치 프로그램이 하나씩 있습니다. 앱, 대시보드 엔진, 로그인 시 자동 시작을 설정합니다.",
     "dl.you": "내 시스템",
@@ -1896,7 +2181,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "skip": "跳到正文",
     "nav.screens": "屏幕",
     "nav.widgets": "小组件",
-    "nav.themes": "主题",
+    "nav.catalog": "目录",
+    "nav.create": "创作",
     "nav.support": "支持",
     "nav.help": "帮助",
     "nav.download": "下载",
@@ -1955,20 +2241,19 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "按比例绘制：27 英寸显示器、14.5 英寸的 Edge、11 英寸平板和 6.1 英寸手机。",
     "beta": "Beta",
     "widgets.h2": "小组件",
-    "widgets.p": "内置 40 个。可以调整大小，放在 24 列网格上，至多 8 页。",
+    "widgets.p": "内置 41 个。可以调整大小，放在 24 列网格上，至多 8 页。",
     "wg.sys.alt": "系统小组件：CPU、GPU、内存、磁盘和网络图表",
-    "wg.sys.t": "系统",
-    "wg.sys.p": "CPU、GPU、内存、磁盘和网络，带历史记录，还能显示游戏内的真实帧率。",
     "wg.med.alt": "播放小组件，显示正在播放的曲目",
-    "wg.med.t": "播放",
-    "wg.med.p": "显示任意播放器中正在播放的内容，附带播放控制、音量和麦克风。",
     "wg.cal.alt": "日历小组件，显示接下来的活动",
-    "wg.cal.t": "日历",
-    "wg.cal.p": "你的日程，也支持 .ics 订阅，任务、计时器和笔记都在同一张卡片里。",
+    "ws.media.t": "媒体与直播",
+    "ws.sys.p": "CPU、GPU、内存、磁盘和网络，附带历史记录，还有游戏内的真实帧率；此外还有音频、灯光、智能家居和摄像头。",
+    "ws.media.p": "任何播放器正在播放的内容，带控制按钮；还有你的直播：Twitch、YouTube、OBS、Discord、Streamer.bot 和 Wave Link。",
+    "ws.prod.p": "你的日程（也支持 .ics 订阅），和任务、计时器、笔记放在同一个磁贴里；此外还有天气、新闻、股票和足球。",
+    "ws.end.p": "在布局模式下，每一页的 + 会打开完整列表。小组件也可以作为标签页放进另一个小组件，比如“系统”里的音量和麦克风。",
+    "ws.more": "除了这 41 个，还有目录里的小组件和你自己做的小组件，无需代码也能做。",
+    "ws.make": "制作小组件",
     "cat.prod": "效率",
     "cat.system": "系统",
-    "cat.stream": "直播",
-    "cat.media": "媒体",
     "ix.agenda": "日程",
     "ix.calendar": "日历",
     "ix.tasks": "任务",
@@ -2011,10 +2296,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.p": "为 Xenon 制作的主题、小组件和场景，有免费的，也有面向支持者的。每一项都通过代码安装，安装前可以先预览。",
     "cat.p.n": "{n} 个主题、小组件和场景，有免费的，也有面向支持者的，其中 {c} 个来自社区作者。每一项都通过代码安装，安装前可以先预览。",
     "cat.more": "浏览目录",
+    "cat.submit": "发布你的作品",
     "cat.sup": "支持者",
     "cat.free": "免费",
     "cat.by": "作者：{a}",
     "cat.details": "详情",
+    "make.h2": "创作",
+    "make.p": "主题、动态背景、页面、Deck 配置和小组件，都可以在应用里或用代码制作，并以一段代码分享，任何人都能粘贴到 Xenon 中。",
+    "make.app.t": "在应用里，无需代码",
+    "make.app.p": "主题、背景、页面、Deck 按键和简单小组件，在应用里各有编辑器。<a href=\"/create/\">创作指南</a>",
+    "make.ai.t": "用 Xenon AI",
+    "make.ai.p": "让它做一个合成波主题或一个直播页面，助手会当着你的面搭好。在“设置 > AI”中开启之前，它不会运行。",
+    "make.code.t": "用代码",
+    "make.code.p": "一个小组件就是一个包含清单文件和 HTML 文件的文件夹。它可以读取传感器、音乐和日程，并控制音乐、音量、灯光或 OBS，权限由安装的人批准。<a href=\"/create/#sdk\">SDK 文档</a>",
+    "make.pub.t": "发布到目录",
+    "make.pub.p": "完成后提交即可。每个条目上架前都会人工审核，并署上你的名字。<a href=\"/submit/\">发布到目录</a>",
+    "make.cap": "Neon Clock，SDK 指南中的第一个小组件：这两个文件正在本页运行。它会像在仪表盘上一样，跟随顶部所示主题的颜色。",
+    "make.frame": "SDK 指南中的示例小组件 Neon Clock，正在运行",
     "kind.theme": "主题",
     "kind.bundle": "合集",
     "kind.widget": "小组件",
@@ -2035,9 +2333,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "十二个月的专属内容，外加一套为你制作的主题，每月可以提一次需求。请在会员页面选择年付选项；每年自动续费，直到你取消。",
     "tier.go": "支持",
     "sup.note": "不支持也能免费使用完整的应用。代码会通过电子邮件发送，在“设置”>“支持 Xenon”中解锁。",
-    "sup.wall": "感谢 {n} 位支持者。",
-    "sup.top": "头号支持者",
-    "sup.member": "活跃会员",
+    "bill.top": "主要支持者",
+    "bill.mem": "活跃会员",
+    "bill.rest": "感谢以下支持者",
+    "bill.you": "你的名字",
+    "bill.you.sr": "你的名字可以在这里：看看如何支持 Xenon",
+    "bill.when": "更新于 {d}。",
+    "bill.note": "支持 Xenon 的人会在一天内出现在这里，显示名字的第一个词或其要求的昵称，不附链接。可应要求删除。",
     "inst.h2": "安装",
     "inst.p": "每个系统一个安装程序。它会安装应用和仪表盘引擎，并设置登录时启动。",
     "dl.you": "你的系统",
@@ -2438,33 +2740,40 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       const skip = new Set(Array.isArray(window.__xenonPromoIds) ? window.__xenonPromoIds : []);
       const pool = all.filter((e) => !skip.has(e.id) && (e.shots || 0) > 0);
       const pick = [];
-      const featured = pool.filter((e) => e.featured);
-      const free = pool.filter((e) => !e.locked);
-      for (const e of featured) if (pick.length < 4 && !pick.includes(e)) pick.push(e);
-      if (!pick.some((e) => !e.locked) && free.length) pick.splice(Math.min(pick.length, 3), 0, free[0]);
-      for (const e of free) if (pick.length < 4 && !pick.includes(e)) pick.push(e);
-      for (const e of pool) if (pick.length < 4 && !pick.includes(e)) pick.push(e);
+      // Two the author features, then the community (one look, one widget,
+      // from different people), then free looks; at least one free entry.
+      const isX = (e) => /^xenon$/i.test(String(e.author || '').trim());
+      const look = (e) => ['bundle', 'theme', 'ambient', 'bg'].includes(e.kind);
+      const add = (e) => { if (e && pick.length < 6 && !pick.includes(e)) pick.push(e); };
+      pool.filter((e) => e.featured).slice(0, 2).forEach(add);
+      const comm = pool.filter((e) => !isX(e));
+      const c1 = comm.find(look) || comm[0];
+      add(c1);
+      add(comm.find((e) => e.kind === 'widget' && (!c1 || e.author !== c1.author)));
+      pool.filter((e) => isX(e) && !e.locked && look(e)).forEach(add);
+      pool.forEach(add);
       box.textContent = '';
-      pick.slice(0, 4).forEach((e) => {
+      pick.slice(0, 6).forEach((e) => {
+        const href = '/catalog/#' + encodeURIComponent(e.id);
         const a = document.createElement('article'); a.className = 'item';
-        const th = document.createElement('a'); th.className = 'th'; th.href = '/catalog/#' + encodeURIComponent(e.id);
+        const th = document.createElement('a'); th.className = 'th'; th.href = href;
         th.setAttribute('aria-hidden', 'true'); th.tabIndex = -1;
-        const im = document.createElement('img'); im.loading = 'lazy'; im.decoding = 'async'; im.alt = ''; im.width = 640; im.height = 180;
+        const im = document.createElement('img'); im.loading = 'lazy'; im.decoding = 'async'; im.alt = ''; im.width = 800; im.height = 450;
         im.src = 'https://assets.xenon-app.com/community/shots/' + encodeURIComponent(e.id) + '.webp';
-        im.addEventListener('error', () => { if (!im.dataset.f) { im.dataset.f = '1'; im.src = im.src.replace(/\.webp$/, '.png'); } }, { once: false });
+        im.addEventListener('error', () => { if (!im.dataset.f) { im.dataset.f = '1'; im.src = im.src.replace(/\.webp$/, '.png'); } });
+        // A 32:9 strip is shown whole on the dark ground, never cropped to its middle.
+        im.addEventListener('load', () => { if (im.naturalWidth / im.naturalHeight > 2.2) im.classList.add('strip'); });
         th.appendChild(im);
-        const tx = document.createElement('div');
-        const h = document.createElement('h3'); h.textContent = e.name;
-        const m = document.createElement('p');
-        const tier = document.createElement('span'); tier.className = 'tier-pill';
+        const h = document.createElement('h3');
+        const ln = document.createElement('a'); ln.href = href; ln.textContent = String(e.name).replace(/\s+/g, ' ');
+        ln.setAttribute('data-track', 'catalog_view_item'); ln.setAttribute('data-track-id', e.id); ln.setAttribute('data-track-location', 'home');
+        h.appendChild(ln);
+        const m = document.createElement('p'); m.className = 'meta';
+        const tier = document.createElement('b');
+        if (e.locked) tier.className = 'sup';
         tier.textContent = window.XT(e.locked ? 'cat.sup' : 'cat.free');
-        m.appendChild(tier);
-        m.appendChild(document.createTextNode(' ' + window.XT(KIND[e.kind] || 'kind.bundle') + (e.author ? ' ' + window.XT('cat.by').replace('{a}', e.author) : '')));
-        const go = document.createElement('a'); go.className = 'more'; go.href = '/catalog/#' + encodeURIComponent(e.id);
-        go.textContent = window.XT('cat.details');
-        go.setAttribute('data-track', 'catalog_view_item'); go.setAttribute('data-track-id', e.id); go.setAttribute('data-track-location', 'home');
-        tx.append(h, m, go);
-        a.append(th, tx);
+        m.append(tier, document.createTextNode(', ' + window.XT(KIND[e.kind] || 'kind.bundle') + (e.author ? ' ' + window.XT('cat.by').replace('{a}', e.author) : '')));
+        a.append(th, h, m);
         box.appendChild(a);
       });
     }
@@ -2474,53 +2783,83 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 </script>
 
 <script>
-  // Supporter names from docs/supporters.json, written by the daily build.
-  // Names only, as their owners chose them; nothing links out. The top three
-  // come first on their own, everyone else as one name tag each, members marked.
-  (async function () {
-    const wall = document.getElementById('wall');
-    if (!wall) return;
-    let data = null;
-    try { const r = await fetch('/supporters.json', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch (e) {}
-    const list = (data && Array.isArray(data.supporters)) ? data.supporters.filter((s) => s && s.name) : [];
-    if (!list.length) return;
-    const top = list.filter((s) => s.top).sort((a, b) => (a.rank || 99) - (b.rank || 99)).slice(0, 3);
-    const rest = list.filter((s) => !top.includes(s));
-    wall.textContent = '';
-    const lead = document.createElement('p');
-    lead.className = 'wall-lead';
-    lead.textContent = window.XT('sup.wall').replace('{n}', list.length);
-    wall.appendChild(lead);
-    if (top.length) {
-      const ul = document.createElement('ul'); ul.className = 'wall-top';
-      top.forEach((s) => {
-        const li = document.createElement('li');
-        const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = String(s.name);
-        const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = window.XT('sup.top');
-        li.append(nm, rk);
-        ul.appendChild(li);
-      });
-      wall.appendChild(ul);
-    }
-    const all = document.createElement('ul'); all.className = 'wall-all';
-    let members = 0;
-    rest.forEach((s) => {
-      const li = document.createElement('li');
-      li.textContent = String(s.name);
-      if (s.tier === 'member') {
-        li.className = 'm'; members++;
-        const sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = ', ' + window.XT('sup.member');
-        li.appendChild(sr);
-      }
-      all.appendChild(li);
+  // Create: the Neon Clock example runs in a sandboxed frame with an opaque
+  // origin; the page answers its hello with init and sends theme on every
+  // change of the hero's theme, the same messages the dashboard sends.
+  (function () {
+    const fr = document.getElementById('sdk-frame');
+    if (!fr) return;
+    fr.title = window.XT('make.frame');
+    const lit = () => getComputedStyle(document.documentElement).getPropertyValue('--lit').trim() || '#008DFF';
+    const send = (type) => { try { fr.contentWindow.postMessage({ xenonSdk: 1, type, theme: { palette: { accent: lit(), text: '#f1ecfa' } } }, '*'); } catch (e) {} };
+    addEventListener('message', (e) => { if (e.source === fr.contentWindow && e.data && e.data.xenonSdk === 1 && e.data.type === 'hello') send('init'); });
+    // The frame may have said hello before this script ran: init again on load and now.
+    fr.addEventListener('load', () => send('init'));
+    send('init');
+    let last = '';
+    new MutationObserver(() => { const c = lit(); if (c !== last) { last = c; send('theme'); } }).observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    const tabs = [document.getElementById('sdk-t1'), document.getElementById('sdk-t2')];
+    const pick = (i) => tabs.forEach((t, j) => {
+      const on = i === j;
+      t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      if (on) t.focus({ preventScroll: true });
     });
-    wall.appendChild(all);
-    if (members) {
-      const key = document.createElement('p'); key.className = 'wall-key'; key.setAttribute('aria-hidden', 'true');
-      key.textContent = window.XT('sup.member');
-      wall.appendChild(key);
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => pick(i));
+      t.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); pick(1 - i); } });
+    });
+  })();
+</script>
+
+<script>
+  // Supporter names from docs/supporters.json, written by the daily build.
+  // Names only, as the build privacy-masks them, always through textContent;
+  // nothing links out. Three tiers: the top three, active members, everyone
+  // else, and "Your name" last, pointing at the offers below.
+  (function () {
+    const root = document.getElementById('bill');
+    if (!root) return;
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+    // A run of underscores draws as separate slabs at display sizes: close it up.
+    function name(li, raw) {
+      String(raw).trim().split(/(_{2,})/).forEach((part, i) => {
+        if (!part) return;
+        li.appendChild(i % 2 ? el('span', 'us', part) : document.createTextNode(part));
+      });
+      return li;
     }
-    wall.hidden = false;
+    function tier(cls, labelKey, list, you) {
+      const d = el('div', 'bill-tier ' + cls);
+      const h = el('h3', 'bill-lab', window.XT(labelKey));
+      const ul = el('ul');
+      list.forEach((p) => ul.appendChild(name(el('li'), p.name)));
+      if (you) {
+        const li = el('li', 'bill-you');
+        const a = el('a', null, window.XT('bill.you')); a.href = '#tiers';
+        a.setAttribute('aria-label', window.XT('bill.you.sr'));
+        li.appendChild(a); ul.appendChild(li);
+      }
+      d.append(h, ul);
+      return d;
+    }
+    fetch('/supporters.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((data) => {
+      const list = (data && Array.isArray(data.supporters)) ? data.supporters.filter((p) => p && typeof p.name === 'string' && p.name.trim()) : [];
+      if (!list.length) return;
+      const top = list.filter((p) => p.top).sort((a, b) => (a.rank || 99) - (b.rank || 99)).slice(0, 3);
+      const rest = list.filter((p) => !top.includes(p));
+      const mem = rest.filter((p) => p.tier === 'member');
+      const others = rest.filter((p) => p.tier !== 'member');
+      root.textContent = '';
+      if (top.length) root.appendChild(tier('bill-t1', 'bill.top', top));
+      if (mem.length) root.appendChild(tier('bill-t2', 'bill.mem', mem, !others.length));
+      if (others.length) root.appendChild(tier('bill-t3', 'bill.rest', others, true));
+      let when = '';
+      const g = data && Date.parse(data._generated || '');
+      if (g) { try { when = new Intl.DateTimeFormat(document.documentElement.lang || 'en', { day: 'numeric', month: 'long' }).format(new Date(g)); } catch (e) {} }
+      root.appendChild(el('p', 'bill-note', (when ? window.XT('bill.when').replace('{d}', when) + ' ' : '') + window.XT('bill.note')));
+      root.hidden = false;
+    }).catch(() => {});
   })();
 </script>
 </body>
