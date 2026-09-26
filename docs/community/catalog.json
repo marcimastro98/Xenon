@@ -1090,10 +1090,11 @@
         "text": "#fbf3e0"
       },
       "shots": 4,
+      "active": false,
       "activeUntil": "2026-08-24T23:59:59+02:00",
       "addedAt": "2026-07-23",
-      "codeFile": true,
-      "updatedAt": "2026-07-23"
+      "updatedAt": "2026-09-26",
+      "codeFile": true
     },
     {
       "id": "ambra",
