@@ -70,7 +70,7 @@
     sheet.id = 'demo-convert';
 
     const p = document.createElement('p');
-    p.textContent = tr('demo_convert_msg', 'Everything you just touched runs locally on your own PC. Xenon is free and open source.');
+    p.textContent = tr('demo_convert_msg', 'Everything you just touched runs on your own PC. Xenon is free.');
     const row = document.createElement('div');
     row.className = 'dc-row';
 

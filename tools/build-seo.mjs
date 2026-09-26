@@ -287,7 +287,7 @@ function entryPage(e, indexable, live = []) {
     image,
   };
   if (SOFTWARE_KINDS.has(e.kind)) {
-    work.applicationCategory = 'DesktopApplication';
+    work.applicationCategory = 'UtilitiesApplication';
     // Xenon has run on all three since v4.11.0. This said "Windows 10, Windows 11"
     // and was telling Google the opposite on 23 pages.
     work.operatingSystem = 'Windows, macOS, Linux';
@@ -411,7 +411,7 @@ function entryPage(e, indexable, live = []) {
     steps.push(e.appVersionMin
       ? `This one needs <a href="/">Xenon ${esc(e.appVersionMin)} or later</a>. An older install ` +
         `refuses the code rather than importing half of it.`
-      : `Do not have Xenon yet? <a href="/">It is free and open source</a>, for Windows, macOS and Linux.`);
+      : `Do not have Xenon yet? <a href="/">It is free</a>, with its source on GitHub, for Windows, macOS and Linux.`);
   }
 
   // A plain facts table. Every row is a field the catalog already carries, and

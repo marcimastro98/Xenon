@@ -55,7 +55,7 @@
 <meta property="og:type" content="article">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
 <link rel="canonical" href="https://xenon-app.com/download.html">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Where do I download Xenon?", "acceptedAnswer": {"@type": "Answer", "text": "From the links on this page, which always point at the newest release on GitHub: Xenon-Setup-x64.exe for Windows, Xenon-macOS-universal.dmg for macOS, and an AppImage, .deb or .rpm for Linux."}}, {"@type": "Question", "name": "Is Xenon free to download?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. There is no paid version, no trial and no account. The source is public on GitHub under a non-commercial licence."}}, {"@type": "Question", "name": "Why does Windows warn me about the Xenon installer?", "acceptedAnswer": {"@type": "Answer", "text": "The installer is not code-signed yet, so it starts from zero reputation. Every release ships a signed SHA256SUMS file so you can verify the download yourself."}}, {"@type": "Question", "name": "Does Xenon update itself?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It checks for a new release when it starts and updates itself."}}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Where do I download Xenon?", "acceptedAnswer": {"@type": "Answer", "text": "From the links on this page, which always point at the newest release on GitHub: Xenon-Setup-x64.exe for Windows, Xenon-macOS-universal.dmg for macOS, and an AppImage, .deb or .rpm for Linux."}}, {"@type": "Question", "name": "Is Xenon free to download?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. There is no paid version, no trial and no account. The source is public on GitHub under a non-commercial licence."}}, {"@type": "Question", "name": "Why does Windows warn me about the Xenon installer?", "acceptedAnswer": {"@type": "Answer", "text": "Because Microsoft grants SmartScreen reputation over time. The Windows installer is signed, so Windows shows a verified publisher, but SmartScreen may still warn for a while: click More info, then Run anyway. Every release also ships a signed SHA256SUMS file so you can verify the download yourself."}}, {"@type": "Question", "name": "Does Xenon update itself?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It checks for a new release when it starts and updates itself."}}]}</script>
 
 <style>
   :root {
@@ -223,7 +223,7 @@
   <div class="wrap">
     <h1>Download Xenon</h1>
     <p class="lede">The newest release for every platform, straight from GitHub. Free, no account, and it updates itself after this.</p>
-    <p class="updated">Last updated: 13 September 2026 · current release 4.11.8</p>
+    <p class="updated">Last updated: 26 September 2026 · every link points at <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the latest release</a></p>
 
     <div class="dl">
       <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req">Windows 10 or 11, 64-bit. Installs the app and starts it at login.</span></a>
@@ -238,15 +238,16 @@
     <p><strong>macOS and Linux.</strong> Open the app you downloaded. Its first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. On Linux the package deliberately does not do that for you, because everything it would create belongs to one user account and a package installs as root for the whole machine.</p>
     <p>Then Xenon asks which screen it should live on. A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge all work; <a href="phone.html">the phone guide</a> covers pairing a phone or tablet in about thirty seconds.</p>
 
-    <h2 id="warning"><span class="h2n">02</span>If Windows warns you about the file</h2>
-    <p>That can happen, and the honest reason is that the installer is not code-signed yet. A certificate is a paid, identity-verified thing and this is a free one-person project; supporters are funding the first year. Until then, an unsigned installer that few people have downloaded starts from zero reputation with Windows, and each release resets the counter. The <a href="faq.html#warnings">FAQ explains the two kinds of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
+    <h2 id="warning"><span class="h2n">02</span>If Windows or macOS warns you about the file</h2>
+    <p>Since version 4.11.9 the Windows installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a detection can still happen. The <a href="faq.html#warnings">FAQ explains each kind of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
+    <p><strong>macOS.</strong> The Mac build is beta and not notarized, so macOS refuses the first launch. Open <strong>System Settings, Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong> next to Xenon. On macOS 15 and later the Control-click Open route no longer works.</p>
 
     <h2 id="verify"><span class="h2n">03</span>Check the file yourself</h2>
     <p>Every release ships a <code>SHA256SUMS</code> file signed with the project's Ed25519 key. Compare the hash of what you downloaded:</p>
     <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
 shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
 sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
-    <p>If it matches the line for that file in the release's <code>SHA256SUMS</code>, the file is byte for byte the one GitHub Actions built from the public source at that tag.</p>
+    <p>If it matches the line for that file in the release's <code>SHA256SUMS</code>, the file is byte for byte the one GitHub Actions built from the public source at that tag. On Windows you can also right-click the installer, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab to see the publisher.</p>
 
     <h2 id="other"><span class="h2n">04</span>Other ways to install</h2>
     <p><strong>From source.</strong> Download the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">source code zip</a> from the release, extract it, and run <code>INSTALL.bat</code> on Windows, <code>INSTALL.command</code> on macOS or <code>./INSTALL.sh</code> on Linux. Same result as the installer, for people who would rather read what runs.</p>
@@ -255,7 +256,7 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
 
     <div class="card accent">
       <h3>Not sure what Xenon is?</h3>
-      <p>A free dashboard that runs on your PC and shows up on any spare screen: system stats, media and mic controls, a Stream Deck style key grid, lighting, an AI you can talk to. No account, no cloud, nothing leaves your PC. <a href="/">The home page shows it</a>.</p>
+      <p>A free dashboard that runs on your PC and shows up on any spare screen: system stats, media and mic controls, a Stream Deck style key grid, lighting, an AI you can talk to. No account, and your settings, files and sensor readings stay on your PC. <a href="/">The home page shows it</a>.</p>
     </div>
   </div>
 </main>
