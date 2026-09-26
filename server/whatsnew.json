@@ -1,111 +1,111 @@
 {
   "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. A .gif works as mediaType \"image\" (the host allowlist is host-based, not extension-based, and an <img> animates it). The docs/images/*.png|gif referenced below resolve once this branch is on main, which the release pipeline does before tagging; they ship inside the build and are read from disk. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.11.9",
+  "id": "4.11.10",
   "title": {
-    "it": "Novità di Xenon 4.11.9",
-    "en": "What's new in Xenon 4.11.9",
-    "ko": "Xenon 4.11.9의 새로운 기능",
-    "ja": "Xenon 4.11.9 の新機能",
-    "zh": "Xenon 4.11.9 新功能"
+    "it": "Novità di Xenon 4.11.10",
+    "en": "What's new in Xenon 4.11.10",
+    "ko": "Xenon 4.11.10의 새로운 기능",
+    "ja": "Xenon 4.11.10 の新機能",
+    "zh": "Xenon 4.11.10 新功能"
   },
   "highlights": [
     {
       "title": {
-        "it": "I download per Windows sono firmati",
-        "en": "The Windows downloads are signed",
-        "ko": "Windows 다운로드에 서명이 추가되었습니다",
-        "ja": "Windows 版のダウンロードに署名が付きました",
-        "zh": "Windows 下载文件已签名"
+        "it": "Xenon AI con il tuo abbonamento Claude o ChatGPT",
+        "en": "Xenon AI on your Claude or ChatGPT subscription",
+        "ko": "Claude 또는 ChatGPT 구독으로 쓰는 Xenon AI",
+        "ja": "Claude または ChatGPT のサブスクリプションで Xenon AI",
+        "zh": "用你的 Claude 或 ChatGPT 订阅运行 Xenon AI"
       },
       "body": {
-        "it": "Fino a oggi l'installer arrivava come un file di cui nessuno garantiva niente, e Windows lo trattava così: browser che annullavano il download, \"editore sconosciuto\" al setup, Defender che lo metteva in quarantena. Da questa versione dietro la release c'è un certificato di firma del codice, e l'installer porta un nome di editore vero. Due limiti, detti chiaramente: SmartScreen può ancora comparire per un po', perché dal 2024 nessun certificato dà fiducia immediata e la reputazione si guadagna con i download nel tempo; e l'eseguibile dentro l'installer è coperto anch'esso, ma l'antivirus giudica il comportamento oltre alla firma, quindi una segnalazione resta possibile. Se ti è capitato, la sezione del README spiega ancora come verificare un download a mano e ripristinare un file in quarantena.",
-        "en": "Until now the installer arrived as a file nobody vouched for, and Windows treated it that way: browsers cancelling the download, \"unknown publisher\" on the setup, Defender quarantining it. From this version there is a code-signing certificate behind the release, and the installer carries a real publisher name. Two honest limits: SmartScreen can still appear for a while, because since 2024 no certificate grants instant trust and reputation is earned through downloads over time; and the executable inside the installer is covered too, but antivirus judges behaviour as well as signatures, so a flag remains possible. If you have hit any of this, the README section still explains how to check a download by hand and restore a quarantined file.",
-        "ko": "지금까지 설치 파일은 아무도 보증하지 않는 파일로 도착했고 Windows도 그렇게 취급했습니다. 브라우저가 다운로드를 취소하고, 설치 시 \"알 수 없는 게시자\"가 표시되고, Defender가 격리하기도 했습니다. 이번 버전부터 릴리스 뒤에 코드 서명 인증서가 있으며 설치 파일에 실제 게시자 이름이 표시됩니다. 두 가지 한계를 솔직히 말씀드립니다. SmartScreen은 당분간 계속 나타날 수 있습니다. 2024년 이후로는 어떤 인증서도 즉시 신뢰를 주지 않으며 평판은 시간이 지나며 다운로드로 쌓입니다. 그리고 설치 파일 안의 실행 파일도 서명되지만, 백신은 서명뿐 아니라 동작도 판단하므로 오탐이 남아 있을 수 있습니다. 이런 일을 겪으셨다면 README의 해당 섹션에서 다운로드를 직접 확인하고 격리된 파일을 복원하는 방법을 계속 안내합니다.",
-        "ja": "これまでインストーラーは誰も保証しないファイルとして届き、Windows もそのように扱っていました。ブラウザがダウンロードを取り消し、セットアップに「不明な発行元」と表示され、Defender が隔離することもありました。このバージョンからリリースの背後にコード署名証明書があり、インストーラーには実際の発行元名が付きます。正直に二つの限界を伝えます。SmartScreen はしばらく表示されることがあります。2024 年以降どの証明書も即時の信頼を与えず、評判は時間をかけてダウンロードで積み上がるためです。また、インストーラー内の実行ファイルも署名されますが、ウイルス対策ソフトは署名だけでなく挙動も判断するため、検知が残る可能性はあります。心当たりがあれば、README の該当セクションで手動でダウンロードを確認し、隔離されたファイルを復元する方法を引き続き説明しています。",
-        "zh": "此前安装程序只是一个无人担保的文件，Windows 也这样对待它：浏览器取消下载，安装时显示“未知发布者”，Defender 将其隔离。从这个版本起，发布背后有了代码签名证书，安装程序带有真实的发布者名称。坦白说明两个限制：SmartScreen 在一段时间内仍可能出现，因为自 2024 年起没有任何证书能立即获得信任，声誉要靠时间和下载量积累；安装程序内的可执行文件同样已签名，但杀毒软件除了签名还会判断行为，所以误报仍有可能。如果你遇到过这些情况，README 中的相关章节仍然说明如何手动核对下载文件并恢复被隔离的文件。"
+        "it": "In Impostazioni → Xenon AI ci sono due nuovi provider, Claude Code e Codex. Xenon risponde attraverso il programma ufficiale installato sul tuo PC, collegato al tuo piano Claude o ChatGPT, quindi non paghi a messaggio. Xenon non vede e non salva le tue credenziali: l'accesso lo fai dentro il programma. Il pannello dice se il programma è installato e collegato, e il menù dei modelli lo riempie il programma stesso. L'assistente fa tutto quello che fa con gli altri provider, dai temi ai tasti Deck, alle luci. È più lento di una chiave API, qualche secondo per risposta, e usa gli stessi limiti del tuo abbonamento.",
+        "en": "Settings → Xenon AI has two new providers, Claude Code and Codex. Xenon answers through the official program installed on your PC, signed in with your own Claude or ChatGPT plan, so there is nothing to pay per message. Xenon never sees or stores your credentials: you sign in inside the program. The panel tells you whether the program is installed and signed in, and the model menu is filled by the program itself. The assistant does everything it does with the other providers, from themes to Deck keys to lights. It is slower than an API key, a few seconds per answer, and it uses the same limits as your subscription.",
+        "ko": "설정 → Xenon AI에 Claude Code와 Codex 두 가지 새 제공자가 추가되었습니다. Xenon은 PC에 설치된 공식 프로그램을 통해, 여러분의 Claude 또는 ChatGPT 요금제로 답하므로 메시지마다 비용이 들지 않습니다. Xenon은 자격 증명을 보거나 저장하지 않습니다. 로그인은 프로그램 안에서 합니다. 패널에서 프로그램이 설치되어 있고 로그인되어 있는지 알려 주며, 모델 메뉴는 프로그램이 직접 채웁니다. 어시스턴트는 테마, Deck 키, 조명 등 다른 제공자에서 하던 일을 모두 합니다. API 키보다 느려서 답마다 몇 초가 걸리고, 구독과 같은 사용 한도를 씁니다.",
+        "ja": "設定 → Xenon AI に新しいプロバイダー Claude Code と Codex が加わりました。Xenon は PC にインストールされた公式プログラムを通じて、あなた自身の Claude または ChatGPT のプランで答えるので、メッセージごとの料金はかかりません。Xenon が認証情報を見たり保存したりすることはなく、サインインはプログラムの中で行います。パネルにはプログラムがインストール済みでサインインしているかが表示され、モデルのメニューはプログラム自身が埋めます。アシスタントはテーマ、Deck キー、照明など、他のプロバイダーでできることをすべて行えます。API キーより遅く、1 回の回答に数秒かかり、サブスクリプションと同じ使用上限を使います。",
+        "zh": "设置 → Xenon AI 新增了两个提供方：Claude Code 和 Codex。Xenon 通过你电脑上安装的官方程序、用你自己的 Claude 或 ChatGPT 套餐来回答，因此不按消息收费。Xenon 不会看到或保存你的凭据，登录在程序内完成。面板会显示程序是否已安装并登录，模型菜单由程序自己填写。助手能做它在其他提供方下能做的一切，从主题到 Deck 键再到灯光。它比 API 密钥慢，每次回答需要几秒，并且与你的订阅共用同样的额度。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Il riquadro Media può mostrare l'onda sonora di ciò che suona",
-        "en": "The Media tile can show the sound wave of what is playing",
-        "ko": "미디어 타일에 재생 중인 소리의 파형을 표시할 수 있습니다",
-        "ja": "メディアタイルに再生中の音の波形を表示できます",
-        "zh": "媒体磁贴可以显示正在播放内容的声波"
+        "it": "Cambia pagina della dashboard dalla tastiera",
+        "en": "Turn the dashboard's page from the keyboard",
+        "ko": "키보드로 대시보드 페이지 넘기기",
+        "ja": "キーボードでダッシュボードのページを切り替え",
+        "zh": "用键盘切换仪表板页面"
       },
       "body": {
-        "it": "Impostazioni → Aspetto → Riquadro Media offre ora Nessuna, Minimal e Onda, colorate con la copertina dell'album, gli stessi colori che la striscia LED già prende da lì. È un'aggiunta e si comporta da aggiunta: il riquadro non cambia, la striscia si disegna sotto il contenuto e non copre mai un controllo, e Nessuna resta il default. Minimal è una linea sottile sul bordo inferiore che respira con la musica; Onda è la striscia piena.",
-        "en": "Settings → Appearance → Media tile now offers None, Minimal and Wave, coloured by the album cover, the same colours the LED strip already takes from it. It is an addition and behaves like one: the tile is unchanged, the strip is drawn under the content and never covers a control, and None stays the default. Minimal is a thin line along the bottom edge that breathes with the music; Wave is the fuller strip.",
-        "ko": "설정 → 모양 → 미디어 타일에서 없음, 미니멀, 파형 중 선택할 수 있으며, 앨범 커버 색상으로 칠해집니다. LED 스트립이 이미 가져오는 것과 같은 색입니다. 추가 기능이며 추가 기능답게 동작합니다. 타일은 그대로이고, 스트립은 콘텐츠 아래에 그려져 컨트롤을 가리지 않으며, 기본값은 없음입니다. 미니멀은 음악에 맞춰 숨 쉬는 아래쪽 가는 선이고, 파형은 더 풍성한 스트립입니다.",
-        "ja": "設定 → 外観 → メディアタイルで「なし」「ミニマル」「波形」を選べるようになりました。色はアルバムカバーから取られ、LED ストリップがすでに使っている色と同じです。追加機能であり、追加機能らしく振る舞います。タイルは変わらず、ストリップはコンテンツの下に描かれ、コントロールを覆うことはなく、既定は「なし」のままです。ミニマルは音楽に合わせて呼吸する下端の細い線、波形はより豊かなストリップです。",
-        "zh": "设置 → 外观 → 媒体磁贴现在提供“无”“极简”“波形”三种选择，颜色取自专辑封面，与 LED 灯带已经采用的颜色一致。这是一个附加功能，也表现得像附加功能：磁贴不变，条带绘制在内容下方，绝不遮挡任何控件，默认仍为“无”。极简是底边一条随音乐起伏的细线；波形是更完整的条带。"
+        "it": "Impostazioni → Generale → Scorciatoie pagine: combinazioni di tasti che funzionano anche mentre stai usando un'altra applicazione. Una per ogni pagina, pagina successiva e precedente, oppure torna all'ultima pagina. Se un'altra app usa già una combinazione, lo dice la riga di quella scorciatoia e le altre continuano a funzionare. Anche un widget può cambiare pagina, con un permesso tutto suo.",
+        "en": "Settings → General → Page shortcuts: key combinations that work while another application has focus. One per page, next and previous, or back to the last page. If another app already owns a combination, that shortcut's own row says so and the others keep working. A widget can turn the page too, with a permission of its own.",
+        "ko": "설정 → 일반 → 페이지 단축키: 다른 앱을 사용하는 중에도 작동하는 키 조합입니다. 페이지마다 하나씩, 다음과 이전, 또는 마지막 페이지로 돌아가기를 지정할 수 있습니다. 다른 앱이 이미 쓰고 있는 조합이면 그 단축키의 줄에 표시되고, 나머지 단축키는 계속 작동합니다. 위젯도 별도의 권한으로 페이지를 넘길 수 있습니다.",
+        "ja": "設定 → 一般 → ページのショートカット：別のアプリを使っている間も動作するキーの組み合わせです。ページごとに一つ、次と前、または最後のページに戻る、を設定できます。別のアプリがすでに使っている組み合わせは、そのショートカットの行に表示され、ほかのショートカットは動き続けます。ウィジェットも専用の権限でページを切り替えられます。",
+        "zh": "设置 → 通用 → 页面快捷键：在其他应用处于前台时也能使用的组合键。可以为每个页面设一个，也可以设下一页、上一页，或返回上一次的页面。如果某个组合已被其他应用占用，会在该快捷键那一行里说明，其余快捷键照常工作。小组件也能翻页，需要单独的权限。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Un secondo riquadro Discord, con una scheda diversa",
-        "en": "A second Discord tile, showing a different tab",
-        "ko": "다른 탭을 보여주는 두 번째 Discord 타일",
-        "ja": "別のタブを表示する 2 つ目の Discord タイル",
-        "zh": "第二个 Discord 磁贴，显示不同的标签页"
+        "it": "Ambient può essere la schermata con cui Xenon parte",
+        "en": "Ambient can be the screen Xenon starts on",
+        "ko": "Xenon을 앰비언트 화면으로 시작할 수 있습니다",
+        "ja": "Xenon をアンビエント画面で起動できます",
+        "zh": "Xenon 可以直接以环境场景启动"
       },
       "body": {
-        "it": "Il widget ha quattro schede, Controlli, Canali, Soundboard e Notifiche, e ne potevi vedere una sola alla volta perché poteva esistere un solo riquadro Discord. Ora ne puoi mettere due sullo stesso schermo, per esempio le notifiche dei messaggi sopra e i controlli della chat vocale sotto.",
-        "en": "The widget has four tabs, Controls, Channels, Soundboard and Notifications, and only one could be on screen at a time because only one Discord tile could exist. Now two can share a screen, for example DM notifications above and the voice-chat controls below.",
-        "ko": "위젯에는 컨트롤, 채널, 사운드보드, 알림의 네 탭이 있지만 Discord 타일이 하나만 존재할 수 있어 한 번에 하나만 볼 수 있었습니다. 이제 한 화면에 두 개를 둘 수 있습니다. 예를 들어 위에는 DM 알림, 아래에는 음성 채팅 컨트롤을 배치할 수 있습니다.",
-        "ja": "ウィジェットにはコントロール、チャンネル、サウンドボード、通知の 4 つのタブがありますが、Discord タイルは 1 つしか置けなかったため、同時に見られるのは 1 つだけでした。今は 1 つの画面に 2 つ置けます。たとえば上に DM 通知、下にボイスチャットのコントロールを並べられます。",
-        "zh": "该小组件有四个标签页：控制、频道、音效板和通知，但由于只能存在一个 Discord 磁贴，同一时间只能看到一个。现在可以在同一屏幕上放两个，比如上面显示私信通知，下面显示语音聊天控制。"
+        "it": "Con Apri all'avvio, nelle impostazioni di Ambient, la tua scena si apre ogni volta che Xenon parte e resta aperta finché non la chiudi tu. A differenza dell'avvio dopo inattività non si chiude quando usi il PC, quindi va bene per una scena che guardi mentre lavori su un altro schermo. Aspetta che tu abbia risposto al saluto del mattino o a un dialogo, invece di aprirsi sopra.",
+        "en": "With Open at startup, in the Ambient settings, your scene opens every time Xenon starts and stays up until you close it. Unlike the inactivity start, it does not close when you use the PC, so it suits a scene you look at while working on another screen. It waits for you to answer the morning greeting or a dialog instead of opening on top of them.",
+        "ko": "앰비언트 설정의 \"시작 시 열기\"를 켜면 Xenon이 시작될 때마다 장면이 열리고 직접 닫을 때까지 유지됩니다. 무활동 시작과 달리 PC를 사용해도 닫히지 않으므로, 다른 화면에서 작업하며 보는 장면에 알맞습니다. 아침 인사나 대화 상자가 있으면 그 위에 열리지 않고 답할 때까지 기다립니다.",
+        "ja": "アンビエントの設定で「起動時に開く」をオンにすると、Xenon が起動するたびにシーンが開き、閉じるまで表示されたままになります。無操作での開始と違い、PC を使っても閉じないので、別の画面で作業しながら眺めるシーンに向いています。朝のあいさつやダイアログがあるときは、その上に開かずに答えるのを待ちます。",
+        "zh": "在环境场景设置中打开“启动时打开”后，每次 Xenon 启动都会打开你的场景，并一直显示到你关闭它。与无操作后启动不同，使用电脑时它不会关闭，适合在另一块屏幕上工作时一直看着的场景。遇到早晨问候或对话框时，它会等你处理完，而不是盖在上面。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Puoi scegliere un brano dalla coda di Spotify",
-        "en": "You can pick a track out of the Spotify widget's Up Next",
-        "ko": "Spotify 위젯의 다음 재생 목록에서 트랙을 고를 수 있습니다",
-        "ja": "Spotify ウィジェットの「次に再生」から曲を選べます",
-        "zh": "可以从 Spotify 小组件的“接下来播放”中选取曲目"
+        "it": "Il meteo attuale su una riga",
+        "en": "Current weather on one line",
+        "ko": "현재 날씨를 한 줄로",
+        "ja": "現在の天気を 1 行で",
+        "zh": "当前天气只占一行"
       },
       "body": {
-        "it": "La lista Prossimi del widget Spotify era solo da guardare. Ora un tocco su un brano lo fa partire, e la lista dei titoli in Borsa si riordina trascinando una riga: due cose che la gente provava a fare da tempo e che non facevano niente.",
-        "en": "The Spotify widget's Up Next list was only for looking at. Now a tap on a track plays it, and the Stocks watchlist re-orders by dragging a row: two things people had been trying to do for a while that did nothing.",
-        "ko": "Spotify 위젯의 다음 재생 목록은 보기만 할 수 있었습니다. 이제 트랙을 탭하면 재생되고, 주식 관심 목록은 행을 드래그해 순서를 바꿀 수 있습니다. 사람들이 오래전부터 시도했지만 아무 반응이 없던 두 가지입니다.",
-        "ja": "Spotify ウィジェットの「次に再生」は眺めるだけでした。今は曲をタップすると再生され、株価のウォッチリストは行をドラッグして並べ替えられます。以前から多くの人が試して何も起きなかった 2 つの操作です。",
-        "zh": "Spotify 小组件的“接下来播放”列表以前只能看。现在点一下曲目就会播放，股票自选列表也可以拖动行来重新排序：这是大家早就想做却没有反应的两件事。"
+        "it": "Nelle impostazioni del meteo, Condizioni attuali → Una riga sostituisce la grande scheda animata con una sola riga: icona, temperatura, condizione e temperatura percepita. Lo spazio liberato va alle ore e ai giorni, e il riquadro può diventare più basso. La riga resta un pulsante che apre la vista meteo completa. La scheda grande rimane il default.",
+        "en": "In the weather settings, Current conditions → One line swaps the big animated card for a single row: icon, temperature, condition and feels-like. The space it frees goes to the hours and days, and the tile can be made shorter. The row is still the button that opens the full weather view. The big card stays the default.",
+        "ko": "날씨 설정의 현재 날씨 → 한 줄을 선택하면 큰 애니메이션 카드 대신 아이콘, 기온, 날씨 상태, 체감 온도가 한 줄로 표시됩니다. 남는 공간은 시간별·일별 예보에 돌아가고, 타일을 더 낮게 만들 수 있습니다. 이 줄을 누르면 전체 날씨 화면이 열립니다. 기본값은 여전히 큰 카드입니다.",
+        "ja": "天気の設定で 現在の天気 → 1行 を選ぶと、大きなアニメーションカードの代わりに、アイコン、気温、天気、体感温度が 1 行で表示されます。空いたスペースは時間ごと・日ごとの予報に回り、タイルを低くできます。この行をタップすると天気の全画面表示が開きます。既定は引き続き大きなカードです。",
+        "zh": "在天气设置中选择 当前天气 → 单行，大号动画卡片就会换成一行：图标、温度、天气状况和体感温度。省下的空间留给逐小时和逐日预报，磁贴也可以调得更矮。这一行点一下仍会打开完整的天气视图。默认仍是大卡片。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "La scala interfaccia è nelle Impostazioni ovunque le apri",
-        "en": "The interface scale is in Settings wherever you open them",
-        "ko": "인터페이스 배율이 어디서 설정을 열든 설정에 있습니다",
-        "ja": "インターフェースの拡大率が、どこから開いても設定にあります",
-        "zh": "无论从哪里打开设置，界面缩放都在设置中"
+        "it": "Un tasto Deck che alterna tra due uscite audio",
+        "en": "A Deck key that switches between two audio outputs",
+        "ko": "두 오디오 출력 장치를 전환하는 Deck 키",
+        "ja": "2 つのオーディオ出力を切り替える Deck キー",
+        "zh": "在两个音频输出之间切换的 Deck 键"
       },
       "body": {
-        "it": "Prima si trovava solo in un posto e solo su Windows. Ora sta in Impostazioni su ogni schermo da cui apri la dashboard, telefono compreso, e dice cosa costa alzarla. Nella stessa versione: il tasto Deck con la seconda faccia accetta un'icona vera e non solo un'emoji, i profili Deck si copiano su un secondo Deck anche se esiste già un profilo con quel nome, e lo Slideshow spiega perché è vuoto invece di chiederti immagini che non puoi aggiungere.",
-        "en": "It used to live in one place, and only on Windows. Now it is in Settings on every screen you open the dashboard from, phone included, and it says what raising it costs. In the same version: a Deck key's second face takes a real icon and not only an emoji, Deck profiles copy onto a second Deck even when a profile of that name is already there, and the Slideshow says why it is empty instead of asking for images you cannot add.",
-        "ko": "예전에는 한 곳에만, 그것도 Windows에서만 있었습니다. 이제 대시보드를 여는 모든 화면의 설정에 있으며, 휴대폰도 포함되고, 배율을 높이면 무엇을 치르는지 알려줍니다. 같은 버전에서 Deck 키의 두 번째 면에 이모지뿐 아니라 실제 아이콘을 넣을 수 있고, 같은 이름의 프로필이 이미 있어도 Deck 프로필을 두 번째 Deck으로 복사할 수 있으며, 슬라이드쇼는 추가할 수 없는 이미지를 요구하는 대신 왜 비어 있는지 알려줍니다.",
-        "ja": "以前は 1 か所にしかなく、Windows だけでした。今はダッシュボードを開くどの画面の設定にもあり、スマホも含まれ、上げると何を犠牲にするかを示します。同じバージョンで、Deck キーの 2 つ目の面に絵文字だけでなく本物のアイコンを置け、同名のプロファイルがすでにあっても Deck プロファイルを 2 つ目の Deck にコピーでき、スライドショーは追加できない画像を求める代わりに空である理由を伝えます。",
-        "zh": "以前它只在一个地方，而且只有 Windows 有。现在无论从哪块屏幕打开仪表板，包括手机，它都在设置里，并说明调高会付出什么代价。同一版本中：Deck 键的第二面可以使用真正的图标而不只是表情符号，即使已有同名配置文件也能把 Deck 配置复制到第二个 Deck，幻灯片会说明为何为空，而不是让你添加无法添加的图片。"
+        "it": "Tra le azioni Audio c'è Alterna tra due uscite audio: scegli i due dispositivi e ogni pressione sposta il suono sull'altro. Il tasto mostra quale è attivo e lo segue anche se cambi uscita dalle impostazioni di Windows o dalla barra dei menù del Mac. Se uno dei due è scollegato, il tasto lo dice invece di passare all'altro.",
+        "en": "Switch between two outputs, in the Audio actions: pick the two devices and each press moves the sound to the other one. The key shows which one is active, and keeps up even when you change the output from the Windows sound settings or the Mac menu bar. If one of the two is unplugged, the key says so instead of switching to the one that is left.",
+        "ko": "오디오 동작의 \"두 출력 장치 간 전환\"에서 장치 두 개를 고르면, 누를 때마다 소리가 다른 장치로 옮겨 갑니다. 키는 어떤 장치가 활성인지 보여 주며, Windows 소리 설정이나 Mac 메뉴 막대에서 출력을 바꿔도 따라갑니다. 둘 중 하나가 연결되어 있지 않으면 남은 장치로 전환하지 않고 그 사실을 알려 줍니다.",
+        "ja": "オーディオのアクションにある「2つの出力を切り替え」で 2 台のデバイスを選ぶと、押すたびに音がもう一方に移ります。キーはどちらが有効かを表示し、Windows のサウンド設定や Mac のメニューバーで出力を変えても追従します。どちらかが接続されていないときは、残った方に切り替えずにそのことを知らせます。",
+        "zh": "在音频动作中选择“在两个输出设备间切换”，选好两个设备后，每按一次声音就会切到另一个。按键会显示当前哪一个在用，即使你在 Windows 声音设置或 Mac 菜单栏里切换输出，它也会跟上。如果其中一个没有连接，按键会直接说明，而不是切到剩下的那个。"
       },
       "media": "",
       "mediaType": "image"
     }
   ],
   "footer": {
-    "it": "E questi sono solo i punti principali. La 4.11.9 sistema anche gli eventi di tutto il giorno che sparivano dalla lista Prossimi dopo mezzanotte, il riquadro Media che perdeva la gerarchia sullo schermo largo e basso, il tasto Deck che ora accetta %APPDATA% in un percorso, i menù a tendina che uscivano dall'anteprima Xeneon Edge, e su Linux l'app che torna da sola se la pagina muore sotto di lei. Tutto nel changelog.",
-    "en": "And those are only the main points. 4.11.9 also fixes all-day events vanishing from Upcoming after midnight, the Media tile losing its hierarchy on a wide, short screen, Deck keys that now accept %APPDATA% in a path, dropdowns escaping the Xeneon Edge preview, and on Linux the app coming back by itself when the page dies under it. All of it is in the changelog.",
-    "ko": "이것은 주요 항목일 뿐입니다. 4.11.9는 자정 이후 다음 일정 목록에서 사라지던 종일 일정, 넓고 낮은 화면에서 계층을 잃던 미디어 타일, 이제 경로에 %APPDATA%를 쓸 수 있는 Deck 키, Xeneon Edge 미리보기 밖으로 벗어나던 드롭다운, 그리고 Linux에서 페이지가 죽으면 앱이 스스로 돌아오는 문제도 고칩니다. 모두 변경 로그에 있습니다.",
-    "ja": "これらは主な点だけです。4.11.9 では、深夜 0 時を過ぎると「次の予定」から消えていた終日イベント、横長で低い画面で階層を失っていたメディアタイル、パスに %APPDATA% を使えるようになった Deck キー、Xeneon Edge プレビューからはみ出していたドロップダウン、そして Linux でページが落ちたときにアプリが自力で戻ってくる件も修正しています。すべて変更履歴にあります。",
-    "zh": "以上只是主要内容。4.11.9 还修复了全天事件在午夜后从“即将到来”列表消失、媒体磁贴在宽而矮的屏幕上失去层次、Deck 键现在接受路径中的 %APPDATA%、下拉菜单跑出 Xeneon Edge 预览，以及 Linux 上页面崩溃后应用会自行恢复。全部都在更新日志中。"
+    "it": "E questi sono solo i punti principali. La 4.11.10 porta anche ai widget il traffico di ogni scheda di rete e di ogni disco, un ? nel riquadro Trasferimento file che spiega come inviare dal telefono, e i server Discord che si chiudono nella scheda Canali. Tra le correzioni, un aggiornamento non azzera più lo stile che hai dato a ogni riquadro, lo slideshow continua a cambiare foto mentre giochi, e °F vale ovunque, non solo nel meteo. Tutto nel changelog.",
+    "en": "And those are only the main points. 4.11.10 also gives widgets the traffic of every network adapter and every disk, adds a ? to the File transfer tile that explains how to send from a phone, and lets Discord servers fold away in the Channels tab. Among the fixes, an update no longer resets the style you gave each tile, the slideshow keeps changing photos while you play, and °F now applies everywhere, not only in the weather. All of it is in the changelog.",
+    "ko": "이것은 주요 내용일 뿐입니다. 4.11.10에서는 위젯이 네트워크 어댑터와 디스크별 트래픽을 받을 수 있고, 파일 전송 타일에 휴대폰에서 보내는 방법을 알려 주는 ?가 생겼으며, 채널 탭에서 Discord 서버를 접을 수 있습니다. 수정 사항으로는 업데이트 후 타일마다 지정한 스타일이 더 이상 초기화되지 않고, 게임 중에도 슬라이드쇼 사진이 계속 바뀌며, °F가 날씨뿐 아니라 모든 곳에 적용됩니다. 전체 내용은 변경 기록에 있습니다.",
+    "ja": "これらは主な点だけです。4.11.10 では、ウィジェットがネットワークアダプターごと・ディスクごとの転送量を受け取れるようになり、ファイル転送タイルにスマートフォンからの送り方を説明する ? が付き、チャンネルタブで Discord サーバーを折りたためるようになりました。修正としては、アップデートでタイルごとのスタイルがリセットされなくなり、ゲーム中もスライドショーの写真が切り替わり続け、°F が天気だけでなくすべての表示に適用されます。すべて変更履歴にあります。",
+    "zh": "以上只是主要内容。4.11.10 还让小组件能获取每个网络适配器和每块磁盘的流量，在文件传输磁贴里加了一个说明如何从手机发送的 ?，并且可以在频道标签页中折叠 Discord 服务器。修复方面，更新后不再重置你给每个磁贴设置的样式，玩游戏时幻灯片会继续换照片，°F 现在对所有温度生效，而不只是天气。全部都在更新日志中。"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest"
 }
