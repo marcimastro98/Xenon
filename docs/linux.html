@@ -243,7 +243,7 @@
       <a href="#wayland">X11 and Wayland</a>
     </nav>
 
-    <h2 id="get"><span class="h2n">01</span>Downloads</h2>
+    <h2 id="get">Downloads</h2>
     <div class="dl">
       <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="linux_page_appimage"><span class="os">AppImage</span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req">Any x86_64 desktop. <code>chmod +x</code> it and run it.</span></a>
       <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="linux_page_deb"><span class="os">Debian, Ubuntu</span><span class="file">Xenon-Linux-x86_64.deb</span><span class="req">Installs the app; the dashboard is set up on first launch, per user.</span></a>
@@ -251,7 +251,7 @@
     </div>
     <p class="note">Linux is <strong>beta</strong>. The dashboard, the widgets, the catalog and the integrations are identical to Windows; what still differs is the part that reads and drives the machine, and the table below is the honest list. GNOME and KDE are the two desktops it is tested on.</p>
 
-    <h2 id="setup"><span class="h2n">02</span>First launch</h2>
+    <h2 id="setup">First launch</h2>
     <p>Open the app. The first launch offers to set the dashboard up in a terminal window: it downloads the engine, verifies the download before extracting it, and registers a <code>systemd --user</code> service so Xenon starts when you log in. Where there is no user manager it falls back to an XDG autostart entry and says so, including that the fallback has no crash-restart.</p>
     <p>The package deliberately does not do any of that for you. Everything it would create belongs to one user account, and a package installs as root for the whole machine.</p>
     <p>The installer also lists the optional tools you do not have. On Debian and Ubuntu:</p>
@@ -261,7 +261,7 @@ sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 
 sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
     <p>If your desktop has no terminal emulator at all, the app cannot show you the installer: download the source zip from <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the release</a>, extract it and run <code>./INSTALL.sh</code>.</p>
 
-    <h2 id="works"><span class="h2n">03</span>What works on Linux</h2>
+    <h2 id="works">What works on Linux</h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Area</th><th>Status</th></tr></thead>
       <tbody>
@@ -285,7 +285,7 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
     </table></div>
     <p class="note">The <a href="https://github.com/marcimastro98/Xenon#platform-support" rel="noopener">platform table in the README</a> is the authoritative version of this list, with a footnote on every row that has a condition.</p>
 
-    <h2 id="wayland"><span class="h2n">04</span>X11 and Wayland</h2>
+    <h2 id="wayland">X11 and Wayland</h2>
     <p>Most of the dashboard does not care which one you run. The parts that do are the ones that have to see other windows: the open-applications widget, the app switcher and the AI's screen vision use X11 tools (<code>wmctrl</code>, <code>xdotool</code>) and are simply not shown on a Wayland session rather than offered and then failed. If those matter to you, log into an X11 session; everything else is the same on both.</p>
 
     <div class="card accent">

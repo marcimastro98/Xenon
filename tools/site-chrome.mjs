@@ -93,6 +93,7 @@ export function footerHtml() {
 // First run: the old header/footer are found by the shape each page had.
 // Every run after that: by the markers.
 const PAGES = [
+  { file: 'docs/404.html', lang: false },
   { file: 'docs/download.html', lang: false },
   { file: 'docs/thanks.html', lang: true },
   { file: 'docs/faq.html', lang: true },

@@ -232,11 +232,11 @@
       <a href="#faq">Questions</a>
     </nav>
 
-    <h2 id="icue"><span class="h2n">01</span>What the Edge does out of the box</h2>
+    <h2 id="icue">What the Edge does out of the box</h2>
     <p>The CORSAIR Xeneon Edge is a 14.5-inch, 2560×720 touch strip that mounts on a desk stand or in a case where three 120 mm fans would go. Out of the box it is a normal secondary monitor, and iCUE turns it into a widget wall: sensor readouts, a clock, media controls, web pages, and the widgets other people export and share. CORSAIR also publishes a WidgetBuilder kit for people who want to write their own.</p>
     <p>That is a good baseline, and for many owners it is enough. The requests that keep coming up in owner forums are the ones iCUE does not answer: a layout you can rearrange by hand, controls that do something on the PC rather than only show a number, touch that does not steal focus from a game, and a way to use the strip without iCUE running at all.</p>
 
-    <h2 id="xenon"><span class="h2n">02</span>What Xenon adds</h2>
+    <h2 id="xenon">What Xenon adds</h2>
     <p>Xenon is a free dashboard that was designed around the Edge's exact shape, short and very wide, before it grew to run on any screen. It runs as a small local service on your PC and shows up on the Edge in one of two ways: as its own full-screen native app, which needs no iCUE at all, or inside iCUE as an iFrame panel if you would rather keep everything in one place.</p>
     <ul>
       <li><strong>Drag-and-drop pages.</strong> A grid of resizable tiles, up to eight pages, layouts you can save and share as a code.</li>
@@ -249,7 +249,7 @@
     </ul>
     <p>The dashboard runs on your PC and there is no account. Settings, files and sensor readings stay on the PC. The app checks for updates, reads the catalog, fetches a daily announcements file and sends an anonymous version count (one switch in Settings turns it off); anything else goes online only for features you switch on, like weather or an AI service.</p>
 
-    <h2 id="install"><span class="h2n">03</span>Putting it on the Edge</h2>
+    <h2 id="install">Putting it on the Edge</h2>
     <ol>
       <li>Download <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe">Xenon-Setup-x64.exe</a> and run it. It installs the native app.</li>
       <li>The app opens, finds no dashboard engine yet and offers <strong>Complete setup</strong>. Press it once. This installs Node.js, the sensor readers and the login task, in a window you can read.</li>
@@ -257,11 +257,11 @@
       <li>If you prefer iCUE: add a web widget in iCUE pointing at <code>http://127.0.0.1:3030/</code> and Xenon fills the panel.</li>
     </ol>
 
-    <h2 id="honest"><span class="h2n">04</span>What to know before you try</h2>
+    <h2 id="honest">What to know before you try</h2>
     <p>Two honest caveats. First, the Windows installer is signed, so Windows shows a verified publisher, but SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. <a href="faq.html#warnings">The FAQ explains how to verify the file yourself</a>. Second, Xenon is Windows-first. macOS and Linux builds exist and are in beta, and the Edge-specific parts (the reserved touch gesture, the virtual second screen, iCUE lighting) are Windows-only.</p>
     <p>It is free and there is no paid version. If you end up using it every day, there is a supporter tier that unlocks a few extra themes and widgets, and that is the whole business model.</p>
 
-    <h2 id="faq"><span class="h2n">05</span>Questions</h2>
+    <h2 id="faq">Questions</h2>
     <details><summary>Does Xenon replace iCUE?</summary><div class="body"><p>No. iCUE still drives your CORSAIR hardware and its lighting. Xenon runs beside it, either as its own window or inside an iCUE panel, and can send lighting effects to iCUE through its own bridge. You can run Xenon on the Edge without iCUE open, but iCUE is still the thing that configures your devices.</p></div></details>
     <details><summary>Do I need the Edge to use Xenon?</summary><div class="body"><p>No. The Edge was the first screen it was built for, but any spare monitor, an old tablet, a phone on the same Wi-Fi or a touchscreen works the same way. See <a href="tablet-dashboard.html">using an old tablet or phone as a PC dashboard</a>.</p></div></details>
     <details><summary>Can I use iCUE widgets and Xenon at the same time?</summary><div class="body"><p>Yes. In iCUE the Edge is split into panels; Xenon takes one panel as a web widget and the rest stay as they were. Most people end up giving it the whole strip, but nothing forces that.</p></div></details>

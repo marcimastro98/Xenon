@@ -207,6 +207,13 @@
 </style>
 <link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
+<style id="dl-mark">
+  /* The visitor's own system, marked and lit like the Deck key on the home. */
+  .dl .pick.is-you, a.pick.is-you { --lit: #008DFF; color: #fff !important; border-color: color-mix(in oklab, var(--lit) 70%, #000) !important; background-color: #104D82 !important;
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28), color-mix(in oklab, var(--lit) 20%, #04080d)) !important; }
+  .pick.is-you * { color: #fff !important; }
+  .pick .you { display: inline-block; margin-left: 8px; font: 700 12.5px/1 var(--sans); padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.18); }
+</style>
 </head>
 <body>
 
@@ -234,7 +241,7 @@
   <div class="wrap">
     <h1>Download Xenon</h1>
     <p class="lede">The newest release for every platform, straight from GitHub. Free, no account, and it updates itself after this.</p>
-    <p class="updated">Last updated: 26 September 2026 · every link points at <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the latest release</a></p>
+    <p class="updated">Last updated: 26 September 2026. Every link points at <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the latest release</a>.</p>
 
     <div class="dl">
       <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req">Windows 10 or 11, 64-bit. Installs the app and starts it at login.</span></a>
@@ -244,23 +251,23 @@
     <p class="note"><a href="linux.html">Xenon on Linux</a>: the .deb and .rpm packages, what the first launch sets up, and an honest table of what works and what does not yet.</p>
     <p class="note">Every file above is the newest release, straight from GitHub. <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">All files for this release</a>, including the checksums, are on the release page.</p>
 
-    <h2 id="after"><span class="h2n">01</span>What happens after the download</h2>
+    <h2 id="after">What happens after the download</h2>
     <p><strong>Windows.</strong> Run the installer. It installs the app, which opens by itself, finds no dashboard engine yet and offers <strong>Complete setup</strong>. Press it once: a window opens and installs Node.js, the sensor readers and the task that starts Xenon when you sign in, showing you each step. The download is verified against the project's signing key before anything runs. It takes a few minutes and happens once.</p>
     <p><strong>macOS and Linux.</strong> Open the app you downloaded. Its first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. On Linux the package deliberately does not do that for you, because everything it would create belongs to one user account and a package installs as root for the whole machine.</p>
     <p>Then Xenon asks which screen it should live on. A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge all work; <a href="phone.html">the phone guide</a> covers pairing a phone or tablet in about thirty seconds.</p>
 
-    <h2 id="warning"><span class="h2n">02</span>If Windows or macOS warns you about the file</h2>
+    <h2 id="warning">If Windows or macOS warns you about the file</h2>
     <p>Since version 4.11.9 the Windows installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a detection can still happen. The <a href="faq.html#warnings">FAQ explains each kind of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
     <p><strong>macOS.</strong> The Mac build is beta and not notarized, so macOS refuses the first launch. Open <strong>System Settings, Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong> next to Xenon. On macOS 15 and later the Control-click Open route no longer works.</p>
 
-    <h2 id="verify"><span class="h2n">03</span>Check the file yourself</h2>
+    <h2 id="verify">Check the file yourself</h2>
     <p>Every release ships a <code>SHA256SUMS</code> file signed with the project's Ed25519 key. Compare the hash of what you downloaded:</p>
     <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
 shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
 sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
     <p>If it matches the line for that file in the release's <code>SHA256SUMS</code>, the file is byte for byte the one GitHub Actions built from the public source at that tag. On Windows you can also right-click the installer, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab to see the publisher.</p>
 
-    <h2 id="other"><span class="h2n">04</span>Other ways to install</h2>
+    <h2 id="other">Other ways to install</h2>
     <p><strong>From source.</strong> Download the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">source code zip</a> from the release, extract it, and run <code>INSTALL.bat</code> on Windows, <code>INSTALL.command</code> on macOS or <code>./INSTALL.sh</code> on Linux. Same result as the installer, for people who would rather read what runs.</p>
     <p><strong>winget.</strong> The package manifests are written and waiting on a release that scans clean at Microsoft's end; until it is listed, the installer above is the way. This page will say <code>winget install xenon</code> the day that changes.</p>
     <p><strong>Updating.</strong> Xenon checks for a new release when it starts and updates itself. You never need to come back here for that.</p>
@@ -289,5 +296,21 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
 <!-- /xenon:footer -->
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
+<script>
+  // Marks the card for the visitor's system. Detection is a convenience:
+  // all three files stay listed and every link works without it.
+  (function () {
+    var uad = navigator.userAgentData;
+    var p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
+    if ((uad && uad.mobile) || /Android|iPhone|iPad|iPod|CrOS/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1)) return;
+    var os = /Win/i.test(p) ? 'win' : /Mac/i.test(p) ? 'mac' : /Linux|X11/i.test(p) ? 'linux' : null;
+    if (!os) return;
+    var a = document.querySelector('.pick[data-track-location="download_page_' + os + '"]');
+    if (!a) return;
+    a.classList.add('is-you');
+    var o = a.querySelector('.os');
+    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = 'Your system'; o.appendChild(t); }
+  })();
+</script>
 </body>
 </html>

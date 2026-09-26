@@ -387,8 +387,23 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .tier.pick .tier-what, .tier.pick small { color: color-mix(in oklab, var(--room) 78%, var(--fg)); }
 .tier.pick:hover { background: color-mix(in oklab, var(--fg) 88%, var(--room)); }
 .sup-note { margin: 22px 0 0; font-size: 16px; color: var(--fg-2); max-width: 70ch; }
-.wall { margin-top: 44px; max-width: 110ch; font-size: 16.5px; line-height: 1.8; color: var(--fg-2); }
-.wall b { color: var(--fg); font-weight: 700; }
+/* The people who support it. The top three (ranked by the supporter build)
+   stand apart in a warm tint; everyone else is one uniform name tag, with a
+   gold dot for an active membership. */
+.wall { margin-top: 48px; }
+.wall-lead { margin: 0 0 18px; font-size: 17px; color: var(--fg-2); }
+.wall-top { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.wall-top li { display: grid; gap: 6px; padding: 20px 22px; border-radius: 14px; background: color-mix(in oklab, #D69A17 16%, var(--room-2)); }
+.wall-top .nm { font: 760 26px/1.1 var(--f-display); color: var(--fg); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.wall-top .rk { display: inline-flex; align-items: center; gap: 7px; font: 700 14.5px/1 var(--f-text); color: color-mix(in oklab, #B07A0C 80%, var(--fg)); }
+.wall-top .rk::before { content: "\2605"; color: #D69A17; font-size: 15px; }
+.wall-all { display: flex; flex-wrap: wrap; gap: 8px; }
+.wall-all li, .wall-top li { list-style: none; }
+.wall ul { margin: 0; padding: 0; }
+.wall-all li { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 9px; background: var(--room-2); font: 600 16px/1.2 var(--f-text); color: var(--fg); }
+.wall-all li.m::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #D69A17; flex: 0 0 auto; }
+.wall-key { margin: 14px 0 0; font-size: 15px; color: var(--fg-3); display: inline-flex; align-items: center; gap: 8px; }
+.wall-key::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #D69A17; }
 
 /* Install */
 .inst { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; }
@@ -441,6 +456,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .wg .side { grid-template-columns: 1fr 1fr; }
   .names { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .tiers, .inst { grid-template-columns: 1fr; max-width: 640px; }
+  .wall-top { grid-template-columns: 1fr; }
   .ft-brand { grid-column: 1 / -1; }
   .ft-col { grid-column: span 4; }
   .sec-head h2, .sec-head p { grid-column: 1 / -1; }
@@ -765,7 +781,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <dt data-i18n="pp.src.t">Codice</dt><dd data-i18n-html="pp.src.d">Su <a href="https://github.com/marcimastro98/Xenon">GitHub</a>, con una licenza non commerciale.</dd>
         <dt data-i18n="pp.stay.t">Resta sul tuo PC</dt><dd data-i18n="pp.stay.d">Impostazioni, note, file, letture dei sensori e la memoria dell'AI. Non serve un account.</dd>
         <dt data-i18n="pp.out.t">Va online</dt><dd data-i18n-html="pp.out.d">Controllo degli aggiornamenti e catalogo, un file di annunci al giorno, un conteggio anonimo della versione (si spegne con un interruttore), e i servizi di meteo, copertine e AI che scegli tu. <a href="/privacy.html">L'elenco completo</a></dd>
-        <dt data-i18n="pp.who.t">Chi lo fa</dt><dd data-i18n-html="pp.who.d">Marcello Mastroeni, uno sviluppatore solo. Xenon è indipendente: CORSAIR non lo produce e non lo sponsorizza.</dd>
+        <dt data-i18n="pp.who.t">Chi lo fa</dt><dd data-i18n-html="pp.who.d">Uno sviluppatore solo. Xenon è indipendente: CORSAIR non lo produce e non lo sponsorizza.</dd>
       </dl>
     </div>
   </section>
@@ -814,7 +830,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     {
       "@type": "Person",
       "@id": "https://xenon-app.com/#author",
-      "name": "Marcello Mastroeni",
+      "name": "marcimastro98",
       "url": "https://github.com/marcimastro98"
     },
     {
@@ -1041,7 +1057,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Twelve months of drops, plus a theme built for you, one request a month. Choose the yearly option on the membership page; it renews each year until you stop it.",
     "tier.go": "Support",
     "sup.note": "The app stays free and complete without it. Codes arrive by email and unlock in Settings, Support.",
-    "sup.wall": "Thank you to the {n} people who support it:",
+    "sup.wall": "Thank you to the {n} people who support it.",
+    "sup.top": "Top supporter",
+    "sup.member": "Active member",
     "inst.h2": "Install",
     "inst.p": "One installer per system. It sets up the app, the dashboard engine and the start at login.",
     "dl.you": "Your system",
@@ -1067,7 +1085,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "pp.out.t": "Goes online",
     "pp.out.d": "Update checks and the catalog, a daily announcements file, an anonymous version count (one switch turns it off), and the weather, artwork and AI services you choose. <a href=\"/privacy.html\">The full list</a>",
     "pp.who.t": "Made by",
-    "pp.who.d": "Marcello Mastroeni, a single developer. Xenon is independent: CORSAIR does not make or endorse it.",
+    "pp.who.d": "A single developer. Xenon is independent: CORSAIR does not make or endorse it.",
     "ft.tag": "A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.",
     "ft.bit": "Bit lives in the Vitals widget and has opinions about your posture.",
     "ft.app": "App",
@@ -1234,7 +1252,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Dodici mesi di drop, più un tema fatto per te, una richiesta al mese. Scegli l'opzione annuale nella pagina della membership; si rinnova ogni anno finché non la fermi.",
     "tier.go": "Sostieni",
     "sup.note": "L'app resta gratuita e completa anche senza. I codici arrivano via email e si sbloccano in Impostazioni, Supporto.",
-    "sup.wall": "Grazie alle {n} persone che lo sostengono:",
+    "sup.wall": "Grazie alle {n} persone che lo sostengono.",
+    "sup.top": "Tra i maggiori sostenitori",
+    "sup.member": "Membro attivo",
     "inst.h2": "Installazione",
     "inst.p": "Un installer per ogni sistema. Prepara l'app, il motore della dashboard e l'avvio al login.",
     "dl.you": "Il tuo sistema",
@@ -1260,7 +1280,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "pp.out.t": "Va online",
     "pp.out.d": "Controllo degli aggiornamenti e catalogo, un file di annunci al giorno, un conteggio anonimo della versione (si spegne con un interruttore), e i servizi di meteo, copertine e AI che scegli tu. <a href=\"/privacy.html\">L'elenco completo</a>",
     "pp.who.t": "Chi lo fa",
-    "pp.who.d": "Marcello Mastroeni, uno sviluppatore solo. Xenon è indipendente: CORSAIR non lo produce e non lo sponsorizza.",
+    "pp.who.d": "Uno sviluppatore solo. Xenon è indipendente: CORSAIR non lo produce e non lo sponsorizza.",
     "ft.tag": "Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.",
     "ft.bit": "Bit vive nel widget Vitals e ha opinioni sulla tua postura.",
     "ft.app": "App",
@@ -1427,7 +1447,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Doce meses de drops, más un tema hecho para ti, una petición al mes. Elige la opción anual en la página de membresía; se renueva cada año hasta que la canceles.",
     "tier.go": "Apoyar",
     "sup.note": "La app sigue siendo gratis y completa sin esto. Los códigos llegan por correo y se desbloquean en Ajustes, Apoya a Xenon.",
-    "sup.wall": "Gracias a las {n} personas que lo apoyan:",
+    "sup.wall": "Gracias a las {n} personas que lo apoyan.",
+    "sup.top": "Mecenas destacado",
+    "sup.member": "Miembro activo",
     "inst.h2": "Instalación",
     "inst.p": "Un instalador por sistema. Instala la app, el motor del panel y el arranque al iniciar sesión.",
     "dl.you": "Tu sistema",
@@ -1453,7 +1475,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "pp.out.t": "Sale a internet",
     "pp.out.d": "La comprobación de actualizaciones y el catálogo, un archivo diario de anuncios, un recuento anónimo de versiones (se desactiva con un interruptor), y los servicios de tiempo, carátulas e IA que elijas. <a href=\"/privacy.html\">La lista completa</a>",
     "pp.who.t": "Hecho por",
-    "pp.who.d": "Marcello Mastroeni, un único desarrollador. Xenon es independiente: CORSAIR no lo fabrica ni lo respalda.",
+    "pp.who.d": "Un único desarrollador. Xenon es independiente: CORSAIR no lo fabrica ni lo respalda.",
     "ft.tag": "Un panel táctil gratis para las pantallas junto a tu PC. Windows, con macOS y Linux en beta.",
     "ft.bit": "Bit vive en el widget Vitals y tiene opiniones sobre tu postura.",
     "ft.app": "App",
@@ -1620,7 +1642,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "新作12か月分に加えて、あなた専用のテーマを制作します（リクエストは月1回）。メンバーシップのページで年額プランを選んでください。停止するまで毎年更新されます。",
     "tier.go": "支援する",
     "sup.note": "支援しなくても、アプリは無料ですべての機能を使えます。コードはメールで届き、「設定」の「Xenonを応援」で有効にできます。",
-    "sup.wall": "支援してくださっている{n}人の皆さん、ありがとうございます。",
+    "sup.wall": "支えてくれている {n} 人に感謝します。",
+    "sup.top": "トップサポーター",
+    "sup.member": "継続メンバー",
     "inst.h2": "インストール",
     "inst.p": "OSごとにインストーラーがひとつあります。アプリ、ダッシュボードエンジン、ログイン時の自動起動をセットアップします。",
     "dl.you": "お使いのシステム",
@@ -1646,7 +1670,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "pp.out.t": "オンラインで通信するもの",
     "pp.out.d": "アップデートの確認とカタログ、1日1回のお知らせファイル、匿名のバージョン集計（スイッチひとつでオフにできます）、そして天気、アルバムアート、AIのうちあなたが選んだサービス。<a href=\"/privacy.html\">すべての一覧</a>",
     "pp.who.t": "開発者",
-    "pp.who.d": "Marcello Mastroeni、個人の開発者です。Xenonは独立したプロジェクトで、CORSAIRが制作や推奨をしているものではありません。",
+    "pp.who.d": "個人の開発者です。Xenonは独立したプロジェクトで、CORSAIRが制作や推奨をしているものではありません。",
     "ft.tag": "PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。",
     "ft.bit": "BitはVitalsウィジェットに住んでいて、あなたの姿勢にひとこと言います。",
     "ft.app": "アプリ",
@@ -1813,7 +1837,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "12개월분 콘텐츠와 함께 나를 위해 만든 테마를 받습니다(요청은 한 달에 한 번). 멤버십 페이지에서 연간 옵션을 선택하세요. 중단할 때까지 매년 갱신됩니다.",
     "tier.go": "후원하기",
     "sup.note": "후원하지 않아도 앱은 무료이며 모든 기능을 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.",
-    "sup.wall": "후원해 주시는 {n}명께 감사드립니다:",
+    "sup.wall": "후원해 주시는 {n}명께 감사드립니다.",
+    "sup.top": "최고 후원자",
+    "sup.member": "활동 멤버",
     "inst.h2": "설치",
     "inst.p": "시스템마다 설치 프로그램이 하나씩 있습니다. 앱, 대시보드 엔진, 로그인 시 자동 시작을 설정합니다.",
     "dl.you": "내 시스템",
@@ -1839,7 +1865,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "pp.out.t": "온라인으로 나가는 것",
     "pp.out.d": "업데이트 확인과 카탈로그, 하루 한 번 받는 공지 파일, 익명 버전 집계(스위치 하나로 끌 수 있음), 그리고 직접 선택한 날씨, 앨범 아트, AI 서비스. <a href=\"/privacy.html\">전체 목록</a>",
     "pp.who.t": "만든 사람",
-    "pp.who.d": "개인 개발자 Marcello Mastroeni. Xenon은 독립 프로젝트이며, CORSAIR가 만들거나 보증하지 않습니다.",
+    "pp.who.d": "개인 개발자 한 명이 만듭니다. Xenon은 독립 프로젝트이며, CORSAIR가 만들거나 보증하지 않습니다.",
     "ft.tag": "PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.",
     "ft.bit": "Bit는 Vitals 위젯에 살면서 자세에 대해 한마디씩 합니다.",
     "ft.app": "앱",
@@ -2006,7 +2032,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "十二个月的专属内容，外加一套为你制作的主题，每月可以提一次需求。请在会员页面选择年付选项；每年自动续费，直到你取消。",
     "tier.go": "支持",
     "sup.note": "不支持也能免费使用完整的应用。代码会通过电子邮件发送，在“设置”>“支持 Xenon”中解锁。",
-    "sup.wall": "感谢这 {n} 位支持者：",
+    "sup.wall": "感谢 {n} 位支持者。",
+    "sup.top": "头号支持者",
+    "sup.member": "活跃会员",
     "inst.h2": "安装",
     "inst.p": "每个系统一个安装程序。它会安装应用和仪表盘引擎，并设置登录时启动。",
     "dl.you": "你的系统",
@@ -2032,7 +2060,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "pp.out.t": "会联网的内容",
     "pp.out.d": "更新检查和目录、每天一个公告文件、匿名的版本统计（一个开关即可关闭），以及你选择的天气、封面图和 AI 服务。<a href=\"/privacy.html\">完整列表</a>",
     "pp.who.t": "制作者",
-    "pp.who.d": "Marcello Mastroeni，一位独立开发者。Xenon 是独立项目，并非由 CORSAIR 制作或背书。",
+    "pp.who.d": "一位独立开发者。Xenon 是独立项目，并非由 CORSAIR 制作或背书。",
     "ft.tag": "一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。",
     "ft.bit": "Bit 住在 Vitals 小组件里，对你的坐姿很有意见。",
     "ft.app": "应用",
@@ -2434,7 +2462,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 
 <script>
   // Supporter names from docs/supporters.json, written by the daily build.
-  // Names only, as their owners chose them; nothing links out.
+  // Names only, as their owners chose them; nothing links out. The top three
+  // come first on their own, everyone else as one name tag each, members marked.
   (async function () {
     const wall = document.getElementById('wall');
     if (!wall) return;
@@ -2442,20 +2471,42 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     try { const r = await fetch('/supporters.json', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch (e) {}
     const list = (data && Array.isArray(data.supporters)) ? data.supporters.filter((s) => s && s.name) : [];
     if (!list.length) return;
-    const top = list.filter((s) => s.top).sort((a, b) => (a.rank || 99) - (b.rank || 99));
-    const rest = list.filter((s) => !s.top);
+    const top = list.filter((s) => s.top).sort((a, b) => (a.rank || 99) - (b.rank || 99)).slice(0, 3);
+    const rest = list.filter((s) => !top.includes(s));
     wall.textContent = '';
-    const lead = document.createElement('span');
-    lead.textContent = window.XT('sup.wall').replace('{n}', list.length) + ' ';
+    const lead = document.createElement('p');
+    lead.className = 'wall-lead';
+    lead.textContent = window.XT('sup.wall').replace('{n}', list.length);
     wall.appendChild(lead);
-    const names = top.concat(rest);
-    names.forEach((s, i) => {
-      const el = document.createElement(s.top ? 'b' : 'span');
-      el.textContent = String(s.name);
-      wall.appendChild(el);
-      if (i < names.length - 1) wall.appendChild(document.createTextNode(', '));
+    if (top.length) {
+      const ul = document.createElement('ul'); ul.className = 'wall-top';
+      top.forEach((s) => {
+        const li = document.createElement('li');
+        const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = String(s.name);
+        const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = window.XT('sup.top');
+        li.append(nm, rk);
+        ul.appendChild(li);
+      });
+      wall.appendChild(ul);
+    }
+    const all = document.createElement('ul'); all.className = 'wall-all';
+    let members = 0;
+    rest.forEach((s) => {
+      const li = document.createElement('li');
+      li.textContent = String(s.name);
+      if (s.tier === 'member') {
+        li.className = 'm'; members++;
+        const sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = ', ' + window.XT('sup.member');
+        li.appendChild(sr);
+      }
+      all.appendChild(li);
     });
-    wall.appendChild(document.createTextNode('.'));
+    wall.appendChild(all);
+    if (members) {
+      const key = document.createElement('p'); key.className = 'wall-key'; key.setAttribute('aria-hidden', 'true');
+      key.textContent = window.XT('sup.member');
+      wall.appendChild(key);
+    }
     wall.hidden = false;
   })();
 </script>
