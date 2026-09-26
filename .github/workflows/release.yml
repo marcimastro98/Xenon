@@ -175,6 +175,18 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
+      # `shell: bash` (ours, and inside dtolnay/rust-toolchain) resolves bash
+      # through PATH, and on the signing PC the machine PATH puts System32 first,
+      # where bash.exe is WSL's launcher: "execvpe(/bin/bash) failed". It only
+      # worked when run.cmd happened to be started from a Git Bash window. Put
+      # Git's bash in front for every later step, whatever run.cmd was started from.
+      - name: Prefer Git Bash over WSL's bash.exe
+        shell: pwsh
+        run: |
+          $git = 'C:\Program Files\Git\bin'
+          if (-not (Test-Path (Join-Path $git 'bash.exe'))) { throw "Git for Windows not found at $git" }
+          Add-Content -Path $env:GITHUB_PATH -Value $git
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
