@@ -1561,6 +1561,11 @@ function applyLang(lang) {
       const d = ev.data;
       if (!d || d.type !== 'xenon-sf-preview' || !Array.isArray(d.blocks)) return;
       PREVIEW_BLOCKS = d.blocks;
+      // The spotlight picks being edited in the hub, drawn before they are saved.
+      // Only the two literals count, like the read boundary below.
+      if (d.featured && typeof d.featured === 'object') {
+        entries.forEach((e) => { const f = d.featured[e.id]; e.featured = (f === 'main' || f === 'on') ? f : ''; });
+      }
       LAYOUT = sfNormalize({ blocks: PREVIEW_BLOCKS });
       sfPreviewBanner();
       if (entries.length) paint();
