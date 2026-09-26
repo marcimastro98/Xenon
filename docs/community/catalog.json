@@ -367,9 +367,10 @@
         "text": "#2A2118"
       },
       "shots": 3,
+      "active": false,
       "addedAt": "2026-07-27",
-      "codeFile": true,
-      "updatedAt": "2026-07-27"
+      "updatedAt": "2026-09-26",
+      "codeFile": true
     },
     {
       "id": "abisso",
