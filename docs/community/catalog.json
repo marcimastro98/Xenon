@@ -2,6 +2,33 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "tgk-workstation-monitor",
+      "kind": "widget",
+      "name": "TGK  - Workstation Monitor",
+      "author": "The.GothamKnight",
+      "authorSupporter": true,
+      "description": "Real-time CPU, GPU, VRAM, memory, fan, network and disk monitoring. \nIncludes customizable profiles, layouts, templates, synchronized graphs and per-profile fan configuration.  Auto expanding rows, 1-4 colums, widgets size : 1x1 and 2x1.\nUses Xenon native system data, follows Xenon sensor refresh ra",
+      "category": "system",
+      "tags": [
+        "monitoring",
+        "hardware",
+        "system",
+        "gpu",
+        "network"
+      ],
+      "version": "1.0.0",
+      "pkgId": "tgk-workstation-monitor",
+      "appVersionMin": "4.11.9",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "addedAt": "2026-09-26",
+      "codeFile": true
+    },
+    {
       "id": "tgk-monitor-performance-metrics",
       "kind": "widget",
       "name": "TGK Monitor — Performance Metrics",
