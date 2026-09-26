@@ -18,7 +18,9 @@
 // tasks the installer and the server register.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync as readFileSyncRaw, existsSync } from 'node:fs';
+// A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
+const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 import { fileURLToPath } from 'node:url';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');

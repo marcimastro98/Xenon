@@ -21,7 +21,8 @@ import * as sdk from '../sdk-widgets.js';
 const require = createRequire(import.meta.url);
 const { actionSpec, validateAction } = require('../js/deck-actions.js');
 const DeckModel = require('../js/deck-model.js');
-const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+// LF only, so the source slices below work on a CRLF checkout too.
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // Shaped like the /audio speakers list. On macOS the id IS the device name.
 const LG = { id: 'LG UltraFine Display Audio', name: 'LG UltraFine Display Audio' };

@@ -18,7 +18,9 @@
 // and nothing acted on it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from 'node:fs';
+// A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
+const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 

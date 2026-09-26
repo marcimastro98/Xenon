@@ -21,7 +21,9 @@
 // between, and stayed where he was.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from 'node:fs';
+// A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
+const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const INSTALL = readFileSync(new URL('../install.ps1', import.meta.url), 'utf8');
 const UNINSTALL = readFileSync(new URL('../uninstall.ps1', import.meta.url), 'utf8');

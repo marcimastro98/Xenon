@@ -12,7 +12,9 @@
 // button that relaunches the app and changes nothing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync as readFileSyncRaw } from 'node:fs';
+// A Windows checkout (core.autocrlf) has CRLF; everything below matches on LF.
+const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typeof s === 'string' ? s.replace(/\r\n/g, '\n') : s; };
 
 const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
