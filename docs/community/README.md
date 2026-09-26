@@ -229,3 +229,48 @@ this avoids. Read a result as a sense of the room, not a ballot.
 
 An invalid poll drops the whole message rather than shipping as a plain announcement: the
 title is usually a question, and a question with no way to answer it reads as broken.
+
+## Site banners (`site-promo.json`)
+
+What xenon-app.com shows about the month's drop, on the home (every language copy) and the
+catalog page. It is written from the hub admin ("Site banners"), which commits this file the
+same way it commits `messages.json`, and read by `docs/promo.js`. It is separate from
+`messages.json` on purpose: that file feeds the app, and its ids share the app's "already
+shown" set.
+
+```jsonc
+{
+  "promos": [
+    {
+      "id": "nitrato-oct",           // ^[a-z0-9][a-z0-9_-]{0,60}$; a visitor's "closed it" is kept per id
+      "format": "spotlight",         // strip | band | card | spotlight; one live promo per format
+      "entryId": "nitrato",          // required: the catalog entry this is about
+      "activeFrom": "2026-10-01",    // optional ISO date/datetime
+      "activeUntil": "2026-11-02T23:59:59+01:00",
+      "video": "https://assets.xenon-app.com/community/promo/nitrato-oct.mp4", // optional, mp4/webm
+      "url": "",                     // optional; default is /catalog/#<entryId>
+      "text": {                      // en is required and is the fallback for it, es, ja, ko, zh
+        "en": { "title": "", "line": "A 1920 woodcut town for your dashboard.", "cta": "See Nitrato" }
+      },
+      "inside": { "en": "Theme, animated background, widget, page, Ambient scene" }
+    }
+  ]
+}
+```
+
+Rules worth knowing:
+
+- **The pack's facts come from `catalog.json`, not from here**: its name (when `title` is
+  empty), its picture (`shots/<id>.webp`), its colours (`preview`), whether it is for
+  supporters (`locked`) and when it ends (`activeUntil`). A promo whose entry is missing or
+  not open is skipped, so a banner can never advertise something the catalog does not offer.
+- **Urgency only from data.** "N days left" appears only when the end is within 14 days,
+  and nothing about time appears without an end date.
+- **The band needs a slot**: it is drawn only where a page marks `[data-promo-band]` (the home,
+  right after the live demo, below the fold so filling it moves nothing in view). The catalog
+  page has its own featured blocks and shows no band.
+- **The spotlight opens on arrival on desktop only**, after the cookie choice, once per id.
+  On a phone it is a small sheet at the bottom that leaves the page usable.
+- **`url` and `video` are restricted**: https on xenon-app.com, GitHub or Discord for the
+  link, `assets.xenon-app.com` for the video. A promo naming anything else is dropped.
+- To show a promo again to people who closed it, publish it under a new `id`.

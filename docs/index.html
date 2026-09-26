@@ -36,6 +36,8 @@
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
 <script src="/consent.js" defer></script>
+<!-- The month's drop, as published from the hub (site-promo.json). -->
+<script src="/promo.js" defer></script>
 <!-- Theme, before the first paint. A deferred script would let a visitor who
      chose dark see a white page flash first; /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
@@ -922,6 +924,10 @@
     </a>
   </div>
 </section>
+
+<!-- Where /promo.js puts the "band" promo, when the hub publishes one. Right after the live demo on
+     purpose: it is below the fold on load, so filling it moves nothing the visitor is looking at. -->
+<div data-promo-band></div>
 
 <!-- ── What it does: five entries, one fact each. ── -->
 <section class="sec" id="features">

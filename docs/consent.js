@@ -186,6 +186,9 @@
       // early-return, leaving the user staring at a button that did nothing.
       box.removeAttribute('id');
       box.classList.remove('in');
+      // Anything waiting for the choice (the promo banners in promo.js) can start now, instead of
+      // polling for it or opening on top of this box.
+      try { document.dispatchEvent(new CustomEvent('xenon:consent', { detail: { granted: !!granted } })); } catch (e) { /* old engines */ }
       setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 450);
     }
 
@@ -223,6 +226,8 @@
     // visitor on the real page — not tapped through inside somebody's admin panel,
     // where it would silently store an answer for a choice never really presented.
     if (/(?:^|[#&])sf-preview=/.test(location.hash || '')) return;
+    // Same for the hub's banner preview (promo.js), which frames the home page.
+    if (/[?&]promo-preview=1(?:&|$)/.test(location.search || '') && window.parent !== window) return;
     render();
   }
 
