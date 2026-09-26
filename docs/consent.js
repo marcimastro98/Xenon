@@ -22,43 +22,50 @@
 
   var STORE_KEY = 'xenon.site.consent';
   var LANG_KEY = 'xenon.site.lang';
-  var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+  var LANGS = ['en', 'it', 'ko', 'ja', 'zh', 'es'];
 
   var STR = {
     en: {
       title: 'Cookies on this site',
-      body: 'The Xenon app on your PC sends no telemetry, and that does not change. This website is separate: it uses Google Analytics to see which pages and downloads people actually reach.',
+      body: 'This choice is about the website only, not the app on your PC. The site uses Google Analytics to see which pages and downloads people actually reach.',
       accept: 'Accept',
       reject: 'Reject',
       more: 'Privacy policy',
     },
     it: {
       title: 'Cookie su questo sito',
-      body: "L'app Xenon sul tuo PC non manda telemetria, e questo non cambia. Il sito è un'altra cosa: usa Google Analytics per capire quali pagine e download vengono davvero raggiunti.",
+      body: "Questa scelta riguarda solo il sito, non l'app sul tuo PC. Il sito usa Google Analytics per capire quali pagine e download vengono davvero raggiunti.",
       accept: 'Accetta',
       reject: 'Rifiuta',
       more: 'Informativa privacy',
     },
     ko: {
       title: '이 사이트의 쿠키',
-      body: 'PC의 Xenon 앱은 텔레메트리를 보내지 않습니다. 이 점은 변하지 않습니다. 웹사이트는 별개입니다: 어떤 페이지와 다운로드가 실제로 사용되는지 확인하기 위해 Google Analytics를 사용합니다.',
+      body: '이 선택은 웹사이트에만 해당하며 PC의 앱과는 관계없습니다. 웹사이트는 어떤 페이지와 다운로드가 실제로 사용되는지 확인하기 위해 Google Analytics를 사용합니다.',
       accept: '동의',
       reject: '거부',
       more: '개인정보 처리방침',
     },
     ja: {
       title: 'このサイトのCookie',
-      body: 'お使いのPC上のXenonアプリはテレメトリを送信しません。これは変わりません。ウェブサイトは別です: どのページとダウンロードが実際に利用されているかを把握するためGoogle Analyticsを使用します。',
+      body: 'この選択はウェブサイトだけに関するもので、PC上のアプリには関係しません。ウェブサイトはどのページとダウンロードが実際に利用されているかを把握するためGoogle Analyticsを使用します。',
       accept: '同意する',
       reject: '拒否する',
       more: 'プライバシーポリシー',
     },
     zh: {
       title: '本网站的 Cookie',
-      body: '您电脑上的 Xenon 应用不发送遥测数据，这一点不会改变。网站则是另一回事：它使用 Google Analytics 来了解哪些页面和下载真正被访问。',
+      body: '此选择只针对网站，与您电脑上的应用无关。网站使用 Google Analytics 来了解哪些页面和下载真正被访问。',
       accept: '接受',
       reject: '拒绝',
       more: '隐私政策',
+    },
+    es: {
+      title: 'Cookies en este sitio',
+      body: 'Esta elección solo afecta al sitio web, no a la app de tu PC. El sitio usa Google Analytics para ver qué páginas y descargas se visitan de verdad.',
+      accept: 'Aceptar',
+      reject: 'Rechazar',
+      more: 'Política de privacidad',
     },
   };
 
@@ -228,6 +235,8 @@
     if (/(?:^|[#&])sf-preview=/.test(location.hash || '')) return;
     // Same for the hub's banner preview (promo.js), which frames the home page.
     if (/[?&]promo-preview=1(?:&|$)/.test(location.search || '') && window.parent !== window) return;
+    // The live demo framed in the home page: the page around it already asked.
+    if (/^\/demo(\/|$)/.test(location.pathname) && window.parent !== window) return;
     render();
   }
 

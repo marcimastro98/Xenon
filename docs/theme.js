@@ -96,6 +96,10 @@
   }
 
   function mount() {
+    // /demo/ is the app itself (tools/build-demo.mjs copies the site's head into it),
+    // and its first <header> is the dashboard's own top bar: a site control there
+    // sat on top of the weather and read as a bug in the product.
+    if (/^\/demo(\/|$)/.test(location.pathname)) return;
     style();
 
     var box = document.createElement('div');

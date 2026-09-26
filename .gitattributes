@@ -51,6 +51,27 @@ docs/ffe1471367022be0d335321cee3c19ec.txt export-ignore
 docs/supporters.json            export-ignore
 docs/supporters-overrides.json  export-ignore
 docs/whatsnew-shotlist.md       export-ignore
+# Pages added after the list above was written. None of them is read by the app
+# at runtime (only docs/WIDGET_SDK.md is), so they never belong in an install.
+docs/it/                        export-ignore
+docs/es/                        export-ignore
+docs/ja/                        export-ignore
+docs/ko/                        export-ignore
+docs/zh/                        export-ignore
+docs/creators/                  export-ignore
+docs/theme.js                   export-ignore
+docs/promo.js                   export-ignore
+docs/download-flow.js           export-ignore
+docs/thanks.html                export-ignore
+docs/faq.html                   export-ignore
+docs/download.html              export-ignore
+docs/linux.html                 export-ignore
+docs/tablet-dashboard.html      export-ignore
+docs/xeneon-edge-widgets.html   export-ignore
+docs/xenon-exe.html             export-ignore
+docs/llms.txt                   export-ignore
+docs/sitemap.xml                export-ignore
+docs/robots.txt                 export-ignore
 
 # Offline iCUE SDK documentation mirror — development reference only
 WidgetBuilder/                  export-ignore
