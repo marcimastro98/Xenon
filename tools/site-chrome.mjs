@@ -14,9 +14,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LANG_PAGES, HOME_LANGS, langMenu, langsOf } from './lang-pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DL = 'https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe';
+const SITE = 'https://xenon-app.com';
 
 const ICON = {
   cup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg>',
@@ -46,7 +48,7 @@ const LANG_BLOCK = `<div class="lang" id="lang">
         </div>
       </div>`;
 
-export function headerHtml({ lang = false } = {}) {
+export function headerHtml({ lang = false, page = '' } = {}) {
   const items = NAV.map(([href, k, label]) => `<li><a href="${href}" data-xl="${k}">${label}</a></li>`).join('');
   return `<!-- xenon:header -->
 <header class="xh" id="xh">
@@ -59,7 +61,7 @@ export function headerHtml({ lang = false } = {}) {
         <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord">${ICON.dc}</a>
         <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub">${ICON.gh}<span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
       </div>
-      ${lang ? LANG_BLOCK : ''}
+      ${page ? langMenu(page, 'en') : (lang ? LANG_BLOCK : '')}
       <a class="xh-dl" id="xh-dl" href="${DL}" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
       <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
     </div>
@@ -79,7 +81,7 @@ export function footerHtml() {
       <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
-    ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/create/', 'f.create', 'Make widgets'], ['https://github.com/marcimastro98/Xenon/releases', 'f.releases', 'Releases', true]])}
+    ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
     ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
     ${col('project', 'Project', [['/#support', 'f.support', 'Supporters'], ['https://github.com/marcimastro98/Xenon', '', 'GitHub', true], ['https://discord.gg/MBVrw9kZyg', '', 'Discord', true], ['/faq.html', 'f.faq', 'Help and questions'], ['/privacy.html', 'f.privacy', 'Privacy']])}
     <div class="xf-col" data-theme-switch></div>
@@ -89,6 +91,72 @@ export function footerHtml() {
 <!-- /xenon:footer -->`;
 }
 
+// ── Guide navigation ───────────────────────────────────────────────────────
+// Every guide opens with a breadcrumb and ends with the other guides, so no
+// guide is reachable only from the footer. The list is in the order a visitor
+// meets the screens; a guide joins it once its file exists, so a page can be
+// listed here before it is written. Labels are the footer's (docs/chrome.js).
+export const GUIDES = [
+  ['xeneon-edge-widgets.html', 'f.edge'],
+  ['tablet-dashboard.html', 'f.tablet'],
+  ['phone.html', 'f.phone'],
+  ['mac.html', 'f.mac'],
+  ['linux.html', 'f.linux'],
+  ['widgets.html', 'f.widgets'],
+  ['deck.html', 'f.deck'],
+  ['claude-code.html', 'f.claude'],
+  ['sensor-panel.html', 'f.sensor'],
+  ['xenon-exe.html', 'f.exe'],
+];
+// Pages with a breadcrumb that are not guides.
+const CRUMB_ONLY = { 'download.html': 'f.download', 'faq.html': 'f.faq', 'privacy.html': 'f.privacy', 'releases.html': 'f.releases' };
+
+let labelCache = null;
+export function chromeLabels() {
+  if (labelCache) return labelCache;
+  const src = fs.readFileSync(path.join(ROOT, 'docs', 'chrome.js'), 'utf8');
+  const m = /var L = (\{[\s\S]*?\});\r?\n/.exec(src);
+  labelCache = m ? JSON.parse(m[1]) : { en: {} };
+  return labelCache;
+}
+const tl = (lang, key) => {
+  const L = chromeLabels();
+  return (L[lang] && L[lang][key]) || (L.en && L.en[key]) || key;
+};
+const escT = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const guideExists = (page) => fs.existsSync(path.join(ROOT, 'docs', page));
+
+// The breadcrumb, with its BreadcrumbList. Links are root paths; the language
+// builder points them at the copies. The JSON-LD carries the copy's own URLs.
+export function crumbsHtml(page, lang = 'en') {
+  const key = (GUIDES.find((g) => g[0] === page) || [])[1] || CRUMB_ONLY[page];
+  if (!key) return '<!-- xenon:crumbs --><!-- /xenon:crumbs -->';
+  const copy = lang !== 'en' && langsOf(page).includes(lang);
+  const home = lang === 'en' || !HOME_LANGS.includes(lang) ? '/' : '/' + lang + '/';
+  const self = copy ? '/' + lang + '/' + page : '/' + page;
+  const ld = {
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Xenon', item: SITE + home },
+      { '@type': 'ListItem', position: 2, name: tl(lang, key), item: SITE + self },
+    ],
+  };
+  return `<!-- xenon:crumbs --><nav class="xc" aria-label="${escT(tl(lang, 'crumbs'))}"><ol><li><a href="/" data-xl="home">${escT(tl(lang, 'home'))}</a></li><li><a href="/${page}" aria-current="page" data-xl="${key}">${escT(tl(lang, key))}</a></li></ol></nav><script type="application/ld+json">${JSON.stringify(ld)}</script><!-- /xenon:crumbs -->`;
+}
+
+// The other guides, at the end of a guide. Non-guides get an empty block.
+export function guidesHtml(page, lang = 'en') {
+  if (!GUIDES.some((g) => g[0] === page)) return '<!-- xenon:guides --><!-- /xenon:guides -->';
+  const items = GUIDES.filter(([p]) => p !== page && guideExists(p))
+    .map(([p, key]) => `<li><a href="/${p}" data-xl="${key}">${escT(tl(lang, key))}</a></li>`).join('');
+  return `<!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">${escT(tl(lang, 'more'))}</h2><ul>${items}</ul><p class="xg-dl"><a href="/download.html" data-xl="f.download">${escT(tl(lang, 'f.download'))}</a></p></nav><!-- /xenon:guides -->`;
+}
+
+export function fillGuideNav(s, page, lang = 'en') {
+  s = s.replace(/<!-- xenon:crumbs -->[\s\S]*?<!-- \/xenon:crumbs -->/, () => crumbsHtml(page, lang));
+  return s.replace(/<!-- xenon:guides -->[\s\S]*?<!-- \/xenon:guides -->/, () => guidesHtml(page, lang));
+}
+
 // ── Rewriting the hand pages ───────────────────────────────────────────────
 // First run: the old header/footer are found by the shape each page had.
 // Every run after that: by the markers.
@@ -96,8 +164,8 @@ const PAGES = [
   { file: 'docs/404.html', lang: false },
   { file: 'docs/download.html', lang: false },
   { file: 'docs/thanks.html', lang: true },
-  { file: 'docs/faq.html', lang: true },
-  { file: 'docs/phone.html', lang: true },
+  { file: 'docs/faq.html', lang: false },
+  { file: 'docs/phone.html', lang: false },
   { file: 'docs/privacy.html', lang: false },
   { file: 'docs/linux.html', lang: false },
   { file: 'docs/tablet-dashboard.html', lang: false },
@@ -113,7 +181,8 @@ function rewrite({ file, lang, oldHeader, noFooter, footerBeforeBody }) {
   let s = fs.readFileSync(abs, 'utf8');
   const nl = s.includes('\r\n') ? '\r\n' : '\n';
   s = s.replace(/\r\n/g, '\n');
-  const head = headerHtml({ lang });
+  const page = path.basename(file);
+  const head = headerHtml({ lang, page: file.split('/').length === 2 && LANG_PAGES.some((p) => p.page === page) ? page : '' });
   const foot = footerHtml();
 
   if (s.includes('<!-- xenon:header -->')) {
@@ -135,6 +204,7 @@ function rewrite({ file, lang, oldHeader, noFooter, footerBeforeBody }) {
       s = s.slice(0, i) + s.slice(i).replace(m[0], foot + '\n');
     }
   }
+  s = fillGuideNav(s, page);
   if (!s.includes('src="/chrome.js"')) {
     s = s.replace('</head>', '<script src="/chrome.js" defer></script>\n</head>');
   }
@@ -143,5 +213,6 @@ function rewrite({ file, lang, oldHeader, noFooter, footerBeforeBody }) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  for (const p of PAGES) console.log('chrome:', rewrite(p));
+  const only = process.argv.slice(2);
+  for (const p of PAGES) if (!only.length || only.includes(path.basename(p.file)) || only.includes(p.file)) console.log('chrome:', rewrite(p));
 }

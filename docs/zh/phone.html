@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>把手机或平板用作 Xenon 屏幕</title>
+<meta name="description" content="通过自家 Wi-Fi，或借助 Tailscale 随时随地，在手机或平板上打开 Xenon 仪表盘。Deck 按键在电脑上执行，手机上无需安装任何东西。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="把手机或平板用作 Xenon 屏幕">
+<meta property="og:description" content="通过自家 Wi-Fi，或借助 Tailscale 随时随地，在手机或平板上打开 Xenon 仪表盘。Deck 按键在电脑上执行，手机上无需安装任何东西。">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://xenon-app.com/zh/phone.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/phone.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/phone.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/phone.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/phone.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/phone.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/phone.html">
+
+
+<style>
+
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 64px 0 6px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+  }
+  h3 { font-size: 16.5px; margin: 34px 0 8px; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 10px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 24px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+  .card h3 { margin-top: 0; }
+
+  /* ── The two routes, side by side ─────────────────────────────── */
+  .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 28px 0 8px; }
+  .route { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 22px 20px; }
+  .route.pick { border-color: var(--rule-2); }
+  .route .tag {
+    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--green); border: 1px solid var(--rule-2);
+    border-radius: 999px; padding: 3px 10px; margin-bottom: 12px;
+  }
+  /* Beta mark for the feature this whole page is about. Gold, not green: green
+     is what this page uses for "yes, this works", and a caveat must not borrow it. */
+  .beta-pill {
+    display: inline-block; vertical-align: middle; margin-left: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
+    color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 999px; padding: 3px 10px;
+  }
+  .route h3 { margin: 0 0 6px; font-size: 18px; color: var(--text); }
+  .route .time { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 12px; }
+  .route ul { margin: 0; padding-left: 18px; font-size: 15px; }
+
+  /* ── Numbered steps ───────────────────────────────────────────── */
+  .steps { counter-reset: s; list-style: none; padding: 0; margin: 22px 0 8px; }
+  .steps > li {
+    counter-increment: s; position: relative;
+    padding: 0 0 22px 46px; margin: 0;
+    border-left: 1px solid var(--line); margin-left: 15px;
+  }
+  .steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .steps > li::before {
+    content: counter(s);
+    position: absolute; left: -15px; top: -2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--ink); border: 1px solid var(--rule-2);
+    color: var(--green); font-family: var(--mono); font-size: 13px; font-weight: 500;
+    display: grid; place-items: center;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 16.5px; color: var(--text); }
+  .steps p { margin: 0 0 10px; font-size: 15.5px; }
+  .steps p:last-child { margin-bottom: 0; }
+
+  /* ── Device mockups ───────────────────────────────────────────────
+     Drawn in CSS, not photographed. They are an illustration of the
+     LAYOUT — a real screenshot of a dashboard shows its owner's calendar,
+     notes and file paths, and this page is public. */
+  .shots { display: flex; gap: 34px; align-items: flex-end; justify-content: center; flex-wrap: wrap; margin: 34px 0 10px; }
+  /* figure carries a browser default of `margin: 1em 40px`. Left alone it added
+     160px across the pair and pushed the row 9px past the column, which wraps —
+     the two devices are meant to be read side by side. */
+  .shot { text-align: center; margin: 0; max-width: 100%; }
+  .shot figcaption { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-top: 12px; letter-spacing: 0.04em; }
+
+  .dev { background: #121614; border: 2px solid var(--rule); box-shadow: none; }
+  .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
+  .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
+  .screen { width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
+            background: linear-gradient(160deg, #0b1512, #101a17 60%, #0a1210);
+            display: flex; flex-direction: column; }
+  .dev-tab .screen { border-radius: 9px; }
+
+  .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
+         display: flex; align-items: center; gap: 4px; padding: 0 5px; }
+  .bar i { display: block; height: 5px; border-radius: 3px; background: var(--rule-2); }
+  .bar i.a { width: 16px; background: var(--bone-1); }
+  .bar i.b { width: 26px; }
+  .bar i.c { width: 12px; margin-left: auto; }
+
+  /* phone: one column, tiles of different heights, thumb dock at the bottom */
+  .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
+  .stack > div { border-radius: 7px; background: var(--g-2); border: 1px solid var(--g-2); }
+  .stack > div.t1 { height: 46px; }
+  .stack > div.t2 { height: 72px; }
+  .stack > div.t3 { height: 38px; }
+  .stack > div.t4 { height: 58px; }
+  .stack > div.hl { background: var(--g-2); border-color: var(--rule-2); }
+  .dock { height: 26px; margin: 6px 5px 5px; border-radius: 9px; background: rgba(240,243,241,0.09);
+          display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
+  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: var(--rule-2); }
+  .dock i:first-child { background: var(--bone-1); }
+
+  /* tablet: the real 24-column grid, kept */
+  .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
+  .grid > div { border-radius: 6px; background: var(--g-2); border: 1px solid var(--g-2); }
+  .grid > div.w2 { grid-column: span 2; }
+  .grid > div.w3 { grid-column: span 3; }
+  .grid > div.w4 { grid-column: span 4; }
+  .grid > div.h2 { grid-row: span 2; }
+  .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
+
+  /* ── A reproduction of the settings rows ──────────────────────── */
+  .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .ui-row:last-child { border-bottom: none; }
+  .sw { width: 34px; height: 20px; border-radius: 999px; background: var(--rule); flex: none; position: relative; margin-top: 2px; }
+  .sw.on { background: var(--bone-0); }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #0b0d0c; }
+  .sw.on::after { left: auto; right: 3px; background: #08110c; }
+  .ui-txt strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 600; }
+  .ui-txt span { display: block; color: var(--dim); font-size: 13px; line-height: 1.5; }
+  .ui-btn { display: inline-block; background: var(--g-2); border: 1px solid var(--rule-2);
+            color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
+
+  .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
+  .yn ul { list-style: none; padding: 0; margin: 0; }
+  .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
+  .yn .k { flex: none; font-weight: 700; line-height: 1.5; }
+  .can .k { color: var(--green); }
+  .cant .k { color: var(--danger); }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 12px 0; background: var(--panel); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: center; gap: 10px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px; line-height: 1; }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 40px; }
+  details .body p:last-child { margin-bottom: 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  @media (max-width: 560px) {
+    .shots { gap: 22px; }
+    .steps > li { padding-left: 38px; }
+  }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+
+</style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/phone.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/it/phone.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/phone.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/phone.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/phone.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/phone.html" aria-current="page" data-xl="f.phone">配对手机</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"配对手机","item":"https://xenon-app.com/zh/phone.html"}]}</script><!-- /xenon:crumbs -->
+     <h1><span data-i18n="ph.title">把手机当作第二块屏幕</span><span class="beta-pill" data-i18n="ph.beta">测试版</span></h1>
+    <p class="lede" data-i18n="ph.lede">想用 Xenon，你需要一块可以整天开着的屏幕：一台闲置显示器、一台旧平板，或者一台 Xeneon Edge。真正把大多数人挡在门外的是这一点，不是功能。可你口袋里已经有一块屏幕了。这篇文章就是教你怎么用它。</p>
+    <p data-i18n-html="ph.intro">手机上出现的不是遥控器，也不是预览。它就是<strong>你的仪表盘</strong>，布局、组件、主题都一模一样。Deck 按键真的在电脑上执行。你按暂停，音乐就停。你改一个设置，一秒后电脑上也改好了。不需要账号，没有云端，没有要装的应用，也没有任何东西离开你家的网络。</p>
+
+    <div class="shots">
+      <figure class="shot">
+        <div class="dev dev-phone">
+          <div class="screen">
+            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+            <div class="stack"><div class="t1 hl"></div><div class="t2"></div><div class="t3"></div><div class="t4"></div></div>
+            <div class="dock"><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <figcaption data-i18n="ph.cap.phone">手机：磁贴纵向堆叠，底部是快捷栏</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="dev dev-tab">
+          <div class="screen">
+            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+            <div class="grid">
+              <div class="w2 h2 hl"></div><div class="w2"></div><div class="w2"></div>
+              <div class="w2"></div><div class="w2"></div><div class="w3"></div><div class="w3"></div>
+            </div>
+          </div>
+        </div>
+        <figcaption data-i18n="ph.cap.tab">平板：你亲手搭好的完整网格</figcaption>
+      </figure>
+    </div>
+    <p class="note" data-i18n="ph.cap.note">这些是布局示意图，不是真实截图。真实的仪表盘上会有主人的日历、笔记和文件路径，而这个页面是公开的。</p>
+
+    <h2 data-i18n="ph.h.what">能做什么，不能做什么</h2>
+    <p data-i18n="ph.what.p">配对过的设备就算是你自己的设备。除了少数几件事，电脑上仪表盘能做的它都能做。那几件事的原因是同一个：必须有人坐在那台电脑前面。</p>
+    <div class="yn">
+      <div class="can">
+        <ul>
+          <li><span class="k">✓</span><span data-i18n="ph.can.1">整个仪表盘：传感器、组件、页面和主题</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.2">Deck 按键。它们在电脑上执行，不在手机上</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.3">媒体、音量、麦克风静音和应用切换</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.4">商店：组件、图标包、音效包和主题</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.5">Xenon AI，以及会保存到电脑的设置</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.6">双向发送照片和文件</span></li>
+        </ul>
+      </div>
+      <div class="cant">
+        <ul>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.1">系统的授权弹窗。Windows、macOS 和 Linux 都只把它画在电脑自己的屏幕上，所以只能在电脑上回应</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.2">更新 Xenon。更新会重启手机正连着的那个服务</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.3">系统安装程序（helper、PresentMon、驱动）。每一个都会往硬盘里装东西</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.4">添加或删除已配对的设备。这样一部手机既不能拉别的设备进来，也不能删掉那台能把它踢出去的设备</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card"><p data-i18n-html="ph.trade"><strong>开始之前有一件事要知道。</strong> 配对过的设备在你删掉它之前，一直是通向你电脑的一条路。所以手机丢了或者转手了，记得把它删掉。设备列表就是干这个用的：可以只删一台，也可以一键删除全部。被删掉的设备当场就断开。</p></div>
+
+    <h2 data-i18n="ph.h.xfer">把照片和文件传过去</h2>
+    <p data-i18n="ph.xfer.p">手机配对后，就可以往电脑发文件，也可以从电脑取文件。在手机上打开 Xenon，点“照片和视频”或“其他文件”，选好要发的内容，它们就会以原来的名字落在电脑的 Download/Xenon 里。反方向也一样：从资源管理器或访达把文件拖到磁贴上，再用手机下载。不经过任何别人的服务器。</p>
+    <div class="card"><p data-i18n-html="ph.xfer.ios"><strong>在 iPhone 上，发送内容需要先打开 Xenon。</strong>iOS 不允许任何网站出现在它的分享按钮里，网页这边也没有绕过的办法。在 iPhone 上下载的文件会进入“文件”，而不是相册：长按照片，选择“添加到照片”。</p></div>
+
+    <h2 data-i18n="ph.h.two">两条路，选一条。</h2>
+    <div class="routes">
+      <div class="route pick">
+        <span class="tag" data-i18n="ph.r1.tag">在家</span>
+        <h3 data-i18n="ph.r1.h">用自家 Wi-Fi</h3>
+        <p class="time" data-i18n="ph.r1.time">大约 30 秒，不用装任何东西</p>
+        <ul>
+      <li data-i18n="ph.r1.1">打开开关，扫个码，就好了</li>
+      <li data-i18n="ph.r1.2">只要在同一个 Wi-Fi 下就能用</li>
+      <li data-i18n="ph.r1.3">走普通 HTTP，所以装不了应用、用不了麦克风、收不到通知</li>
+        </ul>
+      </div>
+      <div class="route">
+        <span class="tag" data-i18n="ph.r2.tag">任何地方</span>
+        <h3 data-i18n="ph.r2.h">安全连接，在家在外都行</h3>
+        <p class="time" data-i18n="ph.r2.time">大约 5 分钟，一个按钮加网页上的一个开关</p>
+        <ul>
+      <li data-i18n="ph.r2.1">全程加密，而且不用在路由器上开任何端口</li>
+      <li data-i18n="ph.r2.2">能像应用一样装到手机上，有自己的图标</li>
+      <li data-i18n="ph.r2.3">让 Xenon AI 可以用麦克风</li>
+      <li data-i18n="ph.r2.4">就算路由器换了地址，访问地址也不会变</li>
+        </ul>
+      </div>
+    </div>
+    <p data-i18n="ph.two.after">这不是二选一。第二条路是在第一条旁边多开一扇门，不是替掉它。如果你只在家里用 Xenon，先用第一条就行。</p>
+
+    <h2 data-i18n="ph.h.home">在家，三十秒搞定</h2>
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="ph.s1.h">在电脑上打开 设置，然后 手机</h3>
+        <p data-i18n-html="ph.s1.p">需要的全部都在 <strong>手机访问</strong> 这一个面板里。捷径：第一次打开 Xenon 时它会问你想把它放在哪块屏幕上，在那里选 <strong>我的手机或平板</strong>，就会直接带你到这个面板，并把这些步骤打开在里面。面板顶部的 <strong>分步指南</strong> 按钮随时可以再打开它们。</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s2.h">打开“允许其他设备访问”</h3>
+        <p data-i18n="ph.s2.p">你不打开它就一直关着。关着的时候，Xenon 只回应这台电脑，别的一概不理。就算有人扫描你的网络，得到的回应和一个根本没有这个功能的版本完全一样，看不出这个功能存在。</p>
+        <div class="ui">
+          <div class="ui-row">
+            <span class="sw on"></span>
+            <span class="ui-txt"><strong data-i18n="ph.s2.sw">允许其他设备访问</strong><span data-i18n="ph.s2.swsub">关着的时候，Xenon 只回应这台电脑。</span></span>
+          </div>
+        </div>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s3.h">按“添加设备”</h3>
+        <p data-i18n="ph.s3.p">电脑上会出现一个二维码，下面还有八位字符的验证码。它是一张邀请函，不是密码。三分钟就过期，错几次就直接作废。</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s4.h">用手机摄像头扫一下</h3>
+        <p data-i18n="ph.s4.p">仪表盘就在手机浏览器里打开了。设置到此结束。你没装任何东西，验证码也从没到过任何服务器，因为它藏在浏览器不会往外发的那一段地址里。</p>
+      </li>
+    </ol>
+    <p class="note" data-i18n="ph.home.note">两台设备必须在同一个 Wi-Fi 下。如果路由器开了客户端隔离，或者你连的是访客网络，那么即使在同一个 Wi-Fi 下也互相看不见。</p>
+
+    <h2 data-i18n="ph.h.away">在任何地方，还能当应用用</h2>
+    <p data-i18n="ph.away.1">在普通 HTTP 下，浏览器会扣住一整批能力，怎么设计都拿不回来：页面装不成应用，用不了麦克风，也收不到通知。这才是第二条路存在的真正原因，跟距离无关。</p>
+    <p data-i18n-html="ph.away.2">为此 Xenon 用了 <a href="https://tailscale.com" rel="noopener">Tailscale</a>。你的电脑和手机加入一个只属于你的小型专用网络，仪表盘拿到一张真证书和一个永远不变的地址，而且<strong>路由器上一个端口都不用开</strong>。这个地址在公共 DNS 里根本不存在，外面没有任何东西可以被找到。</p>
+
+    <div class="card accent">
+      <h3 data-i18n="ph.card.h">按一个按钮，剩下的交给 Xenon</h3>
+      <p data-i18n-html="ph.card.1">在同一个面板里，<strong>安全访问，在外也能用</strong> 下面有一个按钮。它会装好 Tailscale，打开登录页面，等你登录完，然后自己把安全连接建起来。</p>
+      <div class="ui">
+        <div class="ui-row">
+          <span class="sw on"></span>
+          <span class="ui-txt"><strong data-i18n="ph.card.sw">安全访问，在外也能用</strong><span data-i18n="ph.card.swsub">走 Tailscale 加 HTTPS。可以装成应用，还能用麦克风和通知。</span></span>
+        </div>
+        <div class="ui-row"><span class="ui-btn" data-i18n="ph.card.btn">帮我设置</span></div>
+      </div>
+      <p data-i18n-html="ph.card.2"><strong>中间会停一次，这是故意的。</strong> 证书是整个专用网络的设置，要在 Tailscale 自己的网站上改。Xenon 也可以替你改，但那需要你先在同一个网站上生成一把密钥，步骤反而更多。所以 Xenon 就停在那里，把链接给你，等你弄完它自己会发现。窗口开着不用管。</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="ph.t1.h">按“帮我设置”</h3>
+        <p data-i18n="ph.t1.p">系统会问你要不要允许安装 Tailscale。然后会打开一个浏览器标签让你登录。Google、Microsoft 或 GitHub 账号都行，你并不是在注册 Xenon 账号。</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t2.h">打开 HTTPS 证书</h3>
+        <p data-i18n-html="ph.t2.p">这是唯一一步 Xenon 替不了你。它提示的时候，按它给出的按钮，会打开 <code>login.tailscale.com/admin/dns</code>。往下找到 <strong>HTTPS Certificates</strong>，按 <strong>Enable</strong>。任何套餐都免费。然后回到 Xenon，它已经自己往下走了。</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t3.h">用同一个账号在手机上装 Tailscale</h3>
+        <p data-i18n-html="ph.t3.p">从 App Store 或 Google Play 装好，用<strong>刚才那个账号</strong>登录，再把开关打开。这一步最容易被漏掉，症状也很好认：手机会说根本打不开这个地址。这不是坏了。那个地址只存在于你自己的网络里，这也正是互联网上没人能碰到它的原因。</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t4.h">在新地址上重新配对手机</h3>
+        <p data-i18n-html="ph.t4.p">按 <strong>添加设备</strong> 再扫一次。浏览器会把配对绑在当时那个地址上，所以在家里地址配过的手机，在安全地址上并没有配过。之后你只需要新地址：在家在外都能用。</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t5.h">把它加到主屏幕</h3>
+        <p data-i18n-html="ph.t5.p">在 Safari 里点分享，选 <strong>添加到主屏幕</strong>。Android 上 Chrome 会主动提示安装。之后 Xenon 会用自己的图标全屏打开，没有地址栏。这里麦克风可以用，所以 Xenon AI 能通过手机听，而不是通过电脑。通知也可以用：在设置里进入手机，为这台设备打开通知，倒计时结束时就算应用关着也能通知到你。</p>
+      </li>
+    </ol>
+
+    <h2 data-i18n="ph.h.trouble">遇到问题的时候</h2>
+    <details>
+      <summary data-i18n="ph.q1">手机说打不开这个地址</summary>
+      <div class="body"><p data-i18n-html="ph.a1">几乎都是手机还没进到你的专用网络里。在手机上打开 Tailscale，确认开关真的是<strong>开着</strong>的，光装上应用不算。iPhone 上开着的时候状态栏会显示 <strong>VPN</strong>。再确认一下你用的是和电脑同一个账号，两个账号就是两个网络，互相看不见。</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q2">组件显示成一个白框加一堆纯文字</summary>
+      <div class="body"><p data-i18n="ph.a2">在 iPhone 和 iPad 上，4.11 之前每次都会这样：一条安全规则让组件加载不了自己的样式，而且只在 Safari 上发生，所以同一个组件在电脑上看着好好的。更新 Xenon 就没有了。如果更新后还有，说明页面跑的代码比电脑上的旧：通常是更新前就开着的标签页，被系统从内存里恢复出来而没有重新加载。下拉刷新往往不够，把标签页整个关掉，再重新打开地址。</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q3">之前好好的，现在手机变成没配对了</summary>
+      <div class="body"><p data-i18n="ph.a3">多半是路由器给电脑换了地址。配对是跟着当时那个地址走的，地址一变，手机看上去就成了没配对，得重新添加。两个办法：在路由器设置里给电脑固定一个地址，或者用上面那条安全的路，它的地址永远不变。</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q4">装好的应用又让我配对一次</summary>
+      <div class="body"><p data-i18n="ph.a4">在 iPhone 上，加到主屏幕的应用有自己独立的存储，和 Safari 分开，所以你在浏览器里做的配对不会跟过去。再生成一个码，从装好的应用里配一次。它会在设备列表里单独占一行，你可以给两个都改名以便区分。</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q5">Xenon 说 HTTPS 证书没有启用</summary>
+      <div class="body"><p data-i18n-html="ph.a5">这是整个专用网络的设置，不是这台电脑的。打开 <a href="https://login.tailscale.com/admin/dns" rel="noopener">login.tailscale.com/admin/dns</a>，找到 <strong>HTTPS Certificates</strong>，按 <strong>Enable</strong>。几秒钟内 Xenon 就会发现。</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q6">平板上显示的是桌面版布局，我想要堆叠的那种</summary>
+      <div class="body"><p data-i18n-html="ph.a6">这是故意的。平板足够大，放得下真正的网格，而这本来就是用平板的意义；iPad 无论怎么拿都远超过切换的尺寸线。如果你在某台设备上更喜欢堆叠布局，可以自己选，Xenon 会<em>只在那台设备上</em>记住这个选择。它不会传到电脑上，也不会覆盖你保存好的布局。</p></div>
+    </details>
+
+    <h2 data-i18n="ph.h.not">它不做什么</h2>
+    <p data-i18n="ph.not.1">没有 Xenon 账号，中间没有我们的服务器，仪表盘上的任何内容都不会被上传到任何地方。在自家 Wi-Fi 下这条连接是不加密的，所以面板里会提醒你在信任的网络里使用，而那条安全的路存在的意义就是解决这一点。Tailscale 是你自己选择加进来的第三方公司，适用它自己的隐私条款，而 Xenon 从它那里只取你自己这台机器的地址和证书。</p>
+    <p data-i18n-html="ph.not.2">Xenon 还会发送什么、不会发送什么，都写在<a href="/privacy.html">隐私页面</a>上。</p>
+
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+
+</body>
+</html>
