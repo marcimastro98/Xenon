@@ -3,6 +3,16 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+### 🐛 Fixed
+- **Performance Mode no longer stays on forever when you start it with no game open.** Pressing **Optimize** on the System tile while you were just using the desktop started a session with nothing to end it: it only knew how to stop when the game it was started for closed, and there was no game. It stayed on for days, with animations paused, the Windows power plan on High and the heavy tiles paused, and nothing on the dashboard showed it. Now a session like that ends by itself after 20 minutes in which no game runs and none of the activities you ticked in **Settings → Performance** is in front, with the usual "settings restored" notice. A session started for a game still ends when you close the game.
+
+  While a session is on, the **Optimize** button on the System tile turns into a filled **Restore** button, so you can see it is on and turn it off with one tap.
+
+- **The Browser widget no longer ignores what you type while Performance Mode is on.** With the mode active and **Pause heavy tiles while gaming** switched on (the default), the tile stopped loading pages without saying why: you typed an address, pressed Enter, and got a spinner or a black panel. Now the tile says it is paused and has a **Show anyway** button. Typing an address and pressing Enter also brings it back, because that is you asking for the page. It goes back to pausing the next time Performance Mode turns on.
+
+  The **Second screen** and **Cameras** tiles pause for the same reason, and they did it just as quietly: the second screen held its last frame, and the cameras kept their last snapshot, which on a camera looks like nothing is happening. Both now say they are paused and have the same **Show anyway** button. The camera snapshots also dim while paused, and opening a camera full size resumes the tile, so the big view is never a frozen image.
+
 ## [v4.11.10] - 26-09-2026
 ### ✨ Added
 - **Xenon AI can use your Claude or ChatGPT subscription instead of an API key.** Two new providers in **Settings → Xenon AI**: **Claude Code** and **Codex**. Xenon AI then answers through the official Claude Code or Codex program installed on your PC, signed in with your own Claude or ChatGPT plan, so there is nothing to pay per message.

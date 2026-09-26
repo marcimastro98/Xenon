@@ -131,6 +131,31 @@
 }
 .ss-loading[hidden] { display: none; }
 
+/* Paused by performance mode: a message plus a "Show anyway" button over the
+   last frame. The overlay is click-through by default, so this turns it back on. */
+.ss-loading.is-paused {
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+.ss-paused-resume {
+  min-height: 36px;
+  padding: 7px 16px;
+  border: 1px solid rgba(var(--accent-rgb, 90 130 255), 0.5);
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb, 90 130 255), 0.14);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ss-paused-resume:hover { background: rgba(var(--accent-rgb, 90 130 255), 0.24); }
+
 /* Guided setup / unavailable card */
 .ss-setup {
   align-items: center;

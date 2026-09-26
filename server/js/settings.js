@@ -7895,6 +7895,13 @@ function optimizePerformanceNow() {
   if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
 }
 
+// The System tile's button: optimize when nothing runs, restore when a session
+// does (performance.js relabels it to match).
+function togglePerformanceFromSystem() {
+  const p = normalizePerformance(hubSettings.performance);
+  if (p.active) restorePerformance(); else optimizePerformanceNow();
+}
+
 function restorePerformance() {
   if (window.PerfMode && typeof window.PerfMode.restore === 'function') window.PerfMode.restore();
 }
