@@ -274,7 +274,8 @@ h1 {
 .hero-act .key { min-width: min(100%, 330px); }
 .facts { margin: 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 .act-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 16px; }
-.proof { margin: 0; font-size: 15.5px; color: var(--fg-2); min-height: 1.45em; }
+.proof { margin: 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); min-height: 1.45em; max-width: 36ch; }
+.proof b { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
 .for-phone { display: none; }
 .lang-hint { display: inline-block; margin-bottom: 14px; font-size: 16px; font-weight: 600; }
 
@@ -359,10 +360,10 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .ws-list { grid-row: 3; list-style: none; margin: 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 20px; }
 .ws-list li { display: flex; align-items: center; gap: 10px; min-height: 36px; font: 400 16.5px/1.25 var(--f-text); color: var(--fg); min-width: 0; }
 .ws-list svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--fg-3); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.ws-end { margin-top: clamp(48px, 5vw, 72px); display: grid; gap: 10px; max-width: 72ch; }
-.ws-end p { margin: 0; font-size: 17px; line-height: 1.55; color: var(--fg-2); }
-.ws-more a { color: var(--fg); font-weight: 700; margin-left: 14px; text-underline-offset: 0.18em; white-space: nowrap; }
-.ws-more a:first-of-type { margin-left: 4px; }
+.ws-end { margin-top: clamp(48px, 5vw, 72px); display: grid; gap: 12px; }
+.ws-end p { margin: 0; font-size: 18px; line-height: 1.5; color: var(--fg-2); max-width: 60ch; }
+.ws-end .ws-links { display: flex; flex-wrap: wrap; gap: 6px 30px; }
+.ws-links a { display: inline-flex; align-items: center; min-height: 40px; color: var(--fg); font-weight: 700; text-underline-offset: 0.2em; }
 
 /* Controls: four names, one fact each. Text only, no boxes. */
 .ctl { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 40px 24px; }
@@ -412,36 +413,38 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
    film poster: the three largest contributions biggest, then the active
    members, then everyone else, each tier under its own small label, all on
    one left edge. Type only; the one colour is the underline of "Your name". */
-.bill { margin: 0 0 clamp(56px, 6vw, 88px); display: grid; gap: clamp(26px, 2.6vw, 38px); }
-.bill-tier { min-width: 0; }
-.bill-lab { margin: 0 0 8px; font: 600 15px/1.3 var(--f-text); color: var(--fg-2); letter-spacing: 0; }
-.bill ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.5em; row-gap: 0.12em; }
+.bill { --blue: #008DFF; margin: 0 0 clamp(56px, 6vw, 84px); display: grid; row-gap: clamp(22px, 2.2vw, 30px); }
+.bill-tier { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; align-items: baseline; min-width: 0; }
+.bill-lab { grid-column: 1 / span 3; margin: 0; font: 600 15.5px/1.3 var(--f-text); color: var(--fg-2); letter-spacing: 0; }
+.bill ul { grid-column: 4 / -1; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.55em; row-gap: 0.1em; min-width: 0; }
 .bill li { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
-.bill-t1 ul { font: 800 clamp(44px, 5.4vw, 88px)/0.98 var(--f-display); letter-spacing: -0.024em; column-gap: 0.42em; }
-.bill-t2 ul { font: 700 clamp(28px, 2.3vw + 6px, 44px)/1.15 var(--f-display); letter-spacing: -0.012em; }
-.bill-t3 ul { font: 400 clamp(22px, 1.1vw + 11px, 28px)/1.3 var(--f-display); color: var(--fg); }
+.bill-t1 ul { font: 800 clamp(34px, 3.3vw, 52px)/1.02 var(--f-display); letter-spacing: -0.02em; column-gap: 0.45em; }
+.bill-t2 ul { font: 700 clamp(22px, 1.1vw + 10px, 28px)/1.3 var(--f-display); letter-spacing: -0.006em; }
+.bill-t3 ul { font: 400 clamp(18px, 0.5vw + 12px, 21px)/1.55 var(--f-text); color: var(--fg); column-gap: 0.7em; }
 .bill .us { letter-spacing: -0.09em; margin-right: 0.09em; }
-.bill-you a { color: var(--fg-2); text-decoration: underline; text-decoration-color: var(--lit); text-decoration-thickness: 2px; text-underline-offset: 0.2em; }
+.bill-you a { color: var(--fg-2); text-decoration: underline; text-decoration-color: var(--blue); text-decoration-thickness: 2px; text-underline-offset: 0.22em; }
 .bill-you a:hover { color: var(--fg); }
-.bill-note { margin: 0; font-size: 15.5px; line-height: 1.5; color: var(--fg-3); max-width: 76ch; }
+.bill-note { grid-column: 4 / -1; margin: 0; font-size: 15.5px; line-height: 1.5; color: var(--fg-3); max-width: 76ch; }
+.bill-foot { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; }
 
 /* The three offers, on one surface, each closing on a key: the recommended
    one lit, the other two the Deck's dark caps. */
-.tiers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; }
-.tier { display: flex; flex-direction: column; gap: 6px; padding: 26px 26px 26px; text-decoration: none; color: var(--fg); background: var(--room-2); border-radius: 14px; transition: background-color .15s; }
-.tier:hover { background: var(--room-3); text-decoration: none; }
-.tier-price { font: 780 46px/1 var(--f-display); letter-spacing: -0.015em; }
-.tier-price small { font: 600 17px/1 var(--f-text); color: var(--fg-2); margin-left: 6px; letter-spacing: 0; }
-.tier-name { font: 700 19px/1.3 var(--f-text); margin-top: 6px; }
-.tier-what { font-size: 16px; line-height: 1.5; color: var(--fg-2); margin-bottom: 18px; }
-.tier-go { margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center; min-height: 50px; padding: 0 26px; border-radius: 12px;
-  font: 700 18px/1 var(--f-display); letter-spacing: 0.004em; color: #E7E9EE;
-  background: radial-gradient(135% 90% at 50% -16%, rgba(255,255,255,.14), transparent 52%), linear-gradient(180deg, #1D212A, #14171F 58%, #0C0E14);
-  border: 1px solid #000; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -4px 8px rgba(0,0,0,.45), 0 10px 20px -14px rgba(0,0,0,.7);
-  transition: transform .11s cubic-bezier(.2,.8,.2,1), filter .15s; }
-.tier.pick .tier-go { color: #fff; background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
-  border-color: color-mix(in oklab, var(--lit) 70%, #000); box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38), 0 12px 24px -16px rgba(0,0,0,.75); }
-.tier:hover .tier-go { filter: brightness(1.12); }
+.tiers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); background: var(--room-2); border-radius: 16px; overflow: hidden; }
+.tier { --lit: #008DFF; display: flex; flex-direction: column; padding: 30px 30px 30px; text-decoration: none; color: var(--fg); transition: background-color .15s; }
+.tier + .tier { box-shadow: inset 1px 0 0 var(--room-3); }
+.tier:hover { background: color-mix(in oklab, var(--room-3) 45%, var(--room-2)); text-decoration: none; }
+.tier-name { order: -1; font: 700 18px/1.3 var(--f-text); }
+.tier-price { margin-top: 10px; font: 780 44px/1 var(--f-display); letter-spacing: -0.015em; }
+.tier-price small { font: 600 16.5px/1 var(--f-text); color: var(--fg-2); margin-left: 6px; letter-spacing: 0; }
+.tier-what { margin: 14px 0 26px; font-size: 16px; line-height: 1.5; color: var(--fg-2); max-width: 40ch; }
+.tier-go { margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; min-width: 150px; padding: 0 24px; border-radius: 12px;
+  font: 700 17px/1 var(--f-display); letter-spacing: 0.004em; color: var(--fg); border: 1.5px solid color-mix(in oklab, var(--fg) 34%, transparent);
+  transition: border-color .15s, transform .11s cubic-bezier(.2,.8,.2,1), filter .15s; }
+.tier:hover .tier-go { border-color: var(--fg); }
+.tier.pick .tier-go { color: #fff; border: 1px solid color-mix(in oklab, var(--lit) 70%, #000); background-color: #104D82;
+  background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38), 0 12px 24px -16px rgba(0,0,0,.6); }
+.tier.pick:hover .tier-go { filter: brightness(1.1); }
 .tier:active .tier-go { transform: translateY(2px) scale(.985); }
 .sup-note { margin: 22px 0 0; font-size: 16px; color: var(--fg-2); max-width: 70ch; }
 
@@ -492,7 +495,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .menu-btn { display: inline-flex; }
   .hero-copy { grid-column: 1 / span 7; }
   .hero-act { grid-column: 8 / span 5; }
-  .tiers, .inst { grid-template-columns: 1fr; max-width: 640px; }
+  .inst { grid-template-columns: 1fr; max-width: 640px; }
+  .tiers { grid-template-columns: 1fr; max-width: 640px; }
+  .tier + .tier { box-shadow: inset 0 1px 0 var(--room-3); }
+  .bill-lab { grid-column: 1 / -1; margin-bottom: 6px; }
+  .bill ul, .bill-note { grid-column: 1 / -1; }
   .ws-shot { grid-column: 1 / span 7; }
   .ws-cat, .ws-lede, .ws-list { grid-column: 8 / span 5; }
   .ws-list { grid-template-columns: 1fr; }
@@ -546,8 +553,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .shelf { grid-template-columns: 1fr; gap: 36px; }
   .ws-list { column-gap: 14px; }
   .ws-list li { font-size: 15.5px; gap: 9px; }
-  .ws-more a { display: inline-block; margin: 6px 16px 0 0; }
-  .ws-more a:first-of-type { margin-left: 0; }
   .shelf .item:nth-child(n+5) { display: none; }
   .sdk-tile { height: 150px; }
   .sdk-code { height: 220px; font-size: 13.5px; }
@@ -775,8 +780,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       </div>
       </div>
       <div class="ws-end">
-        <p data-i18n="ws.end.p">レイアウトモードでは、各ページの＋から全ウィジェットの一覧が開きます。ウィジェットは別のウィジェットのタブにもでき、システムの中に音量とマイクが入っているのがその例です。</p>
-        <p class="ws-more"><span data-i18n="ws.more">この41個に加えて、カタログのウィジェットや、自分で作ったウィジェットも使えます。コードなしでも作れます。</span> <a href="/catalog/" data-i18n="cat.more">カタログを見る</a> <a href="/create/#widgets" data-i18n="ws.make">ウィジェットを作る</a></p>
+        <p data-i18n="ws.more">この41個に加えて、カタログのウィジェットや、自分で作ったウィジェットも使えます。コードなしでも作れます。</p>
+        <p class="ws-links"><a href="/catalog/" data-i18n="cat.more">カタログを見る</a><a href="/create/#widgets" data-i18n="ws.make">ウィジェットを作る</a></p>
       </div>
     </div>
   </section>
@@ -1142,9 +1147,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "fact.macos": "macOS 11 or later, Apple silicon and Intel. Beta, not notarized yet.",
     "fact.linux": "x86_64, as an AppImage. Beta. The .deb and .rpm are under Install.",
     "fact.version": "Version {v}.",
+    "p.dl": "{n} downloads",
+    "p.st": "{n} stars on GitHub",
+    "p.dc": "{n} people on Discord",
+    "p.end": ".",
     "hero.alt": "Mac and Linux (beta)",
-    "proof.both": "{s} stars on GitHub and {m} people on Discord.",
-    "proof.stars": "{s} stars on GitHub.",
     "send.btn": "Send the link to my PC",
     "send.copy": "Copy the link",
     "send.mail": "Email it to me",
@@ -1189,7 +1196,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU, GPU, memory, disk and network with their history, the real frame rate inside games, and then audio, lights, smart home and cameras.",
     "ws.media.p": "What is playing in any player, with its controls, and your streams: Twitch, YouTube, OBS, Discord, Streamer.bot and Wave Link.",
     "ws.prod.p": "Your events, also from .ics feeds, with tasks, timers and notes in the same tile, and then weather, news, stocks and football.",
-    "ws.end.p": "In Layout mode the + on every page opens the full list. A widget can also sit inside another as a tab, like Volume and Microphone inside System.",
     "ws.more": "Beyond these 41: the widgets in the catalog, and the ones you make, also without code.",
     "ws.make": "Make a widget",
     "cat.prod": "Productivity",
@@ -1354,9 +1360,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "fact.macos": "macOS 11 o successivo, Apple silicon e Intel. Beta, non ancora notarizzata.",
     "fact.linux": "x86_64, come AppImage. Beta. I pacchetti .deb e .rpm sono in Installazione.",
     "fact.version": "Versione {v}.",
+    "p.dl": "{n} download",
+    "p.st": "{n} stelle su GitHub",
+    "p.dc": "{n} persone su Discord",
+    "p.end": ".",
     "hero.alt": "Mac e Linux (beta)",
-    "proof.both": "{s} stelle su GitHub e {m} persone su Discord.",
-    "proof.stars": "{s} stelle su GitHub.",
     "send.btn": "Manda il link al mio PC",
     "send.copy": "Copia il link",
     "send.mail": "Mandamelo via email",
@@ -1401,7 +1409,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU, GPU, memoria, disco e rete con lo storico, gli FPS reali dentro i giochi, e poi audio, luci, casa smart e telecamere.",
     "ws.media.p": "Cosa suona in qualsiasi lettore, con i comandi, e le tue dirette: Twitch, YouTube, OBS, Discord, Streamer.bot e Wave Link.",
     "ws.prod.p": "I tuoi eventi, anche da feed .ics, con attività, timer e note nello stesso riquadro, e poi meteo, notizie, borsa e calcio.",
-    "ws.end.p": "In modalità Layout il + di ogni pagina apre l’elenco completo. Un widget può anche entrare come scheda in un altro, come Volume e Microfono dentro Sistema.",
     "ws.more": "Oltre a questi 41, i widget del catalogo e quelli che fai tu, anche senza codice.",
     "ws.make": "Crea un widget",
     "cat.prod": "Produttività",
@@ -1566,9 +1573,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "fact.macos": "macOS 11 o posterior, Apple silicon e Intel. Beta, todavía sin notarizar.",
     "fact.linux": "x86_64, como AppImage. Beta. Los paquetes .deb y .rpm están en Instalación.",
     "fact.version": "Versión {v}.",
+    "p.dl": "{n} descargas",
+    "p.st": "{n} estrellas en GitHub",
+    "p.dc": "{n} personas en Discord",
+    "p.end": ".",
     "hero.alt": "Mac y Linux (beta)",
-    "proof.both": "{s} estrellas en GitHub y {m} personas en Discord.",
-    "proof.stars": "{s} estrellas en GitHub.",
     "send.btn": "Enviar el enlace a mi PC",
     "send.copy": "Copiar el enlace",
     "send.mail": "Enviármelo por correo",
@@ -1613,7 +1622,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU, GPU, memoria, disco y red con su historial, los FPS reales dentro de los juegos, y además audio, luces, casa inteligente y cámaras.",
     "ws.media.p": "Lo que suena en cualquier reproductor, con sus controles, y tus directos: Twitch, YouTube, OBS, Discord, Streamer.bot y Wave Link.",
     "ws.prod.p": "Tus eventos, también de feeds .ics, con tareas, temporizadores y notas en el mismo panel, y además tiempo, noticias, bolsa y fútbol.",
-    "ws.end.p": "En el modo Diseño, el + de cada página abre la lista completa. Un widget también puede ir dentro de otro como pestaña, como Volumen y Micrófono dentro de Sistema.",
     "ws.more": "Además de estos 41, los widgets del catálogo y los que hagas tú, también sin código.",
     "ws.make": "Crear un widget",
     "cat.prod": "Productividad",
@@ -1778,9 +1786,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "fact.macos": "macOS 11以降、Apple siliconとIntelに対応。ベータ版で、まだ公証されていません。",
     "fact.linux": "x86_64用のAppImage。ベータ版。.debと.rpmは「インストール」にあります。",
     "fact.version": "バージョン{v}。",
+    "p.dl": "ダウンロード {n} 回",
+    "p.st": "GitHub のスター {n}",
+    "p.dc": "Discord の参加者 {n} 人",
+    "p.end": "。",
     "hero.alt": "MacとLinux（ベータ版）",
-    "proof.both": "GitHubのスターは{s}個、Discordの参加者は{m}人です。",
-    "proof.stars": "GitHubのスターは{s}個です。",
     "send.btn": "自分のPCにリンクを送る",
     "send.copy": "リンクをコピー",
     "send.mail": "メールで自分に送る",
@@ -1825,7 +1835,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU、GPU、メモリ、ディスク、ネットワークを履歴つきで表示し、ゲーム内の実際のFPSも。さらにオーディオ、ライト、スマートホーム、カメラ。",
     "ws.media.p": "どのプレーヤーで再生中の曲もコントロールつきで表示。配信はTwitch、YouTube、OBS、Discord、Streamer.bot、Wave Link。",
     "ws.prod.p": "予定は.icsフィードからも取り込み、タスク、タイマー、メモと同じタイルに。さらに天気、ニュース、株価、サッカー。",
-    "ws.end.p": "レイアウトモードでは、各ページの＋から全ウィジェットの一覧が開きます。ウィジェットは別のウィジェットのタブにもでき、システムの中に音量とマイクが入っているのがその例です。",
     "ws.more": "この41個に加えて、カタログのウィジェットや、自分で作ったウィジェットも使えます。コードなしでも作れます。",
     "ws.make": "ウィジェットを作る",
     "cat.prod": "生産性",
@@ -1990,9 +1999,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "fact.macos": "macOS 11 이상, Apple 실리콘 및 Intel. 베타이며 아직 공증되지 않았습니다.",
     "fact.linux": "x86_64용 AppImage. 베타. .deb와 .rpm 패키지는 설치 항목에 있습니다.",
     "fact.version": "버전 {v}.",
+    "p.dl": "다운로드 {n}회",
+    "p.st": "GitHub 스타 {n}개",
+    "p.dc": "Discord 멤버 {n}명",
+    "p.end": ".",
     "hero.alt": "Mac과 Linux(베타)",
-    "proof.both": "GitHub 스타 {s}개, Discord 멤버 {m}명.",
-    "proof.stars": "GitHub 스타 {s}개.",
     "send.btn": "내 PC로 링크 보내기",
     "send.copy": "링크 복사",
     "send.mail": "이메일로 보내기",
@@ -2037,7 +2048,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU, GPU, 메모리, 디스크, 네트워크를 기록과 함께 보여 주고 게임 속 실제 FPS도 보여 줍니다. 그 밖에 오디오, 조명, 스마트 홈, 카메라.",
     "ws.media.p": "어느 플레이어에서 재생 중인 곡이든 컨트롤과 함께 보여 주고, 방송은 Twitch, YouTube, OBS, Discord, Streamer.bot, Wave Link.",
     "ws.prod.p": ".ics 피드까지 포함한 일정과 할 일, 타이머, 메모를 한 타일에. 그 밖에 날씨, 뉴스, 주식, 축구.",
-    "ws.end.p": "레이아웃 모드에서 각 페이지의 +를 누르면 전체 목록이 열립니다. 위젯을 다른 위젯 안에 탭으로 넣을 수도 있습니다. 시스템 안의 볼륨과 마이크처럼요.",
     "ws.more": "이 41개 외에도 카탈로그의 위젯과 직접 만든 위젯을 쓸 수 있고, 코드 없이도 만들 수 있습니다.",
     "ws.make": "위젯 만들기",
     "cat.prod": "생산성",
@@ -2202,9 +2212,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "fact.macos": "macOS 11 或更高版本，支持 Apple 芯片和 Intel。Beta 版，尚未公证。",
     "fact.linux": "x86_64，AppImage 格式。Beta 版。.deb 和 .rpm 包见“安装”部分。",
     "fact.version": "版本 {v}。",
+    "p.dl": "{n} 次下载",
+    "p.st": "GitHub 上 {n} 颗星",
+    "p.dc": "Discord 上 {n} 人",
+    "p.end": "。",
     "hero.alt": "Mac 和 Linux（Beta）",
-    "proof.both": "GitHub 上有 {s} 颗星，Discord 上有 {m} 人。",
-    "proof.stars": "GitHub 上有 {s} 颗星。",
     "send.btn": "把链接发到我的电脑",
     "send.copy": "复制链接",
     "send.mail": "通过电子邮件发给我",
@@ -2249,7 +2261,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU、GPU、内存、磁盘和网络，附带历史记录，还有游戏内的真实帧率；此外还有音频、灯光、智能家居和摄像头。",
     "ws.media.p": "任何播放器正在播放的内容，带控制按钮；还有你的直播：Twitch、YouTube、OBS、Discord、Streamer.bot 和 Wave Link。",
     "ws.prod.p": "你的日程（也支持 .ics 订阅），和任务、计时器、笔记放在同一个磁贴里；此外还有天气、新闻、股票和足球。",
-    "ws.end.p": "在布局模式下，每一页的 + 会打开完整列表。小组件也可以作为标签页放进另一个小组件，比如“系统”里的音量和麦克风。",
     "ws.more": "除了这 41 个，还有目录里的小组件和你自己做的小组件，无需代码也能做。",
     "ws.make": "制作小组件",
     "cat.prod": "效率",
@@ -2691,27 +2702,64 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 </script>
 
 <script>
-  // Live numbers under the key, from public APIs. Each one stays hidden until it
-  // has a real value, so a failure is a shorter line and never a zero.
-  (async function () {
+  // Live numbers under the key, from public APIs: installer downloads, GitHub
+  // stars and Discord members. Each is fetched on its own, cached for the
+  // session (GitHub allows 60 anonymous calls an hour per address), and shown
+  // as soon as it lands; a failure makes the line shorter, never a zero.
+  (function () {
     const proof = document.getElementById('proof');
     const facts = document.getElementById('hero-facts');
-    const fmt = (n) => new Intl.NumberFormat(window.XLANG || 'en').format(n);
-    const j = (u) => fetch(u, { cache: 'force-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const [repo, rel, inv] = await Promise.all([
-      j('https://api.github.com/repos/marcimastro98/Xenon'),
-      j('https://api.github.com/repos/marcimastro98/Xenon/releases/latest'),
-      j('https://discord.com/api/v10/invites/MBVrw9kZyg?with_counts=true'),
-    ]);
-    if (rel && rel.tag_name && facts) {
-      const v = String(rel.tag_name).replace(/^v/, '');
-      facts.textContent = facts.textContent.replace(/\s*$/, '') + ' ' + window.XT('fact.version').replace('{v}', v);
+    const lang = document.documentElement.lang || 'en';
+    const REPO = 'https://api.github.com/repos/marcimastro98/Xenon';
+    const fmt = (n) => { try { return new Intl.NumberFormat(lang, { useGrouping: true }).format(n); } catch (e) { return String(n); } };
+    const j = (u) => fetch(u, { headers: { Accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const cached = (key, load) => {
+      try { const v = sessionStorage.getItem(key); if (v) return Promise.resolve(JSON.parse(v)); } catch (e) {}
+      return load().then((v) => { if (v != null) { try { sessionStorage.setItem(key, JSON.stringify(v)); } catch (e) {} } return v; });
+    };
+    const got = { 'p.dl': null, 'p.st': null, 'p.dc': null };
+    function paint() {
+      if (!proof) return;
+      const parts = Object.keys(got).filter((k) => got[k]).map((k) => window.XT(k).replace('{n}', '\u0001' + fmt(got[k]) + '\u0002'));
+      if (!parts.length) return;
+      let line;
+      try { line = new Intl.ListFormat(lang, { style: 'long', type: 'conjunction' }).format(parts); } catch (e) { line = parts.join(', '); }
+      proof.textContent = '';
+      (line + window.XT('p.end')).split(/(\u0001[^\u0002]*\u0002)/).forEach((bit) => {
+        if (!bit) return;
+        if (bit.charAt(0) === '\u0001') { const b = document.createElement('b'); b.textContent = bit.slice(1, -1); proof.appendChild(b); }
+        else proof.appendChild(document.createTextNode(bit));
+      });
     }
-    const stars = repo && repo.stargazers_count, members = inv && inv.approximate_member_count;
-    const gh = document.getElementById('gh-stars');
-    if (gh && stars) { gh.querySelector('.n').textContent = fmt(stars); gh.hidden = false; }
-    if (proof && stars && members) proof.textContent = window.XT('proof.both').replace('{s}', fmt(stars)).replace('{m}', fmt(members));
-    else if (proof && stars) proof.textContent = window.XT('proof.stars').replace('{s}', fmt(stars));
+    cached('xenon.site.v', () => j(REPO + '/releases/latest').then((r) => (r && r.tag_name ? String(r.tag_name).replace(/^v/, '') : null))).then((v) => {
+      if (v && facts) facts.textContent = facts.textContent.replace(/\s*$/, '') + ' ' + window.XT('fact.version').replace('{v}', v);
+    });
+    cached('xenon.site.stars', () => j(REPO).then((r) => (r && typeof r.stargazers_count === 'number' ? r.stargazers_count : null))).then((n) => {
+      if (!n) return;
+      got['p.st'] = n; paint();
+      const gh = document.getElementById('gh-stars');
+      if (gh) { gh.querySelector('.n').textContent = fmt(n); gh.hidden = false; }
+    });
+    // Installers only, counted the way the old page did: a release that has the
+    // stable-named files (the ones the site links) counts only those, so the
+    // app's own updater, which fetches the version-stamped files, is not a
+    // person installing Xenon; older releases fall back to the name shape.
+    const STABLE = /^Xenon-(Setup-x64\.exe|macOS-universal\.dmg|Linux-x86_64\.(AppImage|deb|rpm))$/i;
+    const SHAPE = /setup|\.(dmg|appimage|deb|rpm)$/i;
+    cached('xenon.site.dl', () => j(REPO + '/releases?per_page=100').then((all) => {
+      if (!Array.isArray(all)) return null;
+      let total = 0;
+      for (const r of all) {
+        if (!r || r.draft) continue;
+        const assets = (r.assets || []).filter((x) => x && !/\.sig$/i.test(x.name));
+        const stable = assets.some((x) => STABLE.test(x.name));
+        for (const x of assets) if (stable ? STABLE.test(x.name) : SHAPE.test(x.name)) total += x.download_count || 0;
+      }
+      return total || null;
+    })).then((n) => { if (n) { got['p.dl'] = n; paint(); } });
+    cached('xenon.site.discord', () => j('https://discord.com/api/v10/invites/MBVrw9kZyg?with_counts=true').then((r) => (r && r.approximate_member_count) || null)).then((n) => {
+      if (n) { got['p.dc'] = n; paint(); }
+    });
   })();
 </script>
 
@@ -2857,7 +2905,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       let when = '';
       const g = data && Date.parse(data._generated || '');
       if (g) { try { when = new Intl.DateTimeFormat(document.documentElement.lang || 'en', { day: 'numeric', month: 'long' }).format(new Date(g)); } catch (e) {} }
-      root.appendChild(el('p', 'bill-note', (when ? window.XT('bill.when').replace('{d}', when) + ' ' : '') + window.XT('bill.note')));
+      const foot = el('div', 'bill-foot');
+      foot.appendChild(el('p', 'bill-note', (when ? window.XT('bill.when').replace('{d}', when) + ' ' : '') + window.XT('bill.note')));
+      root.appendChild(foot);
       root.hidden = false;
     }).catch(() => {});
   })();
