@@ -26,10 +26,10 @@ const ICON = {
 
 // Labels carry data-xl keys; docs/chrome.js swaps them into the page language.
 const NAV = [
-  ['/#screens', 'screens', 'Screens'],
   ['/#widgets', 'widgets', 'Widgets'],
   ['/demo/', 'demo', 'Demo'],
-  ['/catalog/', 'themes', 'Themes'],
+  ['/catalog/', 'catalog', 'Catalog'],
+  ['/create/', 'create', 'Create'],
   ['/#support', 'support', 'Support'],
   ['/faq.html', 'help', 'Help'],
 ];
@@ -64,7 +64,7 @@ export function headerHtml({ lang = false } = {}) {
       <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
     </div>
   </div>
-  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul>${items}<li><a href="/#install" data-xl="install">Install</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Buy me a coffee</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/#screens" data-xl="screens">Screens</a></li>${items}<li><a href="/#install" data-xl="install">Install</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Buy me a coffee</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
 </header>
 <!-- /xenon:header -->`;
 }
