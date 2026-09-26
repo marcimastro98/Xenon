@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-langs="en,es,it">
 <head>
 <meta charset="UTF-8">
 
@@ -46,15 +46,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>xenon.exe: what it is, whether it is safe, and how to check</title>
-<meta name="description" content="Xenon does not install a file called xenon.exe. Here is every process it does run on Windows, where they live, how to verify them against the signed checksums, and what to do if you never installed it.">
+<title>xenon.exe: is it safe? The processes Xenon runs on Windows</title>
+<meta name="description" content="Xenon does not install a file called xenon.exe. What it does run on Windows, where each file lives, and how to check it against the signed checksums.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="images/favicon.png">
-<meta property="og:title" content="xenon.exe: what it is and how to check it | Xenon">
-<meta property="og:description" content="Every Windows process Xenon runs, where each one lives, and how to verify a file against the release checksums. Written for the person who found an unfamiliar process and wants a straight answer.">
+<meta property="og:title" content="xenon.exe: is it safe? The processes Xenon runs on Windows">
+<meta property="og:description" content="Xenon does not install a file called xenon.exe. What it does run on Windows, where each file lives, and how to check it against the signed checksums.">
 <meta property="og:type" content="article">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
 <link rel="canonical" href="https://xenon-app.com/xenon-exe.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/xenon-exe.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/xenon-exe.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/xenon-exe.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/xenon-exe.html">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is xenon.exe part of the Xenon dashboard?", "acceptedAnswer": {"@type": "Answer", "text": "No. Xenon does not install a file called xenon.exe. It runs Xenon-Setup-x64.exe as an installer, xenon-native.exe as the dashboard window, xenon-helper.exe as the bridge to Windows audio, media and notifications, and node.exe as the local engine."}}, {"@type": "Question", "name": "What is xenon-native.exe?", "acceptedAnswer": {"@type": "Answer", "text": "The dashboard window itself, a small native shell that draws the Xenon interface on the screen you picked. It is the process behind the system tray icon."}}, {"@type": "Question", "name": "What is xenon-helper.exe?", "acceptedAnswer": {"@type": "Answer", "text": "The bridge to the parts of Windows a web app cannot reach: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning and the Bluetooth phone link."}}, {"@type": "Question", "name": "Where does Xenon install itself?", "acceptedAnswer": {"@type": "Answer", "text": "In two folders under your user profile: %LOCALAPPDATA%\\Xenon and %LOCALAPPDATA%\\Programs\\Xenon. Nothing runs as a Windows service or as SYSTEM."}}, {"@type": "Question", "name": "Why did Windows Defender flag it?", "acceptedAnswer": {"@type": "Answer", "text": "Since version 4.11.9 the installer, the app inside it and the helper are signed, so Windows shows a verified publisher. Microsoft grants reputation over time and Defender also judges what a program does, so a warning can still appear for a while. Every release also ships a signed SHA256SUMS file so you can verify the download yourself."}}, {"@type": "Question", "name": "How do I remove Xenon completely?", "acceptedAnswer": {"@type": "Answer", "text": "Settings, then Apps, then Installed apps, then Xenon, then Uninstall. It removes both folders, the scheduled task and the tray app."}}]}</script>
 
 <style>
@@ -218,7 +222,7 @@
         <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
         <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
       </div>
-      
+      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/xenon-exe.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/xenon-exe.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/xenon-exe.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
       <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
     </div>
@@ -229,67 +233,69 @@
 
 <main>
   <div class="wrap">
-    <h1>xenon.exe: what it is, and how to check it yourself</h1>
-    <p class="lede">Someone who finds an unfamiliar process on their PC deserves a straight answer rather than a sales page. This one starts with the answer that is most often true: it probably is not us.</p>
-    <p class="updated">Last updated: 26 September 2026</p>
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/xenon-exe.html" aria-current="page" data-xl="f.exe">Is the installer safe?</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Is the installer safe?","item":"https://xenon-app.com/xenon-exe.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="exe.h1">xenon.exe: what it is, and how to check it yourself</h1>
+    <p class="lede" data-i18n="exe.lede">If you found an unfamiliar process on your PC and searched its name, the answer that is most often true comes first: it is probably not from Xenon.</p>
+    <p class="updated" data-i18n="exe.updated">Last updated: 26 September 2026</p>
 
     <nav class="jump">
-      <a href="#short">The short answer</a>
-      <a href="#list">What Xenon does run</a>
-      <a href="#check">How to check what you have</a>
-      <a href="#notmine">If you never installed it</a>
-      <a href="#flagged">If Defender flagged it</a>
-      <a href="#remove">How to remove it</a>
+      <a href="#short" data-i18n="exe.jump.short">The short answer</a>
+      <a href="#list" data-i18n="exe.jump.list">What Xenon does run</a>
+      <a href="#check" data-i18n="exe.jump.check">How to check what you have</a>
+      <a href="#notmine" data-i18n="exe.jump.notmine">If you never installed it</a>
+      <a href="#flagged" data-i18n="exe.jump.flagged">If Defender flagged it</a>
+      <a href="#remove" data-i18n="exe.jump.remove">How to remove it</a>
     </nav>
 
-    <h2 id="short">The short answer</h2>
-    <p><strong>Xenon does not install a file called <code>xenon.exe</code>.</strong> Not the installer, not the app, not the background service. If Task Manager is showing you a process spelled exactly <code>xenon.exe</code>, it is almost certainly something else that happens to share the name, and the list below will tell you within a minute which of the two you are looking at.</p>
-    <p>If instead you are looking at <code>xenon-native.exe</code> or <code>xenon-helper.exe</code>, those are ours, and the rest of this page says exactly what each one does.</p>
+    <h2 id="short" data-i18n="exe.h.short">The short answer</h2>
+    <p data-i18n-html="exe.short.p1"><strong>Xenon does not install a file called <code>xenon.exe</code>.</strong> If Task Manager is showing you a process spelled exactly <code>xenon.exe</code>, it is almost certainly something else that happens to share the name, and the list below shows which of the two you are looking at.</p>
+    <p data-i18n-html="exe.short.p2">If instead you are looking at <code>xenon-native.exe</code> or <code>xenon-helper.exe</code>, those are ours, and the rest of this page says exactly what each one does.</p>
 
-    <h2 id="list">What Xenon does run on Windows</h2>
-    <p>Four things of its own:</p>
+    <h2 id="list" data-i18n="exe.h.list">What Xenon does run on Windows</h2>
+    <p data-i18n="exe.list.intro">Four things of its own:</p>
     <div class="tablewrap"><table>
-      <thead><tr><th>File</th><th>What it is</th></tr></thead>
+      <thead><tr><th data-i18n="exe.th.file">File</th><th data-i18n="exe.th.what">What it is</th></tr></thead>
       <tbody>
-        <tr><td><code>Xenon-Setup-x64.exe</code></td><td>The installer. You run it once; it does not stay on the system as a process.</td></tr>
-        <tr><td><code>xenon-native.exe</code></td><td>The dashboard window itself, a small native shell that draws the interface on the screen you chose. This is the one you see in the system tray.</td></tr>
-        <tr><td><code>xenon-helper.exe</code></td><td>The bridge to the parts of Windows a web app cannot reach on its own: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning, and the Bluetooth phone link. It is started by the engine and answers it over standard input and output.</td></tr>
-        <tr><td><code>node.exe</code></td><td>The dashboard engine. Xenon is a local web app, so the thing serving it is plain Node.js listening on <code>127.0.0.1:3030</code> — your own machine only, not the network.</td></tr>
+        <tr><td><code>Xenon-Setup-x64.exe</code></td><td data-i18n="exe.row.setup">The installer. You run it once; it does not stay on the system as a process.</td></tr>
+        <tr><td><code>xenon-native.exe</code></td><td data-i18n="exe.row.native">The dashboard window itself, a small native shell that draws the interface on the screen you chose. This is the one you see in the system tray.</td></tr>
+        <tr><td><code>xenon-helper.exe</code></td><td data-i18n="exe.row.helper">The bridge to the parts of Windows a web app cannot reach on its own: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning, and the Bluetooth phone link. It is started by the engine and answers it over standard input and output.</td></tr>
+        <tr><td><code>node.exe</code></td><td data-i18n-html="exe.row.node">The dashboard engine. Xenon is a local web app, so the thing serving it is plain Node.js listening on <code>127.0.0.1:3030</code>, an address only this PC can reach. If you turn on Phone access in Settings, it also listens on your local network, so the phones and tablets you pair can reach it.</td></tr>
       </tbody>
     </table></div>
-    <p>They live in two folders under your user profile, never in Windows itself: <code>%LOCALAPPDATA%\Xenon</code> and <code>%LOCALAPPDATA%\Programs\Xenon</code>. A per-logon scheduled task starts the engine when you sign in, under your own account. If you accepted the administrator prompt at setup, that task runs elevated, which is what lets it read temperatures; nothing is installed as a Windows service.</p>
-    <p>Then there are the tools Xenon runs for specific features, each from its own developers rather than from this project, and each only when the feature that needs it is on:</p>
+    <p data-i18n-html="exe.list.where">They live in two folders under your user profile, never in Windows itself: <code>%LOCALAPPDATA%\Xenon</code> and <code>%LOCALAPPDATA%\Programs\Xenon</code>. A per-logon scheduled task starts the engine when you sign in, under your own account. If you accepted the administrator prompt at setup, that task runs elevated, which is what lets it read temperatures; nothing is installed as a Windows service.</p>
+    <p data-i18n="exe.list.tools">Then there are the tools Xenon runs for specific features, each from its own developers rather than from this project, and each only when the feature that needs it is on:</p>
     <ul>
-      <li><strong>LibreHardwareMonitor</strong> and <strong>PawnIO</strong>, installed through winget, read CPU and disk temperatures. PawnIO is a signed kernel driver, and the replacement for WinRing0, the driver behind most older hardware-monitoring false positives. Xenon has never shipped WinRing0 and never will.</li>
-      <li><strong>PresentMon</strong>, Intel's frame-time tool, downloaded into Xenon's own folder, for the real in-game FPS counter.</li>
-      <li><strong>FFmpeg</strong> for voice input and spoken replies, and <strong>Ollama</strong> only if you switch the assistant to the free local provider. The installer does not download either; you set them up from Settings when you want them.</li>
-      <li><strong>Sunshine</strong> and <strong>Tailscale</strong>, only if you turn on remote PC control.</li>
+      <li data-i18n-html="exe.tool.lhm"><strong>LibreHardwareMonitor</strong> and <strong>PawnIO</strong>, installed through winget, read CPU and disk temperatures. PawnIO is a signed kernel driver, and the replacement for WinRing0, the driver behind most older hardware-monitoring false positives. Xenon has never shipped WinRing0 and never will.</li>
+      <li data-i18n-html="exe.tool.presentmon"><strong>PresentMon</strong>, Intel's frame-time tool, downloaded into Xenon's own folder, for the real in-game FPS counter.</li>
+      <li data-i18n-html="exe.tool.ffmpeg"><strong>FFmpeg</strong> for voice input and spoken replies, and <strong>Ollama</strong> only if you switch the assistant to the free local provider. The installer does not download either; you set them up from Settings when you want them.</li>
+      <li data-i18n-html="exe.tool.sunshine"><strong>Sunshine</strong> and <strong>Tailscale</strong>, only if you turn on remote PC control.</li>
     </ul>
 
-    <h2 id="check">How to check what you actually have</h2>
+    <h2 id="check" data-i18n="exe.h.check">How to check what you actually have</h2>
     <ol>
-      <li>In Task Manager, right-click the process and choose <strong>Open file location</strong>. If it is not under <code>%LOCALAPPDATA%\Xenon</code> or <code>%LOCALAPPDATA%\Programs\Xenon</code>, it is not this project.</li>
-      <li>Right-click the file, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab. Since version 4.11.9, <code>Xenon-Setup-x64.exe</code>, <code>xenon-native.exe</code> and <code>xenon-helper.exe</code> are signed, and that tab shows the publisher. Files from older releases carry no signature, so for those the hash in the next step is the check.</li>
-      <li>Compare the file against what we published. Every release ships a <code>SHA256SUMS</code> file signed with the project's key, and this works the same for signed and older releases:
+      <li data-i18n-html="exe.check.1">In Task Manager, right-click the process and choose <strong>Open file location</strong>. If it is not under <code>%LOCALAPPDATA%\Xenon</code> or <code>%LOCALAPPDATA%\Programs\Xenon</code>, it is not this project.</li>
+      <li data-i18n-html="exe.check.2">Right-click the file, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab. Since version 4.11.9, <code>Xenon-Setup-x64.exe</code>, <code>xenon-native.exe</code> and <code>xenon-helper.exe</code> are signed, and that tab shows the publisher. Files from older releases carry no signature, so for those the hash in the next step is the check.</li>
+      <li><span data-i18n-html="exe.check.3a">Compare the file against what we published. Every release ships a <code>SHA256SUMS</code> file signed with the project's key, and this works the same for signed and older releases:</span>
         <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code></pre>
-        If the hash matches the line in that release's <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">SHA256SUMS</a>, the file is byte for byte the one GitHub Actions built from public source at that tag.</li>
-      <li>Paste the file into <a href="https://www.virustotal.com/" rel="noopener">VirusTotal</a>. A handful of engines flagging it while the rest come back clean is the signature of a reputation problem, not of malware. Everything flagging it is a different story.</li>
+        <span data-i18n-html="exe.check.3b">If the hash matches the line in that release's <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">SHA256SUMS</a>, the file is byte for byte the one GitHub Actions built from the published source code at that tag.</span></li>
+      <li data-i18n-html="exe.check.4">Upload the file to <a href="https://www.virustotal.com/" rel="noopener">VirusTotal</a>. A handful of engines flagging it while the rest come back clean usually points to a reputation problem, not to malware. If nearly every engine flags it, that is a different story.</li>
     </ol>
 
-    <h2 id="notmine">If you never installed Xenon</h2>
-    <p>Then whatever you are looking at is not from here, and we would rather say so plainly than claim a process we did not start. Check the file location and the publisher as above. Nothing on this site will remove software we did not install, and no page here will ask you to download a "cleaner" to get rid of it: that is the usual shape of the scam that follows a search like this one.</p>
+    <h2 id="notmine" data-i18n="exe.h.notmine">If you never installed Xenon</h2>
+    <p data-i18n="exe.notmine.p">Then whatever you are looking at is not from this project. Check the file location and the publisher as above. Nothing on this site will remove software we did not install, and no page here will ask you to download a "cleaner" to get rid of it: that is the usual shape of the scam that follows a search like this one.</p>
 
-    <h2 id="flagged">If it is ours and Defender flagged it</h2>
-    <p>That can still happen. Since version 4.11.9 the installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a signed file can still be flagged.</p>
-    <p>The <a href="faq.html#warnings">FAQ explains the two kinds of detection</a>, which one the name of the warning tells you about, and how to add the exclusion if you want to keep using it. The short version: a name ending in <code>!cl</code> is the machine-learning verdict about reputation; a plain name is a behavioural signature reacting to an installer that carries a script that downloads code, which is also an accurate description of something you would not want. Neither is proof of anything on its own, which is why steps 2 and 3 above exist.</p>
+    <h2 id="flagged" data-i18n="exe.h.flagged">If it is ours and Defender flagged it</h2>
+    <p data-i18n-html="exe.flagged.p1">That can still happen. Since version 4.11.9 the installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a signed file can still be flagged.</p>
+    <p data-i18n-html="exe.flagged.p2">The <a href="faq.html#warnings">FAQ explains the two kinds of detection</a>, which one the name of the warning tells you about, and how to add the exclusion if you want to keep using it. The short version: a name ending in <code>!cl</code> is the machine-learning verdict about reputation; a plain name is a behavioural signature reacting to an installer that carries a script that downloads code, which is also an accurate description of something you would not want. Neither is proof of anything on its own, which is why steps 2 and 3 above exist.</p>
 
-    <h2 id="remove">How to remove it completely</h2>
-    <p>Settings → Apps → Installed apps → Xenon → Uninstall, or run <code>UNINSTALL.bat</code> from the folder you extracted if you installed the classic way. It removes both folders, the scheduled task and the tray app. The temperature components installed through winget are separate programs and are uninstalled separately, from the same Apps list.</p>
+    <h2 id="remove" data-i18n="exe.h.remove">How to remove it completely</h2>
+    <p data-i18n-html="exe.remove.p">Settings → Apps → Installed apps → Xenon → Uninstall, or run <code>UNINSTALL.bat</code> from the folder you extracted if you installed the classic way. It removes both folders, the scheduled task and the tray app. The temperature components installed through winget are separate programs and are uninstalled separately, from the same Apps list.</p>
 
     <div class="card accent">
-      <h3>If you were looking for Xenon the dashboard</h3>
-      <p>It turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into a touch control panel for your PC. Free, local, no account. <a href="/">See what it does</a> or read the <a href="faq.html">FAQ</a>.</p>
+      <h3 data-i18n="exe.card.h">If you were looking for Xenon the dashboard</h3>
+      <p data-i18n-html="exe.card.p">It turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into a touch control panel for your PC. It is free and needs no account. <a href="/">See what it does</a> or read the <a href="faq.html">FAQ</a>.</p>
     </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">More guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li></ul><p class="xg-dl"><a href="/download.html" data-xl="f.download">Download</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -300,7 +306,7 @@
       <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="https://github.com/marcimastro98/Xenon/releases" data-xl="f.releases" target="_blank" rel="noopener">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

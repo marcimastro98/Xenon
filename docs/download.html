@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-langs="en,es,it,ja,ko,zh">
 <head>
 <meta charset="UTF-8">
 
@@ -46,16 +46,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Download Xenon for Windows, macOS and Linux</title>
-<meta name="description" content="Download the latest Xenon release: the Windows installer, the macOS universal app, and the Linux AppImage, deb and rpm. What happens after the download, how to verify the file, and what to do if Windows warns you.">
+<title>Download Xenon: free touch dashboard for Windows, Mac, Linux</title>
+<meta name="description" content="Download the latest Xenon: Windows installer, macOS universal app, Linux AppImage, deb or rpm. First-time setup, SmartScreen warnings, signed checksums.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="images/favicon.png">
-<meta property="og:title" content="Download Xenon | Windows, macOS and Linux">
-<meta property="og:description" content="The latest release for every platform, what the installer does, and how to check the file against the signed checksums.">
+<meta property="og:title" content="Download Xenon: free touch dashboard for Windows, Mac, Linux">
+<meta property="og:description" content="Download the latest Xenon: Windows installer, macOS universal app, Linux AppImage, deb or rpm. First-time setup, SmartScreen warnings, signed checksums.">
 <meta property="og:type" content="article">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
 <link rel="canonical" href="https://xenon-app.com/download.html">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Where do I download Xenon?", "acceptedAnswer": {"@type": "Answer", "text": "From the links on this page, which always point at the newest release on GitHub: Xenon-Setup-x64.exe for Windows, Xenon-macOS-universal.dmg for macOS, and an AppImage, .deb or .rpm for Linux."}}, {"@type": "Question", "name": "Is Xenon free to download?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. There is no paid version, no trial and no account. The source is public on GitHub under a non-commercial licence."}}, {"@type": "Question", "name": "Why does Windows warn me about the Xenon installer?", "acceptedAnswer": {"@type": "Answer", "text": "Because Microsoft grants SmartScreen reputation over time. The Windows installer is signed, so Windows shows a verified publisher, but SmartScreen may still warn for a while: click More info, then Run anyway. Every release also ships a signed SHA256SUMS file so you can verify the download yourself."}}, {"@type": "Question", "name": "Does Xenon update itself?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It checks for a new release when it starts and updates itself."}}]}</script>
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/download.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/download.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/download.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/download.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/download.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/download.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/download.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Where do I download Xenon?","acceptedAnswer":{"@type":"Answer","text":"From the links on this page, which always point at the newest release on GitHub: Xenon-Setup-x64.exe for Windows, Xenon-macOS-universal.dmg for macOS, and an AppImage, .deb or .rpm for Linux."}},{"@type":"Question","name":"Is Xenon free to download?","acceptedAnswer":{"@type":"Answer","text":"Yes. There is no paid version, no trial and no account. The source is public on GitHub under a non-commercial licence."}},{"@type":"Question","name":"Why does Windows warn me about the Xenon installer?","acceptedAnswer":{"@type":"Answer","text":"Because Microsoft grants SmartScreen reputation over time. The Windows installer is signed, so Windows shows a verified publisher, but SmartScreen may still warn for a while: click More info, then Run anyway. Every release also ships a signed SHA256SUMS file so you can verify the download yourself."}},{"@type":"Question","name":"Does Xenon update itself?","acceptedAnswer":{"@type":"Answer","text":"Yes. It checks for a new release when it starts and updates itself."}}]}</script>
 
 <style>
   :root {
@@ -214,6 +221,7 @@
   .pick.is-you * { color: #fff !important; }
   .pick .you { display: inline-block; margin-left: 8px; font: 700 12.5px/1 var(--sans); padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.18); }
 </style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Xenon","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)","softwareVersion":"4.11.10","releaseNotes":"https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10","downloadUrl":"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"fileSize":"2.4 MB"}</script>
 </head>
 <body>
 
@@ -228,7 +236,7 @@
         <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
         <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
       </div>
-      
+      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/download.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/download.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/download.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/download.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/download.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/download.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
       <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
     </div>
@@ -239,43 +247,45 @@
 
 <main>
   <div class="wrap">
-    <h1>Download Xenon</h1>
-    <p class="lede">The newest release for every platform, straight from GitHub. Free, no account, and it updates itself after this.</p>
-    <p class="updated">Last updated: 26 September 2026. Every link points at <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the latest release</a>.</p>
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/download.html" aria-current="page" data-xl="f.download">Download</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Download","item":"https://xenon-app.com/download.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="dl.h1">Download Xenon</h1>
+    <p class="lede" data-i18n="dl.lede">The newest release for every platform, straight from GitHub. Free, no account, and it updates itself after this.</p>
+    <p class="updated" data-i18n-html="dl.updated">Last updated: 26 September 2026. Every link points at <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the latest release</a>.</p>
 
     <div class="dl">
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req">Windows 10 or 11, 64-bit. Installs the app and starts it at login.</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small>beta</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req">macOS 11 or later. Apple Silicon and Intel in one file.</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small>beta</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req">Any x86_64 desktop. Also as .deb and .rpm on the Linux page.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req" data-i18n="dl.win.req">Windows 10 or 11, 64-bit. Installs the app and starts it at login.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small data-i18n="dl.beta">beta</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req" data-i18n="dl.mac.req">macOS 11 or later. Apple Silicon and Intel in one file.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small data-i18n="dl.beta">beta</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n="dl.linux.req">Any x86_64 desktop. Also as .deb and .rpm on the Linux page.</span></a>
     </div>
-    <p class="note"><a href="linux.html">Xenon on Linux</a>: the .deb and .rpm packages, what the first launch sets up, and an honest table of what works and what does not yet.</p>
-    <p class="note">Every file above is the newest release, straight from GitHub. <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">All files for this release</a>, including the checksums, are on the release page.</p>
+    <p class="note" data-i18n-html="dl.note.linux"><a href="linux.html">Xenon on Linux</a>: the .deb and .rpm packages, what the first launch sets up, and a table of what works and what does not yet.</p>
+    <p class="note" data-i18n-html="dl.note.all">Every file above is the newest release, straight from GitHub. <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">All files for this release</a>, including the checksums, are on the release page.</p>
 
-    <h2 id="after">What happens after the download</h2>
-    <p><strong>Windows.</strong> Run the installer. It installs the app, which opens by itself, finds no dashboard engine yet and offers <strong>Complete setup</strong>. Press it once: a window opens and installs Node.js, the sensor readers and the task that starts Xenon when you sign in, showing you each step. The download is verified against the project's signing key before anything runs. It takes a few minutes and happens once.</p>
-    <p><strong>macOS and Linux.</strong> Open the app you downloaded. Its first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. On Linux the package deliberately does not do that for you, because everything it would create belongs to one user account and a package installs as root for the whole machine.</p>
-    <p>Then Xenon asks which screen it should live on. A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge all work; <a href="phone.html">the phone guide</a> covers pairing a phone or tablet in about thirty seconds.</p>
+    <h2 id="after" data-i18n="dl.h.after">First-time setup</h2>
+    <p data-i18n-html="dl.after.win"><strong>Windows.</strong> Run the installer. It installs the app, which opens by itself, finds no dashboard engine yet and offers <strong>Complete setup</strong>. Press it once: a window opens and installs Node.js, the sensor readers and the task that starts Xenon when you sign in, showing you each step. The download is verified against the project's signing key before anything runs. It takes a few minutes and happens once.</p>
+    <p data-i18n-html="dl.after.posix"><strong>macOS and Linux.</strong> Open the app you downloaded. Its first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. On Linux the package deliberately does not do that for you, because everything it would create belongs to one user account and a package installs as root for the whole machine.</p>
+    <p data-i18n-html="dl.after.screen">Then Xenon asks which screen it should live on. A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge all work; <a href="phone.html">the phone guide</a> covers pairing a phone or tablet in about thirty seconds.</p>
 
-    <h2 id="warning">If Windows or macOS warns you about the file</h2>
-    <p>Since version 4.11.9 the Windows installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a detection can still happen. The <a href="faq.html#warnings">FAQ explains each kind of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
-    <p><strong>macOS.</strong> The Mac build is beta and not notarized, so macOS refuses the first launch. Open <strong>System Settings, Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong> next to Xenon. On macOS 15 and later the Control-click Open route no longer works.</p>
+    <h2 id="warning" data-i18n="dl.h.warning">Windows and macOS warnings</h2>
+    <p data-i18n-html="dl.warn.win">Since version 4.11.9 the Windows installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. Defender also judges what a program does, not only who signed it, so a detection can still happen. The <a href="faq.html#warnings">FAQ explains each kind of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
+    <p data-i18n-html="dl.warn.mac"><strong>macOS.</strong> The Mac build is beta and not notarized, so macOS refuses the first launch. Open <strong>System Settings, Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong> next to Xenon. On macOS 15 and later the Control-click Open route no longer works.</p>
 
-    <h2 id="verify">Check the file yourself</h2>
-    <p>Every release ships a <code>SHA256SUMS</code> file signed with the project's Ed25519 key. Compare the hash of what you downloaded:</p>
+    <h2 id="verify" data-i18n="dl.h.verify">Verifying the download</h2>
+    <p data-i18n-html="dl.verify.p1">Every release ships a <code>SHA256SUMS</code> file signed with the project's Ed25519 key. Compare the hash of what you downloaded:</p>
     <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
 shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
 sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
-    <p>If it matches the line for that file in the release's <code>SHA256SUMS</code>, the file is byte for byte the one GitHub Actions built from the public source at that tag. On Windows you can also right-click the installer, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab to see the publisher.</p>
+    <p data-i18n-html="dl.verify.p2">If it matches the line for that file in the release's <code>SHA256SUMS</code>, the file is byte for byte the one GitHub Actions built from the public source at that tag. On Windows you can also right-click the installer, choose <strong>Properties</strong> and open the <strong>Digital Signatures</strong> tab to see the publisher.</p>
 
-    <h2 id="other">Other ways to install</h2>
-    <p><strong>From source.</strong> Download the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">source code zip</a> from the release, extract it, and run <code>INSTALL.bat</code> on Windows, <code>INSTALL.command</code> on macOS or <code>./INSTALL.sh</code> on Linux. Same result as the installer, for people who would rather read what runs.</p>
-    <p><strong>winget.</strong> The package manifests are written and waiting on a release that scans clean at Microsoft's end; until it is listed, the installer above is the way. This page will say <code>winget install xenon</code> the day that changes.</p>
-    <p><strong>Updating.</strong> Xenon checks for a new release when it starts and updates itself. You never need to come back here for that.</p>
+    <h2 id="other" data-i18n="dl.h.other">Other ways to install</h2>
+    <p data-i18n-html="dl.other.source"><strong>From source.</strong> Download the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">source code zip</a> from the release, extract it, and run <code>INSTALL.bat</code> on Windows, <code>INSTALL.command</code> on macOS or <code>./INSTALL.sh</code> on Linux. Same result as the installer, for people who would rather read what runs.</p>
+    <p data-i18n-html="dl.other.winget"><strong>winget.</strong> The package manifests are written and waiting on a release that scans clean at Microsoft's end; until it is listed, the installer above is the way. This page will say <code>winget install xenon</code> the day that changes.</p>
+    <p data-i18n-html="dl.other.update"><strong>Updating.</strong> Xenon checks for a new release when it starts and updates itself. You never need to come back here for that.</p>
 
     <div class="card accent">
-      <h3>Not sure what Xenon is?</h3>
-      <p>A free dashboard that runs on your PC and shows up on any spare screen: system stats, media and mic controls, a Stream Deck style key grid, lighting, an AI you can talk to. No account, and your settings, files and sensor readings stay on your PC. <a href="/">The home page shows it</a>.</p>
+      <h3 data-i18n="dl.about.h">What Xenon is</h3>
+      <p data-i18n-html="dl.about.p">A free dashboard that runs on your PC and shows up on any spare screen: system stats, media and mic controls, a Stream Deck style key grid, lighting, an AI you can talk to. No account, and your settings, files and sensor readings are kept on your PC. <a href="/">The home page shows it</a>.</p>
     </div>
+    <span id="dl-you" hidden data-i18n="dl.you">Your system</span>
   </div>
 </main>
 
@@ -286,7 +296,7 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
       <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="https://github.com/marcimastro98/Xenon/releases" data-xl="f.releases" target="_blank" rel="noopener">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
@@ -309,7 +319,8 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
     if (!a) return;
     a.classList.add('is-you');
     var o = a.querySelector('.os');
-    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = 'Your system'; o.appendChild(t); }
+    var lbl = document.getElementById('dl-you');
+    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = (lbl && lbl.textContent) || 'Your system'; o.appendChild(t); }
   })();
 </script>
 </body>

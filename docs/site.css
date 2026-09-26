@@ -615,6 +615,33 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xh .lang.open .lang-menu { display: grid; }
 .xh .lang-menu button { display: block; width: 100%; text-align: left; padding: 10px 12px; font: 500 15.5px/1.2 var(--sans); color: var(--bone-0); background: none; border: 0; cursor: pointer; border-radius: 0; }
 .xh .lang-menu button:hover, .xh .lang-menu button.on { background: var(--g-3); }
+/* The language menu on pages published in several languages: links to the
+   copies (tools/lang-pages.mjs), the current one marked. */
+.xh .xh-lang { position: relative; border: 0; background: none; padding: 0; margin: 0; border-radius: 0; box-shadow: none; }
+.xh .xh-lang > summary::before, .xh .xh-lang > summary::after { content: none !important; display: none !important; }
+.xh .xh-lang > summary { list-style: none; cursor: pointer; border: 0; background: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 6px; font: 600 16px/1 var(--sans); color: var(--bone-0); border-radius: 10px; }
+.xh .xh-lang > summary::-webkit-details-marker { display: none; }
+.xh .xh-lang > summary:hover { background: var(--g-2); }
+.xh .xh-lang ul { position: absolute; right: 0; top: calc(100% + 6px); list-style: none; margin: 0; padding: 6px; min-width: 180px; background: var(--g-2); box-shadow: 0 16px 40px -18px rgba(0,0,0,.45); z-index: 40; }
+.xh .xh-lang a { display: flex; justify-content: space-between; gap: 16px; padding: 10px 12px; min-height: 40px; box-sizing: border-box; font: 500 15.5px/1.2 var(--sans); color: var(--bone-0); text-decoration: none; }
+.xh .xh-lang a span { color: var(--bone-1); font-weight: 600; }
+.xh .xh-lang a:hover, .xh .xh-lang a[aria-current] { background: var(--g-3); }
+.xh-hint { display: block; max-width: 1440px; margin: 0 auto; padding: 10px 32px; font: 600 15px/1.4 var(--sans); color: var(--bone-0); text-decoration: underline; text-underline-offset: .2em; }
+@media (max-width: 700px) { .xh-hint { padding: 10px 18px; } }
+
+/* Guide navigation (tools/site-chrome.mjs): the breadcrumb over a guide's title
+   and the other guides under its last section. Plain links, the page's ink. */
+.xc ol { list-style: none; margin: 0 0 20px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; font: 500 15px/1.5 var(--sans); color: var(--bone-1); }
+.xc li + li::before { content: '/'; margin-right: 8px; color: var(--bone-2); }
+.xc a { color: var(--bone-1); text-decoration: none; }
+.xc a:hover { color: var(--bone-0); text-decoration: underline; text-underline-offset: .18em; }
+.xc a[aria-current] { color: var(--bone-0); }
+.xg { margin: 64px 0 0; padding: 28px 0 0; border-top: 1px solid var(--rule); font-family: var(--sans); }
+.xg h2 { margin: 0 0 14px; padding: 0; border: 0; font: 750 22px/1.2 var(--display); letter-spacing: -0.005em; color: var(--bone-0); }
+.xg ul { list-style: none; margin: 0; padding: 0; columns: 2 260px; column-gap: 28px; }
+.xg li { break-inside: avoid; padding: 7px 0; font-size: 17px; line-height: 1.4; }
+.xg a { color: var(--bone-0); text-underline-offset: .18em; }
+.xg .xg-dl { margin: 18px 0 0; font-size: 17px; font-weight: 700; }
 .xh-dl {
   --lit: #008DFF;
   display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 10px;

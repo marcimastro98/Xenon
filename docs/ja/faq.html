@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja" data-langs="en,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon ヘルプ：インストール、警告、よくある質問</title>
+<meta name="description" content="Windows が Xenon を警告する理由とファイルの確認方法、Smart App Control、macOS と Linux へのインストール、アップデート、プライバシー、サポート窓口。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon ヘルプ：インストール、警告、よくある質問">
+<meta property="og:description" content="Windows が Xenon を警告する理由とファイルの確認方法、Smart App Control、macOS と Linux へのインストール、アップデート、プライバシー、サポート窓口。">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://xenon-app.com/ja/faq.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/faq.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/faq.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/faq.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/faq.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/faq.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/faq.html">
+
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/faq.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/it/faq.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/faq.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/faq.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/faq.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">ダウンロード</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">メニュー</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li><li><a href="/ja/#install" data-xl="install">インストール</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">コーヒーをおごる</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/faq.html" aria-current="page" data-xl="f.faq">ヘルプとよくある質問</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"ヘルプとよくある質問","item":"https://xenon-app.com/ja/faq.html"}]}</script><!-- /xenon:crumbs -->
+     <h1 data-i18n="f.h1">よくある質問</h1>
+    <p class="lede" data-i18n="f.lede">実際によく届く質問と、その正直な答えです。ここにないことは Discord で聞くのがいちばん早いです。</p>
+    <p class="updated" data-i18n="f.updated">最終更新: 2026年9月26日</p>
+
+    <nav class="jump">
+      <a href="#start" data-i18n="f.s1">インストールの前に</a>
+      <a href="#warnings" data-i18n="f.s2">Windows がウイルスだと言うとき</a>
+      <a href="#mac-linux" data-i18n="f.s3">macOS と Linux</a>
+      <a href="#install" data-i18n="f.s4">インストール、起動、更新</a>
+      <a href="#using" data-i18n="f.s5">Xenon を使う</a>
+      <a href="#privacy" data-i18n="f.s6">プライバシーと信頼</a>
+      <a href="#help" data-i18n="f.s7">ライセンス、費用、サポート</a>
+    </nav>
+
+    <!-- ── 1 ─────────────────────────────────────────────────────── -->
+    <h2 id="start"><span data-i18n="f.s1">インストールの前に</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.edge">CORSAIR Xeneon Edge は必要ですか</summary>
+      <div class="body" data-i18n-html="f.a.edge"><p>いいえ。Xenon はあの画面を念頭に作られましたが、Edge は動作する画面のひとつであって製品そのものではありません。余っているモニター、机に立てかけた古いタブレット、タッチスクリーン、メイン画面のウィンドウ、ポケットのスマホでも同じように動きます。空いている画面がまったくないなら <a href='phone.html'>スマホを使ってください</a>。自宅の Wi-Fi で30秒ほど、しかも得られるのはリモコンではなく本物のダッシュボードです。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.free">本当に無料ですか</summary>
+      <div class="body" data-i18n-html="f.a.free"><p>はい。有料版も、体験版も、アカウントも、広告もなく、存在しない上位プランのために機能を出し惜しみすることもありません。ライセンスは独自の非商用ライセンスです。個人利用は無料で、ソースを読み、実行し、改変できます。書面での許可が必要なのは、販売すること、商用製品に組み込むこと、自分の作品として再配布すること、Xenon の名前を別の製品に使うことです。</p><p>お礼を伝えたいなら <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>サポーター枠</a> があります。一か月 5、五か月 25、一年 50。カタログの追加テーマとウィジェット、Discord のロール、このサイトへの名前掲載が開きます。アプリ自体は何も出し惜しみしません。これは感謝のしるしであって、ライセンスではありません。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.os">どの OS で動きますか</summary>
+      <div class="body" data-i18n-html="f.a.os"><p>Windows 10 と 11（64ビット）、macOS 11 以降（Apple Silicon と Intel 共通のユニバーサル版がひとつ）、Linux（64ビット）です。</p><p><strong>macOS と Linux はベータです。</strong> ダッシュボード、ウィジェット、ストア、各種連携は三つとも同じで、まだ違うのはマシン自体を読み取る層です。<a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>プラットフォーム表</a>に、どの機能がどこで動くかが正確に書いてあります。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.corsair">CORSAIR の PC や iCUE は必要ですか</summary>
+      <div class="body" data-i18n-html="f.a.corsair"><p>いいえ。Xenon はどの PC でも動き、CORSAIR のハードもソフトも必要ありません。iCUE が関係するのは任意の二つだけです。ダッシュボードを iCUE の iFrame ウィジェットの中に置きたい場合と、CORSAIR の RGB 機器を制御する場合です。それ以外はすべて無関係です。</p></div>
+    </details>
+
+    <!-- ── 2 ─────────────────────────────────────────────────────── -->
+    <h2 id="warnings"><span data-i18n="f.s2">Windows がウイルスだと言うとき</span></h2>
+
+    <div class="card accent">
+      <h3 data-i18n="f.warn.t">要点</h3>
+      <p data-i18n-html="f.warn.p">バージョン 4.11.9 から Windows 用インストーラーには署名があり、Windows に確認済みの発行元が表示されます。それでもしばらくは警告が出ることがあります。Microsoft は評価を時間をかけて付与し、Defender はプログラムの動作も判断するためです。そのため三つの別々のシステムから最大三つの警告が出て、対処もそれぞれ違います。どれも本物のマルウェアを検出したわけではありませんし、私の言葉を信じる必要もありません。すべてのリリースには自分で確認できるハッシュが付いています。</p>
+    </div>
+
+    <details>
+      <summary data-i18n="f.q.defender">Windows Defender が Xenon を検出して、消えてしまいました</summary>
+      <div class="body" data-i18n-html="f.a.defender"><p>誤検出です。そして私のところに届く相談で最も多いものでもあります。検出名はたいてい <code>!cl</code> で終わります。これは既知のマルウェアと定義ファイルが一致したのではなく、Defender のクラウド機械学習モデルが下した判定だという意味です。そのモデルにとって新しいリリースは毎回新しいファイルなので、バージョンによって出たり出なかったりします。</p><p>インストールを元に戻すには:</p><ol><li><strong>Windows セキュリティ &rarr; ウイルスと脅威の防止 &rarr; 保護の履歴</strong> を開き、Xenon の項目を探して <strong>操作 &rarr; 復元</strong> を選びます。</li><li>再発しないように除外を追加します。<strong>設定の管理 &rarr; 除外 &rarr; 除外の追加 &rarr; フォルダー</strong> で <code>%LOCALAPPDATA%\Xenon</code> を追加してください。</li></ol></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.download">ブラウザーがダウンロードを拒否する、またはウイルスがあると言います</summary>
+      <div class="body" data-i18n-html="f.a.download"><p>原因は同じで、止めている相手が違います。ブラウザー自身の評価チェックで、Chrome なら Google セーフ ブラウジング、Edge なら SmartScreen です。<code>Ctrl+J</code> でダウンロード一覧を開き、中止されたファイルで <strong>保持する</strong>、または <strong>それでも保持する</strong> を選んでください。その後インストーラーの実行時に SmartScreen が警告したら、<strong>詳細情報</strong> をクリックして <strong>実行</strong> を選びます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.verify">ただ信じるのではなく、安全だとどう確かめますか</summary>
+      <div class="body" data-i18n-html="f.a.verify"><p>ご自身で確かめてください。ぜひそうしてほしいです。すべてのリリースには、プロジェクトの鍵で署名された <code>SHA256SUMS</code> ファイルが付いています。PowerShell で:</p><p><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>結果を、そのリリースの <code>SHA256SUMS</code> にある <code>Xenon-Setup-x64.exe</code> の行と比べてください。一致すれば、そのファイルは GitHub Actions がそのタグの公開ソースからビルドしたものとバイト単位で同一で、そのソースは1行残らず <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> で読めます。<a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a> にアップロードしても構いません。数個のエンジンだけが反応して残りがクリーンなら、それはマルウェアの姿ではなく評価不足の姿です。</p><p>署名も確認できます。ファイルを右クリックして <strong>プロパティ</strong> を選び、<strong>デジタル署名</strong> タブを開くと発行元の名前が表示されます。4.11.9 以降のリリースには署名があり、それより前のリリースにはないので、その場合はハッシュで確認してください。</p><p><strong>警告を無視してよいのは、公式の <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases ページ</a> から入手し、ハッシュを確認したファイルだけです。</strong> 警告を無視させようとするのは本物のマルウェアがすることであり、その二つを見分けてくれるのがハッシュです。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.sac">Xenon がまったく起動せず、Defender は何も言っていません</summary>
+      <div class="body" data-i18n-html="f.a.sac"><p>Windows 11 ではたいてい <strong>スマート アプリ コントロール</strong> です。ウイルス対策とは別の仕組みです。<strong>Windows セキュリティ &rarr; アプリとブラウザーの制御 &rarr; スマート アプリ コントロール</strong> を確認してください。</p><p>まだ信頼していないアプリはすべてブロックし、その判断はウイルス対策が関与する前に行われます。ですから上の除外設定は効きませんし、オンのままアプリを1つだけ許可する方法もありません。Windows 11 をクリーンインストールしたときだけ自動で有効になるため、入れ直したばかりの PC には現れ、アップグレードした PC には現れません。選べるのは、Windows が使い方を見て有効のままにするか自分で判断する <strong>評価</strong> モードと、<strong>オフ</strong> の二つです。</p><p><strong>変更する前に知っておいてください。スマート アプリ コントロールをオフにすると元に戻せません。</strong> PC をリセットまたは再インストールしない限り、Windows は再び有効にさせてくれません。これは Microsoft の設計であり、Xenon 側で回避できるものではありません。バージョン 4.11.9 から Xenon 自身のファイルには署名があり、Microsoft によれば、スマート アプリ コントロールは自分で判定できないとき、有効な署名のあるアプリの実行を許可します。まずはオンのまま最新のリリースを試してください。それでも Xenon がブロックされ、オンのままにしたい場合、正直な答えは、その PC では Xenon を動かせない、です。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.closes">使っている途中で Xenon がひとりでに閉じます</summary>
+      <div class="body" data-i18n-html="f.a.closes"><p>トレイメニューから <strong>Open crash log</strong> を選んでください。Xenon は起動するたび、停止するたびに 1 行ずつ記録していて、考えられる 2 つの原因はその行で見分けられます。</p><p><strong>最後の行が <code>PANIC</code> の場合。</strong> アプリ自身が落ちたということで、その行にどのスレッドのどのソース行で落ちたかが書かれています。<a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> か <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>バグ報告</a>にそのまま貼ってください。その 1 行があれば大抵すぐ直せます。</p><p><strong>最後の行が <code>launched</code> で、その後に何もない場合。</strong> アプリの側が止まると決めたわけではなく、外からプロセスが終了させられています。Windows ではほぼ必ず、実行中の <code>xenon-native.exe</code> をウイルス対策が隔離したケースです。<strong>Windows セキュリティ &rarr; ウイルスと脅威の防止 &rarr; 保護の履歴</strong>にウィンドウが消えた時刻と一致する項目がないか確認し、復元したうえで、<code>%LOCALAPPDATA%\Xenon</code> と <code>%LOCALAPPDATA%\Programs\Xenon</code> の両方をフォルダー除外に追加してください。Xenon はこの 2 か所に分かれており、前者だけを除外すると、一日中動いている側が同じ検出にさらされたままになります。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.sign">Xenon には署名がありますか</summary>
+      <div class="body" data-i18n-html="f.a.sign"><p>はい。Windows ではバージョン 4.11.9（2026年9月20日）から署名されています。インストーラー、その中のアプリ、ヘルパーのすべてに Authenticode 署名があり、Windows には「不明な発行元」ではなく確認済みの発行元が表示されます。</p><p>署名が証明するのは、誰がファイルを公開したか、そしてその後誰も変更していないかです。初日から評価をもたらすものではありません。SmartScreen はファイルがダウンロードされるにつれて時間をかけて評価を付与し、Defender はプログラムの動作も判断します。そのためしばらくは警告が出ることがあり、そのとき何よりも効くことが一つあります。Defender がダウンロードを検出したら、<a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a> で誤検出として報告してください。<em>Home customer</em> を選び、<em>Incorrectly detected as malware</em> を選ぶだけです。2分で終わり、実ユーザーからの報告は重みがあり、たいてい数日で全員から検出が取り下げられます。</p><p>macOS 版はベータで、まだ公証（notarize）されていません。これは Apple の別の手続きで、初回起動の方法は下の macOS の質問で説明しています。</p></div>
+    </details>
+
+    <!-- ── 3 ─────────────────────────────────────────────────────── -->
+    <h2 id="mac-linux"><span data-i18n="f.s3">macOS と Linux</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.gatekeeper">macOS が「Apple が確認できないため開けません」と言います</summary>
+      <div class="body" data-i18n-html="f.a.gatekeeper"><p>今は想定どおりです。アプリは公証（notarize）されておらず、公証にはこのプロジェクトにはない有料の Apple Developer メンバーシップが必要です。</p><p><strong>macOS 15 以降</strong> では <strong>システム設定 &rarr; プライバシーとセキュリティ</strong> を開き、いちばん下までスクロールして Xenon の横の <strong>このまま開く</strong> を押してください。Apple は以前の右クリックの方法を廃止しました。<strong>macOS 11〜14</strong> では、アプリを右クリックして <strong>開く</strong>、もう一度 <strong>開く</strong> で大丈夫です。どちらもバージョンごとに1回だけです。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.fda">macOS でディスクウィジェットのゴミ箱が 0 B と表示されます</summary>
+      <div class="body" data-i18n-html="f.a.fda"><p>ゴミ箱と <code>~/Library/Caches</code> の大半は <strong>フルディスクアクセス</strong> の内側にあり、macOS はこの権限をアプリごとに与えます。権限がないと、それらのフォルダーは拒否されたのではなく空に見えるため、エラーも出ないままディスクの内訳が少なく集計されます。</p><p><strong>システム設定 &rarr; プライバシーとセキュリティ &rarr; フルディスクアクセス</strong> を開き、<strong>+</strong> を押してアプリケーションから <strong>Xenon</strong> を選び、スイッチがオンになっていることを確認してから、Xenon を終了して開き直してください。</p><p><strong>4.11.3 までは更新のたびにやり直す必要がありましたが、もう不要です。</strong> macOS はこの権限をコード署名に結び付けます。以前の Xenon はアドホック署名だったため、リリースごとに別のアプリに見え、許可が静かに効かなくなっていました。いまの Xenon はリリースをまたいで同じ独自証明書で署名されるので、許可は更新後も残ります。ただし 4.11.3 への更新自体は識別情報が変わるリリースなので、最後に一度だけリセットされます。一覧にあるのに効いていないときは <strong>&minus;</strong> で削除して追加し直してください。いまは Xenon 自身がこの状態に気づき、ダッシュボードで知らせます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.brew">macOS には何をインストールすればいいですか</summary>
+      <div class="body" data-i18n-html="f.a.brew"><p>必須は <strong>Node.js</strong> だけで、なければ Xenon が教えてくれます: <code>brew install node</code>。あとは任意で、それぞれ一つの機能を有効にします。</p><ul><li><code>vladkens/tap/macmon</code>：温度と GPU 使用率</li><li><code>switchaudio-osx</code>：出力デバイスの切り替え</li><li><code>ffmpeg</code>：音声入力と読み上げ</li></ul><p>Xenon は後で失敗する代わりに、足りないものを先に伝えます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.linux">Linux ではどうインストールしますか</summary>
+      <div class="body" data-i18n-html="f.a.linux"><p><strong>AppImage</strong> をダウンロードして実行権限を付けて起動するか、<strong>.deb</strong> を使ってください。初回起動時に、自分で読んで中断できるターミナルウィンドウでダッシュボードのセットアップを提案し、何かを展開する前にプロジェクトの鍵でダウンロードを検証します。</p><p>パッケージがそれを代わりにやらないのは意図的です。インストールが作るものはすべて一人のユーザーアカウントに属しますが、パッケージはマシン全体に対して root として入るからです。アプリ自体が不要なら、<a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a> からソースの zip を取得して <code>./INSTALL.sh</code> を実行してください。</p><p>必要なのは <code>nodejs npm unzip</code> です。任意のものは機能ごとに <code>wireplumber</code>（音量、マイク、アプリ別ミキサー）、<code>wmctrl</code> と <code>x11-utils</code>（アプリスイッチャー）、<code>playerctl</code>（再生情報の即時更新）、<code>ffmpeg</code>（音声）です。<code>npm run doctor</code> を実行すると、何が足りず、それぞれ何を有効にするかを教えてくれます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.beta">macOS と Linux のベータとは実際どういう意味ですか</summary>
+      <div class="body" data-i18n-html="f.a.beta"><p>ダッシュボードは同じ製品です。ウィジェットもストアもテーマも連携もスマホからのアクセスも同じです。違うのはマシンを読み取る層で、一部のセンサーやシステム操作がまだない、あるいは挙動が異なります。</p><p>大事なのは、動くふりをするものが何もないことです。そのプラットフォームにデータ源がないタイルは、いつまでも読み込むのではなく一行でそう伝え、そのプラットフォームで実行できない Deck キーは、提示してから失敗するのではなく最初から隠されます。</p></div>
+    </details>
+
+    <!-- ── 4 ─────────────────────────────────────────────────────── -->
+    <h2 id="install"><span data-i18n="f.s4">インストール、起動、更新</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.installer">インストーラーは実際に何をしますか</summary>
+      <div class="body" data-i18n-html="f.a.installer"><p>Windows では、アプリをインストールし、ダッシュボードのエンジンを <code>%LOCALAPPDATA%\Xenon</code> の下に入れ、Node.js がなければ入れ、ログイン時にダッシュボードが起動するタスクを登録します。任意の部品も取得します。温度用の FFmpeg、LibreHardwareMonitor、PawnIO と、ゲーム中の実 FPS 用の PresentMon です。</p><p><strong>隠れて動くものはありません。</strong> セットアップ自体はアプリを入れて開くだけで、ダッシュボード側はその後アプリが提案し、見て中断できるコンソールウィンドウで実行されます。以前のバージョンはこれをバックグラウンドで黙って行っていましたが、それこそ未署名のインストーラーが隔離される典型的な形なので廃止しました。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.autostart">PC の起動と一緒に立ち上がりますか。止められますか</summary>
+      <div class="body" data-i18n-html="f.a.autostart"><p>はい、ログイン時に起動するので、席に着いたときにはダッシュボードがもう動いています。システムサービスではなくユーザーのセッション内で動くのは意図的で、セッションの外にはオーディオデバイス一覧もウィンドウ一覧もマイクもなく、アプリを開く手段もないため、機能の半分が静かに動かなくなるからです。</p><p>Xenon を削除するには、Windows なら <code>UNINSTALL.bat</code>、macOS なら <code>UNINSTALL.command</code>、Linux なら <code>./UNINSTALL.sh</code> を実行してください。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.update">どうやって更新しますか</summary>
+      <div class="body" data-i18n-html="f.a.update"><p>Xenon は自分で更新します。新しいリリースが出るとダッシュボードに通知が出て、一度タップすればダウンロードし、何かを展開する<em>前に</em>署名を検証し、エンジン、続いてアプリの順に入れます。途中で失敗したら自動的に前のバージョンに戻します。設定、レイアウト、メモは常に保持され、古いバージョンの残骸は片付けられます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.uninstall">アンインストールはどうしますか</summary>
+      <div class="body" data-i18n-html="f.a.uninstall"><p>Windows では <code>UNINSTALL.bat</code>、macOS では <code>UNINSTALL.command</code>、Linux では <code>./UNINSTALL.sh</code> を実行します。三つとも一度確認したうえで、アプリ、自動起動、ローカルサーバー、データ、インストールフォルダーまで Xenon を完全に削除します。設定、レイアウト、メモを残したい場合は <code>--keep-data</code>（Windows では <code>-KeepData</code>）を付けてください。データフォルダーを削除すると、ストアの評価が一度だけ数えられるように使うランダムな id を含め、Xenon が保存したものはすべて消えます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.admin">なぜ管理者権限を求めるのですか</summary>
+      <div class="body" data-i18n-html="f.a.admin"><p>インストール時に一度だけ、二つの理由でです。CPU とディスクの温度読み取りの準備（ドライバーレベルの部品が必要な LibreHardwareMonitor と PawnIO）と、起動タスクの登録です。断っても他はすべて動き、温度が出ないだけです。その後 Xenon が管理者権限で動くことはありません。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.port">ポート 3030 はすでに使用中と表示されます</summary>
+      <div class="body" data-i18n-html="f.a.port"><p>ほとんどの場合、ダッシュボードがすでに動いているというだけで、実はそれが望んでいた状態です。<code>http://127.0.0.1:3030/</code> を開けばそこにあります。別のソフトがそのポートを使っているなら、<code>server/server.js</code> で変更してください。</p></div>
+    </details>
+
+    <!-- ── 5 ─────────────────────────────────────────────────────── -->
+    <h2 id="using"><span data-i18n="f.s5">Xenon を使う</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.phone">本当にスマホを画面として使えますか</summary>
+      <div class="body" data-i18n-html="f.a.phone"><p>はい。しかもリモコンではなくあなたのダッシュボードです。レイアウトもウィジェットもテーマも同じで、Deck キーは実際に PC 上で実行されます。アカウントもクラウドもインストールも不要で、自宅の Wi-Fi なら何も家庭内ネットワークの外に出ません。30秒ほどで終わります。<a href='phone.html'>スマホ向けガイド</a> に、自宅で使う方法と外から使う方法の両方があります。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.browser">アプリを使わないとだめですか</summary>
+      <div class="body" data-i18n-html="f.a.browser"><p>いいえ。アプリはダッシュボードを包むウィンドウで、ダッシュボード自体はローカルの Web ページです。どのブラウザーでも、どのモニターでも <code>http://127.0.0.1:3030/</code> を開けば使えます。タッチスクリーンではゲーム中も安全なタッチとトレイアイコンが付くのでアプリが便利です。iCUE の中なら、同じアドレスを指す iFrame ウィジェットでも動きます。</p><p>その場合は iCUE で <b>Web ページ</b>（HTML）ウィジェットを追加し、次を貼り付けてください: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.ai">AI を使うのに API キーは必要ですか</summary>
+      <div class="body" data-i18n-html="f.a.ai"><p>クラウドのプロバイダーを使う場合だけで、Gemini のキーは無料で作れます。Xenon の他の機能はキーなしで動きます。</p><p>完全にローカルで動かす選択肢もあります。会話は Ollama、音声は Whisper を設定から必要に応じて導入でき、何も PC の外に出ません。クラウドのプロバイダーを選んだ場合、プロンプトはそのプロバイダーの規約のもとで送られ、Xenon が自分で選んでいないモデルに何かを送ることは決してありません。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.temp">CPU の温度が表示されません</summary>
+      <div class="body" data-i18n-html="f.a.temp"><p>インストーラーをもう一度実行し、管理者の確認を承認してください。そうすれば LibreHardwareMonitor と PawnIO を入れ、権限付きの起動タスクを登録できます。ノート PC やマザーボードによってはセンサーがまったく公開されておらず、その場合は作り話の数値を出す代わりに、タイルがそう表示します。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.make">自分でウィジェットやテーマを作れますか</summary>
+      <div class="body" data-i18n-html="f.a.make"><p>はい、しかも大半はコードなしでできます。テーマ、レイアウト、アンビエントシーン、Deck プロファイルはアプリの中で作り、誰でも取り込めるコードとして共有します。ウィジェットはサンドボックスで動く小さな HTML・CSS・JavaScript のパッケージで、センサーや操作のためのブリッジが文書化されています。</p><p><a href='create/'>クリエイターガイド</a> が出発点で、<a href='catalog/'>カタログ</a> には他の人が作ったものがあります。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.rgb">RGB ライティングも制御しますか</summary>
+      <div class="body" data-i18n-html="f.a.rgb"><p>はい。CORSAIR 機器は iCUE 経由で、さらに WLED、OpenRGB、Philips Hue、Nanoleaf はネットワーク越しに直接制御します。温度や再生中の曲に反応させることも、選んだ色のまま留めることもできます。任意の機能で、設定するまではオフのままです。</p></div>
+    </details>
+
+    <!-- ── 6 ─────────────────────────────────────────────────────── -->
+    <h2 id="privacy"><span data-i18n="f.s6">プライバシーと信頼</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.data">Xenon は私のデータをどこかに送りますか</summary>
+      <div class="body" data-i18n-html="f.a.data"><p>設定、メモ、タスク、予定、デッキ、検索した語句、ファイルの索引は PC に残ります。アプリの中に分析 SDK もクラッシュレポーターも行動追跡もありません。</p><p>とはいえ完全なオフラインでもなく、そう言い切るほうが不誠実です。更新を確認しますし、天気や音楽 API といった機能をオンにすればそのサービスに接続します。<a href='privacy.html'>プライバシーのページ</a> に、アプリが行いうる通信、そのきっかけ、送る内容が漏れなく書いてあります。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.account">アカウントは必要ですか</summary>
+      <div class="body" data-i18n-html="f.a.account"><p>いいえ。Xenon のアカウントもログインもなく、あなたと自分のダッシュボードの間に私のサーバーが入ることもありません。Spotify や Twitch のように自分で設定する連携は、それぞれの資格情報を使い、設定するまでは何もしません。</p></div>
+    </details>
+
+    <!-- ── 7 ─────────────────────────────────────────────────────── -->
+    <h2 id="help"><span data-i18n="f.s7">ライセンス、費用、サポート</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.commercial">仕事で、あるいは自分の製品の中で使えますか</summary>
+      <div class="body" data-i18n-html="f.a.commercial"><p>個人利用は無料で、たまたま仕事に使っている PC でも構いません。販売すること、商用製品に組み込むこと、自分の作品として再配布すること、Xenon の名前を別のものに使うことには、事前の書面での許可が必要です。</p><p>考えている用途があれば聞いてください。<a href='mailto:marcellomastroeni4@gmail.com'>メール</a> でも Discord でも構いません。条件付きで「はい」になることは多いです。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.help">どこで助けを求められますか</summary>
+      <div class="body" data-i18n-html="f.a.help"><p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> がいちばん早く、実際に多くの問題はそこで切り分けられています。再現するものなら、環境と、何をして何が起きたかを書いた <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub の issue</a> がいちばん助かります。どちらも同じ一人が読んでいます。</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.support">プロジェクトを応援するには</summary>
+      <div class="body" data-i18n-html="f.a.support"><p>気が向いたら <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>コーヒー</a> を。支援してくれた方には Discord のロールと Hall of Supporters の席があります。</p><p>一年分のご支援には、もうひとつあります。テーマをお作りします。パレット、写真、ゲームなど、ダッシュボードにこうあってほしいというものを送ってください。それを Xenon のテーマにして、あなたの名前を添えて公開します。リクエストはひとりにつき月にひとつまでです。順番待ちの列があり順に進めるので、日付は約束しません。約束するのは、順番が来たら必ず作ることと、最初のバージョンのあとに一度修正できることです。テーマとは、色、背景、アクセント、フォント、そして既存のウィジェットの配置のことです。新しいウィジェットや新機能は別の話で、含まれません。</p><p>リクエストは <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> の #theme-requests チャンネルで受け付けます。スレッドを立てて、どんなテーマがほしいかを書き、パレットや写真を貼ってください。そのスレッドが順番待ちの位置であり、返事もそこでします。</p><p>無料でできることも同じくらい助かります。<a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> のスター、具体的なバグ報告、<a href='catalog/'>カタログ</a> で共有したウィジェットやテーマ、あるいは画面が余っている人にこれを教えてあげることなどです。</p></div>
+    </details>
+
+    <div class="card">
+      <h3 data-i18n="f.stuck.t">まだ解決しませんか</h3>
+      <p data-i18n-html="f.stuck.p"><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> で聞いてください。繰り返し出てくる質問はこのページに追加されるので、質問すること自体が役に立ちます。</p>
+    </div>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+
+</body>
+</html>

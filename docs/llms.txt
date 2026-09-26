@@ -11,6 +11,7 @@ dashboard that a browser on the same network can open, which is why a second
 screen only needs a browser, not drivers. It was first designed around the
 CORSAIR Xeneon Edge (a 2560×720 touch strip) and works on any screen.
 
+- Latest release: 4.11.10, published 2026-09-26. https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10
 - Platforms: Windows 10 and 11 (stable). macOS 11 or later, one universal .dmg
   for Apple Silicon and Intel (beta, not notarized). Linux x86_64 as AppImage,
   .deb and .rpm (beta). Phones and tablets work as screens over the local

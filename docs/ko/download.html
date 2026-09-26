@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon 다운로드: Windows, Mac, Linux용 무료 터치 대시보드</title>
+<meta name="description" content="Xenon 최신 버전 다운로드. Windows 설치 프로그램, macOS 유니버설 앱, Linux용 AppImage, deb, rpm. 첫 설정, SmartScreen 경고, 서명된 체크섬도 안내합니다.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon 다운로드: Windows, Mac, Linux용 무료 터치 대시보드">
+<meta property="og:description" content="Xenon 최신 버전 다운로드. Windows 설치 프로그램, macOS 유니버설 앱, Linux용 AppImage, deb, rpm. 첫 설정, SmartScreen 경고, 서명된 체크섬도 안내합니다.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/ko/download.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/download.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/download.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/download.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/download.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/download.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/download.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/download.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon은 어디서 다운로드하나요?","acceptedAnswer":{"@type":"Answer","text":"이 페이지의 링크에서 받으면 됩니다. 링크는 항상 GitHub의 최신 릴리스를 가리킵니다. Windows는 Xenon-Setup-x64.exe, macOS는 Xenon-macOS-universal.dmg, Linux는 AppImage, .deb, .rpm 중 하나입니다."}},{"@type":"Question","name":"Xenon은 무료로 다운로드할 수 있나요?","acceptedAnswer":{"@type":"Answer","text":"네. 유료 버전도, 체험판도, 계정도 없습니다. 소스는 비상업적 라이선스로 GitHub에 공개되어 있습니다."}},{"@type":"Question","name":"Windows가 Xenon 설치 프로그램에 경고를 표시하는 이유는 무엇인가요?","acceptedAnswer":{"@type":"Answer","text":"Microsoft가 SmartScreen 평판을 시간을 두고 부여하기 때문입니다. Windows 설치 프로그램은 서명되어 있어 확인된 게시자가 표시되지만, 한동안 SmartScreen이 경고할 수 있습니다. 이때는 추가 정보를 누른 다음 실행을 누르세요. 모든 릴리스에는 서명된 SHA256SUMS 파일도 있어 다운로드를 직접 검증할 수 있습니다."}},{"@type":"Question","name":"Xenon은 자동으로 업데이트되나요?","acceptedAnswer":{"@type":"Answer","text":"네. 시작할 때 새 릴리스를 확인하고 스스로 업데이트합니다."}}]}</script>
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<style>
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+  .dl a.pick { display: block; padding: 16px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); text-decoration: none; color: var(--text); }
+  .dl a.pick:hover { border-color: var(--green); }
+  .dl .os { font-weight: 600; font-size: 16px; }
+  .dl .os small { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: 6px; letter-spacing: .06em; text-transform: uppercase; }
+  .dl .file { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+  .dl .req { display: block; margin-top: 8px; font-size: 13.5px; color: var(--dim); }
+  .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
+  .tablewrap td { vertical-align: top; }
+  pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<link rel="stylesheet" href="/site.css">
+<script src="/chrome.js" defer></script>
+<style id="dl-mark">
+  /* The visitor's own system, marked and lit like the Deck key on the home. */
+  .dl .pick.is-you, a.pick.is-you { --lit: #008DFF; color: #fff !important; border-color: color-mix(in oklab, var(--lit) 70%, #000) !important; background-color: #104D82 !important;
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28), color-mix(in oklab, var(--lit) 20%, #04080d)) !important; }
+  .pick.is-you * { color: #fff !important; }
+  .pick .you { display: inline-block; margin-left: 8px; font: 700 12.5px/1 var(--sans); padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.18); }
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Xenon","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)","softwareVersion":"4.11.10","releaseNotes":"https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10","downloadUrl":"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"fileSize":"2.4 MB"}</script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/download.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/download.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/download.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/download.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/download.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/download.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">메뉴</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li><li><a href="/ko/#install" data-xl="install">설치</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">커피 한 잔 사주기</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/download.html" aria-current="page" data-xl="f.download">다운로드</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"다운로드","item":"https://xenon-app.com/ko/download.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="dl.h1">Xenon 다운로드</h1>
+    <p class="lede" data-i18n="dl.lede">모든 플랫폼용 최신 릴리스를 GitHub에서 바로 받을 수 있습니다. 무료이고 계정도 필요 없으며, 설치한 뒤에는 스스로 업데이트됩니다.</p>
+    <p class="updated" data-i18n-html="dl.updated">마지막 업데이트: 2026년 9월 26일. 모든 링크는 <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">최신 릴리스</a>를 가리킵니다.</p>
+
+    <div class="dl">
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req" data-i18n="dl.win.req">Windows 10 또는 11, 64비트. 앱을 설치하고 로그인할 때 실행합니다.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small data-i18n="dl.beta">베타</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req" data-i18n="dl.mac.req">macOS 11 이상. Apple 실리콘과 Intel을 파일 하나로 지원합니다.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small data-i18n="dl.beta">베타</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n="dl.linux.req">모든 x86_64 데스크톱. .deb와 .rpm은 Linux 페이지에 있습니다.</span></a>
+    </div>
+    <p class="note" data-i18n-html="dl.note.linux"><a href="/linux.html">Linux용 Xenon</a>: .deb와 .rpm 패키지, 첫 실행 때 설정되는 것, 그리고 되는 것과 아직 안 되는 것을 정리한 표.</p>
+    <p class="note" data-i18n-html="dl.note.all">위의 파일은 모두 최신 릴리스이며 GitHub에서 바로 받습니다. 체크섬을 포함한 <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">이번 릴리스의 모든 파일</a>은 릴리스 페이지에 있습니다.</p>
+
+    <h2 id="after" data-i18n="dl.h.after">첫 설정</h2>
+    <p data-i18n-html="dl.after.win"><strong>Windows:</strong> 설치 프로그램을 실행합니다. 앱이 설치되고 저절로 열린 뒤, 대시보드 엔진이 아직 없는 것을 확인하면 <strong>Complete setup</strong>(설정 완료) 버튼을 보여 줍니다. 한 번 누르면 창이 열리고 Node.js, 센서 판독기, 로그인할 때 Xenon을 시작하는 작업을 설치하면서 각 단계를 보여 줍니다. 무엇이든 실행하기 전에 다운로드한 파일을 프로젝트의 서명 키로 검증합니다. 몇 분이면 끝나고 한 번만 하면 됩니다.</p>
+    <p data-i18n-html="dl.after.posix"><strong>macOS와 Linux:</strong> 다운로드한 앱을 엽니다. 처음 실행할 때 터미널 창에서 대시보드를 설정하겠다고 제안하며, 압축을 풀기 전에 다운로드를 검증합니다. Linux에서 패키지가 이 작업을 대신 하지 않는 것은 의도한 것입니다. 만들어지는 것은 모두 한 사용자 계정에 속하는데, 패키지는 root 권한으로 컴퓨터 전체에 설치되기 때문입니다.</p>
+    <p data-i18n-html="dl.after.screen">그다음 Xenon이 어느 화면에서 쓸지 묻습니다. 남는 모니터, 태블릿, 휴대폰, CORSAIR Xeneon Edge 모두 됩니다. 휴대폰이나 태블릿을 30초 정도 만에 페어링하는 방법은 <a href="/ko/phone.html">휴대폰 가이드</a>에서 설명합니다.</p>
+
+    <h2 id="warning" data-i18n="dl.h.warning">Windows와 macOS의 경고</h2>
+    <p data-i18n-html="dl.warn.win">버전 4.11.9부터 Windows 설치 프로그램은 서명되어 있어 Windows에 확인된 게시자가 표시됩니다. 그래도 Microsoft가 평판을 시간을 두고 부여하기 때문에 한동안 SmartScreen이 경고할 수 있습니다. <strong>추가 정보</strong>를 누른 다음 <strong>실행</strong>을 누르세요. Defender는 누가 서명했는지뿐 아니라 프로그램이 무엇을 하는지도 판단하므로 탐지될 가능성은 여전히 있습니다. <a href="/ko/faq.html#warnings">FAQ에서 경고 종류별로 설명</a>하고 파일을 되찾는 방법도 안내합니다. 무엇이 설치되는지 정확히 알고 싶다면 <a href="/xenon-exe.html">Xenon이 실행하는 모든 프로세스를 정리한 페이지</a>를 보세요.</p>
+    <p data-i18n-html="dl.warn.mac"><strong>macOS:</strong> Mac 버전은 베타이고 공증(notarize)을 받지 않았기 때문에 macOS가 첫 실행을 막습니다. <strong>시스템 설정 &rarr; 개인정보 보호 및 보안</strong>을 열고 아래로 내려서 Xenon 옆의 <strong>확인 없이 열기</strong>를 클릭하세요. macOS 15 이상에서는 Control 키를 누른 채 클릭해서 여는 방법이 더 이상 통하지 않습니다.</p>
+
+    <h2 id="verify" data-i18n="dl.h.verify">다운로드 검증</h2>
+    <p data-i18n-html="dl.verify.p1">모든 릴리스에는 프로젝트의 Ed25519 키로 서명한 <code>SHA256SUMS</code> 파일이 함께 올라갑니다. 다운로드한 파일의 해시를 비교하세요.</p>
+    <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
+shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
+sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
+    <p data-i18n-html="dl.verify.p2">릴리스의 <code>SHA256SUMS</code>에 있는 해당 파일의 줄과 일치하면, 그 파일은 GitHub Actions가 그 태그의 공개 소스에서 빌드한 파일과 바이트 단위까지 같습니다. Windows에서는 설치 프로그램을 오른쪽 클릭하고 <strong>속성</strong>을 선택한 뒤 <strong>디지털 서명</strong> 탭을 열어 게시자를 확인할 수도 있습니다.</p>
+
+    <h2 id="other" data-i18n="dl.h.other">다른 설치 방법</h2>
+    <p data-i18n-html="dl.other.source"><strong>소스에서 설치:</strong> 릴리스에서 <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">소스 코드 zip</a>을 받아 압축을 풀고, Windows에서는 <code>INSTALL.bat</code>, macOS에서는 <code>INSTALL.command</code>, Linux에서는 <code>./INSTALL.sh</code>를 실행합니다. 결과는 설치 프로그램과 같으며, 무엇이 실행되는지 직접 읽어 보고 싶은 분을 위한 방법입니다.</p>
+    <p data-i18n-html="dl.other.winget"><strong>winget:</strong> 패키지 매니페스트는 작성되어 있고, Microsoft 쪽 검사를 깨끗하게 통과하는 릴리스를 기다리는 중입니다. 목록에 올라가기 전까지는 위의 설치 프로그램을 사용하세요. 올라가는 날 이 페이지에 <code>winget install xenon</code>이라고 적겠습니다.</p>
+    <p data-i18n-html="dl.other.update"><strong>업데이트:</strong> Xenon은 시작할 때 새 릴리스를 확인하고 스스로 업데이트합니다. 업데이트 때문에 이 페이지로 다시 올 필요는 없습니다.</p>
+
+    <div class="card accent">
+      <h3 data-i18n="dl.about.h">Xenon이란</h3>
+      <p data-i18n-html="dl.about.p">PC에서 실행되고 남는 화면 어디에나 띄울 수 있는 무료 대시보드입니다. 시스템 상태, 미디어와 마이크 제어, Stream Deck 스타일의 키 그리드, 조명, 말로 대화할 수 있는 AI를 제공합니다. 계정이 필요 없고, 설정, 파일, 센서 값은 PC에 저장됩니다. <a href="/ko/">홈페이지에서 직접 볼 수 있습니다</a>.</p>
+    </div>
+    <span id="dl-you" hidden data-i18n="dl.you">내 시스템</span>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+<script>
+  // Marks the card for the visitor's system. Detection is a convenience:
+  // all three files stay listed and every link works without it.
+  (function () {
+    var uad = navigator.userAgentData;
+    var p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
+    if ((uad && uad.mobile) || /Android|iPhone|iPad|iPod|CrOS/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1)) return;
+    var os = /Win/i.test(p) ? 'win' : /Mac/i.test(p) ? 'mac' : /Linux|X11/i.test(p) ? 'linux' : null;
+    if (!os) return;
+    var a = document.querySelector('.pick[data-track-location="download_page_' + os + '"]');
+    if (!a) return;
+    a.classList.add('is-you');
+    var o = a.querySelector('.os');
+    var lbl = document.getElementById('dl-you');
+    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = (lbl && lbl.textContent) || 'Your system'; o.appendChild(t); }
+  })();
+</script>
+</body>
+</html>
