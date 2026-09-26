@@ -1054,15 +1054,16 @@
       },
       "limited": {
         "total": 50,
-        "claimed": 45,
+        "claimed": 50,
         "fulfillment": "hub",
         "dropId": "vanguard-50",
         "channels": "both",
         "numbered": true
       },
       "shots": 4,
+      "active": false,
       "addedAt": "2026-07-19",
-      "updatedAt": "2026-07-26"
+      "updatedAt": "2026-09-26"
     },
     {
       "id": "pow-comic",
