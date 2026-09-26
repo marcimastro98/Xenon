@@ -302,6 +302,12 @@ h1 {
 .chip[aria-pressed="true"] { background: var(--room-2); font-weight: 700; }
 .sw { width: 30px; height: 20px; border-radius: 4px; position: relative; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
 .sw::after { content: ""; position: absolute; right: 4px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--c); }
+.cycle { display: inline-grid; place-items: center; width: 40px; height: 40px; margin-left: 4px; border: 0; border-radius: 10px; background: transparent; color: var(--fg-2); cursor: pointer; }
+.cycle:hover { background: var(--room-2); color: var(--fg); }
+.cycle svg { width: 16px; height: 16px; }
+.cycle .i-play { display: none; }
+.cycle[aria-pressed="true"] .i-play { display: block; }
+.cycle[aria-pressed="true"] .i-pause { display: none; }
 .cap { margin: 0; font-size: 15.5px; color: var(--fg-2); }
 .cap a, .cap button { color: var(--fg); }
 .linkbtn { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; color: inherit; }
@@ -314,21 +320,26 @@ h1 {
 h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .beta { display: inline-block; vertical-align: 0.12em; margin-left: 6px; font: 700 13.5px/1 var(--f-text); color: var(--beta-fg); background: var(--beta-bg); border-radius: 999px; padding: 4px 8px 4px; }
 
-/* Screens drawn to scale on one desk line. */
-.lineup { display: flex; align-items: flex-end; gap: 2.4%; }
-.unit { display: grid; gap: 14px; align-content: end; }
+/* Screens drawn to scale on one desk line. Physical widths: a 27-inch 16:9
+   monitor 23.5 in, the Edge 14.0 in, an 11-inch tablet held sideways 9.0 in, a
+   6.1-inch phone 2.6 in, all at 1.709 cqw per inch; the phone's column is wider
+   than the phone so its caption has room. Each caption sits in its device's
+   column, on one shared row. */
+.lineup-wrap { container-type: inline-size; }
+.lineup { display: grid; grid-template-columns: 40.2cqw 23.9cqw 15.4cqw minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 2.5cqw; row-gap: 22px; }
+.unit { margin: 0; display: grid; grid-row: span 2; grid-template-rows: subgrid; min-width: 0; }
+.dv-stack { align-self: end; }
 .unit .dv { background: var(--well); padding: 6px; border-radius: 8px; box-shadow: inset 0 1px 0 var(--bezel-hi), 0 0 0 1px var(--well-rim), 0 24px 40px -26px rgba(0,0,0,.55); }
 .unit .dv img { display: block; width: 100%; height: auto; border-radius: 3px; }
-.u-mon { flex: 0 0 46.9%; } .u-edge { flex: 0 0 27.8%; } .u-tab { flex: 0 0 12.5%; } .u-ph { flex: 0 0 5.2%; }
 .u-mon .dv { padding: 7px; border-radius: 6px; }
-.stand { width: 18%; height: 34px; margin: 0 auto; background: linear-gradient(90deg, #1a1c1d, #2a2d2f 50%, #1a1c1d); clip-path: polygon(38% 0, 62% 0, 70% 100%, 30% 100%); }
-.stand + .foot-base { width: 32%; height: 6px; margin: -2px auto 0; border-radius: 3px 3px 1px 1px; background: #1c1e1f; }
-.u-tab .dv { padding: 5px; border-radius: 12px; } .u-tab .dv img { border-radius: 7px; }
-.u-ph .dv { padding: 3px; border-radius: 10px; } .u-ph .dv img { border-radius: 7px; }
 .u-edge .dv { padding: 5px; border-radius: 7px; }
-.lineup-caps { display: grid; grid-template-columns: 34% 28% 17% minmax(0,1fr); column-gap: 3%; margin-top: 22px; }
-.lineup-caps div { font-size: 16px; line-height: 1.45; color: var(--fg-2); min-width: 0; }
-.lineup-caps b { display: block; color: var(--fg); font: 700 19px/1.3 var(--f-text); margin-bottom: 4px; }
+.u-tab .dv { padding: 6px; border-radius: 12px; } .u-tab .dv img { border-radius: 7px; }
+.u-ph .dv-stack { width: 4.4cqw; min-width: 44px; }
+.u-ph .dv { padding: 3px; border-radius: 10px; } .u-ph .dv img { border-radius: 7px; }
+.stand { width: 18%; height: 34px; margin: 0 auto; background: linear-gradient(90deg, #1a1c1d, #2a2d2f 50%, #1a1c1d); clip-path: polygon(38% 0, 62% 0, 70% 100%, 30% 100%); }
+.foot-base { width: 32%; height: 6px; margin: -2px auto 0; border-radius: 3px 3px 1px 1px; background: #1c1e1f; }
+.unit figcaption { font-size: 16px; line-height: 1.45; color: var(--fg-2); }
+.unit figcaption b { display: block; color: var(--fg); font: 700 19px/1.3 var(--f-text); margin-bottom: 4px; }
 .scale-note { margin: 26px 0 0; font-size: 15.5px; color: var(--fg-3); }
 
 /* Widgets: one screen region large, two beside it, then every name as text. */
@@ -461,9 +472,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .sec { padding-block: 76px 0; }
   .sec-head { margin-bottom: 26px; }
   .sec-head p { font-size: 17.5px; }
-  .lineup { flex-wrap: wrap; align-items: flex-end; gap: 22px 16px; }
-  .u-mon { flex-basis: 100%; } .u-edge { flex-basis: 100%; } .u-tab { flex-basis: 40%; } .u-ph { flex-basis: 22%; }
-  .lineup-caps { grid-template-columns: 1fr 1fr; gap: 18px 16px; }
+  .lineup { grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 14px; }
+  .u-mon, .u-edge { grid-column: 1 / -1; }
+  .u-ph .dv-stack { width: 42%; }
   .scale-note { display: none; }
   .wg .side { grid-template-columns: 1fr; }
   .names { grid-template-columns: 1fr 1fr; margin-top: 44px; }
@@ -593,6 +604,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <button class="chip" type="button" aria-pressed="false" data-theme-id="afterimage"><span class="sw" style="background:#11121e;--c:#efa7b9"></span>Afterimage</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="retro"><span class="sw" style="background:#050510;--c:#ffb000"></span>Pixel Retro</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="comic"><span class="sw" style="background:#101010;--c:#ff4d6d"></span>Comic</button>
+          <button class="chip" type="button" aria-pressed="false" data-theme-id="ambient"><span class="sw" style="background:linear-gradient(135deg,#06131f,#0c2a3f);--c:#e8f4ff"></span>Ambient</button>
+          <button class="cycle" id="cycle" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" id="cycle-l" data-i18n="themes.pause">Metti in pausa i temi</span></button>
         </div>
         <p class="cap" id="scr-cap"><span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean, gratis nel <a href="/catalog/#deep-ocean">catalogo</a>.</span> <span data-i18n="scr.sample">Dati di esempio dalla demo nel browser.</span></p>
       </div>
@@ -605,17 +618,17 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <h2 id="h-screens" data-i18n="screens.h2">Xeneon Edge, monitor, tablet, telefono</h2>
         <p data-i18n="screens.p">Una sola dashboard che si riorganizza per ogni forma: una griglia a 24 colonne su uno schermo largo, due colonne su un tablet, una su un telefono.</p>
       </div>
-      <div class="lineup">
-        <div class="unit u-mon"><div class="dv"><img src="/images/home/monitor.webp" width="1600" height="900" loading="lazy" decoding="async" alt="The dashboard on a 16:9 monitor" data-i18n-alt="screens.mon.alt"></div><div class="stand"></div><div class="foot-base"></div></div>
-        <div class="unit u-edge"><div class="dv"><img src="/images/home/edge-ocean-1440.webp" width="1440" height="405" loading="lazy" decoding="async" alt="The dashboard on a Xeneon Edge" data-i18n-alt="screens.edge.alt"></div></div>
-        <div class="unit u-tab"><div class="dv"><img src="/images/home/tablet.webp" width="820" height="1180" loading="lazy" decoding="async" alt="The dashboard on a tablet held upright" data-i18n-alt="screens.tab.alt"></div></div>
-        <div class="unit u-ph"><div class="dv"><img src="/images/home/phone.webp" width="780" height="1688" loading="lazy" decoding="async" alt="The dashboard on a phone" data-i18n-alt="screens.ph.alt"></div></div>
-      </div>
-      <div class="lineup-caps">
-        <div><b data-i18n="screens.mon.t">Monitor</b><span data-i18n="screens.mon.p">Qualsiasi schermo collegato al PC, touch o no. Al primo avvio Xenon chiede su quale aprirsi.</span></div>
-        <div><b data-i18n="screens.edge.t">Xeneon Edge</b><span data-i18n-html="screens.edge.p">2560 × 720. Funziona con o senza iCUE. <a href="/xeneon-edge-widgets.html">Xenon sull'Edge</a></span></div>
-        <div><b><span data-i18n="screens.tab.t">Tablet</span><span class="beta" data-i18n="beta">Beta</span></b><span data-i18n-html="screens.tab.p">Si abbina con un codice QR sul tuo Wi-Fi. <a href="/tablet-dashboard.html">Come funziona</a></span></div>
-        <div><b><span data-i18n="screens.ph.t">Telefono</span><span class="beta" data-i18n="beta">Beta</span></b><span data-i18n-html="screens.ph.p">Non ci si installa niente. I file vanno in entrambe le direzioni. <a href="/phone.html">Configurazione</a></span></div>
+      <div class="lineup-wrap">
+        <div class="lineup">
+          <figure class="unit u-mon"><div class="dv-stack"><div class="dv"><img src="/images/home/monitor.webp" width="1600" height="900" loading="lazy" decoding="async" alt="The dashboard on a 16:9 monitor" data-i18n-alt="screens.mon.alt"></div><div class="stand"></div><div class="foot-base"></div></div>
+            <figcaption><b data-i18n="screens.mon.t">Monitor</b><span data-i18n="screens.mon.p">Qualsiasi schermo collegato al PC, touch o no. Al primo avvio Xenon chiede su quale aprirsi.</span></figcaption></figure>
+          <figure class="unit u-edge"><div class="dv-stack"><div class="dv"><img src="/images/home/edge-ocean-1440.webp" width="1440" height="405" loading="lazy" decoding="async" alt="The dashboard on a Xeneon Edge" data-i18n-alt="screens.edge.alt"></div></div>
+            <figcaption><b data-i18n="screens.edge.t">Xeneon Edge</b><span data-i18n-html="screens.edge.p">2560 × 720. Funziona con o senza iCUE. <a href="/xeneon-edge-widgets.html">Xenon sull'Edge</a></span></figcaption></figure>
+          <figure class="unit u-tab"><div class="dv-stack"><div class="dv"><img src="/images/home/tablet.webp" width="1180" height="820" loading="lazy" decoding="async" alt="The dashboard on a tablet held sideways" data-i18n-alt="screens.tab.alt"></div></div>
+            <figcaption><b><span data-i18n="screens.tab.t">Tablet</span><span class="beta" data-i18n="beta">Beta</span></b><span data-i18n-html="screens.tab.p">Si abbina con un codice QR sul tuo Wi-Fi. <a href="/tablet-dashboard.html">Come funziona</a></span></figcaption></figure>
+          <figure class="unit u-ph"><div class="dv-stack"><div class="dv"><img src="/images/home/phone.webp" width="780" height="1688" loading="lazy" decoding="async" alt="The dashboard on a phone" data-i18n-alt="screens.ph.alt"></div></div>
+            <figcaption><b><span data-i18n="screens.ph.t">Telefono</span><span class="beta" data-i18n="beta">Beta</span></b><span data-i18n-html="screens.ph.p">Non ci si installa niente. I file vanno in entrambe le direzioni. <a href="/phone.html">Configurazione</a></span></figcaption></figure>
+        </div>
       </div>
       <p class="scale-note" data-i18n="screens.scale">Disegnati in scala: un monitor da 27 pollici, l'Edge da 14,5, un tablet da 11 e un telefono da 6,1.</p>
     </div>
@@ -928,11 +941,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, free in the <a href=\"/catalog/#afterimage\">catalog</a>.",
     "theme.retro": "Pixel Retro, one of the three styles built into Xenon.",
     "theme.comic": "Comic, one of the three styles built into Xenon.",
+    "theme.ambient": "Ambient, the screen saver: the clock, the weather, what is playing and what is next.",
+    "themes.pause": "Pause the themes",
+    "themes.play": "Play the themes",
     "screens.h2": "Xeneon Edge, monitor, tablet, phone",
     "screens.p": "One dashboard that rearranges itself for each shape: a 24-column grid on a wide screen, two columns on a tablet, one on a phone.",
     "screens.mon.alt": "The dashboard on a 16:9 monitor",
     "screens.edge.alt": "The dashboard on a Xeneon Edge",
-    "screens.tab.alt": "The dashboard on a tablet held upright",
+    "screens.tab.alt": "The dashboard on a tablet held sideways",
     "screens.ph.alt": "The dashboard on a phone",
     "screens.mon.t": "Monitor",
     "screens.mon.p": "Any display connected to the PC, touch or not. On first start Xenon asks which one to open on.",
@@ -1118,11 +1134,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, gratis nel <a href=\"/catalog/#afterimage\">catalogo</a>.",
     "theme.retro": "Pixel Retro, uno dei tre stili già inclusi in Xenon.",
     "theme.comic": "Comic, uno dei tre stili già inclusi in Xenon.",
+    "theme.ambient": "Ambient, lo screensaver: orologio, meteo, cosa sta suonando e cosa viene dopo.",
+    "themes.pause": "Metti in pausa i temi",
+    "themes.play": "Riprendi i temi",
     "screens.h2": "Xeneon Edge, monitor, tablet, telefono",
     "screens.p": "Una sola dashboard che si riorganizza per ogni forma: una griglia a 24 colonne su uno schermo largo, due colonne su un tablet, una su un telefono.",
     "screens.mon.alt": "La dashboard su un monitor 16:9",
     "screens.edge.alt": "La dashboard su uno Xeneon Edge",
-    "screens.tab.alt": "La dashboard su un tablet in verticale",
+    "screens.tab.alt": "La dashboard su un tablet in orizzontale",
     "screens.ph.alt": "La dashboard su un telefono",
     "screens.mon.t": "Monitor",
     "screens.mon.p": "Qualsiasi schermo collegato al PC, touch o no. Al primo avvio Xenon chiede su quale aprirsi.",
@@ -1308,11 +1327,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, gratis en el <a href=\"/catalog/#afterimage\">catálogo</a>.",
     "theme.retro": "Pixel Retro, uno de los tres estilos incluidos en Xenon.",
     "theme.comic": "Comic, uno de los tres estilos incluidos en Xenon.",
+    "theme.ambient": "Ambient, el salvapantallas: el reloj, el tiempo, lo que suena y lo que viene.",
+    "themes.pause": "Pausar los temas",
+    "themes.play": "Reanudar los temas",
     "screens.h2": "Xeneon Edge, monitor, tablet, teléfono",
     "screens.p": "Un solo panel que se reorganiza para cada forma: una cuadrícula de 24 columnas en una pantalla ancha, dos columnas en una tablet, una en un teléfono.",
     "screens.mon.alt": "El panel en un monitor 16:9",
     "screens.edge.alt": "El panel en un Xeneon Edge",
-    "screens.tab.alt": "El panel en una tablet en vertical",
+    "screens.tab.alt": "El panel en una tablet en horizontal",
     "screens.ph.alt": "El panel en un teléfono",
     "screens.mon.t": "Monitor",
     "screens.mon.p": "Cualquier pantalla conectada al PC, táctil o no. En el primer arranque Xenon pregunta en cuál abrirse.",
@@ -1498,11 +1520,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage。<a href=\"/catalog/#afterimage\">カタログ</a>から無料で入手できます。",
     "theme.retro": "Pixel Retro。Xenonに内蔵された3つのスタイルのひとつです。",
     "theme.comic": "Comic。Xenonに内蔵された3つのスタイルのひとつです。",
+    "theme.ambient": "Ambient（スクリーンセーバー）: 時計、天気、再生中の曲、次の予定。",
+    "themes.pause": "テーマを一時停止",
+    "themes.play": "テーマを再生",
     "screens.h2": "Xeneon Edge、モニター、タブレット、スマートフォン",
     "screens.p": "ひとつのダッシュボードが、画面の形に合わせて配置を変えます。横長の画面では24列のグリッド、タブレットでは2列、スマートフォンでは1列になります。",
     "screens.mon.alt": "16:9のモニターに表示したダッシュボード",
     "screens.edge.alt": "Xeneon Edgeに表示したダッシュボード",
-    "screens.tab.alt": "縦向きのタブレットに表示したダッシュボード",
+    "screens.tab.alt": "横向きのタブレットに表示したダッシュボード",
     "screens.ph.alt": "スマートフォンに表示したダッシュボード",
     "screens.mon.t": "モニター",
     "screens.mon.p": "PCにつないだディスプレイなら、タッチ対応でなくても使えます。初回起動時に、どの画面で開くかをXenonが確認します。",
@@ -1688,11 +1713,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, <a href=\"/catalog/#afterimage\">카탈로그</a>의 무료 테마.",
     "theme.retro": "Pixel Retro, Xenon에 기본으로 들어 있는 세 가지 스타일 중 하나.",
     "theme.comic": "Comic, Xenon에 기본으로 들어 있는 세 가지 스타일 중 하나.",
+    "theme.ambient": "Ambient 화면 보호기: 시계, 날씨, 재생 중인 곡, 다음 일정.",
+    "themes.pause": "테마 일시정지",
+    "themes.play": "테마 재생",
     "screens.h2": "Xeneon Edge, 모니터, 태블릿, 휴대폰",
     "screens.p": "하나의 대시보드가 화면 형태에 맞춰 배치를 바꿉니다. 넓은 화면에서는 24열 그리드, 태블릿에서는 2열, 휴대폰에서는 1열입니다.",
     "screens.mon.alt": "16:9 모니터에 표시된 대시보드",
     "screens.edge.alt": "Xeneon Edge에 표시된 대시보드",
-    "screens.tab.alt": "세로로 든 태블릿에 표시된 대시보드",
+    "screens.tab.alt": "가로로 놓은 태블릿의 대시보드",
     "screens.ph.alt": "휴대폰에 표시된 대시보드",
     "screens.mon.t": "모니터",
     "screens.mon.p": "PC에 연결된 디스플레이라면 터치 지원 여부와 관계없이 사용할 수 있습니다. 처음 실행하면 Xenon이 어느 화면에서 열지 묻습니다.",
@@ -1878,11 +1906,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage，可在<a href=\"/catalog/#afterimage\">目录</a>中免费获取。",
     "theme.retro": "Pixel Retro，Xenon 内置的三种风格之一。",
     "theme.comic": "Comic，Xenon 内置的三种风格之一。",
+    "theme.ambient": "Ambient 屏保：时钟、天气、正在播放的内容和接下来的日程。",
+    "themes.pause": "暂停主题轮播",
+    "themes.play": "继续主题轮播",
     "screens.h2": "Xeneon Edge、显示器、平板、手机",
     "screens.p": "同一个仪表盘会按屏幕形状重新排列：宽屏上是 24 列网格，平板上是两列，手机上是一列。",
     "screens.mon.alt": "16:9 显示器上的仪表盘",
     "screens.edge.alt": "Xeneon Edge 上的仪表盘",
-    "screens.tab.alt": "竖握的平板上的仪表盘",
+    "screens.tab.alt": "横放平板上的仪表盘",
     "screens.ph.alt": "手机上的仪表盘",
     "screens.mon.t": "显示器",
     "screens.mon.p": "任何连接到电脑的显示器，是否支持触控都可以。首次启动时，Xenon 会询问要在哪块屏幕上打开。",
@@ -2145,11 +2176,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       afterimage: { lit: '#e889a3', note: 'theme.afterimage' },
       retro:      { lit: '#ffb000', note: 'theme.retro' },
       comic:      { lit: '#ff4d6d', note: 'theme.comic' },
+      ambient:    { lit: '#008DFF', note: 'theme.ambient' },
     };
     const scr = document.getElementById('scr');
     const note = document.getElementById('theme-note');
     const chips = document.querySelectorAll('.chip[data-theme-id]');
     let busy = null;
+    let stopped = false, timer = null;
+    document.addEventListener('xenon:demo-live', () => { stopped = true; clearTimeout(timer); timer = null; });
     function show(id) {
       const t = THEMES[id]; if (!t) return;
       chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.themeId === id)));
@@ -2174,7 +2208,49 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       };
       (next.decode ? next.decode() : Promise.resolve()).then(done, done);
     }
-    chips.forEach((c) => c.addEventListener('click', () => show(c.dataset.themeId)));
+    chips.forEach((c) => c.addEventListener('click', () => { stopForGood(); show(c.dataset.themeId); }));
+
+    // The screen walks through the themes on its own, the way a dashboard on a
+    // desk gets shown off: it waits until the first picture has lit up, pauses
+    // while the pointer or the focus is on it or it is off screen, stops for
+    // good once a theme is picked, and never runs for a visitor who asked for
+    // less motion. The button beside the themes pauses and resumes it (WCAG 2.2.2).
+    const ORDER = ['ocean', 'kintsugi', 'limnograph', 'afterimage', 'retro', 'comic', 'ambient'];
+    const cycleBtn = document.getElementById('cycle');
+    const cycleL = document.getElementById('cycle-l');
+    let idx = 0, paused = false, hover = false, seen = true;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const desk = () => matchMedia('(min-width: 701px)').matches;
+    function tick() {
+      timer = null;
+      if (stopped) return;
+      if (paused || hover || !seen || document.hidden || !desk()) return schedule();
+      idx = (idx + 1) % ORDER.length;
+      show(ORDER[idx]);
+      schedule();
+    }
+    function schedule() { if (!stopped && !timer) timer = setTimeout(tick, 4600); }
+    function stopForGood() { stopped = true; clearTimeout(timer); timer = null; if (cycleBtn) cycleBtn.hidden = true; }
+    if (!reduce && cycleBtn) {
+      cycleBtn.hidden = false;
+      cycleBtn.addEventListener('click', () => {
+        paused = !paused;
+        cycleBtn.setAttribute('aria-pressed', String(paused));
+        if (cycleL) cycleL.textContent = window.XT(paused ? 'themes.play' : 'themes.pause');
+        if (!paused) schedule();
+      });
+      [dev, document.querySelector('.themes')].forEach((z) => {
+        if (!z) return;
+        z.addEventListener('pointerenter', () => { hover = true; });
+        z.addEventListener('pointerleave', () => { hover = false; });
+        z.addEventListener('focusin', (e) => { if (e.target !== cycleBtn) hover = true; });
+        z.addEventListener('focusout', () => { hover = false; });
+      });
+      if ('IntersectionObserver' in window) new IntersectionObserver((es) => { seen = es[0].isIntersecting; }, { threshold: 0.4 }).observe(dev);
+      // Warm every picture once the first one is up, so each change is instant.
+      setTimeout(() => ORDER.forEach((id) => { const i = new Image(); i.src = '/images/home/edge-' + id + '-1440.webp'; }), 2500);
+      setTimeout(schedule, 2200);
+    }
     // Hover or focus warms the next picture so the swap is instant.
     chips.forEach((c) => {
       const warm = () => { const i = new Image(); i.src = '/images/home/edge-' + c.dataset.themeId + '-1440.webp'; };
@@ -2199,6 +2275,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     function fit(frame) { frame.style.transform = 'scale(' + (scr.clientWidth / 2560) + ')'; }
     run.addEventListener('click', () => {
       if (!can() || scr.querySelector('iframe')) return;
+      const c = document.getElementById('cycle'); if (c) c.hidden = true;
+      document.dispatchEvent(new Event('xenon:demo-live'));
       const frame = document.createElement('iframe');
       frame.title = window.XT('scr.live');
       frame.setAttribute('scrolling', 'no');
