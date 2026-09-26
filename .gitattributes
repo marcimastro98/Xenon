@@ -62,6 +62,7 @@ docs/creators/                  export-ignore
 docs/theme.js                   export-ignore
 docs/promo.js                   export-ignore
 docs/download-flow.js           export-ignore
+docs/chrome.js                  export-ignore
 docs/thanks.html                export-ignore
 docs/faq.html                   export-ignore
 docs/download.html              export-ignore
