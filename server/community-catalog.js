@@ -40,12 +40,17 @@ const CATALOG_URL = CATALOG_BASE + 'catalog.json';
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;   // catalog JSON — generous, rejects absurd payloads
-const MAX_CODE_BYTES = 2 * 1024 * 1024;   // one shared code file
+// One shared code file. 4 MB since v4.11.11 (was 2): a remote-locked bundle carrying a theme
+// with painted backdrop images, a widget AND an Ambient scene lands around 3.5 MB, because
+// locking inflates a code by ~78%. Matches the import dialog's own 4 MB ceiling
+// (MAX_CODE_BYTES in js/preset-share.js) and the hub's MAX_CODE. An entry whose code is over
+// the old 2 MB must carry appVersionMin 4.11.11, or older installs refuse it as bad_code.
+const MAX_CODE_BYTES = 4 * 1024 * 1024;
 const CATALOG_TTL_MS = 45 * 60 * 1000;
 const REFRESH_MIN_INTERVAL_MS = 60 * 1000; // ?refresh=1 can't hammer the site
 const CODE_REVALIDATE_MS = 60 * 1000;      // serve a cached code blind for this long, then revalidate (etag) every request
 const MAX_ENTRIES = 200;
-const CODE_CACHE_MAX = 10;
+const CODE_CACHE_MAX = 6;       // up to 6 x MAX_CODE_BYTES held in memory
 const CODE_INLINE_MAX = 8000;   // longer codes must ship as codes/<id>.txt
 
 // Kinds the gallery may list — the import pipeline's PRESET_KINDS.

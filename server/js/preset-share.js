@@ -122,14 +122,15 @@
   const DECK_MAX_FOLDER_DEPTH = 6;
   const DECK_TRIGGERS = ['tap', 'double', 'hold'];
 
-  // The community catalog caps a share code at 2 MB (hub MAX_CODE). A pack is
-  // always shareable as a FILE regardless, so this only gates the "publish to
-  // catalog" reach — the builder warns rather than blocks.
-  const CATALOG_CODE_MAX = 2 * 1024 * 1024;
+  // The community catalog caps a share code at 4 MB (hub MAX_CODE, and
+  // community-catalog.js MAX_CODE_BYTES). A pack is always shareable as a FILE
+  // regardless, so this only gates the "publish to catalog" reach — the builder
+  // warns rather than blocks.
+  const CATALOG_CODE_MAX = 4 * 1024 * 1024;
 
   // ── Sound packs (kind 'sounds') ────────────────────────────────────────────
   // Caps mirror server/sound-packs.js (the authority) and are sized so an
-  // exported pack stays publishable (the catalog's ceiling is a 2 MB code).
+  // exported pack stays publishable (the catalog's ceiling is a 4 MB code).
   const SOUNDS_MAX_CLIPS = 24;
   const SOUNDS_CLIP_MAX = 512 * 1024;                    // decoded bytes per clip
   const SOUNDS_PACK_MAX = Math.floor(1.4 * 1024 * 1024); // decoded bytes per pack

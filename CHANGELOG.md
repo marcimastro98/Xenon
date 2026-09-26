@@ -3,6 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+
 ## [v4.11.10] - 26-09-2026
 ### ✨ Added
 - **Xenon AI can use your Claude or ChatGPT subscription instead of an API key.** Two new providers in **Settings → Xenon AI**: **Claude Code** and **Codex**. Xenon AI then answers through the official Claude Code or Codex program installed on your PC, signed in with your own Claude or ChatGPT plan, so there is nothing to pay per message.
@@ -92,6 +93,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🐛 Fixed
+- **Bigger Store items install.** The Store accepted an item's install code only up to 2 MB, and a supporter pack with painted background images, a widget and an Ambient scene is around 3.5 MB once locked: it had to be split into separate items. The limit is now 4 MB, so a pack like that is one item and one install. On an older version those items say "Requires Xenon v4.11.11" instead of offering an install that would fail.
 - **Settings now tells you whether the Media tile's sound wave can work on your PC.** Asked on Discord: *"how do I install xenon helper for media visualization?"* The wave draws the sound the playing app is really making, and that measurement only exists through Xenon Helper on Windows. Without it the wave simply stayed empty and nothing said why. Next to the wave switch you now see whether Xenon Helper is running, missing, too old or stopped, and what to do about it: running INSTALL.bat again installs or updates it. On a Mac or Linux it says the wave is Windows only, instead of suggesting an install that cannot help.
 
   Worth knowing if your player seems ignored: the wave, like the Media tile, follows what Windows reports as playing. Some players, Winamp among them, only report it with a small plugin.
