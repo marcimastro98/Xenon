@@ -274,8 +274,14 @@ h1 {
 .hero-act .key { min-width: min(100%, 330px); }
 .facts { margin: 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 .act-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 16px; }
-.proof { margin: 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); min-height: 1.45em; max-width: 36ch; }
-.proof b { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
+.proof { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; min-height: 36px; }
+.pf { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; text-decoration: none; color: var(--fg); }
+.pf svg { width: 21px; height: 21px; flex: 0 0 auto; }
+.pf b { font: 700 18px/1 var(--f-text); font-variant-numeric: tabular-nums; }
+.pf:hover b { text-decoration: underline; text-underline-offset: 0.2em; }
+.pf-dl svg { color: var(--fg-2); }
+.pf-gh .st { margin-right: -4px; color: #E3B341; font-size: 16px; line-height: 1; }
+.pf-dc svg { color: #5865F2; }
 .for-phone { display: none; }
 .lang-hint { display: inline-block; margin-bottom: 14px; font-size: 16px; font-weight: 600; }
 
@@ -366,10 +372,16 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .ws-links a { display: inline-flex; align-items: center; min-height: 40px; color: var(--fg); font-weight: 700; text-underline-offset: 0.2em; }
 
 /* Controls: four names, one fact each. Text only, no boxes. */
-.ctl { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 40px 24px; }
-.ctl > div { grid-column: span 6; max-width: 60ch; }
-.ctl p { margin: 0; color: var(--fg-2); font-size: 18px; }
-.ctl h3 { font: 760 28px/1.1 var(--f-display); margin-bottom: 10px; }
+/* Controls: two real tiles, the Deck and a Claude Code request, at the size
+   they were captured, each with its name and one paragraph under it. */
+.ctl-shots { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 40px 24px; align-items: start; }
+.ctl-shots figure { margin: 0; min-width: 0; }
+.ctl-shots img { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 2px 4px rgba(0,0,0,.08), 0 22px 44px -28px rgba(0,0,0,.45); }
+.ctl-shots figcaption { margin-top: 20px; max-width: 54ch; }
+.ctl-shots h3, .ctl-more h3 { margin: 0 0 8px; font: 760 clamp(24px, 0.8vw + 17px, 30px)/1.1 var(--f-display); letter-spacing: -0.01em; }
+.ctl-shots p, .ctl-more p { margin: 0; font-size: 17.5px; line-height: 1.55; color: var(--fg-2); }
+.ctl-more { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 28px 24px; margin-top: clamp(40px, 4vw, 56px); }
+.ctl-more > div { max-width: 54ch; }
 
 /* Catalog */
 .promo-block { margin-bottom: 32px; --mono: var(--f-text); --sans: var(--f-text); }
@@ -549,7 +561,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .u-mon, .u-edge { grid-column: 1 / -1; }
   .u-ph .dv-stack { width: 42%; }
   .scale-note { display: none; }
-  .ctl > div { grid-column: 1 / -1; }
+  .ctl-shots, .ctl-more { grid-template-columns: 1fr; }
   .shelf { grid-template-columns: 1fr; gap: 36px; }
   .ws-list { column-gap: 14px; }
   .ws-list li { font-size: 15.5px; gap: 9px; }
@@ -580,7 +592,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   <symbol id="os-linux" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c-2 0-3.3 1.7-3.3 4.2 0 1.3.3 2.1-.4 3.3C7 11.5 5.6 13.4 5.6 16c0 .7.1 1.3.3 1.8-.8.4-1.6 1-1.6 1.8 0 1.2 1.6 1.4 3.2 2 1 .4 1.8.4 2.5-.3.5.1 1.3.2 2 .2s1.5-.1 2-.2c.7.7 1.5.7 2.5.3 1.6-.6 3.2-.8 3.2-2 0-.8-.8-1.4-1.6-1.8.2-.5.3-1.1.3-1.8 0-2.6-1.4-4.5-2.7-6.5-.7-1.2-.4-2-.4-3.3C15.3 3.7 14 2 12 2zm-1.4 4.3c.4 0 .7.5.7 1.1s-.3 1-.7 1-.7-.4-.7-1 .3-1.1.7-1.1zm2.8 0c.4 0 .7.5.7 1.1s-.3 1-.7 1-.7-.4-.7-1 .3-1.1.7-1.1zM12 9.3c.9 0 1.9.6 1.9 1s-1 .9-1.9.9-1.9-.5-1.9-.9 1-1 1.9-1z"/></symbol>
   <symbol id="i-gh" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.7v-2.3h1.7a1.4 1.4 0 0 0 0-2.8h-1.7V8.4ZM2.4 20.1h16.4v1.8H2.4v-1.8Z"/></symbol>
-  <symbol id="i-dc" viewBox="0 0 24 24"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M12 3.5v11m0 0-4.5-4.5m4.5 4.5 4.5-4.5M4.5 16.5v3.5h15v-3.5"/></symbol><symbol id="i-dc" viewBox="0 0 24 24"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></symbol>
 </svg>
 
 <header class="hd" id="hd">
@@ -679,8 +691,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <button class="chip" type="button" aria-pressed="false" data-theme-id="kintsugi"><span class="sw" style="background:#0d0a08;--c:#d8a94e"></span>Kintsugi</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="limnograph"><span class="sw" style="background:#d9e8df;--c:#006f68"></span>Limnograph</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="afterimage"><span class="sw" style="background:#11121e;--c:#efa7b9"></span>Afterimage</button>
-          <button class="chip" type="button" aria-pressed="false" data-theme-id="retro"><span class="sw" style="background:#050510;--c:#ffb000"></span>Pixel Retro</button>
-          <button class="chip" type="button" aria-pressed="false" data-theme-id="comic"><span class="sw" style="background:#101010;--c:#ff4d6d"></span>Comic</button>
+          <button class="chip" type="button" aria-pressed="false" data-theme-id="forest"><span class="sw" style="background:#0a110a;--c:#7aa864"></span>Forest</button>
+          <button class="chip" type="button" aria-pressed="false" data-theme-id="retro"><span class="sw" style="background:#050510;--c:#f5c518"></span>Pixel Retro</button>
           <button class="cycle" id="cycle" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" id="cycle-l" data-i18n="themes.pause">Metti in pausa i temi</span></button>
         </div>
         <p class="cap" id="scr-cap"><span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean, gratis nel <a href="/catalog/#deep-ocean">catalogo</a>.</span> <span data-i18n="scr.sample">Dati di esempio dalla demo nel browser.</span></p>
@@ -792,10 +804,14 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <h2 id="h-controls" data-i18n="ctl.h2">Comandi</h2>
         <p data-i18n="ctl.p">I tasti e le richieste sullo schermo agiscono sul tuo PC.</p>
       </div>
-      <div class="ctl">
-        <div><h3 data-i18n="ctl.deck.t">Deck</h3><p data-i18n="ctl.deck.p">Tasti che aprono app e file, cambiano scena in OBS, mandano scorciatoie, chiamano webhook e comandano Discord e Voicemeeter. Un tasto può eseguire più passaggi di fila.</p></div>
+      <div class="ctl-shots">
+        <figure><img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Deck widget with twelve keys: OBS scenes, recording, microphone, Discord, Spotify, playback, a screenshot and the lights" data-i18n-alt="ctl.deck.alt">
+          <figcaption><h3 data-i18n="ctl.deck.t">Deck</h3><p data-i18n="ctl.deck.p">Tasti che aprono app e file, cambiano scena in OBS, mandano scorciatoie, chiamano webhook e comandano Discord e Voicemeeter. Un tasto può eseguire più passaggi di fila e mostrare lo stato di quello che comanda: qui Play è acceso perché la musica sta suonando.</p></figcaption></figure>
+        <figure><img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Claude Code widget asking to run npm test, with Allow and Deny, the session and the plan quota" data-i18n-alt="ctl.claude.alt">
+          <figcaption><h3>Claude Code</h3><p data-i18n="ctl.claude.p">Quando Claude Code chiede di eseguire un comando, la richiesta compare sullo schermo con Consenti e Nega, e la quota del tuo piano resta in vista.</p></figcaption></figure>
+      </div>
+      <div class="ctl-more">
         <div><h3 data-i18n="ctl.game.t">Modalità gioco</h3><p data-i18n="ctl.game.p">Nell'app di Xenon su Windows, toccare la dashboard non toglie il focus al gioco che stai usando. Gli FPS arrivano dal gioco stesso, misurati con PresentMon.</p></div>
-        <div><h3>Claude Code</h3><p data-i18n="ctl.claude.p">Quando Claude Code chiede di eseguire un comando, la richiesta compare sullo schermo con Consenti e Nega, e la quota del tuo piano resta in vista.</p></div>
         <div><h3>Xenon AI</h3><p data-i18n="ctl.ai.p">Chiedi a voce con "Hey Xenon". Funziona con Gemini, OpenAI, Anthropic o un modello locale tramite Ollama, e con Claude Code e Codex sul tuo abbonamento.</p></div>
       </div>
     </div>
@@ -1150,7 +1166,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.dl": "{n} downloads",
     "p.st": "{n} stars on GitHub",
     "p.dc": "{n} people on Discord",
-    "p.end": ".",
     "hero.alt": "Mac and Linux (beta)",
     "send.btn": "Send the link to my PC",
     "send.copy": "Copy the link",
@@ -1166,8 +1181,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.kintsugi": "Kintsugi, free in the <a href=\"/catalog/#kintsugi\">catalog</a>, with its own animated background.",
     "theme.limnograph": "Limnograph, free in the <a href=\"/catalog/#limnograph\">catalog</a>: a light theme over a painted lake.",
     "theme.afterimage": "Afterimage, free in the <a href=\"/catalog/#afterimage\">catalog</a>.",
-    "theme.retro": "Pixel Retro, one of the three styles built into Xenon.",
-    "theme.comic": "Comic, one of the three styles built into Xenon.",
+    "theme.retro": "Pixel Retro, a style built into Xenon.",
+    "theme.forest": "Forest by Domi, from the community, free in the <a href=\"/catalog/#forest\">catalog</a>.",
     "theme.amb": "Shown now: its Ambient screen saver.",
     "themes.pause": "Pause the themes",
     "themes.play": "Play the themes",
@@ -1233,7 +1248,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ctl.h2": "Controls",
     "ctl.p": "The keys and the prompts on the screen act on your PC.",
     "ctl.deck.t": "Deck",
-    "ctl.deck.p": "Keys that open apps and files, switch OBS scenes, send hotkeys, call webhooks and control Discord and Voicemeeter. One key can run several steps in a row.",
+    "ctl.deck.alt": "The Deck widget with twelve keys: OBS scenes, recording, microphone, Discord, Spotify, playback, a screenshot and the lights",
+    "ctl.claude.alt": "The Claude Code widget asking to run npm test, with Allow and Deny, the session and the plan quota",
+    "ctl.deck.p": "Keys that open apps and files, switch OBS scenes, send hotkeys, call webhooks and control Discord and Voicemeeter. One key can run several steps in a row, and a key can show the state of what it controls: here Play is lit because music is playing.",
     "ctl.game.t": "Game mode",
     "ctl.game.p": "In the Xenon app on Windows, touching the dashboard does not take focus from the game you are playing. The frame rate comes from the game itself, measured with PresentMon.",
     "ctl.claude.p": "When Claude Code asks to run a command, the request appears on the screen with Allow and Deny, and the quota of your plan stays in view.",
@@ -1363,7 +1380,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.dl": "{n} download",
     "p.st": "{n} stelle su GitHub",
     "p.dc": "{n} persone su Discord",
-    "p.end": ".",
     "hero.alt": "Mac e Linux (beta)",
     "send.btn": "Manda il link al mio PC",
     "send.copy": "Copia il link",
@@ -1379,8 +1395,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.kintsugi": "Kintsugi, gratis nel <a href=\"/catalog/#kintsugi\">catalogo</a>, con il suo sfondo animato.",
     "theme.limnograph": "Limnograph, gratis nel <a href=\"/catalog/#limnograph\">catalogo</a>: un tema chiaro sopra un lago dipinto.",
     "theme.afterimage": "Afterimage, gratis nel <a href=\"/catalog/#afterimage\">catalogo</a>.",
-    "theme.retro": "Pixel Retro, uno dei tre stili già inclusi in Xenon.",
-    "theme.comic": "Comic, uno dei tre stili già inclusi in Xenon.",
+    "theme.retro": "Pixel Retro, uno stile già incluso in Xenon.",
+    "theme.forest": "Forest di Domi, dalla community, gratis nel <a href=\"/catalog/#forest\">catalogo</a>.",
     "theme.amb": "Ora: il suo screensaver Ambient.",
     "themes.pause": "Metti in pausa i temi",
     "themes.play": "Riprendi i temi",
@@ -1446,7 +1462,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ctl.h2": "Comandi",
     "ctl.p": "I tasti e le richieste sullo schermo agiscono sul tuo PC.",
     "ctl.deck.t": "Deck",
-    "ctl.deck.p": "Tasti che aprono app e file, cambiano scena in OBS, mandano scorciatoie, chiamano webhook e comandano Discord e Voicemeeter. Un tasto può eseguire più passaggi di fila.",
+    "ctl.deck.alt": "Il widget Deck con dodici tasti: scene di OBS, registrazione, microfono, Discord, Spotify, riproduzione, uno screenshot e le luci",
+    "ctl.claude.alt": "Il widget Claude Code che chiede di eseguire npm test, con Consenti e Nega, la sessione e la quota del piano",
+    "ctl.deck.p": "Tasti che aprono app e file, cambiano scena in OBS, mandano scorciatoie, chiamano webhook e comandano Discord e Voicemeeter. Un tasto può eseguire più passaggi di fila e mostrare lo stato di quello che comanda: qui Play è acceso perché la musica sta suonando.",
     "ctl.game.t": "Modalità gioco",
     "ctl.game.p": "Nell'app di Xenon su Windows, toccare la dashboard non toglie il focus al gioco che stai usando. Gli FPS arrivano dal gioco stesso, misurati con PresentMon.",
     "ctl.claude.p": "Quando Claude Code chiede di eseguire un comando, la richiesta compare sullo schermo con Consenti e Nega, e la quota del tuo piano resta in vista.",
@@ -1576,7 +1594,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.dl": "{n} descargas",
     "p.st": "{n} estrellas en GitHub",
     "p.dc": "{n} personas en Discord",
-    "p.end": ".",
     "hero.alt": "Mac y Linux (beta)",
     "send.btn": "Enviar el enlace a mi PC",
     "send.copy": "Copiar el enlace",
@@ -1592,8 +1609,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.kintsugi": "Kintsugi, gratis en el <a href=\"/catalog/#kintsugi\">catálogo</a>, con su propio fondo animado.",
     "theme.limnograph": "Limnograph, gratis en el <a href=\"/catalog/#limnograph\">catálogo</a>: un tema claro sobre un lago pintado.",
     "theme.afterimage": "Afterimage, gratis en el <a href=\"/catalog/#afterimage\">catálogo</a>.",
-    "theme.retro": "Pixel Retro, uno de los tres estilos incluidos en Xenon.",
-    "theme.comic": "Comic, uno de los tres estilos incluidos en Xenon.",
+    "theme.retro": "Pixel Retro, un estilo incluido en Xenon.",
+    "theme.forest": "Forest de Domi, de la comunidad, gratis en el <a href=\"/catalog/#forest\">catálogo</a>.",
     "theme.amb": "Ahora: su salvapantallas Ambient.",
     "themes.pause": "Pausar los temas",
     "themes.play": "Reanudar los temas",
@@ -1659,7 +1676,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ctl.h2": "Controles",
     "ctl.p": "Las teclas y las solicitudes en la pantalla actúan sobre tu PC.",
     "ctl.deck.t": "Deck",
-    "ctl.deck.p": "Teclas que abren apps y archivos, cambian de escena en OBS, envían atajos de teclado, llaman a webhooks y controlan Discord y Voicemeeter. Una tecla puede ejecutar varios pasos seguidos.",
+    "ctl.deck.alt": "El widget Deck con doce teclas: escenas de OBS, grabación, micrófono, Discord, Spotify, reproducción, una captura y las luces",
+    "ctl.claude.alt": "El widget de Claude Code pidiendo ejecutar npm test, con Permitir y Denegar, la sesión y la cuota del plan",
+    "ctl.deck.p": "Teclas que abren apps y archivos, cambian de escena en OBS, envían atajos, llaman a webhooks y controlan Discord y Voicemeeter. Una tecla puede ejecutar varios pasos seguidos y mostrar el estado de lo que controla: aquí Play está encendida porque suena música.",
     "ctl.game.t": "Modo juego",
     "ctl.game.p": "En la app de Xenon para Windows, tocar el panel no le quita el foco al juego al que estás jugando. Los FPS salen del propio juego, medidos con PresentMon.",
     "ctl.claude.p": "Cuando Claude Code pide ejecutar un comando, la solicitud aparece en la pantalla con Permitir y Denegar, y la cuota de tu plan queda a la vista.",
@@ -1789,7 +1808,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.dl": "ダウンロード {n} 回",
     "p.st": "GitHub のスター {n}",
     "p.dc": "Discord の参加者 {n} 人",
-    "p.end": "。",
     "hero.alt": "MacとLinux（ベータ版）",
     "send.btn": "自分のPCにリンクを送る",
     "send.copy": "リンクをコピー",
@@ -1805,8 +1823,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.kintsugi": "Kintsugi。<a href=\"/catalog/#kintsugi\">カタログ</a>から無料で入手でき、専用のアニメーション背景が付いています。",
     "theme.limnograph": "Limnograph。<a href=\"/catalog/#limnograph\">カタログ</a>から無料で入手できます。湖の絵に重ねたライトテーマです。",
     "theme.afterimage": "Afterimage。<a href=\"/catalog/#afterimage\">カタログ</a>から無料で入手できます。",
-    "theme.retro": "Pixel Retro。Xenonに内蔵された3つのスタイルのひとつです。",
-    "theme.comic": "Comic。Xenonに内蔵された3つのスタイルのひとつです。",
+    "theme.retro": "Pixel Retro。Xenonに組み込まれたスタイルです。",
+    "theme.forest": "Domiによるコミュニティ作品のForest。<a href=\"/catalog/#forest\">カタログ</a>で無料。",
     "theme.amb": "表示中: このテーマの Ambient スクリーンセーバー。",
     "themes.pause": "テーマを一時停止",
     "themes.play": "テーマを再生",
@@ -1872,7 +1890,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ctl.h2": "操作",
     "ctl.p": "画面上のキーと確認メッセージから、PCを操作できます。",
     "ctl.deck.t": "Deck",
-    "ctl.deck.p": "アプリやファイルを開く、OBSのシーンを切り替える、ホットキーを送る、Webhookを呼び出す、DiscordとVoicemeeterを操作する、といったキーを作れます。1つのキーで複数のステップを順に実行できます。",
+    "ctl.deck.alt": "12個のキーがあるDeckウィジェット：OBSのシーン、録画、マイク、Discord、Spotify、再生、スクリーンショット、ライト",
+    "ctl.claude.alt": "npm testの実行許可を求めるClaude Codeウィジェット。許可と拒否、セッション、プランの使用量",
+    "ctl.deck.p": "アプリやファイルを開く、OBSのシーンを切り替える、ショートカットを送る、Webhookを呼ぶ、DiscordやVoicemeeterを操作するキー。1つのキーで複数の手順を続けて実行でき、操作対象の状態も表示できます。ここでは音楽が再生中なのでPlayが点灯しています。",
     "ctl.game.t": "ゲームモード",
     "ctl.game.p": "WindowsのXenonアプリでは、ダッシュボードに触れてもプレイ中のゲームからフォーカスが外れません。フレームレートはゲーム自体から取得し、PresentMonで計測します。",
     "ctl.claude.p": "Claude Codeがコマンドの実行を求めると、そのリクエストが「許可」と「拒否」のボタン付きで画面に表示されます。プランの使用量も常に表示されます。",
@@ -2002,7 +2022,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.dl": "다운로드 {n}회",
     "p.st": "GitHub 스타 {n}개",
     "p.dc": "Discord 멤버 {n}명",
-    "p.end": ".",
     "hero.alt": "Mac과 Linux(베타)",
     "send.btn": "내 PC로 링크 보내기",
     "send.copy": "링크 복사",
@@ -2018,8 +2037,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.kintsugi": "Kintsugi, <a href=\"/catalog/#kintsugi\">카탈로그</a>의 무료 테마. 전용 애니메이션 배경이 함께 있습니다.",
     "theme.limnograph": "Limnograph, <a href=\"/catalog/#limnograph\">카탈로그</a>의 무료 테마. 그림으로 그린 호수를 배경으로 한 밝은 테마입니다.",
     "theme.afterimage": "Afterimage, <a href=\"/catalog/#afterimage\">카탈로그</a>의 무료 테마.",
-    "theme.retro": "Pixel Retro, Xenon에 기본으로 들어 있는 세 가지 스타일 중 하나.",
-    "theme.comic": "Comic, Xenon에 기본으로 들어 있는 세 가지 스타일 중 하나.",
+    "theme.retro": "Pixel Retro, Xenon에 기본으로 들어 있는 스타일.",
+    "theme.forest": "커뮤니티 제작자 Domi의 Forest, <a href=\"/catalog/#forest\">카탈로그</a>에서 무료.",
     "theme.amb": "지금: 이 테마의 Ambient 화면 보호기.",
     "themes.pause": "테마 일시정지",
     "themes.play": "테마 재생",
@@ -2085,7 +2104,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ctl.h2": "제어",
     "ctl.p": "화면의 키와 요청 창으로 PC를 직접 조작합니다.",
     "ctl.deck.t": "Deck",
-    "ctl.deck.p": "앱과 파일을 열고, OBS 장면을 전환하고, 단축키를 보내고, 웹훅을 호출하고, Discord와 Voicemeeter를 제어하는 키입니다. 키 하나로 여러 단계를 차례로 실행할 수 있습니다.",
+    "ctl.deck.alt": "키 12개가 있는 Deck 위젯: OBS 장면, 녹화, 마이크, Discord, Spotify, 재생, 스크린샷, 조명",
+    "ctl.claude.alt": "npm test 실행 허가를 묻는 Claude Code 위젯. 허용과 거부, 세션, 플랜 사용량",
+    "ctl.deck.p": "앱과 파일을 열고, OBS 장면을 바꾸고, 단축키를 보내고, 웹훅을 호출하고, Discord와 Voicemeeter를 제어하는 키. 키 하나로 여러 단계를 이어서 실행하고, 제어하는 대상의 상태를 보여 줄 수 있습니다. 여기서는 음악이 재생 중이라 Play가 켜져 있습니다.",
     "ctl.game.t": "게임 모드",
     "ctl.game.p": "Windows용 Xenon 앱에서는 대시보드를 터치해도 플레이 중인 게임의 포커스가 넘어가지 않습니다. 프레임 레이트는 게임 자체에서 가져오며 PresentMon으로 측정합니다.",
     "ctl.claude.p": "Claude Code가 명령 실행을 요청하면 그 요청이 허용, 거부 버튼과 함께 화면에 나타나고, 요금제 사용 한도도 계속 표시됩니다.",
@@ -2215,7 +2236,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.dl": "{n} 次下载",
     "p.st": "GitHub 上 {n} 颗星",
     "p.dc": "Discord 上 {n} 人",
-    "p.end": "。",
     "hero.alt": "Mac 和 Linux（Beta）",
     "send.btn": "把链接发到我的电脑",
     "send.copy": "复制链接",
@@ -2231,8 +2251,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.kintsugi": "Kintsugi，可在<a href=\"/catalog/#kintsugi\">目录</a>中免费获取，带有自己的动态背景。",
     "theme.limnograph": "Limnograph，可在<a href=\"/catalog/#limnograph\">目录</a>中免费获取：一款以手绘湖景为背景的浅色主题。",
     "theme.afterimage": "Afterimage，可在<a href=\"/catalog/#afterimage\">目录</a>中免费获取。",
-    "theme.retro": "Pixel Retro，Xenon 内置的三种风格之一。",
-    "theme.comic": "Comic，Xenon 内置的三种风格之一。",
+    "theme.retro": "Pixel Retro，Xenon 内置的一种风格。",
+    "theme.forest": "社区作者 Domi 制作的 Forest，在<a href=\"/catalog/#forest\">目录</a>中免费。",
     "theme.amb": "当前：该主题的 Ambient 屏保。",
     "themes.pause": "暂停主题轮播",
     "themes.play": "继续主题轮播",
@@ -2298,7 +2318,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ctl.h2": "控制",
     "ctl.p": "屏幕上的按键和请求会作用于你的电脑。",
     "ctl.deck.t": "Deck",
-    "ctl.deck.p": "按键可以打开应用和文件、切换 OBS 场景、发送快捷键、调用 webhook，以及控制 Discord 和 Voicemeeter。一个按键可以依次执行多个步骤。",
+    "ctl.deck.alt": "有十二个按键的 Deck 小组件：OBS 场景、录制、麦克风、Discord、Spotify、播放、截图和灯光",
+    "ctl.claude.alt": "Claude Code 小组件请求运行 npm test，带有允许和拒绝、会话和套餐用量",
+    "ctl.deck.p": "按键可以打开应用和文件、切换 OBS 场景、发送快捷键、调用 webhook，以及控制 Discord 和 Voicemeeter。一个按键可以连续执行多个步骤，还能显示所控制对象的状态：这里的播放键亮着，因为正在播放音乐。",
     "ctl.game.t": "游戏模式",
     "ctl.game.p": "在 Windows 版 Xenon 应用中，触摸仪表盘不会让正在玩的游戏失去焦点。帧率直接来自游戏本身，由 PresentMon 测得。",
     "ctl.claude.p": "当 Claude Code 请求运行命令时，请求会显示在屏幕上，附带“允许”和“拒绝”，你的套餐额度也会一直显示。",
@@ -2514,12 +2536,12 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     setTimeout(on, 1800);
 
     const THEMES = {
-      ocean:      { lit: '#008DFF', note: 'theme.ocean' },
+      ocean:      { lit: '#2FA8F0', note: 'theme.ocean' },
       kintsugi:   { lit: '#d8a94e', note: 'theme.kintsugi' },
       limnograph: { lit: '#0b8a80', note: 'theme.limnograph' },
       afterimage: { lit: '#e889a3', note: 'theme.afterimage' },
-      retro:      { lit: '#ffb000', note: 'theme.retro' },
-      comic:      { lit: '#ff4d6d', note: 'theme.comic' },
+      forest:     { lit: '#6E9F55', note: 'theme.forest' },
+      retro:      { lit: '#E0B316', note: 'theme.retro' },
     };
     const ORDER = Object.keys(THEMES);
     const scr = document.getElementById('scr');
@@ -2718,17 +2740,30 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       return load().then((v) => { if (v != null) { try { sessionStorage.setItem(key, JSON.stringify(v)); } catch (e) {} } return v; });
     };
     const got = { 'p.dl': null, 'p.st': null, 'p.dc': null };
+    // Three marks, each the service's own icon and colour, each a link; the
+    // full sentence ("2,133 downloads") is the link's accessible name.
+    const ITEMS = [
+      ['p.dl', 'pf-dl', 'i-dl', 'https://github.com/marcimastro98/Xenon/releases'],
+      ['p.st', 'pf-gh', 'i-gh', 'https://github.com/marcimastro98/Xenon'],
+      ['p.dc', 'pf-dc', 'i-dc', 'https://discord.gg/MBVrw9kZyg'],
+    ];
+    const SVG = 'http://www.w3.org/2000/svg';
     function paint() {
       if (!proof) return;
-      const parts = Object.keys(got).filter((k) => got[k]).map((k) => window.XT(k).replace('{n}', '\u0001' + fmt(got[k]) + '\u0002'));
-      if (!parts.length) return;
-      let line;
-      try { line = new Intl.ListFormat(lang, { style: 'long', type: 'conjunction' }).format(parts); } catch (e) { line = parts.join(', '); }
       proof.textContent = '';
-      (line + window.XT('p.end')).split(/(\u0001[^\u0002]*\u0002)/).forEach((bit) => {
-        if (!bit) return;
-        if (bit.charAt(0) === '\u0001') { const b = document.createElement('b'); b.textContent = bit.slice(1, -1); proof.appendChild(b); }
-        else proof.appendChild(document.createTextNode(bit));
+      ITEMS.forEach(([k, cls, icon, href]) => {
+        if (!got[k]) return;
+        const n = fmt(got[k]);
+        const a = document.createElement('a');
+        a.className = 'pf ' + cls; a.href = href; a.target = '_blank'; a.rel = 'noopener';
+        const label = window.XT(k).replace('{n}', n);
+        a.setAttribute('aria-label', label); a.title = label;
+        const svg = document.createElementNS(SVG, 'svg'); svg.setAttribute('aria-hidden', 'true');
+        const use = document.createElementNS(SVG, 'use'); use.setAttribute('href', '#' + icon);
+        svg.appendChild(use); a.appendChild(svg);
+        if (k === 'p.st') { const st = document.createElement('span'); st.className = 'st'; st.setAttribute('aria-hidden', 'true'); st.textContent = '★'; a.appendChild(st); }
+        const b = document.createElement('b'); b.textContent = n; b.setAttribute('aria-hidden', 'true'); a.appendChild(b);
+        proof.appendChild(a);
       });
     }
     cached('xenon.site.v', () => j(REPO + '/releases/latest').then((r) => (r && r.tag_name ? String(r.tag_name).replace(/^v/, '') : null))).then((v) => {
