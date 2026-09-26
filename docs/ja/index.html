@@ -87,9 +87,12 @@
 <meta name="twitter:description" content="A spare monitor, a tablet or the phone in your pocket becomes one touch dashboard: monitor, media, voice AI, file transfer, Deck. Free, and it runs on Windows, macOS and Linux.">
 <meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
 
-<!-- The hero is the live demo band and its poster is the LCP image; hand it to
-     the preload scanner before the CSS below. -->
-<link rel="preload" as="image" href="/images/overview.png" fetchpriority="high">
+<!-- The demo band's poster is the LCP image on a desktop; hand it to the preload
+     scanner before the CSS below. The WebP is the same 2560x720 shot at a tenth
+     of the PNG's weight (og:image stays on the PNG for the social scrapers), and
+     the media query keeps a phone, where the band sits below the fold, from
+     fetching it ahead of everything else. -->
+<link rel="preload" as="image" href="/images/overview.webp" fetchpriority="high" media="(min-width: 860px)">
 <link rel="preload" as="font" type="font/woff2" href="/fonts/archivo-latin.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="/fonts/martianmono-latin.woff2" crossorigin>
 
@@ -312,44 +315,6 @@
   .dl-row .f { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
   .dl-row .b { font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: 0.04em; border: 1px solid var(--hair-2); padding: 1px 5px; color: var(--ink-2); }
 
-  /* ── "Windows might block it" ──
-     Appears only after a Windows download click, never before it: the download
-     is the thing the visitor came for and nothing should stand between them and
-     it. The panel opens under the picker at the moment the file starts arriving,
-     which is also the moment before SmartScreen speaks. */
-  .ss-help[hidden] { display: none; }
-  .ss-help {
-    margin-top: 26px; padding: 22px 24px 24px;
-    border: 1px solid var(--hair-2); border-left: 3px solid var(--ink);
-    background: var(--paper-2);
-  }
-  .ss-help h3 { font-size: 17px; font-weight: 640; color: var(--ink); margin: 0 0 8px; }
-  .ss-help p { margin: 0 0 14px; color: var(--ink-1); max-width: 68ch; }
-  /* The one line in this panel that is not about clicking past the warning: it
-     is about the warning going away. Marked, not shouted - the visitor came for
-     a download, and the steps below are still the thing they need first. */
-  .ss-help .ss-fund { border-left: 2px solid var(--ink-2); padding-left: 12px; font-size: 14px; }
-  .ss-help .ss-fund a { color: var(--ink); }
-  .ss-help ol { margin: 0 0 16px; padding-left: 20px; color: var(--ink-1); }
-  .ss-help li { margin-bottom: 5px; }
-  .ss-help li strong { color: var(--ink); }
-  .ss-hash { border-top: 1px solid var(--hair); padding-top: 14px; }
-  .ss-hash .lab { font-size: 13px; color: var(--ink-1); margin-bottom: 8px; }
-  .ss-cmd { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--hair-2); background: var(--paper); }
-  .ss-cmd code {
-    flex: 1; min-width: 0; padding: 9px 12px; font-family: var(--mono); font-size: 12px;
-    color: var(--ink); overflow-x: auto; white-space: nowrap;
-  }
-  .ss-cmd button {
-    flex: 0 0 auto; padding: 0 14px; border: 0; border-left: 1px solid var(--hair-2);
-    background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink-1);
-  }
-  .ss-cmd button:hover { background: var(--paper-2); color: var(--ink); }
-  .ss-links { margin-top: 12px; font-size: 13px; }
-  .ss-links a { color: var(--ink-1); }
-  .ss-close { margin-top: 14px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; color: var(--ink-2); text-decoration: underline; }
-  @media (max-width: 640px) { .ss-cmd { flex-direction: column; } .ss-cmd button { border-left: 0; border-top: 1px solid var(--hair-2); padding: 9px 0; } }
-
   /* ── The demo band ──
      The real dashboard, running in the page, in a frame the size of a screen
      Xenon ships on. The only full-bleed object on the page, and the only dark
@@ -373,8 +338,27 @@
     background: #000;
     transition: width 0.42s cubic-bezier(0.2, 0, 0, 1);
   }
-  .surf-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s ease; }
-  .surf-live { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; background: #000; }
+  /* The poster sits ABOVE the frame until the demo has proved it loaded, so a
+     booting dashboard, or an error page, never shows through it. */
+  .surf-poster { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s ease; }
+  .surf-live { position: absolute; top: 0; left: 0; z-index: 0; border: 0; transform-origin: 0 0; background: #000; }
+  /* The one way in: the demo is several megabytes, so it loads when the visitor
+     asks for it and not because the band scrolled into view. The colours are
+     the band's own fixed pair, so the button reads the same on both themes. */
+  .surf-run {
+    position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    display: inline-flex; align-items: center; gap: 10px; max-width: calc(100% - 32px);
+    padding: 13px 22px; font-size: 15.5px; font-weight: 600; line-height: 1.3; text-align: left;
+    background: var(--bone); color: var(--well); border-radius: 3px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  }
+  .surf-run:hover { background: #fff; }
+  .surf-run:active { transform: translate(-50%, calc(-50% + 1px)); }
+  .surf-run:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+  .surf-run svg { flex: 0 0 auto; width: 13px; height: 13px; }
+  .surf-run[hidden] { display: none; }
+  .surf-run[aria-busy="true"] { cursor: progress; }
+  .surf-run[aria-busy="true"] svg { display: none; }
 
   /* Each button draws its screen at true relative physical size (--pw/--ph are
      centimetres), so the Edge really is a sliver next to a 27 inch monitor.
@@ -462,6 +446,12 @@
   .lb-x { position: fixed; top: 20px; right: 24px; font-size: 20px; color: var(--bone); padding: 10px; }
 
   /* ── Catalog ── */
+
+  /* "This month": /promo.js renders the hub's live promos into it and leaves it
+     empty when there are none. It leads the column, level with the heading; the
+     drops under it keep their own distance. Its rows carry their own style. */
+  .promo-block:empty { display: none; }
+  .promo-block:not(:empty) + .drops { margin-top: var(--s-4); }
 
   .drops { display: grid; gap: 20px; margin-top: 44px; }
   .drops.duo { grid-template-columns: 1fr 1fr; }
@@ -584,6 +574,7 @@
     .spine { grid-template-columns: minmax(0, 1fr); row-gap: 24px; }
     .spine-id { position: static; }
     .spine-id p { max-width: 60ch; }
+    .promo-block { margin-top: var(--s-2); }
     .hero h1 { max-width: 18ch; }
     .foot-grid { grid-template-columns: 1fr; }
     .foot-cols { justify-self: start; }
@@ -687,6 +678,7 @@
     html { scroll-behavior: auto; }
     .surf-stage, .surf-poster { transition: none; }
     .btn:active, .navbtn.get:active, .drop-go:active, .tier:active { transform: none; }
+    .surf-run:active { transform: translate(-50%, -50%); }
   }
 </style>
 </head>
@@ -799,7 +791,7 @@
   <div class="rail">
     <div>
       <h1 data-i18n-html="hero.h1">手元にある画面を、PC のコントロールセンターに。</h1>
-      <p class="sub" data-i18n-html="hero.sub">余ったモニター、引き出しのタブレット、スマートフォン、CORSAIR Xeneon Edge。Xenon は PC 上で動き、その画面にシステム情報、メディア、マイク、ライティング、そして話しかけられる AI を並べます。無料で、ソースコードは GitHub で公開されています。データは PC の外に出ません。</p>
+      <p class="sub" data-i18n-html="hero.sub">余ったモニター、引き出しのタブレット、スマートフォン、CORSAIR Xeneon Edge。Xenon は PC 上で動き、その画面にシステム情報、メディア、マイク、ライティング、そして話しかけられる AI を並べます。無料で、ソースは GitHub にあり、アカウントは不要です。設定、ファイル、センサーの値は PC に残ります。</p>
       <!-- One button. The second action is a link, because two buttons of equal
            size side by side is the shape of a page that has not decided what it
            wants you to do. -->
@@ -851,33 +843,6 @@
         </a>
       </div>
     </div>
-
-    <!-- Shown only after a Windows download click. The file is already on its
-         way by then; this is the sentence that keeps the blue box from reading
-         as "you just downloaded a virus", which is where most people stop. -->
-    <div class="ss-help" id="ss-help" hidden>
-      <h3 data-i18n="ss.title">Windows がブロックすることがあります。ウイルスではありません。</h3>
-      <p data-i18n="ss.lead">Xenon にはコード署名がありません。証明書は毎年費用がかかり、Xenon は無料だからです。Windows は署名がなくダウンロード数も少ないインストーラーを未知のものとして扱い、「実行しない」しか見えない青い画面を出します。</p>
-      <p class="ss-fund" data-i18n-html="ss.fund">それを今変えようとしています。支援者の手で証明書の初年度分を集めています。<a href="https://buymeacoffee.com/marcimastro98/goals/share/720743" target="_blank" rel="noopener">達成状況を見る</a> — 署名しても警告が一夜で消えるわけではありませんが、リリースのたびにゼロに戻ることはなくなります。</p>
-      <ol>
-        <li data-i18n-html="ss.s1">青い画面の <strong>詳細情報</strong> をクリックします。</li>
-        <li data-i18n-html="ss.s2"><strong>実行</strong> をクリックします。</li>
-        <li data-i18n-html="ss.s3">ブラウザ側がダウンロードを取り消した場合は、ダウンロード一覧で <strong>保存</strong> を選んでください。</li>
-      </ol>
-      <div class="ss-hash">
-        <div class="lab" data-i18n="ss.hash">言葉を信じる必要はありません。受け取ったファイルがここで公開されたものと同じか、自分で確かめられます。</div>
-        <div class="ss-cmd">
-          <code id="ss-cmd-text">Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code>
-          <button type="button" id="ss-copy" data-i18n="ss.copy">コピー</button>
-        </div>
-        <div class="ss-links">
-          <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/SHA256SUMS" target="_blank" rel="noopener" data-i18n="ss.compare">公開されている一覧と照合する</a>
-          &nbsp;·&nbsp;
-          <a href="/faq.html#warnings" data-i18n="ss.more">警告について詳しく</a>
-        </div>
-      </div>
-      <button type="button" class="ss-close" id="ss-close" data-i18n="ss.close">閉じる</button>
-    </div>
   </div>
 </header>
 
@@ -889,7 +854,13 @@
   <div class="demo-inner">
     <div class="demo-wrap">
       <div class="surf-stage" id="surf-stage" style="--sw:2560;--sh:720">
-        <img class="surf-poster" id="surf-poster" src="/images/overview.png" alt="The Xenon dashboard running at 2560×720 on a 32:9 touchscreen" width="2560" height="720" fetchpriority="high">
+        <img class="surf-poster" id="surf-poster" src="/images/overview.webp" alt="The Xenon dashboard running at 2560×720 on a 32:9 touchscreen" width="2560" height="720" fetchpriority="high">
+        <!-- Starts the live demo in this frame. The script shows it only where a
+             frame can be built, and hides it once the demo is up. -->
+        <button class="surf-run" id="surf-run" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+          <span data-i18n="surf.run">ここでデモを動かす</span>
+        </button>
       </div>
     </div>
     <div class="surf-pick" id="surf-pick" role="group" aria-label="Screen">
@@ -926,10 +897,6 @@
     </a>
   </div>
 </section>
-
-<!-- Where /promo.js puts the "band" promo, when the hub publishes one. Right after the live demo on
-     purpose: it is below the fold on load, so filling it moves nothing the visitor is looking at. -->
-<div data-promo-band></div>
 
 <!-- ── What it does: five entries, one fact each. ── -->
 <section class="sec" id="features">
@@ -1094,6 +1061,13 @@
     </div>
     <div class="spine-body">
 
+    <!-- "This month": /promo.js draws the hub's live promos here (up to three
+         rows) and leaves it empty and hidden when none is live. It announces
+         the entries it shows, and the drop renderer below hides their cards,
+         so an entry never appears twice. Keep it empty in the markup: the
+         CSS reads :empty. -->
+    <div class="promo-block" data-promo-block></div>
+
     <!-- A fixed video of one pack used to lead this section. It advertised an
          entry the drops below do not necessarily carry, and the two are picked
          by different rules, so the day a night-city pack was featured the
@@ -1205,7 +1179,7 @@
     </table>
 
     <p class="dl-req" data-i18n="dl.betaline">macOS と Linux はベータです。ダッシュボード、ウィジェット、ストア、連携はどこでも同じ。違うのはマシン自体を読む部分だけで、README の表に何がどこで動くか正確に書いてあります。</p>
-    <p class="dl-req" data-i18n-html="dl.blocked">Windows がダウンロードをブロックした、あるいはウイルスだと言いましたか。誤検出です。まだコード署名がなく、評価がゼロから始まるためです。<a href="/faq.html#warnings">FAQ</a> に、ファイルのハッシュを自分で確かめる方法と、元に戻す方法があります。</p>
+    <p class="dl-req" data-i18n-html="dl.blocked">Windows がダウンロードをブロックした、あるいはウイルスだと言いましたか。誤検出です。Windows 用インストーラーには署名があり、Windows に確認済みの発行元が表示されます。Microsoft は評価を時間をかけて付与するため、しばらくは SmartScreen の警告が出ることがあります。その場合は「詳細情報」、続いて「実行」をクリックしてください。<a href="/faq.html#warnings">FAQ</a> に、ファイルのハッシュを自分で確かめる方法と、元に戻す方法があります。</p>
 
     <div class="dl-phone dl-onphone">
       <div class="txt">
@@ -1332,11 +1306,11 @@
       "name": "Xenon",
       "alternateName": "Xenon Edge Widget",
       "url": "https://xenon-app.com/",
-      "applicationCategory": "DesktopApplication",
+      "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "System monitor and desktop dashboard",
       "operatingSystem": "Windows 10, Windows 11, macOS (beta), Linux (beta)",
       "softwareRequirements": "Windows 10 or 11 64-bit; macOS and Linux in beta",
-      "description": "Xenon turns a spare monitor, a tablet, a phone or the CORSAIR Xeneon Edge into one touch dashboard for your PC: system monitoring, media and audio control, a voice AI, file transfer, RGB lighting and a programmable Deck. Everything runs locally — no cloud, no account, no product telemetry.",
+      "description": "Xenon turns a spare monitor, a tablet, a phone or the CORSAIR Xeneon Edge into one touch dashboard for your PC: system monitoring, media and audio control, a voice AI, file transfer, RGB lighting and a programmable Deck. It runs on your PC with no account, and your settings, files and sensor readings stay there.",
       "downloadUrl": "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe",
       "installUrl": "https://xenon-app.com/#install",
       "releaseNotes": "https://github.com/marcimastro98/Xenon/releases/latest",
@@ -1412,72 +1386,6 @@
 </script>
 
 
-<!-- "Windows may block it" — opened by a Windows download press, never before.
-     Two GA events, because the whole point is to find out whether this is a big
-     problem or a small one instead of guessing: ss_view counts the people who
-     reach the warning, hash_copy the ones who actually go and verify. -->
-<script>
-(function () {
-  'use strict';
-  const panel = document.getElementById('ss-help');
-  if (!panel) return;
-  const track = (n, p) => { try { if (window.xtrack) window.xtrack(n, p); } catch (e) {} };
-
-  // Only the Windows installer: SmartScreen is a Windows thing, and showing this
-  // to someone downloading the .dmg would be noise about a box they will never see.
-  function isWindowsDownload(a) {
-    const href = (a && a.getAttribute('href')) || '';
-    return /Xenon-Setup-x64\.exe$/.test(href);
-  }
-
-  let shown = false;
-  document.addEventListener('click', function (e) {
-    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-    if (!a || !isWindowsDownload(a)) return;
-    // The download itself is untouched — the link keeps working exactly as it
-    // did, and this only opens a panel underneath it.
-    panel.hidden = false;
-    if (!shown) { shown = true; track('smartscreen_help_view', { location: a.getAttribute('data-track-location') || 'site' }); }
-    // Deferred so the browser has started the download before the page moves.
-    setTimeout(function () {
-      try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) { }
-    }, 250);
-  }, true);
-
-  const copy = document.getElementById('ss-copy');
-  const cmd = document.getElementById('ss-cmd-text');
-  if (copy && cmd) {
-    copy.addEventListener('click', function () {
-      const text = cmd.textContent || '';
-      const done = () => {
-        const was = copy.textContent;
-        // The site's own lookup, so the confirmation is in the reader's language
-        // like everything else on the panel.
-        copy.textContent = (window.XT && window.XT('ss.copied')) || 'Copied';
-        setTimeout(function () { copy.textContent = was; }, 1600);
-        track('hash_copy', {});
-      };
-      // navigator.clipboard needs a secure context; the textarea fallback keeps
-      // the button honest on anything that does not have one.
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
-      } else { fallback(text, done); }
-    });
-  }
-  function fallback(text, done) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); ta.remove(); done();
-    } catch (_) { /* nothing to do: the text is on screen and selectable */ }
-  }
-
-  const close = document.getElementById('ss-close');
-  if (close) close.addEventListener('click', function () { panel.hidden = true; });
-})();
-</script>
 
 <!-- ═══════════════ I18N — EN / IT / KO / JA / ZH ═══════════════ -->
 <script>
@@ -1491,18 +1399,6 @@
     "foot.download": "Download",
     "meta.title": "Xenon: a free dashboard app for your PC, on any second screen",
     "meta.desc": "Xenon turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, file transfer and a programmable Deck. Free download for Windows, macOS and Linux. Source on GitHub, no account.",
-    "ss.copied": "Copied",
-    "ss.title": "Windows may block it. It is not a virus.",
-    "ss.lead": "Xenon is not code-signed — a certificate costs money every year and Xenon is free. Windows treats an unsigned installer few people have downloaded as an unknown, so it shows a blue box with only \"Don't run\" in sight.",
-    "ss.fund": "That is being fixed: supporters are funding the first year of the certificate. <a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">See how close it is</a> \u2014 signing will not clear the warning overnight, but it stops resetting with every release.",
-    "ss.s1": "Click <strong>More info</strong> in the blue box.",
-    "ss.s2": "Click <strong>Run anyway</strong>.",
-    "ss.s3": "If your browser cancelled the download instead, open its downloads list and choose <strong>Keep</strong>.",
-    "ss.hash": "Don't take my word for it — check the file is exactly the one published here:",
-    "ss.copy": "Copy",
-    "ss.compare": "Compare it with the published list",
-    "ss.more": "More on the warnings",
-    "ss.close": "Close",
     "cat.stream": "Streaming",
     "cat.system": "System",
     "cat.media": "Media",
@@ -1516,6 +1412,7 @@
     "surf.laptop": "Laptop",
     "surf.tablet": "Tablet",
     "surf.phone": "Phone",
+    "surf.run": "Run the demo here",
     "nav.features": "Features",
     "nav.catalog": "Catalog",
     "nav.install": "Install",
@@ -1526,7 +1423,7 @@
     "nav.createlong": "Make your own widgets",
     "nav.faq": "FAQ",
     "hero.h1": "Turn the screen you already have into your PC's control center.",
-    "hero.sub": "A spare monitor, the tablet in a drawer, your phone or a CORSAIR Xeneon Edge: Xenon runs on your PC and puts stats, media, mic, lights and an AI you can talk to on it. Free, the code is public on GitHub, and nothing leaves your PC.",
+    "hero.sub": "A spare monitor, the tablet in a drawer, your phone or a CORSAIR Xeneon Edge: Xenon runs on your PC and puts stats, media, mic, lights and an AI you can talk to on it. Free, with the source on GitHub and no account: your settings, files and sensor readings stay on your PC.",
     "num.dl": "downloads",
     "num.stars": "stars",
     "num.discord": "members",
@@ -1547,7 +1444,7 @@
     "dl.linux.req": "Any x86_64 desktop. GNOME and KDE are the two it is tested on.",
     "dl.linux.note": "What beta means",
     "dl.betaline": "macOS and Linux are in beta. The dashboard, the widgets, the Store and the integrations are the same everywhere; what still differs is the part that reads your machine, and the README table says exactly what works where.",
-    "dl.blocked": "Windows blocked the download, or called it a virus? That is a false positive: the build is not code-signed yet, so it starts from zero reputation. The <a href=\"/faq.html#warnings\">FAQ</a> explains how to check the file's hash yourself, and how to get it back.",
+    "dl.blocked": "Windows blocked the download, or called it a virus? That is a false positive. The Windows installer is signed, so Windows shows a verified publisher. SmartScreen may still warn for a while, because Microsoft grants reputation over time: click <strong>More info</strong>, then <strong>Run anyway</strong>. The <a href=\"/faq.html#warnings\">FAQ</a> explains how to check the file's hash yourself, and how to get it back.",
     "dl.phone.a": "See how",
     "dl.onphone.t": "You are on a phone right now.",
     "dl.onphone.p": "Xenon installs on the PC it monitors, so start there. Then this screen becomes one of its panels: scan the pairing QR from the PC, or send yourself this link.",
@@ -1660,18 +1557,6 @@
     "foot.download": "Scarica",
     "meta.title": "Xenon: una dashboard gratuita per il PC, su qualsiasi secondo schermo",
     "meta.desc": "Xenon trasforma un monitor di scorta, un tablet, il telefono o un CORSAIR Xeneon Edge in una dashboard touch: monitor di sistema, musica, AI vocale, trasferimento file e un Deck programmabile. Download gratuito per Windows, macOS e Linux. Codice su GitHub, senza account.",
-    "ss.copied": "Copiato",
-    "ss.title": "Windows potrebbe bloccarlo. Non è un virus.",
-    "ss.lead": "Xenon non ha una firma digitale: il certificato si paga ogni anno e Xenon è gratis. Windows tratta un installer non firmato e scaricato da poche persone come uno sconosciuto, quindi mostra un riquadro blu dove l'unico pulsante in vista è \"Non eseguire\".",
-    "ss.fund": "Ci stiamo lavorando: sono i sostenitori a pagare il primo anno di certificato. <a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">Guarda a che punto siamo</a> \u2014 la firma non far\u00e0 sparire l\u2019avviso da un giorno all\u2019altro, ma smetter\u00e0 di azzerarsi a ogni nuova versione.",
-    "ss.s1": "Clicca <strong>Ulteriori informazioni</strong> nel riquadro blu.",
-    "ss.s2": "Clicca <strong>Esegui comunque</strong>.",
-    "ss.s3": "Se invece è stato il browser ad annullare il download, apri l'elenco dei download e scegli <strong>Mantieni</strong>.",
-    "ss.hash": "Non fidarti sulla parola: verifica che il file sia esattamente quello pubblicato qui.",
-    "ss.copy": "Copia",
-    "ss.compare": "Confrontalo con la lista pubblicata",
-    "ss.more": "Di più sugli avvisi",
-    "ss.close": "Chiudi",
     "cat.stream": "Streaming",
     "cat.system": "Sistema",
     "cat.media": "Media",
@@ -1685,6 +1570,7 @@
     "surf.laptop": "Portatile",
     "surf.tablet": "Tablet",
     "surf.phone": "Telefono",
+    "surf.run": "Avvia la demo qui",
     "nav.features": "Funzioni",
     "nav.catalog": "Catalogo",
     "nav.install": "Installa",
@@ -1695,7 +1581,7 @@
     "nav.createlong": "Crea i tuoi widget",
     "nav.faq": "FAQ",
     "hero.h1": "Lo schermo che hai già diventa la console del tuo PC.",
-    "hero.sub": "Un monitor di scorta, il tablet nel cassetto, il telefono o un CORSAIR Xeneon Edge: Xenon gira sul PC e ci mette sopra sensori, musica, microfono, luci e un'AI con cui parlare. Gratis, il codice è pubblico su GitHub e niente esce dal tuo PC.",
+    "hero.sub": "Un monitor di scorta, il tablet nel cassetto, il telefono o un CORSAIR Xeneon Edge: Xenon gira sul PC e ci mette sopra sensori, musica, microfono, luci e un'AI con cui parlare. Gratis, con il codice su GitHub e senza account: impostazioni, file e letture dei sensori restano sul tuo PC.",
     "num.dl": "download",
     "num.stars": "stelle",
     "num.discord": "membri",
@@ -1716,7 +1602,7 @@
     "dl.linux.req": "Qualsiasi desktop x86_64. GNOME e KDE sono i due su cui è testato.",
     "dl.linux.note": "Cosa vuol dire beta",
     "dl.betaline": "macOS e Linux sono in beta. La dashboard, i widget, lo Store e le integrazioni sono gli stessi ovunque; a cambiare è la parte che legge la tua macchina, e la tabella nel README dice esattamente cosa funziona dove.",
-    "dl.blocked": "Windows ha bloccato il download, o lo ha chiamato virus? È un falso positivo: la build non ha ancora una firma digitale, quindi parte da reputazione zero. Le <a href=\"/faq.html#warnings\">FAQ</a> spiegano come verificare da solo l'hash del file e come recuperarlo.",
+    "dl.blocked": "Windows ha bloccato il download, o lo ha chiamato virus? È un falso positivo. L'installer per Windows è firmato, quindi Windows mostra un editore verificato. SmartScreen può comunque avvisare per un po', perché Microsoft concede la reputazione col tempo: clicca <strong>Ulteriori informazioni</strong>, poi <strong>Esegui comunque</strong>. Le <a href=\"/faq.html#warnings\">FAQ</a> spiegano come verificare da solo l'hash del file e come recuperarlo.",
     "dl.phone.a": "Guarda come",
     "dl.onphone.t": "Adesso sei su un telefono.",
     "dl.onphone.p": "Xenon si installa sul PC che monitora, quindi si parte da lì. Poi questo schermo diventa uno dei suoi pannelli: scansiona il QR di abbinamento dal PC, o mandati questo link.",
@@ -1829,18 +1715,6 @@
     "foot.download": "다운로드",
     "meta.title": "Xenon: 어떤 두 번째 화면에서도 쓰는 무료 PC 대시보드 앱",
     "meta.desc": "Xenon은 남는 모니터, 태블릿, 휴대폰 또는 CORSAIR Xeneon Edge를 터치 대시보드로 바꿉니다. 시스템 모니터, 미디어, 음성 AI, 파일 전송, 프로그래밍 가능한 Deck. Windows, macOS, Linux용 무료 다운로드. 소스는 GitHub에 공개, 계정 불필요.",
-    "ss.copied": "복사됨",
-    "ss.title": "Windows가 막을 수 있습니다. 바이러스가 아닙니다.",
-    "ss.lead": "Xenon에는 코드 서명이 없습니다. 인증서는 해마다 돈이 들고 Xenon은 무료입니다. Windows는 서명이 없고 내려받은 사람도 적은 설치 파일을 낯선 것으로 보고, \"실행 안 함\"만 보이는 파란 창을 띄웁니다.",
-    "ss.fund": "\uc9c0\uae08 \ubc14\uafb8\ub294 \uc911\uc785\ub2c8\ub2e4. \ud6c4\uc6d0\uc790\ub4e4\uc774 \uc778\uc99d\uc11c \uccab\ud574 \ube44\uc6a9\uc744 \ubaa8\uc73c\uace0 \uc788\uc2b5\ub2c8\ub2e4. <a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">\uc5bc\ub9c8\ub098 \ub0a8\uc558\ub294\uc9c0 \ubcf4\uae30</a> \u2014 \uc11c\uba85\ud574\ub3c4 \uacbd\uace0\uac00 \ud558\ub8e8\uc544\uce68\uc5d0 \uc0ac\ub77c\uc9c0\uc9c4 \uc54a\uc9c0\ub9cc, \ub9e4 \ubc84\uc804\ub9c8\ub2e4 \ucc98\uc74c\uc73c\ub85c \ub418\ub3cc\uc544\uac00\uc9c0\ub294 \uc54a\uac8c \ub429\ub2c8\ub2e4.",
-    "ss.s1": "파란 창에서 <strong>추가 정보</strong>를 누르세요.",
-    "ss.s2": "<strong>실행</strong>을 누르세요.",
-    "ss.s3": "브라우저가 다운로드를 취소했다면 다운로드 목록에서 <strong>유지</strong>를 선택하세요.",
-    "ss.hash": "말만 믿지 마세요. 받은 파일이 여기 공개된 것과 같은지 직접 확인할 수 있습니다.",
-    "ss.copy": "복사",
-    "ss.compare": "공개된 목록과 비교하기",
-    "ss.more": "경고에 대해 더 보기",
-    "ss.close": "닫기",
     "cat.stream": "스트리밍",
     "cat.system": "시스템",
     "cat.media": "미디어",
@@ -1854,6 +1728,7 @@
     "surf.laptop": "노트북",
     "surf.tablet": "태블릿",
     "surf.phone": "휴대폰",
+    "surf.run": "여기서 데모 실행하기",
     "nav.features": "기능",
     "nav.catalog": "카탈로그",
     "nav.install": "설치",
@@ -1864,7 +1739,7 @@
     "nav.createlong": "나만의 위젯 만들기",
     "nav.faq": "자주 묻는 질문",
     "hero.h1": "이미 있는 화면을 PC의 컨트롤 센터로.",
-    "hero.sub": "남는 모니터, 서랍 속 태블릿, 휴대폰, 또는 CORSAIR Xeneon Edge. Xenon은 PC에서 실행되어 그 화면에 시스템 상태, 미디어, 마이크, 조명, 그리고 대화할 수 있는 AI를 띄웁니다. 무료이며 소스 코드는 GitHub에 공개되어 있고, 아무것도 PC 밖으로 나가지 않습니다.",
+    "hero.sub": "남는 모니터, 서랍 속 태블릿, 휴대폰, 또는 CORSAIR Xeneon Edge. Xenon은 PC에서 실행되어 그 화면에 시스템 상태, 미디어, 마이크, 조명, 그리고 대화할 수 있는 AI를 띄웁니다. 무료이고 소스는 GitHub에 있으며 계정이 필요 없습니다. 설정, 파일, 센서 값은 PC에 그대로 남습니다.",
     "num.dl": "다운로드",
     "num.stars": "GitHub 스타",
     "num.discord": "디스코드 멤버",
@@ -1885,7 +1760,7 @@
     "dl.linux.req": "모든 x86_64 데스크톱. 테스트는 GNOME과 KDE에서 합니다.",
     "dl.linux.note": "베타의 의미",
     "dl.betaline": "macOS와 Linux는 베타입니다. 대시보드, 위젯, 스토어, 연동은 어디서나 같습니다. 다른 것은 기기 자체를 읽는 부분뿐이며, README 표에 무엇이 어디서 되는지 정확히 적혀 있습니다.",
-    "dl.blocked": "Windows가 다운로드를 막거나 바이러스라고 했나요? 오탐입니다. 아직 코드 서명이 없어서 신뢰도가 0에서 시작하기 때문입니다. <a href=\"/faq.html#warnings\">FAQ</a>에 파일 해시를 직접 확인하는 방법과 되살리는 방법이 있습니다.",
+    "dl.blocked": "Windows가 다운로드를 막거나 바이러스라고 했나요? 오탐입니다. Windows 설치 파일은 서명되어 있어 Windows에 확인된 게시자가 표시됩니다. Microsoft가 평판을 시간을 두고 부여하기 때문에 한동안 SmartScreen 경고가 나올 수 있습니다. 그럴 때는 '추가 정보', 이어서 '실행'을 클릭하세요. <a href=\"/faq.html#warnings\">FAQ</a>에 파일 해시를 직접 확인하는 방법과 되살리는 방법이 있습니다.",
     "dl.phone.a": "방법 보기",
     "dl.onphone.t": "지금 휴대폰으로 보고 계시네요.",
     "dl.onphone.p": "Xenon은 감시할 PC에 설치하므로 거기서 시작하세요. 그다음 이 화면이 그 패널 중 하나가 됩니다: PC에서 연결 QR을 스캔하거나, 이 링크를 자신에게 보내세요.",
@@ -1998,18 +1873,6 @@
     "foot.download": "ダウンロード",
     "meta.title": "Xenon: どんなセカンドスクリーンでも使える、無料の PC ダッシュボードアプリ",
     "meta.desc": "Xenon は余ったモニター、タブレット、スマートフォン、CORSAIR Xeneon Edge をタッチ操作のダッシュボードに変えます。システムモニター、メディア、音声 AI、ファイル転送、プログラム可能な Deck。Windows、macOS、Linux 向け無料ダウンロード。ソースは GitHub で公開、アカウント不要。",
-    "ss.copied": "コピーしました",
-    "ss.title": "Windows がブロックすることがあります。ウイルスではありません。",
-    "ss.lead": "Xenon にはコード署名がありません。証明書は毎年費用がかかり、Xenon は無料だからです。Windows は署名がなくダウンロード数も少ないインストーラーを未知のものとして扱い、「実行しない」しか見えない青い画面を出します。",
-    "ss.fund": "\u305d\u308c\u3092\u4eca\u5909\u3048\u3088\u3046\u3068\u3057\u3066\u3044\u307e\u3059\u3002\u652f\u63f4\u8005\u306e\u624b\u3067\u8a3c\u660e\u66f8\u306e\u521d\u5e74\u5ea6\u5206\u3092\u96c6\u3081\u3066\u3044\u307e\u3059\u3002<a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">\u9054\u6210\u72b6\u6cc1\u3092\u898b\u308b</a> \u2014 \u7f72\u540d\u3057\u3066\u3082\u8b66\u544a\u304c\u4e00\u591c\u3067\u6d88\u3048\u308b\u308f\u3051\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u304c\u3001\u30ea\u30ea\u30fc\u30b9\u306e\u305f\u3073\u306b\u30bc\u30ed\u306b\u623b\u308b\u3053\u3068\u306f\u306a\u304f\u306a\u308a\u307e\u3059\u3002",
-    "ss.s1": "青い画面の <strong>詳細情報</strong> をクリックします。",
-    "ss.s2": "<strong>実行</strong> をクリックします。",
-    "ss.s3": "ブラウザ側がダウンロードを取り消した場合は、ダウンロード一覧で <strong>保存</strong> を選んでください。",
-    "ss.hash": "言葉を信じる必要はありません。受け取ったファイルがここで公開されたものと同じか、自分で確かめられます。",
-    "ss.copy": "コピー",
-    "ss.compare": "公開されている一覧と照合する",
-    "ss.more": "警告について詳しく",
-    "ss.close": "閉じる",
     "cat.stream": "配信",
     "cat.system": "システム",
     "cat.media": "メディア",
@@ -2023,6 +1886,7 @@
     "surf.laptop": "ノートPC",
     "surf.tablet": "タブレット",
     "surf.phone": "スマートフォン",
+    "surf.run": "ここでデモを動かす",
     "nav.features": "機能",
     "nav.catalog": "カタログ",
     "nav.install": "インストール",
@@ -2033,7 +1897,7 @@
     "nav.createlong": "自分でウィジェットを作る",
     "nav.faq": "よくある質問",
     "hero.h1": "手元にある画面を、PC のコントロールセンターに。",
-    "hero.sub": "余ったモニター、引き出しのタブレット、スマートフォン、CORSAIR Xeneon Edge。Xenon は PC 上で動き、その画面にシステム情報、メディア、マイク、ライティング、そして話しかけられる AI を並べます。無料で、ソースコードは GitHub で公開されています。データは PC の外に出ません。",
+    "hero.sub": "余ったモニター、引き出しのタブレット、スマートフォン、CORSAIR Xeneon Edge。Xenon は PC 上で動き、その画面にシステム情報、メディア、マイク、ライティング、そして話しかけられる AI を並べます。無料で、ソースは GitHub にあり、アカウントは不要です。設定、ファイル、センサーの値は PC に残ります。",
     "num.dl": "ダウンロード",
     "num.stars": "GitHub スター",
     "num.discord": "Discord メンバー",
@@ -2054,7 +1918,7 @@
     "dl.linux.req": "x86_64 のデスクトップなら。テストしているのは GNOME と KDE です。",
     "dl.linux.note": "ベータの意味",
     "dl.betaline": "macOS と Linux はベータです。ダッシュボード、ウィジェット、ストア、連携はどこでも同じ。違うのはマシン自体を読む部分だけで、README の表に何がどこで動くか正確に書いてあります。",
-    "dl.blocked": "Windows がダウンロードをブロックした、あるいはウイルスだと言いましたか。誤検出です。まだコード署名がなく、評価がゼロから始まるためです。<a href=\"/faq.html#warnings\">FAQ</a> に、ファイルのハッシュを自分で確かめる方法と、元に戻す方法があります。",
+    "dl.blocked": "Windows がダウンロードをブロックした、あるいはウイルスだと言いましたか。誤検出です。Windows 用インストーラーには署名があり、Windows に確認済みの発行元が表示されます。Microsoft は評価を時間をかけて付与するため、しばらくは SmartScreen の警告が出ることがあります。その場合は「詳細情報」、続いて「実行」をクリックしてください。<a href=\"/faq.html#warnings\">FAQ</a> に、ファイルのハッシュを自分で確かめる方法と、元に戻す方法があります。",
     "dl.phone.a": "やり方を見る",
     "dl.onphone.t": "いまスマホでご覧ですね。",
     "dl.onphone.p": "Xenon は監視する PC に入れるので、まずはそちらから。そのあとこの画面がパネルの 1 つになります: PC からペアリング用 QR を読み取るか、このリンクを自分宛てに送ってください。",
@@ -2167,18 +2031,6 @@
     "foot.download": "下载",
     "meta.title": "Xenon：免费的电脑仪表盘应用，用在任何第二块屏幕上",
     "meta.desc": "Xenon 把闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 变成一块触控仪表盘：系统监控、媒体、语音 AI、文件传输和可编程的 Deck。免费下载，支持 Windows、macOS 和 Linux。源代码公开在 GitHub，无需账号。",
-    "ss.copied": "已复制",
-    "ss.title": "Windows 可能会拦截它。这不是病毒。",
-    "ss.lead": "Xenon 没有代码签名——证书每年都要花钱，而 Xenon 是免费的。Windows 把没有签名、下载量又少的安装程序当作陌生文件，所以会弹出一个蓝色窗口，能看见的只有\"不运行\"。",
-    "ss.fund": "\u8fd9\u4ef6\u4e8b\u6b63\u5728\u89e3\u51b3\uff1a\u652f\u6301\u8005\u6b63\u5728\u4e3a\u8bc1\u4e66\u7684\u7b2c\u4e00\u5e74\u51d1\u8d39\u7528\u3002<a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">\u770b\u770b\u8fd8\u5dee\u591a\u5c11</a> \u2014 \u7b7e\u540d\u4e0d\u4f1a\u8ba9\u8b66\u544a\u4e00\u591c\u4e4b\u95f4\u6d88\u5931\uff0c\u4f46\u5b83\u4e0d\u4f1a\u518d\u968f\u6bcf\u6b21\u53d1\u5e03\u5f52\u96f6\u3002",
-    "ss.s1": "在蓝色窗口里点<strong>更多信息</strong>。",
-    "ss.s2": "点<strong>仍要运行</strong>。",
-    "ss.s3": "如果是浏览器取消了下载，打开下载列表选择<strong>保留</strong>。",
-    "ss.hash": "不用只听我说：你可以自己核对下载到的文件和这里发布的是不是同一个。",
-    "ss.copy": "复制",
-    "ss.compare": "与发布的清单对照",
-    "ss.more": "更多关于这些警告",
-    "ss.close": "关闭",
     "cat.stream": "直播",
     "cat.system": "系统",
     "cat.media": "媒体",
@@ -2192,6 +2044,7 @@
     "surf.laptop": "笔记本",
     "surf.tablet": "平板",
     "surf.phone": "手机",
+    "surf.run": "在这里运行演示",
     "nav.features": "功能",
     "nav.catalog": "目录",
     "nav.install": "安装",
@@ -2202,7 +2055,7 @@
     "nav.createlong": "做你自己的组件",
     "nav.faq": "常见问题",
     "hero.h1": "把你手边的屏幕，变成电脑的控制中心。",
-    "hero.sub": "闲置的显示器、抽屉里的平板、手机，或者 CORSAIR Xeneon Edge。Xenon 在电脑上运行，把系统状态、媒体、麦克风、灯光和一个可以对话的 AI 放到那块屏幕上。免费，源代码公开在 GitHub 上，数据不离开你的电脑。",
+    "hero.sub": "闲置的显示器、抽屉里的平板、手机，或者 CORSAIR Xeneon Edge。Xenon 在电脑上运行，把系统状态、媒体、麦克风、灯光和一个可以对话的 AI 放到那块屏幕上。免费，源代码在 GitHub 上，无需账号：设置、文件和传感器读数都留在你的电脑上。",
     "num.dl": "次下载",
     "num.stars": "GitHub 星标",
     "num.discord": "Discord 成员",
@@ -2223,7 +2076,7 @@
     "dl.linux.req": "任意 x86_64 桌面。测试环境是 GNOME 和 KDE。",
     "dl.linux.note": "测试版是什么意思",
     "dl.betaline": "macOS 和 Linux 处于测试阶段。仪表盘、组件、商店和各类集成在哪儿都一样；不同的只是读取机器本身的那部分，README 里的表格写清楚了什么在哪儿可用。",
-    "dl.blocked": "Windows 拦下了下载，或者说它是病毒？这是误报：这个版本还没有代码签名，信誉从零开始。<a href=\"/faq.html#warnings\">常见问题</a>里写了怎么自己核对文件哈希，以及怎么把它找回来。",
+    "dl.blocked": "Windows 拦下了下载，或者说它是病毒？这是误报。Windows 安装程序已签名，Windows 会显示经过验证的发布者。由于 Microsoft 需要时间积累信誉，SmartScreen 可能仍会提示一段时间：点击“更多信息”，然后点击“仍要运行”。<a href=\"/faq.html#warnings\">常见问题</a>里写了怎么自己核对文件哈希，以及怎么把它找回来。",
     "dl.phone.a": "看看怎么做",
     "dl.onphone.t": "你现在正用手机浏览。",
     "dl.onphone.p": "Xenon 装在它要监控的那台 PC 上，所以从那儿开始。之后这块屏就成了它的一个面板：在 PC 上扫配对二维码，或者把这个链接发给自己。",
@@ -2335,18 +2188,6 @@
     "foot.download": "Descargar",
     "meta.title": "Xenon: un panel de control gratis para tu PC, en cualquier segunda pantalla",
     "meta.desc": "Xenon convierte un monitor de sobra, una tablet, tu móvil o una CORSAIR Xeneon Edge en un panel táctil: monitor del sistema, música, IA por voz, transferencia de archivos y un Deck programable. Descarga gratis para Windows, macOS y Linux. Código publicado en GitHub, sin cuenta.",
-    "ss.copied": "Copiado",
-    "ss.title": "Windows puede bloquearlo. No es un virus.",
-    "ss.lead": "Xenon no está firmado digitalmente: el certificado cuesta dinero cada año y Xenon es gratis. Windows trata un instalador sin firma que poca gente ha descargado como un desconocido, así que muestra un cuadro azul donde solo se ve \"No ejecutar\".",
-    "ss.fund": "Se está arreglando: los patrocinadores están pagando el primer año del certificado. <a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">Mira cuánto falta</a> — la firma no hará desaparecer el aviso de un día para otro, pero dejará de reiniciarse con cada versión.",
-    "ss.s1": "Pulsa <strong>Más información</strong> en el cuadro azul.",
-    "ss.s2": "Pulsa <strong>Ejecutar de todas formas</strong>.",
-    "ss.s3": "Si en cambio el navegador canceló la descarga, abre su lista de descargas y elige <strong>Conservar</strong>.",
-    "ss.hash": "No te fíes de mi palabra: comprueba que el archivo es exactamente el publicado aquí:",
-    "ss.copy": "Copiar",
-    "ss.compare": "Compáralo con la lista publicada",
-    "ss.more": "Más sobre los avisos",
-    "ss.close": "Cerrar",
     "cat.stream": "Streaming",
     "cat.system": "Sistema",
     "cat.media": "Multimedia",
@@ -2360,6 +2201,7 @@
     "surf.laptop": "Portátil",
     "surf.tablet": "Tablet",
     "surf.phone": "Móvil",
+    "surf.run": "Ejecutar la demo aquí",
     "nav.features": "Funciones",
     "nav.catalog": "Catálogo",
     "nav.install": "Instalar",
@@ -2370,7 +2212,7 @@
     "nav.createlong": "Crea tus propios widgets",
     "nav.faq": "Preguntas frecuentes",
     "hero.h1": "Convierte la pantalla que ya tienes en el centro de control de tu PC.",
-    "hero.sub": "Un monitor de sobra, la tablet del cajón, tu móvil o una CORSAIR Xeneon Edge: Xenon corre en tu PC y pone ahí estadísticas, música, micrófono, luces y una IA con la que puedes hablar. Gratis, el código está publicado en GitHub y nada sale de tu PC.",
+    "hero.sub": "Un monitor de sobra, la tablet del cajón, tu móvil o una CORSAIR Xeneon Edge: Xenon corre en tu PC y pone ahí estadísticas, música, micrófono, luces y una IA con la que puedes hablar. Gratis, con el código en GitHub y sin cuenta: tus ajustes, archivos y lecturas de sensores se quedan en tu PC.",
     "num.dl": "descargas",
     "num.stars": "estrellas",
     "num.discord": "miembros",
@@ -2391,7 +2233,7 @@
     "dl.linux.req": "Cualquier escritorio x86_64. GNOME y KDE son los dos en los que se prueba.",
     "dl.linux.note": "Qué significa beta",
     "dl.betaline": "macOS y Linux están en beta. El panel, los widgets, la tienda y las integraciones son iguales en todas partes; lo que todavía cambia es la parte que lee tu máquina, y la tabla del README dice exactamente qué funciona dónde.",
-    "dl.blocked": "¿Windows bloqueó la descarga o dijo que era un virus? Es un falso positivo: la compilación aún no está firmada, así que parte de cero reputación. Las <a href=\"/faq.html#warnings\">preguntas frecuentes</a> explican cómo comprobar el hash del archivo tú mismo y cómo recuperarlo.",
+    "dl.blocked": "¿Windows bloqueó la descarga o dijo que era un virus? Es un falso positivo. El instalador de Windows está firmado, así que Windows muestra un editor verificado. SmartScreen aún puede avisar durante un tiempo, porque Microsoft concede la reputación con el tiempo: pulsa <strong>Más información</strong> y luego <strong>Ejecutar de todas formas</strong>. Las <a href=\"/faq.html#warnings\">preguntas frecuentes</a> explican cómo comprobar el hash del archivo tú mismo y cómo recuperarlo.",
     "dl.phone.a": "Ver cómo",
     "dl.onphone.t": "Ahora mismo estás en un móvil.",
     "dl.onphone.p": "Xenon se instala en el PC que supervisa, así que empieza por ahí. Después esta pantalla se convierte en uno de sus paneles: escanea el QR de emparejamiento desde el PC o envíate este enlace.",
@@ -2537,7 +2379,18 @@
       // iPadOS reports itself as a Mac; the touch points are what give it away.
       return /iPad/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1);
     }
-    if (isMobile()) document.documentElement.setAttribute('data-mobile', '');
+    if (isMobile()) {
+      document.documentElement.setAttribute('data-mobile', '');
+      // A phone or tablet cannot run any of the three installers (and an iPad
+      // would otherwise be read as a Mac and handed the .dmg). The nav and hero
+      // buttons go to #install, where the strip for phones explains the next step.
+      document.querySelectorAll('a[data-track="download_click"]').forEach((a) => {
+        if (a.closest('[data-dl-alt]') || a.closest('[data-os-card]')) return;
+        a.href = '#install';
+        a.removeAttribute('target');
+      });
+      return;
+    }
 
     const os = detect();
     const NAME = { windows: 'Windows', macos: 'macOS', linux: 'Linux' };
@@ -2986,9 +2839,6 @@
     for (const d of pool) { if (picks.length >= 2) break; if (!picks.includes(d)) picks.push(d); }
     const show = picks.slice(0, 2);
     if (!show.length) return;
-    // Two drops sit side by side as upright cards (.drops.duo) instead of two
-    // stacked full-width banners — a wall of banner before the free content.
-    if (show.length === 2) box.classList.add('duo');
 
     // Rendered in UTC on purpose: activeUntil is authored as an end-of-day UTC
     // stamp ("2026-07-31T23:59:59Z"), so a local-time render turns "31 July"
@@ -3007,7 +2857,7 @@
       // Art: the entry's first shot, with the palette as a visible fallback.
       const shot = document.createElement('a');
       shot.className = 'drop-shot';
-      shot.href = 'catalog/#' + e.id;
+      shot.href = '/catalog/#' + e.id;
       const pv = e.preview || {};
       if (HEX_RE.test(pv.bg || '') && HEX_RE.test(pv.accent || '')) {
         shot.style.background = 'radial-gradient(120% 130% at 20% 10%, ' + pv.accent + '55, ' + pv.bg + ' 62%)';
@@ -3083,7 +2933,7 @@
 
       const see = document.createElement('a');
       see.className = 'drop-see';
-      see.href = 'catalog/#' + e.id;
+      see.href = '/catalog/#' + e.id;
       see.textContent = window.XT('drop.see');
       ctas.appendChild(see);
 
@@ -3096,10 +2946,24 @@
     // yet they were built once and never touched again — so this was the one
     // section on the page that stayed in whatever language it happened to load
     // in, while everything around it switched. Rebuilding is cheap: two cards.
-    const paint = () => { box.textContent = ''; show.forEach(build); };
+    //
+    // "This month" (/promo.js, the block above) may already show some of these
+    // entries in rows of their own. Their cards step aside so nothing appears
+    // twice: promo.js leaves the ids in window.__xenonPromoIds and fires
+    // 'xenon:promo' after every render, and it may finish before or after this.
+    const paint = () => {
+      const promoted = new Set(Array.isArray(window.__xenonPromoIds) ? window.__xenonPromoIds : []);
+      const cards = show.filter((d) => !promoted.has(d.e.id));
+      box.textContent = '';
+      // Two drops sit side by side as upright cards (.drops.duo) instead of two
+      // stacked full-width banners, a wall of banner before the free content.
+      box.classList.toggle('duo', cards.length === 2);
+      cards.forEach(build);
+      box.hidden = !cards.length;
+    };
     paint();
     document.addEventListener('xenon:lang', paint);
-    box.hidden = false;
+    document.addEventListener('xenon:promo', paint);
     // These cards are real, current and linked to their entries; the static six
     // below were the stand-in for this failing. Only one of the two is needed.
     const fallback = document.getElementById('catalog-fallback');
@@ -3192,27 +3056,30 @@
    4. The load event is not proof the demo loaded. It fires for an error page
       too, so a 404 on docs/demo/ faded the poster and put GitHub's 404 in the
       hero. The frame's own DOM is probed before anything is faded.
-   5. saveData and reduced-motion are honoured on EVERY path into goLive, not
-      just the scroll one. The demo is 9.5 MB over 252 files.
-   6. The frame starts inert. It holds around 900 focusable nodes, and dropping
-      those into the middle of a marketing page means a keyboard user tabs
-      through an entire dashboard to reach the footer. Inert also stops the
-      frame swallowing a scroll. One click hands it over, which is the ordinary
-      contract for an embedded demo. */
+   5. The demo is about 8 MB over some 230 files, so it never starts by itself:
+      only the run button or a screen button starts it, and saveData is
+      honoured on both paths.
+   6. It used to start inert, because it could start without being asked and
+      its ~900 focusable nodes would have sat in the tab order of a page the
+      visitor was only reading. Now the start is always a click, so the frame
+      is handed over on that click. */
 (function () {
   var stage  = document.getElementById('surf-stage');
   var pick   = document.getElementById('surf-pick');
   var now    = document.getElementById('surf-now');
   var poster = document.getElementById('surf-poster');
+  var run    = document.getElementById('surf-run');
   if (!stage || !pick) return;
 
-  var frame = null, live = false, io = null;
+  var frame = null, live = false, shown = false;
   var cur = { w: 2560, h: 720 };
 
+  // The demo only ever starts from a click (the run button or a screen), so
+  // reduced motion no longer blocks it: the visitor asked for it. saveData still
+  // does, because the click would cost them about 8 MB they said they want to keep.
   function wantsLive() {
     return window.innerWidth >= 860 &&
-           !(navigator.connection && navigator.connection.saveData) &&
-           !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+           !(navigator.connection && navigator.connection.saveData);
   }
 
   function fit() {
@@ -3280,6 +3147,8 @@
     if (!demoIsReal()) return;                // the poster stays, and so does the page we had
     if (poster) { poster.style.opacity = '0'; poster.style.pointerEvents = 'none'; }  // rule 1
     stage.classList.add('is-live');
+    shown = true;
+    if (run) { run.hidden = true; run.removeAttribute('aria-busy'); }
   }
 
   function goLive() {
@@ -3289,7 +3158,8 @@
     frame.className = 'surf-live';
     frame.title = 'Xenon';
     frame.setAttribute('scrolling', 'no');
-    frame.setAttribute('inert', '');          // rule 6
+    // Rule 6 held while the frame could start on its own. Now it only starts
+    // from a click, and that click is the visitor choosing to use it.
     frame.style.width  = cur.w + 'px';
     frame.style.height = cur.h + 'px';
     frame.addEventListener('load', function () {
@@ -3311,14 +3181,16 @@
     // squeezed column down the left.
     stage.appendChild(frame);
     fit();
-    frame.src = 'demo/';
+    frame.src = '/demo/';
+    if (run) run.setAttribute('aria-busy', 'true');
+    // Proof never came (a 404, a blocked frame): give the button back instead of
+    // leaving a spinner over a picture.
+    setTimeout(function () {
+      if (!shown && run) run.removeAttribute('aria-busy');
+    }, 12000);
   }
 
-  // One click hands the frame over. Until then it is inert, so this click is
-  // the one that lands on the stage.
-  stage.addEventListener('click', function () {
-    if (frame && frame.hasAttribute('inert')) frame.removeAttribute('inert');
-  });
+  if (run) run.addEventListener('click', function () { goLive(); });
 
   pick.addEventListener('click', function (e) {
     var btn = e.target.closest('.surf-btn');
@@ -3335,14 +3207,7 @@
   function sync() {
     var ok = wantsLive();
     pick.hidden = !ok;
-    if (ok && !live && !io && 'IntersectionObserver' in window) {
-      io = new IntersectionObserver(function (entries) {
-        for (var i = 0; i < entries.length; i++) {
-          if (entries[i].isIntersecting) { goLive(); io.disconnect(); io = null; return; }
-        }
-      }, { rootMargin: '200px' });
-      io.observe(stage);
-    }
+    if (run) run.hidden = !ok || shown;
   }
   sync();
 

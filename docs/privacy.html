@@ -205,7 +205,7 @@
       Xenon is built to run on your machine, and the app holds to that. This website is a separate
       thing with separate rules. This page keeps the two apart and tells you exactly what each one does.
     </p>
-    <p class="updated">Last updated: 30 July 2026</p>
+    <p class="updated">Last updated: 26 September 2026</p>
 
     <h2>The short version</h2>
     <div class="card accent">
@@ -220,8 +220,8 @@
 
     <h2>Who is responsible</h2>
     <p>
-      Xenon is a personal open-source project by Marcello Mastroeni, and I am the data controller for
-      this website. For anything on this page — a question, a correction, or a request about your data —
+      Xenon is a personal project by one developer, Marcello Mastroeni, with its source on GitHub under a
+      custom non-commercial licence, and I am the data controller for this website. For anything on this page, such as a question, a correction or a request about your data,
       write to <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a> or open an
       issue on <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a>.
     </p>
@@ -295,8 +295,10 @@
     <p>
       The site is served by <strong>GitHub Pages</strong>, which processes the request and your IP address
       to deliver the page and keeps short-lived security logs — this is technically necessary and happens
-      before any consent decision. Web fonts are loaded from <strong>Google Fonts</strong>, which likewise
-      sees the request. Community screenshots are served from <strong>Cloudflare R2</strong>
+      before any consent decision. The site's fonts are served from the site itself (<code>/fonts/</code>),
+      so loading them contacts no one else. The one exception is the <a href="/demo/">live demo</a>, which
+      runs the app's own dashboard page and loads that page's fonts from <strong>Google Fonts</strong>,
+      which then sees the request. Community screenshots are served from <strong>Cloudflare R2</strong>
       (<code>assets.xenon-app.com</code>).
     </p>
 
@@ -372,6 +374,11 @@
             <td>Services you connect yourself<br><span style="color:var(--dim)">Spotify, Twitch, YouTube, Discord, Home Assistant, OBS, AI providers, stock/news/football feeds</span></td>
             <td>Only after you configure that integration</td>
             <td>Each talks to its own provider under that provider's privacy policy, using credentials you supply. They stay dormant until set up.</td>
+          </tr>
+          <tr>
+            <td>Your phone's push service<br><span style="color:var(--dim)">Apple, Google or Mozilla, depending on the phone's browser</span></td>
+            <td>Only after you turn on notifications on a paired phone or tablet</td>
+            <td>Lets the PC wake a closed phone for something you set up and are waiting for, such as a countdown finishing. The message is end-to-end encrypted to that phone's browser, so the push service carries it without being able to read it; it does see that a message went to that phone, and when. Nothing is set up until you press the button on the phone, and removing the paired device stops it.</td>
           </tr>
           <tr>
             <td>Anonymous version ping<br><span style="color:var(--dim)">supporter hub</span></td>

@@ -422,7 +422,7 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 
 ### Code signing and antivirus false positives
 
-**Nothing Xenon ships is Authenticode-signed.** The two signatures in the pipeline are for integrity, not identity: the minisign key (`TAURI_SIGNING_PRIVATE_KEY`) is only read by the Tauri updater, and the Ed25519 `SHA256SUMS.sig` is only read by `self-update.js` / the bootstrap. Windows sees neither. To Defender and SmartScreen, `Xenon-Setup-x64.exe`, `xenon-native.exe` and `xenon-helper.exe` are unsigned binaries with a hash nobody has seen before — and every release resets that reputation to zero.
+**Until v4.11.9 nothing Xenon shipped was Authenticode-signed** (since then the setup, the app exe and the helper are; the wiring is below). What follows explains why that mattered. The two older signatures in the pipeline are for integrity, not identity: the minisign key (`TAURI_SIGNING_PRIVATE_KEY`) is only read by the Tauri updater, and the Ed25519 `SHA256SUMS.sig` is only read by `self-update.js` / the bootstrap. Windows sees neither. To Defender and SmartScreen, `Xenon-Setup-x64.exe`, `xenon-native.exe` and `xenon-helper.exe` are unsigned binaries with a hash nobody has seen before — and every release resets that reputation to zero.
 
 That is the standing cost. On top of it, **behaviour is scored**, and an install that arrives unsigned has no credit to spend. Defender's cloud model quarantined 4.10.x as `Trojan:Win32/Sonbokli.A!cl` (`!cl` = cloud/ML verdict, not a signature match) and blocked the download outright. The install did all of this at once:
 
