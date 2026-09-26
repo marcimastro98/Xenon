@@ -1180,8 +1180,9 @@
         "reserveUrl": "https://discord.gg/MBVrw9kZyg"
       },
       "shots": 4,
+      "active": false,
       "addedAt": "2026-08-01",
-      "updatedAt": "2026-08-01"
+      "updatedAt": "2026-09-26"
     },
     {
       "id": "ember-nights",
