@@ -5,91 +5,91 @@
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
   <url>
     <loc>https://xenon-app.com/</loc>
-    <lastmod>2026-09-14T05:49:47+00:00</lastmod>
+    <lastmod>2026-09-26T21:55:42+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/es/</loc>
-    <lastmod>2026-09-14T05:49:47+00:00</lastmod>
+    <lastmod>2026-09-26T21:55:42+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/it/</loc>
-    <lastmod>2026-09-14T05:49:47+00:00</lastmod>
+    <lastmod>2026-09-26T21:55:42+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/ko/</loc>
-    <lastmod>2026-09-14T05:49:47+00:00</lastmod>
+    <lastmod>2026-09-26T21:55:42+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/ja/</loc>
-    <lastmod>2026-09-14T05:49:47+00:00</lastmod>
+    <lastmod>2026-09-26T21:55:42+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/zh/</loc>
-    <lastmod>2026-09-14T05:49:47+00:00</lastmod>
+    <lastmod>2026-09-26T21:55:42+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/catalog/</loc>
-    <lastmod>2026-08-28T05:14:53+00:00</lastmod>
+    <lastmod>2026-09-26T12:00:16+02:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/create/</loc>
-    <lastmod>2026-08-13T22:12:04+02:00</lastmod>
+    <lastmod>2026-09-22T12:11:00Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/faq.html</loc>
-    <lastmod>2026-09-14T06:01:15+00:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/phone.html</loc>
-    <lastmod>2026-08-13T20:08:54+02:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/xeneon-edge-widgets.html</loc>
-    <lastmod>2026-09-13T08:03:20+00:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/tablet-dashboard.html</loc>
-    <lastmod>2026-09-13T08:03:20+00:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/xenon-exe.html</loc>
-    <lastmod>2026-09-13T09:54:49+00:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/download.html</loc>
-    <lastmod>2026-09-13T10:21:54+00:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/linux.html</loc>
-    <lastmod>2026-09-13T10:21:54+00:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -106,9 +106,39 @@
   </url>
   <url>
     <loc>https://xenon-app.com/privacy.html</loc>
-    <lastmod>2026-08-13T20:08:54+02:00</lastmod>
+    <lastmod>2026-09-26T20:08:49+02:00</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/catalog/tgk-workstation-monitor/</loc>
+    <lastmod>2026-09-26</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/catalog/tgk-monitor-performance-metrics/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/catalog/tgk-steam-launcher-battery/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/catalog/tgk-spotify-player-library/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/catalog/tgk-youtube-player-subscriptions/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/catalog/pit-wall/</loc>
@@ -149,12 +179,6 @@
   <url>
     <loc>https://xenon-app.com/catalog/dgm-marcas-personales/</loc>
     <lastmod>2026-07-29</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://xenon-app.com/catalog/codex/</loc>
-    <lastmod>2026-07-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -291,12 +315,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://xenon-app.com/catalog/vanguard-50/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://xenon-app.com/catalog/ambra/</loc>
     <lastmod>2026-07-20</lastmod>
     <changefreq>monthly</changefreq>
@@ -310,7 +328,7 @@
   </url>
   <url>
     <loc>https://xenon-app.com/catalog/nova-neon-district/</loc>
-    <lastmod>2026-08-01</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -393,6 +411,11 @@
   </url>
   <url>
     <loc>https://xenon-app.com/creators/danielgarciamorato/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/creators/the-gothamknight/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
