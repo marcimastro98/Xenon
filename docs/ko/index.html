@@ -221,6 +221,19 @@ a:hover { text-decoration-thickness: 2px; }
 .hd-dl { font-weight: 700; text-decoration: none; min-width: 108px; text-align: center; padding: 10px 0; border-radius: 10px; }
 .hd-dl.lit { color: #fff; padding-inline: 16px; }
 .ft [data-theme-switch] { --mono: var(--f-text); --sans: var(--f-text); }
+.marks { display: flex; align-items: center; gap: 4px; }
+.mk { display: inline-flex; align-items: center; gap: 6px; min-width: 40px; min-height: 40px; justify-content: center; padding: 0 6px; color: var(--fg-2); text-decoration: none; border-radius: 10px; }
+.mk svg { width: 19px; height: 19px; }
+.mk:hover { color: var(--fg); background: var(--room-2); }
+.mk.dc:hover { color: #5865F2; }
+.mk.cup:hover { color: #B5821F; }
+.mk .stars { font: 600 14.5px/1 var(--f-text); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.mk .star { color: #D69A17; margin-right: 2px; }
+.play { position: absolute; right: 26px; bottom: 26px; z-index: 3; display: inline-flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 18px 0 14px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(8,10,12,.72); color: #fff; font: 700 16px/1 var(--f-text); cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 10px 30px -12px rgba(0,0,0,.8); transition: background-color .15s, transform .11s; }
+.play:hover { background: rgba(8,10,12,.9); }
+.play:active { transform: translateY(1px); }
+.play svg { width: 18px; height: 18px; }
+.play[aria-busy="true"] { cursor: progress; opacity: .85; }
 .menu-btn { display: none; font: 600 16px/1 var(--f-text); background: none; border: 0; color: inherit; padding: 12px 0; cursor: pointer; }
 .hd .mnav { display: none; }
 
@@ -432,7 +445,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   html { scroll-padding-top: 12px; }
   .hd { position: static; }
   .hd .w { height: 56px; gap: 16px; }
-  .hd-dl, .lang { display: none; }
+  .hd-dl, .lang, .marks { display: none; }
   .hd.open .mnav { top: 56px; }
   .hero { padding-block: 18px 8px; }
   .hero-grid { display: block; }
@@ -479,6 +492,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   <symbol id="os-win" viewBox="0 0 24 24"><path fill="currentColor" d="M3 5.2 10.4 4.2v7H3zM11.4 4 21 2.7v8.5h-9.6zM3 12.3h7.4v7L3 18.3zM11.4 12.3H21v8.9l-9.6-1.3z"/></symbol>
   <symbol id="os-mac" viewBox="0 0 24 24"><path fill="currentColor" d="M16.4 12.7c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.8-1.1-2.9-4.3zM13.9 5.1c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.4-.6 3.1-1.5z"/></symbol>
   <symbol id="os-linux" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c-2 0-3.3 1.7-3.3 4.2 0 1.3.3 2.1-.4 3.3C7 11.5 5.6 13.4 5.6 16c0 .7.1 1.3.3 1.8-.8.4-1.6 1-1.6 1.8 0 1.2 1.6 1.4 3.2 2 1 .4 1.8.4 2.5-.3.5.1 1.3.2 2 .2s1.5-.1 2-.2c.7.7 1.5.7 2.5.3 1.6-.6 3.2-.8 3.2-2 0-.8-.8-1.4-1.6-1.8.2-.5.3-1.1.3-1.8 0-2.6-1.4-4.5-2.7-6.5-.7-1.2-.4-2-.4-3.3C15.3 3.7 14 2 12 2zm-1.4 4.3c.4 0 .7.5.7 1.1s-.3 1-.7 1-.7-.4-.7-1 .3-1.1.7-1.1zm2.8 0c.4 0 .7.5.7 1.1s-.3 1-.7 1-.7-.4-.7-1 .3-1.1.7-1.1zM12 9.3c.9 0 1.9.6 1.9 1s-1 .9-1.9.9-1.9-.5-1.9-.9 1-1 1.9-1z"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.7v-2.3h1.7a1.4 1.4 0 0 0 0-2.8h-1.7V8.4ZM2.4 20.1h16.4v1.8H2.4v-1.8Z"/></symbol>
+  <symbol id="i-dc" viewBox="0 0 24 24"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></symbol>
 </svg>
 
 <header class="hd" id="hd">
@@ -488,12 +504,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       <ul>
         <li><a href="#screens" data-i18n="nav.screens">화면</a></li>
         <li><a href="#widgets" data-i18n="nav.widgets">위젯</a></li>
+        <li><a href="/demo/" data-i18n="nav.demo">데모</a></li>
         <li><a href="/catalog/" data-i18n="nav.themes">테마</a></li>
         <li><a href="#support" data-i18n="nav.support">후원</a></li>
         <li><a href="/faq.html" data-i18n="nav.help">도움말</a></li>
       </ul>
     </nav>
     <div class="hd-end">
+      <div class="marks">
+        <a class="mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg aria-hidden="true"><use href="#i-cup"/></svg><span class="sr" data-i18n="nav.coffee">커피 한 잔 사주기</span></a>
+        <a class="mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg aria-hidden="true"><use href="#i-dc"/></svg></a>
+        <a class="mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg aria-hidden="true"><use href="#i-gh"/></svg><span class="stars" id="gh-stars" hidden><span class="star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
       <details class="lang" id="lang">
         <summary aria-label="Language"><span id="lang-cur">EN</span></summary>
         <ul id="lang-menu">
@@ -515,9 +537,13 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       <li><a href="#widgets" data-i18n="nav.widgets">위젯</a></li>
       <li><a href="/catalog/" data-i18n="nav.themes">테마</a></li>
       <li><a href="#support" data-i18n="nav.support">후원</a></li>
+      <li><a href="/demo/" data-i18n="nav.demo">데모</a></li>
       <li><a href="#install" data-i18n="nav.install">설치</a></li>
       <li><a href="/phone.html" data-i18n="nav.phone">휴대폰과 태블릿</a></li>
       <li><a href="/faq.html" data-i18n="nav.help">도움말</a></li>
+      <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-i18n="nav.coffee">커피 한 잔 사주기</a></li>
+      <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li>
+      <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li>
     </ul>
   </nav>
 </header>
@@ -555,6 +581,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
             <img id="scr-img" src="/images/home/edge-ocean-1440.webp" srcset="/images/home/edge-ocean-1440.webp 1440w, /images/home/edge-ocean.webp 2560w" sizes="(max-width: 1440px) 96vw, 1376px" width="2560" height="720" fetchpriority="high" decoding="async" alt="The Xenon dashboard on a 2560 × 720 CORSAIR Xeneon Edge: music, calendar and the PC's sensors" data-i18n-alt="scr.alt">
           </picture>
         </div>
+        <button class="play" id="run" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span data-i18n="scr.run">라이브 데모 실행(약 8 MB)</span></button>
       </figure>
 
       <div class="under">
@@ -567,7 +594,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <button class="chip" type="button" aria-pressed="false" data-theme-id="retro"><span class="sw" style="background:#050510;--c:#ffb000"></span>Pixel Retro</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="comic"><span class="sw" style="background:#101010;--c:#ff4d6d"></span>Comic</button>
         </div>
-        <p class="cap" id="scr-cap"><span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean, <a href="/catalog/#deep-ocean">카탈로그</a>의 무료 테마.</span> <span data-i18n="scr.sample">브라우저 데모의 샘플 데이터입니다.</span> <button class="linkbtn" id="run" type="button" hidden data-i18n="scr.run">라이브 데모 실행(약 8 MB)</button></p>
+        <p class="cap" id="scr-cap"><span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean, <a href="/catalog/#deep-ocean">카탈로그</a>의 무료 테마.</span> <span data-i18n="scr.sample">브라우저 데모의 샘플 데이터입니다.</span></p>
       </div>
     </div>
   </section>
@@ -869,6 +896,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.menu": "Menu",
     "nav.install": "Install",
     "nav.phone": "Phone and tablet",
+    "nav.demo": "Demo",
+    "nav.coffee": "Buy me a coffee",
     "lang.hint": "This page is also in English",
     "hero.h1": "Xenon, a free touch dashboard for your PC",
     "hero.lead": "It runs on a CORSAIR Xeneon Edge, a spare monitor, a tablet or your phone: system stats, media and mic, a Deck of keys and a voice assistant.",
@@ -1057,6 +1086,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.menu": "Menu",
     "nav.install": "Installazione",
     "nav.phone": "Telefono e tablet",
+    "nav.demo": "Demo",
+    "nav.coffee": "Offrimi un caffè",
     "lang.hint": "Questa pagina c'è anche in italiano",
     "hero.h1": "Xenon, una dashboard touch gratuita per il tuo PC",
     "hero.lead": "Gira su un CORSAIR Xeneon Edge, un monitor in più, un tablet o il telefono: sensori del PC, musica e microfono, una Deck di tasti e un assistente vocale.",
@@ -1245,6 +1276,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.menu": "Menú",
     "nav.install": "Instalación",
     "nav.phone": "Teléfono y tablet",
+    "nav.demo": "Demo",
+    "nav.coffee": "Invítame a un café",
     "lang.hint": "Esta página también está en español",
     "hero.h1": "Xenon, un panel táctil gratis para tu PC",
     "hero.lead": "Funciona en un CORSAIR Xeneon Edge, un monitor extra, una tablet o tu teléfono: estadísticas del sistema, música y micrófono, un Deck de teclas y un asistente de voz.",
@@ -1433,6 +1466,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.menu": "メニュー",
     "nav.install": "インストール",
     "nav.phone": "スマートフォンとタブレット",
+    "nav.demo": "デモ",
+    "nav.coffee": "コーヒーをおごる",
     "lang.hint": "このページは日本語でも読めます",
     "hero.h1": "Xenon、PC用の無料タッチダッシュボード",
     "hero.lead": "CORSAIR Xeneon Edge、余っているモニター、タブレット、スマートフォンで動作します。システム情報、メディアとマイク、キーを並べたDeck、音声アシスタントを備えています。",
@@ -1621,6 +1656,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.menu": "메뉴",
     "nav.install": "설치",
     "nav.phone": "휴대폰과 태블릿",
+    "nav.demo": "데모",
+    "nav.coffee": "커피 한 잔 사주기",
     "lang.hint": "이 페이지는 한국어로도 볼 수 있습니다",
     "hero.h1": "Xenon, PC를 위한 무료 터치 대시보드",
     "hero.lead": "CORSAIR Xeneon Edge, 남는 모니터, 태블릿이나 휴대폰에서 작동합니다. 시스템 상태, 미디어와 마이크, 키로 이루어진 Deck, 음성 비서가 들어 있습니다.",
@@ -1809,6 +1846,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.menu": "菜单",
     "nav.install": "安装",
     "nav.phone": "手机和平板",
+    "nav.demo": "演示",
+    "nav.coffee": "请我喝杯咖啡",
     "lang.hint": "本页面也有中文版",
     "hero.h1": "Xenon，一款免费的电脑触控仪表盘",
     "hero.lead": "它可以运行在 CORSAIR Xeneon Edge、闲置的显示器、平板或手机上：系统状态、媒体和麦克风、一组 Deck 按键，以及语音助手。",
@@ -2175,6 +2214,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         const real = () => { try { const d = frame.contentDocument; return !!(d && (d.getElementById('dashboard') || d.querySelector('.grid-stack, .topbar, #app'))); } catch (e) { return false; } };
         setTimeout(() => { if (real()) { frame.style.opacity = '1'; run.hidden = true; } }, 900);
       });
+      run.setAttribute('aria-busy', 'true');
+      setTimeout(() => { if (!run.hidden) run.removeAttribute('aria-busy'); }, 12000);
       scr.appendChild(frame);
       fit(frame);
       addEventListener('resize', () => fit(frame));
@@ -2246,6 +2287,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       facts.textContent = facts.textContent.replace(/\s*$/, '') + ' ' + window.XT('fact.version').replace('{v}', v);
     }
     const stars = repo && repo.stargazers_count, members = inv && inv.approximate_member_count;
+    const gh = document.getElementById('gh-stars');
+    if (gh && stars) { gh.querySelector('.n').textContent = fmt(stars); gh.hidden = false; }
     if (proof && stars && members) proof.textContent = window.XT('proof.both').replace('{s}', fmt(stars)).replace('{m}', fmt(members));
     else if (proof && stars) proof.textContent = window.XT('proof.stars').replace('{s}', fmt(stars));
   })();
