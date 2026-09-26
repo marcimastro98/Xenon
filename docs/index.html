@@ -72,12 +72,12 @@
 <meta property="og:url" content="https://xenon-app.com/">
 <meta property="og:title" content="Xenon: free touch dashboard for Xeneon Edge, monitor, phone">
 <meta property="og:description" content="A free app that turns a CORSAIR Xeneon Edge, a spare monitor, a tablet or your phone into a touch dashboard for your PC: system stats, media, mic, Deck keys and voice AI.">
-<meta property="og:image" content="https://xenon-app.com/images/overview.png">
-<meta property="og:image:width" content="2560">
-<meta property="og:image:height" content="720">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Xenon dashboard on a 2560 × 720 touchscreen">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 
 <!-- The LCP image, handed to the preload scanner before any CSS. The device
      frame shows the Edge strip on a computer and the real phone layout on a
@@ -227,6 +227,8 @@ a:hover { text-decoration-thickness: 2px; }
 .mk.cup:hover { color: #B5821F; }
 .mk .stars { font: 600 14.5px/1 var(--f-text); color: var(--fg-2); font-variant-numeric: tabular-nums; }
 .mk .star { color: #D69A17; margin-right: 2px; }
+.scr-tag { position: absolute; left: 26px; top: 26px; z-index: 3; padding: 7px 12px; border-radius: 999px; background: rgba(8,10,12,.72); color: #fff; font: 700 14px/1 var(--f-text); letter-spacing: 0.01em; border: 1px solid rgba(255,255,255,.2); opacity: 0; transform: translateY(-4px); transition: opacity .3s ease, transform .3s ease; pointer-events: none; }
+.dev.amb .scr-tag { opacity: 1; transform: none; }
 .play { position: absolute; right: 26px; bottom: 26px; z-index: 3; display: inline-flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 18px 0 14px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(8,10,12,.72); color: #fff; font: 700 16px/1 var(--f-text); cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 10px 30px -12px rgba(0,0,0,.8); transition: background-color .15s, transform .11s; }
 .play:hover { background: rgba(8,10,12,.9); }
 .play:active { transform: translateY(1px); }
@@ -483,6 +485,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .dev { margin: 26px auto 0; width: min(78%, 330px); border-radius: 34px; padding: 9px; }
   .scr { aspect-ratio: 390 / 844; border-radius: 26px; }
   .under { display: none; }
+  .scr-tag { display: none; }
   .sec { padding-block: 76px 0; }
   .sec-head { margin-bottom: 26px; }
   .sec-head p { font-size: 17.5px; }
@@ -606,6 +609,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
             <img id="scr-img" src="/images/home/edge-ocean-1440.webp" srcset="/images/home/edge-ocean-1440.webp 1440w, /images/home/edge-ocean.webp 2560w" sizes="(max-width: 1440px) 96vw, 1376px" width="2560" height="720" fetchpriority="high" decoding="async" alt="The Xenon dashboard on a 2560 × 720 CORSAIR Xeneon Edge: music, calendar and the PC's sensors" data-i18n-alt="scr.alt">
           </picture>
         </div>
+        <span class="scr-tag" id="scr-tag" aria-hidden="true">Ambient</span>
         <button class="play" id="run" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span data-i18n="scr.run">Run it live (about 8 MB)</span></button>
       </figure>
 
@@ -618,7 +622,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <button class="chip" type="button" aria-pressed="false" data-theme-id="afterimage"><span class="sw" style="background:#11121e;--c:#efa7b9"></span>Afterimage</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="retro"><span class="sw" style="background:#050510;--c:#ffb000"></span>Pixel Retro</button>
           <button class="chip" type="button" aria-pressed="false" data-theme-id="comic"><span class="sw" style="background:#101010;--c:#ff4d6d"></span>Comic</button>
-          <button class="chip" type="button" aria-pressed="false" data-theme-id="ambient"><span class="sw" style="background:linear-gradient(135deg,#06131f,#0c2a3f);--c:#e8f4ff"></span>Ambient</button>
           <button class="cycle" id="cycle" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" id="cycle-l" data-i18n="themes.pause">Pause the themes</span></button>
         </div>
         <p class="cap" id="scr-cap"><span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean, free in the <a href="/catalog/#deep-ocean">catalog</a>.</span> <span data-i18n="scr.sample">Sample data from the browser demo.</span></p>
@@ -955,7 +958,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, free in the <a href=\"/catalog/#afterimage\">catalog</a>.",
     "theme.retro": "Pixel Retro, one of the three styles built into Xenon.",
     "theme.comic": "Comic, one of the three styles built into Xenon.",
-    "theme.ambient": "Ambient, the screen saver: the clock, the weather, what is playing and what is next.",
+    "theme.amb": "Shown now: its Ambient screen saver.",
     "themes.pause": "Pause the themes",
     "themes.play": "Play the themes",
     "screens.h2": "Xeneon Edge, monitor, tablet, phone",
@@ -1150,7 +1153,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, gratis nel <a href=\"/catalog/#afterimage\">catalogo</a>.",
     "theme.retro": "Pixel Retro, uno dei tre stili già inclusi in Xenon.",
     "theme.comic": "Comic, uno dei tre stili già inclusi in Xenon.",
-    "theme.ambient": "Ambient, lo screensaver: orologio, meteo, cosa sta suonando e cosa viene dopo.",
+    "theme.amb": "Ora: il suo screensaver Ambient.",
     "themes.pause": "Metti in pausa i temi",
     "themes.play": "Riprendi i temi",
     "screens.h2": "Xeneon Edge, monitor, tablet, telefono",
@@ -1345,7 +1348,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, gratis en el <a href=\"/catalog/#afterimage\">catálogo</a>.",
     "theme.retro": "Pixel Retro, uno de los tres estilos incluidos en Xenon.",
     "theme.comic": "Comic, uno de los tres estilos incluidos en Xenon.",
-    "theme.ambient": "Ambient, el salvapantallas: el reloj, el tiempo, lo que suena y lo que viene.",
+    "theme.amb": "Ahora: su salvapantallas Ambient.",
     "themes.pause": "Pausar los temas",
     "themes.play": "Reanudar los temas",
     "screens.h2": "Xeneon Edge, monitor, tablet, teléfono",
@@ -1540,7 +1543,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage。<a href=\"/catalog/#afterimage\">カタログ</a>から無料で入手できます。",
     "theme.retro": "Pixel Retro。Xenonに内蔵された3つのスタイルのひとつです。",
     "theme.comic": "Comic。Xenonに内蔵された3つのスタイルのひとつです。",
-    "theme.ambient": "Ambient（スクリーンセーバー）: 時計、天気、再生中の曲、次の予定。",
+    "theme.amb": "表示中: このテーマの Ambient スクリーンセーバー。",
     "themes.pause": "テーマを一時停止",
     "themes.play": "テーマを再生",
     "screens.h2": "Xeneon Edge、モニター、タブレット、スマートフォン",
@@ -1735,7 +1738,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage, <a href=\"/catalog/#afterimage\">카탈로그</a>의 무료 테마.",
     "theme.retro": "Pixel Retro, Xenon에 기본으로 들어 있는 세 가지 스타일 중 하나.",
     "theme.comic": "Comic, Xenon에 기본으로 들어 있는 세 가지 스타일 중 하나.",
-    "theme.ambient": "Ambient 화면 보호기: 시계, 날씨, 재생 중인 곡, 다음 일정.",
+    "theme.amb": "지금: 이 테마의 Ambient 화면 보호기.",
     "themes.pause": "테마 일시정지",
     "themes.play": "테마 재생",
     "screens.h2": "Xeneon Edge, 모니터, 태블릿, 휴대폰",
@@ -1930,7 +1933,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "theme.afterimage": "Afterimage，可在<a href=\"/catalog/#afterimage\">目录</a>中免费获取。",
     "theme.retro": "Pixel Retro，Xenon 内置的三种风格之一。",
     "theme.comic": "Comic，Xenon 内置的三种风格之一。",
-    "theme.ambient": "Ambient 屏保：时钟、天气、正在播放的内容和接下来的日程。",
+    "theme.amb": "当前：该主题的 Ambient 屏保。",
     "themes.pause": "暂停主题轮播",
     "themes.play": "继续主题轮播",
     "screens.h2": "Xeneon Edge、显示器、平板、手机",
@@ -2202,20 +2205,24 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       afterimage: { lit: '#e889a3', note: 'theme.afterimage' },
       retro:      { lit: '#ffb000', note: 'theme.retro' },
       comic:      { lit: '#ff4d6d', note: 'theme.comic' },
-      ambient:    { lit: '#008DFF', note: 'theme.ambient' },
     };
+    const ORDER = Object.keys(THEMES);
     const scr = document.getElementById('scr');
     const note = document.getElementById('theme-note');
     const chips = document.querySelectorAll('.chip[data-theme-id]');
-    let busy = null;
-    let stopped = false, timer = null;
-    document.addEventListener('xenon:demo-live', () => { stopped = true; clearTimeout(timer); timer = null; });
-    function show(id) {
+    const pic = (id, amb) => '/images/home/' + (amb ? 'amb-' : 'edge-') + id;
+    let cur = 'ocean', amb = false, busy = null;
+
+    // One picture change: the theme's dashboard or its Ambient scene, faded in
+    // over the current one once decoded, so the screen never shows a gap.
+    function show(id, ambient) {
       const t = THEMES[id]; if (!t) return;
+      cur = id; amb = !!ambient;
       chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.themeId === id)));
       document.documentElement.style.setProperty('--lit', t.lit);
-      if (note) note.innerHTML = window.XT(t.note);
-      const base = '/images/home/edge-' + id;
+      if (note) note.innerHTML = window.XT(t.note) + (amb ? ' ' + window.XT('theme.amb') : '');
+      dev.classList.toggle('amb', amb);
+      const base = pic(id, amb);
       const next = new Image();
       next.className = 'next';
       next.alt = img.alt;
@@ -2234,36 +2241,42 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       };
       (next.decode ? next.decode() : Promise.resolve()).then(done, done);
     }
-    chips.forEach((c) => c.addEventListener('click', () => { stopForGood(); show(c.dataset.themeId); }));
 
-    // The screen walks through the themes on its own, the way a dashboard on a
-    // desk gets shown off: it waits until the first picture has lit up, pauses
-    // while the pointer or the focus is on it or it is off screen, stops for
-    // good once a theme is picked, and never runs for a visitor who asked for
-    // less motion. The button beside the themes pauses and resumes it (WCAG 2.2.2).
-    const ORDER = ['ocean', 'kintsugi', 'limnograph', 'afterimage', 'retro', 'comic', 'ambient'];
+    // The walk: each theme's dashboard, then the same theme's Ambient screen
+    // saver, then the next theme. It waits for the first picture, pauses under
+    // the pointer or focus and off screen, never runs with reduced motion, and
+    // has a pause button (WCAG 2.2.2). Picking a theme keeps it on that theme,
+    // still alternating its dashboard and its Ambient; the live demo stops it.
     const cycleBtn = document.getElementById('cycle');
     const cycleL = document.getElementById('cycle-l');
-    let idx = 0, paused = false, hover = false, seen = true;
+    let timer = null, paused = false, hover = false, seen = true, locked = false, stopped = false;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const desk = () => matchMedia('(min-width: 701px)').matches;
+    function step() {
+      if (!amb) return show(cur, true);
+      const nextId = locked ? cur : ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
+      show(nextId, false);
+    }
     function tick() {
       timer = null;
       if (stopped) return;
-      if (paused || hover || !seen || document.hidden || !desk()) return schedule();
-      idx = (idx + 1) % ORDER.length;
-      show(ORDER[idx]);
+      if (!paused && !hover && seen && !document.hidden && desk()) step();
       schedule();
     }
-    function schedule() { if (!stopped && !timer) timer = setTimeout(tick, 4600); }
-    function stopForGood() { stopped = true; clearTimeout(timer); timer = null; if (cycleBtn) cycleBtn.hidden = true; }
+    function schedule() { if (!stopped && !timer && !reduce) timer = setTimeout(tick, 4600); }
+    chips.forEach((c) => c.addEventListener('click', () => {
+      locked = true;
+      clearTimeout(timer); timer = null;
+      show(c.dataset.themeId, false);
+      schedule();
+    }));
+    document.addEventListener('xenon:demo-live', () => { stopped = true; clearTimeout(timer); timer = null; dev.classList.remove('amb'); });
     if (!reduce && cycleBtn) {
       cycleBtn.hidden = false;
       cycleBtn.addEventListener('click', () => {
         paused = !paused;
         cycleBtn.setAttribute('aria-pressed', String(paused));
         if (cycleL) cycleL.textContent = window.XT(paused ? 'themes.play' : 'themes.pause');
-        if (!paused) schedule();
       });
       [dev, document.querySelector('.themes')].forEach((z) => {
         if (!z) return;
@@ -2274,12 +2287,12 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       });
       if ('IntersectionObserver' in window) new IntersectionObserver((es) => { seen = es[0].isIntersecting; }, { threshold: 0.4 }).observe(dev);
       // Warm every picture once the first one is up, so each change is instant.
-      setTimeout(() => ORDER.forEach((id) => { const i = new Image(); i.src = '/images/home/edge-' + id + '-1440.webp'; }), 2500);
+      setTimeout(() => ORDER.forEach((id) => [false, true].forEach((a) => { const i = new Image(); i.src = pic(id, a) + '-1440.webp'; })), 2500);
       setTimeout(schedule, 2200);
     }
-    // Hover or focus warms the next picture so the swap is instant.
+    // Hover or focus on a theme warms both of its pictures.
     chips.forEach((c) => {
-      const warm = () => { const i = new Image(); i.src = '/images/home/edge-' + c.dataset.themeId + '-1440.webp'; };
+      const warm = () => [false, true].forEach((a) => { const i = new Image(); i.src = pic(c.dataset.themeId, a) + '-1440.webp'; });
       c.addEventListener('pointerenter', warm, { once: true });
       c.addEventListener('focus', warm, { once: true });
     });
