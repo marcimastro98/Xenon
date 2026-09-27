@@ -1,6 +1,6 @@
 {
   "es": {
-    "deck.h1": "El Deck: teclas táctiles que actúan en tu PC",
+    "deck.h1": "El Deck",
     "deck.lede": "El Deck es una cuadrícula de teclas que añades a una página de tu panel de Xenon. Un toque puede abrir una app, enviar un atajo de teclado, cambiar una escena de OBS o silenciar Discord, y una tecla puede encenderse para mostrar el estado de lo que controla.",
     "deck.lede2": "Hace un trabajo parecido al de un Stream Deck, en una pantalla que ya tienes: un Xeneon Edge, un monitor que te sobra, una tablet o un teléfono.",
     "deck.updated": "Última actualización: 27 de septiembre de 2026",

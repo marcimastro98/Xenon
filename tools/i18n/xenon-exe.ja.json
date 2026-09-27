@@ -2,7 +2,7 @@
   "ja": {
     "meta.title": "xenon.exe は安全？ Xenon が Windows で実行するプロセス",
     "meta.desc": "Xenon は xenon.exe という名前のファイルをインストールしません。Windows で実際に実行するもの、各ファイルの場所、署名付きチェックサムでの確認方法を説明します。",
-    "exe.h1": "xenon.exe: その正体と、自分で確認する方法",
+    "exe.h1": "xenon.exe",
     "exe.lede": "PC で見慣れないプロセスを見つけて名前を検索したのなら、たいていの場合に当てはまる答えを先に書きます。それはおそらく Xenon のものではありません。",
     "exe.updated": "最終更新: 2026年9月26日",
     "exe.jump.short": "要点",
