@@ -118,8 +118,7 @@
     --text:     var(--bone-0);
     --muted:    var(--bone-1);
     --dim:      var(--bone-2);
-    --display:  'Inter', system-ui, sans-serif;
-    --body:     'Inter', system-ui, -apple-system, sans-serif;
+    --body:     var(--sans);
     --mono:     'JetBrains Mono', ui-monospace, monospace;
     --nav-h:    64px;
     --side-w:   300px;
@@ -156,7 +155,7 @@
      own line box, so the header measured 23px for a 26px mark. */
   .brand .sub { font-weight: 400; font-size: 13px; letter-spacing: 0; color: var(--bone-2); text-transform: none; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
   .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-  .tb-link { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
+  .tb-link { font-family: var(--sans); font-size: 15px; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
   .tb-link:hover { color: var(--text); background: var(--panel-2); }
   .tb-cta { color: var(--green-ink); background: var(--plasma); font-weight: 700; }
   .tb-cta:hover { color: var(--green-ink); background: var(--plasma-2); }
@@ -295,7 +294,7 @@
 
   /* Main content */
   .content { padding: 40px var(--cpad) 120px; min-width: 0; position: relative; z-index: 1; }
-  .crumbs { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-bottom: 22px; letter-spacing: 0.03em; }
+  .crumbs { font-family: var(--sans); font-size: 15px; color: var(--dim); margin-bottom: 22px; }
   .crumbs a:hover { color: var(--plasma-2); }
 
   .hero-h { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.04; letter-spacing: -0.03em; margin-bottom: 16px; }
@@ -316,7 +315,7 @@
   strong { color: var(--text); font-weight: 700; }
   .muted { color: var(--muted); }
   em {
-    color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em;
+    color: var(--ion); font-style: normal; font-family: var(--sans); font-size: 0.92em;
     background: var(--g-2); box-shadow: inset 0 0 0 1px var(--rule); padding: 1px 6px; border-radius: 5px;
     -webkit-box-decoration-break: clone; box-decoration-break: clone;
   }
@@ -338,7 +337,7 @@
   .steps > li::before {
     content: counter(s); position: absolute; left: 0; top: 0;
     width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-    font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--green-ink);
+    font-family: var(--sans); font-weight: 700; font-size: 15px; color: var(--green-ink);
     background: linear-gradient(135deg, var(--plasma), var(--plasma-2));
   }
   .steps > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 4px; width: 1px; background: var(--line); }
@@ -360,7 +359,7 @@
   .tok-k { color: #BDBDBD; }
   .copy-btn {
     position: absolute; top: 6px; right: 10px; z-index: 3;
-    font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.05em; cursor: pointer;
+    font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer;
     background: var(--rule); border: 1px solid var(--line-2); color: var(--plasma-2);
     padding: 6px 13px; border-radius: 8px; transition: all .18s;
   }
@@ -371,7 +370,7 @@
   .table-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 14px; }
   table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
   th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; text-transform: none; color: var(--bone-1); background: var(--g-1); }
+  th { font-family: var(--sans); font-size: 15px; text-transform: none; color: var(--bone-1); background: var(--g-1); }
   tr:last-child td { border-bottom: none; }
   td .goal { color: var(--text); font-weight: 600; }
   td a { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
@@ -379,7 +378,7 @@
 
   /* Kind chips */
   .kinds { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
-  .kinds span { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); padding: 6px 12px; border-radius: 20px; }
+  .kinds span { font-family: var(--sans); font-size: 15px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); padding: 6px 12px; border-radius: 20px; }
 
   /* Feature grid */
   .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 20px 0; }
@@ -398,7 +397,7 @@
   .foot-help .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 14.5px; color: var(--muted); margin-bottom: 12px; }
   .foot-help a { color: var(--plasma-2); }
   .foot-help a:hover { color: var(--plasma); }
-  .backtop { display: inline-block; margin-top: 20px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .backtop { display: inline-block; margin-top: 20px; font-family: var(--sans); font-size: 15px; color: var(--muted); }
   .backtop:hover { color: var(--plasma); }
 
   /* Responsive */
