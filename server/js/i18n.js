@@ -31685,6 +31685,75 @@ Object.assign(i18n.nl, {
   streaming_login_failed: "Het inloggen mislukte in Xenon, niet in Discord. Probeer het nog een keer, en als het blijft gebeuren, laat het ons weten op de Xenon-Discord met de reden die hier staat.",
 });
 
+// v4.11.11 - whether switching a device also moves Windows' communications
+// default (Discord, Teams). Asked on Discord.
+Object.assign(i18n.it, {
+  settings_audio_head: "Audio",
+  settings_audio_hint: "cambio di altoparlanti e microfono",
+  settings_audio_comms: "Cambia anche il dispositivo di comunicazione",
+  settings_audio_comms_desc: "quando Xenon cambia altoparlanti o microfono, dal riquadro Volume, da un tasto del Deck o dall'assistente, sposta anche quello che usano Discord, Teams e le app di chiamata. Disattivalo per cambiare solo il dispositivo predefinito e lasciare le chiamate dove sono",
+});
+Object.assign(i18n.en, {
+  settings_audio_head: "Audio",
+  settings_audio_hint: "switching speakers and microphone",
+  settings_audio_comms: "Also switch the communication device",
+  settings_audio_comms_desc: "when Xenon switches speakers or microphone, from the Volume tile, a Deck key or the assistant, it also moves the one Discord, Teams and call apps use. Turn it off to switch only the default device and leave calls where they are",
+});
+Object.assign(i18n.ko, {
+  settings_audio_head: "오디오",
+  settings_audio_hint: "스피커와 마이크 전환",
+  settings_audio_comms: "통신 장치도 함께 전환",
+  settings_audio_comms_desc: "Xenon이 볼륨 타일, Deck 키 또는 어시스턴트에서 스피커나 마이크를 전환할 때 Discord, Teams 및 통화 앱이 사용하는 장치도 함께 옮깁니다. 끄면 기본 장치만 바뀌고 통화용 장치는 그대로 유지됩니다",
+});
+Object.assign(i18n.ja, {
+  settings_audio_head: "オーディオ",
+  settings_audio_hint: "スピーカーとマイクの切り替え",
+  settings_audio_comms: "通信デバイスも切り替える",
+  settings_audio_comms_desc: "Xenon が音量タイル、Deck キー、アシスタントからスピーカーやマイクを切り替えるとき、Discord や Teams、通話アプリが使うデバイスも一緒に切り替えます。オフにすると既定のデバイスだけが切り替わり、通話用はそのままになります",
+});
+Object.assign(i18n.zh, {
+  settings_audio_head: "音频",
+  settings_audio_hint: "切换扬声器和麦克风",
+  settings_audio_comms: "同时切换通信设备",
+  settings_audio_comms_desc: "当 Xenon 通过音量磁贴、Deck 按键或助手切换扬声器或麦克风时，也会切换 Discord、Teams 和通话应用使用的设备。关闭后只切换默认设备，通话设备保持不变",
+});
+Object.assign(i18n.es, {
+  settings_audio_head: "Audio",
+  settings_audio_hint: "cambio de altavoces y micrófono",
+  settings_audio_comms: "Cambiar también el dispositivo de comunicación",
+  settings_audio_comms_desc: "cuando Xenon cambia los altavoces o el micrófono, desde el panel Volumen, una tecla del Deck o el asistente, también mueve el que usan Discord, Teams y las apps de llamadas. Desactívalo para cambiar solo el dispositivo predeterminado y dejar las llamadas donde están",
+});
+Object.assign(i18n.fr, {
+  settings_audio_head: "Audio",
+  settings_audio_hint: "changement de haut-parleurs et de micro",
+  settings_audio_comms: "Changer aussi le périphérique de communication",
+  settings_audio_comms_desc: "quand Xenon change les haut-parleurs ou le micro, depuis la tuile Volume, une touche du Deck ou l’assistant, il déplace aussi celui qu’utilisent Discord, Teams et les apps d’appel. Désactive-le pour ne changer que le périphérique par défaut et laisser les appels où ils sont",
+});
+Object.assign(i18n.de, {
+  settings_audio_head: "Audio",
+  settings_audio_hint: "Wechsel von Lautsprechern und Mikrofon",
+  settings_audio_comms: "Auch das Kommunikationsgerät wechseln",
+  settings_audio_comms_desc: "wenn Xenon Lautsprecher oder Mikrofon wechselt, über die Lautstärke-Kachel, eine Deck-Taste oder den Assistenten, wird auch das Gerät verschoben, das Discord, Teams und Anruf-Apps nutzen. Schalte es aus, um nur das Standardgerät zu wechseln und Anrufe dort zu lassen, wo sie sind",
+});
+Object.assign(i18n.pt, {
+  settings_audio_head: "Áudio",
+  settings_audio_hint: "troca de altifalantes e microfone",
+  settings_audio_comms: "Mudar também o dispositivo de comunicação",
+  settings_audio_comms_desc: "quando a Xenon muda os altifalantes ou o microfone, a partir do painel Volume, de uma tecla do Deck ou do assistente, também muda o que o Discord, o Teams e as apps de chamadas usam. Desliga para mudar só o dispositivo predefinido e deixar as chamadas onde estão",
+});
+Object.assign(i18n.ru, {
+  settings_audio_head: "Звук",
+  settings_audio_hint: "переключение динамиков и микрофона",
+  settings_audio_comms: "Переключать и устройство связи",
+  settings_audio_comms_desc: "когда Xenon переключает динамики или микрофон с плитки громкости, клавишей Deck или через ассистента, он также переносит устройство, которое используют Discord, Teams и приложения для звонков. Выключите, чтобы менять только устройство по умолчанию и оставлять звонки на месте",
+});
+Object.assign(i18n.nl, {
+  settings_audio_head: "Audio",
+  settings_audio_hint: "wisselen van luidsprekers en microfoon",
+  settings_audio_comms: "Ook het communicatieapparaat wisselen",
+  settings_audio_comms_desc: "wanneer Xenon luidsprekers of microfoon wisselt, via de Volume-tegel, een Deck-toets of de assistent, verplaatst het ook het apparaat dat Discord, Teams en bel-apps gebruiken. Zet dit uit om alleen het standaardapparaat te wisselen en gesprekken te laten waar ze zijn",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;
