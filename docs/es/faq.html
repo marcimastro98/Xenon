@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Ayuda de Xenon: instalación, avisos y preguntas</title>
+<meta name="description" content="Por qué Windows puede marcar Xenon y cómo comprobar el archivo, Control inteligente de aplicaciones, macOS y Linux, actualizaciones, privacidad y ayuda.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Ayuda de Xenon: instalación, avisos y preguntas">
+<meta property="og:description" content="Por qué Windows puede marcar Xenon y cómo comprobar el archivo, Control inteligente de aplicaciones, macOS y Linux, actualizaciones, privacidad y ayuda.">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://xenon-app.com/es/faq.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/faq.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/faq.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/faq.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/faq.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/faq.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/faq.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/faq.html">
+
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Invítame a un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ES</span></summary><ul><li><a href="/faq.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/faq.html" hreflang="es" lang="es" aria-current="page">Español <span>ES</span></a></li><li><a href="/it/faq.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/faq.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/faq.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/faq.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Descargar</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menú</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/es/#screens" data-xl="screens">Pantallas</a></li><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li><li><a href="/es/#install" data-xl="install">Instalación</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Invítame a un café</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">    <!-- xenon:crumbs --><nav class="xc" aria-label="Ruta de navegación"><ol><li><a href="/es/" data-xl="home">Inicio</a></li><li><a href="/es/faq.html" aria-current="page" data-xl="f.faq">Ayuda y preguntas</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/es/"},{"@type":"ListItem","position":2,"name":"Ayuda y preguntas","item":"https://xenon-app.com/es/faq.html"}]}</script><!-- /xenon:crumbs -->
+     <h1 data-i18n="f.h1">Preguntas frecuentes</h1>
+    <p class="lede" data-i18n="f.lede">Lo que la gente me escribe de verdad, con respuestas sinceras. Si tu pregunta no está aquí, el Discord es el sitio más rápido para hacerla.</p>
+    <p class="updated" data-i18n="f.updated">Última actualización: 26 de septiembre de 2026</p>
+
+    <nav class="jump">
+      <a href="#start" data-i18n="f.s1">Antes de instalar</a>
+      <a href="#warnings" data-i18n="f.s2">Cuando Windows dice que es un virus</a>
+      <a href="#mac-linux" data-i18n="f.s3">macOS y Linux</a>
+      <a href="#install" data-i18n="f.s4">Instalar, arrancar, actualizar</a>
+      <a href="#using" data-i18n="f.s5">Usar Xenon</a>
+      <a href="#privacy" data-i18n="f.s6">Privacidad y confianza</a>
+      <a href="#help" data-i18n="f.s7">Licencia, precio y ayuda</a>
+    </nav>
+
+    <!-- ── 1 ─────────────────────────────────────────────────────── -->
+    <h2 id="start"><span data-i18n="f.s1">Antes de instalar</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.edge">¿Necesito un CORSAIR Xeneon Edge?</summary>
+      <div class="body" data-i18n-html="f.a.edge"><p>No. Xenon se diseñó pensando en esa pantalla, pero el Edge es una de las pantallas en las que funciona, no el producto. Un monitor que te sobre, una tablet vieja apoyada en el escritorio, una pantalla táctil, una ventana en tu pantalla principal o el teléfono que llevas en el bolsillo funcionan igual. Si no tienes ninguna pantalla libre, <a href='phone.html'>usa tu teléfono</a>: unos treinta segundos en tu propio Wi-Fi, y lo que obtienes es el panel de verdad, no un control remoto.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.free">¿De verdad es gratis?</summary>
+      <div class="body" data-i18n-html="f.a.free"><p>Sí. No hay versión de pago, ni prueba, ni cuenta, ni anuncios, ni funciones reservadas para un nivel que no existe. La licencia es propia y no comercial: gratis para uso personal, y puedes leer, ejecutar y modificar el código fuente. Lo que necesita permiso por escrito es venderlo, incluirlo en un producto comercial, redistribuirlo como obra tuya o usar el nombre Xenon para otra cosa.</p><p>Hay un <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>botón para invitarme a un café</a> si quieres dar las gracias, y no es nada más que eso.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.os">¿En qué sistemas funciona?</summary>
+      <div class="body" data-i18n-html="f.a.os"><p>Windows 10 y 11 (64 bits), macOS 11 o posterior (una sola descarga universal para Apple Silicon e Intel) y Linux (64 bits).</p><p><strong>macOS y Linux están en beta.</strong> El panel, los widgets, la Tienda y las integraciones son idénticos en los tres; lo que todavía cambia es la capa que lee la propia máquina. La <a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>tabla de plataformas</a> dice exactamente qué funciona en cada una, función por función.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.corsair">¿Necesito un PC de CORSAIR, o iCUE?</summary>
+      <div class="body" data-i18n-html="f.a.corsair"><p>No. Xenon funciona en cualquier PC y no necesita hardware ni software de CORSAIR. iCUE solo importa para dos cosas opcionales: mantener el panel dentro de un widget iFrame de iCUE si lo prefieres ahí, y controlar dispositivos RGB de CORSAIR. Todo lo demás es independiente de iCUE.</p></div>
+    </details>
+
+    <!-- ── 2 ─────────────────────────────────────────────────────── -->
+    <h2 id="warnings"><span data-i18n="f.s2">Cuando Windows dice que es un virus</span></h2>
+
+    <div class="card accent">
+      <h3 data-i18n="f.warn.t">En resumen</h3>
+      <p data-i18n-html="f.warn.p">Desde la versión 4.11.9 el instalador de Windows está firmado, así que Windows muestra un editor verificado. Aun así pueden aparecer avisos durante un tiempo, porque Microsoft concede la reputación poco a poco y Defender también juzga lo que hace un programa. Eso da hasta tres avisos distintos de tres sistemas distintos, y cada uno necesita una respuesta distinta. Ninguno es una detección real de malware, y no tienes que fiarte de mi palabra: cada versión incluye hashes que puedes comprobar tú mismo.</p>
+    </div>
+
+    <details>
+      <summary data-i18n="f.q.defender">Windows Defender marcó Xenon y ahora ha desaparecido</summary>
+      <div class="body" data-i18n-html="f.a.defender"><p>Es un falso positivo, y es lo que más me escribe la gente, con diferencia. El nombre de la detección suele terminar en <code>!cl</code>, lo que significa que el veredicto vino del modelo de aprendizaje automático en la nube de Defender y no de una firma que coincida con malware conocido. Para ese modelo cada versión es un archivo nuevo, así que la detección puede aparecer y desaparecer de una versión a otra.</p><p>Para recuperar tu instalación:</p><ol><li>Abre <strong>Seguridad de Windows &rarr; Protección antivirus y contra amenazas &rarr; Historial de protección</strong>, busca la entrada de Xenon y elige <strong>Acciones &rarr; Restaurar</strong>.</li><li>Añade una exclusión para que no vuelva a pasar: <strong>Administrar la configuración &rarr; Exclusiones &rarr; Agregar una exclusión &rarr; Carpeta</strong>, y añade <code>%LOCALAPPDATA%\Xenon</code>.</li></ol></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.download">Mi navegador no me deja descargarlo, o dice que ha encontrado un virus</summary>
+      <div class="body" data-i18n-html="f.a.download"><p>La misma causa, otro filtro: es la comprobación de reputación de tu propio navegador, Google Safe Browsing en Chrome y SmartScreen en Edge. Abre la lista de descargas con <code>Ctrl+J</code> y elige <strong>Conservar</strong>, o <strong>Conservar de todos modos</strong>, en el archivo cancelado. Si luego SmartScreen te avisa al ejecutar el instalador, haz clic en <strong>Más información</strong> y después en <strong>Ejecutar de todas formas</strong>.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.verify">¿Cómo sé que es seguro, sin tener que fiarme de ti?</summary>
+      <div class="body" data-i18n-html="f.a.verify"><p>Compruébalo tú mismo, y te pido que lo hagas. Cada versión incluye un archivo <code>SHA256SUMS</code> firmado con la clave del proyecto. En PowerShell:</p><p><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>Compara el resultado con la línea de <code>Xenon-Setup-x64.exe</code> en el <code>SHA256SUMS</code> de esa versión. Si coinciden, el archivo que tienes es, byte a byte, el que GitHub Actions compiló desde el código fuente público en esa etiqueta, y cada línea de ese código se puede leer en <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>. También puedes subirlo a <a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a>: que un par de motores lo marquen mientras el resto sale limpio es el aspecto de un problema de reputación, no el de un malware.</p><p>También puedes comprobar la firma: haz clic derecho en el archivo, elige <strong>Propiedades</strong> y abre la pestaña <strong>Firmas digitales</strong>, que muestra el editor. Las versiones desde la 4.11.9 están firmadas; las anteriores no, así que para esas la comprobación es el hash.</p><p><strong>Salta un aviso solo con un archivo que hayas descargado de la <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>página oficial de versiones</a> y cuyo hash hayas comprobado.</strong> Convencer a alguien de que ignore un aviso es exactamente lo que hace el malware de verdad, y el hash es lo que distingue una situación de la otra.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.sac">Xenon no arranca en absoluto, y Defender no ha dicho nada</summary>
+      <div class="body" data-i18n-html="f.a.sac"><p>En Windows 11 suele ser el <strong>Control inteligente de aplicaciones</strong>, que es un sistema distinto de tu antivirus. Míralo en <strong>Seguridad de Windows &rarr; Control de aplicaciones y navegador &rarr; Control inteligente de aplicaciones</strong>.</p><p>Bloquea cualquier app en la que no confíe ya, y lo decide antes de consultar a tu antivirus. Por eso la exclusión de arriba no le afecta, y no hay forma de permitir una sola app dejándolo activado. Solo se activa por su cuenta durante una instalación limpia de Windows 11, y por eso aparece en un PC recién reinstalado y nunca en uno actualizado. Eso deja dos opciones: <strong>Evaluación</strong>, en la que Windows observa cómo usas el PC y decide por sí mismo si lo mantiene activado, y <strong>Desactivado</strong>.</p><p><strong>Lee esto antes de cambiarlo: desactivar el Control inteligente de aplicaciones no tiene vuelta atrás.</strong> Windows no te deja volver a activarlo sin restablecer o reinstalar el PC. Así lo ha diseñado Microsoft, y Xenon no puede evitarlo. Desde la versión 4.11.9 los archivos de Xenon están firmados, y Microsoft dice que el Control inteligente de aplicaciones deja ejecutarse una app con una firma válida cuando no tiene un veredicto propio sobre ella, así que prueba primero la última versión con él activado. Si aun así bloquea Xenon y prefieres mantenerlo activado, la respuesta sincera es que Xenon no puede funcionar en ese equipo.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.closes">Xenon se cierra solo mientras lo uso</summary>
+      <div class="body" data-i18n-html="f.a.closes"><p>Abre el menú del icono de la bandeja y elige <strong>Open crash log</strong>. Xenon escribe una línea cada vez que arranca y otra cada vez que se detiene, y esas líneas distinguen las dos causas posibles.</p><p><strong>La última línea es un <code>PANIC</code>.</strong> La app ha fallado por sí sola, y la línea indica el hilo y la línea exacta del código en la que falló. Pégala en el <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> o en un <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>informe de error</a>: con esa línea, la corrección suele ser rápida.</p><p><strong>La última línea es <code>launched</code>, sin nada detrás.</strong> Nada dentro de la app decidió detenerse, así que algo de fuera terminó el proceso. En Windows casi siempre es tu antivirus, que pone en cuarentena <code>xenon-native.exe</code> mientras se ejecuta. Busca en <strong>Seguridad de Windows &rarr; Protección antivirus y contra amenazas &rarr; Historial de protección</strong> una entrada con la hora en que desapareció la ventana, restáurala y añade una exclusión de carpeta para <code>%LOCALAPPDATA%\Xenon</code> y también para <code>%LOCALAPPDATA%\Programs\Xenon</code>. Xenon vive en las dos, y si excluyes solo la primera, la mitad que funciona todo el día queda expuesta a la misma detección.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.sign">¿Xenon está firmado?</summary>
+      <div class="body" data-i18n-html="f.a.sign"><p>Sí, en Windows desde la versión 4.11.9 (20 de septiembre de 2026). El instalador, la app que contiene y el helper llevan una firma Authenticode, así que Windows muestra un editor verificado en lugar de Editor desconocido.</p><p>Una firma demuestra quién publicó un archivo y que nadie lo ha modificado desde entonces. No trae reputación desde el primer día: SmartScreen la concede con el tiempo, a medida que la gente descarga el archivo, y Defender también juzga lo que hace un programa. Así que todavía puede aparecer un aviso durante un tiempo, y hay una cosa que ayuda más que ninguna otra. Si Defender marca tu descarga, notifícala como falso positivo en <a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a>, eligiendo <em>Home customer</em> y luego <em>Incorrectly detected as malware</em>. Son dos minutos, los informes de usuarios reales cuentan, y la detección suele retirarse para todos en pocos días.</p><p>En macOS la versión es beta y no está notarizada, que es un paso aparte con Apple; la pregunta sobre macOS de más abajo explica el primer inicio.</p></div>
+    </details>
+
+    <!-- ── 3 ─────────────────────────────────────────────────────── -->
+    <h2 id="mac-linux"><span data-i18n="f.s3">macOS y Linux</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.gatekeeper">macOS dice que Xenon no se puede abrir porque Apple no puede comprobarlo</summary>
+      <div class="body" data-i18n-html="f.a.gatekeeper"><p>Es lo esperado por ahora: la app no está notarizada, y para eso hace falta una membresía de pago de Apple Developer que este proyecto no tiene.</p><p>En <strong>macOS 15 y posteriores</strong>, abre <strong>Ajustes del Sistema &rarr; Privacidad y seguridad</strong>, desplázate hasta abajo y haz clic en <strong>Abrir igualmente</strong> junto a Xenon. Apple quitó de ahí el antiguo atajo del clic derecho. En <strong>macOS 11 a 14</strong>, haz clic derecho en la app, elige <strong>Abrir</strong> y luego <strong>Abrir</strong> otra vez. En los dos casos es una vez por versión.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.fda">En macOS el widget de disco muestra una Papelera de 0 B</summary>
+      <div class="body" data-i18n-html="f.a.fda"><p>La Papelera y casi todo <code>~/Library/Caches</code> están detrás del <strong>Acceso total al disco</strong>, un permiso que macOS concede app por app. Sin él esas carpetas parecen vacías en lugar de bloqueadas, así que nada informa de un error y el mapa del disco se queda corto sin avisar.</p><p>Abre <strong>Ajustes del Sistema &rarr; Privacidad y seguridad &rarr; Acceso total al disco</strong>, pulsa <strong>+</strong>, elige <strong>Xenon</strong> en Aplicaciones, comprueba que su interruptor esté activado, y luego cierra Xenon y vuelve a abrirlo.</p><p><strong>Hasta la 4.11.3 había que repetir esto después de cada actualización, y ahora ya no.</strong> macOS vincula el permiso a la firma del código, y Xenon usaba una firma ad hoc, así que cada versión parecía una app distinta y el permiso dejaba de aplicarse sin avisar. Ahora Xenon lleva su propio certificado, que es el mismo en todas las versiones, así que el permiso se mantiene tras las actualizaciones. La propia actualización a la 4.11.3 lo restablece una última vez, porque es la versión en la que cambia la identidad. Si Xenon aparece en la lista pero está claro que no funciona, quítalo con <strong>&minus;</strong> y vuelve a añadirlo. Ahora Xenon detecta esta situación por sí mismo y te lo dice en el panel.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.brew">¿Qué tengo que instalar en macOS?</summary>
+      <div class="body" data-i18n-html="f.a.brew"><p><strong>Node.js</strong> es el único requisito, y Xenon te lo dice si falta: <code>brew install node</code>. El resto es opcional, y cada uno activa una sola cosa:</p><ul><li><code>vladkens/tap/macmon</code> para la temperatura y la carga de la GPU</li><li><code>switchaudio-osx</code> para cambiar el dispositivo de salida</li><li><code>ffmpeg</code> para la entrada de voz y las respuestas habladas</li></ul><p>Xenon te dice cuáles te faltan en lugar de fallar más tarde.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.linux">¿Cómo lo instalo en Linux?</summary>
+      <div class="body" data-i18n-html="f.a.linux"><p>Descarga el <strong>AppImage</strong> (dale permiso de ejecución y ábrelo) o el <strong>.deb</strong>. El primer inicio te ofrece configurar el panel en una ventana de terminal que puedes leer y detener, y verifica la descarga con la clave del proyecto antes de extraer nada.</p><p>El paquete no lo hace por ti, y es a propósito: todo lo que crea la instalación pertenece a una sola cuenta de usuario, y un paquete se instala como root para toda la máquina. Si prefieres prescindir de la app por completo, descarga el zip del código fuente desde la <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>página de versiones</a> y ejecuta <code>./INSTALL.sh</code>.</p><p>Necesitas <code>nodejs npm unzip</code>. Opcionales, cada uno para una función: <code>wireplumber</code> (volumen, micrófono, mezclador por app), <code>wmctrl</code> y <code>x11-utils</code> (el selector de apps), <code>playerctl</code> (lo que suena, al instante), <code>ffmpeg</code> (voz). Ejecuta <code>npm run doctor</code> y te dice qué falta y qué activaría cada uno.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.beta">¿Qué significa en realidad beta en macOS y Linux?</summary>
+      <div class="body" data-i18n-html="f.a.beta"><p>El panel es el mismo producto: los mismos widgets, la misma Tienda, los mismos temas, las mismas integraciones, el mismo acceso desde el teléfono. Lo que cambia es la capa que lee la máquina, así que algunos sensores y acciones del sistema todavía no están o funcionan de otra manera.</p><p>Nada finge funcionar, y eso es lo importante. Un mosaico sin fuente de datos en tu plataforma lo dice en una línea en lugar de quedarse cargando para siempre, y una tecla del Deck que la plataforma no puede ejecutar se oculta en lugar de ofrecerse y luego fallar.</p></div>
+    </details>
+
+    <!-- ── 4 ─────────────────────────────────────────────────────── -->
+    <h2 id="install"><span data-i18n="f.s4">Instalar, arrancar, actualizar</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.installer">¿Qué hace exactamente el instalador?</summary>
+      <div class="body" data-i18n-html="f.a.installer"><p>En Windows instala la app, instala el motor del panel en <code>%LOCALAPPDATA%\Xenon</code>, instala Node.js si todavía no lo tienes y registra una tarea para que el panel arranque al iniciar sesión. También descarga las piezas opcionales: FFmpeg, LibreHardwareMonitor y PawnIO para las temperaturas, y PresentMon para los FPS reales en los juegos.</p><p><strong>Nada se ejecuta a escondidas.</strong> El instalador en sí solo instala la app y la abre; la parte del panel te la ofrece después la app, y se ejecuta en una ventana de consola que puedes ver e interrumpir. Una versión anterior lo hacía en segundo plano sin mostrar nada, y esa es justo la forma de trabajar que hace que un instalador sin firma acabe en cuarentena, así que se eliminó.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.autostart">¿Arranca con el PC? ¿Puedo evitarlo?</summary>
+      <div class="body" data-i18n-html="f.a.autostart"><p>Sí, arranca al iniciar sesión, así que el panel ya está funcionando cuando te sientas. Se ejecuta dentro de tu propia sesión y no como servicio del sistema, y es a propósito: fuera de tu sesión no hay lista de dispositivos de audio, ni lista de ventanas, ni micrófono, ni forma de abrir una app, así que la mitad de las funciones dejarían de funcionar sin avisar.</p><p>Para quitar Xenon, ejecuta <code>UNINSTALL.bat</code> en Windows, <code>UNINSTALL.command</code> en macOS o <code>./UNINSTALL.sh</code> en Linux.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.update">¿Cómo lo actualizo?</summary>
+      <div class="body" data-i18n-html="f.a.update"><p>Xenon se actualiza solo. Cuando sale una versión, el panel muestra un aviso; con un toque la descarga, comprueba su firma <em>antes</em> de extraer nada, instala el motor y luego la app, y vuelve a poner la versión anterior automáticamente si algo falla. Tus ajustes, diseños y notas se conservan siempre, y los archivos que quedan de versiones antiguas se limpian.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.uninstall">¿Cómo lo desinstalo?</summary>
+      <div class="body" data-i18n-html="f.a.uninstall"><p>Ejecuta <code>UNINSTALL.bat</code> en Windows, <code>UNINSTALL.command</code> en macOS o <code>./UNINSTALL.sh</code> en Linux. Los tres preguntan una vez y luego quitan Xenon por completo: la app, la entrada de inicio, el servidor local, tus datos y la carpeta de instalación. Añade <code>--keep-data</code> (<code>-KeepData</code> en Windows) para conservar tus ajustes, diseños y notas. Borrar la carpeta de datos elimina todo lo que Xenon ha guardado, incluido el identificador aleatorio que sirve para que una valoración en la Tienda cuente una sola vez.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.admin">¿Por qué pide permisos de administrador?</summary>
+      <div class="body" data-i18n-html="f.a.admin"><p>Una vez, durante la instalación, y para dos cosas: configurar la lectura de temperatura de la CPU y del disco (LibreHardwareMonitor y PawnIO, que necesitan un componente a nivel de controlador) y registrar la tarea de inicio. Si lo rechazas, todo lo demás sigue funcionando; simplemente no tendrás temperaturas. Después, Xenon no se ejecuta con permisos elevados.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.port">Dice que el puerto 3030 ya está en uso</summary>
+      <div class="body" data-i18n-html="f.a.port"><p>Casi siempre es otra copia del panel que ya se está ejecutando, que es lo que quieres de todas formas: abre <code>http://127.0.0.1:3030/</code> y ahí está. Si otro programa de tu PC ocupa ese puerto, cámbialo en <code>server/server.js</code>.</p></div>
+    </details>
+
+    <!-- ── 5 ─────────────────────────────────────────────────────── -->
+    <h2 id="using"><span data-i18n="f.s5">Usar Xenon</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.phone">¿De verdad puedo usar el teléfono como pantalla?</summary>
+      <div class="body" data-i18n-html="f.a.phone"><p>Sí, y es tu panel, no un control remoto: el mismo diseño, los mismos widgets, el mismo tema, y las teclas del Deck se ejecutan de verdad en el PC. Sin cuenta, sin nube, sin nada que instalar, y en tu propio Wi-Fi nada sale de tu red doméstica. Tarda unos treinta segundos. La <a href='phone.html'>guía del teléfono</a> explica las dos formas, en casa y desde cualquier sitio.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.browser">¿Tengo que usar la app?</summary>
+      <div class="body" data-i18n-html="f.a.browser"><p>No. La app es una ventana alrededor del panel, y el panel es una página web local: abre <code>http://127.0.0.1:3030/</code> en cualquier navegador, en cualquier monitor. En una pantalla táctil la app merece la pena, porque añade un modo táctil que no molesta a los juegos y un icono en la bandeja. Dentro de iCUE también funciona un widget iFrame que apunte a la misma dirección.</p><p>Para eso, añade en iCUE un widget <b>Web page</b> (HTML) y pega esto dentro: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.ai">¿Necesito una clave de API para la IA?</summary>
+      <div class="body" data-i18n-html="f.a.ai"><p>Solo si quieres un proveedor en la nube, y una clave de Gemini se crea gratis. Todo lo demás en Xenon funciona sin ella.</p><p>También hay una opción totalmente local: Ollama para el chat y Whisper para la voz, que se instalan desde Ajustes cuando los necesitas, sin que nada salga de tu PC. Si eliges un proveedor en la nube, tus peticiones van a ese proveedor según sus condiciones, y Xenon nunca envía nada a un modelo que no hayas elegido.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.temp">No aparece la temperatura de la CPU</summary>
+      <div class="body" data-i18n-html="f.a.temp"><p>Vuelve a ejecutar el instalador y acepta la solicitud de administrador, para que pueda instalar LibreHardwareMonitor y PawnIO y registrar la tarea de inicio con permisos elevados. Algunos portátiles y placas base no exponen ningún sensor, y en ese caso el mosaico lo dice en lugar de mostrar un número inventado.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.make">¿Puedo crear mis propios widgets y temas?</summary>
+      <div class="body" data-i18n-html="f.a.make"><p>Sí, y casi todo sin código. Los temas, los diseños, las escenas ambiente y los perfiles del Deck se crean en la propia app y se comparten como un código que cualquiera puede importar. Los widgets son pequeños paquetes de HTML, CSS y JavaScript que se ejecutan en un entorno aislado, con un puente documentado para sensores y acciones.</p><p>La <a href='create/'>guía para creadores</a> es el sitio por donde empezar, y en el <a href='catalog/'>catálogo</a> está lo que otras personas ya han hecho.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.rgb">¿Controla la iluminación RGB?</summary>
+      <div class="body" data-i18n-html="f.a.rgb"><p>Sí: los dispositivos CORSAIR a través de iCUE, y además WLED, OpenRGB, Philips Hue y Nanoleaf directamente por tu red. Puede reaccionar a las temperaturas o a lo que está sonando, o simplemente mantener un color que hayas elegido. Es opcional y está apagado hasta que lo configuras.</p></div>
+    </details>
+
+    <!-- ── 6 ─────────────────────────────────────────────────────── -->
+    <h2 id="privacy"><span data-i18n="f.s6">Privacidad y confianza</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.data">¿Xenon envía mis datos a algún sitio?</summary>
+      <div class="body" data-i18n-html="f.a.data"><p>Tus ajustes, notas, tareas, eventos, Decks, frases de búsqueda e índice de archivos se quedan en tu PC. En la app no hay SDK de analítica, ni informes automáticos de fallos, ni seguimiento del comportamiento.</p><p>Tampoco funciona totalmente sin conexión, y decir lo contrario sería la versión deshonesta: busca actualizaciones, y contacta con un servicio del tiempo o con una API de música cuando activas esas funciones. La <a href='privacy.html'>página de privacidad</a> enumera cada llamada que puede hacer la app, qué la provoca y qué envía exactamente, sin dejar nada fuera.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.account">¿Necesito una cuenta?</summary>
+      <div class="body" data-i18n-html="f.a.account"><p>No. No hay cuenta de Xenon, ni inicio de sesión, ni ningún servidor mío entre tú y tu propio panel. Las integraciones que configures tú, como Spotify o Twitch, usan sus propias credenciales y no hacen nada hasta que las configuras.</p></div>
+    </details>
+
+    <!-- ── 7 ─────────────────────────────────────────────────────── -->
+    <h2 id="help"><span data-i18n="f.s7">Licencia, precio y ayuda</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.commercial">¿Puedo usarlo en el trabajo o dentro de mi propio producto?</summary>
+      <div class="body" data-i18n-html="f.a.commercial"><p>El uso personal es gratis, también en el PC con el que trabajas. Venderlo, incluirlo en un producto comercial, redistribuirlo como obra tuya o usar el nombre Xenon para otra cosa necesita antes un permiso por escrito.</p><p>Si tienes un caso concreto, pregunta: <a href='mailto:marcellomastroeni4@gmail.com'>escríbeme</a> o coméntalo en el Discord. A menudo la respuesta es sí, con condiciones.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.help">¿Dónde consigo ayuda?</summary>
+      <div class="body" data-i18n-html="f.a.help"><p>El <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> es lo más rápido, y es donde de verdad se diagnostican la mayoría de los problemas. Para algo que se pueda reproducir, un <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue en GitHub</a> con tu sistema, lo que hiciste y lo que pasó es lo más útil que puedes enviar. Los dos los lee la misma persona.</p></div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.support">¿Cómo puedo apoyar el proyecto?</summary>
+      <div class="body" data-i18n-html="f.a.support"><p>Con un <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>café</a>, si quieres. Los mecenas reciben un rol en el Discord y un sitio en el Hall of Supporters.</p><p>Un año de apoyo añade una cosa más: te hago un tema. Mándame una paleta, una foto, un juego, lo que quieras que transmita tu panel, y lo convierto en un tema de Xenon publicado con tu nombre. Una petición al mes por persona. Hay una cola y la atiendo por orden, así que no te prometo una fecha, solo que el tuyo se hará y que tendrás una ronda de cambios después de la primera versión. Un tema son los colores, el fondo, los acentos, la tipografía y la disposición de widgets que ya existen. Los widgets nuevos y las funciones nuevas son otra cosa y no entran.</p><p>Las peticiones van en el canal #theme-requests del <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: abre un hilo, di lo que quieres y deja ahí tu paleta o tu foto. El hilo es tu sitio en la cola, y te respondo en él.</p><p>Las cosas gratis ayudan igual: una estrella en <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>, un informe de error con detalles reales, un widget o un tema compartido en el <a href='catalog/'>catálogo</a>, o contarle a alguien con una pantalla libre que esto existe.</p></div>
+    </details>
+
+    <div class="card">
+      <h3 data-i18n="f.stuck.t">¿Sigues atascado?</h3>
+      <p data-i18n-html="f.stuck.p">Pregunta en el <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>. Las preguntas que se repiten acaban en esta página, así que hacer una sirve de verdad.</p>
+    </div>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un panel táctil gratis para las pantallas junto a tu PC. Windows, con macOS y Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/es/download.html" data-xl="f.download">Descargar</a></li><li><a href="/demo/" data-xl="f.demo">Demo en el navegador</a></li><li><a href="/catalog/" data-xl="f.catalog">Catálogo</a></li><li><a href="/create/" data-xl="f.create">Crear widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versiones</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/xenon-exe.html" data-xl="f.exe">¿Es seguro el instalador?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Proyecto</h2><ul><li><a href="/es/#support" data-xl="f.support">Mecenas</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/es/faq.html" data-xl="f.faq">Ayuda y preguntas</a></li><li><a href="/es/privacy.html" data-xl="f.privacy">Privacidad</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon es un proyecto independiente. Xeneon e iCUE son marcas comerciales de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+
+</body>
+</html>

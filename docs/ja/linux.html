@@ -46,23 +46,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Xenon のダウンロード: Windows、Mac、Linux 用の無料タッチダッシュボード</title>
-<meta name="description" content="Xenon の最新版をダウンロード。Windows 用インストーラー、macOS ユニバーサルアプリ、Linux 用 AppImage、deb、rpm。初回セットアップ、SmartScreen の警告、署名付きチェックサムも説明します。">
+<title>Linux 版 Xenon: セカンドスクリーン用ダッシュボード、AppImage、deb、rpm</title>
+<meta name="description" content="Linux 版 Xenon（ベータ）は、余っている画面のための無料ダッシュボードです。AppImage、.deb、.rpm のダウンロード、初回起動のセットアップ、X11 が必要な機能を説明します。">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Xenon のダウンロード: Windows、Mac、Linux 用の無料タッチダッシュボード">
-<meta property="og:description" content="Xenon の最新版をダウンロード。Windows 用インストーラー、macOS ユニバーサルアプリ、Linux 用 AppImage、deb、rpm。初回セットアップ、SmartScreen の警告、署名付きチェックサムも説明します。">
+<meta property="og:title" content="Linux 版 Xenon: セカンドスクリーン用ダッシュボード、AppImage、deb、rpm">
+<meta property="og:description" content="Linux 版 Xenon（ベータ）は、余っている画面のための無料ダッシュボードです。AppImage、.deb、.rpm のダウンロード、初回起動のセットアップ、X11 が必要な機能を説明します。">
 <meta property="og:type" content="article">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
-<link rel="canonical" href="https://xenon-app.com/ja/download.html">
-<link rel="alternate" hreflang="en" href="https://xenon-app.com/download.html">
-<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/download.html">
-<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/download.html">
-<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/download.html">
-<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/download.html">
-<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/download.html">
-<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/download.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon はどこでダウンロードできますか？","acceptedAnswer":{"@type":"Answer","text":"このページのリンクからです。リンクは常に GitHub の最新リリースを指しています。Windows は Xenon-Setup-x64.exe、macOS は Xenon-macOS-universal.dmg、Linux は AppImage、.deb、.rpm のいずれかです。"}},{"@type":"Question","name":"Xenon は無料でダウンロードできますか？","acceptedAnswer":{"@type":"Answer","text":"はい。有料版も試用期間もなく、アカウントも不要です。ソースコードは非商用ライセンスで GitHub に公開されています。"}},{"@type":"Question","name":"Xenon のインストーラーで Windows が警告を出すのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"Microsoft が SmartScreen の評価を時間をかけて付与するためです。Windows のインストーラーには署名があるので確認済みの発行元が表示されますが、しばらくは SmartScreen が警告することがあります。その場合は「詳細情報」をクリックし、「実行」を押してください。各リリースには署名付きの SHA256SUMS ファイルもあり、ダウンロードを自分で検証できます。"}},{"@type":"Question","name":"Xenon は自動で更新されますか？","acceptedAnswer":{"@type":"Answer","text":"はい。起動時に新しいリリースを確認し、自動で更新します。"}}]}</script>
+<link rel="canonical" href="https://xenon-app.com/ja/linux.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/linux.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/linux.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/linux.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/linux.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/linux.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/linux.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/linux.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon は Linux で動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい、ベータです。ダッシュボード、ウィジェット、カタログ、各種連携は Windows と同じです。マシンを読み取る部分の一部は X11 のみか、まだ使えません。"}},{"@type":"Question","name":"どの Linux パッケージをダウンロードすればいいですか？","acceptedAnswer":{"@type":"Answer","text":"AppImage は x86_64 のデスクトップならどれでも動きます。Debian と Ubuntu 向けの .deb、Fedora と openSUSE 向けの .rpm もあります。"}},{"@type":"Question","name":"Linux で Xenon は自動で起動しますか？","acceptedAnswer":{"@type":"Answer","text":"はい。初回起動時に systemd のユーザーサービスを登録します。ユーザーマネージャーがない環境では、代わりに XDG 自動起動を使います。"}},{"@type":"Question","name":"Xenon は Wayland で動きますか？","acceptedAnswer":{"@type":"Answer","text":"ほとんどは動きます。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識には X11 のセッションが必要です。"}}]}</script>
 
 <style>
   :root {
@@ -214,14 +214,6 @@
 </style>
 <link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
-<style id="dl-mark">
-  /* The visitor's own system, marked and lit like the Deck key on the home. */
-  .dl .pick.is-you, a.pick.is-you { --lit: #008DFF; color: #fff !important; border-color: color-mix(in oklab, var(--lit) 70%, #000) !important; background-color: #104D82 !important;
-    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28), color-mix(in oklab, var(--lit) 20%, #04080d)) !important; }
-  .pick.is-you * { color: #fff !important; }
-  .pick .you { display: inline-block; margin-left: 8px; font: 700 12.5px/1 var(--sans); padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.18); }
-</style>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Xenon","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)","softwareVersion":"4.11.10","releaseNotes":"https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10","downloadUrl":"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"fileSize":"2.4 MB"}</script>
 </head>
 <body>
 
@@ -236,7 +228,7 @@
         <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
         <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
       </div>
-      <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/download.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/download.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/download.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/download.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/download.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/download.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/linux.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/linux.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/linux.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/linux.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/linux.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/linux.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">ダウンロード</a>
       <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">メニュー</button>
     </div>
@@ -247,45 +239,68 @@
 
 <main>
   <div class="wrap">
-    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/download.html" aria-current="page" data-xl="f.download">ダウンロード</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"ダウンロード","item":"https://xenon-app.com/ja/download.html"}]}</script><!-- /xenon:crumbs -->
-    <h1 data-i18n="dl.h1">Xenon のダウンロード</h1>
-    <p class="lede" data-i18n="dl.lede">各プラットフォーム向けの最新リリースを GitHub から直接ダウンロードできます。無料でアカウントも不要。インストール後は自動で更新されます。</p>
-    <p class="updated" data-i18n-html="dl.updated">最終更新: 2026年9月26日。すべてのリンクは<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">最新リリース</a>を指しています。</p>
+    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/linux.html" aria-current="page" data-xl="f.linux">LinuxでのXenon</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"LinuxでのXenon","item":"https://xenon-app.com/ja/linux.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="lx.title">Linux 版 Xenon</h1>
+    <p class="lede" data-i18n="lx.lede">Xenon は、余っている画面のための無料ダッシュボードです。Linux 版はベータで、ダッシュボードは Windows 版と同じです。このページでは、まだ違う点と必要なパッケージを紹介します。</p>
+    <p class="updated" data-i18n-html="lx.updated">最終更新: 2026年9月26日 · すべてのリンクは<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">最新リリース</a>を指しています</p>
 
+    <nav class="jump">
+      <a href="#get" data-i18n="lx.jump.get">ダウンロード</a>
+      <a href="#setup" data-i18n="lx.jump.setup">初回起動</a>
+      <a href="#works" data-i18n="lx.jump.works">動く機能</a>
+      <a href="#wayland" data-i18n="lx.jump.wayland">X11 と Wayland</a>
+    </nav>
+
+    <h2 id="get" data-i18n="lx.h.get">ダウンロード</h2>
     <div class="dl">
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req" data-i18n="dl.win.req">Windows 10 または 11（64ビット）。アプリをインストールし、ログイン時に起動します。</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small data-i18n="dl.beta">ベータ</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req" data-i18n="dl.mac.req">macOS 11 以降。Apple シリコンと Intel の両方に1つのファイルで対応します。</span></a>
-      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small data-i18n="dl.beta">ベータ</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n="dl.linux.req">x86_64 のデスクトップならどれでも動きます。.deb と .rpm は Linux のページにあります。</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="linux_page_appimage"><span class="os">AppImage</span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n-html="lx.req.appimage">x86_64 のデスクトップならどれでも動きます。<code>chmod +x</code> で実行権限を付けて起動します。</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="linux_page_deb"><span class="os">Debian, Ubuntu</span><span class="file">Xenon-Linux-x86_64.deb</span><span class="req" data-i18n="lx.req.deb">アプリをインストールします。ダッシュボードは初回起動時に、ユーザーごとにセットアップされます。</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.rpm" data-track="download_click" data-track-location="linux_page_rpm"><span class="os">Fedora, openSUSE</span><span class="file">Xenon-Linux-x86_64.rpm</span><span class="req" data-i18n="lx.req.rpm">.deb と同じ内容で、RPM 系のディストリビューション向けです。</span></a>
     </div>
-    <p class="note" data-i18n-html="dl.note.linux"><a href="/ja/linux.html">Linux 版 Xenon</a>: .deb と .rpm のパッケージ、初回起動で設定される内容、そして動くものとまだ動かないものの一覧表。</p>
-    <p class="note" data-i18n-html="dl.note.all">上のファイルはすべて最新リリースで、GitHub から直接ダウンロードされます。チェックサムを含む<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">このリリースの全ファイル</a>は、リリースページにあります。</p>
+    <p class="note" data-i18n-html="lx.beta">Linux 対応は <strong>ベータ</strong> です。ダッシュボード、ウィジェット、カタログ、各種連携は Windows と同じです。まだ違うのはマシンを読み取って操作する部分で、下の表にまとめています。GNOME と KDE で動作を確認しています。</p>
 
-    <h2 id="after" data-i18n="dl.h.after">初回セットアップ</h2>
-    <p data-i18n-html="dl.after.win"><strong>Windows：</strong>インストーラーを実行します。アプリがインストールされて自動で開き、ダッシュボードのエンジンがまだないことを確認すると <strong>Complete setup</strong>（セットアップを完了）を表示します。これを一度押すとウィンドウが開き、Node.js、センサーの読み取り機能、サインイン時に Xenon を起動するタスクがインストールされます。各ステップはその場で表示されます。何かを実行する前に、ダウンロードはプロジェクトの署名鍵で検証されます。数分で終わり、必要なのは一度だけです。</p>
-    <p data-i18n-html="dl.after.posix"><strong>macOS と Linux：</strong>ダウンロードしたアプリを開きます。初回起動時に、ターミナルのウィンドウでダッシュボードをセットアップするよう提案され、展開の前にダウンロードを検証します。Linux でパッケージがこれを代わりに行わないのは意図的です。作成されるものはすべて1つのユーザーアカウントに属しますが、パッケージは root としてマシン全体にインストールされるからです。</p>
-    <p data-i18n-html="dl.after.screen">次に、Xenon をどの画面で使うかを選びます。余っているモニター、タブレット、スマートフォン、CORSAIR Xeneon Edge のどれでも使えます。スマートフォンやタブレットを約30秒でペアリングする方法は<a href="/ja/phone.html">スマートフォンのガイド</a>で説明しています。</p>
+    <h2 id="setup" data-i18n="lx.h.setup">初回起動</h2>
+    <p data-i18n-html="lx.setup.p1">アプリを開きます。初回起動時に、ターミナルのウィンドウでダッシュボードをセットアップするよう提案されます。エンジンをダウンロードし、展開する前にダウンロードを検証し、ログイン時に Xenon が起動するよう <code>systemd --user</code> サービスを登録します。ユーザーマネージャーがない環境では代わりに XDG 自動起動のエントリーを使い、そのことを知らせます。この代替手段ではクラッシュ後に Xenon が再起動しないことも伝えます。</p>
+    <p data-i18n="lx.setup.p2">.deb と .rpm がインストール時にこれを行わないのは意図的です。セットアップが作るものはすべて1つのユーザーアカウントに属しますが、パッケージは root としてマシン全体にインストールされるからです。</p>
+    <p data-i18n="lx.setup.p3">インストーラーは、入っていない任意のツールも一覧で示します。Debian と Ubuntu では:</p>
+    <pre><code>sudo apt install nodejs npm unzip           # required
+sudo apt install wireplumber                # volume, microphone and the per-app mixer
+sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
+sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
+    <p data-i18n-html="lx.setup.p4">デスクトップにターミナルエミュレーターがまったくない場合、アプリはインストーラーを表示できません。<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">リリース</a>からソースの zip をダウンロードして展開し、<code>./INSTALL.sh</code> を実行してください。</p>
 
-    <h2 id="warning" data-i18n="dl.h.warning">Windows と macOS の警告</h2>
-    <p data-i18n-html="dl.warn.win">バージョン 4.11.9 から Windows のインストーラーには署名があり、Windows には確認済みの発行元が表示されます。それでも Microsoft は評価を時間をかけて付与するため、しばらくは SmartScreen が警告することがあります。<strong>詳細情報</strong> をクリックし、<strong>実行</strong> を押してください。また Defender は署名者だけでなくプログラムの動作も判断するため、検出される可能性は残ります。<a href="/ja/faq.html#warnings">FAQ では警告の種類ごとに説明</a>し、ファイルを取り戻す方法も載せています。何がインストールされるのかを正確に知りたい方には、<a href="/ja/xenon-exe.html">Xenon が実行するすべてのプロセスを一覧にしたページ</a>があります。</p>
-    <p data-i18n-html="dl.warn.mac"><strong>macOS：</strong>Mac 版はベータで、公証（notarize）されていないため、初回起動は macOS に拒否されます。<strong>システム設定 &rarr; プライバシーとセキュリティ</strong> を開き、下にスクロールして Xenon の横にある <strong>このまま開く</strong> をクリックしてください。macOS 15 以降では、Control キーを押しながらクリックして開く方法は使えなくなりました。</p>
+    <h2 id="works" data-i18n="lx.h.works">Linux で動く機能</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="lx.th.area">項目</th><th data-i18n="lx.th.status">状態</th></tr></thead>
+      <tbody>
+        <tr><td data-i18n="lx.row.dash">ダッシュボード、タイル、テーマ、カタログ、ウィジェット SDK</td><td data-i18n="lx.st.identical">動作します。Windows と同じです。</td></tr>
+        <tr><td data-i18n="lx.row.native">全画面のネイティブアプリ、ログイン時の起動、自動更新</td><td data-i18n="lx.st.works">動作します。</td></tr>
+        <tr><td data-i18n="lx.row.basics">CPU、メモリ、ディスク、ネットワーク</td><td data-i18n="lx.st.works">動作します。</td></tr>
+        <tr><td data-i18n="lx.row.sensors">CPU と GPU の温度、GPU 使用率、ファンの回転数</td><td data-i18n="lx.st.sensors">動作します。カーネル自身のセンサーを使います。</td></tr>
+        <tr><td data-i18n="lx.row.audio">システムの音量、マイクのミュート、アプリごとのミキサー</td><td data-i18n="lx.st.wireplumber">WirePlumber がインストールされていれば動作します。</td></tr>
+        <tr><td data-i18n="lx.row.media">再生中の曲とメディアキー</td><td data-i18n="lx.st.mpris">動作します。MPRIS を使います。</td></tr>
+        <tr><td data-i18n="lx.row.fps">ゲーム内の FPS カウンター</td><td data-i18n="lx.st.mangohud">動作します。MangoHud を使います。</td></tr>
+        <tr><td data-i18n="lx.row.ai">Xenon AI、チャット、操作、「Hey Xenon」音声起動</td><td data-i18n="lx.st.ai">動作します。クラウドでもローカルでも使えます。</td></tr>
+        <tr><td data-i18n="lx.row.lighting">ネットワーク上のライティング: WLED、Hue、Nanoleaf、OpenRGB</td><td data-i18n="lx.st.works">動作します。</td></tr>
+        <tr><td data-i18n="lx.row.services">配信、Spotify、Discord、Home Assistant</td><td data-i18n="lx.st.works">動作します。</td></tr>
+        <tr><td data-i18n="lx.row.phone">スマートフォンやタブレットをセカンドスクリーンに</td><td data-i18n="lx.st.works">動作します。</td></tr>
+        <tr><td data-i18n="lx.row.notif">デスクトップ通知と着信カード</td><td data-i18n="lx.st.works">動作します。</td></tr>
+        <tr><td data-i18n="lx.row.windows">開いているアプリ、アプリスイッチャー、AI の画面認識</td><td data-i18n="lx.st.x11">X11 セッションのみ。</td></tr>
+        <tr><td data-i18n="lx.row.hotkey">検索のグローバルホットキー</td><td data-i18n="lx.st.gnome">GNOME のみ。</td></tr>
+        <tr><td data-i18n="lx.row.icue">CORSAIR iCUE のライティング</td><td data-i18n="lx.st.icue">Linux では使えません。iCUE は Windows のソフトウェアです。ネットワーク上のライトには影響ありません。</td></tr>
+        <tr><td data-i18n="lx.row.typing">ダッシュボードからの文字入力とウィンドウの移動</td><td data-i18n="lx.st.notyet">まだ使えません。</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" data-i18n-html="lx.readme">この一覧の正式版は <a href="https://github.com/marcimastro98/Xenon#platform-support" rel="noopener">README のプラットフォーム表</a>で、条件がある行にはすべて脚注が付いています。</p>
 
-    <h2 id="verify" data-i18n="dl.h.verify">ダウンロードの検証</h2>
-    <p data-i18n-html="dl.verify.p1">各リリースには、プロジェクトの Ed25519 鍵で署名された <code>SHA256SUMS</code> ファイルが含まれています。ダウンロードしたファイルのハッシュを比べてください。</p>
-    <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
-shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
-sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
-    <p data-i18n-html="dl.verify.p2">リリースの <code>SHA256SUMS</code> にあるそのファイルの行と一致すれば、そのファイルは GitHub Actions がそのタグの公開ソースからビルドしたものとバイト単位で同一です。Windows では、インストーラーを右クリックして <strong>プロパティ</strong> を選び、<strong>デジタル署名</strong> タブを開くと発行元を確認できます。</p>
-
-    <h2 id="other" data-i18n="dl.h.other">その他のインストール方法</h2>
-    <p data-i18n-html="dl.other.source"><strong>ソースから：</strong>リリースから<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">ソースコードの zip</a> をダウンロードして展開し、Windows では <code>INSTALL.bat</code>、macOS では <code>INSTALL.command</code>、Linux では <code>./INSTALL.sh</code> を実行します。結果はインストーラーと同じで、実行される内容を自分で読みたい方向けです。</p>
-    <p data-i18n-html="dl.other.winget"><strong>winget：</strong>パッケージのマニフェストは用意できていて、Microsoft 側のスキャンを問題なく通過するリリースを待っている状態です。掲載されるまでは、上のインストーラーを使ってください。掲載された日には、このページに <code>winget install xenon</code> と書きます。</p>
-    <p data-i18n-html="dl.other.update"><strong>アップデート：</strong>Xenon は起動時に新しいリリースを確認し、自動で更新します。そのためにこのページへ戻ってくる必要はありません。</p>
+    <h2 id="wayland" data-i18n="lx.h.wayland">X11 と Wayland</h2>
+    <p data-i18n-html="lx.wayland.p">ダッシュボードのほとんどはどちらでも同じように動きます。違うのは、ほかのウィンドウを見る必要がある部分です。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識は X11 のツール（<code>wmctrl</code>、<code>xdotool</code>）を使うので、Wayland のセッションでは、Xenon はそれらを表示してから失敗させるのではなく、最初から隠します。必要な場合は X11 のセッションでログインしてください。</p>
 
     <div class="card accent">
-      <h3 data-i18n="dl.about.h">Xenon とは</h3>
-      <p data-i18n-html="dl.about.p">PC で動き、余っている画面に表示できる無料のダッシュボードです。システム情報、メディアとマイクの操作、Stream Deck のようなキーのグリッド、ライティング、話しかけられる AI を備えています。アカウントは不要で、設定、ファイル、センサーの値は PC に保存されます。<a href="/ja/">ホームページで実際の画面を見られます</a>。</p>
+      <h3 data-i18n="lx.report.h">問題の報告</h3>
+      <p data-i18n-html="lx.report.p">Linux 版がベータなのは、上の表にまだ抜けがあるからです。報告するには、ディストリビューション、デスクトップ、セッションの種類を書いて<a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" rel="noopener">バグ報告</a>を作成してください。先に質問したい場合は <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a> に書き込んでください。</p>
     </div>
-    <span id="dl-you" hidden data-i18n="dl.you">お使いのシステム</span>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -306,22 +321,5 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
 <!-- /xenon:footer -->
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
-<script>
-  // Marks the card for the visitor's system. Detection is a convenience:
-  // all three files stay listed and every link works without it.
-  (function () {
-    var uad = navigator.userAgentData;
-    var p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
-    if ((uad && uad.mobile) || /Android|iPhone|iPad|iPod|CrOS/i.test(p) || (/Mac/i.test(p) && navigator.maxTouchPoints > 1)) return;
-    var os = /Win/i.test(p) ? 'win' : /Mac/i.test(p) ? 'mac' : /Linux|X11/i.test(p) ? 'linux' : null;
-    if (!os) return;
-    var a = document.querySelector('.pick[data-track-location="download_page_' + os + '"]');
-    if (!a) return;
-    a.classList.add('is-you');
-    var o = a.querySelector('.os');
-    var lbl = document.getElementById('dl-you');
-    if (o) { var t = document.createElement('span'); t.className = 'you'; t.textContent = (lbl && lbl.textContent) || 'Your system'; o.appendChild(t); }
-  })();
-</script>
 </body>
 </html>

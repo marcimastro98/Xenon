@@ -169,7 +169,7 @@
     "dl.after.screen": "그다음 Xenon이 어느 화면에서 쓸지 묻습니다. 남는 모니터, 태블릿, 휴대폰, CORSAIR Xeneon Edge 모두 됩니다. 휴대폰이나 태블릿을 30초 정도 만에 페어링하는 방법은 <a href=\"phone.html\">휴대폰 가이드</a>에서 설명합니다.",
     "dl.h.warning": "Windows와 macOS의 경고",
     "dl.warn.win": "버전 4.11.9부터 Windows 설치 프로그램은 서명되어 있어 Windows에 확인된 게시자가 표시됩니다. 그래도 Microsoft가 평판을 시간을 두고 부여하기 때문에 한동안 SmartScreen이 경고할 수 있습니다. <strong>추가 정보</strong>를 누른 다음 <strong>실행</strong>을 누르세요. Defender는 누가 서명했는지뿐 아니라 프로그램이 무엇을 하는지도 판단하므로 탐지될 가능성은 여전히 있습니다. <a href=\"faq.html#warnings\">FAQ에서 경고 종류별로 설명</a>하고 파일을 되찾는 방법도 안내합니다. 무엇이 설치되는지 정확히 알고 싶다면 <a href=\"xenon-exe.html\">Xenon이 실행하는 모든 프로세스를 정리한 페이지</a>를 보세요.",
-    "dl.warn.mac": "<strong>macOS:</strong> Mac 버전은 베타이고 공증(notarize)을 받지 않았기 때문에 macOS가 첫 실행을 막습니다. <strong>시스템 설정 &rarr; 개인정보 보호 및 보안</strong>을 열고 아래로 내려서 Xenon 옆의 <strong>확인 없이 열기</strong>를 클릭하세요. macOS 15 이상에서는 Control 키를 누른 채 클릭해서 여는 방법이 더 이상 통하지 않습니다.",
+    "dl.warn.mac": "<strong>macOS:</strong> Mac 버전은 베타이고 공증(notarize)을 받지 않았기 때문에 macOS가 첫 실행을 막습니다. <strong>시스템 설정 &rarr; 개인정보 보호 및 보안</strong>을 열고 아래로 내려서 Xenon 옆의 <strong>그래도 열기</strong>를 클릭하세요. macOS 15 이상에서는 Control 키를 누른 채 클릭해서 여는 방법이 더 이상 통하지 않습니다.",
     "dl.h.verify": "다운로드 검증",
     "dl.verify.p1": "모든 릴리스에는 프로젝트의 Ed25519 키로 서명한 <code>SHA256SUMS</code> 파일이 함께 올라갑니다. 다운로드한 파일의 해시를 비교하세요.",
     "dl.verify.p2": "릴리스의 <code>SHA256SUMS</code>에 있는 해당 파일의 줄과 일치하면, 그 파일은 GitHub Actions가 그 태그의 공개 소스에서 빌드한 파일과 바이트 단위까지 같습니다. Windows에서는 설치 프로그램을 오른쪽 클릭하고 <strong>속성</strong>을 선택한 뒤 <strong>디지털 서명</strong> 탭을 열어 게시자를 확인할 수도 있습니다.",
