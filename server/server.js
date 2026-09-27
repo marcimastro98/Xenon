@@ -14531,6 +14531,32 @@ const handleRequest = async (req, res) => {
       minVersion: audioLevels.minVersion(),
     });
 
+  } else if (reqPath === '/audio/levels/install-helper' && req.method === 'POST') {
+    // "Install Xenon Helper", under the wave switch in Settings. The boot heal
+    // only ever replaces a helper that is already there, so one that never
+    // arrived had no way in short of re-running the setup. This is the same
+    // verified download (signed SHA256SUMS, pinned key, fail closed), for this
+    // version's release. A paired device cannot reach it (remote-access.js).
+    try {
+      await readBody(req);
+      if (process.platform !== 'win32') { json({ ok: false, status: 'unsupported' }); return; }
+      if (!_helperInstall) {
+        _helperInstall = createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION }).install()
+          .finally(() => { _helperInstall = null; });
+      }
+      const status = await _helperInstall;
+      const ok = status === 'installed' || status === 'up-to-date';
+      startupLog.write('helper install from Settings: ' + status);
+      if (ok) {
+        writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {});
+        // A helper that gave up (too old, kept dying) gets a fresh start now,
+        // not at the next restart.
+        audioLevels.reset();
+        refreshAudioLevelsWatch();
+      }
+      json({ ok, status });
+    } catch (e) { json({ ok: false, status: 'error', detail: String(e && e.message || e) }); }
+
   } else if (reqPath === '/audio/apps' && req.method === 'GET') {
     // Broader app list for the Deck editor's app picker: every application audio
     // session (active OR inactive) that has a real exe, deduped by process name.
@@ -21340,6 +21366,7 @@ async function refreshStartupTaskState() {
 }
 
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
+let _helperInstall = null;   // one Settings install at a time; a second tap waits on the first
 const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
 const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
 function ensureHelperUpToDate(attempt = 1) {

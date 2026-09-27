@@ -192,6 +192,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // The other half of the transfer settings pair above: the only writer of
     // the folder arrivals land in.
     'POST /api/transfer/settings',
+    // Installs Xenon Helper from Settings: downloads an exe the server then
+    // runs. Same class as the other installers, and done at the PC.
+    'POST /audio/levels/install-helper',
     'POST /embedded-browser/adblock/install',
     'POST /remote/install',
     'POST /second-screen/create-display',

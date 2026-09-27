@@ -94,11 +94,34 @@ function createHelperUpdate(opts) {
   //   up-to-date | installed | skip-not-latest | no-helper  → terminal (record)
   //   not-ready | signature-invalid | mismatch | error      → retry
   async function refresh() {
+    return _fetchAndPlace(false);
+  }
+
+  // The same verified download, asked for by the user from Settings. refresh()
+  // is an updater and never an installer, so a helper that never arrived (an
+  // installer whose download was blocked, an antivirus that removed the exe)
+  // stayed missing until someone re-ran the setup, and on the setup .exe that
+  // is a folder they have never seen. Reported on Discord by someone who
+  // reinstalled several times and still had no wave. Two differences only:
+  // a missing exe is the case to fill, not a reason to stop, and the helper
+  // comes from THIS version's release rather than latest, so an install that
+  // is behind still gets the helper it was built against.
+  async function install() {
+    return _fetchAndPlace(true);
+  }
+
+  async function _fetchAndPlace(installing) {
     try {
-      if (!f.existsSync(helperExe)) return 'no-helper';
+      if (installing) {
+        try { f.mkdirSync(helperDir, { recursive: true }); } catch { /* the write below says so */ }
+      } else if (!f.existsSync(helperExe)) {
+        return 'no-helper';
+      }
       _cleanupLeftovers();
 
-      const rel = await _json(`https://api.github.com/repos/${repo}/releases/latest`);
+      const rel = (installing && appVersion)
+        ? await _json(`https://api.github.com/repos/${repo}/releases/tags/v${appVersion}`)
+        : await _json(`https://api.github.com/repos/${repo}/releases/latest`);
       if (!rel) return 'not-ready';
 
       // Only heal the helper to the version the running app expects. If the app
@@ -184,7 +207,7 @@ function createHelperUpdate(opts) {
     }
   }
 
-  return { refresh };
+  return { refresh, install };
 }
 
 module.exports = { createHelperUpdate, HELPER_ASSET };
