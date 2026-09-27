@@ -110,8 +110,8 @@
     <p class="updated" data-i18n="cc.updated">마지막 업데이트: 2026년 9월 27일</p>
 
     <figure class="shot">
-      <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="Claude Code 타일: 허용과 거부 버튼이 있는 npm test 실행 요청, 계획 4단계 중 2단계를 마치고 승인을 기다리는 세션, 5시간과 7일 할당량 막대" data-i18n-alt="cc.shot.alt">
-      <figcaption data-i18n="cc.shot.cap">권한 요청이 열려 있는 Claude Code 타일. 세션 하나와 그 계획, 할당량 막대가 보입니다.</figcaption>
+      <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="Claude Code 타일: 거부와 허용 버튼이 있는 git push 실행 요청으로, 작업을 게시하는 요청이라고 표시되어 있습니다. 그 요청을 기다리는 세션과, 테스트를 실행하며 계획 5단계 중 2단계를 마친 세션, 그리고 5시간과 7일 할당량이 각각 지금 속도로 어디까지 가는지와 함께 보입니다" data-i18n-alt="cc.shot.alt">
+      <figcaption data-i18n="cc.shot.cap">권한 요청이 열려 있는 Claude Code 타일. 세션 두 개와, 지금 속도로 각 주기가 어디까지 가는지 보여 주는 할당량이 있습니다.</figcaption>
     </figure>
 
     <p data-i18n-html="cc.intro"><strong>+</strong> 버튼의 <strong>시스템</strong> 아래에서 타일을 추가하세요. 토큰 수는 바로 표시됩니다. 실제 할당량, 정확한 세션 상태, 승인 기능을 쓰려면 Claude Code를 연결해야 하며, 연결은 타일에서 합니다. Windows에서 실행되고, 베타인 macOS와 Linux에서도 실행됩니다.</p>
@@ -129,21 +129,21 @@
     </nav>
 
     <h2 id="quota" data-i18n="cc.h.quota">5시간, 7일 할당량</h2>
-    <p data-i18n="cc.quota.p1">Claude Code는 상태 표시줄에 구독의 실제 한도를 넘겨줍니다. 5시간 주기와 7일 주기이며, 각각 얼마나 썼는지와 언제 초기화되는지가 들어 있습니다. Claude Code를 연결하면 Xenon이 이 숫자를 읽어 막대 두 개로 그리고, 막대마다 초기화까지 남은 시간을 표시합니다.</p>
-    <p data-i18n="cc.quota.p2">막대는 Claude 자체 사용량 페이지와 같은 방식으로 사용한 양을 보여 줍니다. 70%에서 주황색, 90%에서 빨간색으로 바뀝니다.</p>
+    <p data-i18n="cc.quota.p1">Claude Code는 상태 표시줄에 구독의 실제 한도를 넘겨줍니다. 5시간 주기와 7일 주기이며, 각각 얼마나 썼는지와 언제 초기화되는지가 들어 있습니다. Claude Code를 연결하면 Xenon이 각 주기를 칸으로 나뉜 게이지로 그리고, 초기화까지 남은 시간을 표시합니다.</p>
+    <p data-i18n="cc.quota.p2">각 게이지의 가는 표시는 일정한 속도로 썼다면 지금 어디쯤이어야 하는지를 보여 주고, 그 아래 줄은 지금 속도가 어디에서 끝나는지 알려 줍니다. 초기화 시점의 사용률이나, 한도에 도달하는 시각입니다. 숫자는 70%에서 주황색, 90%에서 빨간색으로 바뀝니다.</p>
     <p data-i18n-html="cc.quota.p3">이 주기는 Claude Pro와 Max 요금제에 있고, API 키에는 없습니다. API 키를 쓸 때, Claude Code를 연결하기 전, 그리고 Xenon이 다시 시작된 뒤 세션이 새 숫자를 보내기 전까지는 타일이 대신 <strong>주간 예산</strong>을 보여 줍니다. 직접 고른 상한(Pro, Max 5×, Max 20× 또는 직접 정한 숫자)에 대해 이번 주 토큰 사용량을 측정합니다.</p>
-    <p data-i18n-html="cc.quota.p4">할당량 아래에는 오늘과 이번 주의 토큰, 캐시 적중률, 그리고 이 PC에 기록된 작업을 API로 했다면 들었을 비용이 있습니다. 타일을 더 높게 만들면 최근 30일과 프로젝트별, 모델별 내역이 추가됩니다. 이 숫자들은 PC에서 읽는 <code>~/.claude</code> 안의 Claude Code 세션 파일에서 오므로, 아무것도 연결하기 전에도 동작합니다.</p>
+    <p data-i18n-html="cc.quota.p4">타일의 <strong>사용량</strong> 면은 최근 30일을 다룹니다. 오늘의 토큰, 월요일부터의 토큰, 합계, 캐시에서 읽은 비율, 그 작업을 API 정가로 했다면 들었을 금액이 있고, 하루마다 막대 하나와 프로젝트별, 모델별 내역이 있습니다. 이 숫자들은 PC에서 읽는 <code>~/.claude</code> 안의 Claude Code 세션 파일에서 오므로, 아무것도 연결하기 전에도 동작합니다. Claude Code는 오래된 세션 파일을 얼마 뒤 지우므로, 30일보다 적게 남아 있으면 타일이 숫자가 어느 날짜부터인지 알려 줍니다.</p>
 
     <h2 id="sessions" data-i18n="cc.h.sessions">실시간 세션과 계획</h2>
     <p data-i18n="cc.sessions.p1">Claude Code를 연결하면 PC의 모든 Claude Code 세션이 한 줄씩 표시됩니다. 프로젝트, 모델, 컨텍스트 창이 얼마나 찼는지, 그리고 작업 중, 사용자 대기 중, 유휴 같은 상태가 나옵니다. 이 상태는 Claude Code가 직접 보고하므로, 세션이 시작되면 1분 뒤가 아니라 바로 줄이 나타납니다.</p>
-    <p data-i18n="cc.sessions.p2">작업 중인 세션은 실행 중인 명령과 실행 시간을 보여 줍니다. 대기 중인 세션은 무엇을 기다리는지 알려 줍니다. 하위 에이전트는 별도 칩으로 표시되고, 대화를 압축하는 중이면 그렇다고 표시됩니다.</p>
-    <p data-i18n="cc.sessions.p3">Claude가 체크리스트를 따라 작업할 때는 그 계획이 줄에 표시됩니다. 몇 단계를 마쳤는지, 지금 실행 중인 단계와 다음 단계들이 나옵니다.</p>
+    <p data-i18n="cc.sessions.p2">작업 중인 세션은 실행 중인 명령과 실행 시간을 보여 주고, 그 아래에 최근 10분 동안의 도구 호출을 표시한 줄이 있습니다. 대기 중인 세션은 무엇을 기다리는지 알려 줍니다. 줄에는 실행 중인 하위 에이전트 수가 표시되고, 대화를 압축하는 중이면 그렇다고 표시됩니다.</p>
+    <p data-i18n="cc.sessions.p3">Claude가 체크리스트를 따라 작업할 때는 그 계획이 줄에 표시됩니다. 몇 단계를 마쳤는지와 지금 실행 중인 단계가 나옵니다.</p>
     <p data-i18n="cc.sessions.p4">Xenon을 열기 전에 시작한 세션도 나타납니다. Ctrl-C로 닫은 세션은 몇 초 안에 닫힘으로 표시되고, 8분 뒤 목록에서 사라집니다. 조용해진 세션은 완료됨 아래로 옮겨져 마지막 활동 후 한 시간 동안 남아 있으므로, 그동안 후속 요청을 보낼 수 있습니다.</p>
     <p data-i18n="cc.sessions.p5">상단 바의 시계 옆에는 작은 표시가 있습니다. Claude Code의 픽셀 마스코트 Clawd입니다. 세션이 작업하는 동안 걷고, 세션이 끝났는데 아직 확인하지 않았으면 깜박이고, Claude가 사용자를 기다리면 깡충 뜁니다. 깜박일 때 탭하면 끝난 세션이 열립니다.</p>
 
     <h2 id="approve" data-i18n="cc.h.approve">권한 요청 승인</h2>
-    <p data-i18n-html="cc.approve.p1">Claude Code가 명령 실행이나 파일 변경 권한을 요청하면, 도구와 정확한 명령이 적힌 요청이 타일에 나타나고 <strong>허용</strong>과 <strong>거부</strong> 두 버튼이 있습니다. Claude Code는 답을 기다립니다.</p>
-    <p data-i18n-html="cc.approve.p2">25초 동안 답하지 않은 요청은 화면 전체를 덮으므로, 다른 페이지를 보고 있어도 놓치지 않습니다. <code>rm -rf</code>나 <code>git reset --hard</code>처럼 영향 범위가 넓은 명령은 바로 화면 전체를 덮습니다. Claude가 계획 모드를 나가겠다고 요청하면, 카드에 승인하려는 계획이 표시됩니다.</p>
+    <p data-i18n-html="cc.approve.p1">Claude Code가 명령 실행이나 파일 변경 권한을 요청하면, 정확한 명령이나 파일이 적힌 요청이 타일에 나타나고 <strong>허용</strong>과 <strong>거부</strong> 두 버튼이 있습니다. 버튼 위에는 그 요청이 무엇에 닿는지가 표시됩니다. 작업 게시(<code>git push</code>, <code>npm publish</code>), 네트워크, 프로젝트 폴더 밖의 파일, 되돌릴 수 없는 작업입니다. Claude Code는 답을 기다립니다.</p>
+    <p data-i18n-html="cc.approve.p2">25초 동안 답하지 않은 요청은 화면 전체를 덮으므로, 다른 페이지를 보고 있어도 놓치지 않습니다. <code>rm -rf</code>나 <code>git reset --hard</code>처럼 되돌릴 수 없는 명령은 바로 화면 전체를 덮고, 한 번 누르는 대신 버튼을 길게 눌러야 허용됩니다. Claude가 계획 모드를 나가겠다고 요청하면, 카드에 승인하려는 계획이 표시됩니다.</p>
     <p data-i18n="cc.approve.p3">사용자 대신 승인되는 것은 없습니다. 9분 안에 답하지 않거나, Xenon이 닫혀 있거나, 연결이 실패하면, 요청은 Xenon이 없을 때처럼 터미널로 돌아갑니다.</p>
     <p data-i18n-html="cc.approve.phone">휴대폰에서 답하려면 휴대폰을 Xenon과 페어링하세요(베타). 휴대폰에 같은 대시보드가 같은 허용, 거부 버튼과 함께 나타납니다. <a href="/ko/phone.html">휴대폰 페어링 방법</a>.</p>
     <p data-i18n-html="cc.approve.off">터미널에서 답하는 쪽이 좋다면 <strong>설정 → Claude Code → 이 화면에서 권한 요청 받기</strong>를 끄세요. 그러면 Claude Code는 이 화면이 답하지 않는다는 것을 바로 알고 터미널에서 묻습니다.</p>
@@ -163,7 +163,7 @@
     <ol>
       <li data-i18n-html="cc.link.1"><strong>Claude Code</strong> 타일을 <strong>+</strong> 버튼의 <strong>시스템</strong> 아래에서 추가합니다.</li>
       <li data-i18n-html="cc.link.2">타일에서 <strong>Claude Code 연결</strong>을 누른 다음 <strong>연결</strong>을 누릅니다.</li>
-      <li data-i18n="cc.link.3">이미 열려 있던 Claude Code 세션은 다시 시작하세요. 그래야 보고를 시작합니다.</li>
+      <li data-i18n="cc.link.3">이미 열려 있던 Claude Code 세션은 다시 시작하세요. 그래야 보고를 시작합니다. Xenon 업데이트에 훅이 더 필요하면 Xenon이 직접 추가하고, 열려 있는 세션을 한 번 다시 시작하라고 타일이 알려 줍니다.</li>
     </ol>
     <p data-i18n-html="cc.link.writes">연결하면 파일 하나를 수정합니다. Claude Code의 <code>settings.json</code>이며, <code>~/.claude</code> 또는 <code>CLAUDE_CONFIG_DIR</code>가 가리키는 폴더에 있습니다. 여기에 상태 표시줄과 훅 몇 개를 추가합니다. 각 훅은 내 PC인 <code>127.0.0.1</code>의 Xenon을 가리키며, Xenon이 만든 키를 담고 있습니다.</p>
     <p data-i18n-html="cc.link.backup">처음 변경하기 전에 Xenon은 파일 사본을 같은 위치에 <code>settings.json.xenon-backup</code>으로 저장합니다.</p>
