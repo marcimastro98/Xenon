@@ -1,68 +1,94 @@
 # Xenon
 
-> Xenon turns a display you already own — a spare monitor, an old tablet, a
-> phone, or the CORSAIR Xeneon Edge — into a touch control center for your
-> Windows PC: system monitoring, media and audio control, a voice AI, RGB
-> lighting and a programmable Deck. It is free to use, its source is public,
-> and everything runs locally on the machine: no cloud, no account, no
-> product telemetry.
+> Xenon is a free dashboard app that turns a screen you already own, such as a
+> spare monitor, an old tablet, a phone or the CORSAIR Xeneon Edge, into a touch
+> control panel for your PC: system monitoring, media and audio control, a voice
+> AI, RGB lighting and a programmable Deck. It runs on Windows, macOS and Linux,
+> and its source is on GitHub under a custom non-commercial licence.
 
 Xenon is a local web app. It runs a small server on the PC and serves a
-dashboard any browser on the same network can open, which is why any second
-screen works — the display only needs a browser, not drivers. Built for the
-CORSAIR Xeneon Edge (a 2560×720 touch strip) and usable on anything else.
+dashboard that a browser on the same network can open, which is why a second
+screen only needs a browser, not drivers. It was first designed around the
+CORSAIR Xeneon Edge (a 2560×720 touch strip) and works on any screen.
 
-- Platform: Windows 10 and Windows 11
-- Price: free. There is no paid tier, trial or licence to buy.
-- Licence: source-available under a custom **non-commercial** licence — free to
-  use, copy and modify for personal use; selling it or building it into a
-  commercial product needs the author's written permission. It is not an
-  OSI-approved open-source licence. Full terms: the LICENSE file in the repo.
-- Install: a single installer, `Xenon-Setup-x64.exe`, from the GitHub releases
-- Privacy: no account, no cloud sync, no product telemetry. The app checks for
-  updates at launch and reaches the network only for features you switch on
-  (weather, media artwork, the community catalog); every one of those calls is
-  listed on the privacy page. The website uses consent-gated analytics.
-- Written in JavaScript on Node.js, with a native Windows helper for sensors
+- Latest release: 4.11.10, published 2026-09-26. https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10
+- Platforms: Windows 10 and 11 (stable). macOS 11 or later, one universal .dmg
+  for Apple Silicon and Intel (beta, not notarized). Linux x86_64 as AppImage,
+  .deb and .rpm (beta). Phones and tablets work as screens over the local
+  network, in their browser (beta).
+- Downloads, always from the latest GitHub release: `Xenon-Setup-x64.exe`,
+  `Xenon-macOS-universal.dmg`, `Xenon-Linux-x86_64.AppImage`,
+  `Xenon-Linux-x86_64.deb`, `Xenon-Linux-x86_64.rpm`.
+- Signing: since version 4.11.9 the Windows installer, the app inside it and the
+  helper are Authenticode-signed, so Windows shows a verified publisher.
+  SmartScreen may still warn for a while, because Microsoft grants reputation
+  over time: More info, then Run anyway. The macOS build is not notarized: on
+  first launch, System Settings, Privacy & Security, Open Anyway. Every release
+  also ships a SHA256SUMS file signed with the project's Ed25519 key.
+- Price: free. There is no paid version, trial or licence to buy. Optional
+  supporter tiers get monthly drops in the community catalog.
+- Licence: source on GitHub under a custom non-commercial licence. Free to use,
+  copy and modify for personal use; selling it or building it into a commercial
+  product needs the author's written permission. It is not an open-source
+  licence. Full terms: the LICENSE file in the repo.
+- Privacy: there is no account. Settings, files, sensor readings and AI memory
+  stay on the PC. What does go online: the update check, the community catalog,
+  a daily announcements file, an anonymous version count and Store install
+  counts (both on by default, both can be switched off), the weather, album
+  artwork and AI services the user chooses, and Web Push to a paired phone if
+  the user turns it on. The privacy page lists each one. The website uses
+  consent-gated analytics.
+- Built with: a Node.js engine serving a web dashboard, shown in a native app
+  window or any browser. On Windows an optional native helper speeds up media
+  and game detection; sensors are read through PowerShell and
+  LibreHardwareMonitor.
+- Maker: an independent project by one developer, Marcello Mastroeni
+  (@marcimastro98). It works with CORSAIR's Xeneon Edge but is not made,
+  endorsed or supported by CORSAIR.
 
 ## What it does
 
-- **System monitoring** — live CPU, GPU, memory, storage and sensor history
-- **Media and audio** — now playing, transport controls, output device and
+- **System monitoring**: live CPU, GPU, memory, storage and sensor history
+- **Media and audio**: now playing, transport controls, output device and
   microphone switching, a Spotify player
-- **Voice AI** — an assistant that answers by voice and drives the dashboard
-- **Deck** — a programmable key grid for macros, apps and scenes
-- **RGB** — lighting control for supported devices
-- **Widgets** — calendar with ICS sync, weather, markets, football, news,
+- **Voice AI**: an assistant that answers by voice and drives the dashboard
+- **Deck**: a programmable key grid for macros, apps and scenes
+- **RGB**: lighting control for supported devices
+- **Widgets**: calendar with ICS sync, weather, markets, football, news,
   timers, tasks, notes, Twitch and OBS control, Discord voice, app switcher
-- **Search** — spotlight-style search that reads a plain phrase as a date, a
+- **Search**: spotlight-style search that reads a plain phrase as a date, a
   size and a file type, plus a disk-space map with a protected cleanup plan
-- **Customisation** — themes, animated backgrounds, ambient scenes, custom
+- **File transfer**: send files between a paired phone and the PC
+- **Customisation**: themes, animated backgrounds, ambient scenes, custom
   pages, and a widget SDK for building your own
 
 ## Pages
 
 - [Home](https://xenon-app.com/): what Xenon is, the feature tour, install steps
-- [Community catalog](https://xenon-app.com/catalog/): themes, backgrounds,
-  widgets, Deck profiles, ambient scenes and packages made by the community —
-  each item has its own page under `/catalog/<id>/`
-- [Create for Xenon](https://xenon-app.com/create/): the maker's guide —
-  building contrast-safe themes, backgrounds, pages, Deck profiles and widgets,
-  starting from zero and with no coding required
-- [Publish to the catalog](https://xenon-app.com/submit/): how to submit a
-  creation; a human reviews every submission
-- [Xeneon Edge widgets and dashboards](https://xenon-app.com/xeneon-edge-widgets.html): what
-  iCUE gives an Edge owner, what Xenon adds, how to put it on the strip with or without iCUE
+- [Download](https://xenon-app.com/download.html): the latest release for Windows,
+  macOS and Linux, what happens after the download, and how to check the file
+- [Xenon on Linux](https://xenon-app.com/linux.html): AppImage, deb and rpm, first
+  launch, and a table of what works, what needs X11 and what is not there yet
+- [FAQ](https://xenon-app.com/faq.html): Windows warnings and signing, Smart App
+  Control, macOS and Linux, updating, privacy, and where to get help
+- [Your phone as the screen](https://xenon-app.com/phone.html): opening the
+  dashboard on a phone or tablet, at home or from anywhere
 - [Use an old tablet or phone as a PC dashboard](https://xenon-app.com/tablet-dashboard.html):
   the PC serves the dashboard to any browser on the Wi-Fi, nothing to install on the device
-- [Download](https://xenon-app.com/download.html): the newest release for Windows, macOS and Linux,
-  what the installer does, and how to verify the file against the signed checksums
-- [Xenon on Linux](https://xenon-app.com/linux.html): AppImage, deb and rpm, first launch, and an honest
-  table of what works, what needs X11 and what is not there yet
-- [xenon.exe, what it is and how to check it](https://xenon-app.com/xenon-exe.html): every Windows
-  process Xenon runs, where each lives, and how to verify a file against the signed checksums
-- [Privacy](https://xenon-app.com/privacy.html): what the app sends (almost
-  nothing) and what the website collects
+- [Xeneon Edge widgets and dashboards](https://xenon-app.com/xeneon-edge-widgets.html): what
+  iCUE gives an Edge owner, what Xenon adds, how to put it on the strip with or without iCUE
+- [xenon.exe, what it is and how to check it](https://xenon-app.com/xenon-exe.html): every
+  Windows process Xenon runs, where each lives, and how to check its signature and checksum
+- [Community catalog](https://xenon-app.com/catalog/): themes, backgrounds,
+  widgets, Deck profiles, ambient scenes and packages made by the community;
+  each item has its own page under `/catalog/<id>/`
+- [Live demo](https://xenon-app.com/demo/): the dashboard in the browser, with sample data
+- [Create for Xenon](https://xenon-app.com/create/): the maker's guide to themes,
+  backgrounds, pages, Deck profiles and widgets, with no coding required
+- [Publish to the catalog](https://xenon-app.com/submit/): how to submit a
+  creation; a human reviews every submission
+- [Privacy](https://xenon-app.com/privacy.html): what the app sends and what the
+  website collects
 
 ## Source and community
 
@@ -75,8 +101,8 @@ CORSAIR Xeneon Edge (a 2560×720 touch strip) and usable on anything else.
 
 ## Sharing between users
 
-Anything made in Xenon — a theme, a page, a Deck profile, a widget, a whole
-package — exports as a share code: a block of text copied and pasted, with an
+Anything made in Xenon (a theme, a page, a Deck profile, a widget, a whole
+package) exports as a share code: a block of text you copy and paste, with an
 import preview before anything is applied. The catalog is a moderated index of
 those codes. Nothing is installed silently and nothing needs an account.
 
@@ -84,12 +110,11 @@ those codes. Nothing is installed silently and nothing needs an account.
 
 - The product name is "Xenon"; the site is xenon-app.com. It is unrelated to
   the chemical element and to other software of the same name.
-- Xenon is an independent project by Marcello Mastroeni (@marcimastro98). It
-  works with CORSAIR's Xeneon Edge display but is not made, endorsed or
-  supported by CORSAIR.
-- It is genuinely free: there is no paid tier, trial or licence to buy.
-  Supporters get optional cosmetic extras in the catalog; the app is unaffected.
-- "Free" here means free of charge, not OSI open source — see the licence note
-  above before repeating it as open source.
-- The dashboard is local-first. It does not stream a desktop or require an
-  internet connection to run.
+- Xenon is free: there is no paid version. Supporters get optional monthly
+  drops in the catalog; the app's features are the same for everyone.
+- Xenon is not open source. Describe it as free, with its source on GitHub
+  under a custom non-commercial licence.
+- Xenon is independent of CORSAIR.
+- The dashboard runs on the PC. It does not stream a desktop, and its local
+  features work without an internet connection. It is not fully offline
+  either: see the privacy line above for what goes online.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Limnograph — Package for Xenon</title>
+<title>Limnograph: Package for Xenon</title>
 <meta name="description" content="A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a fullscreen Ambient logbook…">
 <link rel="canonical" href="https://xenon-app.com/catalog/limnograph/">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -15,17 +15,18 @@
      ground first. /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
 <script src="/theme.js" defer></script>
+<script src="/chrome.js" defer></script>
 
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://xenon-app.com/catalog/limnograph/">
-<meta property="og:title" content="Limnograph — Package for Xenon">
+<meta property="og:title" content="Limnograph: Package for Xenon">
 <meta property="og:description" content="A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a fullscreen Ambient logbook…">
 <meta property="og:image" content="https://assets.xenon-app.com/community/shots/limnograph.webp">
 <meta property="og:image:alt" content="Limnograph running in the Xenon dashboard">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Limnograph — Package for Xenon">
+<meta name="twitter:title" content="Limnograph: Package for Xenon">
 <meta name="twitter:description" content="A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a fullscreen Ambient logbook…">
 <meta name="twitter:image" content="https://assets.xenon-app.com/community/shots/limnograph.webp">
 
@@ -48,11 +49,11 @@ header.top .wrap{display:flex;align-items:center;gap:14px;height:64px}
    across the site. Nothing about it belongs in this file. */
 .top-cta{margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
 .top-cta:hover{color:var(--text)}
-nav.crumb{font-size:13px;color:var(--dim);padding:22px 0 0}
+nav.crumb{font-size:15px;color:var(--muted);padding:22px 0 0}
 nav.crumb a{color:var(--muted);text-decoration:none}
 nav.crumb a:hover{color:var(--green)}
 main{padding-bottom:72px}
-.tier{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+.tier{display:inline-block;font-size:15px;font-weight:700;
 color:var(--green);margin:26px 0 10px}
 .tier.locked{color:var(--gold)}
 .tier.limited{color:var(--iris)}
@@ -60,19 +61,19 @@ h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-we
 .by{color:var(--muted);margin-top:10px;font-size:15px}
 .by b{color:var(--text);font-weight:600}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;
-font-size:13px;color:var(--muted)}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;
+font-size:14px;color:var(--muted)}
 .desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
 .shots{margin-top:28px;display:grid;gap:14px}
 .shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
 .sec{margin-top:34px}
-.sec h2{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.sec h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px}
 .sec p{color:var(--bone-1);max-width:66ch}
 .sw{display:flex;flex-wrap:wrap;gap:14px}
-.sw span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sw span{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
 .tags{display:flex;flex-wrap:wrap;gap:8px}
-.tags span{font-size:13px;color:var(--dim)}
+.tags span{font-size:15px;color:var(--muted)}
 .cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
 font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
@@ -85,7 +86,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .facts{list-style:none;margin:0;padding:0;color:var(--bone-1);max-width:66ch}
 .facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .facts li:last-child{border-bottom:0}
-.facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
+.facts b{font-weight:700;color:var(--muted);flex:0 0 148px;font-size:15px}
 /* Without a basis the long value ("Runs on") wrapped under its own label while
    every short row stayed beside it, so the column read as broken every few rows.
    Below 560px the label goes on its own line for all of them, together. */
@@ -96,7 +97,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
 .rel a:hover{border-color:var(--rule-2)}
 .rel .n{font-weight:600;font-size:15px}
-.rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
+.rel .k{font-size:15px;color:var(--muted);margin-left:auto;white-space:nowrap}
 @media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
 footer a{color:var(--muted);text-decoration:none}
@@ -126,7 +127,7 @@ footer a:hover{color:var(--green)}
         "@id": "https://xenon-app.com/catalog/#catalog"
       },
       "image": "https://assets.xenon-app.com/community/shots/limnograph.webp",
-      "applicationCategory": "DesktopApplication",
+      "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Windows, macOS, Linux",
       "softwareRequirements": "Xenon 4.6.0 or later",
       "version": "1.0.1",
@@ -171,12 +172,25 @@ footer a:hover{color:var(--green)}
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap">
-    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
-    <a class="top-cta" href="/catalog/">All community items →</a>
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
+    </div>
   </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li><li><a href="/#install" data-xl="install">Install</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Buy me a coffee</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
 </header>
+<!-- /xenon:header -->
 
 <div class="wrap">
   <nav class="crumb" aria-label="Breadcrumb">
@@ -189,9 +203,9 @@ footer a:hover{color:var(--green)}
     <p class="by">Package for the Xenon dashboard, by <a href="/creators/xenon/"><b>xenon</b></a></p>
     <div class="meta"><span class="chip">v1.0.1</span><span class="chip">Style</span><span class="chip">Xenon 4.6.0+</span><span class="chip">Added 2026-07-23</span></div>
     <p class="desc">A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a fullscreen Ambient logbook with local time and live weather.</p>
-    <div class="shots"><img src="https://assets.xenon-app.com/community/shots/limnograph.webp" alt="Limnograph — screenshot 1 of 3" loading="eager" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/limnograph.png'"><img src="https://assets.xenon-app.com/community/shots/limnograph-2.webp" alt="Limnograph — screenshot 2 of 3" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/limnograph-2.png'"><img src="https://assets.xenon-app.com/community/shots/limnograph-3.webp" alt="Limnograph — screenshot 3 of 3" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/limnograph-3.png'"></div>
+    <div class="shots"><img src="https://assets.xenon-app.com/community/shots/limnograph.webp" alt="Limnograph, screenshot 1 of 3" loading="eager" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/limnograph.png'"><img src="https://assets.xenon-app.com/community/shots/limnograph-2.webp" alt="Limnograph, screenshot 2 of 3" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/limnograph-2.png'"><img src="https://assets.xenon-app.com/community/shots/limnograph-3.webp" alt="Limnograph, screenshot 3 of 3" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/limnograph-3.png'"></div>
     <section class="sec"><h2>What's in it</h2><p>Removed the artificial survey lines and moving scan from both the dashboard background and Ambient scene. The lake now moves only through subtle natural refraction.</p></section>
-    <section class="sec"><h2>What a package does</h2><p>A package installs several pieces at once — typically a theme, a background and one or more widgets built to look like each other — so the whole dashboard changes in one paste.</p></section>
+    <section class="sec"><h2>What a package does</h2><p>A package installs several pieces at once, usually a theme, a background and one or more widgets built to look like each other, so the whole dashboard changes in one paste.</p></section>
     <section class="sec"><h2>Palette</h2><div class="sw"><span><i style="background:#006f68"></i>#006f68</span><span><i style="background:#d9e8df"></i>#d9e8df</span><span><i style="background:#102b2b"></i>#102b2b</span></div></section>
     <section class="sec"><h2>Tags</h2><div class="tags"><span>#alpine</span><span>#lake</span><span>#weather</span><span>#instrument</span><span>#dual-tone</span></div></section>
     
@@ -205,7 +219,7 @@ footer a:hover{color:var(--green)}
         <li><b>Made by</b><span><a href="/creators/xenon/">xenon</a></span></li>
         <li><b>Version</b><span>v1.0.1</span></li>
         <li><b>Needs</b><span>Xenon 4.6.0 or later</span></li>
-        <li><b>Runs on</b><span>Windows, macOS and Linux — on a second monitor, a Xeneon Edge, a tablet or a paired phone</span></li>
+        <li><b>Runs on</b><span>Windows, macOS and Linux, on a second monitor, a Xeneon Edge, a tablet or a paired phone</span></li>
         <li><b>Price</b><span>Free</span></li>
         <li><b>Added</b><span>2026-07-23</span></li>
       </ul>
@@ -214,23 +228,32 @@ footer a:hover{color:var(--green)}
       <div class="rel">
         <a href="/catalog/lakeside/"><span class="n">Lakeside</span><span class="k">Theme</span></a>
         <a href="/catalog/ambra/"><span class="n">Ambra</span><span class="k">Package</span></a>
-        <a href="/catalog/codex/"><span class="n">Codex</span><span class="k">Package</span></a>
         <a href="/catalog/afterimage/"><span class="n">Afterimage</span><span class="k">Package</span></a>
         <a href="/catalog/aracne/"><span class="n">Aracne</span><span class="k">Package</span></a>
         <a href="/catalog/kintsugi/"><span class="n">Kintsugi</span><span class="k">Package</span></a>
+        <a href="/catalog/nocturne-pack/"><span class="n">Nocturne Pack</span><span class="k">Package</span></a>
       </div>
       <p class="note"><a href="/catalog/">See all community items →</a></p>
     </section>
   </main>
 </div>
 
-<footer>
-  <div class="wrap">
-    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
-    <a href="/submit/">Publish yours</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a>
-    <span> · Updated 2026-07-23</span>
+<p class="wrap updated">Updated 2026-07-23</p>
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
   </div>
 </footer>
+<!-- /xenon:footer -->
 
 </body>
 </html>

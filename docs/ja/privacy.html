@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon プライバシーポリシー：アプリとウェブサイトが送るもの</title>
+<meta name="description" content="Xenon ダッシュボードアプリが行う通信とそのタイミング、二つの匿名カウンターとそれをオフにする方法、そして xenon-app.com が収集するもの。">
+<link rel="canonical" href="https://xenon-app.com/ja/privacy.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/privacy.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/privacy.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/privacy.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/privacy.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/privacy.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
+<meta name="robots" content="index, follow, max-snippet:-1">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:url" content="https://xenon-app.com/ja/privacy.html">
+<meta property="og:title" content="Xenon プライバシーポリシー：アプリとウェブサイトが送るもの">
+<meta property="og:description" content="Xenon ダッシュボードアプリが行う通信とそのタイミング、二つの匿名カウンターとそれをオフにする方法、そして xenon-app.com が収集するもの。">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon プライバシーポリシー：アプリとウェブサイトが送るもの">
+<meta name="twitter:description" content="Xenon ダッシュボードアプリが行う通信とそのタイミング、二つの匿名カウンターとそれをオフにする方法、そして xenon-app.com が収集するもの。">
+<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://xenon-app.com/privacy.html#webpage","url":"https://xenon-app.com/privacy.html","name":"Xenon プライバシーポリシー：アプリとウェブサイトが送るもの","description":"Xenon ダッシュボードアプリが行う通信とそのタイミング、二つの匿名カウンターとそれをオフにする方法、そして xenon-app.com が収集するもの。","inLanguage": "ja","isPartOf":{"@id":"https://xenon-app.com/#website"},"about":{"@id":"https://xenon-app.com/#app"},"publisher":{"@id":"https://xenon-app.com/#org"}}]}</script>
+
+<noscript></noscript>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  h2:first-of-type { margin-top: 40px; }
+  .tbl-scroll { overflow-x: auto; margin: 20px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 16px; line-height: 1.5; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text); font-weight: 700; font-size: 15px; }
+  td { color: var(--muted); }
+  button.consent-reset {
+    font-family: var(--sans); font-size: 16px; font-weight: 700;
+    min-height: 44px; padding: 11px 20px; border-radius: 9px; cursor: pointer;
+    background: transparent; color: var(--text); border: 1px solid var(--line-2);
+    transition: border-color .2s, color .2s;
+  }
+  button.consent-reset:hover { border-color: var(--text); }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">ダウンロード</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">メニュー</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li><li><a href="/ja/#install" data-xl="install">インストール</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">コーヒーをおごる</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/privacy.html" aria-current="page" data-xl="f.privacy">プライバシー</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"プライバシー","item":"https://xenon-app.com/ja/privacy.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="pv.h1">プライバシーポリシー</h1>
+    <p class="lede" data-i18n="pv.lede">Xenon アプリはあなた自身の PC 上で動き、データもそこに保存します。このウェブサイトはそれとは別のもので、ルールも別です。このページでは両者を分けて、それぞれが何を送り、何を保存するかを説明します。</p>
+    <p class="updated" data-i18n="pv.updated">最終更新日：2026年9月27日</p>
+
+    <h2 data-i18n="pv.sum.h">概要</h2>
+    <div class="card accent">
+      <ul>
+        <li data-i18n-html="pv.sum.track"><strong>Xenon アプリは、あなたの使い方を追跡しません。</strong>アカウントもプロフィールもなく、利用の記録が PC の外に出ることもありません。カウンターは二つあります。一つはアプリが更新を確認するときに送られ、インストールそのものについて、バージョン、システム、インストールしてからのおおよその期間を伝えます。もう一つは、ストアから作品をインストールしたときに、その作品のインストール数に 1 を足します。どちらも、どのウィジェットを開くか、何を検索するか、ダッシュボードで何をするかについては何も伝えません。<strong>新しくインストールした場合、どちらも最初はオンです。</strong>どちらも 設定 &rarr; 一般 &rarr; アップデート でオフにできます。そのカウンターが追加されたバージョンより前から Xenon を使っていた場合、そのカウンターはオフのままになっています。どちらにも識別子が含まれないため、どちらもあなたにたどり着くことはできず、二つを結び付けることもできません。</li>
+        <li data-i18n-html="pv.sum.offline"><strong>アプリは完全なオフラインではありません。</strong>更新の確認と、短いお知らせ一覧の取得は自動で行います。天気、アルバムアート、あなたが接続したサービスに接続するのは、それを使う機能だけです。それらの通信は下に一覧にしています。</li>
+        <li data-i18n-html="pv.sum.ga"><strong>このウェブサイトは Google Analytics を使い</strong>、どのページやダウンロードに人がたどり着いているかを確認しています。EEA（欧州経済領域）、英国、スイスでは、バナーで同意するまで何も保存されません。</li>
+        <li data-i18n-html="pv.sum.cf"><strong>ページビューは Cloudflare Web Analytics でも数えています。</strong>こちらは Cookie を設定せず、プロフィールも作りません。分かるのは、あるページに何人が来たかだけです。</li>
+        <li data-i18n-html="pv.sum.dl"><strong>ダウンロードボタンを押すと、私自身のサーバーにあるカウンターに 1 が足されます。</strong>Cookie も識別子も使いません。ダウンロードのリンクはこれまでどおり GitHub を直接指しているので、このカウンターがあなたとファイルの間に入ることはありません。</li>
+      </ul>
+    </div>
+
+    <h2 data-i18n="pv.who.h">データ管理者と連絡先</h2>
+    <p data-i18n-html="pv.who.p">Xenon は開発者 Marcello Mastroeni が一人で作っている個人プロジェクトで、ソースは独自の非商用ライセンスのもとで GitHub にあります。このウェブサイトのデータ管理者は私です。質問、訂正、ご自身のデータに関する請求など、このページに関することは <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a> にメールで連絡するか、<a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a> で issue を開いてください。</p>
+
+    <h2 data-i18n="pv.site.h">このウェブサイト（xenon-app.com）</h2>
+    <p data-i18n-html="pv.site.p">このサイトは <strong>Google Analytics 4</strong>（測定 ID <code>G-LQ8Y8WZPQF</code>）を使って、どのページが読まれ、どのダウンロードがクリックされ、訪問者がどこから来ているかを把握しています。これはサイトについての集計レポートです。あなたの手元のアプリとはつながっておらず、ここでの訪問を PC 上のインストールと結び付ける方法は私にはありません。</p>
+
+    <h3 data-i18n="pv.ga.h">Analytics が受け取るもの</h3>
+    <ul>
+      <li data-i18n="pv.ga.pages">このサイトで閲覧したページと、参照元のページ。</li>
+      <li data-i18n="pv.ga.clicks">私が意味のあるものとして指定したクリック。ダウンロード、Discord への参加、カタログやクリエイター向けページへの移動、GitHub へのリンクです。</li>
+      <li data-i18n="pv.ga.loc">おおよその位置（国または都市のレベルで、Google があなたの IP から割り出します。レポートに完全な IP は保存されません）、デバイスの種類、ブラウザ、言語。</li>
+      <li data-i18n-html="pv.ga.cookies"><code>_ga</code> と <code>_ga_*</code> という名前の Cookie。再び訪れた人と初めての人を見分けるために使われ、最長 2 年間残ります。</li>
+    </ul>
+
+    <h3>Cloudflare Web Analytics</h3>
+    <p data-i18n-html="pv.cf.p">Analytics と並んで、このサイトは <strong>Cloudflare Web Analytics</strong> を読み込みます。Cookie を使わないページビューのカウンターです。Cookie を設定せず、識別子も保存せず、サイトをまたいで、あるいは訪問をまたいであなたを追うこともできません。報告するのはページの URL、参照元、国、デバイスの種類、ページの読み込み時間で、いずれも集計です。誰も特定しないため同意バナーなしで動作しますが、あることを知っていただけるようここに記載しています。両方を使う理由は、Analytics がバナーで同意した訪問者しか数えないからです。こちらが全体の合計で、Analytics の数字はこれと照らし合わせて読みます。</p>
+
+    <h3 data-i18n="pv.dl.h">ダウンロードカウンター</h3>
+    <p data-i18n-html="pv.dl.p1">このサイトでダウンロードボタンを押すと、ページは私自身のサーバー（アプリが通信するのと同じサポーターハブ）にも 1 行のメモを送ります。内容は、ダウンロードボタンが押されたことと、それがどのボタンか（<code>hero</code>、<code>footer</code> など）です。メッセージはそれだけです。Cookie も識別子もなく、IP も保存せず、ほかの何かと結び付けられるものも含みません。<em>（日付、ボタン）</em>ごとのカウンターに 1 を足し、リクエストは破棄されます。</p>
+    <p data-i18n="pv.dl.p2">これがあるのは、その一歩だけが私には見えなかったからです。Cloudflare はページが表示されたことを知り、GitHub はダウンロードが完了したことを知っていますが、その間でボタンが押されたことはどちらにも見えません。そしてそれこそが、ダウンロードページが実際に機能しているかを示す唯一のものです。Google Analytics なら報告できますが、数えるのはバナーで同意した人だけで、このサイトを訪れる人のかなりの割合は Analytics 自体を完全にブロックしています。そのため数字は、私には測れない方向にずれてしまいます。</p>
+    <p data-i18n-html="pv.dl.p3"><strong>ダウンロードのリンク自体は私のサーバーを通りません。</strong>これまでどおり GitHub を直接指しています。カウンターはそれとは別の、送りっぱなしのメモで、ページはその完了を待ちません。私のサーバーが止まっていても、あなたがそれをブロックしていても、ダウンロードは普通に動き、ボタンを押したことが数えられないだけです。</p>
+
+    <h3 data-i18n="pv.consent.h">Cookie の同意</h3>
+    <p data-i18n-html="pv.consent.p">このサイトは Google Consent Mode を使っています。<strong>EEA、英国、スイス</strong>にいる場合、保存と広告に関するすべての信号は最初は <em>denied（拒否）</em> です。「同意する」を押すまで Cookie は書き込まれず、Analytics が受け取るのは Cookie を使わず個人を特定しない ping だけです。それ以外の地域では初期値が granted（許可）で、「拒否する」を押すとオフになります。拒否は、同意と同じ場所にある同じ大きさのボタンで、1 回クリックするだけです。</p>
+    <div class="card">
+      <p data-i18n="pv.consent.card">考えはいつでも変えられます。このボタンを押すと、保存された選択が消えて、バナーがもう一度表示されます。</p>
+      <button class="consent-reset" type="button" id="consent-reset" data-i18n="pv.consent.btn">Cookie の選択を変更する</button>
+      <span id="consent-missing" hidden data-i18n="pv.consent.missing">同意バナーを利用できません。リセットするには、ブラウザのデータを消去してください。</span>
+    </div>
+    <p data-i18n-html="pv.consent.store">あなたの選択は、ブラウザのローカルストレージに <code>xenon.site.consent</code> という名前で保存されます。この値があなたのデバイスの外に出ることはありません。ブラウザのデータを消去するとリセットされます。</p>
+
+    <h3 data-i18n="pv.host.h">ホスティングとフォント</h3>
+    <p data-i18n-html="pv.host.p">このサイトは <strong>GitHub Pages</strong> から配信されています。GitHub Pages はページを届けるためにリクエストとあなたの IP アドレスを処理し、短期間だけセキュリティログを保持します。これは技術的に必要なもので、同意の選択より前に行われます。ページのヘッダーは、プロジェクトのスター数を GitHub API にブラウザのセッションごとに 1 回問い合わせるので、そのリクエストも GitHub に届きます。サイトのフォントはサイト自体（<code>/fonts/</code>）から配信されるので、読み込んでもほかの誰にも接続しません。唯一の例外は <a href="/demo/">ライブデモ</a> です。ライブデモはアプリ自身のダッシュボードページを動かしていて、そのページのフォントを <strong>Google Fonts</strong> から読み込むため、Google Fonts にもリクエストが届きます。コミュニティのスクリーンショットは <strong>Cloudflare R2</strong>（<code>assets.xenon-app.com</code>）から配信されます。</p>
+
+    <h2 data-i18n="pv.app.h">Xenon アプリ</h2>
+    <p data-i18n-html="pv.app.p1">アプリはあなたのデータを PC に保存します。設定、メモ、タスク、予定、デッキ、AI のメモリ、アップロードした背景は、すべて <code>server/data/</code> にあります。アプリがこのフォルダーをどこかにアップロードすることはなく、分析 SDK もクラッシュレポーターも行動追跡も入っていません。アプリが自分自身について送る報告は、下で説明する二つの匿名カウンターだけで、どちらもいかなる種類の識別子も含みません。サーバーに残るのはカウンターだけで、個々のマシンについての行は決して残りません。</p>
+    <p data-i18n-html="pv.app.search">ローカルのファイル検索とディスク容量ウィジェットは PC 上で動きます。検索した語句、ファイル名、フォルダーの索引、ディスクスキャンの結果はそこで計算されます。検索から開いたファイルの一覧（あなた自身の検索結果の順位を良くするために使います）も、ほかのものと同じく <code>server/data/</code> にあります。例外は、あなたが Xenon AI に渡すものです。クラウドの AI プロバイダーを使っている場合、<strong>スマート検索</strong>（Ctrl+I）は入力した語句をそのプロバイダーに送ります。また、AI にファイルを探させたりディスクの内訳を説明させたりすると、AI が答えの元にする結果（ファイル名やフォルダーのサイズなど）がプロバイダーに送られます。<strong>AI検索とクリーンアップのフルコンテキスト</strong> スイッチ（初期設定はオフ）をオンにすると、インストール済みのアプリ、索引の対象フォルダー、よく使うフォルダー、検索から最近開いたファイルの名前も送られます。その中身は決して送られません。</p>
+    <p data-i18n-html="pv.app.calls">アプリが<em>実際に</em>行うのは、ネットワークが必要な機能のための通信です。以下がその一覧と、それぞれが行われるタイミングです。</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th data-i18n="pv.t.h.what">接続先</th><th data-i18n="pv.t.h.when">タイミング</th><th data-i18n="pv.t.h.why">目的と送る内容</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>api.github.com</code></td>
+            <td data-i18n="pv.t.gh.when">自動、起動時（24 時間キャッシュ）</td>
+            <td data-i18n="pv.t.gh.why">新しいリリースがあるかを確認します。識別子は送りませんが、ほかの HTTP リクエストと同じく、GitHub にはあなたの IP アドレスが見えます。何かをオンにしなくても実行されます。</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code></td>
+            <td data-i18n="pv.t.cat.when">コミュニティのカタログかストアを開いたとき</td>
+            <td data-i18n="pv.t.cat.why">コミュニティのテーマ、ウィジェット、パックの公開カタログをダウンロードします。読み取り専用で、識別子はありません。</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code><br><span style="color:var(--dim)" data-i18n="pv.t.ann.sub">（お知らせ）</span></td>
+            <td data-i18n="pv.t.ann.when">自動、1 日に最大 1 回</td>
+            <td data-i18n-html="pv.t.ann.why">全員に同じ、短いお知らせの一覧をダウンロードします。新しいリリース、ストアの新着、ときどきのお知らせなどです。読み取り専用で、識別子はありません。特定のウィジェットやバージョンを使っている人など、一部の人に向けたお知らせもありますが、その絞り込みは<strong>あなたの PC 上で</strong>行われます。ダッシュボードは一覧全体をダウンロードし、どれが当てはまるかを自分で判断します。何を表示するかを決めるために、あなたが何をインストールしているかが送られることは一切ありません。そのため私は、あなたを狙って表示することも、誰が何を見たかを知ることもできません。お知らせは、どのお知らせからでもオフにできます。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.poll.what">サポーターハブ<br><span style="color:var(--dim)">（アンケートの回答）</span></td>
+            <td data-i18n="pv.t.poll.when">お知らせに表示されたアンケートで回答をタップした場合のみ</td>
+            <td data-i18n="pv.t.poll.why">送るのは選んだ選択肢だけで、ほかには何もありません。インストール UUID も、アカウントも、時刻さえも含まず、IP も保存しません。サーバーはその選択肢のカウンターに 1 を足してリクエストを破棄するので、私を含め誰も、特定の PC が何と答えたかを調べられません。何もタップしなければ何も送られず、お知らせをオフにすればこの送信は完全に止まります。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.count.what">サポーターハブ<br><span style="color:var(--dim)">（インストール数）</span></td>
+            <td data-i18n="pv.t.count.when">ストアから何かをインストールしたときで、そのスイッチがオンの場合のみ</td>
+            <td data-i18n="pv.t.count.why">インストールした作品の id を送り、ほかには何も送りません。インストール UUID もアカウントも含まず、IP も保存しません。サーバーはその作品のカウンターに 1 を足してリクエストを破棄します。どの作品をすでに数えたかはダッシュボードがあなた自身の PC に記録しているので、同じ作品を報告するのは最大 1 回です。だから二重に数えないために、個人を特定できるものを送る必要がありません。その結果、この数字の意味は「報告されたインストール数」であり、「持っている人の数」ではありません。表示される場所ではどこでも、そのように表記しています。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.hub.what">サポーターハブ<br><span style="color:var(--dim)">（Cloudflare Worker）</span></td>
+            <td data-i18n="pv.t.hub.when">カタログの作品を評価したとき、またはサポーターコードを引き換えたとき</td>
+            <td data-i18n-html="pv.t.hub.why">あなたの PC はランダムな UUID（<code>install-id.json</code>）を保持しています。評価が 1 回だけ数えられ、コードを際限なく使い回せないようにするためです。この UUID があなたのマシンの外に出ることはありません。送られるのはそれを一方向ハッシュにした値で、評価とコードの引き換えでは、同じ UUID から作った<strong>別々の</strong>ハッシュを使います。これは意図的です。共通の値が一つだけだと、サポーターコード（Discord のアカウントと結び付けられることがあります）と星の評価が、データベースの中で同じ識別子の下に並び、名前の分かるサポーターがどの作品を評価したかを私が見られてしまいます。二つに分けておけば、突き合わせる手がかりがありません。どちらのハッシュもあなたのハードウェアや名前とは結び付いていません。ファイルを削除すれば、新しい UUID が作られます。</td>
+          </tr>
+          <tr>
+            <td><code>ipwho.is</code></td>
+            <td data-i18n="pv.t.ip.when">天気の現在地の自動検出がオンの場合のみ</td>
+            <td data-i18n="pv.t.ip.why">天気ウィジェットが場所を知るために、あなたの IP をおおよその都市に変換します。場所を手動で設定すれば、この通信は一切行われません。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.wx.what">天気と大気質の API<br><span style="color:var(--dim)">open-meteo, met.no, wttr.in</span></td>
+            <td data-i18n="pv.t.wx.when">ダッシュボードに天気ウィジェットがある場合のみ</td>
+            <td data-i18n="pv.t.wx.why">予報の対象になる座標を送ります。識別子はありません。</td>
+          </tr>
+          <tr>
+            <td><code>itunes.apple.com</code></td>
+            <td data-i18n="pv.t.art.when">メディアの再生中</td>
+            <td data-i18n="pv.t.art.why">曲名からアルバムアートを検索します。識別子はありません。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.svc.what">自分で接続したサービス<br><span style="color:var(--dim)">Spotify、Twitch、YouTube、Discord、Home Assistant、OBS、AI プロバイダー、株価・ニュース・サッカーのフィード</span></td>
+            <td data-i18n="pv.t.svc.when">その連携を設定したあとだけ</td>
+            <td data-i18n="pv.t.svc.why">それぞれが、あなたの入力した認証情報を使い、そのプロバイダーのプライバシーポリシーのもとで、そのプロバイダーと通信します。設定するまでは何もしません。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.push.what">スマートフォンのプッシュサービス<br><span style="color:var(--dim)">スマートフォンのブラウザによって Apple、Google、Mozilla のいずれか</span></td>
+            <td data-i18n="pv.t.push.when">ペアリングしたスマートフォンやタブレットで通知をオンにしたあとだけ</td>
+            <td data-i18n="pv.t.push.why">自分で設定して待っていること、たとえばカウントダウンの終了を、Xenon を閉じているスマートフォンにも PC から知らせられるようにします。メッセージはそのスマートフォンのブラウザ宛てにエンドツーエンドで暗号化されるので、プッシュサービスは中身を読めないまま運びます。ただし、そのスマートフォンにメッセージが届いたことと、その時刻はプッシュサービスに見えます。スマートフォンでボタンを押すまでは何も設定されず、ペアリングした端末を削除すれば止まります。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.ping.what">匿名のバージョン ping<br><span style="color:var(--dim)">サポーターハブ</span></td>
+            <td data-i18n-html="pv.t.ping.when"><strong>v4.8.0 以降のインストールでは初期設定でオン</strong>。それより前のインストールでは、自分でオンにしない限りオフ</td>
+            <td data-i18n="pv.t.ping.why">バージョン、システム、インストールしてからの期間、その週で最初かどうかのフラグを、1 日に最大 1 回、上の行と同じサポーターハブに送ります。識別子は一切含みません。完全な一覧は下のセクションにあります。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p data-i18n="pv.ai">ローカルの AI 機能（Ollama、Whisper）は、すべてあなたのマシンの中で動きます。クラウドの AI プロバイダーは違います。Gemini、OpenAI、Anthropic を選ぶと、プロンプトはそのプロバイダーの規約のもとでそのプロバイダーに送られます。音声での返答は仕組みが異なります。独自の音声を持つ Gemini と OpenAI 以外のプロバイダーでは、読み上げるテキストが音声に変換されるため、Microsoft のオンラインの Edge 音声サービスに送られます。どの AI プロバイダーを使うかはあなたが選び、アプリがあなたの選んでいないクラウドのモデルにプロンプトを送ることは決してありません。</p>
+
+    <h2 id="version-ping" data-i18n="pv.ping.h">バージョン ping</h2>
+    <p data-i18n-html="pv.ping.intro">実際に何人が Xenon を使っているのか、私にはまったく分かりません。ダウンロード数はノイズですし、推測するより、古いリリースで止まっている人がいるかどうかを知りたいと考えています。そこで <strong>設定 → 一般 → アップデート</strong> に <strong>このインストールを匿名で集計</strong> というスイッチがあり、アプリが更新を確認するとき、1 日に最大 1 回、いくつかの項目を送ります。完全な一覧は次のとおりです。</p>
+    <ul>
+      <li data-i18n-html="pv.ping.l1">使っているバージョン（例：<code>4.11.0</code>）</li>
+      <li data-i18n-html="pv.ping.l2">OS の種類（例：<code>win32</code>）。マシン自体や、その名前、仕様は含みません</li>
+      <li data-i18n="pv.ping.l3">インストールしてからの期間。当日、1 日から 7 日、8 日から 30 日、31 日から 90 日、90 日超の五つの区分のどれか一つ</li>
+      <li data-i18n-html="pv.ping.l4">このインストールが初めて起動した月（例：<code>2026-07</code>）、または <code>unknown</code></li>
+      <li data-i18n-html="pv.ping.l5">以前使っていたバージョン。バージョンが変わったあとの最初の ping で<em>だけ</em>送ります</li>
+      <li data-i18n="pv.ping.l6">はい／いいえのフラグ二つ。その週で最初の ping かどうかと、その月で最初の ping かどうか</li>
+      <li data-i18n="pv.ping.l7">インターフェースの言語。アプリが対応している 11 言語のどれか一つ</li>
+    </ul>
+    <p data-i18n-html="pv.ping.not">送られるのはこれで全部です。<strong>含まれないもの</strong>は次のとおりです。インストール UUID は含みません（この識別子は評価とサポーターコード専用にしてあり、ここに混ぜると両者を突き合わせられるようになります。それこそ、私ができないようにしておきたいことです）。IP は保存せず、ハードウェアの詳細、タイムゾーン、使っているウィジェット、検索する内容、開くものについての情報も含みません。ping はサポーターハブへの小さなリクエスト一つで、アプリがすでに行っている更新確認の直後に送られます。</p>
+
+    <h3 data-i18n="pv.flags.h">週ごと・月ごとの集計</h3>
+    <p data-i18n-html="pv.flags.p">人を識別せずには得られなかった唯一の数字が、「今週アクティブだった<em>異なる</em>インストールはいくつか」です。普通はこれに id が必要です。同じ PC からの ping 二つと、二台の PC からの ping 二つを、サーバーが区別するためです。ここではその役目をあなたの PC 自身が担います。最後に報告した週と月をあなたのディスクに記録しておき、「今週は初めて」と 1 回だけ伝えるのです。サーバーは 1 を足すだけで、それ以外は何も知りません。週ごと・月ごとの集計は正確になり、それでもあなたを特定できるものは何もありません。</p>
+
+    <h3 data-i18n="pv.store.h">集計の保存方法</h3>
+    <p data-i18n-html="pv.store.p1">サーバー側にあるのはカウンターだけで、マシンについての行はありません。さらに、上の項目は<strong>項目ごとに別々のテーブル</strong>で数えられ、一つの行にまとめられることはありません。ここが重要な点です。バージョン<em>と</em>システム<em>と</em>経過期間<em>と</em>初回起動月<em>と</em>言語を一つにまとめた行は、たった一人の人を簡単に言い当ててしまいかねません。しかもその大半は日によって変わらないので、連続した日を一台のマシンの履歴としてつなげられてしまいます。わざわざ識別子を送らないようにしたのに、データから識別子が組み上がってしまうのです。項目ごとに別々に数えれば、その組み合わせはデータベースにそもそも存在しません。隠されているのでも、アクセスを制限されているのでもなく、存在しないのです。私が読めるのは「今日 4.11.0 を使っていたインストールが N 件」「7 月に初めて起動したものが N 件」「90 日より古いものが N 件」といった数字で、それがどの N 件なのか、どこが重なっているのかは決して分かりません。</p>
+    <p data-i18n-html="pv.store.p2">二か所だけ、二つの値を並べて保存しています。そこでは組み合わせ<em>そのもの</em>が知りたいことだからです。あるバージョンから別のバージョンへ移ったインストールがいくつあるかと、ある月に初めて起動したインストールのうち、後の月にもまだアクティブなものがいくつあるかです。どちらもそれ以外には何も持たず、5 回未満しか現れない組み合わせは「その他」にまとめられます。私だけが見られる管理画面でも同じです。</p>
+    <p data-i18n="pv.store.p3">すべてのデータは 400 日後に削除されます。リクエストごとの行は保存しないので、引き渡したり、提出を命じられたり、漏洩したりしうるデータセットは存在しません。</p>
+
+    <h3 data-i18n="pv.v411.h">v4.11.0 での変更</h3>
+    <p data-i18n-html="pv.v411.p1">スイッチの状態そのものは、誰に対しても変わっていません。オフだった人はオフのまま、オンだった人はオンのままです。変わったのは<em>オン</em>のときの ping に含まれる内容で、このページが同じリリースで更新されたのはそのためです。</p>
+    <p data-i18n-html="pv.v411.p2">一つ制約があります。このリリースより前からあるインストールは、経過期間と初回起動月を <code>unknown</code> として報告し、今後もずっとそのままです。アプリはそれらが最初に起動した日時を記録していなかったからです。推測した数字よりも、目に見える空白を残すほうを選びました。この見えない部分は独立した区分として数えて表示しているので、全体のうちどれだけが欠けているかを私は常に確認できます。</p>
+
+    <h3 data-i18n="pv.v48.h">v4.8.0 での変更</h3>
+    <p data-i18n-html="pv.v48.p1">v4.7.1 までは、このスイッチは自分でオンにするまでオフでした。<strong>v4.8.0 からは、新規インストールでは初期設定でオン</strong>になっています。このようなスイッチをオンにする人はほとんどおらず、そのため数字が役に立たなかったからです。設定からいつでもオフにでき、オフにするとすぐに反映されます。</p>
+    <p data-i18n-html="pv.v48.p2"><strong>すでに Xenon をインストールしていた場合、あなたには何も変わっていません。</strong>新しい初期設定が読まれるのは、設定ファイルがまだないとき、つまり新規インストールのときだけです。v4.8.0 より前にインストールしてスイッチに触れていなければ、オフのままです。あなたは、自分で選ばない限りオフだと伝えられていました。アップデートは、それを黙って変える場ではありません。オンにしていた場合は、オンのままです。いずれにしても、アプリは設定にすでに書かれている内容をそのまま保ちます。</p>
+
+    <h2 data-i18n="pv.rights.h">あなたの権利</h2>
+    <p data-i18n-html="pv.rights.p1">GDPR のもとで、あなたは自分の個人データへのアクセス、訂正、消去を求めることができ、処理に異議を申し立てることもできます。このウェブサイトについての実際の方法は、「拒否する」（または上のボタン）を押して Analytics を止める、Google の <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">オプトアウト アドオン</a> を使う、ブラウザのデータを消去する、のいずれかです。アプリについては、アンインストールすると上で説明したすべての通信が止まり、<code>server/data/</code> を削除すると、インストール UUID を含め、アプリが保存したものがすべて消えます。</p>
+    <p data-i18n-html="pv.rights.p2">また、監督機関に苦情を申し立てる権利もあります。イタリアでは <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>（個人データ保護機関）がそれにあたります。</p>
+
+    <h2 data-i18n="pv.changes.h">このページの変更</h2>
+    <p data-i18n="pv.changes.p">上の表にない通信をアプリが始める場合は、同じリリースで表を更新し、リリースノートにもそう書きます。このページが最後に変更された日は、上部の日付で分かります。</p>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+<script>
+  // The reset helper is defined by consent.js, which is deferred — so guard for
+  // the case where an adblocker stripped it and keep the button honest.
+  // The fallback line lives in a hidden span in <main>, so the language copies translate it.
+  document.getElementById('consent-reset').addEventListener('click', function () {
+    if (typeof window.xenonConsentReset === 'function') window.xenonConsentReset();
+    else this.textContent = document.getElementById('consent-missing').textContent;
+  });
+</script>
+
+</body>
+</html>

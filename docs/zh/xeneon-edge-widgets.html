@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xeneon Edge 小组件：iCUE 与免费的 Xenon 仪表盘</title>
+<meta name="description" content="适用于 CORSAIR Xeneon Edge 的免费仪表盘：拖放式页面，麦克风、音频和媒体控制，不影响游戏的触控。有没有 iCUE 都能运行，无需账号。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xeneon Edge 小组件：iCUE 与免费的 Xenon 仪表盘">
+<meta property="og:description" content="适用于 CORSAIR Xeneon Edge 的免费仪表盘：拖放式页面，麦克风、音频和媒体控制，不影响游戏的触控。有没有 iCUE 都能运行，无需账号。">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/zh/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/xeneon-edge-widgets.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/xeneon-edge-widgets.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 会取代 iCUE 吗？","acceptedAnswer":{"@type":"Answer","text":"不会。iCUE 仍然负责驱动你的 CORSAIR 硬件和灯光。Xenon 与它并行运行，可以是独立的窗口，也可以放在 iCUE 的一个面板里，还能通过自己的桥接把灯光效果发送给 iCUE。"}},{"@type":"Question","name":"使用 Xenon 一定要有 Xeneon Edge 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。任何闲置的显示器、旧平板、连接同一 Wi-Fi 的手机或触摸屏，用起来都一样。"}},{"@type":"Question","name":"可以同时使用 iCUE 小组件和 Xenon 吗？","acceptedAnswer":{"@type":"Answer","text":"可以。Xenon 以网页小组件的形式占用一个 iCUE 面板，其他面板保持原样。"}},{"@type":"Question","name":"Xenon 免费吗？","acceptedAnswer":{"@type":"Answer","text":"免费。个人使用免费，源代码以非商业许可证公开在 GitHub 上，没有试用期，也没有锁定的功能。"}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/xeneon-edge-widgets.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/xeneon-edge-widgets.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/xeneon-edge-widgets.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/xeneon-edge-widgets.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/xeneon-edge-widgets.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/xeneon-edge-widgets.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/xeneon-edge-widgets.html" aria-current="page" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"在 Xeneon Edge 上使用 Xenon","item":"https://xenon-app.com/zh/xeneon-edge-widgets.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="edge.h1">Xeneon Edge 小组件</h1>
+    <p class="lede" data-i18n="edge.lede">Edge 是一块好屏幕，但小组件目录不大。Xenon 是一款围绕它的确切形状设计的免费仪表盘：页面由你亲手排布，控制按钮直接作用于电脑，触控绝不会抢走游戏的焦点，而且有没有 iCUE 都能运行。</p>
+    <p class="updated" data-i18n="edge.updated">最后更新：2026年9月26日</p>
+
+    <nav class="jump">
+      <a href="#icue" data-i18n="edge.jump.icue">iCUE 提供什么</a>
+      <a href="#xenon" data-i18n="edge.jump.xenon">Xenon 增加什么</a>
+      <a href="#install" data-i18n="edge.jump.install">放到 Edge 上</a>
+      <a href="#honest" data-i18n="edge.jump.honest">试用前需要了解的事</a>
+      <a href="#faq" data-i18n="edge.jump.faq">常见问题</a>
+    </nav>
+
+    <h2 id="icue" data-i18n="edge.h.icue">Edge 开箱即有的功能</h2>
+    <p data-i18n="edge.icue.p1">CORSAIR Xeneon Edge 是一块 14.5 英寸、2560×720 的触控长条屏，可以装在桌面支架上，也可以装进机箱里原本放三把 120 mm 风扇的位置。开箱时它就是一台普通的副显示器，iCUE 则把它变成一面小组件墙：传感器读数、时钟、媒体控制、网页，以及其他人导出并分享的小组件。CORSAIR 还发布了 WidgetBuilder 工具包，供想自己编写小组件的人使用。</p>
+    <p data-i18n="edge.icue.p2">这是一个不错的起点，对很多用户来说已经够用了。用户论坛里反复出现的需求，正是 iCUE 没有解决的那些：可以亲手重新排布的布局，能在电脑上真正做点什么、而不只是显示一个数字的控制，不会抢走游戏焦点的触控，以及完全不运行 iCUE 也能使用这块长条屏的办法。</p>
+
+    <h2 id="xenon" data-i18n="edge.h.xenon">Xenon 增加什么</h2>
+    <p data-i18n="edge.xenon.p1">Xenon 是一款免费仪表盘，最初围绕 Edge 那种又矮又宽的确切形状设计，后来才扩展到任何屏幕。它在你的电脑上作为一个小型本地服务运行，并以两种方式之一出现在 Edge 上：作为独立的全屏原生应用，完全不需要 iCUE；或者，如果你更想把一切集中在一处，也可以作为 iFrame 面板放在 iCUE 里。</p>
+    <ul>
+      <li data-i18n-html="edge.add.pages"><strong>拖放式页面。</strong>由可调整大小的磁贴组成的网格，最多八页，布局可以保存，也可以用一段代码分享。</li>
+      <li data-i18n-html="edge.add.controls"><strong>作用于电脑的控制。</strong>静音麦克风、切换音频输出、跳过曲目、分别调节各应用的音量，还有一组类似 Stream Deck 的按键网格，用于应用、OBS、快捷键和宏。</li>
+      <li data-i18n-html="edge.add.touch"><strong>不影响游戏的触控。</strong>在原生应用中，点按 Edge 绝不会把鼠标从游戏中移走，也不会抢走游戏的焦点。只有真正的原生窗口才能向 Windows 提出这个要求。</li>
+      <li data-i18n-html="edge.add.ai"><strong>Xenon AI。</strong>说出你想在页面上放什么，它就会把页面搭好。可以使用 Google Gemini，也可以通过 Ollama 使用免费的本地模型。</li>
+      <li data-i18n-html="edge.add.sensors"><strong>传感器和历史记录。</strong>CPU、GPU、内存、磁盘、网络、游戏内的真实帧率，另有 24 小时到 30 天的历史记录。温度读取使用的是已签名的组件（PawnIO），从不使用 WinRing0。</li>
+      <li data-i18n-html="edge.add.lighting"><strong>灯光。</strong>根据 CPU 温度、计时器或专辑封面驱动 iCUE 的 LED，同时控制网络中的 Govee、LIFX、WLED、Hue 和 Nanoleaf 灯具。</li>
+      <li data-i18n-html="edge.add.catalog"><strong>社区目录。</strong>其他用户分享的主题、小组件包和整套页面布局，用一段代码即可安装。</li>
+    </ul>
+    <p data-i18n="edge.xenon.privacy">仪表盘运行在你的电脑上，不需要账号。设置、文件和传感器读数都保留在电脑上。应用会检查更新、读取目录、每天获取一个公告文件，并发送匿名的版本统计（在“设置”中用一个开关即可关闭）；其他内容只有在你开启相应功能时才会联网，比如天气或 AI 服务。</p>
+
+    <h2 id="install" data-i18n="edge.h.install">放到 Edge 上</h2>
+    <ol>
+      <li data-i18n-html="edge.install.1">下载 <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe">Xenon-Setup-x64.exe</a> 并运行。它会安装原生应用。</li>
+      <li data-i18n-html="edge.install.2">应用打开后，发现还没有仪表盘引擎，会显示 <strong>Complete setup</strong>（完成设置）。点一次即可。这会在一个你可以查看的窗口中安装 Node.js、传感器读取程序和登录时启动的任务。</li>
+      <li data-i18n="edge.install.3">Xenon 第一次打开时会问你要在哪块屏幕上使用它。选择 Edge。之后无论显示设置发生变化还是电脑进入睡眠，它都会固定在那里。</li>
+      <li data-i18n-html="edge.install.4">如果你更喜欢 iCUE：在 iCUE 中添加一个指向 <code>http://127.0.0.1:3030/</code> 的网页小组件，Xenon 就会填满这个面板。</li>
+    </ol>
+
+    <h2 id="honest" data-i18n="edge.h.honest">试用前需要了解的事</h2>
+    <p data-i18n-html="edge.honest.p1">有两点需要说明。第一，Windows 安装程序已经签名，所以 Windows 会显示经过验证的发布者，但 SmartScreen 仍可能在一段时间内发出警告，因为 Microsoft 是随时间逐步给予信誉的：点击<strong>更多信息</strong>，再点<strong>仍要运行</strong>。<a href="/zh/faq.html#warnings">常见问题介绍了如何自己验证文件</a>。第二，Xenon 以 Windows 为主。macOS 和 Linux 版本已经推出，目前是测试版，而 Edge 专属的部分（保留的触控手势、虚拟第二屏幕、iCUE 灯光）只支持 Windows。</p>
+    <p data-i18n="edge.honest.p2">它是免费的，没有付费版。如果你最后每天都在用，可以成为支持者，解锁几款额外的主题和小组件，这就是全部的商业模式。</p>
+
+    <h2 id="faq" data-i18n="edge.h.faq">常见问题</h2>
+    <details><summary data-i18n="edge.faq.icue.q">Xenon 会取代 iCUE 吗？</summary><div class="body"><p data-i18n="edge.faq.icue.a">不会。iCUE 仍然负责驱动你的 CORSAIR 硬件及其灯光。Xenon 与它并行运行，可以是独立的窗口，也可以放在 iCUE 的一个面板里，还能通过自己的桥接把灯光效果发送给 iCUE。你可以在不打开 iCUE 的情况下在 Edge 上运行 Xenon，但负责配置设备的仍然是 iCUE。</p></div></details>
+    <details><summary data-i18n="edge.faq.need.q">使用 Xenon 一定要有 Edge 吗？</summary><div class="body"><p data-i18n-html="edge.faq.need.a">不需要。Edge 是它最初面向的屏幕，但任何闲置的显示器、旧平板、连接同一 Wi-Fi 的手机或触摸屏，用起来都一样。参见<a href="/zh/tablet-dashboard.html">把旧平板或手机用作电脑仪表盘</a>。</p></div></details>
+    <details><summary data-i18n="edge.faq.both.q">可以同时使用 iCUE 小组件和 Xenon 吗？</summary><div class="body"><p data-i18n="edge.faq.both.a">可以。在 iCUE 中，Edge 被分成若干面板；Xenon 以网页小组件的形式占用一个面板，其余面板保持原样。如果你愿意，它也可以占满整块长条屏。</p></div></details>
+    <details><summary data-i18n="edge.faq.free.q">Xenon 免费吗？</summary><div class="body"><p data-i18n="edge.faq.free.a">免费。个人使用免费，源代码以非商业许可证公开在 GitHub 上，没有试用期，也没有任何功能被锁在某个档位之后。支持者会得到几款额外的主题作为感谢。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="edge.cta.h">下载 Xenon</h3>
+      <p data-i18n-html="edge.cta.p">一个安装程序，无需账号，你的设置和文件都保留在你的电脑上。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">下载 Windows 版 Xenon</a>，或者获取 <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">macOS 和 Linux 版本</a>。有问题请到 <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a> 提问。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

@@ -45,8 +45,8 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xenon — get this preset</title>
-<meta name="description" content="A Xenon share code — a theme, page, Deck profile, widget or package made by the community. Copy it and import it in your local Xenon dashboard.">
+<title>Xenon: get this preset</title>
+<meta name="description" content="A Xenon share code: a theme, page, Deck profile, widget or package made by the community. Copy it and import it in Xenon on your PC.">
 <!-- Kept out of the index on purpose. The page has no content of its own: it
      renders whatever share code arrives in the URL fragment, so every code
      shared from a QR card would otherwise be another near-identical URL
@@ -56,120 +56,85 @@
 <link rel="canonical" href="https://xenon-app.com/get/">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<link rel="icon" type="image/png" href="../images/favicon.png">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<link rel="stylesheet" href="/site.css">
 <style>
-  /* Small, self-contained QR landing — same palette as the main site, but system
-     fonts only so it paints instantly on a phone. */
-  :root {
-    --ink:    var(--g-0);
-    --panel:  var(--g-1);
-    --line:   var(--rule);
-    --line-2: var(--rule-2);
-    --plasma: var(--bone-0);
-    --plasma-2: var(--bone-1);
-    --text:   var(--bone-0);
-    --muted:  var(--bone-1);
-    --mono:   ui-monospace, 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* A small landing for share links and QR cards, in the site's STANZA
+     voice: the neutral room, Sofia Sans, one lit key. It loads after
+     site.css, so its own rules win where they overlap. */
+  * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    min-height: 100dvh; display: flex; align-items: center; justify-content: center;
-    padding: 22px 16px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased;
-    /* Two decorative washes used to sit here — a green at transparent
-       and a cyan at transparent. That green was a FOURTH one: the site
-       carried #1ed760 on the home, #1ee07a here in the tokens, #4ce38a and
-       var(--bone-1) as hover steps, and this one in the gradient. Nobody can hold four
-       greens in their head, which is how a palette drifts. */
-    background: var(--ink);
+    margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px; font: 400 17px/1.55 var(--sans); color: var(--bone-0);
+    background: var(--g-0); -webkit-font-smoothing: antialiased;
   }
-  a { color: inherit; text-decoration: none; }
-  ::selection { background: var(--plasma); color: var(--g-0); }
-
-  .card {
-    width: 100%; max-width: 520px; padding: 30px 26px 26px; border-radius: 22px;
-    border: 1px solid var(--line); background: var(--panel);
-    box-shadow: none;
-  }
-  .logo {
-    display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px;
-    font-weight: 800; font-size: 19px; letter-spacing: 0.08em;
-  }
-  .logo img { height: 30px; width: auto;  }
-  .tag {
-    display: block; font-size: 13px; letter-spacing: 0;
-    text-transform: none; color: var(--bone-2); margin-bottom: 12px;
-  }
-  h1 { font-size: clamp(24px, 6vw, 30px); line-height: 1.12; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); font-size: 14.5px; margin-top: 12px; }
-
+  .card { width: 100%; max-width: 540px; padding: 32px 28px 24px; background: var(--g-1); border-radius: var(--r-1); }
+  .logo { display: inline-flex; align-items: center; gap: 11px; margin-bottom: 26px; color: var(--bone-0); text-decoration: none; font: 800 23px/1 var(--display); letter-spacing: -0.01em; }
+  .logo .mark { width: 32px; height: 32px; border-radius: 23%; background: #070808; display: grid; place-items: center; flex: none; }
+  .logo .mark img { width: 23px; height: auto; display: block; filter: none !important; }
+  .tag { display: block; margin-bottom: 8px; font-size: 15px; color: var(--bone-1); }
+  h1 { margin: 0; font: 780 clamp(30px, 6vw, 40px)/1.08 var(--display); letter-spacing: -0.014em; }
+  .sub { margin: 14px 0 0; font-size: 17px; color: var(--bone-1); }
   textarea {
-    width: 100%; margin-top: 20px; padding: 13px 14px; resize: none;
-    font-family: var(--mono); font-size: 12px; line-height: 1.6; word-break: break-all;
-    color: var(--plasma-2); background: var(--g-1);
-    border: 1px solid var(--line-2); border-radius: 12px; outline: none;
+    width: 100%; margin-top: 22px; padding: 14px; resize: none;
+    font: 500 14px/1.6 var(--mono); word-break: break-all;
+    color: var(--bone-0); background: var(--g-0);
+    border: 1px solid var(--rule); border-radius: 6px;
   }
-  textarea:focus { border-color: var(--plasma); }
-
+  textarea:focus-visible { outline: 2px solid #008DFF; outline-offset: 2px; }
+  /* The one lit key: the site's Download key, the product's Deck key. */
   .btn {
-    display: flex; width: 100%; align-items: center; justify-content: center; gap: 9px;
-    margin-top: 14px; padding: 15px 20px; border: 0; border-radius: 999px; cursor: pointer;
-    font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;
-    color: var(--g-0); background: var(--bone-0); box-shadow: none;
-    transition: transform .15s ease, background .2s, box-shadow .2s;
+    --lit: #008DFF;
+    display: flex; width: 100%; align-items: center; justify-content: center;
+    min-height: 52px; margin-top: 16px; padding: 0 20px; border-radius: 10px; cursor: pointer;
+    font: 700 17px/1 var(--display); color: #fff; text-decoration: none;
+    background-color: #104D82;
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
+    border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38);
+    transition: transform .11s cubic-bezier(.2,.8,.2,1), filter .15s;
   }
-  .btn:hover { background: var(--bone-1); box-shadow: none; }
-  .btn:active { transform: translateY(2px); }
-  .copied {
-    min-height: 20px; margin-top: 10px; text-align: center;
-    font-family: var(--mono); font-size: 11.5px; color: var(--plasma-2);
-  }
-
+  .btn:hover { filter: brightness(1.1); }
+  .btn:active { transform: translateY(2px) scale(.985); }
+  .btn:focus-visible { outline: 2px solid var(--bone-0); outline-offset: 3px; }
+  .copied { min-height: 24px; margin-top: 10px; text-align: center; font-size: 15px; color: var(--bone-1); }
   ol.steps { margin: 18px 0 0; padding: 0; list-style: none; counter-reset: st; }
   ol.steps li {
-    counter-increment: st; position: relative; padding: 10px 0 10px 42px;
-    font-size: 14px; color: var(--muted); border-top: 1px solid var(--line);
+    counter-increment: st; position: relative; padding: 12px 0 12px 42px;
+    font-size: 16px; color: var(--bone-1); border-top: 1px solid var(--rule);
   }
   ol.steps li::before {
-    content: counter(st); position: absolute; left: 0; top: 10px;
-    width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center;
-    font-family: var(--mono); font-weight: 700; font-size: 12px;
-    color: var(--g-0); background: var(--plasma);
+    content: counter(st); position: absolute; left: 0; top: 11px;
+    width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center;
+    font: 700 15px/1 var(--sans); color: var(--bone-0); background: var(--g-2);
   }
-  ol.steps li b { color: var(--text); font-weight: 600; }
-
-  .links { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
-  .links a { font-family: var(--mono); font-size: 12.5px; color: var(--plasma-2); }
-  .links a:hover { color: var(--plasma); text-decoration: underline; }
-
+  ol.steps li b { color: var(--bone-0); font-weight: 650; }
+  .links { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .links a { font-size: 16px; color: var(--bone-0); text-decoration: underline; text-underline-offset: .18em; }
   footer {
-    margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line);
-    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
-    text-transform: none; letter-spacing: 0; color: var(--bone-2); text-align: center;
+    margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 18px;
+    font-size: 15px; color: var(--bone-1);
   }
   [hidden] { display: none !important; }
+  @media (forced-colors: active) { .btn { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; } }
 </style>
-<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
-     this file owns the palette, the type and the motion for every page on the
-     site, and each page kept its own drifted copy of those tokens. Later wins,
-     so one file re-skins all nine. Page-specific rules above are untouched. -->
-<link rel="stylesheet" href="/site.css">
 </head>
 <body>
 <main class="card">
-  <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="../images/logo-x.png" alt="" width="33" height="26">ENON</a>
+  <a class="logo" href="/"><span class="mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
 
   <!-- Shown when the URL carries #code=<share code> -->
   <div id="has-code" hidden>
     <span class="tag" data-t="tag">Shared preset</span>
     <h1 data-t="h1">Your code is ready</h1>
-    <p class="sub" data-t="sub">This is a Xenon share code — a theme, page, Deck profile, widget or package. Import it in your local Xenon dashboard on your PC.</p>
+    <p class="sub" data-t="sub">This is a Xenon share code: a theme, a page, a Deck profile, a widget or a package. Import it in Xenon on your PC.</p>
     <textarea id="code" readonly rows="4" spellcheck="false" aria-label="Xenon share code"></textarea>
-    <button id="copy" class="btn" type="button" data-t="copy">COPY CODE</button>
+    <button id="copy" class="btn" type="button" data-t="copy">Copy code</button>
     <div id="copied" class="copied" role="status"></div>
     <ol class="steps">
-      <li data-th="s1"><b>Copy the code</b> on your PC — or send this link to yourself.</li>
+      <li data-th="s1"><b>Copy the code</b> on your PC, or send this link to yourself.</li>
       <li data-th="s2">In Xenon, open <b>Settings → Widgets &amp; sharing → Share &amp; Import → Import</b>.</li>
       <li data-th="s3"><b>Paste it</b>, review the preview, then Apply.</li>
     </ol>
@@ -177,17 +142,17 @@
 
   <!-- Shown when there is no code in the URL -->
   <div id="no-code" hidden>
-    <span class="tag" data-t="ntag">Xenon</span>
-    <h1 data-t="nh1">A control center with a personality</h1>
-    <p class="sub" data-t="nsub">Xenon is a free, 100% local dashboard for any second screen: a monitor, a touchscreen, a tablet or your phone, from any browser on Windows, macOS or Linux. This page delivers share codes: themes, pages, Deck profiles and widgets made by the community, usually scanned from a QR on a share card.</p>
-    <a class="btn" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" data-t="get">GET XENON</a>
+    <span class="tag" data-t="ntag">Share link</span>
+    <h1 data-t="nh1">Xenon, a free touch dashboard for your PC</h1>
+    <p class="sub" data-t="nsub">Xenon runs on your PC (Windows, with macOS and Linux in beta) and shows on the screens around it: a spare monitor, a touchscreen, a tablet or your phone. This page opens share codes for themes, pages, Deck profiles and widgets, usually from the QR code on a share card.</p>
+    <a class="btn" href="/download.html" data-track="download_click" data-track-location="get_page" data-t="get">Download Xenon</a>
     <div class="links">
-      <a href="/" data-t="site">Visit the Xenon site →</a>
-      <a href="/#community" data-t="gallery">Browse the community gallery →</a>
+      <a href="/" data-t="site">The Xenon site</a>
+      <a href="/catalog/" data-t="gallery">The community catalog</a>
     </div>
   </div>
 
-  <footer data-t="foot">100% local · No account · Free</footer>
+  <footer data-t="foot">Free, no account</footer>
 </main>
 
 <script>
@@ -196,67 +161,115 @@
     //    choice under the shared key, then browser language, then English). ──
     var T = {
       en: {
-        tag: 'Shared preset', h1: 'Your code is ready',
-        sub: 'This is a Xenon share code — a theme, page, Deck profile, widget or package. Import it in your local Xenon dashboard on your PC.',
-        copy: 'COPY CODE', copied: 'Copied — now paste it in Xenon on your PC', copyfail: 'Couldn’t copy — long-press the code and copy it manually',
-        s1: '<b>Copy the code</b> on your PC — or send this link to yourself.',
-        s2: 'In Xenon, open <b>Settings → Widgets &amp; sharing → Share &amp; Import → Import</b>.',
-        s3: '<b>Paste it</b>, review the preview, then Apply.',
-        ntag: 'Xenon', nh1: 'A control center with a personality',
-        nsub: 'Xenon is a free, 100% local dashboard for any second screen: a monitor, a touchscreen, a tablet or your phone, from any browser on Windows, macOS or Linux. This page delivers share codes: themes, pages, Deck profiles and widgets made by the community, usually scanned from a QR on a share card.',
-        get: 'GET XENON', site: 'Visit the Xenon site →', gallery: 'Browse the community gallery →',
-        foot: '100% local · No account · Free'
+        tag: "Shared preset",
+        h1: "Your code is ready",
+        sub: "This is a Xenon share code: a theme, a page, a Deck profile, a widget or a package. Import it in Xenon on your PC.",
+        copy: "Copy code",
+        copied: "Copied. Now paste it in Xenon on your PC.",
+        copyfail: "Could not copy. Press and hold the code to copy it by hand.",
+        s1: "<b>Copy the code</b> on your PC, or send this link to yourself.",
+        s2: "In Xenon, open <b>Settings → Widgets &amp; sharing → Share &amp; Import → Import</b>.",
+        s3: "<b>Paste it</b>, check the preview, then Apply.",
+        ntag: "Share link",
+        nh1: "Xenon, a free touch dashboard for your PC",
+        nsub: "Xenon runs on your PC (Windows, with macOS and Linux in beta) and shows on the screens around it: a spare monitor, a touchscreen, a tablet or your phone. This page opens share codes for themes, pages, Deck profiles and widgets, usually from the QR code on a share card.",
+        get: "Download Xenon",
+        site: "The Xenon site",
+        gallery: "The community catalog",
+        foot: "Free, no account"
       },
       it: {
-        tag: 'Preset condiviso', h1: 'Il tuo codice è pronto',
-        sub: 'Questo è un codice di condivisione Xenon — un tema, una pagina, un profilo Deck, un widget o un pacchetto. Importalo nella tua dashboard Xenon locale sul PC.',
-        copy: 'COPIA CODICE', copied: 'Copiato — ora incollalo in Xenon sul tuo PC', copyfail: 'Copia non riuscita — tieni premuto sul codice e copialo a mano',
-        s1: '<b>Copia il codice</b> sul PC — o invia questo link a te stesso.',
-        s2: 'In Xenon apri <b>Impostazioni → Widget e condivisione → Condividi &amp; Importa → Importa</b>.',
-        s3: '<b>Incollalo</b>, controlla l’anteprima, poi Applica.',
-        ntag: 'Xenon', nh1: 'Un centro di controllo con personalità',
-        nsub: 'Xenon è una dashboard gratuita e 100% locale per qualsiasi secondo schermo: un monitor, un touchscreen, un tablet o il telefono, da qualsiasi browser su Windows, macOS o Linux. Questa pagina consegna codici di condivisione: temi, pagine, profili Deck e widget creati dalla community, di solito da un QR su una share card.',
-        get: 'SCARICA XENON', site: 'Visita il sito di Xenon →', gallery: 'Sfoglia la galleria della community →',
-        foot: '100% locale · Nessun account · Gratis'
+        tag: "Preset condiviso",
+        h1: "Il tuo codice è pronto",
+        sub: "Questo è un codice di condivisione di Xenon: un tema, una pagina, un profilo Deck, un widget o un pacchetto. Importalo in Xenon sul tuo PC.",
+        copy: "Copia il codice",
+        copied: "Copiato. Ora incollalo in Xenon sul tuo PC.",
+        copyfail: "Copia non riuscita. Tieni premuto sul codice e copialo a mano.",
+        s1: "<b>Copia il codice</b> sul PC, oppure manda questo link a te stesso.",
+        s2: "In Xenon apri <b>Impostazioni → Widget e condivisione → Condividi &amp; Importa → Importa</b>.",
+        s3: "<b>Incollalo</b>, controlla l’anteprima, poi Applica.",
+        ntag: "Link di condivisione",
+        nh1: "Xenon, una dashboard touch gratuita per il tuo PC",
+        nsub: "Xenon gira sul tuo PC (Windows, con macOS e Linux in beta) e si vede sugli schermi intorno: un monitor in più, un touchscreen, un tablet o il telefono. Questa pagina apre i codici di condivisione di temi, pagine, profili Deck e widget, di solito dal QR di una share card.",
+        get: "Scarica Xenon",
+        site: "Il sito di Xenon",
+        gallery: "Il catalogo della community",
+        foot: "Gratis, senza account"
+      },
+      es: {
+        tag: "Preset compartido",
+        h1: "Tu código está listo",
+        sub: "Este es un código para compartir de Xenon: un tema, una página, un perfil de Deck, un widget o un paquete. Impórtalo en Xenon en tu PC.",
+        copy: "Copiar código",
+        copied: "Copiado. Ahora pégalo en Xenon en tu PC.",
+        copyfail: "No se pudo copiar. Mantén pulsado el código y cópialo a mano.",
+        s1: "<b>Copia el código</b> en tu PC, o envíate este enlace.",
+        s2: "En Xenon, abre <b>Ajustes → Widgets y compartir → Compartir e importar → Importar</b>.",
+        s3: "<b>Pégalo</b>, revisa la vista previa y pulsa Aplicar.",
+        ntag: "Enlace para compartir",
+        nh1: "Xenon, un panel táctil gratis para tu PC",
+        nsub: "Xenon funciona en tu PC (Windows, con macOS y Linux en beta) y se muestra en las pantallas de alrededor: un monitor de sobra, una pantalla táctil, una tablet o tu móvil. Esta página abre códigos para compartir temas, páginas, perfiles de Deck y widgets, normalmente desde el QR de una tarjeta.",
+        get: "Descargar Xenon",
+        site: "El sitio de Xenon",
+        gallery: "El catálogo de la comunidad",
+        foot: "Gratis, sin cuenta"
       },
       ko: {
-        tag: '공유된 프리셋', h1: '코드가 준비되었습니다',
-        sub: '이것은 Xenon 공유 코드입니다 — 테마, 페이지, Deck 프로필, 위젯 또는 패키지. PC의 로컬 Xenon 대시보드에서 가져오세요.',
-        copy: '코드 복사', copied: '복사됨 — 이제 PC의 Xenon에 붙여넣으세요', copyfail: '복사하지 못했습니다 — 코드를 길게 눌러 직접 복사하세요',
-        s1: 'PC에서 <b>코드를 복사</b>하세요 — 또는 이 링크를 자신에게 보내세요.',
-        s2: 'Xenon에서 <b>설정 → 위젯 &amp; 공유 → 공유 및 가져오기 → 가져오기</b>를 여세요.',
-        s3: '<b>붙여넣고</b> 미리보기를 확인한 뒤 적용하세요.',
-        ntag: 'Xenon', nh1: '개성 있는 컨트롤 센터',
-        nsub: 'Xenon은 모든 세컨드 스크린을 위한 무료 100% 로컬 대시보드입니다. 모니터, 터치스크린, 태블릿, 휴대폰까지 — Windows·macOS·Linux의 모든 브라우저에서. 이 페이지는 공유 코드를 전달합니다: 커뮤니티가 만든 테마, 페이지, Deck 프로필, 위젯 — 보통 공유 카드의 QR에서 스캔합니다.',
-        get: 'XENON 받기', site: 'Xenon 사이트 방문 →', gallery: '커뮤니티 갤러리 보기 →',
-        foot: '100% 로컬 · 계정 없음 · 무료'
+        tag: "공유된 프리셋",
+        h1: "코드가 준비되었습니다",
+        sub: "이것은 Xenon 공유 코드입니다. 테마, 페이지, Deck 프로필, 위젯 또는 패키지이며, PC의 Xenon에서 가져오면 됩니다.",
+        copy: "코드 복사",
+        copied: "복사했습니다. 이제 PC의 Xenon에 붙여넣으세요.",
+        copyfail: "복사하지 못했습니다. 코드를 길게 눌러 직접 복사하세요.",
+        s1: "PC에서 <b>코드를 복사</b>하거나, 이 링크를 자신에게 보내세요.",
+        s2: "Xenon에서 <b>설정 → 위젯 &amp; 공유 → 공유 및 가져오기 → 가져오기</b>를 여세요.",
+        s3: "<b>붙여넣고</b> 미리보기를 확인한 뒤 적용하세요.",
+        ntag: "공유 링크",
+        nh1: "Xenon, PC를 위한 무료 터치 대시보드",
+        nsub: "Xenon은 PC에서 실행되며(Windows, macOS와 Linux는 베타) 주변 화면에 표시됩니다. 남는 모니터, 터치스크린, 태블릿, 휴대폰 모두 됩니다. 이 페이지는 테마, 페이지, Deck 프로필, 위젯의 공유 코드를 여는 곳이며, 보통 공유 카드의 QR 코드로 들어옵니다.",
+        get: "Xenon 다운로드",
+        site: "Xenon 사이트",
+        gallery: "커뮤니티 카탈로그",
+        foot: "무료, 계정 없음"
       },
       ja: {
-        tag: '共有プリセット', h1: 'コードの準備ができました',
-        sub: 'これは Xenon の共有コードです — テーマ、ページ、Deck プロファイル、ウィジェット、パッケージのいずれか。PC のローカル Xenon ダッシュボードでインポートしてください。',
-        copy: 'コードをコピー', copied: 'コピーしました — PC の Xenon に貼り付けてください', copyfail: 'コピーできませんでした — コードを長押しして手動でコピーしてください',
-        s1: 'PC で<b>コードをコピー</b>するか、このリンクを自分に送ってください。',
-        s2: 'Xenon で <b>設定 → ウィジェットと共有 → 共有とインポート → インポート</b> を開きます。',
-        s3: '<b>貼り付けて</b>プレビューを確認し、適用します。',
-        ntag: 'Xenon', nh1: '個性のあるコントロールセンター',
-        nsub: 'Xenon はあらゆるセカンドスクリーンのための無料で 100% ローカルなダッシュボードです。モニター、タッチスクリーン、タブレット、スマートフォンまで、Windows・macOS・Linux のあらゆるブラウザから。このページは共有コードを届けます: コミュニティ製のテーマ、ページ、Deck プロファイル、ウィジェット — 通常は共有カードの QR からスキャンします。',
-        get: 'XENON を入手', site: 'Xenon のサイトへ →', gallery: 'コミュニティギャラリーを見る →',
-        foot: '100% ローカル · アカウント不要 · 無料'
+        tag: "共有プリセット",
+        h1: "コードの準備ができました",
+        sub: "これは Xenon の共有コードです。テーマ、ページ、Deck プロファイル、ウィジェット、パッケージのいずれかで、PC の Xenon でインポートします。",
+        copy: "コードをコピー",
+        copied: "コピーしました。PC の Xenon に貼り付けてください。",
+        copyfail: "コピーできませんでした。コードを長押しして手動でコピーしてください。",
+        s1: "PC で<b>コードをコピー</b>するか、このリンクを自分に送ってください。",
+        s2: "Xenon で <b>設定 → ウィジェットと共有 → 共有とインポート → インポート</b> を開きます。",
+        s3: "<b>貼り付けて</b>プレビューを確認し、適用します。",
+        ntag: "共有リンク",
+        nh1: "Xenon、PC用の無料タッチダッシュボード",
+        nsub: "Xenon は PC で動き（Windows。macOS と Linux はベータ版）、周りの画面に表示されます。空いているモニター、タッチスクリーン、タブレット、スマートフォンに対応します。このページは、テーマ、ページ、Deck プロファイル、ウィジェットの共有コードを開くためのもので、通常は共有カードの QR コードから開きます。",
+        get: "Xenon をダウンロード",
+        site: "Xenon のサイト",
+        gallery: "コミュニティのカタログ",
+        foot: "無料、アカウント不要"
       },
       zh: {
-        tag: '共享预设', h1: '你的代码已就绪',
-        sub: '这是一个 Xenon 分享代码 — 主题、页面、Deck 配置、小组件或套装。在 PC 上的本地 Xenon 仪表盘中导入它。',
-        copy: '复制代码', copied: '已复制 — 现在粘贴到 PC 上的 Xenon', copyfail: '复制失败 — 请长按代码手动复制',
-        s1: '在 PC 上<b>复制代码</b> — 或把这个链接发给自己。',
-        s2: '在 Xenon 中打开 <b>设置 → 小组件与分享 → 分享与导入 → 导入</b>。',
-        s3: '<b>粘贴</b>并查看预览，然后应用。',
-        ntag: 'Xenon', nh1: '有个性的控制中心',
-        nsub: 'Xenon 是面向任何副屏的免费、100% 本地仪表盘：显示器、触摸屏、平板或手机，在 Windows、macOS、Linux 上的任何浏览器中打开。这个页面用于传递分享代码：社区制作的主题、页面、Deck 配置和小组件 — 通常来自分享卡片上的二维码。',
-        get: '获取 XENON', site: '访问 Xenon 官网 →', gallery: '浏览社区画廊 →',
-        foot: '100% 本地 · 无需账号 · 免费'
+        tag: "共享预设",
+        h1: "你的代码已就绪",
+        sub: "这是一个 Xenon 分享代码：主题、页面、Deck 配置、小组件或套装。在电脑上的 Xenon 中导入它。",
+        copy: "复制代码",
+        copied: "已复制。现在把它粘贴到电脑上的 Xenon 中。",
+        copyfail: "复制失败。请长按代码手动复制。",
+        s1: "在电脑上<b>复制代码</b>，或者把这个链接发给自己。",
+        s2: "在 Xenon 中打开 <b>设置 → 小组件与分享 → 分享与导入 → 导入</b>。",
+        s3: "<b>粘贴</b>并查看预览，然后应用。",
+        ntag: "分享链接",
+        nh1: "Xenon，一款免费的电脑触控仪表盘",
+        nsub: "Xenon 运行在你的电脑上（Windows；macOS 和 Linux 为 Beta 版），显示在周围的屏幕上：闲置的显示器、触摸屏、平板或手机。这个页面用来打开主题、页面、Deck 配置和小组件的分享代码，通常来自分享卡片上的二维码。",
+        get: "下载 Xenon",
+        site: "Xenon 官网",
+        gallery: "社区目录",
+        foot: "免费，无需账号"
       }
     };
-    var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+    var LANGS = ['en', 'it', 'es', 'ko', 'ja', 'zh'];
     var lang = null;
     try { lang = localStorage.getItem('xenon.site.lang'); } catch (e) { /* private mode */ }
     if (LANGS.indexOf(lang) === -1) {
@@ -282,7 +295,7 @@
     var code = at === -1 ? '' : raw.slice(at + 5);
     try { code = decodeURIComponent(code); } catch (e) { /* keep as-is if malformed */ }
     code = code.trim();
-    document.title = 'Xenon — ' + (code ? t('h1') : t('nh1'));
+    document.title = code ? 'Xenon: ' + t('h1') : t('nh1');
 
     var hasBox = document.getElementById('has-code');
     var noBox = document.getElementById('no-code');

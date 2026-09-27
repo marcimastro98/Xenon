@@ -22,9 +22,12 @@ browser — are the catalogue, not the brand. The brand is a promise and a
 personality: a screen that knows you, talks back, and occasionally nags you into
 drinking some water.
 
-The trust promise that makes a live-in-your-home companion credible, repeated on
-every surface: **everything runs 100% locally — no cloud, no telemetry, no
-account.**
+The trust promise that makes a live-in-your-home companion credible, stated the
+same way on every surface: **no account, and your settings, files and readings
+are kept on your PC. What does go online is listed, and every counter can be
+switched off.** The list is `docs/privacy.html`; never shorten it to "100%
+local" or "no telemetry", because the app has an update check and two
+anonymous counters and says so.
 
 Direction chosen 2026-07-09: **companion with personality** (à la Claude /
 Duolingo), *not* a cold pro-tool (à la Linear). Bit is the emotional heart.
@@ -53,8 +56,9 @@ Note: **in-app**, AI activation currently renders the circular equaliser
 today. An app-side Orb implementation existed in `AIPanel.css` but was
 unreachable dead code (no markup ever produced it) and was removed in v4.6.0.
 The public site's 3D orb hero and boot animation were retired in the 2026-07
-redesign: the site now leads with the real dashboard in the Edge's 32:9 frame,
-so the Orb no longer appears on xenon-app.com.
+redesign, and the Orb does not appear on xenon-app.com. Since the STANZA rework
+(2026-09) the site leads with the real dashboard, captured from the browser demo
+in real catalog themes.
 
 ---
 
@@ -102,9 +106,39 @@ any storage key while chasing brand copy.
 
 | | Hex | |
 |---|---|---|
-| **Xenon Green** | `#1ed760` | **The brand.** Locked for every public/brand surface (site, app icon, social, GitHub, store), independent of the user-editable in-app accent. This is the "coral of Claude / purple of Linear". |
+| **Xenon Green** | `#1ed760` | The app's default accent, and the colour of the app icon, social and store art. Independent of the user-editable in-app accent. |
+| **Logo blue** | `#008DFF` | The blue end of the X. On the website it is the one lit key (below). |
 
-The in-app accent is user-customizable (correctly). The **brand** colour is not.
+The in-app accent is user-customizable (correctly). The **brand** colours are not.
+
+### The website: STANZA (2026-09)
+
+The site is a neutral room and the only coloured, lit things in it are Xenon's
+screens and one key. It has no brand colour of its own, on purpose: a site
+painted in a signature accent reads as generated, and green on near-black is the
+most generated look there is. Green therefore left the site; it stays in the app.
+
+| Token | Light | Dark | Job |
+|---|---|---|---|
+| Ground `--g-0` | `#E4E4E4` | `#232323` | The page. R = G = B, so it tints no screenshot |
+| Raised `--g-1` / `--g-2` | `#EFEFEF` / `#D8D8D8` | `#2C2C2C` / `#333333` | Cards, code, the footer |
+| Ink `--bone-0` | `#141414` | `#EDEDED` | Headings, links (underlined ink, never coloured) |
+| Ink 2 `--bone-1` | `#444444` | `#BDBDBD` | Running text in guides, captions |
+| Focus | `#0567B7` | `#008DFF` | Focus ring only |
+| Product well | `#070808` | `#070808` | Behind every capture of the dashboard |
+| Beta chip `--gold` | `#85610F` | `#D9A441` | The Beta mark; also the supporters' ink |
+
+Values live in `docs/site.css`. Two inks stay because they IDENTIFY rather
+than decorate: gold for supporters and iris for limited drops, in the catalog.
+
+**The lit key.** Download is the product's own Deck key: a dark LCD key lit in
+the logo blue (`--lit: #008DFF`, gradient and inset edges from
+`DeckPanel.css .has-accent`). One lit key per screen; everything else is an
+outlined or text button. The in-app new-drop card and the submit button use the
+same key.
+
+**The logo** is the violet-to-blue X on a dark `#070808` square in both themes,
+so it never needs an `invert()` filter.
 
 ### Support palette
 
@@ -146,10 +180,12 @@ dark, and both its worlds (Liquid Glass + Pixel Retro) are dark-first.
 
 ## 5. Typography — three faces, three jobs
 
+In the app:
+
 | Face | Job |
 |---|---|
 | **Inter** | The interface, the everyday voice (Liquid Glass). |
-| **JetBrains Mono** | Labels and figures. Code, and on the public site every eyebrow, rank, counter and column heading. |
+| **JetBrains Mono** | Figures and code. |
 | **VT323** | The terminal — Bit and the CRT world. |
 | **Press Start 2P** | Pixel micro-labels only, never running text. |
 
@@ -157,13 +193,15 @@ Loaded in `server/index.html`; skin definitions in
 `server/styles/global.css` and `server/styles/themes-retro.css`. Never use a
 system font as the wordmark.
 
-**On the site, mono is the label voice** (2026-07 rework). Section eyebrows,
-live counters, the supporters' ranks and the footer headings are all JetBrains
-Mono at 11px with `.18em` tracking; Inter carries every sentence. The reason is
-diagnostic rather than decorative: with one face doing both jobs the page read
-as generated, and the labels are exactly the places where an engineered product
-is allowed to sound like one. The accent green is spent on the movement NUMBER
-alone — when every eyebrow was solid green the accent meant nothing.
+**On the site (STANZA, 2026-09)** the type is one family in two widths, the
+way the product re-fits one layout to every screen: **Sofia Sans Semi
+Condensed** for headings and keys, **Sofia Sans** for text (OFL, self-hosted,
+with metric-matched fallbacks so nothing shifts while they load). CJK uses the
+system faces. The system monospace is for code, file names, commands and
+checksums only; the 2026-07 "mono label voice" (11px spaced capitals) was
+retired with it, because it was one of the clearest generated-site tells.
+Scale: H1 58px on desktop and 36px on a phone, H2 33px, text 18px (17px on a
+phone), and nothing a visitor has to read below 15px. Never all capitals.
 
 ---
 
@@ -173,10 +211,11 @@ Xenon's unfair advantage is that the product *moves*. Pick one memorable moment
 and show it everywhere (Reddit, GitHub header, store, video) until people
 recognize it with their eyes closed. The candidate: **press ✦ and the Orb comes
 alive** — listen → think → speak. That is the animated logo, for video and
-press material. The public site deliberately does NOT use it (2026-07
-redesign): there the signature is the **Edge frame** — every screenshot shown
-in the display's real 32:9 body at native 2560×720, with a soft green glow.
-Product truth over spectacle on the site; the Orb moves in video.
+press material. The public site deliberately does NOT use it: there the
+signature is the product itself, real captures from the browser demo in real
+catalog themes, and the live demo only when the visitor asks for it. The site's
+own motion is limited to a tab fade and the key press. Product truth over
+spectacle on the site; the Orb moves in video.
 
 ---
 
@@ -184,10 +223,10 @@ Product truth over spectacle on the site; the Orb moves in video.
 
 **Do**
 - Use Bit to create affection — it's why people stay.
-- Lock the signature green `#1ed760` on every public surface.
+- Keep `#1ed760` as the app's default accent and on the icon and store art; on the website, colour comes only from the product and the one lit key.
 - Keep one voice — techy, relaxed, never corporate — across README, site, changelog, in-app.
 - Treat motion as part of the logo: an Orb intro beats any written tagline.
-- Repeat the "100% local" promise — it's trust, not a feature.
+- State exactly what stays on the PC and what goes online, and point to the privacy page. Never "100% local", never "open source" (the licence is non-commercial: the code is on GitHub).
 
 **Don't**
 - Don't call it "Xenon Edge" — the product is **Xenon**; "Xeneon Edge" is Corsair's display.
@@ -207,5 +246,5 @@ Product truth over spectacle on the site; the Orb moves in video.
 | Resonance Orb | colours (`--xn-cyan`, `--xn-violet`) in `server/components/AIPanel/AIPanel.css` — video/press asset only; no longer rendered on the site |
 | Colour presets | `server/js/settings.js` — `SETTINGS_PRESETS`, `BUILTIN_THEMES` |
 | Reusable Bit mark | `docs/images/bit.svg` (scalable, derived from the sprite) |
-| Public site | `docs/index.html` — nine numbered movements, three scales (`--s-*`, `--t-*`, `--r-*`) in `:root`, `.eyebrow` as the label voice, the Edge-frame hero, the sticky feature stage, the Bit movement with the VT323 line, and the 5-language i18n dict; `docs/catalog/` and `docs/create/` share the same tokens |
+| Public site | `docs/site.css` (tokens, fonts, the shared header and footer), `docs/guide.css` (download, help, privacy and every guide), `tools/site-chrome.mjs` (header, footer, breadcrumb and the guide list, written into every page). The home is generated from one template and six dictionaries; the other pages are English sources with `data-i18n` keys and dictionaries in `tools/i18n/`, built into `docs/<lang>/` by `tools/build-page-langs.mjs`. Six languages: en, es, it, ja, ko, zh |
 | Reusable copy | `README.md`, `FEATURES.md` |

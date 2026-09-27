@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon 隐私政策：应用和网站会发送什么</title>
+<meta name="description" content="Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的两个匿名计数器以及如何关闭它们，还有 xenon-app.com 会收集什么。">
+<link rel="canonical" href="https://xenon-app.com/zh/privacy.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/privacy.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/privacy.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/privacy.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/privacy.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/privacy.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
+<meta name="robots" content="index, follow, max-snippet:-1">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:url" content="https://xenon-app.com/zh/privacy.html">
+<meta property="og:title" content="Xenon 隐私政策：应用和网站会发送什么">
+<meta property="og:description" content="Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的两个匿名计数器以及如何关闭它们，还有 xenon-app.com 会收集什么。">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon 隐私政策：应用和网站会发送什么">
+<meta name="twitter:description" content="Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的两个匿名计数器以及如何关闭它们，还有 xenon-app.com 会收集什么。">
+<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://xenon-app.com/privacy.html#webpage","url":"https://xenon-app.com/privacy.html","name":"Xenon 隐私政策：应用和网站会发送什么","description":"Xenon 仪表盘应用会发起哪些网络请求、在什么时候发起，它的两个匿名计数器以及如何关闭它们，还有 xenon-app.com 会收集什么。","inLanguage": "zh","isPartOf":{"@id":"https://xenon-app.com/#website"},"about":{"@id":"https://xenon-app.com/#app"},"publisher":{"@id":"https://xenon-app.com/#org"}}]}</script>
+
+<noscript></noscript>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  h2:first-of-type { margin-top: 40px; }
+  .tbl-scroll { overflow-x: auto; margin: 20px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 16px; line-height: 1.5; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text); font-weight: 700; font-size: 15px; }
+  td { color: var(--muted); }
+  button.consent-reset {
+    font-family: var(--sans); font-size: 16px; font-weight: 700;
+    min-height: 44px; padding: 11px 20px; border-radius: 9px; cursor: pointer;
+    background: transparent; color: var(--text); border: 1px solid var(--line-2);
+    transition: border-color .2s, color .2s;
+  }
+  button.consent-reset:hover { border-color: var(--text); }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/privacy.html" aria-current="page" data-xl="f.privacy">隐私</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"隐私","item":"https://xenon-app.com/zh/privacy.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="pv.h1">隐私政策</h1>
+    <p class="lede" data-i18n="pv.lede">Xenon 应用运行在你自己的电脑上，数据也保存在那里。本网站是另一回事，规则也不一样。本页把两者分开来讲，分别说明各自会发送和保存什么。</p>
+    <p class="updated" data-i18n="pv.updated">最后更新：2026年9月27日</p>
+
+    <h2 data-i18n="pv.sum.h">摘要</h2>
+    <div class="card accent">
+      <ul>
+        <li data-i18n-html="pv.sum.track"><strong>Xenon 应用不会追踪你如何使用它。</strong>没有账号，没有个人档案，也没有任何使用记录离开你的电脑。它有两个计数器。一个在应用检查更新时发送，描述的是这次安装本身：它的版本、它的系统，以及大致装了多久。另一个在你从商店安装某个作品时，给该作品的安装次数加 1。两者都不涉及你打开了哪些小组件、搜索了什么，或者用仪表盘做了什么。<strong>新安装时，两者一开始都是开启的</strong>，你可以在“设置 → 通用 → 更新”中分别关闭它们；如果在加入某个计数器的那个版本之前你就已经在用 Xenon，那么它对你来说一直保持关闭。两者都不带任何标识符，所以都无法追溯到你，也无法相互关联。</li>
+        <li data-i18n-html="pv.sum.offline"><strong>这个应用并不是完全离线的。</strong>它会自行检查更新，并获取一份简短的公告列表；天气、专辑封面以及你连接的服务，只有在用到它们的功能里才会被联系。这些请求都列在下面。</li>
+        <li data-i18n-html="pv.sum.ga"><strong>本网站使用 Google Analytics</strong>，以了解人们访问了哪些页面、点了哪些下载。在欧洲经济区、英国和瑞士，在你于横幅中选择接受之前，不会存储任何内容。</li>
+        <li data-i18n-html="pv.sum.cf"><strong>本网站还用 Cloudflare Web Analytics 统计页面浏览量</strong>，它不设置 Cookie，也不建立个人档案。它只告诉我有多少人访问了某个页面。</li>
+        <li data-i18n-html="pv.sum.dl"><strong>按下下载按钮，会给我自己服务器上的一个计数器加 1</strong>，不带 Cookie，也不带标识符。下载链接仍然直接指向 GitHub，所以这个计数器永远不会挡在你和文件之间。</li>
+      </ul>
+    </div>
+
+    <h2 data-i18n="pv.who.h">数据控制者与联系方式</h2>
+    <p data-i18n-html="pv.who.p">Xenon 是开发者 Marcello Mastroeni 一个人的个人项目，源代码以自定义的非商业许可证放在 GitHub 上。我是本网站的数据控制者。与本页有关的任何事情，比如提问、更正，或者关于你的数据的请求，请写信到 <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a>，或者在 <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a> 上提交 issue。</p>
+
+    <h2 data-i18n="pv.site.h">本网站（xenon-app.com）</h2>
+    <p data-i18n-html="pv.site.p">本网站使用 <strong>Google Analytics 4</strong>（衡量 ID <code>G-LQ8Y8WZPQF</code>），用来了解哪些页面有人阅读、哪些下载被点击，以及访客从哪里来。这是关于网站的汇总报告。它和你电脑上的那份应用没有关联，我也没有办法把这里的一次访问和你电脑上的某个安装对应起来。</p>
+
+    <h3 data-i18n="pv.ga.h">Analytics 会收到什么</h3>
+    <ul>
+      <li data-i18n="pv.ga.pages">你在本网站浏览的页面，以及来源页面。</li>
+      <li data-i18n="pv.ga.clicks">我标记为有意义的点击：下载、加入 Discord、进入目录和创作者页面、GitHub 链接。</li>
+      <li data-i18n="pv.ga.loc">大致位置（国家或城市级别，由 Google 根据你的 IP 推断；完整 IP 不会存储在报告中）、设备类型、浏览器和语言。</li>
+      <li data-i18n-html="pv.ga.cookies">名为 <code>_ga</code> 和 <code>_ga_*</code> 的 Cookie，用来区分回访的访客和新访客。它们最长保留两年。</li>
+    </ul>
+
+    <h3>Cloudflare Web Analytics</h3>
+    <p data-i18n-html="pv.cf.p">除了 Analytics，本网站还会加载 <strong>Cloudflare Web Analytics</strong>，这是一个不使用 Cookie 的页面浏览计数器。它不设置 Cookie，不存储标识符，也无法在不同网站之间或不同访问之间跟踪你；它以汇总形式报告页面网址、来源页面、国家、设备类型和页面加载时间。因为它不识别任何人，所以不经过同意横幅就会运行，列在这里是为了让你知道它的存在。为什么两个都用：Analytics 只统计接受了横幅的访客，而这里给出的是完整的总数，那些数字要对照它来看。</p>
+
+    <h3 data-i18n="pv.dl.h">下载计数器</h3>
+    <p data-i18n-html="pv.dl.p1">当你在本网站按下下载按钮时，页面还会向我自己的服务器（也就是应用所连接的那个支持者中心）发送一条只有一行的消息，说明有一个下载按钮被按下了，以及是哪一个（<code>hero</code>、<code>footer</code> 等等）。消息的全部内容就是这些：没有 Cookie，没有标识符，不保留 IP，也没有任何能和其他数据关联起来的东西。它给 <em>（日期，按钮）</em> 对应的计数器加 1，然后这个请求就被丢弃。</p>
+    <p data-i18n="pv.dl.p2">之所以有它，是因为这一步我原本完全看不到。Cloudflare 知道页面被浏览了，GitHub 知道下载完成了，但两者都看不到中间按下按钮的那一下，而正是这一下能说明下载页面到底管不管用。Google Analytics 本来可以报告它，但它只统计接受了横幅的人，而这个网站的访客里有相当一部分会把它完全屏蔽，所以这个数字会出现偏差，偏差的方向我也无法测量。</p>
+    <p data-i18n-html="pv.dl.p3"><strong>下载链接本身不经过我的服务器。</strong>它和以前完全一样，直接指向 GitHub；计数器是另外单独发出的一条消息，发出后就不再理会，页面也不会等它。如果我的服务器宕机了，或者你屏蔽了它，下载照常进行，只是这次按下不会被计入。</p>
+
+    <h3 data-i18n="pv.consent.h">Cookie 同意</h3>
+    <p data-i18n-html="pv.consent.p">本网站使用 Google 意见征求模式（Consent Mode）。如果你在<strong>欧洲经济区、英国或瑞士</strong>，所有存储和广告信号一开始都是<em>拒绝</em>状态：在你按下“接受”之前，不会写入任何 Cookie，Analytics 只会收到不带 Cookie、无法识别身份的简短请求。在这些地区之外，默认是允许的，按下“拒绝”即可关闭。拒绝只需点一下，位置和大小都与“接受”相同。</p>
+    <div class="card">
+      <p data-i18n="pv.consent.card">你可以随时改变主意。这个按钮会清除已保存的选择，并重新显示横幅：</p>
+      <button class="consent-reset" type="button" id="consent-reset" data-i18n="pv.consent.btn">更改我的 Cookie 选择</button>
+      <span id="consent-missing" hidden data-i18n="pv.consent.missing">同意横幅无法显示。清除浏览器数据即可重置。</span>
+    </div>
+    <p data-i18n-html="pv.consent.store">你的选择保存在浏览器的本地存储中，键名为 <code>xenon.site.consent</code>。这个值不会离开你的设备。清除浏览器数据就会重置它。</p>
+
+    <h3 data-i18n="pv.host.h">托管与字体</h3>
+    <p data-i18n-html="pv.host.p">本网站由 <strong>GitHub Pages</strong> 提供，它会处理请求和你的 IP 地址以送达页面，并保留短期的安全日志。这在技术上是必需的，发生在任何同意选择之前。页面顶部还会向 GitHub API 查询项目的星标数，每个浏览器会话一次，所以 GitHub 也会看到这个请求。网站的字体由网站自己提供（<code>/fonts/</code>），所以加载字体不会联系其他任何人。唯一的例外是<a href="/demo/">在线演示</a>，它运行的是应用自己的仪表盘页面，并从 <strong>Google Fonts</strong> 加载该页面的字体，因此 Google Fonts 会看到这个请求。社区截图由 <strong>Cloudflare R2</strong>（<code>assets.xenon-app.com</code>）提供。</p>
+
+    <h2 data-i18n="pv.app.h">Xenon 应用</h2>
+    <p data-i18n-html="pv.app.p1">应用把你的数据保存在你的电脑上。设置、笔记、任务、日程、Deck、AI 记忆和上传的背景都放在 <code>server/data/</code> 里。应用不会把这个文件夹上传到任何地方，里面也没有分析 SDK、崩溃上报或行为追踪。下面介绍的两个匿名计数器，是应用关于自身所做的仅有的报告，两者都不带任何形式的标识符：服务器保存的只是计数，从来不是关于某台机器的记录。</p>
+    <p data-i18n-html="pv.app.search">本地文件搜索和磁盘空间小组件都在你的电脑上运行：你的搜索词、文件名、文件夹索引和磁盘扫描结果都在那里计算，而你从搜索中打开过的文件列表（用来让你自己的结果排序更准）也和其他数据一样保存在 <code>server/data/</code> 里。你交给 Xenon AI 的内容是例外。使用云端 AI 服务商时，<strong>智能搜索</strong>（Ctrl+I）会把你输入的句子发送给该服务商；让 AI 查找文件或解释你的磁盘情况时，它据以回答的结果也会发送给该服务商，比如文件名和文件夹大小。<strong>用于 AI 搜索和清理的完整上下文</strong>开关（默认关闭）还会发送你已安装应用的名称、已索引的文件夹、最常用的文件夹，以及你最近从搜索中打开的文件，但从不发送它们的内容。</p>
+    <p data-i18n-html="pv.app.calls">应用<em>确实</em>会做的，是为需要联网的功能发起网络请求。下面是这些请求，以及每一项在什么时候发生。</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th data-i18n="pv.t.h.what">联系的对象</th><th data-i18n="pv.t.h.when">时机</th><th data-i18n="pv.t.h.why">原因，以及发送的内容</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>api.github.com</code></td>
+            <td data-i18n="pv.t.gh.when">自动，启动时（缓存 24 小时）</td>
+            <td data-i18n="pv.t.gh.why">检查是否有更新的版本。它不发送标识符，但和任何 HTTP 请求一样，GitHub 会看到你的 IP 地址。它不需要你开启任何东西就会运行。</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code></td>
+            <td data-i18n="pv.t.cat.when">当你打开社区目录或商店时</td>
+            <td data-i18n="pv.t.cat.why">下载社区主题、小组件和套件的公开目录。只读，不带标识符。</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code><br><span style="color:var(--dim)" data-i18n="pv.t.ann.sub">（公告）</span></td>
+            <td data-i18n="pv.t.ann.when">自动，每天最多一次</td>
+            <td data-i18n-html="pv.t.ann.why">下载一份所有人收到的都相同的简短公告列表：新版本发布、商店里的新内容，偶尔还有一些说明。只读，不带标识符。有些公告只面向一部分人，比如使用某个小组件或某个版本的人，而这种筛选是<strong>在你的电脑上</strong>进行的：你的仪表盘会下载整份列表，自己判断哪些适用。决定给你显示什么时，不会发送任何关于你安装了什么的信息，所以我既无法针对你，也无法知道谁看到了什么。你可以在任意一条公告里关闭公告。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.poll.what">支持者中心<br><span style="color:var(--dim)">（投票回答）</span></td>
+            <td data-i18n="pv.t.poll.when">仅当你在公告里的投票中点选一个答案时</td>
+            <td data-i18n="pv.t.poll.why">只发送你选了哪个选项，别的都不发：没有安装 UUID，不保留 IP，没有账号，连时间都没有。服务器给该选项的计数器加 1，然后丢弃这个请求，所以任何人，包括我在内，都无法查询某一台电脑回答了什么。什么都不点就什么都不会发送，关闭公告则会让它完全停止。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.count.what">支持者中心<br><span style="color:var(--dim)">（安装次数）</span></td>
+            <td data-i18n="pv.t.count.when">当你从商店安装内容时，并且仅在该开关开启时</td>
+            <td data-i18n="pv.t.count.why">只发送你安装的作品的 id，别的都不发：没有安装 UUID，不保留 IP，没有账号。服务器给该作品的计数器加 1，然后丢弃这个请求。你的仪表盘会在你自己的电脑上记住哪些已经计过数，所以每个作品最多只报告一次，这也是为什么不需要发送任何可识别身份的信息来避免重复计数。结果是，这个数字的含义是“报告的安装次数”，而不是“有多少人拥有它”，无论显示在哪里，都是这样标注的。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.hub.what">支持者中心<br><span style="color:var(--dim)">（Cloudflare Worker）</span></td>
+            <td data-i18n="pv.t.hub.when">当你给目录中的内容评分或兑换支持者代码时</td>
+            <td data-i18n-html="pv.t.hub.why">你的电脑会保存一个随机 UUID（<code>install-id.json</code>），让一次评分只计一次，一个代码也不能无限次重复使用。这个 UUID 从不离开你的电脑：发送的是它的单向哈希，而且评分和兑换代码使用的是同一个 UUID 的<strong>不同</strong>哈希。这是有意为之：如果共用一个值，支持者代码（它可以关联到某个 Discord 账号）和星级评分就会以同一个标识符存放在数据库里，我就能看到某位有名有姓的支持者给哪些作品评过分。用两个不同的值，就没有任何可以用来匹配它们的东西。两个哈希都不和你的硬件或姓名绑定；删掉这个文件，就会生成一个新的 UUID。</td>
+          </tr>
+          <tr>
+            <td><code>ipwho.is</code></td>
+            <td data-i18n="pv.t.ip.when">仅在天气自动定位开启时</td>
+            <td data-i18n="pv.t.ip.why">把你的 IP 转换成一个大致的城市，让天气小组件知道你在哪里。手动设置位置，这个请求就永远不会发生。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.wx.what">天气和空气质量 API<br><span style="color:var(--dim)">open-meteo、met.no、wttr.in</span></td>
+            <td data-i18n="pv.t.wx.when">仅当你的仪表盘上有天气小组件时</td>
+            <td data-i18n="pv.t.wx.why">发送要预报的位置坐标。不带标识符。</td>
+          </tr>
+          <tr>
+            <td><code>itunes.apple.com</code></td>
+            <td data-i18n="pv.t.art.when">正在播放媒体时</td>
+            <td data-i18n="pv.t.art.why">根据曲目标题查找专辑封面。不带标识符。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.svc.what">你自己连接的服务<br><span style="color:var(--dim)">Spotify、Twitch、YouTube、Discord、Home Assistant、OBS、AI 服务商、股票/新闻/足球信息源</span></td>
+            <td data-i18n="pv.t.svc.when">仅在你配置了该集成之后</td>
+            <td data-i18n="pv.t.svc.why">每一项都使用你提供的凭据，与各自的服务商通信，适用该服务商的隐私政策。在你设置之前，它们一直处于休眠状态。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.push.what">你手机的推送服务<br><span style="color:var(--dim)">Apple、Google 或 Mozilla，取决于手机使用的浏览器</span></td>
+            <td data-i18n="pv.t.push.when">仅在你于已配对的手机或平板上开启通知之后</td>
+            <td data-i18n="pv.t.push.why">即使手机上的仪表盘已经关闭，电脑也能唤醒手机，提醒你设置好并正在等待的事情，比如倒计时结束。消息针对那部手机的浏览器做了端到端加密，所以推送服务能传递它，却无法读取它；不过它确实能看到有一条消息发给了那部手机，以及发送的时间。在你按下手机上的按钮之前，什么都不会设置；删除已配对的设备，推送就会停止。</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.ping.what">匿名版本上报<br><span style="color:var(--dim)">支持者中心</span></td>
+            <td data-i18n-html="pv.t.ping.when"><strong>从 v4.8.0 起的安装默认开启</strong>；更早的安装默认关闭，除非你自己打开过</td>
+            <td data-i18n="pv.t.ping.why">版本、系统、安装了多久，以及一个“本周首次”标记，每天最多发送一次，发送到与上面几行相同的支持者中心。不带任何形式的标识符。完整列表见下一节。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p data-i18n="pv.ai">本地 AI 功能（Ollama、Whisper）完全在你的电脑上运行。云端 AI 服务商则不然：如果你选择 Gemini、OpenAI 或 Anthropic，你的提示词会按照该服务商的条款发送给它。语音回复的方式有所不同：Gemini 和 OpenAI 有自己的语音，而使用其他任何服务商时，要朗读的文本会被发送到 Microsoft 的在线 Edge 语音服务，转换成语音。用哪个 AI 服务商由你选择，应用也绝不会把提示词发送给你没有选择的云端模型。</p>
+
+    <h2 id="version-ping" data-i18n="pv.ping.h">版本上报</h2>
+    <p data-i18n-html="pv.ping.intro">我完全不知道到底有多少人在用 Xenon。下载次数只是噪音，而且与其去猜，我更想知道大家是不是卡在了旧版本上。所以在<strong>设置 → 通用 → 更新</strong>里有一个开关，叫<strong>匿名统计此安装</strong>，它会在应用检查更新时发送几项字段，每天最多一次。完整列表如下：</p>
+    <ul>
+      <li data-i18n-html="pv.ping.l1">你正在运行的版本（例如 <code>4.11.0</code>）；</li>
+      <li data-i18n-html="pv.ping.l2">你的操作系统类别（例如 <code>win32</code>），而不是你的电脑本身、它的名称或配置；</li>
+      <li data-i18n="pv.ping.l3">这次安装有多久了，归入五档之一：当天、1 到 7 天、8 到 30 天、31 到 90 天、超过 90 天；</li>
+      <li data-i18n-html="pv.ping.l4">这次安装首次运行的月份（例如 <code>2026-07</code>），或者 <code>unknown</code>；</li>
+      <li data-i18n-html="pv.ping.l5">你之前使用的版本，<em>仅</em>在版本变更后的第一次上报中发送；</li>
+      <li data-i18n="pv.ping.l6">两个是/否标记：这是否是本周的第一次上报，以及是否是本月的第一次上报；</li>
+      <li data-i18n="pv.ping.l7">你的界面语言，是应用自带的十一种语言之一。</li>
+    </ul>
+    <p data-i18n-html="pv.ping.not">这就是全部内容。其中<strong>不</strong>包含的有：没有安装 UUID（这个标识符只留给评分和支持者代码使用，把它混进这里会让我能够把两者关联起来，而这正是我不希望自己能做到的），不保留 IP，没有硬件细节，没有时区，也没有任何关于你使用哪些小组件、搜索什么或打开什么的信息。这次上报是发给支持者中心的一个小请求，紧跟在应用本来就会进行的更新检查之后发送。</p>
+
+    <h3 data-i18n="pv.flags.h">每周和每月统计</h3>
+    <p data-i18n-html="pv.flags.p">原本唯一一个不识别用户就得不到的数字，是“本周有多少台<em>不同</em>的安装处于活跃状态”。通常这需要一个 id，这样服务器才能区分来自同一台电脑的两次上报和来自两台电脑的两次上报。在这里，这件事由你自己的电脑来做：它在你的硬盘上记住上一次上报的是哪一周、哪一个月，然后只说一次“本周第一次”。服务器加 1，除此之外一无所知。每周和每月的统计结果是准确的，而且仍然没有任何可以用来识别你的东西。</p>
+
+    <h3 data-i18n="pv.store.h">统计数据如何存储</h3>
+    <p data-i18n-html="pv.store.p1">服务器端只有计数器，没有关于机器的记录。而且上面这些字段是在<strong>各自独立的表里、每个字段一张表</strong>分别计数的，从不放在同一行里。这才是关键。如果一行里同时有版本<em>加上</em>系统<em>加上</em>安装时长<em>加上</em>首次运行月份<em>加上</em>语言，很容易就能对应到某一个具体的人；而且由于这些字段大多每天都不变，连续几天的数据就可能被拼接成一台机器的历史：费了那么大工夫不发送标识符，结果却用数据本身拼出了一个标识符。每个字段单独计数，意味着这种组合在数据库里根本不存在：不是被隐藏，不是受访问控制，而是不存在。我能读到的是“今天有 N 台安装运行 4.11.0”、“有 N 台是七月首次运行的”和“有 N 台已经超过 90 天”，永远不知道是哪 N 台，也不知道它们之间的重叠。</p>
+    <p data-i18n-html="pv.store.p2">有两处会把一对数值放在一起存储，因为在那里，这一对数值<em>本身</em>就是要回答的问题：有多少台安装从一个版本换到了另一个版本，以及某个月首次运行的安装中，有多少在之后的某个月仍然活跃。这两处都不包含任何其他内容，而且任何出现少于五次的组合都会被归入“其他”，在只有我能看到的控制台里也是如此。</p>
+    <p data-i18n="pv.store.p3">所有数据在 400 天后删除。不会保留逐条请求的记录，所以不存在可以被交出、被传票调取或被泄露的数据集。</p>
+
+    <h3 data-i18n="pv.v411.h">v4.11.0 中的变化</h3>
+    <p data-i18n-html="pv.v411.p1">这个开关本身对任何人都没有改变状态：原来关着的仍然关着，原来开着的仍然开着。改变的是<em>开启</em>时上报所携带的内容，这也是本页在同一个版本中随之更新的原因。</p>
+    <p data-i18n-html="pv.v411.p2">有一个局限：在这个版本之前就已存在的安装，会把安装时长和首次运行月份报告为 <code>unknown</code>，而且会一直这样。应用从未记录过它们第一次运行的时间，而我宁愿留下一个看得见的空缺，也不要一个猜出来的数字。这个盲区会被单独计数，并作为独立的一类显示，所以我始终能看到整体情况缺了多少。</p>
+
+    <h3 data-i18n="pv.v48.h">v4.8.0 中的变化</h3>
+    <p data-i18n-html="pv.v48.p1">在 v4.7.1 及之前，这个开关在你打开之前一直是关闭的。从 <strong>v4.8.0 起，新安装默认开启</strong>，因为几乎没有人会去打开这样的开关，统计数字也就因此毫无用处。你可以随时在“设置”中关闭它，关闭后立即生效。</p>
+    <p data-i18n-html="pv.v48.p2"><strong>如果你之前已经安装了 Xenon，那么对你来说什么都没有变。</strong>只有在还没有设置文件时，也就是全新安装时，才会读取新的默认值。如果你在 v4.8.0 之前安装、并且没有动过这个开关，它会保持关闭：当初告诉你的是，除非你另行选择，它就是关闭的，而更新不应该悄悄改变这一点。如果你曾经打开过它，它会保持开启。无论哪种情况，应用都会沿用你的设置里已有的选择。</p>
+
+    <h2 data-i18n="pv.rights.h">你的权利</h2>
+    <p data-i18n-html="pv.rights.p1">根据《通用数据保护条例》（GDPR），你可以要求访问、更正或删除你的个人数据，也可以反对对其进行处理。对于本网站，实际可行的做法是：按“拒绝”（或上面的按钮）来停止 Analytics，使用 Google 的<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">停用浏览器插件</a>，或者清除浏览器数据。对于应用，卸载会停止上面描述的所有请求，删除 <code>server/data/</code> 会移除应用保存的一切，包括安装 UUID。</p>
+    <p data-i18n-html="pv.rights.p2">你也有权向监管机构投诉；在意大利，这个机构是 <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>（意大利个人数据保护局）。</p>
+
+    <h2 data-i18n="pv.changes.h">本页的变更</h2>
+    <p data-i18n="pv.changes.p">如果应用开始发起上表中没有的网络请求，表格会在同一个版本中更新，发布说明里也会写明。页面顶部的日期告诉你本页最后一次修改的时间。</p>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+<script>
+  // The reset helper is defined by consent.js, which is deferred — so guard for
+  // the case where an adblocker stripped it and keep the button honest.
+  // The fallback line lives in a hidden span in <main>, so the language copies translate it.
+  document.getElementById('consent-reset').addEventListener('click', function () {
+    if (typeof window.xenonConsentReset === 'function') window.xenonConsentReset();
+    else this.textContent = document.getElementById('consent-missing').textContent;
+  });
+</script>
+
+</body>
+</html>

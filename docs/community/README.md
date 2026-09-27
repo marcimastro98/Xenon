@@ -229,3 +229,70 @@ this avoids. Read a result as a sense of the room, not a ballot.
 
 An invalid poll drops the whole message rather than shipping as a plain announcement: the
 title is usually a question, and a question with no way to answer it reads as broken.
+
+## Site banners (`site-promo.json`)
+
+What the home of xenon-app.com (every language copy) shows under "This month": up to three
+catalog entries, one row each, inside the catalog section. It is written from the hub admin
+("Site banners"), which commits this file the same way it commits `messages.json`, and read
+by `docs/promo.js`. It is separate from `messages.json` on purpose: that file feeds the app,
+and its ids share the app's "already shown" set.
+
+```jsonc
+{
+  "promos": [
+    {
+      "id": "nitrato-oct",           // ^[a-z0-9][a-z0-9_-]{0,60}$
+      "entryId": "nitrato",          // required: the catalog entry this row is about
+      "order": 1,                    // optional integer 1..3, default 1; lower comes first
+      "activeFrom": "2026-10-01",    // optional ISO date/datetime: when the row starts showing
+      "activeUntil": "2026-10-31T23:59:59Z", // optional, >= activeFrom: when it stops showing
+      "video": "https://assets.xenon-app.com/community/promo/nitrato-oct.mp4", // optional, mp4/webm
+      "url": "",                     // optional; default is /catalog/#<entryId>
+      "text": {                      // en is required and is the fallback for it, es, ja, ko, zh
+        "en": { "title": "", "line": "A 1920 woodcut town for your dashboard.", "cta": "See Nitrato" }
+      }
+    }
+  ]
+}
+```
+
+`text.<lang>.line` is required in English; `title` (60 characters), `line` (180) and `cta` (32)
+are capped, and a language left out falls back to English field by field. Unknown keys are
+dropped. The four earlier formats (strip, band, corner card, spotlight) are gone: a feed that
+still carries `format` or `inside` is read without error and those keys are ignored.
+
+How the block works:
+
+- **It lives in the page, never over it.** The home marks the slot with
+  `<div class="promo-block" data-promo-block></div>` inside `#community`, after the section
+  heading and before the drop cards. With nothing live the block stays empty and hidden,
+  heading included. It sits below the fold, so filling it moves nothing in view.
+- **Which rows**: promos live now (their own dates) whose entry is in `catalog.json` and open
+  (the catalog's own `active`/date rules), sorted by `order`, then the most recent
+  `activeFrom`, then `id`; one row per entry; at most three. The hub refuses a promo that
+  would make four live at the same instant (`too_many_live`).
+- **The pack's facts come from `catalog.json`, not from here**: its name (when `title` is
+  empty), its picture (`shots/<id>.webp`), its colours (`preview`, used only when they pass a
+  4.5:1 contrast check, the site's dark ground otherwise), whether it is for supporters
+  (`locked`) and when it ends. A promo whose entry is missing or not open is skipped, so a row
+  can never advertise something the catalog does not offer.
+- **Urgency only from data.** The end shown is the ENTRY's `activeUntil`, never the promo's:
+  a promo's dates only decide when the row is on the page. "N days left" appears only within
+  14 days of that end, "Available until <date>" before that, and nothing about time without
+  one (or when the entry is forced on with `active: true`).
+- **One link per row**: the `cta` (default "See <name>") to `url` or `/catalog/#<entryId>`,
+  tagged `data-track="promo_click" data-track-format="block" data-track-id="<id>"`.
+- **The video** plays only on a wide screen without reduced motion, only while in view, with
+  its own Pause button; everywhere else the row shows the shot.
+- **The home's own drop cards step aside**: after every render `promo.js` sets
+  `window.__xenonPromoIds` and fires a `xenon:promo` event with `{ ids }` (entry ids), and the
+  home hides any drop card for those entries, so nothing appears twice.
+- **`url` and `video` are restricted**: https on xenon-app.com, GitHub or Discord for the
+  link, `assets.xenon-app.com/community/promo/` for the video. A promo naming anything else
+  is dropped.
+- **Preview**: the hub frames `/?promo-preview=1` and posts
+  `{ type: 'xenon-promo-preview', promo, entry, lang }`; the page listens only to the hub's
+  origin, draws only that draft (dates not applied, nothing live beside it, nothing stored),
+  and answers `{ type: 'xenon-promo-ready' }` when it is listening.
+- The catalog page does not load `promo.js`: its storefront has its own hub-driven spotlight.

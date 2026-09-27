@@ -20,6 +20,8 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { headerHtml, footerHtml } from './site-chrome.mjs';
+import { LANG_PAGES, HOME_LANGS, langsOf, pathOf } from './lang-pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
@@ -116,18 +118,18 @@ const KIND_BLURB = {
     'your tiles. It runs locally on your own machine, with no video file to download.',
   page: 'A page is a ready-made dashboard layout: which widgets sit where, at what size, ' +
     'across the grid. Importing it adds the page alongside the ones you already have.',
-  deck: 'A Deck profile is a set of touch keys — apps, files, sites, media controls, macros — ' +
+  deck: 'A Deck profile is a set of touch keys for apps, files, sites, media controls and macros, ' +
     'laid out ready to press. You can edit every key after importing it.',
   widget: 'A widget is a tile that lives on your dashboard grid. It runs sandboxed, with no ' +
     'network access unless its manifest asks for named hosts and you approve them at install.',
-  bundle: 'A package installs several pieces at once — typically a theme, a background and one ' +
-    'or more widgets built to look like each other — so the whole dashboard changes in one paste.',
+  bundle: 'A package installs several pieces at once, usually a theme, a background and one ' +
+    'or more widgets built to look like each other, so the whole dashboard changes in one paste.',
   ambient: 'An ambient scene takes over the full screen when the dashboard goes idle, and steps ' +
-    'aside the moment you touch it. It is the screensaver the Xeneon Edge never had.',
+    'aside the moment you touch it. It works like a screensaver for the dashboard.',
   icons: 'An icon pack replaces the artwork on your Deck keys, so a profile can look like one ' +
     'thing rather than a grid of defaults.',
-  sounds: 'A sound pack replaces the dashboard\'s own feedback sounds — key presses, alerts, ' +
-    'the voice session chimes.',
+  sounds: 'A sound pack replaces the dashboard\'s own feedback sounds: key presses, alerts ' +
+    'and the voice session chimes.',
 };
 
 /* ── the per-entry page ──────────────────────────────────────────────────── */
@@ -158,11 +160,11 @@ header.top .wrap{display:flex;align-items:center;gap:14px;height:64px}
    across the site. Nothing about it belongs in this file. */
 .top-cta{margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
 .top-cta:hover{color:var(--text)}
-nav.crumb{font-size:13px;color:var(--dim);padding:22px 0 0}
+nav.crumb{font-size:15px;color:var(--muted);padding:22px 0 0}
 nav.crumb a{color:var(--muted);text-decoration:none}
 nav.crumb a:hover{color:var(--green)}
 main{padding-bottom:72px}
-.tier{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+.tier{display:inline-block;font-size:15px;font-weight:700;
 color:var(--green);margin:26px 0 10px}
 .tier.locked{color:var(--gold)}
 .tier.limited{color:var(--iris)}
@@ -170,19 +172,19 @@ h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-we
 .by{color:var(--muted);margin-top:10px;font-size:15px}
 .by b{color:var(--text);font-weight:600}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;
-font-size:13px;color:var(--muted)}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;
+font-size:14px;color:var(--muted)}
 .desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
 .shots{margin-top:28px;display:grid;gap:14px}
 .shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
 .sec{margin-top:34px}
-.sec h2{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.sec h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px}
 .sec p{color:var(--bone-1);max-width:66ch}
 .sw{display:flex;flex-wrap:wrap;gap:14px}
-.sw span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sw span{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
 .tags{display:flex;flex-wrap:wrap;gap:8px}
-.tags span{font-size:13px;color:var(--dim)}
+.tags span{font-size:15px;color:var(--muted)}
 .cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
 font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
@@ -195,7 +197,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .facts{list-style:none;margin:0;padding:0;color:var(--bone-1);max-width:66ch}
 .facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .facts li:last-child{border-bottom:0}
-.facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
+.facts b{font-weight:700;color:var(--muted);flex:0 0 148px;font-size:15px}
 /* Without a basis the long value ("Runs on") wrapped under its own label while
    every short row stayed beside it, so the column read as broken every few rows.
    Below 560px the label goes on its own line for all of them, together. */
@@ -206,7 +208,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
 .rel a:hover{border-color:var(--rule-2)}
 .rel .n{font-weight:600;font-size:15px}
-.rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
+.rel .k{font-size:15px;color:var(--muted);margin-left:auto;white-space:nowrap}
 @media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
 footer a{color:var(--muted);text-decoration:none}
@@ -266,7 +268,7 @@ function entryPage(e, indexable, live = []) {
   const published = isoDay(e.addedAt);
   const modified = isoDay(e.updatedAt) || published;
 
-  const title = `${e.name} — ${kindLabel} for Xenon`;
+  const title = `${e.name}: ${kindLabel} for Xenon`;
   const description = clamp(
     e.description ||
     `${e.name}, a ${kindLabel.toLowerCase()} for the Xenon dashboard by ${e.author}. Import it into your local Xenon in one paste.`
@@ -287,7 +289,7 @@ function entryPage(e, indexable, live = []) {
     image,
   };
   if (SOFTWARE_KINDS.has(e.kind)) {
-    work.applicationCategory = 'DesktopApplication';
+    work.applicationCategory = 'UtilitiesApplication';
     // Xenon has run on all three since v4.11.0. This said "Windows 10, Windows 11"
     // and was telling Google the opposite on 23 pages.
     work.operatingSystem = 'Windows, macOS, Linux';
@@ -337,7 +339,7 @@ function entryPage(e, indexable, live = []) {
       // webp first, png second, gone third — the same two-step the catalog does
       // at runtime, plus the removal, because a broken-image icon sitting in the
       // layout looks worse than the gap it leaves.
-      `<img src="${esc(shotUrl(e.id, i))}" alt="${esc(e.name)} — screenshot ${i} of ${shots}"` +
+      `<img src="${esc(shotUrl(e.id, i))}" alt="${esc(e.name)}, screenshot ${i} of ${shots}"` +
       ` loading="${i === 1 ? 'eager' : 'lazy'}" decoding="async"` +
       ` onerror="this.onerror=function(){this.remove()};this.src='${esc(shotUrl(e.id, i, 'png'))}'">`
     );
@@ -365,7 +367,7 @@ function entryPage(e, indexable, live = []) {
   let buttons, note;
   if (limited && soldOut) {
     buttons = `<a class="btn" href="${inCatalog}">See it in the catalog</a>`;
-    note = `Sold out — all ${esc(limited.total)} copies of this drop are claimed.`;
+    note = `Sold out: all ${esc(limited.total)} copies of this drop are claimed.`;
   } else if (limited) {
     buttons =
       `<a class="btn fill" href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve on Discord</a>` +
@@ -375,7 +377,7 @@ function entryPage(e, indexable, live = []) {
       `Discord verifies your account and sends a personal access code.`;
   } else if (locked) {
     buttons = `<a class="btn fill" href="${inCatalog}">Open in the catalog</a>`;
-    note = `A supporters' item — unlock it in the catalog, then paste the code into ` +
+    note = `A supporters' item. Unlock it in the catalog, then paste the code into ` +
       `Xenon under Settings → Widgets &amp; sharing → Import.`;
   } else {
     buttons =
@@ -392,7 +394,7 @@ function entryPage(e, indexable, live = []) {
   const steps = [];
   if (limited && soldOut) {
     steps.push(
-      `This drop is closed — all ${esc(limited.total)} copies were claimed.`,
+      `This drop is closed: all ${esc(limited.total)} copies were claimed.`,
       `<a href="/catalog/">Browse the rest of the catalog</a> for something still available.`
     );
   } else {
@@ -411,7 +413,7 @@ function entryPage(e, indexable, live = []) {
     steps.push(e.appVersionMin
       ? `This one needs <a href="/">Xenon ${esc(e.appVersionMin)} or later</a>. An older install ` +
         `refuses the code rather than importing half of it.`
-      : `Do not have Xenon yet? <a href="/">It is free and open source</a>, for Windows, macOS and Linux.`);
+      : `Do not have Xenon yet? <a href="/">It is free</a>, with its source on GitHub, for Windows, macOS and Linux.`);
   }
 
   // A plain facts table. Every row is a field the catalog already carries, and
@@ -422,7 +424,7 @@ function entryPage(e, indexable, live = []) {
   facts.push(['Made by', `<a href="/creators/${creatorSlug(e.author)}/">${esc(e.author)}</a>` + (e.authorSupporter ? ' (supporter)' : '')]);
   if (e.version) facts.push(['Version', 'v' + esc(e.version)]);
   facts.push(['Needs', e.appVersionMin ? `Xenon ${esc(e.appVersionMin)} or later` : 'Any recent Xenon']);
-  facts.push(['Runs on', 'Windows, macOS and Linux — on a second monitor, a Xeneon Edge, ' +
+  facts.push(['Runs on', 'Windows, macOS and Linux, on a second monitor, a Xeneon Edge, ' +
     'a tablet or a paired phone']);
   facts.push(['Price', limited ? 'Reserved on Discord' : locked ? 'Supporters' : 'Free']);
   if (published) facts.push(['Added', esc(published)]);
@@ -459,6 +461,7 @@ ${related.map((o) =>
      ground first. /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
 <script src="/theme.js" defer></script>
+<script src="/chrome.js" defer></script>
 
 <meta property="og:type" content="${SOFTWARE_KINDS.has(e.kind) ? 'product' : 'article'}">
 <meta property="og:site_name" content="Xenon">
@@ -486,12 +489,7 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap">
-    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
-    <a class="top-cta" href="/catalog/">All community items →</a>
-  </div>
-</header>
+${headerHtml()}
 
 <div class="wrap">
   <nav class="crumb" aria-label="Breadcrumb">
@@ -514,7 +512,7 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
       ? `<section class="sec"><h2>Tags</h2><div class="tags">${e.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div></section>`
       : ''}
     ${e.perfWarning
-      ? `<p class="note">This one asks a little more of the machine than most — it is worth knowing before you load it onto a small screen.</p>`
+      ? `<p class="note">This one asks a little more of the machine than most, which is worth knowing before you load it onto a small screen.</p>`
       : ''}
     <div class="cta">${buttons}</div>
     <p class="note">${note}</p>
@@ -531,13 +529,8 @@ ${facts.map(([k, v]) => `        <li><b>${k}</b><span>${v}</span></li>`).join('\
   </main>
 </div>
 
-<footer>
-  <div class="wrap">
-    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
-    <a href="/submit/">Publish yours</a> · <a href="${REPO}" rel="noopener">GitHub</a>
-    ${modified ? `<span> · Updated ${esc(modified)}</span>` : ''}
-  </div>
-</footer>
+${modified ? `<p class="wrap updated">Updated ${esc(modified)}</p>` : ''}
+${footerHtml()}
 
 </body>
 </html>
@@ -671,6 +664,7 @@ function creatorPage(c) {
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
 <script src="/theme.js" defer></script>
+<script src="/chrome.js" defer></script>
 <meta property="og:type" content="profile">
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="en_US">
@@ -692,10 +686,10 @@ function creatorPage(c) {
 .cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
 .cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
 .cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
-.cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.cr-k{font-size:15px;font-weight:700;color:var(--muted)}
 .cr-n{font-weight:600;font-size:16px}
-.cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
-.cr-live{display:flex;gap:12px;margin-top:6px;font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums;min-height:1.2em}
+.cr-d{font-size:15px;color:var(--muted);line-height:1.45}
+.cr-live{display:flex;gap:12px;margin-top:6px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:1.2em}
 .cr-own{margin-top:30px;padding:16px 18px;border-left:2px solid var(--green);color:var(--muted);font-size:14.5px}
 </style>
 <link rel="stylesheet" href="/site.css">
@@ -705,12 +699,7 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap">
-    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
-    <a class="top-cta" href="/catalog/">All community items →</a>
-  </div>
-</header>
+${headerHtml()}
 
 <div class="wrap">
   <nav class="crumb" aria-label="Breadcrumb">
@@ -739,12 +728,7 @@ ${cards}
   </main>
 </div>
 
-<footer>
-  <div class="wrap">
-    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
-    <a href="/submit/">Publish yours</a> · <a href="${REPO}" rel="noopener">GitHub</a>
-  </div>
-</footer>
+${footerHtml()}
 
 <script>
 (function () {
@@ -907,11 +891,42 @@ const STATIC_ROUTES = [
   { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/submit/', file: 'docs/submit/index.html', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy.html', file: 'docs/privacy.html', priority: '0.3', changefreq: 'yearly' },
+  // Generated from CHANGELOG.md on every deploy (tools/build-releases.mjs): the
+  // answer to "is it maintained?", dated, on the site instead of on GitHub.
+  { loc: '/releases.html', file: 'CHANGELOG.md', priority: '0.5', changefreq: 'weekly' },
+  // The pages for what people search for beyond "Xenon": a Mac, the widget
+  // list, Deck keys, Claude Code on a second screen, a sensor panel.
+  { loc: '/mac.html', file: 'docs/mac.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/widgets.html', file: 'docs/widgets.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/deck.html', file: 'docs/deck.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/claude-code.html', file: 'docs/claude-code.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/sensor-panel.html', file: 'docs/sensor-panel.html', priority: '0.7', changefreq: 'monthly' },
 ];
+
+// Every page published in several languages lists all of them, each URL
+// naming its siblings (hreflang in the sitemap as well as in the page).
+function alternatesOf(page) {
+  const langs = langsOf(page);
+  if (langs.length < 2) return null;
+  return langs.map((l) => ({ lang: l, href: SITE + pathOf(page, l) }))
+    .concat([{ lang: 'x-default', href: SITE + pathOf(page, 'en') }]);
+}
+
+function languageRoutes() {
+  const out = [];
+  for (const p of LANG_PAGES) {
+    for (const l of langsOf(p.page)) {
+      if (l === 'en') continue;
+      out.push({ loc: pathOf(p.page, l), file: 'docs/' + l + '/' + p.page, priority: '0.6', changefreq: 'monthly', page: p.page });
+    }
+  }
+  return out;
+}
 
 function sitemap(urls) {
   const body = urls.map((u) => {
     const lines = [`    <loc>${esc(SITE + u.loc)}</loc>`];
+    for (const a of (u.alternates || [])) lines.push(`    <xhtml:link rel="alternate" hreflang="${a.lang}" href="${esc(a.href)}"/>`);
     if (u.lastmod) lines.push(`    <lastmod>${u.lastmod}</lastmod>`);
     if (u.changefreq) lines.push(`    <changefreq>${u.changefreq}</changefreq>`);
     if (u.priority) lines.push(`    <priority>${u.priority}</priority>`);
@@ -920,6 +935,7 @@ function sitemap(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated by tools/build-seo.mjs — do not edit by hand. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 ${body}
@@ -935,8 +951,14 @@ function main() {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : [];
   const now = Date.now();
 
-  const urls = STATIC_ROUTES.map((r) => ({
+  const pageOf = (loc) => {
+    const m = /^\/(?:(es|it|ja|ko|zh)\/)?(.*)$/.exec(loc);
+    const file = m ? m[2] : '';
+    return file === '' ? 'index.html' : file;
+  };
+  const urls = STATIC_ROUTES.concat(languageRoutes()).map((r) => ({
     loc: r.loc, lastmod: gitDate(r.file), changefreq: r.changefreq, priority: r.priority,
+    alternates: alternatesOf(r.page || pageOf(r.loc)),
   }));
 
   const built = new Set();
