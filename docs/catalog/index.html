@@ -706,6 +706,8 @@
     padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); }
   .drop-badge.lim { color: var(--iris); border-color: color-mix(in srgb, var(--iris) 50%, transparent); background: color-mix(in srgb, var(--iris) 8%, transparent); }
   .drop-badge.gold { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 50%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+  /* Inside the Supporters shelf the heading already says so, once. */
+  .sup-strip .drop-badge.gold { display: none; }
   .drop-badge.sold { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 7%, transparent); }
   .drop-name { font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.4vw, 38px); line-height: 1.05; letter-spacing: -.015em; }
   .drop-name .cat-ver { font-size: 14px; }
@@ -802,9 +804,10 @@
     border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent); border-radius: 999px; padding: 2px 9px; }
   .sup-perks { margin: 4px 0 18px; }
   .sup-perks-h { font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--bone-1); margin-bottom: 10px; }
-  .sup-perks-list { list-style: none; display: grid; gap: 8px; }
-  .sup-perks-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 15px; line-height: 1.5; color: var(--text); }
-  .sup-perk-ic { flex: none; color: var(--gold); margin-top: 2px; font-size: 13px; }
+  .sup-perks-list { list-style: disc; padding-left: 20px; display: grid; gap: 6px; }
+  .sup-perks-list li { font-size: 15px; line-height: 1.5; color: var(--text); }
+  .sup-perks-list li::marker { color: var(--gold); }
+  .sup-perks-list .sup-perk-ic { display: none; }
   .sup-register { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
     background: color-mix(in srgb, var(--gold) 7%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 24%, transparent); font-size: 13px; line-height: 1.5; color: var(--muted); }
   .sup-mail { font-family: var(--sans); font-size: 15px; font-weight: 700; color: var(--gold); text-decoration: none;

@@ -2,7 +2,7 @@
   "ko": {
     "meta.title": "xenon.exe는 안전한가요? Xenon이 Windows에서 실행하는 프로세스",
     "meta.desc": "Xenon은 xenon.exe라는 파일을 설치하지 않습니다. Windows에서 실제로 실행하는 것, 각 파일의 위치, 서명된 체크섬으로 확인하는 방법을 설명합니다.",
-    "exe.h1": "xenon.exe: 무엇인지, 그리고 직접 확인하는 방법",
+    "exe.h1": "xenon.exe",
     "exe.lede": "PC에서 낯선 프로세스를 발견하고 그 이름을 검색해서 오셨다면, 가장 자주 맞는 답부터 말씀드리겠습니다. 아마 Xenon의 것이 아닙니다.",
     "exe.updated": "마지막 업데이트: 2026년 9월 26일",
     "exe.jump.short": "짧은 답",

@@ -10,7 +10,7 @@
     "ld.a3": "可以。Xenon 以网页小组件的形式占用一个 iCUE 面板，其他面板保持原样。",
     "ld.q4": "Xenon 免费吗？",
     "ld.a4": "免费。个人使用免费，源代码以非商业许可证公开在 GitHub 上，没有试用期，也没有锁定的功能。",
-    "edge.h1": "Xeneon Edge 小组件：iCUE 提供什么，Xenon 增加什么",
+    "edge.h1": "Xeneon Edge 小组件",
     "edge.lede": "Edge 是一块好屏幕，但小组件目录不大。Xenon 是一款围绕它的确切形状设计的免费仪表盘：页面由你亲手排布，控制按钮直接作用于电脑，触控绝不会抢走游戏的焦点，而且有没有 iCUE 都能运行。",
     "edge.updated": "最后更新：2026年9月26日",
     "edge.jump.icue": "iCUE 提供什么",

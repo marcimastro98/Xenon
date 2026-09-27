@@ -1,6 +1,6 @@
 {
   "it": {
-    "deck.h1": "Il Deck: tasti touch che agiscono sul tuo PC",
+    "deck.h1": "Il Deck",
     "deck.lede": "Il Deck è una griglia di tasti che aggiungi a una pagina della dashboard di Xenon. Un tocco può aprire un'app, mandare una scorciatoia da tastiera, cambiare scena in OBS o mettere in muto Discord, e un tasto può illuminarsi per mostrare lo stato di quello che comanda.",
     "deck.lede2": "Fa un lavoro simile a quello di uno Stream Deck, su uno schermo che hai già: uno Xeneon Edge, un monitor libero, un tablet o un telefono.",
     "deck.updated": "Ultimo aggiornamento: 27 settembre 2026",

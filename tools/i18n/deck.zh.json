@@ -1,6 +1,6 @@
 {
   "zh": {
-    "deck.h1": "Deck：作用于电脑的触控按键",
+    "deck.h1": "Deck",
     "deck.lede": "Deck 是一组按键，你可以把它添加到 Xenon 仪表盘的页面上。点一下就能打开应用、发送键盘快捷键、切换 OBS 场景或让 Discord 静音，按键还可以亮起，显示它所控制对象的状态。",
     "deck.lede2": "它的作用和 Stream Deck 类似，只不过用的是你已经有的屏幕：Xeneon Edge、闲置的显示器、平板或手机。",
     "deck.updated": "最后更新：2026年9月27日",

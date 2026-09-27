@@ -12,7 +12,7 @@
     "ld.a4": "Up to 8 pages, each on a 24-column grid.",
     "ld.q5": "Can I make my own widget?",
     "ld.a5": "Yes. With the widget SDK, in beta, you write a widget as an HTML page and Xenon runs it inside a sandbox, with only the data and actions its user approves.",
-    "wg.h1": "Xenon widgets: the full list",
+    "wg.h1": "Every Xenon widget",
     "wg.lede": "Xenon is a free touch dashboard for the screens next to a PC: a CORSAIR Xeneon Edge, a spare monitor, a touchscreen, or, in beta, a phone or tablet. It comes with 41 built-in widgets. Here is each one with what it does, then how you place them and where more come from.",
     "wg.updated": "Last updated: 27 September 2026",
     "wg.jump.prod": "Productivity",

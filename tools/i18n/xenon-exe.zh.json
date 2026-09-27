@@ -2,7 +2,7 @@
   "zh": {
     "meta.title": "xenon.exe 安全吗？Xenon 在 Windows 上运行的进程",
     "meta.desc": "Xenon 不会安装名为 xenon.exe 的文件。本页介绍它在 Windows 上实际运行什么、每个文件在哪里，以及如何用签名的校验和进行核对。",
-    "exe.h1": "xenon.exe：它是什么，以及如何自己检查",
+    "exe.h1": "xenon.exe",
     "exe.lede": "如果你在电脑上发现了一个陌生的进程，并搜索了它的名字，那么最常见的正确答案放在最前面：它很可能不是来自 Xenon。",
     "exe.updated": "最后更新：2026年9月26日",
     "exe.jump.short": "简短回答",

@@ -2,7 +2,7 @@
   "en": {
     "meta.title": "xenon.exe: is it safe? The processes Xenon runs on Windows",
     "meta.desc": "Xenon does not install a file called xenon.exe. What it does run on Windows, where each file lives, and how to check it against the signed checksums.",
-    "exe.h1": "xenon.exe: what it is, and how to check it yourself",
+    "exe.h1": "xenon.exe",
     "exe.lede": "If you found an unfamiliar process on your PC and searched its name, the answer that is most often true comes first: it is probably not from Xenon.",
     "exe.updated": "Last updated: 26 September 2026",
     "exe.jump.short": "The short answer",
@@ -59,7 +59,7 @@
   "es": {
     "meta.title": "xenon.exe: ¿es seguro? Los procesos de Xenon en Windows",
     "meta.desc": "Xenon no instala ningún archivo llamado xenon.exe. Qué ejecuta en Windows, dónde está cada archivo y cómo comprobarlo con las sumas SHA256 firmadas.",
-    "exe.h1": "xenon.exe: qué es y cómo comprobarlo tú mismo",
+    "exe.h1": "xenon.exe",
     "exe.lede": "Si encontraste un proceso desconocido en tu PC y buscaste su nombre, primero va la respuesta que suele ser la correcta: probablemente no es de Xenon.",
     "exe.updated": "Última actualización: 26 de septiembre de 2026",
     "exe.jump.short": "La respuesta corta",
@@ -116,7 +116,7 @@
   "it": {
     "meta.title": "xenon.exe: è sicuro? I processi che Xenon avvia su Windows",
     "meta.desc": "Xenon non installa nessun file chiamato xenon.exe. Cosa avvia su Windows, dove si trova ogni file e come verificarlo con i checksum firmati.",
-    "exe.h1": "xenon.exe: cos’è e come verificarlo da te",
+    "exe.h1": "xenon.exe",
     "exe.lede": "Se hai trovato un processo sconosciuto sul PC e ne hai cercato il nome, ecco prima la risposta che di solito è quella giusta: probabilmente non viene da Xenon.",
     "exe.updated": "Ultimo aggiornamento: 26 settembre 2026",
     "exe.jump.short": "La risposta breve",
