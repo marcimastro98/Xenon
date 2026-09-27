@@ -52,7 +52,19 @@ BACKUP_DIR="$UPD_DIR/backup"
 LOG="$UPD_DIR/update.log"
 NM="$ROOT_DIR/node_modules"
 NM_BAK="$ROOT_DIR/node_modules.xenon-rollback"
+# The port and "quiet" arrive as ENVIRONMENT variables set by self-update.js
+# (passed with --setenv through systemd-run on Linux), never as arguments: an
+# argument this script does not know would break a hand-off to a different
+# version of it, a variable is simply ignored.
+#   XENON_PORT          the port the server listens on; 3030 when unset or junk
+#   XENON_UPDATE_QUIET  1 = do not open the dashboard in a browser when done
 PORT=3030
+case "${XENON_PORT:-}" in
+  ''|*[!0-9]*) ;;
+  *) if [ "${#XENON_PORT}" -le 5 ] && [ "$XENON_PORT" -ge 1 ] && [ "$XENON_PORT" -le 65535 ]; then PORT="$XENON_PORT"; fi ;;
+esac
+QUIET=0
+[ "${XENON_UPDATE_QUIET:-}" = '1' ] && QUIET=1
 DASH_URL="http://127.0.0.1:$PORT/"
 LABEL='com.marcimastro98.xenon.backend'
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
@@ -559,5 +571,5 @@ write_result "$( "$NODE_BIN" -e '
 rm -f "$UPD_DIR/staged.json" "$STAGED_LIST" 2>/dev/null
 rm -rf "$APP_DIR" "$BACKUP_DIR" "$NM_BAK" 2>/dev/null
 log 'apply OK'
-open_dashboard
+if [ "$QUIET" = 1 ]; then log 'quiet: not opening the dashboard'; else open_dashboard; fi
 exit 0

@@ -25,6 +25,7 @@
   const HS = () => { try { return (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {}; } catch { return {}; } };
 
   const DAY = 24 * 3600 * 1000;
+  const CHECK_EVERY = 3 * 3600 * 1000;   // how often it asks for the feed while open
   const K_MUTED = 'xeneonedge.hubMessagesMuted';  // '1' once the user opts out
   const K_CHECK = 'xeneonedge.hubMessageCheck';   // last-check timestamp (daily throttle)
 
@@ -318,7 +319,11 @@
     try {
       if (isMuted()) return;
       let last = 0; try { last = Number(localStorage.getItem(K_CHECK) || 0); } catch { /* ignore */ }
-      if (Date.now() - last < DAY) return;
+      // Asks every few hours, not once a day: the daily budget (claimDaily) and
+      // the shared seen set are what keep it to one modal a day and each message
+      // to once, so a message published after the dashboard opened is no longer
+      // held until the next reload.
+      if (Date.now() - last < CHECK_EVERY) return;
 
       const out = await api('/api/community/messages');
       if (!out || !out.ok || !Array.isArray(out.messages)) return;   // offline → retry next load
@@ -390,5 +395,11 @@
   // After catalog-drop's own check, so the paid-drop modal gets first claim on
   // the day's interruption slot: a limited edition running out of copies is more
   // time-critical than an announcement.
-  setTimeout(() => { try { checkDaily(); } catch { /* ignore */ } }, 35000);
+  // Then a look every half hour while the dashboard stays open (a kiosk can stay
+  // open for days), and one when it comes back into view. A chain of timeouts,
+  // not setInterval, so nothing here competes with the interrupt queue's ticker.
+  const look = () => { try { checkDaily(); } catch { /* ignore */ } };
+  const loop = () => setTimeout(() => { look(); loop(); }, 30 * 60 * 1000);
+  setTimeout(() => { look(); loop(); }, 35000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) look(); });
 })();

@@ -197,6 +197,40 @@ function isDestructive(toolName, detail) {
   return DESTRUCTIVE_RE.test(String(detail || ''));
 }
 
+// What a pending request would reach, in the few words the card can show next
+// to the command. With auto mode on (the default since August 2026) routine
+// calls never reach a person, so the ones that do are the unusual ones, and the
+// raw command alone does not say what makes them unusual. Every code here is
+// derived from the tool and its argument only, and errs toward saying MORE:
+//   irreversible  deletes, force-pushes, resets, drops (the same test that
+//                 escalates the card to full screen)
+//   publish       sends work somewhere others see it (git push, npm publish…)
+//   network       reaches another machine
+//   outside       a file path that is not inside the session's folder
+//   readonly      reads only (Read, Glob, Grep): said, so calm is visible too
+const PUBLISH_RE = /\b(git\s+push|npm\s+publish|pnpm\s+publish|yarn\s+publish|gh\s+(release|pr\s+(create|merge))|docker\s+push|cargo\s+publish|twine\s+upload)\b/i;
+const NETWORK_RE = /\b(curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|ssh|scp|rsync|ftp|sftp|nc|telnet)\b|https?:\/\//i;
+const FILE_TOOLS = new Set(['Read', 'Write', 'Edit', 'NotebookEdit']);
+function isInside(file, cwd) {
+  if (!file || !cwd) return true;                     // nothing to compare: say nothing
+  const norm = (p) => path.resolve(p).replace(/[\\/]+$/, '');
+  const win = process.platform === 'win32';
+  const f = win ? norm(file).toLowerCase() : norm(file);
+  const c = win ? norm(cwd).toLowerCase() : norm(cwd);
+  return f === c || f.startsWith(c + path.sep);
+}
+function describeRisk(toolName, detail, cwd) {
+  const tool = str(toolName, 60);
+  const d = String(detail || '');
+  const out = [];
+  if (isDestructive(tool, d)) out.push('irreversible');
+  if (tool === 'Bash' && PUBLISH_RE.test(d)) out.push('publish');
+  if (tool === 'WebFetch' || tool === 'WebSearch' || (tool === 'Bash' && NETWORK_RE.test(d) && out.indexOf('publish') === -1)) out.push('network');
+  if (FILE_TOOLS.has(tool) && path.isAbsolute(d) && !isInside(d, cwd)) out.push('outside');
+  if (!out.length && (tool === 'Read' || tool === 'Glob' || tool === 'Grep')) out.push('readonly');
+  return out;
+}
+
 // TodoWrite's input is Claude's own plan for the work in front of it, and it is
 // the single most useful thing a dashboard can show: not "it is busy" but where
 // it has got to. Read it off the tool call rather than out of the transcript.
@@ -339,10 +373,13 @@ function createBridge(opts) {
       // Only replace a known reading with another known reading: a session that
       // reports no rate_limits (API-key user, or before the first API response)
       // must not blank out a good value another session just gave us.
+      // Each window is kept on its own: a post that carries only one of them
+      // used to null the other out.
       if (fivePct !== null || sevenPct !== null) {
+        const prev = limits || {};
         limits = {
-          fiveHour: fivePct === null ? null : { pct: fivePct, resetsAt: num(five.resets_at) },
-          sevenDay: sevenPct === null ? null : { pct: sevenPct, resetsAt: num(seven.resets_at) },
+          fiveHour: fivePct === null ? (prev.fiveHour || null) : { pct: fivePct, resetsAt: num(five.resets_at) },
+          sevenDay: sevenPct === null ? (prev.sevenDay || null) : { pct: sevenPct, resetsAt: num(seven.resets_at) },
           at: now(),
         };
       }
@@ -628,6 +665,7 @@ function createBridge(opts) {
       // approve. Showing "ExitPlanMode" and an Allow button over it asked the
       // user to approve something they could not read.
       plan: tool === 'ExitPlanMode' ? str(d.tool_input && d.tool_input.plan, 4000) : '',
+      risks: describeRisk(tool, detail, (s && s.cwd) || str(d.cwd, 400)),
       task: (s && s.task) || '',
       model: (s && s.model) || '',
       createdAt,
@@ -689,6 +727,7 @@ function createBridge(opts) {
       detail: '',
       questions,
       plan: '',
+      risks: [],
       task: (s && s.task) || '',
       model: (s && s.model) || '',
       createdAt,
@@ -954,6 +993,7 @@ function createBridge(opts) {
         detail: p.detail,
         questions: p.questions || null,
         plan: p.plan || '',
+        risks: p.risks || [],
         task: p.task,
         model: p.model,
         waitedMs: t - p.createdAt,
@@ -962,6 +1002,9 @@ function createBridge(opts) {
       }));
 
     return {
+      // The server's clock when this was built: activity marks carry absolute
+      // times, and the widget positions them against this, not its own clock.
+      now: t,
       limits: limits ? { ...limits, ageMs: t - limits.at } : null,
       sessions: live,
       approvals,
@@ -975,6 +1018,8 @@ function createBridge(opts) {
         s.todos.map(x => x.status).join(''),
         s.subagents.length, s.activity.length,
         s.queued ? 'q' : '', s.ended ? 'e' : '', s.resting ? 1 : 0,
+        s.contextPct == null ? '' : Math.round(s.contextPct), s.model || '',
+        s.linesAdded || 0, s.linesRemoved || 0,
       ].join(':')).join(',')
         + '|' + approvals.map(a => a.id + (a.urgent ? '!' : '')).join(',')
         + '|' + (limits ? `${limits.fiveHour && limits.fiveHour.pct}/${limits.sevenDay && limits.sevenDay.pct}` : ''),
@@ -1034,6 +1079,7 @@ function createBridge(opts) {
 }
 
 module.exports = {
+  describeRisk,
   createBridge,
   describeTool,
   describeTodos,

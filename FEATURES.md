@@ -35,7 +35,7 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Weather](#weather)
 - [Stocks (Borsa)](#stocks-borsa)
 - [Football (Calcio)](#football-calcio)
-- [Claude Code usage](#claude-code-usage)
+- [Claude Code](#claude-code)
 - [News](#news)
 - [Vitals](#vitals)
 - [Ambient mode (screensaver)](#ambient-mode-screensaver)
@@ -697,16 +697,17 @@ Follow your football clubs right on the dashboard. Add the **Calcio** tile from 
 - **Ask Xenon** — "how did Napoli do", "when does Inter play next", "read me the Serie A table", by voice or text.
 - Deliberately light: no new dependencies, crests loaded lazily with an initials fallback, data fetched only while a dashboard is open and streamed over the live channel. The tile adapts to its own size (the hero steps aside on a short layout, the form column on a narrow one), so it works on a phone and on the Edge. Fully localised (EN/IT/KO/JA/ZH/NL).
 
-## Claude Code usage
+## Claude Code
 
-If you use **Claude Code** on your PC, this tile turns your token consumption into a living reactor. Add the **Claude Code** tile from the **"+" → System** palette.
+If you use **Claude Code** on your PC, this tile shows what your sessions are doing, answers them, and keeps your quota in view. Add the **Claude Code** tile from the **"+" → System** palette, then press **Connect Claude Code** on it. Token counts work before you connect; the real quota, exact session state, approvals and questions need the connection.
 
-- **A model-tinted plasma reactor** — a glowing core that takes the colour of the model you're running right now (Opus, Sonnet, Haiku or a frontier model), with particles streaming into it and a live pulse while Claude is actually working.
-- **The numbers that matter** — tokens used **today** and **this week**, your **cache-hit rate** (how much of your input was served cheaply from cache), and the **equivalent API value** of everything you've run.
-- **Every running session, live** — if several Claude Code sessions are open at once, each shows as its own row with the project · git branch, the model, and **what it's working on** (its last prompt). Particles in the reactor take each session's model colour, so several instances feeding the core show as several colours.
-- **A weekly budget you set** — there is no official way to query a plan's remaining quota, so the reactor's "remaining" ring is one you choose: tap the reactor and pick a plan estimate (**Pro / Max 5× / Max 20×**) or type your own weekly token ceiling; leave it on **Auto** to instead charge the core with the week's activity against its own recent peak. It's an estimate you can tune any time.
-- **Grows with the tile** — small, it's the reactor and four headline numbers; taller, it fills in a **30-day history** (cache-served tokens stacked under fresh ones), a **per-project split** and a **per-model split**.
-- **100% local & private** — read straight from Claude Code's own session files (`~/.claude`): no account, no API key, nothing ever leaves your PC, and it works on every plan even offline. The reading is throttled and only re-scans the active session, and the reactor pauses its animation off-screen and respects "reduce motion". No new dependencies. Fully localised (EN/IT/KO/JA/ZH).
+- **Requests first** — when Claude Code asks permission to run a command or change a file, the card sits at the top of the tile with the exact command and **Allow** / **Deny**, and says what the request would reach: publishing your work (`git push`, `npm publish`), the network, a file outside the project folder, or something that cannot be undone. Those last ones take over the screen at once and are allowed by **holding** the button. Any request left for 25 seconds takes over the screen too; nothing is approved for you, and after nine minutes it goes back to the terminal.
+- **Questions from Claude** — a multiple-choice question appears with its options as buttons; your pick reaches the session and Claude carries on. **In the terminal** hands it back.
+- **Live** — a row for each session: its state (working, waiting for you, idle), the step it is on and for how long, its tool calls over the last ten minutes, its own plan, how full its context is, the sub-agents running and the lines it changed. Tap a row to read the conversation or send a follow-up.
+- **The real quota** — the 5-hour and 7-day windows of a Pro or Max plan, each with a countdown to its reset, a mark where an even pace would be now, and one sentence saying where the current pace ends. On an API key the tile measures a weekly budget you set instead.
+- **Usage** — the last 30 days: today, since Monday, the total, the share read from cache and the value at API list prices, a column for each day, and the split by project and by model.
+- **Ask and Deck keys** — start Claude Code in one of your projects from the tile or from a Deck key, and stop a run from the dashboard.
+- **Local** — usage is read from Claude Code's own session files in `~/.claude`; live state arrives from Claude Code's hooks and status line on `127.0.0.1`, each report carrying a key Xenon created. Connecting backs up your `settings.json` first and keeps a status line you already had. Fully localised (11 languages).
 
 ---
 

@@ -758,6 +758,13 @@ if (window.DashboardPages) window.DashboardPages.init();
 // ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    // A search typed in the "+" palette is cleared first; the palette (and
+    // then edit mode) close on the following presses.
+    if (window.DashboardPalette && DashboardPalette.handleEscape()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (document.body.classList.contains('layout-editing') && typeof setDashboardLayoutEditMode === 'function') {
       e.preventDefault();
       setDashboardLayoutEditMode(false);
@@ -777,6 +784,8 @@ document.addEventListener('keydown', e => {
     const settingsOverlay = document.getElementById('settings-overlay');
     if (settingsOverlay && !settingsOverlay.hidden) {
       e.preventDefault();
+      // A search in progress is cleared first; the next Esc closes Settings.
+      if (window.SettingsSearch && SettingsSearch.handleEscape()) return;
       closeSettings();
       return;
     }

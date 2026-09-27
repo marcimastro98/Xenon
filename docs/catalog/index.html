@@ -2329,7 +2329,6 @@ function applyLang(lang) {
     const s = el('div', 'lim-strip');
     const head = el('div', 'lim-head');
     head.appendChild(el('h2', null, T('sec.limited')));
-    head.appendChild(el('span', 'stag', T('sec.tag')));
     head.appendChild(el('span', 'ssub', T('sec.limited_sub')));
     s.appendChild(head); s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, false));
     return s;
@@ -2346,7 +2345,6 @@ function applyLang(lang) {
     const s = el('div', 'sup-strip sup-frame');
     const head = el('div', 'sup-head');
     const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
-    head.appendChild(el('span', 'stag', T('sec.tag')));
     head.appendChild(el('span', 'ssub', T('sec.supporters_sub')));
     const join = el('a', 'sjoin'); join.appendChild(cico('heart')); join.appendChild(document.createTextNode(T('sec.supporters_join'))); join.href = COFFEE; join.target = '_blank'; join.rel = 'noopener';
     head.appendChild(join);

@@ -135,6 +135,172 @@
     }
   }
 
+  // ── Search ──────────────────────────────────────────────────────────────
+  // Typing replaces the category view with one ranked list, matched in all 11
+  // languages plus hidden words per widget (palette_kw_<id> in i18n.js), and,
+  // on the normal "+", the Store widgets installed on this PC by name, author
+  // and description, which otherwise all hide behind one "Custom widget" item.
+  // Matching is js/fuzzy-find.js; this is only the palette's half.
+  let _search = null;   // { input, pop, render, entries, index, results, selected }
+
+  function catKeyOf(base) {
+    const cat = WIDGET_CATEGORIES.find(c => c.ids.includes(base));
+    return cat ? cat.labelKey : 'palette_cat_other';
+  }
+
+  function builtinFields(base) {
+    const FF = window.FuzzyFind;
+    if (!FF || typeof i18n !== 'object') return [];
+    const cur = (typeof lang === 'string' && lang) ? lang : 'en';
+    return [
+      ...FF.i18nFields(i18n, 'layout_widget_' + base, 1, { lang: cur, fuzzy: true }),
+      ...FF.i18nFields(i18n, 'palette_kw_' + base, 0.8, { lang: cur, fuzzy: true }),
+      ...FF.i18nFields(i18n, catKeyOf(base), 0.3, { lang: cur, mainOnly: true }),
+    ];
+  }
+
+  // Store widgets a tile could run right now: installed, not an Ambient scene,
+  // not paused, with the SDK on (safe mode reads as off).
+  function storePackages() {
+    const CW = window.CustomWidget;
+    if (!CW || typeof CW.cachedPackages !== 'function' || !(CW.enabled && CW.enabled())) return [];
+    return CW.cachedPackages().filter(p => p && p.id && p.name && p.surface !== 'ambient'
+      && !(typeof CW.isSuspended === 'function' && CW.isSuspended(p.id)));
+  }
+
+  function makeResultItem(entry, query, idx) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'widget-palette-item';
+    btn.dataset.idx = String(idx);
+    const ico = document.createElement('span');
+    ico.className = 'widget-palette-ico';
+    ico.innerHTML = WIDGET_ICONS[entry.base] || FALLBACK_ICON;   // static, trusted SVG
+    const text = document.createElement('span');
+    text.className = 'widget-palette-text';
+    // No data-i18n here: applyTranslations would overwrite the highlighted
+    // label with plain text.
+    const lbl = document.createElement('span');
+    lbl.className = 'widget-palette-label';
+    window.FuzzyFind.renderHighlighted(lbl, entry.label, query);
+    text.appendChild(lbl);
+    if (entry.sub) {
+      const sub = document.createElement('span');
+      sub.className = 'widget-palette-sub';
+      sub.textContent = entry.sub;
+      text.appendChild(sub);
+    }
+    btn.append(ico, text);
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
+    btn.addEventListener('click', () => entry.pick());
+    return btn;
+  }
+
+  function selectResult(i) {
+    if (!_search) return;
+    const items = _search.pop.querySelectorAll('.widget-palette-item[data-idx]');
+    if (!items.length) return;
+    _search.selected = (i + items.length) % items.length;
+    items.forEach((b) => {
+      const on = Number(b.dataset.idx) === _search.selected;
+      b.classList.toggle('is-selected', on);
+      if (on) b.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  function renderResults() {
+    const S = _search;
+    const q = S.input.value;
+    if (!q.trim()) { S.results = []; S.render(); return; }
+    if (!S.index) S.index = window.FuzzyFind.createIndex(S.entries());
+    const res = window.FuzzyFind.search(S.index, q, { limit: 40 });
+    const pop = S.pop;
+    pop.textContent = '';
+    pop.classList.remove('widget-palette--cols');
+    pop.classList.add('widget-palette--results');
+    S.results = [];
+    if (!res.length) {
+      const empty = document.createElement('div');
+      empty.className = 'widget-palette-empty';
+      empty.textContent = tr('palette_search_empty', '');
+      pop.appendChild(empty);
+      return;
+    }
+    // One heading per group, groups in the order of their best match.
+    const groups = new Map();
+    for (const r of res) {
+      const g = r.entry.group;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(r.entry);
+    }
+    for (const [groupKey, list] of groups) {
+      const head = document.createElement('div');
+      head.className = 'widget-palette-cat';
+      head.textContent = tr(groupKey, '');
+      pop.appendChild(head);
+      const grid = document.createElement('div');
+      grid.className = 'widget-palette-grid widget-palette-results';
+      for (const entry of list) {
+        grid.appendChild(makeResultItem(entry, q, S.results.length));
+        S.results.push(entry);
+      }
+      pop.appendChild(grid);
+    }
+    selectResult(0);
+  }
+
+  function attachSearch(modal, pop, render, entries) {
+    const row = document.createElement('div');
+    row.className = 'widget-palette-searchrow';
+    row.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>';
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.className = 'widget-palette-search';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.setAttribute('autocapitalize', 'off');
+    input.setAttribute('enterkeyhint', 'search');
+    input.setAttribute('data-i18n-placeholder', 'palette_search_placeholder');
+    input.setAttribute('data-i18n-aria-label', 'palette_search_placeholder');
+    input.placeholder = tr('palette_search_placeholder', '');
+    input.setAttribute('aria-label', input.placeholder);
+    row.appendChild(input);
+    modal.insertBefore(row, pop);
+    _search = { input, pop, render, entries, index: null, results: [], selected: 0 };
+    let raf = 0;
+    input.addEventListener('input', () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; if (_search && _search.input === input) renderResults(); });
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (!_search || !_search.results.length) return;
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        selectResult(_search.selected + (ev.key === 'ArrowDown' ? 1 : -1));
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const e = _search.results[_search.selected] || _search.results[0];
+        if (e) e.pick();
+      }
+    });
+    // Straight into the field with a keyboard. Never where there is a touch
+    // surface: focusing would raise the on-screen keyboard over the Edge's
+    // 720 pixels before anyone asked for it.
+    const touch = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+    if (!touch) setTimeout(() => { try { input.focus({ preventScroll: true }); } catch { /* best effort */ } }, 0);
+    return input;
+  }
+
+  // Esc from main.js (capture phase): a query is cleared first, the palette
+  // closes on the next one.
+  function handleEscape() {
+    if (!_search || !document.getElementById('widget-palette') || !_search.input.value) return false;
+    _search.input.value = '';
+    _search.results = [];
+    _search.render();
+    return true;
+  }
+
   // opts.tabTargetMember: when set, the palette adds the chosen widget AS A TAB
   // to that tile (merge) instead of placing it on the page.
   function openPalette(pageId, anchorEl, opts) {
@@ -214,6 +380,8 @@
       if (!secondScreenSupported()) addIds = addIds.filter(id => id !== 'secondscreen');
       const addEntries = addIds.map(id => ({ id, base: id }));
 
+      const pickMove = (id) => { closePalette(); if (tg) tg.addAsTab(id, tabTarget, { move: true }); };
+      const pickAdd = (id) => { closePalette(); if (tg) tg.addAsTab(id, tabTarget); };
       if (!moveEntries.length && !addEntries.length) {
         const empty = document.createElement('div');
         empty.className = 'widget-palette-empty';
@@ -221,14 +389,23 @@
         empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
         pop.appendChild(empty);
       } else {
-        renderSection(pop, 'palette_move_existing', moveEntries, (id) => {
-          closePalette();
-          if (tg) tg.addAsTab(id, tabTarget, { move: true });
+        const render = () => {
+          pop.textContent = '';
+          pop.classList.remove('widget-palette--results');
+          renderSection(pop, 'palette_move_existing', moveEntries, pickMove);
+          renderSection(pop, 'palette_add_new', addEntries, pickAdd);
+        };
+        render();
+        // The search keeps the two sections apart: moving a tile that is
+        // already on the page and adding a new one are different acts.
+        const toEntry = (e, group, pick) => ({
+          base: e.base, group, label: tr('layout_widget_' + e.base, e.base),
+          pick: () => pick(e.id), fields: builtinFields(e.base),
         });
-        renderSection(pop, 'palette_add_new', addEntries, (id) => {
-          closePalette();
-          if (tg) tg.addAsTab(id, tabTarget);
-        });
+        attachSearch(modal, pop, render, () => [
+          ...moveEntries.map(e => toEntry(e, 'palette_move_existing', pickMove)),
+          ...addEntries.map(e => toEntry(e, 'palette_add_new', pickAdd)),
+        ]);
       }
     } else {
       const addable = window.DashboardGrid && window.DashboardGrid.addableWidgetIds
@@ -251,10 +428,56 @@
         empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
         pop.appendChild(empty);
       } else {
-        renderCategorized(pop, ids, (id) => {
+        const pick = (id) => {
           closePalette();
           if (window.DashboardGrid) window.DashboardGrid.addWidgetToPage(id, pageId);
-        });
+        };
+        const render = () => {
+          pop.textContent = '';
+          pop.classList.remove('widget-palette--results');
+          renderCategorized(pop, ids, pick);
+        };
+        render();
+        // A Store widget found by name is placed as a custom tile and handed its
+        // package in the same step, through the tile's own permission dialog.
+        const pickPackage = (pkg) => {
+          closePalette();
+          const DG = window.DashboardGrid;
+          const inst = DG ? DG.addWidgetToPage('custom', pageId) : null;
+          if (inst && window.CustomWidget && window.CustomWidget.assignToTile) window.CustomWidget.assignToTile(inst, pkg.id);
+        };
+        const entries = () => {
+          const out = ids.map(id => ({
+            base: id, group: 'palette_group_builtin', label: tr('layout_widget_' + id, id),
+            pick: () => pick(id), fields: builtinFields(id),
+          }));
+          if (ids.includes('custom')) {
+            for (const pkg of storePackages()) {
+              out.push({
+                base: 'custom', group: 'palette_group_store', label: String(pkg.name),
+                sub: pkg.author ? String(pkg.author) : '',
+                pick: () => pickPackage(pkg),
+                fields: [
+                  { text: String(pkg.name), weight: 1, fuzzy: true },
+                  { text: String(pkg.author || ''), weight: 0.5 },
+                  { text: String(pkg.description || ''), weight: 0.4 },
+                ],
+              });
+            }
+          }
+          return out;
+        };
+        const input = attachSearch(modal, pop, render, entries);
+        // The package list may not be loaded yet (no custom tile on screen this
+        // session). Fetch it now; a query already typed is re-ranked with it.
+        const CW = window.CustomWidget;
+        if (ids.includes('custom') && CW && CW.enabled && CW.enabled() && typeof CW.getPackages === 'function') {
+          CW.getPackages().then(() => {
+            if (!_search || _search.input !== input) return;
+            _search.index = null;
+            if (input.value.trim()) renderResults();
+          }).catch(() => { /* the built-in widgets are still searchable */ });
+        }
       }
     }
     document.body.appendChild(overlay);
@@ -267,6 +490,7 @@
   function closePalette() {
     const p = document.getElementById('widget-palette');
     if (p) p.remove();
+    _search = null;
     document.removeEventListener('keydown', _escClose);
   }
 
@@ -275,5 +499,5 @@
   // from, instead of keeping their own drifting copy. null for unknown ids.
   function iconFor(base) { return WIDGET_ICONS[base] || null; }
 
-  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor };
+  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor, handleEscape };
 })();

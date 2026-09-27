@@ -1461,18 +1461,27 @@
     const sliderTargetSel = document.createElement('select'); sliderTargetSel.className = 'deck-ed-input';
     const SLIDER_TARGET_GATE = {
       volume: () => true,
-      appVolume: () => true,
+      // The same capability that hides the per-app volume KEYS (appVolume,
+      // appMute, appMixer): macOS has no per-process mixer a shell can reach,
+      // so on a Mac this target was offered and then never moved anything.
+      appVolume: () => !(serverCaps && serverCaps.appAudio === false),
       spotifyVolume: () => spotifyConnected !== false,
       obsInput: () => obsConfigured !== false,
       haLight: () => homeAssistantConfigured !== false && (!haDomains || haDomains.has('light')),
       discordInput: () => discordConnected !== false,
       discordOutput: () => discordConnected !== false,
     };
-    (DM.SLIDER_TARGETS || []).forEach((tg) => {
-      if (!(SLIDER_TARGET_GATE[tg] ? SLIDER_TARGET_GATE[tg]() : true) && sliderModel.target !== tg) return;
-      const o = document.createElement('option'); o.value = tg; o.setAttribute('data-i18n', 'deck_slider_' + tg); o.textContent = t('deck_slider_' + tg); sliderTargetSel.appendChild(o);
-    });
-    sliderTargetSel.value = sliderModel.target;
+    // Rebuilt when the capabilities land (they are fetched as the editor opens),
+    // so a gate that depends on them is not decided on "unknown".
+    function fillSliderTargets() {
+      sliderTargetSel.replaceChildren();
+      (DM.SLIDER_TARGETS || []).forEach((tg) => {
+        if (!(SLIDER_TARGET_GATE[tg] ? SLIDER_TARGET_GATE[tg]() : true) && sliderModel.target !== tg) return;
+        const o = document.createElement('option'); o.value = tg; o.setAttribute('data-i18n', 'deck_slider_' + tg); o.textContent = t('deck_slider_' + tg); sliderTargetSel.appendChild(o);
+      });
+      sliderTargetSel.value = sliderModel.target;
+    }
+    fillSliderTargets();
     fSlider.appendChild(sliderTargetSel);
     const sliderParamHost = document.createElement('div'); sliderParamHost.className = 'deck-ed-subfield';
     fSlider.appendChild(sliderParamHost);
@@ -2860,7 +2869,7 @@
     updateTrigLabels();
     // Re-check OBS availability now (it may have just been configured in Settings);
     // if it changed, rebuild the action lists so OBS actions appear/disappear.
-    refreshCapabilities().then((changed) => { if (changed) renderSteps(); });
+    refreshCapabilities().then((changed) => { if (changed) renderSteps(); fillSliderTargets(); });
 
     function syncKind() {
       const isAction = selKind.value === 'action';
