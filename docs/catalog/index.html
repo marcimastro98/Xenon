@@ -523,7 +523,8 @@
   .cat-clear:hover { color: var(--text); border-color: var(--line-2); }
 
   /* ── Sections ── */
-  .kblock { margin-top: 30px; }
+  /* Shelves need air: at 30px the page read as one run of cards. */
+  .kblock { margin-top: 52px; }
   .khead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
   .khead .kl { display: flex; align-items: baseline; gap: 10px; }
   .khead h2 { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: -.01em; }
@@ -555,7 +556,6 @@
   .cat-badge { position: absolute; top: 10px; right: 10px; z-index: 2; font-family: var(--sans); font-size: 14px; padding: 4px 9px; border-radius: 999px; backdrop-filter: blur(6px); }
   .cat-badge.limited { color: var(--iris); border: 1px solid color-mix(in srgb, var(--iris) 45%, transparent); background: color-mix(in srgb, var(--g-0) 60%, transparent); }
   .cat-badge.locked { color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); background: color-mix(in srgb, var(--g-0) 60%, transparent); }
-  .cat-realtag { position: absolute; bottom: 10px; left: 10px; z-index: 2; font-family: var(--sans); font-size: 14px; color: var(--muted); padding: 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--g-0) 55%, transparent); backdrop-filter: blur(6px); }
   .cat-dots { position: absolute; bottom: 10px; right: 10px; z-index: 2; display: flex; gap: 5px; padding: 5px 7px; border-radius: 999px; background: color-mix(in srgb, var(--g-0) 55%, transparent); backdrop-filter: blur(6px); }
   .cat-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 1px var(--rule-2); }
 
@@ -634,7 +634,7 @@
   /* overflow: hidden clips at the PADDING box, so this padding is what gives the
      cards' hover lift and drop shadow somewhere to go; the negative margin puts
      the section back exactly where it was. */
-  .rail-view { overflow: hidden; padding: 14px 0 18px; margin: -14px 0 -18px; }
+  .rail-view { overflow: hidden; padding: 14px 0 18px; margin: -14px 0 -18px; container-type: inline-size; }
   .drops.cat-rail { display: flex; flex-wrap: nowrap; gap: 14px;
               /* Horizontal gestures are ours, vertical ones stay the page's. */
               touch-action: pan-y; will-change: transform;
@@ -643,7 +643,9 @@
   /* A hero card is a 2-column grid with fr tracks: inside a flex row with no width
      it sizes to its content and one card fills the viewport, which is the stack
      again with extra steps. Give the rail a card width and the row reads as a row. */
-  .drops.cat-rail > * { flex: 0 0 min(680px, 90vw); }
+  /* Measured on the rail, not the window: inside the gold Supporters box a 90vw
+     card was ~40px wider than the space on a phone and its text ran off the edge. */
+  .drops.cat-rail > * { flex: 0 0 min(680px, 90cqw); }
   /* Classic overlaid arrows. They sit inside the viewport edge rather than outside
      it: the shelf runs to the page gutter on a narrow window and an arrow parked
      outside would be clipped exactly where it is needed most. */
@@ -680,7 +682,6 @@
   .lim-strip { margin-top: 26px; }
   .lim-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
   .lim-head h2 { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: -.01em; }
-  .lim-head .stag { font-family: var(--sans); font-size: 14px; color: var(--iris); border: 1px solid color-mix(in srgb, var(--iris) 40%, transparent); border-radius: 999px; padding: 3px 10px; }
   .lim-head .ssub { color: var(--muted); font-size: 15px; }
   .lim-strip .grid .cat-card { border-color: color-mix(in srgb, var(--iris) 24%, transparent); }
   .lim-strip .grid .cat-card:hover { border-color: color-mix(in srgb, var(--iris) 50%, transparent); }
@@ -780,14 +781,13 @@
   .drop-foot .sjoin:hover { filter: brightness(1.06); }
 
   /* Free content sits under a muted eyebrow, deliberately quieter than the drops */
-  .free-eyebrow { display: block; font-size: 13px; letter-spacing: 0; text-transform: none; color: var(--bone-2); margin: 42px 0 0; }
+  .free-eyebrow { display: block; font-size: 13px; letter-spacing: 0; text-transform: none; color: var(--bone-2); margin: 60px 0 0; }
 
   /* ── Supporters strip (gold, locked, unlock with a code) ── */
-  .sup-strip { margin-top: 30px; padding: 20px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--gold) 20%, transparent);
+  .sup-strip { margin-top: 44px; padding: 22px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--gold) 20%, transparent);
     background: radial-gradient(560px 200px at 100% 0, color-mix(in srgb, var(--gold) 8%, transparent), transparent 60%), color-mix(in srgb, var(--gold) 2%, transparent); }
   .sup-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
   .sup-head h2 { font-family: var(--display); font-weight: 600; font-size: 20px; letter-spacing: -.01em; color: var(--gold); }
-  .sup-head .stag { font-family: var(--sans); font-size: 14px; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 999px; padding: 3px 10px; }
   .sup-head .ssub { flex: 1 1 200px; color: var(--muted); font-size: 15px; }
   .sup-head .sjoin { font-family: var(--body); font-weight: 700; font-size: 15px; color: light-dark(#FFFFFF, var(--g-0)); background: var(--gold); border: 0; border-radius: 11px; padding: 10px 16px; cursor: pointer; white-space: nowrap; transition: filter .18s; }
   .sup-head .sjoin:hover { filter: brightness(1.06); }
@@ -796,14 +796,19 @@
   /* The frame leads the page, so it has nothing above it to be spaced from — and
      its perks list is the last thing in the box, so the list's own bottom margin
      would otherwise read as a gap inside the border. */
-  .sup-frame { margin-top: 0; }
-  .sup-frame .sup-perks { margin-bottom: 0; }
-  /* The shelf's heading is a label, not a second pitch: name and count only. */
-  .sup-head-slim { margin-bottom: 14px; }
-  .sup-head-slim .kcnt { font-family: var(--sans); font-size: 14px; color: var(--gold);
+  .sup-head .kcnt { font-family: var(--sans); font-size: 14px; color: var(--gold);
     border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent); border-radius: 999px; padding: 2px 9px; }
-  .sup-perks { margin: 4px 0 18px; }
-  .sup-perks-h { font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--bone-1); margin-bottom: 10px; }
+  /* What the tier gets you, folded under one line: it is read once, and open it
+     pushed every pack below the fold. */
+  .sup-perks { margin: 0 0 18px; }
+  .sup-perks > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+    font-family: var(--sans); font-size: 15px; color: var(--gold); padding: 4px 0; }
+  .sup-perks > summary::-webkit-details-marker { display: none; }
+  .sup-perks > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform .18s; }
+  .sup-perks[open] > summary::after { transform: rotate(225deg) translateY(-2px); }
+  .sup-perks > summary:hover { text-decoration: underline; }
+  .sup-perks > summary:focus-visible { outline: 2px solid var(--plasma); outline-offset: 3px; border-radius: 4px; }
+  .sup-perks[open] > .sup-perks-list { margin-top: 10px; }
   .sup-perks-list { list-style: disc; padding-left: 20px; display: grid; gap: 6px; }
   .sup-perks-list li { font-size: 15px; line-height: 1.5; color: var(--text); }
   .sup-perks-list li::marker { color: var(--gold); }
@@ -823,9 +828,6 @@
   .sjoin { display: inline-flex; align-items: center; gap: 7px; }
   .sup-strip .cat-card { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
   .sup-strip .cat-card:hover { border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
-  .sup-strip .cat-media > canvas { filter: saturate(.92); }
-  .sup-lock { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; background: linear-gradient(180deg, color-mix(in srgb, var(--g-0) 14%, transparent), color-mix(in srgb, var(--g-0) 55%, transparent)); }
-  .sup-lock span { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--g-0) 60%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); color: var(--gold); font-size: 15px; }
   .cat-unlock { flex: 1; text-align: center; font-family: var(--sans); font-size: 15px; padding: 11px 16px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--gold) 42%, transparent); background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--gold); cursor: pointer; transition: background .18s; }
   .cat-unlock:hover { background: color-mix(in srgb, var(--gold) 18%, transparent); }
 
@@ -1133,7 +1135,7 @@ const I18N = {
     'count.n': '{n} creations',
     'bar.clear': '✕ Clear filters',
     'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.installs': 'Most downloaded', 'sort.rated': 'Top rated', 'sort.name': 'Name A–Z', 'card.new': 'New',
-    'sec.tag': 'Exclusive', 'sec.seeall': 'See all →',
+    'sec.seeall': 'See all →',
     'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide, reserved on Discord. When they are gone, they are gone.',
     'rail.prev': 'Previous', 'rail.next': 'Next',
     'sec.freehead': 'Free, from the community', 'sec.newhead': 'Just added', 'sec.archive': 'Archive', 'sec.archive_sub': 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.', 'preview.banner': 'Layout preview. This is not the live catalog. Nothing here is published.',
@@ -1171,7 +1173,7 @@ const I18N = {
     'count.n': '{n} creazioni',
     'bar.clear': '✕ Azzera filtri',
     'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.installs': 'Più scaricati', 'sort.rated': 'Più votati', 'sort.name': 'Nome A–Z', 'card.new': 'Novità',
-    'sec.tag': 'Esclusivi', 'sec.seeall': 'Vedi tutti →',
+    'sec.seeall': 'Vedi tutti →',
     'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Copie contate in tutto il mondo, riservate su Discord. Quando finiscono, finiscono.',
     'rail.prev': 'Precedente', 'rail.next': 'Successivo',
     'sec.freehead': 'Gratis, dalla community', 'sec.newhead': 'Appena aggiunti', 'sec.archive': 'Archivio', 'sec.archive_sub': 'Drop con tutte le copie esaurite. Restano qui, visibili e cercabili, ma fuori dalla vetrina.', 'preview.banner': 'Anteprima della disposizione. Questa non è la vetrina pubblica. Niente di qui è pubblicato.',
@@ -1209,7 +1211,7 @@ const I18N = {
     'count.n': '{n} creaciones',
     'bar.clear': '✕ Quitar filtros',
     'sort.feat': 'Destacados', 'sort.new': 'Más recientes', 'sort.installs': 'Más descargados', 'sort.rated': 'Mejor valorados', 'sort.name': 'Nombre A-Z', 'card.new': 'Nuevo',
-    'sec.tag': 'Exclusivos', 'sec.seeall': 'Ver todo →',
+    'sec.seeall': 'Ver todo →',
     'sec.limited': 'Drops limitados', 'sec.limited_sub': 'Un número fijo de copias en todo el mundo, que se reservan en Discord. Cuando se acaban, no vuelven.',
     'rail.prev': 'Anterior', 'rail.next': 'Siguiente',
     'sec.freehead': 'Gratis, de la comunidad', 'sec.newhead': 'Recién añadidos', 'sec.archive': 'Archivo', 'sec.archive_sub': 'Drops con todas las copias agotadas. Se quedan aquí para que el trabajo siga a la vista y se pueda buscar.', 'preview.banner': 'Vista previa del diseño. No es el catálogo publicado. Nada de lo que hay aquí está publicado.',
@@ -1247,7 +1249,7 @@ const I18N = {
     'count.n': '{n}개 작품',
     'bar.clear': '✕ 필터 지우기',
     'sort.feat': '추천순', 'sort.new': '최신순', 'sort.name': '이름 A–Z',
-    'sec.tag': '독점', 'sec.seeall': '모두 보기 →',
+    'sec.seeall': '모두 보기 →',
     'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량, Discord에서 예약합니다. 소진되면 끝입니다.',
     'rail.prev': '이전', 'rail.next': '다음',
     'sec.freehead': '커뮤니티의 무료 작품', 'sec.newhead': '방금 추가됨', 'sec.archive': '보관함', 'sec.archive_sub': '모든 사본이 소진된 드롭입니다. 기록으로 남아 검색할 수 있습니다.', 'preview.banner': '레이아웃 미리보기. 실제 카탈로그가 아닙니다. 여기의 내용은 공개되지 않습니다.',
@@ -1285,7 +1287,7 @@ const I18N = {
     'count.n': '{n} 作品',
     'bar.clear': '✕ フィルターをクリア',
     'sort.feat': 'おすすめ', 'sort.new': '新着', 'sort.name': '名前 A–Z',
-    'sec.tag': '限定', 'sec.seeall': 'すべて見る →',
+    'sec.seeall': 'すべて見る →',
     'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定、Discordで予約します。なくなり次第終了です。',
     'rail.prev': '前へ', 'rail.next': '次へ',
     'sec.freehead': 'コミュニティの無料作品', 'sec.newhead': '新着', 'sec.archive': 'アーカイブ', 'sec.archive_sub': 'すべての配布が終了したドロップ。記録として残り、検索できます。', 'preview.banner': 'レイアウトのプレビュー。公開中のカタログではありません。ここの内容は公開されません。',
@@ -1323,7 +1325,7 @@ const I18N = {
     'count.n': '{n} 个作品',
     'bar.clear': '✕ 清除筛选',
     'sort.feat': '精选', 'sort.new': '最新', 'sort.name': '名称 A–Z',
-    'sec.tag': '专属', 'sec.seeall': '查看全部 →',
+    'sec.seeall': '查看全部 →',
     'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定，在 Discord 预订。售完即止。',
     'rail.prev': '上一个', 'rail.next': '下一个',
     'sec.freehead': '社区免费作品', 'sec.newhead': '最新添加', 'sec.archive': '归档', 'sec.archive_sub': '所有份数均已发完的发行。保留在此，仍可搜索。', 'preview.banner': '布局预览。这不是正式目录。此处的内容不会发布。',
@@ -2066,7 +2068,6 @@ function applyLang(lang) {
           // preview so the card is still never an empty box.
           if (!strip.querySelector('img')) {
             const cv = document.createElement('canvas'); cv._entry = entry; media.insertBefore(cv, strip); strip.remove();
-            const rt = media.querySelector('.cat-realtag'); if (rt) rt.remove();
             requestAnimationFrame(() => drawPreview(cv, entry));
           }
         });
@@ -2083,14 +2084,15 @@ function applyLang(lang) {
       media.appendChild(el('span', 'cat-kind', KIND_LABEL(entry.kind)));
       if (entry.limited) media.appendChild(pill('cat-badge limited', 'spark', T('k.limited')));
       else if (entry.locked) media.appendChild(pill('cat-badge locked', 'star', T('sec.supporters')));
-      if (entry.shots > 0) media.appendChild(el('span', 'cat-realtag', 'Screenshot'));
       if (entry.preview) {
         const dots = el('div', 'cat-dots');
         ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'cat-dot'); d.style.backgroundColor = c; dots.appendChild(d); } });
         if (dots.childElementCount) media.appendChild(dots);
       }
     }
-    if (entry.locked) { const lk = el('div', 'sup-lock'); lk.appendChild(cico('lock')); media.appendChild(lk); }
+    // No padlock or dark veil over a supporter pack's picture: the gold badge and
+    // the Unlock button already say it is reserved, and the veil made the best
+    // work on the page look worse than the free cards beside it.
     return media;
   }
 
@@ -2165,7 +2167,6 @@ function applyLang(lang) {
     const body = el('div', 'cat-body');
     const nameRow = el('h3', 'cat-name');
     nameRow.appendChild(nameButton(entry));
-    if (entry.version) nameRow.appendChild(el('span', 'cat-ver', 'v' + entry.version));
     body.appendChild(nameRow);
 
     const by = bylineEl('cat-by', entry);
@@ -2414,35 +2415,35 @@ function applyLang(lang) {
     const s = el('div', 'lim-strip');
     const head = el('div', 'lim-head');
     head.appendChild(el('h2', null, T('sec.limited')));
-    head.appendChild(el('span', 'stag', T('sec.tag')));
     head.appendChild(el('span', 'ssub', T('sec.limited_sub')));
     s.appendChild(head); s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, false));
     return s;
   }
-  /* The supporter tier comes in two pieces, drawn in two places on purpose.
-
-     This one is the FRAME: what the tier is, what it gets you, how long it lasts
-     and how the code reaches you. It answers "what am I looking at", which is only
-     worth anything before you have scrolled past the whole page — so it sits at the
-     top, above the shelves, and not in the middle among the sections where it used
-     to be. It renders whenever the tier exists at all, including when every entry
-     is up in the spotlight and there are no cards left to show. */
-  function supportersFrame() {
-    const s = el('div', 'sup-strip sup-frame');
+  /* The supporter tier, as ONE block at its place in the admin's order: a
+     heading with the join buttons, what the tier gets you folded under one line,
+     then the packs. It used to be two gold boxes, the explainer leading the page
+     above every product and the shelf further down, so the first thing a visitor
+     read was a wall of terms and the packs came later, under a padlock. A pack in
+     the spotlight above carries its own gold badge and its own two buttons, so it
+     needs no explainer in front of it. The block renders whenever the tier
+     exists, even with every pack up in the spotlight: its buttons are the way to
+     join. */
+  function supportersBlock(items, compact) {
+    const s = el('div', 'sup-strip');
     const head = el('div', 'sup-head');
     const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
-    head.appendChild(el('span', 'stag', T('sec.tag')));
+    if (items.length) head.appendChild(el('span', 'kcnt', String(items.length)));
     head.appendChild(el('span', 'ssub', T('sec.supporters_sub')));
     const join = el('a', 'sjoin'); join.appendChild(cico('heart')); join.appendChild(document.createTextNode(T('sec.supporters_join'))); join.href = COFFEE; join.target = '_blank'; join.rel = 'noopener';
     head.appendChild(join);
     const disc = el('a', 'sjoin sjoin-alt', T('sup.discord')); disc.href = DISCORD_URL; disc.target = '_blank'; disc.rel = 'noopener';
     head.appendChild(disc);
     s.appendChild(head);
-    // "How it works" — the perks + how long supporter access lasts.
-    const perks = el('div', 'sup-perks');
-    perks.appendChild(el('div', 'sup-perks-h', T('sup.how')));
+    const perks = document.createElement('details');
+    perks.className = 'sup-perks';
+    perks.appendChild(el('summary', null, T('sup.how')));
     const list = el('ul', 'sup-perks-list');
-    ['sup.perk1', 'sup.perk2', 'sup.perk3', 'sup.codeinfo'].forEach((k) => { const li = el('li'); li.appendChild(cico('heart', 'sup-perk-ic')); li.appendChild(el('span', null, T(k))); list.appendChild(li); });
+    ['sup.perk1', 'sup.perk2', 'sup.perk3', 'sup.codeinfo'].forEach((k) => { const li = el('li'); li.appendChild(el('span', null, T(k))); list.appendChild(li); });
     perks.appendChild(list);
     // Codes arrive automatically by email; Discord/email is the fallback.
     const reg = el('div', 'sup-register');
@@ -2451,18 +2452,7 @@ function applyLang(lang) {
     reg.appendChild(mail);
     perks.appendChild(reg);
     s.appendChild(perks);
-    return s;
-  }
-  /* And this one is the SHELF: the drops themselves, in the admin's chosen slot.
-     It keeps a heading — a row of cards with no title in the middle of a page is a
-     puzzle — but not a second copy of the explainer sitting above it. */
-  function supportersShelf(items, compact) {
-    const s = el('div', 'sup-strip');
-    const head = el('div', 'sup-head sup-head-slim');
-    const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
-    head.appendChild(el('span', 'kcnt', String(items.length)));
-    s.appendChild(head);
-    s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, true));
+    if (items.length) s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, true));
     return s;
   }
   /* Sold-out drops. They used to sit in the Limited strip whenever nothing was
@@ -2800,14 +2790,6 @@ function applyLang(lang) {
       // whether it has anything to say; the order and the shape are data.
       const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
 
-      // The supporter explainer leads the page, ahead of the admin's block order.
-      // Its position is not a layout choice: it is what the tier IS, and a reader
-      // who meets a locked card before meeting this has to guess. The block's own
-      // slot below still decides where the DROPS go, and turning the block off
-      // still removes both halves.
-      const supBlock = LAYOUT.find((b) => b.type === 'supporters');
-      if (supTier.length && supBlock && supBlock.on) frag.appendChild(supportersFrame());
-
       LAYOUT.forEach((b) => {
         if (!b.on) return;
         if (b.type === 'spotlight') {
@@ -2818,12 +2800,8 @@ function applyLang(lang) {
           // a grid is not a rail and must not be auto-scrolled.
           if (items.length) frag.appendChild(makeRail(limitedStrip(items, b.form === 'grid'), b, items.length));
         } else if (b.type === 'supporters') {
-          // Cards only — the explainer already led the page. With the whole tier up
-          // in the spotlight there is nothing left to shelve, and an empty gold box
-          // saying "Supporters only" under a section heading is worse than no
-          // section at all.
           const items = cap(sup, b);
-          if (items.length) frag.appendChild(makeRail(supportersShelf(items, b.form === 'grid'), b, items.length));
+          if (supTier.length) frag.appendChild(items.length ? makeRail(supportersBlock(items, b.form === 'grid'), b, items.length) : supportersBlock(items, false));
         } else if (b.type === 'new') {
           const items = cap(free.slice().sort((x, y) => (y.addedAt || 0) - (x.addedAt || 0)), b.max ? b : { ...b, max: 8 });
           if (items.length) {
