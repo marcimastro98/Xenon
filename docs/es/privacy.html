@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de privacidad de Xenon: qué envían la app y la web</title>
+<meta name="description" content="Las conexiones de red que hace la app de panel Xenon y cuándo, sus dos contadores anónimos y cómo desactivarlos, y qué recoge xenon-app.com.">
+<link rel="canonical" href="https://xenon-app.com/es/privacy.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/privacy.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/privacy.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/privacy.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/privacy.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/privacy.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
+<meta name="robots" content="index, follow, max-snippet:-1">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="es_ES">
+<meta property="og:url" content="https://xenon-app.com/es/privacy.html">
+<meta property="og:title" content="Política de privacidad de Xenon: qué envían la app y la web">
+<meta property="og:description" content="Las conexiones de red que hace la app de panel Xenon y cuándo, sus dos contadores anónimos y cómo desactivarlos, y qué recoge xenon-app.com.">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Política de privacidad de Xenon: qué envían la app y la web">
+<meta name="twitter:description" content="Las conexiones de red que hace la app de panel Xenon y cuándo, sus dos contadores anónimos y cómo desactivarlos, y qué recoge xenon-app.com.">
+<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://xenon-app.com/privacy.html#webpage","url":"https://xenon-app.com/privacy.html","name":"Política de privacidad de Xenon: qué envían la app y la web","description":"Las conexiones de red que hace la app de panel Xenon y cuándo, sus dos contadores anónimos y cómo desactivarlos, y qué recoge xenon-app.com.","inLanguage": "es","isPartOf":{"@id":"https://xenon-app.com/#website"},"about":{"@id":"https://xenon-app.com/#app"},"publisher":{"@id":"https://xenon-app.com/#org"}}]}</script>
+
+<noscript></noscript>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  h2:first-of-type { margin-top: 40px; }
+  .tbl-scroll { overflow-x: auto; margin: 20px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 16px; line-height: 1.5; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text); font-weight: 700; font-size: 15px; }
+  td { color: var(--muted); }
+  button.consent-reset {
+    font-family: var(--sans); font-size: 16px; font-weight: 700;
+    min-height: 44px; padding: 11px 20px; border-radius: 9px; cursor: pointer;
+    background: transparent; color: var(--text); border: 1px solid var(--line-2);
+    transition: border-color .2s, color .2s;
+  }
+  button.consent-reset:hover { border-color: var(--text); }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Invítame a un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ES</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es" aria-current="page">Español <span>ES</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Descargar</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menú</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/es/#screens" data-xl="screens">Pantallas</a></li><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li><li><a href="/es/#install" data-xl="install">Instalación</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Invítame a un café</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Ruta de navegación"><ol><li><a href="/es/" data-xl="home">Inicio</a></li><li><a href="/es/privacy.html" aria-current="page" data-xl="f.privacy">Privacidad</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/es/"},{"@type":"ListItem","position":2,"name":"Privacidad","item":"https://xenon-app.com/es/privacy.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="pv.h1">Política de privacidad</h1>
+    <p class="lede" data-i18n="pv.lede">La app Xenon funciona en tu propio PC y guarda ahí sus datos. Esta web es otra cosa, con otras reglas. Esta página mantiene las dos separadas y explica qué envía y qué guarda cada una.</p>
+    <p class="updated" data-i18n="pv.updated">Última actualización: 27 de septiembre de 2026</p>
+
+    <h2 data-i18n="pv.sum.h">Resumen</h2>
+    <div class="card accent">
+      <ul>
+        <li data-i18n-html="pv.sum.track"><strong>La app Xenon no registra cómo la usas.</strong> No hay cuenta, ni perfil, ni un registro de uso que salga de tu PC. Existen dos contadores. Uno se envía cuando la app busca actualizaciones y describe la instalación en sí: su versión, su sistema y, más o menos, cuánto tiempo tiene. El otro suma 1 al contador de instalaciones de una creación cuando la instalas desde la Tienda. Ninguno dice nada sobre qué widgets abres, qué buscas o qué haces con el panel. <strong>En una instalación nueva los dos empiezan activados</strong>, y puedes desactivar cualquiera de ellos en Ajustes → General, con los interruptores «Contar esta instalación, de forma anónima» y «Contar instalaciones de la Tienda, de forma anónima»; si ya usabas Xenon antes de la versión que añadió uno de ellos, para ti siguió desactivado. Ninguno lleva un identificador, así que ninguno se puede asociar a ti ni cruzar con el otro.</li>
+        <li data-i18n-html="pv.sum.offline"><strong>La app no funciona totalmente sin conexión.</strong> Busca actualizaciones y descarga por su cuenta una lista corta de anuncios; el tiempo, las carátulas de los álbumes y los servicios que conectas solo se contactan desde las funciones que los usan. Esas conexiones se detallan abajo.</li>
+        <li data-i18n-html="pv.sum.ga"><strong>Esta web usa Google Analytics</strong> para ver a qué páginas y descargas llega la gente. En el EEE, el Reino Unido y Suiza no se guarda nada hasta que aceptas el aviso.</li>
+        <li data-i18n-html="pv.sum.cf"><strong>También cuenta las visitas con Cloudflare Web Analytics</strong>, que no pone ninguna cookie ni crea perfiles. Solo me dice cuántas personas llegaron a una página.</li>
+        <li data-i18n-html="pv.sum.dl"><strong>Pulsar un botón de descarga suma 1 a un contador en mi propio servidor</strong>, sin cookie y sin identificador. El enlace de descarga sigue apuntando directamente a GitHub, así que ese contador nunca puede interponerse entre tú y el archivo.</li>
+      </ul>
+    </div>
+
+    <h2 data-i18n="pv.who.h">Responsable del tratamiento y contacto</h2>
+    <p data-i18n-html="pv.who.p">Xenon es un proyecto personal de un solo desarrollador, Marcello Mastroeni, con el código fuente en GitHub bajo una licencia propia no comercial, y soy el responsable del tratamiento de esta web. Para cualquier cosa de esta página, como una pregunta, una corrección o una solicitud sobre tus datos, escribe a <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a> o abre un issue en <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+
+    <h2 data-i18n="pv.site.h">Esta web (xenon-app.com)</h2>
+    <p data-i18n-html="pv.site.p">La web usa <strong>Google Analytics 4</strong> (ID de medición <code>G-LQ8Y8WZPQF</code>) para entender qué páginas se leen, qué descargas se pulsan y de dónde llegan los visitantes. Son informes agregados sobre la web. No están conectados con tu copia de la app, y no tengo ninguna forma de vincular una visita aquí con una instalación en tu PC.</p>
+
+    <h3 data-i18n="pv.ga.h">Qué recibe Analytics</h3>
+    <ul>
+      <li data-i18n="pv.ga.pages">Las páginas que ves en esta web y la página de la que vienes.</li>
+      <li data-i18n="pv.ga.clicks">Los clics que he marcado como relevantes: descargas, entradas a Discord, visitas al catálogo y a la página para creadores, enlaces a GitHub.</li>
+      <li data-i18n="pv.ga.loc">Ubicación aproximada (a nivel de país o ciudad, que Google deduce de tu IP; la IP completa no se guarda en los informes), tipo de dispositivo, navegador e idioma.</li>
+      <li data-i18n-html="pv.ga.cookies">Cookies llamadas <code>_ga</code> y <code>_ga_*</code>, que sirven para distinguir a un visitante que vuelve de uno nuevo. Duran hasta dos años.</li>
+    </ul>
+
+    <h3>Cloudflare Web Analytics</h3>
+    <p data-i18n-html="pv.cf.p">Además de Analytics, la web carga <strong>Cloudflare Web Analytics</strong>, un contador de visitas sin cookies. No pone ninguna cookie, no guarda ningún identificador y no puede seguirte entre sitios ni entre visitas; informa, de forma agregada, de la URL de la página, la página de origen, el país, el tipo de dispositivo y el tiempo de carga. Como no identifica a nadie, funciona sin el aviso de consentimiento, y aparece aquí para que sepas que está. Por qué los dos: Analytics solo cuenta a los visitantes que aceptan el aviso, así que este da el total completo con el que se comparan esas cifras.</p>
+
+    <h3 data-i18n="pv.dl.h">El contador de descargas</h3>
+    <p data-i18n-html="pv.dl.p1">Cuando pulsas un botón de descarga en esta web, la página también envía una nota de una línea a mi propio servidor (el mismo hub de supporters con el que habla la app) para decir que se pulsó un botón de descarga, y cuál (<code>hero</code>, <code>footer</code>, etc.). Ese es todo el mensaje: sin cookie, sin identificador, sin guardar la IP y sin nada que se pueda cruzar con otra cosa. Suma 1 a un contador por <em>(día, botón)</em> y la solicitud se descarta.</p>
+    <p data-i18n="pv.dl.p2">Existe porque ese paso concreto era invisible para mí. Cloudflare sabe que se vio la página y GitHub sabe que terminó una descarga, pero ninguno de los dos ve el clic que hay en medio, que es justo lo que dice si una página de descarga funciona de verdad. Google Analytics podría registrarlo, pero solo cuenta a quien aceptó el aviso y buena parte de este público lo bloquea por completo, así que la cifra estaría equivocada en una dirección que no podría medir.</p>
+    <p data-i18n-html="pv.dl.p3"><strong>El enlace de descarga en sí no pasa por mi servidor.</strong> Apunta directamente a GitHub, igual que antes; el contador es una nota aparte que la página envía sin esperar respuesta. Si mi servidor está caído, o lo bloqueas, la descarga funciona con normalidad y el clic simplemente no se cuenta.</p>
+
+    <h3 data-i18n="pv.consent.h">Consentimiento de cookies</h3>
+    <p data-i18n-html="pv.consent.p">La web usa Google Consent Mode. Si estás en el <strong>EEE, el Reino Unido o Suiza</strong>, todas las señales de almacenamiento y publicidad empiezan como <em>denegadas</em>: hasta que pulsas Aceptar, no se escribe ninguna cookie y Analytics solo recibe pings sin cookies que no identifican a nadie. Fuera de esas regiones el valor predeterminado es concedido, y pulsar Rechazar lo desactiva. Rechazar es un solo clic, en el mismo sitio y del mismo tamaño que aceptar.</p>
+    <div class="card">
+      <p data-i18n="pv.consent.card">Puedes cambiar de opinión cuando quieras. Este botón borra la elección guardada y vuelve a mostrar el aviso:</p>
+      <button class="consent-reset" type="button" id="consent-reset" data-i18n="pv.consent.btn">Cambiar mi elección de cookies</button>
+      <span id="consent-missing" hidden data-i18n="pv.consent.missing">El aviso de consentimiento no está disponible. Borra los datos del navegador para restablecerlo.</span>
+    </div>
+    <p data-i18n-html="pv.consent.store">Tu elección se recuerda en el almacenamiento local del navegador, bajo <code>xenon.site.consent</code>. Ese valor nunca sale de tu dispositivo. Si borras los datos del navegador, se restablece.</p>
+
+    <h3 data-i18n="pv.host.h">Alojamiento y fuentes</h3>
+    <p data-i18n-html="pv.host.p">La web la sirve <strong>GitHub Pages</strong>, que procesa la solicitud y tu dirección IP para entregar la página y guarda registros de seguridad de corta duración. Esto es técnicamente necesario y ocurre antes de cualquier decisión sobre el consentimiento. La cabecera de la página también pide a la API de GitHub el número de estrellas del proyecto, una vez por sesión del navegador, así que GitHub también ve esa solicitud. Las fuentes de la web se sirven desde la propia web (<code>/fonts/</code>), así que cargarlas no contacta con nadie más. La única excepción es la <a href="/demo/">demo en vivo</a>, que ejecuta la propia página del panel de la app y carga sus fuentes desde <strong>Google Fonts</strong>, que entonces ve la solicitud. Las capturas de la comunidad se sirven desde <strong>Cloudflare R2</strong> (<code>assets.xenon-app.com</code>).</p>
+
+    <h2 data-i18n="pv.app.h">La app Xenon</h2>
+    <p data-i18n-html="pv.app.p1">La app guarda tus datos en tu PC. Ajustes, notas, tareas, eventos, decks, memoria de la IA y fondos subidos están todos en <code>server/data/</code>. La app no sube esa carpeta a ningún sitio, y no incluye ningún SDK de analítica, ningún informe de fallos ni seguimiento de comportamiento. Los dos contadores anónimos descritos abajo son lo único que la app informa sobre sí misma, y ninguno lleva un identificador de ningún tipo: lo que guarda el servidor son contadores, nunca filas sobre una máquina.</p>
+    <p data-i18n-html="pv.app.search">La búsqueda local de archivos y el widget de espacio en disco funcionan en tu PC: tus frases de búsqueda, los nombres de archivo, el índice de carpetas y los resultados del análisis del disco se calculan ahí, y la lista de archivos que abres desde la búsqueda (que sirve para ordenar mejor tus propios resultados) está en <code>server/data/</code> como todo lo demás. La excepción es lo que le pasas a Xenon AI. Con un proveedor de IA en la nube, la <strong>Búsqueda inteligente</strong> (Ctrl+I) envía a ese proveedor la frase que escribes, y pedirle a la IA que encuentre un archivo o te explique el disco le envía los resultados con los que responde, como nombres de archivo y tamaños de carpetas. El interruptor <strong>Contexto completo para búsqueda y limpieza con IA</strong> (desactivado de forma predeterminada) también envía los nombres de tus apps instaladas, de las carpetas indexadas, de las carpetas que más usas y de los archivos que abriste hace poco desde la búsqueda, nunca su contenido.</p>
+    <p data-i18n-html="pv.app.calls">Lo que la app <em>sí</em> hace es conectarse a la red para las funciones que la necesitan. Esta es la lista, y cuándo ocurre cada conexión.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th data-i18n="pv.t.h.what">Qué contacta</th><th data-i18n="pv.t.h.when">Cuándo</th><th data-i18n="pv.t.h.why">Por qué, y qué envía</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>api.github.com</code></td>
+            <td data-i18n="pv.t.gh.when">Automático, al iniciar (en caché 24 h)</td>
+            <td data-i18n="pv.t.gh.why">Comprueba si hay una versión más reciente. No envía ningún identificador, pero como en cualquier solicitud HTTP, GitHub ve tu dirección IP. Funciona sin que tengas que activar nada.</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code></td>
+            <td data-i18n="pv.t.cat.when">Cuando abres el catálogo de la comunidad o la Tienda</td>
+            <td data-i18n="pv.t.cat.why">Descarga el catálogo público de temas, widgets y packs de la comunidad. Solo lectura, sin identificador.</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code><br><span style="color:var(--dim)" data-i18n="pv.t.ann.sub">(anuncios)</span></td>
+            <td data-i18n="pv.t.ann.when">Automático, como mucho una vez al día</td>
+            <td data-i18n-html="pv.t.ann.why">Descarga la misma lista corta de anuncios que recibe todo el mundo: una versión nueva, algo nuevo en la Tienda, alguna nota ocasional. Solo lectura, sin identificador. Algunos anuncios son para una parte de la gente, como quienes usan un widget concreto o una versión concreta, y ese filtrado ocurre <strong>en tu PC</strong>: tu panel descarga la lista entera y decide por su cuenta cuáles le corresponden. Nunca se envía nada sobre lo que tienes instalado para decidir qué ves, así que no puedo dirigirme a ti ni saber quién vio qué. Puedes desactivar los anuncios desde cualquiera de ellos.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.poll.what">Hub de supporters<br><span style="color:var(--dim)">(respuestas a encuestas)</span></td>
+            <td data-i18n="pv.t.poll.when">Solo si tocas una respuesta en una encuesta que aparece en un anuncio</td>
+            <td data-i18n="pv.t.poll.why">Envía qué opción elegiste, y nada más: sin UUID de instalación, sin guardar la IP, sin cuenta, y ni siquiera la hora. El servidor suma 1 al contador de esa opción y descarta la solicitud, así que nadie, ni siquiera yo, puede averiguar qué respondió un PC concreto. Si no tocas nada, no se envía nada, y desactivar los anuncios lo detiene por completo.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.count.what">Hub de supporters<br><span style="color:var(--dim)">(conteo de instalaciones)</span></td>
+            <td data-i18n="pv.t.count.when">Cuando instalas algo desde la Tienda, y solo si ese interruptor está activado</td>
+            <td data-i18n="pv.t.count.why">Envía el id de la creación que instalaste, y nada más: sin UUID de instalación, sin guardar la IP, sin cuenta. El servidor suma 1 al contador de esa creación y descarta la solicitud. Tu panel recuerda en tu propio PC cuáles ya contó, así que informa de cada creación como mucho una vez, y por eso no hace falta enviar nada identificativo para no contarla dos veces. La consecuencia es que la cifra significa «instalaciones informadas», no «cuántas personas la tienen», y así se indica allí donde aparece.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.hub.what">Hub de supporters<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>
+            <td data-i18n="pv.t.hub.when">Cuando valoras un elemento del catálogo o canjeas un código de supporter</td>
+            <td data-i18n-html="pv.t.hub.why">Tu PC guarda un UUID aleatorio (<code>install-id.json</code>) para que un voto cuente una sola vez y un código no se pueda reutilizar sin fin. Ese UUID nunca sale de tu máquina: lo que se envía es un hash unidireccional de él, y valorar algo y canjear un código usan hashes <strong>distintos</strong> del mismo UUID. Es intencionado: con un único valor compartido, un código de supporter (que se puede vincular a una cuenta de Discord) y una valoración con estrellas quedarían en la base de datos bajo el mismo identificador, y yo podría ver qué creaciones valoró un supporter con nombre y apellido. Con dos, no hay nada con qué emparejarlos. Ningún hash está ligado a tu hardware ni a tu nombre; borra el archivo y se genera un UUID nuevo.</td>
+          </tr>
+          <tr>
+            <td><code>ipwho.is</code></td>
+            <td data-i18n="pv.t.ip.when">Solo si la ubicación automática del tiempo está activada</td>
+            <td data-i18n="pv.t.ip.why">Convierte tu IP en una ciudad aproximada para que el widget del tiempo sepa dónde estás. Si pones la ubicación a mano, esta conexión nunca se hace.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.wx.what">APIs del tiempo y de la calidad del aire<br><span style="color:var(--dim)">open-meteo, met.no, wttr.in</span></td>
+            <td data-i18n="pv.t.wx.when">Solo con un widget del tiempo en tu panel</td>
+            <td data-i18n="pv.t.wx.why">Envía las coordenadas del pronóstico. Sin identificador.</td>
+          </tr>
+          <tr>
+            <td><code>itunes.apple.com</code></td>
+            <td data-i18n="pv.t.art.when">Durante la reproducción de música o vídeo</td>
+            <td data-i18n="pv.t.art.why">Busca la carátula del álbum a partir del título de la pista. Sin identificador.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.svc.what">Servicios que conectas tú<br><span style="color:var(--dim)">Spotify, Twitch, YouTube, Discord, Home Assistant, OBS, proveedores de IA, feeds de bolsa, noticias y fútbol</span></td>
+            <td data-i18n="pv.t.svc.when">Solo después de configurar esa integración</td>
+            <td data-i18n="pv.t.svc.why">Cada uno habla con su propio proveedor, bajo la política de privacidad de ese proveedor, con las credenciales que tú das. No hacen nada hasta que los configuras.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.push.what">El servicio push de tu teléfono<br><span style="color:var(--dim)">Apple, Google o Mozilla, según el navegador del teléfono</span></td>
+            <td data-i18n="pv.t.push.when">Solo después de activar las notificaciones en un teléfono o tablet vinculado</td>
+            <td data-i18n="pv.t.push.why">Permite que el PC despierte un teléfono con la pantalla apagada para algo que configuraste y estás esperando, como un temporizador que termina. El mensaje va cifrado de extremo a extremo para el navegador de ese teléfono, así que el servicio push lo transporta sin poder leerlo; sí ve que se envió un mensaje a ese teléfono, y cuándo. No se configura nada hasta que pulsas el botón en el teléfono, y quitar el dispositivo vinculado lo detiene.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.ping.what">Ping anónimo de versión<br><span style="color:var(--dim)">hub de supporters</span></td>
+            <td data-i18n-html="pv.t.ping.when"><strong>Activado por defecto en las instalaciones desde la v4.8.0</strong>; desactivado en las anteriores, salvo que lo hayas activado tú</td>
+            <td data-i18n="pv.t.ping.why">Versión, sistema, antigüedad de la instalación y un indicador de primera vez en la semana, enviados como mucho una vez al día al mismo hub de supporters de las filas anteriores. Ningún identificador de ningún tipo. La lista completa está en la sección de abajo.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p data-i18n="pv.ai">Las funciones de IA local (Ollama, Whisper) funcionan por completo en tu máquina. Los proveedores de IA en la nube no: si eliges Gemini, OpenAI o Anthropic, tus peticiones van a ese proveedor bajo sus condiciones. Las respuestas habladas funcionan de otra forma: con cualquier proveedor que no sea Gemini u OpenAI, que tienen voces propias, el texto que se lee en voz alta se envía al servicio de voz en línea de Microsoft Edge para convertirlo en audio. La app deja en tus manos la elección del proveedor de IA, y nunca envía una petición a un modelo en la nube que no hayas elegido.</p>
+
+    <h2 id="version-ping" data-i18n="pv.ping.h">El ping de versión</h2>
+    <p data-i18n-html="pv.ping.intro">No tengo ni idea de cuántas personas usan Xenon de verdad. Las cifras de descargas son ruido, y prefiero saber si la gente se ha quedado en una versión antigua a tener que adivinarlo. Por eso hay un interruptor en <strong>Ajustes → General</strong>, llamado <strong>Contar esta instalación, de forma anónima</strong>, que envía unos pocos campos cuando la app busca actualizaciones, como mucho una vez al día. Esta es la lista completa:</p>
+    <ul>
+      <li data-i18n-html="pv.ping.l1">la versión que usas (p. ej. <code>4.11.0</code>);</li>
+      <li data-i18n-html="pv.ping.l2">la familia de tu sistema operativo (p. ej. <code>win32</code>), no tu máquina, ni su nombre, ni sus especificaciones;</li>
+      <li data-i18n="pv.ping.l3">la antigüedad de esta instalación, en uno de cinco rangos: el mismo día, 1–7 días, 8–30, 31–90, más de 90;</li>
+      <li data-i18n-html="pv.ping.l4">el mes en que esta instalación se ejecutó por primera vez (p. ej. <code>2026-07</code>), o <code>unknown</code>;</li>
+      <li data-i18n-html="pv.ping.l5">la versión que tenías antes, enviada <em>solo</em> en el primer ping después del cambio;</li>
+      <li data-i18n="pv.ping.l6">dos indicadores de sí o no: si es el primer ping de la semana, y del mes;</li>
+      <li data-i18n="pv.ping.l7">el idioma de tu interfaz, uno de los once que trae la app.</li>
+    </ul>
+    <p data-i18n-html="pv.ping.not">Eso es todo el contenido. Lo que <strong>no</strong> incluye: ningún UUID de instalación (ese identificador queda reservado para las valoraciones y los códigos de supporter, y mezclarlo aquí me permitiría relacionar las dos cosas, que es justo lo que no quiero poder hacer), ninguna IP guardada, ningún detalle del hardware, ninguna zona horaria, y nada sobre qué widgets usas, qué buscas o qué abres. El ping es una pequeña solicitud al hub de supporters, enviada justo después de la búsqueda de actualizaciones que la app ya hace.</p>
+
+    <h3 data-i18n="pv.flags.h">Recuentos semanales y mensuales</h3>
+    <p data-i18n-html="pv.flags.p">La única cifra que no podía obtener sin identificar a la gente es «cuántas instalaciones <em>distintas</em> estuvieron activas esta semana». Normalmente eso necesita un id, para que el servidor distinga dos pings de un mismo PC de dos pings de dos PCs. Aquí ese trabajo lo hace tu propio PC: recuerda, en tu disco, la última semana y el último mes de los que informó, y dice simplemente «primera vez esta semana», una sola vez. El servidor suma 1 y no sabe nada más. Los recuentos semanales y mensuales salen exactos, y sigue sin haber nada con qué identificarte.</p>
+
+    <h3 data-i18n="pv.store.h">Cómo se guardan los recuentos</h3>
+    <p data-i18n-html="pv.store.p1">En el servidor solo hay contadores, ninguna fila sobre máquinas. Y los campos de arriba se cuentan en <strong>tablas separadas, una por campo</strong>, nunca juntos en una fila. Esa es la parte que importa. Una sola fila con la versión <em>y</em> el sistema <em>y</em> la antigüedad <em>y</em> el mes de nacimiento <em>y</em> el idioma podría describir fácilmente a una sola persona; y como la mayoría de esos datos no cambian de un día a otro, los días seguidos podrían unirse en el historial de una máquina: un identificador construido con los propios datos, después de haberse tomado la molestia de no enviar ninguno. Contar cada campo por separado significa que esa combinación simplemente no existe en la base de datos: no está oculta ni protegida con permisos, no está. Lo que puedo leer es «N instalaciones usaron la 4.11.0 hoy», «N nacieron en julio» y «N tienen más de 90 días», nunca cuáles son esas N ni en qué se solapan.</p>
+    <p data-i18n-html="pv.store.p2">Hay dos sitios que guardan un par de valores juntos, porque ahí el par <em>es</em> la pregunta: cuántas instalaciones pasaron de una versión a otra, y cuántas de un mes de nacimiento concreto seguían activas en un mes posterior. Ninguno lleva nada más, y cualquier combinación vista menos de cinco veces se agrupa en «otros», también en la consola que solo veo yo.</p>
+    <p data-i18n="pv.store.p3">Todo se borra a los 400 días. No se guardan filas por solicitud, así que no existe ningún conjunto de datos que se pueda entregar, exigir por vía judicial o filtrar.</p>
+
+    <h3 data-i18n="pv.v411.h">Cambios en la v4.11.0</h3>
+    <p data-i18n-html="pv.v411.p1">El interruptor en sí no cambió de estado para nadie: si estaba desactivado siguió desactivado, si estaba activado siguió activado. Lo que cambió es lo que envía el ping cuando está <em>activado</em>, y por eso esta página cambió en la misma versión.</p>
+    <p data-i18n-html="pv.v411.p2">Un límite: las instalaciones que ya existían antes de esta versión informan su antigüedad y su mes de nacimiento como <code>unknown</code>, y lo seguirán haciendo siempre. La app nunca registró cuándo se ejecutaron por primera vez, y prefiero tener un hueco visible que una cifra inventada. Ese punto ciego se cuenta y se muestra como un grupo propio, así que siempre puedo ver cuánto falta del panorama.</p>
+
+    <h3 data-i18n="pv.v48.h">Cambios en la v4.8.0</h3>
+    <p data-i18n-html="pv.v48.p1">Hasta la v4.7.1 este interruptor estaba desactivado hasta que lo activabas. Desde la <strong>v4.8.0 está activado por defecto en las instalaciones nuevas</strong>, porque casi nadie activa un interruptor así y por eso el recuento no servía. Puedes desactivarlo en cualquier momento en Ajustes, y el cambio es inmediato.</p>
+    <p data-i18n-html="pv.v48.p2"><strong>Si ya tenías Xenon instalado, para ti no cambió nada.</strong> El nuevo valor predeterminado solo se lee cuando todavía no existe un archivo de ajustes, es decir, en una instalación nueva. Si instalaste antes de la v4.8.0 y no tocaste el interruptor, sigue desactivado: se te dijo que estaba desactivado salvo que eligieras lo contrario, y una actualización no es el lugar para cambiar eso en silencio. Si lo habías activado, sigue activado. En cualquier caso, la app conserva lo que ya dicen tus ajustes.</p>
+
+    <h2 data-i18n="pv.rights.h">Tus derechos</h2>
+    <p data-i18n-html="pv.rights.p1">Según el RGPD puedes pedir el acceso, la rectificación o la supresión de tus datos personales, y puedes oponerte al tratamiento. Para esta web, las vías prácticas son: pulsar Rechazar (o el botón de arriba) para detener Analytics, usar el <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">complemento de inhabilitación</a> de Google, o borrar los datos del navegador. Para la app, desinstalarla detiene todas las conexiones descritas arriba, y borrar <code>server/data/</code> elimina todo lo que la app guardó, incluido el UUID de instalación.</p>
+    <p data-i18n-html="pv.rights.p2">También tienes derecho a presentar una reclamación ante una autoridad de control; en Italia es el <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>.</p>
+
+    <h2 data-i18n="pv.changes.h">Cambios en esta página</h2>
+    <p data-i18n="pv.changes.p">Si la app empieza a hacer una conexión de red que no está en la tabla de arriba, la tabla se actualiza en la misma versión y las notas de la versión lo dicen. La fecha de arriba indica cuándo cambió esta página por última vez.</p>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un panel táctil gratis para las pantallas junto a tu PC. Windows, con macOS y Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/es/download.html" data-xl="f.download">Descargar</a></li><li><a href="/demo/" data-xl="f.demo">Demo en el navegador</a></li><li><a href="/catalog/" data-xl="f.catalog">Catálogo</a></li><li><a href="/create/" data-xl="f.create">Crear widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versiones</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/mac.html" data-xl="f.mac">Xenon en un Mac</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/widgets.html" data-xl="f.widgets">Todos los widgets</a></li><li><a href="/es/deck.html" data-xl="f.deck">Teclas del Deck</a></li><li><a href="/es/claude-code.html" data-xl="f.claude">Claude Code en una pantalla táctil</a></li><li><a href="/es/sensor-panel.html" data-xl="f.sensor">Un panel de sensores para tu PC</a></li><li><a href="/es/xenon-exe.html" data-xl="f.exe">¿Es seguro el instalador?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Proyecto</h2><ul><li><a href="/es/#support" data-xl="f.support">Mecenas</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/es/faq.html" data-xl="f.faq">Ayuda y preguntas</a></li><li><a href="/es/privacy.html" data-xl="f.privacy">Privacidad</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon es un proyecto independiente. Xeneon e iCUE son marcas comerciales de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+<script>
+  // The reset helper is defined by consent.js, which is deferred — so guard for
+  // the case where an adblocker stripped it and keep the button honest.
+  // The fallback line lives in a hidden span in <main>, so the language copies translate it.
+  document.getElementById('consent-reset').addEventListener('click', function () {
+    if (typeof window.xenonConsentReset === 'function') window.xenonConsentReset();
+    else this.textContent = document.getElementById('consent-missing').textContent;
+  });
+</script>
+
+</body>
+</html>

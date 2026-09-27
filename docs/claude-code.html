@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Claude Code quota monitor and approvals on a second screen</title>
+<meta name="description" content="See your real Claude Code 5-hour and 7-day quota, live sessions and plans on a second screen or phone, and approve permission requests with a tap.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Claude Code quota monitor and approvals on a second screen">
+<meta property="og:description" content="See your real Claude Code 5-hour and 7-day quota, live sessions and plans on a second screen or phone, and approve permission requests with a tap.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/claude-code.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/claude-code.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I see my Claude Code quota on a second screen?","acceptedAnswer":{"@type":"Answer","text":"Yes. Once Claude Code is connected, the Xenon tile shows the 5-hour and 7-day windows of a Claude Pro or Max plan, with how much is used and a countdown to each reset."}},{"@type":"Question","name":"Can I approve Claude Code requests from my phone?","acceptedAnswer":{"@type":"Answer","text":"Yes, once the phone is paired with Xenon, which is in beta. The phone shows the same dashboard, and each request has Allow and Deny."}},{"@type":"Question","name":"What happens if I do not answer a request?","acceptedAnswer":{"@type":"Answer","text":"Nothing is approved. After nine minutes, or if Xenon is closed, the request goes back to the Claude Code terminal as usual."}},{"@type":"Question","name":"What does connecting change in my Claude Code settings?","acceptedAnswer":{"@type":"Answer","text":"It adds a status line and a set of hooks to settings.json, after saving a copy of the file. If you had a status line of your own, Xenon keeps running it."}},{"@type":"Question","name":"Does the tile work with an API key?","acceptedAnswer":{"@type":"Answer","text":"Yes, without the quota windows, which only Pro and Max plans have. The tile measures your tokens against a weekly budget you set instead."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── The capture ──────────────────────────────────────────────── */
+  .shot { margin: 8px 0 30px; }
+  .shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  }
+  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/claude-code.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/claude-code.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/claude-code.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/claude-code.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/claude-code.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/claude-code.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li><li><a href="/#install" data-xl="install">Install</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Buy me a coffee</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/claude-code.html" aria-current="page" data-xl="f.claude">Claude Code on a touchscreen</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Claude Code on a touchscreen","item":"https://xenon-app.com/claude-code.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="cc.h1">Claude Code on a second screen</h1>
+    <p class="lede" data-i18n="cc.lede">Xenon's Claude Code tile shows your real 5-hour and 7-day quota, what each session is doing, and every permission request with Allow and Deny. It lives on the screen next to your PC: a Xeneon Edge, a monitor, a tablet or a paired phone.</p>
+    <p class="updated" data-i18n="cc.updated">Last updated: 27 September 2026</p>
+
+    <figure class="shot">
+      <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Claude Code tile: a request to run git push with Deny and Allow, marked as publishing your work; one session waiting for it and one running its tests with 2 of 5 plan steps done; the 5-hour and 7-day quota, each with where its current pace ends" data-i18n-alt="cc.shot.alt">
+      <figcaption data-i18n="cc.shot.cap">The Claude Code tile with a permission request open, two sessions, and the quota with where each window's current pace ends.</figcaption>
+    </figure>
+
+    <p data-i18n-html="cc.intro">Add the tile from the <strong>+</strong> button, under <strong>System</strong>. Token counts work straight away. The real quota, exact session state and approvals need Claude Code to be connected, which you do from the tile itself. It runs on Windows, and on macOS and Linux, which are in beta.</p>
+
+    <nav class="jump">
+      <a href="#quota" data-i18n="cc.jump.quota">Quota</a>
+      <a href="#sessions" data-i18n="cc.jump.sessions">Sessions and plans</a>
+      <a href="#approve" data-i18n="cc.jump.approve">Approvals</a>
+      <a href="#questions" data-i18n="cc.jump.questions">Questions from Claude</a>
+      <a href="#deck" data-i18n="cc.jump.deck">Ask and Deck keys</a>
+      <a href="#link" data-i18n="cc.jump.link">Connecting it</a>
+      <a href="#data" data-i18n="cc.jump.data">What is sent where</a>
+      <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
+      <a href="#faq" data-i18n="cc.jump.faq">Common questions</a>
+    </nav>
+
+    <h2 id="quota" data-i18n="cc.h.quota">The 5-hour and 7-day quota</h2>
+    <p data-i18n="cc.quota.p1">Claude Code hands its status line the real limits of your subscription: the 5-hour window and the 7-day window, each with how much is used and when it resets. Once Claude Code is connected, Xenon draws each window as a row of segments with a countdown to its reset.</p>
+    <p data-i18n="cc.quota.p2">A thin mark on each row shows where an even pace would be now, and the line under it says where the current pace ends: the share you would reach at the reset, or the time you would hit the limit. The figures turn amber at 70% and red at 90%.</p>
+    <p data-i18n-html="cc.quota.p3">The windows exist on Claude Pro and Max plans. An API key has none. On an API key, before you connect Claude Code, and after Xenon restarts until a session sends new figures, the tile shows a <strong>Weekly budget</strong> instead: a ceiling you pick (Pro, Max 5×, Max 20× or your own number) and this week's tokens measured against it.</p>
+    <p data-i18n-html="cc.quota.p4">The <strong>Usage</strong> side of the tile covers the last 30 days: today's tokens, the tokens since Monday, the total, the share read from cache, and what that work would have cost at API list prices, with a column for each day and a split by project and by model. These numbers come from Claude Code's own session files in <code>~/.claude</code>, read on your PC, so they work before you connect anything. Claude Code deletes old session files after a while, and when fewer than 30 days are left the tile says from which date its figures start.</p>
+
+    <h2 id="sessions" data-i18n="cc.h.sessions">Live sessions and plans</h2>
+    <p data-i18n="cc.sessions.p1">With Claude Code connected, every Claude Code session on the PC gets a row: the project, the model, how full the context window is, and its state: working, waiting for you, or idle. Claude Code reports that state itself, so a row appears when a session starts, not a minute later.</p>
+    <p data-i18n="cc.sessions.p2">A working session shows the command it is running and for how long, over a line of its tool calls in the last ten minutes. A waiting session says what it is waiting for. The row counts the sub-agents that are running, and a conversation being compacted says so.</p>
+    <p data-i18n="cc.sessions.p3">When Claude works through a checklist, the row shows that plan: how many steps are done and the step running now.</p>
+    <p data-i18n="cc.sessions.p4">Sessions you started before Xenon opened show up too. A session you close with Ctrl-C is marked as closed within a few seconds and leaves the list eight minutes later. A session that has gone quiet moves under Finished and stays there for an hour after its last activity, so you can still send it a follow-up.</p>
+    <p data-i18n="cc.sessions.p5">The top bar has a small marker next to the clock: Clawd, Claude Code's pixel mascot. It walks while a session is working, blinks when one has finished and you have not looked yet, and hops when Claude is waiting for you. When it blinks, tap it to open the session that finished.</p>
+
+    <h2 id="approve" data-i18n="cc.h.approve">Approving permission requests</h2>
+    <p data-i18n-html="cc.approve.p1">When Claude Code asks permission to run a command or change a file, the request appears on the tile with the exact command or file and two buttons: <strong>Allow</strong> and <strong>Deny</strong>. Above the buttons, the card says what the request would reach: publishing your work (<code>git push</code>, <code>npm publish</code>), the network, a file outside the project folder, or something that cannot be undone. Claude Code waits for your answer.</p>
+    <p data-i18n-html="cc.approve.p2">A request left unanswered for 25 seconds takes over the whole screen, so it does not sit unseen on another page. Commands that cannot be undone, such as <code>rm -rf</code> or <code>git reset --hard</code>, take over the screen at once and are allowed by holding the button, not by a tap. When Claude asks to leave plan mode, the card shows the plan you are approving.</p>
+    <p data-i18n="cc.approve.p3">Nothing is approved for you. If you do not answer within nine minutes, if Xenon is closed or if the connection fails, the request goes back to the terminal, as it would without Xenon.</p>
+    <p data-i18n-html="cc.approve.phone">To answer from your phone, pair it with Xenon (beta). The phone shows the same dashboard, with the same Allow and Deny buttons. <a href="/phone.html">How to pair a phone</a>.</p>
+    <p data-i18n-html="cc.approve.off">If you would rather answer in the terminal, switch off <strong>Settings → Claude Code → Ask for permissions on this screen</strong>. Claude Code is then told straight away that this screen is not answering, and asks in the terminal.</p>
+
+    <h2 id="questions" data-i18n="cc.h.questions">Questions from Claude</h2>
+    <p data-i18n-html="cc.questions.p1">When Claude asks you a multiple-choice question, the tile shows it with the options as buttons. Pick one, or several where the question allows it, and press <strong>Answer</strong>. Your choice reaches the session and Claude carries on.</p>
+    <p data-i18n="cc.questions.p2">The tile can only send options Claude itself offered. It cannot write an answer of its own.</p>
+    <p data-i18n-html="cc.questions.p3"><strong>In the terminal</strong> hands the question back to the terminal instead. The same happens after four minutes without an answer, and always when <strong>Answer questions on this screen</strong> is off in Settings → Claude Code. A question never takes over the whole screen.</p>
+
+    <h2 id="deck" data-i18n="cc.h.deck">Ask and Deck keys</h2>
+    <p data-i18n-html="cc.deck.p1">Once Claude Code is connected, the <strong>Ask</strong> button on the tile starts Claude Code from the screen. Pick one of your projects, write what you want done, choose a model if you care to, and Claude Code starts in that folder. Progress and the answer come back to the tile, with a Stop button while it runs.</p>
+    <p data-i18n="cc.deck.p2">Tap a session to write it a follow-up. If it is still working, the message waits and goes into the same conversation when the current turn ends.</p>
+    <p data-i18n-html="cc.deck.p3">The Deck has two keys for it, in a Claude Code group that appears once Claude Code is connected. <strong>Ask Claude</strong> holds a project, a request and optionally a model, so one press starts that job. <strong>Stop Claude</strong> stops the newest run started from the dashboard that is still going.</p>
+    <p data-i18n="cc.deck.p4">Runs started from the tile or a key use Claude Code's normal permission mode, with no way to skip it, so anything your Claude Code settings do not already allow comes back as a card to approve. There is no key that approves a request. The project list is built from Claude Code's own history, so the dashboard can only start work in folders you already use.</p>
+
+    <h2 id="link" data-i18n="cc.h.link">Connecting Claude Code</h2>
+    <ol>
+      <li data-i18n-html="cc.link.1">Add the <strong>Claude Code</strong> tile from the <strong>+</strong> button, under <strong>System</strong>.</li>
+      <li data-i18n-html="cc.link.2">On the tile, press <strong>Connect Claude Code</strong>, then <strong>Connect</strong>.</li>
+      <li data-i18n="cc.link.3">Restart any Claude Code session that was already open, so it starts reporting. When an update of Xenon needs more hooks, Xenon adds them itself and the tile asks you to restart open sessions once.</li>
+    </ol>
+    <p data-i18n-html="cc.link.writes">Connecting edits one file: your Claude Code <code>settings.json</code>, in <code>~/.claude</code> or the folder <code>CLAUDE_CONFIG_DIR</code> points to. It adds a status line and a set of hooks. Each hook points at Xenon on <code>127.0.0.1</code>, your own PC, and carries a key that Xenon created.</p>
+    <p data-i18n-html="cc.link.backup">Before the first change, Xenon saves a copy of the file next to it as <code>settings.json.xenon-backup</code>.</p>
+    <p data-i18n="cc.link.chain">Claude Code allows one status line. If you already had one, Xenon keeps it: its own script runs yours and prints what yours prints. If yours prints nothing within three seconds, Xenon's own short line appears instead.</p>
+    <p data-i18n-html="cc.link.remove">Uninstalling Xenon takes out every entry it added, puts your own status line back and deletes the backup. Your own hooks are left alone. To do the same without uninstalling, run <code>node server/claude-link.js unlink</code> in the folder Xenon is installed in.</p>
+
+    <h2 id="data" data-i18n="cc.h.data">What is sent where</h2>
+    <p data-i18n="cc.data.p1">The tile uses no account and no API key. Its token counts come from files on your disk, and its live data comes from Claude Code on the same PC.</p>
+    <p data-i18n-html="cc.data.p2">Claude Code's hooks and status line send their reports to <code>127.0.0.1</code>, which is your own PC. Each report must carry a key that Xenon created, and Xenon refuses any report without it. The hooks send the key in a request header and the status line script reads it from Xenon's own data folder, so it never appears on a command line or in a process list.</p>
+    <p data-i18n="cc.data.p3">Live session state is kept in memory. Xenon does not write it to disk, and it starts empty when Xenon restarts.</p>
+    <p data-i18n="cc.data.p4">A paired phone can use the tile, answer requests and start runs, but it cannot send reports as if it were Claude Code: those addresses are refused to paired devices.</p>
+
+    <h2 id="ai" data-i18n="cc.h.ai">Xenon AI on your Claude or ChatGPT subscription</h2>
+    <p data-i18n-html="cc.ai.p1">Separate from the tile, Xenon AI, the dashboard's assistant, can answer through your own subscription instead of an API key, since version 4.11.10. In <strong>Settings → Xenon AI</strong>, pick <strong>Claude Code</strong> or <strong>Codex</strong>. Xenon then asks the official program installed on your PC, signed in with your Claude or ChatGPT plan.</p>
+    <p data-i18n="cc.ai.p2">You sign in inside the program, through Anthropic's or OpenAI's own sign-in, and Xenon does not read, store or pass on your credentials. This is the only way Anthropic allows a Claude subscription to be used outside its own apps.</p>
+    <p data-i18n="cc.ai.p3">Settings shows whether the program is installed and signed in, and what to run if it is not. The model menu is filled by the program itself, so it lists what your account can use today.</p>
+    <p data-i18n="cc.ai.p4">The assistant keeps its dashboard tools: it can change the theme, set up Deck keys, add tasks and timers, and control lights and media. The program's own terminal and file tools stay switched off.</p>
+    <p data-i18n="cc.ai.p5">It is slower than an API key: a few seconds for a plain answer and around ten when it uses a tool, because the program starts for each answer. It draws on the same limits you code with. AI search, the disk advisor and Performance Mode's plan use it too, while the automatic one-liners from Bit, the dashboard's pet, never do.</p>
+
+    <h2 id="faq" data-i18n="cc.h.faq">Common questions</h2>
+    <details><summary data-i18n="cc.faq.quota.q">Can I see my Claude Code quota on a second screen?</summary><div class="body"><p data-i18n="cc.faq.quota.a">Yes. Once Claude Code is connected, the tile shows the 5-hour and 7-day windows of a Claude Pro or Max plan, with how much is used and a countdown to each reset.</p></div></details>
+    <details><summary data-i18n="cc.faq.phone.q">Can I approve Claude Code requests from my phone?</summary><div class="body"><p data-i18n-html="cc.faq.phone.a">Yes, once the phone is paired with Xenon, which is in beta. The phone shows the same dashboard, and each request has Allow and Deny. See <a href="/phone.html">pairing a phone</a>.</p></div></details>
+    <details><summary data-i18n="cc.faq.none.q">What happens if I do not answer a request?</summary><div class="body"><p data-i18n="cc.faq.none.a">Nothing is approved. After nine minutes, or if Xenon is closed, the request goes back to the Claude Code terminal as usual.</p></div></details>
+    <details><summary data-i18n="cc.faq.settings.q">What does connecting change in my Claude Code settings?</summary><div class="body"><p data-i18n="cc.faq.settings.a">It adds a status line and a set of hooks to settings.json, after saving a copy of the file. If you had a status line of your own, Xenon keeps running it. Uninstalling Xenon removes what it added.</p></div></details>
+    <details><summary data-i18n="cc.faq.api.q">Does the tile work with an API key?</summary><div class="body"><p data-i18n="cc.faq.api.a">Yes, without the quota windows, which only Pro and Max plans have. The tile measures your tokens against a weekly budget you set instead.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="cc.cta.h">Download Xenon</h3>
+      <p data-i18n-html="cc.cta.p">Free, with no account. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Download Xenon for Windows</a>, or pick your system on the <a href="/download.html">download page</a>. To look around first, open the <a href="/demo/">browser demo</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">More guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul><p class="xg-dl"><a href="/download.html" data-xl="f.download">Download</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="it" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Quota di Claude Code e approvazioni su un secondo schermo</title>
+<meta name="description" content="Vedi la quota reale di Claude Code a 5 ore e a 7 giorni, sessioni e piani su un secondo schermo o sul telefono, e approva le richieste con un tocco.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Quota di Claude Code e approvazioni su un secondo schermo">
+<meta property="og:description" content="Vedi la quota reale di Claude Code a 5 ore e a 7 giorni, sessioni e piani su un secondo schermo o sul telefono, e approva le richieste con un tocco.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/it/claude-code.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/it/claude-code.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Posso vedere la quota di Claude Code su un secondo schermo?","acceptedAnswer":{"@type":"Answer","text":"Sì. Una volta collegato Claude Code, il riquadro di Xenon mostra le finestre di 5 ore e di 7 giorni di un piano Claude Pro o Max, con quanto è stato usato e il conto alla rovescia fino a ogni azzeramento."}},{"@type":"Question","name":"Posso approvare le richieste di Claude Code dal telefono?","acceptedAnswer":{"@type":"Answer","text":"Sì, dopo aver abbinato il telefono a Xenon, una funzione in beta. Il telefono mostra la stessa dashboard, e ogni richiesta ha Consenti e Nega."}},{"@type":"Question","name":"Cosa succede se non rispondo a una richiesta?","acceptedAnswer":{"@type":"Answer","text":"Non viene approvato niente. Dopo nove minuti, o se Xenon è chiuso, la richiesta torna al terminale di Claude Code come al solito."}},{"@type":"Question","name":"Cosa cambia il collegamento nelle impostazioni di Claude Code?","acceptedAnswer":{"@type":"Answer","text":"Aggiunge una riga di stato e una serie di hook a settings.json, dopo aver salvato una copia del file. Se avevi già una tua riga di stato, Xenon continua a eseguirla."}},{"@type":"Question","name":"Il riquadro funziona con una chiave API?","acceptedAnswer":{"@type":"Answer","text":"Sì, senza le finestre di quota, che esistono solo nei piani Pro e Max. Il riquadro misura invece i tuoi token rispetto a un budget settimanale che imposti tu."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── The capture ──────────────────────────────────────────────── */
+  .shot { margin: 8px 0 30px; }
+  .shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  }
+  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/claude-code.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/claude-code.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/claude-code.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/claude-code.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/claude-code.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/claude-code.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li><li><a href="/it/#install" data-xl="install">Installazione</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Offrimi un caffè</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/claude-code.html" aria-current="page" data-xl="f.claude">Claude Code su uno schermo touch</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Claude Code su uno schermo touch","item":"https://xenon-app.com/it/claude-code.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="cc.h1">Claude Code su un secondo schermo</h1>
+    <p class="lede" data-i18n="cc.lede">Il riquadro Claude Code di Xenon mostra la tua quota reale a 5 ore e a 7 giorni, cosa sta facendo ogni sessione e ogni richiesta di permesso con Consenti e Nega. Sta sullo schermo accanto al PC: uno Xeneon Edge, un monitor, un tablet o un telefono abbinato.</p>
+    <p class="updated" data-i18n="cc.updated">Ultimo aggiornamento: 27 settembre 2026</p>
+
+    <figure class="shot">
+      <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="Il riquadro Claude Code: una richiesta di eseguire git push con Nega e Consenti, segnata come una che pubblica il tuo lavoro; una sessione che la aspetta e una che esegue i test, con 2 dei 5 passaggi del piano fatti; la quota a 5 ore e a 7 giorni, ognuna con dove arriva al ritmo attuale" data-i18n-alt="cc.shot.alt">
+      <figcaption data-i18n="cc.shot.cap">Il riquadro Claude Code con una richiesta di permesso aperta, due sessioni e la quota con dove arriva ogni finestra al ritmo attuale.</figcaption>
+    </figure>
+
+    <p data-i18n-html="cc.intro">Aggiungi il riquadro dal pulsante <strong>+</strong>, sotto <strong>Sistema</strong>. Il conteggio dei token funziona subito. La quota reale, lo stato esatto delle sessioni e le approvazioni richiedono che Claude Code sia collegato, e lo colleghi dal riquadro stesso. Funziona su Windows, e su macOS e Linux, che sono in beta.</p>
+
+    <nav class="jump">
+      <a href="#quota" data-i18n="cc.jump.quota">Quota</a>
+      <a href="#sessions" data-i18n="cc.jump.sessions">Sessioni e piani</a>
+      <a href="#approve" data-i18n="cc.jump.approve">Approvazioni</a>
+      <a href="#questions" data-i18n="cc.jump.questions">Domande da Claude</a>
+      <a href="#deck" data-i18n="cc.jump.deck">Chiedi e tasti del Deck</a>
+      <a href="#link" data-i18n="cc.jump.link">Collegarlo</a>
+      <a href="#data" data-i18n="cc.jump.data">Cosa va dove</a>
+      <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
+      <a href="#faq" data-i18n="cc.jump.faq">Domande frequenti</a>
+    </nav>
+
+    <h2 id="quota" data-i18n="cc.h.quota">La quota a 5 ore e a 7 giorni</h2>
+    <p data-i18n="cc.quota.p1">Claude Code passa alla sua riga di stato i limiti reali del tuo abbonamento: la finestra di 5 ore e quella di 7 giorni, ognuna con quanto è stato usato e quando si azzera. Una volta collegato Claude Code, Xenon disegna ogni finestra come una fila di segmenti, con il conto alla rovescia fino all'azzeramento.</p>
+    <p data-i18n="cc.quota.p2">Un segno sottile su ogni fila indica dove saresti adesso a un ritmo costante, e la riga sotto dice dove porta il ritmo attuale: la percentuale a cui arrivi all'azzeramento, o l'ora in cui raggiungi il limite. I numeri diventano ambra al 70% e rossi al 90%.</p>
+    <p data-i18n-html="cc.quota.p3">Le finestre esistono nei piani Claude Pro e Max. Una chiave API non ne ha. Con una chiave API, prima di collegare Claude Code, e dopo un riavvio di Xenon finché una sessione non manda numeri nuovi, il riquadro mostra invece un <strong>Budget settimanale</strong>: un tetto che scegli tu (Pro, Max 5×, Max 20× o un numero tuo) e i token di questa settimana misurati rispetto a quel tetto.</p>
+    <p data-i18n-html="cc.quota.p4">Il lato <strong>Utilizzo</strong> del riquadro copre gli ultimi 30 giorni: i token di oggi, quelli da lunedì, il totale, la parte letta dalla cache e quanto sarebbe costato quel lavoro ai prezzi di listino dell'API, con una colonna per ogni giorno e una suddivisione per progetto e per modello. Questi numeri vengono dai file di sessione di Claude Code in <code>~/.claude</code>, letti sul tuo PC, quindi funzionano prima ancora di collegare qualcosa. Claude Code cancella i file di sessione vecchi dopo un po', e quando ne restano meno di 30 giorni il riquadro dice da che data partono i numeri.</p>
+
+    <h2 id="sessions" data-i18n="cc.h.sessions">Sessioni attive e piani</h2>
+    <p data-i18n="cc.sessions.p1">Con Claude Code collegato, ogni sessione di Claude Code sul PC ha una riga: il progetto, il modello, quanto è piena la finestra di contesto e lo stato, cioè al lavoro, in attesa di te o inattiva. È Claude Code stesso a comunicare lo stato, quindi una riga compare quando una sessione parte, non un minuto dopo.</p>
+    <p data-i18n="cc.sessions.p2">Una sessione al lavoro mostra il comando che sta eseguendo e da quanto tempo, sopra una linea con le sue chiamate agli strumenti degli ultimi dieci minuti. Una sessione in attesa dice cosa sta aspettando. La riga conta i subagent in corso, e una conversazione che viene compattata lo dice.</p>
+    <p data-i18n="cc.sessions.p3">Quando Claude lavora seguendo una checklist, la riga mostra quel piano: quanti passaggi sono fatti e quello in corso.</p>
+    <p data-i18n="cc.sessions.p4">Compaiono anche le sessioni avviate prima di aprire Xenon. Una sessione chiusa con Ctrl-C viene segnata come chiusa entro pochi secondi e lascia l'elenco otto minuti dopo. Una sessione rimasta ferma passa sotto Finite e ci resta per un'ora dall'ultima attività, così puoi ancora mandarle un messaggio per continuare.</p>
+    <p data-i18n="cc.sessions.p5">La barra in alto ha un piccolo segnale accanto all'orologio: Clawd, la mascotte in pixel di Claude Code. Cammina mentre una sessione lavora, lampeggia quando una ha finito e non l'hai ancora guardata, e saltella quando Claude ti sta aspettando. Quando lampeggia, toccalo per aprire la sessione che ha finito.</p>
+
+    <h2 id="approve" data-i18n="cc.h.approve">Approvare le richieste di permesso</h2>
+    <p data-i18n-html="cc.approve.p1">Quando Claude Code chiede il permesso di eseguire un comando o modificare un file, la richiesta compare sul riquadro con il comando o il file esatto e due pulsanti: <strong>Consenti</strong> e <strong>Nega</strong>. Sopra i pulsanti la scheda dice cosa toccherebbe la richiesta: la pubblicazione del tuo lavoro (<code>git push</code>, <code>npm publish</code>), la rete, un file fuori dalla cartella del progetto o qualcosa che non si può annullare. Claude Code aspetta la tua risposta.</p>
+    <p data-i18n-html="cc.approve.p2">Una richiesta che resta senza risposta per 25 secondi occupa tutto lo schermo, così non rimane nascosta su un'altra pagina. I comandi che non si possono annullare, come <code>rm -rf</code> o <code>git reset --hard</code>, occupano subito lo schermo e si consentono tenendo premuto il pulsante, non con un tocco. Quando Claude chiede di uscire dalla modalità piano, la scheda mostra il piano che stai approvando.</p>
+    <p data-i18n="cc.approve.p3">Niente viene approvato al posto tuo. Se non rispondi entro nove minuti, se Xenon è chiuso o se il collegamento si interrompe, la richiesta torna al terminale, come succederebbe senza Xenon.</p>
+    <p data-i18n-html="cc.approve.phone">Per rispondere dal telefono, abbinalo a Xenon (beta). Il telefono mostra la stessa dashboard, con gli stessi pulsanti Consenti e Nega. <a href="/it/phone.html">Come abbinare un telefono</a>.</p>
+    <p data-i18n-html="cc.approve.off">Se preferisci rispondere nel terminale, spegni <strong>Impostazioni → Claude Code → Chiedi i permessi su questo schermo</strong>. Claude Code viene subito avvisato che questo schermo non risponde, e chiede nel terminale.</p>
+
+    <h2 id="questions" data-i18n="cc.h.questions">Domande da Claude</h2>
+    <p data-i18n-html="cc.questions.p1">Quando Claude ti fa una domanda a scelta multipla, il riquadro la mostra con le opzioni come pulsanti. Scegline una, o più di una se la domanda lo consente, e premi <strong>Rispondi</strong>. La tua scelta arriva alla sessione e Claude prosegue.</p>
+    <p data-i18n="cc.questions.p2">Il riquadro può mandare solo le opzioni proposte da Claude. Non può scrivere una risposta sua.</p>
+    <p data-i18n-html="cc.questions.p3"><strong>Nel terminale</strong> invece rimanda la domanda al terminale. Succede lo stesso dopo quattro minuti senza risposta, e sempre quando <strong>Rispondi alle domande su questo schermo</strong> è spento in Impostazioni → Claude Code. Una domanda non occupa mai tutto lo schermo.</p>
+
+    <h2 id="deck" data-i18n="cc.h.deck">Chiedi e tasti del Deck</h2>
+    <p data-i18n-html="cc.deck.p1">Una volta collegato Claude Code, il pulsante <strong>Chiedi</strong> sul riquadro avvia Claude Code dallo schermo. Scegli uno dei tuoi progetti, scrivi cosa vuoi fare, scegli un modello se ti interessa, e Claude Code parte in quella cartella. L'avanzamento e la risposta tornano sul riquadro, con un pulsante Ferma finché è in corso.</p>
+    <p data-i18n="cc.deck.p2">Tocca una sessione per mandarle un messaggio. Se sta ancora lavorando, il messaggio aspetta ed entra nella stessa conversazione quando finisce il turno in corso.</p>
+    <p data-i18n-html="cc.deck.p3">Il Deck ha due tasti per questo, in un gruppo Claude Code che compare dopo aver collegato Claude Code. <strong>Chiedi a Claude</strong> contiene un progetto, una richiesta e, se vuoi, un modello, così con una pressione parte quel lavoro. <strong>Ferma Claude</strong> ferma l'esecuzione più recente avviata dalla dashboard che è ancora in corso.</p>
+    <p data-i18n="cc.deck.p4">Le esecuzioni avviate dal riquadro o da un tasto usano la normale modalità dei permessi di Claude Code, senza modo di saltarla, quindi tutto quello che le tue impostazioni di Claude Code non consentono già torna come una scheda da approvare. Non esiste un tasto che approva una richiesta. L'elenco dei progetti viene dalla cronologia di Claude Code, quindi la dashboard può avviare lavori solo nelle cartelle che usi già.</p>
+
+    <h2 id="link" data-i18n="cc.h.link">Collegare Claude Code</h2>
+    <ol>
+      <li data-i18n-html="cc.link.1">Aggiungi il riquadro <strong>Claude Code</strong> dal pulsante <strong>+</strong>, sotto <strong>Sistema</strong>.</li>
+      <li data-i18n-html="cc.link.2">Sul riquadro premi <strong>Collega Claude Code</strong>, poi <strong>Collega</strong>.</li>
+      <li data-i18n="cc.link.3">Riavvia le sessioni di Claude Code già aperte, così iniziano a mandare i loro dati. Quando un aggiornamento di Xenon ha bisogno di altri hook, Xenon li aggiunge da solo e il riquadro ti chiede di riavviare una volta le sessioni aperte.</li>
+    </ol>
+    <p data-i18n-html="cc.link.writes">Il collegamento modifica un solo file: il <code>settings.json</code> di Claude Code, in <code>~/.claude</code> o nella cartella indicata da <code>CLAUDE_CONFIG_DIR</code>. Aggiunge una riga di stato e una serie di hook. Ogni hook punta a Xenon su <code>127.0.0.1</code>, cioè il tuo PC, e porta con sé una chiave creata da Xenon.</p>
+    <p data-i18n-html="cc.link.backup">Prima della prima modifica, Xenon salva una copia del file accanto all'originale come <code>settings.json.xenon-backup</code>.</p>
+    <p data-i18n="cc.link.chain">Claude Code consente una sola riga di stato. Se ne avevi già una, Xenon la tiene: il suo script esegue la tua e stampa quello che stampa la tua. Se la tua non stampa niente entro tre secondi, al suo posto compare la riga breve di Xenon.</p>
+    <p data-i18n-html="cc.link.remove">Quando disinstalli Xenon vengono tolte tutte le voci che ha aggiunto, torna la tua riga di stato e il backup viene cancellato. I tuoi hook restano come sono. Per fare lo stesso senza disinstallare, esegui <code>node server/claude-link.js unlink</code> nella cartella in cui è installato Xenon.</p>
+
+    <h2 id="data" data-i18n="cc.h.data">Cosa va dove</h2>
+    <p data-i18n="cc.data.p1">Il riquadro non usa nessun account e nessuna chiave API. Il conteggio dei token viene dai file sul tuo disco, e i dati in tempo reale arrivano da Claude Code sullo stesso PC.</p>
+    <p data-i18n-html="cc.data.p2">Gli hook e la riga di stato di Claude Code mandano i loro dati a <code>127.0.0.1</code>, cioè il tuo PC. Ogni invio deve portare una chiave creata da Xenon, e Xenon rifiuta qualsiasi invio che ne sia privo. Gli hook mandano la chiave in un'intestazione della richiesta e lo script della riga di stato la legge dalla cartella dei dati di Xenon, quindi non compare mai in una riga di comando o in un elenco di processi.</p>
+    <p data-i18n="cc.data.p3">Lo stato delle sessioni in tempo reale resta in memoria. Xenon non lo scrive su disco, e riparte vuoto quando Xenon si riavvia.</p>
+    <p data-i18n="cc.data.p4">Un telefono abbinato può usare il riquadro, rispondere alle richieste e avviare esecuzioni, ma non può mandare dati come se fosse Claude Code: quegli indirizzi sono vietati ai dispositivi abbinati.</p>
+
+    <h2 id="ai" data-i18n="cc.h.ai">Xenon AI con il tuo abbonamento Claude o ChatGPT</h2>
+    <p data-i18n-html="cc.ai.p1">A parte il riquadro, dalla versione 4.11.10 Xenon AI, l'assistente della dashboard, può rispondere tramite il tuo abbonamento invece che con una chiave API. In <strong>Impostazioni → Xenon AI</strong> scegli <strong>Claude Code</strong> o <strong>Codex</strong>. Xenon a quel punto passa le domande al programma ufficiale installato sul tuo PC, in cui hai fatto l'accesso con il tuo piano Claude o ChatGPT.</p>
+    <p data-i18n="cc.ai.p2">L'accesso lo fai dentro il programma, con il login di Anthropic o di OpenAI, e Xenon non legge, non salva e non trasmette le tue credenziali. È l'unico modo in cui Anthropic consente di usare un abbonamento Claude fuori dalle sue app.</p>
+    <p data-i18n="cc.ai.p3">Le impostazioni mostrano se il programma è installato e se hai fatto l'accesso, e cosa eseguire se non è così. Il menu dei modelli lo riempie il programma stesso, quindi elenca quello che il tuo account può usare oggi.</p>
+    <p data-i18n="cc.ai.p4">L'assistente mantiene i suoi strumenti per la dashboard: può cambiare il tema, preparare tasti del Deck, aggiungere task e timer, e comandare luci e media. Gli strumenti del programma per il terminale e i file restano spenti.</p>
+    <p data-i18n="cc.ai.p5">È più lento di una chiave API: qualche secondo per una risposta semplice e una decina quando usa uno strumento, perché il programma si avvia a ogni risposta. Consuma gli stessi limiti che usi per programmare. Lo usano anche la ricerca con l'AI, i consigli sul disco e il piano della Modalità Performance, mentre le battute automatiche di Bit, l'animaletto della dashboard, non lo usano mai.</p>
+
+    <h2 id="faq" data-i18n="cc.h.faq">Domande frequenti</h2>
+    <details><summary data-i18n="cc.faq.quota.q">Posso vedere la quota di Claude Code su un secondo schermo?</summary><div class="body"><p data-i18n="cc.faq.quota.a">Sì. Una volta collegato Claude Code, il riquadro mostra le finestre di 5 ore e di 7 giorni di un piano Claude Pro o Max, con quanto è stato usato e il conto alla rovescia fino a ogni azzeramento.</p></div></details>
+    <details><summary data-i18n="cc.faq.phone.q">Posso approvare le richieste di Claude Code dal telefono?</summary><div class="body"><p data-i18n-html="cc.faq.phone.a">Sì, dopo aver abbinato il telefono a Xenon, una funzione in beta. Il telefono mostra la stessa dashboard, e ogni richiesta ha Consenti e Nega. Vedi <a href="/it/phone.html">come abbinare un telefono</a>.</p></div></details>
+    <details><summary data-i18n="cc.faq.none.q">Cosa succede se non rispondo a una richiesta?</summary><div class="body"><p data-i18n="cc.faq.none.a">Non viene approvato niente. Dopo nove minuti, o se Xenon è chiuso, la richiesta torna al terminale di Claude Code come al solito.</p></div></details>
+    <details><summary data-i18n="cc.faq.settings.q">Cosa cambia il collegamento nelle impostazioni di Claude Code?</summary><div class="body"><p data-i18n="cc.faq.settings.a">Aggiunge una riga di stato e una serie di hook a settings.json, dopo aver salvato una copia del file. Se avevi già una tua riga di stato, Xenon continua a eseguirla. Quando disinstalli Xenon, quello che ha aggiunto viene tolto.</p></div></details>
+    <details><summary data-i18n="cc.faq.api.q">Il riquadro funziona con una chiave API?</summary><div class="body"><p data-i18n="cc.faq.api.a">Sì, senza le finestre di quota, che esistono solo nei piani Pro e Max. Il riquadro misura invece i tuoi token rispetto a un budget settimanale che imposti tu.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="cc.cta.h">Scarica Xenon</h3>
+      <p data-i18n-html="cc.cta.p">Gratis, senza account. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Scarica Xenon per Windows</a>, oppure scegli il tuo sistema nella <a href="/it/download.html">pagina dei download</a>. Per dare prima un'occhiata, apri la <a href="/demo/">demo nel browser</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Altre guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul><p class="xg-dl"><a href="/it/download.html" data-xl="f.download">Scarica</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

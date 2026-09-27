@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>セカンドスクリーン用の PC センサーパネル: CPU と GPU の温度、FPS</title>
+<meta name="description" content="セカンドスクリーンや Xeneon Edge 用の無料の PC センサーパネル。CPU と GPU の温度と使用率、メモリ、ファン、ワット数、ping、ゲーム内の FPS、履歴を表示します。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="セカンドスクリーン用の PC センサーパネル: CPU と GPU の温度、FPS">
+<meta property="og:description" content="セカンドスクリーンや Xeneon Edge 用の無料の PC センサーパネル。CPU と GPU の温度と使用率、メモリ、ファン、ワット数、ping、ゲーム内の FPS、履歴を表示します。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ja/sensor-panel.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/ja/sensor-panel.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"AIDA64 や HWiNFO は必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。Xenon はセンサーを自分で読み取ります。Windows では LibreHardwareMonitor、nvidia-smi、PresentMon、Linux ではカーネル自身のセンサー、macOS では Xenon Helper を使います。"}},{"@type":"Question","name":"CPU の温度が表示されないのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"Windows では、たいてい Xenon が管理者権限なしで動いていて、センサーのドライバーを読み込めないことが原因です。ファンかエネルギーのウィジェット、または設定のパフォーマンスにあるハードウェア センサーで「センサーを有効にする」を押し、Windows の確認を承認してください。"}},{"@type":"Question","name":"Xeneon Edge にセンサーを表示できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。システムのタイルはカードの間で高さを分け合うので、Edge の 2560×720 の画面にすべて収まります。どのモニターでも、タブレットでも、ペアリングしたスマートフォンでも動きます。スマートフォンからのアクセスはベータです。"}},{"@type":"Question","name":"自分でセンサーパネルをデザインできますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使います。システムの値へのアクセスを承認すると、ウィジェットは使用率、温度、クロック、ファンの回転数、ワット数、FPS を読み取れます。"}},{"@type":"Question","name":"macOS と Linux でも動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい。どちらもベータです。CPU と GPU の温度と GPU の使用率は両方で動きます。ファンの回転数と、MangoHud によるゲーム内の FPS は Linux では動きますが、macOS では動きません。CPU と GPU のワット数を読み取るのは Windows だけです。"}}]}</script>
+
+<style>
+  /* Page figure, sub-headings and the two source tables. */
+  h3 { font-size: 17px; letter-spacing: -0.005em; margin: 34px 0 8px; color: var(--text); }
+  .shot-fig { margin: 34px 0 6px; }
+  .shot-fig img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--g-1);
+  }
+  .shot-fig figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .tablewrap { margin: 20px 0 22px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .tablewrap table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.55; }
+  .tablewrap th, .tablewrap td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .tablewrap th { color: var(--text); font-weight: 600; font-size: 15px; background: var(--g-1); }
+  .tablewrap td:first-child { color: var(--text); font-weight: 500; }
+  .tablewrap tbody tr:last-child td { border-bottom: 0; }
+  .tablewrap .cl { display: none; }
+  /* Narrow screens: each row becomes a small block, the column name shown
+     above its value, so nothing needs to scroll sideways. */
+  @media (max-width: 640px) {
+    .tablewrap thead { display: none; }
+    .tablewrap table, .tablewrap tbody, .tablewrap tr, .tablewrap td { display: block; width: 100%; }
+    .tablewrap tr { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .tablewrap tbody tr:last-child { border-bottom: 0; }
+    .tablewrap td { padding: 0; border: 0; }
+    .tablewrap td + td { margin-top: 8px; }
+    .tablewrap .cl { display: block; font-family: var(--sans); font-size: 14px; color: var(--muted); margin-bottom: 2px; }
+  }
+</style>
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/sensor-panel.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/sensor-panel.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/sensor-panel.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/sensor-panel.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/sensor-panel.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/sensor-panel.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">ダウンロード</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">メニュー</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li><li><a href="/ja/#install" data-xl="install">インストール</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">コーヒーをおごる</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/sensor-panel.html" aria-current="page" data-xl="f.sensor">PCのセンサーパネル</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"PCのセンサーパネル","item":"https://xenon-app.com/ja/sensor-panel.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="sens.h1">セカンドスクリーン用の PC センサーパネル</h1>
+    <p class="lede" data-i18n="sens.lede">Xenon は、PC の横に置く画面のための無料のダッシュボードです。システムのタイルは、CPU、GPU、メモリ、ディスク、ネットワークの値をリアルタイムのグラフで表示し、ゲーム内の実際のフレームレートも表示します。このページでは、各カードに何が表示されるか、Windows、Linux、macOS でそれぞれどこから値を読むか、何を追加でインストールする必要があるかを説明します。</p>
+    <p class="updated" data-i18n="sens.updated">最終更新: 2026年9月27日</p>
+
+    <nav class="jump">
+      <a href="#system" data-i18n="sens.jump.system">システムのタイル</a>
+      <a href="#windows" data-i18n="sens.jump.windows">Windows での温度</a>
+      <a href="#linux-mac" data-i18n="sens.jump.linuxmac">Linux と macOS</a>
+      <a href="#widgets" data-i18n="sens.jump.widgets">ファン、エネルギー、バッテリー、ディスク</a>
+      <a href="#history" data-i18n="sens.jump.history">履歴</a>
+      <a href="#games" data-i18n="sens.jump.games">ゲーム</a>
+      <a href="#faq" data-i18n="sens.jump.faq">質問</a>
+    </nav>
+
+    <figure class="shot-fig">
+      <img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="Xenon のシステムのタイル。CPU と GPU の使用率と温度、RAM、ディスク C:、ping、FPS、ジッター、ネットワーク速度があり、ネットワーク以外のすべてのカードにリアルタイムのグラフがある" data-i18n-alt="sens.shot.alt">
+      <figcaption data-i18n="sens.shot.cap">ブラウザのデモで表示したシステムのタイル。値はサンプルです。</figcaption>
+    </figure>
+
+    <h2 id="system" data-i18n="sens.h.system">システムのタイル</h2>
+    <p data-i18n="sens.system.p1">タイルのシステムの表示には8枚のカードがあります。4枚はマシンのカードで、残りの4枚は「ネットワーク &amp; ゲーム」の下にあります。カードは隠したり、並べ替えたり、サイズを変えたりできます。CORSAIR Xeneon Edge の 2560×720 の画面では、低い高さをカードの間で分け合ってすべてが見えるようにし、縦に長い画面では空いたスペースを埋めます。</p>
+    <ul>
+      <li data-i18n-html="sens.card.cpu"><strong>CPU。</strong> 使用率（%）、プロセッサーのモデル、そしてカードのヘッダーに温度を表示します。</li>
+      <li data-i18n-html="sens.card.gpu"><strong>GPU。</strong> 使用率（%）、またはタップ1回でビデオメモリの使用量を表示し、温度も表示します。ビデオメモリへの切り替えは、グラフィックカードがメモリを報告する場合だけ表示されます。</li>
+      <li data-i18n-html="sens.card.ram"><strong>RAM。</strong> 使用率（%）、使用量と合計。Windows では、Windows が報告する場合、メモリの種類、速度、モジュールの構成、型番も表示します。</li>
+      <li data-i18n-html="sens.card.disk"><strong>ディスク。</strong> 使用率（%）、空き容量、ドライブの名前、ファイルシステム、種類。ドライブが複数ある場合は、矢印で順に切り替えます。</li>
+      <li data-i18n-html="sens.card.ping"><strong>Ping。</strong> 1.1.1.1 への3回の ping の平均（ミリ秒）。</li>
+      <li data-i18n-html="sens.card.latency"><strong>レイテンシ。</strong> ジッター、つまりその3回の ping のうち最も速いものと最も遅いものの差。</li>
+      <li data-i18n-html="sens.card.fps"><strong>FPS。</strong> プレイ中のゲームのフレームレート。詳しくは下で説明します。</li>
+      <li data-i18n-html="sens.card.net"><strong>ネットワーク。</strong> 現在のダウンロードとアップロードの速度。物理ネットワークアダプターの合計です。</li>
+    </ul>
+    <p data-i18n="sens.system.p2">ネットワーク以外のすべてのカードは直近40回の値を線で描くので、急な上昇が過ぎたあとでも見えます。ヘッダーには、PC が起動してからの時間が表示されます。</p>
+    <p data-i18n="sens.system.p3">CPU、GPU、RAM、ディスクのカードは5秒ごとに更新されます。「設定 → パフォーマンス → センサーの更新間隔」で、2秒または1秒にできます。間隔を短くするほどハードウェアを読む回数が増えます。ゲームも動かしている PC でどれだけ負荷がかかるかは、設定に表示されます。</p>
+    <p data-i18n="sens.system.p3b">「ネットワーク &amp; ゲーム」の4枚のカードは、システムの表示が画面に出ている間、3秒ごとに更新されます。</p>
+    <p data-i18n="sens.system.p4">温度は「温度の単位」の設定に従って、°C か °F で表示されます。この設定は天気だけでなく、CPU と GPU のヘッダーと高温の警告にも反映されます。履歴のグラフは °C のままです。</p>
+
+    <h3 data-i18n="sens.h.fps">ゲーム内の実際の FPS</h3>
+    <p data-i18n="sens.fps.p1">Windows では、FPS のカードは PresentMon の値を読みます。PresentMon はセットアップが Xenon のフォルダーにダウンロードします。ゲームが Windows に渡すフレームをイベントトレースで数えるので、排他的フルスクリーンのゲームも計測できます。セットアップが求める管理者権限が必要です。</p>
+    <p data-i18n="sens.fps.p2">PresentMon がない場合、Xenon は Windows のデスクトップコンポジターの値を使いますが、これはウィンドウモードとボーダーレスのゲームでしか使えません。PresentMon がある場合、ゲームが動いていないときは数値の代わりに「なし」と表示されます。</p>
+    <p data-i18n="sens.fps.p3">フレーム生成がオンのときは、PresentMon が報告する範囲で、画面に実際に表示されるフレームをカードが追います。そのため、渡されたフレームの多いほうの数ではなく、ほかの FPS オーバーレイと同じ値になります。</p>
+    <p data-i18n-html="sens.fps.p4">Linux では、MangoHud で起動したゲームのフレームレートを MangoHud から取得します（Steam の起動オプションに <code>mangohud %command%</code>）。macOS にはフレームレートの取得元がないため、カードは空のままです。</p>
+
+    <h2 id="windows" data-i18n="sens.h.windows">Windows での温度</h2>
+    <p data-i18n-html="sens.win.p1">Windows では、センサーは小さな PowerShell スクリプト（<code>cpu-temp.ps1</code>、<code>gpu.ps1</code>、<code>network.ps1</code>）が読み取ります。これらは長く動き続ける1つのプロセス <code>pwsh-worker.ps1</code> の中で実行されるので、数秒ごとに読み取っても、そのたびに新しいプロセスが起動することはありません。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="sens.th.reading">値</th><th data-i18n="sens.th.source">取得元</th><th data-i18n="sens.th.need">必要なもの</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-i18n="sens.win.cpu">CPU の温度、クロック、ワット数</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.lhm">セットアップが PawnIO ドライバーと一緒にインストールします。管理者権限が必要です。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.fans">マザーボード、AIO、電源ユニットのファン</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.lhm">セットアップが PawnIO ドライバーと一緒にインストールします。管理者権限が必要です。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.nvidia">NVIDIA GPU の使用率、温度、ビデオメモリ、ワット数、クロック</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.nvsmi">nvidia-smi</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.nvsmi">設定は不要です。PC にあれば Xenon が見つけます。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.amd">AMD と Intel の GPU の温度、ビデオメモリ、ワット数、クロック</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.setup">セットアップがインストールします。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.gpufans">グラフィックカードの各ファン（RPM）</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.setup">セットアップがインストールします。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.gpuload">nvidia-smi がない場合の GPU 使用率</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.counters">Windows のパフォーマンスカウンター</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.none">不要です。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.basics">CPU 使用率、RAM、ディスク、ネットワーク、ping</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.system">システム自体</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.none">不要です。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.fps">ゲーム内の FPS</td>
+          <td><span class="cl" data-i18n="sens.th.source">取得元</span><span data-i18n="sens.src.presentmon">PresentMon</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">必要なもの</span><span data-i18n="sens.need.presentmon">セットアップがダウンロードします。管理者権限が必要です。</span></td>
+        </tr>
+      </tbody>
+    </table></div>
+    <p data-i18n="sens.win.p2">LibreHardwareMonitor と PawnIO は winget でインストールされるので、ファイルは Microsoft のパッケージマネージャーを通じて、それぞれの開発元から届きます。PawnIO は署名付きのドライバーです。Xenon が WinRing0 を同梱したことはありません。WinRing0 は、ハードウェア監視ツールに対するウイルス対策の警告の多くの原因になっている古いドライバーです。</p>
+    <p data-i18n-html="sens.win.p3">ドライバーは管理者権限があるときだけ読み込まれます。セットアップ中に Windows の確認を拒否した場合、ファンとワット数の値は空のままで、CPU の温度が表示されないこともあります。その場合、ファンとエネルギーのウィジェットに <strong>センサーを有効にする</strong> ボタンが表示されます。Windows の確認1回で、Xenon のスタートアップタスクがそれ以降管理者権限で動くよう設定され、Xenon が再起動します。それでもセンサーが空のままなら、ウィジェットが PC の再起動を求めます。同じボタンは「設定 → パフォーマンス → ハードウェア センサー」にもあります。</p>
+    <p data-i18n="sens.win.p4">LibreHardwareMonitor がない場合、Xenon は、マザーボードが提供していれば Windows が報告するサーマルゾーンの温度を使います。取得できない値は、作ったゼロを表示するのではなく、空欄のままにするか「--」と表示します。</p>
+
+    <h2 id="linux-mac" data-i18n="sens.h.linuxmac">Linux と macOS での温度</h2>
+    <p data-i18n-html="sens.lm.p1">macOS 版と Linux 版の Xenon は <strong>ベータ</strong> です。ダッシュボードは Windows と同じです。違うのはマシンの読み取り方で、システムごとに専用の収集処理があり、同じ形で値を返すので、タイルは変わりません。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="sens.th.reading">値</th><th data-i18n="sens.th.linux">Linux</th><th data-i18n="sens.th.mac">macOS</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-i18n="sens.lm.cpu">CPU の温度</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.cpu.linux">カーネル自身のセンサー（AMD では k10temp、Intel では coretemp）。インストールは不要です。</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.helper">インストーラーが取得する Xenon Helper。管理者パスワードは不要です。予備の手段は macmon です。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.gpu">GPU の使用率と温度</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.gpu.linux">NVIDIA は nvidia-smi が必要です。AMD はカーネルから読み取ります。Intel の使用率は最も深いスリープ状態から出ている時間で計測し、Intel の温度はセンサーのあるチップでだけ表示されます。</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.helper">インストーラーが取得する Xenon Helper。管理者パスワードは不要です。予備の手段は macmon です。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.fans">ファンの回転数</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.fans.linux">カーネルが公開するすべてのファン。デスクトップのマザーボードの多くは、正しいモジュールを読み込むために lm_sensors が必要です。</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.na">使えません。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.watts">CPU と GPU のワット数</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.notread">読み取りません。</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.notread">読み取りません。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.fps">ゲーム内の FPS</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.fps.linux">MangoHud。MangoHud で起動したゲームが対象です。</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.na">使えません。</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.game">ゲームモード</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.game.linux">x11-utils パッケージの xprop。sway と Hyprland では、それぞれの IPC。</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.game.mac">Xenon Helper。</span></td>
+        </tr>
+      </tbody>
+    </table></div>
+    <p data-i18n-html="sens.lm.p2">タイルが空のままなら、インストールフォルダーで <code>npm run doctor</code> を実行してください。Xenon と同じ方法でマシンを読み取り、動いているもの、ハードウェアがそもそも公開していないもの、壊れているものを表示します。コンピューター上の何も変更しません。</p>
+
+    <h2 id="widgets" data-i18n="sens.h.widgets">ファン、エネルギー、バッテリー、ディスク容量</h2>
+    <p data-i18n="sens.widgets.p1">+ パレットのシステムのグループには、システムのタイルだけでは足りないときのためのタイルが、あと4つあります。</p>
+    <h3 data-i18n="sens.h.fans">ファン</h3>
+    <p data-i18n="sens.fans.p1">PC が報告するすべてのファンの回転数です。Windows では、ファンは取り付け場所ごとにまとめられます。マザーボード、ハブまたは AIO、グラフィックカード、電源ユニットです。グラフィックカードの各ファンはそれぞれのタコメーターから読むので、ファンが止まる 0 RPM モードのカードでは、ファンが停止中と表示されます。NZXT Kraken や Aquacomputer Octo のような AIO クーラーやファンハブも読み取れます。</p>
+    <p data-i18n="sens.fans.p2">マザーボードが知っているのは「Fan #3」のような名前だけなので、名前をタップして変更できます。iCUE Link のような対応していないハブや、分岐ケーブルにつないだファンは回転数を報告できず、ウィジェットがそのことを表示します。ファンのウィジェットは Windows と Linux で動き、macOS では動きません。</p>
+    <h3 data-i18n="sens.h.energy">エネルギー</h3>
+    <p data-i18n="sens.energy.p1">CPU パッケージと GPU の現在の消費電力（ワット）です。CORSAIR HXi または RMi の電源ユニットを USB で接続している場合は、電源ユニットが測った PC 全体の消費電力も表示します。この数値は電源ユニットの出力で、コンセントでの値ではありません。</p>
+    <p data-i18n="sens.energy.p2">太陽光発電やスマートプラグのような Home Assistant の電力センサーを、PC の値の横に並べられます。PC の値は Windows のみです。</p>
+    <h3 data-i18n="sens.h.batteries">バッテリー</h3>
+    <p data-i18n="sens.batteries.p1">ペアリングした Bluetooth デバイス、ノート PC のバッテリーや USB 接続の UPS（充電中かどうかも表示します）の残量を表示します。「設定 → ライティング」の RGB ブリッジがオンの間は、iCUE 経由で CORSAIR のマウス、キーボード、ヘッドセットの残量も表示します。スリープに入ったデバイスは、古い数値のまま止まるのではなく、薄く表示されます。Windows のみ。</p>
+    <h3 data-i18n="sens.h.disk">ディスク容量</h3>
+    <p data-i18n="sens.disk.p1">ドライブを何が占めているかを、スキャンボタンではなくリアルタイムのファイルインデックスから表示します。タップして掘り下げるマップ、大きいファイル、バイト単位で検証した重複ファイル、そして一時ファイルやパッケージのキャッシュのように、安全に削除できるカテゴリーの決まった一覧です。それ以外のものはサイズが表示されるだけで、削除ボタンはありません。</p>
+    <p data-i18n="sens.disk.p2">クリーンアップはファイルをごみ箱に移すので、元に戻せます。唯一の例外はごみ箱そのものを空にする操作で、確定する前にそのことが表示されます。Windows と macOS では、インデックスはインストーラーが取得する Xenon Helper の中で動きます。Linux では Xenon 自身がインデックスを作ります。</p>
+
+    <h2 id="history" data-i18n="sens.h.history">センサー履歴と Guardian</h2>
+    <p data-i18n-html="sens.history.p1">「設定 → パフォーマンス」で <strong>センサー履歴</strong> をオンにすると、システムのタイルに「履歴」のタブが加わります。CPU と GPU の温度と使用率、RAM の使用量を、直近の24時間、7日間、30日間のグラフで表示し、各グラフに最新の値とピークを示します。標準ではオフで、AI は必要ありません。</p>
+    <p data-i18n="sens.history.p2">Xenon は5分ごとに1回値を記録します。1時間ごとの値を3日分、1日ごとの値を約3か月分、PC 上のファイルに保存します。24時間の表示は1時間ごとの値を、7日間と30日間の表示は1日ごとの値を使います。</p>
+    <p data-i18n="sens.history.p3">同じタブには「PC 使用時間」も表示されます。期間中によく使ったアプリ、アクティブだった合計時間、そのうちゲームをしていた時間です。履歴がオンのときは、エネルギーのウィジェットにも CPU と GPU の消費電力の直近24時間のグラフが表示されます。</p>
+    <p data-i18n="sens.history.p4">Guardian は同じ履歴を AI で使う機能で、「設定 → Xenon AI」にある任意の「高度なAI機能」の1つです。「PC の調子はどう？」と聞くと、履歴を分析します。Guardian がオンのときは、CPU が 90 °C、GPU が 88 °C、RAM が 95% に達するとお知らせも表示されます。それぞれ30分に1回までです。</p>
+
+    <h2 id="games" data-i18n="sens.h.games">ゲームモードとパフォーマンスモード</h2>
+    <p data-i18n="sens.games.p1">ゲームモードは標準でオンです。ゲームがフルスクリーンで動いている間、アニメーション背景と AI の光る演出が止まり、ダッシュボードがゲームと GPU を取り合わないようにします。ゲームを離れると元に戻ります。</p>
+    <p data-i18n="sens.games.p2">判断にはフレームレートではなく、前面のウィンドウを見ます。タイトルバーのないフルスクリーンのウィンドウは対象になりますが、最大化したデスクトップアプリ、ダッシュボード自体、iCUE は対象になりません。Windows では追加のツールも管理者権限も必要ありません。</p>
+    <p data-i18n="sens.games.p3">パフォーマンスモードは、「設定 → パフォーマンス」で自分でオンにします。「手動」では、システムのタイルの「最適化」か、設定の「今すぐ最適化」を押したときだけ動きます。「提案」では、ゲームや自分で選んだほかの作業が始まったときに最適化を提案します。「自動」では自分で最適化を適用し、作業が終わると元に戻しますが、アプリを閉じるときは必ずあなたの確認を待ちます。どの手順を行うかは自分で選べます:</p>
+    <ul>
+      <li data-i18n="sens.perf.anim">ダッシュボードのアニメーションを一時停止する。</li>
+      <li data-i18n="sens.perf.plan">Windows の電源プランを高パフォーマンスに切り替える。</li>
+      <li data-i18n="sens.perf.boost">前面のアプリの優先度を AboveNormal（通常以上）に上げる。</li>
+      <li data-i18n="sens.perf.close">選んだバックグラウンドのアプリを閉じる。強制終了ではなく終了を求め、Windows の重要なプロセスは常に対象外にする。</li>
+    </ul>
+    <p data-i18n="sens.games.p4">「元に戻す」を押すと、再起動したあとでも、以前の電源プラン、優先度、閉じたアプリが元に戻ります。電源プランと優先度の引き上げは Windows の機能です。</p>
+    <p data-i18n="sens.games.p5">「ゲーム中は重いタイルを一時停止」のオプションは標準でオンで、ゲームの実行中や最適化が有効な間、ブラウザ、セカンドスクリーン、カメラのタイルのストリーミングも止めます。</p>
+
+    <h2 id="faq" data-i18n="sens.h.faq">質問</h2>
+    <details><summary data-i18n="sens.faq.aida.q">AIDA64 や HWiNFO は必要ですか？</summary><div class="body"><p data-i18n="sens.faq.aida.a">いいえ。Xenon はセンサーを自分で読み取ります。Windows では LibreHardwareMonitor、nvidia-smi、PresentMon、Linux ではカーネル自身のセンサー、macOS では Xenon Helper を使います。LibreHardwareMonitor と PresentMon は、Windows のセットアップがインストールします。</p></div></details>
+    <details><summary data-i18n="sens.faq.temp.q">CPU の温度が表示されないのはなぜですか？</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">Windows では、たいてい Xenon が管理者権限なしで動いていて、センサーのドライバーを読み込めないことが原因です。ファンかエネルギーのウィジェット、または「設定 → パフォーマンス → ハードウェア センサー」で <strong>センサーを有効にする</strong> を押し、Windows の確認を承認してください。LibreHardwareMonitor がまったくインストールされていない場合は、Xenon のフォルダーで <code>INSTALL.bat</code> をもう一度実行し、確認を承認してください。</p></div></details>
+    <details><summary data-i18n="sens.faq.edge.q">Xeneon Edge にセンサーを表示できますか？</summary><div class="body"><p data-i18n-html="sens.faq.edge.a">はい。システムのタイルはカードの間で高さを分け合うので、Edge の 2560×720 の画面にすべて収まります。同じダッシュボードは、どのモニターでも、タブレットでも、<a href="/ja/phone.html">Wi-Fi でペアリングしたスマートフォン</a>でも動きます。スマートフォンからのアクセスはベータです。</p></div></details>
+    <details><summary data-i18n="sens.faq.own.q">自分でセンサーパネルをデザインできますか？</summary><div class="body"><p data-i18n-html="sens.faq.own.a">はい。ベータのウィジェット SDK を使います。システムの値へのアクセスを承認すると、ウィジェットは使用率、温度、クロック、ファンの回転数、ワット数、FPS を読み取れます。システムのタイルが表示しない値も含まれます。始めるなら<a href="/create/">作成のページ</a>からです。</p></div></details>
+    <details><summary data-i18n="sens.faq.os.q">macOS と Linux でも動きますか？</summary><div class="body"><p data-i18n="sens.faq.os.a">はい。どちらもベータです。CPU と GPU の温度と GPU の使用率は両方で動きます。ファンの回転数と、MangoHud によるゲーム内の FPS は Linux では動きますが、macOS では動きません。CPU と GPU のワット数を読み取るのは Windows だけです。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="sens.cta.h">Xenon をダウンロード</h3>
+      <p data-i18n-html="sens.cta.p">無料で、アカウントは不要です。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows 版 Xenon をダウンロード</a>するか、<a href="/ja/download.html">ダウンロードページ</a>で自分のシステムを選んでください。先に見てみたい場合は、<a href="/demo/">ブラウザでデモを試して</a>ください。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

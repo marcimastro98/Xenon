@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>xenon.exe: ¿es seguro? Los procesos de Xenon en Windows</title>
+<meta name="description" content="Xenon no instala ningún archivo llamado xenon.exe. Qué ejecuta en Windows, dónde está cada archivo y cómo comprobarlo con las sumas SHA256 firmadas.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="xenon.exe: ¿es seguro? Los procesos de Xenon en Windows">
+<meta property="og:description" content="Xenon no instala ningún archivo llamado xenon.exe. Qué ejecuta en Windows, dónde está cada archivo y cómo comprobarlo con las sumas SHA256 firmadas.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/es/xenon-exe.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/xenon-exe.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/xenon-exe.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/xenon-exe.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/xenon-exe.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/xenon-exe.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/xenon-exe.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/xenon-exe.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"¿xenon.exe forma parte del panel Xenon?","acceptedAnswer":{"@type":"Answer","text":"No. Xenon no instala ningún archivo llamado xenon.exe. Ejecuta Xenon-Setup-x64.exe como instalador, xenon-native.exe como ventana del panel, xenon-helper.exe como puente con el audio, la multimedia y las notificaciones de Windows, y node.exe como motor local."}},{"@type":"Question","name":"¿Qué es xenon-native.exe?","acceptedAnswer":{"@type":"Answer","text":"La ventana del panel, una pequeña aplicación nativa que dibuja la interfaz de Xenon en la pantalla que elegiste. Es el proceso que hay detrás del icono de la bandeja del sistema."}},{"@type":"Question","name":"¿Qué es xenon-helper.exe?","acceptedAnswer":{"@type":"Answer","text":"El puente hacia las partes de Windows a las que una aplicación web no llega: dispositivos de audio y volumen por aplicación, teclas multimedia, notificaciones, la lista de ventanas, atajos de teclado globales, el análisis del disco y la conexión Bluetooth con el móvil."}},{"@type":"Question","name":"¿Dónde se instala Xenon?","acceptedAnswer":{"@type":"Answer","text":"En dos carpetas dentro de tu perfil de usuario: %LOCALAPPDATA%\\Xenon y %LOCALAPPDATA%\\Programs\\Xenon. Nada se ejecuta como servicio de Windows ni como SYSTEM."}},{"@type":"Question","name":"¿Por qué lo marcó Windows Defender?","acceptedAnswer":{"@type":"Answer","text":"Desde la versión 4.11.9 el instalador, la aplicación que contiene y el helper están firmados, así que Windows muestra un editor verificado. Microsoft concede la reputación poco a poco y Defender también juzga lo que hace un programa, así que durante un tiempo todavía puede aparecer un aviso. Cada versión incluye además un archivo SHA256SUMS firmado para que puedas verificar la descarga tú mismo."}},{"@type":"Question","name":"¿Cómo desinstalo Xenon por completo?","acceptedAnswer":{"@type":"Answer","text":"Configuración, luego Aplicaciones, luego Aplicaciones instaladas, luego Xenon, luego Desinstalar. Elimina las dos carpetas, la tarea programada y la aplicación de la bandeja."}}]}</script>
+
+<style>
+  /* The first column is a list of filenames: breaking "xenon-native.exe" across
+     two lines is exactly the thing a person scanning for a process name cannot
+     do anything with. */
+  .tablewrap th:first-child, .tablewrap td:first-child { width: 1%; white-space: nowrap; vertical-align: top; }
+  .tablewrap td code { white-space: nowrap; }
+  .tablewrap td { vertical-align: top; }
+  pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Invítame a un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ES</span></summary><ul><li><a href="/xenon-exe.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/xenon-exe.html" hreflang="es" lang="es" aria-current="page">Español <span>ES</span></a></li><li><a href="/it/xenon-exe.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/xenon-exe.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/xenon-exe.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/xenon-exe.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Descargar</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menú</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/es/#screens" data-xl="screens">Pantallas</a></li><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li><li><a href="/es/#install" data-xl="install">Instalación</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Invítame a un café</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Ruta de navegación"><ol><li><a href="/es/" data-xl="home">Inicio</a></li><li><a href="/es/xenon-exe.html" aria-current="page" data-xl="f.exe">¿Es seguro el instalador?</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/es/"},{"@type":"ListItem","position":2,"name":"¿Es seguro el instalador?","item":"https://xenon-app.com/es/xenon-exe.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="exe.h1">xenon.exe</h1>
+    <p class="lede" data-i18n="exe.lede">Si encontraste un proceso desconocido en tu PC y buscaste su nombre, primero va la respuesta que suele ser la correcta: probablemente no es de Xenon.</p>
+    <p class="updated" data-i18n="exe.updated">Última actualización: 26 de septiembre de 2026</p>
+
+    <nav class="jump">
+      <a href="#short" data-i18n="exe.jump.short">La respuesta corta</a>
+      <a href="#list" data-i18n="exe.jump.list">Qué ejecuta Xenon</a>
+      <a href="#check" data-i18n="exe.jump.check">Cómo comprobar lo que tienes</a>
+      <a href="#notmine" data-i18n="exe.jump.notmine">Si nunca lo instalaste</a>
+      <a href="#flagged" data-i18n="exe.jump.flagged">Si Defender lo marcó</a>
+      <a href="#remove" data-i18n="exe.jump.remove">Cómo desinstalarlo</a>
+    </nav>
+
+    <h2 id="short" data-i18n="exe.h.short">La respuesta corta</h2>
+    <p data-i18n-html="exe.short.p1"><strong>Xenon no instala ningún archivo llamado <code>xenon.exe</code>.</strong> Si el Administrador de tareas te muestra un proceso que se llama exactamente <code>xenon.exe</code>, casi seguro es otro programa que comparte el nombre, y la lista de abajo te dice cuál de los dos estás viendo.</p>
+    <p data-i18n-html="exe.short.p2">Si en cambio ves <code>xenon-native.exe</code> o <code>xenon-helper.exe</code>, esos sí son nuestros, y el resto de esta página explica exactamente qué hace cada uno.</p>
+
+    <h2 id="list" data-i18n="exe.h.list">Qué ejecuta Xenon en Windows</h2>
+    <p data-i18n="exe.list.intro">Cuatro archivos propios:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="exe.th.file">Archivo</th><th data-i18n="exe.th.what">Qué es</th></tr></thead>
+      <tbody>
+        <tr><td><code>Xenon-Setup-x64.exe</code></td><td data-i18n="exe.row.setup">El instalador. Lo ejecutas una vez; no se queda en el sistema como proceso.</td></tr>
+        <tr><td><code>xenon-native.exe</code></td><td data-i18n="exe.row.native">La ventana del panel, una pequeña aplicación nativa que dibuja la interfaz en la pantalla que elegiste. Es la que ves en la bandeja del sistema.</td></tr>
+        <tr><td><code>xenon-helper.exe</code></td><td data-i18n="exe.row.helper">El puente hacia las partes de Windows a las que una aplicación web no llega por sí sola: dispositivos de audio y volumen por aplicación, teclas multimedia, notificaciones, la lista de ventanas, atajos de teclado globales, el análisis del disco y la conexión Bluetooth con el móvil. Lo inicia el motor, y el helper le responde por la entrada y la salida estándar.</td></tr>
+        <tr><td><code>node.exe</code></td><td data-i18n-html="exe.row.node">El motor del panel. Xenon es una aplicación web local, así que lo que la sirve es Node.js tal cual, escuchando en <code>127.0.0.1:3030</code>, una dirección a la que solo llega este PC. Si activas Acceso desde el móvil en Ajustes, también escucha en tu red local, para que lleguen a él los móviles y tablets que vincules.</td></tr>
+      </tbody>
+    </table></div>
+    <p data-i18n-html="exe.list.where">Viven en dos carpetas dentro de tu perfil de usuario, nunca en las carpetas de Windows: <code>%LOCALAPPDATA%\Xenon</code> y <code>%LOCALAPPDATA%\Programs\Xenon</code>. Una tarea programada arranca el motor cuando inicias sesión, con tu propia cuenta. Si aceptaste el aviso de administrador durante la instalación, esa tarea se ejecuta con permisos elevados, y eso es lo que le permite leer las temperaturas; nada se instala como servicio de Windows.</p>
+    <p data-i18n="exe.list.tools">Además están las herramientas que Xenon usa para funciones concretas, cada una de sus propios desarrolladores y no de este proyecto, y cada una solo cuando está activada la función que la necesita:</p>
+    <ul>
+      <li data-i18n-html="exe.tool.lhm"><strong>LibreHardwareMonitor</strong> y <strong>PawnIO</strong>, instalados con winget, leen las temperaturas de la CPU y de los discos. PawnIO es un controlador de kernel firmado y el sustituto de WinRing0, el controlador que está detrás de la mayoría de los falsos positivos de las herramientas de monitorización más antiguas. Xenon nunca ha incluido WinRing0 y nunca lo hará.</li>
+      <li data-i18n-html="exe.tool.presentmon"><strong>PresentMon</strong>, la herramienta de Intel para medir el tiempo de cada fotograma, descargada en la propia carpeta de Xenon, para el contador real de FPS en los juegos.</li>
+      <li data-i18n-html="exe.tool.ffmpeg"><strong>FFmpeg</strong> para la entrada de voz y las respuestas habladas, y <strong>Ollama</strong> solo si cambias el asistente al proveedor local gratuito. El instalador no descarga ninguno de los dos; los configuras desde Ajustes cuando los quieras.</li>
+      <li data-i18n-html="exe.tool.sunshine"><strong>Sunshine</strong> y <strong>Tailscale</strong>, solo si activas el control remoto del PC.</li>
+    </ul>
+
+    <h2 id="check" data-i18n="exe.h.check">Cómo comprobar lo que tienes realmente</h2>
+    <ol>
+      <li data-i18n-html="exe.check.1">En el Administrador de tareas, haz clic derecho en el proceso y elige <strong>Abrir ubicación del archivo</strong>. Si no está en <code>%LOCALAPPDATA%\Xenon</code> ni en <code>%LOCALAPPDATA%\Programs\Xenon</code>, no es de este proyecto.</li>
+      <li data-i18n-html="exe.check.2">Haz clic derecho en el archivo, elige <strong>Propiedades</strong> y abre la pestaña <strong>Firmas digitales</strong>. Desde la versión 4.11.9, <code>Xenon-Setup-x64.exe</code>, <code>xenon-native.exe</code> y <code>xenon-helper.exe</code> están firmados, y esa pestaña muestra el editor. Los archivos de versiones anteriores no llevan firma, así que para ellos la comprobación es el hash del paso siguiente.</li>
+      <li><span data-i18n-html="exe.check.3a">Compara el archivo con lo que publicamos. Cada versión incluye un archivo <code>SHA256SUMS</code> firmado con la clave del proyecto, y esto funciona igual con las versiones firmadas y con las anteriores:</span>
+        <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code></pre>
+        <span data-i18n-html="exe.check.3b">Si el hash coincide con la línea del <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">SHA256SUMS</a> de esa versión, el archivo es, byte a byte, el que GitHub Actions compiló a partir del código fuente publicado en esa etiqueta.</span></li>
+      <li data-i18n-html="exe.check.4">Sube el archivo a <a href="https://www.virustotal.com/" rel="noopener">VirusTotal</a>. Si unos pocos motores lo marcan y el resto sale limpio, lo habitual es que sea un problema de reputación y no malware. Si lo marcan casi todos, es otra historia.</li>
+    </ol>
+
+    <h2 id="notmine" data-i18n="exe.h.notmine">Si nunca instalaste Xenon</h2>
+    <p data-i18n="exe.notmine.p">Entonces lo que estás viendo no es de este proyecto. Comprueba la ubicación del archivo y el editor como se explica arriba. Nada en este sitio va a eliminar software que no instalamos nosotros, y ninguna página te pedirá que descargues un «limpiador» para quitarlo: esa es la forma habitual de la estafa que sigue a una búsqueda como esta.</p>
+
+    <h2 id="flagged" data-i18n="exe.h.flagged">Si es nuestro y Defender lo marcó</h2>
+    <p data-i18n-html="exe.flagged.p1">Todavía puede pasar. Desde la versión 4.11.9 el instalador está firmado, así que Windows muestra un editor verificado. SmartScreen puede seguir avisando durante un tiempo, porque Microsoft concede la reputación poco a poco: haz clic en <strong>Más información</strong> y luego en <strong>Ejecutar de todas formas</strong>. Defender también juzga lo que hace un programa, no solo quién lo firmó, así que un archivo firmado aún puede ser marcado.</p>
+    <p data-i18n-html="exe.flagged.p2">Las <a href="/es/faq.html#warnings">preguntas frecuentes explican los dos tipos de detección</a>, de cuál te habla el nombre del aviso y cómo añadir la exclusión si quieres seguir usándolo. En resumen: un nombre que termina en <code>!cl</code> es el veredicto del aprendizaje automático sobre la reputación; un nombre sin sufijo es una firma de comportamiento que reacciona ante un instalador que lleva un script que descarga código, lo que también describe con precisión algo que no querrías en tu PC. Ninguno de los dos prueba nada por sí solo, y por eso existen los pasos 2 y 3 de arriba.</p>
+
+    <h2 id="remove" data-i18n="exe.h.remove">Cómo desinstalarlo por completo</h2>
+    <p data-i18n-html="exe.remove.p">Configuración → Aplicaciones → Aplicaciones instaladas → Xenon → Desinstalar, o ejecuta <code>UNINSTALL.bat</code> desde la carpeta que descomprimiste si lo instalaste a la manera clásica. Elimina las dos carpetas, la tarea programada y la aplicación de la bandeja. Los componentes de temperatura instalados con winget son programas aparte y se desinstalan por separado, desde la misma lista de Aplicaciones.</p>
+
+    <div class="card accent">
+      <h3 data-i18n="exe.card.h">Si buscabas Xenon, el panel</h3>
+      <p data-i18n-html="exe.card.p">Convierte un monitor que te sobra, una tablet, tu móvil o una CORSAIR Xeneon Edge en un panel de control táctil para tu PC. Es gratis y no necesita cuenta. <a href="/es/">Mira lo que hace</a> o lee las <a href="/es/faq.html">preguntas frecuentes</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Más guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/mac.html" data-xl="f.mac">Xenon en un Mac</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/widgets.html" data-xl="f.widgets">Todos los widgets</a></li><li><a href="/es/deck.html" data-xl="f.deck">Teclas del Deck</a></li><li><a href="/es/claude-code.html" data-xl="f.claude">Claude Code en una pantalla táctil</a></li><li><a href="/es/sensor-panel.html" data-xl="f.sensor">Un panel de sensores para tu PC</a></li></ul><p class="xg-dl"><a href="/es/download.html" data-xl="f.download">Descargar</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un panel táctil gratis para las pantallas junto a tu PC. Windows, con macOS y Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/es/download.html" data-xl="f.download">Descargar</a></li><li><a href="/demo/" data-xl="f.demo">Demo en el navegador</a></li><li><a href="/catalog/" data-xl="f.catalog">Catálogo</a></li><li><a href="/create/" data-xl="f.create">Crear widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versiones</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/mac.html" data-xl="f.mac">Xenon en un Mac</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/widgets.html" data-xl="f.widgets">Todos los widgets</a></li><li><a href="/es/deck.html" data-xl="f.deck">Teclas del Deck</a></li><li><a href="/es/claude-code.html" data-xl="f.claude">Claude Code en una pantalla táctil</a></li><li><a href="/es/sensor-panel.html" data-xl="f.sensor">Un panel de sensores para tu PC</a></li><li><a href="/es/xenon-exe.html" data-xl="f.exe">¿Es seguro el instalador?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Proyecto</h2><ul><li><a href="/es/#support" data-xl="f.support">Mecenas</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/es/faq.html" data-xl="f.faq">Ayuda y preguntas</a></li><li><a href="/es/privacy.html" data-xl="f.privacy">Privacidad</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon es un proyecto independiente. Xeneon e iCUE son marcas comerciales de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+</body>
+</html>
