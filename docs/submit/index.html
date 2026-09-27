@@ -5,7 +5,7 @@
 
 <!-- Google tag (gtag.js) with Consent Mode v2.
      The consent defaults must be pushed BEFORE gtag.js executes, so this block
-     stays inline and stays first — moving it below the loader would let a tag
+     stays inline and stays first: moving it below the loader would let a tag
      fire unconsented. The banner UI lives in /consent.js. -->
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -45,8 +45,8 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xenon — publish to the community catalog</title>
-<meta name="description" content="Submit your Xenon creation — theme, background, page, Deck profile, widget, scene, icon or sound pack — to the community catalog. A human reviews every submission.">
+<title>Xenon: publish to the community catalog</title>
+<meta name="description" content="Submit your Xenon creation: theme, background, page, Deck profile, widget, scene, icon or sound pack: to the community catalog. A human reviews every submission.">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <link rel="canonical" href="https://xenon-app.com/submit/">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
@@ -57,14 +57,14 @@
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://xenon-app.com/submit/">
-<meta property="og:title" content="Xenon — publish to the community catalog">
-<meta property="og:description" content="Submit your Xenon creation — theme, background, page, Deck profile, widget, scene, icon or sound pack — to the community catalog. A human reviews every submission.">
+<meta property="og:title" content="Xenon: publish to the community catalog">
+<meta property="og:description" content="Submit your Xenon creation: theme, background, page, Deck profile, widget, scene, icon or sound pack: to the community catalog. A human reviews every submission.">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
 <meta property="og:image:width" content="2560">
 <meta property="og:image:height" content="720">
 <meta property="og:image:alt" content="The Xenon dashboard, where a published creation ends up">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Xenon — publish to the community catalog">
+<meta name="twitter:title" content="Xenon: publish to the community catalog">
 <meta name="twitter:description" content="Submit your Xenon creation to the community catalog. A human reviews every submission.">
 <meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
 
@@ -76,8 +76,8 @@
       "@type": "WebPage",
       "@id": "https://xenon-app.com/submit/#webpage",
       "url": "https://xenon-app.com/submit/",
-      "name": "Xenon — publish to the community catalog",
-      "description": "Submit your Xenon creation — theme, background, page, Deck profile, widget, scene, icon or sound pack — to the community catalog. A human reviews every submission.",
+      "name": "Xenon: publish to the community catalog",
+      "description": "Submit your Xenon creation: theme, background, page, Deck profile, widget, scene, icon or sound pack: to the community catalog. A human reviews every submission.",
       "inLanguage": "en",
       "isPartOf": { "@id": "https://xenon-app.com/#website" },
       "about": { "@id": "https://xenon-app.com/catalog/#catalog" },
@@ -106,7 +106,7 @@
      token is issued, and every submit dies on "complete the anti-spam check" —
      with no check on screen to complete.
      • The container must NOT be id="turnstile". An element id becomes a property
-       of window, so <div id="turnstile"> IS window.turnstile — verified in the
+       of window, so <div id="turnstile"> IS window.turnstile: verified in the
        browser: window.turnstile === that div, an HTMLDivElement. api.js guards
        with `if (window.turnstile) → already loaded`, finds the div, warns
        "Turnstile already has been loaded" and installs nothing. Cloudflare's own
@@ -126,83 +126,83 @@
     --ink: var(--g-0); --panel: var(--g-1); --line: var(--rule);
     --line-2: var(--rule-2); --plasma: var(--bone-0); --plasma-2: var(--bone-1);
     --danger: var(--danger); --text: var(--bone-0); --muted: var(--bone-1); --dim: var(--bone-2);
-    --display: 'Clash Display','Hanken Grotesk',system-ui,sans-serif;
-    --body: 'Hanken Grotesk',system-ui,-apple-system,sans-serif;
-    --mono: 'JetBrains Mono',ui-monospace,monospace;
     --maxw: 760px; --ease: cubic-bezier(0.16,1,0.3,1);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    font-family: var(--body); background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 17px; background: var(--ink); color: var(--text);
     line-height: 1.55; min-height: 100dvh; -webkit-font-smoothing: antialiased;
 
   }
-  a { color: var(--plasma-2); }
-  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 32px 20px 80px; }
-  header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
-  /* The only image in this header is the wordmark's X, and its size is set once
-     for the whole site in site.css. A 38px square here stretched it. */
-  header.top .back { margin-left: auto; font-size: 0.9rem; color: var(--muted); text-decoration: none; }
-  header.top .back:hover { color: var(--text); }
-  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.01em; }
-  .lede { color: var(--muted); margin: 10px 0 28px; max-width: 60ch; }
+  a { color: var(--text); text-underline-offset: .18em; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: clamp(40px, 6vh, 72px) 20px 32px; }
+  h1 { font: 780 clamp(34px, 3vw + 12px, 52px)/1.05 var(--display); letter-spacing: -0.016em; }
+  .lede { color: var(--muted); margin: 14px 0 32px; max-width: 60ch; font-size: 19px; line-height: 1.5; }
   .lede b { color: var(--text); }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+  .card { background: var(--panel); border: 0; border-radius: var(--r-1); padding: 24px; margin-bottom: 18px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
   label.f { display: block; margin-bottom: 12px; }
-  label.f > span { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 5px; }
-  label.f small { color: var(--dim); }
+  label.f > span { display: block; font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  label.f small { font-size: 15px; font-weight: 400; color: var(--muted); }
+  .sec-lab { display: block; font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
   input[type=text], select, textarea {
-    width: 100%; font: inherit; font-size: 0.95rem; color: var(--text);
-    background: var(--g-1); border: 1px solid var(--line); border-radius: 10px;
+    width: 100%; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--g-0); border: 1px solid var(--line); border-radius: 6px;
     padding: 10px 12px; outline: none; transition: border-color 0.15s var(--ease);
   }
   input:focus, select:focus, textarea:focus { border-color: var(--line-2); }
   textarea { resize: vertical; min-height: 90px; }
-  #code { font-family: var(--mono); font-size: 0.8rem; min-height: 120px; }
+  #code { font-family: var(--mono); font-size: 15px; min-height: 120px; }
   .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .btn {
-    font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px;
-    padding: 10px 18px; border: 1px solid var(--line-2);
+    font: inherit; font-weight: 700; cursor: pointer; border-radius: 9px;
+    min-height: 44px; padding: 10px 18px; border: 1px solid var(--line-2);
     background: var(--g-2); color: var(--text);
     transition: background 0.15s var(--ease), transform 0.1s var(--ease);
   }
   .btn:hover { background: var(--g-3); }
-  .btn.primary { background: var(--plasma); color: var(--g-0); border-color: transparent; font-weight: 700; }
-  .btn.primary:hover { background: var(--plasma-2); }
-  .btn.primary:disabled { opacity: 0.5; cursor: default; }
+  /* The one lit key on the page: the site's Download key, the Deck key. */
+  .btn.primary {
+    --lit: #008DFF; color: #fff; font-family: var(--display); font-weight: 700;
+    background-color: #104D82;
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
+    border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38);
+  }
+  .btn.primary:hover { filter: brightness(1.1); background-color: #104D82; }
+  .btn.primary:disabled { opacity: 0.5; cursor: default; filter: none; }
   .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
-  .hint { font-size: 0.82rem; color: var(--dim); margin-top: 6px; }
+  .hint { font-size: 15px; color: var(--muted); margin-top: 6px; }
   .hint.good { color: var(--plasma); }
   .hint.warn { color: var(--gold); }
   .hint.bad { color: var(--danger); }
   /* Automatic pre-submit check */
-  .audit-line { font-size: 0.88rem; color: var(--muted); margin-top: 10px; }
+  .audit-line { font-size: 16px; color: var(--muted); margin-top: 10px; }
   .audit-findings { display: grid; gap: 10px; margin-top: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
-  .finding { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--g-1); font-size: 0.88rem; }
-  .finding .floc { font-family: var(--mono); font-size: 0.74rem; color: var(--dim); margin-top: 2px; }
-  .finding .fwhy { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .finding { border: 1px solid var(--line); border-radius: var(--r-1); padding: 10px 12px; background: var(--g-0); font-size: 16px; }
+  .finding .floc { font-family: var(--mono); font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .finding .fwhy { font-size: 15px; color: var(--muted); margin-top: 2px; }
   .finding code.fex {
-    display: block; font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+    display: block; font-family: var(--mono); font-size: 14px; color: var(--muted);
     background: var(--g-1); border: 1px solid var(--line); border-radius: 8px;
     padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; word-break: break-word;
     max-height: 110px; overflow-y: auto;
   }
   .sev {
-    display: inline-block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em;
-    border-radius: 999px; padding: 2px 8px; margin-right: 8px; vertical-align: 1px;
+    display: inline-block; font-size: 14px; font-weight: 700;
+    border-radius: 6px; padding: 2px 8px; margin-right: 8px; vertical-align: 1px;
   }
   .sev.block { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
   .sev.warn { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); }
   .sev.info { color: var(--muted); background: var(--g-1); border: 1px solid var(--line); }
   .audit-notes { margin-top: 8px; }
-  .audit-notes summary { cursor: pointer; font-size: 0.82rem; color: var(--dim); }
+  .audit-notes summary { cursor: pointer; font-size: 15px; color: var(--muted); }
   .audit-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .audit-export .btn { font-size: 0.8rem; padding: 7px 12px; }
+  .audit-export .btn { font-size: 15px; padding: 7px 12px; min-height: 40px; }
   #justifyWrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-  label.chk { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 0.92rem; }
+  label.chk { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 16px; }
   label.chk input { width: 18px; height: 18px; accent-color: var(--plasma); flex: none; cursor: pointer; }
   #updateFields { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
   .pal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px; }
@@ -213,40 +213,31 @@
   label.f > span.cf { display: flex; gap: 8px; align-items: center; margin-bottom: 0; }
   .cf input[type=color] {
     flex: none; width: 42px; height: 42px; padding: 3px; cursor: pointer;
-    background: var(--g-1); border: 1px solid var(--line); border-radius: 10px;
+    background: var(--g-0); border: 1px solid var(--line); border-radius: 6px;
   }
-  .cf input[type=text] { flex: 1; min-width: 0; font-family: var(--mono); font-size: 0.85rem; text-transform: lowercase; }
+  .cf input[type=text] { flex: 1; min-width: 0; font-family: var(--mono); font-size: 15px; text-transform: lowercase; }
   .shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
   .shot { width: 150px; }
   .shot .box {
-    aspect-ratio: 16/9; border: 1px dashed var(--line-2); border-radius: 10px;
+    aspect-ratio: 16/9; border: 1px dashed var(--line-2); border-radius: var(--r-1);
     display: flex; align-items: center; justify-content: center; overflow: hidden;
-    color: var(--dim); font-size: 0.85rem; cursor: pointer; background: var(--g-1);
+    color: var(--muted); font-size: 15px; cursor: pointer; background: var(--g-0);
   }
   .shot .box img { width: 100%; height: 100%; object-fit: cover; }
-  .shot .rm { width: 100%; margin-top: 4px; font-size: 0.75rem; padding: 4px; }
-  .err { color: var(--danger); font-size: 0.9rem; min-height: 1.3em; margin-top: 10px; }
+  .shot .rm { width: 100%; margin-top: 4px; font-size: 15px; padding: 4px; min-height: 36px; }
+  .err { color: var(--danger); font-size: 16px; min-height: 1.3em; margin-top: 10px; }
   .ok-screen { text-align: center; padding: 48px 20px; }
   .ok-screen .big { font-size: 3rem; }
-  .ok-screen h2 { font-family: var(--display); margin: 12px 0 8px; }
+  .ok-screen h2 { font: 760 30px/1.15 var(--display); margin: 12px 0 8px; }
   .ok-screen p { color: var(--muted); max-width: 46ch; margin: 0 auto 8px; }
   .turnstile-wrap { margin: 14px 0 4px; min-height: 66px; }
-  .captcha-broken { color: var(--danger); font-size: 0.85rem; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: 10px; padding: 10px 12px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
-  .langbar { display: flex; gap: 6px; }
-  .langbar button { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit; font-size: 0.8rem; }
-  .langbar button.on { color: var(--plasma); font-weight: 700; }
-  footer { margin-top: 40px; color: var(--dim); font-size: 0.82rem; text-align: center; }
+  .captcha-broken { color: var(--danger); font-size: 15px; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: var(--r-1); padding: 10px 12px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
 </style>
-<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
-     this file owns the palette, the type and the motion for every page on the
-     site, and each page kept its own drifted copy of those tokens. Later wins,
-     so one file re-skins all nine. Page-specific rules above are untouched. -->
 <link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
 </head>
 <body data-track-view="submit_start">
-<div class="wrap">
-  <!-- xenon:header -->
+<!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
     <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
@@ -275,9 +266,10 @@
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li><li><a href="/#install" data-xl="install">Install</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Buy me a coffee</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
 </header>
 <!-- /xenon:header -->
+<div class="wrap">
 
   <h1 data-t="title">Publish to the community catalog</h1>
-  <p class="lede" data-t="lede">Made something for Xenon — a theme, a background, a Deck profile, a widget, an icon or sound pack? Paste its <b>share code</b> below and it lands in the review queue. <b>A human reviews every submission</b> before it appears in the in-app gallery; nothing you send here can change anyone's dashboard by itself.</p>
+  <p class="lede" data-t="lede">Made something for Xenon: a theme, a background, a Deck profile, a widget, an icon or sound pack? Paste its <b>share code</b> below and it lands in the review queue. <b>A human reviews every submission</b> before it appears in the in-app gallery; nothing you send here can change anyone's dashboard by itself.</p>
 
   <form id="form" novalidate>
     <!-- Update mode. Without this, an update was indistinguishable from a new
@@ -291,10 +283,10 @@
           <datalist id="entryList"></datalist>
         </label>
         <p class="hint" id="targetHint"></p>
-        <label class="f"><span data-t="f_changelog">What changed? * <small data-t="f_changelog_h">(one line — users see this on the update prompt)</small></span>
+        <label class="f"><span data-t="f_changelog">What changed? * <small data-t="f_changelog_h">(one line: users see this on the update prompt)</small></span>
           <textarea id="changelog" maxlength="300" rows="2" data-t-ph="changelog_ph" placeholder="Fixed the clock drifting after DST"></textarea>
         </label>
-        <p class="hint" data-t="update_hint">Bump the version above — the app only offers an update when the version rises.</p>
+        <p class="hint" data-t="update_hint">Bump the version above: the app only offers an update when the version rises.</p>
       </div>
     </div>
 
@@ -328,9 +320,9 @@
         </label>
         <label class="f"><span data-t="f_name">Name *</span><input type="text" id="name" maxlength="60" required></label>
         <label class="f"><span data-t="f_author">Author / handle *</span><input type="text" id="author" maxlength="40" required></label>
-        <label class="f"><span data-t="f_version">Version * <small data-t="f_version_h">(e.g. 1.0.0 — bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0" required></label>
-        <label class="f"><span data-t="f_contact">Contact * <small data-t="f_contact_h">(email/Discord — only the reviewer sees it, so they can reach you if something needs fixing)</small></span><input type="text" id="contact" maxlength="120" required></label>
-        <label class="f"><span data-t="f_tags">Tags * <small data-t="f_tags_h">(up to 6, lowercase — this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
+        <label class="f"><span data-t="f_version">Version * <small data-t="f_version_h">(e.g. 1.0.0: bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0" required></label>
+        <label class="f"><span data-t="f_contact">Contact * <small data-t="f_contact_h">(email/Discord: only the reviewer sees it, so they can reach you if something needs fixing)</small></span><input type="text" id="contact" maxlength="120" required></label>
+        <label class="f"><span data-t="f_tags">Tags * <small data-t="f_tags_h">(up to 6, lowercase: this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
       </div>
       <label class="f"><span data-t="f_desc">Description *</span><textarea id="description" maxlength="400" required></textarea></label>
     </div>
@@ -354,7 +346,7 @@
          unreachable the card says so and the page keeps working: it must never
          block a submit on its own. -->
     <div class="card">
-      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_audit">Automatic check</span>
+      <span class="sec-lab" data-t="f_audit">Automatic check</span>
       <div id="auditBox"></div>
       <div id="justifyWrap" hidden>
         <p class="hint warn" id="auditNotice"></p>
@@ -366,9 +358,9 @@
 
     <!-- Card palette. These three colours paint the entry's card in the Store,
          so they are read straight out of the pasted code when it carries a theme
-         and stay editable — the creator confirms rather than transcribes. -->
+         and stay editable: the creator confirms rather than transcribes. -->
     <div class="card">
-      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_palette">Card colours * <small data-t="f_palette_h">(they paint your card in the Store)</small></span>
+      <span class="sec-lab" data-t="f_palette">Card colours * <small data-t="f_palette_h">(they paint your card in the Store)</small></span>
       <div class="pal" id="pal">
         <label class="f"><span data-t="f_accent">Accent *</span>
           <span class="cf"><input type="color" id="accentPick" value="#1ed760"><input type="text" id="accentHex" maxlength="7" spellcheck="false" placeholder="#1ed760"></span>
@@ -384,7 +376,7 @@
     </div>
 
     <div class="card">
-      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_shots">Screenshots * (at least 2, up to 3 — PNG/JPG/WebP, max 4 MB each)</span>
+      <span class="sec-lab" data-t="f_shots">Screenshots * (2 or 3: PNG, JPG or WebP, up to 4 MB each)</span>
       <div class="shots" id="shots"></div>
     </div>
 
@@ -403,12 +395,12 @@
   <div class="ok-screen" id="okScreen" hidden>
     <div class="big">🎉</div>
     <h2 data-t="ok_title">Submitted!</h2>
-    <p data-t="ok_p1">Your creation is in the review queue. A human looks at every submission — once approved, it appears on the community catalog and inside Xenon's Discover gallery.</p>
-    <p data-t="ok_p2">Shipping an update later? Come back, tick <b>“This is an update”</b>, pick your entry and bump the version — it replaces the published one instead of becoming a second listing.</p>
+    <p data-t="ok_p1">Your creation is in the review queue. A human looks at every submission: once approved, it appears on the community catalog and inside Xenon's Discover gallery.</p>
+    <p data-t="ok_p2">Shipping an update later? Come back, tick <b>“This is an update”</b>, pick your entry and bump the version: it replaces the published one instead of becoming a second listing.</p>
     <p style="margin-top:18px"><a href="../catalog/" data-t="ok_back">Browse the catalog →</a></p>
   </div>
 
-  <footer data-t="foot">Submissions are moderated. Codes are validated again inside the app at import — a catalog entry can never change anything silently.</footer>
+  <footer data-t="foot">Submissions are moderated. Codes are validated again inside the app at import: a catalog entry can never change anything silently.</footer>
 </div>
 
 <script>
@@ -430,57 +422,57 @@
     en: {},
     it: {
       back: '← Catalogo community', title: 'Pubblica nel catalogo community',
-      lede: 'Hai creato qualcosa per Xenon — un tema, uno sfondo, un profilo Deck, un widget, un pacchetto icone o suoni? Incolla qui il suo <b>codice di condivisione</b> e finisce nella coda di revisione. <b>Ogni proposta è revisionata da una persona</b> prima di comparire nella galleria in-app; nulla di ciò che invii può modificare da solo la dashboard di qualcuno.',
+      lede: 'Hai creato qualcosa per Xenon: un tema, uno sfondo, un profilo Deck, un widget, un pacchetto icone o suoni? Incolla qui il suo <b>codice di condivisione</b> e finisce nella coda di revisione. <b>Ogni proposta è revisionata da una persona</b> prima di comparire nella galleria in-app; nulla di ciò che invii può modificare da solo la dashboard di qualcuno.',
       f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle *',
-      f_version: 'Versione * <small>(es. 1.0.0 — aumentala quando aggiorni)</small>',
-      f_contact: 'Contatto * <small>(email/Discord — lo vede solo chi revisiona, per scriverti se qualcosa non va)</small>',
-      f_tags: 'Tag * <small>(fino a 6, minuscoli — è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
+      f_version: 'Versione * <small>(es. 1.0.0: aumentala quando aggiorni)</small>',
+      f_contact: 'Contatto * <small>(email/Discord: lo vede solo chi revisiona, per scriverti se qualcosa non va)</small>',
+      f_tags: 'Tag * <small>(fino a 6, minuscoli: è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
       f_category: 'Categoria *', c_none: 'Scegli…',
       c_style: 'style (temi, sfondi, aspetto)', c_deck: 'deck (profili Deck)', c_streaming: 'streaming',
       c_media: 'media', c_smarthome: 'smart-home', c_system: 'system', c_tools: 'tools', c_fun: 'fun',
       f_palette: 'Colori della card * <small>(dipingono la tua scheda nello Store)</small>',
       f_accent: 'Accento *', f_bgcol: 'Sfondo *', f_textcol: 'Testo *',
-      pal_auto: 'Compilati dal tuo codice — cambiali se la card deve avere un altro aspetto.',
-      pal_manual: 'Questo tipo non contiene un tema, quindi i tre colori qui sotto partono dai valori predefiniti di Xenon — cambiali per adattarli alla tua creazione.',
-      e_category: 'Scegli una categoria — decide dove finisce la tua voce nello Store.',
+      pal_auto: 'Compilati dal tuo codice: cambiali se la card deve avere un altro aspetto.',
+      pal_manual: 'Questo tipo non contiene un tema, quindi i tre colori qui sotto partono dai valori predefiniti di Xenon: cambiali per adattarli alla tua creazione.',
+      e_category: 'Scegli una categoria: decide dove finisce la tua voce nello Store.',
       e_author: 'Metti il nome o l\'handle che vuoi far vedere come autore sulla card.',
       e_version_req: 'Metti un numero di versione, es. 1.0.0.',
       e_version_bad: 'La versione deve avere solo numeri e punti, es. 1.0.0.',
-      e_tags: 'Aggiungi almeno un tag — i tag sono il modo in cui la gente trova la tua voce nello Store.',
-      e_desc: 'Scrivi una riga o due sulla tua creazione — è quello che mostra la card.',
-      e_palette: 'Imposta tutti e tre i colori della card — vengono compilati dal tuo codice se contiene un tema.',
-      e_shots: 'Aggiungi almeno 2 screenshot — una voce senza immagini non viene installata da nessuno.',
+      e_tags: 'Aggiungi almeno un tag: i tag sono il modo in cui la gente trova la tua voce nello Store.',
+      e_desc: 'Scrivi una riga o due sulla tua creazione: è quello che mostra la card.',
+      e_palette: 'Imposta tutti e tre i colori della card: vengono compilati dal tuo codice se contiene un tema.',
+      e_shots: 'Aggiungi almeno 2 screenshot: una voce senza immagini non viene installata da nessuno.',
       f_isupdate: 'È un aggiornamento di qualcosa che ho già nel catalogo',
       f_target: 'Quale voce? *', target_ph: 'Inizia a scrivere il nome della tua voce…',
-      f_changelog: 'Cosa è cambiato? * <small>(una riga — gli utenti la vedono nella richiesta di aggiornamento)</small>',
+      f_changelog: 'Cosa è cambiato? * <small>(una riga: gli utenti la vedono nella richiesta di aggiornamento)</small>',
       changelog_ph: 'Corretto l\'orologio che sballava dopo il cambio d\'ora',
-      update_hint: 'Aumenta la versione qui sopra — l\'app propone l\'aggiornamento solo se la versione sale.',
+      update_hint: 'Aumenta la versione qui sopra: l\'app propone l\'aggiornamento solo se la versione sale.',
       target_found: 'Aggiorni “{name}”, ora alla v{ver}.',
       target_suggest: 'Usa {next} o superiore.',
-      target_unknown: 'Nessuna voce del catalogo con quell\'id — scegline una dall\'elenco, altrimenti chi revisiona la tratterà come una nuova pubblicazione.',
-      e_changelog: 'Scrivi cosa è cambiato in questa versione — quella riga la vedono gli utenti nella richiesta di aggiornamento.',
+      target_unknown: 'Nessuna voce del catalogo con quell\'id: scegline una dall\'elenco, altrimenti chi revisiona la tratterà come una nuova pubblicazione.',
+      e_changelog: 'Scrivi cosa è cambiato in questa versione: quella riga la vedono gli utenti nella richiesta di aggiornamento.',
       e_version: 'Un aggiornamento ha bisogno di un numero di versione, e deve essere più alto di quello pubblicato.',
-      e_version_same: 'La v{ver} è già pubblicata — aumenta la versione, altrimenti a nessuno verrà proposto l\'aggiornamento.',
-      e_version_lower: 'La v{ver} è PIÙ BASSA della v{pub} pubblicata — l\'app propone l\'aggiornamento solo se la versione sale, quindi questa non arriverebbe a nessuno. Usa la {next} o superiore.',
+      e_version_same: 'La v{ver} è già pubblicata: aumenta la versione, altrimenti a nessuno verrà proposto l\'aggiornamento.',
+      e_version_lower: 'La v{ver} è PIÙ BASSA della v{pub} pubblicata: l\'app propone l\'aggiornamento solo se la versione sale, quindi questa non arriverebbe a nessuno. Usa la {next} o superiore.',
       f_code: 'Codice di condivisione *', code_file: 'Carica da file .txt / .json…',
       code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
       code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 2 MB.',
-      f_shots: 'Screenshot * (almeno 2, fino a 3 — PNG/JPG/WebP, max 4 MB ciascuno)',
+      f_shots: 'Screenshot * (almeno 2, fino a 3: PNG/JPG/WebP, max 4 MB ciascuno)',
       send: 'Invia per la revisione', ok_title: 'Inviato!',
-      ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona — una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
-      ok_p2: 'Un aggiornamento in futuro? Torna qui, spunta <b>“È un aggiornamento”</b>, scegli la tua voce e aumenta la versione — sostituisce quella pubblicata invece di diventare una seconda voce.',
+      ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona: una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
+      ok_p2: 'Un aggiornamento in futuro? Torna qui, spunta <b>“È un aggiornamento”</b>, scegli la tua voce e aumenta la versione: sostituisce quella pubblicata invece di diventare una seconda voce.',
       ok_back: 'Sfoglia il catalogo →',
-      foot: 'Le proposte sono moderate. I codici vengono ri-validati nell’app all’importazione — una voce del catalogo non può mai cambiare nulla in silenzio.',
+      foot: 'Le proposte sono moderate. I codici vengono ri-validati nell’app all’importazione: una voce del catalogo non può mai cambiare nulla in silenzio.',
       k_bg: 'bg (sfondo animato)', k_page: 'page (pagina dashboard)', k_deck: 'deck (profilo Deck)',
       k_widget: 'widget (widget community)', k_ambient: 'ambient (scena Ambient)', k_bundle: 'bundle (pacchetto completo)',
       k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
       e_contact: 'Lascia un\'email o un handle Discord, così chi revisiona può scriverti se qualcosa non va.',
-      e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto — copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
+      e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto: copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
       e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
-      e_rate: 'Troppi invii — riprova più tardi.', e_generic: 'Invio non riuscito ({err}) — riprova.',
+      e_rate: 'Troppi invii: riprova più tardi.', e_generic: 'Invio non riuscito ({err}): riprova.',
       shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
-      e_captcha_blocked: 'Non è stato possibile caricare la verifica anti-spam — di solito è colpa di un ad blocker o di un\'estensione per la privacy. Disattivala per questa pagina e ricarica, oppure usa il form su GitHub.',
+      e_captcha_blocked: 'Non è stato possibile caricare la verifica anti-spam: di solito è colpa di un ad blocker o di un\'estensione per la privacy. Disattivala per questa pagina e ricarica, oppure usa il form su GitHub.',
       f_audit: 'Controllo automatico',
       f_justify: 'Perché la tua creazione ne ha bisogno? *',
       audit_idle: 'Incolla il codice di condivisione qui sopra e viene controllato automaticamente.',
@@ -498,12 +490,82 @@
       e_justify: 'Spiega perché la tua creazione ha bisogno degli elementi segnalati',
       sev_block: 'BLOCCO', sev_warn: 'AVVISO', sev_info: 'INFO',
     },
+    es: {
+      back: '← Catálogo de la comunidad', title: 'Publica en el catálogo de la comunidad',
+      lede: '¿Has hecho algo para Xenon, como un tema, un fondo, un perfil de Deck, un widget o un pack de iconos o de sonidos? Pega abajo su <b>código para compartir</b> y entrará en la cola de revisión. <b>Una persona revisa cada envío</b> antes de que aparezca en la galería de la app. Nada de lo que envíes aquí puede cambiar por sí solo el panel de nadie.',
+      f_kind: 'Tipo', f_name: 'Nombre *', f_author: 'Autor / alias *',
+      f_version: 'Versión * <small>(p. ej. 1.0.0; súbela cuando actualices)</small>',
+      f_contact: 'Contacto * <small>(email o Discord: solo lo ve quien revisa, para escribirte si hay que corregir algo)</small>',
+      f_tags: 'Etiquetas * <small>(hasta 6, en minúsculas: así te encuentran en la Tienda)</small>', f_desc: 'Descripción *',
+      f_category: 'Categoría *', c_none: 'Elige una…',
+      c_style: 'style (temas, fondos, apariencia)', c_deck: 'deck (perfiles de Deck)', c_streaming: 'streaming',
+      c_media: 'media', c_smarthome: 'smart-home', c_system: 'system', c_tools: 'tools', c_fun: 'fun',
+      f_palette: 'Colores de la tarjeta * <small>(dan color a tu tarjeta en la Tienda)</small>',
+      f_accent: 'Acento *', f_bgcol: 'Fondo *', f_textcol: 'Texto *',
+      pal_auto: 'Rellenados a partir de tu código. Cámbialos si la tarjeta tiene que verse distinta.',
+      pal_manual: 'Este tipo no incluye un tema, así que los tres colores de abajo parten de los valores por defecto de Xenon. Cámbialos para que encajen con tu creación.',
+      e_category: 'Elige una categoría: decide dónde se clasifica tu entrada en la Tienda.',
+      e_author: 'Añade el nombre o alias que quieres que aparezca como autor en la tarjeta.',
+      e_version_req: 'Añade un número de versión, p. ej. 1.0.0.',
+      e_version_bad: 'La versión solo puede tener números y puntos, p. ej. 1.0.0.',
+      e_tags: 'Añade al menos una etiqueta: con las etiquetas la gente encuentra tu entrada en la Tienda.',
+      e_desc: 'Escribe una o dos líneas sobre tu creación: es lo que muestra la tarjeta.',
+      e_palette: 'Elige los tres colores de la tarjeta: se rellenan a partir de tu código cuando incluye un tema.',
+      e_shots: 'Añade al menos 2 capturas de pantalla: una entrada sin imágenes no la instala nadie.',
+      f_isupdate: 'Es una actualización de algo que ya tengo en el catálogo',
+      f_target: '¿Qué entrada? *', target_ph: 'Empieza a escribir el nombre de tu entrada…',
+      f_changelog: '¿Qué ha cambiado? * <small>(una línea: la gente la ve en el aviso de actualización)</small>',
+      changelog_ph: 'Corregido el reloj que se desfasaba tras el cambio de hora',
+      update_hint: 'Sube la versión de arriba: la app solo ofrece una actualización cuando la versión aumenta.',
+      target_found: 'Actualizas «{name}», ahora en la v{ver}.',
+      target_suggest: 'Usa la {next} o una superior.',
+      target_unknown: 'No hay ninguna entrada del catálogo con ese id. Elige una de la lista; si no, quien revisa la tratará como una entrada nueva.',
+      e_changelog: 'Di qué ha cambiado en esta versión: la gente ve esa línea en el aviso de actualización.',
+      e_version: 'Una actualización necesita un número de versión, y tiene que ser mayor que el publicado.',
+      e_version_same: 'La v{ver} ya está publicada. Sube la versión, o no se ofrecerá la actualización a nadie.',
+      e_version_lower: 'La v{ver} es MENOR que la v{pub} publicada. La app solo ofrece una actualización cuando la versión sube, así que esta no llegaría a nadie. Usa la {next} o una superior.',
+      f_code: 'Código para compartir *', code_file: 'Cargar desde archivo .txt / .json…',
+      code_ph: 'Pega el código de Compartir e importar → Exportar…',
+      code_hint: 'En Xenon: Ajustes → Widgets y compartir → exporta tu creación y luego copia el código o descarga el archivo. Máximo 2 MB.',
+      f_shots: 'Capturas de pantalla * (mínimo 2, máximo 3; PNG/JPG/WebP, hasta 4 MB cada una)',
+      send: 'Enviar a revisión', ok_title: '¡Enviado!',
+      ok_p1: 'Tu creación está en la cola de revisión. Una persona mira cada envío: cuando se aprueba, aparece en el catálogo de la comunidad y en la galería Descubrir dentro de Xenon.',
+      ok_p2: '¿Vas a publicar una actualización más adelante? Vuelve aquí, marca <b>«Es una actualización»</b>, elige tu entrada y sube la versión: sustituye a la publicada en lugar de convertirse en una segunda entrada.',
+      ok_back: 'Explorar el catálogo →',
+      foot: 'Los envíos se moderan. Los códigos se validan de nuevo en la app al importarlos: una entrada del catálogo nunca puede cambiar nada sin avisar.',
+      k_bg: 'bg (fondo animado)', k_page: 'page (página del panel)', k_deck: 'deck (perfil de Deck)',
+      k_widget: 'widget (widget de la comunidad)', k_ambient: 'ambient (escena Ambient)', k_bundle: 'bundle (paquete completo)',
+      k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)',
+      e_name: 'Ponle un nombre a tu creación.', e_code: 'Pega el código para compartir.',
+      e_contact: 'Deja un email o tu usuario de Discord, para que quien revisa pueda escribirte si hay que corregir algo.',
+      e_code_incomplete: 'El código para compartir parece cortado o incompleto. Cópialo entero desde Xenon (o usa «Cargar desde archivo») y vuelve a enviarlo.',
+      e_code_big: 'El código supera los 2 MB.', e_captcha: 'Completa la verificación antispam.',
+      e_rate: 'Demasiados envíos. Inténtalo más tarde.', e_generic: 'El envío ha fallado ({err}). Inténtalo de nuevo.',
+      shot_add: '+ Añadir', shot_rm: 'Quitar', sending: 'Enviando…',
+      e_captcha_blocked: 'No se pudo cargar la verificación antispam. Suele deberse a un bloqueador de anuncios o a una extensión de privacidad. Desactívalo en esta página y vuelve a cargarla, o usa el formulario de GitHub.',
+      f_audit: 'Comprobación automática',
+      f_justify: '¿Por qué lo necesita tu creación? *',
+      audit_idle: 'Pega arriba tu código para compartir y se comprobará automáticamente.',
+      audit_checking: 'Comprobando tu código…',
+      audit_green: 'Las comprobaciones automáticas no han encontrado nada que bloquee el envío. Aun así, una persona lo revisa todo.',
+      audit_notes: '{n} notas',
+      audit_export_save: 'Guardar informe (.md)',
+      audit_export_copy: 'Copiar informe',
+      audit_export_done: 'Hecho',
+      audit_export_failed: 'No se pudo hacer',
+      audit_red_notice: 'La comprobación ha encontrado problemas que bloquean el envío. Los envíos así no suelen aceptarse. Explica abajo por qué tu creación lo necesita: quien revisa lo lee primero.',
+      audit_yellow_notice: 'La comprobación ha señalado cosas que una persona tiene que leer. Puede que tu envío no se acepte. Explica abajo por qué tu creación las necesita.',
+      audit_locked_notice: 'Paquete cifrado: no se puede comprobar automáticamente y recibe una revisión manual completa. Cuéntale a quien revisa qué contiene.',
+      audit_unavailable: 'La comprobación automática no ha podido ejecutarse aquí. Se ejecuta en el servidor cuando envías.',
+      e_justify: 'Explica por qué tu creación necesita los elementos señalados',
+      sev_block: 'BLOQUEO', sev_warn: 'AVISO', sev_info: 'INFO',
+    },
     ko: {
       back: '← 커뮤니티 카탈로그', title: '커뮤니티 카탈로그에 게시',
       send: '검토 요청 보내기', ok_title: '제출 완료!', sending: '전송 중…',
       f_kind: '종류', f_name: '이름 *', f_author: '제작자', f_desc: '설명', f_code: '공유 코드 *',
       shot_add: '+ 추가', shot_rm: '제거',
-      e_captcha_blocked: '스팸 방지 검사를 불러오지 못했습니다 — 보통 광고 차단기나 개인정보 보호 확장 프로그램 때문입니다. 이 페이지에서 해제한 뒤 새로고침하거나, GitHub 양식을 이용하세요.',
+      e_captcha_blocked: '스팸 방지 검사를 불러오지 못했습니다. 보통 광고 차단기나 개인정보 보호 확장 프로그램 때문입니다. 이 페이지에서 해제한 뒤 새로고침하거나, GitHub 양식을 이용하세요.',
       f_audit: '자동 검사',
       f_justify: '왜 필요한가요? *',
       audit_idle: '공유 코드를 붙여넣으면 자동으로 검사됩니다.',
@@ -526,7 +588,7 @@
       send: 'レビューに送信', ok_title: '送信しました！', sending: '送信中…',
       f_kind: '種類', f_name: '名前 *', f_author: '作者', f_desc: '説明', f_code: '共有コード *',
       shot_add: '+ 追加', shot_rm: '削除',
-      e_captcha_blocked: 'スパム対策チェックを読み込めませんでした — 通常は広告ブロッカーやプライバシー拡張機能が原因です。このページで無効にして再読み込みするか、GitHub のフォームをご利用ください。',
+      e_captcha_blocked: 'スパム対策チェックを読み込めませんでした。通常は広告ブロッカーやプライバシー拡張機能が原因です。このページで無効にして再読み込みするか、GitHub のフォームをご利用ください。',
       f_audit: '自動チェック',
       f_justify: 'なぜ必要ですか？ *',
       audit_idle: '共有コードを貼り付けると自動でチェックされます。',
@@ -549,7 +611,7 @@
       send: '提交审核', ok_title: '已提交！', sending: '发送中…',
       f_kind: '类型', f_name: '名称 *', f_author: '作者', f_desc: '描述', f_code: '分享代码 *',
       shot_add: '+ 添加', shot_rm: '移除',
-      e_captcha_blocked: '无法加载反垃圾验证 — 通常是广告拦截器或隐私扩展导致的。请在本页面停用它并刷新，或改用 GitHub 表单。',
+      e_captcha_blocked: '无法加载反垃圾验证。通常是广告拦截器或隐私扩展导致的。请在本页面停用它并刷新，或改用 GitHub 表单。',
       f_audit: '自动检查',
       f_justify: '为什么需要它？ *',
       audit_idle: '粘贴分享代码后会自动进行检查。',
@@ -568,9 +630,15 @@
       sev_block: '阻止', sev_warn: '警告', sev_info: '信息',
     },
   };
-  var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+  var LANGS = ['en', 'it', 'es', 'ko', 'ja', 'zh'];
+  // The site-wide key first, so a language chosen anywhere on the site holds
+  // here too; this page's own older key still counts for returning visitors.
+  var LKEY = 'xenon.site.lang';
   var lang = (function () {
-    try { var s = localStorage.getItem('xenonCatalogLang'); if (LANGS.indexOf(s) >= 0) return s; } catch (e) {}
+    try {
+      var s = localStorage.getItem(LKEY) || localStorage.getItem('xenonCatalogLang');
+      if (LANGS.indexOf(s) >= 0) return s;
+    } catch (e) {}
     var n = (navigator.language || 'en').slice(0, 2).toLowerCase();
     return LANGS.indexOf(n) >= 0 ? n : 'en';
   })();
@@ -591,20 +659,35 @@
       if (!el._origPh) el._origPh = el.placeholder;
       el.placeholder = (DICTS[lang] || {})[key] || el._origPh;
     });
-    var bar = document.getElementById('langbar');
-    bar.textContent = '';
-    LANGS.forEach(function (l) {
-      var b = document.createElement('button');
-      b.type = 'button'; b.textContent = l.toUpperCase();
-      if (l === lang) b.className = 'on';
-      b.addEventListener('click', function () {
-        lang = l;
-        try { localStorage.setItem('xenonCatalogLang', l); } catch (e) {}
-        applyLang(); renderShots(); renderAudit();
-      });
-      bar.appendChild(b);
+    // The language menu of the shared header (tools/site-chrome.mjs).
+    var cur = document.getElementById('lang-cur');
+    if (cur) cur.textContent = lang.toUpperCase();
+    document.querySelectorAll('#lang-menu button').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-lang') === lang);
     });
   }
+  (function wireLangMenu() {
+    var box = document.getElementById('lang');
+    var btn = document.getElementById('lang-btn');
+    if (!box || !btn) return;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = box.classList.toggle('open');
+      btn.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (e) { if (!box.contains(e.target)) box.classList.remove('open'); });
+    document.querySelectorAll('#lang-menu button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var l = b.getAttribute('data-lang');
+        if (LANGS.indexOf(l) < 0) return;
+        lang = l;
+        try { localStorage.setItem(LKEY, l); } catch (e) {}
+        box.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        applyLang(); renderShots(); renderAudit();
+      });
+    });
+  })();
 
   // ── Prefill from the app's Publish button (?kind=&name=) ──
   var qs = new URLSearchParams(location.search);
@@ -795,13 +878,13 @@
       : (env.kind === 'bundle' && env.data && env.data.theme ? env.data.theme : null);
     palHint.className = 'hint';
     if (!theme || typeof theme !== 'object') {
-      palHint.textContent = T('pal_manual', 'This kind carries no theme, so the three colours below start at Xenon\'s defaults — change them to suit your creation.');
+      palHint.textContent = T('pal_manual', 'This kind carries no theme, so the three colours below start at Xenon\'s defaults: change them to suit your creation.');
       return;
     }
     var n = setPalette({ accent: theme.accent, bg: theme.background, text: theme.text });
     if (n) {
       palHint.classList.add('good');
-      palHint.textContent = T('pal_auto', 'Filled in from your code — change them if the card should look different.');
+      palHint.textContent = T('pal_auto', 'Filled in from your code: change them if the card should look different.');
     }
   }
 
@@ -1048,7 +1131,7 @@
     // broken while the gate was, in fact, working.
     if (host.querySelector('iframe')) return;
     host.dataset.broken = '1';
-    host.textContent = T('e_captcha_blocked', 'The anti-spam check could not load — an ad blocker or privacy extension usually causes this. Disable it for this page and reload, or use the GitHub form instead.');
+    host.textContent = T('e_captcha_blocked', 'The anti-spam check could not load: an ad blocker or privacy extension usually causes this. Disable it for this page and reload, or use the GitHub form instead.');
     host.className = 'captcha-broken';
   }
 
@@ -1076,7 +1159,7 @@
         // The value IS the id (that is what the hub stores); the label carries
         // the human name, so nobody has to know their own entry id by heart.
         opt.value = e.id;
-        opt.label = e.name + (e.author ? ' — ' + e.author : '') + (e.version ? ' (v' + e.version + ')' : '');
+        opt.label = e.name + (e.author ? ', ' + e.author : '') + (e.version ? ' (v' + e.version + ')' : '');
         list.appendChild(opt);
       });
     }).catch(function () { /* offline → the field still accepts a typed id */ });
@@ -1120,13 +1203,13 @@
     if (!targetEl.value.trim()) { targetHint.textContent = ''; return; }
     if (!hit) {
       targetHint.classList.add('warn');
-      targetHint.textContent = T('target_unknown', 'No catalog entry with that id — pick one from the list. The reviewer will treat this as a new listing otherwise.');
+      targetHint.textContent = T('target_unknown', 'No catalog entry with that id: pick one from the list. The reviewer will treat this as a new listing otherwise.');
       return;
     }
     targetHint.classList.add('good');
     var suggested = nextVersion(hit.version);
     targetHint.textContent = T('target_found', 'Updating “{name}”, currently v{ver}.')
-      .replace('{name}', hit.name).replace('{ver}', hit.version || '—')
+      .replace('{name}', hit.name).replace('{ver}', hit.version || '?')
       + (suggested ? ' ' + T('target_suggest', 'Use {next} or higher.').replace('{next}', suggested) : '');
     // Prefill the fields that must match the entry being replaced, so a mismatch
     // can't creep in between the two forms.
@@ -1165,7 +1248,7 @@
     var palette = readPalette();
     var shotCount = shots.filter(Boolean).length;
     if (!name) { showErr(T('e_name', 'Give your creation a name.')); return; }
-    if (!category) { showErr(T('e_category', 'Pick a category — it decides where your entry is filed in the Store.')); return; }
+    if (!category) { showErr(T('e_category', 'Pick a category: it decides where your entry is filed in the Store.')); return; }
     if (!author) { showErr(T('e_author', 'Add the name or handle you want shown as the author on the card.')); return; }
     // The version is what the app compares to decide an update exists, so an
     // entry without one can never ship a second version to the people who
@@ -1173,15 +1256,15 @@
     if (!version) { showErr(T('e_version_req', 'Add a version number, e.g. 1.0.0.')); return; }
     if (!/^[0-9]+(\.[0-9]+)*$/.test(version)) { showErr(T('e_version_bad', 'The version must be numbers and dots only, e.g. 1.0.0.')); return; }
     if (!contact) { showErr(T('e_contact', 'Leave an email or Discord handle, so the reviewer can reach you if something needs fixing.')); return; }
-    if (!/[a-z0-9-]/.test(tags.toLowerCase())) { showErr(T('e_tags', 'Add at least one tag — tags are how people find your entry in the Store.')); return; }
-    if (!description) { showErr(T('e_desc', 'Write a line or two about your creation — it is what the card shows.')); return; }
+    if (!/[a-z0-9-]/.test(tags.toLowerCase())) { showErr(T('e_tags', 'Add at least one tag: tags are how people find your entry in the Store.')); return; }
+    if (!description) { showErr(T('e_desc', 'Write a line or two about your creation: it is what the card shows.')); return; }
     if (!code) { showErr(T('e_code', 'Paste the share code.')); return; }
-    if (!palette.accent || !palette.bg || !palette.text) { showErr(T('e_palette', 'Set all three card colours — they are filled in from your code when it carries a theme.')); return; }
-    if (shotCount < MIN_SHOTS) { showErr(T('e_shots', 'Add at least 2 screenshots — an entry with no pictures does not get installed.')); return; }
+    if (!palette.accent || !palette.bg || !palette.text) { showErr(T('e_palette', 'Set all three card colours: they are filled in from your code when it carries a theme.')); return; }
+    if (shotCount < MIN_SHOTS) { showErr(T('e_shots', 'Add at least 2 screenshots: an entry with no pictures does not get installed.')); return; }
     var targetId = isUpdateEl.checked ? targetEl.value.trim().toLowerCase() : '';
     var changelog = changelogEl.value.trim();
     if (targetId) {
-      if (!changelog) { showErr(T('e_changelog', 'Say what changed in this version — users see that line on the update prompt.')); return; }
+      if (!changelog) { showErr(T('e_changelog', 'Say what changed in this version: users see that line on the update prompt.')); return; }
       // The published version is right there in the catalog, so catch the
       // no-op update here rather than letting the reviewer discover it.
       var target = findEntry(targetId);
@@ -1189,7 +1272,7 @@
       // is the same no-op update, and the app would offer it to nobody.
       var cmp = target ? cmpVersion(version, target.version) : null;
       if (target && (target.version === version || cmp === 0)) {
-        showErr(T('e_version_same', 'v{ver} is already published — bump the version, or nobody will be offered the update.').replace('{ver}', version));
+        showErr(T('e_version_same', 'v{ver} is already published: bump the version, or nobody will be offered the update.').replace('{ver}', version));
         return;
       }
       // A version BELOW the published one is the same dead end as an equal one,
@@ -1198,7 +1281,7 @@
       // app only offers an update when the version rises. Caught here rather
       // than after review, when the creator no longer has the context.
       if (target && cmp !== null && cmp < 0) {
-        showErr(T('e_version_lower', 'v{ver} is BELOW the published v{pub} — the app only offers an update when the version goes up, so this would reach nobody. Use {next} or higher.')
+        showErr(T('e_version_lower', 'v{ver} is BELOW the published v{pub}: the app only offers an update when the version goes up, so this would reach nobody. Use {next} or higher.')
           .replace('{ver}', version).replace('{pub}', target.version).replace('{next}', nextVersion(target.version) || target.version));
         return;
       }
@@ -1208,7 +1291,7 @@
     // pasted short, a half-saved file — before it is ever sent. If it fails to
     // parse HERE, the truncation happened on this machine; if it parses here but
     // the hub still rejects it, the cut is in transport. Same check the hub runs.
-    if (!parseEnvelope(code)) { showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.')); return; }
+    if (!parseEnvelope(code)) { showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete: copy the whole thing from Xenon (or use "Load from file"), then submit again.')); return; }
     // A flagged audit (yellow/red/locked) needs the creator's explanation before
     // the code leaves the page. none/pending/unavailable never block here: the
     // server runs the same audit and answers justification_required if needed.
@@ -1258,18 +1341,18 @@
       return;
     }
     var err = (out && out.error) || 'network';
-    if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions — try again later.'));
+    if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions: try again later.'));
     else if (err === 'captcha_failed') showErr(T('e_captcha', 'Complete the anti-spam check.'));
-    else if (err === 'incomplete_code' || err === 'not_a_xenon_code') showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.'));
-    else if (err === 'missing_changelog') showErr(T('e_changelog', 'Say what changed in this version — users see that line on the update prompt.'));
+    else if (err === 'incomplete_code' || err === 'not_a_xenon_code') showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete: copy the whole thing from Xenon (or use "Load from file"), then submit again.'));
+    else if (err === 'missing_changelog') showErr(T('e_changelog', 'Say what changed in this version: users see that line on the update prompt.'));
     else if (err === 'missing_version') showErr(T('e_version_req', 'Add a version number, e.g. 1.0.0.'));
     else if (err === 'bad_version') showErr(T('e_version_bad', 'The version must be numbers and dots only, e.g. 1.0.0.'));
-    else if (err === 'missing_category') showErr(T('e_category', 'Pick a category — it decides where your entry is filed in the Store.'));
+    else if (err === 'missing_category') showErr(T('e_category', 'Pick a category: it decides where your entry is filed in the Store.'));
     else if (err === 'missing_author') showErr(T('e_author', 'Add the name or handle you want shown as the author on the card.'));
-    else if (err === 'missing_tags') showErr(T('e_tags', 'Add at least one tag — tags are how people find your entry in the Store.'));
-    else if (err === 'missing_description') showErr(T('e_desc', 'Write a line or two about your creation — it is what the card shows.'));
-    else if (err === 'missing_palette') showErr(T('e_palette', 'Set all three card colours — they are filled in from your code when it carries a theme.'));
-    else if (err === 'missing_shots') showErr(T('e_shots', 'Add at least 2 screenshots — an entry with no pictures does not get installed.'));
+    else if (err === 'missing_tags') showErr(T('e_tags', 'Add at least one tag: tags are how people find your entry in the Store.'));
+    else if (err === 'missing_description') showErr(T('e_desc', 'Write a line or two about your creation: it is what the card shows.'));
+    else if (err === 'missing_palette') showErr(T('e_palette', 'Set all three card colours: they are filled in from your code when it carries a theme.'));
+    else if (err === 'missing_shots') showErr(T('e_shots', 'Add at least 2 screenshots: an entry with no pictures does not get installed.'));
     else if (err === 'justification_required') {
       // The hub ran the same audit server-side and wants an explanation. Its
       // 400 carries the audit with findings trimmed to the basics (no why or
@@ -1280,7 +1363,7 @@
       justifyWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
       justificationEl.focus({ preventScroll: true });
     }
-    else showErr(T('e_generic', 'Submission failed ({err}) — please retry.').replace('{err}', err));
+    else showErr(T('e_generic', 'Submission failed ({err}): please retry.').replace('{err}', err));
     if (window.turnstile) { try { window.turnstile.reset(); turnstileToken = ''; } catch (e) {} }
   });
 

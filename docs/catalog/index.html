@@ -1186,6 +1186,44 @@ const I18N = {
     'foot.note': 'Ogni voce è moderata e ri-validata all’import: un codice condiviso non può cambiare nulla in silenzio. Licenza custom non commerciale. Non affiliato a CORSAIR.',
     'foot.discord': 'Discord', 'foot.coffee': 'Offrimi un caffè',
   },
+  es: {
+    'nav.home': '← Inicio',
+    'hero.tag': 'Catálogo de la comunidad',
+    'hero.h': 'Catálogo',
+    'hero.p': 'Temas, fondos animados, páginas, perfiles de Deck, widgets, escenas Ambient y paquetes completos para Xenon, hechos por su autor y por creadores de la comunidad, gratis o para mecenas. Cada entrada se revisa a mano. Copia un código, pégalo en Xenon y mira la vista previa.',
+    'hero.submit': 'Envía el tuyo',
+    'hero.guide': 'Lee las pautas',
+    'bar.search': 'Buscar nombre, autor, #tag…',
+    'bar.all': 'Todos',
+    'k.theme': 'Tema', 'k.bg': 'Fondo', 'k.page': 'Página', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Paquete', 'k.ambient': 'Ambient', 'k.icons': 'Pack de iconos', 'k.sounds': 'Pack de sonidos',
+    'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Multimedia', 'c.smart_home': 'Hogar inteligente', 'c.system': 'Sistema', 'c.style': 'Estilo', 'c.fun': 'Diversión', 'c.tools': 'Herramientas',
+    'card.by': 'de', 'card.try': 'Pruébalo en el navegador', 'card.copy': 'Copiar código', 'card.copied': 'Copiado. Pégalo en Xenon: Ajustes → Widgets y compartir → Importar.', 'card.copyfail': 'No se pudo copiar. Abre la entrada en GitHub y cópiala desde allí.',
+    'card.link': 'Copiar enlace', 'card.linked': 'Enlace copiado', 'card.linkfail': 'No se pudo copiar. El enlace está en la barra de direcciones.',
+    'card.until': "Disponible hasta el {d}", 'card.locked': 'Mecenas',
+    'k.limited': 'Limitada', 'k.limited_ed': 'Edición limitada', 'card.left': '{n} de {t} disponibles', 'card.soldout': 'Agotada', 'card.closed': 'Cerrada', 'card.claim': 'Consigue tu copia', 'card.reserve': 'Abrir Discord', 'card.reserve_hint': 'Discord verifica tu cuenta y te envía un código de acceso personal.',
+    'count.n': '{n} creaciones',
+    'bar.clear': '✕ Quitar filtros',
+    'sort.feat': 'Destacados', 'sort.new': 'Más recientes', 'sort.installs': 'Más descargados', 'sort.rated': 'Mejor valorados', 'sort.name': 'Nombre A-Z', 'card.new': 'Nuevo',
+    'sec.tag': 'EXCLUSIVOS', 'sec.seeall': 'Ver todo →',
+    'sec.limited': 'Drops limitados', 'sec.limited_sub': 'Un número fijo de copias en todo el mundo, que se reservan en Discord. Cuando se acaban, no vuelven.',
+    'rail.prev': 'Anterior', 'rail.next': 'Siguiente',
+    'sec.freehead': 'Gratis, de la comunidad', 'sec.newhead': 'Recién añadidos', 'sec.archive': 'Archivo', 'sec.archive_sub': 'Drops con todas las copias agotadas. Se quedan aquí para que el trabajo siga a la vista y se pueda buscar.', 'preview.banner': 'Vista previa del diseño. No es el catálogo publicado. Nada de lo que hay aquí está publicado.',
+    'sec.supporters': 'Mecenas', 'sec.supporters_sub': 'Temas y packs reservados a quienes apoyan Xenon. Hazte mecenas para recibir un código personal y desbloquearlos.', 'sec.supporters_join': 'Hazte mecenas',
+    'sup.how': 'Qué recibes como mecenas',
+    'sup.perk1': 'Temas y packs exclusivos: un drop nuevo para mecenas cada mes, y lo que desbloquees es tuyo para siempre.',
+    'sup.perk2': 'Un rol de mecenas en Discord, con prioridad para tus informes de errores y tus tickets de soporte.',
+    'sup.perk3': 'El tiempo que sigues siendo mecenas depende de tu aportación: cuanto más aportas, más tiempo sigues recibiendo los drops nuevos.',
+    'sup.discord': 'Únete al Discord',
+    'sup.register': 'Tu código personal llega por email justo después de tu aportación. ¿No te ha llegado? Escríbenos en Discord o a:',
+    'sup.codeinfo': 'Tu código personal es de un solo uso, funciona en hasta 3 de tus dispositivos y lo que desbloquees es tuyo para siempre.',
+    'card.unlock': 'Desbloquear con un código', 'card.loadmore': 'Ver más ({n})',
+    'state.loading': 'Cargando el catálogo…',
+    'state.empty': 'Nada coincide con tus filtros.',
+    'state.none': 'Todavía no hay nada publicado. Vuelve pronto, o sé el primero en enviar algo.',
+    'state.error': 'No se pudo cargar el catálogo. Comprueba tu conexión y vuelve a cargar la página.',
+    'foot.note': 'Cada entrada se modera y se vuelve a validar al importarla: un código compartido nunca puede cambiar nada sin avisar. Licencia propia no comercial. Sin relación con CORSAIR.',
+    'foot.discord': 'Discord', 'foot.coffee': 'Invítame a un café',
+  },
   ko: {
     'nav.home': '← 홈',
     'hero.tag': '커뮤니티 카탈로그',
@@ -1302,7 +1340,7 @@ const I18N = {
   },
 };
 
-const LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+const LANGS = ['en', 'it', 'es', 'ko', 'ja', 'zh'];
 const LKEY = 'xenon.site.lang';   // shared with the main site so the choice carries over
 let cur = 'en';
 const T = (k) => { const d = I18N[cur] || I18N.en; return d[k] != null ? d[k] : (I18N.en[k] != null ? I18N.en[k] : ''); };
