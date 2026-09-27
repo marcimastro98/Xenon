@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-langs="en,es,it">
+<html lang="en" data-langs="en,es,it,ja,ko,zh">
 <head>
 <meta charset="UTF-8">
 
@@ -50,6 +50,9 @@
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/privacy.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/privacy.html">
 <link rel="alternate" hreflang="it" href="https://xenon-app.com/it/privacy.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/privacy.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/privacy.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/privacy.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/privacy.html">
 <meta name="robots" content="index, follow, max-snippet:-1">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
@@ -89,101 +92,23 @@
 
 <noscript></noscript>
 
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
 <style>
-  :root {
-    --ink:   var(--g-0);
-    --panel: var(--g-1);
-    --line:  var(--rule);
-    --line-2:var(--rule-2);
-    --green: var(--bone-0);
-    --text:  var(--bone-0);
-    --muted: var(--bone-1);
-    --dim:   var(--bone-2);
-    --sans:  'Inter', system-ui, -apple-system, sans-serif;
-    --mono:  'JetBrains Mono', ui-monospace, monospace;
-    --maxw:  760px;
-    --radius:14px;
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0; background: var(--ink); color: var(--text);
-    font-family: var(--sans); font-size: 16px; line-height: 1.7;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
-
-  header.top {
-    border-bottom: 1px solid var(--line);
-    padding: 20px 0; position: sticky; top: 0; z-index: 10;
-    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .logo {
-    display: inline-flex; align-items: center; gap: 10px;
-    color: var(--text); text-decoration: none;
-    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
-  }
-  .logo img { width: 34px; height: 23px; }
-  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
-  .back:hover { color: var(--green); }
-
-  main { padding: 56px 0 96px; }
-  h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 16px; }
-  .lede { font-size: 17.5px; color: var(--muted); margin: 0 0 10px; }
-  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 48px; }
-
-  h2 {
-    font-size: 22px; letter-spacing: -0.01em; margin: 56px 0 6px;
-    padding-top: 28px; border-top: 1px solid var(--line);
-  }
-  h2:first-of-type { border-top: none; padding-top: 0; margin-top: 40px; }
-  h3 { font-size: 16.5px; margin: 32px 0 8px; }
-  p { margin: 0 0 16px; color: var(--muted); }
-  p strong, li strong { color: var(--text); font-weight: 600; }
-  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
-  ul { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
-  li { margin-bottom: 10px; }
-  code {
-    font-family: var(--mono); font-size: 13px;
-    background: var(--g-2); padding: 2px 6px; border-radius: 6px; color: var(--text);
-  }
-
-  .card {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: var(--radius); padding: 22px 24px; margin: 24px 0;
-  }
-  .card.accent { border-color: var(--rule-2); }
-  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
-
+  h2:first-of-type { margin-top: 40px; }
   .tbl-scroll { overflow-x: auto; margin: 20px 0; }
-  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 16px; line-height: 1.5; }
   th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--text); font-weight: 600; font-size: 13px; letter-spacing: 0.02em; }
+  th { color: var(--text); font-weight: 700; font-size: 15px; }
   td { color: var(--muted); }
-  td code { font-size: 12.5px; }
-
   button.consent-reset {
-    font-family: var(--sans); font-size: 14px; font-weight: 600;
-    min-height: 44px; padding: 11px 20px; border-radius: 11px; cursor: pointer;
+    font-family: var(--sans); font-size: 16px; font-weight: 700;
+    min-height: 44px; padding: 11px 20px; border-radius: 9px; cursor: pointer;
     background: transparent; color: var(--text); border: 1px solid var(--line-2);
     transition: border-color .2s, color .2s;
   }
-  button.consent-reset:hover { border-color: var(--green); color: var(--green); }
-
-  footer {
-    border-top: 1px solid var(--line); padding: 32px 0 56px;
-    color: var(--dim); font-size: 13.5px;
-  }
-  footer a { color: var(--dim); }
-  footer a:hover { color: var(--green); }
+  button.consent-reset:hover { border-color: var(--text); }
 </style>
-<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
-     this file owns the palette, the type and the motion for every page on the
-     site, and each page kept its own drifted copy of those tokens. Later wins,
-     so one file re-skins all nine. Page-specific rules above are untouched. -->
-<link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
 </head>
 <body>
@@ -199,7 +124,7 @@
         <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
         <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
       </div>
-      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li></ul></details>
+      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/privacy.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/privacy.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/privacy.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/privacy.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/privacy.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/privacy.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
       <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
     </div>

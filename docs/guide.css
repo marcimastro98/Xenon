@@ -1,0 +1,112 @@
+/* ============================================================================
+   The text pages: download, help, privacy and the guides
+   ============================================================================
+   Loaded after site.css (tokens, fonts, the shared header and footer) and
+   before a page's own <style>, which keeps only what that page alone has: a
+   table, a phone mock-up, a row of download cards.
+
+   Every one of these pages used to carry its own copy of the same fifty-odd
+   rules, written for the old site: Inter, a monospace date line, section links
+   drawn as pills, rounded cards, 13.5px text. One file now, in the STANZA
+   voice: Sofia Sans, the neutral room, links in ink, and the structure square.
+   ========================================================================== */
+
+:root {
+  /* The names the pages' own rules were written against. */
+  --ink: var(--g-0);
+  --panel: var(--g-1);
+  --line: var(--rule);
+  --line-2: var(--rule-2);
+  --green: var(--bone-0);
+  --text: var(--bone-0);
+  --muted: var(--bone-1);
+  --dim: var(--bone-2);
+  --maxw: 800px;
+  --radius: var(--r-1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: 88px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0; background: var(--ink); color: var(--text);
+  font: 400 18px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+main { padding: clamp(40px, 6vh, 72px) 0 32px; }
+
+h1 {
+  margin: 0 0 18px; color: var(--text);
+  font: 780 clamp(36px, 3.4vw + 12px, 58px)/1.04 var(--display);
+  letter-spacing: -0.016em;
+}
+.lede { margin: 0 0 14px; max-width: 62ch; font-size: 20px; line-height: 1.5; color: var(--muted); }
+.lede strong { color: var(--text); font-weight: 650; }
+.updated { margin: 0 0 32px; font-size: 15px; line-height: 1.5; color: var(--muted); }
+
+h2 {
+  margin: 64px 0 12px; color: var(--text);
+  font: 760 clamp(26px, 1.2vw + 18px, 33px)/1.15 var(--display);
+  letter-spacing: -0.012em;
+  scroll-margin-top: 88px;
+}
+h2 .h2n { display: block; margin-bottom: 6px; font: 600 15px/1.3 var(--sans); letter-spacing: 0; color: var(--muted); }
+h3 { margin: 32px 0 8px; font: 700 20px/1.3 var(--display); color: var(--text); }
+
+p { margin: 0 0 16px; color: var(--muted); }
+p strong, li strong { color: var(--text); font-weight: 650; }
+a { color: var(--text); text-decoration: underline; text-underline-offset: .18em; }
+ul, ol { margin: 0 0 16px; padding-left: 24px; color: var(--muted); }
+li { margin-bottom: 8px; }
+code {
+  font: 500 .86em/1.4 var(--mono);
+  background: var(--g-2); padding: 2px 6px; border-radius: var(--r-1);
+  color: var(--text); overflow-wrap: anywhere;
+}
+
+/* Section links under the title: a row of plain links. */
+.jump { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 8px; font-size: 16px; }
+.jump a { color: var(--text); font-weight: 600; text-decoration-color: var(--line-2); text-underline-offset: .22em; }
+.jump a:hover { text-decoration-color: currentColor; }
+
+/* Questions: rows under a hairline, the + and − set in the text face. */
+details { margin: 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+details:not(:has(+ details)) { border-bottom: 1px solid var(--line); }
+details > summary {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 16px 0; color: var(--text);
+  font-size: 18px; font-weight: 650; line-height: 1.4;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: '+'; flex: 0 0 14px; font: 700 18px/1 var(--sans); color: var(--muted); }
+details[open] > summary::before { content: '\2212'; }
+details > summary:hover { text-decoration: underline; text-underline-offset: .18em; }
+details .body { padding: 0 0 18px 26px; }
+details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+details .body ol { padding-left: 20px; }
+
+.card { margin: 32px 0; padding: 24px 26px; background: var(--panel); border: 0; border-radius: var(--r-1); }
+.card.accent { background: var(--g-2); }
+.card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+.card h3 { margin: 0 0 10px; }
+
+.note { margin: 20px 0; padding-left: 16px; border-left: 2px solid var(--line-2); font-size: 16px; color: var(--muted); }
+
+/* Tables (the tablewrap scrolls sideways on a phone instead of the page) and
+   command blocks. */
+.tablewrap { overflow-x: auto; margin: 20px 0; }
+.tablewrap table { border-collapse: collapse; width: 100%; font-size: 16px; line-height: 1.5; }
+.tablewrap th, .tablewrap td { text-align: left; padding: 10px 16px 10px 0; border-bottom: 1px solid var(--line); }
+.tablewrap th { color: var(--text); font-weight: 700; font-size: 15px; }
+.tablewrap td { color: var(--muted); }
+pre { margin: 0 0 16px; padding: 16px 18px; background: var(--g-1); border-radius: var(--r-1); overflow-x: auto; }
+pre code { background: none; padding: 0; font-size: 15px; }
+
+@media (max-width: 700px) {
+  body { font-size: 17px; }
+  .wrap { padding: 0 18px; }
+  .lede { font-size: 18px; }
+  .card { padding: 20px; }
+}

@@ -62,97 +62,25 @@
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/phone.html">
 
 
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
 <style>
-
-  :root {
-    --ink:   var(--g-0);
-    --panel: var(--g-1);
-    --line:  var(--rule);
-    --line-2:var(--rule-2);
-    --green: var(--bone-0);
-    --text:  var(--bone-0);
-    --muted: var(--bone-1);
-    --dim:   var(--bone-2);
-    --sans:  'Inter', system-ui, -apple-system, sans-serif;
-    --mono:  'JetBrains Mono', ui-monospace, monospace;
-    --maxw:  820px;
-    --radius:14px;
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0; background: var(--ink); color: var(--text);
-    font-family: var(--sans); font-size: 16px; line-height: 1.7;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
-
-  header.top {
-    border-bottom: 1px solid var(--line);
-    padding: 20px 0; position: sticky; top: 0; z-index: 10;
-    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .logo {
-    display: inline-flex; align-items: center; gap: 10px;
-    color: var(--text); text-decoration: none;
-    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
-  }
-  .logo img { width: 34px; height: 23px; }
-  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
-  .back:hover { color: var(--green); }
-
-  main { padding: 56px 0 96px; }
-  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
-  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
-  .lede strong { color: var(--text); font-weight: 600; }
-
-  h2 {
-    font-size: 23px; letter-spacing: -0.01em; margin: 64px 0 6px;
-    padding-top: 30px; border-top: 1px solid var(--line);
-  }
-  h3 { font-size: 16.5px; margin: 34px 0 8px; }
-  p { margin: 0 0 16px; color: var(--muted); }
-  p strong, li strong { color: var(--text); font-weight: 600; }
-  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
-  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
-  li { margin-bottom: 10px; }
-  code {
-    font-family: var(--mono); font-size: 13px;
-    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
-    color: var(--text); overflow-wrap: anywhere;
-  }
-
-  .card {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: var(--radius); padding: 22px 24px; margin: 24px 0;
-  }
-  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
-  .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
-  .card h3 { margin-top: 0; }
-
   /* ── The two routes, side by side ─────────────────────────────── */
   .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 28px 0 8px; }
-  .route { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 22px 20px; }
-  .route.pick { border-color: var(--rule-2); }
-  .route .tag {
-    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--green); border: 1px solid var(--rule-2);
-    border-radius: 999px; padding: 3px 10px; margin-bottom: 12px;
-  }
+  .route { background: var(--panel); border: 0; border-radius: var(--r-1); padding: 24px 24px 22px; }
+  .route.pick { background: var(--g-2); }
+  .route .tag { display: block; margin-bottom: 8px; font: 600 15px/1.3 var(--sans); color: var(--muted); }
   /* Beta mark for the feature this whole page is about. Gold, not green: green
      is what this page uses for "yes, this works", and a caveat must not borrow it. */
   .beta-pill {
     display: inline-block; vertical-align: middle; margin-left: 12px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
-    color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 999px; padding: 3px 10px;
+    font: 700 15px/1 var(--sans); letter-spacing: 0;
+    color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent);
+    border-radius: 6px; padding: 5px 9px;
   }
-  .route h3 { margin: 0 0 6px; font-size: 18px; color: var(--text); }
-  .route .time { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 12px; }
-  .route ul { margin: 0; padding-left: 18px; font-size: 15px; }
-
+  .route h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
+  .route .time { font-size: 15px; color: var(--muted); margin: 0 0 12px; }
+  .route ul { margin: 0; padding-left: 20px; font-size: 16px; }
   /* ── Numbered steps ───────────────────────────────────────────── */
   .steps { counter-reset: s; list-style: none; padding: 0; margin: 22px 0 8px; }
   .steps > li {
@@ -166,13 +94,12 @@
     position: absolute; left: -15px; top: -2px;
     width: 30px; height: 30px; border-radius: 50%;
     background: var(--ink); border: 1px solid var(--rule-2);
-    color: var(--green); font-family: var(--mono); font-size: 13px; font-weight: 500;
+    color: var(--text); font: 700 15px/1 var(--sans);
     display: grid; place-items: center;
   }
-  .steps h3 { margin: 0 0 6px; font-size: 16.5px; color: var(--text); }
-  .steps p { margin: 0 0 10px; font-size: 15.5px; }
+  .steps h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
+  .steps p { margin: 0 0 10px; }
   .steps p:last-child { margin-bottom: 0; }
-
   /* ── Device mockups ───────────────────────────────────────────────
      Drawn in CSS, not photographed. They are an illustration of the
      LAYOUT — a real screenshot of a dashboard shows its owner's calendar,
@@ -182,8 +109,7 @@
      160px across the pair and pushed the row 9px past the column, which wraps —
      the two devices are meant to be read side by side. */
   .shot { text-align: center; margin: 0; max-width: 100%; }
-  .shot figcaption { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-top: 12px; letter-spacing: 0.04em; }
-
+  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 12px; }
   .dev { background: #121614; border: 2px solid var(--rule); box-shadow: none; }
   .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
   .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
@@ -191,14 +117,12 @@
             background: linear-gradient(160deg, #0b1512, #101a17 60%, #0a1210);
             display: flex; flex-direction: column; }
   .dev-tab .screen { border-radius: 9px; }
-
   .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
          display: flex; align-items: center; gap: 4px; padding: 0 5px; }
   .bar i { display: block; height: 5px; border-radius: 3px; background: var(--rule-2); }
   .bar i.a { width: 16px; background: var(--bone-1); }
   .bar i.b { width: 26px; }
   .bar i.c { width: 12px; margin-left: auto; }
-
   /* phone: one column, tiles of different heights, thumb dock at the bottom */
   .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
   .stack > div { border-radius: 7px; background: var(--g-2); border: 1px solid var(--g-2); }
@@ -211,7 +135,6 @@
           display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
   .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: var(--rule-2); }
   .dock i:first-child { background: var(--bone-1); }
-
   /* tablet: the real 24-column grid, kept */
   .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
   .grid > div { border-radius: 6px; background: var(--g-2); border: 1px solid var(--g-2); }
@@ -220,7 +143,6 @@
   .grid > div.w4 { grid-column: span 4; }
   .grid > div.h2 { grid-row: span 2; }
   .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
-
   /* ── A reproduction of the settings rows ──────────────────────── */
   .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
   .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
@@ -233,72 +155,17 @@
   .ui-txt span { display: block; color: var(--dim); font-size: 13px; line-height: 1.5; }
   .ui-btn { display: inline-block; background: var(--g-2); border: 1px solid var(--rule-2);
             color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
-
   .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
   .yn ul { list-style: none; padding: 0; margin: 0; }
   .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
   .yn .k { flex: none; font-weight: 700; line-height: 1.5; }
   .can .k { color: var(--green); }
   .cant .k { color: var(--danger); }
-
-  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
-
-  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 12px 0; background: var(--panel); }
-  details > summary {
-    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
-    list-style: none; display: flex; align-items: center; gap: 10px;
-  }
-  details > summary::-webkit-details-marker { display: none; }
-  details > summary::before { content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px; line-height: 1; }
-  details[open] > summary::before { content: '–'; }
-  details .body { padding: 0 18px 16px 40px; }
-  details .body p:last-child { margin-bottom: 0; }
-
-  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
-  footer a { color: var(--dim); }
-  footer a:hover { color: var(--green); }
-
   @media (max-width: 560px) {
     .shots { gap: 22px; }
     .steps > li { padding-left: 38px; }
   }
-
-  /* Header right cluster + language picker, same markup and behaviour as the
-     home page so the choice carries across the site. */
-  .head-right { display: flex; align-items: center; gap: 14px; }
-  .navbtn {
-    font-size: 13px; font-weight: 600; padding: 8px 13px;
-    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
-    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
-    font-family: var(--sans); transition: border-color .2s, color .2s;
-  }
-  .navbtn svg { width: 16px; height: 16px; flex: none; }
-  .navbtn:hover { border-color: var(--green); }
-  .lang { position: relative; }
-  .lang-menu {
-    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
-    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
-    opacity: 0; transform: translateY(-6px); pointer-events: none;
-    transition: opacity .22s ease, transform .22s ease;
-  }
-  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
-  .lang-menu button {
-    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
-    background: none; border: 0; border-radius: 8px; color: var(--muted);
-    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
-  }
-  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
-  .lang-menu button.on { color: var(--green); }
-  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
-  @media (max-width: 480px) { .back { display: none; } }
-
 </style>
-<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
-     this file owns the palette, the type and the motion for every page on the
-     site, and each page kept its own drifted copy of those tokens. Later wins,
-     so one file re-skins all nine. Page-specific rules above are untouched. -->
-<link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
 </head>
 <body>
@@ -326,7 +193,7 @@
 <main>
   <div class="wrap">
     <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/phone.html" aria-current="page" data-xl="f.phone">휴대폰 페어링</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"휴대폰 페어링","item":"https://xenon-app.com/ko/phone.html"}]}</script><!-- /xenon:crumbs -->
-     <h1><span data-i18n="ph.title">휴대폰을 두 번째 화면으로 쓰세요</span><span class="beta-pill" data-i18n="ph.beta">베타</span></h1>
+    <h1><span data-i18n="ph.title">휴대폰을 두 번째 화면으로 쓰세요</span><span class="beta-pill" data-i18n="ph.beta">베타</span></h1>
     <p class="lede" data-i18n="ph.lede">Xenon을 쓰려면 하루 종일 켜 둘 수 있는 화면이 하나 필요합니다. 남는 모니터, 오래된 태블릿, Xeneon Edge 같은 것들이죠. 대부분의 사람이 막히는 지점은 기능이 아니라 여기입니다. 그런데 화면은 이미 주머니 안에 있습니다. 이 페이지는 그 화면을 쓰는 방법입니다.</p>
     <p data-i18n-html="ph.intro">휴대폰에 나타나는 것은 리모컨도 미리보기도 아닙니다. 레이아웃도 위젯도 테마도 똑같은 <strong>당신의 대시보드</strong>입니다. 덱 키는 실제로 PC에서 실행됩니다. 음악을 멈추면 음악이 멈춥니다. 설정을 바꾸면 1초 뒤 PC에서도 바뀝니다. 계정도 클라우드도 필요 없고 설치할 앱도 없으며, 어떤 것도 집 네트워크 밖으로 나가지 않습니다.</p>
 
@@ -505,7 +372,7 @@
 
     <h2 data-i18n="ph.h.not">이것이 하지 않는 일</h2>
     <p data-i18n="ph.not.1">Xenon 계정도 없고, 중간에 낀 우리 서버도 없으며, 대시보드의 어떤 것도 어디로 올라가지 않습니다. 내 Wi-Fi에서 쓰는 연결은 암호화되지 않습니다. 패널이 믿을 수 있는 네트워크에서 쓰라고 하는 이유이고, 안전한 길은 바로 그 점을 해결하려고 있습니다. Tailscale은 당신이 선택해서 추가하는 외부 회사이므로 그쪽의 개인정보 약관이 적용되고, Xenon은 거기서 내 컴퓨터의 주소와 인증서 외에는 아무것도 가져오지 않습니다.</p>
-    <p data-i18n-html="ph.not.2">Xenon이 무엇을 보내고 무엇을 보내지 않는지, 나머지는 <a href="/privacy.html">개인정보 페이지</a>에 있습니다.</p>
+    <p data-i18n-html="ph.not.2">Xenon이 무엇을 보내고 무엇을 보내지 않는지, 나머지는 <a href="/ko/privacy.html">개인정보 페이지</a>에 있습니다.</p>
 
     <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
   </div>
@@ -520,7 +387,7 @@
     </div>
     <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.</span></div>
   </div>

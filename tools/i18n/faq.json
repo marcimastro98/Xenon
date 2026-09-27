@@ -1,7 +1,7 @@
 {
   "en": {
     "f.h1": "Frequently asked questions",
-    "f.lede": "The things people actually write to me about, with the honest answers. If yours is not here, the Discord is the fastest place to ask.",
+    "f.lede": "The questions people send me most, with the answers. If yours is not here, ask on the Discord.",
     "f.updated": "Last updated: 26 September 2026",
     "f.s1": "Before you install",
     "f.s2": "When Windows calls it a virus",
@@ -84,7 +84,7 @@
   "it": {
     "f.nav.back": "← Torna al sito",
     "f.h1": "Domande frequenti",
-    "f.lede": "Le cose per cui la gente mi scrive davvero, con le risposte oneste. Se la tua non è qui, il Discord è il posto più veloce per chiedere.",
+    "f.lede": "Le domande che mi arrivano più spesso, con le risposte. Se la tua non c'è, chiedi sul Discord.",
     "f.updated": "Ultimo aggiornamento: 26 settembre 2026",
     "f.s1": "Prima di installare",
     "f.s2": "Quando Windows lo chiama virus",
@@ -167,7 +167,7 @@
   "ja": {
     "f.nav.back": "← サイトに戻る",
     "f.h1": "よくある質問",
-    "f.lede": "実際によく届く質問と、その正直な答えです。ここにないことは Discord で聞くのがいちばん早いです。",
+    "f.lede": "よく届く質問と、その答えです。ここにない質問は Discord で聞いてください。",
     "f.updated": "最終更新: 2026年9月26日",
     "f.s1": "インストールの前に",
     "f.s2": "Windows がウイルスだと言うとき",
@@ -250,7 +250,7 @@
   "ko": {
     "f.nav.back": "← 사이트로 돌아가기",
     "f.h1": "자주 묻는 질문",
-    "f.lede": "실제로 가장 많이 받는 질문들과 솔직한 답변입니다. 여기에 없다면 Discord에서 물어보는 것이 가장 빠릅니다.",
+    "f.lede": "가장 자주 받는 질문과 답입니다. 여기에 없는 질문은 Discord에서 물어보세요.",
     "f.updated": "최종 수정: 2026년 9월 26일",
     "f.s1": "설치하기 전에",
     "f.s2": "Windows가 바이러스라고 할 때",
@@ -333,7 +333,7 @@
   "zh": {
     "f.nav.back": "← 返回网站",
     "f.h1": "常见问题",
-    "f.lede": "这些是大家真正会来问的问题，以及诚实的回答。如果这里没有你的问题，去 Discord 问是最快的。",
+    "f.lede": "大家最常问我的问题和答案。如果这里没有你的问题，请在 Discord 上提问。",
     "f.updated": "最后更新：2026年9月26日",
     "f.s1": "安装之前",
     "f.s2": "当 Windows 说它是病毒",
