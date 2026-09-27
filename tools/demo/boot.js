@@ -487,7 +487,7 @@
       'letter-spacing:.02em', 'transition:opacity .45s ease',
     ].join(';'));
     s.innerHTML = '<div style="width:46px;height:46px;border-radius:50%;'
-      + 'border:3px solid rgba(30,215,96,.18);border-top-color:#1ed760;'
+      + 'border:3px solid rgba(0,141,255,.18);border-top-color:#008dff;'
       + 'animation:demospin 900ms linear infinite"></div>'
       + '<div style="opacity:.7">Loading the Xenon demo…</div>'
       + '<style>@keyframes demospin{to{transform:rotate(360deg)}}</style>';

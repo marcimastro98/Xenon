@@ -7,7 +7,7 @@
       "name": "TGK  - Workstation Monitor",
       "author": "The.GothamKnight",
       "authorSupporter": true,
-      "description": "Real-time CPU, GPU, VRAM, memory, fan, network and disk monitoring. \nIncludes customizable profiles, layouts, templates, synchronized graphs and per-profile fan configuration.  Auto expanding rows, 1-4 colums, widgets size : 1x1 and 2x1.\nUses Xenon native system data, follows Xenon sensor refresh ra",
+      "description": "Real-time CPU, GPU, VRAM, memory, fan, network and disk monitoring. Includes customizable profiles, layouts, templates, synchronized graphs and per-profile fan configuration. Auto expanding rows, 1-4 colums, widgets size : 1x1 and 2x1. Uses Xenon native system data, follows Xenon sensor refresh rate",
       "category": "system",
       "tags": [
         "monitoring",
@@ -16,7 +16,8 @@
         "gpu",
         "network"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
+      "changelog": "Fixed lost customizations after a xenon language change.",
       "pkgId": "tgk-workstation-monitor",
       "appVersionMin": "4.11.9",
       "preview": {
@@ -26,7 +27,8 @@
       },
       "shots": 3,
       "addedAt": "2026-09-26",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-09-26"
     },
     {
       "id": "tgk-monitor-performance-metrics",

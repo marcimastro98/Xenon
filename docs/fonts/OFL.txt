@@ -22,6 +22,15 @@ Full licence text: https://openfontlicense.org/open-font-license-official-text/
       https://github.com/evilmartians/mono
       Copyright (c) The Martian Mono Project Authors
 
+  sofiasans-latin.woff2
+  sofiasans-latin-ext.woff2
+  sofiasans-sc-latin.woff2
+  sofiasans-sc-latin-ext.woff2
+      Sofia Sans and Sofia Sans Semi Condensed, Lettersoup (Botio Nikoltchev, Ani Petrova)
+      Variable: wght 1-1000 (the home uses 400-800)
+      https://github.com/lettersoup/Sofia-Sans
+      Copyright 2019 The Sofia Sans Project Authors
+
   vt323-latin.woff2
       VT323 — Peter Hull
       https://github.com/phoikoi/VT323

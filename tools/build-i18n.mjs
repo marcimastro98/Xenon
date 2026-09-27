@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LANG_PAGES, langsOf } from './lang-pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'docs', 'index.html');
@@ -99,6 +100,19 @@ function rootRelative(src) {
   return s;
 }
 
+// A link to a page that has a copy in this language points at the copy, so a
+// visitor reading the Italian home stays in Italian when they follow it.
+function localizePages(src, lang) {
+  let s = src;
+  for (const { page } of LANG_PAGES) {
+    if (!langsOf(page).includes(lang)) continue;
+    // Markup (href="/x.html") and dictionary strings (href=\"/x.html\").
+    const esc = page.replace(/\./g, '\\.');
+    s = s.replace(new RegExp('(href=\\\\?")/' + esc + '(?=[#"?\\\\])', 'g'), `$1/${lang}/${page}`);
+  }
+  return s;
+}
+
 function build(lang) {
   const dict = I18N[lang];
   const title = dict['meta.title'] || I18N.en['meta.title'];
@@ -114,9 +128,15 @@ function build(lang) {
   s = s.replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${url}">`);
   s = s.replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${url}">`);
   if (!s.includes(`hreflang="${lang}"`)) throw new Error(`docs/index.html has no hreflang entry for ${lang}`);
+  // The rest of the head that names a language: the social locale and the
+  // structured data, which otherwise told every copy it was the English page.
+  const LOCALE = { it: 'it_IT', es: 'es_ES', ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN' };
+  s = s.replace('<meta property="og:locale" content="en_US">', `<meta property="og:locale" content="${LOCALE[lang] || 'en_US'}">`);
+  s = s.replace(/"inLanguage": "en"/g, `"inLanguage": "${lang}"`);
+  s = s.replace(/("@id": "https:\/\/xenon-app\.com\/#webpage",\s*"url": ")https:\/\/xenon-app\.com\/"/, `$1${url}"`);
 
   const { out, baked } = bake(s, dict, I18N.en);
-  s = rootRelative(out);
+  s = localizePages(rootRelative(out), lang);
 
   // The runtime reads this before it picks a language; see the I18N engine.
   s = replaceOnce(s, '<script src="/theme.js" defer></script>',

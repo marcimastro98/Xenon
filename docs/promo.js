@@ -1,27 +1,23 @@
-// Promo banners for the Xenon site (xenon-app.com): the month's drop, told where people land.
+// "This month" on the Xenon site (xenon-app.com): up to three catalog entries, told in the page.
 //
 // What to show is decided in the supporter hub (admin, "Site banners") and published as
 // /community/site-promo.json, the same static-file path the in-app messages take. Everything the
-// promo says about the pack itself (its name, its picture, its colours, whether it is for
-// supporters, when it ends) is read from /community/catalog.json, so a banner can never promise
-// something the catalog does not say.
+// block says about a pack itself (its name, its picture, its colours, whether it is for supporters,
+// when it ends) is read from /community/catalog.json, so a row can never promise something the
+// catalog does not say.
 //
-// Four formats, at most one live promo in each:
-//   strip      a thin line above the nav
-//   band       a full-width band in the page's [data-promo-band] slot (the home: after the live demo)
-//   card       a small card in the bottom-right corner (clear of the hero's download button)
-//   spotlight  the drop large, the page blurred behind it (a real <dialog>). Desktop only on arrival:
-//              on a phone the same promo is a small sheet at the bottom that leaves the page usable.
+// One format: an in-flow block the home places in its catalog section ([data-promo-block]). It
+// never overlays anything, so there is nothing to dismiss and nothing to remember per visitor.
 //
 // House rules, each one there for a reason:
-//   - The drop dresses its own banner: the entry's own preview palette, contrast-checked, with the
+//   - Each row is dressed in its entry's own preview palette, contrast-checked (4.5:1), with the
 //     site's dark ground as the fallback.
-//   - Urgency comes from data only. "N days left" appears when the entry really ends within 14 days,
-//     never otherwise (fake countdowns are what the Dutch regulator fined Epic for in 2024).
-//   - One button. The decline is "Not now", said plainly.
-//   - Nothing opens over the cookie choice, and a dismissal is remembered per promo, so a banner the
-//     visitor closed does not come back on the next page.
-//   - Every string from the feed goes through textContent.
+//   - Urgency comes from data only. "N days left" appears when the ENTRY really ends within 14 days,
+//     never otherwise (fake countdowns are what the Dutch regulator fined Epic for in 2024). A
+//     promo's own activeUntil only decides when the row is shown; it says nothing about the pack.
+//   - One link per row. Every string from the feed goes through textContent.
+//   - After every render the shown entry ids are announced (window.__xenonPromoIds and the
+//     'xenon:promo' event), so the home's own drop cards can hide them: an entry never shows twice.
 //
 // Self-contained like consent.js and theme.js: its own CSS (prefix xp-), its own strings in the
 // site's six languages, only site.css tokens. The pure half is exported for node (server/test).
@@ -29,64 +25,83 @@
   'use strict';
 
   // ── The pure core ─────────────────────────────────────────────────────────────
-  const FORMATS = ['strip', 'band', 'card', 'spotlight'];
   const LANGS = ['en', 'it', 'es', 'ja', 'ko', 'zh'];
   const ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
   const HEX_RE = /^#[0-9a-f]{6}$/i;
+  // The catalog's own ISO_DATE_RE (server/community-catalog.js): a date or a datetime.
+  const ISO_RE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
   const MEDIA_HOST = 'assets.xenon-app.com';
+  const MEDIA_PATH = '/community/promo/';
   // Mirrors LINK_HOSTS in the hub's site-promo-admin.js (the publisher); a promo naming any other
   // host is dropped here, so a hand-edited feed cannot send visitors off-site.
   const LINK_HOSTS = ['xenon-app.com', 'www.xenon-app.com', 'github.com', 'www.github.com', 'discord.gg', 'discord.com', 'www.discord.com'];
-  const CAP = { title: 60, line: 180, cta: 32, inside: 160 };
+  const CAP = { title: 60, line: 180, cta: 32 };
+  const MAX_LIVE = 3;          // rows at once; the hub refuses a fourth overlapping promo
+  const ORDER_MAX = 3;
   const SOON_DAYS = 14;
   const FALLBACK = { bg: '#0A0C0B', fg: '#E9ECEA', ac: '#E9ECEA' };
+  const SHOTS = 'https://assets.xenon-app.com/community/shots/';
 
-  const str = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '').slice(0, max);
+  const STR = {
+    en: { head: 'This month', pause: 'Pause', play: 'Play', until: 'Available until {d}', left: '{n} days left', last: 'Last day', sup: 'Included with supporter access', free: 'Free in the Xenon catalog', see: 'See {name}', preview: 'Preview, not published' },
+    it: { head: 'Questo mese', pause: 'Pausa', play: 'Riproduci', until: 'Disponibile fino al {d}', left: 'Ancora {n} giorni', last: 'Ultimo giorno', sup: 'Incluso per i sostenitori', free: 'Gratis nel catalogo Xenon', see: 'Vedi {name}', preview: 'Anteprima, non pubblicato' },
+    es: { head: 'Este mes', pause: 'Pausa', play: 'Reproducir', until: 'Disponible hasta el {d}', left: 'Quedan {n} días', last: 'Último día', sup: 'Incluido para patrocinadores', free: 'Gratis en el catálogo de Xenon', see: 'Ver {name}', preview: 'Vista previa, sin publicar' },
+    ja: { head: '今月', pause: '一時停止', play: '再生', until: '{d}まで', left: '残り{n}日', last: '最終日', sup: 'サポーター特典に含まれます', free: 'Xenonカタログで無料', see: '{name}を見る', preview: 'プレビュー（未公開）' },
+    ko: { head: '이번 달', pause: '일시정지', play: '재생', until: '{d}까지', left: '{n}일 남음', last: '마지막 날', sup: '서포터 혜택에 포함', free: 'Xenon 카탈로그에서 무료', see: '{name} 보기', preview: '미리보기, 게시되지 않음' },
+    zh: { head: '本月', pause: '暂停', play: '播放', until: '到 {d} 为止', left: '还剩 {n} 天', last: '最后一天', sup: '支持者专享', free: 'Xenon 目录中免费', see: '查看 {name}', preview: '预览，未发布' },
+  };
+  const tr = (l, k) => { const d = STR[l] || STR.en; return d[k] != null ? d[k] : STR.en[k]; };
+
+  // Capped by code point, so a cut never leaves half an emoji behind.
+  const str = (v, max) => Array.from(typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '').slice(0, max).join('');
   const isDate = (v) => typeof v === 'string' && v.length <= 40 && Number.isFinite(Date.parse(v));
+  const isIso = (v) => typeof v === 'string' && ISO_RE.test(v) && Number.isFinite(Date.parse(v));
 
   function httpsUrl(v, hosts) {
-    if (typeof v !== 'string' || !v) return '';
+    if (typeof v !== 'string' || !v) return null;
     try {
       const u = new URL(v);
-      if (u.protocol !== 'https:' || u.username || u.password) return '';
-      if (hosts.indexOf(u.hostname) === -1) return '';
-      return u.toString();
-    } catch (e) { return ''; }
+      if (u.protocol !== 'https:' || u.username || u.password) return null;
+      return hosts.indexOf(u.hostname) === -1 ? null : u;
+    } catch (e) { return null; }
   }
 
-  // One promo from the feed, rebuilt from known keys only. Returns null when anything required is
-  // missing or malformed: a promo is shown whole or not at all.
+  // One promo from the feed, rebuilt from known keys only (the legacy "format" and "inside" are
+  // simply not read). Returns null when anything present is malformed: a promo is shown whole or
+  // not at all. A missing order is 1; an order outside 1..3 is refused, as the hub refuses it.
   function validatePromo(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     const id = typeof raw.id === 'string' ? raw.id : '';
     const entryId = typeof raw.entryId === 'string' ? raw.entryId : '';
     if (!ID_RE.test(id) || !ID_RE.test(entryId)) return null;
-    if (FORMATS.indexOf(raw.format) === -1) return null;
-    const out = { id, format: raw.format, entryId, text: {}, inside: {} };
+    let order = 1;
+    if (raw.order != null && raw.order !== '') {
+      if (!Number.isInteger(raw.order) || raw.order < 1 || raw.order > ORDER_MAX) return null;
+      order = raw.order;
+    }
+    const out = { id, entryId, order, text: {} };
     for (const k of ['activeFrom', 'activeUntil']) {
       if (raw[k] == null || raw[k] === '') continue;
-      if (!isDate(raw[k])) return null;
+      if (!isIso(raw[k])) return null;
       out[k] = raw[k];
     }
     if (out.activeFrom && out.activeUntil && Date.parse(out.activeFrom) > Date.parse(out.activeUntil)) return null;
     if (raw.video != null && raw.video !== '') {
-      out.video = httpsUrl(raw.video, [MEDIA_HOST]);
-      if (!out.video || !/\.(mp4|webm)$/i.test(new URL(out.video).pathname)) return null;
+      const u = httpsUrl(raw.video, [MEDIA_HOST]);
+      if (!u || u.pathname.indexOf(MEDIA_PATH) !== 0 || !/\.(mp4|webm)$/i.test(u.pathname)) return null;
+      out.video = u.toString();
     }
     if (raw.url != null && raw.url !== '') {
-      out.url = httpsUrl(raw.url, LINK_HOSTS);
-      if (!out.url) return null;
+      const u = httpsUrl(raw.url, LINK_HOSTS);
+      if (!u) return null;
+      out.url = u.toString();
     }
     const text = raw.text && typeof raw.text === 'object' ? raw.text : {};
-    const inside = raw.inside && typeof raw.inside === 'object' ? raw.inside : {};
     for (const l of LANGS) {
       const t = text[l];
-      if (t && typeof t === 'object') {
-        const one = { title: str(t.title, CAP.title), line: str(t.line, CAP.line), cta: str(t.cta, CAP.cta) };
-        if (one.title || one.line || one.cta) out.text[l] = one;
-      }
-      const ins = str(inside[l], CAP.inside);
-      if (ins) out.inside[l] = ins;
+      if (!t || typeof t !== 'object') continue;
+      const one = { title: str(t.title, CAP.title), line: str(t.line, CAP.line), cta: str(t.cta, CAP.cta) };
+      if (one.title || one.line || one.cta) out.text[l] = one;
     }
     // English is the fallback for every other language, so it must say something.
     if (!out.text.en || !out.text.en.line) return null;
@@ -104,8 +119,8 @@
     return true;
   }
 
-  // The catalog entry, with the same date meaning the home's #drops uses: not yet opened is
-  // nobody's business, ended is over.
+  // The catalog entry, with the catalog's own meaning (visible() there, isEntryVisible() in the
+  // app): `active` is a hard override, otherwise the date window decides.
   function entryOpen(e, now) {
     if (!e || e.active === false) return false;
     if (e.active === true) return true;
@@ -114,25 +129,37 @@
     return true;
   }
 
-  // The first live promo per format, in feed order. A promo whose entry is missing from the catalog
-  // or not open is skipped rather than shown with half its facts.
-  function pickPerFormat(promos, entries, now) {
-    const byId = new Map();
-    (Array.isArray(entries) ? entries : []).forEach((e) => { if (e && ID_RE.test(String(e.id || ''))) byId.set(e.id, e); });
-    const picks = {};
-    for (const p of promos) {
-      if (picks[p.format] || !isLive(p, now)) continue;
-      const entry = byId.get(p.entryId);
-      if (!entryOpen(entry, now)) continue;
-      picks[p.format] = { promo: p, entry };
-    }
-    return picks;
+  const startOf = (p) => (p.activeFrom ? Date.parse(p.activeFrom) : -Infinity);
+  function rank(a, b) {
+    return (a.order - b.order) || (startOf(b) - startOf(a)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   }
 
-  // When it really ends: the promo's own date, or the entry's.
-  function endOf(p, entry) {
-    const v = (p && p.activeUntil) || (entry && entry.activeUntil) || '';
-    return isDate(v) ? Date.parse(v) : null;
+  // The rows to show now: live promos whose entry is in the catalog and open, by order, then the
+  // most recently started, then id; one row per entry; at most three. A promo whose entry is
+  // missing or closed is skipped rather than shown with half its facts.
+  function pickLive(promos, entries, now) {
+    const byId = new Map();
+    (Array.isArray(entries) ? entries : []).forEach((e) => { if (e && typeof e === 'object' && ID_RE.test(String(e.id || ''))) byId.set(e.id, e); });
+    const live = (Array.isArray(promos) ? promos : [])
+      .filter((p) => p && isLive(p, now) && entryOpen(byId.get(p.entryId), now))
+      .sort(rank);
+    const out = [];
+    const seen = new Set();
+    for (const p of live) {
+      if (seen.has(p.entryId)) continue;
+      seen.add(p.entryId);
+      out.push({ promo: p, entry: byId.get(p.entryId) });
+      if (out.length === MAX_LIVE) break;
+    }
+    return out;
+  }
+
+  // When the pack really stops being available: the entry's activeUntil, if it is still ahead.
+  // `active: true` resurfaces an entry past its dates, so its date ends nothing.
+  function endOf(entry, now) {
+    if (!entry || entry.active === true || !isDate(entry.activeUntil)) return null;
+    const t = Date.parse(entry.activeUntil);
+    return t > now ? t : null;
   }
 
   // Whole days left, only inside the last SOON_DAYS; null otherwise (no countdown without a real end).
@@ -154,7 +181,7 @@
   }
 
   // The entry's own colours when they read (text 4.5:1 on the ground, the accent 4.5:1 too because
-  // it fills the button under text in the ground colour); the site's dark ground otherwise.
+  // it fills the link under text in the ground colour); the site's dark ground otherwise.
   function paletteOf(entry) {
     const pv = entry && entry.preview;
     const bg = pv && HEX_RE.test(pv.bg || '') ? pv.bg : '';
@@ -167,143 +194,81 @@
   function textFor(p, lang) {
     const own = p.text[lang] || {};
     const en = p.text.en || {};
+    return { title: own.title || en.title || '', line: own.line || en.line || '', cta: own.cta || en.cta || '' };
+  }
+
+  // Everything one row says, in one language, at one instant. Plain strings only.
+  function describe(p, entry, lang, now) {
+    const tx = textFor(p, lang);
+    const name = tx.title || str(entry && entry.name, CAP.title) || p.entryId;
+    const end = endOf(entry, now);
+    const days = daysLeft(end, now);
+    let when = '';
+    if (days === 1) when = tr(lang, 'last');
+    else if (days) when = tr(lang, 'left').replace('{n}', String(days));
+    else if (end != null) {
+      // UTC on purpose: activeUntil is authored as an end-of-day stamp, and a local render turns
+      // "31 July" into "1 August" east of Greenwich, a date nobody wrote.
+      try { when = tr(lang, 'until').replace('{d}', new Date(end).toLocaleDateString(lang, { day: 'numeric', month: 'long', timeZone: 'UTC' })); } catch (e) { when = ''; }
+    }
+    const shots = entry && entry.shots;
     return {
-      title: own.title || en.title || '',
-      line: own.line || en.line || '',
-      cta: own.cta || en.cta || '',
-      inside: p.inside[lang] || p.inside.en || '',
+      name,
+      tier: tr(lang, entry && (entry.locked === true || entry.supportersOnly === true) ? 'sup' : 'free'),
+      line: tx.line,
+      when,
+      soon: !!days,
+      cta: tx.cta || tr(lang, 'see').replace('{name}', name),
+      href: p.url || '/catalog/#' + p.entryId,
+      external: !!p.url && !/^https:\/\/(www\.)?xenon-app\.com\//.test(p.url),
+      shot: Number.isInteger(shots) && shots < 1 ? '' : SHOTS + p.entryId + '.webp',
+      video: p.video || '',
     };
   }
 
-  const core = { FORMATS, LANGS, validatePromo, normalizeFeed, isLive, entryOpen, pickPerFormat, endOf, daysLeft, contrast, paletteOf, textFor };
+  const core = { LANGS, CAP, LINK_HOSTS, MEDIA_HOST, MAX_LIVE, SOON_DAYS, STR, validatePromo, normalizeFeed, isLive, entryOpen, pickLive, endOf, daysLeft, contrast, paletteOf, textFor, describe };
   if (typeof module === 'object' && module.exports) { module.exports = core; return; }
   if (typeof document === 'undefined') return;
 
   // ── The page half ─────────────────────────────────────────────────────────────
   const HUB_ORIGIN = 'https://xenon-supporter-hub.xenonedge.workers.dev';
-  const SHOTS = 'https://assets.xenon-app.com/community/shots/';
-  const STORE = 'xenon.site.promo.v1';
-  const CONSENT = 'xenon.site.consent';
 
-  const STR = {
-    en: { notNow: 'Not now', close: 'Close', pause: 'Pause', play: 'Play', until: 'Available until {d}', left: '{n} days left', last: 'Last day', supShort: 'For supporters', freeShort: 'Free', supLong: 'Included with supporter access', freeLong: 'Free in the Xenon catalog', inside: "What's inside", see: 'See {name}', preview: 'Preview, not published' },
-    it: { notNow: 'Non ora', close: 'Chiudi', pause: 'Pausa', play: 'Riproduci', until: 'Disponibile fino al {d}', left: 'Ancora {n} giorni', last: 'Ultimo giorno', supShort: 'Per i sostenitori', freeShort: 'Gratis', supLong: 'Incluso per i sostenitori', freeLong: 'Gratis nel catalogo Xenon', inside: 'Cosa contiene', see: 'Vedi {name}', preview: 'Anteprima, non pubblicato' },
-    es: { notNow: 'Ahora no', close: 'Cerrar', pause: 'Pausa', play: 'Reproducir', until: 'Disponible hasta el {d}', left: 'Quedan {n} días', last: 'Último día', supShort: 'Para patrocinadores', freeShort: 'Gratis', supLong: 'Incluido para patrocinadores', freeLong: 'Gratis en el catálogo de Xenon', inside: 'Qué incluye', see: 'Ver {name}', preview: 'Vista previa, sin publicar' },
-    ja: { notNow: '今はしない', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで', left: '残り{n}日', last: '最終日', supShort: 'サポーター限定', freeShort: '無料', supLong: 'サポーター特典に含まれます', freeLong: 'Xenonカタログで無料', inside: '中身', see: '{name}を見る', preview: 'プレビュー（未公開）' },
-    ko: { notNow: '나중에', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지', left: '{n}일 남음', last: '마지막 날', supShort: '서포터 전용', freeShort: '무료', supLong: '서포터 혜택에 포함', freeLong: 'Xenon 카탈로그에서 무료', inside: '구성', see: '{name} 보기', preview: '미리보기, 게시되지 않음' },
-    zh: { notNow: '以后再说', close: '关闭', pause: '暂停', play: '播放', until: '到 {d} 为止', left: '还剩 {n} 天', last: '最后一天', supShort: '仅限支持者', freeShort: '免费', supLong: '支持者专享', freeLong: 'Xenon 目录中免费', inside: '包含内容', see: '查看 {name}', preview: '预览，未发布' },
-  };
-
-  let PREVIEW_LANG = null;   // the language tab the hub admin is looking at, in its preview
+  let PREVIEW = false;
+  let PREVIEW_LANG = null;     // the language tab the hub admin is looking at, in its preview
+  let picked = null;           // the language the page last announced ('xenon:lang' detail)
   function lang() {
-    if (LANGS.indexOf(PREVIEW_LANG) !== -1) return PREVIEW_LANG;
-    const forced = window.__XENON_SITE_LANG;
-    if (LANGS.indexOf(forced) !== -1) return forced;
-    let l = null;
-    try { l = localStorage.getItem('xenon.site.lang'); } catch (e) { /* private mode */ }
-    if (LANGS.indexOf(l) !== -1) return l;
-    const wanted = navigator.languages || [navigator.language || 'en'];
-    for (const w of wanted) { const s = String(w).slice(0, 2).toLowerCase(); if (LANGS.indexOf(s) !== -1) return s; }
+    for (const l of [PREVIEW_LANG, picked, window.__XENON_SITE_LANG]) if (LANGS.indexOf(l) !== -1) return l;
+    let s = null;
+    try { s = localStorage.getItem('xenon.site.lang'); } catch (e) { /* private mode */ }
+    if (LANGS.indexOf(s) !== -1) return s;
+    const nav = window.navigator || {};
+    for (const w of nav.languages || [nav.language || 'en']) { const x = String(w).slice(0, 2).toLowerCase(); if (LANGS.indexOf(x) !== -1) return x; }
     return 'en';
   }
-  const t = (k) => { const d = STR[lang()] || STR.en; return d[k] != null ? d[k] : STR.en[k]; };
-
-  function readStore() { try { return JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch (e) { return {}; } }
-  function dismissed(fmt, id) { return !!readStore()[fmt + ':' + id]; }
-  function remember(fmt, id) {
-    if (PREVIEW) return;                        // a preview never writes the visitor's state
-    try {
-      const s = readStore();
-      s[fmt + ':' + id] = Date.now();
-      // Keep it small: the forty most recent answers are all that can still matter.
-      const keys = Object.keys(s).sort((a, b) => s[b] - s[a]).slice(0, 40);
-      const out = {}; keys.forEach((k) => { out[k] = s[k]; });
-      localStorage.setItem(STORE, JSON.stringify(out));
-    } catch (e) { /* private mode: it just shows again next visit */ }
-  }
-  const consentDecided = () => { try { const v = localStorage.getItem(CONSENT); return v === 'granted' || v === 'denied'; } catch (e) { return true; } };
-  const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const desktop = () => window.matchMedia && matchMedia('(min-width: 900px) and (pointer: fine)').matches;
+  const mq = (q) => !!(window.matchMedia && window.matchMedia(q).matches);
+  const withMotion = () => mq('(min-width: 900px)') && !mq('(prefers-reduced-motion: reduce)');
 
   const STYLE = [
-    // shared
-    '.xp{font-family:var(--sans),system-ui,sans-serif;background:var(--xp-bg);color:var(--xp-fg);-webkit-font-smoothing:antialiased}',
-    '.xp *{box-sizing:border-box}',
-    '.xp a{color:inherit}',
-    '.xp-tier{margin:0;font-size:14px;font-weight:600;color:var(--xp-ac)}',
-    '.xp-name{margin:0;font-weight:640;font-stretch:88%;letter-spacing:-0.01em;line-height:.95}',
-    '.xp-line{margin:0;line-height:1.45;opacity:.86}',
-    '.xp-when{font-family:var(--mono),monospace;font-size:12px;opacity:.74;white-space:nowrap}',
-    '.xp-when b{font-weight:600;opacity:1;color:var(--xp-ac)}',
-    '.xp .xp-btn{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:3px;background:var(--xp-ac);color:var(--xp-bg);font-weight:650;font-size:15px;text-decoration:none;white-space:nowrap}',
-    '.xp .xp-btn:hover{filter:brightness(1.08)}',
-    '.xp-btn:focus-visible,.xp-x:focus-visible,.xp-quiet:focus-visible,.xp a:focus-visible{outline:2px solid var(--xp-fg);outline-offset:3px}',
-    '.xp-x{position:absolute;top:10px;right:10px;width:36px;height:36px;display:grid;place-items:center;background:none;border:0;border-radius:2px;color:var(--xp-fg);opacity:.7;font:400 22px/1 var(--sans),sans-serif;cursor:pointer}',
-    '.xp-x:hover{opacity:1}',
-    '.xp-quiet{background:none;border:0;padding:8px 2px;color:var(--xp-fg);opacity:.7;font:500 14.5px var(--sans),sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px}',
-    '.xp-quiet:hover{opacity:1}',
-    '.xp-media{position:relative;background:#000;overflow:hidden}',
-    '.xp-media img,.xp-media video{display:block;width:100%;height:100%;object-fit:cover}',
-    '.xp-pp{position:absolute;right:10px;bottom:10px;min-height:32px;padding:0 10px;border:0;border-radius:2px;background:rgba(0,0,0,.55);color:#fff;font:500 11.5px var(--mono),monospace;cursor:pointer}',
-    '.xp-mark{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:10001;padding:6px 12px;border-radius:2px;background:#ffb454;color:#241a05;font:600 12px var(--sans),sans-serif}',
-    // strip
-    '.xp-strip{position:relative;z-index:51;border-bottom:1px solid color-mix(in srgb,var(--xp-fg) 14%,transparent)}',
-    '.xp-strip .xp-in{max-width:1320px;margin-inline:auto;padding:0 56px 0 32px;height:44px;display:flex;align-items:center;gap:14px;font-size:14.5px}',
-    '.xp-strip img{width:78px;height:22px;object-fit:cover;display:block;flex:none}',
-    '.xp-strip .xp-tier{font-size:13px;white-space:nowrap}',
-    '.xp-strip .xp-sname{font-weight:650;white-space:nowrap}',
-    '.xp-strip .xp-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}',
-    '.xp-strip .xp-go{font-weight:650;color:var(--xp-ac);text-underline-offset:3px;white-space:nowrap}',
-    '.xp-strip .xp-x{top:4px;right:8px}',
-    '@media (max-width:900px){.xp-strip .xp-line{display:none}.xp-strip .xp-in{justify-content:flex-start}}',
-    '@media (max-width:600px){.xp-strip img,.xp-strip .xp-when{display:none}.xp-strip .xp-in{padding-left:16px;gap:10px;font-size:14px}}',
-    // band
-    '.xp-band{position:relative}',
-    '.xp-band .xp-in{max-width:1320px;margin-inline:auto;padding:48px 32px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:48px;align-items:center}',
-    '.xp-band .xp-media{aspect-ratio:32/9}',
-    '.xp-band .xp-tier{margin-bottom:12px}',
-    '.xp-band .xp-name{font-size:clamp(38px,4.4vw,60px);margin-bottom:14px}',
-    '.xp-band .xp-line{font-size:17px;max-width:44ch}',
-    '.xp-band .xp-act{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:24px}',
-    '@media (max-width:900px){.xp-band .xp-in{grid-template-columns:1fr;gap:24px;padding:32px 16px}}',
-    // card
-    '.xp-card{position:fixed;right:20px;bottom:20px;z-index:85;width:min(360px,calc(100vw - 40px));border:1px solid color-mix(in srgb,var(--xp-fg) 16%,transparent);box-shadow:0 18px 48px rgba(0,0,0,.32);opacity:0;transform:translateY(12px);transition:opacity .4s var(--ease-out,ease),transform .4s var(--ease-out,ease)}',
-    '.xp-card.in{opacity:1;transform:none}',
-    '.xp-card .xp-media{aspect-ratio:32/9}',
-    '.xp-card .xp-body{padding:16px 18px 14px}',
-    '.xp-card .xp-name{font-size:26px;margin:6px 0 8px}',
-    '.xp-card .xp-line{font-size:14.5px}',
-    '.xp-card .xp-act{display:flex;align-items:center;gap:18px;margin-top:14px}',
-    '.xp-card .xp-go{font-weight:650;color:var(--xp-ac);text-underline-offset:3px}',
-    '.xp-card .xp-x{top:6px;right:6px;background:rgba(0,0,0,.45);color:#fff;opacity:.9}',
-    // spotlight
-    'dialog.xp-spot{margin:auto;padding:0;border:0;width:min(1080px,calc(100vw - 64px));max-width:none;max-height:calc(100vh - 48px);overflow:auto;border-radius:3px}',
-    'dialog.xp-spot::backdrop{background:rgba(8,9,10,.5);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}',
-    '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){dialog.xp-spot::backdrop{background:rgba(8,9,10,.88)}}',
-    'dialog.xp-spot[open]{animation:xp-rise .5s var(--ease-out,cubic-bezier(.2,.8,.2,1)) both}',
-    'dialog.xp-spot[open]::backdrop{animation:xp-fade .45s ease both}',
-    '@keyframes xp-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}',
-    '@keyframes xp-fade{from{opacity:0}to{opacity:1}}',
-    '.xp-spot .xp-media{aspect-ratio:32/9}',
-    '.xp-spot .xp-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:40px;padding:32px 40px 34px}',
-    '.xp-spot .xp-tier{margin-bottom:12px}',
-    '.xp-spot .xp-name{font-size:clamp(44px,5.4vw,76px);margin-bottom:16px}',
-    '.xp-spot .xp-name:focus{outline:none}',
-    '.xp-spot .xp-line{font-size:18px;max-width:40ch}',
-    '.xp-spot .xp-side{display:flex;flex-direction:column;gap:14px;padding-top:6px}',
-    '.xp-spot .xp-ins-h{margin:0;font-size:13px;font-weight:600;opacity:.7}',
-    '.xp-spot .xp-ins{margin:0;font-size:16px;line-height:1.5}',
-    '.xp-spot .xp-act{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:auto;padding-top:10px}',
-    '.xp-spot .xp-x{background:rgba(0,0,0,.45);color:#fff;opacity:.9;z-index:2}',
-    // the phone sheet: the same dialog, non-modal, at the bottom, no blur
-    'dialog.xp-spot.xp-sheet{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-height:48vh;border-radius:0;border-top:1px solid color-mix(in srgb,var(--xp-fg) 18%,transparent);z-index:85;animation:xp-up .35s var(--ease-out,ease) both}',
-    '@keyframes xp-up{from{transform:translateY(100%)}to{transform:none}}',
-    '.xp-sheet .xp-body{grid-template-columns:1fr;gap:10px;padding:16px 16px 18px}',
-    '.xp-sheet .xp-name{font-size:32px;margin-bottom:6px}',
-    '.xp-sheet .xp-line{font-size:15px}',
-    '.xp-sheet .xp-side{padding-top:0}',
-    '.xp-sheet .xp-ins-h,.xp-sheet .xp-ins{display:none}',
-    '@media (prefers-reduced-motion:reduce){dialog.xp-spot[open],dialog.xp-spot[open]::backdrop,dialog.xp-spot.xp-sheet{animation:none}.xp-card{transition:none}}',
+    '[data-promo-block][hidden]{display:none}',
+    '.xp-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;margin:0 0 14px}',
+    '.xp-h{margin:0;font:500 12px/1.3 var(--mono);letter-spacing:0;color:var(--muted)}',
+    '.xp-mark{font:600 11.5px/1.3 var(--mono);color:var(--gold)}',
+    '.xp-rows{display:grid;gap:14px}',
+    '.xp-row{display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);background:var(--xp-bg);color:var(--xp-fg);border:1px solid color-mix(in srgb,var(--xp-fg) 16%,transparent);border-radius:2px;overflow:hidden;font-family:var(--sans)}',
+    '.xp-shot{position:relative;align-self:stretch;aspect-ratio:16/7;overflow:hidden;background:radial-gradient(120% 130% at 20% 10%,color-mix(in srgb,var(--xp-ac) 34%,transparent),var(--xp-bg) 62%)}',
+    '.xp-shot img,.xp-shot video{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}',
+    '.xp-main{min-width:0;padding:20px 24px 22px;display:grid;gap:8px;align-content:center;justify-items:start}',
+    '.xp-tier{margin:0;font:500 11.5px/1.4 var(--mono);color:var(--xp-ac)}',
+    '.xp-name{margin:0;font:640 21px/1.15 var(--sans);color:var(--xp-fg);overflow-wrap:anywhere}',
+    '.xp-line{margin:0;max-width:52ch;font-size:15px;line-height:1.5;color:var(--xp-fg);overflow-wrap:anywhere}',
+    '.xp-act{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin-top:6px}',
+    '.xp-row .xp-go{display:inline-flex;align-items:center;min-height:40px;padding:9px 16px;border-radius:3px;background:var(--xp-ac);color:var(--xp-bg);font:600 14px/1.2 var(--sans);text-decoration:none}',
+    '.xp-row .xp-go:hover{filter:brightness(1.08)}',
+    '.xp-go:focus-visible,.xp-pp:focus-visible{outline:2px solid var(--xp-fg);outline-offset:3px}',
+    '.xp-when{font:400 12px/1.4 var(--mono);color:var(--xp-fg)}',
+    '.xp-when.soon{font-weight:600;color:var(--xp-ac)}',
+    '.xp-pp{position:absolute;right:10px;bottom:10px;min-width:28px;min-height:28px;padding:0 10px;border:1px solid color-mix(in srgb,var(--xp-fg) 30%,transparent);border-radius:2px;background:var(--xp-bg);color:var(--xp-fg);font:500 11.5px/1 var(--mono);cursor:pointer}',
+    '@media (max-width:720px){.xp-row{grid-template-columns:minmax(0,1fr)}.xp-main{padding:16px 16px 18px}.xp-name{font-size:19px}}',
   ].join('');
 
   function css() {
@@ -316,311 +281,161 @@
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-  function skin(node, entry) {
-    const pal = paletteOf(entry);
-    node.classList.add('xp');
-    node.style.setProperty('--xp-bg', pal.bg);
-    node.style.setProperty('--xp-fg', pal.fg);
-    node.style.setProperty('--xp-ac', pal.ac);
-  }
+  let observers = [];
 
-  // The facts every format draws from, in the visitor's language.
-  function facts(pick) {
-    const { promo, entry } = pick;
-    const tx = textFor(promo, lang());
-    const name = tx.title || String(entry.name || entry.id).slice(0, CAP.title);
-    const sup = entry.locked === true;
-    const end = endOf(promo, entry);
-    const now = Date.now();
-    const days = daysLeft(end, now);
-    let when = '';
-    if (days === 1) when = t('last');
-    else if (days) when = t('left').replace('{n}', String(days));
-    else if (end) {
-      try { when = t('until').replace('{d}', new Date(end).toLocaleDateString(lang(), { day: 'numeric', month: 'long', timeZone: 'UTC' })); } catch (e) { when = ''; }
-    }
-    return {
-      name, sup, when, soon: !!days,
-      line: tx.line,
-      cta: tx.cta || t('see').replace('{name}', name),
-      inside: tx.inside,
-      href: promo.url || '/catalog/#' + entry.id,
-      shot: SHOTS + entry.id + '.webp',
-      video: promo.video || '',
+  // The picture: the real shot, or the loop when there is one and the screen is a wide one that
+  // has not asked for less motion. The loop plays only while it is in view, and has its own pause.
+  function media(f, l) {
+    const box = el('div', 'xp-shot');
+    // Built only when it is shown: a detached <img> with a src is still a download.
+    const pic = () => {
+      if (!f.shot) return;
+      const img = el('img');
+      img.alt = '';                           // the name sits right beside it
+      img.width = 1280; img.height = 560;     // the box's 16:7; the CSS crops any shot into it
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.src = f.shot;
+      img.addEventListener('error', () => img.remove(), { once: true });
+      box.appendChild(img);
     };
-  }
-
-  function whenNode(f) {
-    if (!f.when) return null;
-    const n = el('span', 'xp-when');
-    if (f.soon) { const b = el('b', null, f.when); n.appendChild(b); } else n.textContent = f.when;
-    return n;
-  }
-
-  function go(f, fmt, id, cls) {
-    const a = el('a', cls, f.cta);
-    a.href = f.href;
-    a.setAttribute('data-track', 'promo_click');
-    a.setAttribute('data-track-format', fmt);
-    a.setAttribute('data-track-promo', id);
-    return a;
-  }
-
-  // The picture: the real shot, and the loop when there is one. The video loads only when the
-  // format is actually shown, never under reduced motion, and always has its own pause.
-  function media(f, withVideo) {
-    const box = el('div', 'xp-media');
-    const img = el('img');
-    img.alt = '';
-    img.decoding = 'async';
-    img.src = f.shot;
-    img.addEventListener('error', () => { img.remove(); });
-    box.appendChild(img);
-    if (!withVideo || !f.video || reduced()) return box;
+    if (!f.video || !withMotion()) { pic(); return box; }
     const v = document.createElement('video');
     v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'none';
-    v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
-    v.poster = f.shot;
+    v.setAttribute('muted', ''); v.setAttribute('loop', ''); v.setAttribute('playsinline', '');
+    v.width = 1280; v.height = 560;
+    if (f.shot) v.poster = f.shot;
     v.src = f.video;
-    const pp = el('button', 'xp-pp', t('pause'));
+    const pp = el('button', 'xp-pp');
     pp.type = 'button';
-    pp.addEventListener('click', () => {
-      if (v.paused) { v.play().catch(() => {}); pp.textContent = t('pause'); }
-      else { v.pause(); pp.textContent = t('play'); }
-    });
-    v.addEventListener('error', () => { v.remove(); pp.remove(); });
-    box.replaceChild(v, img);
+    let held = !('IntersectionObserver' in window);   // no way to know it is seen: wait for a tap
+    let inView = false;
+    const sync = () => {
+      pp.textContent = tr(l, held ? 'play' : 'pause');
+      if (inView && !held) v.play().catch(() => { held = true; pp.textContent = tr(l, 'play'); });
+      else v.pause();
+    };
+    pp.addEventListener('click', () => { held = !held; if (!held) inView = true; sync(); });
+    v.addEventListener('error', () => { held = true; v.remove(); pp.remove(); pic(); }, { once: true });
+    box.appendChild(v);
     box.appendChild(pp);
-    box._play = () => { v.play().catch(() => { pp.textContent = t('play'); }); };
+    if (!held) {
+      const io = new IntersectionObserver((es) => { inView = es[es.length - 1].isIntersecting; sync(); }, { threshold: 0.35 });
+      io.observe(box);
+      observers.push(io);
+    }
+    sync();
     return box;
   }
 
-  function closeX(onClose) {
-    const x = el('button', 'xp-x', '×');
-    x.type = 'button';
-    x.setAttribute('aria-label', t('close'));
-    x.addEventListener('click', onClose);
-    return x;
-  }
-
-  // ── The four formats ──
-  function renderStrip(pick) {
-    const f = facts(pick), id = pick.promo.id;
-    const bar = el('div', 'xp-strip');
-    bar.setAttribute('role', 'region');
-    bar.setAttribute('aria-label', f.name);
-    skin(bar, pick.entry);
-    const inner = el('div', 'xp-in');
-    const img = el('img'); img.alt = ''; img.src = f.shot; img.addEventListener('error', () => img.remove());
-    inner.appendChild(img);
-    inner.appendChild(el('span', 'xp-tier', t(f.sup ? 'supShort' : 'freeShort')));
-    inner.appendChild(el('span', 'xp-sname', f.name));
-    if (f.line) inner.appendChild(el('span', 'xp-line xp-mid', f.line));
-    else inner.appendChild(el('span', 'xp-line'));
-    const w = whenNode(f); if (w) inner.appendChild(w);
-    inner.appendChild(go(f, 'strip', id, 'xp-go'));
-    bar.appendChild(inner);
-    bar.appendChild(closeX(() => { remember('strip', id); bar.remove(); }));
-    const nav = document.querySelector('nav.top');
-    if (nav && nav.parentNode) nav.parentNode.insertBefore(bar, nav);
-    else document.body.insertBefore(bar, document.body.firstChild);
-    return bar;
-  }
-
-  // The band goes only where a page has marked a slot for it ([data-promo-band]), placed below the
-  // fold so that filling it after the feed arrives shifts nothing in view. A page without a slot (the
-  // catalog, which has its own featured blocks) shows no band.
-  function renderBand(pick) {
-    const slot = document.querySelector('[data-promo-band]');
-    if (!slot) return null;
-    const f = facts(pick), id = pick.promo.id;
-    const band = el('section', 'xp-band');
-    band.setAttribute('aria-label', f.name);
-    skin(band, pick.entry);
-    const inner = el('div', 'xp-in');
-    const m = media(f, true);
-    inner.appendChild(m);
-    const body = el('div');
-    body.appendChild(el('p', 'xp-tier', t(f.sup ? 'supLong' : 'freeLong')));
-    body.appendChild(el('h2', 'xp-name', f.name));
-    if (f.line) body.appendChild(el('p', 'xp-line', f.line));
+  function row(pick, l) {
+    const p = pick.promo;
+    const f = describe(p, pick.entry, l, Date.now());
+    const pal = paletteOf(pick.entry);
+    const art = el('article', 'xp-row');
+    art.style.setProperty('--xp-bg', pal.bg);
+    art.style.setProperty('--xp-fg', pal.fg);
+    art.style.setProperty('--xp-ac', pal.ac);
+    art.appendChild(media(f, l));
+    const main = el('div', 'xp-main');
+    main.appendChild(el('p', 'xp-tier', f.tier));
+    main.appendChild(el('h4', 'xp-name', f.name));
+    main.appendChild(el('p', 'xp-line', f.line));
     const act = el('div', 'xp-act');
-    act.appendChild(go(f, 'band', id, 'xp-btn'));
-    const w = whenNode(f); if (w) act.appendChild(w);
-    body.appendChild(act);
-    inner.appendChild(body);
-    band.appendChild(inner);
-    band.appendChild(closeX(() => { remember('band', id); band.remove(); }));
-    slot.appendChild(band);
-    // The loop starts when it scrolls into view.
-    if (m._play && 'IntersectionObserver' in window) {
-      const io = new IntersectionObserver((es) => {
-        if (es.some((e) => e.isIntersecting)) { m._play(); io.disconnect(); }
-      }, { threshold: 0.3 });
-      io.observe(m);
+    const a = el('a', 'xp-go', f.cta);
+    a.href = f.href;
+    if (f.external) { a.target = '_blank'; a.rel = 'noopener'; }
+    a.setAttribute('data-track', 'promo_click');
+    a.setAttribute('data-track-format', 'block');
+    a.setAttribute('data-track-id', p.id);
+    act.appendChild(a);
+    if (f.when) act.appendChild(el('span', 'xp-when' + (f.soon ? ' soon' : ''), f.when));
+    main.appendChild(act);
+    art.appendChild(main);
+    return art;
+  }
+
+  function announce(ids) {
+    window.__xenonPromoIds = ids.slice();
+    try { document.dispatchEvent(new CustomEvent('xenon:promo', { detail: { ids: ids.slice() } })); } catch (e) { /* very old engine */ }
+  }
+
+  function render(picks) {
+    const box = document.querySelector('[data-promo-block]');
+    observers.forEach((o) => o.disconnect());
+    observers = [];
+    if (!box) { announce([]); return; }
+    box.textContent = '';
+    if (picks.length) {
+      css();
+      const l = lang();
+      const head = el('div', 'xp-head');
+      head.appendChild(el('h3', 'xp-h', tr(l, 'head')));
+      if (PREVIEW) head.appendChild(el('span', 'xp-mark', tr(l, 'preview')));
+      box.appendChild(head);
+      const rows = el('div', 'xp-rows');
+      picks.forEach((pick) => rows.appendChild(row(pick, l)));
+      box.appendChild(rows);
     }
-    return band;
+    box.hidden = !picks.length;
+    announce(picks.map((pick) => pick.promo.entryId));
   }
 
-  function renderCard(pick) {
-    const f = facts(pick), id = pick.promo.id;
-    const card = el('aside', 'xp-card');
-    card.setAttribute('aria-label', f.name);
-    skin(card, pick.entry);
-    card.appendChild(media(f, false));
-    const body = el('div', 'xp-body');
-    body.appendChild(el('p', 'xp-tier', t(f.sup ? 'supShort' : 'freeShort')));
-    body.appendChild(el('h2', 'xp-name', f.name));
-    if (f.line) body.appendChild(el('p', 'xp-line', f.line));
-    const act = el('div', 'xp-act');
-    act.appendChild(go(f, 'card', id, 'xp-go'));
-    const later = el('button', 'xp-quiet', t('notNow'));
-    later.type = 'button';
-    act.appendChild(later);
-    const w = whenNode(f); if (w) act.appendChild(w);
-    body.appendChild(act);
-    card.appendChild(body);
-    const bye = () => { remember('card', id); card.classList.remove('in'); setTimeout(() => card.remove(), 420); };
-    later.addEventListener('click', bye);
-    card.appendChild(closeX(bye));
-    document.body.appendChild(card);
-    requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('in')));
-    return card;
-  }
-
-  function renderSpotlight(pick) {
-    if (typeof HTMLDialogElement !== 'function') return null;
-    const f = facts(pick), id = pick.promo.id;
-    const big = desktop();
-    const d = document.createElement('dialog');
-    d.className = 'xp-spot' + (big ? '' : ' xp-sheet');
-    skin(d, pick.entry);
-    const titleId = 'xp-spot-title';
-    d.setAttribute('aria-labelledby', titleId);
-    const m = media(f, big);
-    d.appendChild(m);
-    const body = el('div', 'xp-body');
-    const main = el('div');
-    main.appendChild(el('p', 'xp-tier', t(f.sup ? 'supLong' : 'freeLong')));
-    const h = el('h2', 'xp-name', f.name); h.id = titleId;
-    main.appendChild(h);
-    if (f.line) main.appendChild(el('p', 'xp-line', f.line));
-    body.appendChild(main);
-    const side = el('div', 'xp-side');
-    if (f.inside) { side.appendChild(el('p', 'xp-ins-h', t('inside'))); side.appendChild(el('p', 'xp-ins', f.inside)); }
-    const w = whenNode(f); if (w) side.appendChild(w);
-    const act = el('div', 'xp-act');
-    const cta = go(f, 'spotlight', id, 'xp-btn');
-    act.appendChild(cta);
-    const later = el('button', 'xp-quiet', t('notNow'));
-    later.type = 'button';
-    act.appendChild(later);
-    side.appendChild(act);
-    body.appendChild(side);
-    d.appendChild(body);
-    const shut = () => { if (d.open) d.close(); };
-    d.appendChild(closeX(shut));
-    later.addEventListener('click', shut);
-    cta.addEventListener('click', () => { remember('spotlight', id); });
-    // A click on the backdrop lands on the dialog itself (it has no padding of its own).
-    d.addEventListener('click', (e) => { if (e.target === d) shut(); });
-    d.addEventListener('close', () => { remember('spotlight', id); d.remove(); });
-    document.body.appendChild(d);
-    // Focus lands on the title, a static element at the start of the dialog (the APG pattern), so
-    // the button does not open already ringed as if the visitor had tabbed to it.
-    // show() runs the same focusing steps as showModal(), so the phone sheet needs it too.
-    if (big) d.showModal(); else d.show();
-    try { h.tabIndex = -1; h.focus({ preventScroll: true }); } catch (e) { /* older engines */ }
-    if (m._play) m._play();
-    return d;
-  }
-
-  // ── Orchestration ──
-  let PREVIEW = false;
-  const shown = [];
-  function clearAll() { while (shown.length) { const n = shown.pop(); if (n && n.close && n.open) n.close(); if (n) n.remove(); } }
-
-  // Something else already owns the screen: a lightbox, another dialog, the catalog's detail view,
-  // or a deep link the visitor followed on purpose.
-  function screenBusy() {
-    if (location.hash && location.hash.length > 1) return true;
-    if (document.querySelector('dialog[open]')) return true;
-    const lb = document.querySelector('.lightbox.open, .lb.open, .dt.open, #xc-consent');
-    return !!lb;
-  }
-
-  function whenConsented(fn) {
-    if (consentDecided()) { fn(); return; }
-    const on = () => { document.removeEventListener('xenon:consent', on); fn(); };
-    document.addEventListener('xenon:consent', on);
-  }
-
-  function renderAll(picks, options) {
-    const opts = options || {};
-    clearAll();
-    css();
-    const ok = (fmt) => picks[fmt] && (opts.force || !dismissed(fmt, picks[fmt].promo.id));
-    if (ok('strip')) { const n = renderStrip(picks.strip); if (n) shown.push(n); }
-    if (ok('band')) { const n = renderBand(picks.band); if (n) shown.push(n); }
-    const spot = ok('spotlight') ? picks.spotlight : null;
-    const card = ok('card') ? picks.card : null;
-    if (opts.force) {
-      if (spot) { const n = renderSpotlight(spot); if (n) shown.push(n); }
-      else if (card) { const n = renderCard(card); if (n) shown.push(n); }
-      return;
-    }
-    // Only one of the two that sit over the page, per view: the spotlight when there is one, the
-    // corner card otherwise. Both wait for the cookie choice and a moment of the page.
-    whenConsented(() => {
-      if (spot) setTimeout(() => { if (!screenBusy() && document.visibilityState === 'visible') { const n = renderSpotlight(spot); if (n) shown.push(n); } }, 1500);
-      else if (card) setTimeout(() => { if (!document.querySelector('dialog[open]')) { const n = renderCard(card); if (n) shown.push(n); } }, 2500);
-    });
-  }
+  let repaint = () => render([]);
+  document.addEventListener('xenon:lang', (ev) => {
+    if (ev && LANGS.indexOf(ev.detail) !== -1) picked = ev.detail;
+    repaint();
+  });
 
   async function load() {
-    const get = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const [feed, cat] = await Promise.all([get('/community/site-promo.json'), get('/community/catalog.json')]);
-    if (!feed || !cat) return;
-    const picks = pickPerFormat(normalizeFeed(feed), cat.entries, Date.now());
-    if (!Object.keys(picks).length) return;
-    renderAll(picks);
-    document.addEventListener('xenon:lang', () => { clearAll(); renderAll(pickPerFormat(normalizeFeed(feed), cat.entries, Date.now())); });
+    const box = document.querySelector('[data-promo-block]');
+    if (!box) { announce([]); return; }
+    box.hidden = true;
+    const get = (u) => fetch(u, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const promos = normalizeFeed(await get('/community/site-promo.json'));
+    // Most of the time nothing is scheduled: then the catalog is not worth a request of its own.
+    if (!promos.some((p) => isLive(p, Date.now()))) { render([]); return; }
+    const cat = await get('/community/catalog.json');
+    const entries = cat && Array.isArray(cat.entries) ? cat.entries : [];
+    repaint = () => render(pickLive(promos, entries, Date.now()));
+    repaint();
   }
 
   // The hub's live preview: the real page, framed by the admin, drawing a draft it is sent. Only a
   // framed page listens, and only to the hub's own origin, so no link can ever make xenon-app.com
-  // show a banner that was not published.
+  // show a row that was not published. Nothing is stored and nothing live is drawn beside it.
   function previewMode() {
     PREVIEW = true;
-    css();
-    const mark = el('div', 'xp-mark', t('preview'));
-    document.body.appendChild(mark);
+    render([]);
     window.addEventListener('message', (ev) => {
       if (ev.origin !== HUB_ORIGIN) return;
       const d = ev.data;
       if (!d || d.type !== 'xenon-promo-preview') return;
       const p = validatePromo(d.promo);
-      const e = d.entry && typeof d.entry === 'object' && ID_RE.test(String(d.entry.id || '')) ? {
-        id: d.entry.id, name: str(d.entry.name, CAP.title), locked: d.entry.locked === true,
-        activeUntil: isDate(d.entry.activeUntil) ? d.entry.activeUntil : '',
-        preview: d.entry.preview && typeof d.entry.preview === 'object' ? d.entry.preview : null,
+      const r = d.entry && typeof d.entry === 'object' && ID_RE.test(String(d.entry.id || '')) ? d.entry : null;
+      const e = r ? {
+        id: r.id, name: str(r.name, CAP.title), locked: r.locked === true, supportersOnly: r.supportersOnly === true,
+        active: r.active === true || r.active === false ? r.active : undefined,
+        activeUntil: isDate(r.activeUntil) ? r.activeUntil : '',
+        shots: Number.isInteger(r.shots) ? r.shots : undefined,
+        preview: r.preview && typeof r.preview === 'object' ? r.preview : null,
       } : null;
       PREVIEW_LANG = LANGS.indexOf(d.lang) !== -1 ? d.lang : null;
-      clearAll();
-      if (!p || !e) return;
-      renderAll({ [p.format]: { promo: p, entry: e } }, { force: true });
-      // The band lives below the fold; bring it into the frame so the author sees it.
-      const band = document.querySelector('.xp-band');
-      if (band) band.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 0);
+      const picks = p && e ? [{ promo: p, entry: e }] : [];
+      repaint = () => render(picks);
+      repaint();
+      // The block lives below the fold; bring it into the frame so the author sees it.
+      const box = document.querySelector('[data-promo-block]');
+      if (box && picks.length && box.scrollIntoView) box.scrollIntoView({ block: 'center' });
     });
     try { window.parent.postMessage({ type: 'xenon-promo-ready' }, HUB_ORIGIN); } catch (e) { /* not framed by the hub */ }
   }
 
   function boot() {
     // Not inside the catalog's own layout preview: that frame is about the arrangement.
-    if (/(?:^|[#&])sf-preview=/.test(location.hash || '')) return;
-    if (/[?&]promo-preview=1\b/.test(location.search) && window.parent !== window) { previewMode(); return; }
-    load();
+    if (/(?:^|[#&])sf-preview=/.test(location.hash || '')) { announce([]); return; }
+    if (/[?&]promo-preview=1(?:&|$)/.test(location.search || '') && window.parent !== window) { previewMode(); return; }
+    load().catch(() => render([]));
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

@@ -9,59 +9,73 @@
   z-index: 2147483000;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(30, 215, 96, 0.28);
-  background: rgba(7, 8, 8, 0.82);
-  backdrop-filter: blur(14px) saturate(1.3);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
-  color: #f0f3f1;
-  font: 600 12.5px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
-  letter-spacing: 0.01em;
-  transition: padding 180ms ease, gap 180ms ease;
+  gap: 14px;
+  padding: 6px 6px 6px 16px;
+  border-radius: 12px;
+  border: 1px solid #3d3d3d;
+  background: rgba(35, 35, 35, 0.94);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.6);
+  color: #ededed;
+  font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#demo-badge.is-embedded { padding: 8px 12px; }
+
+#demo-badge .db-txt { white-space: nowrap; color: #bdbdbd; }
+
+#demo-badge .db-back {
+  color: #ededed;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
-#demo-badge .db-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #1ed760;
-  box-shadow: 0 0 0 4px rgba(30, 215, 96, 0.16);
-}
-
-#demo-badge .db-txt { white-space: nowrap; opacity: 0.86; }
-
-#demo-badge .db-cta {
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: #1ed760;
-  color: #052012;
+/* The site's Download key: the product's own Deck key, lit in the logo blue. */
+#demo-badge .db-cta,
+#demo-convert .dc-go {
+  --lit: #008dff;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 9px;
+  color: #fff;
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  background-color: #104d82;
+  background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
+  border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -3px 0 rgba(0, 0, 0, 0.38);
 }
-#demo-badge .db-cta:hover { background: #34e574; }
+#demo-badge .db-cta:hover,
+#demo-convert .dc-go:hover { filter: brightness(1.1); }
 
 #demo-badge .db-min {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
-  font: 700 14px/1 system-ui, sans-serif;
+  border-radius: 8px;
+  background: transparent;
+  color: #bdbdbd;
+  font: 700 16px/1 system-ui, sans-serif;
   cursor: pointer;
 }
-#demo-badge .db-min:hover { background: rgba(255, 255, 255, 0.16); }
+#demo-badge .db-min:hover { background: rgba(255, 255, 255, 0.08); color: #ededed; }
+#demo-badge a:focus-visible,
+#demo-badge button:focus-visible,
+#demo-convert a:focus-visible,
+#demo-convert button:focus-visible { outline: 2px solid #008dff; outline-offset: 2px; }
 
-/* Collapsed: a pill that still says "this is a demo" at a glance. */
-#demo-badge.is-min { padding: 8px; gap: 8px; }
-#demo-badge.is-min .db-txt,
+/* Collapsed: still says "this is a demo" at a glance. */
+#demo-badge.is-min { gap: 8px; }
+#demo-badge.is-min .db-back,
 #demo-badge.is-min .db-cta { display: none; }
+
+@media (forced-colors: active) {
+  #demo-badge .db-cta, #demo-convert .dc-go { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }
+}
 
 /* ── Conversion sheet ───────────────────────────────────────────────────── */
 #demo-convert {
@@ -71,13 +85,12 @@
   z-index: 2147483001;
   width: min(360px, calc(100vw - 32px));
   padding: 16px 18px;
-  border-radius: 16px;
-  border: 1px solid rgba(30, 215, 96, 0.24);
-  background: rgba(9, 12, 11, 0.94);
-  backdrop-filter: blur(18px) saturate(1.2);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.62);
-  color: #f0f3f1;
-  font: 400 13.5px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  border-radius: 12px;
+  border: 1px solid #3d3d3d;
+  background: rgba(35, 35, 35, 0.97);
+  box-shadow: 0 22px 60px -20px rgba(0, 0, 0, 0.7);
+  color: #ededed;
+  font: 400 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
   animation: dc-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes dc-in { from { opacity: 0; transform: translateY(12px); } }
@@ -85,24 +98,16 @@
 
 #demo-convert p { margin: 0 0 14px; }
 #demo-convert .dc-row { display: flex; gap: 8px; align-items: center; }
-#demo-convert .dc-go {
-  padding: 9px 15px;
-  border-radius: 999px;
-  background: #1ed760;
-  color: #052012;
-  font-weight: 700;
-  text-decoration: none;
-}
 #demo-convert .dc-no {
   padding: 9px 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
-  color: rgba(240, 243, 241, 0.6);
+  color: #bdbdbd;
   font: inherit;
   cursor: pointer;
 }
-#demo-convert .dc-no:hover { color: #f0f3f1; }
+#demo-convert .dc-no:hover { color: #ededed; text-decoration: underline; }
 
 /* ── Phone: neither piece of demo chrome may sit on the app's own bar ────── */
 /* The dashboard's phone view (server/components/PhoneView.css) puts a thumb dock
@@ -124,7 +129,11 @@
     transform: translateX(-50%);
     max-width: calc(100vw - 16px);
     bottom: calc(var(--ph-dock-h, 64px) + 10px);
+    gap: 10px;
+    padding-left: 12px;
   }
+  /* A phone has room for the two links; the demo is said by the page itself. */
+  #demo-badge:not(.is-embedded):not(.is-min) .db-txt { display: none; }
   /* The sheet is the loudest thing on the screen and it is not what the visitor
      came for: full width above the dock, and it still closes on one tap. */
   #demo-convert {
@@ -135,7 +144,7 @@
   }
   /* Both want the same slot, and they carry the same call to action. While the
      sheet is up the badge stands down — a phone has room for one of them, and
-     stacking two green bars over the dock is worse than either. The badge is
+     stacking two bars over the dock is worse than either. The badge is
      mounted first and the sheet is appended later, so this is the `:has()`
      direction that can see it. */
   #demo-badge:has(~ #demo-convert) { display: none; }
@@ -172,5 +181,5 @@
   color: #f0f3f1;
   font: 400 11.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-.demo-na-in b { font-size: 12.5px; font-weight: 700; color: #1ed760; }
+.demo-na-in b { font-size: 12.5px; font-weight: 700; color: #ededed; }
 .demo-na-in span { opacity: 0.72; }
