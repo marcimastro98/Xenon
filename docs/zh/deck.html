@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon Deck：用于 OBS 和电脑的免费触控宏按键</title>
+<meta name="description" content="Xenon 仪表盘上免费的触控按键，直接作用于电脑：打开应用、发送快捷键、切换 OBS 场景、Discord 静音、调用 webhook、运行多步宏。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon Deck：用于 OBS 和电脑的免费触控宏按键">
+<meta property="og:description" content="Xenon 仪表盘上免费的触控按键，直接作用于电脑：打开应用、发送快捷键、切换 OBS 场景、Discord 静音、调用 webhook、运行多步宏。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/zh/deck.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/zh/deck.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Deck 免费吗？","acceptedAnswer":{"@type":"Answer","text":"免费。Deck 是 Xenon 的一部分，Xenon 个人使用免费，无需账号，也没有试用期。"}},{"@type":"Question","name":"Deck 按键能切换 OBS 场景吗？","acceptedAnswer":{"@type":"Answer","text":"能。按键可以切换到指定名称的场景或下一个场景，开始或停止录制和推流，以及静音某个 OBS 来源或设置它的音量。请先在“设置”>“直播”中连接 OBS。"}},{"@type":"Question","name":"一个按键能做好几件事吗？","acceptedAnswer":{"@type":"Answer","text":"能。点按、双击和长按可以分别按顺序运行各自的一串动作，每一步之前可以暂停最多 10 秒。"}},{"@type":"Question","name":"Deck 能在 macOS 和 Linux 上使用吗？","acceptedAnswer":{"@type":"Answer","text":"能，目前是测试版。打开应用、文件和网址、脚本、媒体、音量、OBS、Discord、Spotify、Home Assistant 以及 Twitch 和 YouTube 按键在三个系统上都可用。少数按键需要 Windows，比如输入文字、移动窗口和 Voicemeeter；在无法使用它们的系统上，按键编辑器不会提供这些按键。"}},{"@type":"Question","name":"可以把手机当作 Deck 使用吗？","acceptedAnswer":{"@type":"Answer","text":"可以，目前是测试版。通过你自己的 Wi-Fi 把手机或平板与电脑配对，它就会显示你的整个仪表盘，包括 Deck。作用于电脑的按键，比如打开应用或切换 OBS 场景，会在电脑上运行。音效板的片段则在手机上播放。"}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── Screenshot ───────────────────────────────────────────────── */
+  figure.shot { margin: 8px 0 30px; }
+  figure.shot img { display: block; width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+  figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/deck.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/deck.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/deck.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/deck.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/deck.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/deck.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/deck.html" aria-current="page" data-xl="f.deck">Deck 按键</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"Deck 按键","item":"https://xenon-app.com/zh/deck.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="deck.h1">Deck</h1>
+    <p class="lede" data-i18n="deck.lede">Deck 是一组按键，你可以把它添加到 Xenon 仪表盘的页面上。点一下就能打开应用、发送键盘快捷键、切换 OBS 场景或让 Discord 静音，按键还可以亮起，显示它所控制对象的状态。</p>
+    <p class="lede" data-i18n="deck.lede2">它的作用和 Stream Deck 类似，只不过用的是你已经有的屏幕：Xeneon Edge、闲置的显示器、平板或手机。</p>
+    <p class="updated" data-i18n="deck.updated">最后更新：2026年9月27日</p>
+
+    <figure class="shot">
+      <img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="有十二个按键的 Deck 小组件：OBS 场景、录制、麦克风、Discord、Spotify、播放、截图和灯光" data-i18n-alt="deck.shot.alt">
+      <figcaption data-i18n="deck.shot.cap">一个有十二个按键的直播配置。播放键亮着，因为正在播放音乐。</figcaption>
+    </figure>
+
+    <nav class="jump">
+      <a href="#actions" data-i18n="deck.jump.actions">动作</a>
+      <a href="#steps" data-i18n="deck.jump.steps">多步按键</a>
+      <a href="#state" data-i18n="deck.jump.state">显示状态的按键</a>
+      <a href="#faders" data-i18n="deck.jump.faders">推子</a>
+      <a href="#profiles" data-i18n="deck.jump.profiles">配置和页面</a>
+      <a href="#make" data-i18n="deck.jump.make">制作 Deck</a>
+      <a href="#platforms" data-i18n="deck.jump.platforms">macOS 和 Linux</a>
+      <a href="#share" data-i18n="deck.jump.share">分享</a>
+      <a href="#faq" data-i18n="deck.jump.faq">常见问题</a>
+    </nav>
+
+    <h2 id="actions" data-i18n="deck.h.actions">动作</h2>
+    <p data-i18n="deck.actions.p1">按键编辑器把动作分成若干类别。作用于电脑的动作在运行前，会由 Xenon 服务器对照它允许的动作列表进行检查。运行失败的按键会闪红光；如果电脑报告了错误，还会显示一条简短的消息说明原因。</p>
+    <p data-i18n="deck.actions.p2">需要其他应用或账号的类别，比如 OBS、Discord 或 Home Assistant，在你到“设置”中连接之前会保持锁定，并显示提示。</p>
+    <ul>
+      <li data-i18n-html="deck.act.system"><strong>应用、文件和链接。</strong>打开应用、文件或文件夹、网址或 Microsoft Store 应用，按 AppID 启动 Steam 游戏，运行脚本，或者锁定电脑。</li>
+      <li data-i18n-html="deck.act.keys"><strong>键盘。</strong>发送 Ctrl+Shift+M 这样的快捷键，或者输入一段保存好的文字。在 Windows 上，Xenon 会先切回你刚才在用的应用，让按键落到那里。</li>
+      <li data-i18n-html="deck.act.webhook"><strong>Webhook。</strong>用 GET 或 POST 调用任何 http 或 https 地址，可以附带 JSON 请求体。</li>
+      <li data-i18n-html="deck.act.audio"><strong>音频和媒体。</strong>播放、暂停和切换曲目，静音麦克风，设置、调高、调低音量或静音，设置某个应用的音量或将其静音，打开分应用混音器，选择输出设备，或者用一个按键在两个设备之间来回切换。</li>
+      <li data-i18n-html="deck.act.sound"><strong>音效板。</strong>播放、切换或停止音效库中的片段，每个片段有自己的音量，另有一个按键可以一次停止所有声音。</li>
+      <li data-i18n-html="deck.act.timers"><strong>计时器。</strong>启动带名字的倒计时或秒表，暂停或继续，或者取消。这些就是“计时器”磁贴里显示的那些计时器。</li>
+      <li data-i18n-html="deck.act.obs"><strong>OBS。</strong>切换到某个场景或下一个场景，开始或停止录制和推流，静音某个来源或设置它的音量。</li>
+      <li data-i18n-html="deck.act.stream"><strong>Twitch 和 YouTube。</strong>创建剪辑或标记，插播广告，修改直播标题或分类，发送聊天消息或推荐其他主播（shoutout），更改聊天模式，开始或停止 YouTube 直播。</li>
+      <li data-i18n-html="deck.act.sb"><strong>Streamer.bot。</strong>运行你的某个动作，在 Twitch、YouTube、Kick 或 Trovo 上发送聊天消息，或者触发一个代码触发器。</li>
+      <li data-i18n-html="deck.act.discord"><strong>Discord。</strong>麦克风静音、耳机静音，在按键说话和语音激活之间切换，加入或离开语音频道，设置麦克风或输出音量，开关噪音抑制或回声消除，播放音效板声音。</li>
+      <li data-i18n-html="deck.act.spotify"><strong>Spotify。</strong>播放、暂停、切歌、喜欢、保存、随机播放、重复播放、设置音量、跳转进度，播放某个播放列表或 Spotify 链接，或者把播放转到另一台设备。控制播放需要 Spotify Premium。</li>
+      <li data-i18n-html="deck.act.vm"><strong>Voicemeeter。</strong>静音某个输入条或设置其增益，把它发送到总线（A1、A2、B1 按钮），静音某条总线或设置其增益，按下你的某个宏按钮，或者设置任何具名参数。</li>
+      <li data-i18n-html="deck.act.wl"><strong>Wave Link。</strong>设置输入、输出或混音的音量，或者将其静音。在 Wave Link 2 上，按键还可以切换监听；在 Wave Link 3 上，按键可以开关效果并选择输出设备。</li>
+      <li data-i18n-html="deck.act.ha"><strong>Home Assistant。</strong>切换设备开关，设置灯光，控制媒体播放器、窗帘、温控、风扇、扫地机器人、门锁或警报，激活场景，运行脚本，按下按钮，或者调用任何服务。</li>
+      <li data-i18n-html="deck.act.light"><strong>灯光。</strong>打开或关闭灯光，设置颜色或效果，单独调整某个设备，或者把灯光交还给自动模式。Razer Chroma 设备和 SignalRGB 效果有各自的按键。</li>
+      <li data-i18n-html="deck.act.window"><strong>窗口。</strong>把你刚才在用的窗口移到下一台或上一台显示器，贴靠到左半边或右半边，最大化、最小化或居中。</li>
+      <li data-i18n-html="deck.act.ai"><strong>Xenon AI 和 Claude Code。</strong>向 AI 发送提示词，开始语音会话或打开聊天。在你的某个项目中发起一个 Claude Code 请求，或者停止正在运行的请求。按键本身不授予任何权限：当 Claude Code 请求运行命令时，请求会显示在屏幕上，由你来批准。</li>
+      <li data-i18n-html="deck.act.more"><strong>更多。</strong>通过蓝牙配对的手机打电话或发短信，结束远程会话或阻止远程访问，以及使用你安装的社区小组件添加的按键，每一个都要先经过你的允许。</li>
+    </ul>
+
+    <h2 id="steps" data-i18n="deck.h.steps">多步按键</h2>
+    <p data-i18n="deck.steps.p1">每个按键有三种手势：点按、双击，以及按住半秒的长按。每种手势都可以有自己的动作。</p>
+    <p data-i18n="deck.steps.p2">一个手势也可以连续运行多个动作，每个动作之前可以暂停最多 10 秒。例如：静音麦克风，稍等片刻，然后打开一个应用。</p>
+    <p data-i18n="deck.steps.p3">即使前面的步骤失败，后面的每一步也都会运行。只要有任何一步失败，按键就会在最后一步运行完后闪红光。</p>
+
+    <h2 id="state" data-i18n="deck.h.state">显示状态的按键</h2>
+    <p data-i18n="deck.state.p1">按键可以跟随一个实时状态，在状态开启时亮起。它可以跟随：</p>
+    <ul>
+      <li data-i18n="deck.state.audio">麦克风静音、扬声器静音，以及正在使用哪个音频输出</li>
+      <li data-i18n="deck.state.obs">OBS 正在录制、OBS 正在推流、所选的 OBS 场景正在播出、某个 OBS 来源已静音</li>
+      <li data-i18n="deck.state.discord">Discord 麦克风静音或耳机静音</li>
+      <li data-i18n="deck.state.media">正在播放音乐、Spotify 正在播放、计时器正在运行</li>
+      <li data-i18n="deck.state.other">Home Assistant 设备、Streamer.bot 全局变量，或者社区小组件发布的某个值</li>
+    </ul>
+    <p data-i18n-html="deck.state.face">状态开启时，按键还可以改变外观。在按键编辑器中，<strong>激活时外观</strong>用来设置第二套图标、标签和颜色：例如，一个麦克风在静音时变成被划掉的麦克风。</p>
+    <p data-i18n-html="deck.state.script">电脑上的任何脚本也可以驱动按键。把按键绑定到<strong>反映脚本状态</strong>，给状态起个名字，然后在脚本末尾加上一行：<code>curl -X POST 127.0.0.1:3030/state/set -H "Content-Type: application/json" -d '{"name":"audio-out","value":"speakers"}'</code></p>
+    <p data-i18n="deck.state.local">脚本一运行，按键就会变化。网页无法向这个地址发送数据，社区小组件也不能。</p>
+    <p data-i18n="deck.state.live">按键上还可以显示实时数值：正在倒计时的计时器、CPU 或 GPU 负载、温度、风扇转速、功耗、无线设备的电量，或者社区小组件提供的某个值。</p>
+    <p data-i18n="deck.state.led">如果由 Xenon 控制你的灯光，按键还可以在按下时点亮你的 RGB 灯，或者在状态开启期间一直点亮。</p>
+
+    <h2 id="faders" data-i18n="deck.h.faders">推子</h2>
+    <p data-i18n-html="deck.fader.p1">按键可以是滑块，而不是按钮。把按键类型选为<strong>滑块（触摸推子）</strong>，选择竖向或横向，然后用手指拖动。</p>
+    <p data-i18n="deck.fader.p2">滑块可以设置系统音量、某个应用的音量（Windows 和 Linux）、Spotify 音量、OBS 输入、Discord 麦克风或输出音量，或者 Home Assistant 灯光的亮度。</p>
+    <p data-i18n="deck.fader.p3">对于系统音量、Discord 和 Home Assistant 灯光，当数值在别处发生变化时，滑块会自己移动。其他滑块则停在你上次放下的位置。</p>
+
+    <h2 id="profiles" data-i18n="deck.h.profiles">配置、页面和文件夹</h2>
+    <p data-i18n="deck.prof.p1">一个 Deck 包含若干配置：分别用于直播、工作或游戏的几套按键。每个配置有自己的网格，最多八列八行。你可以在 Deck 的标题栏中切换配置，也可以让 Xenon AI 帮你切换。</p>
+    <p data-i18n="deck.prof.p2">一个配置可以有多页，按键下方有箭头和圆点用来翻页。按键也可以是一个文件夹，打开后是它自己的几页按键。</p>
+    <p data-i18n-html="deck.prof.smart"><strong>智能配置</strong>把某个应用和某个配置关联起来。当这个应用切到前台时，Deck 会显示对应的配置；离开这个应用后，Deck 会切回原来的配置或保持不变，由你选择。你手动选择的配置始终优先。</p>
+    <p data-i18n-html="deck.prof.copy">仪表盘上可以放不止一个 Deck。每个 Deck 一开始都是空的，并保留自己的按键。要重复使用某个配置，打开新 Deck 的配置菜单，在<strong>来自其他 Deck</strong> 下选择它。</p>
+    <p data-i18n-html="deck.prof.popup">在 Windows 上，配置菜单中的<strong>在电脑上打开</strong>会在你的主显示器上用一个小窗口显示同样的按键，这个窗口始终位于其他窗口之上。你可以在那里按按键；编辑仍在仪表盘上进行。</p>
+
+    <h2 id="make" data-i18n="deck.h.make">制作 Deck</h2>
+    <ol>
+      <li data-i18n-html="deck.make.1">点按顶栏中的<strong>布局</strong>。</li>
+      <li data-i18n-html="deck.make.2">点按页面上的 <strong>+</strong>，在<strong>直播</strong>分组中选择<strong>快捷面板</strong>（即 Deck）。拖动磁贴并调整大小，然后点按<strong>完成</strong>。</li>
+      <li data-i18n-html="deck.make.3">点按 Deck 标题栏中的铅笔图标。空位上显示 <strong>+</strong>：点按一个即可打开<strong>编辑按键</strong>。</li>
+      <li data-i18n-html="deck.make.4">选择类型（<strong>动作</strong>、<strong>文件夹</strong>或<strong>滑块</strong>）、标题、图标和颜色，然后设置<strong>点按</strong>、<strong>双击</strong>和<strong>长按</strong>的动作。保存。</li>
+      <li data-i18n="deck.make.5">点按标题栏中的对勾，退出编辑模式，就可以使用这些按键了。</li>
+    </ol>
+    <p data-i18n="deck.make.size">开启“自动”时，Deck 会在磁贴里放下尽可能多的方形按键。在编辑模式下，你可以选择小、中或大按键，也可以关闭“自动”，自己设置列数和行数。网格改变时，你的按键永远不会被丢弃。</p>
+    <p data-i18n="deck.make.ai">你也可以让 Xenon AI 帮你设置一个 Deck，例如一个直播页面，外加配套的按键。</p>
+
+    <h2 id="platforms" data-i18n="deck.h.platforms">macOS 和 Linux</h2>
+    <p data-i18n="deck.plat.p1">macOS 和 Linux 上的 Xenon 目前是测试版。按键编辑器会略去你的系统无法运行的动作，这样你就不会设置出一个一按就失败的按键。</p>
+    <ul>
+      <li data-i18n-html="deck.plat.all"><strong>三个系统上都可用：</strong>打开应用、文件和网址，运行脚本，锁定电脑，媒体键，音量和麦克风，webhook，计时器，音效板，以及 OBS、Streamer.bot、Discord、Spotify、Home Assistant、Twitch、YouTube 和 Claude Code 按键。</li>
+      <li data-i18n-html="deck.plat.apps"><strong>什么算应用：</strong>在 Windows 上是 .exe、快捷方式或应用的安装文件夹；在 macOS 上是 .app，访达会隐藏这个扩展名，Xenon 会替你补上；在 Linux 上是 .desktop 条目、AppImage 或程序。</li>
+      <li data-i18n-html="deck.plat.scripts"><strong>脚本：</strong>在 Windows 上是 .bat、.cmd、.ps1、Python 等，按键可以显示或隐藏脚本的窗口。在 macOS 和 Linux 上是 .sh、.zsh、.command、Python 等，macOS 上还有 AppleScript；脚本在后台运行，没有窗口。需要装好对应的解释器。</li>
+      <li data-i18n-html="deck.plat.keys"><strong>键盘快捷键：</strong>在 macOS 上，你在辅助功能中允许 Xenon Helper 之后，快捷键会通过它发送；在 Linux 上，X11 需要 xdotool，Wayland 需要 ydotool。在这两个系统上，快捷键都会发送到最前面的应用。</li>
+      <li data-i18n-html="deck.plat.appaudio"><strong>分应用音量和应用混音器：</strong>Windows 和 Linux。macOS 没有提供可供 Xenon 控制的分应用混音器，所以这些动作在 macOS 上是隐藏的。</li>
+      <li data-i18n-html="deck.plat.win"><strong>仅限 Windows：</strong>输入文字、移动窗口、Microsoft Store 应用、Voicemeeter、打电话和发短信（测试版）、远程会话按键，以及“在电脑上打开”窗口。</li>
+    </ul>
+
+    <h2 id="share" data-i18n="deck.h.share">分享和导入配置</h2>
+    <p data-i18n-html="deck.share.p1">每个配置都有一个<strong>分享</strong>按钮。它会生成一段代码，可以作为链接或 .json 文件发送；按键上带图片的配置会以文件形式分享。</p>
+    <p data-i18n="deck.share.p2">如果某些按键使用了社区小组件，Xenon 会询问是否把这些小组件放进代码。导入的人仍然要逐个检查并批准每个小组件。</p>
+    <p data-i18n="deck.share.p3">导入配置时会先显示一份检查信息：它的名称、有多少个按键，以及包含哪些类型的动作。Xenon 会通过自己的检查重新构建这个配置，并丢弃任何它不认识的内容。在你点按按键之前，什么都不会运行，而且每个动作在运行前都会再检查一次。</p>
+    <p data-i18n="deck.share.p4">从别人那里导入的配置，不能再从你的电脑上分享出去。你自己做的配置则随时可以分享。</p>
+    <p data-i18n-html="deck.share.p5"><a href="/catalog/">社区目录</a>中也有 Deck 配置，你也可以<a href="/submit/">提交自己的配置</a>。每份投稿在上架前都会经过人工审核。</p>
+
+    <h2 id="faq" data-i18n="deck.h.faq">常见问题</h2>
+    <details><summary data-i18n="deck.faq.free.q">Deck 免费吗？</summary><div class="body"><p data-i18n="deck.faq.free.a">免费。Deck 是 Xenon 的一部分，Xenon 个人使用免费，无需账号，也没有试用期。</p></div></details>
+    <details><summary data-i18n="deck.faq.obs.q">Deck 按键能切换 OBS 场景吗？</summary><div class="body"><p data-i18n="deck.faq.obs.a">能。按键可以切换到指定名称的场景或下一个场景，开始或停止录制和推流，以及静音某个 OBS 来源或设置它的音量。请先在“设置”&gt;“直播”中连接 OBS。</p></div></details>
+    <details><summary data-i18n="deck.faq.steps.q">一个按键能做好几件事吗？</summary><div class="body"><p data-i18n="deck.faq.steps.a">能。点按、双击和长按可以分别按顺序运行各自的一串动作，每一步之前可以暂停最多 10 秒。</p></div></details>
+    <details><summary data-i18n="deck.faq.mac.q">Deck 能在 macOS 和 Linux 上使用吗？</summary><div class="body"><p data-i18n="deck.faq.mac.a">能，目前是测试版。打开应用、文件和网址、脚本、媒体、音量、OBS、Discord、Spotify、Home Assistant 以及 Twitch 和 YouTube 按键在三个系统上都可用。少数按键需要 Windows，比如输入文字、移动窗口和 Voicemeeter；在无法使用它们的系统上，按键编辑器不会提供这些按键。</p></div></details>
+    <details><summary data-i18n="deck.faq.phone.q">可以把手机当作 Deck 使用吗？</summary><div class="body"><p data-i18n="deck.faq.phone.a">可以，目前是测试版。通过你自己的 Wi-Fi 把手机或平板与电脑配对，它就会显示你的整个仪表盘，包括 Deck。作用于电脑的按键，比如打开应用或切换 OBS 场景，会在电脑上运行。音效板的片段则在手机上播放。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="deck.cta.h">下载 Xenon</h3>
+      <p data-i18n-html="deck.cta.p">Xenon 免费，无需账号。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">下载 Windows 版 Xenon</a>，或者在<a href="/zh/download.html">下载页面</a>选择 macOS 或 Linux（测试版）。</p>
+      <p data-i18n-html="deck.cta.demo">想先看看，可以打开<a href="/demo/">浏览器演示</a>。Deck 编辑器在那里可以使用，但按键无法作用于电脑，因为这个页面背后没有电脑。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

@@ -44,6 +44,14 @@ window.__XD__ = (function () {
       // have, and must never start the wake-word/voice paths.
       updateCheck: false,
       wakeWord: false,
+      // A visitor came to see the dashboard, so nothing may stand in front of
+      // it: the "where do you want Xenon?" question is about an install they
+      // do not have, and the tour, the Discord card and the supporter ask are
+      // for people who already use it.
+      surfaceChoice: { kind: 'auto', asked: true, monitor: '', label: '' },
+      onboarding: { seenVersion: 999 },
+      discordInviteSeen: true,
+      supportAskSeen: true,
     },
 
     system: {
@@ -125,9 +133,9 @@ window.__XD__ = (function () {
     ],
 
     news: [
-      { title: 'A 14.5-inch touchscreen is quietly becoming a PC accessory category', source: 'The Verge', url: '', publishedAt: iso(now - 2 * HOUR) },
-      { title: 'Open-source dashboards are having a moment', source: 'Ars Technica', url: '', publishedAt: iso(now - 5 * HOUR) },
-      { title: 'How much of your desk should be a screen?', source: 'Tom’s Hardware', url: '', publishedAt: iso(now - 9 * HOUR) },
+      { title: 'A 14.5-inch touchscreen is quietly becoming a PC accessory category', source: 'Sample Wire', url: '', publishedAt: iso(now - 2 * HOUR) },
+      { title: 'Second screens are finding a place on the desk', source: 'Sample Daily', url: '', publishedAt: iso(now - 5 * HOUR) },
+      { title: 'How much of your desk should be a screen?', source: 'Sample Review', url: '', publishedAt: iso(now - 9 * HOUR) },
     ],
 
     // The Calcio tile's real payload shape — one entry per followed team or

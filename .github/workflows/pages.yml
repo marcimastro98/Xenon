@@ -30,9 +30,25 @@ on:
       - 'server/vendor/**'
       - 'packages/core/src/**'
       - 'tools/build-demo.mjs'
+      - 'tools/build-i18n.mjs'
+      - 'tools/build-page-langs.mjs'
+      - 'tools/page-i18n.mjs'
+      - 'tools/lang-pages.mjs'
+      - 'tools/site-chrome.mjs'
+      - 'tools/build-seo.mjs'
+      - 'tools/stamp-release.mjs'
+      - 'tools/build-releases.mjs'
+      # docs/releases.html is written from the changelog at deploy time.
+      - 'CHANGELOG.md'
+      - 'tools/i18n/**'
       - 'tools/demo/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch: {}
+  # Once a day, so the release facts the pages state (version, installer size)
+  # follow a release published between two pushes. Never `release: published`:
+  # the release pipeline stages assets on a draft and publishes by hand.
+  schedule:
+    - cron: '41 7 * * *'
 
 permissions:
   contents: read
@@ -87,8 +103,24 @@ jobs:
       # crawler indexes Spanish at /es/ instead of the English it renders
       # everywhere with an English browser. Must run before build-seo.mjs,
       # which lists the copies in the sitemap.
+      - name: Stamp the latest release into the pages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/stamp-release.mjs
+
+      # What changed in each version, from CHANGELOG.md, so the site answers
+      # "is this still maintained?" without sending the visitor to GitHub.
+      - name: Build the releases page
+        run: node tools/build-releases.mjs
+
       - name: Build language copies of the home page
         run: node tools/build-i18n.mjs
+
+      # The other pages' copies (download, FAQ, the guides...), from the
+      # dictionaries in tools/i18n/. A missing translation keeps English and is
+      # reported in the log; it never stops a deploy.
+      - name: Build language copies of the other pages
+        run: node tools/build-page-langs.mjs
 
       - name: Build SEO surface
         run: node tools/build-seo.mjs
