@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>在副屏上查看 Claude Code 额度并批准请求</title>
+<meta name="description" content="在副屏或手机上查看 Claude Code 真实的 5 小时和 7 天额度、实时会话和计划，点一下即可批准权限请求。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="在副屏上查看 Claude Code 额度并批准请求">
+<meta property="og:description" content="在副屏或手机上查看 Claude Code 真实的 5 小时和 7 天额度、实时会话和计划，点一下即可批准权限请求。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/zh/claude-code.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/zh/claude-code.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"可以在副屏上查看我的 Claude Code 额度吗？","acceptedAnswer":{"@type":"Answer","text":"可以。连接 Claude Code 后，Xenon 磁贴会显示 Claude Pro 或 Max 套餐的 5 小时和 7 天窗口，包括已用多少以及距离每次重置的倒计时。"}},{"@type":"Question","name":"可以用手机批准 Claude Code 的请求吗？","acceptedAnswer":{"@type":"Answer","text":"可以，只要手机已与 Xenon 配对（该功能目前是测试版）。手机会显示同一个仪表盘，每个请求都有“允许”和“拒绝”。"}},{"@type":"Question","name":"如果我不回答请求，会怎样？","acceptedAnswer":{"@type":"Answer","text":"不会批准任何东西。九分钟后，或者 Xenon 已关闭时，请求会像平常一样回到 Claude Code 的终端。"}},{"@type":"Question","name":"连接会改动我的 Claude Code 设置中的什么？","acceptedAnswer":{"@type":"Answer","text":"它会先保存一份 settings.json 的副本，然后在其中添加一个状态行和一组钩子。如果你原本有自己的状态行，Xenon 会继续运行它。"}},{"@type":"Question","name":"这个磁贴能配合 API 密钥使用吗？","acceptedAnswer":{"@type":"Answer","text":"能，但没有额度窗口，额度窗口只有 Pro 和 Max 套餐才有。磁贴会改为用你设定的每周预算来衡量你的令牌用量。"}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── The capture ──────────────────────────────────────────────── */
+  .shot { margin: 8px 0 30px; }
+  .shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  }
+  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/claude-code.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/claude-code.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/claude-code.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/claude-code.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/claude-code.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/claude-code.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/claude-code.html" aria-current="page" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"在触摸屏上使用 Claude Code","item":"https://xenon-app.com/zh/claude-code.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="cc.h1">副屏上的 Claude Code</h1>
+    <p class="lede" data-i18n="cc.lede">Xenon 的 Claude Code 磁贴会显示你真实的 5 小时和 7 天额度、每个会话正在做什么，以及每一个带有“允许”和“拒绝”的权限请求。它放在电脑旁边的屏幕上：Xeneon Edge、显示器、平板或已配对的手机。</p>
+    <p class="updated" data-i18n="cc.updated">最后更新：2026年9月27日</p>
+
+    <figure class="shot">
+      <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="Claude Code 磁贴：一个运行 npm test 的请求，带“允许”和“拒绝”；一个等待批准的会话，其计划的 4 步中已完成 2 步；以及 5 小时和 7 天的额度条" data-i18n-alt="cc.shot.alt">
+      <figcaption data-i18n="cc.shot.cap">Claude Code 磁贴：打开着一个权限请求，还有一个会话及其计划，以及额度条。</figcaption>
+    </figure>
+
+    <p data-i18n-html="cc.intro">从 <strong>+</strong> 按钮的<strong>系统</strong>分组中添加这个磁贴。令牌统计立即可用。真实额度、准确的会话状态和批准功能需要连接 Claude Code，这一步在磁贴里就能完成。它运行在 Windows 上，也运行在 macOS 和 Linux 上，这两个系统目前是测试版。</p>
+
+    <nav class="jump">
+      <a href="#quota" data-i18n="cc.jump.quota">额度</a>
+      <a href="#sessions" data-i18n="cc.jump.sessions">会话和计划</a>
+      <a href="#approve" data-i18n="cc.jump.approve">批准</a>
+      <a href="#questions" data-i18n="cc.jump.questions">Claude 的提问</a>
+      <a href="#deck" data-i18n="cc.jump.deck">提问和 Deck 按键</a>
+      <a href="#link" data-i18n="cc.jump.link">连接方法</a>
+      <a href="#data" data-i18n="cc.jump.data">什么数据发往哪里</a>
+      <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
+      <a href="#faq" data-i18n="cc.jump.faq">常见问题</a>
+    </nav>
+
+    <h2 id="quota" data-i18n="cc.h.quota">5 小时和 7 天额度</h2>
+    <p data-i18n="cc.quota.p1">Claude Code 会把你订阅的真实限额交给它的状态行：5 小时窗口和 7 天窗口，各自包括已用多少以及何时重置。连接 Claude Code 后，Xenon 会读取这些数字，把它们画成两条进度条，每条都带有距离重置的倒计时。</p>
+    <p data-i18n="cc.quota.p2">进度条显示的是已用量，和 Claude 自己的用量页面一样。达到 70% 时变成琥珀色，达到 90% 时变成红色。</p>
+    <p data-i18n-html="cc.quota.p3">这两个窗口只存在于 Claude Pro 和 Max 套餐中，API 密钥没有。使用 API 密钥时、连接 Claude Code 之前，以及 Xenon 重启后直到某个会话发来新数字之前，磁贴会改为显示<strong>每周预算</strong>：一个由你选择的上限（Pro、Max 5×、Max 20× 或你自己的数字），以及本周的令牌用量与它的对比。</p>
+    <p data-i18n-html="cc.quota.p4">额度下方是今天和本周的令牌数、缓存命中率，以及在这台电脑上记录的工作如果按 API 计费要花多少钱。磁贴更高时，还会显示最近 30 天的数据，以及按项目和按模型的细分。这些数字来自 Claude Code 自己保存在 <code>~/.claude</code> 中的会话文件，在你的电脑上读取，所以在连接任何东西之前就能用。</p>
+
+    <h2 id="sessions" data-i18n="cc.h.sessions">实时会话和计划</h2>
+    <p data-i18n="cc.sessions.p1">连接 Claude Code 后，电脑上的每个 Claude Code 会话都会占一行：项目、模型、上下文窗口的占用程度，以及它的状态：工作中、等待你或空闲。这个状态由 Claude Code 自己报告，所以会话一开始就会出现一行，而不是一分钟之后。</p>
+    <p data-i18n="cc.sessions.p2">工作中的会话会显示它正在运行的命令及已运行多久。等待中的会话会说明它在等什么。子代理以单独的小标签显示，正在压缩的对话也会注明。</p>
+    <p data-i18n="cc.sessions.p3">当 Claude 按清单逐项工作时，这一行会显示那个计划：完成了几步、正在运行的步骤，以及接下来的步骤。</p>
+    <p data-i18n="cc.sessions.p4">在 Xenon 打开之前就已启动的会话也会显示。用 Ctrl-C 关闭的会话会在几秒内被标记为已关闭，八分钟后从列表中移除。安静下来的会话会移到“已完成”下，在最后一次活动后保留一小时，所以你仍然可以给它发送后续消息。</p>
+    <p data-i18n="cc.sessions.p5">顶栏的时钟旁边有一个小标记：Clawd，Claude Code 的像素吉祥物。会话工作时它在走路；有会话完成而你还没看时它会闪烁；Claude 在等你时它会跳。它闪烁时，点一下就能打开刚完成的那个会话。</p>
+
+    <h2 id="approve" data-i18n="cc.h.approve">批准权限请求</h2>
+    <p data-i18n-html="cc.approve.p1">当 Claude Code 请求运行命令或修改文件时，请求会出现在磁贴上，显示工具和确切的命令，并附带两个按钮：<strong>允许</strong>和<strong>拒绝</strong>。Claude Code 会等待你的回答。</p>
+    <p data-i18n-html="cc.approve.p2">如果一个请求 25 秒内没有回应，它会占满整个屏幕，这样就不会停在另一页上无人看见。影响范围很大的命令，比如 <code>rm -rf</code> 或 <code>git reset --hard</code>，会立即占满屏幕。当 Claude 请求退出计划模式时，卡片会显示你正在批准的计划。</p>
+    <p data-i18n="cc.approve.p3">不会有任何东西替你批准。如果你在九分钟内没有回答，或者 Xenon 已关闭、连接失败，请求就会回到终端，就像没有 Xenon 时一样。</p>
+    <p data-i18n-html="cc.approve.phone">要用手机回答，请把手机与 Xenon 配对（测试版）。手机会显示同一个仪表盘，带有同样的“允许”和“拒绝”按钮。<a href="/zh/phone.html">如何配对手机</a>。</p>
+    <p data-i18n-html="cc.approve.off">如果你更愿意在终端里回答，请关闭<strong>设置 → Claude Code → 在此屏幕上请求权限</strong>。这样 Claude Code 会立即得知这块屏幕不作回答，并改在终端里询问。</p>
+
+    <h2 id="questions" data-i18n="cc.h.questions">Claude 的提问</h2>
+    <p data-i18n-html="cc.questions.p1">当 Claude 向你提出选择题时，磁贴会显示这个问题，选项显示为按钮。选择一个选项（问题允许时也可以选多个），然后按<strong>回答</strong>。你的选择会送达会话，Claude 随即继续。</p>
+    <p data-i18n="cc.questions.p2">磁贴只能发送 Claude 自己给出的选项，不能自己写答案。</p>
+    <p data-i18n-html="cc.questions.p3"><strong>在终端里</strong>会把问题交还给终端。四分钟内没有回答时也会这样；如果在“设置 → Claude Code”中关闭了<strong>在这块屏幕上回答问题</strong>，则总是这样。提问从不会占满整个屏幕。</p>
+
+    <h2 id="deck" data-i18n="cc.h.deck">提问和 Deck 按键</h2>
+    <p data-i18n-html="cc.deck.p1">连接 Claude Code 后，磁贴上的<strong>提问</strong>按钮可以直接从屏幕启动 Claude Code。选择你的某个项目，写下你想做的事，需要的话再选一个模型，Claude Code 就会在那个文件夹中启动。进度和回答会回到磁贴上，运行期间还有一个“停止”按钮。</p>
+    <p data-i18n="cc.deck.p2">点按一个会话就可以给它写后续消息。如果它还在工作，这条消息会等待，在当前这一轮结束后进入同一段对话。</p>
+    <p data-i18n-html="cc.deck.p3">Deck 为此提供两个按键，位于连接 Claude Code 后出现的 Claude Code 分组中。<strong>向 Claude 提问</strong>保存一个项目、一个请求以及可选的模型，按一下就能开始这项工作。<strong>停止 Claude</strong>会停止从仪表盘启动、仍在进行的最新一次运行。</p>
+    <p data-i18n="cc.deck.p4">从磁贴或按键启动的运行使用 Claude Code 的常规权限模式，而且无法跳过，所以你的 Claude Code 设置中尚未允许的任何操作，都会以卡片的形式回来等你批准。没有任何按键可以批准请求。项目列表是根据 Claude Code 自己的历史记录生成的，所以仪表盘只能在你已经用过的文件夹中启动工作。</p>
+
+    <h2 id="link" data-i18n="cc.h.link">连接 Claude Code</h2>
+    <ol>
+      <li data-i18n-html="cc.link.1">从 <strong>+</strong> 按钮的<strong>系统</strong>分组中添加 <strong>Claude Code</strong> 磁贴。</li>
+      <li data-i18n-html="cc.link.2">在磁贴上按<strong>连接 Claude Code</strong>，然后按<strong>连接</strong>。</li>
+      <li data-i18n="cc.link.3">重启所有已经打开的 Claude Code 会话，让它们开始报告。</li>
+    </ol>
+    <p data-i18n-html="cc.link.writes">连接只会修改一个文件：你的 Claude Code <code>settings.json</code>，位于 <code>~/.claude</code> 或 <code>CLAUDE_CONFIG_DIR</code> 指向的文件夹中。它会添加一个状态行和一组钩子（hook）。每个钩子都指向 <code>127.0.0.1</code> 上的 Xenon，也就是你自己的电脑，并携带一个由 Xenon 生成的密钥。</p>
+    <p data-i18n-html="cc.link.backup">在第一次修改之前，Xenon 会在原文件旁边保存一份副本，名为 <code>settings.json.xenon-backup</code>。</p>
+    <p data-i18n="cc.link.chain">Claude Code 只允许一个状态行。如果你已经有一个，Xenon 会保留它：Xenon 自己的脚本会运行你的脚本，并输出你的脚本输出的内容。如果你的脚本在三秒内没有输出任何内容，就改为显示 Xenon 自己的简短状态行。</p>
+    <p data-i18n-html="cc.link.remove">卸载 Xenon 会移除它添加的每一项，恢复你自己的状态行，并删除备份。你自己的钩子不会被改动。如果想在不卸载的情况下做同样的事，请在 Xenon 的安装文件夹中运行 <code>node server/claude-link.js unlink</code>。</p>
+
+    <h2 id="data" data-i18n="cc.h.data">什么数据发往哪里</h2>
+    <p data-i18n="cc.data.p1">这个磁贴不使用账号，也不使用 API 密钥。它的令牌统计来自你硬盘上的文件，实时数据来自同一台电脑上的 Claude Code。</p>
+    <p data-i18n-html="cc.data.p2">Claude Code 的钩子和状态行把报告发送到 <code>127.0.0.1</code>，也就是你自己的电脑。每份报告都必须携带 Xenon 生成的密钥，没有密钥的报告会被 Xenon 拒绝。钩子通过请求头发送密钥，状态行脚本则从 Xenon 自己的数据文件夹中读取密钥，所以密钥不会出现在命令行或进程列表中。</p>
+    <p data-i18n="cc.data.p3">实时会话状态保存在内存中。Xenon 不会把它写入磁盘，Xenon 重启时它从空白开始。</p>
+    <p data-i18n="cc.data.p4">已配对的手机可以使用这个磁贴、回答请求和启动运行，但不能冒充 Claude Code 发送报告：已配对设备访问这些地址会被拒绝。</p>
+
+    <h2 id="ai" data-i18n="cc.h.ai">用你的 Claude 或 ChatGPT 订阅驱动 Xenon AI</h2>
+    <p data-i18n-html="cc.ai.p1">与这个磁贴无关的另一项功能：从 4.11.10 版起，仪表盘的助手 Xenon AI 可以通过你自己的订阅回答，而不必使用 API 密钥。在<strong>设置 → Xenon AI</strong>中选择 <strong>Claude Code</strong> 或 <strong>Codex</strong>。之后 Xenon 会调用你电脑上安装的官方程序，该程序用你的 Claude 或 ChatGPT 套餐登录。</p>
+    <p data-i18n="cc.ai.p2">你在程序内部通过 Anthropic 或 OpenAI 自己的登录流程登录，Xenon 不会读取、保存或转交你的凭据。这是 Anthropic 允许在其自有应用之外使用 Claude 订阅的唯一方式。</p>
+    <p data-i18n="cc.ai.p3">“设置”会显示程序是否已安装并登录，如果没有，还会告诉你该运行什么。模型菜单由程序自己填充，所以列出的是你的账号目前可以使用的模型。</p>
+    <p data-i18n="cc.ai.p4">助手保留它的仪表盘工具：它可以更换主题、设置 Deck 按键、添加任务和计时器，以及控制灯光和媒体。程序自带的终端和文件工具保持关闭。</p>
+    <p data-i18n="cc.ai.p5">它比 API 密钥慢：普通回答需要几秒，使用工具时大约十秒，因为每次回答都要启动一次程序。它消耗的是你写代码时用的同一份额度。AI 搜索、磁盘顾问和性能模式的优化方案也会使用它，而仪表盘宠物 Bit 自动说的那些短句从不使用它。</p>
+
+    <h2 id="faq" data-i18n="cc.h.faq">常见问题</h2>
+    <details><summary data-i18n="cc.faq.quota.q">可以在副屏上查看我的 Claude Code 额度吗？</summary><div class="body"><p data-i18n="cc.faq.quota.a">可以。连接 Claude Code 后，磁贴会显示 Claude Pro 或 Max 套餐的 5 小时和 7 天窗口，包括已用多少以及距离每次重置的倒计时。</p></div></details>
+    <details><summary data-i18n="cc.faq.phone.q">可以用手机批准 Claude Code 的请求吗？</summary><div class="body"><p data-i18n-html="cc.faq.phone.a">可以，只要手机已与 Xenon 配对（该功能目前是测试版）。手机会显示同一个仪表盘，每个请求都有“允许”和“拒绝”。参见<a href="/zh/phone.html">配对手机</a>。</p></div></details>
+    <details><summary data-i18n="cc.faq.none.q">如果我不回答请求，会怎样？</summary><div class="body"><p data-i18n="cc.faq.none.a">不会批准任何东西。九分钟后，或者 Xenon 已关闭时，请求会像平常一样回到 Claude Code 的终端。</p></div></details>
+    <details><summary data-i18n="cc.faq.settings.q">连接会改动我的 Claude Code 设置中的什么？</summary><div class="body"><p data-i18n="cc.faq.settings.a">它会先保存一份 settings.json 的副本，然后在其中添加一个状态行和一组钩子。如果你原本有自己的状态行，Xenon 会继续运行它。卸载 Xenon 会移除它添加的内容。</p></div></details>
+    <details><summary data-i18n="cc.faq.api.q">这个磁贴能配合 API 密钥使用吗？</summary><div class="body"><p data-i18n="cc.faq.api.a">能，但没有额度窗口，额度窗口只有 Pro 和 Max 套餐才有。磁贴会改为用你设定的每周预算来衡量你的令牌用量。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="cc.cta.h">下载 Xenon</h3>
+      <p data-i18n-html="cc.cta.p">免费，无需账号。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">下载 Windows 版 Xenon</a>，或者在<a href="/zh/download.html">下载页面</a>选择你的系统。想先看看，可以打开<a href="/demo/">浏览器演示</a>。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

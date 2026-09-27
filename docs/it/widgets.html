@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="it" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Widget per Xeneon Edge: i 41 widget della dashboard Xenon</title>
+<meta name="description" content="I 41 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Widget per Xeneon Edge: i 41 widget della dashboard Xenon">
+<meta property="og:description" content="I 41 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/it/widgets.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Widget per Xeneon Edge: i 41 widget della dashboard Xenon">
+<meta name="twitter:description" content="I 41 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
+<link rel="canonical" href="https://xenon-app.com/it/widgets.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Quanti widget ha Xenon?","acceptedAnswer":{"@type":"Answer","text":"41 widget inclusi, in quattro gruppi: Produttività, Media, Sistema e Streaming. I widget del catalogo della community e quelli che crei tu girano nel riquadro Widget personalizzato."}},{"@type":"Question","name":"Per i widget serve uno Xeneon Edge?","acceptedAnswer":{"@type":"Answer","text":"No. La stessa dashboard gira su qualsiasi monitor, su un touchscreen o, in beta, su un telefono o un tablet collegato al tuo Wi-Fi."}},{"@type":"Question","name":"Un riquadro può contenere più widget?","acceptedAnswer":{"@type":"Answer","text":"Sì. In modalità Layout trascina un riquadro al centro di un altro e diventano tab dello stesso riquadro."}},{"@type":"Question","name":"Quante pagine può avere una dashboard di Xenon?","acceptedAnswer":{"@type":"Answer","text":"Fino a 8 pagine, ciascuna su una griglia a 24 colonne."}},{"@type":"Question","name":"Posso creare un widget mio?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con l'SDK dei widget, in beta, scrivi un widget come una pagina HTML e Xenon lo esegue in una sandbox, con solo i dati e le azioni che approva chi lo usa."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── The widget lists ─────────────────────────────────────────── */
+  .wlist { list-style: none; padding: 0; margin: 0 0 20px; border-top: 1px solid var(--line); }
+  .wlist li { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .wlist li strong { color: var(--text); }
+  figure.shot { margin: 26px 0 8px; }
+  figure.shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--g-1);
+  }
+  figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .jump + .note { margin-top: 26px; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/widgets.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/widgets.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/widgets.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/widgets.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/widgets.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/widgets.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li><li><a href="/it/#install" data-xl="install">Installazione</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Offrimi un caffè</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/widgets.html" aria-current="page" data-xl="f.widgets">Tutti i widget</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Tutti i widget","item":"https://xenon-app.com/it/widgets.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="wg.h1">I widget di Xenon: l'elenco completo</h1>
+    <p class="lede" data-i18n="wg.lede">Xenon è una dashboard touch gratuita per gli schermi accanto a un PC: un CORSAIR Xeneon Edge, un monitor libero, un touchscreen o, in beta, un telefono o un tablet. Include 41 widget. Qui trovi ciascuno con quello che fa, poi come si posizionano e da dove ne arrivano altri.</p>
+    <p class="updated" data-i18n="wg.updated">Ultimo aggiornamento: 27 settembre 2026</p>
+
+    <nav class="jump" aria-label="On this page">
+      <a href="#productivity" data-i18n="wg.jump.prod">Produttività</a>
+      <a href="#media" data-i18n="wg.jump.media">Media</a>
+      <a href="#system" data-i18n="wg.jump.system">Sistema</a>
+      <a href="#streaming" data-i18n="wg.jump.stream">Streaming</a>
+      <a href="#layout" data-i18n="wg.jump.layout">Griglia, pagine e tab</a>
+      <a href="#catalog" data-i18n="wg.jump.catalog">Widget del catalogo</a>
+      <a href="#own" data-i18n="wg.jump.own">Un widget tuo</a>
+      <a href="#faq" data-i18n="wg.jump.faq">Domande</a>
+    </nav>
+
+    <p class="note" data-i18n="wg.platforms">Xenon gira su Windows 10 e 11, con macOS e Linux in beta. L'elenco è lo stesso su tutti e tre, tranne Secondo schermo, che c'è solo su Windows. Quando un sistema non può dare i dati a un widget, il riquadro lo dice, e i limiti di ogni piattaforma sono indicati nell'elenco.</p>
+
+    <h2 id="productivity" data-i18n="wg.h.prod">Produttività</h2>
+    <p data-i18n="wg.prod.intro">14 widget, nello stesso ordine del pannello che si apre con +.</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.agenda"><strong>Agenda.</strong> Calendario, Task, Timer e Appunti come tab di un solo riquadro; quelli che aggiungi come riquadro a sé escono dalla barra delle tab.</li>
+      <li data-i18n-html="wg.w.calendar"><strong>Calendario.</strong> Una vista mensile con i tuoi eventi e promemoria, più gli eventi in sola lettura da Google, Outlook o qualsiasi calendario che pubblica un link .ics.</li>
+      <li data-i18n-html="wg.w.tasks"><strong>Task.</strong> Una lista di cose da fare con priorità alta, media e bassa, e task che si ripetono ogni giorno, ogni settimana o a distanza di qualche giorno.</li>
+      <li data-i18n-html="wg.w.timer"><strong>Timer.</strong> Conti alla rovescia e cronometri con un nome, fino a 20 insieme, che restano salvati anche dopo un riavvio.</li>
+      <li data-i18n-html="wg.w.notes"><strong>Appunti.</strong> Note di solo testo divise in tab, che si salvano quando smetti di scrivere, con una che puoi fissare in primo piano.</li>
+      <li data-i18n-html="wg.w.weather"><strong>Meteo.</strong> Condizioni attuali, previsioni orarie e giornaliere e qualità dell'aria, da Open-Meteo, MET Norway o wttr.in, senza account.</li>
+      <li data-i18n-html="wg.w.search"><strong>Ricerca.</strong> Trova i file sul PC partendo da una frase semplice come “foto di dicembre” o “pdf grandi”, scritta direttamente nel riquadro.</li>
+      <li data-i18n-html="wg.w.transfer"><strong>Trasferimento file.</strong> Manda foto, video e file tra un telefono o un tablet abbinato e il PC attraverso la tua rete, ed elenca cosa è arrivato e cosa hai mandato. Richiede l'accesso dal telefono, che è in beta.</li>
+      <li data-i18n-html="wg.w.stocks"><strong>Borsa.</strong> Una lista di azioni, indici, criptovalute e valute con la variazione del giorno e un grafico per ogni simbolo, tramite Yahoo Finance, che di base non chiede nessuna chiave.</li>
+      <li data-i18n-html="wg.w.football"><strong>Calcio.</strong> Partite in programma, risultati e classifiche delle squadre e delle competizioni che segui, da TheSportsDB senza chiave.</li>
+      <li data-i18n-html="wg.w.news"><strong>News.</strong> Un unico elenco di titoli, dal più recente, dalle testate, dagli argomenti e dai feed RSS che segui.</li>
+      <li data-i18n-html="wg.w.notifications"><strong>Notifiche.</strong> Le notifiche che mostra il desktop, con l'app, il mittente e il testo, che puoi nascondere finché non tocchi. Windows e Linux.</li>
+      <li data-i18n-html="wg.w.vitals"><strong>Vitals.</strong> Indicatori in pixel art per bere, mangiare, muoverti e far riposare gli occhi, che si svuotano mentre sei al PC. Toccane uno e conferma di averlo fatto per riempirlo di nuovo.</li>
+      <li data-i18n-html="wg.w.phone"><strong>Telefono.</strong> Contatti, cronologia delle chiamate, tastierino e SMS di un iPhone o di un telefono Android abbinato al PC via Bluetooth. Windows, beta.</li>
+    </ul>
+    <figure class="shot">
+      <img src="/images/home/crop-calendar.webp" width="836" height="572" loading="lazy" decoding="async" alt="Il riquadro Agenda sulla tab Calendario: la griglia del mese di settembre 2026 e tre eventi in arrivo, con le tab Task, Timer e Appunti in alto" data-i18n-alt="wg.shot.cal">
+      <figcaption data-i18n="wg.cap.cal">Il riquadro Agenda, con Calendario, Task, Timer e Appunti come tab.</figcaption>
+    </figure>
+
+    <h2 id="media" data-i18n="wg.h.media">Media</h2>
+    <p data-i18n="wg.media.intro">4 widget.</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.media"><strong>Riproduzione.</strong> Cosa suona in qualsiasi app multimediale sul PC, con la copertina, play e pausa, brano precedente e successivo.</li>
+      <li data-i18n-html="wg.w.chat"><strong>Chat.</strong> La chat scritta di Xenon AI, dove fai domande, alleghi immagini, PDF e file di testo, e le chiedi di cambiare cose sulla dashboard.</li>
+      <li data-i18n-html="wg.w.browser"><strong>Browser.</strong> Una pagina web dentro un riquadro, con tab, barra degli indirizzi, avanti e indietro, gestita da un browser Chromium sul PC, così apre anche i siti che non si lasciano incorporare.</li>
+      <li data-i18n-html="wg.w.slideshow"><strong>Slideshow.</strong> Fa scorrere le immagini e le GIF animate che aggiungi, o una cartella del PC, e con un tocco la metti in pausa o vai avanti a mano.</li>
+    </ul>
+    <figure class="shot">
+      <img src="/images/home/crop-media.webp" width="836" height="572" loading="lazy" decoding="async" alt="La tab Riproduzione del riquadro Media: un brano di Spotify con la copertina, i pulsanti precedente, pausa e successivo e un cursore del volume, con la tab Chat accanto" data-i18n-alt="wg.shot.media">
+      <figcaption data-i18n="wg.cap.media">Riproduzione e Chat condividono un riquadro fin dall'inizio.</figcaption>
+    </figure>
+
+    <h2 id="system" data-i18n="wg.h.system">Sistema</h2>
+    <p data-i18n="wg.system.intro">13 widget.</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.system"><strong>Sistema.</strong> Grafici in tempo reale dell'uso di CPU, GPU, memoria e disco, temperature di CPU e GPU, velocità di rete, ping e frame rate del gioco a cui stai giocando. Il frame rate in gioco funziona su Windows, e su Linux per i giochi avviati con MangoHud.</li>
+      <li data-i18n-html="wg.w.fans"><strong>Ventole.</strong> La velocità di ogni ventola che i sensori rilevano, raggruppate per scheda madre, hub o AIO, scheda video e alimentatore, con nomi che puoi cambiare. Windows e Linux.</li>
+      <li data-i18n-html="wg.w.power"><strong>Energia.</strong> Il consumo del PC in watt per CPU e GPU, quello di tutto il computer quando l'alimentatore lo comunica, e accanto i sensori di consumo di Home Assistant. Le letture del PC sono solo per Windows; quelle di Home Assistant funzionano su ogni sistema.</li>
+      <li data-i18n-html="wg.w.battery"><strong>Batterie.</strong> La carica dei dispositivi CORSAIR wireless tramite iCUE, dei dispositivi Bluetooth, e della batteria di un portatile o di un UPS collegato via USB. Windows.</li>
+      <li data-i18n-html="wg.w.disk"><strong>Spazio disco.</strong> Una mappa di cosa riempie ogni unità, con i file più grandi, i duplicati verificati e un elenco fisso di categorie sicure da pulire, che finiscono nel Cestino.</li>
+      <li data-i18n-html="wg.w.audio"><strong>Volume.</strong> Volume generale e muto, dispositivo di uscita e di ingresso, e un cursore per ogni app che riproduce audio. I cursori per le singole app funzionano su Windows e Linux.</li>
+      <li data-i18n-html="wg.w.mic"><strong>Microfono.</strong> Un grande pulsante attiva e disattiva il microfono, con un cursore per la sensibilità in ingresso.</li>
+      <li data-i18n-html="wg.w.secondscreen"><strong>Secondo schermo.</strong> Un desktop di Windows in più, creato da un driver di schermo virtuale e mostrato dal vivo nel riquadro, così puoi trascinarci le app e usarle al tocco. Solo Windows.</li>
+      <li data-i18n-html="wg.w.remote"><strong>Controllo Remoto.</strong> Stato e comandi per trasmettere il PC al telefono tramite Sunshine, Tailscale e Moonlight: scegli quale monitor inviare, disconnetti, blocca l'accesso o dissocia tutti i dispositivi con il Kill-switch. Compare nel pannello + dopo aver configurato Sunshine e Tailscale.</li>
+      <li data-i18n-html="wg.w.smarthome"><strong>Smart Home.</strong> I dispositivi Home Assistant che scegli, raggruppati per stanza: luci e interruttori come levette, scene come pulsanti, lettori multimediali e letture dei sensori.</li>
+      <li data-i18n-html="wg.w.unifi"><strong>Telecamere.</strong> Immagini quasi in diretta dalle telecamere UniFi Protect e da qualsiasi telecamera che Home Assistant rende disponibile, con un tocco per ingrandirne una.</li>
+      <li data-i18n-html="wg.w.lighting"><strong>Illuminazione.</strong> Colore, effetti e modalità per ogni dispositivo, per i dispositivi iCUE e per le luci in rete come WLED, Hue e Nanoleaf. I dispositivi iCUE solo su Windows.</li>
+      <li data-i18n-html="wg.w.claude"><strong>Claude Code.</strong> Dopo che hai collegato Claude Code dal riquadro: i limiti di 5 ore e settimanali, ogni sessione attiva e cosa sta facendo, e le richieste di permesso a cui puoi rispondere dal riquadro.</li>
+    </ul>
+    <figure class="shot">
+      <img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="Il riquadro Sistema: grafici di CPU, GPU, RAM e disco C, poi ping, FPS, latenza e velocità di rete, con le tab Volume e Microfono in alto" data-i18n-alt="wg.shot.sys">
+      <figcaption data-i18n="wg.cap.sys">Il riquadro Sistema, con Volume e Microfono come tab.</figcaption>
+    </figure>
+
+    <h2 id="streaming" data-i18n="wg.h.stream">Streaming</h2>
+    <p data-i18n="wg.stream.intro">10 widget. Twitch, YouTube, Discord e Spotify si collegano al tuo account in Impostazioni, tramite un'app sviluppatore gratuita che registri una volta sola. OBS, Streamer.bot e Wave Link richiedono che quei programmi siano aperti.</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.twitch"><strong>Twitch Live.</strong> Per chi fa dirette su Twitch: stato della diretta, avvio e chiusura tramite OBS, muto del microfono, clip, marker, pause pubblicitarie, titolo e categoria, e la chat.</li>
+      <li data-i18n-html="wg.w.twitchwatch"><strong>Twitch.</strong> Il player di Twitch in un riquadro, con i canali che segui in diretta, i canali più popolari, la ricerca e una chat facoltativa.</li>
+      <li data-i18n-html="wg.w.youtube"><strong>YouTube.</strong> Un player YouTube che pesca dai video a cui hai messo Mi piace, dalle playlist, dalle iscrizioni e dalla ricerca, e continua con il resto dell'elenco come una coda.</li>
+      <li data-i18n-html="wg.w.youtubelive"><strong>YouTube Live.</strong> Per le dirette su YouTube: crea una diretta, avviala o chiudila, leggi e scrivi in chat, e tieni d'occhio spettatori e stato dello stream.</li>
+      <li data-i18n-html="wg.w.obs"><strong>OBS.</strong> Un'anteprima di quello che OBS sta trasmettendo, i pulsanti per andare in diretta e registrare, un selettore di scene, e muto e cursore del volume per ogni ingresso audio.</li>
+      <li data-i18n-html="wg.w.discord"><strong>Discord.</strong> Il canale vocale in cui sei e chi sta parlando, con muto, silenzia, push-to-talk, un elenco di canali in cui entrare, una soundboard, e i tuoi messaggi diretti e le menzioni.</li>
+      <li data-i18n-html="wg.w.spotify"><strong>Spotify.</strong> Un telecomando per Spotify con il brano in riproduzione, la coda, le tue playlist e i tuoi dispositivi Spotify Connect; per comandare la riproduzione serve Premium.</li>
+      <li data-i18n-html="wg.w.streamerbot"><strong>Streamer.bot.</strong> Un flusso in tempo reale di follow, abbonamenti, raid, cheer e riscatti da Streamer.bot, più le tue variabili globali di Streamer.bot.</li>
+      <li data-i18n-html="wg.w.wavelink"><strong>Wave Link.</strong> Il mixer Elgato Wave Link: un fader e il muto per ogni canale di ogni mix, con i livelli in tempo reale su Wave Link 3.</li>
+      <li data-i18n-html="wg.w.deck"><strong>Deck.</strong> Una griglia di tasti programmabili che aprono app, mandano scorciatoie, comandano media, OBS, Discord o Home Assistant ed eseguono macro in più passaggi.</li>
+    </ul>
+
+    <h2 id="layout" data-i18n="wg.h.layout">Griglia, pagine e tab</h2>
+    <p data-i18n-html="wg.layout.p1">Tocca <strong>Layout</strong> nella barra in alto per modificare la dashboard. I riquadri stanno su una griglia di 24 colonne con righe a mezza altezza, così finiscono vicino a dove li lasci, e si ridimensionano dall'angolo.</p>
+    <p data-i18n="wg.layout.p2">Il + su ogni pagina apre il pannello Aggiungi widget: i quattro gruppi qui sopra, più Widget personalizzato sotto Altro. Una dashboard ha fino a 8 pagine, e passi dall'una all'altra scorrendo, con i tasti freccia o con i puntini delle pagine nella barra in alto.</p>
+    <p data-i18n="wg.layout.p3">Trascina un riquadro al centro di un altro e diventano tab di un solo riquadro; trascina fuori una tab per separarle di nuovo. I riquadri Media, Agenda e Sistema che trovi all'inizio sono fatti così.</p>
+    <p data-i18n="wg.layout.p4">Alcuni widget si possono aggiungere più di una volta. Una copia di Riproduzione, Chat, Agenda, Calendario, Task, Timer, Appunti, Sistema, Volume o Microfono rispecchia l'originale. Una copia di Deck, Browser, Controllo Remoto, Discord o Widget personalizzato è indipendente, con un contenuto suo, come i tasti di un Deck o l'indirizzo di un Browser.</p>
+    <p data-i18n="wg.layout.p5">Un riquadro o una pagina intera si possono salvare come preset e rimettere con un tocco, e una pagina si può condividere con altre persone come link o come file. Su un telefono la stessa dashboard si riorganizza in una colonna; l'accesso dal telefono è in beta.</p>
+
+    <h2 id="catalog" data-i18n="wg.h.catalog">Widget dal catalogo</h2>
+    <p data-i18n-html="wg.catalog.p1">Il <a href="/catalog/">catalogo della community</a> raccoglie widget, temi, sfondi animati, pagine, profili Deck, scene Ambient e pacchetti completi che altre persone hanno creato e condiviso. Ogni voce viene moderata.</p>
+    <p data-i18n-html="wg.catalog.p2">Copia il codice di una voce nella pagina del catalogo e incollalo in <strong>Impostazioni → Widget e condivisione → Importa</strong>, oppure apri lo Store dentro l'app, che mostra lo stesso catalogo. Prima che venga applicato qualcosa, vedi cosa contiene il codice.</p>
+    <p data-i18n-html="wg.catalog.p3">Un widget del catalogo gira nel riquadro <strong>Widget personalizzato</strong>, in una sandbox: riceve solo i dati, le azioni e gli indirizzi web che ha dichiarato, e prima ti chiede il permesso. L'SDK dei widget su cui si basa è in beta.</p>
+
+    <h2 id="own" data-i18n="wg.h.own">Creare un widget tuo</h2>
+    <p data-i18n="wg.own.p1">Un widget tuo si costruisce con l'SDK dei widget, che è in beta: una cartella con un manifest.json e un index.html. Xenon lo esegue in una sandbox e gli passa dati in tempo reale e azioni attraverso un unico canale di messaggi.</p>
+    <p data-i18n-html="wg.own.p2"><strong>Impostazioni → Widget e condivisione → Crea</strong> porta alla guida dell'SDK. Un widget che hai creato si condivide con <strong>Esporta widget</strong>, e chi lo importa vede i suoi permessi e li approva prima.</p>
+    <p data-i18n-html="wg.own.p3">La <a href="/create/">guida per creare</a> parte da zero e copre temi, pagine, profili Deck e widget. Il <a href="/create/#sdk">riferimento dell'SDK dei widget</a> contiene il protocollo completo.</p>
+
+    <h2 id="faq" data-i18n="wg.h.faq">Domande</h2>
+    <details><summary data-i18n="wg.faq.count.q">Quanti widget ha Xenon?</summary><div class="body"><p data-i18n="wg.faq.count.a">41 widget inclusi, in quattro gruppi: Produttività, Media, Sistema e Streaming. In più ci sono i widget del catalogo della community e quelli che crei tu, che girano nel riquadro Widget personalizzato.</p></div></details>
+    <details><summary data-i18n="wg.faq.edge.q">Per i widget serve uno Xeneon Edge?</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">No. La stessa dashboard gira su qualsiasi monitor, su un touchscreen o, in beta, su un telefono o un tablet collegato al tuo Wi-Fi. Vedi <a href="/it/xeneon-edge-widgets.html">Xenon sullo Xeneon Edge</a> e <a href="/it/tablet-dashboard.html">un tablet o un telefono come dashboard</a>.</p></div></details>
+    <details><summary data-i18n="wg.faq.tabs.q">Un riquadro può contenere più widget?</summary><div class="body"><p data-i18n="wg.faq.tabs.a">Sì. In modalità Layout trascina un riquadro al centro di un altro e diventano tab dello stesso riquadro. Trascina fuori una tab per separarle di nuovo.</p></div></details>
+    <details><summary data-i18n="wg.faq.pages.q">Quante pagine può avere una dashboard?</summary><div class="body"><p data-i18n="wg.faq.pages.a">Fino a 8, ciascuna su una griglia a 24 colonne. Una pagina nuova parte vuota e lascia le altre pagine come sono.</p></div></details>
+    <details><summary data-i18n="wg.faq.own.q">Posso creare un widget mio?</summary><div class="body"><p data-i18n="wg.faq.own.a">Sì. Con l'SDK dei widget, in beta, scrivi un widget come una pagina HTML e Xenon lo esegue in una sandbox, con solo i dati e le azioni che approva chi lo usa.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="wg.cta.h">Scarica Xenon</h3>
+      <p data-i18n-html="wg.cta.p">Gratis per uso personale, senza account. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Scarica Xenon per Windows</a>, trova le versioni per macOS e Linux nella <a href="/it/download.html">pagina dei download</a>, oppure prova prima la dashboard nella <a href="/demo/">demo nel browser</a>, che usa dati simulati.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Altre guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul><p class="xg-dl"><a href="/it/download.html" data-xl="f.download">Scarica</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

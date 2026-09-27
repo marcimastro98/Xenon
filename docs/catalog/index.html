@@ -545,6 +545,10 @@
   .cat-media > canvas { width: 100%; height: 100%; display: block; }
   .cat-shots { display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .cat-shots::-webkit-scrollbar { display: none; }
+  .cat-shots:focus-visible { outline: 2px solid var(--plasma); outline-offset: -2px; }
+  .cat-open { all: unset; cursor: pointer; }
+  .cat-open:hover { text-decoration: underline; text-underline-offset: .15em; }
+  .cat-open:focus-visible { outline: 2px solid var(--plasma); outline-offset: 3px; border-radius: 2px; }
   .cat-shot { flex: 0 0 100%; scroll-snap-align: start; width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; background: color-mix(in srgb, var(--g-0) 30%, transparent); }
 
   .cat-kind { position: absolute; top: 10px; left: 10px; z-index: 2; font-family: var(--sans); font-size: 14px; color: var(--text); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--g-0) 62%, transparent); backdrop-filter: blur(6px); }
@@ -601,8 +605,11 @@
   .cat-soldout { flex: 1; text-align: center; font-family: var(--sans); font-size: 15px; font-weight: 700;
     color: var(--danger); padding: 11px 16px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--danger) 42%, transparent); background: color-mix(in srgb, var(--danger) 8%, transparent); }
   /* The archive is deliberately quiet: it is history, not stock. */
-  .arch-strip { margin-top: 34px; opacity: .72; transition: opacity .2s ease; }
-  .arch-strip:hover { opacity: 1; }
+  /* Past drops read as past through their pictures, not through fainter
+     text: fading the whole strip put its labels under the contrast floor. */
+  .arch-strip { margin-top: 34px; }
+  .arch-strip :is(.cat-media, .drop-media, .spot-media) { opacity: .72; transition: opacity .2s ease; }
+  .arch-strip :is(.cat-card, .drop-card, .spot-card):hover :is(.cat-media, .drop-media, .spot-media) { opacity: 1; }
   /* The desaturation sits on the CARDS, not on the row: the row is the element the
      carousel moves with a transform, and a filter on a moving element is re-run
      every frame of the slide. */
@@ -766,7 +773,7 @@
 
   /* The gold join CTA when it leads a featured locked card's foot (the .sup-head
      .sjoin rules are scoped to the strip and don't reach here). */
-  .drop-foot .sjoin { font-family: var(--body); font-weight: 700; font-size: 13.5px; color: var(--g-0); background: var(--gold);
+  .drop-foot .sjoin { font-family: var(--body); font-weight: 700; font-size: 15px; color: light-dark(#FFFFFF, var(--g-0)); background: var(--gold);
     border: 0; border-radius: 11px; padding: 12px 22px; cursor: pointer; white-space: nowrap; transition: filter .18s; }
   .drop-foot .sjoin:hover { filter: brightness(1.06); }
 
@@ -780,7 +787,7 @@
   .sup-head h2 { font-family: var(--display); font-weight: 600; font-size: 20px; letter-spacing: -.01em; color: var(--gold); }
   .sup-head .stag { font-family: var(--sans); font-size: 14px; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 999px; padding: 3px 10px; }
   .sup-head .ssub { flex: 1 1 200px; color: var(--muted); font-size: 15px; }
-  .sup-head .sjoin { font-family: var(--body); font-weight: 700; font-size: 15px; color: var(--g-0); background: var(--gold); border: 0; border-radius: 11px; padding: 10px 16px; cursor: pointer; white-space: nowrap; transition: filter .18s; }
+  .sup-head .sjoin { font-family: var(--body); font-weight: 700; font-size: 15px; color: light-dark(#FFFFFF, var(--g-0)); background: var(--gold); border: 0; border-radius: 11px; padding: 10px 16px; cursor: pointer; white-space: nowrap; transition: filter .18s; }
   .sup-head .sjoin:hover { filter: brightness(1.06); }
   .sup-head .sjoin-alt { color: var(--gold); background: transparent; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); }
   .sup-head .sjoin-alt:hover { filter: none; background: color-mix(in srgb, var(--gold) 10%, transparent); }
@@ -2044,6 +2051,7 @@ function applyLang(lang) {
     const media = el('div', cls);
     if (entry.shots > 0) {
       const strip = el('div', 'cat-shots');
+      if (entry.shots > 1) { strip.tabIndex = 0; strip.setAttribute('role', 'region'); strip.setAttribute('aria-label', entry.name); }
       for (let i = 1; i <= entry.shots; i++) {
         const img = document.createElement('img');
         img.className = 'cat-shot'; img.loading = 'lazy'; img.alt = '';
@@ -2128,22 +2136,32 @@ function applyLang(lang) {
     return { btn, hint };
   }
 
+  // The name of a card is the control that opens its detail view. The card
+  // itself stays clickable with a pointer, but it is not a button: it holds
+  // links and buttons of its own, and a control inside a control cannot be
+  // reached by a screen reader.
+  function nameButton(entry) {
+    const b = el('button', 'cat-open', entry.name);
+    b.type = 'button';
+    b.addEventListener('click', () => openDetail(entry));
+    return b;
+  }
+
   // ── One uniform card: media (screenshot or generated) + body + one action ──
   function renderCard(entry) {
     const card = el('article', 'cat-card clickable' + (limUnavailable(entry) ? ' dim' : ''));
     card.id = 'cat-' + entry.id;
-    card.tabIndex = 0; card.setAttribute('role', 'button');
     // Whole card opens the detail view — unless the tap landed on an actual
     // control (copy/reserve/unlock in the foot, or a byline link).
     card.addEventListener('click', (e) => { if (e.target.closest('.cat-foot, a, button')) return; openDetail(entry); });
-    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
 
     const media = mediaBlock(entry, 'cat-media', false);
     if (isNewEntry(entry)) media.appendChild(el('span', 'cat-new', T('card.new') || 'New'));
     card.appendChild(media);
 
     const body = el('div', 'cat-body');
-    const nameRow = el('h3', 'cat-name', entry.name);
+    const nameRow = el('h3', 'cat-name');
+    nameRow.appendChild(nameButton(entry));
     if (entry.version) nameRow.appendChild(el('span', 'cat-ver', 'v' + entry.version));
     body.appendChild(nameRow);
 
@@ -2191,9 +2209,7 @@ function applyLang(lang) {
   function featuredCard(entry, gold) {
     const card = el('article', 'drop-card' + (gold ? ' gold' : ''));
     card.id = 'cat-' + entry.id;
-    card.tabIndex = 0; card.setAttribute('role', 'button');
     card.addEventListener('click', (e) => { if (e.target.closest('.drop-foot, a, button')) return; openDetail(entry); });
-    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
 
     card.appendChild(mediaBlock(entry, 'drop-media', true));
 
@@ -2208,7 +2224,8 @@ function applyLang(lang) {
     badges.appendChild(el('span', 'drop-badge', KIND_LABEL(entry.kind)));
     info.appendChild(badges);
 
-    const name = el('h3', 'drop-name', entry.name);
+    const name = el('h3', 'drop-name');
+    name.appendChild(nameButton(entry));
     if (entry.version) name.appendChild(el('span', 'cat-ver', 'v' + entry.version));
     info.appendChild(name);
     info.appendChild(bylineEl('drop-by', entry));
@@ -2269,9 +2286,7 @@ function applyLang(lang) {
   function spotCard(entry) {
     const card = el('article', 'spot-card' + (entry.limited ? ' lim' : entry.locked ? ' gold' : ''));
     card.id = 'cat-' + entry.id;
-    card.tabIndex = 0; card.setAttribute('role', 'button');
     card.addEventListener('click', (e) => { if (e.target.closest('.spot-foot, a, button')) return; openDetail(entry); });
-    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
 
     card.appendChild(mediaBlock(entry, 'spot-media', true));
 
@@ -2283,7 +2298,9 @@ function applyLang(lang) {
     } else if (entry.locked) badges.appendChild(pill('drop-badge gold', 'star', T('sec.supporters')));
     else badges.appendChild(el('span', 'drop-badge', KIND_LABEL(entry.kind)));
     info.appendChild(badges);
-    info.appendChild(el('h3', 'spot-name', entry.name));
+    const spotName = el('h3', 'spot-name');
+    spotName.appendChild(nameButton(entry));
+    info.appendChild(spotName);
 
     const foot = el('div', 'spot-foot');
     if (entry.limited) {

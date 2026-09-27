@@ -195,7 +195,7 @@
   .toc a[aria-current="true"] { color: var(--bone-0); }
   .toc .n {
     position: absolute; right: calc(100% + 9px); top: 5px; width: 2ch; text-align: right;
-    font-variant-numeric: tabular-nums; color: var(--bone-2); opacity: .8;
+    font-variant-numeric: tabular-nums; color: var(--bone-1);
   }
   .toc a:hover .n, .toc a[aria-current="true"] .n { color: var(--bone-0); opacity: 1; }
   .toc[hidden] { display: none; }
@@ -349,7 +349,7 @@
   .code-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rule-2); flex: none; }
   .code-bar .fname { margin-left: 4px; letter-spacing: 0.03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* The status of a code block is plain text; Copy is the only button. */
-  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-family: var(--sans); font-size: 12.5px; letter-spacing: 0; color: var(--bone-2); }
+  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-family: var(--sans); font-size: 14px; letter-spacing: 0; color: #9A9A9A; }
   pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d5ddd9; }
   pre.solo { border-radius: 12px; }
   pre code { white-space: pre; word-break: normal; }
@@ -595,7 +595,7 @@
         <div class="code oneline">
           <div class="code-bar"><span class="dot"></span><span class="fname">Nebula: a theme code</span><span class="badge">Ready to import</span></div>
           <button class="copy-btn" data-copy>Copy</button>
-          <pre><code id="code-hero">eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6InRoZW1lIiwibmFtZSI6Ik5lYnVsYSIsImRhdGEiOnsiYXBwZWFyYW5jZSI6ImRhcmsiLCJzdHlsZU1vZGUiOiJnbGFzcyIsImFjY2VudCI6IiNiNTdiZmYiLCJiYWNrZ3JvdW5kIjoiIzBhMDcxMyIsInRleHQiOiIjZjFlY2ZhIiwibXV0ZWRUZXh0IjoiIzlhOGZiYiIsImR5bmFtaWNBbGJ1bVRoZW1lIjpmYWxzZSwicGFuZWxBbHBoYSI6MC45LCJ1aVJvdW5kbmVzcyI6MS4zLCJnbGFzc0JsdXIiOjI2LCJnbGFzc1NhdHVyYXRlIjoxNzUsImJnRGltIjowLjUsImJnQXVyb3JhIjp7ImVuYWJsZWQiOnRydWUsImludGVuc2l0eSI6NjIsInNwZWVkIjo0NX0sImJnR3JpZCI6eyJlbmFibGVkIjpmYWxzZX0sImJnU3RhdGljIjp7InN0eWxlIjoibm9uZSIsImludGVuc2l0eSI6NzB9fX0</code></pre>
+          <pre tabindex="0"><code id="code-hero">eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6InRoZW1lIiwibmFtZSI6Ik5lYnVsYSIsImRhdGEiOnsiYXBwZWFyYW5jZSI6ImRhcmsiLCJzdHlsZU1vZGUiOiJnbGFzcyIsImFjY2VudCI6IiNiNTdiZmYiLCJiYWNrZ3JvdW5kIjoiIzBhMDcxMyIsInRleHQiOiIjZjFlY2ZhIiwibXV0ZWRUZXh0IjoiIzlhOGZiYiIsImR5bmFtaWNBbGJ1bVRoZW1lIjpmYWxzZSwicGFuZWxBbHBoYSI6MC45LCJ1aVJvdW5kbmVzcyI6MS4zLCJnbGFzc0JsdXIiOjI2LCJnbGFzc1NhdHVyYXRlIjoxNzUsImJnRGltIjowLjUsImJnQXVyb3JhIjp7ImVuYWJsZWQiOnRydWUsImludGVuc2l0eSI6NjIsInNwZWVkIjo0NX0sImJnR3JpZCI6eyJlbmFibGVkIjpmYWxzZX0sImJnU3RhdGljIjp7InN0eWxlIjoibm9uZSIsImludGVuc2l0eSI6NzB9fX0</code></pre>
         </div>
         <p class="muted" style="margin-bottom:0">Every import shows you a preview first and never runs any code, so it is always safe to try one out.</p>
       </div>
@@ -685,7 +685,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">theme.json: semantic palette</span><span class="badge">complete contract</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>{
+        <pre tabindex="0"><code>{
   <span class="tok-k">"appearance"</span>: <span class="tok-s">"light"</span>,
   <span class="tok-k">"background"</span>: <span class="tok-s">"#f1ead5"</span>,
   <span class="tok-k">"surface"</span>: <span class="tok-s">"#fff8df"</span>,
@@ -705,7 +705,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">theme.json: one card, two tones</span><span class="badge">v4.6.0+</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>{
+        <pre tabindex="0"><code>{
   <span class="tok-k">"appearance"</span>: <span class="tok-s">"auto"</span>,
   <span class="tok-k">"styleMode"</span>: <span class="tok-s">"comic"</span>,
   <span class="tok-k">"accent"</span>: <span class="tok-s">"#e63d4e"</span>,
@@ -733,7 +733,7 @@
       <div class="code oneline">
         <div class="code-bar"><span class="dot"></span><span class="fname">Nebula: theme</span><span class="badge">Ready to import</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6InRoZW1lIiwibmFtZSI6Ik5lYnVsYSIsImRhdGEiOnsiYXBwZWFyYW5jZSI6ImRhcmsiLCJzdHlsZU1vZGUiOiJnbGFzcyIsImFjY2VudCI6IiNiNTdiZmYiLCJiYWNrZ3JvdW5kIjoiIzBhMDcxMyIsInRleHQiOiIjZjFlY2ZhIiwibXV0ZWRUZXh0IjoiIzlhOGZiYiIsImR5bmFtaWNBbGJ1bVRoZW1lIjpmYWxzZSwicGFuZWxBbHBoYSI6MC45LCJ1aVJvdW5kbmVzcyI6MS4zLCJnbGFzc0JsdXIiOjI2LCJnbGFzc1NhdHVyYXRlIjoxNzUsImJnRGltIjowLjUsImJnQXVyb3JhIjp7ImVuYWJsZWQiOnRydWUsImludGVuc2l0eSI6NjIsInNwZWVkIjo0NX0sImJnR3JpZCI6eyJlbmFibGVkIjpmYWxzZX0sImJnU3RhdGljIjp7InN0eWxlIjoibm9uZSIsImludGVuc2l0eSI6NzB9fX0</code></pre>
+        <pre tabindex="0"><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6InRoZW1lIiwibmFtZSI6Ik5lYnVsYSIsImRhdGEiOnsiYXBwZWFyYW5jZSI6ImRhcmsiLCJzdHlsZU1vZGUiOiJnbGFzcyIsImFjY2VudCI6IiNiNTdiZmYiLCJiYWNrZ3JvdW5kIjoiIzBhMDcxMyIsInRleHQiOiIjZjFlY2ZhIiwibXV0ZWRUZXh0IjoiIzlhOGZiYiIsImR5bmFtaWNBbGJ1bVRoZW1lIjpmYWxzZSwicGFuZWxBbHBoYSI6MC45LCJ1aVJvdW5kbmVzcyI6MS4zLCJnbGFzc0JsdXIiOjI2LCJnbGFzc1NhdHVyYXRlIjoxNzUsImJnRGltIjowLjUsImJnQXVyb3JhIjp7ImVuYWJsZWQiOnRydWUsImludGVuc2l0eSI6NjIsInNwZWVkIjo0NX0sImJnR3JpZCI6eyJlbmFibGVkIjpmYWxzZX0sImJnU3RhdGljIjp7InN0eWxlIjoibm9uZSIsImludGVuc2l0eSI6NzB9fX0</code></pre>
       </div>
       <div class="note"><b>Tip:</b> want the assistant to invent one? Turn on Xenon AI in Settings and say "make me a warm sunset theme." It builds it instantly, then you can save and export it just like any other.</div>
     </section>
@@ -754,7 +754,7 @@
       <div class="code oneline">
         <div class="code-bar"><span class="dot"></span><span class="fname">Starfield Drift: background</span><span class="badge">Ready to import</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6ImJnIiwibmFtZSI6IlN0YXJmaWVsZCBEcmlmdCIsImRhdGEiOnsibmFtZSI6IlN0YXJmaWVsZCBEcmlmdCIsImNvZGUiOiIvLyBTdGFyZmllbGQgRHJpZnQg4oCUIGEgY2FsbSwgYm91bmRlZCBwYXJhbGxheCBzdGFyZmllbGQuXG4vLyBDb250cmFjdDogZGVmaW5lIGRyYXcoY3R4LCB0LCB3LCBoKS4gdCA9IHNlY29uZHMgc2luY2Ugc3RhcnQuXG4vLyBGaXhlZCBzdGFyIGNvdW50LCBPKE4pIHBlciBmcmFtZSwgbm8gZ3Jvd2luZyBzdGF0ZSDigJQgc2FmZSB0byBydW4gZm9yZXZlci5cbmNvbnN0IE4gPSAxNTA7XG5sZXQgc3RhcnMgPSBudWxsO1xuXG5mdW5jdGlvbiBzZWVkKCkge1xuICBzdGFycyA9IFtdO1xuICBmb3IgKGxldCBpID0gMDsgaSA8IE47IGkrKykge1xuICAgIC8vIHogPSBkZXB0aCAoMC4yIG5lYXIgLi4gMSBmYXItaXNoKTsgciA9IGEgc3RhYmxlIHBlci1zdGFyIHJhbmRvbSBmb3IgY29sb3VyL3R3aW5rbGUuXG4gICAgc3RhcnMucHVzaCh7IHg6IE1hdGgucmFuZG9tKCksIHk6IE1hdGgucmFuZG9tKCksIHo6IDAuMjUgKyBNYXRoLnJhbmRvbSgpICogMC43NSwgcjogTWF0aC5yYW5kb20oKSB9KTtcbiAgfVxufVxuXG5mdW5jdGlvbiBkcmF3KGN0eCwgdCwgdywgaCkge1xuICBpZiAoIXN0YXJzKSBzZWVkKCk7XG5cbiAgLy8gRGVlcCBzcGFjZSB3YXNoIHdpdGggYSBmYWludCB2aW9sZXQgbmVidWxhIGdsb3cgYXQgdGhlIHRvcC5cbiAgY3R4LmZpbGxTdHlsZSA9ICcjMDYwNDBjJztcbiAgY3R4LmZpbGxSZWN0KDAsIDAsIHcsIGgpO1xuICBjb25zdCBnbG93ID0gY3R4LmNyZWF0ZVJhZGlhbEdyYWRpZW50KHcgKiAwLjUsIC1oICogMC4yLCAwLCB3ICogMC41LCAtaCAqIDAuMiwgaCAqIDEuMSk7XG4gIGdsb3cuYWRkQ29sb3JTdG9wKDAsICdyZ2JhKDE0MCwgOTAsIDIyMCwgMC4yOCknKTtcbiAgZ2xvdy5hZGRDb2xvclN0b3AoMSwgJ3JnYmEoNiwgNCwgMTIsIDApJyk7XG4gIGN0eC5maWxsU3R5bGUgPSBnbG93O1xuICBjdHguZmlsbFJlY3QoMCwgMCwgdywgaCk7XG5cbiAgZm9yIChsZXQgaSA9IDA7IGkgPCBzdGFycy5sZW5ndGg7IGkrKykge1xuICAgIGNvbnN0IHMgPSBzdGFyc1tpXTtcbiAgICBjb25zdCB4ID0gcy54ICogdztcbiAgICAvLyBOZWFyZXIgc3RhcnMgZHJpZnQgZmFzdGVyIChwYXJhbGxheCk7IHdyYXAgc21vb3RobHkgd2l0aCBtb2R1bG8uXG4gICAgY29uc3QgeSA9ICgoKHMueSArIHQgKiAwLjAxMiAqIHMueikgJSAxKSArIDEpICUgMSAqIGg7XG4gICAgY29uc3QgdHdpbmtsZSA9IDAuNTUgKyAwLjQ1ICogTWF0aC5zaW4odCAqIDEuOCArIHMuciAqIDYuMjgzKTtcbiAgICBjdHguZ2xvYmFsQWxwaGEgPSAoMC4yNSArIDAuNzUgKiBzLnopICogdHdpbmtsZTtcbiAgICBjdHguZmlsbFN0eWxlID0gcy5yID4gMC43MiA_ICcjYzdhM2ZmJyA6ICcjZGJlOGZmJztcbiAgICBjdHguYmVnaW5QYXRoKCk7XG4gICAgY3R4LmFyYyh4LCB5LCBzLnogKiAxLjUsIDAsIDYuMjgzKTtcbiAgICBjdHguZmlsbCgpO1xuICB9XG4gIGN0eC5nbG9iYWxBbHBoYSA9IDE7XG59XG4iLCJpbXBvcnRlZCI6dHJ1ZX19</code></pre>
+        <pre tabindex="0"><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6ImJnIiwibmFtZSI6IlN0YXJmaWVsZCBEcmlmdCIsImRhdGEiOnsibmFtZSI6IlN0YXJmaWVsZCBEcmlmdCIsImNvZGUiOiIvLyBTdGFyZmllbGQgRHJpZnQg4oCUIGEgY2FsbSwgYm91bmRlZCBwYXJhbGxheCBzdGFyZmllbGQuXG4vLyBDb250cmFjdDogZGVmaW5lIGRyYXcoY3R4LCB0LCB3LCBoKS4gdCA9IHNlY29uZHMgc2luY2Ugc3RhcnQuXG4vLyBGaXhlZCBzdGFyIGNvdW50LCBPKE4pIHBlciBmcmFtZSwgbm8gZ3Jvd2luZyBzdGF0ZSDigJQgc2FmZSB0byBydW4gZm9yZXZlci5cbmNvbnN0IE4gPSAxNTA7XG5sZXQgc3RhcnMgPSBudWxsO1xuXG5mdW5jdGlvbiBzZWVkKCkge1xuICBzdGFycyA9IFtdO1xuICBmb3IgKGxldCBpID0gMDsgaSA8IE47IGkrKykge1xuICAgIC8vIHogPSBkZXB0aCAoMC4yIG5lYXIgLi4gMSBmYXItaXNoKTsgciA9IGEgc3RhYmxlIHBlci1zdGFyIHJhbmRvbSBmb3IgY29sb3VyL3R3aW5rbGUuXG4gICAgc3RhcnMucHVzaCh7IHg6IE1hdGgucmFuZG9tKCksIHk6IE1hdGgucmFuZG9tKCksIHo6IDAuMjUgKyBNYXRoLnJhbmRvbSgpICogMC43NSwgcjogTWF0aC5yYW5kb20oKSB9KTtcbiAgfVxufVxuXG5mdW5jdGlvbiBkcmF3KGN0eCwgdCwgdywgaCkge1xuICBpZiAoIXN0YXJzKSBzZWVkKCk7XG5cbiAgLy8gRGVlcCBzcGFjZSB3YXNoIHdpdGggYSBmYWludCB2aW9sZXQgbmVidWxhIGdsb3cgYXQgdGhlIHRvcC5cbiAgY3R4LmZpbGxTdHlsZSA9ICcjMDYwNDBjJztcbiAgY3R4LmZpbGxSZWN0KDAsIDAsIHcsIGgpO1xuICBjb25zdCBnbG93ID0gY3R4LmNyZWF0ZVJhZGlhbEdyYWRpZW50KHcgKiAwLjUsIC1oICogMC4yLCAwLCB3ICogMC41LCAtaCAqIDAuMiwgaCAqIDEuMSk7XG4gIGdsb3cuYWRkQ29sb3JTdG9wKDAsICdyZ2JhKDE0MCwgOTAsIDIyMCwgMC4yOCknKTtcbiAgZ2xvdy5hZGRDb2xvclN0b3AoMSwgJ3JnYmEoNiwgNCwgMTIsIDApJyk7XG4gIGN0eC5maWxsU3R5bGUgPSBnbG93O1xuICBjdHguZmlsbFJlY3QoMCwgMCwgdywgaCk7XG5cbiAgZm9yIChsZXQgaSA9IDA7IGkgPCBzdGFycy5sZW5ndGg7IGkrKykge1xuICAgIGNvbnN0IHMgPSBzdGFyc1tpXTtcbiAgICBjb25zdCB4ID0gcy54ICogdztcbiAgICAvLyBOZWFyZXIgc3RhcnMgZHJpZnQgZmFzdGVyIChwYXJhbGxheCk7IHdyYXAgc21vb3RobHkgd2l0aCBtb2R1bG8uXG4gICAgY29uc3QgeSA9ICgoKHMueSArIHQgKiAwLjAxMiAqIHMueikgJSAxKSArIDEpICUgMSAqIGg7XG4gICAgY29uc3QgdHdpbmtsZSA9IDAuNTUgKyAwLjQ1ICogTWF0aC5zaW4odCAqIDEuOCArIHMuciAqIDYuMjgzKTtcbiAgICBjdHguZ2xvYmFsQWxwaGEgPSAoMC4yNSArIDAuNzUgKiBzLnopICogdHdpbmtsZTtcbiAgICBjdHguZmlsbFN0eWxlID0gcy5yID4gMC43MiA_ICcjYzdhM2ZmJyA6ICcjZGJlOGZmJztcbiAgICBjdHguYmVnaW5QYXRoKCk7XG4gICAgY3R4LmFyYyh4LCB5LCBzLnogKiAxLjUsIDAsIDYuMjgzKTtcbiAgICBjdHguZmlsbCgpO1xuICB9XG4gIGN0eC5nbG9iYWxBbHBoYSA9IDE7XG59XG4iLCJpbXBvcnRlZCI6dHJ1ZX19</code></pre>
       </div>
 
       <h3 id="backgrounds-code" data-search-title="Write your own background: draw()">Write your own (optional)</h3>
@@ -762,7 +762,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">the draw() contract</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-c">// t = seconds since start · w,h = size in pixels · ctx = a 2D canvas</span>
+        <pre tabindex="0"><code><span class="tok-c">// t = seconds since start · w,h = size in pixels · ctx = a 2D canvas</span>
 <span class="tok-k">function</span> draw(ctx, t, w, h) {
   ctx.fillStyle = <span class="tok-s">'#06040c'</span>;      <span class="tok-c">// paint the backdrop</span>
   ctx.fillRect(<span class="tok-k">0</span>, <span class="tok-k">0</span>, w, h);
@@ -859,7 +859,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">neon-clock/manifest.json</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>{
+        <pre tabindex="0"><code>{
   <span class="tok-k">"api"</span>: 1,
   <span class="tok-k">"id"</span>: <span class="tok-s">"neon-clock"</span>,
   <span class="tok-k">"name"</span>: <span class="tok-s">"Neon Clock"</span>,
@@ -871,7 +871,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">neon-clock/index.html</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>&lt;!doctype html&gt;
+        <pre tabindex="0"><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
   :root { --accent:#b57bff; --text:#f1ecfa; }
@@ -927,7 +927,7 @@
       <div class="code oneline">
         <div class="code-bar"><span class="dot"></span><span class="fname">Neon Clock: packed widget code</span><span class="badge">Ready to import</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6IndpZGdldCIsIm5hbWUiOiJOZW9uIENsb2NrIiwiZGF0YSI6eyJpZCI6Im5lb24tY2xvY2siLCJuYW1lIjoiTmVvbiBDbG9jayIsInN1cmZhY2UiOiJ0aWxlIiwic3RyZWFtcyI6W10sImFjdGlvbnMiOltdLCJob3N0cyI6W10sImhvb2tzIjpbXSwicGF5bG9hZCI6eyJpZCI6Im5lb24tY2xvY2siLCJmaWxlcyI6W3sicGF0aCI6ImluZGV4Lmh0bWwiLCJkYXRhIjoiUENGa2IyTjBlWEJsSUdoMGJXdytDanhvZEcxc0lHeGhibWM5SW1WdUlqNEtQR2hsWVdRK0NpQWdQRzFsZEdFZ1kyaGhjbk5sZEQwaWRYUm1MVGdpUGdvZ0lEeHRaWFJoSUc1aGJXVTlJblpwWlhkd2IzSjBJaUJqYjI1MFpXNTBQU0ozYVdSMGFEMWtaWFpwWTJVdGQybGtkR2dzSUdsdWFYUnBZV3d0YzJOaGJHVTlNU0krQ2lBZ1BHeHBibXNnY21Wc1BTSnpkSGxzWlhOb1pXVjBJaUJvY21WbVBTSjNhV1JuWlhRdVkzTnpJajRLSUNBOGRHbDBiR1UrVG1WdmJpQkRiRzlqYXp3dmRHbDBiR1UrQ2p3dmFHVmhaRDRLUEdKdlpIaytDaUFnUEdScGRpQmpiR0Z6Y3owaVkyeHZZMnNpUGdvZ0lDQWdQR1JwZGlCamJHRnpjejBpZEdsdFpTSWdhV1E5SW5ScGJXVWlQaTB0T2kwdFBDOWthWFkrQ2lBZ0lDQThaR2wySUdOc1lYTnpQU0prWVhSbElpQnBaRDBpWkdGMFpTSStKbTVpYzNBN1BDOWthWFkrQ2lBZ1BDOWthWFkrQ2lBZ1BDRXRMU0JPYnlCcGJteHBibVVnUEhOamNtbHdkRDQ2SUhSb1pTQnpZVzVrWW05NElFTlRVQ0JwY3lCelkzSnBjSFF0YzNKaklDZHpaV3htSnk0Z1RHOW5hV01nYkdsMlpYTWdhVzRnZDJsa1oyVjBMbXB6TGlBdExUNEtJQ0E4YzJOeWFYQjBJSE55WXowaWQybGtaMlYwTG1weklqNDhMM05qY21sd2RENEtQQzlpYjJSNVBnbzhMMmgwYld3K0NnPT0ifSx7InBhdGgiOiJtYW5pZmVzdC5qc29uIiwiZGF0YSI6ImV3b2dJQ0poY0draU9pQXhMQW9nSUNKcFpDSTZJQ0p1Wlc5dUxXTnNiMk5ySWl3S0lDQWlibUZ0WlNJNklDSk9aVzl1SUVOc2IyTnJJaXdLSUNBaWRtVnljMmx2YmlJNklDSXhMakF1TUNJc0NpQWdJbUYxZEdodmNpSTZJQ0paYjNVaUxBb2dJQ0prWlhOamNtbHdkR2x2YmlJNklDSkJJR0pwWnl3Z1oyeHZkMmx1WnlCamJHOWpheTRnVG1WbFpITWdibThnWkdGMFlTQmhibVFnYm04Z2NHVnliV2x6YzJsdmJuTWc0b0NVSUdsMElHcDFjM1FnYzJodmQzTWdkR2hsSUhScGJXVWdhVzRnZVc5MWNpQmtZWE5vWW05aGNtUW5jeUJoWTJObGJuUWdZMjlzYjNWeUxpSXNDaUFnSW1WdWRISjVJam9nSW1sdVpHVjRMbWgwYld3aUxBb2dJQ0p6ZEhKbFlXMXpJam9nVzEwc0NpQWdJbUZqZEdsdmJuTWlPaUJiWFN3S0lDQWlhRzl6ZEhNaU9pQmJYU3dLSUNBaWFHOXZhM01pT2lCYlhRcDlDZz09In0seyJwYXRoIjoid2lkZ2V0LmNzcyIsImRhdGEiOiJPbkp2YjNRZ2V5QXRMV0ZqWTJWdWREb2dJMkkxTjJKbVpqc2dMUzEwWlhoME9pQWpaakZsWTJaaE95QjlDaW9nZXlCaWIzZ3RjMmw2YVc1bk9pQmliM0prWlhJdFltOTRPeUJ0WVhKbmFXNDZJREE3SUgwS2FIUnRiQ3dnWW05a2VTQjdJR2hsYVdkb2REb2dNVEF3SlRzZ2ZRcGliMlI1SUhzS0lDQmthWE53YkdGNU9pQm5jbWxrT3lCd2JHRmpaUzFwZEdWdGN6b2dZMlZ1ZEdWeU93b2dJR1p2Ym5RdFptRnRhV3g1T2lCemVYTjBaVzB0ZFdrc0lDMWhjSEJzWlMxemVYTjBaVzBzSUNKVFpXZHZaU0JWU1NJc0lITmhibk10YzJWeWFXWTdDaUFnWTI5c2IzSTZJSFpoY2lndExYUmxlSFFwT3dvZ0lHSmhZMnRuY205MWJtUTZJSFJ5WVc1emNHRnlaVzUwT3dvZ0lDMTNaV0pyYVhRdFptOXVkQzF6Ylc5dmRHaHBibWM2SUdGdWRHbGhiR2xoYzJWa093cDlDaTVqYkc5amF5QjdJSFJsZUhRdFlXeHBaMjQ2SUdObGJuUmxjanNnZFhObGNpMXpaV3hsWTNRNklHNXZibVU3SUgwS0xuUnBiV1VnZXdvZ0lHWnZiblF0YzJsNlpUb2dZMnhoYlhBb016UndlQ3dnTWpKMmR5d2dNVEl3Y0hncE93b2dJR1p2Ym5RdGQyVnBaMmgwT2lBM01EQTdDaUFnYkdsdVpTMW9aV2xuYUhRNklERTdDaUFnYkdWMGRHVnlMWE53WVdOcGJtYzZJREF1TURGbGJUc0tJQ0JqYjJ4dmNqb2dkbUZ5S0MwdFlXTmpaVzUwS1RzS0lDQjBaWGgwTFhOb1lXUnZkem9nTUNBd0lESXljSGdnWTI5c2IzSXRiV2w0S0dsdUlITnlaMklzSUhaaGNpZ3RMV0ZqWTJWdWRDa2dOVFVsTENCMGNtRnVjM0JoY21WdWRDazdDaUFnWm05dWRDMTJZWEpwWVc1MExXNTFiV1Z5YVdNNklIUmhZblZzWVhJdGJuVnRjenNLZlFvdVpHRjBaU0I3Q2lBZ2JXRnlaMmx1TFhSdmNEb2dNQzQwWlcwN0NpQWdabTl1ZEMxemFYcGxPaUJqYkdGdGNDZ3hNWEI0TENBMExqVjJkeXdnTWpCd2VDazdDaUFnWm05dWRDMTNaV2xuYUhRNklEVXdNRHNLSUNCc1pYUjBaWEl0YzNCaFkybHVaem9nTUM0eE5HVnRPd29nSUhSbGVIUXRkSEpoYm5ObWIzSnRPaUIxY0hCbGNtTmhjMlU3Q2lBZ2IzQmhZMmwwZVRvZ01DNDJNanNLZlFvPSJ9LHsicGF0aCI6IndpZGdldC5qcyIsImRhdGEiOiJKM1Z6WlNCemRISnBZM1FuT3dvdkx5Qk9aVzl1SUVOc2IyTnJJT0tBbENCWVpXNXZiaUJUUkVzZ1FWQkpJSFl4TGlCT1pXVmtjeUJ1YnlCemRISmxZVzF6SUdGdVpDQnVieUJ3WlhKdGFYTnphVzl1Y3pvS0x5OGdhWFFnYjI1c2VTQnlaV0ZrY3lCMGFHVWdiRzlqWVd3Z1kyeHZZMnNnWVc1a0lHWnZiR3h2ZDNNZ2RHaGxJR1JoYzJoaWIyRnlaQ2R6SUdGalkyVnVkQ0JqYjJ4dmRYSXVDaTh2Q2k4dklFSnlhV1JuWlNBb1lXeHNJRzFsYzNOaFoyVnpJSHNnZUdWdWIyNVRaR3M2TVN3Z2RIbHdaU3dnNG9DbUlIMHNJSEJ2YzNSbFpDQjBieUIwYUdVZ2NHRnlaVzUwS1RvS0x5OGdJQ0IzYVdSblpYUWc0b2FTSUdodmMzUTZJQ2RvWld4c2J5Y2dJQ2h2Ym1ObElISmxZV1I1S1Fvdkx5QWdJR2h2YzNRZzRvYVNJSGRwWkdkbGREb2dKMmx1YVhRbklDQWc0b2FTSUhzZ2RHaGxiV1VzSU9LQXBpQjlJQ0FnWVc1a0lDQW5kR2hsYldVbklPS0draUI3SUhSb1pXMWxJSDBnSUc5dUlHTm9ZVzVuWlFvb1puVnVZM1JwYjI0Z0tDa2dld29nSUdOdmJuTjBJSFJwYldWRmJDQTlJR1J2WTNWdFpXNTBMbWRsZEVWc1pXMWxiblJDZVVsa0tDZDBhVzFsSnlrN0NpQWdZMjl1YzNRZ1pHRjBaVVZzSUQwZ1pHOWpkVzFsYm5RdVoyVjBSV3hsYldWdWRFSjVTV1FvSjJSaGRHVW5LVHNLQ2lBZ1puVnVZM1JwYjI0Z2MyVnVaQ2h0YzJjcElIc2dkMmx1Wkc5M0xuQmhjbVZ1ZEM1d2IzTjBUV1Z6YzJGblpTaDdJSGhsYm05dVUyUnJPaUF4TENBdUxpNXRjMmNnZlN3Z0p5b25LVHNnZlFvS0lDQXZMeUJHYjJ4c2IzY2dkR2hsSUdSaGMyaGliMkZ5WkNCMGFHVnRaU0J6YnlCMGFHVWdZMnh2WTJzZ1lXeDNZWGx6SUcxaGRHTm9aWE1nZEdobElHTjFjbkpsYm5RZ2JHOXZheTRLSUNCbWRXNWpkR2x2YmlCaGNIQnNlVlJvWlcxbEtIUm9aVzFsS1NCN0NpQWdJQ0JwWmlBb0lYUm9aVzFsSUh4OElIUjVjR1Z2WmlCMGFHVnRaU0FoUFQwZ0oyOWlhbVZqZENjcElISmxkSFZ5YmpzS0lDQWdJR052Ym5OMElISnZiM1FnUFNCa2IyTjFiV1Z1ZEM1a2IyTjFiV1Z1ZEVWc1pXMWxiblF1YzNSNWJHVTdDaUFnSUNCcFppQW9kR2hsYldVdVlXTmpaVzUwS1NCeWIyOTBMbk5sZEZCeWIzQmxjblI1S0NjdExXRmpZMlZ1ZENjc0lIUm9aVzFsTG1GalkyVnVkQ2s3Q2lBZ0lDQnBaaUFvZEdobGJXVXVkR1Y0ZENrZ2NtOXZkQzV6WlhSUWNtOXdaWEowZVNnbkxTMTBaWGgwSnl3Z2RHaGxiV1V1ZEdWNGRDazdDaUFnZlFvS0lDQmpiMjV6ZENCd1lXUWdQU0FvYmlrZ1BUNGdVM1J5YVc1bktHNHBMbkJoWkZOMFlYSjBLRElzSUNjd0p5azdDaUFnWm5WdVkzUnBiMjRnZEdsamF5Z3BJSHNLSUNBZ0lHTnZibk4wSUc1dmR5QTlJRzVsZHlCRVlYUmxLQ2s3Q2lBZ0lDQjBhVzFsUld3dWRHVjRkRU52Ym5SbGJuUWdQU0J3WVdRb2JtOTNMbWRsZEVodmRYSnpLQ2twSUNzZ0p6b25JQ3NnY0dGa0tHNXZkeTVuWlhSTmFXNTFkR1Z6S0NrcE93b2dJQ0FnTHk4Z2RHVjRkRU52Ym5SbGJuUWdiMjVzZVNEaWdKUWdibVYyWlhJZ1luVnBiR1FnU0ZSTlRDQm1jbTl0SUhaaGJIVmxjeTRLSUNBZ0lHUmhkR1ZGYkM1MFpYaDBRMjl1ZEdWdWRDQTlJRzV2ZHk1MGIweHZZMkZzWlVSaGRHVlRkSEpwYm1jb2RXNWtaV1pwYm1Wa0xDQjdJSGRsWld0a1lYazZJQ2R6YUc5eWRDY3NJR1JoZVRvZ0oyNTFiV1Z5YVdNbkxDQnRiMjUwYURvZ0ozTm9iM0owSnlCOUtUc0tJQ0I5Q2dvZ0lIZHBibVJ2ZHk1aFpHUkZkbVZ1ZEV4cGMzUmxibVZ5S0NkdFpYTnpZV2RsSnl3Z0tHVXBJRDArSUhzS0lDQWdJR052Ym5OMElHMGdQU0JsTG1SaGRHRTdDaUFnSUNCcFppQW9JVzBnZkh3Z2JTNTRaVzV2YmxOa2F5QWhQVDBnTVNCOGZDQjBlWEJsYjJZZ2JTNTBlWEJsSUNFOVBTQW5jM1J5YVc1bkp5a2djbVYwZFhKdU93b2dJQ0FnYVdZZ0tHMHVkSGx3WlNBOVBUMGdKMmx1YVhRbklIeDhJRzB1ZEhsd1pTQTlQVDBnSjNSb1pXMWxKeWtnWVhCd2JIbFVhR1Z0WlNodExuUm9aVzFsS1RzS0lDQjlLVHNLQ2lBZ2RHbGpheWdwT3dvZ0lITmxkRWx1ZEdWeWRtRnNLSFJwWTJzc0lERXdNREFwT3dvZ0lITmxibVFvZXlCMGVYQmxPaUFuYUdWc2JHOG5JSDBwT3lBZ0lDOHZJSE4wWVhKMElIUm9aU0JvWVc1a2MyaGhhMlVLZlNrb0tUc0sifV19fX0</code></pre>
+        <pre tabindex="0"><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6IndpZGdldCIsIm5hbWUiOiJOZW9uIENsb2NrIiwiZGF0YSI6eyJpZCI6Im5lb24tY2xvY2siLCJuYW1lIjoiTmVvbiBDbG9jayIsInN1cmZhY2UiOiJ0aWxlIiwic3RyZWFtcyI6W10sImFjdGlvbnMiOltdLCJob3N0cyI6W10sImhvb2tzIjpbXSwicGF5bG9hZCI6eyJpZCI6Im5lb24tY2xvY2siLCJmaWxlcyI6W3sicGF0aCI6ImluZGV4Lmh0bWwiLCJkYXRhIjoiUENGa2IyTjBlWEJsSUdoMGJXdytDanhvZEcxc0lHeGhibWM5SW1WdUlqNEtQR2hsWVdRK0NpQWdQRzFsZEdFZ1kyaGhjbk5sZEQwaWRYUm1MVGdpUGdvZ0lEeHRaWFJoSUc1aGJXVTlJblpwWlhkd2IzSjBJaUJqYjI1MFpXNTBQU0ozYVdSMGFEMWtaWFpwWTJVdGQybGtkR2dzSUdsdWFYUnBZV3d0YzJOaGJHVTlNU0krQ2lBZ1BHeHBibXNnY21Wc1BTSnpkSGxzWlhOb1pXVjBJaUJvY21WbVBTSjNhV1JuWlhRdVkzTnpJajRLSUNBOGRHbDBiR1UrVG1WdmJpQkRiRzlqYXp3dmRHbDBiR1UrQ2p3dmFHVmhaRDRLUEdKdlpIaytDaUFnUEdScGRpQmpiR0Z6Y3owaVkyeHZZMnNpUGdvZ0lDQWdQR1JwZGlCamJHRnpjejBpZEdsdFpTSWdhV1E5SW5ScGJXVWlQaTB0T2kwdFBDOWthWFkrQ2lBZ0lDQThaR2wySUdOc1lYTnpQU0prWVhSbElpQnBaRDBpWkdGMFpTSStKbTVpYzNBN1BDOWthWFkrQ2lBZ1BDOWthWFkrQ2lBZ1BDRXRMU0JPYnlCcGJteHBibVVnUEhOamNtbHdkRDQ2SUhSb1pTQnpZVzVrWW05NElFTlRVQ0JwY3lCelkzSnBjSFF0YzNKaklDZHpaV3htSnk0Z1RHOW5hV01nYkdsMlpYTWdhVzRnZDJsa1oyVjBMbXB6TGlBdExUNEtJQ0E4YzJOeWFYQjBJSE55WXowaWQybGtaMlYwTG1weklqNDhMM05qY21sd2RENEtQQzlpYjJSNVBnbzhMMmgwYld3K0NnPT0ifSx7InBhdGgiOiJtYW5pZmVzdC5qc29uIiwiZGF0YSI6ImV3b2dJQ0poY0draU9pQXhMQW9nSUNKcFpDSTZJQ0p1Wlc5dUxXTnNiMk5ySWl3S0lDQWlibUZ0WlNJNklDSk9aVzl1SUVOc2IyTnJJaXdLSUNBaWRtVnljMmx2YmlJNklDSXhMakF1TUNJc0NpQWdJbUYxZEdodmNpSTZJQ0paYjNVaUxBb2dJQ0prWlhOamNtbHdkR2x2YmlJNklDSkJJR0pwWnl3Z1oyeHZkMmx1WnlCamJHOWpheTRnVG1WbFpITWdibThnWkdGMFlTQmhibVFnYm04Z2NHVnliV2x6YzJsdmJuTWc0b0NVSUdsMElHcDFjM1FnYzJodmQzTWdkR2hsSUhScGJXVWdhVzRnZVc5MWNpQmtZWE5vWW05aGNtUW5jeUJoWTJObGJuUWdZMjlzYjNWeUxpSXNDaUFnSW1WdWRISjVJam9nSW1sdVpHVjRMbWgwYld3aUxBb2dJQ0p6ZEhKbFlXMXpJam9nVzEwc0NpQWdJbUZqZEdsdmJuTWlPaUJiWFN3S0lDQWlhRzl6ZEhNaU9pQmJYU3dLSUNBaWFHOXZhM01pT2lCYlhRcDlDZz09In0seyJwYXRoIjoid2lkZ2V0LmNzcyIsImRhdGEiOiJPbkp2YjNRZ2V5QXRMV0ZqWTJWdWREb2dJMkkxTjJKbVpqc2dMUzEwWlhoME9pQWpaakZsWTJaaE95QjlDaW9nZXlCaWIzZ3RjMmw2YVc1bk9pQmliM0prWlhJdFltOTRPeUJ0WVhKbmFXNDZJREE3SUgwS2FIUnRiQ3dnWW05a2VTQjdJR2hsYVdkb2REb2dNVEF3SlRzZ2ZRcGliMlI1SUhzS0lDQmthWE53YkdGNU9pQm5jbWxrT3lCd2JHRmpaUzFwZEdWdGN6b2dZMlZ1ZEdWeU93b2dJR1p2Ym5RdFptRnRhV3g1T2lCemVYTjBaVzB0ZFdrc0lDMWhjSEJzWlMxemVYTjBaVzBzSUNKVFpXZHZaU0JWU1NJc0lITmhibk10YzJWeWFXWTdDaUFnWTI5c2IzSTZJSFpoY2lndExYUmxlSFFwT3dvZ0lHSmhZMnRuY205MWJtUTZJSFJ5WVc1emNHRnlaVzUwT3dvZ0lDMTNaV0pyYVhRdFptOXVkQzF6Ylc5dmRHaHBibWM2SUdGdWRHbGhiR2xoYzJWa093cDlDaTVqYkc5amF5QjdJSFJsZUhRdFlXeHBaMjQ2SUdObGJuUmxjanNnZFhObGNpMXpaV3hsWTNRNklHNXZibVU3SUgwS0xuUnBiV1VnZXdvZ0lHWnZiblF0YzJsNlpUb2dZMnhoYlhBb016UndlQ3dnTWpKMmR5d2dNVEl3Y0hncE93b2dJR1p2Ym5RdGQyVnBaMmgwT2lBM01EQTdDaUFnYkdsdVpTMW9aV2xuYUhRNklERTdDaUFnYkdWMGRHVnlMWE53WVdOcGJtYzZJREF1TURGbGJUc0tJQ0JqYjJ4dmNqb2dkbUZ5S0MwdFlXTmpaVzUwS1RzS0lDQjBaWGgwTFhOb1lXUnZkem9nTUNBd0lESXljSGdnWTI5c2IzSXRiV2w0S0dsdUlITnlaMklzSUhaaGNpZ3RMV0ZqWTJWdWRDa2dOVFVsTENCMGNtRnVjM0JoY21WdWRDazdDaUFnWm05dWRDMTJZWEpwWVc1MExXNTFiV1Z5YVdNNklIUmhZblZzWVhJdGJuVnRjenNLZlFvdVpHRjBaU0I3Q2lBZ2JXRnlaMmx1TFhSdmNEb2dNQzQwWlcwN0NpQWdabTl1ZEMxemFYcGxPaUJqYkdGdGNDZ3hNWEI0TENBMExqVjJkeXdnTWpCd2VDazdDaUFnWm05dWRDMTNaV2xuYUhRNklEVXdNRHNLSUNCc1pYUjBaWEl0YzNCaFkybHVaem9nTUM0eE5HVnRPd29nSUhSbGVIUXRkSEpoYm5ObWIzSnRPaUIxY0hCbGNtTmhjMlU3Q2lBZ2IzQmhZMmwwZVRvZ01DNDJNanNLZlFvPSJ9LHsicGF0aCI6IndpZGdldC5qcyIsImRhdGEiOiJKM1Z6WlNCemRISnBZM1FuT3dvdkx5Qk9aVzl1SUVOc2IyTnJJT0tBbENCWVpXNXZiaUJUUkVzZ1FWQkpJSFl4TGlCT1pXVmtjeUJ1YnlCemRISmxZVzF6SUdGdVpDQnVieUJ3WlhKdGFYTnphVzl1Y3pvS0x5OGdhWFFnYjI1c2VTQnlaV0ZrY3lCMGFHVWdiRzlqWVd3Z1kyeHZZMnNnWVc1a0lHWnZiR3h2ZDNNZ2RHaGxJR1JoYzJoaWIyRnlaQ2R6SUdGalkyVnVkQ0JqYjJ4dmRYSXVDaTh2Q2k4dklFSnlhV1JuWlNBb1lXeHNJRzFsYzNOaFoyVnpJSHNnZUdWdWIyNVRaR3M2TVN3Z2RIbHdaU3dnNG9DbUlIMHNJSEJ2YzNSbFpDQjBieUIwYUdVZ2NHRnlaVzUwS1RvS0x5OGdJQ0IzYVdSblpYUWc0b2FTSUdodmMzUTZJQ2RvWld4c2J5Y2dJQ2h2Ym1ObElISmxZV1I1S1Fvdkx5QWdJR2h2YzNRZzRvYVNJSGRwWkdkbGREb2dKMmx1YVhRbklDQWc0b2FTSUhzZ2RHaGxiV1VzSU9LQXBpQjlJQ0FnWVc1a0lDQW5kR2hsYldVbklPS0draUI3SUhSb1pXMWxJSDBnSUc5dUlHTm9ZVzVuWlFvb1puVnVZM1JwYjI0Z0tDa2dld29nSUdOdmJuTjBJSFJwYldWRmJDQTlJR1J2WTNWdFpXNTBMbWRsZEVWc1pXMWxiblJDZVVsa0tDZDBhVzFsSnlrN0NpQWdZMjl1YzNRZ1pHRjBaVVZzSUQwZ1pHOWpkVzFsYm5RdVoyVjBSV3hsYldWdWRFSjVTV1FvSjJSaGRHVW5LVHNLQ2lBZ1puVnVZM1JwYjI0Z2MyVnVaQ2h0YzJjcElIc2dkMmx1Wkc5M0xuQmhjbVZ1ZEM1d2IzTjBUV1Z6YzJGblpTaDdJSGhsYm05dVUyUnJPaUF4TENBdUxpNXRjMmNnZlN3Z0p5b25LVHNnZlFvS0lDQXZMeUJHYjJ4c2IzY2dkR2hsSUdSaGMyaGliMkZ5WkNCMGFHVnRaU0J6YnlCMGFHVWdZMnh2WTJzZ1lXeDNZWGx6SUcxaGRHTm9aWE1nZEdobElHTjFjbkpsYm5RZ2JHOXZheTRLSUNCbWRXNWpkR2x2YmlCaGNIQnNlVlJvWlcxbEtIUm9aVzFsS1NCN0NpQWdJQ0JwWmlBb0lYUm9aVzFsSUh4OElIUjVjR1Z2WmlCMGFHVnRaU0FoUFQwZ0oyOWlhbVZqZENjcElISmxkSFZ5YmpzS0lDQWdJR052Ym5OMElISnZiM1FnUFNCa2IyTjFiV1Z1ZEM1a2IyTjFiV1Z1ZEVWc1pXMWxiblF1YzNSNWJHVTdDaUFnSUNCcFppQW9kR2hsYldVdVlXTmpaVzUwS1NCeWIyOTBMbk5sZEZCeWIzQmxjblI1S0NjdExXRmpZMlZ1ZENjc0lIUm9aVzFsTG1GalkyVnVkQ2s3Q2lBZ0lDQnBaaUFvZEdobGJXVXVkR1Y0ZENrZ2NtOXZkQzV6WlhSUWNtOXdaWEowZVNnbkxTMTBaWGgwSnl3Z2RHaGxiV1V1ZEdWNGRDazdDaUFnZlFvS0lDQmpiMjV6ZENCd1lXUWdQU0FvYmlrZ1BUNGdVM1J5YVc1bktHNHBMbkJoWkZOMFlYSjBLRElzSUNjd0p5azdDaUFnWm5WdVkzUnBiMjRnZEdsamF5Z3BJSHNLSUNBZ0lHTnZibk4wSUc1dmR5QTlJRzVsZHlCRVlYUmxLQ2s3Q2lBZ0lDQjBhVzFsUld3dWRHVjRkRU52Ym5SbGJuUWdQU0J3WVdRb2JtOTNMbWRsZEVodmRYSnpLQ2twSUNzZ0p6b25JQ3NnY0dGa0tHNXZkeTVuWlhSTmFXNTFkR1Z6S0NrcE93b2dJQ0FnTHk4Z2RHVjRkRU52Ym5SbGJuUWdiMjVzZVNEaWdKUWdibVYyWlhJZ1luVnBiR1FnU0ZSTlRDQm1jbTl0SUhaaGJIVmxjeTRLSUNBZ0lHUmhkR1ZGYkM1MFpYaDBRMjl1ZEdWdWRDQTlJRzV2ZHk1MGIweHZZMkZzWlVSaGRHVlRkSEpwYm1jb2RXNWtaV1pwYm1Wa0xDQjdJSGRsWld0a1lYazZJQ2R6YUc5eWRDY3NJR1JoZVRvZ0oyNTFiV1Z5YVdNbkxDQnRiMjUwYURvZ0ozTm9iM0owSnlCOUtUc0tJQ0I5Q2dvZ0lIZHBibVJ2ZHk1aFpHUkZkbVZ1ZEV4cGMzUmxibVZ5S0NkdFpYTnpZV2RsSnl3Z0tHVXBJRDArSUhzS0lDQWdJR052Ym5OMElHMGdQU0JsTG1SaGRHRTdDaUFnSUNCcFppQW9JVzBnZkh3Z2JTNTRaVzV2YmxOa2F5QWhQVDBnTVNCOGZDQjBlWEJsYjJZZ2JTNTBlWEJsSUNFOVBTQW5jM1J5YVc1bkp5a2djbVYwZFhKdU93b2dJQ0FnYVdZZ0tHMHVkSGx3WlNBOVBUMGdKMmx1YVhRbklIeDhJRzB1ZEhsd1pTQTlQVDBnSjNSb1pXMWxKeWtnWVhCd2JIbFVhR1Z0WlNodExuUm9aVzFsS1RzS0lDQjlLVHNLQ2lBZ2RHbGpheWdwT3dvZ0lITmxkRWx1ZEdWeWRtRnNLSFJwWTJzc0lERXdNREFwT3dvZ0lITmxibVFvZXlCMGVYQmxPaUFuYUdWc2JHOG5JSDBwT3lBZ0lDOHZJSE4wWVhKMElIUm9aU0JvWVc1a2MyaGhhMlVLZlNrb0tUc0sifV19fX0</code></pre>
       </div>
       <div class="note safe"><b>Nothing runs on import.</b> A shared widget stays inert until the person turns on third-party widgets and approves its permissions, exactly like a manual install. It can never grant itself anything, and you can even lock a code behind an access code so only people you choose can open it.</div>
     </section>
@@ -945,7 +945,7 @@
       <h3 id="sdk-messages" data-search-title="Every bridge message">The messages, exactly</h3>
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">the whole protocol</span></div>
-        <pre><code><span class="tok-c">// ── widget → Xenon (you send these to window.parent) ──</span>
+        <pre tabindex="0"><code><span class="tok-c">// ── widget → Xenon (you send these to window.parent) ──</span>
 { xenonSdk:1, type:<span class="tok-s">'hello'</span> }
 { xenonSdk:1, type:<span class="tok-s">'action'</span>, id:42, action:{ type:<span class="tok-s">'media'</span>, cmd:<span class="tok-s">'playpause'</span> } }
 
@@ -974,7 +974,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">cpu-meter/manifest.json</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>{
+        <pre tabindex="0"><code>{
   <span class="tok-k">"api"</span>: 1,
   <span class="tok-k">"id"</span>: <span class="tok-s">"cpu-meter"</span>,
   <span class="tok-k">"name"</span>: <span class="tok-s">"CPU Meter"</span>,
@@ -985,7 +985,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">cpu-meter/index.html</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>&lt;!doctype html&gt;
+        <pre tabindex="0"><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
   :root { --accent:#1ed760; --text:var(--bone-0); }
@@ -1022,7 +1022,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">manifest.json (all fields)</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>{
+        <pre tabindex="0"><code>{
   <span class="tok-k">"api"</span>: 1,
   <span class="tok-k">"id"</span>: <span class="tok-s">"my-widget"</span>,
   <span class="tok-k">"name"</span>: <span class="tok-s">"My Widget"</span>,
@@ -1141,7 +1141,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">mute-key/index.html  (manifest: "actions": ["mic"])</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>&lt;!doctype html&gt;
+        <pre tabindex="0"><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
   body { margin:0; height:100vh; display:grid; place-items:center; background:transparent; }
@@ -1174,7 +1174,7 @@
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">fetch through the host</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-c">// manifest: "hosts": ["api.example.com"]</span>
+        <pre tabindex="0"><code><span class="tok-c">// manifest: "hosts": ["api.example.com"]</span>
 parent.postMessage({
   xenonSdk:1, type:<span class="tok-s">'fetch'</span>,
   id:7,                                   <span class="tok-c">// your correlation id</span>
@@ -1205,7 +1205,7 @@ addEventListener('message', e =&gt; {
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">an address the user provides</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-c">// manifest:</span>
+        <pre tabindex="0"><code><span class="tok-c">// manifest:</span>
 <span class="tok-c">// "userHosts": [{ "id": "nas", "label": "NAS address", "scope": "private" }]</span>
 
 <span class="tok-c">// init hands you what they typed, with a ready-made base:</span>
@@ -1230,7 +1230,7 @@ if (nas) {
       <p>Declare hook ids in <code>hooks</code>, and any local process (Streamer.bot, AutoHotkey, a script) can push an event straight into your widget.</p>
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">the sender (any local app)</span></div>
-        <pre><code>POST http://127.0.0.1:3030/sdk/hook/&lt;your-package-id&gt;/&lt;hook-id&gt;
+        <pre tabindex="0"><code>POST http://127.0.0.1:3030/sdk/hook/&lt;your-package-id&gt;/&lt;hook-id&gt;
 Content-Type: application/json
 
 { "anything": "up to 64 KB" }</code></pre>
@@ -1238,7 +1238,7 @@ Content-Type: application/json
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">your widget receives it</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>addEventListener('message', e =&gt; {
+        <pre tabindex="0"><code>addEventListener('message', e =&gt; {
   const m = e.data;
   if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'hook') {
     console.log('hook', m.hook, m.data);   <span class="tok-c">// JSON arrives parsed</span>
@@ -1252,7 +1252,7 @@ Content-Type: application/json
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">tiles as a normal &lt;img&gt; / Leaflet layer</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-c">// init tells you your package id: { type:'init', pkgId:'weather-radar', … }</span>
+        <pre tabindex="0"><code><span class="tok-c">// init tells you your package id: { type:'init', pkgId:'weather-radar', … }</span>
 <span class="tok-c">// manifest: "hosts": ["tile.example.com"]</span>
 const tile = (u) =&gt; <span class="tok-s">`/sdk/tile/${pkgId}?u=${encodeURIComponent(u)}`</span>;
 L.tileLayer(tile(<span class="tok-s">'https://tile.example.com/{z}/{x}/{y}.png'</span>), { <span class="tok-c">/* … */</span> });</code></pre>
@@ -1269,7 +1269,7 @@ L.tileLayer(tile(<span class="tok-s">'https://tile.example.com/{z}/{x}/{y}.png'<
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">store.set / store.get over the bridge</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:1,
+        <pre tabindex="0"><code>parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:1,
   op:{ op:<span class="tok-s">'set'</span>, key:<span class="tok-s">'teams'</span>, value:[64, 65] } }, '*');
 parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:2,
   op:{ op:<span class="tok-s">'get'</span>, key:<span class="tok-s">'teams'</span> } }, '*');
@@ -1291,7 +1291,7 @@ addEventListener('message', e =&gt; {
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">store a key, then use it in a request</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-c">// Save it once — e.g. from a settings field the user fills in:</span>
+        <pre tabindex="0"><code><span class="tok-c">// Save it once — e.g. from a settings field the user fills in:</span>
 parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'secret'</span>, id:1,
   op:{ op:<span class="tok-s">'set'</span>, name:<span class="tok-s">'apiKey'</span>, value:userInput } }, '*');
 
@@ -1318,7 +1318,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'fetch'</span>, id:7,
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">manifest.json → deck.actions</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-k">"deck"</span>: {
+        <pre tabindex="0"><code><span class="tok-k">"deck"</span>: {
   <span class="tok-k">"actions"</span>: [
     { <span class="tok-k">"id"</span>: <span class="tok-s">"quiet"</span>, <span class="tok-k">"name"</span>: <span class="tok-s">"Quiet mode"</span>,
       <span class="tok-k">"steps"</span>: [
@@ -1335,7 +1335,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'fetch'</span>, id:7,
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">publishing a state</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-c">// manifest: "deck": { "states": [{ "id": "viewers", "name": "Viewers" }] }</span>
+        <pre tabindex="0"><code><span class="tok-c">// manifest: "deck": { "states": [{ "id": "viewers", "name": "Viewers" }] }</span>
 parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
   id:<span class="tok-s">'viewers'</span>, value:1234,
   label:<span class="tok-s">'LIVE 1.2k'</span>, color:<span class="tok-s">'#ff3355'</span> }, '*');   <span class="tok-c">// label ≤24, color #hex</span></code></pre>
@@ -1346,7 +1346,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">manifest.json → deck.handlers</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code><span class="tok-k">"deck"</span>: {
+        <pre tabindex="0"><code><span class="tok-k">"deck"</span>: {
   <span class="tok-k">"handlers"</span>: [
     { <span class="tok-k">"id"</span>: <span class="tok-s">"post"</span>, <span class="tok-k">"name"</span>: <span class="tok-s">"Post a message"</span>, <span class="tok-k">"params"</span>: [
       { <span class="tok-k">"name"</span>: <span class="tok-s">"text"</span>, <span class="tok-k">"label"</span>: <span class="tok-s">"Message"</span>, <span class="tok-k">"kind"</span>: <span class="tok-s">"text"</span> }
@@ -1357,7 +1357,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">handling the key press</span></div>
         <button class="copy-btn" data-copy>Copy</button>
-        <pre><code>addEventListener('message', e =&gt; {
+        <pre tabindex="0"><code>addEventListener('message', e =&gt; {
   const m = e.data;
   if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'handler' &amp;&amp; m.handler === 'post') {
     doYourThing(m.args.text);                     <span class="tok-c">// use granted actions / fetch / state as usual</span>

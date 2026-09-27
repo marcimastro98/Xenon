@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon の Deck: OBS と PC のための無料タッチマクロキー</title>
+<meta name="description" content="Xenon のダッシュボードに置く、PC を操作する無料のタッチキー。アプリを開く、ホットキーを送る、OBS のシーンを切り替える、Discord をミュートする、Webhook を呼ぶ、複数の手順のマクロを実行する。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon の Deck: OBS と PC のための無料タッチマクロキー">
+<meta property="og:description" content="Xenon のダッシュボードに置く、PC を操作する無料のタッチキー。アプリを開く、ホットキーを送る、OBS のシーンを切り替える、Discord をミュートする、Webhook を呼ぶ、複数の手順のマクロを実行する。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ja/deck.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/ja/deck.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Deck は無料ですか？","acceptedAnswer":{"@type":"Answer","text":"はい。Deck は Xenon の一部で、Xenon は個人利用なら無料です。アカウントも試用期間もありません。"}},{"@type":"Question","name":"Deck のキーで OBS のシーンを切り替えられますか？","acceptedAnswer":{"@type":"Answer","text":"はい。キーで、名前を指定したシーンや次のシーンへの切り替え、録画と配信の開始と停止、OBS のソースのミュートや音量の設定ができます。先に、設定のストリーミングで OBS を接続してください。"}},{"@type":"Question","name":"1つのキーで複数のことができますか？","acceptedAnswer":{"@type":"Answer","text":"はい。タップ、ダブルタップ、長押しのそれぞれに、順に実行するアクションの一覧を設定でき、各手順の前に最大10秒の待ち時間を入れられます。"}},{"@type":"Question","name":"Deck は macOS と Linux で動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい、ベータです。アプリ、ファイル、Web アドレスを開くこと、スクリプト、メディア、音量、OBS、Discord、Spotify、Home Assistant、Twitch と YouTube のキーは、3つのシステムすべてで動きます。文字入力、ウィンドウの移動、Voicemeeter など一部のキーは Windows が必要で、動かない環境ではキーエディターに表示されません。"}},{"@type":"Question","name":"スマートフォンを Deck として使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい、ベータです。自宅の Wi-Fi でスマートフォンやタブレットを PC とペアリングすると、Deck を含むダッシュボード全体が表示されます。アプリを開く、OBS のシーンを切り替えるなど、PC に対して行うキーは PC で実行されます。サウンドボードのクリップはスマートフォンで再生されます。"}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── Screenshot ───────────────────────────────────────────────── */
+  figure.shot { margin: 8px 0 30px; }
+  figure.shot img { display: block; width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+  figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>JA</span></summary><ul><li><a href="/deck.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/deck.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/deck.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/deck.html" hreflang="ja" lang="ja" aria-current="page">日本語 <span>JA</span></a></li><li><a href="/ko/deck.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/deck.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">ダウンロード</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">メニュー</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li><li><a href="/ja/#install" data-xl="install">インストール</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">コーヒーをおごる</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/deck.html" aria-current="page" data-xl="f.deck">Deckキー</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"Deckキー","item":"https://xenon-app.com/ja/deck.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="deck.h1">Deck: PC を操作するタッチキー</h1>
+    <p class="lede" data-i18n="deck.lede">Deck は、Xenon のダッシュボードのページに追加するキーのグリッドです。タップ1回でアプリを開く、キーボードショートカットを送る、OBS のシーンを切り替える、Discord をミュートするといった操作ができます。キーを光らせて、操作対象の状態を示すこともできます。</p>
+    <p class="lede" data-i18n="deck.lede2">役割は Stream Deck に近く、すでに持っている画面で使えます。Xeneon Edge、余っているモニター、タブレット、スマートフォンです。</p>
+    <p class="updated" data-i18n="deck.updated">最終更新: 2026年9月27日</p>
+
+    <figure class="shot">
+      <img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="12個のキーがある Deck ウィジェット。OBS のシーン、録画、マイク、Discord、Spotify、再生、スクリーンショット、ライトのキーが並んでいる" data-i18n-alt="deck.shot.alt">
+      <figcaption data-i18n="deck.shot.cap">12個のキーを並べた配信用のプロファイル。音楽が再生中なので、Playing のキーが点灯しています。</figcaption>
+    </figure>
+
+    <nav class="jump">
+      <a href="#actions" data-i18n="deck.jump.actions">アクション</a>
+      <a href="#steps" data-i18n="deck.jump.steps">複数の手順のキー</a>
+      <a href="#state" data-i18n="deck.jump.state">状態を示すキー</a>
+      <a href="#faders" data-i18n="deck.jump.faders">フェーダー</a>
+      <a href="#profiles" data-i18n="deck.jump.profiles">プロファイルとページ</a>
+      <a href="#make" data-i18n="deck.jump.make">Deck の作り方</a>
+      <a href="#platforms" data-i18n="deck.jump.platforms">macOS と Linux</a>
+      <a href="#share" data-i18n="deck.jump.share">共有</a>
+      <a href="#faq" data-i18n="deck.jump.faq">質問</a>
+    </nav>
+
+    <h2 id="actions" data-i18n="deck.h.actions">アクション</h2>
+    <p data-i18n="deck.actions.p1">キーエディターでは、アクションがカテゴリー別に並んでいます。PC に対して何かを行うアクションは、実行の前に Xenon のサーバーが、許可されたアクションの一覧と照合します。失敗したキーは赤く点滅し、PC がエラーを返した場合は短いメッセージでその内容を示します。</p>
+    <p data-i18n="deck.actions.p2">OBS、Discord、Home Assistant のように別のアプリやアカウントが必要なカテゴリーは、設定で接続するまで、ヒント付きでロックされたままです。</p>
+    <ul>
+      <li data-i18n-html="deck.act.system"><strong>アプリ、ファイル、リンク。</strong> アプリ、ファイルやフォルダー、Web アドレス、Microsoft Store のアプリを開く。AppID で Steam のゲームを起動する。スクリプトを実行する。PC をロックする。</li>
+      <li data-i18n-html="deck.act.keys"><strong>キーボード。</strong> Ctrl+Shift+M のようなショートカットを送る。保存したテキストを入力する。Windows では、Xenon が先に直前まで使っていたアプリを前面に戻すので、キー入力はそのアプリに届きます。</li>
+      <li data-i18n-html="deck.act.webhook"><strong>Webhook。</strong> 任意の http または https のアドレスを GET か POST で呼び出します。JSON の本文も付けられます。</li>
+      <li data-i18n-html="deck.act.audio"><strong>オーディオとメディア。</strong> 曲の再生、一時停止、スキップ。マイクのミュート。音量の設定、上げ下げ、ミュート。1つのアプリの音量の設定やミュート。アプリごとのミキサーを開く。出力デバイスを選ぶ、または1つのキーで2つのデバイスを切り替える。</li>
+      <li data-i18n-html="deck.act.sound"><strong>サウンドボード。</strong> サウンドライブラリのクリップを再生、切り替え、停止します。クリップごとに音量を設定でき、すべての音を一度に止めるキーもあります。</li>
+      <li data-i18n-html="deck.act.timers"><strong>タイマー。</strong> 名前付きのカウントダウンやストップウォッチを開始、一時停止、再開、キャンセルします。タイマーのタイルに表示されるのと同じタイマーです。</li>
+      <li data-i18n-html="deck.act.obs"><strong>OBS。</strong> 指定したシーンや次のシーンへの切り替え、録画と配信の開始と停止、ソースのミュートや音量の設定。</li>
+      <li data-i18n-html="deck.act.stream"><strong>Twitch と YouTube。</strong> クリップやマーカーの作成、広告の実行、配信タイトルやカテゴリーの変更、チャットメッセージやシャウトアウトの送信、チャットモードの変更、YouTube の配信の開始と停止。</li>
+      <li data-i18n-html="deck.act.sb"><strong>Streamer.bot。</strong> 自分のアクションの実行、Twitch、YouTube、Kick、Trovo でのチャットメッセージの送信、コードトリガーの発動。</li>
+      <li data-i18n-html="deck.act.discord"><strong>Discord。</strong> ミュート、スピーカーミュート、プッシュトゥトークと音声検出の切り替え、ボイスチャンネルへの参加と退出、マイクや出力の音量の設定、ノイズ抑制やエコー除去のオンとオフ、サウンドボードの音の再生。</li>
+      <li data-i18n-html="deck.act.spotify"><strong>Spotify。</strong> 再生、一時停止、スキップ、お気に入り、保存、シャッフル、リピート、音量の設定、シーク、プレイリストや Spotify リンクの再生、別のデバイスへの再生の移動。再生の操作には Spotify Premium が必要です。</li>
+      <li data-i18n-html="deck.act.vm"><strong>Voicemeeter。</strong> ストリップのミュートやゲインの設定、バスへの送り（A1、A2、B1 のボタン）、バスのミュートやゲインの設定、自分のマクロボタンの操作、名前を指定した任意のパラメーターの設定。</li>
+      <li data-i18n-html="deck.act.wl"><strong>Wave Link。</strong> 入力、出力、ミックスの音量の設定やミュート。Wave Link 2 ではモニタリングの切り替えも、Wave Link 3 ではエフェクトのオンとオフや出力デバイスの選択も、キーでできます。</li>
+      <li data-i18n-html="deck.act.ha"><strong>Home Assistant。</strong> デバイスの切り替え、照明の設定、メディアプレーヤー、カバー、空調、ファン、掃除機、ロック、アラームの操作、シーンの有効化、スクリプトの実行、ボタンの押下、任意のサービスの呼び出し。</li>
+      <li data-i18n-html="deck.act.light"><strong>ライティング。</strong> ライトのオンとオフ、色やエフェクトの設定、1台のデバイスの変更、自動制御に戻す操作。Razer Chroma のデバイスと SignalRGB のエフェクトには専用のキーがあります。</li>
+      <li data-i18n-html="deck.act.window"><strong>ウィンドウ。</strong> 直前まで使っていたウィンドウを次や前のモニターに移動、左半分や右半分にスナップ、最大化、最小化、中央に配置。</li>
+      <li data-i18n-html="deck.act.ai"><strong>Xenon AI と Claude Code。</strong> AI にプロンプトを送る、音声セッションを始める、チャットを開く。自分のプロジェクトの1つで Claude Code のリクエストを始める、または実行中のものを止める。キーは権限を与えません。Claude Code がコマンドの実行を求めると、そのリクエストが画面に届き、あなたが承認します。</li>
+      <li data-i18n-html="deck.act.more"><strong>その他。</strong> Bluetooth でペアリングしたスマートフォンでの電話とメッセージ、リモートセッションの終了やリモートアクセスのブロック。インストールしたコミュニティのウィジェットが追加するキーも使えますが、どれも先にあなたが許可したものだけです。</li>
+    </ul>
+
+    <h2 id="steps" data-i18n="deck.h.steps">複数の手順のキー</h2>
+    <p data-i18n="deck.steps.p1">各キーには3つの操作があります。タップ、ダブルタップ、0.5秒の長押しです。操作ごとに別のアクションを設定できます。</p>
+    <p data-i18n="deck.steps.p2">1つの操作で複数のアクションを順に実行することもでき、各アクションの前に最大10秒の待ち時間を入れられます。たとえば、マイクをミュートし、少し待ってからアプリを開く、といった使い方です。</p>
+    <p data-i18n="deck.steps.p3">前の手順が失敗しても、すべての手順が実行されます。どれかが失敗した場合は、最後の手順が終わったあとでキーが赤く点滅します。</p>
+
+    <h2 id="state" data-i18n="deck.h.state">状態を示すキー</h2>
+    <p data-i18n="deck.state.p1">キーはリアルタイムの状態を追いかけ、オンの間は点灯できます。追いかけられる状態は次のとおりです:</p>
+    <ul>
+      <li data-i18n="deck.state.audio">マイクのミュート、スピーカーのミュート、使用中のオーディオ出力</li>
+      <li data-i18n="deck.state.obs">OBS の録画、OBS の配信、選んだ OBS シーンのオンエア、OBS ソースのミュート</li>
+      <li data-i18n="deck.state.discord">Discord のミュートまたはスピーカーミュート</li>
+      <li data-i18n="deck.state.media">音楽の再生中、Spotify の再生中、タイマーの動作中</li>
+      <li data-i18n="deck.state.other">Home Assistant のデバイス、Streamer.bot のグローバル変数、コミュニティのウィジェットが公開する値</li>
+    </ul>
+    <p data-i18n-html="deck.state.face">状態がオンの間、キーの見た目を変えることもできます。キーエディターの <strong>オン時の表示</strong> で、2つ目のアイコン、ラベル、色を設定します。たとえば、ミュート中は斜線の入ったマイクに変わるマイクのキーです。</p>
+    <p data-i18n-html="deck.state.script">PC 上のどんなスクリプトからでもキーを動かせます。キーを <strong>スクリプトの状態を反映</strong> に割り当てて状態に名前を付け、スクリプトの最後に次の1行を加えます: <code>curl -X POST 127.0.0.1:3030/state/set -H "Content-Type: application/json" -d '{"name":"audio-out","value":"speakers"}'</code></p>
+    <p data-i18n="deck.state.local">スクリプトが実行されるとすぐにキーが変わります。Web ページやコミュニティのウィジェットは、このアドレスに送信できません。</p>
+    <p data-i18n="deck.state.live">キーには、リアルタイムの値も表示できます。カウントダウン中のタイマー、CPU や GPU の使用率、温度、ファンの回転数、消費電力、ワイヤレスデバイスのバッテリー、コミュニティのウィジェットの値などです。</p>
+    <p data-i18n="deck.state.led">Xenon がライティングを制御している場合、キーを押したとき、または状態がオンの間、RGB を光らせることもできます。</p>
+
+    <h2 id="faders" data-i18n="deck.h.faders">フェーダー</h2>
+    <p data-i18n-html="deck.fader.p1">キーはボタンではなくスライダーにもできます。キーの種類で <strong>スライダー（タッチフェーダー）</strong> を選び、縦か横を選んで、指でドラッグします。</p>
+    <p data-i18n="deck.fader.p2">スライダーで設定できるのは、システムの音量、1つのアプリの音量（Windows と Linux）、Spotify の音量、OBS の入力、Discord のマイクや出力の音量、Home Assistant の照明の明るさです。</p>
+    <p data-i18n="deck.fader.p3">システムの音量、Discord、Home Assistant の照明では、ほかの場所で値が変わるとスライダーも自動で動きます。それ以外は、最後に動かした位置のままです。</p>
+
+    <h2 id="profiles" data-i18n="deck.h.profiles">プロファイル、ページ、フォルダー</h2>
+    <p data-i18n="deck.prof.p1">Deck には複数のプロファイルを持たせられます。配信用、仕事用、ゲーム用のように、キーを別々に分けたセットです。プロファイルごとに、最大8列、8行のグリッドを持ちます。プロファイルは Deck のヘッダーから、または Xenon AI に頼んで切り替えます。</p>
+    <p data-i18n="deck.prof.p2">1つのプロファイルに複数のページを作ることもでき、キーの下の矢印とドットでページを移動します。キーをフォルダーにして、その中に別のキーのページを持たせることもできます。</p>
+    <p data-i18n-html="deck.prof.smart"><strong>スマートプロファイル</strong> は、アプリとプロファイルを結び付けます。そのアプリが前面に来ると Deck がそのプロファイルを表示し、アプリを離れると元に戻るか、そのままにするかを選べます。手動で選んだプロファイルが常に優先されます。</p>
+    <p data-i18n-html="deck.prof.copy">ダッシュボードには複数の Deck を置けます。それぞれ空の状態から始まり、別々のキーを持ちます。プロファイルを使い回すには、新しい Deck のプロファイルメニューを開き、<strong>別のデッキから</strong> で選びます。</p>
+    <p data-i18n-html="deck.prof.popup">Windows では、プロファイルメニューの <strong>PCで開く</strong> で、同じキーをメインモニター上の小さなウィンドウに表示できます。このウィンドウはほかのウィンドウより手前に表示され続けます。キーはそこで押せますが、編集はダッシュボードで行います。</p>
+
+    <h2 id="make" data-i18n="deck.h.make">Deck の作り方</h2>
+    <ol>
+      <li data-i18n-html="deck.make.1">上部バーの <strong>レイアウト</strong> をタップします。</li>
+      <li data-i18n-html="deck.make.2">ページの <strong>+</strong> をタップし、<strong>配信</strong> のグループから <strong>デッキ</strong> を選びます。タイルをドラッグしてサイズを変え、<strong>完了</strong> をタップします。</li>
+      <li data-i18n-html="deck.make.3">Deck のヘッダーにある鉛筆をタップします。空いている枠には <strong>+</strong> が表示されるので、それをタップして <strong>キーを編集</strong> を開きます。</li>
+      <li data-i18n-html="deck.make.4">種類（<strong>アクション</strong>、<strong>フォルダ</strong>、<strong>スライダー</strong>）、タイトル、アイコン、色を選び、<strong>タップ</strong>、<strong>ダブル</strong>、<strong>長押し</strong> のアクションを設定して保存します。</li>
+      <li data-i18n="deck.make.5">ヘッダーのチェックマークをタップすると編集モードが終わり、キーを使えるようになります。</li>
+    </ol>
+    <p data-i18n="deck.make.size">「自動」がオンのとき、Deck はタイルに収まるだけの正方形のキーを表示します。編集モードでは、キーの大きさを小、中、大から選ぶか、「自動」をオフにして列と行を自分で設定できます。グリッドが変わっても、キーが消えることはありません。</p>
+    <p data-i18n="deck.make.ai">Xenon AI に Deck の設定を頼むこともできます。たとえば、配信用のページと、それに合うキーです。</p>
+
+    <h2 id="platforms" data-i18n="deck.h.platforms">macOS と Linux</h2>
+    <p data-i18n="deck.plat.p1">macOS 版と Linux 版の Xenon はベータです。キーエディターは、そのシステムで実行できないアクションを表示しないので、押したときに失敗するだけのキーを作ってしまうことはありません。</p>
+    <ul>
+      <li data-i18n-html="deck.plat.all"><strong>3つのシステムすべてで:</strong> アプリ、ファイル、Web アドレスを開く、スクリプトの実行、PC のロック、メディアキー、音量とマイク、Webhook、タイマー、サウンドボード、そして OBS、Streamer.bot、Discord、Spotify、Home Assistant、Twitch、YouTube、Claude Code のキー。</li>
+      <li data-i18n-html="deck.plat.apps"><strong>アプリとして扱えるもの:</strong> Windows では .exe、ショートカット、アプリのインストールフォルダー。macOS では .app で、Finder が隠す拡張子は Xenon が補います。Linux では .desktop エントリー、AppImage、プログラム。</li>
+      <li data-i18n-html="deck.plat.scripts"><strong>スクリプト:</strong> Windows では .bat、.cmd、.ps1、Python など。キーごとに、スクリプトのウィンドウを表示するか隠すかを選べます。macOS と Linux では .sh、.zsh、.command、Python などに加え、macOS では AppleScript も使えます。スクリプトはウィンドウなしでバックグラウンドで実行されます。インタープリターがインストールされている必要があります。</li>
+      <li data-i18n-html="deck.plat.keys"><strong>キーボードショートカット:</strong> macOS では、アクセシビリティで Xenon Helper を許可すると、Xenon Helper を通じて送られます。Linux では、X11 なら xdotool、Wayland なら ydotool が必要です。どちらでも、ショートカットは前面のアプリに届きます。</li>
+      <li data-i18n-html="deck.plat.appaudio"><strong>アプリごとの音量とアプリミキサー:</strong> Windows と Linux。macOS には Xenon が操作できるアプリごとのミキサーがないため、これらのアクションは表示されません。</li>
+      <li data-i18n-html="deck.plat.win"><strong>Windows のみ:</strong> 文字入力、ウィンドウの移動、Microsoft Store のアプリ、Voicemeeter、電話とメッセージ（ベータ）、リモートセッションのキー、「PCで開く」のウィンドウ。</li>
+    </ul>
+
+    <h2 id="share" data-i18n="deck.h.share">プロファイルの共有とインポート</h2>
+    <p data-i18n-html="deck.share.p1">各プロファイルには <strong>共有</strong> ボタンがあります。リンクや .json ファイルとして送れるコードを作ります。キーに画像があるプロファイルは、ファイルとして共有されます。</p>
+    <p data-i18n="deck.share.p2">コミュニティのウィジェットを使うキーがある場合、Xenon はそのウィジェットをコードに含めるかどうかを尋ねます。インポートする人は、それでも各ウィジェットを確認して承認します。</p>
+    <p data-i18n="deck.share.p3">プロファイルをインポートすると、先に確認画面が表示されます。名前、キーの数、含まれるアクションの種類です。Xenon は独自のチェックを通してプロファイルを組み立て直し、認識できないものは取り除きます。キーをタップするまで何も実行されず、各アクションは実行前にもう一度チェックされます。</p>
+    <p data-i18n="deck.share.p4">ほかの人からインポートしたプロファイルを、自分の PC からもう一度共有することはできません。自分で作ったプロファイルはいつでも共有できます。</p>
+    <p data-i18n-html="deck.share.p5">Deck プロファイルは<a href="/catalog/">コミュニティのカタログ</a>にもあり、<a href="/submit/">自分のものを投稿</a>することもできます。掲載の前に、すべての投稿を人が確認します。</p>
+
+    <h2 id="faq" data-i18n="deck.h.faq">質問</h2>
+    <details><summary data-i18n="deck.faq.free.q">Deck は無料ですか？</summary><div class="body"><p data-i18n="deck.faq.free.a">はい。Deck は Xenon の一部で、Xenon は個人利用なら無料です。アカウントも試用期間もありません。</p></div></details>
+    <details><summary data-i18n="deck.faq.obs.q">Deck のキーで OBS のシーンを切り替えられますか？</summary><div class="body"><p data-i18n="deck.faq.obs.a">はい。キーで、名前を指定したシーンや次のシーンへの切り替え、録画と配信の開始と停止、OBS のソースのミュートや音量の設定ができます。先に、設定のストリーミングで OBS を接続してください。</p></div></details>
+    <details><summary data-i18n="deck.faq.steps.q">1つのキーで複数のことができますか？</summary><div class="body"><p data-i18n="deck.faq.steps.a">はい。タップ、ダブルタップ、長押しのそれぞれに、順に実行するアクションの一覧を設定でき、各手順の前に最大10秒の待ち時間を入れられます。</p></div></details>
+    <details><summary data-i18n="deck.faq.mac.q">Deck は macOS と Linux で動きますか？</summary><div class="body"><p data-i18n="deck.faq.mac.a">はい、ベータです。アプリ、ファイル、Web アドレスを開くこと、スクリプト、メディア、音量、OBS、Discord、Spotify、Home Assistant、Twitch と YouTube のキーは、3つのシステムすべてで動きます。文字入力、ウィンドウの移動、Voicemeeter など一部のキーは Windows が必要で、動かない環境ではキーエディターに表示されません。</p></div></details>
+    <details><summary data-i18n="deck.faq.phone.q">スマートフォンを Deck として使えますか？</summary><div class="body"><p data-i18n="deck.faq.phone.a">はい、ベータです。自宅の Wi-Fi でスマートフォンやタブレットを PC とペアリングすると、Deck を含むダッシュボード全体が表示されます。アプリを開く、OBS のシーンを切り替えるなど、PC に対して行うキーは PC で実行されます。サウンドボードのクリップはスマートフォンで再生されます。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="deck.cta.h">Xenon をダウンロード</h3>
+      <p data-i18n-html="deck.cta.p">Xenon は無料で、アカウントは不要です。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows 版 Xenon をダウンロード</a>するか、<a href="/ja/download.html">ダウンロードページ</a>で macOS 版か Linux 版（ベータ）を選んでください。</p>
+      <p data-i18n-html="deck.cta.demo">先に見てみたい場合は、<a href="/demo/">ブラウザのデモ</a>を開いてください。Deck のエディターはそこでも使えますが、ページの裏に PC がないので、キーで PC を操作することはできません。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>
