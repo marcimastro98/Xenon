@@ -1515,6 +1515,21 @@
         </label>
       </div>
 
+      <!-- Windows only: syncAudioCommsControl() hides it elsewhere (one default per direction there). -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-audio-comms-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_audio_head">Audio</span>
+          <span class="settings-hint" data-i18n="settings_audio_hint">cambio di altoparlanti e microfono</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-audio-comms" type="checkbox" checked onchange="updateAudioSetCommunications(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_audio_comms">Cambia anche il dispositivo di comunicazione</span>
+            <span class="settings-hint" data-i18n="settings_audio_comms_desc">quando Xenon cambia altoparlanti o microfono, dal riquadro Volume, da un tasto del Deck o dall'assistente, sposta anche quello che usano Discord, Teams e le app di chiamata. Disattivalo per cambiare solo il dispositivo predefinito e lasciare le chiamate dove sono</span>
+          </span>
+        </label>
+      </div>
+
       <!-- Native-app only: revealed by syncHideRdpControl() inside the Tauri kiosk. -->
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-hide-rdp-row" hidden>
         <div class="settings-group-head">

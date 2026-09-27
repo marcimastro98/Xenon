@@ -300,6 +300,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
+  audioSetCommunications: true, // Windows: switching a device also moves the calls default (server setDefaultAudioDevice)
   nativeZoom: 1, // native app: WebView2 interface scale, 0.5–3 (Settings slider; native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
@@ -1688,6 +1689,7 @@ function normalizeSettings(source) {
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
     hideOnRdp: value.hideOnRdp === true,
+    audioSetCommunications: value.audioSetCommunications !== false,
     nativeZoom: clampNumber(value.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
@@ -4946,6 +4948,7 @@ function syncSettingsControls() {
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
   syncHideRdpControl();
+  syncAudioCommsControl();
   syncNativeZoomControl();
   syncStackModeControls();
   syncBrowserAdblockControl();
@@ -8535,6 +8538,26 @@ function updateHideOnRdp(checked) {
   syncHideRdpControl();
 }
 
+// ── Audio: which Windows defaults a device switch moves ─────────────────────
+// Windows keeps a separate default for calls. On, a switch from the Volume
+// tile, a Deck key or the assistant moves that one too (as it always did);
+// off, it moves only the Default Device and leaves Discord and Teams where
+// they are. macOS and Linux have one default, so the row is not shown there.
+function syncAudioCommsControl() {
+  const row = $('settings-audio-comms-row');
+  const check = $('settings-audio-comms');
+  const platform = window.XenonPlatform;
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  if (row) row.style.display = (platform && platform !== 'win32') ? 'none' : '';
+  if (check) check.checked = hubSettings.audioSetCommunications !== false;
+}
+
+function updateAudioSetCommunications(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, audioSetCommunications: checked === true });
+  saveHubSettings();
+  syncAudioCommsControl();
+}
+
 // ── Interface scale / zoom (native app only) ────────────────────────────────
 // The native kiosk can scale its whole webview (WebView2 zoom factor),
 // independent of the Windows display scale. The row only shows inside the
@@ -10172,6 +10195,7 @@ function applyPlatformGating(platform) {
   // late answer is better than one wrong on Windows.
   window.XenonPlatform = platform || '';
   renderPlatformBeta(platform);
+  syncAudioCommsControl();   // a Windows-only row inside a shared pane
   if (platform === 'win32') return;
   document.querySelectorAll('[data-settings-win-only]').forEach((el) => {
     const cat = el.dataset.settingsCat || el.dataset.settingsWinOnly;

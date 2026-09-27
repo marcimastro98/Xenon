@@ -4,6 +4,9 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **You can switch speakers or microphone without moving your calls.** Windows keeps two defaults for each direction: the default device, which games, music and videos use, and the default communication device, which Discord, Teams and other call apps use. Until now Xenon always changed both. A new switch in **Settings → General → Audio**, **Also switch the communication device**, decides. It stays on by default, so nothing changes unless you turn it off; with it off, the System tile, a Deck key or the assistant change only the default device and leave calls on the device you picked for them. Windows only, because macOS and Linux have a single default.
+
 ### 🐛 Fixed
 - **Performance Mode no longer stays on forever when you start it with no game open.** Pressing **Optimize** on the System tile while you were just using the desktop started a session with nothing to end it: it only knew how to stop when the game it was started for closed, and there was no game. It stayed on for days, with animations paused, the Windows power plan on High and the heavy tiles paused, and nothing on the dashboard showed it. Now a session like that ends by itself after 20 minutes in which no game runs and none of the activities you ticked in **Settings → Performance** is in front, with the usual "settings restored" notice. A session started for a game still ends when you close the game.
 

@@ -5115,6 +5115,23 @@ function setMicMute(mute) {
   }
 }
 
+// Make a device the default. Windows keeps three defaults per direction:
+// Console and Multimedia (together, what the Sound panel calls the Default
+// Device) and Communications (what Discord, Teams and call apps use), and
+// SoundVolumeView sets one role per call or 'all'. Everything in Xenon that
+// switches a device comes through here, so one setting decides for all of
+// them. Asked on Discord: "would only swap the default device (not the
+// communication device)". macOS and Linux have one default and ignore roles.
+async function setDefaultAudioDevice(id, settings) {
+  const s = settings || _serverHubSettings || {};
+  if (process.platform !== 'win32' || s.audioSetCommunications !== false) {
+    await svvExec(['/SetDefault', id, 'all']);
+    return;
+  }
+  await svvExec(['/SetDefault', id, '0']);   // Console
+  await svvExec(['/SetDefault', id, '1']);   // Multimedia
+}
+
 // Promise wrapper around a single SoundVolumeView call, and the ONE place that
 // knows SoundVolumeView is Windows-only: on Linux the same argv is translated to
 // wpctl. Every SVV call site goes through here, so there is no execFile shadow
@@ -6014,7 +6031,7 @@ const deckRegistryDeps = {
     try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
     const match = resolveOutputDevice(wanted, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
-    await svvExec(['/SetDefault', match.id, 'all']);
+    await setDefaultAudioDevice(match.id);
     cachedSpeakerId = match.id;
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
@@ -6027,7 +6044,7 @@ const deckRegistryDeps = {
     try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
     const match = pickToggleDevice(a, b, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
-    await svvExec(['/SetDefault', match.id, 'all']);
+    await setDefaultAudioDevice(match.id);
     cachedSpeakerId = match.id;
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
@@ -7745,7 +7762,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
           if (!match || !match.id) {
             fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
           } else {
-            await svvExec(['/SetDefault', match.id, 'all']);
+            await setDefaultAudioDevice(match.id);
             if (kind === 'speaker') cachedSpeakerId = match.id;
             else { cachedMicId = match.id; if (isMuted) setMicMute(true); }
             fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
@@ -8178,6 +8195,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Native app only: hide the kiosk window while the machine is used over RDP
   // (monitor.rs watches SM_REMOTESESSION; native-bridge.js relays the toggle).
   hideOnRdp: false,
+  // Windows keeps a separate default for calls (Discord, Teams): true = moving
+  // the output or input moves that one too, as Xenon always did.
+  audioSetCommunications: true,
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -9632,6 +9652,7 @@ function normalizeHubSettings(value) {
     swipeHomeGesture: source.swipeHomeGesture !== false,
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     hideOnRdp: source.hideOnRdp === true,
+    audioSetCommunications: source.audioSetCommunications !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
     versionPing: source.versionPing === true,
     // `!== false` on purpose: absent means on, so existing installs keep getting
@@ -14592,13 +14613,13 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      svvExec(['/SetDefault', id, 'all']).then(() => { cachedSpeakerId = id; json({ ok: true }); }, e => err500(e.message));
+      setDefaultAudioDevice(id).then(() => { cachedSpeakerId = id; json({ ok: true }); }, e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/mic/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      svvExec(['/SetDefault', id, 'all']).then(() => {
+      setDefaultAudioDevice(id).then(() => {
         cachedMicId = id;
         if (isMuted) setMicMute(true);
         json({ ok: true });
