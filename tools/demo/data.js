@@ -44,6 +44,14 @@ window.__XD__ = (function () {
       // have, and must never start the wake-word/voice paths.
       updateCheck: false,
       wakeWord: false,
+      // A visitor came to see the dashboard, so nothing may stand in front of
+      // it: the "where do you want Xenon?" question is about an install they
+      // do not have, and the tour, the Discord card and the supporter ask are
+      // for people who already use it.
+      surfaceChoice: { kind: 'auto', asked: true, monitor: '', label: '' },
+      onboarding: { seenVersion: 999 },
+      discordInviteSeen: true,
+      supportAskSeen: true,
     },
 
     system: {
