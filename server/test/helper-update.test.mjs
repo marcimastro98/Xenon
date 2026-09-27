@@ -120,3 +120,74 @@ test('no-helper when no exe is present (PS-only install is never surprise-downlo
     assert.equal(fs.existsSync(exe), false, 'nothing was created');
   });
 });
+
+// ── install(): the "Install Xenon Helper" button in Settings ──────────────────
+// The same verified download for a helper that never arrived. It asks for THIS
+// version's release (not latest), and none of the checks above are relaxed.
+
+// Serves the release only at /releases/tags/v<APP>; /releases/latest answers
+// with a newer tag, so a lookup of latest would fail the version check.
+function tagFetch(over = {}) {
+  const inner = makeFetch(over);
+  const asked = [];
+  const f = async (url) => {
+    const u = String(url);
+    asked.push(u);
+    if (u.includes('/releases/tags/v' + APP)) return inner('https://api.github.com/releases/latest');
+    if (u.includes('/releases/latest')) return { ok: true, json: async () => ({ tag_name: '9.9.9', assets: [] }) };
+    return inner(u);
+  };
+  f.asked = asked;
+  return f;
+}
+
+test('install() puts a missing helper in place, from this version\'s release', async () => {
+  await withTempExe(null, async ({ exe }) => {
+    const f = tagFetch();
+    assert.equal(await mk(exe, f).install(), 'installed');
+    assert.deepEqual(fs.readFileSync(exe), NEW_BYTES);
+    assert.ok(f.asked.some((u) => u.endsWith('/releases/tags/v' + APP)), 'asked for v' + APP);
+    assert.ok(!f.asked.some((u) => u.includes('/releases/latest')), 'never asked for latest');
+  });
+});
+
+test('install() creates the helper folder when it is not there', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-hu-'));
+  try {
+    const exe = path.join(dir, 'helper', 'xenon-helper.exe');
+    assert.equal(await mk(exe, tagFetch()).install(), 'installed');
+    assert.deepEqual(fs.readFileSync(exe), NEW_BYTES);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('install() still refuses bytes that do not match the signed hash, and leaves nothing behind', async () => {
+  await withTempExe(null, async ({ dir, exe }) => {
+    assert.equal(await mk(exe, tagFetch({ exeBytes: Buffer.from('swapped') })).install(), 'mismatch');
+    assert.equal(fs.existsSync(exe), false);
+    assert.deepEqual(fs.readdirSync(dir), [], 'no .download left over');
+  });
+});
+
+test('install() still refuses a bad signature', async () => {
+  await withTempExe(null, async ({ exe }) => {
+    const other = crypto.generateKeyPairSync('ed25519');
+    const badSig = crypto.sign(null, Buffer.from(NEW_HASH + '  xenon-helper.exe\n', 'utf8'), other.privateKey).toString('base64');
+    assert.equal(await mk(exe, tagFetch({ sigB64: badSig })).install(), 'signature-invalid');
+    assert.equal(fs.existsSync(exe), false);
+  });
+});
+
+test('install() over a present helper replaces it like refresh() would', async () => {
+  await withTempExe(Buffer.from('old-helper'), async ({ exe }) => {
+    assert.equal(await mk(exe, tagFetch()).install(), 'installed');
+    assert.deepEqual(fs.readFileSync(exe), NEW_BYTES);
+  });
+});
+
+test('install() without a release for this version is not-ready, not a crash', async () => {
+  await withTempExe(null, async ({ exe }) => {
+    const f = async () => ({ ok: false });
+    assert.equal(await mk(exe, f).install(), 'not-ready');
+    assert.equal(fs.existsSync(exe), false);
+  });
+});

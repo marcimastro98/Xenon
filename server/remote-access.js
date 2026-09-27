@@ -105,6 +105,7 @@ const REMOTE_DENY = new Set([
   // are visible.
   '/api/native/install',
   '/api/gamemode/install-presentmon',
+  '/audio/levels/install-helper',
   '/api/lighting/sdk-install',
   '/api/ai-local/whisper-install',
   '/embedded-browser/adblock/install',

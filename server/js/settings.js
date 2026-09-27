@@ -8475,9 +8475,43 @@ async function refreshMediaVizStatus(recheck) {
   el.textContent = key ? t(key).replace('{version}', (st && st.minVersion) || '') : '';
   el.dataset.state = state;
   el.hidden = !key;
+  // Every one of the three problems is fixed by the same verified download, so
+  // the fix sits right under the sentence that names it.
+  const btn = $('settings-media-viz-install');
+  if (btn && !btn.disabled) btn.hidden = state !== 'bad';
   // A helper too old for metering is only found out once it is started, which
   // switching the wave on has just asked for: look again in a moment.
   if (on && !recheck && st && st.available && !st.failure) setTimeout(() => refreshMediaVizStatus(true), 4000);
+}
+
+// "Install Xenon Helper": the verified download the setup does, from here. Asked
+// for on Discord by someone on the setup .exe who was told to re-run INSTALL.bat,
+// a file that install never shows anyone.
+async function installXenonHelper() {
+  const btn = $('settings-media-viz-install');
+  const el = $('settings-media-viz-status');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = t('settings_media_viz_installing');
+  let r = null;
+  try { const res = await fetch('/audio/levels/install-helper', { method: 'POST' }); r = res.ok ? await res.json() : null; } catch { r = null; }
+  btn.disabled = false;
+  btn.textContent = t('settings_media_viz_install');
+  if (r && r.ok) {
+    await refreshMediaVizStatus();
+    // With the wave off there is nothing else to say, so say this.
+    if (el && el.hidden) { el.textContent = t('settings_media_viz_st_installed'); el.dataset.state = 'ok'; el.hidden = false; }
+    return;
+  }
+  if (!el) return;
+  const code = (r && r.status) || 'no_server';
+  const key = (code === 'not-ready' || code === 'skip-not-latest') ? 'settings_media_viz_install_offline'
+    : (code === 'signature-invalid' || code === 'mismatch') ? 'settings_media_viz_install_unverified'
+    : 'settings_media_viz_install_failed';
+  el.textContent = t(key) + ' (' + code + ')';
+  el.dataset.state = 'bad';
+  el.hidden = false;
+  btn.hidden = false;
 }
 
 function updateMediaVisualizer(mode) {
