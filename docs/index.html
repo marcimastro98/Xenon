@@ -791,7 +791,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       </div>
       <div class="ws-end">
         <p data-i18n="ws.more">Beyond these 41: the widgets in the catalog, and the ones you make, also without code.</p>
-        <p class="ws-links"><a href="/catalog/" data-i18n="cat.more">Browse the catalog</a><a href="/create/#widgets" data-i18n="ws.make">Make a widget</a></p>
+        <p class="ws-links"><a href="/widgets.html" data-i18n="ws.all">The full list of widgets</a><a href="/catalog/" data-i18n="cat.more">Browse the catalog</a><a href="/create/#widgets" data-i18n="ws.make">Make a widget</a></p>
       </div>
     </div>
   </section>
@@ -804,12 +804,12 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       </div>
       <div class="ctl-shots">
         <figure><img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Deck widget with twelve keys: OBS scenes, recording, microphone, Discord, Spotify, playback, a screenshot and the lights" data-i18n-alt="ctl.deck.alt">
-          <figcaption><h3 data-i18n="ctl.deck.t">Deck</h3><p data-i18n="ctl.deck.p">Keys that open apps and files, switch OBS scenes, send hotkeys, call webhooks and control Discord and Voicemeeter. One key can run several steps in a row, and a key can show the state of what it controls: here Play is lit because music is playing.</p></figcaption></figure>
+          <figcaption><h3 data-i18n="ctl.deck.t">Deck</h3><p data-i18n="ctl.deck.p">Keys that open apps and files, switch OBS scenes, send hotkeys, call webhooks and control Discord and Voicemeeter. One key can run several steps in a row, and a key can show the state of what it controls: here Play is lit because music is playing.</p><p><a href="/deck.html" data-i18n="ctl.deck.more">How the Deck works</a></p></figcaption></figure>
         <figure><img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Claude Code widget asking to run npm test, with Allow and Deny, the session and the plan quota" data-i18n-alt="ctl.claude.alt">
-          <figcaption><h3>Claude Code</h3><p data-i18n="ctl.claude.p">When Claude Code asks to run a command, the request appears on the screen with Allow and Deny, and the quota of your plan stays in view.</p></figcaption></figure>
+          <figcaption><h3>Claude Code</h3><p data-i18n="ctl.claude.p">When Claude Code asks to run a command, the request appears on the screen with Allow and Deny, and the quota of your plan stays in view.</p><p><a href="/claude-code.html" data-i18n="ctl.claude.more">Claude Code on the screen</a></p></figcaption></figure>
       </div>
       <div class="ctl-more">
-        <div><h3 data-i18n="ctl.game.t">Game mode</h3><p data-i18n="ctl.game.p">In the Xenon app on Windows, touching the dashboard does not take focus from the game you are playing. The frame rate comes from the game itself, measured with PresentMon.</p></div>
+        <div><h3 data-i18n="ctl.game.t">Game mode</h3><p data-i18n="ctl.game.p">In the Xenon app on Windows, touching the dashboard does not take focus from the game you are playing. The frame rate comes from the game itself, measured with PresentMon.</p><p><a href="/sensor-panel.html" data-i18n="ctl.sensor.more">Sensors and frame rate</a></p></div>
         <div><h3>Xenon AI</h3><p data-i18n="ctl.ai.p">Ask out loud with "Hey Xenon". It works with Gemini, OpenAI, Anthropic or a local model through Ollama, and with Claude Code and Codex on your own subscription.</p></div>
       </div>
     </div>
@@ -974,6 +974,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <span class="file">Xenon-macOS-universal.dmg</span>
           <p data-i18n="dl.mac.req">macOS 11 or later, Apple silicon and Intel. Not notarized yet: on first launch open System Settings, Privacy &amp; Security, and choose Open Anyway.</p>
           <a class="k" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="card_macos" data-i18n="dl.mac.btn">Download for Mac</a>
+          <span class="more"><a href="/mac.html" data-i18n="dl.mac.guide">Mac guide</a></span>
         </div>
         <div class="os" data-os-card="linux">
           <h3><svg aria-hidden="true"><use href="#os-linux"/></svg>Linux<span class="beta" data-i18n="beta">Beta</span><span class="you" data-os-you hidden data-i18n="dl.you">Your system</span></h3>
@@ -1021,13 +1022,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       <li><a href="/demo/" data-i18n="ft.demo">Browser demo</a></li>
       <li><a href="/catalog/" data-i18n="ft.catalog">Catalog</a></li>
       <li><a href="/create/" data-i18n="ft.create">Make widgets</a></li>
-      <li><a href="https://github.com/marcimastro98/Xenon/releases" data-i18n="ft.releases">Releases</a></li>
+      <li><a href="/releases.html" data-i18n="ft.releases">Releases</a></li>
     </ul></div>
     <div class="ft-col"><h2 data-i18n="ft.guides">Guides</h2><ul>
       <li><a href="/xeneon-edge-widgets.html" data-i18n="ft.edge">Xenon on the Xeneon Edge</a></li>
       <li><a href="/tablet-dashboard.html" data-i18n="ft.tablet">Tablet or phone as a dashboard</a></li>
       <li><a href="/phone.html" data-i18n="ft.phone">Pairing a phone</a></li>
+      <li><a href="/mac.html" data-i18n="ft.mac">Xenon on a Mac</a></li>
       <li><a href="/linux.html" data-i18n="ft.linux">Xenon on Linux</a></li>
+      <li><a href="/widgets.html" data-i18n="ft.widgets">Every widget</a></li>
+      <li><a href="/deck.html" data-i18n="ft.deck">Deck keys</a></li>
+      <li><a href="/claude-code.html" data-i18n="ft.claude">Claude Code on a touchscreen</a></li>
+      <li><a href="/sensor-panel.html" data-i18n="ft.sensor">A sensor panel for your PC</a></li>
       <li><a href="/xenon-exe.html" data-i18n="ft.exe">Is the installer safe?</a></li>
     </ul></div>
     <div class="ft-col"><h2 data-i18n="ft.project">Project</h2><ul>
@@ -1373,6 +1379,16 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ft.faq": "Help and questions",
     "ft.privacy": "Privacy",
     "ft.legal": "Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.",
+    "ws.all": "The full list of widgets",
+    "ctl.deck.more": "How the Deck works",
+    "ctl.claude.more": "Claude Code on the screen",
+    "ctl.sensor.more": "Sensors and frame rate",
+    "dl.mac.guide": "Mac guide",
+    "ft.mac": "Xenon on a Mac",
+    "ft.widgets": "Every widget",
+    "ft.deck": "Deck keys",
+    "ft.claude": "Claude Code on a touchscreen",
+    "ft.sensor": "A sensor panel for your PC",
   };
 
   I18N.it = {
@@ -1587,6 +1603,16 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ft.faq": "Aiuto e domande",
     "ft.privacy": "Privacy",
     "ft.legal": "Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.",
+    "ws.all": "L'elenco completo dei widget",
+    "ctl.deck.more": "Come funziona il Deck",
+    "ctl.claude.more": "Claude Code sullo schermo",
+    "ctl.sensor.more": "Sensori e frame rate",
+    "dl.mac.guide": "Guida Mac",
+    "ft.mac": "Xenon su Mac",
+    "ft.widgets": "Tutti i widget",
+    "ft.deck": "Tasti del Deck",
+    "ft.claude": "Claude Code su uno schermo touch",
+    "ft.sensor": "Un pannello sensori per il PC",
   };
 
   I18N.es = {
@@ -1801,6 +1827,16 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ft.faq": "Ayuda y preguntas",
     "ft.privacy": "Privacidad",
     "ft.legal": "Xenon es un proyecto independiente. Xeneon e iCUE son marcas comerciales de CORSAIR.",
+    "ws.all": "La lista completa de widgets",
+    "ctl.deck.more": "Cómo funciona el Deck",
+    "ctl.claude.more": "Claude Code en la pantalla",
+    "ctl.sensor.more": "Sensores y FPS",
+    "dl.mac.guide": "Guía para Mac",
+    "ft.mac": "Xenon en un Mac",
+    "ft.widgets": "Todos los widgets",
+    "ft.deck": "Teclas del Deck",
+    "ft.claude": "Claude Code en una pantalla táctil",
+    "ft.sensor": "Un panel de sensores para tu PC",
   };
 
   I18N.ja = {
@@ -2015,6 +2051,16 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ft.faq": "ヘルプとよくある質問",
     "ft.privacy": "プライバシー",
     "ft.legal": "Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。",
+    "ws.all": "ウィジェットの一覧",
+    "ctl.deck.more": "Deck の仕組み",
+    "ctl.claude.more": "画面で使う Claude Code",
+    "ctl.sensor.more": "センサーとフレームレート",
+    "dl.mac.guide": "Mac ガイド",
+    "ft.mac": "MacでのXenon",
+    "ft.widgets": "すべてのウィジェット",
+    "ft.deck": "Deckキー",
+    "ft.claude": "タッチスクリーンでClaude Code",
+    "ft.sensor": "PCのセンサーパネル",
   };
 
   I18N.ko = {
@@ -2229,6 +2275,16 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ft.faq": "도움말과 질문",
     "ft.privacy": "개인정보",
     "ft.legal": "Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.",
+    "ws.all": "전체 위젯 목록",
+    "ctl.deck.more": "Deck 사용법",
+    "ctl.claude.more": "화면에서 쓰는 Claude Code",
+    "ctl.sensor.more": "센서와 프레임 레이트",
+    "dl.mac.guide": "Mac 가이드",
+    "ft.mac": "Mac에서 쓰는 Xenon",
+    "ft.widgets": "모든 위젯",
+    "ft.deck": "Deck 키",
+    "ft.claude": "터치스크린에서 쓰는 Claude Code",
+    "ft.sensor": "PC 센서 패널",
   };
 
   I18N.zh = {
@@ -2443,6 +2499,16 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ft.faq": "帮助和常见问题",
     "ft.privacy": "隐私",
     "ft.legal": "Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。",
+    "ws.all": "全部小组件列表",
+    "ctl.deck.more": "Deck 的用法",
+    "ctl.claude.more": "在屏幕上使用 Claude Code",
+    "ctl.sensor.more": "传感器和帧率",
+    "dl.mac.guide": "Mac 指南",
+    "ft.mac": "在 Mac 上使用 Xenon",
+    "ft.widgets": "全部小组件",
+    "ft.deck": "Deck 按键",
+    "ft.claude": "在触摸屏上使用 Claude Code",
+    "ft.sensor": "电脑传感器面板",
   };
 
   // Language engine. Every language has a URL of its own, generated by
