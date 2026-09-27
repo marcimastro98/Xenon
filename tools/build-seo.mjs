@@ -118,18 +118,18 @@ const KIND_BLURB = {
     'your tiles. It runs locally on your own machine, with no video file to download.',
   page: 'A page is a ready-made dashboard layout: which widgets sit where, at what size, ' +
     'across the grid. Importing it adds the page alongside the ones you already have.',
-  deck: 'A Deck profile is a set of touch keys — apps, files, sites, media controls, macros — ' +
+  deck: 'A Deck profile is a set of touch keys for apps, files, sites, media controls and macros, ' +
     'laid out ready to press. You can edit every key after importing it.',
   widget: 'A widget is a tile that lives on your dashboard grid. It runs sandboxed, with no ' +
     'network access unless its manifest asks for named hosts and you approve them at install.',
-  bundle: 'A package installs several pieces at once — typically a theme, a background and one ' +
-    'or more widgets built to look like each other — so the whole dashboard changes in one paste.',
+  bundle: 'A package installs several pieces at once, usually a theme, a background and one ' +
+    'or more widgets built to look like each other, so the whole dashboard changes in one paste.',
   ambient: 'An ambient scene takes over the full screen when the dashboard goes idle, and steps ' +
-    'aside the moment you touch it. It is the screensaver the Xeneon Edge never had.',
+    'aside the moment you touch it. It works like a screensaver for the dashboard.',
   icons: 'An icon pack replaces the artwork on your Deck keys, so a profile can look like one ' +
     'thing rather than a grid of defaults.',
-  sounds: 'A sound pack replaces the dashboard\'s own feedback sounds — key presses, alerts, ' +
-    'the voice session chimes.',
+  sounds: 'A sound pack replaces the dashboard\'s own feedback sounds: key presses, alerts ' +
+    'and the voice session chimes.',
 };
 
 /* ── the per-entry page ──────────────────────────────────────────────────── */
@@ -268,7 +268,7 @@ function entryPage(e, indexable, live = []) {
   const published = isoDay(e.addedAt);
   const modified = isoDay(e.updatedAt) || published;
 
-  const title = `${e.name} — ${kindLabel} for Xenon`;
+  const title = `${e.name}: ${kindLabel} for Xenon`;
   const description = clamp(
     e.description ||
     `${e.name}, a ${kindLabel.toLowerCase()} for the Xenon dashboard by ${e.author}. Import it into your local Xenon in one paste.`
@@ -339,7 +339,7 @@ function entryPage(e, indexable, live = []) {
       // webp first, png second, gone third — the same two-step the catalog does
       // at runtime, plus the removal, because a broken-image icon sitting in the
       // layout looks worse than the gap it leaves.
-      `<img src="${esc(shotUrl(e.id, i))}" alt="${esc(e.name)} — screenshot ${i} of ${shots}"` +
+      `<img src="${esc(shotUrl(e.id, i))}" alt="${esc(e.name)}, screenshot ${i} of ${shots}"` +
       ` loading="${i === 1 ? 'eager' : 'lazy'}" decoding="async"` +
       ` onerror="this.onerror=function(){this.remove()};this.src='${esc(shotUrl(e.id, i, 'png'))}'">`
     );
@@ -367,7 +367,7 @@ function entryPage(e, indexable, live = []) {
   let buttons, note;
   if (limited && soldOut) {
     buttons = `<a class="btn" href="${inCatalog}">See it in the catalog</a>`;
-    note = `Sold out — all ${esc(limited.total)} copies of this drop are claimed.`;
+    note = `Sold out: all ${esc(limited.total)} copies of this drop are claimed.`;
   } else if (limited) {
     buttons =
       `<a class="btn fill" href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve on Discord</a>` +
@@ -377,7 +377,7 @@ function entryPage(e, indexable, live = []) {
       `Discord verifies your account and sends a personal access code.`;
   } else if (locked) {
     buttons = `<a class="btn fill" href="${inCatalog}">Open in the catalog</a>`;
-    note = `A supporters' item — unlock it in the catalog, then paste the code into ` +
+    note = `A supporters' item. Unlock it in the catalog, then paste the code into ` +
       `Xenon under Settings → Widgets &amp; sharing → Import.`;
   } else {
     buttons =
@@ -394,7 +394,7 @@ function entryPage(e, indexable, live = []) {
   const steps = [];
   if (limited && soldOut) {
     steps.push(
-      `This drop is closed — all ${esc(limited.total)} copies were claimed.`,
+      `This drop is closed: all ${esc(limited.total)} copies were claimed.`,
       `<a href="/catalog/">Browse the rest of the catalog</a> for something still available.`
     );
   } else {
@@ -424,7 +424,7 @@ function entryPage(e, indexable, live = []) {
   facts.push(['Made by', `<a href="/creators/${creatorSlug(e.author)}/">${esc(e.author)}</a>` + (e.authorSupporter ? ' (supporter)' : '')]);
   if (e.version) facts.push(['Version', 'v' + esc(e.version)]);
   facts.push(['Needs', e.appVersionMin ? `Xenon ${esc(e.appVersionMin)} or later` : 'Any recent Xenon']);
-  facts.push(['Runs on', 'Windows, macOS and Linux — on a second monitor, a Xeneon Edge, ' +
+  facts.push(['Runs on', 'Windows, macOS and Linux, on a second monitor, a Xeneon Edge, ' +
     'a tablet or a paired phone']);
   facts.push(['Price', limited ? 'Reserved on Discord' : locked ? 'Supporters' : 'Free']);
   if (published) facts.push(['Added', esc(published)]);
@@ -512,7 +512,7 @@ ${headerHtml()}
       ? `<section class="sec"><h2>Tags</h2><div class="tags">${e.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div></section>`
       : ''}
     ${e.perfWarning
-      ? `<p class="note">This one asks a little more of the machine than most — it is worth knowing before you load it onto a small screen.</p>`
+      ? `<p class="note">This one asks a little more of the machine than most, which is worth knowing before you load it onto a small screen.</p>`
       : ''}
     <div class="cta">${buttons}</div>
     <p class="note">${note}</p>
