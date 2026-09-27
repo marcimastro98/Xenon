@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xeneon Edge 小组件列表：Xenon 仪表盘的全部 41 个小组件</title>
+<meta name="description" content="Xenon 内置的全部 41 个小组件及各自的用途：系统监控、媒体、日历、Deck 按键、OBS 等，可用于 Xeneon Edge、电脑显示器或触摸屏。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xeneon Edge 小组件列表：Xenon 仪表盘的全部 41 个小组件">
+<meta property="og:description" content="Xenon 内置的全部 41 个小组件及各自的用途：系统监控、媒体、日历、Deck 按键、OBS 等，可用于 Xeneon Edge、电脑显示器或触摸屏。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/zh/widgets.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xeneon Edge 小组件列表：Xenon 仪表盘的全部 41 个小组件">
+<meta name="twitter:description" content="Xenon 内置的全部 41 个小组件及各自的用途：系统监控、媒体、日历、Deck 按键、OBS 等，可用于 Xeneon Edge、电脑显示器或触摸屏。">
+<meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
+<link rel="canonical" href="https://xenon-app.com/zh/widgets.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 有多少个小组件？","acceptedAnswer":{"@type":"Answer","text":"内置 41 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在“自定义小组件”磁贴中运行。"}},{"@type":"Question","name":"这些小组件一定要有 Xeneon Edge 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。"}},{"@type":"Question","name":"一个磁贴可以放多个小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。"}},{"@type":"Question","name":"一个 Xenon 仪表盘可以有多少页？","acceptedAnswer":{"@type":"Answer","text":"最多 8 页，每页都是 24 列的网格。"}},{"@type":"Question","name":"我可以自己做小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。使用小组件 SDK（目前是测试版），把小组件写成一个 HTML 页面，Xenon 会在沙盒中运行它，它只能使用用户批准的数据和操作。"}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── The widget lists ─────────────────────────────────────────── */
+  .wlist { list-style: none; padding: 0; margin: 0 0 20px; border-top: 1px solid var(--line); }
+  .wlist li { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .wlist li strong { color: var(--text); }
+  figure.shot { margin: 26px 0 8px; }
+  figure.shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--g-1);
+  }
+  figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .jump + .note { margin-top: 26px; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/widgets.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/widgets.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/widgets.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/widgets.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/widgets.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/widgets.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/widgets.html" aria-current="page" data-xl="f.widgets">全部小组件</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"全部小组件","item":"https://xenon-app.com/zh/widgets.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="wg.h1">Xenon 小组件：完整列表</h1>
+    <p class="lede" data-i18n="wg.lede">Xenon 是一款免费的触控仪表盘，用于电脑旁边的屏幕：CORSAIR Xeneon Edge、闲置的显示器、触摸屏，或者（测试版）手机或平板。它内置 41 个小组件。下面逐一介绍每个小组件的用途，然后说明如何摆放它们，以及更多小组件从哪里来。</p>
+    <p class="updated" data-i18n="wg.updated">最后更新：2026年9月27日</p>
+
+    <nav class="jump" aria-label="On this page">
+      <a href="#productivity" data-i18n="wg.jump.prod">效率</a>
+      <a href="#media" data-i18n="wg.jump.media">媒体</a>
+      <a href="#system" data-i18n="wg.jump.system">系统</a>
+      <a href="#streaming" data-i18n="wg.jump.stream">直播</a>
+      <a href="#layout" data-i18n="wg.jump.layout">网格、页面和标签页</a>
+      <a href="#catalog" data-i18n="wg.jump.catalog">目录中的小组件</a>
+      <a href="#own" data-i18n="wg.jump.own">自己的小组件</a>
+      <a href="#faq" data-i18n="wg.jump.faq">常见问题</a>
+    </nav>
+
+    <p class="note" data-i18n="wg.platforms">Xenon 运行在 Windows 10 和 11 上，macOS 和 Linux 为测试版。三个系统上的列表相同，只有“第二屏幕”仅在 Windows 上提供。如果某个系统无法为某个小组件提供数据，磁贴会直接说明；平台限制也在列表中注明。</p>
+
+    <h2 id="productivity" data-i18n="wg.h.prod">效率</h2>
+    <p data-i18n="wg.prod.intro">14 个小组件，按 + 面板中列出的顺序排列。</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.agenda"><strong>日程。</strong>把日历、任务、计时器和笔记作为同一个磁贴里的标签页；其中任何一个单独添加为磁贴后，就会从标签栏中移出。</li>
+      <li data-i18n-html="wg.w.calendar"><strong>日历。</strong>月视图，显示你自己的事件和提醒，还可以显示来自 Google、Outlook 或任何提供 .ics 链接的日历的只读事件。</li>
+      <li data-i18n-html="wg.w.tasks"><strong>任务。</strong>待办清单，分高、中、低三个优先级，任务可以每天、每周或每隔几天重复。</li>
+      <li data-i18n-html="wg.w.timer"><strong>计时器。</strong>带名字的倒计时和秒表，最多同时 20 个，重启后依然保留。</li>
+      <li data-i18n-html="wg.w.notes"><strong>笔记。</strong>分标签页的纯文本笔记，停止输入时自动保存，还可以把其中一条固定在最前面。</li>
+      <li data-i18n-html="wg.w.weather"><strong>天气。</strong>当前天气、逐小时和逐日预报以及空气质量，数据来自 Open-Meteo、MET Norway 或 wttr.in，无需账号。</li>
+      <li data-i18n-html="wg.w.search"><strong>搜索。</strong>在磁贴里直接输入一句普通的话，比如“12 月的照片”或“大的 pdf”，就能找到电脑上的文件。</li>
+      <li data-i18n-html="wg.w.transfer"><strong>文件传输。</strong>通过你自己的网络，在已配对的手机或平板与电脑之间发送照片、视频和文件，并列出收到了什么、发出了什么。它需要手机访问，这项功能目前是测试版。</li>
+      <li data-i18n-html="wg.w.stocks"><strong>股票。</strong>股票、指数、加密货币和外汇的自选列表，显示当日涨跌，每个代码都有图表，默认通过 Yahoo Finance 获取，无需密钥。</li>
+      <li data-i18n-html="wg.w.football"><strong>足球。</strong>你关注的球队和赛事的赛程、赛果和积分榜，数据来自 TheSportsDB，无需密钥。</li>
+      <li data-i18n-html="wg.w.news"><strong>新闻。</strong>把你关注的媒体、话题和 RSS 订阅源的标题汇成一个列表，最新的在最前。</li>
+      <li data-i18n-html="wg.w.notifications"><strong>通知。</strong>桌面上显示的通知，包括应用、发送者和内容，可以先隐藏，点按后再显示。支持 Windows 和 Linux。</li>
+      <li data-i18n-html="wg.w.vitals"><strong>生命体征。</strong>像素风格的指示条，分别对应喝水、吃东西、活动身体和让眼睛休息，你坐在电脑前时它们会逐渐下降。点按其中一个并确认你做到了，就能把它补满。</li>
+      <li data-i18n-html="wg.w.phone"><strong>手机。</strong>通过蓝牙与电脑配对的 iPhone 或 Android 手机的联系人、通话记录、拨号键盘和短信。仅限 Windows，测试版。</li>
+    </ul>
+    <figure class="shot">
+      <img src="/images/home/crop-calendar.webp" width="836" height="572" loading="lazy" decoding="async" alt="“日程”磁贴显示“日历”标签页：2026 年 9 月的月视图和三个即将到来的事件，上方是“任务”“计时器”和“笔记”标签页" data-i18n-alt="wg.shot.cal">
+      <figcaption data-i18n="wg.cap.cal">“日程”磁贴，日历、任务、计时器和笔记是它的标签页。</figcaption>
+    </figure>
+
+    <h2 id="media" data-i18n="wg.h.media">媒体</h2>
+    <p data-i18n="wg.media.intro">4 个小组件。</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.media"><strong>播放。</strong>电脑上任何媒体应用正在播放的内容，带封面、播放和暂停、上一首和下一首。</li>
+      <li data-i18n-html="wg.w.chat"><strong>聊天。</strong>Xenon AI 的文字聊天：你可以提问，附加图片、PDF 和文本文件，还可以让它修改仪表盘上的内容。</li>
+      <li data-i18n-html="wg.w.browser"><strong>浏览器。</strong>磁贴里的网页，带标签页、地址栏以及后退和前进，由电脑上的 Chromium 浏览器运行，所以连拒绝被嵌入的网站也能打开。</li>
+      <li data-i18n-html="wg.w.slideshow"><strong>幻灯片。</strong>轮流显示你添加的图片和 GIF 动图，或者电脑上某个文件夹里的图片；点按一下即可暂停，也可以手动逐张切换。</li>
+    </ul>
+    <figure class="shot">
+      <img src="/images/home/crop-media.webp" width="836" height="572" loading="lazy" decoding="async" alt="“媒体”磁贴的“播放”标签页：一首 Spotify 歌曲，带封面、上一首、暂停和下一首按钮以及音量滑块，旁边是“聊天”标签页" data-i18n-alt="wg.shot.media">
+      <figcaption data-i18n="wg.cap.media">“播放”和“聊天”默认共用一个磁贴。</figcaption>
+    </figure>
+
+    <h2 id="system" data-i18n="wg.h.system">系统</h2>
+    <p data-i18n="wg.system.intro">13 个小组件。</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.system"><strong>系统。</strong>CPU、GPU、内存和磁盘占用的实时图表，CPU 和 GPU 温度，网速、ping，以及正在玩的游戏的帧率。游戏内帧率在 Windows 上可用；在 Linux 上，适用于用 MangoHud 启动的游戏。</li>
+      <li data-i18n-html="wg.w.fans"><strong>风扇。</strong>传感器报告的每个风扇的转速，按主板、集线器或一体式水冷、显卡和电源分组，名称可以修改。支持 Windows 和 Linux。</li>
+      <li data-i18n-html="wg.w.power"><strong>能耗。</strong>电脑 CPU 和 GPU 的功耗（瓦），电源能报告整机数据时也显示整机功耗，旁边还可以放 Home Assistant 的功率传感器。电脑本身的读数仅限 Windows；Home Assistant 的读数在所有系统上都可用。</li>
+      <li data-i18n-html="wg.w.battery"><strong>电池。</strong>通过 iCUE 显示无线 CORSAIR 设备的电量，还有蓝牙设备、笔记本电池或通过 USB 连接的 UPS 的电量。仅限 Windows。</li>
+      <li data-i18n-html="wg.w.disk"><strong>磁盘空间。</strong>一张显示每个驱动器被什么占满的地图，列出最大的文件、经过核实的重复文件，以及一份固定的可安全清理类别，清理的内容会进入回收站或废纸篓。</li>
+      <li data-i18n-html="wg.w.audio"><strong>音量。</strong>主音量和静音、输出和输入设备，以及每个正在发声的应用各自的滑块。分应用滑块在 Windows 和 Linux 上可用。</li>
+      <li data-i18n-html="wg.w.mic"><strong>麦克风。</strong>一个大按钮用来静音和取消静音麦克风，另有一个调节输入灵敏度的滑块。</li>
+      <li data-i18n-html="wg.w.secondscreen"><strong>第二屏幕。</strong>由虚拟显示驱动程序创建的额外 Windows 桌面，在磁贴中实时显示，你可以把应用拖到上面，用触控操作。仅限 Windows。</li>
+      <li data-i18n-html="wg.w.remote"><strong>远程控制。</strong>通过 Sunshine、Tailscale 和 Moonlight 把电脑串流到手机时的状态和控制：选择要发送哪台显示器、断开连接、阻止访问，或者用紧急开关解除所有设备的配对。设置好 Sunshine 和 Tailscale 之后，它才会出现在 + 面板中。</li>
+      <li data-i18n-html="wg.w.smarthome"><strong>智能家居。</strong>你选择的 Home Assistant 设备，按房间分组：灯和开关显示为开关按钮，场景显示为按钮，另有媒体播放器和传感器读数。</li>
+      <li data-i18n-html="wg.w.unifi"><strong>摄像头。</strong>来自 UniFi Protect 摄像头以及 Home Assistant 提供的任何摄像头的近乎实时的画面，点按即可放大。</li>
+      <li data-i18n-html="wg.w.lighting"><strong>灯光。</strong>iCUE 设备和 WLED、Hue、Nanoleaf 等网络灯具的颜色、效果和逐设备模式。iCUE 设备仅限 Windows。</li>
+      <li data-i18n-html="wg.w.claude"><strong>Claude Code。</strong>在磁贴中连接 Claude Code 后，显示它的 5 小时和每周额度、每个正在运行的会话及其正在做的事，以及你可以在磁贴里直接回应的权限请求。</li>
+    </ul>
+    <figure class="shot">
+      <img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="“系统”磁贴：CPU、GPU、内存和 C 盘的图表，下面是 ping、FPS、延迟和网速，顶部有“音量”和“麦克风”标签页" data-i18n-alt="wg.shot.sys">
+      <figcaption data-i18n="wg.cap.sys">“系统”磁贴，音量和麦克风是它的标签页。</figcaption>
+    </figure>
+
+    <h2 id="streaming" data-i18n="wg.h.stream">直播</h2>
+    <p data-i18n="wg.stream.intro">10 个小组件。Twitch、YouTube、Discord 和 Spotify 在“设置”中连接到你自己的账号，方法是注册一次免费的开发者应用。OBS、Streamer.bot 和 Wave Link 需要对应的程序正在运行。</p>
+    <ul class="wlist">
+      <li data-i18n-html="wg.w.twitch"><strong>Twitch 直播。</strong>用于在 Twitch 上直播：直播状态、通过 OBS 开播或结束、麦克风静音、剪辑、标记、广告插播、标题和分类，以及聊天。</li>
+      <li data-i18n-html="wg.w.twitchwatch"><strong>Twitch。</strong>磁贴里的 Twitch 播放器，附带你关注的正在直播的频道、热门频道、搜索和可选的聊天。</li>
+      <li data-i18n-html="wg.w.youtube"><strong>YouTube。</strong>一个 YouTube 播放器，内容来自你点赞的视频、播放列表、订阅和搜索，列表中其余的视频会作为队列接着播放。</li>
+      <li data-i18n-html="wg.w.youtubelive"><strong>YouTube 直播。</strong>用于在 YouTube 上直播：创建直播、开播或结束、阅读和发送聊天消息，并查看观众人数和直播健康状况。</li>
+      <li data-i18n-html="wg.w.obs"><strong>OBS。</strong>OBS 正在输出的画面预览、开播和录制按钮、场景切换器，以及每个音频输入的静音按钮和音量滑块。</li>
+      <li data-i18n-html="wg.w.discord"><strong>Discord。</strong>你所在的语音频道和正在说话的人，带麦克风静音、耳机静音、按键说话、可加入的频道列表、音效板，以及你的私信和提及。</li>
+      <li data-i18n-html="wg.w.spotify"><strong>Spotify。</strong>Spotify 遥控器，显示正在播放的歌曲、队列、你的播放列表和 Spotify Connect 设备；控制播放需要 Premium。</li>
+      <li data-i18n-html="wg.w.streamerbot"><strong>Streamer.bot。</strong>来自 Streamer.bot 的关注、订阅、突袭、打赏和兑换的实时动态，以及你的 Streamer.bot 全局变量。</li>
+      <li data-i18n-html="wg.w.wavelink"><strong>Wave Link。</strong>Elgato Wave Link 混音器：每个混音中的每个通道都有推子和静音，在 Wave Link 3 上还有实时电平表。</li>
+      <li data-i18n-html="wg.w.deck"><strong>Deck（快捷面板）。</strong>一组可编程按键，可以打开应用、发送快捷键，控制媒体、OBS、Discord 或 Home Assistant，还能运行多步宏。</li>
+    </ul>
+
+    <h2 id="layout" data-i18n="wg.h.layout">网格、页面和标签页</h2>
+    <p data-i18n-html="wg.layout.p1">点按顶栏中的<strong>布局</strong>即可编辑仪表盘。磁贴放在 24 列、半高行的网格上，所以会落在接近你放下的位置，拖动角落就能调整大小。</p>
+    <p data-i18n="wg.layout.p2">每一页上的 + 会打开小组件面板：包括上面的四组，以及“其他”下的“自定义小组件”。一个仪表盘最多有 8 页，可以滑动、用方向键或点按顶栏中的页面圆点在页面之间切换。</p>
+    <p data-i18n="wg.layout.p3">把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页；把标签页拖出来即可再次拆开。一开始就有的“媒体”“日程”和“系统”磁贴就是这样组成的。</p>
+    <p data-i18n="wg.layout.p4">有些小组件可以添加不止一次。播放、聊天、日程、日历、任务、计时器、笔记、系统、音量或麦克风的副本会与原件显示相同的内容。Deck、浏览器、远程控制、Discord 或自定义小组件的副本则各自独立，有自己的内容，比如 Deck 的按键或浏览器的地址。</p>
+    <p data-i18n="wg.layout.p5">磁贴或整个页面可以保存为预设，一点即可再次放置；页面还可以以链接或文件的形式分享给其他人。在手机上，同一个仪表盘会重新排成一列；手机访问目前是测试版。</p>
+
+    <h2 id="catalog" data-i18n="wg.h.catalog">目录中的小组件</h2>
+    <p data-i18n-html="wg.catalog.p1"><a href="/catalog/">社区目录</a>收录了其他人制作并分享的小组件、主题、动态背景、页面、Deck 配置、氛围场景和完整套装。每个条目都经过审核。</p>
+    <p data-i18n-html="wg.catalog.p2">在目录页面复制条目的代码，粘贴到<strong>设置 → 小组件与分享 → 导入</strong>中，或者打开应用内的商店，它列出的是同一个目录。在应用任何内容之前，你都会看到这段代码包含什么。</p>
+    <p data-i18n-html="wg.catalog.p3">目录中的小组件在<strong>自定义小组件</strong>磁贴中运行，处于沙盒内：它只能获得自己声明过的数据、操作和网址，并且会先征求你的许可。它背后的小组件 SDK 目前是测试版。</p>
+
+    <h2 id="own" data-i18n="wg.h.own">制作自己的小组件</h2>
+    <p data-i18n="wg.own.p1">自己的小组件用小组件 SDK 制作，这个 SDK 目前是测试版：一个包含 manifest.json 和 index.html 的文件夹。Xenon 在沙盒中运行它，并通过一条消息通道向它传递实时数据和操作。</p>
+    <p data-i18n-html="wg.own.p2"><strong>设置 → 小组件与分享 → 创作</strong>中有指向 SDK 指南的链接。你做好的小组件可以用<strong>导出组件</strong>分享，导入它的人会先看到它的权限并批准。</p>
+    <p data-i18n-html="wg.own.p3"><a href="/create/">创作指南</a>从零讲起，涵盖主题、页面、Deck 配置和小组件。<a href="/create/#sdk">小组件 SDK 参考</a>包含完整的协议。</p>
+
+    <h2 id="faq" data-i18n="wg.h.faq">常见问题</h2>
+    <details><summary data-i18n="wg.faq.count.q">Xenon 有多少个小组件？</summary><div class="body"><p data-i18n="wg.faq.count.a">内置 41 个小组件，分为四组：效率、媒体、系统和直播。除此之外，社区目录中的小组件和你自己做的小组件在“自定义小组件”磁贴中运行。</p></div></details>
+    <details><summary data-i18n="wg.faq.edge.q">这些小组件一定要有 Xeneon Edge 吗？</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。参见<a href="/zh/xeneon-edge-widgets.html">在 Xeneon Edge 上使用 Xenon</a>和<a href="/zh/tablet-dashboard.html">把平板或手机用作仪表盘</a>。</p></div></details>
+    <details><summary data-i18n="wg.faq.tabs.q">一个磁贴可以放多个小组件吗？</summary><div class="body"><p data-i18n="wg.faq.tabs.a">可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。把标签页拖出来即可再次拆开。</p></div></details>
+    <details><summary data-i18n="wg.faq.pages.q">一个仪表盘可以有多少页？</summary><div class="body"><p data-i18n="wg.faq.pages.a">最多 8 页，每页都是 24 列的网格。新页面一开始是空的，其他页面保持不变。</p></div></details>
+    <details><summary data-i18n="wg.faq.own.q">我可以自己做小组件吗？</summary><div class="body"><p data-i18n="wg.faq.own.a">可以。使用小组件 SDK（目前是测试版），把小组件写成一个 HTML 页面，Xenon 会在沙盒中运行它，它只能使用用户批准的数据和操作。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="wg.cta.h">下载 Xenon</h3>
+      <p data-i18n-html="wg.cta.p">个人使用免费，无需账号。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">下载 Windows 版 Xenon</a>，在<a href="/zh/download.html">下载页面</a>获取 macOS 和 Linux 版本，或者先在<a href="/demo/">浏览器演示</a>中试用仪表盘，演示使用的是模拟数据。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

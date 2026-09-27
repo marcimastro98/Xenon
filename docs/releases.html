@@ -47,6 +47,9 @@
   .rel-items details p { margin: 10px 0 0; color: var(--bone-1); font-size: 17px; max-width: 70ch; }
   .rel-items details ul { margin: 8px 0 0; color: var(--bone-1); font-size: 17px; }
   .rel-items code { font: 500 .9em/1 var(--mono); }
+  /* Changelog notes carry long paths and identifiers; they wrap instead of
+     widening the page on a phone. */
+  .rel-items { overflow-wrap: anywhere; }
   .rel-older { margin-top: 48px; font-size: 17px; }
   .rel-older a { font-weight: 700; color: var(--bone-0); }
   @media (max-width: 900px) { .rel-main { padding: 36px 18px 48px; display: block; } }

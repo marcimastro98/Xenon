@@ -219,6 +219,9 @@
     <loc>https://xenon-app.com/mac.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html"/>
     <lastmod>2026-09-27T08:13:27+02:00</lastmod>
@@ -227,24 +230,52 @@
   </url>
   <url>
     <loc>https://xenon-app.com/widgets.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html"/>
     <lastmod>2026-09-27T08:13:27+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/deck.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html"/>
     <lastmod>2026-09-27T08:13:27+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/claude-code.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html"/>
     <lastmod>2026-09-27T08:13:27+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://xenon-app.com/sensor-panel.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
     <lastmod>2026-09-27T08:13:27+02:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -773,6 +804,45 @@
     <loc>https://xenon-app.com/es/mac.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/mac.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/mac.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/mac.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html"/>
     <changefreq>monthly</changefreq>
@@ -782,8 +852,251 @@
     <loc>https://xenon-app.com/zh/mac.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/mac.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/mac.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/mac.html"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/mac.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/mac.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/es/widgets.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/widgets.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/widgets.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/widgets.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/zh/widgets.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/es/deck.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/deck.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/deck.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/deck.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/zh/deck.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/es/claude-code.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/claude-code.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/claude-code.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/claude-code.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/zh/claude-code.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/claude-code.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/claude-code.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/es/sensor-panel.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/it/sensor-panel.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ja/sensor-panel.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/ko/sensor-panel.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://xenon-app.com/zh/sensor-panel.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html"/>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

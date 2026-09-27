@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="it" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Pannello sensori PC per un secondo schermo: CPU, GPU, FPS</title>
+<meta name="description" content="Pannello sensori gratuito per un secondo schermo o uno Xeneon Edge: temperatura e carico di CPU e GPU, RAM, ventole, watt, ping, FPS in gioco e storico.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Pannello sensori PC per un secondo schermo: CPU, GPU, FPS">
+<meta property="og:description" content="Pannello sensori gratuito per un secondo schermo o uno Xeneon Edge: temperatura e carico di CPU e GPU, RAM, ventole, watt, ping, FPS in gioco e storico.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/it/sensor-panel.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/it/sensor-panel.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/sensor-panel.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/sensor-panel.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/sensor-panel.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/sensor-panel.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/sensor-panel.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/sensor-panel.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/sensor-panel.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Mi serve AIDA64 o HWiNFO?","acceptedAnswer":{"@type":"Answer","text":"No. Xenon legge i sensori da solo: LibreHardwareMonitor, nvidia-smi e PresentMon su Windows, i sensori del kernel su Linux e Xenon Helper su macOS."}},{"@type":"Question","name":"Perché manca la temperatura della CPU?","acceptedAnswer":{"@type":"Answer","text":"Su Windows di solito significa che Xenon gira senza diritti di amministratore, quindi il driver dei sensori non si carica. Premi Abilita sensori nel widget Ventole o Energia, oppure in Impostazioni, Performance, Sensori hardware, e accetta la richiesta di Windows."}},{"@type":"Question","name":"Posso mostrare i sensori su uno Xeneon Edge?","acceptedAnswer":{"@type":"Answer","text":"Sì. Il riquadro Sistema divide l'altezza tra le sue schede, così entrano tutte nello schermo 2560×720 dell'Edge. Funziona anche su qualsiasi monitor, su un tablet o su un telefono abbinato, una funzione in beta."}},{"@type":"Question","name":"Posso progettare un pannello sensori mio?","acceptedAnswer":{"@type":"Answer","text":"Sì, con l'SDK dei widget, che è in beta. Dopo che approvi il suo accesso alle letture di sistema, un widget può leggere carico, temperature, clock, velocità delle ventole, watt e FPS."}},{"@type":"Question","name":"Funziona su macOS e Linux?","acceptedAnswer":{"@type":"Answer","text":"Sì, su entrambi in beta. Temperatura di CPU e GPU e carico della GPU funzionano su tutti e due. La velocità delle ventole, e gli FPS in gioco tramite MangoHud, funzionano su Linux ma non su macOS. I watt di CPU e GPU si leggono solo su Windows."}}]}</script>
+
+<style>
+  /* Page figure, sub-headings and the two source tables. */
+  h3 { font-size: 17px; letter-spacing: -0.005em; margin: 34px 0 8px; color: var(--text); }
+  .shot-fig { margin: 34px 0 6px; }
+  .shot-fig img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--g-1);
+  }
+  .shot-fig figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .tablewrap { margin: 20px 0 22px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .tablewrap table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.55; }
+  .tablewrap th, .tablewrap td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .tablewrap th { color: var(--text); font-weight: 600; font-size: 15px; background: var(--g-1); }
+  .tablewrap td:first-child { color: var(--text); font-weight: 500; }
+  .tablewrap tbody tr:last-child td { border-bottom: 0; }
+  .tablewrap .cl { display: none; }
+  /* Narrow screens: each row becomes a small block, the column name shown
+     above its value, so nothing needs to scroll sideways. */
+  @media (max-width: 640px) {
+    .tablewrap thead { display: none; }
+    .tablewrap table, .tablewrap tbody, .tablewrap tr, .tablewrap td { display: block; width: 100%; }
+    .tablewrap tr { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .tablewrap tbody tr:last-child { border-bottom: 0; }
+    .tablewrap td { padding: 0; border: 0; }
+    .tablewrap td + td { margin-top: 8px; }
+    .tablewrap .cl { display: block; font-family: var(--sans); font-size: 14px; color: var(--muted); margin-bottom: 2px; }
+  }
+</style>
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>IT</span></summary><ul><li><a href="/sensor-panel.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/sensor-panel.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/sensor-panel.html" hreflang="it" lang="it" aria-current="page">Italiano <span>IT</span></a></li><li><a href="/ja/sensor-panel.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/sensor-panel.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/sensor-panel.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Scarica</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li><li><a href="/it/#install" data-xl="install">Installazione</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Offrimi un caffè</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/sensor-panel.html" aria-current="page" data-xl="f.sensor">Un pannello sensori per il PC</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Un pannello sensori per il PC","item":"https://xenon-app.com/it/sensor-panel.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="sens.h1">Pannello sensori del PC per un secondo schermo</h1>
+    <p class="lede" data-i18n="sens.lede">Xenon è una dashboard gratuita per gli schermi accanto al PC. Il suo riquadro Sistema mostra le letture di CPU, GPU, RAM, disco e rete con grafici in tempo reale, più il vero frame rate dentro i giochi. Questa pagina elenca cosa mostra ogni scheda, da dove arrivano le letture su Windows, Linux e macOS, e cosa richiede un'installazione in più.</p>
+    <p class="updated" data-i18n="sens.updated">Ultimo aggiornamento: 27 settembre 2026</p>
+
+    <nav class="jump">
+      <a href="#system" data-i18n="sens.jump.system">Il riquadro Sistema</a>
+      <a href="#windows" data-i18n="sens.jump.windows">Temperature su Windows</a>
+      <a href="#linux-mac" data-i18n="sens.jump.linuxmac">Linux e macOS</a>
+      <a href="#widgets" data-i18n="sens.jump.widgets">Ventole, Energia, Batterie, Disco</a>
+      <a href="#history" data-i18n="sens.jump.history">Storico</a>
+      <a href="#games" data-i18n="sens.jump.games">Giochi</a>
+      <a href="#faq" data-i18n="sens.jump.faq">Domande</a>
+    </nav>
+
+    <figure class="shot-fig">
+      <img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="Il riquadro Sistema di Xenon: carico di CPU e GPU con le temperature, RAM, disco C:, ping, FPS, jitter e velocità di rete, con un grafico in tempo reale su ogni scheda tranne Rete" data-i18n-alt="sens.shot.alt">
+      <figcaption data-i18n="sens.shot.cap">Il riquadro Sistema nella demo nel browser, con letture di esempio.</figcaption>
+    </figure>
+
+    <h2 id="system" data-i18n="sens.h.system">Il riquadro Sistema</h2>
+    <p data-i18n="sens.system.p1">La vista Sistema del riquadro contiene otto schede: quattro per il computer e quattro sotto Rete &amp; Gaming. Puoi nascondere, riordinare e ridimensionare le schede. Sullo schermo 2560×720 del CORSAIR Xeneon Edge il riquadro divide la poca altezza tra le schede, così restano tutte in vista, e su uno schermo più alto riempie lo spazio.</p>
+    <ul>
+      <li data-i18n-html="sens.card.cpu"><strong>CPU.</strong> Carico in percentuale, il modello del processore e la sua temperatura nell'intestazione della scheda.</li>
+      <li data-i18n-html="sens.card.gpu"><strong>GPU.</strong> Carico in percentuale oppure, con un tocco, la memoria video in uso, più la temperatura. Il passaggio alla memoria video compare solo quando la scheda video comunica la sua memoria.</li>
+      <li data-i18n-html="sens.card.ram"><strong>RAM.</strong> Percentuale in uso, memoria usata e totale. Su Windows indica anche tipo di memoria, velocità, disposizione dei moduli e codice del componente, quando Windows li fornisce.</li>
+      <li data-i18n-html="sens.card.disk"><strong>Disco.</strong> Percentuale usata, spazio libero, e nome, file system e tipo dell'unità. Con più di un'unità, una freccia passa dall'una all'altra.</li>
+      <li data-i18n-html="sens.card.ping"><strong>Ping.</strong> La media di tre ping verso 1.1.1.1, in millisecondi.</li>
+      <li data-i18n-html="sens.card.latency"><strong>Latenza.</strong> Il jitter: la differenza tra il più veloce e il più lento di quei tre ping.</li>
+      <li data-i18n-html="sens.card.fps"><strong>FPS.</strong> Il frame rate del gioco a cui stai giocando, spiegato più sotto.</li>
+      <li data-i18n-html="sens.card.net"><strong>Rete.</strong> Velocità di download e upload in questo momento, sommata su tutti gli adattatori di rete fisici.</li>
+    </ul>
+    <p data-i18n="sens.system.p2">Ogni scheda tranne Rete disegna una linea con le sue ultime 40 letture, così un picco resta visibile anche dopo che è passato. L'intestazione mostra da quanto tempo il PC è acceso.</p>
+    <p data-i18n="sens.system.p3">Le schede CPU, GPU, RAM e Disco si aggiornano ogni 5 secondi. Impostazioni → Performance → Frequenza sensori può portarle a 2 secondi o a 1 secondo. Ogni passo legge l'hardware più spesso, e l'impostazione dice quanto costa su un PC che nel frattempo fa girare un gioco.</p>
+    <p data-i18n="sens.system.p3b">Le quattro schede di Rete &amp; Gaming si aggiornano ogni 3 secondi mentre la vista Sistema è sullo schermo.</p>
+    <p data-i18n="sens.system.p4">Le temperature si mostrano in °C o °F, secondo l'impostazione Unità temperatura. La scelta vale per le intestazioni di CPU e GPU e per gli avvisi di temperatura, non solo per il meteo. I grafici dello Storico restano in °C.</p>
+
+    <h3 data-i18n="sens.h.fps">FPS reali in gioco</h3>
+    <p data-i18n="sens.fps.p1">Su Windows la scheda FPS legge PresentMon, che il programma di installazione scarica nella cartella di Xenon. PresentMon conta i frame che un gioco passa a Windows tramite l'event tracing, quindi misura anche i giochi a schermo intero esclusivo. Richiede i diritti di amministratore che il programma di installazione chiede.</p>
+    <p data-i18n="sens.fps.p2">Senza PresentMon, Xenon ripiega su una lettura del compositore del desktop di Windows, che funziona solo con i giochi in finestra e in finestra senza bordi. Con PresentMon, quando non c'è nessun gioco aperto la scheda mostra N/D invece di un numero.</p>
+    <p data-i18n="sens.fps.p3">Con la generazione dei frame attiva, la scheda segue i frame che lo schermo mostra davvero, dove PresentMon li riporta, così concorda con gli altri overlay degli FPS invece di mostrare il numero più alto dei frame consegnati.</p>
+    <p data-i18n-html="sens.fps.p4">Su Linux il frame rate arriva da MangoHud, per i giochi avviati con MangoHud (<code>mangohud %command%</code> come opzione di avvio di Steam). macOS non ha una fonte per il frame rate, quindi lì la scheda resta vuota.</p>
+
+    <h2 id="windows" data-i18n="sens.h.windows">Temperature su Windows</h2>
+    <p data-i18n-html="sens.win.p1">Su Windows i sensori vengono letti da piccoli script PowerShell (<code>cpu-temp.ps1</code>, <code>gpu.ps1</code>, <code>network.ps1</code>) che girano dentro un unico processo sempre attivo, <code>pwsh-worker.ps1</code>. Per questo leggerli ogni pochi secondi non avvia ogni volta un nuovo processo.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="sens.th.reading">Lettura</th><th data-i18n="sens.th.source">Da dove arriva</th><th data-i18n="sens.th.need">Cosa serve</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-i18n="sens.win.cpu">Temperatura, clock e watt della CPU</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.lhm">Lo installa il programma di installazione, insieme al driver PawnIO. Richiede i diritti di amministratore.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.fans">Ventole della scheda madre, dell'AIO e dell'alimentatore</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.lhm">Lo installa il programma di installazione, insieme al driver PawnIO. Richiede i diritti di amministratore.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.nvidia">Carico, temperatura, memoria video, watt e clock delle GPU NVIDIA</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.nvsmi">nvidia-smi</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.nvsmi">Niente da configurare. Xenon lo trova quando è sul PC.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.amd">Temperatura, memoria video, watt e clock delle GPU AMD e Intel</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.setup">Lo installa il programma di installazione.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.gpufans">Ogni ventola della scheda video, in RPM</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.lhm">LibreHardwareMonitor</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.setup">Lo installa il programma di installazione.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.gpuload">Carico della GPU senza nvidia-smi</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.counters">Contatori delle prestazioni di Windows</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.none">Niente.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.basics">Carico della CPU, RAM, dischi, rete e ping</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.system">Il sistema stesso</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.none">Niente.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.win.fps">FPS in gioco</td>
+          <td><span class="cl" data-i18n="sens.th.source">Da dove arriva</span><span data-i18n="sens.src.presentmon">PresentMon</span></td>
+          <td><span class="cl" data-i18n="sens.th.need">Cosa serve</span><span data-i18n="sens.need.presentmon">Lo scarica il programma di installazione. Richiede i diritti di amministratore.</span></td>
+        </tr>
+      </tbody>
+    </table></div>
+    <p data-i18n="sens.win.p2">LibreHardwareMonitor e PawnIO si installano tramite winget, quindi i loro file arrivano dai rispettivi sviluppatori attraverso il gestore di pacchetti di Microsoft. PawnIO è un driver firmato. Xenon non ha mai distribuito WinRing0, il vecchio driver dietro la maggior parte degli avvisi antivirus sui programmi di monitoraggio hardware.</p>
+    <p data-i18n-html="sens.win.p3">Il driver si carica solo con i diritti di amministratore. Se durante l'installazione hai detto no alla richiesta di Windows, le letture di ventole e watt restano vuote e la temperatura della CPU può mancare. I widget Ventole ed Energia mostrano allora un pulsante <strong>Abilita sensori</strong>: una sola richiesta di Windows imposta l'attività di avvio di Xenon perché da lì in poi giri con i diritti di amministratore, e Xenon si riavvia. Se dopo i sensori sono ancora vuoti, il widget ti chiede di riavviare il PC. Lo stesso pulsante è in Impostazioni → Performance → Sensori hardware.</p>
+    <p data-i18n="sens.win.p4">Senza LibreHardwareMonitor, Xenon ripiega sulla temperatura della zona termica che Windows riporta, quando la scheda madre ne fornisce una. Una lettura non disponibile resta vuota o viene mostrata come --, invece che come uno zero inventato.</p>
+
+    <h2 id="linux-mac" data-i18n="sens.h.linuxmac">Temperature su Linux e macOS</h2>
+    <p data-i18n-html="sens.lm.p1">Xenon su macOS e Linux è in <strong>beta</strong>. La dashboard è la stessa di Windows. Cambia il modo in cui viene letto il computer: ogni sistema ha un suo modulo di lettura che restituisce le letture nella stessa forma, quindi i riquadri non cambiano.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="sens.th.reading">Lettura</th><th data-i18n="sens.th.linux">Linux</th><th data-i18n="sens.th.mac">macOS</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-i18n="sens.lm.cpu">Temperatura della CPU</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.cpu.linux">I sensori del kernel (k10temp su AMD, coretemp su Intel). Niente da installare.</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.helper">Xenon Helper, che il programma di installazione scarica, senza password di amministratore. In alternativa macmon.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.gpu">Carico e temperatura della GPU</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.gpu.linux">NVIDIA richiede nvidia-smi. AMD si legge dal kernel. Il carico Intel si misura dal tempo passato fuori dallo stato di riposo più profondo, e la temperatura Intel compare solo sui chip che hanno un sensore.</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.helper">Xenon Helper, che il programma di installazione scarica, senza password di amministratore. In alternativa macmon.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.fans">Velocità delle ventole</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.fans.linux">Ogni ventola che il kernel pubblica. Con la maggior parte delle schede madri desktop serve lm_sensors per caricare il modulo giusto.</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.na">Non disponibile.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.watts">Watt di CPU e GPU</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.notread">Non letti.</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.notread">Non letti.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.fps">FPS in gioco</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.fps.linux">MangoHud, per i giochi avviati con MangoHud.</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.na">Non disponibile.</span></td>
+        </tr>
+        <tr>
+          <td data-i18n="sens.lm.game">Modalità gioco</td>
+          <td><span class="cl" data-i18n="sens.th.linux">Linux</span><span data-i18n="sens.lm.game.linux">xprop, dal pacchetto x11-utils. Su sway e Hyprland, il loro IPC.</span></td>
+          <td><span class="cl" data-i18n="sens.th.mac">macOS</span><span data-i18n="sens.lm.game.mac">Xenon Helper.</span></td>
+        </tr>
+      </tbody>
+    </table></div>
+    <p data-i18n-html="sens.lm.p2">Se un riquadro resta vuoto, esegui <code>npm run doctor</code> nella cartella di installazione. Legge il computer come fa Xenon e stampa cosa funziona, cosa il tuo hardware semplicemente non espone e cosa è guasto. Non modifica niente sul computer.</p>
+
+    <h2 id="widgets" data-i18n="sens.h.widgets">Ventole, Energia, Batterie e Spazio disco</h2>
+    <p data-i18n="sens.widgets.p1">Altri quattro riquadri nel gruppo Sistema del pannello +, per quando il riquadro Sistema non basta.</p>
+    <h3 data-i18n="sens.h.fans">Ventole</h3>
+    <p data-i18n="sens.fans.p1">La velocità di ogni ventola che il PC rileva. Su Windows le ventole sono raggruppate per posizione: scheda madre, hub o AIO, scheda video e alimentatore. Ogni ventola della scheda video si legge dal suo tachimetro, quindi una scheda video in modalità zero RPM mostra le ventole ferme. Si leggono anche i dissipatori AIO e gli hub per ventole come NZXT Kraken e Aquacomputer Octo.</p>
+    <p data-i18n="sens.fans.p2">Una scheda madre conosce solo "Fan #3", quindi puoi toccare un nome e cambiarlo. Una ventola collegata a un hub non supportato, come iCUE Link, o a uno sdoppiatore non può comunicare la velocità, e il widget lo dice. Il widget Ventole funziona su Windows e Linux, non su macOS.</p>
+    <h3 data-i18n="sens.h.energy">Energia</h3>
+    <p data-i18n="sens.energy.p1">Il consumo in tempo reale del package della CPU e della GPU, in watt. Con un alimentatore CORSAIR HXi o RMi collegato via USB, mostra anche quanto assorbe tutto il PC, misurato dall'alimentatore. Quel valore è l'uscita dell'alimentatore, non la lettura alla presa di corrente.</p>
+    <p data-i18n="sens.energy.p2">I sensori di consumo di Home Assistant, come la produzione solare o una presa smart, possono stare accanto alle letture del PC. Le letture del PC sono solo per Windows.</p>
+    <h3 data-i18n="sens.h.batteries">Batterie</h3>
+    <p data-i18n="sens.batteries.p1">La carica dei dispositivi Bluetooth abbinati, della batteria di un portatile o di un UPS collegato via USB, che indica anche se è in carica, e di mouse, tastiere e cuffie CORSAIR tramite iCUE mentre il ponte RGB in Impostazioni → Illuminazione è attivo. I dispositivi che vanno in standby sfumano invece di restare fermi su un numero vecchio. Solo Windows.</p>
+    <h3 data-i18n="sens.h.disk">Spazio disco</h3>
+    <p data-i18n="sens.disk.p1">Cosa riempie le tue unità, da un indice dei file sempre aggiornato invece che da un pulsante di scansione: una mappa da esplorare toccando, i file più grandi, i duplicati verificati byte per byte e un elenco chiuso di categorie sicure da pulire, come i file temporanei e le cache dei pacchetti. Tutto il resto mostra la sua dimensione e non ha un pulsante per eliminarlo.</p>
+    <p data-i18n="sens.disk.p2">Una pulizia sposta i file nel Cestino, quindi si può annullare. L'unica eccezione è svuotare il Cestino stesso, e te lo dice prima che confermi. Su Windows e macOS l'indice gira in Xenon Helper, che il programma di installazione scarica. Su Linux l'indice lo costruisce Xenon da solo.</p>
+
+    <h2 id="history" data-i18n="sens.h.history">Storico dei sensori e Guardian</h2>
+    <p data-i18n-html="sens.history.p1">Attiva <strong>Storico sensori</strong> in Impostazioni → Performance e il riquadro Sistema guadagna una tab Storico. Mostra in grafico temperatura e carico di CPU e GPU e l'uso della RAM nelle ultime 24 ore, 7 giorni o 30 giorni, con l'ultimo valore e il picco segnati su ogni grafico. È spento di default e non richiede l'AI.</p>
+    <p data-i18n="sens.history.p2">Xenon fa una lettura ogni cinque minuti. Tiene i valori orari per 3 giorni e quelli giornalieri per circa 3 mesi, in un file sul tuo PC. La vista a 24 ore usa i valori orari, quelle a 7 e a 30 giorni i valori giornalieri.</p>
+    <p data-i18n="sens.history.p3">La stessa tab mostra Tempo di utilizzo: le app che hai usato di più nel periodo, il tempo attivo totale e quanto ne hai passato a giocare. Con lo storico attivo, il widget Energia mostra anche il grafico delle ultime 24 ore di consumo di CPU e GPU.</p>
+    <p data-i18n="sens.history.p4">Guardian è la parte AI dello stesso storico, una delle Funzioni AI avanzate facoltative in Impostazioni → Xenon AI. Chiedi "come sta il mio PC?" e analizza lo storico. Con Guardian attivo compare anche un avviso quando la CPU arriva a 90 °C, la GPU a 88 °C o la RAM al 95%, al massimo una volta ogni 30 minuti per ciascuna.</p>
+
+    <h2 id="games" data-i18n="sens.h.games">Modalità gioco e Modalità Performance</h2>
+    <p data-i18n="sens.games.p1">La modalità gioco è attiva di default. Quando un gioco gira a schermo intero, lo sfondo animato e il bagliore dell'AI vanno in pausa, così la dashboard smette di contendere la GPU al gioco. Tornano quando esci dal gioco.</p>
+    <p data-i18n="sens.games.p2">Guarda la finestra in primo piano, non i frame rate: conta una finestra a schermo intero senza barra del titolo, mentre le app desktop ingrandite, la dashboard stessa e iCUE non contano mai. Su Windows non richiede strumenti aggiuntivi né diritti di amministratore.</p>
+    <p data-i18n="sens.games.p3">La Modalità Performance si attiva solo se la scegli, in Impostazioni → Performance. In modalità Manuale agisce solo quando premi Migliora sul riquadro Sistema o Ottimizza ora nelle impostazioni. In modalità Suggerisci te la propone quando parte un gioco, o un'altra attività che scegli tu. In modalità Automatico la applica da sola e ripristina tutto quando l'attività finisce, ma per chiudere le app aspetta sempre te. Ogni passaggio lo scegli tu:</p>
+    <ul>
+      <li data-i18n="sens.perf.anim">mettere in pausa le animazioni della dashboard;</li>
+      <li data-i18n="sens.perf.plan">passare Windows a una combinazione di risparmio energia ad alte prestazioni;</li>
+      <li data-i18n="sens.perf.boost">dare all'app in primo piano una priorità AboveNormal;</li>
+      <li data-i18n="sens.perf.close">chiudere le app in background che scegli, chiedendo loro di chiudersi invece di terminarle a forza, e rifiutando sempre i processi critici di Windows.</li>
+    </ul>
+    <p data-i18n="sens.games.p4">Ripristina rimette la combinazione di risparmio energia precedente, la priorità e le app chiuse, anche dopo un riavvio. La combinazione di risparmio energia e l'aumento di priorità sono funzioni di Windows.</p>
+    <p data-i18n="sens.games.p5">L'opzione Sospendi i riquadri pesanti durante il gioco, attiva di default, ferma anche lo streaming dei riquadri Browser, Secondo schermo e Telecamere mentre gira un gioco o è attiva un'ottimizzazione.</p>
+
+    <h2 id="faq" data-i18n="sens.h.faq">Domande</h2>
+    <details><summary data-i18n="sens.faq.aida.q">Mi serve AIDA64 o HWiNFO?</summary><div class="body"><p data-i18n="sens.faq.aida.a">No. Xenon legge i sensori da solo: tramite LibreHardwareMonitor, nvidia-smi e PresentMon su Windows, i sensori del kernel su Linux e Xenon Helper su macOS. Il programma di installazione per Windows installa LibreHardwareMonitor e PresentMon al posto tuo.</p></div></details>
+    <details><summary data-i18n="sens.faq.temp.q">Perché manca la temperatura della CPU?</summary><div class="body"><p data-i18n-html="sens.faq.temp.a">Su Windows di solito significa che Xenon gira senza diritti di amministratore, quindi il driver dei sensori non si carica. Premi <strong>Abilita sensori</strong> nel widget Ventole o Energia, oppure in Impostazioni → Performance → Sensori hardware, e accetta la richiesta di Windows. Se LibreHardwareMonitor non è installato per niente, esegui di nuovo <code>INSTALL.bat</code> nella cartella di Xenon e accetta la richiesta.</p></div></details>
+    <details><summary data-i18n="sens.faq.edge.q">Posso mostrare i sensori su uno Xeneon Edge?</summary><div class="body"><p data-i18n-html="sens.faq.edge.a">Sì. Il riquadro Sistema divide l'altezza tra le sue schede, così entrano tutte nello schermo 2560×720 dell'Edge. La stessa dashboard gira anche su qualsiasi monitor, su un tablet o su <a href="/it/phone.html">un telefono abbinato tramite il tuo Wi-Fi</a>, una funzione in beta.</p></div></details>
+    <details><summary data-i18n="sens.faq.own.q">Posso progettare un pannello sensori mio?</summary><div class="body"><p data-i18n-html="sens.faq.own.a">Sì, con l'SDK dei widget, che è in beta. Dopo che approvi il suo accesso alle letture di sistema, un widget può leggere carico, temperature, clock, velocità delle ventole, watt e FPS, compresi valori che il riquadro Sistema non mostra. Si parte dalla <a href="/create/">pagina Crea</a>.</p></div></details>
+    <details><summary data-i18n="sens.faq.os.q">Funziona su macOS e Linux?</summary><div class="body"><p data-i18n="sens.faq.os.a">Sì, su entrambi in beta. Temperatura di CPU e GPU e carico della GPU funzionano su tutti e due. La velocità delle ventole, e gli FPS in gioco tramite MangoHud, funzionano su Linux ma non su macOS. I watt di CPU e GPU si leggono solo su Windows.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="sens.cta.h">Scarica Xenon</h3>
+      <p data-i18n-html="sens.cta.p">Gratis, senza account. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Scarica Xenon per Windows</a>, oppure scegli il tuo sistema nella <a href="/it/download.html">pagina dei download</a>. Per dare prima un'occhiata, <a href="/demo/">prova la demo nel browser</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Altre guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul><p class="xg-dl"><a href="/it/download.html" data-xl="f.download">Scarica</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon è un progetto indipendente. Xeneon e iCUE sono marchi di CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

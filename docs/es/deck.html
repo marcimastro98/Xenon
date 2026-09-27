@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon Deck: teclas macro táctiles gratis para OBS y tu PC</title>
+<meta name="description" content="Teclas táctiles gratis en tu panel de Xenon que actúan en el PC: abren apps, envían atajos, cambian escenas de OBS, silencian Discord y ejecutan macros.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon Deck: teclas macro táctiles gratis para OBS y tu PC">
+<meta property="og:description" content="Teclas táctiles gratis en tu panel de Xenon que actúan en el PC: abren apps, envían atajos, cambian escenas de OBS, silencian Discord y ejecutan macros.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/es/deck.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/es/deck.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/deck.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/deck.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/deck.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/deck.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/deck.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/deck.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/deck.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"¿El Deck es gratis?","acceptedAnswer":{"@type":"Answer","text":"Sí. El Deck es parte de Xenon, que es gratis para uso personal, sin cuenta y sin periodo de prueba."}},{"@type":"Question","name":"¿Una tecla del Deck puede cambiar escenas de OBS?","acceptedAnswer":{"@type":"Answer","text":"Sí. Una tecla puede cambiar a una escena por su nombre o a la siguiente, iniciar o detener la grabación y la emisión, y silenciar una fuente de OBS o ajustar su volumen. Antes, conecta OBS en Ajustes, Streaming."}},{"@type":"Question","name":"¿Una tecla puede hacer varias cosas?","acceptedAnswer":{"@type":"Answer","text":"Sí. El toque, el doble toque y mantener pulsado pueden ejecutar cada uno su propia lista de acciones en orden, con una pausa de hasta 10 segundos antes de cada paso."}},{"@type":"Question","name":"¿El Deck funciona en macOS y Linux?","acceptedAnswer":{"@type":"Answer","text":"Sí, en beta. Abrir apps, archivos y direcciones web, los scripts, la multimedia, el volumen, OBS, Discord, Spotify, Home Assistant y las teclas de Twitch y YouTube funcionan en los tres sistemas. Algunas teclas necesitan Windows, como escribir texto, mover ventanas y Voicemeeter, y el editor de teclas no las ofrece donde no pueden funcionar."}},{"@type":"Question","name":"¿Puedo usar mi teléfono como Deck?","acceptedAnswer":{"@type":"Answer","text":"Sí, en beta. Vincula un teléfono o una tablet con tu PC a través de tu propio Wi-Fi y verás todo tu panel, Deck incluido. Las teclas que actúan en el PC, como abrir una app o cambiar una escena de OBS, se ejecutan en el PC. Los clips del soundboard suenan en el teléfono."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── Screenshot ───────────────────────────────────────────────── */
+  figure.shot { margin: 8px 0 30px; }
+  figure.shot img { display: block; width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+  figure.shot figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Invítame a un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ES</span></summary><ul><li><a href="/deck.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/deck.html" hreflang="es" lang="es" aria-current="page">Español <span>ES</span></a></li><li><a href="/it/deck.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/deck.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/deck.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/deck.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Descargar</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menú</button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/es/#screens" data-xl="screens">Pantallas</a></li><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li><li><a href="/es/#install" data-xl="install">Instalación</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Invítame a un café</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Ruta de navegación"><ol><li><a href="/es/" data-xl="home">Inicio</a></li><li><a href="/es/deck.html" aria-current="page" data-xl="f.deck">Teclas del Deck</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/es/"},{"@type":"ListItem","position":2,"name":"Teclas del Deck","item":"https://xenon-app.com/es/deck.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="deck.h1">El Deck: teclas táctiles que actúan en tu PC</h1>
+    <p class="lede" data-i18n="deck.lede">El Deck es una cuadrícula de teclas que añades a una página de tu panel de Xenon. Un toque puede abrir una app, enviar un atajo de teclado, cambiar una escena de OBS o silenciar Discord, y una tecla puede encenderse para mostrar el estado de lo que controla.</p>
+    <p class="lede" data-i18n="deck.lede2">Hace un trabajo parecido al de un Stream Deck, en una pantalla que ya tienes: un Xeneon Edge, un monitor que te sobra, una tablet o un teléfono.</p>
+    <p class="updated" data-i18n="deck.updated">Última actualización: 27 de septiembre de 2026</p>
+
+    <figure class="shot">
+      <img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="El widget Deck con doce teclas: escenas de OBS, grabación, micrófono, Discord, Spotify, reproducción, una captura de pantalla y las luces" data-i18n-alt="deck.shot.alt">
+      <figcaption data-i18n="deck.shot.cap">Un perfil de streaming con doce teclas. La tecla Playing está encendida porque está sonando música.</figcaption>
+    </figure>
+
+    <nav class="jump">
+      <a href="#actions" data-i18n="deck.jump.actions">Acciones</a>
+      <a href="#steps" data-i18n="deck.jump.steps">Teclas de varios pasos</a>
+      <a href="#state" data-i18n="deck.jump.state">Teclas que muestran un estado</a>
+      <a href="#faders" data-i18n="deck.jump.faders">Deslizadores</a>
+      <a href="#profiles" data-i18n="deck.jump.profiles">Perfiles y páginas</a>
+      <a href="#make" data-i18n="deck.jump.make">Crear un Deck</a>
+      <a href="#platforms" data-i18n="deck.jump.platforms">macOS y Linux</a>
+      <a href="#share" data-i18n="deck.jump.share">Compartir</a>
+      <a href="#faq" data-i18n="deck.jump.faq">Preguntas</a>
+    </nav>
+
+    <h2 id="actions" data-i18n="deck.h.actions">Acciones</h2>
+    <p data-i18n="deck.actions.p1">El editor de teclas ordena las acciones en categorías. Antes de que se ejecute una acción que actúa en el PC, el servidor de Xenon la compara con la lista de acciones que permite. Una tecla que falla parpadea en rojo, y cuando el PC informa de un error, un mensaje breve dice cuál es.</p>
+    <p data-i18n="deck.actions.p2">Las categorías que necesitan otra app o una cuenta, como OBS, Discord o Home Assistant, siguen bloqueadas, con una indicación, hasta que las conectas en Ajustes.</p>
+    <ul>
+      <li data-i18n-html="deck.act.system"><strong>Apps, archivos y enlaces.</strong> Abre una app, un archivo o una carpeta, una dirección web o una app de Microsoft Store, lanza un juego de Steam por su AppID, ejecuta un script o bloquea el PC.</li>
+      <li data-i18n-html="deck.act.keys"><strong>Teclado.</strong> Envía un atajo como Ctrl+Shift+M, o escribe un texto guardado. En Windows, Xenon primero vuelve a traer delante la app que estabas usando, para que las teclas lleguen ahí.</li>
+      <li data-i18n-html="deck.act.webhook"><strong>Webhooks.</strong> Llama a cualquier dirección http o https con GET o POST, con un cuerpo JSON opcional.</li>
+      <li data-i18n-html="deck.act.audio"><strong>Audio y multimedia.</strong> Reproduce, pausa y salta canciones, silencia el micro, fija, sube, baja o silencia el volumen, fija o silencia el de una app, abre el mezclador por app, elige un dispositivo de salida o alterna entre dos con una sola tecla.</li>
+      <li data-i18n-html="deck.act.sound"><strong>Soundboard.</strong> Reproduce, alterna o detén un clip de tu biblioteca de sonidos, cada uno con su propio volumen, y una tecla que detiene todos los sonidos a la vez.</li>
+      <li data-i18n-html="deck.act.timers"><strong>Temporizadores.</strong> Inicia una cuenta atrás con nombre o un cronómetro, páusalo o reanúdalo, o cancélalo. Son los mismos temporizadores que muestra el mosaico Timer.</li>
+      <li data-i18n-html="deck.act.obs"><strong>OBS.</strong> Cambia a una escena o a la siguiente, inicia o detén la grabación y la emisión, silencia una fuente o ajusta su volumen.</li>
+      <li data-i18n-html="deck.act.stream"><strong>Twitch y YouTube.</strong> Crea un clip o un marcador, lanza un anuncio, cambia el título o la categoría de la emisión, envía un mensaje al chat o un shoutout, cambia el modo del chat, inicia o detén una emisión de YouTube.</li>
+      <li data-i18n-html="deck.act.sb"><strong>Streamer.bot.</strong> Ejecuta una de tus acciones, envía un mensaje al chat en Twitch, YouTube, Kick o Trovo, o dispara un code trigger.</li>
+      <li data-i18n-html="deck.act.discord"><strong>Discord.</strong> Silencia, ensordece, cambia entre pulsar para hablar y actividad de voz, entra o sal de un canal de voz, ajusta el volumen del micro o de la salida, activa o desactiva la supresión de ruido o la cancelación de eco, reproduce un sonido del panel de sonidos.</li>
+      <li data-i18n-html="deck.act.spotify"><strong>Spotify.</strong> Reproduce, pausa, salta, marca con Me gusta, guarda, activa el aleatorio o la repetición, ajusta el volumen, salta a otro punto de la canción, reproduce una lista o un enlace de Spotify, o pasa la reproducción a otro dispositivo. Para controlar la reproducción hace falta Spotify Premium.</li>
+      <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> Silencia un canal o ajusta su ganancia, envíalo a un bus (los botones A1, A2, B1), silencia un bus o ajusta su ganancia, pulsa uno de tus botones de macro o fija cualquier parámetro por su nombre.</li>
+      <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> Ajusta o silencia el volumen de una entrada, una salida o una mezcla. Con Wave Link 2 una tecla también puede cambiar la escucha; con Wave Link 3 puede activar y desactivar efectos y elegir el dispositivo de salida.</li>
+      <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> Enciende o apaga un dispositivo, ajusta una luz, controla un reproductor multimedia, una persiana, la climatización, un ventilador, un robot aspirador, una cerradura o una alarma, activa una escena, ejecuta un script, pulsa un botón o llama a cualquier servicio.</li>
+      <li data-i18n-html="deck.act.light"><strong>Iluminación.</strong> Enciende o apaga tus luces, pon un color o un efecto, cambia un solo dispositivo o devuélvelas al modo automático. Los dispositivos Razer Chroma y los efectos de SignalRGB tienen sus propias teclas.</li>
+      <li data-i18n-html="deck.act.window"><strong>Ventanas.</strong> Mueve la ventana que estabas usando al monitor siguiente o al anterior, ajústala a la mitad izquierda o derecha, maximízala, minimízala o céntrala.</li>
+      <li data-i18n-html="deck.act.ai"><strong>Xenon AI y Claude Code.</strong> Envía una instrucción a la IA, inicia una sesión de voz o abre el chat. Inicia una petición de Claude Code en uno de tus proyectos, o detén la que está en marcha. La tecla no concede permisos: cuando Claude Code pide ejecutar un comando, la solicitud llega a la pantalla para que tú la apruebes.</li>
+      <li data-i18n-html="deck.act.more"><strong>Más.</strong> Llama o envía mensajes con un teléfono vinculado por Bluetooth, termina una sesión remota o bloquea el acceso remoto, y usa las teclas que añaden los widgets de la comunidad que instalaste, cada una permitida antes por ti.</li>
+    </ul>
+
+    <h2 id="steps" data-i18n="deck.h.steps">Teclas de varios pasos</h2>
+    <p data-i18n="deck.steps.p1">Cada tecla tiene tres gestos: toque, doble toque y mantener pulsado medio segundo. Cada gesto puede tener sus propias acciones.</p>
+    <p data-i18n="deck.steps.p2">Un gesto también puede ejecutar varias acciones seguidas, con una pausa de hasta 10 segundos antes de cada una. Por ejemplo: silenciar el micro, esperar un momento y luego abrir una app.</p>
+    <p data-i18n="deck.steps.p3">Cada paso se ejecuta aunque falle uno anterior. Si falla alguno, la tecla parpadea en rojo cuando termina el último paso.</p>
+
+    <h2 id="state" data-i18n="deck.h.state">Teclas que muestran un estado</h2>
+    <p data-i18n="deck.state.p1">Una tecla puede seguir un estado en vivo y encenderse mientras está activo. Puede seguir:</p>
+    <ul>
+      <li data-i18n="deck.state.audio">Micro silenciado, altavoces silenciados y qué salida de audio está en uso</li>
+      <li data-i18n="deck.state.obs">OBS grabando, OBS emitiendo, una escena de OBS concreta en el aire, una fuente de OBS silenciada</li>
+      <li data-i18n="deck.state.discord">Discord silenciado o ensordecido</li>
+      <li data-i18n="deck.state.media">Música sonando, Spotify sonando, un temporizador en marcha</li>
+      <li data-i18n="deck.state.other">Un dispositivo de Home Assistant, una variable global de Streamer.bot o un valor que publica un widget de la comunidad</li>
+    </ul>
+    <p data-i18n-html="deck.state.face">Una tecla también puede cambiar de aspecto mientras el estado está activo. En el editor de teclas, <strong>Aspecto al estar activo</strong> define un segundo icono, texto y color: por ejemplo, un micrófono que pasa a ser un micrófono tachado mientras está silenciado.</p>
+    <p data-i18n-html="deck.state.script">Cualquier script de tu PC también puede controlar una tecla. Asocia la tecla a <strong>Reflect a script state</strong>, ponle un nombre al estado y termina el script con una línea: <code>curl -X POST 127.0.0.1:3030/state/set -H "Content-Type: application/json" -d '{"name":"audio-out","value":"speakers"}'</code></p>
+    <p data-i18n="deck.state.local">La tecla cambia en cuanto se ejecuta el script. Las páginas web no pueden enviar nada a esa dirección, y los widgets de la comunidad tampoco.</p>
+    <p data-i18n="deck.state.live">Una tecla también puede mostrar un valor en vivo: un temporizador en cuenta atrás, la carga de la CPU o la GPU, temperaturas, la velocidad de un ventilador, el consumo, la batería de un dispositivo inalámbrico o un valor de un widget de la comunidad.</p>
+    <p data-i18n="deck.state.led">Si Xenon controla tu iluminación, una tecla también puede encender tu RGB cuando la pulsas, o mientras su estado esté activo.</p>
+
+    <h2 id="faders" data-i18n="deck.h.faders">Deslizadores</h2>
+    <p data-i18n-html="deck.fader.p1">Una tecla puede ser un deslizador en lugar de un botón. Elige <strong>Deslizador (fader táctil)</strong> como tipo de tecla, elige vertical u horizontal y arrástralo con el dedo.</p>
+    <p data-i18n="deck.fader.p2">Un deslizador puede ajustar el volumen del sistema, el volumen de una app (Windows y Linux), el volumen de Spotify, una entrada de OBS, el volumen del micro o de la salida de Discord, o el brillo de una luz de Home Assistant.</p>
+    <p data-i18n="deck.fader.p3">Con el volumen del sistema, Discord y las luces de Home Assistant, el deslizador se mueve solo cuando el valor cambia desde otro sitio. Los demás se quedan donde los dejaste.</p>
+
+    <h2 id="profiles" data-i18n="deck.h.profiles">Perfiles, páginas y carpetas</h2>
+    <p data-i18n="deck.prof.p1">Un Deck guarda perfiles: conjuntos de teclas separados para streaming, trabajo o juegos. Cada perfil tiene su propia cuadrícula, de hasta ocho columnas y ocho filas. Cambias de perfil desde la cabecera del Deck, o pidiéndoselo a Xenon AI.</p>
+    <p data-i18n="deck.prof.p2">Un perfil puede tener varias páginas, con flechas y puntos debajo de las teclas para pasar de una a otra. Una tecla también puede ser una carpeta que abre sus propias páginas de teclas.</p>
+    <p data-i18n-html="deck.prof.smart">Los <strong>Perfiles inteligentes</strong> asocian una app con un perfil. Cuando esa app pasa a primer plano, el Deck muestra su perfil; cuando sales de la app, el Deck vuelve al anterior o se queda, como prefieras. Un perfil que eliges a mano siempre tiene prioridad.</p>
+    <p data-i18n-html="deck.prof.copy">Puedes poner más de un Deck en tu panel. Cada uno empieza vacío y guarda sus propias teclas. Para reutilizar un perfil, abre el menú de perfiles del nuevo Deck y elígelo en <strong>From another Deck</strong>.</p>
+    <p data-i18n-html="deck.prof.popup">En Windows, <strong>Abrir en el PC</strong>, en el menú de perfiles, muestra las mismas teclas en una ventana pequeña en tu monitor principal, que se queda por encima de las demás ventanas. Ahí pulsas las teclas; la edición se hace en el panel.</p>
+
+    <h2 id="make" data-i18n="deck.h.make">Crear un Deck</h2>
+    <ol>
+      <li data-i18n-html="deck.make.1">Toca <strong>Diseño</strong> en la barra superior.</li>
+      <li data-i18n-html="deck.make.2">Toca el <strong>+</strong> de la página, busca en el grupo <strong>Streaming</strong> y elige <strong>Deck</strong>. Arrastra el mosaico y cámbialo de tamaño, y luego toca <strong>Done</strong>.</li>
+      <li data-i18n-html="deck.make.3">Toca el lápiz de la cabecera del Deck. Los huecos vacíos muestran un <strong>+</strong>: toca uno para abrir <strong>Edit key</strong>.</li>
+      <li data-i18n-html="deck.make.4">Elige el tipo (<strong>Action</strong>, <strong>Folder</strong> o <strong>Deslizador</strong>), un título, un icono y un color, y luego las acciones para <strong>Tap</strong>, <strong>Double</strong> y <strong>Hold</strong>. Guarda.</li>
+      <li data-i18n="deck.make.5">Toca la marca de verificación de la cabecera para salir del modo edición y usar las teclas.</li>
+    </ol>
+    <p data-i18n="deck.make.size">Con Auto activado, el Deck muestra tantas teclas cuadradas como caben en el mosaico. En el modo edición puedes elegir teclas pequeñas, medianas o grandes, o desactivar Auto y fijar tú las columnas y las filas. Tus teclas nunca se pierden cuando cambia la cuadrícula.</p>
+    <p data-i18n="deck.make.ai">También puedes pedirle a Xenon AI que te prepare un Deck, por ejemplo una página para streaming con sus teclas.</p>
+
+    <h2 id="platforms" data-i18n="deck.h.platforms">macOS y Linux</h2>
+    <p data-i18n="deck.plat.p1">Xenon en macOS y Linux está en beta. El editor de teclas no muestra las acciones que tu sistema no puede ejecutar, para que no configures una tecla que solo falla cuando la pulsas.</p>
+    <ul>
+      <li data-i18n-html="deck.plat.all"><strong>En los tres sistemas:</strong> abrir apps, archivos y direcciones web, ejecutar scripts, bloquear el PC, teclas multimedia, volumen y micro, webhooks, temporizadores, el soundboard, y las teclas de OBS, Streamer.bot, Discord, Spotify, Home Assistant, Twitch, YouTube y Claude Code.</li>
+      <li data-i18n-html="deck.plat.apps"><strong>Qué cuenta como app:</strong> un .exe, un acceso directo o la carpeta de instalación de la app en Windows; una .app en macOS, donde Xenon añade la extensión que el Finder oculta; una entrada .desktop, un AppImage o un programa en Linux.</li>
+      <li data-i18n-html="deck.plat.scripts"><strong>Scripts:</strong> .bat, .cmd, .ps1, Python y otros en Windows, donde una tecla puede mostrar u ocultar la ventana del script. En macOS y Linux: .sh, .zsh, .command, Python y otros, más AppleScript en macOS; el script se ejecuta en segundo plano, sin ventana. El intérprete tiene que estar instalado.</li>
+      <li data-i18n-html="deck.plat.keys"><strong>Atajos de teclado:</strong> en macOS pasan por Xenon Helper cuando lo permites en Accesibilidad; en Linux necesitan xdotool en X11 o ydotool en Wayland. En los dos, el atajo va a la app que está en primer plano.</li>
+      <li data-i18n-html="deck.plat.appaudio"><strong>Volumen por app y el mezclador de apps:</strong> Windows y Linux. macOS no le da a Xenon ningún mezclador por app que controlar, así que ahí esas acciones están ocultas.</li>
+      <li data-i18n-html="deck.plat.win"><strong>Solo en Windows:</strong> escribir texto, mover ventanas, apps de Microsoft Store, Voicemeeter, llamadas y mensajes del teléfono (beta), las teclas de sesión remota y la ventana Abrir en el PC.</li>
+    </ul>
+
+    <h2 id="share" data-i18n="deck.h.share">Compartir e importar perfiles</h2>
+    <p data-i18n-html="deck.share.p1">Cada perfil tiene un botón <strong>Share</strong>. Crea un código que puedes enviar como enlace o como archivo .json; un perfil con imágenes en sus teclas se comparte como archivo.</p>
+    <p data-i18n="deck.share.p2">Si algunas teclas usan widgets de la comunidad, Xenon te pregunta si quieres incluir esos widgets en el código. Quien lo importa sigue revisando y aprobando cada widget.</p>
+    <p data-i18n="deck.share.p3">Al importar un perfil, primero ves un resumen: su nombre, cuántas teclas tiene y qué tipos de acción contiene. Xenon reconstruye el perfil con sus propias comprobaciones y descarta todo lo que no reconoce. No se ejecuta nada hasta que tocas una tecla, y cada acción se vuelve a comprobar antes de ejecutarse.</p>
+    <p data-i18n="deck.share.p4">Un perfil que importaste de otra persona no se puede volver a compartir desde tu PC. Los perfiles que has hecho tú siempre se pueden compartir.</p>
+    <p data-i18n-html="deck.share.p5">Los perfiles de Deck también están en el <a href="/catalog/">catálogo de la comunidad</a>, y puedes <a href="/submit/">enviar los tuyos</a>. Una persona revisa cada envío antes de publicarlo.</p>
+
+    <h2 id="faq" data-i18n="deck.h.faq">Preguntas</h2>
+    <details><summary data-i18n="deck.faq.free.q">¿El Deck es gratis?</summary><div class="body"><p data-i18n="deck.faq.free.a">Sí. El Deck es parte de Xenon, que es gratis para uso personal, sin cuenta y sin periodo de prueba.</p></div></details>
+    <details><summary data-i18n="deck.faq.obs.q">¿Una tecla del Deck puede cambiar escenas de OBS?</summary><div class="body"><p data-i18n="deck.faq.obs.a">Sí. Una tecla puede cambiar a una escena por su nombre o a la siguiente, iniciar o detener la grabación y la emisión, y silenciar una fuente de OBS o ajustar su volumen. Antes, conecta OBS en Ajustes, Streaming.</p></div></details>
+    <details><summary data-i18n="deck.faq.steps.q">¿Una tecla puede hacer varias cosas?</summary><div class="body"><p data-i18n="deck.faq.steps.a">Sí. El toque, el doble toque y mantener pulsado pueden ejecutar cada uno su propia lista de acciones en orden, con una pausa de hasta 10 segundos antes de cada paso.</p></div></details>
+    <details><summary data-i18n="deck.faq.mac.q">¿El Deck funciona en macOS y Linux?</summary><div class="body"><p data-i18n="deck.faq.mac.a">Sí, en beta. Abrir apps, archivos y direcciones web, los scripts, la multimedia, el volumen, OBS, Discord, Spotify, Home Assistant y las teclas de Twitch y YouTube funcionan en los tres sistemas. Algunas teclas necesitan Windows, como escribir texto, mover ventanas y Voicemeeter, y el editor de teclas no las ofrece donde no pueden funcionar.</p></div></details>
+    <details><summary data-i18n="deck.faq.phone.q">¿Puedo usar mi teléfono como Deck?</summary><div class="body"><p data-i18n="deck.faq.phone.a">Sí, en beta. Vincula un teléfono o una tablet con tu PC a través de tu propio Wi-Fi y verás todo tu panel, Deck incluido. Las teclas que actúan en el PC, como abrir una app o cambiar una escena de OBS, se ejecutan en el PC. Los clips del soundboard suenan en el teléfono.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="deck.cta.h">Descargar Xenon</h3>
+      <p data-i18n-html="deck.cta.p">Xenon es gratis y no necesita cuenta. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Descarga Xenon para Windows</a> o elige macOS o Linux (beta) en la <a href="/es/download.html">página de descargas</a>.</p>
+      <p data-i18n-html="deck.cta.demo">Para echar un vistazo antes, abre la <a href="/demo/">demo en el navegador</a>. El editor del Deck funciona ahí, pero una tecla no puede actuar en ningún PC, porque detrás de la página no hay ningún PC.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Más guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/mac.html" data-xl="f.mac">Xenon en un Mac</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/widgets.html" data-xl="f.widgets">Todos los widgets</a></li><li><a href="/es/claude-code.html" data-xl="f.claude">Claude Code en una pantalla táctil</a></li><li><a href="/es/sensor-panel.html" data-xl="f.sensor">Un panel de sensores para tu PC</a></li><li><a href="/es/xenon-exe.html" data-xl="f.exe">¿Es seguro el instalador?</a></li></ul><p class="xg-dl"><a href="/es/download.html" data-xl="f.download">Descargar</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un panel táctil gratis para las pantallas junto a tu PC. Windows, con macOS y Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/es/download.html" data-xl="f.download">Descargar</a></li><li><a href="/demo/" data-xl="f.demo">Demo en el navegador</a></li><li><a href="/catalog/" data-xl="f.catalog">Catálogo</a></li><li><a href="/create/" data-xl="f.create">Crear widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versiones</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/mac.html" data-xl="f.mac">Xenon en un Mac</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/widgets.html" data-xl="f.widgets">Todos los widgets</a></li><li><a href="/es/deck.html" data-xl="f.deck">Teclas del Deck</a></li><li><a href="/es/claude-code.html" data-xl="f.claude">Claude Code en una pantalla táctil</a></li><li><a href="/es/sensor-panel.html" data-xl="f.sensor">Un panel de sensores para tu PC</a></li><li><a href="/es/xenon-exe.html" data-xl="f.exe">¿Es seguro el instalador?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Proyecto</h2><ul><li><a href="/es/#support" data-xl="f.support">Mecenas</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/es/faq.html" data-xl="f.faq">Ayuda y preguntas</a></li><li><a href="/es/privacy.html" data-xl="f.privacy">Privacidad</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon es un proyecto independiente. Xeneon e iCUE son marcas comerciales de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

@@ -23,7 +23,14 @@
   --dim: var(--bone-2);
   --maxw: 800px;
   --radius: var(--r-1);
+  /* The Beta chip: the app's own values, measured at 6.9:1 (dark) and 5.5:1 (light). */
+  --beta-fg: #FFC44D;
+  --beta-bg: #443C2E;
 }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --beta-fg: #6B4A00; --beta-bg: #DAD6CD; }
+}
+:root[data-theme="light"] { --beta-fg: #6B4A00; --beta-bg: #DAD6CD; }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-padding-top: 88px; }

@@ -34,16 +34,16 @@
   };
 
   var CSS = [
-    '.xt-theme{position:relative;display:inline-flex;align-items:center;font-family:var(--mono);}',
+    '.xt-theme{position:relative;display:inline-flex;align-items:center;font-family:var(--sans);}',
     '.xt-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:4px 2px;',
-    '  font:inherit;font-size:12.5px;color:var(--bone-2);cursor:pointer;line-height:1.4;}',
+    '  font:inherit;font-size:15px;color:var(--bone-1);cursor:pointer;line-height:1.4;min-height:32px;}',
     '.xt-btn:hover{color:var(--bone-0);}',
     '.xt-caret{font-size:9px;line-height:1;}',
     '.xt-menu{position:absolute;top:calc(100% + 10px);right:0;min-width:150px;z-index:80;display:none;',
     '  background:var(--g-0);border:1px solid var(--rule-2);border-radius:var(--r-1);padding:6px;}',
     '.xt-theme.xt-open .xt-menu{display:block;}',
     '.xt-menu button{display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;',
-    '  font:inherit;font-size:12.5px;color:var(--bone-1);padding:7px 10px;border-radius:var(--r-1);}',
+    '  font:inherit;font-size:15px;color:var(--bone-1);padding:8px 10px;border-radius:var(--r-1);}',
     '.xt-menu button:hover{background:var(--g-2);color:var(--bone-0);}',
     '.xt-menu button.xt-on{color:var(--bone-0);font-weight:600;}'
   ].join('\n');
