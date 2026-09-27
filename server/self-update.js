@@ -225,7 +225,22 @@ function createSelfUpdate(opts) {
 
   // Download + extract + validate the target release into appDir. Throws on any
   // problem WITHOUT touching the live install (everything happens under DATA_DIR).
-  async function prepare({ tag, version }) {
+  //
+  // One at a time, and never while an applier runs. _prepare() starts by wiping
+  // DATA_DIR/update: a second prepare racing the first corrupts the same folder,
+  // and a prepare during an apply deletes update/app while the applier is
+  // copying from it. Two dashboards, or the automatic updater and a tap on
+  // "Update now", are enough to get there.
+  let preparing = null;
+  function prepare(args) {
+    if (preparing) return Promise.reject(new Error('prepare_in_flight'));
+    if (applyInFlight()) return Promise.reject(new Error('apply_in_flight'));
+    preparing = _prepare(args || {}).finally(() => { preparing = null; });
+    return preparing;
+  }
+  function isPreparing() { return !!preparing; }
+
+  async function _prepare({ tag, version }) {
     if (!tag || !version) throw new Error('bad_args');
     if (isGitCheckout()) throw new Error('git_checkout');
 
@@ -281,18 +296,56 @@ function createSelfUpdate(opts) {
   // Hand off to the external applier. The staged build must be ready; the live
   // install is only modified from here on, outside this Node process.
   let applyStartedAt = 0; // in-flight guard — two appliers racing = a mixed tree
-  function apply() {
+  let lastSpawnError = '';
+  function applyInFlight() {
+    return !!applyStartedAt && Date.now() - applyStartedAt < 5 * 60 * 1000;
+  }
+  // The applier could not even be started (interpreter missing, blocked by an
+  // antivirus): nothing is running, so the guard must not hold a retry off for
+  // five minutes, and the failure must not become an uncaught exception that
+  // apply()'s caller never hears about.
+  function onSpawnError(err) {
+    applyStartedAt = 0;
+    lastSpawnError = String((err && (err.code || err.message)) || 'spawn_failed');
+  }
+
+  // opts.quiet  — do not open the dashboard in a browser when done (the
+  //               automatic updater runs while nobody is at the PC).
+  // opts.hidden — no console window for the launcher (Windows). Only honoured
+  //               when no UAC prompt is needed, which is the only case the
+  //               automatic updater applies in.
+  // opts.port   — the port this server listens on, so the applier stops and
+  //               waits for THIS server (XENON_PORT), not whatever holds 3030.
+  //
+  // quiet and port travel as ENVIRONMENT variables (XENON_UPDATE_QUIET,
+  // XENON_PORT), never as script parameters. Mid-update the applier hands the
+  // rest of the work to the copy of itself the update just installed, and that
+  // copy may be a different version: an unknown parameter makes PowerShell
+  // refuse to start it, while an unknown variable is simply ignored.
+  function applierEnv(o, port) {
+    const env = { ...process.env };
+    if (port) env.XENON_PORT = String(port);
+    if (o.quiet) env.XENON_UPDATE_QUIET = '1';
+    else delete env.XENON_UPDATE_QUIET;
+    return env;
+  }
+
+  function apply(opts) {
+    const o = opts || {};
     if (!supported()) return { ok: false, error: 'unsupported' };
+    if (preparing) return { ok: false, error: 'prepare_in_flight' };
     if (!staged()) return { ok: false, error: 'not_staged' };
     // A second apply while one is running (double-tap on the touchscreen, two
     // open dashboards) would spawn a second applier whose "backup" snapshots a
     // half-swapped tree — the exact mixed state rollback exists to prevent.
     // The window is generous: a real apply either kills this process (server
     // restart) or fails within a few minutes, and a stale flag self-expires.
-    if (applyStartedAt && Date.now() - applyStartedAt < 5 * 60 * 1000) {
+    if (applyInFlight()) {
       return { ok: false, error: 'apply_in_flight' };
     }
     applyStartedAt = Date.now();
+    lastSpawnError = '';
+    const port = Number.isInteger(o.port) && o.port > 0 && o.port < 65536 ? o.port : 0;
     // macOS/Linux need none of the Windows launch dance below. There is no UAC
     // and the install root is per-user. (On Windows, detaching is exactly what
     // must NOT happen: a console-less powershell silently exits without running
@@ -310,17 +363,24 @@ function createSelfUpdate(opts) {
     if (isPosix) {
       let file = '/bin/bash';
       let args = [applierPath];
+      const env = applierEnv(o, port);
       if (platform === 'linux') {
         const systemdRun = ['/usr/bin/systemd-run', '/bin/systemd-run']
           .find((p) => { try { return f.existsSync(p); } catch { return false; } });
         if (systemdRun) {
           file = systemdRun;
+          // A transient unit does NOT inherit the caller's environment; the
+          // two variables have to be handed to it explicitly.
+          const setenv = [];
+          if (env.XENON_PORT) setenv.push('--setenv=XENON_PORT=' + env.XENON_PORT);
+          if (env.XENON_UPDATE_QUIET) setenv.push('--setenv=XENON_UPDATE_QUIET=1');
           args = ['--user', '--collect', '--quiet', '--unit=xenon-update',
-            '--description=Xenon self-update applier', '/bin/bash', applierPath];
+            '--description=Xenon self-update applier', ...setenv, '/bin/bash', applierPath];
         }
       }
-      const child = spawn(file, args, { detached: true, stdio: 'ignore' });
-      child.unref();
+      const child = spawn(file, args, { detached: true, stdio: 'ignore', env });
+      if (child && typeof child.on === 'function') child.on('error', onSpawnError);
+      if (child && typeof child.unref === 'function') child.unref();
       return { ok: true, started: true };
     }
     // The applier always re-launches itself as an independent -Worker child, which
@@ -340,12 +400,27 @@ function createSelfUpdate(opts) {
     const noElevate = _installWritable();
     const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', applierPath];
     if (noElevate) args.push('-NoElevate');
-    const child = spawn(psExe, args, { windowsHide: false, stdio: 'ignore' });
-    child.unref();
+    // windowsHide still gives powershell a console (SW_HIDE), unlike DETACHED,
+    // so the script runs; it only stops a window flashing up on a PC nobody is
+    // using. Never with an elevation prompt pending: UAC needs its own window.
+    const child = spawn(psExe, args, { windowsHide: !!(o.hidden && noElevate), stdio: 'ignore', env: applierEnv(o, port) });
+    if (child && typeof child.on === 'function') child.on('error', onSpawnError);
+    if (child && typeof child.unref === 'function') child.unref();
     return { ok: true, started: true };
   }
 
-  return { isGitCheckout, supported, unsupportedReason, applierPath, staged, prepare, apply, _buildZipUrl: (t) => buildZipUrl(repo, t) };
+  // Would applying need a UAC prompt? (Windows only: POSIX installs are per-user.)
+  // Nobody can answer a prompt that appears while the PC is idle, so the
+  // automatic updater leaves such installs to the manual button.
+  function needsElevation() {
+    return platform === 'win32' && !_installWritable();
+  }
+
+  return {
+    isGitCheckout, supported, unsupportedReason, applierPath, staged, prepare, apply,
+    isPreparing, applyInFlight, needsElevation, lastSpawnError: () => lastSpawnError,
+    _buildZipUrl: (t) => buildZipUrl(repo, t),
+  };
 }
 
 module.exports = {

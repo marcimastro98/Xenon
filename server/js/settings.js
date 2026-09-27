@@ -401,6 +401,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // users read "off unless you turn it on" and left it alone, which is a choice.
   // Do not "simplify" that test to `!== false`: it would flip exactly those people.
   versionPing: true,
+  autoUpdate: true,
   // Announcements and the paid-drop card. ON by default, and normalized with
   // `!== false` — the opposite of versionPing above, deliberately: this is a
   // preference about being interrupted, not a data opt-in.
@@ -1732,6 +1733,8 @@ function normalizeSettings(source) {
     mediaVisualizer: ['off', 'minimal', 'wave'].includes(value.mediaVisualizer) ? value.mediaVisualizer : (value.mediaVisualizer === true ? 'wave' : 'off'),
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
+    // Automatic updates: on unless the user switched them off (server/auto-update.js).
+    autoUpdate: value.autoUpdate !== false,
     hubMessages: value.hubMessages !== false,
     catalogDrops: value.catalogDrops !== false,
     // Mirror of normalizeHubSettings in server.js — keep in step.
@@ -5256,6 +5259,7 @@ function applySurfaceKind(kind, state) {
 let _settingsCat = 'appearance';
 function settingsSetCategory(cat) {
   _settingsCat = cat;
+  if (window.SettingsSearch) SettingsSearch.leave();
   if (cat === 'appearance') refreshMediaVizStatus();
   const content = document.getElementById('settings-content');
   if (content) {
@@ -5345,9 +5349,17 @@ async function syncSupporterCodeBox() {
     ? t('settings_supporter_saved')
     : t('settings_supporter_none');
   forget.hidden = !saved;
-  // Never repopulate the field: there is nothing to put in it, and a masked
-  // placeholder in a text box invites the user to "fix" a value that is fine.
-  if (saved) field.value = '';
+  // A saved code is a STATE: "Code saved" and Remove, nothing to type. An empty
+  // field and a Save button beside a saved code read as "enter your code", which
+  // is exactly what a supporter who already did it was being asked. To replace
+  // it, Remove brings the field back. The field is never repopulated: the code
+  // does not come back from the server, and a masked value invites a "fix".
+  field.value = '';
+  field.hidden = saved;
+  const save = $('settings-supporter-save');
+  if (save) save.hidden = saved;
+  const savedLine = $('settings-supporter-saved');
+  if (savedLine) savedLine.hidden = !saved;
 }
 
 async function saveSupporterCode() {
@@ -5577,6 +5589,7 @@ function toggleSettings() {
     if (nav) nav.classList.remove('is-open');
     renderSettingsModal();
     settingsSetCategory(_settingsCat);
+    if (window.SettingsSearch) SettingsSearch.onOpen();
   }
   else if (window.NewsWidget) NewsWidget.mountFeedManager(null);
   freezeSettingsAmbient(!overlay.hidden);

@@ -170,6 +170,8 @@ const DEFAULT_GET_MUTATORS = new Set([
   // in itself, but a navigation is the one request shape this door cannot
   // attribute, and nothing should be able to throw a window on screen with it.
   '/macos/fda-settings',
+  // "Postpone the automatic update" is allowed from a phone, by POST only.
+  '/update/auto/postpone',
   // Answering a call IS reachable from a paired device — a phone showing the
   // ringing card is the whole point — but only by POST. Answering focuses
   // another app and presses keys into it, so a top-level GET navigation to this

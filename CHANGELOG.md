@@ -7,7 +7,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### ✨ Added
 - **You can switch speakers or microphone without moving your calls.** Windows keeps two defaults for each direction: the default device, which games, music and videos use, and the default communication device, which Discord, Teams and other call apps use. Until now Xenon always changed both. A new switch in **Settings → General → Audio**, **Also switch the communication device**, decides. It stays on by default, so nothing changes unless you turn it off; with it off, the System tile, a Deck key or the assistant change only the default device and leave calls on the device you picked for them. Windows only, because macOS and Linux have a single default.
 
+- **Search in Settings.** A search field at the top of the Settings sidebar finds a setting by name. Pick a result and Settings opens its section, scrolls to the row and highlights it. You no longer need to know which section a setting is in.
+
+  The search works in all 11 languages Xenon speaks, and in English whatever language the app is set to, so "brightness" and "luminosità" find the same row. It forgives accents and a typo ("luminosita", "brighness"), finds a word in the middle of a Japanese or Chinese sentence, and in Korean finds a word from a half-typed syllable or from its first consonants (ㄴㅆ finds 날씨). It also knows the everyday words for each section, such as "dark" for Appearance, "fahrenheit" for Weather and "hue" or "wled" for Lighting.
+
+  The arrow keys move through the results and Enter opens one. Ctrl+F or / jumps to the field while Settings is open, and Esc first clears the search, then closes Settings. With the field empty, it lists the last few settings you opened. On a touchscreen the field waits for your tap, so the on-screen keyboard does not open by itself.
+
+- **Search in the "Add widget" panel.** The panel you open with + now has a search field, so you can type "meteo", "cpu" or "musica" instead of scrolling through every category. It matches in all 11 languages, like the Settings search.
+
+  It also finds the widgets you installed from the Store, by name, author or description. Until now they were all behind a single "Custom widget" item, and you picked one inside the tile after adding it. Now you pick it directly: the tile is added and the widget's usual permission window opens straight away.
+
+- **A new look for the new-drop window.** When a supporter pack or a limited edition lands in the Store, the window that tells you now leads with the pack's own picture, marks the offer with a gold crown for supporter packs and a violet gem for limited editions, and lights the card in the pack's own colour. A limited edition shows how many copies are left, and any drop with an end date shows how long it stays, both read from the catalog. On a wide screen like the Xeneon Edge the picture sits beside the offer, on a phone above it. When several drops land together they appear side by side in one window. It opens with a short burst of light and then holds still, and "Maybe later" and "Don't show me new drops" are still there.
+
+- **A new Claude Code tile.** The tile is rebuilt around what needs you. A request Claude Code is waiting on sits at the top, whichever side of the tile you are on, and says what it would reach before it asks for a tap: publishing your work (`git push`, `npm publish`), the network, a file outside the project folder, or something that cannot be undone. A command that cannot be undone, such as `rm -rf`, is allowed by holding the button, not by a tap, and the buttons wait half a second after a card appears, so a tap meant for something else does not answer it. On a wide tile two requests sit side by side, and each card shows how long is left before the terminal asks instead.
+
+  **Live** has a row for each session: its state, the step it is on and for how long, a line of its tool calls over the last ten minutes, its own plan, how full its context is, the sub-agents running and the lines it changed. Beside them, the 5-hour and 7-day quota are rows of segments with a mark where an even pace would be now, and one sentence under each: the share this pace ends the window at, or the time you would reach the limit.
+
+  **Usage** covers one window and says which: the last 30 days, with today, since Monday, the total, the share read from cache and the value at API list prices, a column for each day, and the split by project and by model. When Claude Code has already deleted older sessions, it says from which date the figures start.
+
+  The tile follows your theme in light and dark, lays itself out from its own size (a Xeneon Edge, a monitor, a phone), and speaks all 11 languages, including the units of time, which were Italian in every language ("4g23h"). Times follow **Settings → Clock → Time format**.
+
+- **A tidier Store.** Opening the Store now shows the Store. Updates for things you already have are no longer the first shelf you see: they wait on the **Installed** tab, whose red count says one is there, with **Update all**. **New** (what was published since your last visit) sits below the supporter packs instead of above them, and leaves out what you already installed. Supporter packs are shown as they are, without a padlock and a dark veil over the picture; the gold badge and the Unlock button say they are reserved. Cards drop the version number and the "May use more resources" note, which you still see in the detail view and in the import window before you install. The button on a free card is quieter, so the loudest thing on a card is an update waiting for you, and the shelves have more room between them.
+
 ### 🐛 Fixed
+- **A saved supporter code is recognised everywhere.** In **Settings → Store**, a PC that keeps your code now says **Code saved** with a **Remove** button, instead of an empty field and a Save button that read as "enter your code" to someone who already had. The Store recognises it too: supporter packs show one **Unlock** button that uses the saved code, and the supporter shelf stops offering the membership you already have. Whether the code still works is checked when you unlock, as before. The shelf's **See all** is gone as well, since the shelf already shows every pack.
+
+- **Widget names in Spanish, French, German, Portuguese and Russian.** Around twenty widgets (Weather, Calendar, Notes, Tasks, System, Cameras and more) showed their English name in the "+" panel and on their tiles. They are now translated; brand names such as Spotify or OBS stay as they are.
+
+- **The Deck editor no longer offers a per-app volume fader on a Mac.** macOS has no per-app mixer Xenon can reach, and the per-app volume keys were already hidden there, but the touch fader still listed **App volume** as a target and then never moved anything.
+
+- **The Mac installer's closing note about Full Disk Access is current.** It still said to grant the permission again after every update, which stopped being true in 4.11.3: the grant now survives updates.
+
+- **Claude Code questions reach the tile again, and taps on it are no longer lost.** These were two separate faults.
+
+  The questions: the connection to Claude Code is a set of hooks in its `settings.json`. An install connected before newer versions added hooks kept the old set, so the questions Claude asks, and some session events, never reached Xenon. Xenon now checks the connection when it starts and when the tile opens, adds what is missing by itself, and the tile says so once and asks you to restart the Claude Code sessions that are open, because Claude Code reads its hooks when a session starts. If a part is still missing, the tile has a **Repair** button.
+
+  The taps: the tile is redrawn every time a session reports, several times a second while one is working, and a button redrawn between your finger going down and coming up never receives the tap. That was "I tap Allow, or an answer, and nothing happens". The tile now finishes the tap before it redraws.
+
+- **The Claude Code usage figures are right.**
+  - A session file over 64 MB was skipped, so a long session counted nothing and today could read 0 while you worked.
+  - Work done by sub-agents was not counted.
+  - A resumed session repeats earlier messages in a new file, and they were counted twice.
+  - The value at API prices used one rate per model family and a flat cache multiplier. It now uses Anthropic's list price for each model, including the separate rate for one-hour cache writes.
+  - A session that moved into a subfolder was split into two projects. Each project is now named by the folder the session started in, with its parent folder when two names are the same.
+  - The usage figures mixed all-time totals with 30-day ones. They now all cover the same 30 days.
+  - One quota window reporting on its own blanked the other, and a window past its reset kept showing its old figure until the next report.
+  - Ages such as "5 min ago" stood still between reports. They now move every second.
+
 - **Performance Mode no longer stays on forever when you start it with no game open.** Pressing **Optimize** on the System tile while you were just using the desktop started a session with nothing to end it: it only knew how to stop when the game it was started for closed, and there was no game. It stayed on for days, with animations paused, the Windows power plan on High and the heavy tiles paused, and nothing on the dashboard showed it. Now a session like that ends by itself after 20 minutes in which no game runs and none of the activities you ticked in **Settings → Performance** is in front, with the usual "settings restored" notice. A session started for a game still ends when you close the game.
 
   While a session is on, the **Optimize** button on the System tile turns into a filled **Restore** button, so you can see it is on and turn it off with one tap.
@@ -15,6 +61,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **The Browser widget no longer ignores what you type while Performance Mode is on.** With the mode active and **Pause heavy tiles while gaming** switched on (the default), the tile stopped loading pages without saying why: you typed an address, pressed Enter, and got a spinner or a black panel. Now the tile says it is paused and has a **Show anyway** button. Typing an address and pressing Enter also brings it back, because that is you asking for the page. It goes back to pausing the next time Performance Mode turns on.
 
   The **Second screen** and **Cameras** tiles pause for the same reason, and they did it just as quietly: the second screen held its last frame, and the cameras kept their last snapshot, which on a camera looks like nothing is happening. Both now say they are paused and have the same **Show anyway** button. The camera snapshots also dim while paused, and opening a camera full size resumes the tile, so the big view is never a frozen image.
+
+- **New drops and announcements now reach a dashboard that stays open.** The window announcing a new supporter pack or limited edition checked for news only once, twenty seconds after the dashboard opened. A dashboard left on for days, like the Xenon app on a Xeneon Edge, never heard of a drop published after that, and if the one check found you in a game or on the Ambient screen for five minutes, it gave up until the next restart. Now it looks every few hours while the dashboard is open and again when you come back to it. It still shows at most one window a day and never the same drop twice. Announcements from the hub follow the same rule.
 
 ## [v4.11.10] - 26-09-2026
 ### ✨ Added

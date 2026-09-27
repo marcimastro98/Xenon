@@ -723,6 +723,9 @@ function placeNewWidget(occupied, defW, defH, pageId) {
   return { x: slot.x, y: slot.y, w: defW, h: defH };
 }
 
+// Returns the instance id that now shows the widget (the widget id itself, or
+// the new copy's id), or undefined when the widget is unknown. The palette
+// search needs it to hand a fresh custom tile its Store package.
 function addWidgetToPage(widgetId, pageId) {
   const layout = getDashboardLayout();
   const w = layout.widgets[widgetId];
@@ -749,7 +752,7 @@ function addWidgetToPage(widgetId, pageId) {
     layout.copies.push({ id, widget: widgetId, x: place.x, y: place.y, w: place.w, h: place.h, page: pageId });
     saveDashboardLayout(layout);
     if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
-    return;
+    return id;
   }
   // Otherwise (first placement, or a not-yet-duplicable widget): show the single
   // instance here. If it lives in a group, pull it out first.
@@ -763,6 +766,7 @@ function addWidgetToPage(widgetId, pageId) {
   // the last widget it held. (Copies already start unassigned via stripCustomClone.)
   if (window.CustomWidget && DI && DI.baseWidgetOf(widgetId) === 'custom') window.CustomWidget.clearAssign(widgetId);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+  return widgetId;
 }
 
 // Position the per-page "+" affordance over the page's largest free area, so it
@@ -972,5 +976,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
+  module.exports = { availableWidgets, addableWidgetIds, addWidgetToPage, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
 }

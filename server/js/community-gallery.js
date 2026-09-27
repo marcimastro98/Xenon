@@ -624,7 +624,7 @@
       return chip;
     }
     const isUpdate = state === 'update';
-    const b = el('button', cls); b.type = 'button';
+    const b = el('button', cls + (isUpdate ? ' is-update' : '')); b.type = 'button';
     const glyph = isUpdate ? 'update' : iconName;
     if (glyph) b.appendChild(icon(glyph));
     b.appendChild(el('span', null, isUpdate ? t('gallery_update', 'Update…') : label));
@@ -668,7 +668,8 @@
   // entry IS installed, the join pitch steps back behind the Installed/Update
   // control — no point selling a membership to an owner.
   function appendLockedButtons(cta, entry) {
-    const unlock = importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock');
+    const unlock = importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock' + (supporterSaved ? ' is-saved' : ''), unlockLabel(), 'lock');
+    if (supporterSaved) { cta.appendChild(unlock); return; }
     if (entryInstallState(entry) === 'none') {
       cta.appendChild(becomeSupporterButton('cgal-btn cgal-btn-hero cgal-info-bmc'));
       cta.appendChild(unlock);
@@ -981,7 +982,6 @@
 
     info.appendChild(el('h4', 'cgal-hero-title', entry.name));
     const by = el('div', 'cgal-hero-by'); bylineInto(by, entry);
-    const heroPerf = perfChip(entry); if (heroPerf) by.appendChild(heroPerf);
     info.appendChild(by);
     const heroUntil = untilLabel(entry, 'cgal-until-big'); if (heroUntil) info.appendChild(heroUntil);
     if (entry.description) info.appendChild(el('p', 'cgal-hero-desc', entry.description));
@@ -1078,8 +1078,8 @@
           t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(stock.left)).replace('{t}', String(stock.total))));
       }
     } else {
-      row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn primary',
-        locked ? t('gallery_unlock', 'Unlock with a code') : t('gallery_import', 'Import…'), locked ? 'lock' : null));
+      row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get',
+        locked ? unlockLabel() : t('gallery_import', 'Import…'), locked ? 'lock' : null));
     }
     body.appendChild(row);
     card.appendChild(body);
@@ -1163,13 +1163,15 @@
       for (const key of ['accent', 'bg', 'text']) { const v = entry.preview[key]; if (!v) continue; const dot = el('span', 'preset-swatch-dot'); dot.style.background = v; sw.appendChild(dot); }
       if (sw.childElementCount) media.appendChild(sw);
     }
-    if (locked) { const lk = el('div', 'cgal-lock'); lk.appendChild(icon('lock')); media.appendChild(lk); }
+    // No lock over the art: a supporter pack is the best work in the Store and
+    // has to look like it. The gold tier pill and the Unlock button say it is
+    // reserved; a padlock and a dark veil across the picture only made it look
+    // worse than the free cards beside it.
     card.appendChild(media);
 
     const body = el('div', 'cgal-body');
-    const nameRow = el('div', 'cgal-name', entry.name);
-    if (entry.version) nameRow.appendChild(el('span', 'cgal-version', ' v' + entry.version));
-    body.appendChild(nameRow);
+    // The version lives in the detail view; on a card it was noise next to the name.
+    body.appendChild(el('div', 'cgal-name', entry.name));
     const by = el('div', 'cgal-author'); bylineInto(by, entry);
     if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cgal-catlabel', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category))); }
     // Async-filled star slot (paintStars) — empty until the aggregates land,
@@ -1182,7 +1184,9 @@
     const installs = el('span', 'cgal-installs', installsText(entry.id));
     installs.dataset.id = entry.id;
     by.appendChild(installs);
-    const cardPerf = perfChip(entry); if (cardPerf) by.appendChild(cardPerf);
+    // The "may use more resources" note is shown in the detail view and repeated
+    // by the import dialog, where it informs a decision. On every card it was an
+    // amber alarm on half the Store.
     body.appendChild(by);
     const cardUntil = untilLabel(entry); if (cardUntil) body.appendChild(cardUntil);
     if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
@@ -1206,7 +1210,10 @@
       body.appendChild(row); card.appendChild(body);
       return card;
     }
-    row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn primary', locked ? t('gallery_unlock', 'Unlock with a code') : t('gallery_import', 'Import…'), locked ? 'lock' : null));
+    // A free card's button is the quiet one. A bright accent button on every
+    // free card made free content the loudest thing in the Store, louder than
+    // the supporter packs; the accent is kept for an update, which asks you to act.
+    row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get', locked ? unlockLabel() : t('gallery_import', 'Import…'), locked ? 'lock' : null));
     if (entry.needsNewerApp) row.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
     body.appendChild(row);
     card.appendChild(body);
@@ -1263,6 +1270,20 @@
   // Cached per render() so card/detail buttons can read install state
   // synchronously; refreshed whenever the update join runs.
   let installIndex = null;   // { pkg: Map<pkgId,ver>, receipts: Map<entryId,ver> } | null
+  // Does this PC keep a supporter code (Settings → Store, or saved from the
+  // unlock dialog)? A boolean only: the code never leaves the server. With one
+  // saved, the Store stops selling the membership to someone who has it: no
+  // "Become a supporter", and one "Unlock" that uses the saved code. Whether the
+  // code still works is only known at unlock, against a specific drop, so the
+  // Store says the code is SAVED, never that it is valid.
+  let supporterSaved = false;
+  async function refreshSupporterSaved() {
+    const r = await api('/api/community/supporter');
+    supporterSaved = !!(r && r.saved);
+  }
+  function unlockLabel() {
+    return supporterSaved ? t('gallery_unlock_saved', 'Unlock') : t('gallery_unlock', 'Unlock with a code');
+  }
   async function refreshInstallIndex() {
     let pkg = new Map();
     // catalogVersion is what the CATALOG called the install; version is what the
@@ -1413,7 +1434,10 @@
     // the skeleton so there is never a blank pause with nothing on screen.
     const keepDuringRefresh = force === true && !!body.firstChild;
     if (!keepDuringRefresh) body.replaceChildren(skeleton(6));
-    const out = await api('/api/community/catalog' + (force ? '?refresh=1' : ''));
+    const [out] = await Promise.all([
+      api('/api/community/catalog' + (force ? '?refresh=1' : '')),
+      refreshSupporterSaved(),
+    ]);
     if (!overlayEl) return;   // closed while loading
     if (!out || !out.ok) {
       // Keep the catalog that's already on screen on a failed ↻; only a cold open
@@ -1446,7 +1470,9 @@
       return;
     }
 
-    const updates = await findUpdates(browse);
+    // Not drawn in Browse any more (see paintGrid): run for the install index the
+    // card buttons read, so an owned entry says Installed or Update.
+    await findUpdates(browse);
     if (!overlayEl) return;
 
     // ── Toolbar: search + sort select + kind rail ──
@@ -1539,14 +1565,16 @@
       l.appendChild(el('span', 'cgal-khead-title', titleText || kindLabel(k)));
       l.appendChild(el('span', 'cgal-khead-cnt', String(items.length)));
       head.appendChild(l);
-      if (items.length > SECTION_PREVIEW && k !== '__updates') {
+      if (items.length > SECTION_PREVIEW) {
         const sa = el('button', 'cgal-seeall'); sa.type = 'button';
-        sa.appendChild(el('span', null, t('gallery_seeall', 'See all'))); sa.appendChild(document.createTextNode(' ' + items.length + ' →'));
+        // The label ends in its own arrow in every language; drop it so the
+        // count sits before the one arrow ("See all 26 →", not "See all → 26 →").
+        sa.appendChild(el('span', null, t('gallery_seeall', 'See all').replace(/\s*→\s*$/, ''))); sa.appendChild(document.createTextNode(' ' + items.length + ' →'));
         sa.addEventListener('click', () => { activeKind = k; shown = PAGE; syncControls(); paintGrid(); });
         head.appendChild(sa);
       }
       wrap.appendChild(head);
-      wrap.appendChild(cardGrid(items, k === '__updates' ? items.length : SECTION_PREVIEW, noId));
+      wrap.appendChild(cardGrid(items, SECTION_PREVIEW, noId));
       return wrap;
     }
     // A plain shelf: a head and the cards, all of them. Deliberately NOT
@@ -1580,20 +1608,21 @@
       // just its explainer and its join button, and a zero would read as empty.
       if (opts.items.length) l.appendChild(el('span', 'cgal-khead-cnt', String(opts.items.length)));
       head.appendChild(l);
+      // No "See all" here: the shelf already holds its whole tier on a rail, so
+      // the link only led to the same cards again (and the rail chip does that).
       const actions = el('div', 'cgal-khead-actions');
-      if (opts.items.length > SECTION_PREVIEW) {
-        const sa = el('button', 'cgal-seeall'); sa.type = 'button';
-        sa.appendChild(el('span', null, t('gallery_seeall', 'See all'))); sa.appendChild(document.createTextNode(' ' + opts.items.length + ' →'));
-        sa.addEventListener('click', () => { activeKind = opts.seeAllKind; shown = PAGE; syncControls(); paintGrid(); });
-        actions.appendChild(sa);
-      }
       if (opts.onInfo) {
         const info = el('button', 'cgal-seeall cgal-feat-how'); info.type = 'button';
         info.appendChild(el('span', null, t('gallery_sup_how', 'How it works')));
         info.addEventListener('click', opts.onInfo);
         actions.appendChild(info);
       }
-      if (opts.joinLabel) {
+      if (opts.savedLabel) {
+        const saved = el('span', 'cgal-feat-saved');
+        saved.appendChild(icon('check'));
+        saved.appendChild(el('span', null, opts.savedLabel));
+        actions.appendChild(saved);
+      } else if (opts.joinLabel) {
         const join = document.createElement('a');
         join.className = 'cgal-btn cgal-feat-join';
         join.href = opts.joinHref; join.target = '_blank'; join.rel = 'noopener noreferrer';
@@ -1679,22 +1708,28 @@
         const spotIds = new Set(spot.side.map((e) => e.id));
         if (heroEntry) spotIds.add(heroEntry.id);
 
-        // ── Two shelves that are NOT part of the layout ───────────────────────
-        // Both are personal — they describe this machine, not the storefront —
-        // so they render before the layout walk and cannot be reordered or
-        // switched off from the admin. "Updates" especially: a storefront
-        // arrangement must never be able to hide the fact that something the
-        // user already installed has an update waiting for them.
-        if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Aggiornamenti per i tuoi contenuti')));
-        // "Novità" shelf: everything published since THIS user's last visit in
-        // one place, newest first, whatever its tier. Cards here duplicate their
-        // tier/kind section entries by design → noId. "See all" opens the
-        // dedicated __new view the rail chip also reaches. Distinct from the
-        // layout's `new` block below, which is catalog recency and therefore the
-        // same for everyone.
+        // ── Updates are not a Browse shelf ───────────────────────────────────
+        // They used to lead the Store, above the storefront, so opening it to
+        // look around showed you your own old stuff first. They live on the
+        // Installed tab, whose red count (and the Store dot) says one is
+        // waiting, and whose Update all handles them in one go.
+        //
+        // "Novità": everything published since THIS user's last visit, newest
+        // first, whatever its tier, minus what this machine already has (a
+        // thing you installed is not news to you). It sits below the supporter
+        // shelf, never above it: it is placed where the layout's `new` block
+        // is, or before the kind sections when that block is off. Cards here
+        // duplicate their tier/kind entries by design → noId. Distinct from the
+        // `new` block itself, which is catalog recency and the same for everyone.
         const freshAll = browse.concat(limited, supporters).filter(isNewEntry)
+          .filter((e) => entryInstallState(e) === 'none')
           .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
-        if (freshAll.length) frag.appendChild(section('__new', freshAll, 'new', t('gallery_new_filter', 'Novità'), true));
+        let freshDone = !freshAll.length;
+        const putFresh = () => {
+          if (freshDone) return;
+          freshDone = true;
+          frag.appendChild(section('__new', freshAll, 'new', t('gallery_new_filter', 'Novità'), true));
+        };
 
         // How the limited tier divides between its own shelf and the Archive.
         // Shared with the website catalog and the hub admin (splitLimited): the
@@ -1739,11 +1774,15 @@
             if (supporters.length) frag.appendChild(featureSection({
               items: cap(sortList(supporters), b), dupIds: spotIds, compact: b.form === 'grid', iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
               title: t('gallery_supporters_section', 'Supporters'),
-              lead: t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
+              lead: supporterSaved
+                ? t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')
+                : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
               joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
+              savedLabel: supporterSaved ? t('gallery_supporter_saved', 'Supporter code saved') : '',
               onInfo: openSupporterInfo,
             }));
           } else if (b.type === 'new') {
+            putFresh();
             // "Just added" — catalog recency, identical on every machine. noId
             // because these cards also appear in their kind section below.
             const items = cap(
@@ -1759,9 +1798,11 @@
               lead: t('gallery_archive_lead', 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.'),
             }));
           } else if (b.type === 'kinds') {
+            putFresh();
             KIND_ORDER.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k && !spotIds.has(e.id))); if (items.length) frag.appendChild(section(k, items)); });
           }
         });
+        putFresh();
         host.replaceChildren(frag);
         return;
       }

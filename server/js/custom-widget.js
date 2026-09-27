@@ -3340,6 +3340,17 @@
     openPermDialog(pkg, null, onAllow);
   }
 
+  // The palette search adds a Store widget in one step: it places a custom tile
+  // and hands it here. The package goes through the SAME dialog the tile's own
+  // Add button opens, so grants, addresses and review are decided in one place;
+  // cancelling it leaves the tile showing its chooser, as a fresh tile would.
+  function assignToTile(instId, pkgId) {
+    const pkg = packageById(pkgId);
+    if (!instId || !pkg || pkg.surface === 'ambient') return false;
+    openPermDialog(pkg, instId);
+    return true;
+  }
+
   window.CustomWidget = {
     renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
@@ -3352,7 +3363,10 @@
     // Ambient scenes and canvas scenes mount their own frames but must load a
     // package from the SAME base as a tile does — see sdkAssetBase.
     assetBase: sdkAssetBase,
-    getPackages, cachedPackages, packageGranted, requestGrant, requestGrants,
+    getPackages, cachedPackages, packageGranted, requestGrant, requestGrants, assignToTile,
+    // Effective on/off (safe mode masks it): the palette offers Store widgets
+    // only while a tile could actually run one.
+    enabled: () => !!sdk().enabled,
     getPerfStats, setSuspended, isSuspended,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —

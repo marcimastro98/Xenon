@@ -177,8 +177,9 @@ const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for 
 const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
 const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
 const UPDATE_MEDIA_MAX = 6;                     // at most this many bare URLs get a content-type probe
-let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
+let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
 const { parseSemver, semverNewer } = require('./semver');
+const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
 // ── Release-notes media (screenshots + videos) ──────────────────────────────
@@ -255,7 +256,7 @@ async function checkLatestRelease(force) {
   const now = Date.now();
   const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
   if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
+  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
   try {
     const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
@@ -271,6 +272,9 @@ async function checkLatestRelease(force) {
           notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
           name: String((rel && rel.name) || tag),
           publishedAt: String((rel && rel.published_at) || ''),
+          // Read from the WHOLE body, before the notes are capped: the marker
+          // must work wherever in the notes it was written.
+          noAuto: autoUpdateLib.hasNoAutoMarker(String((rel && rel.body) || '')),
           mediaTypes: {},
         };
         // Resolve embedded screenshots/videos (GitHub-hosted only). Best-effort —
@@ -8223,6 +8227,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // each module).
   hubMessages: true,
   catalogDrops: true,
+  // Automatic updates (server/auto-update.js). ON by default and normalized
+  // with `!== false`, so existing installs get it with this update as well: it
+  // sends nothing anywhere new (the release check already runs), it only
+  // installs what the user would otherwise be asked to install, at a moment
+  // they are not using the PC. One tap in Settings -> General turns it off.
+  autoUpdate: true,
   // Counts an install of a catalog entry, with NO identifier attached: the hub
   // bumps a per-entry counter and discards the request (see community-installs.js).
   // Normalized `=== true` like versionPing, NOT `!== false` like the two above:
@@ -9660,6 +9670,7 @@ function normalizeHubSettings(value) {
     // update. See the note on the defaults above.
     hubMessages: source.hubMessages !== false,
     catalogDrops: source.catalogDrops !== false,
+    autoUpdate: source.autoUpdate !== false,
     catalogStats: source.catalogStats === true,
     // The release id the What's New modal was dismissed for, and the Discord
     // card's flag. Both `=== true`/bounded-string rather than `!== false`: an
@@ -10739,6 +10750,72 @@ deckRegistryDeps.remote = remoteControl;
 // DATA_DIR without touching the live install; apply hands off to an external
 // elevated applier. Disabled on a git checkout.
 const selfUpdate = createSelfUpdate({ root: path.join(__dirname, '..'), dataDir: DATA_DIR });
+
+// Automatic updates: decides WHEN to run the same prepare/apply as the button.
+// Everything it reads about the machine is gathered here, the policy lives in
+// server/auto-update.js. Each blocker is one thing a restart would break for
+// someone: a game, a Performance Mode session, a file on its way, a disk
+// cleanup, Claude waiting on an answer, a live voice session, a ringing call.
+const AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'auto-update.json');
+// Test-only knobs for the end-to-end run, never set by an install: a release
+// age of 0 hours, and an idle PC. Logged loudly so they cannot go unnoticed.
+const AUTO_UPDATE_MIN_AGE_MS = (() => {
+  const h = Number(process.env.XENON_AUTOUPDATE_MIN_AGE_H);
+  return Number.isFinite(h) && h >= 0 && h < 24 * 30 ? h * 3600 * 1000 : undefined;
+})();
+const AUTO_UPDATE_ASSUME_IDLE = process.env.XENON_AUTOUPDATE_ASSUME_IDLE === '1';
+if (AUTO_UPDATE_MIN_AGE_MS !== undefined) console.warn('[auto-update] TEST OVERRIDE: release age limit ' + (AUTO_UPDATE_MIN_AGE_MS / 3600000) + 'h');
+if (AUTO_UPDATE_ASSUME_IDLE) console.warn('[auto-update] TEST OVERRIDE: the PC is treated as idle');
+
+async function autoUpdateIdleSeconds() {
+  if (AUTO_UPDATE_ASSUME_IDLE) return 24 * 3600;
+  if (POWERSHELL_SUPPORTED) {
+    // A sample the idle probe took in the last minute is as good as a new one.
+    if (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000 && typeof _idleProbe.sec === 'number') return _idleProbe.sec;
+    try {
+      const r = await runCollector(IDLE_SCRIPT, [], 5000);
+      if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) return Math.max(0, Number(r.idleSec));
+    } catch { /* unknown */ }
+    return null;
+  }
+  if (nativeCollectors && typeof nativeCollectors.idleSeconds === 'function') {
+    try { return await nativeCollectors.idleSeconds(); } catch { return null; }
+  }
+  return null;
+}
+
+async function autoUpdateSignals() {
+  const blockers = [];
+  try { if (gameDetect.isGaming() || gameDetect.isGameRunning()) blockers.push('game'); } catch { /* probe off */ }
+  const perf = _serverHubSettings && _serverHubSettings.performance;
+  if (perf && perf.active === true) blockers.push('performance');
+  try { if (fileTransfer.stats().inflight > 0) blockers.push('transfer'); } catch { /* not ready */ }
+  try {
+    const ds = await diskSpace.status();
+    if (ds && (ds.running || (ds.clean && ds.clean.running))) blockers.push('disk');
+  } catch { /* disk module unavailable: nothing running there */ }
+  try { if (_claudeBridge.pendingCount > 0) blockers.push('claude'); } catch { /* bridge off */ }
+  if (_liveActive) blockers.push('voice');
+  try { if (calls.current().length > 0) blockers.push('call'); } catch { /* calls off */ }
+  return { blockers, idleSec: await autoUpdateIdleSeconds() };
+}
+
+const autoUpdater = autoUpdateLib.createAutoUpdater({
+  currentVersion: APP_VERSION,
+  selfUpdate,
+  checkRelease: (force) => checkLatestRelease(force),
+  isEnabled: () => !!(_serverHubSettings && _serverHubSettings.autoUpdate !== false),
+  signals: autoUpdateSignals,
+  readLastResult: () => readPwshJson(path.join(DATA_DIR, 'update-result.json')),
+  store: {
+    read: () => readPwshJson(AUTO_UPDATE_STATE_PATH),
+    write: (obj) => writeFileAtomic(AUTO_UPDATE_STATE_PATH, JSON.stringify(obj)),
+  },
+  broadcast: (event, data) => { try { broadcastSSE(event, data); } catch { /* no clients */ } },
+  log: (msg) => console.log('[auto-update] ' + msg),
+  port: PORT,
+  minAgeMs: AUTO_UPDATE_MIN_AGE_MS,
+});
 
 // Guardian — opt-in hardware-health history. The interval only does real work
 // while the user has enabled the feature in Settings → Funzioni AI; collection
@@ -12237,6 +12314,26 @@ function _claudeBridgeAuth(req) {
 // endpoints reject — which is the safe direction, and the window is a few ms.
 claudeLink.ensureToken(DATA_DIR).then((t) => { _claudeBridgeToken = t; }).catch(() => {});
 
+// A Claude Code link that is there but incomplete is repaired once at boot and
+// again whenever the widget asks: an older Xenon wrote a smaller hook set, and
+// something may rewrite settings.json after us. Without this the widget reported
+// "connected" over a link that could not deliver a question or a follow-up.
+// Only an existing link is touched (repairLink never connects on its own), and
+// the time of the last repair is exposed so the widget can say that sessions
+// already open must be restarted to pick it up.
+let _claudeLinkRepairedAt = 0;
+async function _claudeLinkStatus() {
+  const st = await claudeLink.repairLink(DATA_DIR, PORT);
+  if (st && st.repaired) {
+    _claudeLinkRepairedAt = Date.now();
+    _claudeBridgeToken = await claudeLink.ensureToken(DATA_DIR);
+    console.log('[claude] Claude Code link updated to the current hook set: '
+      + (st.repairedMissing || []).length + ' missing, ' + (st.repairedOutdated || 0) + ' out of date');
+  }
+  return { ...st, repairedAt: _claudeLinkRepairedAt };
+}
+_claudeLinkStatus().catch(() => {});
+
 function _claudeSettings() {
   const s = _serverHubSettings && _serverHubSettings.claude;
   return (s && typeof s === 'object') ? s : claudeUsage.DEFAULT_CLAUDE;
@@ -12351,6 +12448,10 @@ function isJsonpAllowed(pathname) {
 // sends no Origin, so the loopback/Origin checks below can't catch it. They are
 // guarded by the Sec-Fetch-Site check in the request handler.
 const CSRF_MUTATION_PATHS = new Set([
+  // Postpones the automatic update by an hour. It can only delay, never start
+  // an install, but a page on another site has no business holding updates
+  // back for the user either.
+  '/update/auto/postpone',
   // Raises a UAC prompt and changes the startup task's run level. POST-only, but
   // guarded here too: a cross-site drive-by must not be able to make the local
   // server throw an administrator prompt at the user.
@@ -15081,9 +15182,30 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/update/apply' && req.method === 'POST') {
     // Hand off to the external applier (elevated, detached). Only valid once a
     // build is staged; from here the swap happens outside this process.
+    // The port is this server's, so an install on XENON_PORT updates itself
+    // and not whatever else listens on 3030.
     try {
       await readBody(req);
-      json(selfUpdate.apply());
+      json(selfUpdate.apply({ port: PORT }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/auto-status' && req.method === 'GET') {
+    // Where the automatic updater stands, for the line in Settings -> General.
+    // ?safe=1 also answers "could the app restart right now?", which the native
+    // app asks before updating its own shell; it reads idle time, so it is only
+    // computed on request.
+    try {
+      const out = autoUpdater.status();
+      if (urlObj.searchParams.get('safe') === '1') out.safeNow = await autoUpdater.safeNow();
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/auto/postpone' && req.method === 'POST') {
+    // "Postpone by an hour" from the countdown on any dashboard. It can only
+    // delay an update, never start one, so a paired phone may send it too.
+    try {
+      await readBody(req);
+      json(autoUpdater.postpone());
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/native/status' && req.method === 'GET') {
@@ -15434,6 +15556,9 @@ const handleRequest = async (req, res) => {
       _serverHubSettings = settings;
       return { prev, settings };
       });
+      if ((prev && prev.autoUpdate !== false) !== (settings.autoUpdate !== false)) {
+        try { autoUpdater.settingsChanged(); } catch { /* next tick reads it anyway */ }
+      }
       // Ad-blocker toggle changed → tear the headless Edge down so the next tile
       // open relaunches it with (or without) --load-extension. Open tiles re-open
       // via BrowserTile.restart() on the client right after this save resolves.
@@ -15964,7 +16089,7 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/link' && req.method === 'GET') {
-    try { json(await claudeLink.status(DATA_DIR, PORT)); }
+    try { json(await _claudeLinkStatus()); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/link' && req.method === 'POST') {
@@ -21308,6 +21433,8 @@ function _startListen(host) {
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
+    // Its first look is two minutes in: the dashboard's own startup comes first.
+    autoUpdater.start().catch((e) => console.warn('[auto-update] start failed:', e && e.message));
     // The logon task that opens the dashboard in a browser outlives the script it
     // points at, and a stale one greets the user with a wscript error box at every
     // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it
@@ -21839,6 +21966,8 @@ process.on('uncaughtException', (err) => {
 // exiting. A 3-second safety timeout force-exits if connections drain slowly.
 function _gracefulShutdown() {
   _shuttingDown = true;
+  // No countdown or install may start while this process is going away.
+  try { autoUpdater.stop(); } catch {}
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename.
