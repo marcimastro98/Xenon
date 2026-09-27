@@ -160,11 +160,11 @@ header.top .wrap{display:flex;align-items:center;gap:14px;height:64px}
    across the site. Nothing about it belongs in this file. */
 .top-cta{margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
 .top-cta:hover{color:var(--text)}
-nav.crumb{font-size:13px;color:var(--dim);padding:22px 0 0}
+nav.crumb{font-size:15px;color:var(--muted);padding:22px 0 0}
 nav.crumb a{color:var(--muted);text-decoration:none}
 nav.crumb a:hover{color:var(--green)}
 main{padding-bottom:72px}
-.tier{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+.tier{display:inline-block;font-size:15px;font-weight:700;
 color:var(--green);margin:26px 0 10px}
 .tier.locked{color:var(--gold)}
 .tier.limited{color:var(--iris)}
@@ -172,19 +172,19 @@ h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-we
 .by{color:var(--muted);margin-top:10px;font-size:15px}
 .by b{color:var(--text);font-weight:600}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;
-font-size:13px;color:var(--muted)}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;
+font-size:14px;color:var(--muted)}
 .desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
 .shots{margin-top:28px;display:grid;gap:14px}
 .shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
 .sec{margin-top:34px}
-.sec h2{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.sec h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px}
 .sec p{color:var(--bone-1);max-width:66ch}
 .sw{display:flex;flex-wrap:wrap;gap:14px}
-.sw span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sw span{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
 .tags{display:flex;flex-wrap:wrap;gap:8px}
-.tags span{font-size:13px;color:var(--dim)}
+.tags span{font-size:15px;color:var(--muted)}
 .cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
 font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
@@ -197,7 +197,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .facts{list-style:none;margin:0;padding:0;color:var(--bone-1);max-width:66ch}
 .facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .facts li:last-child{border-bottom:0}
-.facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
+.facts b{font-weight:700;color:var(--muted);flex:0 0 148px;font-size:15px}
 /* Without a basis the long value ("Runs on") wrapped under its own label while
    every short row stayed beside it, so the column read as broken every few rows.
    Below 560px the label goes on its own line for all of them, together. */
@@ -208,7 +208,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
 .rel a:hover{border-color:var(--rule-2)}
 .rel .n{font-weight:600;font-size:15px}
-.rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
+.rel .k{font-size:15px;color:var(--muted);margin-left:auto;white-space:nowrap}
 @media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
 footer a{color:var(--muted);text-decoration:none}
@@ -686,10 +686,10 @@ function creatorPage(c) {
 .cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
 .cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
 .cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
-.cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.cr-k{font-size:15px;font-weight:700;color:var(--muted)}
 .cr-n{font-weight:600;font-size:16px}
-.cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
-.cr-live{display:flex;gap:12px;margin-top:6px;font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums;min-height:1.2em}
+.cr-d{font-size:15px;color:var(--muted);line-height:1.45}
+.cr-live{display:flex;gap:12px;margin-top:6px;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:1.2em}
 .cr-own{margin-top:30px;padding:16px 18px;border-left:2px solid var(--green);color:var(--muted);font-size:14.5px}
 </style>
 <link rel="stylesheet" href="/site.css">
@@ -894,6 +894,13 @@ const STATIC_ROUTES = [
   // Generated from CHANGELOG.md on every deploy (tools/build-releases.mjs): the
   // answer to "is it maintained?", dated, on the site instead of on GitHub.
   { loc: '/releases.html', file: 'CHANGELOG.md', priority: '0.5', changefreq: 'weekly' },
+  // The pages for what people search for beyond "Xenon": a Mac, the widget
+  // list, Deck keys, Claude Code on a second screen, a sensor panel.
+  { loc: '/mac.html', file: 'docs/mac.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/widgets.html', file: 'docs/widgets.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/deck.html', file: 'docs/deck.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/claude-code.html', file: 'docs/claude-code.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/sensor-panel.html', file: 'docs/sensor-panel.html', priority: '0.7', changefreq: 'monthly' },
 ];
 
 // Every page published in several languages lists all of them, each URL

@@ -26,6 +26,11 @@ export const LANG_PAGES = [
   { page: 'linux.html', langs: ALL, dict: 'linux' },
   { page: 'xenon-exe.html', langs: ALL, dict: 'xenon-exe' },
   { page: 'privacy.html', langs: ALL, dict: 'privacy' },
+  { page: 'mac.html', langs: ALL, dict: 'mac' },
+  { page: 'widgets.html', langs: ALL, dict: 'widgets' },
+  { page: 'deck.html', langs: ALL, dict: 'deck' },
+  { page: 'claude-code.html', langs: ALL, dict: 'claude-code' },
+  { page: 'sensor-panel.html', langs: ALL, dict: 'sensor-panel' },
 ];
 
 // Every language a page is published in, English first.
