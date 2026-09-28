@@ -1,18 +1,19 @@
-// When the paid-drop modal looks and when it shows (js/catalog-drop.js), run
-// against DOM stubs with a clock the test moves.
+// When the month's-drops window shows (js/catalog-drop.js), run against DOM
+// stubs with a clock the test moves.
 //
-// The bug this guards: the check ran once, twenty seconds after the page loaded,
-// and never again. A dashboard left open for days (the kiosk on a Xeneon Edge)
-// never heard of a drop published after it opened, and a check that met game
-// mode or the Ambient screen for five minutes gave up until a reload. The rules
-// now: it asks the catalog every few hours while open, still shows at most one
-// modal a day, and a wait that expired is retried on the next look.
+// The rules (decided 2026-09-28): once per session, i.e. each time Xenon
+// starts; every paid drop of the last 30 days that the user does not already
+// have, all in one window (publish A: A; publish B: A and B); off only through
+// the new Settings switch, which starts ON for everybody, including anyone who
+// had switched the previous window off.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
-const HOUR = 3600 * 1000;
+const DAY = 24 * 3600 * 1000;
+const NOW = Date.UTC(2026, 8, 28, 9, 0, 0);
+const iso = (daysAgo) => new Date(NOW - daysAgo * DAY).toISOString().slice(0, 10);
 
 function limitedStockSource() {
   const src = read('js/utils.js');
@@ -20,18 +21,20 @@ function limitedStockSource() {
   return src.slice(start, src.indexOf('\n}', start) + 2);
 }
 
-function dashboard() {
-  let clock = Date.UTC(2026, 8, 27, 9, 0, 0);
+// One "session": a fresh sessionStorage; localStorage and the settings persist.
+function dashboard({ hubSettings = {}, packages = [], local } = {}) {
+  let clock = NOW;
   class FakeDate extends Date {
     constructor(...a) { super(...(a.length ? a : [clock])); }
     static now() { return clock; }
   }
-  const store = new Map();
-  const localStorage = {
-    getItem: (k) => (store.has(k) ? store.get(k) : null),
-    setItem: (k, v) => store.set(k, String(v)),
-    removeItem: (k) => store.delete(k),
-  };
+  const mk = (map) => ({
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+  });
+  const localMap = local || new Map();
+  const sessionMap = new Map();
   const el = (tag) => ({
     tag, className: '', type: '', textContent: '', title: '', children: [], dataset: {},
     style: { setProperty() {} },
@@ -44,17 +47,20 @@ function dashboard() {
   const body = { classList: { contains: () => false }, appendChild(n) { opened.push(n); } };
   const document = {
     body, hidden: false, documentElement: { lang: 'en' }, createElement: el,
-    querySelector: () => (busy ? {} : null),
+    querySelector: () => (busy ? {} : null), getElementById: () => null,
     addEventListener() {}, removeEventListener() {},
   };
   let catalog = [];
   let asks = 0;
   const timeouts = [];
   let ticker = null;
-  const window = { CommunityGallery: { openEntry() {}, openSupporters() {}, open() {} } };
+  const window = {
+    CommunityGallery: { openEntry() {}, openSupporters() {}, open() {} },
+    CustomWidget: { getPackages: async () => ({ packages }), cachedPackages: () => packages },
+  };
   const g = {
-    window, document, localStorage, Date: FakeDate,
-    hubSettings: {},
+    window, document, localStorage: mk(localMap), sessionStorage: mk(sessionMap), Date: FakeDate,
+    hubSettings, requestAnimationFrame: (fn) => fn(),
     makeEl: (t, c, x) => { const n = el(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; },
     apiJson: async (url) => { if (url === '/api/community/catalog') { asks++; return { ok: true, entries: catalog }; } return { ok: false }; },
     setTimeout: (fn, ms) => { timeouts.push(ms); if (ms < 1000) setTimeout(fn, 0); return 0; },
@@ -67,77 +73,97 @@ function dashboard() {
   load(limitedStockSource() + '\n' + read('js/catalog-drop.js'));
 
   return {
-    timeouts,
+    timeouts, localMap,
     set catalog(v) { catalog = v; },
     get asks() { return asks; },
     set busy(v) { busy = v; },
     advance(ms) { clock += ms; },
-    async look({ expire = false } = {}) {
+    // What the window listed: one entry → the single card; several → the batch.
+    async start({ expire = false } = {}) {
       const before = opened.length;
-      await window.CatalogDrop.checkDaily();
+      await window.CatalogDrop.checkOnStart();
       await new Promise((r) => setTimeout(r, 5));
       if (expire) for (let i = 0; i < 205 && ticker; i++) ticker();
       else if (ticker) ticker();
       return opened.slice(before).map((n) => n.className);
     },
-    seen: () => window.XenonInterrupts.readSeen(),
   };
 }
 
-const pack = (id) => ({ id, kind: 'bundle', name: id, locked: true });
+const pack = (id, daysAgo, extra) => Object.assign({ id, kind: 'bundle', name: id, locked: true, addedAt: iso(daysAgo) }, extra);
 
-test('a drop published after the dashboard opened is found within hours, not at the next reload', async () => {
-  const d = dashboard();
-  d.catalog = [];
-  assert.deepEqual(await d.look(), [], 'nothing to announce yet');
-  assert.equal(d.asks, 1);
+test('publish A: A. Publish B: A and B. Every session, not just once', async () => {
+  const local = new Map();
+  let d = dashboard({ local });
+  d.catalog = [pack('a', 2)];
+  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'A is shown');
 
-  d.advance(1 * HOUR);
-  d.catalog = [pack('nitrato')];
-  assert.deepEqual(await d.look(), [], 'asked an hour ago: not asking again yet');
-  assert.equal(d.asks, 1);
+  d = dashboard({ local });   // Xenon starts again
+  d.catalog = [pack('a', 3), pack('b', 0)];
+  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'shown again, now with A and B');
 
-  d.advance(2.5 * HOUR);
-  assert.deepEqual(await d.look(), ['xdrop-overlay'], 'three hours on it asks again and shows the new drop');
-  assert.equal(d.asks, 2);
-  assert.deepEqual(d.seen(), ['nitrato']);
+  d = dashboard({ local });
+  d.catalog = [pack('a', 4), pack('b', 1)];
+  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'and again at the next start, although both were seen');
 });
 
-test('still one modal a day, and the same drop is never shown twice', async () => {
+test('once per session: a second look in the same session shows nothing', async () => {
   const d = dashboard();
-  d.catalog = [pack('a')];
-  assert.equal((await d.look()).length, 1);
-
-  d.advance(4 * HOUR);
-  d.catalog = [pack('a'), pack('b')];
-  assert.deepEqual(await d.look(), [], 'a modal already appeared today');
-
-  d.advance(21 * HOUR);
-  assert.deepEqual(await d.look(), ['xdrop-overlay'], 'the next day brings the new one');
-  assert.deepEqual(d.seen(), ['a', 'b']);
-
-  d.advance(25 * HOUR);
-  assert.deepEqual(await d.look(), [], 'nothing unseen left');
+  d.catalog = [pack('a', 1)];
+  assert.equal((await d.start()).length, 1);
+  d.advance(3 * 3600 * 1000);
+  assert.deepEqual(await d.start(), [], 'same session: not again');
+  assert.equal(d.asks, 1, 'and the catalog is not even asked');
 });
 
-test('a wait that gave up (game mode, Ambient) is retried on a later look', async () => {
+test('only the last 30 days, and nothing already over', async () => {
   const d = dashboard();
-  d.catalog = [pack('limited-one')];
+  d.catalog = [
+    pack('old', 31),
+    pack('ended', 5, { activeUntil: new Date(NOW - 3600 * 1000).toISOString() }),
+    pack('free', 1, { locked: false }),
+  ];
+  assert.deepEqual(await d.start(), [], 'nothing current and paid: no window');
+});
+
+test('what the user already has is left out', async () => {
+  const d = dashboard({
+    hubSettings: { contentInstalls: [{ source: 'catalog', sourceId: 'mine' }, { source: 'catalog', sourceId: 'vanguard-50-07' }] },
+    packages: [{ id: 'river-pkg' }],
+  });
+  d.catalog = [
+    pack('mine', 1),
+    pack('vanguard-50', 1, { locked: false, limited: { dropId: 'vanguard-50', total: 50, claimed: 3 } }),
+    pack('river', 1, { pkgId: 'river-pkg' }),
+  ];
+  assert.deepEqual(await d.start(), [], 'every current drop is already theirs');
+});
+
+test('the old switch and the old per-device mute do not hide it; the new switch does', async () => {
+  const local = new Map([['xeneonedge.catalogDropsMuted', '1']]);
+  let d = dashboard({ hubSettings: { catalogDrops: false }, local });
+  d.catalog = [pack('a', 1)];
+  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'on by default, whatever was chosen for the old window');
+
+  d = dashboard({ hubSettings: { monthlyDrops: false }, local });
+  d.catalog = [pack('a', 1)];
+  assert.deepEqual(await d.start(), [], 'off in Settings: off');
+});
+
+test('offline, or held behind another window, it tries again in the same session', async () => {
+  const d = dashboard();
+  d.catalog = [pack('a', 1)];
   d.busy = true;
-  assert.deepEqual(await d.look({ expire: true }), [], 'busy the whole time: the queue gives up');
-  assert.deepEqual(d.seen(), [], 'nothing was shown, so nothing is marked seen');
-
+  assert.deepEqual(await d.start({ expire: true }), [], 'busy the whole time: the queue gives up');
   d.busy = false;
   d.advance(10 * 60 * 1000);
-  assert.deepEqual(await d.look(), ['xdrop-overlay'], 'the next look, once free, shows it');
+  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'the next look, once free, shows it');
 });
 
-test('it keeps looking while the dashboard stays open', () => {
+test('the retry chain stops once the session has had its check', () => {
   const d = dashboard();
   assert.ok(d.timeouts.includes(20000), 'first look shortly after load');
-  // The chain arms its next look from inside the first one; here we only need to
-  // know the first look is scheduled. The loop itself is a timeout chain so it
-  // never touches the interrupt queue's setInterval ticker.
-  assert.ok(!/setInterval\(\s*look/.test(read('js/catalog-drop.js')));
-  assert.match(read('js/catalog-drop.js'), /const loop = \(\) => setTimeout\(\(\) => \{ look\(\); loop\(\); \}, LOOK_EVERY\)/);
+  const src = read('js/catalog-drop.js');
+  assert.ok(!/setInterval\(\s*look/.test(src));
+  assert.match(src, /const loop = \(\) => setTimeout\(\(\) => \{ if \(sessionDone\(\)\) return; look\(\); loop\(\); \}, LOOK_EVERY\)/);
 });

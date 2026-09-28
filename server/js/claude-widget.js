@@ -359,15 +359,18 @@
     return t('claude_ended', 'finished');
   }
 
-  async function decide(id, behavior) {
+  // `extra` is only for a plan card: the mode its row approves into, or the
+  // feedback it is sent back with.
+  async function decide(id, behavior, extra) {
     if (deciding.has(id)) return;
     deciding.add(id);
     paint();
     const d = await api('/api/claude/decide', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, behavior }),
+      body: JSON.stringify({ id, behavior, ...(extra || {}) }),
     });
     deciding.delete(id);
+    typedAns.delete(id);
     if (!d || !d.ok) {
       // Expired, or answered on another surface. Say so — a silent no-op here
       // reads as a broken button.
@@ -386,6 +389,19 @@
   // because every SSE push rebuilds the tile, and a half-made choice must
   // survive Claude finishing a tool call in the middle of it.
   const qsel = new Map();
+  // What has been typed, per card: approvalId → array (one string per question:
+  // the "Other" box or a text/number answer; for a plan card, index 0 is the
+  // feedback). Mirrored on input and never repainted from, so the caret stays
+  // where the user left it.
+  const typedAns = new Map();
+  // The terminal's "Other" row, as a pick. Never sent as a label: its text is.
+  const OTHER = '\u0000other';
+
+  function typedFor(a) {
+    let cur = typedAns.get(a.id);
+    if (!cur) { cur = []; typedAns.set(a.id, cur); }
+    return cur;
+  }
 
   function pickOption(a, qi, label, multi) {
     const cur = qsel.get(a.id) || a.questions.map(() => []);
@@ -401,21 +417,38 @@
   }
 
   function answerReady(a) {
-    const cur = qsel.get(a.id);
-    return !!(cur && cur.some((row) => row && row.length));
+    const cur = qsel.get(a.id) || [];
+    const typed = typedAns.get(a.id) || [];
+    return (a.questions || []).some((q, qi) => {
+      const text = String(typed[qi] || '').trim();
+      if (q.kind === 'text' || q.kind === 'number') return !!text;
+      const row = cur[qi] || [];
+      return row.some((l) => l !== OTHER) || (row.indexOf(OTHER) !== -1 && !!text);
+    });
   }
 
   async function sendAnswer(a, skip) {
     if (deciding.has(a.id)) return;
     deciding.add(a.id);
     paint();
-    const body = skip ? { id: a.id, skip: true } : { id: a.id, selections: qsel.get(a.id) || [] };
+    const cur = qsel.get(a.id) || [];
+    const typed = typedAns.get(a.id) || [];
+    // A typed answer counts only where it is the answer: its question is a
+    // text/number one, or "Other" is picked. Text left in a box the user then
+    // closed is not something they chose to send.
+    const body = skip ? { id: a.id, skip: true } : {
+      id: a.id,
+      selections: (a.questions || []).map((q, qi) => (cur[qi] || []).filter((l) => l !== OTHER)),
+      typed: (a.questions || []).map((q, qi) => (
+        q.kind === 'text' || q.kind === 'number' || (cur[qi] || []).indexOf(OTHER) !== -1 ? String(typed[qi] || '') : '')),
+    };
     const d = await api('/api/claude/answer', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     deciding.delete(a.id);
     qsel.delete(a.id);
+    typedAns.delete(a.id);
     if (!d || !d.ok) {
       // Claude stopped waiting, or it was answered in the terminal. Saying so
       // beats a button that appears to do nothing.
@@ -549,46 +582,125 @@
     return b;
   }
 
-  function questionKeys(a) {
+  // One numbered row, the shape the terminal's own lists have.
+  function optRow(n, label, desc, picked, disabled, onTap) {
+    const btn = el('button', 'cw-opt' + (picked ? ' is-picked' : ''));
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
+    btn.disabled = disabled;
+    btn.appendChild(el('span', 'cw-opt-n', String(n)));
+    const text = el('span', 'cw-opt-text');
+    text.appendChild(el('span', 'cw-opt-label', label));
+    if (desc) text.appendChild(el('span', 'cw-opt-desc', desc));
+    btn.appendChild(text);
+    btn.addEventListener('click', onTap);
+    return btn;
+  }
+
+  // A text box whose value lives in typedAns rather than in the DOM, so a
+  // repaint rebuilds it with the same text; `data-keep` lets paint() give it
+  // its focus and caret back (keepFocus).
+  function typedBox(a, qi, keep, opts) {
+    const o = opts || {};
+    const input = o.multiline ? document.createElement('textarea') : document.createElement('input');
+    input.className = 'cw-dec-input';
+    if (o.multiline) input.rows = 2;
+    else input.type = o.number ? 'number' : 'text';
+    if (o.number) {
+      input.inputMode = 'decimal';
+      if (Number.isFinite(o.min)) input.min = String(o.min);
+      if (Number.isFinite(o.max)) input.max = String(o.max);
+      if (Number.isFinite(o.step)) input.step = String(o.step);
+    }
+    input.maxLength = 2000;
+    input.placeholder = o.placeholder || '';
+    input.dataset.keep = keep;
+    input.value = typedFor(a)[qi] || '';
+    input.disabled = deciding.has(a.id);
+    input.addEventListener('input', () => {
+      typedFor(a)[qi] = input.value;
+      if (typeof o.onInput === 'function') o.onInput();
+    });
+    return input;
+  }
+
+  function questionKeys(a, onInput) {
     const wrap = el('div', 'cw-dec-qs');
     const cur = qsel.get(a.id) || a.questions.map(() => []);
+    const busy = deciding.has(a.id);
+    const ph = t('claude_q_other_ph', 'Type your answer');
     a.questions.forEach((q, qi) => {
       const box = el('div', 'cw-dec-q');
       if (q.header) box.appendChild(el('div', 'cw-dec-qhead', q.header));
       box.appendChild(el('div', 'cw-dec-qtext', q.question));
+      if (q.kind === 'text' || q.kind === 'number') {
+        box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, {
+          number: q.kind === 'number', min: q.min, max: q.max, step: q.step,
+          placeholder: q.kind === 'number' && q.unit ? q.unit : (q.placeholder || ph), onInput,
+        }));
+        wrap.appendChild(box);
+        return;
+      }
       if (q.multiSelect) box.appendChild(el('div', 'cw-dec-qnote', t('claude_q_multi', 'Pick one or more')));
       const list = el('div', 'cw-opts');
+      const row = cur[qi] || [];
       (q.options || []).forEach((o, oi) => {
-        const picked = (cur[qi] || []).indexOf(o.label) !== -1;
-        const btn = el('button', 'cw-opt' + (picked ? ' is-picked' : ''));
-        btn.type = 'button';
-        btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
-        btn.disabled = deciding.has(a.id);
-        btn.appendChild(el('span', 'cw-opt-n', String(oi + 1)));
-        const text = el('span', 'cw-opt-text');
-        text.appendChild(el('span', 'cw-opt-label', o.label));
-        if (o.description) text.appendChild(el('span', 'cw-opt-desc', o.description));
-        btn.appendChild(text);
-        btn.addEventListener('click', () => { if (isArmed(a)) pickOption(a, qi, o.label, !!q.multiSelect); });
-        list.appendChild(btn);
+        list.appendChild(optRow(oi + 1, o.label, o.description, row.indexOf(o.label) !== -1, busy,
+          () => { if (isArmed(a)) pickOption(a, qi, o.label, !!q.multiSelect); }));
       });
+      // The terminal adds this row to every choice question; the card showed
+      // the same question without it, so an answer that was none of the
+      // options could only be given at the keyboard.
+      const other = row.indexOf(OTHER) !== -1;
+      list.appendChild(optRow((q.options || []).length + 1, t('claude_q_other', 'Other'), '', other, busy,
+        () => { if (isArmed(a)) pickOption(a, qi, OTHER, !!q.multiSelect); }));
       box.appendChild(list);
+      if (other) box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, { placeholder: ph, onInput }));
       wrap.appendChild(box);
     });
     return wrap;
   }
 
+  // The rows of Claude Code's plan dialog, with its wording: approve into a
+  // mode, or keep planning with what to change. "Allow" over a plan said
+  // nothing about what happens next, and did nothing in the terminal either.
+  const PLAN_CHOICE_LABEL = {
+    auto: () => t('claude_xp_auto', 'Yes, and use auto mode'),
+    acceptEdits: () => t('claude_xp_accept', 'Yes, auto-accept edits'),
+    default: () => t('claude_xp_manual', 'Yes, manually approve edits'),
+  };
+  function planKeys(a) {
+    const box = el('div', 'cw-dec-acts is-plan');
+    const busy = deciding.has(a.id);
+    const list = el('div', 'cw-opts is-col');
+    const choices = Array.isArray(a.choices) && a.choices.length ? a.choices : ['default'];
+    choices.forEach((mode, i) => {
+      const label = PLAN_CHOICE_LABEL[mode] ? PLAN_CHOICE_LABEL[mode]() : mode;
+      list.appendChild(optRow(i + 1, label, '', false, busy,
+        () => { if (isArmed(a)) decide(a.id, 'allow', { mode }); }));
+    });
+    box.appendChild(list);
+    const back = el('div', 'cw-dec-back');
+    back.appendChild(typedBox(a, 0, 'xp-' + a.id, { multiline: true, placeholder: t('claude_xp_feedback', 'Tell Claude what to change') }));
+    back.appendChild(key('is-deny', t('claude_xp_keep', 'No, keep planning'),
+      () => decide(a.id, 'deny', { feedback: String(typedFor(a)[0] || '') }), a));
+    box.appendChild(back);
+    return box;
+  }
+
   function decisionCard(a, big) {
     const isAsk = a.kind === 'question';
+    const isPlan = a.kind === 'plan';
     const risks = Array.isArray(a.risks) ? a.risks : [];
     const irreversible = risks.indexOf('irreversible') !== -1;
     const armed = isArmed(a);
-    const card = el('section', 'cw-dec is-' + (isAsk ? 'question' : 'permission')
+    const card = el('section', 'cw-dec is-' + (isAsk ? 'question' : isPlan ? 'plan' : 'permission')
       + (big ? ' is-big' : '') + (irreversible ? ' is-risky' : '') + (armed ? '' : ' is-arming'));
     card.setAttribute('aria-live', 'polite');
 
     const head = el('div', 'cw-dec-head');
-    head.appendChild(el('span', 'cw-dec-kind', isAsk ? t('claude_question', 'Question') : t('claude_permission', 'Permission')));
+    head.appendChild(el('span', 'cw-dec-kind', isAsk ? t('claude_question', 'Question')
+      : isPlan ? t('claude_xp_kind', 'Plan') : t('claude_permission', 'Permission')));
     const where = el('span', 'cw-dec-where');
     where.textContent = [a.project, prettyModel(a.model)].filter(Boolean).join(' · ');
     head.appendChild(where);
@@ -601,9 +713,16 @@
     head.appendChild(left);
     card.appendChild(head);
 
+    // Typing never repaints, so the Answer key's enabled state is updated here.
+    let send = null;
+    const refreshSend = () => { if (send) send.disabled = deciding.has(a.id) || !answerReady(a); };
+
     const body = el('div', 'cw-dec-body');
     if (isAsk) {
-      body.appendChild(questionKeys(a));
+      body.appendChild(questionKeys(a, refreshSend));
+    } else if (isPlan) {
+      body.appendChild(el('div', 'cw-dec-what', t('claude_xp_what', 'Ready to code?')));
+      if (a.plan) body.appendChild(el('div', 'cw-dec-plan', a.plan));
     } else {
       body.appendChild(el('div', 'cw-dec-what', toolIntent(a.tool)));
       if (a.plan) body.appendChild(el('div', 'cw-dec-plan', a.plan));
@@ -616,11 +735,12 @@
     }
     card.appendChild(body);
 
+    if (isPlan) { card.appendChild(planKeys(a)); return card; }
     const acts = el('div', 'cw-dec-acts');
     if (isAsk) {
       acts.appendChild(key('is-quiet', t('claude_q_terminal', 'In the terminal'), () => sendAnswer(a, true), a));
-      const send = key('is-allow', t('claude_q_send', 'Answer'), () => sendAnswer(a, false), a);
-      send.disabled = deciding.has(a.id) || !answerReady(a);
+      send = key('is-allow', t('claude_q_send', 'Answer'), () => sendAnswer(a, false), a);
+      refreshSend();
       acts.appendChild(send);
     } else {
       acts.appendChild(key('is-deny', t('claude_deny', 'Deny'), () => decide(a.id, 'deny'), a));
@@ -649,7 +769,13 @@
       // per-frame cost ambientFreeze exists to remove.
       if (typeof window.ambientFreeze === 'function') window.ambientFreeze('claude-approval', true);
     }
+    // Rebuilt on every push like the tile, so it keeps the reader's place in a
+    // long plan and the focus of a box being typed into, the same way.
+    const focus = keepFocus(overlay);
+    const kept = keepScroll(overlay);
     overlay.replaceChildren(decisionCard(urgent, true));
+    restoreScroll(overlay, kept);
+    focus();
   }
   function closeOverlay() {
     if (!overlay) return;
@@ -1617,6 +1743,7 @@
       : t('claude_ask_placeholder', 'What should Claude do?');
     ta.title = t('claude_ask_enter_hint', 'Enter sends, Shift+Enter adds a line');
     ta.maxLength = 4000;
+    ta.dataset.keep = 'ask';
     // Repainting on every keystroke would fight the caret, so the value is only
     // mirrored into state and read back when something else needs it.
     ta.addEventListener('input', () => { askText = ta.value; });
@@ -2057,9 +2184,10 @@
     // ever asked, for as long as the page is open — the unbounded Map the
     // codebase rules out everywhere else.
     forgetSeen();
-    if (qsel.size) {
+    if (qsel.size || typedAns.size) {
       const alive = new Set(approvals().map(a => a.id));
       for (const id of qsel.keys()) if (!alive.has(id)) qsel.delete(id);
+      for (const id of typedAns.keys()) if (!alive.has(id)) typedAns.delete(id);
     }
     tiles().forEach(tile => {
       const mount = tile.querySelector('.claude-widget-mount');
@@ -2087,8 +2215,10 @@
       // was already there.
       const prevThread = mount.querySelector('.cw-thread');
       const keepThread = prevThread ? prevThread.scrollTop : 0;
+      const focus = keepFocus(mount);
       mount.replaceChildren(build());
       restoreScroll(mount, kept);
+      focus();
       if (keepThread && threadAtBottom === false) {
         const nextThread = mount.querySelector('.cw-thread');
         if (nextThread) nextThread.scrollTop = keepThread;
@@ -2099,7 +2229,25 @@
     if (needsTick) startTicker(); else stopTicker();
   }
 
-  const SCROLLERS = ['.cw-sess-scroll', '.cw-livegrid', '.cw-usage', '.cw-decs', '.cw-dec-body'];
+  // A text box inside a rebuilt subtree is a NEW element, so typing into one
+  // while a session works lost focus on the next push, several times a second.
+  // Boxes that carry `data-keep` get focus and caret back after the rebuild;
+  // their text survives because it is held in state, not in the DOM.
+  function keepFocus(root) {
+    const a = document.activeElement;
+    const k = a && root.contains(a) && a.dataset ? a.dataset.keep : '';
+    if (!k) return () => {};
+    let s = null, e = null;
+    try { s = a.selectionStart; e = a.selectionEnd; } catch { /* a number input has no selection */ }
+    return () => {
+      const n = Array.from(root.querySelectorAll('[data-keep]')).find((x) => x.dataset.keep === k);
+      if (!n || n.disabled) return;
+      try { n.focus({ preventScroll: true }); } catch { return; }
+      if (s !== null) { try { n.setSelectionRange(s, e); } catch { /* not a text field */ } }
+    };
+  }
+
+  const SCROLLERS = ['.cw-sess-scroll', '.cw-livegrid', '.cw-usage', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
   function keepScroll(root) {
     return SCROLLERS.map((sel) => Array.from(root.querySelectorAll(sel), (n) => n.scrollTop));
   }

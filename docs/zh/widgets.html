@@ -68,7 +68,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 有多少个小组件？","acceptedAnswer":{"@type":"Answer","text":"内置 41 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在“自定义小组件”磁贴中运行。"}},{"@type":"Question","name":"这些小组件一定要有 Xeneon Edge 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。"}},{"@type":"Question","name":"一个磁贴可以放多个小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。"}},{"@type":"Question","name":"一个 Xenon 仪表盘可以有多少页？","acceptedAnswer":{"@type":"Answer","text":"最多 8 页，每页都是 24 列的网格。"}},{"@type":"Question","name":"我可以自己做小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。使用小组件 SDK（目前是测试版），把小组件写成一个 HTML 页面，Xenon 会在沙盒中运行它，它只能使用用户批准的数据和操作。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 有多少个小组件？","acceptedAnswer":{"@type":"Answer","text":"内置 41 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在 + 面板里与它们并列。"}},{"@type":"Question","name":"这些小组件一定要有 Xeneon Edge 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。"}},{"@type":"Question","name":"一个磁贴可以放多个小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。"}},{"@type":"Question","name":"一个 Xenon 仪表盘可以有多少页？","acceptedAnswer":{"@type":"Answer","text":"最多 8 页，每页都是 24 列的网格。"}},{"@type":"Question","name":"我可以自己做小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。使用小组件 SDK（目前是测试版），把小组件写成一个 HTML 页面，Xenon 会在沙盒中运行它，它只能使用用户批准的数据和操作。"}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -204,15 +204,15 @@
 
     <h2 id="layout" data-i18n="wg.h.layout">网格、页面和标签页</h2>
     <p data-i18n-html="wg.layout.p1">点按顶栏中的<strong>布局</strong>即可编辑仪表盘。磁贴放在 24 列、半高行的网格上，所以会落在接近你放下的位置，拖动角落就能调整大小。</p>
-    <p data-i18n="wg.layout.p2">每一页上的 + 会打开小组件面板：包括上面的四组，以及“其他”下的“自定义小组件”。一个仪表盘最多有 8 页，可以滑动、用方向键或点按顶栏中的页面圆点在页面之间切换。</p>
+    <p data-i18n="wg.layout.p2">每个页面上的 + 会打开“添加小组件”面板：上面的四个分组，从商店安装的小组件也放在合适的分组里，另外还有搜索。“已安装”筛选只显示商店里的小组件。一个仪表板最多 8 页，可以滑动、用方向键或顶栏的页面圆点切换。</p>
     <p data-i18n="wg.layout.p3">把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页；把标签页拖出来即可再次拆开。一开始就有的“媒体”“日程”和“系统”磁贴就是这样组成的。</p>
-    <p data-i18n="wg.layout.p4">有些小组件可以添加不止一次。播放、聊天、日程、日历、任务、计时器、笔记、系统、音量或麦克风的副本会与原件显示相同的内容。Deck、浏览器、远程控制、Discord 或自定义小组件的副本则各自独立，有自己的内容，比如 Deck 的按键或浏览器的地址。</p>
+    <p data-i18n="wg.layout.p4">有些小组件可以添加多次。播放、聊天、日程、日历、任务、计时器、便笺、系统、音量或麦克风的副本与原件内容相同。Deck、浏览器、远程控制、Discord 或商店小组件的副本是独立的，有自己的内容，比如 Deck 的按键或浏览器的地址。</p>
     <p data-i18n="wg.layout.p5">磁贴或整个页面可以保存为预设，一点即可再次放置；页面还可以以链接或文件的形式分享给其他人。在手机上，同一个仪表盘会重新排成一列；手机访问目前是测试版。</p>
 
     <h2 id="catalog" data-i18n="wg.h.catalog">目录中的小组件</h2>
     <p data-i18n-html="wg.catalog.p1"><a href="/catalog/">社区目录</a>收录了其他人制作并分享的小组件、主题、动态背景、页面、Deck 配置、氛围场景和完整套装。每个条目都经过审核。</p>
     <p data-i18n-html="wg.catalog.p2">在目录页面复制条目的代码，粘贴到<strong>设置 → 小组件与分享 → 导入</strong>中，或者打开应用内的商店，它列出的是同一个目录。在应用任何内容之前，你都会看到这段代码包含什么。</p>
-    <p data-i18n-html="wg.catalog.p3">目录中的小组件在<strong>自定义小组件</strong>磁贴中运行，处于沙盒内：它只能获得自己声明过的数据、操作和网址，并且会先征求你的许可。它背后的小组件 SDK 目前是测试版。</p>
+    <p data-i18n-html="wg.catalog.p3">目录中的小组件安装后会出现在 + 面板里它的分组和“已安装”下。它在沙盒中运行：只获得它声明的数据、操作和网址，并会先征求你的许可。它所基于的小组件 SDK 仍是测试版。</p>
 
     <h2 id="own" data-i18n="wg.h.own">制作自己的小组件</h2>
     <p data-i18n="wg.own.p1">自己的小组件用小组件 SDK 制作，这个 SDK 目前是测试版：一个包含 manifest.json 和 index.html 的文件夹。Xenon 在沙盒中运行它，并通过一条消息通道向它传递实时数据和操作。</p>
@@ -220,7 +220,7 @@
     <p data-i18n-html="wg.own.p3"><a href="/create/">创作指南</a>从零讲起，涵盖主题、页面、Deck 配置和小组件。<a href="/create/#sdk">小组件 SDK 参考</a>包含完整的协议。</p>
 
     <h2 id="faq" data-i18n="wg.h.faq">常见问题</h2>
-    <details><summary data-i18n="wg.faq.count.q">Xenon 有多少个小组件？</summary><div class="body"><p data-i18n="wg.faq.count.a">内置 41 个小组件，分为四组：效率、媒体、系统和直播。除此之外，社区目录中的小组件和你自己做的小组件在“自定义小组件”磁贴中运行。</p></div></details>
+    <details><summary data-i18n="wg.faq.count.q">Xenon 有多少个小组件？</summary><div class="body"><p data-i18n="wg.faq.count.a">内置 41 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在 + 面板里与它们并列。</p></div></details>
     <details><summary data-i18n="wg.faq.edge.q">这些小组件一定要有 Xeneon Edge 吗？</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。参见<a href="/zh/xeneon-edge-widgets.html">在 Xeneon Edge 上使用 Xenon</a>和<a href="/zh/tablet-dashboard.html">把平板或手机用作仪表盘</a>。</p></div></details>
     <details><summary data-i18n="wg.faq.tabs.q">一个磁贴可以放多个小组件吗？</summary><div class="body"><p data-i18n="wg.faq.tabs.a">可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。把标签页拖出来即可再次拆开。</p></div></details>
     <details><summary data-i18n="wg.faq.pages.q">一个仪表盘可以有多少页？</summary><div class="body"><p data-i18n="wg.faq.pages.a">最多 8 页，每页都是 24 列的网格。新页面一开始是空的，其他页面保持不变。</p></div></details>

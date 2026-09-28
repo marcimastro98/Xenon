@@ -6986,7 +6986,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         // exportable/shareable — unlike packages that arrive via import.
         const r = await installWidgetPayload(payload, 'creator');
         fnResult = r.ok
-          ? { ok: true, id: r.id, name: r.name, note: 'Installed. Tell the user to add a "Custom widget" tile from the + palette and pick it — its permissions are approved there, never automatically.' }
+          ? { ok: true, id: r.id, name: r.name, note: 'Installed. Tell the user to add it from the + panel in Layout mode (it is listed by name, and under the Installed filter); its permissions are approved there, never automatically.' }
           : { ok: false, error: r.error };
       }
     } else if (fnName === 'deck_action_catalog') {
@@ -8227,6 +8227,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // each module).
   hubMessages: true,
   catalogDrops: true,
+  monthlyDrops: true,
   // Automatic updates (server/auto-update.js). ON by default and normalized
   // with `!== false`, so existing installs get it with this update as well: it
   // sends nothing anywhere new (the release check already runs), it only
@@ -9670,6 +9671,7 @@ function normalizeHubSettings(value) {
     // update. See the note on the defaults above.
     hubMessages: source.hubMessages !== false,
     catalogDrops: source.catalogDrops !== false,
+    monthlyDrops: source.monthlyDrops !== false,
     autoUpdate: source.autoUpdate !== false,
     catalogStats: source.catalogStats === true,
     // The release id the What's New modal was dismissed for, and the Discord
@@ -9828,7 +9830,12 @@ function normalizeHubSettings(value) {
     // Third-party widget SDK: feature flag + per-tile package assignments + the
     // per-package permission grants (client-owned schema; the client re-validates
     // on load, and the bridge enforces grants before any action is dispatched).
-    sdkWidgets: sanitizeServerPassthrough(source.sdkWidgets),
+    // Its own, larger cap: the client keeps up to 32 grants, each carrying its
+    // streams, actions, hosts, hooks, handlers and filled-in addresses — about
+    // 330 bytes typical and over 2 KB for a widget that asks for everything. At
+    // the shared 8000 the whole object was DROPPED past roughly two dozen
+    // widgets, taking every grant and assignment with it in silence.
+    sdkWidgets: sanitizeServerPassthrough(source.sdkWidgets, SDK_WIDGETS_SETTINGS_MAX),
     // Monotonic save revision (client-owned): round-tripped so the client's
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
@@ -10003,11 +10010,12 @@ function sanitizeCustomThemes(value) {
 
 // Defensive passthrough for a client-owned settings object: keep it only if it's
 // a plain object that serializes within a sane size, returning a clean copy.
-function sanitizeServerPassthrough(value) {
+const SDK_WIDGETS_SETTINGS_MAX = 128 * 1024;
+function sanitizeServerPassthrough(value, maxLen = 8000) {
   if (!value || typeof value !== 'object') return undefined;
   try {
     const json = JSON.stringify(value);
-    if (json.length > 8000) return undefined;
+    if (json.length > maxLen) return undefined;
     return JSON.parse(json);
   } catch { return undefined; }
 }
@@ -11260,6 +11268,11 @@ const PROCESSES_POLL_MS = 2000;
 const PROCESSES_TOP = 8;          // per metric; the collector sends the union of the three
 let _processesBusy = false;
 let _processesProblemSaid = '';
+// The last five minutes of readings, so a widget that draws history opens with
+// it already drawn (GET /api/processes/history, replayed by the SDK host as a
+// `history` message). Filled by the tick below and nothing else: no timer of its
+// own, no disk, ~0.5 MB, and empty until someone has been granted the stream.
+const _processesHistory = require('./stream-history').createStreamHistory({ maxAgeMs: 5 * 60 * 1000, maxItems: 160 });
 
 function processesWanted() {
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
@@ -11354,6 +11367,7 @@ setInterval(async () => {
     const data = normalizeProcesses(raw);
     if (!data) { announceProcessesProblem('unavailable'); return; }
     announceProcessesProblem('');
+    _processesHistory.push(data);
     if (sseClients.size > 0) broadcastSSE('processes', data);
   } catch {
     announceProcessesProblem('unavailable');
@@ -12251,7 +12265,13 @@ let _claudeLastFetch = 0;
 // hooks here (see claude-link.js for how that config is installed). It supplies
 // the two things the filesystem cannot — the real subscription quota, and a
 // blocking permission request the user answers from the touchscreen.
-const _claudeBridge = claudeBridge.createBridge({ onChange: () => _claudeBridgeChanged() });
+// Claude Code's permissions.defaultMode, re-read just before a plan card is
+// built (see the /api/claude/permission route) so it is never stale.
+let _claudeDefaultMode = '';
+const _claudeBridge = claudeBridge.createBridge({
+  onChange: () => _claudeBridgeChanged(),
+  defaultMode: () => _claudeDefaultMode,
+});
 let _claudeBridgeToken = '';        // resolved once at boot from DATA_DIR
 let _claudeBridgePushTimer = null;
 
@@ -13968,6 +13988,13 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/processes/history' && req.method === 'GET') {
+    // The recent `processes` readings, as ages rather than clock times (the
+    // reader may be a paired phone with its own clock). A pure read of what the
+    // SSE stream already carried, so it widens nothing on the paired-device
+    // door; empty when no package holds the grant, exactly like the stream.
+    json({ ok: true, items: processesWanted() ? _processesHistory.toWire() : [] });
 
   } else if (reqPath === '/api/disks/io' && req.method === 'GET') {
     // Per-disk throughput and IOPS, for the SDK's `diskIo` stream. A read, and
@@ -15971,19 +15998,31 @@ const handleRequest = async (req, res) => {
       // If one reaches this route anyway (an older link, a hand-edited config),
       // it gets no decision, which is the tool proceeding to ask normally.
       if (data && data.tool_name === 'AskUserQuestion') { json({}); return; }
+      // Whether the plan card offers auto mode depends on it (claude-bridge.js,
+      // planChoices). One small read, only for a plan.
+      if (data && data.tool_name === 'ExitPlanMode') {
+        _claudeDefaultMode = await claudeLink.defaultMode().catch(() => '');
+      }
       const pendingReq = _claudeBridge.requestPermission(data);
       if (!pendingReq) { json({}); return; }        // too many already waiting
       // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
       // card nobody can answer any more.
       const onGone = () => _claudeBridge.cancel(pendingReq.id);
       res.on('close', onGone);
-      const { verdict } = await pendingReq.promise;
+      const out = await pendingReq.promise;
       res.off('close', onGone);
       // The wait can end because the caller vanished (Ctrl-C), in which case the
       // socket is already gone and writing would throw from inside the catch.
       if (res.writableEnded || res.destroyed) return;
-      if (verdict === 'allow' || verdict === 'deny') {
-        json({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: verdict } } });
+      if (out.verdict === 'allow' || out.verdict === 'deny') {
+        // A plan also carries the echoed input and the chosen mode: without
+        // updatedInput Claude Code ignores an allow for ExitPlanMode and keeps
+        // its own dialog up (claude-bridge.js, header note 2).
+        const decision = { behavior: out.verdict };
+        if (out.verdict === 'allow' && out.updatedInput) decision.updatedInput = out.updatedInput;
+        if (out.verdict === 'allow' && out.updatedPermissions) decision.updatedPermissions = out.updatedPermissions;
+        if (out.verdict === 'deny' && out.message) decision.message = out.message;
+        json({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } });
       } else {
         json({});                                    // timed out → ask in the terminal
       }
@@ -15993,12 +16032,10 @@ const handleRequest = async (req, res) => {
     // A question from Claude, answered on the touchscreen.
     //
     // This is a PreToolUse hook scoped to AskUserQuestion, and it blocks the
-    // same way the permission route does. The answer cannot be returned as the
-    // tool's result — no hook can do that — so it is returned as a DENY whose
-    // reason carries the user's choice, which Claude reads and acts on. That
-    // mechanism was measured before this route existed; see the header of
-    // claude-bridge.js, note 2, and answerReason() for the wording that makes
-    // Claude treat it as an answer rather than a refusal.
+    // same way the permission route does. The answer is returned as an ALLOW
+    // whose updatedInput is the tool's own input with `answers` filled in, so
+    // the tool runs and hands Claude the choice as its normal result — what the
+    // terminal would have produced (claude-bridge.js, header note 2).
     //
     // Every non-answer path is an empty object: the tool then runs and asks in
     // the terminal, exactly as it would if Xenon were not installed. Nothing
@@ -16019,8 +16056,14 @@ const handleRequest = async (req, res) => {
       const out = await ask.promise;
       res.off('close', onGone);
       if (res.writableEnded || res.destroyed) return;
-      if (out.verdict === 'answer' && out.reason) {
-        json({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: out.reason } });
+      if (out.verdict === 'answer' && out.updatedInput) {
+        // For an allow the reason is shown to the user, not to Claude: it is
+        // the line in the terminal that says where the answer came from.
+        json({ hookSpecificOutput: {
+          hookEventName: 'PreToolUse', permissionDecision: 'allow',
+          permissionDecisionReason: 'Answered on the Xenon dashboard',
+          updatedInput: out.updatedInput,
+        } });
       } else {
         json({});                                    // skipped or timed out → the terminal asks
       }
@@ -16050,14 +16093,17 @@ const handleRequest = async (req, res) => {
     // The touchscreen answering a question. Browser-originated, so CSRF-guarded
     // rather than token-gated, like /decide. `selections` is one array of option
     // labels per question; the bridge matches them against the options Claude
-    // itself published and refuses anything else, so the text that reaches the
-    // model is never text the page made up.
+    // itself published and refuses anything else. `typed` is one string per
+    // question: the "Other" box, or a text/number answer — the user's own words,
+    // as the terminal's "Other" row would send them.
     try {
       const body = JSON.parse(await readBody(req));
       const id = String(body && body.id || '');
       const ok = body && body.skip === true
         ? _claudeBridge.skipQuestion(id)
-        : _claudeBridge.answer(id, Array.isArray(body && body.selections) ? body.selections : []);
+        : _claudeBridge.answer(id,
+          Array.isArray(body && body.selections) ? body.selections : [],
+          Array.isArray(body && body.typed) ? body.typed : []);
       json({ ok });
     } catch (e) { err500(e.message); }
 
@@ -16082,7 +16128,12 @@ const handleRequest = async (req, res) => {
     // CSRF-guarded rather than token-gated.
     try {
       const body = JSON.parse(await readBody(req));
-      const ok = _claudeBridge.decide(String(body && body.id || ''), body && body.behavior === 'allow' ? 'allow' : 'deny');
+      // mode/feedback only mean something for a plan card; the bridge ignores
+      // them for any other request.
+      const ok = _claudeBridge.decide(String(body && body.id || ''), body && body.behavior === 'allow' ? 'allow' : 'deny', {
+        mode: typeof (body && body.mode) === 'string' ? body.mode : '',
+        feedback: typeof (body && body.feedback) === 'string' ? body.feedback : '',
+      });
       // ok:false means the request already expired or was answered on another
       // surface — the widget tells the user rather than silently doing nothing.
       json({ ok });
@@ -16962,12 +17013,15 @@ const handleRequest = async (req, res) => {
       if (_features.genesis === true) {
         const ds = (aiBody.dashboardState && typeof aiBody.dashboardState === 'object') ? aiBody.dashboardState : null;
         const _avail = (ds && Array.isArray(ds.availableWidgets) ? ds.availableWidgets : [])
-          .filter(w => typeof w === 'string').slice(0, 32).map(w => w.slice(0, 24));
+          // 64, not 32: the list has grown past 40, and the cut fell on the
+          // newest widgets (search, disk, transfer, phone…), which the model was
+          // then never told exist.
+          .filter(w => typeof w === 'string').slice(0, 64).map(w => w.slice(0, 24));
         const _pages = (ds && Array.isArray(ds.pages) ? ds.pages : [])
           .filter(p => p && typeof p === 'object').slice(0, 8)
           .map(p => ({
             name: String(p.name || '').slice(0, 40),
-            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 32).map(w => String(w).slice(0, 24)),
+            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 64).map(w => String(w).slice(0, 24)),
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(

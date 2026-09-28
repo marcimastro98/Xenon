@@ -46,7 +46,7 @@ const { validateAction, clampDelay } = require('./js/deck-actions.js');
 // A package may declare the SILHOUETTE of its own tile. It goes through the very
 // same validator a shared preset does (js/dashboard-instances.js) rather than a
 // second copy of the rules here — one boundary, two doors.
-const { normalizeTileShape } = require('./js/dashboard-instances.js');
+const { normalizeTileShape, normalizeWidgetIcon } = require('./js/dashboard-instances.js');
 
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
@@ -806,6 +806,15 @@ function normalizeManifest(raw, folderId) {
       // a unit square). The user's per-tile choice always wins over it: the
       // package proposes, the dashboard's own style editor disposes.
       shape,
+      // The package's own glyph for its tab and its "+" result (a 24x24 path,
+      // drawn as the built-in icons are). Cosmetic and confined to the package's
+      // own entries, so no grant; a malformed one is dropped and the generic
+      // puzzle stays, like every other cosmetic field.
+      icon: normalizeWidgetIcon(raw.icon),
+      // Where the "+" panel files the widget: one of the panel's own categories.
+      // Cosmetic like the icon (no grant); anything else is dropped and the panel
+      // falls back to the catalog entry's category, then "other".
+      category: ['productivity', 'media', 'system', 'streaming'].includes(raw.category) ? raw.category : null,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

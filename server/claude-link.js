@@ -95,6 +95,14 @@ async function readJson(file) {
   } catch { return null; }
 }
 
+// The user's permissions.defaultMode in Claude Code's own settings. Read-only:
+// the plan card uses it to decide whether auto mode is one of its choices.
+async function defaultMode() {
+  const cfg = await readJson(settingsPath());
+  const m = cfg && cfg.permissions && cfg.permissions.defaultMode;
+  return typeof m === 'string' ? m : '';
+}
+
 // ── hub-side state (token + what we replaced) ────────────────────────────────
 async function readState(dataDir) {
   const s = await readJson(path.join(dataDir, STATE_FILE));
@@ -337,6 +345,7 @@ module.exports = {
   repairLink,
   ensureToken,
   readState,
+  defaultMode,
   settingsPath,
   configDir,
   // exported for tests

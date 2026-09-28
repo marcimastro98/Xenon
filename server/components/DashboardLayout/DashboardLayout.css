@@ -336,7 +336,9 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
   position: absolute;
   top: 7px;
   right: 7px;
-  z-index: 60;
+  /* Above the tile's drag overlay (40), below the floating layout dock (56):
+     over the dock, these covered its Done button wherever a tile sat under it. */
+  z-index: 50;
   display: none;
   align-items: center;
   gap: 3px;
@@ -356,16 +358,10 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
   outline-offset: -4px;
 }
 
-.layout-editing .side-panel .system-tabs,
-.layout-editing .media-panel.calendar-mode .calendar-nav {
-  padding-right: 148px;
-}
-
-/* Keep the deck's own top bar (page index + edit pencil) clear of the layout
-   hide / move-page overlay, which docks in the same top-right corner. */
-.layout-editing .deck-panel .deck-bar {
-  padding-right: 78px;
-}
+/* The hide / move-page pair used to float over a tile's top-right corner, so
+   the System tabs, the calendar nav and the Deck bar reserved room for it while
+   editing. It now lives in the tile's edit bar (DashboardGrid.css), above the
+   content, and none of them needs to step aside any more. */
 
 .layout-control-btn,
 .layout-chip {

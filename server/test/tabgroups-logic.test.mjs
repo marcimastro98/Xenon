@@ -156,3 +156,21 @@ test('reorderMembers: a partial/stale order never drops or duplicates a member',
   assert.equal(tg.reorderMembers(layout, 'g1', ['media', 'ghost', 'media', 'chat']), true);
   assert.deepEqual(layout.groups.g1.members, ['media', 'chat', 'discord']);
 });
+
+test('addAsTab returns the member it put in the tab (the "+" panel hands a Store widget to it)', () => {
+  const layout = {
+    widgets: { media: { x: 0, y: 0, w: 4, h: 4, page: 'dashboard', visible: true }, custom: { x: 0, y: 0, w: 4, h: 4, page: 'dashboard', visible: false },
+      notes: { x: 4, y: 0, w: 4, h: 4, page: 'dashboard', visible: true } },
+    groups: {}, copies: [],
+  };
+  let copyId, moved, none;
+  withStubbedLayout(layout, () => {
+    copyId = tg.addAsTab('custom', 'media');
+    moved = tg.addAsTab('notes', 'media', { move: true });
+    none = tg.addAsTab('media', 'media');
+  });
+  assert.ok(copyId && copyId.startsWith('custom~'), 'the minted copy id');
+  assert.ok(layout.copies.some(c => c.id === copyId));
+  assert.equal(moved, 'notes', 'a moved tile is returned by its own id');
+  assert.equal(none, null, 'a refused self-add returns null');
+});
