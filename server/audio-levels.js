@@ -165,4 +165,13 @@ function latest() {
 
 const isRunning = () => !!_proc;
 
-module.exports = { available, start, stop, latest, onTick, isRunning, failure, minVersion, TICK_MS };
+/** Forget a helper that gave up, after a new one was installed from Settings:
+ *  without this the old verdict (disabled, too old) would stand until restart. */
+function reset() {
+  stop();
+  _disabled = false;
+  _fastFails = 0;
+  _lastFailure = '';
+}
+
+module.exports = { available, start, stop, reset, latest, onTick, isRunning, failure, minVersion, TICK_MS };
