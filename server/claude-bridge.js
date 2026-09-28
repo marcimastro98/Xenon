@@ -34,13 +34,23 @@
 //   1. PreToolUse → hookSpecificOutput.updatedInput REWRITES the tool input
 //      before it runs. Verified: a Bash call for `echo HELLO_ORIGINAL` executed
 //      as the rewritten command instead.
-//   2. PreToolUse → permissionDecision:'deny' + permissionDecisionReason puts
-//      the reason IN FRONT OF THE MODEL, and it acts on it. Verified: a denied
-//      Bash call whose reason carried a chosen option made Claude reply with
-//      that option. This is what answers a question from the tile (see
-//      askQuestion) — it is proven, whereas (1) on AskUserQuestion specifically
-//      could not be tested headlessly, since that tool exists only in an
-//      interactive session.
+//   2. AskUserQuestion and ExitPlanMode are the two tools whose card IS the
+//      interaction (Claude Code: requiresUserInteraction()), and for them an
+//      'allow' ALONE IS IGNORED — read in the 2.1.283 binary, where the
+//      interactive PermissionRequest path returns "no decision" when a hook
+//      allows one of them without updatedInput, and documented for PreToolUse
+//      ("Returning 'allow' alone is not sufficient for these tools"). That was
+//      the "I tap Allow on the plan and the terminal keeps waiting" bug. So:
+//        • a question is answered with PreToolUse allow + updatedInput carrying
+//          the tool's own input plus `answers` { question text → label }, which
+//          the tool then returns as its result, exactly as if it were typed
+//          in the terminal (see askQuestion / buildAnswers);
+//        • a plan is approved with PermissionRequest allow + updatedInput (the
+//          input Claude Code sent, echoed) + updatedPermissions setMode, which
+//          is the same update the terminal's own "Yes, …" rows apply.
+//      An earlier version answered questions with a DENY whose reason carried
+//      the choice. Claude did act on it, but the terminal drew the question as
+//      a refused tool call, which is not what happened.
 //   3. Stop → { decision:'block', reason } does NOT end the turn: the reason
 //      arrives as a new instruction in the SAME session and Claude carries on.
 //      Verified end to end. This is how a follow-up typed on the dashboard
@@ -95,7 +105,18 @@ const MAX_FOLLOWUP_CHARS = 4000;
 // rather than after URGENT_AFTER_MS. Deliberately conservative: this only
 // changes how loudly we ASK, never whether we ask.
 const MAX_QUESTIONS = 4;    // matches AskUserQuestion's own cap
-const MAX_OPTIONS = 5;      // 4 authored + the implicit "Other"
+const MAX_OPTIONS = 5;      // 4 authored, plus one spare
+const MAX_TYPED = 2000;     // an "Other" answer typed on the tile
+const MAX_PLAN_CHARS = 20000;
+// The kinds AskUserQuestion can ask. "text" and "number" have no options and
+// are answered by typing; only some hosts enable them, but a card that drew one
+// with nothing to tap would be the dead control this module exists to avoid.
+const QUESTION_KINDS = new Set(['choice', 'text', 'number']);
+// The permission modes a plan can be approved into from the tile, in the words
+// of Claude Code's own plan dialog. bypassPermissions is deliberately not one of
+// them: the terminal offers it only to a session launched with it, and switching
+// every safeguard off is not a choice to make from across the room.
+const PLAN_MODES = new Set(['auto', 'acceptEdits', 'default']);
 const DESTRUCTIVE_TOOLS = new Set(['Bash', 'Write', 'Edit', 'NotebookEdit', 'KillShell']);
 const DESTRUCTIVE_RE = /\b(rm\s+-[rf]|rmdir|del\s+\/|format\s|mkfs|dd\s+if=|git\s+(reset\s+--hard|clean\s+-[a-z]*f|push\s+.*--force)|drop\s+(table|database)|truncate\s+table|shutdown|Remove-Item)/i;
 
@@ -153,27 +174,40 @@ function describeTool(toolName, input) {
 // not read. Project the questions so the card can show what is being asked.
 //
 // These are answerable from the tile: see askQuestion, and note 2 in the header
-// for how. What is NOT possible is substituting a tool RESULT, so the answer
-// travels as a decision reason rather than as the tool's return value — which
-// is why the reason text below is written as carefully as it is.
-function describeQuestions(input) {
+// for how. `keys` is the question text EXACTLY as Claude wrote it, unclamped:
+// it is the key of the `answers` map the tool reads, so the shortened copy the
+// card shows cannot stand in for it. It stays on the server.
+function projectQuestions(input) {
   const qs = input && Array.isArray(input.questions) ? input.questions : null;
   if (!qs || !qs.length) return null;
-  const out = [];
+  const shown = [];
+  const keys = [];
   for (const q of qs.slice(0, MAX_QUESTIONS)) {
-    if (!q || typeof q !== 'object') continue;
+    if (!q || typeof q !== 'object' || typeof q.question !== 'string' || !q.question.trim()) continue;
     const opts = Array.isArray(q.options) ? q.options : [];
-    out.push({
+    const kind = QUESTION_KINDS.has(q.kind) ? q.kind : 'choice';
+    const p = {
       question: str(q.question, MAX_INPUT_CHARS),
       header: str(q.header, 40),
-      multiSelect: q.multiSelect === true,
-      options: opts.slice(0, MAX_OPTIONS).map((o) => ({
+      kind,
+      multiSelect: kind === 'choice' && q.multiSelect === true,
+      options: kind !== 'choice' ? [] : opts.slice(0, MAX_OPTIONS).map((o) => ({
         label: str(o && o.label, 120),
         description: str(o && o.description, 240),
       })).filter((o) => o.label),
-    });
+    };
+    if (kind === 'text') p.placeholder = str(q.placeholder, 120);
+    if (kind === 'number') {
+      p.min = num(q.min); p.max = num(q.max); p.step = num(q.step); p.unit = str(q.unit, 20);
+    }
+    shown.push(p);
+    keys.push(q.question);
   }
-  return out.length ? out : null;
+  return shown.length ? { shown, keys } : null;
+}
+function describeQuestions(input) {
+  const p = projectQuestions(input);
+  return p ? p.shown : null;
 }
 
 // Is this "user" text actually the harness talking? Claude Code delivers task
@@ -251,28 +285,68 @@ function describeTodos(input) {
   return out.length ? out : null;
 }
 
-// The text handed to Claude when the user answers a question from the tile.
-//
-// This is the load-bearing string of the whole feature, because the mechanism
-// available to us is a DENIED tool call with a reason (header note 2): Claude
-// has to read this and understand that it received an answer, not a refusal. So
-// it states the answer plainly, quotes the option labels verbatim so there is
-// nothing to infer, and closes the loop explicitly — without the last line the
-// obvious next move for a model whose tool just failed is to ask again.
-function answerReason(questions, selections) {
-  const lines = [];
-  const qs = Array.isArray(questions) ? questions : [];
-  for (let i = 0; i < qs.length; i++) {
-    const picked = Array.isArray(selections[i]) ? selections[i].filter(Boolean) : [];
-    if (!picked.length) continue;
-    lines.push(`- ${qs[i].question || qs[i].header || 'Question ' + (i + 1)}\n  Answer: ${picked.join(', ')}`);
+// One answer for a multi-select question, in the form AskUserQuestion itself
+// uses: labels joined with ", ", and a label that contains ", " or a quote
+// JSON-quoted so the join stays reversible (Claude Code's own joiner does the
+// same, which is what lets it split the string back into picks).
+function joinAnswer(labels) {
+  return labels.map((l) => (l.includes(', ') || l.includes('"') ? JSON.stringify(l) : l)).join(', ');
+}
+
+// A typed answer: trimmed, bounded, and with control characters removed so
+// a stray paste cannot put a terminal escape into someone's session.
+function typedAnswer(v) {
+  if (typeof v !== 'string') return '';
+  return str(v.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, ''), MAX_TYPED);
+}
+
+// The `answers` map AskUserQuestion reads: { question text → answer }. Picks are
+// matched against the options Claude published, and a typed answer is the
+// tile's "Other" box — the same free text the terminal's "Other" row accepts.
+// Returns null when nothing was answered, so the card stays up.
+function buildAnswers(questions, keys, selections, typed) {
+  const answers = {};
+  let any = false;
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const text = typedAnswer(Array.isArray(typed) ? typed[i] : '');
+    let value = '';
+    if (q.kind === 'number') {
+      const n = Number(text);
+      const inRange = text !== '' && Number.isFinite(n)
+        && (q.min === null || q.min === undefined || n >= q.min)
+        && (q.max === null || q.max === undefined || n <= q.max);
+      value = inRange ? String(n) : '';
+    } else if (q.kind === 'text') {
+      value = text;
+    } else {
+      const allowed = new Set(q.options.map((o) => o.label));
+      const raw = Array.isArray(selections) && Array.isArray(selections[i]) ? selections[i] : [];
+      const picks = [];
+      for (const label of raw) {
+        const l = str(label, 120);
+        if (l && allowed.has(l) && picks.indexOf(l) === -1) picks.push(l);
+        if (picks.length >= MAX_OPTIONS) break;
+      }
+      if (q.multiSelect) value = joinAnswer(text ? picks.concat(text) : picks);
+      else value = text || picks[0] || '';
+    }
+    if (value) { answers[keys[i]] = value; any = true; }
   }
-  if (!lines.length) return '';
-  return 'The user answered from the Xenon dashboard instead of the terminal, so this '
-    + 'AskUserQuestion call was intercepted and carries their answer.\n\n'
-    + lines.join('\n')
-    + '\n\nTreat this as the answer to the question you just asked. Do not ask it again; '
-    + 'continue with the work using these choices.';
+  return any ? answers : null;
+}
+
+// What Claude reads when the user sends a plan back from the tile. Claude Code's
+// own "No, keep planning" row carries the typed feedback the same way: as the
+// reason the tool call was declined, with Claude still in plan mode.
+function planFeedbackMessage(feedback) {
+  const f = typedAnswer(feedback);
+  if (f) {
+    return 'The user reviewed the plan on the Xenon dashboard and wants changes before you start. '
+      + 'Stay in plan mode, revise the plan with this feedback, and present it again:\n\n' + f;
+  }
+  return 'The user reviewed the plan on the Xenon dashboard and did not approve it. '
+    + 'Stay in plan mode and ask what they would like to change.';
 }
 
 // The text handed to Claude when a follow-up typed on the dashboard is delivered
@@ -291,6 +365,12 @@ function createBridge(opts) {
   const options = opts || {};
   const now = () => (typeof options.now === 'function' ? options.now() : Date.now());
   const onChange = typeof options.onChange === 'function' ? options.onChange : () => {};
+  // Claude Code's configured permissions.defaultMode, when the caller can read
+  // it. Only used to decide whether a plan card offers auto mode for a session
+  // that entered plan mode before we heard anything else from it.
+  const defaultMode = () => {
+    try { return typeof options.defaultMode === 'function' ? str(options.defaultMode(), 30) : ''; } catch { return ''; }
+  };
 
   const sessions = new Map();   // session_id → live session record
   const pending = new Map();    // approval id → { …, resolve, timer }
@@ -321,6 +401,10 @@ function createBridge(opts) {
         waitFor: null,
         todos: [], plan: '', subagents: [], activity: [],
         compacting: false, permissionMode: '', effort: '',
+        // The last mode seen that was not plan, and whether auto mode has been
+        // seen at all: what a plan card needs to offer the same first choice
+        // the terminal's plan dialog does.
+        prePlanMode: '', sawAuto: false,
         // Is there a turn running? Starts true-for-over, because a session we
         // have only just heard of is not mid-answer. See the Notification case
         // in applyHook for the one thing this exists to decide.
@@ -441,7 +525,11 @@ function createBridge(opts) {
     // user waiting for one deserves to know that rather than wonder.
     const ambient = {};
     const pm = str(d.permission_mode, 30);
-    if (pm) ambient.permissionMode = pm;
+    if (pm) {
+      ambient.permissionMode = pm;
+      if (pm !== 'plan') ambient.prePlanMode = pm;
+      if (pm === 'auto') ambient.sawAuto = true;
+    }
     const eff = d.effort && typeof d.effort === 'object' ? str(d.effort.level, 20) : '';
     if (eff) ambient.effort = eff;
     if (Object.keys(ambient).length) touchSession(id, ambient);
@@ -632,6 +720,15 @@ function createBridge(opts) {
     return followUpReason(text);
   }
 
+  // The "Yes" rows of Claude Code's plan dialog, in its order: auto mode when it
+  // is available (else auto-accept edits), then manual approval. The terminal
+  // knows for certain whether auto is available and a hook is not told, so the
+  // evidence is what this session has shown us, then the user's default mode.
+  function planChoices(s) {
+    const autoOk = !!(s && (s.sawAuto || s.prePlanMode === 'auto')) || defaultMode() === 'auto';
+    return [autoOk ? 'auto' : 'acceptEdits', 'default'];
+  }
+
   // ── blocking permission requests ───────────────────────────────────────────
   // Returns { id, promise }. The promise resolves to 'allow' | 'deny' | 'timeout'.
   // 'timeout' means WE decline to answer, so the caller must respond in a way
@@ -649,14 +746,18 @@ function createBridge(opts) {
     if (pending.size >= MAX_PENDING) return null;
 
     const s = sessions.get(sessionId);
-    if (s) { setWait(s, 'permission', detail || tool); s.lastAt = now(); }
+    const isPlan = tool === 'ExitPlanMode';
+    if (s) { setWait(s, 'permission', isPlan ? 'plan' : (detail || tool)); s.lastAt = now(); }
 
     const id = 'p' + (++seq) + '-' + now().toString(36);
     const createdAt = now();
     const rec = {
       id,
       sessionId,
-      kind: 'permission',
+      // 'plan' is a permission with the terminal's plan-dialog choices instead
+      // of Allow/Deny: approving one is only possible with the input echoed and
+      // a mode chosen (header note 2), so it is its own kind, not a flag.
+      kind: isPlan ? 'plan' : 'permission',
       project: (s && s.project) || projectName(d.cwd),
       tool,
       detail,
@@ -664,7 +765,10 @@ function createBridge(opts) {
       // ExitPlanMode's whole payload is the plan the user is being asked to
       // approve. Showing "ExitPlanMode" and an Allow button over it asked the
       // user to approve something they could not read.
-      plan: tool === 'ExitPlanMode' ? str(d.tool_input && d.tool_input.plan, 4000) : '',
+      plan: isPlan ? str(d.tool_input && d.tool_input.plan, MAX_PLAN_CHARS) : '',
+      choices: isPlan ? planChoices(s) : null,
+      // Server-side only: the input exactly as Claude Code sent it, to echo back.
+      input: isPlan && d.tool_input && typeof d.tool_input === 'object' && !Array.isArray(d.tool_input) ? d.tool_input : {},
       risks: describeRisk(tool, detail, (s && s.cwd) || str(d.cwd, 400)),
       task: (s && s.task) || '',
       model: (s && s.model) || '',
@@ -692,12 +796,9 @@ function createBridge(opts) {
 
   // AskUserQuestion — a real question, answered from the touchscreen.
   //
-  // This used to be a notice: a card showing the question with untappable
-  // options and a Dismiss button, because the belief was that a hook cannot
-  // answer. Half right. A hook cannot supply a tool RESULT — but it can deny the
-  // call with a reason, and the reason is put in front of the model, which acts
-  // on it (header note 2, measured). So the answer travels as a reason, and the
-  // card gets to be what it always looked like.
+  // The answer goes back as the tool's own input with `answers` filled in
+  // (header note 2), so the tool runs and returns it exactly as it would have
+  // if the user had picked it in the terminal.
   //
   // It arrives on PreToolUse rather than PermissionRequest for two reasons:
   // PreToolUse always fires, and it fires BEFORE the terminal prompt is drawn,
@@ -708,9 +809,10 @@ function createBridge(opts) {
   // terminal exactly as it would have if Xenon were not installed.
   function askQuestion(data) {
     const d = (data && typeof data === 'object') ? data : {};
-    const questions = describeQuestions(d.tool_input);
-    if (!questions) return null;                   // nothing readable to show
+    const projected = projectQuestions(d.tool_input);
+    if (!projected) return null;                   // nothing readable to show
     if (pending.size >= MAX_PENDING) return null;
+    const questions = projected.shown;
 
     const sessionId = str(d.session_id, 80);
     const s = sessions.get(sessionId);
@@ -726,6 +828,10 @@ function createBridge(opts) {
       tool: 'AskUserQuestion',
       detail: '',
       questions,
+      // Server-side only: the exact question texts (the answer keys) and the
+      // input to echo back with `answers` added.
+      keys: projected.keys,
+      input: d.tool_input,
       plan: '',
       risks: [],
       task: (s && s.task) || '',
@@ -756,39 +862,25 @@ function createBridge(opts) {
   }
 
   // The user chose. `selections` is one array of labels per question, in the
-  // order the card showed them. Labels are matched against the options we
-  // published rather than trusted: the reason string goes to the model, and the
-  // only strings allowed in it are ones Claude itself wrote.
-  function answer(id, selections) {
+  // order the card showed them, and `typed` one string per question (the
+  // "Other" box, or the answer to a text/number question). Picks are matched
+  // against the options Claude published rather than trusted; a typed answer is
+  // the user's own words, the same thing the terminal's "Other" row sends.
+  function answer(id, selections, typed) {
     const rec = pending.get(str(id, 80));
     if (!rec || rec.kind !== 'question') return false;
 
-    const picked = [];
-    let any = false;
-    for (let i = 0; i < rec.questions.length; i++) {
-      const allowed = new Set(rec.questions[i].options.map((o) => o.label));
-      const raw = Array.isArray(selections) && Array.isArray(selections[i]) ? selections[i] : [];
-      const keep = [];
-      for (const label of raw) {
-        const l = str(label, 120);
-        // "Other" is offered by the tool itself and never appears in options.
-        if (l && (allowed.has(l) || l === 'Other')) keep.push(l);
-        if (keep.length >= MAX_OPTIONS) break;
-      }
-      if (!rec.questions[i].multiSelect && keep.length > 1) keep.length = 1;
-      if (keep.length) any = true;
-      picked.push(keep);
-    }
+    const answers = buildAnswers(rec.questions, rec.keys, selections, typed);
     // Nothing recognisable chosen: refuse rather than send Claude an answer that
     // says nothing. The card stays up and the user can try again.
-    if (!any) return false;
+    if (!answers) return false;
 
     pending.delete(rec.id);
     if (rec.timer) clearTimeout(rec.timer);
     const s = sessions.get(rec.sessionId);
     clearWait(s, 'question');
     if (s) s.lastAt = now();
-    rec.resolve({ verdict: 'answer', reason: answerReason(rec.questions, picked) });
+    rec.resolve({ verdict: 'answer', updatedInput: { ...rec.input, answers } });
     emit();
     return true;
   }
@@ -809,20 +901,39 @@ function createBridge(opts) {
   // The user tapped. Returns true when this actually settled a live request —
   // a stale tap (already expired, or answered on another surface) returns false
   // so the caller can tell the surface its decision arrived too late.
-  function decide(id, behavior) {
+  //
+  // For a plan, `opts.mode` is the row the user picked (one of rec.choices; an
+  // unknown or missing one means the first, which is also the terminal's
+  // default row) and `opts.feedback` is what to change when they send it back.
+  function decide(id, behavior, opts) {
     const rec = pending.get(str(id, 80));
     if (!rec) return false;
     // A question is not a permission and is never settled by Allow/Deny — it
     // has its own answer path, which carries the choice. Routing it here would
     // reintroduce exactly the card that could not do what it showed.
     if (rec.kind === 'question') return false;
+    const o = opts && typeof opts === 'object' ? opts : {};
     const verdict = behavior === 'allow' ? 'allow' : 'deny';
+    let out = { verdict };
+    if (rec.kind === 'plan') {
+      if (verdict === 'allow') {
+        const want = str(o.mode, 30);
+        const mode = PLAN_MODES.has(want) && rec.choices.indexOf(want) !== -1 ? want : rec.choices[0];
+        out = {
+          verdict,
+          updatedInput: rec.input,
+          updatedPermissions: [{ type: 'setMode', mode, destination: 'session' }],
+        };
+      } else {
+        out = { verdict, message: planFeedbackMessage(o.feedback) };
+      }
+    }
     pending.delete(rec.id);
     if (rec.timer) clearTimeout(rec.timer);
     const s = sessions.get(rec.sessionId);
     clearWait(s, 'permission');
     if (s) s.lastAt = now();
-    rec.resolve({ verdict });
+    rec.resolve(out);
     emit();
     return true;
   }
@@ -985,14 +1096,16 @@ function createBridge(opts) {
         id: p.id,
         sessionId: p.sessionId,
         // 'permission' → Allow/Deny, runs on the PC. 'question' → pick an
-        // option, answers Claude. The client renders a different card for each
-        // and must never guess from the tool name.
+        // option, answers Claude. 'plan' → the plan dialog's rows (approve into
+        // a mode, or send it back). The client renders a different card for
+        // each and must never guess from the tool name.
         kind: p.kind,
         project: p.project,
         tool: p.tool,
-        detail: p.detail,
+        detail: p.kind === 'plan' ? '' : p.detail,
         questions: p.questions || null,
         plan: p.plan || '',
+        choices: p.choices || null,
         risks: p.risks || [],
         task: p.task,
         model: p.model,
@@ -1083,7 +1196,9 @@ module.exports = {
   createBridge,
   describeTool,
   describeTodos,
-  answerReason,
+  buildAnswers,
+  joinAnswer,
+  planFeedbackMessage,
   followUpReason,
   isDestructive,
   isInjectedPrompt,

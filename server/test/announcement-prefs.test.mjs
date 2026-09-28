@@ -16,7 +16,7 @@ const INDEX = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const HUBMSG = readFileSync(new URL('../js/hub-messages.js', import.meta.url), 'utf8');
 const DROP = readFileSync(new URL('../js/catalog-drop.js', import.meta.url), 'utf8');
 
-const KEYS = ['hubMessages', 'catalogDrops'];
+const KEYS = ['hubMessages', 'catalogDrops', 'monthlyDrops'];
 
 test('both sides default the preference to on', () => {
   for (const key of KEYS) {
@@ -56,11 +56,13 @@ test('the install counter is reachable from Settings', () => {
 
 test('each preference has a switch wired to its handler', () => {
   assert.match(INDEX, /id="settings-hub-messages"[^>]*onchange="updateHubMessages\(this\.checked\)"/);
-  assert.match(INDEX, /id="settings-catalog-drops"[^>]*onchange="updateCatalogDrops\(this\.checked\)"/);
+  // The drops switch is the month's-drops one since 2026-09-28 (a new key, so
+  // it starts on for everybody); catalogDrops is kept in the settings only.
+  assert.match(INDEX, /id="settings-monthly-drops"[^>]*onchange="updateMonthlyDrops\(this\.checked\)"/);
   // A control that is never re-synced shows a stale state after a change made on
   // another surface arrives over SSE.
   assert.match(CLIENT, /\$\('settings-hub-messages'\)/);
-  assert.match(CLIENT, /\$\('settings-catalog-drops'\)/);
+  assert.match(CLIENT, /\$\('settings-monthly-drops'\)/);
 });
 
 // Before v4.9.0 both mutes were localStorage-only: per device, and one-way. If
@@ -72,10 +74,11 @@ test('switching a preference back on clears the legacy per-device mute', () => {
   assert.match(CLIENT, /if \(on\) \{ try \{ localStorage\.removeItem/);
 });
 
-test('each module honours the setting and the legacy flag', () => {
+test('each module honours its setting', () => {
   assert.match(HUBMSG, /HS\(\)\.hubMessages === false/);
-  assert.match(DROP, /HS\(\)\.catalogDrops === false/);
-  for (const src of [HUBMSG, DROP]) {
-    assert.match(src, /localStorage\.getItem\(K_MUTED\) === '1'/);
-  }
+  assert.match(HUBMSG, /localStorage\.getItem\(K_MUTED\) === '1'/);
+  // The month's drops read ONLY the new switch: the old one and the old
+  // per-device mute must not hide them (catalog-drop-schedule.test.mjs).
+  assert.match(DROP, /HS\(\)\.monthlyDrops !== false/);
+  assert.doesNotMatch(DROP, /catalogDropsMuted|HS\(\)\.catalogDrops/);
 });

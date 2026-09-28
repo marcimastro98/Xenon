@@ -128,3 +128,50 @@ test('closePermDialog runs the dialog onClose on every close path', () => {
 test('requestGrants is exported on the CustomWidget surface', () => {
   assert.match(CW, /packageGranted, requestGrant, requestGrants,/);
 });
+
+// placePackage (the "+" panel, Installed → Add to page, the after-install
+// prompt) creates a tile, then asks. The dialog runs onClose on EVERY path and,
+// on Allow, runs it before onAllow — so the tile's fate must be decided from
+// the saved assignment, never from a flag onAllow sets. Deciding from a flag
+// removed the tile the user had just approved, on every first placement.
+function loadPlace() {
+  const start = CW.indexOf('function placePackage');
+  const end = CW.indexOf('// The two ways a Store widget lands');
+  assert.ok(start > 0 && end > start, 'placePackage not found');
+  const state = { enabled: true, assign: {}, grants: {} };
+  const dialogs = [];
+  const context = vm.createContext({
+    state, dialogs,
+    sdk: () => state,
+    persist: (patch) => Object.assign(state, patch),
+    packageById: (id) => ({ id, name: id, surface: 'tile' }),
+    packageGranted: (pkg) => !!state.grants[pkg.id],
+    openPermDialog: (pkg, instId, onAllow, onClose) => dialogs.push({ pkg, instId, onAllow, onClose }),
+  });
+  vm.runInContext(CW.slice(start, end), context);
+  return { state, dialogs, placePackage: context.placePackage };
+}
+
+test('Allow keeps the new tile; Cancel takes it away', () => {
+  const p = loadPlace();
+  const dropped = [];
+  p.placePackage('river', () => 'custom~a1', (id) => dropped.push(id));
+  // What the Allow button does, in its real order: save, close, then onAllow.
+  p.state.assign = { 'custom~a1': 'river' };
+  p.state.grants = { river: {} };
+  p.dialogs[0].onClose();
+  if (p.dialogs[0].onAllow) p.dialogs[0].onAllow();
+  assert.deepEqual(dropped, [], 'an approved tile stays');
+
+  p.placePackage('keyring', () => 'custom~b2', (id) => dropped.push(id));
+  p.dialogs[1].onClose();   // Cancel: nothing was assigned
+  assert.deepEqual(dropped, ['custom~b2'], 'a declined tile is removed');
+});
+
+test('an already approved package is placed without asking', () => {
+  const p = loadPlace();
+  p.state.grants = { river: {} };
+  p.placePackage('river', () => 'custom~c3', () => { throw new Error('must not drop'); });
+  assert.equal(p.dialogs.length, 0);
+  assert.equal(p.state.assign['custom~c3'], 'river');
+});

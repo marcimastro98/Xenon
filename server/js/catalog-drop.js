@@ -1,10 +1,16 @@
 'use strict';
-// Catalog "new drop" nudge — a single, dismissible modal that appears when a
-// PAID tier (a Supporters creation or an available Limited edition) has landed
-// in the Store since the user last saw one. It exists to gently invite a
-// purchase/donation, never to nag: it runs at most once a day, announces a whole
-// batch of new drops with ONE modal, and offers a first-class "don't show me new
-// drops again" opt-out that is honoured forever.
+// The month's drops — one dismissible window, shown once per session (each
+// time Xenon starts), listing every PAID creation (a Supporters pack or an
+// available Limited edition) published in the last 30 days that this user does
+// not already have. Publish A and the window shows A; publish B and it shows A
+// and B. It is switched off in Settings → Aggiornamenti ("Drop del mese"), and
+// only there: the window itself points to that switch.
+//
+// The switch is a NEW setting (monthlyDrops, default on). The old one
+// (catalogDrops) and the per-device "don't show me new drops" flag belonged to
+// the previous window, which announced each drop once and then never again;
+// the maintainer decided (2026-09-28) that every install starts with the new
+// one on, whatever was chosen for the old.
 //
 // It reuses the ONE import/purchase boundary: every CTA funnels into the Store
 // (CommunityGallery.openEntry / openSupporters), so nothing here can apply or buy
@@ -26,27 +32,15 @@
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   const DAY = 24 * 3600 * 1000;
 
-  // ── Local, per-device UX state (mirrors the daily SDK-update check pattern) ──
-  const K_MUTED = 'xeneonedge.catalogDropsMuted'; // '1' once the user opts out
-  const K_CHECK = 'xeneonedge.catalogDropCheck';  // last-check timestamp (daily throttle)
+  const RECENT = 30 * DAY;            // "the month's drops": published in the last 30 days
 
   // The announced-id set moved to js/interrupt-queue.js (same storage key, so
   // existing history carries over): a hub announcement can name the same entry
   // this modal already showed, and only a shared set can catch that.
   const readSeen = () => window.XenonInterrupts.readSeen();
   const markSeen = (ids) => window.XenonInterrupts.markSeen(ids);
-  // Settings → Aggiornamenti owns this now (v4.9.0). Before that it was a
-  // localStorage flag only: per device, and with no way back once pressed. The
-  // legacy key still mutes, and Settings clears it when you switch drops back on.
   const HS = () => { try { return (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {}; } catch { return {}; } };
-  const isMuted = () => {
-    if (HS().catalogDrops === false) return true;
-    try { return localStorage.getItem(K_MUTED) === '1'; } catch { return false; }
-  };
-  const mute = () => {
-    try { localStorage.setItem(K_MUTED, '1'); } catch { /* ignore */ }
-    try { if (typeof updateCatalogDrops === 'function') updateCatalogDrops(false); } catch { /* ignore */ }
-  };
+  const isOn = () => HS().monthlyDrops !== false;
 
   // A drop worth nudging about = an AVAILABLE limited edition, or a
   // supporters-only / locked creation. Free community items never trigger this.
@@ -151,7 +145,7 @@
   let ticker = null;
   let dropSeq = 0;   // per-instance ambientFreeze tokens (see close())
 
-  function close(muted) {
+  function close() {
     if (!overlay) return;
     if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
     if (ticker) { clearInterval(ticker); ticker = null; }
@@ -164,9 +158,6 @@
       node.remove();
       if (node._freezeToken && typeof window.ambientFreeze === 'function') window.ambientFreeze(node._freezeToken, false);
     }, 220);
-    if (muted && window.XenonToast) {
-      window.XenonToast.show({ type: 'info', title: t('drop_muted_toast', 'Got it — we won’t show new drops again. Find them anytime in the Store.'), duration: 5000 });
-    }
   }
 
   const X_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -194,21 +185,34 @@
     return { bd, card, x };
   }
 
+  // The one way to turn the window off is the Settings switch, and the window
+  // says where it is: a link that opens Settings on that row.
   function footer(body) {
     const foot = el('div', 'xdrop-foot');
-    const lab = el('label', 'xdrop-dontshow');
-    const cb = document.createElement('input'); cb.type = 'checkbox';
-    const box = el('span', 'xdrop-box');
-    box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>';
-    lab.appendChild(cb); lab.appendChild(box); lab.appendChild(el('span', null, t('drop_mute', 'Don’t show me new drops')));
+    const where = el('button', 'xdrop-later xdrop-where', t('drop_where_off', 'Turn this off in Settings')); where.type = 'button';
+    where.addEventListener('click', () => { close(); openSwitch(); });
     const later = el('button', 'xdrop-later', t('drop_later', 'Maybe later')); later.type = 'button';
-    foot.appendChild(lab); foot.appendChild(later);
+    foot.appendChild(where); foot.appendChild(later);
     body.appendChild(foot);
-    return { cb, later };
+    return { later };
+  }
+  function openSwitch() {
+    if (typeof window.openSettings !== 'function') return;
+    window.openSettings('general');
+    requestAnimationFrame(() => {
+      const row = document.getElementById('settings-monthly-drops');
+      const line = row && row.closest('.settings-toggle-row');
+      if (!line) return;
+      line.scrollIntoView({ block: 'center' });
+      line.classList.remove('settings-search-flash');
+      void line.offsetWidth;
+      line.classList.add('settings-search-flash');
+      setTimeout(() => line.classList.remove('settings-search-flash'), 2600);
+    });
   }
 
-  function wire(parts, bd, cb, later, focusEl) {
-    const dismiss = () => { const m = cb.checked; if (m) mute(); close(m); };
+  function wire(parts, bd, later, focusEl) {
+    const dismiss = () => close();
     parts.x.addEventListener('click', dismiss);
     later.addEventListener('click', dismiss);
     bd.addEventListener('click', (ev) => { if (ev.target === bd) dismiss(); });
@@ -249,7 +253,7 @@
     card.appendChild(art);
 
     const body = el('div', 'xdrop-body');
-    body.appendChild(el('div', 'xdrop-kicker', t('drop_headline', 'Just landed in the Store')));
+    body.appendChild(el('div', 'xdrop-kicker', t('drop_month_kicker', 'This month in the Store')));
     body.appendChild(el('h2', 'xdrop-title', entry.name || ''));
 
     const facts = el('div', 'xdrop-facts');
@@ -284,11 +288,11 @@
     actions.appendChild(primary); actions.appendChild(secondary);
     body.appendChild(actions);
 
-    const { cb, later } = footer(body);
+    const { later } = footer(body);
     card.appendChild(body);
     // The end date moves while the card is open, so it is kept honest.
     if (ends.textContent) ticker = setInterval(() => { ends.textContent = endsText(entry); }, 60000);
-    wire(parts, bd, cb, later, primary);
+    wire(parts, bd, later, primary);
   }
 
   // Several drops at once → ONE card holding a row of offer tiles, like a shop's
@@ -301,7 +305,7 @@
     const { bd, card } = parts;
 
     const body = el('div', 'xdrop-body');
-    body.appendChild(el('div', 'xdrop-kicker', t('drop_headline', 'Just landed in the Store')));
+    body.appendChild(el('div', 'xdrop-kicker', t('drop_month_kicker', 'This month in the Store')));
     body.appendChild(el('h2', 'xdrop-title', t('gallery_new_filter', 'Novità')));
     body.appendChild(el('p', 'xdrop-sub',
       t('drop_batch_sub', '{n} nuove creazioni sono arrivate nello Store: toccane una per vederla da vicino.').replace('{n}', String(drops.length))));
@@ -341,73 +345,93 @@
     actions.appendChild(primary);
     body.appendChild(actions);
 
-    const { cb, later } = footer(body);
+    const { later } = footer(body);
     card.appendChild(body);
-    wire(parts, bd, cb, later, primary);
+    wire(parts, bd, later, primary);
   }
 
-  // ── When to look, and when to show ─────────────────────────────────────────
-  // The modal still appears at most once a day. What changed is how often it
-  // LOOKS: it used to check once, twenty seconds after the page loaded, and never
-  // again, so a dashboard left open for days (the kiosk on an Edge is exactly
-  // that) never heard of a drop published after it opened, and a check that met
-  // game mode or the Ambient screen for five minutes gave up until a reload. Now
-  // it looks every few hours while open and when the dashboard comes back into
-  // view, and a wait that expired simply tries again on the next look.
-  const CHECK_EVERY = 3 * 3600 * 1000;               // how often it asks the catalog
-  const LOOK_EVERY = 30 * 60 * 1000;                 // how often it considers asking
-  const WAIT_MAX = 6 * 60 * 1000;                    // the queue gives up after ~5 min
-  const K_SHOWN = 'xeneonedge.catalogDropShown';     // last time the modal appeared
-  const readTs = (k) => { try { return Number(localStorage.getItem(k) || 0); } catch { return 0; } };
-  const stampTs = (k) => { try { localStorage.setItem(k, String(Date.now())); } catch { /* ignore */ } };
+  // ── When to show ───────────────────────────────────────────────────────────
+  // Once per SESSION: when the dashboard opens (the app starting, or a new
+  // browser tab). A reload of the same tab keeps its sessionStorage, so an Edge
+  // that reloads after an update is not shown the window again that day. A
+  // check that could not reach the catalog (offline) tries again later in the
+  // same session; one that found nothing to show is done for the session.
+  const K_SESSION = 'xeneonedge.monthlyDropsSession';
+  const sessionDone = () => { try { return sessionStorage.getItem(K_SESSION) === '1'; } catch { return false; } };
+  const markSession = () => { try { sessionStorage.setItem(K_SESSION, '1'); } catch { /* ignore */ } };
+  const LOOK_EVERY = 30 * 60 * 1000;   // retry while the first check has not succeeded
+  const WAIT_MAX = 6 * 60 * 1000;      // the interrupt queue gives up after ~5 min
   let waitingSince = 0;
 
+  // Published in the last 30 days and not over: an entry whose own end date has
+  // passed is not "this month's" even if it is recent.
+  function isRecent(e, now) {
+    const at = Date.parse(e && e.addedAt ? e.addedAt : '');
+    if (!Number.isFinite(at) || now - at > RECENT || at - now > DAY) return false;
+    const until = e.activeUntil ? Date.parse(e.activeUntil) : NaN;
+    return !(Number.isFinite(until) && until <= now);
+  }
+
+  // Already this user's: installed from the Store (its receipt names the entry,
+  // or one copy of a numbered drop), or a widget the entry publishes is
+  // installed. Offering somebody what they already have is how a window like
+  // this gets switched off, taking every future drop with it.
+  function isOwned(e) {
+    const receipts = Array.isArray(HS().contentInstalls) ? HS().contentInstalls : [];
+    const dropId = e && e.limited && e.limited.dropId ? String(e.limited.dropId) : '';
+    if (receipts.some((r) => r && r.source === 'catalog' && r.sourceId
+      && (r.sourceId === e.id || (dropId && String(r.sourceId).startsWith(dropId + '-'))))) return true;
+    const CW = window.CustomWidget;
+    const pkgs = CW && typeof CW.cachedPackages === 'function' ? CW.cachedPackages() : [];
+    return !!(e.pkgId && pkgs.some((p) => p && p.id === e.pkgId));
+  }
+
   // Wait for any higher-priority overlay to close (notably What's New, which must
-  // be seen first), then announce the batch with ONE modal. The day is spent only
-  // once something is actually on screen.
-  function presentWhenIdle(fresh) {
+  // be seen first), then show the drops in ONE window.
+  function presentWhenIdle(drops) {
     const P = window.XenonInterrupts.PRIORITY;
     // A limited edition outranks a supporter pack in the shared queue: its copies run out.
-    const priority = fresh.some((e) => e.limited) ? P.limited : P.drop;
+    const priority = drops.some((e) => e.limited) ? P.limited : P.drop;
     waitingSince = Date.now();
     window.XenonInterrupts.whenIdle(() => {
       waitingSince = 0;
-      if (isMuted()) return;                  // muted from another surface while waiting
-      stampTs(K_SHOWN); stampTs(K_CHECK);
-      // ONE announcement, whatever landed. Limited drops lead: their copies run
-      // out. Everything announced is marked seen: the batch showed each by name.
-      const ordered = fresh.filter((e) => e.limited).concat(fresh.filter((e) => !e.limited));
+      if (!isOn() || sessionDone()) return;   // switched off, or shown by another path meanwhile
+      markSession();
+      // Limited drops lead (their copies run out), then the newest first.
+      const ordered = drops.filter((e) => e.limited).concat(drops.filter((e) => !e.limited));
       if (ordered.length === 1) show(ordered[0]);
       else showBatch(ordered);
+      // Shared with hub announcements, so one naming the same entry is not a repeat.
       markSeen(ordered.map((e) => e.id));
     }, { priority });
   }
 
-  async function checkDaily() {
+  async function checkOnStart() {
     try {
-      if (isMuted()) return;
-      const now = Date.now();
-      if (now - readTs(K_SHOWN) < DAY) return;          // one modal a day, as always
-      if (now - readTs(K_CHECK) < CHECK_EVERY) return;  // asked recently
-      if (waitingSince && now - waitingSince < WAIT_MAX) return;   // already queued
+      if (!isOn() || sessionDone()) return;
+      if (waitingSince && Date.now() - waitingSince < WAIT_MAX) return;   // already queued
       const out = await api('/api/community/catalog');
-      if (!out || !out.ok || !Array.isArray(out.entries)) return;   // offline → next look
+      if (!out || !out.ok || !Array.isArray(out.entries)) return;        // offline → next look
       await hydrateLimited(out.entries);
-      const seen = readSeen();
-      const fresh = out.entries.filter((e) => isPaidDrop(e) && !seen.includes(e.id));
-      if (!fresh.length) { stampTs(K_CHECK); return; }  // nothing new → ask again in a few hours
-      presentWhenIdle(fresh);                            // waits its turn behind What's New
-    } catch { /* best-effort — never surface an error for a promo nudge */ }
+      const CW = window.CustomWidget;
+      if (CW && typeof CW.getPackages === 'function') { try { await CW.getPackages(); } catch { /* ownership by receipt still works */ } }
+      const now = Date.now();
+      const drops = out.entries
+        .filter((e) => isPaidDrop(e) && isRecent(e, now) && !isOwned(e))
+        .sort((a, b) => (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0));
+      if (!drops.length) { markSession(); return; }
+      presentWhenIdle(drops);   // waits its turn behind What's New
+    } catch { /* best-effort — never surface an error for a promo */ }
   }
 
-  window.CatalogDrop = { checkDaily, show, showBatch, close };
-  // Staggered a little after the SDK daily check so the two catalog reads don't
-  // race the first paint (both hit the same TTL-cached endpoint anyway). Then a
-  // look every half hour (each look is a timestamp comparison until a real ask is
-  // due), and one when the dashboard comes back into view. A chain of timeouts,
-  // not setInterval, so nothing here competes with the interrupt queue's ticker.
-  const look = () => { try { checkDaily(); } catch { /* ignore */ } };
-  const loop = () => setTimeout(() => { look(); loop(); }, LOOK_EVERY);
+  window.CatalogDrop = { checkOnStart, show, showBatch, close, isRecent, isOwned };
+  // Twenty seconds after the dashboard opens (after the SDK daily check, so the
+  // two catalog reads do not race the first paint), then a retry every half
+  // hour and when the dashboard comes back into view, until the session's one
+  // check has succeeded. A chain of timeouts, not setInterval, so nothing here
+  // competes with the interrupt queue's ticker.
+  const look = () => { try { checkOnStart(); } catch { /* ignore */ } };
+  const loop = () => setTimeout(() => { if (sessionDone()) return; look(); loop(); }, LOOK_EVERY);
   setTimeout(() => { look(); loop(); }, 20000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) look(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !sessionDone()) look(); });
 })();
