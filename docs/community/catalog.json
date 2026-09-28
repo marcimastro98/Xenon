@@ -64,8 +64,7 @@
       "name": "TGK Steam — Launcher & Battery",
       "author": "The.GothamKnight",
       "authorSupporter": true,
-      "perfWarning": true,
-      "description": "Launch recent Steam games, track playtime and monitor Steam Controller battery status. Requires a SteamID64 and Steam Web API key.\nThe API key is stored through Xenon secret storage.\nBattery monitoring is optional and requires the TGK - Steam Controller Battery Millennium plugin, not publicly availa",
+      "description": "Launch recent Steam games, track playtime and monitor Steam Controller battery status. Requires a SteamID64 and Steam Web API key. The API key is stored through Xenon secret storage. Battery monitoring is optional and requires the TGK - Steam Controller Battery Millennium plugin. Available on GitHub",
       "category": "tools",
       "tags": [
         "steam",
@@ -74,9 +73,10 @@
         "playtime",
         "controller"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
+      "changelog": "TGK Steam v1.0.1\n\n- Updated optional Steam Controller battery integration to use Xenon `scriptStates`.\n- Supports the separately distributed Steam Controller Battery Millennium plugin. (https://github.com/The-GothamKnight/)\n\nGame launching, recent games, and Steam API setup are unchanged.",
       "pkgId": "tgk-steam",
-      "appVersionMin": "4.1.8",
+      "appVersionMin": "4.11.8",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
@@ -85,7 +85,8 @@
       "shots": 3,
       "active": true,
       "addedAt": "2026-09-16",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-09-28"
     },
     {
       "id": "tgk-spotify-player-library",
