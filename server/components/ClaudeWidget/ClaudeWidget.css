@@ -338,6 +338,33 @@
 .cw-opt-label { display: block; font-size: 13.5px; font-weight: 650; line-height: 1.3; }
 .cw-opt-desc { display: block; margin-top: 2px; font-size: 12px; line-height: 1.35; color: var(--cw-2); }
 
+/* Typed answers: the "Other" box, a text/number question, a plan's feedback. */
+.cw-dec-input {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px;
+  border-radius: 9px; border: 1px solid color-mix(in srgb, var(--cw-ink) 20%, transparent);
+  background: color-mix(in srgb, var(--cw-ink) 6%, transparent); color: var(--cw-ink);
+  font: inherit; font-size: 14px; line-height: 1.4; resize: none;
+}
+.cw-dec-input:focus { outline: none; border-color: var(--cw-go); }
+.cw-dec-input::placeholder { color: var(--cw-2); }
+.cw-dec-input:disabled { opacity: 0.5; }
+
+/* The plan card: the terminal's rows stacked, then "keep planning" with its box. */
+.cw-dec.is-plan { --cw-dec: var(--cw-go); }
+.cw-dec-acts.is-plan { flex-direction: column; gap: 8px; }
+.cw-opts.is-col { grid-template-columns: minmax(0, 1fr); }
+.cw-dec-acts.is-plan .cw-opt { align-items: center; }
+.cw-dec-back { display: flex; gap: 8px; align-items: stretch; }
+.cw-dec-back .cw-dec-input { flex: 1 1 auto; min-width: 0; }
+.cw-dec-back .cw-key { flex: 0 0 auto; }
+@container cw (max-width: 420px) {
+  .cw-dec-back { flex-direction: column; }
+}
+/* The overlay sits outside the tile's container, so a phone needs its own rule. */
+@media (max-width: 520px) {
+  .cw-overlay .cw-dec-back { flex-direction: column; }
+}
+
 /* ── the escalation: one decision, full screen ── */
 .cw-overlay {
   position: fixed; inset: 0; z-index: 9000;
@@ -367,6 +394,8 @@
 .cw-dec.is-big .cw-opt-label { font-size: 15px; }
 .cw-dec.is-big .cw-opt-desc { font-size: 13px; }
 .cw-dec.is-big .cw-key { min-height: 60px; font-size: 18px; border-radius: 12px; }
+.cw-dec.is-big .cw-dec-input { font-size: 16px; min-height: 52px; }
+.cw-dec.is-big.is-plan .cw-dec-plan { max-height: 34vh; }
 @media (max-height: 560px) {
   .cw-dec.is-big { gap: 11px; padding: 15px 18px; border-radius: 15px; }
   .cw-dec.is-big .cw-dec-what { font-size: 19px; }

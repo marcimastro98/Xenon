@@ -462,6 +462,19 @@
       });
       btns.appendChild(b);
     }
+    // A tile widget can be put on the dashboard from here too: the page on
+    // screen behind this list, through the same path as the "+" panel. Not for
+    // an Ambient scene (no tile) or a paused package (its tile would only say so).
+    if (row.pkg && row.pkg.surface !== 'ambient' && window.CustomWidget && typeof CustomWidget.addToPage === 'function'
+        && !(typeof CustomWidget.isSuspended === 'function' && CustomWidget.isSuspended(row.pkg.id))) {
+      const add = el('button', 'settings-btn', t('settings_sdk_add_page', 'Aggiungi alla pagina'));
+      add.type = 'button';
+      add.addEventListener('click', () => {
+        const inst = CustomWidget.addToPage(row.pkg.id);
+        if (inst && typeof toast === 'function') toast(t('settings_sdk_added_page', 'Aggiunto alla pagina'), String(row.pkg.name || ''), 'success');
+      });
+      btns.appendChild(add);
+    }
     // An installed-but-ungranted package is an installed DEAD package, and this
     // list was the one place that showed it without offering the fix. Placing a
     // tile used to be the only way to reach the dialog — impossible for a widget

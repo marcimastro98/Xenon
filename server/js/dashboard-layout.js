@@ -342,15 +342,22 @@ function createDashboardControls(element, kind, groupId, itemId) {
   // are trapped below that overlay and can't be clicked — the click lands on the
   // overlay and starts a drag instead (the "only the move hand" report). Host the
   // widget controls on the grid-item content, a sibling of the overlay just like
-  // the other edit handles (gs-size-cycle, gs-add-tab…), so their z-index 60 wins.
+  // the other edit handles (the tile edit bar), so their z-index (50) wins over it.
   // Cards are not grid items and keep hosting their own controls.
-  const host = (kind === 'widget' && element.closest('.grid-stack-item-content')) || element;
+  // Since the edit bar (dashboard-grid.js ensureTileHandles) exists, the pair
+  // joins it, so every control of a tile is in one row above its content.
+  const gridContent = kind === 'widget' ? element.closest('.grid-stack-item-content') : null;
+  const host = (gridContent && gridContent.querySelector(':scope > .gs-edit-bar')) || gridContent || element;
   const existingControls = findDirectLayoutControls(host, kind);
   if (existingControls) existingControls.remove();
   // Clean up any stale controls left directly on the panel by an earlier build.
   if (host !== element) {
     const strayControls = findDirectLayoutControls(element, kind);
     if (strayControls) strayControls.remove();
+  }
+  if (gridContent && host !== gridContent) {
+    const straySibling = findDirectLayoutControls(gridContent, kind);
+    if (straySibling) straySibling.remove();
   }
   const controls = document.createElement('div');
   controls.className = 'layout-controls';

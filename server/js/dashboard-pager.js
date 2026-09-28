@@ -223,13 +223,34 @@
     // the only one) and add a new, unnamed one (+).
     if (editing && window.DashboardPages) {
       const label = (key, fb) => (typeof t === 'function' ? t(key) : fb);
+      // Their own group, set apart from the dots, with drawn icons: the text
+      // glyphs (‹ › ✎ × +) sat on the font's baseline, never centred in their
+      // square, and 22 px buttons packed against the dots were hard to hit.
+      const tools = document.createElement('span');
+      tools.className = 'pager-page-tools';
+      const ICON = {
+        prev: 'M15 6l-6 6 6 6', next: 'M9 6l6 6-6 6',
+        rename: 'M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4',
+        remove: 'M7 7l10 10M17 7 7 17', add: 'M12 5v14M5 12h14',
+      };
+      const setIcon = (btn, d) => {
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2.2'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+        const path = document.createElementNS(NS, 'path'); path.setAttribute('d', d);
+        svg.appendChild(path);
+        btn.textContent = '';
+        btn.appendChild(svg);
+      };
       const activeIdx = pages.map((p, i) => (p.active === false ? -1 : i)).filter(i => i >= 0);
       const herePos = activeIdx.indexOf(currentIndex);
       const mkMove = (dir, glyph, key, fb, disabled) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'pager-page-btn pager-page-move';
-        btn.textContent = glyph;
+        setIcon(btn, glyph);
         btn.title = label(key, fb);
         btn.setAttribute('aria-label', btn.title);
         btn.disabled = disabled;
@@ -239,35 +260,36 @@
         });
         return btn;
       };
-      dotsHost.appendChild(mkMove(-1, '‹', 'layout_move_page_left', 'Move page left', herePos <= 0));
-      dotsHost.appendChild(mkMove(1, '›', 'layout_move_page_right', 'Move page right', herePos < 0 || herePos >= activeIdx.length - 1));
+      tools.appendChild(mkMove(-1, ICON.prev, 'layout_move_page_left', 'Move page left', herePos <= 0));
+      tools.appendChild(mkMove(1, ICON.next, 'layout_move_page_right', 'Move page right', herePos < 0 || herePos >= activeIdx.length - 1));
 
       const rename = document.createElement('button');
       rename.type = 'button';
       rename.className = 'pager-page-btn pager-page-rename';
-      rename.textContent = '✎';
+      setIcon(rename, ICON.rename);
       rename.title = label('layout_rename_page', 'Rename page');
       rename.setAttribute('aria-label', rename.title);
       rename.addEventListener('click', () => renameCurrentPage());
-      dotsHost.appendChild(rename);
+      tools.appendChild(rename);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'pager-page-btn pager-page-remove';
-      remove.textContent = '×';
+      setIcon(remove, ICON.remove);
       remove.title = label('layout_remove_page', 'Remove page');
       remove.setAttribute('aria-label', remove.title);
       remove.disabled = activeCount <= 1;
       remove.addEventListener('click', () => { const id = getCurrentPage(); if (id) window.DashboardPages.remove(id); });
-      dotsHost.appendChild(remove);
+      tools.appendChild(remove);
 
       const add = document.createElement('button');
       add.type = 'button';
       add.className = 'pager-page-btn pager-page-add';
-      add.textContent = '+';
+      setIcon(add, ICON.add);
       add.title = label('layout_add_page', 'Add page');
       add.setAttribute('aria-label', add.title);
       add.addEventListener('click', () => window.DashboardPages.add());
-      dotsHost.appendChild(add);
+      tools.appendChild(add);
+      dotsHost.appendChild(tools);
     }
   }
 

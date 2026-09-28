@@ -60,7 +60,8 @@ test('every widget the palette can offer has hidden search words in all 11 langu
 test('the search strings are translated in every language block', () => {
   const src = read('../js/i18n.js');
   for (const key of ['settings_search_placeholder', 'settings_search_empty', 'settings_search_recent',
-    'palette_search_placeholder', 'palette_search_empty', 'palette_group_builtin', 'palette_group_store']) {
+    'palette_search_placeholder', 'palette_search_empty', 'palette_group_builtin', 'palette_group_store',
+    'palette_filter_all', 'palette_filter_installed', 'palette_store_empty', 'palette_store_safe', 'palette_open_store', 'palette_examples']) {
     const n = (src.match(new RegExp('\\b' + key + ':', 'g')) || []).length;
     assert.equal(n, LANGS.length, `${key} is defined ${n} times, expected once per language`);
   }
@@ -107,7 +108,10 @@ test('search results never go through innerHTML', () => {
     assert.doesNotMatch(read(f), /innerHTML/, `${f} uses innerHTML`);
   }
   const palette = read('../js/dashboard-palette.js');
-  const fn = palette.slice(palette.indexOf('function makeResultItem'), palette.indexOf('function selectResult'));
+  // Every item (built-in, Store widget, search result) is drawn by one function;
+  // its only markup is the static built-in icon table.
+  const fn = palette.slice(palette.indexOf('function makeEntryItem'), palette.indexOf('function renderBlock'));
+  assert.ok(fn.length > 200, 'makeEntryItem found');
   assert.doesNotMatch(fn.replace(/ico\.innerHTML = WIDGET_ICONS[^\n]*/, ''), /innerHTML/);
 });
 

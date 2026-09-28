@@ -68,7 +68,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon にはウィジェットがいくつありますか？","acceptedAnswer":{"@type":"Answer","text":"内蔵ウィジェットは41種類で、生産性、メディア、システム、配信の4つのグループに分かれています。コミュニティのカタログのウィジェットや自分で作ったウィジェットは、カスタムウィジェットのタイルで動きます。"}},{"@type":"Question","name":"ウィジェットを使うには Xeneon Edge が必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。同じダッシュボードが、どのモニターでも、タッチスクリーンでも、ベータとして Wi-Fi でつないだスマートフォンやタブレットでも動きます。"}},{"@type":"Question","name":"1つのタイルに複数のウィジェットを入れられますか？","acceptedAnswer":{"@type":"Answer","text":"はい。レイアウトモードで、あるタイルを別のタイルの中央にドラッグすると、同じタイルのタブになります。"}},{"@type":"Question","name":"Xenon のダッシュボードには何ページまで作れますか？","acceptedAnswer":{"@type":"Answer","text":"最大8ページで、それぞれ24列のグリッドです。"}},{"@type":"Question","name":"自分でウィジェットを作れますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使って HTML ページとしてウィジェットを書くと、Xenon がそれをサンドボックスの中で動かします。使えるのは、ユーザーが承認したデータと操作だけです。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon にはウィジェットがいくつありますか？","acceptedAnswer":{"@type":"Answer","text":"内蔵ウィジェットは41個で、生産性、メディア、システム、配信の4つのグループに分かれています。コミュニティのカタログのウィジェットや自作のウィジェットは、+ パネルでそれらと並んで表示されます。"}},{"@type":"Question","name":"ウィジェットを使うには Xeneon Edge が必要ですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。同じダッシュボードが、どのモニターでも、タッチスクリーンでも、ベータとして Wi-Fi でつないだスマートフォンやタブレットでも動きます。"}},{"@type":"Question","name":"1つのタイルに複数のウィジェットを入れられますか？","acceptedAnswer":{"@type":"Answer","text":"はい。レイアウトモードで、あるタイルを別のタイルの中央にドラッグすると、同じタイルのタブになります。"}},{"@type":"Question","name":"Xenon のダッシュボードには何ページまで作れますか？","acceptedAnswer":{"@type":"Answer","text":"最大8ページで、それぞれ24列のグリッドです。"}},{"@type":"Question","name":"自分でウィジェットを作れますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ベータのウィジェット SDK を使って HTML ページとしてウィジェットを書くと、Xenon がそれをサンドボックスの中で動かします。使えるのは、ユーザーが承認したデータと操作だけです。"}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -204,15 +204,15 @@
 
     <h2 id="layout" data-i18n="wg.h.layout">グリッド、ページ、タブ</h2>
     <p data-i18n-html="wg.layout.p1">ダッシュボードを編集するには、上部バーの <strong>レイアウト</strong> をタップします。タイルは24列で半分の高さの行を持つグリッドに置かれるので、ドロップした場所の近くに収まります。サイズは角から変更できます。</p>
-    <p data-i18n="wg.layout.p2">各ページの + でパレットが開きます。上の4つのグループに加えて、その他の中にカスタムウィジェットがあります。ダッシュボードは最大8ページで、スワイプ、矢印キー、上部バーのページドットで移動します。</p>
+    <p data-i18n="wg.layout.p2">各ページの + で「ウィジェットを追加」パネルが開きます。上の4つのグループに、ストアからインストールしたウィジェットがそれぞれ合うグループに並び、検索もできます。「インストール済み」フィルターではストアのものだけを表示します。ダッシュボードは最大8ページで、スワイプ、矢印キー、または上部バーのページドットで切り替えます。</p>
     <p data-i18n="wg.layout.p3">あるタイルを別のタイルの中央にドラッグすると、1つのタイルのタブになります。タブを外へドラッグすると、また分かれます。最初からあるメディア、予定、システムのタイルは、この方法で作られています。</p>
-    <p data-i18n="wg.layout.p4">いくつかのウィジェットは複数追加できます。再生、チャット、予定、カレンダー、タスク、タイマー、メモ、システム、音量、マイクのコピーは、元のタイルと同じ内容を表示します。デッキ、ブラウザ、リモートコントロール、Discord、カスタムウィジェットのコピーは独立していて、デッキのキーやブラウザのアドレスのように、それぞれ別の内容を持ちます。</p>
+    <p data-i18n="wg.layout.p4">一部のウィジェットは複数追加できます。再生、チャット、アジェンダ、カレンダー、タスク、タイマー、メモ、システム、音量、マイクのコピーは元と同じ内容を表示します。Deck、ブラウザ、リモートコントロール、Discord、ストアのウィジェットのコピーは独立していて、Deckのキーやブラウザのアドレスなど、それぞれ自分の内容を持ちます。</p>
     <p data-i18n="wg.layout.p5">タイルやページ全体をプリセットとして保存し、ワンタップでもう一度配置できます。ページはリンクやファイルとしてほかの人と共有できます。スマートフォンでは同じダッシュボードが1列に並び直します。スマホからのアクセスはベータです。</p>
 
     <h2 id="catalog" data-i18n="wg.h.catalog">カタログのウィジェット</h2>
     <p data-i18n-html="wg.catalog.p1"><a href="/catalog/">コミュニティのカタログ</a>には、ほかの人が作って共有したウィジェット、テーマ、アニメーション背景、ページ、Deck プロファイル、Ambient シーン、パッケージ一式があります。すべての掲載物は審査されています。</p>
     <p data-i18n-html="wg.catalog.p2">カタログのページで掲載物のコードをコピーして <strong>設定 → ウィジェットと共有 → インポート</strong> に貼り付けるか、同じカタログが並ぶアプリ内のストアを開きます。何かが適用される前に、コードの中身が表示されます。</p>
-    <p data-i18n-html="wg.catalog.p3">カタログのウィジェットは <strong>カスタムウィジェット</strong> のタイルの中で、サンドボックスに隔離されて動きます。受け取れるのは宣言したデータ、操作、Web アドレスだけで、最初にあなたの許可を求めます。その土台のウィジェット SDK はベータです。</p>
+    <p data-i18n-html="wg.catalog.p3">カタログのウィジェットはインストールすると + パネルの該当グループと「インストール済み」に表示されます。サンドボックスで動作し、宣言したデータ、操作、Webアドレスだけを受け取り、最初に許可を求めます。基になっているウィジェットSDKはベータ版です。</p>
 
     <h2 id="own" data-i18n="wg.h.own">自分でウィジェットを作る</h2>
     <p data-i18n="wg.own.p1">自分のウィジェットは、ベータのウィジェット SDK で作ります。中身は manifest.json と index.html の入ったフォルダーです。Xenon はそれをサンドボックスで動かし、1つのメッセージブリッジを通じてリアルタイムのデータと操作を渡します。</p>
@@ -220,7 +220,7 @@
     <p data-i18n-html="wg.own.p3"><a href="/create/">作り方ガイド</a>はゼロから始めて、テーマ、ページ、Deck プロファイル、ウィジェットを扱います。<a href="/create/#sdk">ウィジェット SDK リファレンス</a>には、プロトコルの全体が載っています。</p>
 
     <h2 id="faq" data-i18n="wg.h.faq">質問</h2>
-    <details><summary data-i18n="wg.faq.count.q">Xenon にはウィジェットがいくつありますか？</summary><div class="body"><p data-i18n="wg.faq.count.a">内蔵ウィジェットは41種類で、生産性、メディア、システム、配信の4つのグループに分かれています。これに加えて、コミュニティのカタログのウィジェットや自分で作ったウィジェットが、カスタムウィジェットのタイルで動きます。</p></div></details>
+    <details><summary data-i18n="wg.faq.count.q">Xenon にはウィジェットがいくつありますか？</summary><div class="body"><p data-i18n="wg.faq.count.a">内蔵ウィジェットは41個で、生産性、メディア、システム、配信の4つのグループに分かれています。コミュニティのカタログのウィジェットや自作のウィジェットは、+ パネルでそれらと並んで表示されます。</p></div></details>
     <details><summary data-i18n="wg.faq.edge.q">ウィジェットを使うには Xeneon Edge が必要ですか？</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">いいえ。同じダッシュボードが、どのモニターでも、タッチスクリーンでも、ベータとして Wi-Fi でつないだスマートフォンやタブレットでも動きます。<a href="/ja/xeneon-edge-widgets.html">Xeneon Edge で使う Xenon</a>と<a href="/ja/tablet-dashboard.html">タブレットやスマートフォンをダッシュボードにする方法</a>をご覧ください。</p></div></details>
     <details><summary data-i18n="wg.faq.tabs.q">1つのタイルに複数のウィジェットを入れられますか？</summary><div class="body"><p data-i18n="wg.faq.tabs.a">はい。レイアウトモードで、あるタイルを別のタイルの中央にドラッグすると、同じタイルのタブになります。タブを外へドラッグすると、また分かれます。</p></div></details>
     <details><summary data-i18n="wg.faq.pages.q">ダッシュボードには何ページまで作れますか？</summary><div class="body"><p data-i18n="wg.faq.pages.a">最大8ページで、それぞれ24列のグリッドです。新しいページは空の状態から始まり、ほかのページはそのまま残ります。</p></div></details>

@@ -3248,16 +3248,42 @@
           toast(tr('preset_import_ok', 'Preset imported'),
             tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
         }
-        if (res.widgets.installed) {
-          toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
-            tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
-        }
+        if (res.widgets.installed) offerAddToPage(res.widgets.ids);
         if (res.widgets.failed) {
           toast(tr('preset_bundle_widgets_failed', 'Some widgets could not be installed.'), '', 'error');
         }
       });
       row.appendChild(go);
       body.appendChild(row);
+    }
+
+    // After a Store widget lands, say where it goes and offer to put it there.
+    // One tile widget: a button that adds it to the page on screen now, through
+    // the same path as the "+" panel (permissions asked there if needed). Several:
+    // where to find them, "+" then "Installed". Ambient scenes and headless
+    // widgets have no tile, so they are not offered a page.
+    function offerAddToPage(pkgIds) {
+      const CW = window.CustomWidget;
+      if (!CW || typeof CW.cachedPackages !== 'function' || !window.XenonToast) return false;
+      const ids = (pkgIds || []).filter(Boolean).map(String);
+      const pkgs = (CW.cachedPackages() || []).filter((p) => p && ids.includes(p.id) && p.surface !== 'ambient');
+      if (!pkgs.length) return false;
+      if (pkgs.length === 1 && typeof CW.addToPage === 'function') {
+        const pkg = pkgs[0];
+        window.XenonToast.show({
+          type: 'success', duration: 14000,
+          title: tr('preset_widget_ready', '{name} is installed').replace('{name}', String(pkg.name)),
+          message: tr('preset_widget_ready_msg', 'Put it on this page now, or later from + in Layout mode, under Installed.'),
+          actions: [{ label: tr('preset_widget_add_here', 'Add to this page'), primary: true, onClick: () => CW.addToPage(pkg.id) }],
+        });
+      } else {
+        window.XenonToast.show({
+          type: 'success', duration: 10000,
+          title: tr('preset_bundle_widgets_note_title', 'Widgets installed'),
+          message: tr('preset_widgets_ready_many', 'Add them from + in Layout mode, under Installed.'),
+        });
+      }
+      return true;
     }
 
     // Review step for a single imported community widget: its name, what it can
@@ -3304,9 +3330,11 @@
         const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true }));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
-        toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
-        toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
-          tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
+        // The installed widget says where it goes; a scene or a headless widget,
+        // which has no tile, just gets the plain confirmation.
+        if (!offerAddToPage([w.id || (w.payload && w.payload.id)])) {
+          toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
+        }
       });
       row.appendChild(go);
       body.appendChild(row);
