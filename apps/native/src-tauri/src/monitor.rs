@@ -258,6 +258,81 @@ const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
 /// legitimately needs repairing is left unrepaired.
 const MAX_REPIN_ATTEMPTS: u32 = 5;
 
+/// What one watchdog tick does about a kiosk or full-screen window.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Repin {
+    Nothing,
+    /// The whole re-placement: leave full-screen, move, re-enter, maybe focus.
+    Full,
+    /// Slide the window back onto its screen and nothing else (`move_back_quietly`).
+    Quiet,
+}
+
+/// The one rule for re-placing a window that should own a whole screen.
+///
+/// Outside a game: re-place on a topology change, or while the window sits off
+/// its screen, up to the attempt cap.
+///
+/// During a game, a topology change alone is left alone. It is almost always the
+/// game switching resolution for exclusive full-screen, and a full re-place there
+/// once bounced the game in and out of full-screen until Xenon was force-quit
+/// (see the Edge branch of `start_watchdog`). But a window that has LEFT its
+/// screen is still brought back, quietly. Windows moves windows off a display
+/// whose mode changes under them, and a game turning HDR on does exactly that:
+/// reported on Discord with Control Resonant in borderless full-screen, the
+/// dashboard moved to the main display and stayed there, behind the game, until
+/// Alt+Tab ended game mode. Turning HDR on from Windows settings moved it too,
+/// and it came back a few seconds later, because nothing was being played.
+fn repin_action(gaming: bool, drifted: bool, topology_changed: bool, attempts: u32) -> Repin {
+    let chase = drifted && attempts < MAX_REPIN_ATTEMPTS;
+    if gaming {
+        if chase { Repin::Quiet } else { Repin::Nothing }
+    } else if topology_changed || chase {
+        Repin::Full
+    } else {
+        Repin::Nothing
+    }
+}
+
+/// Put the window back over the whole of `monitor` without activating it, without
+/// changing its z-order and without a full-screen transition: a single
+/// `SetWindowPos` with `SWP_NOACTIVATE`. This is what makes it safe mid-game.
+/// `place_on_edge` drops and re-enters full-screen and may raise the window, and
+/// either can take the foreground from the game; a plain move takes nothing.
+/// The window keeps its borderless kiosk chrome while it is moved, so covering
+/// the screen's rectangle looks exactly like full-screen on it. When game mode
+/// ends, the ordinary re-pin is free to run again.
+#[cfg(windows)]
+fn move_back_quietly(window: &WebviewWindow, monitor: &Monitor) {
+    #[link(name = "user32")]
+    extern "system" {
+        fn SetWindowPos(hwnd: isize, after: isize, x: i32, y: i32, cx: i32, cy: i32, flags: u32) -> i32;
+    }
+    const SWP_NOZORDER: u32 = 0x0004;
+    const SWP_NOACTIVATE: u32 = 0x0010;
+    const SWP_NOOWNERZORDER: u32 = 0x0200;
+    let Ok(hwnd) = window.hwnd() else { return };
+    // Physical pixels on both sides: Monitor reports them, and the process is
+    // per-monitor DPI aware, which is what SetWindowPos then takes.
+    let p = monitor.position();
+    let s = monitor.size();
+    unsafe {
+        SetWindowPos(
+            hwnd.0 as isize,
+            0,
+            p.x,
+            p.y,
+            s.width as i32,
+            s.height as i32,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER,
+        );
+    }
+}
+
+/// Game mode only exists on Windows (see `game_mode`), so this never runs elsewhere.
+#[cfg(not(windows))]
+fn move_back_quietly(_window: &WebviewWindow, _monitor: &Monitor) {}
+
 /// True when a monitor's physical size matches the Edge panel. Some hubs also let
 /// us confirm via the device name, but the exact panel size is the reliable
 /// signal across DisplayPort/USB-C connections.
@@ -1446,22 +1521,29 @@ pub fn start_watchdog(app: AppHandle) {
                     if !drifted || topology_changed {
                         repin_attempts = 0;
                     }
-                    if !game_mode()
-                        && (topology_changed || (drifted && repin_attempts < MAX_REPIN_ATTEMPTS))
-                    {
-                        if drifted {
+                    match repin_action(game_mode(), drifted, topology_changed, repin_attempts) {
+                        Repin::Nothing => {}
+                        Repin::Quiet => {
+                            // `drifted` is only ever true for the kiosk and
+                            // full-screen targets, which both own the whole screen.
                             repin_attempts += 1;
+                            move_back_quietly(&window, &target);
                         }
-                        let focus = kiosk_has_foreground(&window);
-                        if is_edge_panel(&target) {
-                            place_on_edge(&window, &target, focus);
-                        } else if cache.fullscreen {
-                            place_fullscreen_on(&window, &target);
-                        } else if topology_changed {
-                            // Windowed: only re-place on a real topology change.
-                            // Chasing `window_is_on` here would drag the window
-                            // back every time the user moved it themselves.
-                            place_windowed_on(&window, &target);
+                        Repin::Full => {
+                            if drifted {
+                                repin_attempts += 1;
+                            }
+                            let focus = kiosk_has_foreground(&window);
+                            if is_edge_panel(&target) {
+                                place_on_edge(&window, &target, focus);
+                            } else if cache.fullscreen {
+                                place_fullscreen_on(&window, &target);
+                            } else if topology_changed {
+                                // Windowed: only re-place on a real topology change.
+                                // Chasing `window_is_on` here would drag the window
+                                // back every time the user moved it themselves.
+                                place_windowed_on(&window, &target);
+                            }
                         }
                     }
                 }
@@ -1489,21 +1571,28 @@ pub fn start_watchdog(app: AppHandle) {
             // focus_guard keeps the game foreground, and the watchdog re-pins once
             // the game exits. last_topology stays current (updated above), so the
             // resolution reverting on exit is not itself seen as a change to chase.
+            // What stays allowed mid-game is bringing back a window that has left
+            // the Edge, by a move that activates nothing (see `repin_action`).
             let drifted = !window_is_on(&window, &edge);
             if !drifted || topology_changed {
                 repin_attempts = 0;
             }
-            if !game_mode()
-                && (topology_changed || (drifted && repin_attempts < MAX_REPIN_ATTEMPTS))
-            {
-                if drifted {
+            match repin_action(game_mode(), drifted, topology_changed, repin_attempts) {
+                Repin::Nothing => {}
+                Repin::Quiet => {
                     repin_attempts += 1;
+                    move_back_quietly(&window, &edge);
                 }
-                // Re-place, but only re-raise if the kiosk already had the
-                // foreground — see `place_on_edge`. A window the user moved onto
-                // the Edge must stay in front of the dashboard.
-                let focus = kiosk_has_foreground(&window);
-                place_on_edge(&window, &edge, focus);
+                Repin::Full => {
+                    if drifted {
+                        repin_attempts += 1;
+                    }
+                    // Re-place, but only re-raise if the kiosk already had the
+                    // foreground — see `place_on_edge`. A window the user moved onto
+                    // the Edge must stay in front of the dashboard.
+                    let focus = kiosk_has_foreground(&window);
+                    place_on_edge(&window, &edge, focus);
+                }
             }
         } else {
             // Off the Edge: keep the baseline current so returning to it re-pins once.
@@ -1515,4 +1604,38 @@ pub fn start_watchdog(app: AppHandle) {
         }
         }
     });
+}
+
+#[cfg(test)]
+mod repin_tests {
+    use super::*;
+
+    #[test]
+    fn outside_a_game_a_topology_change_or_a_drift_re_places_fully() {
+        assert_eq!(repin_action(false, false, true, 0), Repin::Full);
+        assert_eq!(repin_action(false, true, false, 0), Repin::Full);
+        assert_eq!(repin_action(false, false, false, 0), Repin::Nothing);
+    }
+
+    #[test]
+    fn a_game_switching_resolution_is_left_alone() {
+        // The exclusive full-screen bounce: the layout changed, the window is where
+        // it belongs. Nothing may run, or the game loses the foreground.
+        assert_eq!(repin_action(true, false, true, 0), Repin::Nothing);
+    }
+
+    #[test]
+    fn a_window_moved_off_its_screen_mid_game_comes_back_quietly() {
+        // A game turning HDR on: Windows moved the dashboard to the main display.
+        assert_eq!(repin_action(true, true, true, 0), Repin::Quiet);
+        assert_eq!(repin_action(true, true, false, 2), Repin::Quiet);
+    }
+
+    #[test]
+    fn the_attempt_cap_holds_in_and_out_of_a_game() {
+        assert_eq!(repin_action(true, true, false, MAX_REPIN_ATTEMPTS), Repin::Nothing);
+        assert_eq!(repin_action(false, true, false, MAX_REPIN_ATTEMPTS), Repin::Nothing);
+        // A real layout change outside a game still re-places past the cap.
+        assert_eq!(repin_action(false, true, true, MAX_REPIN_ATTEMPTS), Repin::Full);
+    }
 }
