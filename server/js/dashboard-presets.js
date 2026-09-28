@@ -298,6 +298,12 @@ function _materializeWidget(layout, widget, pageId, geom, style) {
   if (!primaryPlaced) {
     w.visible = true; w.page = pageId; w.x = geom.x; w.y = geom.y; w.w = geom.w; w.h = geom.h;
     if (st) w.style = st; else delete w.style;
+    // Which Store widget a host tile shows lives outside the layout, keyed by
+    // instance id, and survives the tile being hidden. Reusing the hidden
+    // primary would bring back whatever it held last time, which the preset
+    // never named; it starts empty instead, as addWidgetToPage does.
+    if (widget === 'custom' && typeof window !== 'undefined' && window.CustomWidget
+        && typeof window.CustomWidget.clearAssign === 'function') window.CustomWidget.clearAssign('custom');
     return widget;
   }
   if (!_isDuplicable(widget)) return null; // already placed and can't be cloned

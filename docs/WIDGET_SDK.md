@@ -10,15 +10,18 @@ permissions before it renders.
 
 ## Quick start
 
-1. In Xenon, open **Settings → Widgets & sharing** and enable third-party widgets.
-2. Add the **Custom widget** tile from the "+" palette and tap
-   **Install example** — that installs `hello-xenon`, the reference widget this
-   guide is based on (source in `server/sdk-example/hello-xenon/`).
-3. To develop your own: create a folder under `server/data/widgets/<your-id>/`
-   with a `manifest.json` and an `index.html`, then **Rescan** from the tile.
+1. In Xenon, enter Layout mode and tap **+** on a page. Choose the **Installed**
+   filter and tap **Hello Xenon** under *Examples to install*: that installs
+   `hello-xenon`, the reference widget this guide is based on (source in
+   `server/sdk-example/hello-xenon/`), and puts it on the page. Adding a widget
+   switches third-party widgets on (Settings → Widgets & sharing) if they were off.
+2. To develop your own: create a folder under `server/data/widgets/<your-id>/`
+   with a `manifest.json` and an `index.html`, then open **+** again. The panel
+   reads the installed widgets every time it opens, so yours is listed under
+   **Installed** and in its group (see `category`).
 
-After editing a widget's files, use the tile's **Reload** button (↻ in the tile
-header) — or **Rescan** — to reload the changed files. Each reload cache-busts the
+After editing a widget's files, use the tile's **Reload** button (↻, shown on the
+tile in Layout mode) to reload the changed files. Each reload cache-busts the
 widget's assets, so the edit shows up even on a surface you can't hard-refresh
 (e.g. a touchscreen you cannot reach a keyboard on); reload on each surface you want updated.
 
@@ -61,6 +64,8 @@ not need to do anything to support it.
   "storageGroup": "my-widget-set",
   "secrets": true,
   "shape": { "preset": "hexagon" },
+  "icon": ["M3 10h7c3 0 4-8 6-8s2 8 5 8", "M3 16h18", "M3 21h11"],
+  "category": "system",
   "deck": {
     "actions": [
       { "id": "quiet", "name": "Quiet mode",
@@ -99,6 +104,8 @@ not need to do anything to support it.
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 | `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
 | `shape` | no | The **silhouette of your own tile**: `{ "preset": "hexagon" }` or your own closed SVG path, `{ "path": "M .5 0 L 1 .5 L .5 1 L 0 .5 Z" }`. Optional `"fit": "fit"` keeps the proportions instead of stretching, and `"inset"` (0–25) is extra safe margin in percent. Not a permission — it cannot reach past your tile — and the user's own shape for that tile always wins. Ignored on an `ambient` package. See *Tile shape*. |
+| `category` | no | Where the "+" panel files your widget (v4.11.11): `"productivity"`, `"media"`, `"system"` or `"streaming"`, the same groups as Xenon's own widgets. Without it the panel uses the category of your widget's Store entry, and failing that it goes under *Other*. Every installed widget is also listed under the panel's **Installed** filter. Not a permission; any other value is dropped. |
+| `icon` | no | **Your widget's own glyph** (v4.11.11), shown on its tab in a tab group and on its result in the "+" panel's search, instead of the generic puzzle. SVG path data in a **24×24 box**, drawn the way every built-in widget icon is drawn: a 2 px round stroke in the text colour. A string, or up to 4 paths as an array; `{ "path": …, "fill": true }` draws a solid glyph instead. Not a permission. A malformed icon is dropped and your package still installs, with the puzzle. See *Widget icon*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -415,6 +422,27 @@ Six things to design around:
 grant for the memory total. If the data cannot be collected at all (the sensor
 host is down), the host sends `{ problem: 'unavailable', apps: [] }` once on this
 stream — say so in your empty state instead of rendering an idle-looking machine.
+
+**The last five minutes arrive at start (v4.11.11).** A widget that draws this
+stream over time does not have to open empty and fill up while the user
+watches. Right after `init`, and before the latest `data`, the host sends the
+readings it kept:
+
+```js
+if (m.type === 'history' && m.stream === 'processes') {
+  // m.items: [{ t, data }, …] oldest first, at most 5 minutes and 160 items.
+  // t is Date.now() time in YOUR frame's clock; data is a normal payload.
+  for (const it of m.items) addSample(it.t, it.data);
+}
+```
+
+The same message comes again when your tile returns to view, covering the
+readings you missed while it was hidden, so merge by `t` instead of appending.
+The latest `data` that follows is usually the last history item again: drop an
+identical payload. On an older Xenon, or on a page that has no readings yet,
+there is no `history` message at all, so a chart must still work by
+collecting `data` from zero. Readings are only kept while some widget holds this
+grant and a dashboard is open, so a gap in `t` is real: draw it as one.
 
 The rich Discord streams are **lazy snapshots**, not polling feeds. Request one
 only while its UI is visible:
@@ -1418,6 +1446,35 @@ addEventListener('message', (e) => {
   document.body.style.setProperty('--safe-x', m.safe.l + '%');
 });
 ```
+
+### 4c-ter. Widget icon — `icon` (v4.11.11)
+
+Every widget has an icon: on its tab when the user groups tiles into tabs, and
+beside its name when they search for it in the "+" panel. A built-in widget has
+its own; a package without an `icon` gets the generic puzzle. Declare yours in
+the manifest:
+
+```json
+{ "icon": "M4 18 8 11l4 3 4-7 4 5" }
+{ "icon": ["M3 10h7c3 0 4-8 6-8s2 8 5 8", "M3 16h18", "M3 21h11"] }
+{ "icon": { "path": "M12 3 3 21h18Z", "fill": true } }
+```
+
+Draw it **in a 24×24 box** (x and y run 0 → 24), the same grid as the built-in
+icons, and keep a 2 px margin: the host draws it with a 2 px round stroke in the
+current text colour, so it sits in the tab bar as one of the family and follows
+the theme with no colour of its own. `"fill": true` fills the paths instead, for
+a glyph that is a solid shape. Up to 4 paths of up to 600 characters each; path
+commands and numbers only (the same allowlist as a tile `shape`). Anything else
+drops the icon, your package still installs, and it shows the puzzle.
+
+It reads at 15 px in a tab and 18 px in the "+" panel, so draw for that size:
+three or four strokes, no detail thinner than the stroke, no text. Test it next
+to the built-in icons before you publish.
+
+This is **not a permission**: it changes your own entries and nothing else. The
+host never parses it as markup; each path is set with `setAttribute('d', …)` on an
+SVG `<path>`. Older Xenon versions ignore the field.
 
 ### 4d. `notice` — host → widget (v4.10)
 

@@ -93,13 +93,19 @@ function reorderMembers(layout, gid, order) {
 // DashboardPalette.iconFor) so EVERY widget's tab shows the same icon it was
 // added from — no separate, drift-prone copy. Sized by CSS (.tabgroup-tab-ico).
 // Unknown atoms fall back to text only.
-function _tabIcon(mid) {
-  const svg = (window.DashboardPalette && window.DashboardPalette.iconFor)
-    ? window.DashboardPalette.iconFor(mid) : null;
-  if (!svg) return null;
+function _tabIcon(base, mid) {
+  // A custom tile shows its package's own glyph when the package ships one
+  // (manifest `icon`, built as an inert SVG element by CustomWidget); every
+  // other case keeps the palette's glyph, the puzzle for a custom tile.
+  const own = (base === 'custom' && window.CustomWidget && typeof window.CustomWidget.assignedIcon === 'function')
+    ? window.CustomWidget.assignedIcon(mid) : null;
+  const svg = own ? null : (window.DashboardPalette && window.DashboardPalette.iconFor)
+    ? window.DashboardPalette.iconFor(base) : null;
+  if (!own && !svg) return null;
   const span = document.createElement('span');
   span.className = 'tabgroup-tab-ico';
-  span.innerHTML = svg;   // static, trusted SVG from the palette icon map
+  if (own) span.appendChild(own);
+  else span.innerHTML = svg;   // static, trusted SVG from the palette icon map
   return span;
 }
 
@@ -131,6 +137,11 @@ function _refreshGroupLabels() {
     if (tab.dataset.base !== 'custom') return;
     const label = tab.querySelector('.tabgroup-tab-label');
     if (label) _applyMemberLabel(label, tab.dataset.base, tab.dataset.member);
+    // The package's glyph arrives with the same package list as its name.
+    const icon = _tabIcon(tab.dataset.base, tab.dataset.member);
+    const old = tab.querySelector('.tabgroup-tab-ico');
+    if (icon && old) old.replaceWith(icon);
+    else if (icon && label) tab.insertBefore(icon, label);
   });
 }
 
@@ -254,6 +265,7 @@ function renderGroupTile(gridItem, group) {
   const body = tile.querySelector('.tabgroup-body');
   _bindTabReorder(bar);
   bar.replaceChildren();
+  const memberAtoms = new Set();
   group.members.forEach(mid => {
     const base = (window.DashboardInstances) ? window.DashboardInstances.baseWidgetOf(mid) : mid;
     let atom = (mid === base)
@@ -263,13 +275,13 @@ function renderGroupTile(gridItem, group) {
     // grouped copies) — create it on demand so the tab body isn't empty.
     if (!atom && mid !== base && typeof createCopyAtom === 'function') atom = createCopyAtom(base, mid);
     if (atom && atom.parentElement !== body) body.appendChild(atom);
-    if (atom) atom.dataset.dashboardHidden = (mid === group.active) ? 'false' : 'true';
+    if (atom) { atom.dataset.dashboardHidden = (mid === group.active) ? 'false' : 'true'; memberAtoms.add(atom); }
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'tabgroup-tab' + (mid === group.active ? ' active' : '');
     tab.dataset.member = mid;
     tab.dataset.base = base;
-    const icon = _tabIcon(base);
+    const icon = _tabIcon(base, mid);
     if (icon) tab.appendChild(icon);
     const label = document.createElement('span');
     label.className = 'tabgroup-tab-label';
@@ -284,10 +296,33 @@ function renderGroupTile(gridItem, group) {
     rm.setAttribute('role', 'button');
     rm.setAttribute('aria-label', 'Remove from tab');
     rm.title = 'Remove from tab';
-    rm.textContent = '×';
+    // Drawn, not typed: a "×" character inherits the tab label's letter-spacing
+    // and its font's own side bearings, which pushed it visibly off-centre in
+    // its red box. Two strokes are centred whatever the font or skin.
+    const ns = 'http://www.w3.org/2000/svg';
+    const x = document.createElementNS(ns, 'svg');
+    x.setAttribute('viewBox', '0 0 10 10');
+    x.setAttribute('aria-hidden', 'true');
+    const cross = document.createElementNS(ns, 'path');
+    cross.setAttribute('d', 'M2 2L8 8M8 2L2 8');
+    x.appendChild(cross);
+    rm.appendChild(x);
     rm.addEventListener('click', (e) => { e.stopPropagation(); removeMemberFromGroup(group.id, mid); });
     tab.appendChild(rm);
     bar.appendChild(tab);
+  });
+  // A member that LEFT the group keeps its DOM in this body unless something
+  // takes it out, and the loop above only touches current members. A copy that
+  // was the active tab stayed painted beside the new active one: the "Custom
+  // widget chooser next to another widget" report, reached by cancelling the
+  // permission prompt of a Store widget just added as a tab, or by the tab's ×.
+  // A removed copy's atom is deleted (the copies pass builds a fresh clone if
+  // it still exists on its own); a primary is hidden here and re-homed by the
+  // layout's own widget pass.
+  Array.from(body.children).forEach((child) => {
+    if (memberAtoms.has(child) || !child.hasAttribute || !child.hasAttribute('data-dashboard-widget')) return;
+    if (child.hasAttribute('data-dashboard-instance')) child.remove();
+    else child.dataset.dashboardHidden = 'true';
   });
   // The Deck-in-tab chassis mount (DeckPanel.css / themes-retro.css) keys off
   // this class — a plain class toggled here instead of a :has() selector, so
@@ -382,7 +417,7 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   // already filters widgetId === targetMember out before calling, so scoping the
   // guard to the non-copy paths changes nothing for them.
   const alwaysCopy = !move && widgetId === 'custom';
-  if (!targetMember || (!alwaysCopy && widgetId === targetMember)) return;
+  if (!targetMember || (!alwaysCopy && widgetId === targetMember)) return null;
   const groups = layout.groups || (layout.groups = {});
   const targetGeo = layout.widgets[targetMember]
     || (Array.isArray(layout.copies) ? layout.copies.find(c => c.id === targetMember) : null);
@@ -394,6 +429,7 @@ function addAsTab(widgetId, targetMember, opts = {}) {
     groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 8, h: geo.h || 8, page: geo.page || firstPage };
   }
   const g = groups[gid];
+  let added = widgetId;
   // Only create a copy when NOT moving and the widget is already a visible
   // standalone tile. Hub-based widgets (tasks, notes, mic, etc.) have their
   // content moved OUT of the data-dashboard-widget element when visible=false, so
@@ -415,6 +451,7 @@ function addAsTab(widgetId, targetMember, opts = {}) {
     layout.copies.push({ id: copyId, widget: widgetId, x: g.x, y: g.y, w: g.w, h: g.h, page: g.page });
     if (!g.members.includes(copyId)) g.members.push(copyId);
     g.active = copyId;
+    added = copyId;
   } else {
     // Move path: take the EXISTING instance into the group. Detach it from any
     // previous group first (so a move never leaves a duplicate membership).
@@ -432,6 +469,9 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   }
   saveDashboardLayout(layout);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+  // The member now in the tab: the copy that was minted, or the tile moved in.
+  // The "+" panel needs it to hand a Store widget's package to that new tab.
+  return added;
 }
 
 // Called by dashboard-grid on dragstop: merge dragged widget onto target.
@@ -449,7 +489,7 @@ if (typeof window !== 'undefined') {
   // only half of what a custom tab's label depends on — the other half is which
   // package that tile is ASSIGNED, and assigning one repaints the tile without
   // rebuilding the bar, so the tab kept the generic type name until a reload.
-  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf, refreshLabels: _refreshGroupLabels };
+  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, removeMemberFromGroup, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf, refreshLabels: _refreshGroupLabels };
   // The SDK package list arrives after the first layout pass on a cold reload, so
   // a custom tab first paints with the generic type name — refresh it once names
   // are known (also covers a Rescan swapping which widget a tile hosts).

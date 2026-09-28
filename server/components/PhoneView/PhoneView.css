@@ -570,6 +570,7 @@
 .is-phone .layout-controls,
 .is-phone .layout-fab,
 .is-phone .pager-page-btn { display: none !important; }
+.is-phone .pager-page-tools { display: none !important; }
 /* The home bar is a native-kiosk gesture strip; on a phone it overlaps the dock. */
 .is-phone #xenon-home-bar { display: none; }
 

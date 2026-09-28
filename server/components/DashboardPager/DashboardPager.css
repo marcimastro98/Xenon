@@ -129,29 +129,38 @@ body.layout-editing .pager-page.is-parked { content-visibility: visible; }
 
 .layout-control-btn[disabled] { opacity: 0.35; pointer-events: none; }
 
-/* Page add (+) / remove (×) — shown next to the dots only in Layout mode. */
+/* Page tools (move ‹ ›, rename, remove, add) — shown next to the dots only in
+   Layout mode, as their own group: a gap and a hairline separate them from the
+   dots, 8 px separate them from each other, and each is a real target (30 px,
+   more under a finger). Icons are drawn, so each sits dead centre. */
+.pager-page-tools {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-left: 10px; padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
 .pager-page-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 1px solid rgba(var(--accent-rgb), 0.4);
-  border-radius: 7px;
+  border-radius: 8px;
   background: rgba(var(--accent-rgb), 0.12);
   color: var(--accent);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1;
   cursor: pointer;
   transition: background 160ms ease, transform 120ms ease, opacity 160ms ease;
 }
+.pager-page-btn svg { width: 16px; height: 16px; display: block; }
 .pager-page-btn:hover { background: rgba(var(--accent-rgb), 0.24); }
 .pager-page-btn:active { transform: scale(0.92); }
 .pager-page-btn:disabled { opacity: 0.3; pointer-events: none; }
-/* Rename (✎) — the glyph is smaller than the ‹ › × ones at the same size. */
-.pager-page-rename { font-size: 12px; }
+.pager-page-btn:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .pager-page-tools { gap: 10px; }
+  .pager-page-btn { width: 38px; height: 38px; }
+}
 /* Always red — touch has no hover, so the delete affordance must read as
    destructive on sight. */
 .pager-page-remove {

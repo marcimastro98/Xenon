@@ -136,6 +136,35 @@ function normalizeTileShape(raw) {
   return out;
 }
 
+// A widget's own glyph (manifest `icon`): the icon its tab and its "+" result
+// show instead of the generic puzzle. The same inert-path contract as the shape
+// above (validated here, rendered only through setAttribute('d') on an SVG
+// <path>, never as markup), in the 24x24 box every built-in widget icon uses.
+// It is drawn the way those are, a 2 px round stroke in the text colour, so a
+// package's glyph sits in a tab bar as one of the family; `fill: true` asks for
+// a solid glyph instead. Up to 4 paths (a glyph is often a few strokes).
+const WIDGET_ICON_PATH_MAX = 600;
+const WIDGET_ICON_CMD_MAX = 80;
+const WIDGET_ICON_PATHS_MAX = 4;
+function normalizeWidgetIcon(raw) {
+  if (raw == null) return null;
+  const src = typeof raw === 'string' || Array.isArray(raw) ? { path: raw } : raw;
+  if (!src || typeof src !== 'object') return null;
+  const list = Array.isArray(src.path) ? src.path : [src.path];
+  const paths = [];
+  for (const v of list) {
+    const d = typeof v === 'string' ? v.trim() : '';
+    const cmds = d ? (d.match(/[A-Za-z]/g) || []).length : 0;
+    if (!d || d.length > WIDGET_ICON_PATH_MAX || cmds > WIDGET_ICON_CMD_MAX
+      || !TILE_SHAPE_PATH_RE.test(d) || !/^[Mm]/.test(d)) return null;
+    paths.push(d);
+  }
+  if (!paths.length || paths.length > WIDGET_ICON_PATHS_MAX) return null;
+  const out = { path: paths };
+  if (src.fill === true) out.fill = true;
+  return out;
+}
+
 function normalizeTileDecor(src) {
   if (!src || typeof src !== 'object') return null;
   const out = {};
@@ -326,6 +355,9 @@ const _tileDecorExports = {
   // the render path use the SAME boundary a shared preset goes through.
   normalizeTileShape,
   TILE_SHAPE_PRESETS, TILE_SHAPE_FITS,
+  // The widget-icon validator: the manifest door (sdk-widgets.js) and the
+  // renderers (custom-widget.js) run the same boundary.
+  normalizeWidgetIcon,
 };
 if (typeof window !== 'undefined') {
   window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS, ..._tileDecorExports };

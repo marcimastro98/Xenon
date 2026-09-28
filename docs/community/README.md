@@ -23,7 +23,7 @@ merges them.
    - adds an entry to `catalog.json` (see the field reference below), and
    - if your code is longer than ~2 KB, adds it as `codes/<id>.txt` instead of inline
      (set `"codeFile": true` and leave `"code"` out), and
-   - optionally provides 1–4 screenshots/GIFs and sets `"shots": <count>` (or
+   - optionally provides 1–6 screenshots/GIFs and sets `"shots": <count>` (or
      `"screenshot": true` for a single one). **Attach the images to your issue/PR —
      don't commit them:** screenshots live in the Cloudflare R2 bucket, not in this
      repo (the maintainer uploads them at merge time), so `docs/community/shots/` is

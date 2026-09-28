@@ -407,6 +407,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // preference about being interrupted, not a data opt-in.
   hubMessages: true,
   catalogDrops: true,
+  // The month's paid drops, shown once per session (js/catalog-drop.js). A new
+  // key on purpose: it starts on for everybody, whatever catalogDrops said.
+  monthlyDrops: true,
   // `=== true` like versionPing, not `!== false`: a new outbound report starts
   // on for fresh installs only, never switched on under an existing user.
   catalogStats: true,
@@ -1737,6 +1740,7 @@ function normalizeSettings(source) {
     autoUpdate: value.autoUpdate !== false,
     hubMessages: value.hubMessages !== false,
     catalogDrops: value.catalogDrops !== false,
+    monthlyDrops: value.monthlyDrops !== false,
     // Mirror of normalizeHubSettings in server.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: value.discordInviteSeen === true,
@@ -4882,8 +4886,8 @@ function syncSettingsControls() {
   if (versionPing) versionPing.checked = hubSettings.versionPing === true;
   const hubMsg = $('settings-hub-messages');
   if (hubMsg) hubMsg.checked = hubSettings.hubMessages !== false;
-  const catDrops = $('settings-catalog-drops');
-  if (catDrops) catDrops.checked = hubSettings.catalogDrops !== false;
+  const catDrops = $('settings-monthly-drops');
+  if (catDrops) catDrops.checked = hubSettings.monthlyDrops !== false;
   const catStats = $('settings-catalog-stats');
   if (catStats) catStats.checked = hubSettings.catalogStats === true;
 
@@ -8756,6 +8760,12 @@ function updateCatalogStats(checked) {
   syncSettingsControls();
 }
 function updateCatalogDrops(checked) { updateAnnouncementPref('catalogDrops', checked); }
+// The month's drops window. No legacy per-device flag: it is a new setting.
+function updateMonthlyDrops(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, monthlyDrops: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
 
 // ── "Don't show again" for the two startup cards ────────────────────────────
 // The What's New modal (js/update.js) and the Discord invite card
