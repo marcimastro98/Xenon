@@ -213,8 +213,6 @@
       "name": "Workload",
       "author": "Xenon",
       "authorSupporter": true,
-      "supportersOnly": true,
-      "locked": true,
       "description": "Which apps are using this PC right now: CPU, memory and GPU per app, in one sortable list. Tap a column header to rank by it. Takes its colours, its panel opacity and its shape language from whatever theme and skin you are running, Liquid Glass or Pixel Retro, light or dark.",
       "category": "system",
       "tags": [
@@ -233,8 +231,9 @@
         "text": "#f0f3f1"
       },
       "shots": 2,
-      "addedAt": "2026-08-05",
-      "codeFile": true
+      "addedAt": "2026-09-28",
+      "codeFile": true,
+      "updatedAt": "2026-09-28"
     },
     {
       "id": "aracne",
