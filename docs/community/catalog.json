@@ -2,6 +2,35 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "workload-river",
+      "kind": "widget",
+      "name": "Workload River",
+      "author": "Xenon",
+      "authorSupporter": true,
+      "locked": true,
+      "featured": "main",
+      "description": "What is weighing on this PC, and since when. An overview of CPU, memory and each graphics card, then one row per app with its last five minutes in your theme's colour, deeper where it worked harder. One sentence on top says what matters now; tap a row for the detail.",
+      "category": "system",
+      "tags": [
+        "processes",
+        "cpu",
+        "memory",
+        "gpu",
+        "history"
+      ],
+      "version": "1.0.0",
+      "pkgId": "workload-river",
+      "appVersionMin": "4.11.4",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#070808",
+        "text": "#f0f3f1"
+      },
+      "shots": 4,
+      "addedAt": "2026-09-28",
+      "codeFile": true
+    },
+    {
       "id": "tgk-workstation-monitor",
       "kind": "widget",
       "name": "TGK  - Workstation Monitor",
@@ -244,7 +273,7 @@
       "supportersOnly": true,
       "locked": true,
       "perfWarning": true,
-      "featured": "main",
+      "featured": "on",
       "description": "A night pack built on a real orb web, and a tile where the web IS the gauge: three wedges, one each for CPU, GPU and RAM, each woven out to its own load, with the spider sitting on the busiest. Plus a scene that hangs you from a line down an avenue, sun setting at the end of it.",
       "category": "style",
       "tags": [
