@@ -2134,6 +2134,8 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 .settings-media-viz-status[data-state="ok"] { color: var(--color-success); }
 .settings-media-viz-status[data-state="bad"] { color: var(--color-danger); }
 .settings-media-viz-status[data-state="warn"] { color: var(--color-warn); }
+.settings-media-viz-install { width: auto; margin: 10px 0 8px; }
+.settings-media-viz-install[hidden] { display: none; }
 
 .ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .ai-hw-line { font-weight: 600; }
