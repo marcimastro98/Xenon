@@ -273,7 +273,6 @@
       "supportersOnly": true,
       "locked": true,
       "perfWarning": true,
-      "featured": "on",
       "description": "A night pack built on a real orb web, and a tile where the web IS the gauge: three wedges, one each for CPU, GPU and RAM, each woven out to its own load, with the spider sitting on the busiest. Plus a scene that hangs you from a line down an avenue, sun setting at the end of it.",
       "category": "style",
       "tags": [
@@ -292,7 +291,8 @@
       },
       "shots": 3,
       "addedAt": "2026-08-05",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-09-29"
     },
     {
       "id": "dgm-telemetry",
