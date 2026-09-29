@@ -1,3 +1,28 @@
 {
-  "messages": []
+  "messages": [
+    {
+      "id": "drop-workload-river-it",
+      "level": "modal",
+      "title": "Quale app sta pesando sul tuo PC",
+      "body": "Workload River dà a ogni app una riga con i suoi ultimi cinque minuti. Quella che pesa davvero è l'unica a colori pieni. È un widget per chi sostiene Xenon.",
+      "entryId": "workload-river",
+      "action": {
+        "type": "store",
+        "label": "Vedilo nello Store"
+      },
+      "media": {
+        "type": "video",
+        "url": "https://assets.xenon-app.com/community/promo/workload-river.mp4",
+        "alt": "Workload River: one row for each app, its last five minutes drawn as a line",
+        "poster": "https://assets.xenon-app.com/community/promo/workload-river-poster.png"
+      },
+      "match": {
+        "lang": [
+          "it"
+        ]
+      },
+      "activeFrom": "2026-09-29",
+      "activeUntil": "2026-09-30T23:59:59+02:00"
+    }
+  ]
 }
