@@ -4096,7 +4096,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
 }
 .hubmsg-media img, .hubmsg-media video {
-  display: block; width: 100%; height: 100%; object-fit: cover;
+  /* contain, not cover: the author's picture is shown whole (a 16:7 widget loop lost the start
+     of its title to the sides of this 16:9 box); the box's ground fills the difference. */
+  display: block; width: 100%; height: 100%; object-fit: contain;
 }
 /* With artwork behind it the close button sits on the picture, and its usual
    translucent-white fill disappears against a pale one. Opaque dark here, since
