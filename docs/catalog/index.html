@@ -707,6 +707,9 @@
   .drop-media { position: relative; min-height: 260px; background: color-mix(in srgb, var(--g-0) 35%, transparent); border-right: 1px solid var(--line); overflow: hidden; }
   .drop-media > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .drop-media .cat-shots { position: absolute; inset: 0; }
+  /* The featured card's picture box is taller than a widget shot: show the shot whole (contain)
+     instead of cropping its title off both sides. */
+  .drop-media .cat-shot { object-fit: contain; }
   .drop-info { display: flex; flex-direction: column; gap: 13px; padding: clamp(22px, 3.4vw, 38px); justify-content: center; min-width: 0; }
   .drop-badges { display: flex; flex-wrap: wrap; gap: 8px; }
   .drop-badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 14px;
@@ -905,7 +908,8 @@
   .dt-stage { position: relative; aspect-ratio: 16/10; overflow: hidden; border-radius: 14px; background: color-mix(in srgb, var(--g-0) 40%, transparent); border: 1px solid var(--line); }
   .dt-track { display: flex; height: 100%; transition: transform .35s var(--ease); }
   .dt-slide { flex: 0 0 100%; height: 100%; }
-  .dt-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+  /* contain, not cover: a widget shot is a picture to read whole (River's title ran off both sides). */
+  .dt-slide img { width: 100%; height: 100%; object-fit: contain; display: block; cursor: zoom-in; }
   .dt-stage > canvas { width: 100%; height: 100%; display: block; }
   .dt-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%;
     display: grid; place-items: center; cursor: pointer; color: #fff; background: color-mix(in srgb, var(--g-0) 75%, transparent); border: 1px solid var(--line-2); }
