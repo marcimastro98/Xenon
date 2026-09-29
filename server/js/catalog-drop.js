@@ -85,7 +85,10 @@
 
   // ── Preview media: a real screenshot when the drop has one, else a gradient
   // built from the server-validated preview swatches (never an empty box).
-  function buildMedia(entry) {
+  // opts.fit: show the WHOLE screenshot (single-drop card) over a blurred copy of
+  // itself, instead of cropping it to fill the pane. Store screenshots come in
+  // every proportion, and a centred crop cut the title off wide widgets.
+  function buildMedia(entry, opts) {
     const media = el('div', 'xdrop-media');
     const p = entry.preview || {};
     const grad = () => {
@@ -98,13 +101,21 @@
     if (shots > 0) {
       const img = document.createElement('img');
       img.className = 'xdrop-shot'; img.alt = ''; img.decoding = 'async';
+      const back = (opts && opts.fit) ? document.createElement('img') : null;
+      if (back) {
+        back.className = 'xdrop-shot-bg'; back.alt = ''; back.decoding = 'async';
+        back.setAttribute('aria-hidden', 'true');
+        media.classList.add('is-fit');
+        media.appendChild(back);
+      }
+      const setSrc = (u) => { img.src = u; if (back) back.src = u; };
       const base = SHOTS_BASE + encodeURIComponent(entry.id);
       let triedPng = false;
       img.addEventListener('error', () => {
-        if (!triedPng) { triedPng = true; img.src = base + '.png'; return; }
-        img.remove(); grad();
+        if (!triedPng) { triedPng = true; setSrc(base + '.png'); return; }
+        img.remove(); if (back) back.remove(); media.classList.remove('is-fit'); grad();
       });
-      img.src = base + '.webp';
+      setSrc(base + '.webp');
       media.appendChild(img);
     } else { grad(); }
     return media;
@@ -244,7 +255,7 @@
     const { bd, card } = parts;
 
     const art = el('div', 'xdrop-art');
-    art.appendChild(buildMedia(entry));
+    art.appendChild(buildMedia(entry, { fit: true }));
     art.appendChild(el('div', 'xdrop-shine'));
     const crest = el('div', 'xdrop-crest');
     crest.innerHTML = CREST[isLim ? 'limited' : 'supporter'];

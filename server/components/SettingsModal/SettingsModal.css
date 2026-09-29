@@ -3899,10 +3899,19 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .xdrop-art { position: relative; min-height: clamp(320px, 62vh, 470px); overflow: hidden; background: #05070a; }
 .xdrop-media { position: absolute; inset: 0; }
 .xdrop-shot { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Single-drop card: the whole screenshot, uncropped, over a blurred copy of it. */
+.xdrop-media.is-fit .xdrop-shot { position: relative; object-fit: contain; }
+.xdrop-shot-bg {
+  position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px);
+  object-fit: cover; filter: blur(22px) saturate(1.1) brightness(0.55);
+}
 .xdrop-art::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent 62%, #0c0f15), linear-gradient(180deg, transparent 60%, rgba(5, 7, 10, 0.55));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.xdrop-art:has(.is-fit)::after {
+  background: linear-gradient(90deg, transparent 88%, #0c0f15), linear-gradient(180deg, transparent 75%, rgba(5, 7, 10, 0.4));
 }
 .xdrop-shine {
   position: absolute; top: -20%; bottom: -20%; left: 0; width: 38%; z-index: 2; pointer-events: none;
