@@ -18,7 +18,7 @@
         "gpu",
         "history"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
       "pkgId": "workload-river",
       "appVersionMin": "4.11.4",
       "preview": {
@@ -28,7 +28,8 @@
       },
       "shots": 4,
       "addedAt": "2026-09-28",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-09-29"
     },
     {
       "id": "tgk-workstation-monitor",
