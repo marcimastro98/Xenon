@@ -3282,7 +3282,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .cgal-gal-track { display: flex; height: 100%; transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .cgal-gal-slide { flex: 0 0 100%; height: 100%; }
-.cgal-gal-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+/* contain, not cover: a widget shot is a picture to read whole (River's title ran off both sides
+   at 16:10); the stage's dark ground fills the difference. */
+.cgal-gal-slide img { width: 100%; height: 100%; object-fit: contain; display: block; cursor: zoom-in; }
 .cgal-gal-frame { width: 100%; height: 100%; border: 0; display: block; }
 .cgal-gal-stage > canvas { width: 100%; height: 100%; display: block; }
 .cgal-gal-arrow {
