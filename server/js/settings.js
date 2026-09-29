@@ -351,12 +351,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   glassBlur: 22, // --glass-blur px, 0..40
   glassSaturate: 160, // --glass-saturate %, 100..220
   panelBorderStrength: 1, // multiplier on the derived panel-border alpha, 0..2
-  // Multiplier on the derived panel-shadow alpha, 0..2. Off by default: since v4.11.9
-  // every tile cast a soft drop shadow, which on a dark wallpaper reads as a dark strip
-  // under each card (and a "card behind the cards" under a transparent one). The
-  // slider is still there for whoever wants one. Only applies where nothing is stored
-  // yet: an install that already saved its settings keeps the value it has.
-  panelShadowStrength: 0,
+  // Multiplier on the derived panel-shadow alpha, 0..2. Off: since v4.11.9 every tile
+  // cast a soft drop shadow, which on a dark wallpaper reads as a dark strip under each
+  // card (and a "card behind the cards" under a transparent one). The key used to be
+  // panelShadowStrength, and every install that ever saved its settings stored 1 there,
+  // theme cards and shared theme codes too. Renaming it is what turns the shadow off
+  // for them as well: the old key is simply no longer read. The slider is still there
+  // for whoever wants one. Never read panelShadowStrength again.
+  tileShadowStrength: 0,
   mutedText: null, // optional secondary-text colour (#rrggbb) or null = auto
   lineColor: null, // optional divider/border colour (#rrggbb) or null = auto
   backgroundMedia: null,
@@ -807,7 +809,7 @@ const THEME_SETTING_KEYS = Object.freeze([
   'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard',
   'paletteVariants',
   'dynamicAlbumTheme',
-  'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
+  'panelAlpha', 'panelBorderStrength', 'tileShadowStrength',
   'uiRoundness', 'glassBlur', 'glassSaturate',
   'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom',
   'uiFont',
@@ -1578,7 +1580,7 @@ function normalizeCustomThemes(list) {
       dynamicAlbumTheme: raw.dynamicAlbumTheme !== false,
       panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, D.panelAlpha),
       panelBorderStrength: clampNumber(raw.panelBorderStrength, 0, 2, D.panelBorderStrength),
-      panelShadowStrength: clampNumber(raw.panelShadowStrength, 0, 2, D.panelShadowStrength),
+      tileShadowStrength: clampNumber(raw.tileShadowStrength, 0, 2, D.tileShadowStrength),
       uiRoundness: clampNumber(raw.uiRoundness, 0, 2, D.uiRoundness),
       glassBlur: clampNumber(raw.glassBlur, 0, 40, D.glassBlur),
       glassSaturate: clampNumber(raw.glassSaturate, 100, 220, D.glassSaturate),
@@ -1728,7 +1730,7 @@ function normalizeSettings(source) {
     glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(value.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
     panelBorderStrength: clampNumber(value.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
-    panelShadowStrength: clampNumber(value.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
+    tileShadowStrength: clampNumber(value.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength),
     mutedText: normalizeHex(value.mutedText, null),
     lineColor: normalizeHex(value.lineColor, null),
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
@@ -4261,7 +4263,7 @@ function applyHubSettings() {
   // Border/shadow strength are user multipliers (1 = stock look); caps widened so
   // a 2× still fits, but the default value is byte-for-byte the previous formula.
   const borderStrength = clampNumber(hubSettings.panelBorderStrength, 0, 2, 1);
-  const shadowStrength = clampNumber(hubSettings.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength);
+  const shadowStrength = clampNumber(hubSettings.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength);
   const panelBorderAlpha = Math.min(0.4, (0.045 + (hubSettings.panelAlpha * 0.08)) * borderStrength);
   const panelShadowAlpha = Math.min(0.6, (0.05 + (hubSettings.panelAlpha * 0.18)) * shadowStrength);
   const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
@@ -4901,7 +4903,7 @@ function syncSettingsControls() {
     ['settings-panel-border', String(hubSettings.panelBorderStrength)],
     ['settings-clock-scale', String(hubSettings.clockScale)],
     ['settings-clock-date-scale', String(hubSettings.clockDateScale)],
-    ['settings-panel-shadow', String(hubSettings.panelShadowStrength)],
+    ['settings-panel-shadow', String(hubSettings.tileShadowStrength)],
     ['settings-roundness', String(hubSettings.uiRoundness)],
     ['settings-glass-blur', String(hubSettings.glassBlur)],
     ['settings-glass-saturate', String(hubSettings.glassSaturate)],
@@ -4921,7 +4923,7 @@ function syncSettingsControls() {
   const borderVal = $('settings-panel-border-value');
   if (borderVal) borderVal.textContent = formatPercent(hubSettings.panelBorderStrength);
   const shadowVal = $('settings-panel-shadow-value');
-  if (shadowVal) shadowVal.textContent = formatPercent(hubSettings.panelShadowStrength);
+  if (shadowVal) shadowVal.textContent = formatPercent(hubSettings.tileShadowStrength);
   const clockVal = $('settings-clock-scale-value');
   if (clockVal) clockVal.textContent = formatPercent(hubSettings.clockScale);
   const clockDateVal = $('settings-clock-date-scale-value');
@@ -5783,7 +5785,7 @@ function applyAiCreateStyle(opts) {
     glassBlur: num(o.glass_blur, 0, 40),
     glassSaturate: num(o.glass_saturation, 100, 220),
     panelBorderStrength: num(o.border_strength, 0, 2),
-    panelShadowStrength: num(o.shadow_strength, 0, 2),
+    tileShadowStrength: num(o.shadow_strength, 0, 2),
   };
   for (const [key, val] of Object.entries(nums)) if (val != null) patch[key] = val;
   if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
@@ -5867,7 +5869,7 @@ function onHexInput(key, rawValue) {
 }
 
 function updateSettingsRange(key, value) {
-  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'panelShadowStrength', 'clockScale', 'clockDateScale'].includes(key)) return;
+  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'tileShadowStrength', 'clockScale', 'clockDateScale'].includes(key)) return;
   hubSettings = normalizeSettings({ ...hubSettings, [key]: value });
   saveHubSettings();
   applyHubSettings();
