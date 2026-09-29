@@ -626,7 +626,7 @@ function buildCoreAiFunctions() {
           glass_blur: { type: 'NUMBER', description: 'Glass blur in px 0–40 (default 22)' },
           glass_saturation: { type: 'NUMBER', description: 'Glass colour saturation % 100–220 (default 160)' },
           border_strength: { type: 'NUMBER', description: 'Panel border strength 0–2 (1 = default)' },
-          shadow_strength: { type: 'NUMBER', description: 'Panel shadow strength 0–2 (1 = default)' },
+          shadow_strength: { type: 'NUMBER', description: 'Tile drop shadow strength 0–2 (0 = default, no shadow)' },
         } } },
         { name: 'create_animated_background', description: 'Write and apply a custom ANIMATED BACKGROUND for the dashboard from the user\'s description. YOU author the code: define a JavaScript function draw(ctx, t, w, h) that paints ONE frame — ctx is a canvas 2D context, t is elapsed seconds (float), w and h are the pixel size. It is called ~60×/second on a full-screen canvas behind the dashboard. Keep it self-contained (declare any particles/state with const or let ABOVE the draw function so it persists across frames), efficient, and tasteful behind a UI (avoid a pure-white fill or harsh strobing). The code runs in an isolated sandbox with NO network, DOM, storage or dashboard access, so use only the canvas 2D API, Math and Date. Use for requests like "crea uno sfondo animato con particelle blu", "make me a drifting starfield background", "sfondo tipo nebulosa viola". Applies live and persists.', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short name for this background (e.g. "Nebulosa viola")' },
@@ -8121,7 +8121,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   clockDateScale: 1,
   clockDateFormat: 'full',
   panelBorderStrength: 1,
-  panelShadowStrength: 0,   // off by default; see the client twin in js/settings.js
+  tileShadowStrength: 0,   // off, and renamed on purpose; see the client twin in js/settings.js
   mutedText: null,
   lineColor: null,
   backgroundMedia: null,
@@ -9637,7 +9637,7 @@ function normalizeHubSettings(value) {
     clockDateScale: clampNumber(source.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
     clockDateFormat: ['full', 'medium', 'short'].includes(source.clockDateFormat) ? source.clockDateFormat : DEFAULT_HUB_SETTINGS.clockDateFormat,
     panelBorderStrength: clampNumber(source.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
-    panelShadowStrength: clampNumber(source.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
+    tileShadowStrength: clampNumber(source.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength),
     mutedText: normalizeHex(source.mutedText, null),
     lineColor: normalizeHex(source.lineColor, null),
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),

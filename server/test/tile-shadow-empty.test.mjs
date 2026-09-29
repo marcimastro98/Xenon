@@ -120,21 +120,39 @@ test('the tab group re-stamps the mark when the shown tab changes', () => {
 // cast a drop shadow by default; it is now opt-in, through the same slider.
 test('tiles cast no drop shadow until someone asks for one', () => {
   const S = read('../js/settings.js');
-  assert.match(S, /\n  panelShadowStrength: 0,\n/, 'the client default is not 0');
-  assert.match(read('../server.js'), /\n  panelShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
+  assert.match(S, /\n  tileShadowStrength: 0,\n/, 'the client default is not 0');
+  assert.match(read('../server.js'), /\n  tileShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
   assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
   // The theme code falls back to the same default rather than a private 1.
-  assert.match(S, /clampNumber\(hubSettings\.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.panelShadowStrength\)/);
+  assert.match(S, /clampNumber\(hubSettings\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
 });
 
-test('the slider still goes from 0 to 2, and a value already saved is kept', () => {
+// "Nothing changed, I still see it." A new default alone only reaches a fresh
+// install: every install that ever saved its settings stored panelShadowStrength: 1,
+// and so did every theme card and shared theme code. The key was renamed so that
+// value is no longer read by anything: not the settings, not the theme cards, not
+// the share codes, not the slider.
+test('the old shadow key is never read again, so a saved 100% turns into none', () => {
+  const code = (src) => src.split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+  for (const f of ['../js/settings.js', '../server.js', '../js/preset-share.js', '../index.html']) {
+    assert.doesNotMatch(code(read(f)), /panelShadowStrength/, `${f} still reads the old key`);
+  }
+  const S = read('../js/settings.js');
+  assert.match(S, /tileShadowStrength: clampNumber\(raw\.tileShadowStrength, 0, 2, D\.tileShadowStrength\)/, 'theme cards');
+  assert.match(read('../js/preset-share.js'), /'panelBorderStrength', 'tileShadowStrength',/, 'share codes');
+  assert.match(S, /'panelBorderStrength', 'tileShadowStrength',\n/, 'theme keys');
+  assert.match(read('../index.html'), /updateSettingsRange\('tileShadowStrength', this\.value\)/, 'the slider');
+  assert.match(S, /'panelBorderStrength', 'tileShadowStrength', 'clockScale'/, 'the slider handler whitelist');
+});
+
+test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
   const S = read('../js/settings.js');
   const server = read('../server.js');
-  assert.match(S, /panelShadowStrength: clampNumber\(value\.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.panelShadowStrength\)/);
-  assert.match(server, /panelShadowStrength: clampNumber\(source\.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.panelShadowStrength\)/);
+  assert.match(S, /tileShadowStrength: clampNumber\(value\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
+  assert.match(server, /tileShadowStrength: clampNumber\(source\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
   const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
   assert.equal(clamp(undefined, 0, 2, 0), 0, 'nothing stored: off');
-  assert.equal(clamp(1, 0, 2, 0), 1, 'an install that saved 100% keeps it');
+  assert.equal(clamp(1, 0, 2, 0), 1, 'someone who turns it on keeps it');
   assert.equal(clamp(1.6, 0, 2, 0), 1.6);
   // The per-tile shadow control starts at a visible 1 when it is switched on.
   assert.match(LAYOUT, /rangeRow\('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0\.05, 1\)/);

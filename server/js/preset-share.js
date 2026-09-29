@@ -74,7 +74,7 @@
     'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText', 'lineColor', 'accentText',
     'successColor', 'warningColor', 'dangerColor', 'infoColor', 'paletteVariants',
     'contrastGuard', 'dynamicAlbumTheme',
-    'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
+    'panelAlpha', 'panelBorderStrength', 'tileShadowStrength',
     'uiRoundness', 'glassBlur', 'glassSaturate',
     'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom'];
   // The optional semantic roles of the palette: null means "derive from
