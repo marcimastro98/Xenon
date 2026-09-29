@@ -33754,6 +33754,72 @@ Object.assign(i18n.zh, {
   claude_unit_d: "天",
 });
 
+// v4.11.11 - the zoom row says it is also the text size, and can be found as one
+Object.assign(i18n.it, {
+  settings_native_zoom_hint: "dimensione di testo e dashboard",
+  settings_native_zoom_kw: "dimensione del testo, dimensione carattere, dimensione font, grandezza testo, testo più grande, ingrandire testo, testo piccolo, non riesco a leggere, leggibilità, accessibilità, vista, scala, ingrandimento, zoom",
+});
+Object.assign(i18n.en, {
+  settings_native_zoom_hint: "text and dashboard size",
+  settings_native_zoom_kw: "font size, text size, bigger text, larger text, make text bigger, small text, cannot read, readability, accessibility, eyesight, magnify, scale, zoom",
+});
+Object.assign(i18n.ko, {
+  settings_native_zoom_hint: "텍스트 및 대시보드 크기",
+  settings_native_zoom_kw: "글꼴 크기, 글자 크기, 텍스트 크기, 큰 글씨, 글자 키우기, 작은 글씨, 잘 안 보임, 가독성, 접근성, 시력, 확대, 배율, 줌",
+});
+Object.assign(i18n.ja, {
+  settings_native_zoom_hint: "文字とダッシュボードの大きさ",
+  settings_native_zoom_kw: "フォントサイズ, 文字サイズ, 文字の大きさ, 大きな文字, 文字を大きく, 小さい文字, 読みにくい, 見やすさ, アクセシビリティ, 視力, 拡大, 拡大率, ズーム",
+});
+Object.assign(i18n.zh, {
+  settings_native_zoom_hint: "文字和仪表盘大小",
+  settings_native_zoom_kw: "字体大小, 字号, 文字大小, 大字体, 放大文字, 字太小, 看不清, 可读性, 无障碍, 视力, 放大, 缩放, 界面缩放",
+});
+Object.assign(i18n.es, {
+  settings_native_zoom_hint: "tamaño del texto y del panel",
+  settings_native_zoom: "Escala de la interfaz",
+  settings_native_zoom_label: "Zoom",
+  settings_native_zoom_note: "Haz todo el panel más grande o más pequeño, con independencia de la escala de pantalla del sistema. Todo crece a la vez, así que cabe menos en pantalla: al 150 % el panel tiene un tercio menos de espacio para organizarse y sus tarjetas se reducen en proporción. También puedes usar Ctrl + rueda del ratón.",
+  settings_native_zoom_remote: "Esto se aplica a la app de Xenon, no a esta ventana: aquí usa el zoom de tu navegador. Puedes ajustarlo desde aquí mientras miras el Edge.",
+  settings_native_zoom_kw: "tamaño de letra, tamaño de fuente, tamaño del texto, texto más grande, agrandar texto, letra pequeña, no puedo leer, legibilidad, accesibilidad, vista, ampliar, escala, zoom",
+});
+Object.assign(i18n.fr, {
+  settings_native_zoom_hint: "taille du texte et du tableau de bord",
+  settings_native_zoom: "Échelle de l’interface",
+  settings_native_zoom_label: "Zoom",
+  settings_native_zoom_note: "Agrandissez ou réduisez tout le tableau de bord, indépendamment de l’échelle d’affichage du système. Tout grandit en même temps, donc il tient moins de choses à l’écran : à 150 %, le tableau de bord a un tiers de place en moins et ses tuiles rétrécissent en conséquence. Vous pouvez aussi utiliser Ctrl + molette de la souris.",
+  settings_native_zoom_remote: "Cela s’applique à l’app Xenon, pas à cette fenêtre : ici, utilisez le zoom de votre navigateur. Vous pouvez le régler d’ici en regardant l’Edge.",
+  settings_native_zoom_kw: "taille de police, taille du texte, taille des caractères, texte plus grand, agrandir le texte, texte trop petit, difficile à lire, lisibilité, accessibilité, vue, agrandir, échelle, zoom",
+});
+Object.assign(i18n.de, {
+  settings_native_zoom_hint: "Größe von Text und Dashboard",
+  settings_native_zoom: "Oberflächenskalierung",
+  settings_native_zoom_label: "Zoom",
+  settings_native_zoom_note: "Macht das gesamte Dashboard größer oder kleiner, unabhängig von der Anzeigeskalierung des Systems. Alles wächst gemeinsam, deshalb passt weniger auf den Bildschirm: Bei 150 % hat das Dashboard ein Drittel weniger Platz und die Kacheln werden entsprechend kleiner. Du kannst auch Strg + Mausrad benutzen.",
+  settings_native_zoom_remote: "Das gilt für die Xenon-App, nicht für dieses Fenster: Nutze hier den Zoom deines Browsers. Du kannst ihn von hier aus einstellen, während du auf den Edge schaust.",
+  settings_native_zoom_kw: "schriftgröße, textgröße, größerer text, text vergrößern, schrift zu klein, kann nicht lesen, lesbarkeit, barrierefreiheit, sehkraft, vergrößern, skalierung, zoom",
+});
+Object.assign(i18n.pt, {
+  settings_native_zoom_hint: "tamanho do texto e do painel",
+  settings_native_zoom: "Escala da interface",
+  settings_native_zoom_label: "Zoom",
+  settings_native_zoom_note: "Torna todo o painel maior ou menor, independentemente da escala de ecrã do sistema. Tudo cresce em conjunto, por isso cabe menos no ecrã: a 150 % o painel tem menos um terço de espaço e os blocos encolhem em proporção. Também podes usar Ctrl + roda do rato.",
+  settings_native_zoom_remote: "Isto aplica-se à app da Xenon, não a esta janela: aqui usa o zoom do teu navegador. Podes ajustá-lo daqui enquanto vês o Edge.",
+  settings_native_zoom_kw: "tamanho da letra, tamanho da fonte, tamanho do texto, texto maior, aumentar texto, letra pequena, não consigo ler, legibilidade, acessibilidade, visão, ampliar, escala, zoom",
+});
+Object.assign(i18n.ru, {
+  settings_native_zoom_hint: "размер текста и панели",
+  settings_native_zoom: "Масштаб интерфейса",
+  settings_native_zoom_label: "Масштаб",
+  settings_native_zoom_note: "Делает всю панель крупнее или мельче независимо от масштаба экрана в системе. Всё растёт вместе, поэтому на экране помещается меньше: при 150 % у панели на треть меньше места, а плитки уменьшаются соответственно. Также можно использовать Ctrl + колесо мыши.",
+  settings_native_zoom_remote: "Это относится к приложению Xenon, а не к этому окну: здесь используйте масштаб браузера. Отсюда его можно настроить, глядя на Edge.",
+  settings_native_zoom_kw: "размер шрифта, размер текста, крупный текст, увеличить текст, мелкий текст, не могу прочитать, читаемость, доступность, зрение, увеличить, масштаб, зум",
+});
+Object.assign(i18n.nl, {
+  settings_native_zoom_hint: "grootte van tekst en dashboard",
+  settings_native_zoom_kw: "lettergrootte, tekstgrootte, grotere tekst, tekst vergroten, kleine letters, kan niet lezen, leesbaarheid, toegankelijkheid, zicht, vergroten, schaal, zoom",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;
