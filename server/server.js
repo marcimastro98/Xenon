@@ -8121,7 +8121,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   clockDateScale: 1,
   clockDateFormat: 'full',
   panelBorderStrength: 1,
-  panelShadowStrength: 1,
+  panelShadowStrength: 0,   // off by default; see the client twin in js/settings.js
   mutedText: null,
   lineColor: null,
   backgroundMedia: null,

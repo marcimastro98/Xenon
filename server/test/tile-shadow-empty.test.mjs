@@ -116,6 +116,30 @@ test('the tab group re-stamps the mark when the shown tab changes', () => {
   assert.match(GROUPS, /tile\.toggleAttribute\('data-deck-bare', !!\(shownRoot && shownRoot\.dataset\.plate === 'none'\)\);/);
 });
 
+// "No tile should have the shadow, it is horrible." Since v4.11.9 every tile has
+// cast a drop shadow by default; it is now opt-in, through the same slider.
+test('tiles cast no drop shadow until someone asks for one', () => {
+  const S = read('../js/settings.js');
+  assert.match(S, /\n  panelShadowStrength: 0,\n/, 'the client default is not 0');
+  assert.match(read('../server.js'), /\n  panelShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
+  assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
+  // The theme code falls back to the same default rather than a private 1.
+  assert.match(S, /clampNumber\(hubSettings\.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.panelShadowStrength\)/);
+});
+
+test('the slider still goes from 0 to 2, and a value already saved is kept', () => {
+  const S = read('../js/settings.js');
+  const server = read('../server.js');
+  assert.match(S, /panelShadowStrength: clampNumber\(value\.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.panelShadowStrength\)/);
+  assert.match(server, /panelShadowStrength: clampNumber\(source\.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.panelShadowStrength\)/);
+  const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+  assert.equal(clamp(undefined, 0, 2, 0), 0, 'nothing stored: off');
+  assert.equal(clamp(1, 0, 2, 0), 1, 'an install that saved 100% keeps it');
+  assert.equal(clamp(1.6, 0, 2, 0), 1.6);
+  // The per-tile shadow control starts at a visible 1 when it is switched on.
+  assert.match(LAYOUT, /rangeRow\('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0\.05, 1\)/);
+});
+
 test('the Deck rule keys off the mark on a direct child of the grid item, and respects a chosen shadow', () => {
   assert.match(DECKCSS, /\.grid-stack-item:not\(\[data-tile-shadow\]\):has\(> \.grid-stack-item-content > \[data-deck-bare\]\) \{ box-shadow: none; \}/);
   // No deep walk: the child-only chain keeps the :has() cheap.

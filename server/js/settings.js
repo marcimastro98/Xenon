@@ -351,7 +351,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   glassBlur: 22, // --glass-blur px, 0..40
   glassSaturate: 160, // --glass-saturate %, 100..220
   panelBorderStrength: 1, // multiplier on the derived panel-border alpha, 0..2
-  panelShadowStrength: 1, // multiplier on the derived panel-shadow alpha, 0..2
+  // Multiplier on the derived panel-shadow alpha, 0..2. Off by default: since v4.11.9
+  // every tile cast a soft drop shadow, which on a dark wallpaper reads as a dark strip
+  // under each card (and a "card behind the cards" under a transparent one). The
+  // slider is still there for whoever wants one. Only applies where nothing is stored
+  // yet: an install that already saved its settings keeps the value it has.
+  panelShadowStrength: 0,
   mutedText: null, // optional secondary-text colour (#rrggbb) or null = auto
   lineColor: null, // optional divider/border colour (#rrggbb) or null = auto
   backgroundMedia: null,
@@ -4256,7 +4261,7 @@ function applyHubSettings() {
   // Border/shadow strength are user multipliers (1 = stock look); caps widened so
   // a 2× still fits, but the default value is byte-for-byte the previous formula.
   const borderStrength = clampNumber(hubSettings.panelBorderStrength, 0, 2, 1);
-  const shadowStrength = clampNumber(hubSettings.panelShadowStrength, 0, 2, 1);
+  const shadowStrength = clampNumber(hubSettings.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength);
   const panelBorderAlpha = Math.min(0.4, (0.045 + (hubSettings.panelAlpha * 0.08)) * borderStrength);
   const panelShadowAlpha = Math.min(0.6, (0.05 + (hubSettings.panelAlpha * 0.18)) * shadowStrength);
   const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
