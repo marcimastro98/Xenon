@@ -1901,6 +1901,10 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   mix-blend-mode: screen;
 }
 .settings-nav-version:empty { display: none; }
+/* Tapping the version re-opens What's New (js/update.js). */
+.settings-nav-version[role="button"] { cursor: pointer; }
+.settings-nav-version[role="button"]:hover { opacity: 1; }
+.settings-nav-version[role="button"]:focus-visible { opacity: 1; outline: 2px solid var(--accent, currentColor); outline-offset: 2px; border-radius: 6px; }
 /* "Update available" pill: appears above the version only when a newer GitHub
    release exists. A real link to the release page — accent-tinted but quiet. */
 .settings-update-pill {
