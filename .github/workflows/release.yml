@@ -785,12 +785,56 @@ jobs:
         working-directory: apps/native
         run: npm run tauri -- icon ../../docs/images/logo-mark.png
 
+      # Tauri's bundler fetches its AppRun launcher on the first build and stores
+      # it with mode 0770, so it ships inside the AppImage as AppRun.wrapped with
+      # no execute bit for anyone but its owner (tauri-apps/tauri#16155, open).
+      # Started normally that is harmless, because the file belongs to whoever
+      # runs the image. Mounted by root and run by another user, as firejail and
+      # the AppImageHub test do, it is "Permission denied" and the app never
+      # starts: the reason Xenon failed the catalog's test (PR #7417). The bundler
+      # downloads only when the file is missing from its cache, so putting the
+      # same launcher there first, at 0755, is the fix. If the download fails the
+      # bundler fetches it itself, exactly as before.
+      - name: Give Tauri's AppRun launcher a mode every user can run
+        run: |
+          dir="${XDG_CACHE_HOME:-$HOME/.cache}/tauri"
+          mkdir -p "$dir"
+          if curl -fsSL --retry 3 -o "$dir/AppRun-x86_64" \
+              "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64"; then
+            chmod 755 "$dir/AppRun-x86_64"
+            ls -l "$dir/AppRun-x86_64"
+          else
+            rm -f "$dir/AppRun-x86_64"
+            echo "::warning::could not pre-seed the AppRun launcher; the AppImage keeps Tauri's default modes"
+          fi
+
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run build:linux
+
+      # Look inside what was just built: any file only its owner can run, or a
+      # folder that is not 0755, is what an isolated launch trips over. A warning
+      # and never a failure, because this job must not hold back a release for
+      # Windows and macOS, and the AppImage is signed as it is.
+      - name: Check that every file in the AppImage can be run by any user
+        run: |
+          BUNDLE=apps/native/src-tauri/target/release/bundle
+          IMG=$(ls "$BUNDLE"/appimage/*.AppImage 2>/dev/null | head -1 || true)
+          [ -n "$IMG" ] || { echo "::warning::no AppImage to inspect"; exit 0; }
+          work=$(mktemp -d)
+          cp "$IMG" "$work/x.AppImage"
+          chmod +x "$work/x.AppImage"
+          ( cd "$work" && ./x.AppImage --appimage-extract > /dev/null 2>&1 ) || { echo "::warning::could not extract the AppImage to inspect it"; exit 0; }
+          bad=$( { find "$work/squashfs-root" -type f -perm -u+x ! -perm -o+x; find "$work/squashfs-root" -type d ! -perm -o+rx; } | sed "s#$work/squashfs-root/##" )
+          if [ -n "$bad" ]; then
+            echo "::warning::files in the AppImage that another user cannot run (this fails firejail and the AppImageHub test): $(echo "$bad" | tr '\n' ' ')"
+          else
+            echo "every executable in the AppImage can be run by any user"
+          fi
+          rm -rf "$work"
 
       - name: Stage artifacts and the linux updater fragment
         run: |
