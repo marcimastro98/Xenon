@@ -383,6 +383,27 @@ input[type="range"] { accent-color: var(--green); }
   padding-left: 16px;
   padding-right: 16px;
 }
+/* Plain content that some panes drop straight into the card: lists, steps and the
+   bodies that are filled by script (Schermo, external calendars). Margin, not
+   padding, so a list keeps its own marker indent. */
+.settings-group > ul,
+.settings-group > ol,
+.settings-group > .settings-spotify-setup-head,
+.settings-group > .sh-set-hint,
+.settings-group > #settings-surface-body,
+.settings-group > #settings-energy-hub,
+.settings-group > #settings-calendar-feeds-hub {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+/* Room between the card's title bar and the first line, and under a body that
+   ends on a note. */
+.settings-group > .settings-group-head + .settings-note,
+.settings-group > .settings-group-head + .settings-hint { margin-top: 12px; }
+.settings-group > #settings-surface-body { margin-top: 12px; }
+#settings-surface-body > .settings-hint:last-child { margin-top: 10px; }
+.settings-group > #settings-calendar-feeds-hub { margin-top: 14px; }
+.settings-group > #settings-energy-hub { margin-top: 12px; }
 .settings-group > .settings-toggle-row,
 .settings-group > .settings-segmented,
 .settings-group > .settings-btn {
@@ -1901,6 +1922,10 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   mix-blend-mode: screen;
 }
 .settings-nav-version:empty { display: none; }
+/* Tapping the version re-opens What's New (js/update.js). */
+.settings-nav-version[role="button"] { cursor: pointer; }
+.settings-nav-version[role="button"]:hover { opacity: 1; }
+.settings-nav-version[role="button"]:focus-visible { opacity: 1; outline: 2px solid var(--accent, currentColor); outline-offset: 2px; border-radius: 6px; }
 /* "Update available" pill: appears above the version only when a newer GitHub
    release exists. A real link to the release page — accent-tinted but quiet. */
 .settings-update-pill {
@@ -2140,7 +2165,6 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 .ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .ai-hw-line { font-weight: 600; }
 .ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }
-.ai-hw-block.ai-incompatible { border-left: 3px solid #ff5555; padding-left: 10px; }
 .ai-hw-block.ai-incompatible .ai-hw-line { color: var(--color-danger); }
 .ai-hw-block .settings-btn { align-self: flex-start; }
 
@@ -2356,7 +2380,7 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   background: #1ed760; box-shadow: 0 0 0 3px rgba(30,215,96,0.18);
 }
 .settings-spotify-premium {
-  border-left: 3px solid rgba(30,215,96,0.55); padding-left: 10px; margin: 2px 0 14px;
+  margin: 2px 0 14px;
 }
 .settings-spotify-setup-head {
   font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
@@ -3282,7 +3306,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .cgal-gal-track { display: flex; height: 100%; transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .cgal-gal-slide { flex: 0 0 100%; height: 100%; }
-.cgal-gal-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+/* contain, not cover: a widget shot is a picture to read whole (River's title ran off both sides
+   at 16:10); the stage's dark ground fills the difference. */
+.cgal-gal-slide img { width: 100%; height: 100%; object-fit: contain; display: block; cursor: zoom-in; }
 .cgal-gal-frame { width: 100%; height: 100%; border: 0; display: block; }
 .cgal-gal-stage > canvas { width: 100%; height: 100%; display: block; }
 .cgal-gal-arrow {
@@ -3605,12 +3631,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .settings-inline-link:hover { text-decoration: underline; }
 .settings-howto-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 
-/* security callout — subtle, with a left accent rule */
+/* security callout: plain quiet text, no bar and no box. Inside a group it takes
+   the group's own 16px inset (see the direct-children rule above). */
 .settings-safenote {
-  margin: 0; padding: 9px 11px 9px 12px; border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-left: 2px solid rgba(var(--accent-rgb),0.5);
-  background: rgba(var(--accent-rgb),0.045); line-height: 1.5;
+  margin: 0; padding: 4px 0; border: 0; background: none; line-height: 1.5;
 }
 
 /* "moved to Widgets & sharing" pointer (shown under Appearance) */
@@ -3893,10 +3917,19 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .xdrop-art { position: relative; min-height: clamp(320px, 62vh, 470px); overflow: hidden; background: #05070a; }
 .xdrop-media { position: absolute; inset: 0; }
 .xdrop-shot { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Single-drop card: the whole screenshot, uncropped, over a blurred copy of it. */
+.xdrop-media.is-fit .xdrop-shot { position: relative; object-fit: contain; }
+.xdrop-shot-bg {
+  position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px);
+  object-fit: cover; filter: blur(22px) saturate(1.1) brightness(0.55);
+}
 .xdrop-art::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent 62%, #0c0f15), linear-gradient(180deg, transparent 60%, rgba(5, 7, 10, 0.55));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.xdrop-art:has(.is-fit)::after {
+  background: linear-gradient(90deg, transparent 88%, #0c0f15), linear-gradient(180deg, transparent 75%, rgba(5, 7, 10, 0.4));
 }
 .xdrop-shine {
   position: absolute; top: -20%; bottom: -20%; left: 0; width: 38%; z-index: 2; pointer-events: none;
@@ -4094,7 +4127,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
 }
 .hubmsg-media img, .hubmsg-media video {
-  display: block; width: 100%; height: 100%; object-fit: cover;
+  /* contain, not cover: the author's picture is shown whole (a 16:7 widget loop lost the start
+     of its title to the sides of this 16:9 box); the box's ground fills the difference. */
+  display: block; width: 100%; height: 100%; object-fit: contain;
 }
 /* With artwork behind it the close button sits on the picture, and its usual
    translucent-white fill disappears against a pale one. Opaque dark here, since

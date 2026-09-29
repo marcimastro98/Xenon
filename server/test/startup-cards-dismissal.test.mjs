@@ -237,3 +237,12 @@ test('promotion is wired to hydration, not to load', () => {
   assert.match(CLIENT, /function markHubHydrated\(\)[\s\S]{0,600}promoteLegacySeenFlags\(\)/);
   assert.doesNotMatch(CLIENT, /^\s*promoteLegacySeenFlags\(\);$/m);
 });
+
+// What's New is once per release id: it is remembered the moment it is put on
+// screen, not by a button the user has to find. Closing it any other way used to
+// bring it back at every startup, and the paid drops window queued behind it.
+test("What's New is remembered when it opens, and the version label re-opens it", () => {
+  assert.match(UPDATE, /rememberWhatsNew\(wn\.id\);\s*openWhatsNew\(wn\);/);
+  assert.doesNotMatch(UPDATE, /dismissBtn/, 'there is no "don\'t show again" button any more');
+  assert.match(UPDATE, /getElementById\('settings-version'\)[\s\S]{0,400}addEventListener\('click', open\)/);
+});

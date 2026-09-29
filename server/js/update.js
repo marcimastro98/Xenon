@@ -819,9 +819,15 @@
   // ── What's New (curated highlights for the running version) ──────────────────
   // A separate modal from the "update available" one above: it announces the
   // headline features of the version the user is ALREADY on, from the curated,
-  // build-shipped server/whatsnew.json. It reappears at every startup until the
-  // user taps "Don't show again" for that release's id, and only comes back when
-  // a later build ships a new id (a bugfix release keeps the old id → no re-nag).
+  // build-shipped server/whatsnew.json. It opens ONCE per release id: the moment
+  // it is actually put on screen the id is remembered, however it is closed
+  // afterwards, and it only comes back when a later build ships a new id (a
+  // bugfix release keeps the old id → no re-nag). Someone who wants to read it
+  // again taps the version number at the bottom of Settings.
+  //
+  // It used to be remembered only by a "Don't show again" button, so anyone who
+  // simply closed it saw it at every startup, and every other popup that waits
+  // behind it (the paid drops window) waited behind it too.
   //
   // The dismissal is stored in hub settings (a file on the PC) since v4.11.6,
   // with the pre-v4.11.6 localStorage key kept in step as a per-device fallback.
@@ -964,13 +970,6 @@
       actions.appendChild(allBtn);
     }
 
-    const dismissBtn = document.createElement('button');
-    dismissBtn.type = 'button';
-    dismissBtn.className = 'upd-btn ghost';
-    dismissBtn.textContent = tr('update_dismiss', 'Non mostrare più');
-    dismissBtn.addEventListener('click', () => { rememberWhatsNew(wn.id); closeModal(); });
-    actions.appendChild(dismissBtn);
-
     card.appendChild(actions);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -983,8 +982,8 @@
   // At startup, curated "What's New" for the running version takes precedence over
   // the "update available" nudge (you can only act on one popup at a time, and the
   // update dot/pill stays visible either way). Whichever doesn't auto-open is still
-  // reachable — the update modal from the Settings pill, and What's New reappears
-  // next startup until dismissed.
+  // reachable — the update modal from the Settings pill, and What's New from the
+  // version number in Settings.
   // Failures that happened while no page was watching: an apply that rolled
   // back after the page was closed (the applier's persisted result), or a shell
   // update that errored right before the reload (flag set by runShellPhase).
@@ -1099,12 +1098,36 @@
     const wnPending = !!(wn && wn.id && !dismissedWhatsNew(wn.id)
       && Array.isArray(wn.highlights) && wn.highlights.length);
     const updatePending = !!(info && info.updateAvailable && !isVersionSkipped(info.latest));
-    if (wnPending) whenNothingElseIsUp(() => { if (!dismissedWhatsNew(wn.id)) openWhatsNew(wn); });
+    // Remembered when it is really shown, not when it is queued: if the screen
+    // stays busy and the queue gives up, the modal has not been seen yet.
+    if (wnPending) whenNothingElseIsUp(() => {
+      if (dismissedWhatsNew(wn.id)) return;
+      rememberWhatsNew(wn.id);
+      openWhatsNew(wn);
+    });
     // On the native app, don't auto-pop this web modal: the shell shows its own
     // in-app "update available — tap to install" toast (native-bridge.js), and
     // two competing popups is exactly how a user ended up on the GitHub page.
     // The Settings pill still opens this modal on demand (now native-aware).
     else if (updatePending && !isNativeShell()) whenNothingElseIsUp(() => openModal(info));
+  }
+
+  // The version number at the bottom of Settings re-opens What's New for the
+  // running build, the only way back to it once it has been seen.
+  function wireVersionLabel() {
+    const el = document.getElementById('settings-version');
+    if (!el) return;
+    const open = async () => {
+      const wn = await loadWhatsNew();
+      if (wn) openWhatsNew(wn);
+    };
+    el.setAttribute('role', 'button');
+    el.tabIndex = 0;
+    el.title = tr('whatsnew_sub', 'Scopri cosa è cambiato in questa versione');
+    el.addEventListener('click', open);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
   }
 
   // Manual "Check for updates" button (forces a fresh probe).
@@ -1142,5 +1165,6 @@
   };
   window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, suppressForFreshInstall };
 
+  document.addEventListener('DOMContentLoaded', wireVersionLabel, { once: true });
   document.addEventListener('DOMContentLoaded', boot, { once: true });
 })();
