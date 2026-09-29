@@ -337,6 +337,9 @@ function renderGroupTile(gridItem, group) {
   const shownRoot = shownDeck && shownDeck.querySelector('.deck-root');
   tile.style.setProperty('--deck-mount-alpha',
     (shownRoot && shownRoot.style.getPropertyValue('--deck-mount-alpha')) || '1');
+  // Same reason, for the tile's own drop shadow: a group showing a Deck that has no
+  // faceplate has nothing on screen to cast it (see stampDeckMount in deck.js).
+  tile.toggleAttribute('data-deck-bare', !!(shownRoot && shownRoot.dataset.plate === 'none'));
   if (typeof applyTranslations === 'function') applyTranslations();
   return tile;
 }

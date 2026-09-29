@@ -99,10 +99,19 @@
   // a group tile built fresh around a member that was MOVED into it rather than
   // re-rendered.
   function stampDeckMount(tile) {
-    const mount = (tile && tile.closest) ? tile.closest('.panel.tabgroup') : null;
-    if (!mount) return;
+    if (!tile || !tile.querySelector) return;
     const root = tile.querySelector('.deck-root');
+    // A Deck with no faceplate draws no body, so the dashboard tile around it must
+    // not draw its drop shadow either: under bare keys it is a dark strip along an
+    // empty edge (DeckPanel.css, [data-deck-bare]). Set on the Deck's own tile, or
+    // on the group tile that mounts it, whichever is the direct child of the grid
+    // item, so the stylesheet needs no deep :has() walk.
+    const bare = !!(root && root.dataset.plate === 'none');
+    tile.toggleAttribute('data-deck-bare', bare);
+    const mount = tile.closest ? tile.closest('.panel.tabgroup') : null;
+    if (!mount) return;
     mount.style.setProperty('--deck-mount-alpha', (root && root.style.getPropertyValue('--deck-mount-alpha')) || '1');
+    mount.toggleAttribute('data-deck-bare', bare);
   }
   // True while the dashboard Layout editor is open. The deck must NOT auto-fit its
   // key grid then: the tile is mid-resize (GridStack hasn't applied its final cell

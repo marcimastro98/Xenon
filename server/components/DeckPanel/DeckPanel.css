@@ -843,6 +843,13 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 .deck-root[data-plate="none"] .deck-device::after { display: none; }
 .deck-root[data-plate="none"] .deck-device::before { display: none; }
 .deck-root[data-plate="none"] .deck-well { background: transparent; box-shadow: none; }
+/* The dashboard tile around it casts a drop shadow of its own, painted just outside
+   its edge (DashboardGrid.css). With the chassis gone it is the only thing left of
+   the tile: a dark strip along the bottom edge of bare keys, "a shadow behind the
+   cards" (reported on Discord). deck.js and dashboard-tabgroups.js mark the tile, or
+   the tab-group tile mounting the Deck, with data-deck-bare; a shadow the user set
+   on that tile (data-tile-shadow) is kept. */
+.grid-stack-item:not([data-tile-shadow]):has(> .grid-stack-item-content > [data-deck-bare]) { box-shadow: none; }
 
 /* …and the header stays, as a ghost. It is the FACEPLATE's header, so on the one
    finish with no faceplate a full-strength profile name, page badge and pencil hung
