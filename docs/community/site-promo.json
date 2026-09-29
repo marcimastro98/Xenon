@@ -149,46 +149,6 @@
           "cta": "解锁 Workload River"
         }
       }
-    },
-    {
-      "id": "workload-river",
-      "entryId": "workload-river",
-      "order": 1,
-      "activeUntil": "2026-09-30T23:59:59+02:00",
-      "video": "https://assets.xenon-app.com/community/promo/workload-river.mp4",
-      "url": "https://xenon-app.com/catalog/workload-river/",
-      "text": {
-        "en": {
-          "title": "Workload River",
-          "line": "Which app is weighing on your PC, and since when. A row for every app, the busiest in full colour.",
-          "cta": "Unlock Workload River"
-        },
-        "it": {
-          "title": "Workload River",
-          "line": "Quale app sta pesando sul PC, e da quando. Una riga per ogni app, la più impegnata a colori pieni.",
-          "cta": "Sblocca Workload River"
-        },
-        "es": {
-          "title": "Workload River",
-          "line": "Qué app está cargando tu PC, y desde cuándo. Una fila por app, la más ocupada a todo color.",
-          "cta": "Desbloquea Workload River"
-        },
-        "ja": {
-          "title": "Workload River",
-          "line": "どのアプリがPCを重くしているのか、いつからなのか。アプリごとに1行、いちばん忙しいアプリがいちばん鮮やかに表示されます。",
-          "cta": "Workload Riverを解除"
-        },
-        "ko": {
-          "title": "Workload River",
-          "line": "어떤 앱이 PC를 무겁게 하는지, 언제부터인지. 앱마다 한 줄, 가장 바쁜 앱이 가장 선명하게 표시됩니다.",
-          "cta": "Workload River 잠금 해제"
-        },
-        "zh": {
-          "title": "Workload River",
-          "line": "是哪个应用在拖慢你的电脑，又是从什么时候开始的。每个应用一行，最忙的那个颜色最鲜明。",
-          "cta": "解锁 Workload River"
-        }
-      }
     }
   ]
 }
