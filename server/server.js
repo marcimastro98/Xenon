@@ -9661,7 +9661,7 @@ function normalizeHubSettings(value) {
     upcomingColumns: [0, 1, 2].includes(Number(source.upcomingColumns)) ? Number(source.upcomingColumns) : 0,
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
-    nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
+    nativeZoom: clampNumber(source.nativeZoom, 0.6, 2.5, DEFAULT_HUB_SETTINGS.nativeZoom),
     hideOnRdp: source.hideOnRdp === true,
     audioSetCommunications: source.audioSetCommunications !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,

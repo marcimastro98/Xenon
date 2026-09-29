@@ -301,7 +301,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
   audioSetCommunications: true, // Windows: switching a device also moves the calls default (server setDefaultAudioDevice)
-  nativeZoom: 1, // native app: WebView2 interface scale, 0.5–3 (Settings slider; native-bridge.js)
+  nativeZoom: 1, // native app: interface scale, 0.6–2.5 (Settings slider; native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -1694,7 +1694,7 @@ function normalizeSettings(source) {
     swipeHomeGesture: value.swipeHomeGesture !== false,
     hideOnRdp: value.hideOnRdp === true,
     audioSetCommunications: value.audioSetCommunications !== false,
-    nativeZoom: clampNumber(value.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
+    nativeZoom: clampNumber(value.nativeZoom, 0.6, 2.5, DEFAULT_HUB_SETTINGS.nativeZoom),
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -8639,7 +8639,7 @@ function syncNativeZoomControl() {
   if (row) row.style.display = '';
   const remoteNote = $('settings-native-zoom-remote');
   if (remoteNote) remoteNote.hidden = isNativeApp;
-  const scale = clampNumber(hubSettings.nativeZoom, 0.6, 1.6, 1);
+  const scale = clampNumber(hubSettings.nativeZoom, 0.6, 2.5, 1);
   if (slider) slider.value = String(scale);
   if (valueEl) valueEl.textContent = formatPercent(scale);
   if (isNativeApp && window.XenonNative && typeof window.XenonNative.setNativeZoom === 'function') {
