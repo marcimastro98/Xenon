@@ -383,6 +383,27 @@ input[type="range"] { accent-color: var(--green); }
   padding-left: 16px;
   padding-right: 16px;
 }
+/* Plain content that some panes drop straight into the card: lists, steps and the
+   bodies that are filled by script (Schermo, external calendars). Margin, not
+   padding, so a list keeps its own marker indent. */
+.settings-group > ul,
+.settings-group > ol,
+.settings-group > .settings-spotify-setup-head,
+.settings-group > .sh-set-hint,
+.settings-group > #settings-surface-body,
+.settings-group > #settings-energy-hub,
+.settings-group > #settings-calendar-feeds-hub {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+/* Room between the card's title bar and the first line, and under a body that
+   ends on a note. */
+.settings-group > .settings-group-head + .settings-note,
+.settings-group > .settings-group-head + .settings-hint { margin-top: 12px; }
+.settings-group > #settings-surface-body { margin-top: 12px; }
+#settings-surface-body > .settings-hint:last-child { margin-top: 10px; }
+.settings-group > #settings-calendar-feeds-hub { margin-top: 14px; }
+.settings-group > #settings-energy-hub { margin-top: 12px; }
 .settings-group > .settings-toggle-row,
 .settings-group > .settings-segmented,
 .settings-group > .settings-btn {
@@ -2144,7 +2165,6 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 .ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .ai-hw-line { font-weight: 600; }
 .ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }
-.ai-hw-block.ai-incompatible { border-left: 3px solid #ff5555; padding-left: 10px; }
 .ai-hw-block.ai-incompatible .ai-hw-line { color: var(--color-danger); }
 .ai-hw-block .settings-btn { align-self: flex-start; }
 
@@ -2360,7 +2380,7 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   background: #1ed760; box-shadow: 0 0 0 3px rgba(30,215,96,0.18);
 }
 .settings-spotify-premium {
-  border-left: 3px solid rgba(30,215,96,0.55); padding-left: 10px; margin: 2px 0 14px;
+  margin: 2px 0 14px;
 }
 .settings-spotify-setup-head {
   font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
@@ -3611,12 +3631,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .settings-inline-link:hover { text-decoration: underline; }
 .settings-howto-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 
-/* security callout — subtle, with a left accent rule */
+/* security callout: plain quiet text, no bar and no box. Inside a group it takes
+   the group's own 16px inset (see the direct-children rule above). */
 .settings-safenote {
-  margin: 0; padding: 9px 11px 9px 12px; border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-left: 2px solid rgba(var(--accent-rgb),0.5);
-  background: rgba(var(--accent-rgb),0.045); line-height: 1.5;
+  margin: 0; padding: 4px 0; border: 0; background: none; line-height: 1.5;
 }
 
 /* "moved to Widgets & sharing" pointer (shown under Appearance) */
