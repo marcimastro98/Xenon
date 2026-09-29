@@ -2292,10 +2292,10 @@
     tile.replaceChildren(...keepControls);
     const root = el('div', 'deck-root');
     root.classList.toggle('is-editing', state.editing);
-    // The "Nessuna" faceplate takes the chassis away and the header goes with it
-    // (DeckPanel.css [data-plate="none"] .deck-bar). It has to come BACK while
-    // it is being used, or the profile menu would float over a bar that had
-    // collapsed underneath it and Done would be unreachable in edit mode.
+    // The "Nessuna" faceplate takes the chassis away and the header is drawn as a
+    // quiet ghost (DeckPanel.css [data-plate="none"] .deck-bar). It comes to full
+    // strength while it is being used: the profile menu is portaled to <body> and
+    // must not float over a bar that is still faded, and Done lives in edit mode.
     root.classList.toggle('bar-open', !!(state.editing || state.profileMenu));
     root.dataset.keysize = cfg.keySize;
     // Whole-device look: cap material, cap shape and faceplate finish (see
@@ -2355,9 +2355,9 @@
     edit.addEventListener('click', () => { state.editing = !state.editing; render(tile, instanceId); });
     bar.appendChild(edit);
 
-    // A touchscreen has no hover, and the Xeneon Edge is one. Tapping the
-    // collapsed strip peeks the bar for a few seconds — long enough to reach the
-    // profile menu or the pencil, short enough that it goes away on its own if
+    // A touchscreen has no hover, and the Xeneon Edge is one. Tapping the faded
+    // bar brings it to full strength for a few seconds — long enough to reach the
+    // profile menu or the pencil, short enough that it settles back on its own if
     // the tap was a miss. The class goes straight on the node rather than
     // through state + re-render: a re-render would rebuild the keys under the
     // finger that is on its way to the pencil.
