@@ -63,10 +63,24 @@ export function headerHtml({ lang = false, page = '' } = {}) {
       </div>
       ${page ? langMenu(page, 'en') : (lang ? LANG_BLOCK : '')}
       <a class="xh-dl" id="xh-dl" href="${DL}" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
-      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">Menu</button>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">Menu</span></button>
     </div>
   </div>
-  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/#screens" data-xl="screens">Screens</a></li>${items}<li><a href="/#install" data-xl="install">Install</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">Buy me a coffee</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/#screens" data-xl="screens">Screens</a></li>${items}</ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/#install" data-xl="install">Install</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu">${ICON.cup}<span data-xl="coffee">Buy me a coffee</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">${ICON.dc}<span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">${ICON.gh}<span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
 </header>
 <!-- /xenon:header -->`;
 }

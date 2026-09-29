@@ -68,7 +68,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 有多少个小组件？","acceptedAnswer":{"@type":"Answer","text":"内置 41 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在 + 面板里与它们并列。"}},{"@type":"Question","name":"这些小组件一定要有 Xeneon Edge 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。"}},{"@type":"Question","name":"一个磁贴可以放多个小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。"}},{"@type":"Question","name":"一个 Xenon 仪表盘可以有多少页？","acceptedAnswer":{"@type":"Answer","text":"最多 8 页，每页都是 24 列的网格。"}},{"@type":"Question","name":"我可以自己做小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。使用小组件 SDK（目前是测试版），把小组件写成一个 HTML 页面，Xenon 会在沙盒中运行它，它只能使用用户批准的数据和操作。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 有多少个小组件？","acceptedAnswer":{"@type":"Answer","text":"41 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"这些小组件一定要有 Xeneon Edge 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。"}},{"@type":"Question","name":"一个磁贴可以放多个小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。"}},{"@type":"Question","name":"一个 Xenon 仪表盘可以有多少页？","acceptedAnswer":{"@type":"Answer","text":"最多 8 页，每页都是 24 列的网格。"}},{"@type":"Question","name":"我可以自己做小组件吗？","acceptedAnswer":{"@type":"Answer","text":"可以。使用小组件 SDK（目前是测试版），把小组件写成一个 HTML 页面，Xenon 会在沙盒中运行它，它只能使用用户批准的数据和操作。"}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -102,10 +102,24 @@
       </div>
       <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/widgets.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/widgets.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/widgets.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/widgets.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/widgets.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/widgets.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
       <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
-      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav" data-xl="menu">菜单</button>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">菜单</span></button>
     </div>
   </div>
-  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu"><ul><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li><li><a href="/zh/#install" data-xl="install">安装</a></li><li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-xl="coffee">请我喝杯咖啡</a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li></ul></nav>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/zh/#install" data-xl="install">安装</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">请我喝杯咖啡</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
 </header>
 <!-- /xenon:header -->
 
@@ -204,15 +218,15 @@
 
     <h2 id="layout" data-i18n="wg.h.layout">网格、页面和标签页</h2>
     <p data-i18n-html="wg.layout.p1">点按顶栏中的<strong>布局</strong>即可编辑仪表盘。磁贴放在 24 列、半高行的网格上，所以会落在接近你放下的位置，拖动角落就能调整大小。</p>
-    <p data-i18n="wg.layout.p2">每个页面上的 + 会打开“添加小组件”面板：上面的四个分组，从商店安装的小组件也放在合适的分组里，另外还有搜索。“已安装”筛选只显示商店里的小组件。一个仪表板最多 8 页，可以滑动、用方向键或顶栏的页面圆点切换。</p>
+    <p data-i18n="wg.layout.p2">每一页上的 + 会打开小组件面板：包括上面的四组，以及“其他”下的“自定义小组件”。一个仪表盘最多有 8 页，可以滑动、用方向键或点按顶栏中的页面圆点在页面之间切换。</p>
     <p data-i18n="wg.layout.p3">把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页；把标签页拖出来即可再次拆开。一开始就有的“媒体”“日程”和“系统”磁贴就是这样组成的。</p>
-    <p data-i18n="wg.layout.p4">有些小组件可以添加多次。播放、聊天、日程、日历、任务、计时器、便笺、系统、音量或麦克风的副本与原件内容相同。Deck、浏览器、远程控制、Discord 或商店小组件的副本是独立的，有自己的内容，比如 Deck 的按键或浏览器的地址。</p>
+    <p data-i18n="wg.layout.p4">有些小组件可以添加不止一次。播放、聊天、日程、日历、任务、计时器、笔记、系统、音量或麦克风的副本会与原件显示相同的内容。Deck、浏览器、远程控制、Discord 或自定义小组件的副本则各自独立，有自己的内容，比如 Deck 的按键或浏览器的地址。</p>
     <p data-i18n="wg.layout.p5">磁贴或整个页面可以保存为预设，一点即可再次放置；页面还可以以链接或文件的形式分享给其他人。在手机上，同一个仪表盘会重新排成一列；手机访问目前是测试版。</p>
 
     <h2 id="catalog" data-i18n="wg.h.catalog">目录中的小组件</h2>
     <p data-i18n-html="wg.catalog.p1"><a href="/catalog/">社区目录</a>收录了其他人制作并分享的小组件、主题、动态背景、页面、Deck 配置、氛围场景和完整套装。每个条目都经过审核。</p>
     <p data-i18n-html="wg.catalog.p2">在目录页面复制条目的代码，粘贴到<strong>设置 → 小组件与分享 → 导入</strong>中，或者打开应用内的商店，它列出的是同一个目录。在应用任何内容之前，你都会看到这段代码包含什么。</p>
-    <p data-i18n-html="wg.catalog.p3">目录中的小组件安装后会出现在 + 面板里它的分组和“已安装”下。它在沙盒中运行：只获得它声明的数据、操作和网址，并会先征求你的许可。它所基于的小组件 SDK 仍是测试版。</p>
+    <p data-i18n-html="wg.catalog.p3">目录中的小组件在<strong>自定义小组件</strong>磁贴中运行，处于沙盒内：它只能获得自己声明过的数据、操作和网址，并且会先征求你的许可。它背后的小组件 SDK 目前是测试版。</p>
 
     <h2 id="own" data-i18n="wg.h.own">制作自己的小组件</h2>
     <p data-i18n="wg.own.p1">自己的小组件用小组件 SDK 制作，这个 SDK 目前是测试版：一个包含 manifest.json 和 index.html 的文件夹。Xenon 在沙盒中运行它，并通过一条消息通道向它传递实时数据和操作。</p>
@@ -220,7 +234,7 @@
     <p data-i18n-html="wg.own.p3"><a href="/create/">创作指南</a>从零讲起，涵盖主题、页面、Deck 配置和小组件。<a href="/create/#sdk">小组件 SDK 参考</a>包含完整的协议。</p>
 
     <h2 id="faq" data-i18n="wg.h.faq">常见问题</h2>
-    <details><summary data-i18n="wg.faq.count.q">Xenon 有多少个小组件？</summary><div class="body"><p data-i18n="wg.faq.count.a">内置 41 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在 + 面板里与它们并列。</p></div></details>
+    <details><summary data-i18n="wg.faq.count.q">Xenon 有多少个小组件？</summary><div class="body"><p data-i18n="wg.faq.count.a">内置 41 个小组件，分为四组：效率、媒体、系统和直播。除此之外，社区目录中的小组件和你自己做的小组件在“自定义小组件”磁贴中运行。</p></div></details>
     <details><summary data-i18n="wg.faq.edge.q">这些小组件一定要有 Xeneon Edge 吗？</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">不需要。同一个仪表盘可以在任何显示器、触摸屏上运行，也可以（测试版）在连接你的 Wi-Fi 的手机或平板上运行。参见<a href="/zh/xeneon-edge-widgets.html">在 Xeneon Edge 上使用 Xenon</a>和<a href="/zh/tablet-dashboard.html">把平板或手机用作仪表盘</a>。</p></div></details>
     <details><summary data-i18n="wg.faq.tabs.q">一个磁贴可以放多个小组件吗？</summary><div class="body"><p data-i18n="wg.faq.tabs.a">可以。在布局模式下，把一个磁贴拖到另一个磁贴的中间，它们就会成为同一个磁贴的标签页。把标签页拖出来即可再次拆开。</p></div></details>
     <details><summary data-i18n="wg.faq.pages.q">一个仪表盘可以有多少页？</summary><div class="body"><p data-i18n="wg.faq.pages.a">最多 8 页，每页都是 24 列的网格。新页面一开始是空的，其他页面保持不变。</p></div></details>
