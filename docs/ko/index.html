@@ -207,9 +207,9 @@ a:hover { text-decoration-thickness: 2px; }
 /* site.css inverts '.brand img' on light pages for the old paper logo; the mark
    here always sits on its own dark tile, so it keeps its real colours. */
 .brand .mark img, .brand .mark img:where(*) { filter: none !important; mix-blend-mode: normal !important; }
-.hd nav ul { list-style: none; display: flex; gap: 26px; margin: 0; padding: 0; font: 500 16.5px/1 var(--f-text); }
-.hd nav a { text-decoration: none; padding: 10px 0; display: inline-block; }
-.hd nav a:hover { text-decoration: underline; }
+.hd .w > nav ul { list-style: none; display: flex; gap: 26px; margin: 0; padding: 0; font: 500 16.5px/1 var(--f-text); }
+.hd .w > nav a { text-decoration: none; padding: 10px 0; display: inline-block; }
+.hd .w > nav a:hover { text-decoration: underline; }
 .hd-end { margin-left: auto; display: flex; align-items: center; gap: 22px; font: 500 16px/1 var(--f-text); }
 .lang { position: relative; }
 .lang > summary { list-style: none; cursor: pointer; padding: 10px 2px; font-weight: 600; }
@@ -236,11 +236,26 @@ a:hover { text-decoration-thickness: 2px; }
 .play:active { transform: translateY(1px); }
 .play svg { width: 18px; height: 18px; }
 .play[aria-busy="true"] { cursor: progress; opacity: .85; }
-.menu-btn { display: none; font: 600 16px/1 var(--f-text); background: none; border: 0; color: inherit; padding: 12px 0; cursor: pointer; }
+/* The phone and tablet menu: an icon in the bar, a sheet over the page. The
+   sheet is fixed to the viewport, not to the header, because on a phone the
+   header is not sticky: opening the menu from a page that had scrolled a little
+   used to drop the list below the fold. It carries its own bar, so the close
+   button sits where the icon was. */
+.menu-btn { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; margin-right: -11px; padding: 0; background: none; border: 0; border-radius: 10px; color: inherit; cursor: pointer; }
+.menu-btn:hover { background: var(--room-2); }
+.bars { position: relative; display: block; width: 22px; height: 14px; }
+.bars::before, .bars::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; border-radius: 1px; background: currentColor; }
+.bars::before { top: 2px; }
+.bars::after { bottom: 2px; }
+.mclose .bars::before, .mclose .bars::after { top: 6px; bottom: auto; }
+.mclose .bars::before { transform: rotate(45deg); }
+.mclose .bars::after { transform: rotate(-45deg); }
 .hd .mnav { display: none; }
+html.menu-open, html.menu-open body { overflow: hidden; }
+.hd.open { position: relative; z-index: 9100; }
 
 /* ── The key: a Deck cap from the product, lit in the theme's colour ───── */
-.key, .hd-dl.lit {
+.key, .hd-dl.lit, .mkey {
   --face: #104D82;
   background-color: var(--face);
   background-image: linear-gradient(180deg,
@@ -503,8 +518,38 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 
 /* ── Tablet ─────────────────────────────────────────────────────────── */
 @media (max-width: 1180px) {
-  .hd nav { display: none; }
+  .hd .w > nav { display: none; }
   .menu-btn { display: inline-flex; }
+  .hd .mnav {
+    display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 9100;
+    background: var(--room); overflow-y: auto; overscroll-behavior: contain;
+    visibility: hidden; opacity: 0; transform: translateY(-10px);
+    transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
+  }
+  .hd.open .mnav { visibility: visible; opacity: 1; transform: none; transition: opacity .2s ease, transform .2s ease, visibility 0s; }
+  .mtop { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; height: 64px; padding: 0 var(--pad); }
+  .mlist { list-style: none; margin: 8px 0 0; padding: 0 var(--pad); width: 100%; max-width: 680px; box-sizing: border-box; }
+  .mlist li:first-child a { border-top: 1px solid var(--rule); }
+  .mlist a { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 12px 0; border-bottom: 1px solid var(--rule); font: 750 30px/1.1 var(--f-display); letter-spacing: -0.01em; color: var(--fg); text-decoration: none; }
+  .mlist a::after { content: ""; flex: 0 0 auto; width: 9px; height: 9px; margin-right: 4px; border-top: 2px solid var(--fg-2); border-right: 2px solid var(--fg-2); transform: rotate(45deg); transition: transform .15s; }
+  .mlist a:hover::after { transform: translateX(3px) rotate(45deg); }
+  .mfoot { margin-top: auto; width: 100%; max-width: 680px; box-sizing: border-box; padding: 28px var(--pad) max(28px, env(safe-area-inset-bottom)); display: grid; gap: 14px; }
+  .mkey { display: flex; align-items: center; justify-content: center; min-height: 54px; padding: 0 22px; border-radius: 12px; text-decoration: none; font: 700 18px/1 var(--f-display); letter-spacing: 0.004em; transition: transform .11s cubic-bezier(.2,.8,.2,1), filter .15s; }
+  .mkey:hover { filter: brightness(1.1); text-decoration: none; }
+  .mkey:active { transform: translateY(2px) scale(.985); }
+  .mlinks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mlinks li:first-child { grid-column: 1 / -1; }
+  .mlinks a { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 100%; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 10px; color: var(--fg); text-decoration: none; font: 600 16px/1 var(--f-text); }
+  .mlinks a:hover { background: var(--room-2); }
+  .mlinks svg { width: 18px; height: 18px; flex: 0 0 auto; }
+  .mlangs { display: flex; flex-wrap: wrap; gap: 0 18px; font: 600 15px/1 var(--f-text); }
+  .mlangs a { padding: 12px 0; color: var(--fg-2); text-decoration: none; }
+  .mlangs a[aria-current] { color: var(--fg); text-decoration: underline; text-underline-offset: .28em; }
+  .hd.open .mlist li { animation: mrise .32s cubic-bezier(.2,.8,.2,1) both; }
+  .hd.open .mlist li:nth-child(1) { animation-delay: .04s; } .hd.open .mlist li:nth-child(2) { animation-delay: .075s; }
+  .hd.open .mlist li:nth-child(3) { animation-delay: .11s; } .hd.open .mlist li:nth-child(4) { animation-delay: .145s; }
+  .hd.open .mlist li:nth-child(5) { animation-delay: .18s; } .hd.open .mlist li:nth-child(6) { animation-delay: .215s; }
+  .hd.open .mlist li:nth-child(7) { animation-delay: .25s; } .hd.open .mlist li:nth-child(8) { animation-delay: .285s; }
   .hero-copy { grid-column: 1 / span 7; }
   .hero-act { grid-column: 8 / span 5; }
   .inst { grid-template-columns: 1fr; max-width: 640px; }
@@ -522,9 +567,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .ft-col { grid-column: span 4; }
   .sec-head h2, .sec-head p { grid-column: 1 / -1; }
 }
-.hd.open .mnav { display: block; position: absolute; left: 0; right: 0; top: 64px; background: var(--room-2); padding: 12px var(--pad) 24px; box-shadow: 0 24px 40px -24px rgba(0,0,0,.4); }
-.mnav ul { list-style: none; margin: 0; padding: 0; display: grid; }
-.mnav a { display: block; padding: 14px 0; font-size: 19px; font-weight: 600; text-decoration: none; }
+@keyframes mrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .hd .mnav, .hd.open .mnav { transition: none; transform: none; }
+  .hd.open .mlist li { animation: none; }
+}
 
 /* Widgets on a narrow screen: the name of the family, its line, the capture,
    then the names, one family after the other. */
@@ -541,7 +588,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .hd { position: static; }
   .hd .w { height: 56px; gap: 16px; }
   .hd-dl, .lang, .marks { display: none; }
-  .hd.open .mnav { top: 56px; }
+  .mtop { height: 56px; }
+  .mlist a { font-size: 26px; min-height: 52px; padding: 10px 0; }
+  .mfoot { padding-top: 22px; }
   .hero { padding-block: 18px 8px; }
   .hero-grid { display: block; }
   h1 { font-size: 38px; line-height: 1.02; max-width: 12ch; }
@@ -579,7 +628,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .scr .next, .key, .tier, .tier-go { transition: none; }
 }
 @media (forced-colors: active) {
-  .key, .hd-dl.lit { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }
+  .key, .hd-dl.lit, .mkey { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }
 }
 </style>
 </head>
@@ -626,24 +675,33 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         </ul>
       </details>
       <a class="hd-dl" id="hd-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-i18n="nav.download">다운로드</a>
-      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="mnav" data-i18n="nav.menu">메뉴</button>
+      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="mnav"><span class="bars" aria-hidden="true"></span><span class="sr" data-i18n="nav.menu">메뉴</span></button>
     </div>
   </div>
   <nav class="mnav" id="mnav" aria-label="Menu">
-    <ul>
+    <div class="mtop">
+      <a class="brand" href="/" aria-label="Xenon"><span class="mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="menu-btn mclose" id="menu-close" type="button"><span class="bars" aria-hidden="true"></span><span class="sr" data-i18n="nav.close">닫기</span></button>
+    </div>
+    <ul class="mlist">
       <li><a href="#screens" data-i18n="nav.screens">화면</a></li>
       <li><a href="#widgets" data-i18n="nav.widgets">위젯</a></li>
       <li><a href="/catalog/" data-i18n="nav.catalog">카탈로그</a></li>
       <li><a href="/create/" data-i18n="nav.create">만들기</a></li>
       <li><a href="#support" data-i18n="nav.support">후원</a></li>
       <li><a href="/demo/" data-i18n="nav.demo">데모</a></li>
-      <li><a href="#install" data-i18n="nav.install">설치</a></li>
       <li><a href="/ko/phone.html" data-i18n="nav.phone">휴대폰과 태블릿</a></li>
       <li><a href="/ko/faq.html" data-i18n="nav.help">도움말</a></li>
-      <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu" data-i18n="nav.coffee">커피 한 잔 사주기</a></li>
-      <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener">Discord</a></li>
-      <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li>
     </ul>
+    <div class="mfoot">
+      <a class="mkey" href="#install" data-i18n="nav.install">설치</a>
+      <ul class="mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg aria-hidden="true"><use href="#i-cup"/></svg><span data-i18n="nav.coffee">커피 한 잔 사주기</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-dc"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-gh"/></svg><span>GitHub</span></a></li>
+      </ul>
+      <div class="mlangs" id="mnav-langs"><a href="/" hreflang="en" lang="en" data-lang="en">English</a><a href="/it/" hreflang="it" lang="it" data-lang="it">Italiano</a><a href="/es/" hreflang="es" lang="es" data-lang="es">Español</a><a href="/ja/" hreflang="ja" lang="ja" data-lang="ja">日本語</a><a href="/ko/" hreflang="ko" lang="ko" data-lang="ko">한국어</a><a href="/zh/" hreflang="zh" lang="zh" data-lang="zh">中文</a></div>
+    </div>
   </nav>
 </header>
 
@@ -1154,6 +1212,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.help": "Help",
     "nav.download": "Download",
     "nav.menu": "Menu",
+    "nav.close": "Close",
     "nav.install": "Install",
     "nav.phone": "Phone and tablet",
     "nav.demo": "Demo",
@@ -1378,6 +1437,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.help": "Aiuto",
     "nav.download": "Scarica",
     "nav.menu": "Menu",
+    "nav.close": "Chiudi",
     "nav.install": "Installazione",
     "nav.phone": "Telefono e tablet",
     "nav.demo": "Demo",
@@ -1602,6 +1662,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.help": "Ayuda",
     "nav.download": "Descargar",
     "nav.menu": "Menú",
+    "nav.close": "Cerrar",
     "nav.install": "Instalación",
     "nav.phone": "Teléfono y tablet",
     "nav.demo": "Demo",
@@ -1826,6 +1887,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.help": "ヘルプ",
     "nav.download": "ダウンロード",
     "nav.menu": "メニュー",
+    "nav.close": "閉じる",
     "nav.install": "インストール",
     "nav.phone": "スマートフォンとタブレット",
     "nav.demo": "デモ",
@@ -2050,6 +2112,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.help": "도움말",
     "nav.download": "다운로드",
     "nav.menu": "메뉴",
+    "nav.close": "닫기",
     "nav.install": "설치",
     "nav.phone": "휴대폰과 태블릿",
     "nav.demo": "데모",
@@ -2274,6 +2337,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "nav.help": "帮助",
     "nav.download": "下载",
     "nav.menu": "菜单",
+    "nav.close": "关闭",
     "nav.install": "安装",
     "nav.phone": "手机和平板",
     "nav.demo": "演示",
@@ -2508,7 +2572,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     document.querySelectorAll('[data-i18n-alt]').forEach((el) => { const v = window.XT(el.dataset.i18nAlt); if (v) el.alt = v; });
     const curEl = document.getElementById('lang-cur');
     if (curEl) curEl.textContent = cur.toUpperCase();
-    document.querySelectorAll('#lang-menu a, #ft-langs a').forEach((a) => {
+    document.querySelectorAll('#lang-menu a, #ft-langs a, #mnav-langs a').forEach((a) => {
       if (a.dataset.lang === cur) a.setAttribute('aria-current', 'true');
       a.addEventListener('click', () => { try { localStorage.setItem(KEY, a.dataset.lang); } catch (e) {} });
     });
@@ -2755,12 +2819,35 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     const key = document.getElementById('hero-key');
     const btn = document.getElementById('menu-btn');
     addEventListener('scroll', () => hd.classList.toggle('scrolled', scrollY > 8), { passive: true });
-    if (btn) {
-      btn.addEventListener('click', () => {
-        const open = hd.classList.toggle('open');
-        btn.setAttribute('aria-expanded', String(open));
+    // The phone menu is a sheet over the page: it locks the page behind it,
+    // closes with Escape, a link, its own close button, or the window growing
+    // into the wide layout, and it hands the focus back to the icon.
+    const sheet = document.getElementById('mnav');
+    const closeBtn = document.getElementById('menu-close');
+    const setMenu = (open) => {
+      if (!btn || !sheet || hd.classList.contains('open') === open) return;
+      hd.classList.toggle('open', open);
+      document.documentElement.classList.toggle('menu-open', open);
+      btn.setAttribute('aria-expanded', String(open));
+      if (open) { if (closeBtn) closeBtn.focus(); } else btn.focus();
+    };
+    if (btn && sheet) {
+      btn.addEventListener('click', () => setMenu(!hd.classList.contains('open')));
+      if (closeBtn) closeBtn.addEventListener('click', () => setMenu(false));
+      // A link to a section of this very page must not leave the page locked.
+      sheet.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
+        hd.classList.remove('open'); document.documentElement.classList.remove('menu-open'); btn.setAttribute('aria-expanded', 'false');
+      }));
+      addEventListener('keydown', (e) => {
+        if (!hd.classList.contains('open')) return;
+        if (e.key === 'Escape') { setMenu(false); return; }
+        if (e.key !== 'Tab') return;
+        const f = sheet.querySelectorAll('a[href], button');
+        const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       });
-      document.querySelectorAll('#mnav a').forEach((a) => a.addEventListener('click', () => { hd.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }));
+      matchMedia('(min-width: 1181px)').addEventListener('change', (m) => { if (m.matches) setMenu(false); });
     }
     if (dl && key && 'IntersectionObserver' in window) {
       new IntersectionObserver((es) => { dl.classList.toggle('lit', !es[0].isIntersecting); }, { rootMargin: '-64px 0px 0px 0px' }).observe(key);
