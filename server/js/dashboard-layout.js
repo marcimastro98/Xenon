@@ -1490,6 +1490,7 @@ function applyTileStyle(el, style, opts) {
 function applyTileEffects(el, content, style, colorsOnly) {
   el.removeAttribute('data-tile-glass');
   el.removeAttribute('data-tile-plain');
+  el.removeAttribute('data-tile-shadow');
   let any = false;
   if (style) any = applyTileTokens(el, style);
   // A widget PACKAGE may declare the silhouette of its own tile. It is consulted
@@ -1557,6 +1558,9 @@ function applyTileTokens(el, style) {
     const palette = (typeof window.getEffectiveThemePalette === 'function') ? window.getEffectiveThemePalette() : null;
     const drop = (window.PANEL_DROP_CSS || {})[palette && palette.tone === 'light' ? 'light' : 'dark'];
     if (drop) el.style.setProperty('--panel-drop', drop);
+    // The user asked for a shadow on THIS tile. That is the one case where a tile
+    // with no panel left still casts one (see DashboardGrid.css, data-tile-plain).
+    el.setAttribute('data-tile-shadow', '');
     any = true;
   }
   return any;

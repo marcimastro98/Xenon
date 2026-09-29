@@ -78,12 +78,21 @@
 /* A tile asked to be fully transparent loses the panel MATERIAL — the top-lit
    wash and the hairline highlight are part of the fill, and a "transparent"
    card that still carried them read as a faint white sheet over the wallpaper.
-   The border and the shadow are separate controls and are deliberately NOT
-   touched here: an outline with nothing inside it is a legitimate look. */
+   The border is a separate control and is deliberately NOT touched here: an
+   outline with nothing inside it is a legitimate look. The shadow is dealt with
+   below. */
 .grid-stack-item[data-tile-plain] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
   background-image: none;
   --panel-topline: transparent;
 }
+/* …and it casts no shadow either. The drop shadow above is painted by the WRAPPER
+   just outside the tile's edge, so on a tile with nothing inside it, it is the only
+   thing left on screen: a soft dark strip under an empty box, which reads as a card
+   sitting behind the widgets (reported: "there seems to be a card behind the
+   cards"). Measured on a real dashboard: about 18% darker along the bottom edge,
+   fading over ~12px. The border stays, since an outline with nothing inside it is
+   a legitimate look. A shadow the user set on THIS tile (data-tile-shadow) stays. */
+.grid-stack-item[data-tile-plain]:not([data-tile-shadow]) { box-shadow: none; }
 
 /* ── Per-tile glass (opt-in) ────────────────────────────────────────────────
    backdrop-filter is a per-frame GPU cost and the Edge composites on the
