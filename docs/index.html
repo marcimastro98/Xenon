@@ -36,7 +36,8 @@
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
 <script src="/consent.js" defer></script>
-<!-- The month's drop, as published from the hub (site-promo.json). -->
+<!-- The month's drops, as published from the hub (site-promo.json): the spotlight, the strip
+     above the header and the corner card. -->
 <script src="/promo.js" defer></script>
 <!-- Theme, before the first paint. A deferred script would let a visitor who
      chose dark see a white page flash first; /theme.js only builds the control. -->
@@ -382,7 +383,6 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .ctl-more > div { max-width: 54ch; }
 
 /* Catalog */
-.promo-block { margin-bottom: 32px; --mono: var(--f-text); --sans: var(--f-text); }
 /* The catalog shelf: six entries in one grid, the picture first. Strips
    (32:9 shots) sit whole on the dark ground instead of being cropped. */
 .shelf { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 44px 24px; }
@@ -821,7 +821,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <h2 id="h-cat" data-i18n="cat.h2">Catalog</h2>
         <p id="cat-p" data-i18n="cat.p">Themes, widgets and scenes made for Xenon, free or for supporters. Each one installs from a code, with a preview first.</p>
       </div>
-      <div class="promo-block" data-promo-block></div>
       <div class="shelf" id="cat"></div>
       <p class="cat-more"><a href="/catalog/" data-i18n="cat.more">Browse the catalog</a><a href="/submit/" data-i18n="cat.submit">Publish yours</a></p>
     </div>
@@ -2864,8 +2863,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 
 <script>
   // The catalog rows: the same catalog.json the app and the catalog page read.
-  // The month's drops (promo.js, from the hub) come first in their own block;
-  // an entry shown there is never repeated here. At least one free entry.
+  // At least one free entry.
   (async function () {
     const box = document.getElementById('cat');
     if (!box) return;
@@ -2884,8 +2882,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     }
     const KIND = { theme: 'kind.theme', bundle: 'kind.bundle', widget: 'kind.widget', bg: 'kind.bg', ambient: 'kind.ambient', deck: 'kind.deck', page: 'kind.page' };
     function paint() {
-      const skip = new Set(Array.isArray(window.__xenonPromoIds) ? window.__xenonPromoIds : []);
-      const pool = all.filter((e) => !skip.has(e.id) && (e.shots || 0) > 0);
+      const pool = all.filter((e) => (e.shots || 0) > 0);
       const pick = [];
       // Two the author features, then the community (one look, one widget,
       // from different people), then free looks; at least one free entry.
@@ -2925,7 +2922,6 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       });
     }
     paint();
-    document.addEventListener('xenon:promo', paint);
   })();
 </script>
 
