@@ -96,7 +96,7 @@
   padding: 7px 8px 7px 12px; border-radius: 9px; background: var(--cw-well);
   font-size: 12.5px; line-height: 1.4; color: var(--cw-ink);
 }
-.cw-notice.is-warn { box-shadow: inset 3px 0 0 var(--cw-warn); }
+.cw-notice.is-warn { color: var(--cw-warn); }
 .cw-notice-t { flex: 1 1 auto; min-width: 0; }
 
 /* ── section heads (sentence case: labels, not eyebrows) ── */
