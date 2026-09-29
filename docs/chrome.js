@@ -108,4 +108,13 @@
       })
       .catch(function () {});
   }
+
+  // The month's drops (docs/promo.js): the strip above this header is on every page, so every
+  // page that carries the shared header loads it. The home loads it itself.
+  if (!document.querySelector('script[src="/promo.js"]')) {
+    var ps = document.createElement('script');
+    ps.src = '/promo.js';
+    ps.defer = true;
+    document.head.appendChild(ps);
+  }
 })();

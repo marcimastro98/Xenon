@@ -232,22 +232,35 @@ title is usually a question, and a question with no way to answer it reads as br
 
 ## Site banners (`site-promo.json`)
 
-What the home of xenon-app.com (every language copy) shows under "This month": up to three
-catalog entries, one row each, inside the catalog section. It is written from the hub admin
-("Site banners"), which commits this file the same way it commits `messages.json`, and read
-by `docs/promo.js`. It is separate from `messages.json` on purpose: that file feeds the app,
-and its ids share the app's "already shown" set.
+What xenon-app.com says about the month's drops, and where. Three places, one banner per place
+at a time, chosen per drop in the hub admin ("Site banners"), which commits this file the same
+way it commits `messages.json`; read by `docs/promo.js`. It is separate from `messages.json` on
+purpose: that file feeds the app, and its ids share the app's "already shown" set.
+
+- **`spotlight`**: on arrival, once per visit (sessionStorage). On a computer a sheet
+  (`<dialog>`) about 1.5 s after load; on a phone a panel along the bottom edge, never modal,
+  about a third of the screen at most, and only after the first scroll or tap, never on the page
+  a search result just opened (Google's intrusive-interstitial rule).
+- **`strip`**: a band above the header of every page (the home loads `promo.js` itself, every
+  page with the shared header gets it from `chrome.js`, and `/get/` loads it directly). The
+  header moves down by its height. Closing it is remembered per banner (localStorage
+  `xenon.site.promo.v1`).
+- **`corner`**: a card at the bottom right of the home (every language copy), on a computer,
+  after most of the first screen has scrolled by. Closing it is remembered like the strip.
 
 ```jsonc
 {
   "promos": [
     {
-      "id": "nitrato-oct",           // ^[a-z0-9][a-z0-9_-]{0,60}$
-      "entryId": "nitrato",          // required: the catalog entry this row is about
-      "order": 1,                    // optional integer 1..3, default 1; lower comes first
-      "activeFrom": "2026-10-01",    // optional ISO date/datetime: when the row starts showing
-      "activeUntil": "2026-10-31T23:59:59Z", // optional, >= activeFrom: when it stops showing
-      "video": "https://assets.xenon-app.com/community/promo/nitrato-oct.mp4", // optional, mp4/webm
+      "id": "nitrato-oct-spotlight", // ^[a-z0-9][a-z0-9_-]{0,60}$
+      "entryId": "nitrato",          // required: the catalog entry this banner is about
+      "format": "spotlight",         // required: spotlight | strip | corner ("card" reads as corner)
+      "activeFrom": "2026-10-01",    // optional ISO date/datetime: when it starts showing
+      "activeUntil": "2026-10-31T23:59:59+01:00", // optional, >= activeFrom: when it stops
+      "video": "https://assets.xenon-app.com/community/promo/nitrato-oct.mp4",        // optional, mp4/webm, 16:7
+      "poster": "https://assets.xenon-app.com/community/promo/nitrato-oct-poster.png", // optional, png/webp/jpg
+      "look": { "paper": "#f3f5f4", "ink": "#131719" }, // optional: the pack's own paper and ink, 4.5:1
+      "slice": { "x": 0.5, "y": 0.286, "w": 0.34 },    // optional: the band of the loop the strip shows
       "url": "",                     // optional; default is /catalog/#<entryId>
       "text": {                      // en is required and is the fallback for it, es, ja, ko, zh
         "en": { "title": "", "line": "A 1920 woodcut town for your dashboard.", "cta": "See Nitrato" }
@@ -259,40 +272,42 @@ and its ids share the app's "already shown" set.
 
 `text.<lang>.line` is required in English; `title` (60 characters), `line` (180) and `cta` (32)
 are capped, and a language left out falls back to English field by field. Unknown keys are
-dropped. The four earlier formats (strip, band, corner card, spotlight) are gone: a feed that
-still carries `format` or `inside` is read without error and those keys are ignored.
+dropped, `order` and `inside` (from earlier versions) included. A row without a `format` is
+skipped by the site; retire it from the hub.
 
-How the block works:
+How the banners work:
 
-- **It lives in the page, never over it.** The home marks the slot with
-  `<div class="promo-block" data-promo-block></div>` inside `#community`, after the section
-  heading and before the drop cards. With nothing live the block stays empty and hidden,
-  heading included. It sits below the fold, so filling it moves nothing in view.
-- **Which rows**: promos live now (their own dates) whose entry is in `catalog.json` and open
-  (the catalog's own `active`/date rules), sorted by `order`, then the most recent
-  `activeFrom`, then `id`; one row per entry; at most three. The hub refuses a promo that
-  would make four live at the same instant (`too_many_live`).
+- **The look is the pack's, not the site's.** The site has no colour of its own, so each banner
+  is a sheet of the pack's `paper` with its `ink`: the loop's first frame gives the paper (so
+  the product sits IN the sheet) and the pack's art direction gives the ink. A look that does
+  not read at 4.5:1 is replaced by a neutral sheet. Type is the site's own (the display face for
+  the name, the text face for the rest). Deliberately absent: kickers above the name, chips,
+  icons beside words, glows, gradients, shadows, bounce, rounded surfaces; a test in
+  `server/test/site-promo.test.mjs` keeps the stylesheet honest.
+- **The language is the PAGE's** (`XLANG`, then `<html lang>`, then `__XENON_SITE_LANG`), and
+  only then the visitor's pick and the browser: an English page is English.
+- **Which banner**: per place, a promo live now (its own dates) whose entry is in
+  `catalog.json` and open (the catalog's own `active`/date rules); should two share a place,
+  the later start wins. The hub refuses a second banner in the same place for overlapping dates
+  (`format_taken`).
 - **The pack's facts come from `catalog.json`, not from here**: its name (when `title` is
-  empty), its picture (`shots/<id>.webp`), its colours (`preview`, used only when they pass a
-  4.5:1 contrast check, the site's dark ground otherwise), whether it is for supporters
-  (`locked`) and when it ends. A promo whose entry is missing or not open is skipped, so a row
-  can never advertise something the catalog does not offer.
+  empty), its kind and whether it is for supporters (the line "A widget for Xenon supporters."
+  is built from `kind` and `locked`), and when it ends. A promo whose entry is missing or not
+  open is skipped, so a banner can never advertise something the catalog does not offer.
 - **Urgency only from data.** The end shown is the ENTRY's `activeUntil`, never the promo's:
-  a promo's dates only decide when the row is on the page. "N days left" appears only within
-  14 days of that end, "Available until <date>" before that, and nothing about time without
-  one (or when the entry is forced on with `active: true`).
-- **One link per row**: the `cta` (default "See <name>") to `url` or `/catalog/#<entryId>`,
-  tagged `data-track="promo_click" data-track-format="block" data-track-id="<id>"`.
-- **The video** plays only on a wide screen without reduced motion, only while in view, with
-  its own Pause button; everywhere else the row shows the shot.
-- **The home's own drop cards step aside**: after every render `promo.js` sets
-  `window.__xenonPromoIds` and fires a `xenon:promo` event with `{ ids }` (entry ids), and the
-  home hides any drop card for those entries, so nothing appears twice.
-- **`url` and `video` are restricted**: https on xenon-app.com, GitHub or Discord for the
-  link, `assets.xenon-app.com/community/promo/` for the video. A promo naming anything else
-  is dropped.
+  a promo's dates only decide when it is on the page. "N days left" appears only within 14 days
+  of that end, "Available until <date>" before that, nothing about time without one.
+- **Nothing overlays the page before the cookie choice** (`xenon:consent`), nor over an open
+  dialog, the lightbox or a deep link (a `#hash` in the URL). Nothing draws inside a frame (the
+  home's live demo) or on `/demo/`.
+- **The loop** plays only while in view and only without reduced motion (the poster otherwise);
+  the picture itself is the pause button (WCAG 2.2.2).
+- **One link per banner**, tagged `data-track="promo_click" data-track-format="<place>"
+  data-track-id="<id>"`.
+- **`url`, `video` and `poster` are restricted**: https on xenon-app.com, GitHub or Discord for
+  the link, `assets.xenon-app.com/community/promo/` for the media. A promo naming anything
+  else is dropped.
 - **Preview**: the hub frames `/?promo-preview=1` and posts
   `{ type: 'xenon-promo-preview', promo, entry, lang }`; the page listens only to the hub's
-  origin, draws only that draft (dates not applied, nothing live beside it, nothing stored),
-  and answers `{ type: 'xenon-promo-ready' }` when it is listening.
-- The catalog page does not load `promo.js`: its storefront has its own hub-driven spotlight.
+  origin, draws only that draft in its place (dates not applied, nothing stored, marked
+  "Preview, not published"), and answers `{ type: 'xenon-promo-ready' }` when it is listening.

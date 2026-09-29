@@ -15,8 +15,9 @@
 //
 // Self-contained on purpose: the site's i18n dictionary lives inside index.html
 // only, and this script also runs on /get, /catalog, /create and /submit. It
-// carries its own strings for the same five languages and follows the language
-// the site persists under `xenon.site.lang`.
+// carries its own strings for the site's six languages and follows the page's
+// own language (<html lang>), then the one the site persists under
+// `xenon.site.lang`, then the browser's.
 (function () {
   'use strict';
 
@@ -70,6 +71,10 @@
   };
 
   function lang() {
+    // The page's own language first: an English page shows an English box, whatever the browser
+    // is set to. Only a page that says nothing falls back to the visitor's pick and the browser.
+    var p = String(window.XLANG || document.documentElement.lang || window.__XENON_SITE_LANG || '').slice(0, 2).toLowerCase();
+    if (LANGS.indexOf(p) !== -1) return p;
     var l = null;
     try { l = localStorage.getItem(LANG_KEY); } catch (e) { /* private mode */ }
     if (LANGS.indexOf(l) !== -1) return l;
