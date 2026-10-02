@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### 🐛 Fixed
 - **A limited or purchased pack you saved keeps opening after it is updated.** A pack file saved before Xenon gave each version its own key does not say which key it was sealed with, and Xenon asked the unlock service for "the newest". That is the right key today, but it stops being the right one the day a newer version of the pack is published, so re-importing your original file, on a new PC for example, would have said the code was wrong. Xenon now asks for the first key, which is the one those files were sealed with. Updating through the Store was never affected.
 
+- **The Linux app could close by itself, often within seconds of opening.** Every few seconds Xenon checks which screens are connected, so it can keep its window on the one you picked. On Linux that check ran outside the thread that draws the window, and the two could talk to the display server at the same moment, which made the app quit with an "[xcb] Unknown request in queue" error. All screen checks now run on the drawing thread, on Windows and macOS too, where they were not causing a crash.
+
 ## [v4.11.11] - 02-10-2026
 ### ✨ Added
 - **A switch for automatic updates.** Xenon has always downloaded and installed new releases on its own, while you are not using the PC, on by default — but there was never a way to see that or turn it off in Settings. **Settings → General → Aggiornamenti** now has **Aggiorna Xenon da solo**. Off, Xenon still checks for new versions and still tells you when one is out; it just waits for you to press Update instead of installing it on its own.

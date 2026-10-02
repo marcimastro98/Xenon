@@ -31,7 +31,7 @@ const H_EXPANDED: f64 = 620.0;
 /// Top-left logical position that centers the pill horizontally on the primary
 /// monitor, a Spotlight-like quarter down from its top.
 fn place(app: &AppHandle) -> (f64, f64) {
-    if let Ok(Some(mon)) = app.primary_monitor() {
+    if let Some(mon) = crate::monitor::app_primary(app) {
         let scale = mon.scale_factor();
         let mw = mon.size().width as f64 / scale;
         let mx = mon.position().x as f64 / scale;
