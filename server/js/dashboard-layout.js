@@ -736,6 +736,11 @@ function insertDashboardPreset(presetId) {
     return res || { ok: false };
   }
   saveDashboardLayout(layout);
+  // Tiles that name their Store package get it now; a bundle import runs this
+  // before the package exists and binds again once it is installed.
+  if (res.bind && res.bind.length && window.CustomWidget && typeof window.CustomWidget.bindPackages === 'function') {
+    window.CustomWidget.bindPackages(res.bind);
+  }
   if (preset.kind === 'page' && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
     window.DashboardPages.rebuild();
     if (res.pageId && pager && typeof pager.goToPage === 'function') pager.goToPage(res.pageId);
