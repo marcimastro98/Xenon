@@ -66,7 +66,6 @@
       "author": "Xenon",
       "authorSupporter": true,
       "locked": true,
-      "featured": "on",
       "description": "What is weighing on this PC, and since when. An overview of CPU, memory and each graphics card, then one row per app with its last five minutes in your theme's colour, deeper where it worked harder. One sentence on top says what matters now; tap a row for the detail.",
       "category": "system",
       "tags": [
@@ -86,8 +85,8 @@
       },
       "shots": 4,
       "addedAt": "2026-09-29",
-      "codeFile": true,
-      "updatedAt": "2026-09-29"
+      "updatedAt": "2026-10-02",
+      "codeFile": true
     },
     {
       "id": "tgk-workstation-monitor",
