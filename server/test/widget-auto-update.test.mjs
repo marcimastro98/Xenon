@@ -388,7 +388,7 @@ test('run: not_owner falls back to the saved pass, exactly as before', async () 
     redeem: async (id, kv) => { state.redeems.push([id, kv]); return { ok: true, cek }; },
   } });
   assert.equal((await up.runOnce()).updated, 1);
-  assert.deepEqual(state.redeems, [['river', null]]);
+  assert.deepEqual(state.redeems, [['river', 1]], 'a file that names no key version is sealed under the first');
 });
 
 test('run: no pass AND not an owner waits for the user, it does not fail', async () => {

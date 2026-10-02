@@ -181,7 +181,8 @@ function createWidgetAutoUpdater(deps) {
         else if (u && u.error === 'network') return { skip: 'network' };
       }
       if (!key) {
-        const r = await deps.redeem(entry.id, locked.kv || null);   // the pass saved on this PC; never a typed one
+        // A file naming no key version is sealed under the first one (see preset-share.js).
+        const r = await deps.redeem(entry.id, locked.kv || 1);   // the pass saved on this PC; never a typed one
         if (!r || !r.ok) {
           if (r && r.error === 'network') return { skip: 'network' };
           return { attention: 'needs_code' };
