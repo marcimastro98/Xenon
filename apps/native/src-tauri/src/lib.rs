@@ -1396,6 +1396,14 @@ pub fn run() {
     crash_log::install();
     crash_log::session_start();
 
+    // WebKitGTK 2.42+ / 2.52 on Wayland compositors advertising explicit sync
+    // (wp_linux_drm_syncobj_v1) crashes with "Missing acquire timeline" (Error 71)
+    // unless dmabuf rendering is disabled.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     // Before anything can touch a display: an AppImage whose bundled libraries
     // shadow the host's driver stack renders NOTHING, and never says so.
     prefer_host_graphics_libs();
