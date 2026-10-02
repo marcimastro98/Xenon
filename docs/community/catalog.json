@@ -321,9 +321,10 @@
         "text": "#ECE7DE"
       },
       "shots": 3,
+      "active": false,
       "addedAt": "2026-08-05",
-      "codeFile": true,
-      "updatedAt": "2026-09-29"
+      "updatedAt": "2026-10-02",
+      "codeFile": true
     },
     {
       "id": "dgm-telemetry",
