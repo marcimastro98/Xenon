@@ -3487,6 +3487,26 @@
     });
     return instId;
   }
+  // A page that ships with its widget: put each named package in the custom tile
+  // the page just created. Only INSTALLED, tile-capable packages are bound; the
+  // rest keep the chooser. No grants are given here: a bound tile whose package
+  // is not approved yet shows the permission card, and the import flow asks for
+  // the approvals right after (requestGrants), exactly as for a tile placed by hand.
+  // Returns the pkg ids that were bound.
+  function bindPackages(pairs) {
+    const list = Array.isArray(pairs) ? pairs : [];
+    const cur = sdk();
+    const assign = { ...(cur.assign || {}) };
+    const bound = [];
+    for (const p of list) {
+      const pkg = p && packageById(p.pkg);
+      if (!pkg || pkg.surface === 'ambient' || !p.instance) continue;
+      assign[p.instance] = pkg.id;
+      bound.push(pkg.id);
+    }
+    if (bound.length) persist({ enabled: true, assign });
+    return bound;
+  }
   // The two ways a Store widget lands: on a page (the current one by default),
   // or as a tab of a tile. Each knows how to take its own tile back.
   function addToPage(pkgId, pageId) {
@@ -3526,7 +3546,7 @@
     getPackages, cachedPackages, packageGranted, requestGrant, requestGrants, assignToTile,
     // A Store widget in a NEW tile, on a page or as a tab: the "+" panel, the
     // Installed list and the after-install prompt all use these.
-    addToPage, addAsTab,
+    addToPage, addAsTab, bindPackages,
     // The bundled examples not installed yet, and installing one: the "+" panel
     // offers them under Installed, as the empty tile's chooser always has.
     missingExamples, installExample,

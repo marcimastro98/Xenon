@@ -2039,7 +2039,8 @@
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols, tx) {
-      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0, ids: [] } };
+      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0, ids: [], placed: [] } };
+      const pageBinds = [];
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
         // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
@@ -2048,7 +2049,7 @@
       }
       if (Array.isArray(data.pages)) {
         for (const p of data.pages) {
-          if (p && p.data && applyPage(p.data, p.name, gridCols, tx)) out.pages++;
+          if (p && p.data && applyPage(p.data, p.name, gridCols, tx, pageBinds)) out.pages++;
         }
       }
       // Deck profiles: rebuilt through sanitizeDeckProfile (untrusted!) and landed
@@ -2103,6 +2104,13 @@
           }
           updateAmbientSetting('sceneId', firstScene);
           out.ambientScene = firstScene;
+        }
+        // The pages landed first, so any tile that names one of THIS bundle's widgets
+        // could not be filled yet. Fill them now, so the page opens with its widget
+        // instead of the chooser. Only the bundle's own packages are bound here.
+        const mine = pageBinds.filter(b => out.widgets.ids.includes(b.pkg));
+        if (mine.length && window.CustomWidget && typeof CustomWidget.bindPackages === 'function') {
+          out.widgets.placed = CustomWidget.bindPackages(mine);
         }
       }
       return out;
@@ -2162,7 +2170,10 @@
         return true;
       } catch { return false; }
     }
-    function applyPage(data, name, gridCols, tx) {
+    // `bindSink`: a bundle passes an array to receive the tiles that name a package,
+    // because the page lands BEFORE the bundle's widgets are installed and the bundle
+    // binds them afterwards. Without one, binding happened at insert time.
+    function applyPage(data, name, gridCols, tx, bindSink) {
       const DP = window.DashboardPresets;
       if (!DP || !data || !Array.isArray(data.items) || !data.items.length) return false;
       const raw = {
@@ -2188,6 +2199,7 @@
         setDashboardPresets(list);
         // Adds it to the saved-presets dock AND drops it onto a fresh page now.
         const inserted = typeof insertDashboardPreset === 'function' ? insertDashboardPreset(norm.id) : null;
+        if (bindSink && inserted && Array.isArray(inserted.bind)) bindSink.push(...inserted.bind);
         if (tx) {
           addUnique(tx.resources.pagePresetIds, norm.id);
           if (inserted && inserted.pageId) addUnique(tx.resources.pageIds, inserted.pageId);
@@ -3248,7 +3260,8 @@
           toast(tr('preset_import_ok', 'Preset imported'),
             tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
         }
-        if (res.widgets.installed) offerAddToPage(res.widgets.ids);
+        // A widget the page already carries needs no "add to this page" offer.
+        if (res.widgets.installed) offerAddToPage(res.widgets.ids.filter(id => !res.widgets.placed.includes(id)));
         if (res.widgets.failed) {
           toast(tr('preset_bundle_widgets_failed', 'Some widgets could not be installed.'), '', 'error');
         }

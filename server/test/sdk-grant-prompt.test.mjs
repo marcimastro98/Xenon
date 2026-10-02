@@ -49,7 +49,7 @@ test('the import asks for grants only after its own modal is closed', () => {
 
 test('applyBundle reports which packages it installed', () => {
   // Counters alone cannot drive a prompt — the caller needs the ids.
-  assert.match(SHARE, /widgets: \{ installed: 0, failed: 0, ids: \[\] \}/);
+  assert.match(SHARE, /widgets: \{ installed: 0, failed: 0, ids: \[\], placed: \[\] \}/);
   assert.match(SHARE, /out\.widgets\.ids\.push\(wid\)/);
 });
 
