@@ -3,6 +3,10 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+### 🐛 Fixed
+- **A limited or purchased pack you saved keeps opening after it is updated.** A pack file saved before Xenon gave each version its own key does not say which key it was sealed with, and Xenon asked the unlock service for "the newest". That is the right key today, but it stops being the right one the day a newer version of the pack is published, so re-importing your original file, on a new PC for example, would have said the code was wrong. Xenon now asks for the first key, which is the one those files were sealed with. Updating through the Store was never affected.
+
 ## [v4.11.11] - 02-10-2026
 ### ✨ Added
 - **A switch for automatic updates.** Xenon has always downloaded and installed new releases on its own, while you are not using the PC, on by default — but there was never a way to see that or turn it off in Settings. **Settings → General → Aggiornamenti** now has **Aggiorna Xenon da solo**. Off, Xenon still checks for new versions and still tells you when one is out; it just waits for you to press Update instead of installing it on its own.

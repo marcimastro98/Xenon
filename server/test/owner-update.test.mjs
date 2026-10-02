@@ -199,6 +199,23 @@ test('up to date, not an owner and no answer are three different outcomes', asyn
   assert.deepEqual(await ownedUpdateOutcome('pack-a', 'x', 'garbage'), { kind: 'offline' });
 });
 
+// ── a file with no key version is sealed under the FIRST key ────────────────
+
+test('the unlock dialog asks for key version 1 when the file names none', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
+  // Sent nothing, the hub answers with its LATEST key, which stops opening the
+  // original download the day a newer version is published.
+  assert.match(src, /JSON\.stringify\(\{ entryId: locked\.entryId, code: unlockField\.value, kv: locked\.kv \|\| 1 \}\)/);
+});
+
+test('peekLocked reports no key version for a file that predates versions, and the named one otherwise', async () => {
+  const old = await seal('pack-a');
+  const newer = await seal('pack-a', { kv: 3 });
+  assert.equal(require('../js/preset-share.js').peekLocked(old.code).kv, null);
+  assert.equal(require('../js/preset-share.js').peekLocked(newer.code).kv, 3);
+});
+
 // ── the paired-device door ───────────────────────────────────────────────────
 
 test('a paired phone can update what it owns by POST, and a navigation (GET) cannot', () => {

@@ -2872,7 +2872,11 @@
               const res = await fetch('/api/community/redeem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value, kv: locked.kv || undefined }),
+                // A file that names no key version was sealed before versions existed,
+                // so it is sealed under the FIRST key. Saying so matters: with nothing
+                // sent the hub answers with its LATEST key, which stops opening the
+                // original download the day a newer version is published.
+                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value, kv: locked.kv || 1 }),
               });
               r = await res.json();
             } catch { r = null; }
