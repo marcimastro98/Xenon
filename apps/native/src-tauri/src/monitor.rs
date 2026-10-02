@@ -559,77 +559,59 @@ fn enter_borderless_fullscreen(window: &WebviewWindow, monitor: &Monitor) {
 
 #[cfg(not(target_os = "macos"))]
 fn enter_borderless_fullscreen(window: &WebviewWindow, monitor: &Monitor) {
-    // On Linux/Wayland, `set_fullscreen(true)` sends `xdg_toplevel.set_fullscreen(NULL)`,
-    // which lets the compositor choose the output — and it picks the one the window was
-    // *mapped* on (usually the focused monitor, not the Edge).  We instead call the GTK
-    // API `gtk_window_fullscreen_on_monitor` which passes the specific `wl_output`, so
-    // Hyprland/wlroots honour the intended display.  On X11 the same call uses
-    // `_NET_WM_FULLSCREEN_MONITORS`, equally correct.  Windows never reaches this branch.
+    // On Wayland `set_fullscreen(true)` names no output, so the compositor keeps the
+    // window on the one it was mapped on (a client cannot position itself there, so
+    // the set_position before this call is ignored). Naming the output is the only
+    // way to land on the Edge; on X11 the same call sets _NET_WM_FULLSCREEN_MONITORS.
     #[cfg(target_os = "linux")]
-    {
-        if linux_fullscreen_on_monitor(window, monitor) {
-            return;
-        }
-        // Fall through to the plain call if we couldn't identify the GDK monitor.
+    if fullscreen_on_gdk_monitor(window, monitor) {
+        return;
     }
+    #[cfg(not(target_os = "linux"))]
+    let _ = monitor;
     let _ = window.set_fullscreen(true);
 }
 
-/// Attempt to fullscreen on the GDK monitor that matches `monitor`'s screen position.
-///
-/// Returns `true` if we successfully issued the targeted fullscreen request.  On failure
-/// (window not yet realised, monitor not found, etc.) returns `false` so the caller can
-/// fall back to the plain `set_fullscreen`.
+/// Fullscreen on the GDK monitor at `monitor`'s origin. False when it cannot be
+/// matched (or the window has no GDK window yet), so the caller falls back to the
+/// plain call. GTK is single-threaded and the watchdog calls this from its own
+/// thread, so the GTK half always runs on the main thread (see `on_main`).
 #[cfg(target_os = "linux")]
-fn linux_fullscreen_on_monitor(window: &WebviewWindow, monitor: &Monitor) -> bool {
-    use gdk::prelude::MonitorExt; // for .geometry()
-    use gtk::prelude::WidgetExt;  // for .display() and .window()
+fn fullscreen_on_gdk_monitor(window: &WebviewWindow, monitor: &Monitor) -> bool {
+    let w = window.clone();
+    let target = *monitor.position();
+    on_main(window.app_handle(), move || gdk_fullscreen_on(&w, target)).unwrap_or(false)
+}
 
-    let gtk_win = match window.gtk_window() {
-        Ok(w) => w,
-        Err(_) => return false,
-    };
+#[cfg(target_os = "linux")]
+fn gdk_fullscreen_on(window: &WebviewWindow, target: tauri::PhysicalPosition<i32>) -> bool {
+    use gdk::prelude::MonitorExt;
+    use gtk::prelude::WidgetExt;
 
-    // The window must be realised (has a backing GDK window) before we can call
-    // fullscreen_on_monitor.  If it is not yet realised, realise it now — this is a
-    // lightweight, idempotent call when the window is already visible.
+    // Redundant inside this Linux-only fn, but check-platform-apis reads only the
+    // lines just above a gated API, and a name-wide exemption would hide a later
+    // ungated call.
+    #[cfg(target_os = "linux")]
+    let Ok(gtk_win) = window.gtk_window() else { return false };
     if !gtk_win.is_realized() {
         gtk_win.realize();
     }
-
-    // Match the Tauri monitor's position against each GDK monitor to find the index.
-    // `gdk_window_fullscreen_on_monitor` takes a Screen-relative integer index.
-    let target_pos = monitor.position();
-
-    let display: gdk::Display = gtk_win.display();
-    let n = display.n_monitors();
-
-    let mut matched_idx: Option<i32> = None;
-    for i in 0..n {
-        if let Some(gdk_mon) = display.monitor(i) {
-            let g = gdk_mon.geometry();
-            if g.x() == target_pos.x && g.y() == target_pos.y {
-                matched_idx = Some(i);
-                break;
-            }
+    let display = gtk_win.display();
+    // Tauri reports a monitor's origin in PHYSICAL pixels, GDK's logical geometry
+    // times that monitor's own scale (how tao builds it), so compare in those units:
+    // a logical-only compare misses every HiDPI screen and quietly falls back.
+    let idx = (0..display.n_monitors()).find(|&i| {
+        display.monitor(i).is_some_and(|m| {
+            let (g, s) = (m.geometry(), m.scale_factor());
+            g.x() * s == target.x && g.y() * s == target.y
+        })
+    });
+    match (idx, gtk_win.window()) {
+        (Some(i), Some(gdk_window)) => {
+            gdk_window.fullscreen_on_monitor(i);
+            true
         }
-    }
-
-    let idx = match matched_idx {
-        Some(i) => i,
-        // No matching GDK monitor found; fall back to compositor-chosen output.
-        None => return false,
-    };
-
-    // `gdk::Window::fullscreen_on_monitor` is an inherent method (no trait needed).
-    // It wraps `gdk_window_fullscreen_on_monitor` which sends the wl_output hint on
-    // Wayland and the _NET_WM_FULLSCREEN_MONITORS hint on X11.
-    if let Some(gdk_window) = gtk_win.window() {
-        gdk_window.fullscreen_on_monitor(idx);
-        true
-    } else {
-        // GDK window not yet allocated (extremely early call) — plain fallback.
-        false
+        _ => false,
     }
 }
 
