@@ -46,7 +46,7 @@
         "supporter"
       ],
       "version": "1.0.0",
-      "appVersionMin": "4.11.10",
+      "appVersionMin": "4.11.11",
       "preview": {
         "accent": "#D6AA6A",
         "bg": "#201A13",
