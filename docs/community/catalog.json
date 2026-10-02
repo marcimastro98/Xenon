@@ -24,9 +24,9 @@
         "text": "#f2f2ea"
       },
       "shots": 4,
-      "active": false,
       "addedAt": "2026-10-02",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-10-02"
     },
     {
       "id": "nitrato",
