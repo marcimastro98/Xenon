@@ -185,6 +185,10 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/community/catalog', '/api/community/code', '/api/community/messages',
   '/api/community/installed', '/api/community/installs', '/api/community/poll',
   '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
+  // The owner update: POST-only like the redeem it sits beside. It hands back a
+  // content key (and sometimes a private file), so a navigation must not reach it.
+  // A paired phone DOES reach it by POST: updating what you own is the dashboard.
+  '/api/community/update',
   // The remembered supporter pass. Both are POST-only for the same reason the
   // redeem above is: a top-level navigation is a GET, and these throw away
   // something only the user can put back, or plant a code they never typed. The

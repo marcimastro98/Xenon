@@ -3395,6 +3395,39 @@
     }
   }
 
+  // The server updated Store widgets on its own (server/widget-auto-update.js),
+  // or found an update it will not apply without the user: a new permission, or a
+  // supporter widget with no saved code. Reload the packages so mounted frames
+  // take the new files, and say so once. Names come from a widget manifest, so
+  // they only ever reach the toast as text.
+  function onAutoUpdated(data) {
+    if (!data || typeof data !== 'object') return;
+    const names = (list) => (Array.isArray(list) ? list : [])
+      .map((x) => String((x && x.name) || (x && x.id) || '').slice(0, 60)).filter(Boolean);
+    const updated = names(data.updated);
+    const waiting = names(data.attention);
+    if (updated.length) fetchPackages(true).catch(() => {});
+    if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
+    if (updated.length) {
+      window.XenonToast.show({
+        type: 'success', duration: 6000,
+        title: updated.length === 1
+          ? t('widget_autoupdate_toast_one', '{name} updated').replace('{name}', updated[0])
+          : t('widget_autoupdate_toast_n', '{n} widgets updated').replace('{n}', String(updated.length)),
+        message: t('widget_autoupdate_toast_sub', 'Updated on their own, with no new permissions'),
+      });
+    }
+    if (waiting.length) {
+      window.XenonToast.show({
+        type: 'info', duration: 9000,
+        title: waiting.length === 1
+          ? t('widget_autoupdate_wait_one', '{name} has an update waiting for you').replace('{name}', waiting[0])
+          : t('widget_autoupdate_wait_n', '{n} widgets have an update waiting for you').replace('{n}', String(waiting.length)),
+        message: t('widget_autoupdate_wait_sub', 'Open Settings, Community widgets, Manage installed'),
+      });
+    }
+  }
+
   // Package list access for AmbientMode / the Settings scene picker.
   async function getPackages(force) {
     if (!pkgCache || force) await fetchPackages(!!force);
@@ -3532,7 +3565,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onAutoUpdated, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
     // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
     publishStream,

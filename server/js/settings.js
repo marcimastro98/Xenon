@@ -409,6 +409,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Do not "simplify" that test to `!== false`: it would flip exactly those people.
   versionPing: true,
   autoUpdate: true,
+  // Store widgets update themselves (server/widget-auto-update.js). On unless switched off.
+  autoUpdateWidgets: true,
   // Announcements and the paid-drop card. ON by default, and normalized with
   // `!== false` — the opposite of versionPing above, deliberately: this is a
   // preference about being interrupted, not a data opt-in.
@@ -1745,6 +1747,7 @@ function normalizeSettings(source) {
     versionPing: value.versionPing === true,
     // Automatic updates: on unless the user switched them off (server/auto-update.js).
     autoUpdate: value.autoUpdate !== false,
+    autoUpdateWidgets: value.autoUpdateWidgets !== false,
     hubMessages: value.hubMessages !== false,
     catalogDrops: value.catalogDrops !== false,
     monthlyDrops: value.monthlyDrops !== false,
@@ -4891,6 +4894,11 @@ function syncSettingsControls() {
   }
   const versionPing = $('settings-version-ping');
   if (versionPing) versionPing.checked = hubSettings.versionPing === true;
+  const autoUpdateChk = $('settings-auto-update');
+  if (autoUpdateChk) autoUpdateChk.checked = hubSettings.autoUpdate !== false;
+  const autoUpdateWidgetsChk = $('settings-auto-update-widgets');
+  if (autoUpdateWidgetsChk) autoUpdateWidgetsChk.checked = hubSettings.autoUpdateWidgets !== false;
+  refreshWidgetAutoUpdateLine();
   const hubMsg = $('settings-hub-messages');
   if (hubMsg) hubMsg.checked = hubSettings.hubMessages !== false;
   const catDrops = $('settings-monthly-drops');
@@ -8743,6 +8751,45 @@ function updateVersionPing(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, versionPing: checked === true });
   saveHubSettings();
   syncSettingsControls();
+}
+
+// Automatic self-update. On by default (server/auto-update.js). Off means Xenon
+// still checks and still shows the What’s New modal (js/update.js) — it just
+// never downloads or applies a release on its own.
+function updateAutoUpdate(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, autoUpdate: checked !== false });
+  saveHubSettings();
+  syncSettingsControls();
+}
+
+// Store widgets that update themselves. On by default (server/widget-auto-update.js).
+// Off means the update is still offered, as it always was, and waits for the user.
+function updateAutoUpdateWidgets(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, autoUpdateWidgets: checked !== false });
+  saveHubSettings();
+  syncSettingsControls();
+}
+
+// The line under that switch: what was last updated, and what is waiting for the
+// user. Read from the server; a failed read just leaves the line empty.
+async function refreshWidgetAutoUpdateLine() {
+  const line = document.getElementById('settings-auto-update-widgets-line');
+  if (!line) return;
+  try {
+    const res = await fetch(SERVER + '/api/widgets/auto-update');
+    const st = res.ok ? await res.json() : null;
+    const names = (list) => (Array.isArray(list) ? list : []).map((x) => String((x && x.name) || (x && x.id) || '').slice(0, 60)).filter(Boolean);
+    const parts = [];
+    if (st && st.last && Array.isArray(st.last.updated) && st.last.updated.length) {
+      const when = st.last.at ? new Date(st.last.at).toLocaleDateString() : '';
+      parts.push(t('settings_widget_auto_update_last').replace('{names}', names(st.last.updated).join(', ')).replace('{when}', when));
+    }
+    if (st && Array.isArray(st.waitingForYou) && st.waitingForYou.length) {
+      parts.push(t('settings_widget_auto_update_wait').replace('{names}', names(st.waitingForYou).join(', ')));
+    }
+    line.textContent = parts.join(' · ');
+    line.hidden = !parts.length;
+  } catch { line.hidden = true; }
 }
 
 // Announcements / paid-drop card. Both were localStorage-only before v4.9.0, so

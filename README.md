@@ -16,7 +16,7 @@ community catalog) — every one of those calls is listed in the [privacy page](
 ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-4.11.10-informational)
+![version](https://img.shields.io/badge/version-4.11.11-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 <p align="center">
@@ -283,7 +283,7 @@ To remove Xenon on Windows, open **Settings → Apps → Installed apps**, find 
 
 ### Updating
 
-Xenon updates itself. When a new release is out, the dashboard shows an **update prompt** — one tap downloads it (signature-verified), installs the dashboard engine first and then the app, shows real progress, and automatically restores your previous version if anything goes wrong. Your data, layouts and settings are always preserved, and leftover files from old versions are cleaned up. No manual downloads needed.
+Xenon updates itself. When a new release is out, the dashboard shows an **update prompt** — one tap downloads it (signature-verified), installs the dashboard engine first and then the app, shows real progress, and automatically restores your previous version if anything goes wrong. Your data, layouts and settings are always preserved, and leftover files from old versions are cleaned up. No manual downloads needed. Widgets from the Store update themselves too, a day or more after a new version is published, and only when it asks for no new permissions; anything that does is left for you to approve. One switch in Settings turns it off.
 
 ---
 

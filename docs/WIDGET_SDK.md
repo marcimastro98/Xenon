@@ -2520,6 +2520,17 @@ a readout the user deliberately parked in their top bar is worth having precisel
 when your tile is not on screen. Without it, your slot is dropped a few seconds
 after your last frame goes away.
 
+## Shipping an update (v4.11.11)
+
+When you publish a new version of your widget to the Store, people who installed it from there receive it on their own. Xenon takes it a day or more after the version goes live, replaces your package folder whole (a file you dropped in the new version is gone, nothing is merged), and keeps the user's saved settings, which live outside the package.
+
+What you should know before you bump the version:
+
+- **A new permission stops it.** If the new `manifest.json` asks for anything the user has not approved for the old version, Xenon does not install it by itself. That means a new stream, action, host, hook, handler, capability (`storage`, `secrets`, `island`, `badge`, `mini`, `clipboard`, `accent`, `expand`), a new `userHosts` slot, or a different `surface`. The user is told an update is waiting, and gets the usual permission window when they update by hand. Everyone who stays on the old version keeps working.
+- **Same id, higher version.** The catalog entry's `pkgId` has to be the `id` inside the package, and the version has to go up, or nobody receives it.
+- **Allow for a day.** The delay is on purpose: a version that turns out wrong can be hidden from the catalog before it reaches anyone.
+- **A package that fails its checks** (it does not validate, or the scan does not see it afterwards) is put back to the old version and is not retried by itself.
+
 ## Persistent storage
 
 Declare `"storage": true` and your widget gets a small key/value store that

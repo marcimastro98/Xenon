@@ -145,6 +145,22 @@
     // handed over on Discord comes with the same personal code, so gating this
     // on `claimUrl` hid the way back in from exactly the drops that are
     // fulfilled by hand.
+    // The owner of an older copy gets an update here. A limited copy has no public
+    // file, so the hub is asked as the owner of THIS install (no code to retype);
+    // when it does not know this install the user is told how to bring the file in.
+    if (entryInstallState(entry) === 'update') {
+      const owner = ownedTargetFor(entry);
+      const upd = el('button', 'cgal-btn is-update'); upd.type = 'button';
+      upd.appendChild(icon('update'));
+      upd.appendChild(el('span', null, t('gallery_update', 'Update…')));
+      upd.addEventListener('click', async () => {
+        if (!owner || !window.PresetShare || !PresetShare.updateOwned) return;
+        upd.disabled = true;
+        await PresetShare.updateOwned('', { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
+        upd.disabled = false;
+      });
+      group.appendChild(upd);
+    }
     group.appendChild(haveCodeButton(entry));
     parent.appendChild(group);
   }
@@ -644,6 +660,11 @@
       // stacked dialog would trip, and it reappears when the dialog closes. On a
       // committed install, the 'xenon-content-installed' listener repaints it so
       // the card flips to "Installed".
+      const owner = isUpdate && entry.locked === true ? ownedTargetFor(entry) : null;
+      if (owner && window.PresetShare && PresetShare.updateOwned) {
+        PresetShare.updateOwned(code, { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
+        return;
+      }
       if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true });
     });
     return b;
@@ -1231,9 +1252,11 @@
   // update-join implementation — Settings' installed-packages manager and the
   // daily check consume it via window.CommunityGallery.findUpdates, so the
   // surfaces can never disagree about whether an update exists. Locked entries
-  // are excluded: they can't be one-click updated (the code needs an access
-  // code). "Update" is always a normal re-import: full preview + permission
-  // re-approval by construction, never a silent swap.
+  // are INCLUDED: the update is the import dialog, which unlocks with the saved
+  // supporter pass when this PC has one and otherwise asks for the code and
+  // saves it, exactly like a first install. "Update" is always a normal
+  // re-import: full preview + permission re-approval by construction, never a
+  // silent swap.
   // Fail-CLOSED semver parse (mirrors server/semver.js, which is server-only):
   // coercing junk to 0.0.0 would show a false "update available" badge inviting a
   // downgrade-reinstall. A malformed side must never produce an update hint — nor
@@ -1310,6 +1333,7 @@
     // (copy id minus its trailing -digits); consulted ONLY for entries that are
     // limited drops, so a plain entry can never be joined by accident.
     const dropReceipts = new Map();
+    const dropCopyIds = new Map();   // 'vanguard-50' → 'vanguard-50-01': what the hub calls the copy
     try {
       const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
         ? hubSettings.contentInstalls : [];
@@ -1322,14 +1346,18 @@
         // entryInstallState treats a present-but-versionless receipt as 'current'
         // (installed), and findUpdates already skips versionless entries, so this
         // can never produce a false "Update" badge.
-        if (rec && typeof rec.sourceId === 'string' && rec.sourceId && typeof rec.sourceVersion === 'string') {
-          receipts.set(rec.sourceId, rec.sourceVersion);
+        // The normalizer OMITS an empty sourceVersion (content-installs.js), so a
+        // versionless receipt arrives with no property at all. Requiring a string here
+        // dropped exactly the receipts the comment above promises to index.
+        if (rec && typeof rec.sourceId === 'string' && rec.sourceId) {
+          const sv = typeof rec.sourceVersion === 'string' ? rec.sourceVersion : '';
+          receipts.set(rec.sourceId, sv);
           const m = /^(.+)-(\d{1,4})$/.exec(rec.sourceId);
-          if (m) dropReceipts.set(m[1], rec.sourceVersion);
+          if (m) { dropReceipts.set(m[1], sv); dropCopyIds.set(m[1], rec.sourceId); }
         }
       }
     } catch { /* settings unavailable → receipts join contributes nothing */ }
-    installIndex = { pkg, receipts, dropReceipts };
+    installIndex = { pkg, receipts, dropReceipts, dropCopyIds };
     return installIndex;
   }
 
@@ -1347,6 +1375,22 @@
     return rec.catalog || rec.manifest || null;
   }
 
+  // What to tell the hub when the owner of an installed entry asks for its update:
+  // the id the hub knows this install by (a numbered copy is not the catalog id) and
+  // the version that is installed. Null when nothing is installed.
+  function ownedTargetFor(entry) {
+    if (!entry || !installIndex) return null;
+    let have = null;
+    let entryId = entry.id;
+    if (entry.pkgId && installIndex.pkg.has(entry.pkgId)) have = installedPkgVersion(installIndex.pkg.get(entry.pkgId));
+    if (installIndex.receipts.has(entry.id)) { if (have == null) have = installIndex.receipts.get(entry.id); }
+    else if (entry.limited && installIndex.dropCopyIds && installIndex.dropCopyIds.has(entry.id)) {
+      entryId = installIndex.dropCopyIds.get(entry.id);
+      if (have == null) have = installIndex.dropReceipts.get(entry.id);
+    }
+    return have == null ? null : { entryId, have: String(have || '') };
+  }
+
   function entryInstallState(entry) {
     if (!entry || !installIndex) return 'none';
     let have = null;
@@ -1362,7 +1406,7 @@
     const idx = await refreshInstallIndex();
     if (!idx.pkg.size && !idx.receipts.size) return [];
     return entries.filter((e) => {
-      if (!e || !e.version || e.locked) return false;
+      if (!e || !e.version) return false;
       if (e.pkgId) return idx.pkg.has(e.pkgId) && verLess(installedPkgVersion(idx.pkg.get(e.pkgId)), e.version);
       // Owned numbered copies join through the drop-id index (see
       // refreshInstallIndex) — without it a numbered edition's owner never saw

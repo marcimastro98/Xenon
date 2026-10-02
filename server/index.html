@@ -1422,6 +1422,13 @@
           <span class="settings-hint" data-i18n="settings_updates_hint">Xenon controlla già se esiste una versione più recente</span>
         </div>
         <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-auto-update" type="checkbox" onchange="updateAutoUpdate(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_auto_update">Aggiorna Xenon da solo</span>
+            <span class="settings-hint" data-i18n="settings_auto_update_hint">scarica e installa le nuove versioni in automatico, quando non stai usando il PC. Spenta, Xenon avvisa comunque quando ce n'è una, ma aspetta che tu prema Aggiorna</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
           <input class="settings-check" id="settings-version-ping" type="checkbox" onchange="updateVersionPing(this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_version_ping">Conta questa installazione, in forma anonima</span>
@@ -3194,6 +3201,14 @@
                 <span class="settings-hint" data-i18n="settings_safe_mode_hint">mette in pausa widget di terze parti, tema personalizzato e sfondi importati e torna all'aspetto di fabbrica. Non disinstalla niente: togli la spunta e tutto torna come prima. Utile per capire se un contenuto installato causa problemi</span>
               </span>
             </label>
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-auto-update-widgets" type="checkbox" onchange="updateAutoUpdateWidgets(this.checked)">
+              <span class="settings-label-line">
+                <span data-i18n="settings_widget_auto_update">Aggiorna i widget da solo</span>
+                <span class="settings-hint" data-i18n="settings_widget_auto_update_hint">installa da solo le nuove versioni dei widget dello Store. Non aggiorna mai un widget che chiede permessi nuovi: quello resta a te. Spenta, gli aggiornamenti restano a portata di tap in Gestisci gli installati</span>
+              </span>
+            </label>
+            <p class="settings-note" id="settings-auto-update-widgets-line" hidden></p>
             <div class="settings-share-buttons">
               <button type="button" class="settings-btn" onclick="if(window.CommunityGallery)CommunityGallery.open('__installed')" data-i18n="settings_sdk_manage">Gestisci gli installati…</button>
             </div>

@@ -123,6 +123,8 @@ const communityCatalog = require('./community-catalog');
 const communityMessages = require('./community-messages');
 const communityInstalls = require('./community-installs');
 const supporterRedeem = require('./supporter-redeem');
+const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
+const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const versionPing = require('./version-ping');
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
@@ -1924,14 +1926,16 @@ async function installWidgetPayload(payload, origin, catalogVersion) {
     // Capture BEFORE writing: "no folder yet" means a brand-new id, so a plain
     // import records 'import' instead of inheriting the local-folder default.
     const existed = await fs.promises.access(dest).then(() => true, () => false);
-    await fs.promises.mkdir(dest, { recursive: true });
-    for (const f of v.files) {
-      const abs = path.join(dest, ...f.relPath.split('/'));
-      // Defense in depth: relPath is already traversal-proof, assert anyway.
-      if (abs !== dest && !abs.startsWith(dest + path.sep)) continue;
-      await fs.promises.mkdir(path.dirname(abs), { recursive: true });
-      await fs.promises.writeFile(abs, f.bytes);
-    }
+    // The same swap the automatic update uses: the package is written beside the
+    // live one and renamed into place, so a failure half way leaves the old version
+    // whole, and a file the new version no longer ships does not linger from the
+    // old one (a mixed tree is how an update ends up running the old script against
+    // the new page). The widget's own data lives in widget-store, not in this folder.
+    const swapped = await sdkWidgets.installPackageStaged(SDK_WIDGETS_DIR, SDK_STAGING_DIR, v, async () => {
+      const scan = await refreshSdkScan();
+      return scan.packages.some((p) => p.id === v.id && p.version === v.manifest.version);
+    });
+    if (!swapped.ok) return { ok: false, error: 'install_failed' };
     await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(existed ? widgetOriginOf(v.id) : null, origin), catalogVersion);
     await refreshSdkScan();
     return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts };
@@ -8234,6 +8238,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // installs what the user would otherwise be asked to install, at a moment
   // they are not using the PC. One tap in Settings -> General turns it off.
   autoUpdate: true,
+  // Store widgets update themselves (server/widget-auto-update.js). Same posture
+  // as autoUpdate: ON, normalized with `!== false`, sends nothing anywhere new (it
+  // reads the catalog the Store already reads). It never raises a widget's
+  // permissions and never touches a theme, a page or a Deck: a version that asks
+  // for more than was approved waits for the user, as an update always did.
+  autoUpdateWidgets: true,
   // Counts an install of a catalog entry, with NO identifier attached: the hub
   // bumps a per-entry counter and discards the request (see community-installs.js).
   // Normalized `=== true` like versionPing, NOT `!== false` like the two above:
@@ -9673,6 +9683,7 @@ function normalizeHubSettings(value) {
     catalogDrops: source.catalogDrops !== false,
     monthlyDrops: source.monthlyDrops !== false,
     autoUpdate: source.autoUpdate !== false,
+    autoUpdateWidgets: source.autoUpdateWidgets !== false,
     catalogStats: source.catalogStats === true,
     // The release id the What's New modal was dismissed for, and the Discord
     // card's flag. Both `=== true`/bounded-string rather than `!== false`: an
@@ -10823,6 +10834,55 @@ const autoUpdater = autoUpdateLib.createAutoUpdater({
   log: (msg) => console.log('[auto-update] ' + msg),
   port: PORT,
   minAgeMs: AUTO_UPDATE_MIN_AGE_MS,
+});
+
+// Store widgets that update themselves. The decision logic lives in
+// widget-auto-update.js; this only hands it the server's own readers and the one
+// install path (the staged swap with rollback). Every package still passes
+// validateWidgetPayload before a byte is written, and no grant is ever issued.
+const WIDGET_AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'widget-auto-update.json');
+const SDK_STAGING_DIR = path.join(DATA_DIR, 'widget-staging');   // beside the packages dir, never inside it
+const widgetAutoUpdater = widgetAutoUpdateLib.createWidgetAutoUpdater({
+  currentVersion: APP_VERSION,
+  isEnabled: () => !!(_serverHubSettings && _serverHubSettings.autoUpdateWidgets !== false),
+  safeMode: () => !!(_serverHubSettings && _serverHubSettings.safeMode === true),
+  signals: autoUpdateSignals,
+  fetchCatalog: () => communityCatalog.fetchVisibleCatalog(false),
+  fetchCode: (id) => communityCatalog.fetchCode(id),
+  // The supporter pass already saved on this PC, never a typed one.
+  redeem: (entryId, kv) => supporterRedeem.redeem({ entryId, code: '', kv, dataDir: DATA_DIR }),
+  // Tried first for a locked widget: an install the hub already knows as an owner
+  // needs no pass, which is what lets a purchased (XL) widget update by itself.
+  update: (entryId, opts) => supporterRedeem.update({ entryId, have: opts && opts.have, kv: opts && opts.kv, dataDir: DATA_DIR }),
+  codec: { peekLocked: presetCodec.peekLocked, decodePreset: presetCodec.decodePreset },
+  validatePayload: (payload) => sdkWidgets.validateWidgetPayload(payload),
+  listInstalled: async () => (await sdkPackagesCached()).packages,
+  originOf: (id) => widgetOriginOf(id),
+  catalogVersionOf: (id) => widgetCatalogVersionOf(id),
+  isSuspended: (id) => sdkPkgSuspended(id),
+  // The RAW approved grants: sdkGrantsFor() masks to empty under safe mode and for
+  // a suspended package, which would read as "nothing approved" here.
+  grantsOf: (id) => {
+    const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+    return (sw && sw.grants && typeof sw.grants === 'object' && sw.grants[id]) || {};
+  },
+  installStaged: async (validated, catalogVersion) => {
+    const res = await sdkWidgets.installPackageStaged(SDK_WIDGETS_DIR, SDK_STAGING_DIR, validated, async () => {
+      const scan = await refreshSdkScan();
+      return scan.packages.some((p) => p.id === validated.id && p.version === validated.manifest.version);
+    });
+    if (res.ok) {
+      await recordWidgetOrigin(validated.id, sdkWidgets.mergeOrigin(widgetOriginOf(validated.id), 'import'), catalogVersion);
+      await refreshSdkScan();
+    }
+    return res;
+  },
+  store: {
+    read: () => readPwshJson(WIDGET_AUTO_UPDATE_STATE_PATH),
+    write: (obj) => writeFileAtomic(WIDGET_AUTO_UPDATE_STATE_PATH, JSON.stringify(obj)),
+  },
+  broadcast: (event, data) => { try { broadcastSSE(event, data); } catch { /* no clients */ } },
+  log: (msg) => console.log('[widget-auto-update] ' + msg),
 });
 
 // Guardian — opt-in hardware-health history. The interval only does real work
@@ -12527,6 +12587,10 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // The owner update: POST-only, an outbound request to the supporter hub, and a
+  // successful answer carries a content key and sometimes a private file, so a
+  // drive-by or a sandboxed iframe with a null Origin must not be able to ask.
+  '/api/community/update',
   // Same shape one step further: the remembered pass. /forget destroys
   // something only the user can restore (by typing the code again) and /save
   // would let a sandboxed widget plant a code of its own, so neither may be
@@ -15253,6 +15317,12 @@ const handleRequest = async (req, res) => {
       json(out);
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/widgets/auto-update' && req.method === 'GET') {
+    // Where the widget auto-updater stands, for the line in Settings -> Widget e
+    // condivisione: the switch, the last run, and what is waiting for the user.
+    // Read-only, names and versions only.
+    try { json(await widgetAutoUpdater.status()); } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/update/auto/postpone' && req.method === 'POST') {
     // "Postpone by an hour" from the countdown on any dashboard. It can only
     // delay an update, never start one, so a paired phone may send it too.
@@ -15612,6 +15682,9 @@ const handleRequest = async (req, res) => {
       if ((prev && prev.autoUpdate !== false) !== (settings.autoUpdate !== false)) {
         try { autoUpdater.settingsChanged(); } catch { /* next tick reads it anyway */ }
       }
+      if ((prev && prev.autoUpdateWidgets !== false) !== (settings.autoUpdateWidgets !== false)) {
+        try { widgetAutoUpdater.settingsChanged(); } catch { /* next tick reads it anyway */ }
+      }
       // Ad-blocker toggle changed → tear the headless Edge down so the next tile
       // open relaunches it with (or without) --load-extension. Open tiles re-open
       // via BrowserTile.restart() on the client right after this save resolves.
@@ -15784,7 +15857,20 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await supporterRedeem.redeem({
-        entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
+        entryId: body.entryId, code: body.code, kv: body.kv, dataDir: DATA_DIR,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/update' && req.method === 'POST') {
+    // Owner update: "I already unlocked this entry on this install, is there a newer
+    // version and may I have its key?" Sends no code. The hub answers only a device
+    // it recorded as an owner (the activation /redeem wrote) and says not_owner to
+    // every other caller. The key and any private bundle go to the browser exactly
+    // as a redeem answer does, and are never kept here. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await supporterRedeem.update({
+        entryId: body.entryId, have: body.have, kv: body.kv, dataDir: DATA_DIR,
       }));
     } catch (e) { err500(e.message); }
 
@@ -21516,6 +21602,7 @@ function _startListen(host) {
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
     // Its first look is two minutes in: the dashboard's own startup comes first.
     autoUpdater.start().catch((e) => console.warn('[auto-update] start failed:', e && e.message));
+    widgetAutoUpdater.start().catch((e) => console.warn('[widget-auto-update] start failed:', e && e.message));
     // The logon task that opens the dashboard in a browser outlives the script it
     // points at, and a stale one greets the user with a wscript error box at every
     // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it
@@ -22049,6 +22136,7 @@ function _gracefulShutdown() {
   _shuttingDown = true;
   // No countdown or install may start while this process is going away.
   try { autoUpdater.stop(); } catch {}
+  try { widgetAutoUpdater.stop(); } catch {}
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename.

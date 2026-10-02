@@ -1,111 +1,75 @@
 {
   "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. A .gif works as mediaType \"image\" (the host allowlist is host-based, not extension-based, and an <img> animates it). The docs/images/*.png|gif referenced below resolve once this branch is on main, which the release pipeline does before tagging; they ship inside the build and are read from disk. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.11.10",
+  "id": "4.11.11",
   "title": {
-    "it": "Novità di Xenon 4.11.10",
-    "en": "What's new in Xenon 4.11.10",
-    "ko": "Xenon 4.11.10의 새로운 기능",
-    "ja": "Xenon 4.11.10 の新機能",
-    "zh": "Xenon 4.11.10 新功能"
+    "it": "Novità di Xenon 4.11.11",
+    "en": "What's new in Xenon 4.11.11",
+    "ko": "Xenon 4.11.11의 새로운 기능",
+    "ja": "Xenon 4.11.11 の新機能",
+    "zh": "Xenon 4.11.11 新功能"
   },
   "highlights": [
     {
       "title": {
-        "it": "Xenon AI con il tuo abbonamento Claude o ChatGPT",
-        "en": "Xenon AI on your Claude or ChatGPT subscription",
-        "ko": "Claude 또는 ChatGPT 구독으로 쓰는 Xenon AI",
-        "ja": "Claude または ChatGPT のサブスクリプションで Xenon AI",
-        "zh": "用你的 Claude 或 ChatGPT 订阅运行 Xenon AI"
+        "it": "Un nuovo riquadro Claude Code",
+        "en": "A new Claude Code tile",
+        "ko": "새로워진 Claude Code 타일",
+        "ja": "新しい Claude Code タイル",
+        "zh": "全新的 Claude Code 磁贴"
       },
       "body": {
-        "it": "In Impostazioni → Xenon AI ci sono due nuovi provider, Claude Code e Codex. Xenon risponde attraverso il programma ufficiale installato sul tuo PC, collegato al tuo piano Claude o ChatGPT, quindi non paghi a messaggio. Xenon non vede e non salva le tue credenziali: l'accesso lo fai dentro il programma. Il pannello dice se il programma è installato e collegato, e il menù dei modelli lo riempie il programma stesso. L'assistente fa tutto quello che fa con gli altri provider, dai temi ai tasti Deck, alle luci. È più lento di una chiave API, qualche secondo per risposta, e usa gli stessi limiti del tuo abbonamento.",
-        "en": "Settings → Xenon AI has two new providers, Claude Code and Codex. Xenon answers through the official program installed on your PC, signed in with your own Claude or ChatGPT plan, so there is nothing to pay per message. Xenon never sees or stores your credentials: you sign in inside the program. The panel tells you whether the program is installed and signed in, and the model menu is filled by the program itself. The assistant does everything it does with the other providers, from themes to Deck keys to lights. It is slower than an API key, a few seconds per answer, and it uses the same limits as your subscription.",
-        "ko": "설정 → Xenon AI에 Claude Code와 Codex 두 가지 새 제공자가 추가되었습니다. Xenon은 PC에 설치된 공식 프로그램을 통해, 여러분의 Claude 또는 ChatGPT 요금제로 답하므로 메시지마다 비용이 들지 않습니다. Xenon은 자격 증명을 보거나 저장하지 않습니다. 로그인은 프로그램 안에서 합니다. 패널에서 프로그램이 설치되어 있고 로그인되어 있는지 알려 주며, 모델 메뉴는 프로그램이 직접 채웁니다. 어시스턴트는 테마, Deck 키, 조명 등 다른 제공자에서 하던 일을 모두 합니다. API 키보다 느려서 답마다 몇 초가 걸리고, 구독과 같은 사용 한도를 씁니다.",
-        "ja": "設定 → Xenon AI に新しいプロバイダー Claude Code と Codex が加わりました。Xenon は PC にインストールされた公式プログラムを通じて、あなた自身の Claude または ChatGPT のプランで答えるので、メッセージごとの料金はかかりません。Xenon が認証情報を見たり保存したりすることはなく、サインインはプログラムの中で行います。パネルにはプログラムがインストール済みでサインインしているかが表示され、モデルのメニューはプログラム自身が埋めます。アシスタントはテーマ、Deck キー、照明など、他のプロバイダーでできることをすべて行えます。API キーより遅く、1 回の回答に数秒かかり、サブスクリプションと同じ使用上限を使います。",
-        "zh": "设置 → Xenon AI 新增了两个提供方：Claude Code 和 Codex。Xenon 通过你电脑上安装的官方程序、用你自己的 Claude 或 ChatGPT 套餐来回答，因此不按消息收费。Xenon 不会看到或保存你的凭据，登录在程序内完成。面板会显示程序是否已安装并登录，模型菜单由程序自己填写。助手能做它在其他提供方下能做的一切，从主题到 Deck 键再到灯光。它比 API 密钥慢，每次回答需要几秒，并且与你的订阅共用同样的额度。"
+        "it": "Il riquadro è ricostruito intorno a ciò che aspetta te. Una richiesta di Claude Code in attesa sta in cima e dice cosa toccherebbe prima di chiederti un tocco: pubblicare il tuo lavoro, la rete, un file fuori dalla cartella del progetto o qualcosa che non si può annullare. Un comando irreversibile, come rm -rf, si consente tenendo premuto il pulsante e non con un tocco. Sotto, una riga per ogni sessione con il passo in corso e la tua quota delle 5 ore e dei 7 giorni, e una scheda Uso sugli ultimi 30 giorni.",
+        "en": "The tile is rebuilt around what needs you. A request Claude Code is waiting on sits at the top and says what it would reach before it asks for a tap: publishing your work, the network, a file outside the project folder, or something that cannot be undone. An irreversible command such as rm -rf is allowed by holding the button, not by a tap. Below, a row for each session with the step it is on and your 5-hour and 7-day quota, and a Usage face covering the last 30 days.",
+        "ko": "타일이 지금 나를 기다리는 일을 중심으로 다시 만들어졌습니다. Claude Code가 기다리는 요청이 맨 위에 놓이고, 탭을 요청하기 전에 무엇에 닿을지 알려 줍니다. 작업 게시, 네트워크, 프로젝트 폴더 밖의 파일, 되돌릴 수 없는 일 등입니다. rm -rf 같은 되돌릴 수 없는 명령은 탭이 아니라 버튼을 길게 눌러야 허용됩니다. 아래에는 세션마다 한 줄로 진행 중인 단계가 표시되고, 5시간 및 7일 한도와 지난 30일을 다루는 사용량 화면이 있습니다.",
+        "ja": "タイルは、あなたの対応を待っているものを中心に作り直されました。Claude Code が待っている要求は一番上に表示され、タップを求める前に何に触れるのかを伝えます。作業の公開、ネットワーク、プロジェクトフォルダ外のファイル、元に戻せない操作などです。rm -rf のように元に戻せないコマンドは、タップではなくボタンの長押しで許可します。その下にはセッションごとに 1 行で現在のステップを表示し、5 時間と 7 日の上限、そして直近 30 日の使用量の画面があります。",
+        "zh": "磁贴围绕“需要你处理的事”重新设计。Claude Code 等待的请求会置顶，并在请求你点按之前说明它会触及什么：发布你的工作、网络、项目文件夹之外的文件，或无法撤销的操作。像 rm -rf 这样无法撤销的命令需要长按按钮才能允许，而不是点按。下方每个会话占一行，显示当前步骤，并有 5 小时和 7 天的额度，以及涵盖最近 30 天的用量页面。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Cambia pagina della dashboard dalla tastiera",
-        "en": "Turn the dashboard's page from the keyboard",
-        "ko": "키보드로 대시보드 페이지 넘기기",
-        "ja": "キーボードでダッシュボードのページを切り替え",
-        "zh": "用键盘切换仪表板页面"
+        "it": "Trova subito quello che cerchi",
+        "en": "Find what you are looking for",
+        "ko": "찾는 것을 바로 찾기",
+        "ja": "探しているものがすぐ見つかる",
+        "zh": "快速找到你要的东西"
       },
       "body": {
-        "it": "Impostazioni → Generale → Scorciatoie pagine: combinazioni di tasti che funzionano anche mentre stai usando un'altra applicazione. Una per ogni pagina, pagina successiva e precedente, oppure torna all'ultima pagina. Se un'altra app usa già una combinazione, lo dice la riga di quella scorciatoia e le altre continuano a funzionare. Anche un widget può cambiare pagina, con un permesso tutto suo.",
-        "en": "Settings → General → Page shortcuts: key combinations that work while another application has focus. One per page, next and previous, or back to the last page. If another app already owns a combination, that shortcut's own row says so and the others keep working. A widget can turn the page too, with a permission of its own.",
-        "ko": "설정 → 일반 → 페이지 단축키: 다른 앱을 사용하는 중에도 작동하는 키 조합입니다. 페이지마다 하나씩, 다음과 이전, 또는 마지막 페이지로 돌아가기를 지정할 수 있습니다. 다른 앱이 이미 쓰고 있는 조합이면 그 단축키의 줄에 표시되고, 나머지 단축키는 계속 작동합니다. 위젯도 별도의 권한으로 페이지를 넘길 수 있습니다.",
-        "ja": "設定 → 一般 → ページのショートカット：別のアプリを使っている間も動作するキーの組み合わせです。ページごとに一つ、次と前、または最後のページに戻る、を設定できます。別のアプリがすでに使っている組み合わせは、そのショートカットの行に表示され、ほかのショートカットは動き続けます。ウィジェットも専用の権限でページを切り替えられます。",
-        "zh": "设置 → 通用 → 页面快捷键：在其他应用处于前台时也能使用的组合键。可以为每个页面设一个，也可以设下一页、上一页，或返回上一次的页面。如果某个组合已被其他应用占用，会在该快捷键那一行里说明，其余快捷键照常工作。小组件也能翻页，需要单独的权限。"
+        "it": "In Impostazioni c'è un campo di ricerca in cima alla barra laterale: scrivi il nome di un'impostazione, anche con un refuso e in una qualsiasi delle 11 lingue di Xenon, e Impostazioni si apre sulla sua riga. Anche il pannello + per aggiungere un widget ha la sua ricerca, e i widget dello Store compaiono come quelli di Xenon, con nome, autore e icona, senza passare dal riquadro \"Widget personalizzato\".",
+        "en": "Settings has a search field at the top of its sidebar: type the name of a setting, even with a typo and in any of the 11 languages Xenon speaks, and Settings opens on its row. The + panel for adding a widget has its own search too, and Store widgets appear like Xenon's own, with a name, an author and an icon, without going through the \"Custom widget\" tile.",
+        "ko": "설정 사이드바 맨 위에 검색창이 생겼습니다. 오타가 있어도, Xenon이 지원하는 11개 언어 중 어느 것으로든 설정 이름을 입력하면 설정이 해당 항목으로 열립니다. 위젯을 추가하는 + 패널에도 검색이 생겼고, 스토어 위젯은 \"사용자 지정 위젯\" 타일을 거치지 않고 Xenon 기본 위젯처럼 이름, 제작자, 아이콘과 함께 표시됩니다.",
+        "ja": "設定のサイドバーの先頭に検索欄が加わりました。タイプミスがあっても、Xenon の 11 言語のどれでも、設定の名前を入力すればその行で設定が開きます。ウィジェットを追加する + パネルにも検索が付き、ストアのウィジェットは「カスタムウィジェット」タイルを経由せず、Xenon 標準のものと同じように名前、作者、アイコン付きで表示されます。",
+        "zh": "设置侧边栏顶部新增了搜索框：输入设置的名称，哪怕有错字，也可以用 Xenon 支持的 11 种语言中的任意一种，设置就会直接打开对应的那一行。用于添加小组件的 + 面板也有了搜索，商店里的小组件会像 Xenon 自带的一样显示，带有名称、作者和图标，不必再经过“自定义小组件”磁贴。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Ambient può essere la schermata con cui Xenon parte",
-        "en": "Ambient can be the screen Xenon starts on",
-        "ko": "Xenon을 앰비언트 화면으로 시작할 수 있습니다",
-        "ja": "Xenon をアンビエント画面で起動できます",
-        "zh": "Xenon 可以直接以环境场景启动"
+        "it": "I widget dello Store si aggiornano da soli",
+        "en": "Store widgets update themselves",
+        "ko": "스토어 위젯이 스스로 업데이트됩니다",
+        "ja": "ストアのウィジェットが自動で更新されます",
+        "zh": "商店小组件会自动更新"
       },
       "body": {
-        "it": "Con Apri all'avvio, nelle impostazioni di Ambient, la tua scena si apre ogni volta che Xenon parte e resta aperta finché non la chiudi tu. A differenza dell'avvio dopo inattività non si chiude quando usi il PC, quindi va bene per una scena che guardi mentre lavori su un altro schermo. Aspetta che tu abbia risposto al saluto del mattino o a un dialogo, invece di aprirsi sopra.",
-        "en": "With Open at startup, in the Ambient settings, your scene opens every time Xenon starts and stays up until you close it. Unlike the inactivity start, it does not close when you use the PC, so it suits a scene you look at while working on another screen. It waits for you to answer the morning greeting or a dialog instead of opening on top of them.",
-        "ko": "앰비언트 설정의 \"시작 시 열기\"를 켜면 Xenon이 시작될 때마다 장면이 열리고 직접 닫을 때까지 유지됩니다. 무활동 시작과 달리 PC를 사용해도 닫히지 않으므로, 다른 화면에서 작업하며 보는 장면에 알맞습니다. 아침 인사나 대화 상자가 있으면 그 위에 열리지 않고 답할 때까지 기다립니다.",
-        "ja": "アンビエントの設定で「起動時に開く」をオンにすると、Xenon が起動するたびにシーンが開き、閉じるまで表示されたままになります。無操作での開始と違い、PC を使っても閉じないので、別の画面で作業しながら眺めるシーンに向いています。朝のあいさつやダイアログがあるときは、その上に開かずに答えるのを待ちます。",
-        "zh": "在环境场景设置中打开“启动时打开”后，每次 Xenon 启动都会打开你的场景，并一直显示到你关闭它。与无操作后启动不同，使用电脑时它不会关闭，适合在另一块屏幕上工作时一直看着的场景。遇到早晨问候或对话框时，它会等你处理完，而不是盖在上面。"
-      },
-      "media": "",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Il meteo attuale su una riga",
-        "en": "Current weather on one line",
-        "ko": "현재 날씨를 한 줄로",
-        "ja": "現在の天気を 1 行で",
-        "zh": "当前天气只占一行"
-      },
-      "body": {
-        "it": "Nelle impostazioni del meteo, Condizioni attuali → Una riga sostituisce la grande scheda animata con una sola riga: icona, temperatura, condizione e temperatura percepita. Lo spazio liberato va alle ore e ai giorni, e il riquadro può diventare più basso. La riga resta un pulsante che apre la vista meteo completa. La scheda grande rimane il default.",
-        "en": "In the weather settings, Current conditions → One line swaps the big animated card for a single row: icon, temperature, condition and feels-like. The space it frees goes to the hours and days, and the tile can be made shorter. The row is still the button that opens the full weather view. The big card stays the default.",
-        "ko": "날씨 설정의 현재 날씨 → 한 줄을 선택하면 큰 애니메이션 카드 대신 아이콘, 기온, 날씨 상태, 체감 온도가 한 줄로 표시됩니다. 남는 공간은 시간별·일별 예보에 돌아가고, 타일을 더 낮게 만들 수 있습니다. 이 줄을 누르면 전체 날씨 화면이 열립니다. 기본값은 여전히 큰 카드입니다.",
-        "ja": "天気の設定で 現在の天気 → 1行 を選ぶと、大きなアニメーションカードの代わりに、アイコン、気温、天気、体感温度が 1 行で表示されます。空いたスペースは時間ごと・日ごとの予報に回り、タイルを低くできます。この行をタップすると天気の全画面表示が開きます。既定は引き続き大きなカードです。",
-        "zh": "在天气设置中选择 当前天气 → 单行，大号动画卡片就会换成一行：图标、温度、天气状况和体感温度。省下的空间留给逐小时和逐日预报，磁贴也可以调得更矮。这一行点一下仍会打开完整的天气视图。默认仍是大卡片。"
-      },
-      "media": "",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Un tasto Deck che alterna tra due uscite audio",
-        "en": "A Deck key that switches between two audio outputs",
-        "ko": "두 오디오 출력 장치를 전환하는 Deck 키",
-        "ja": "2 つのオーディオ出力を切り替える Deck キー",
-        "zh": "在两个音频输出之间切换的 Deck 键"
-      },
-      "body": {
-        "it": "Tra le azioni Audio c'è Alterna tra due uscite audio: scegli i due dispositivi e ogni pressione sposta il suono sull'altro. Il tasto mostra quale è attivo e lo segue anche se cambi uscita dalle impostazioni di Windows o dalla barra dei menù del Mac. Se uno dei due è scollegato, il tasto lo dice invece di passare all'altro.",
-        "en": "Switch between two outputs, in the Audio actions: pick the two devices and each press moves the sound to the other one. The key shows which one is active, and keeps up even when you change the output from the Windows sound settings or the Mac menu bar. If one of the two is unplugged, the key says so instead of switching to the one that is left.",
-        "ko": "오디오 동작의 \"두 출력 장치 간 전환\"에서 장치 두 개를 고르면, 누를 때마다 소리가 다른 장치로 옮겨 갑니다. 키는 어떤 장치가 활성인지 보여 주며, Windows 소리 설정이나 Mac 메뉴 막대에서 출력을 바꿔도 따라갑니다. 둘 중 하나가 연결되어 있지 않으면 남은 장치로 전환하지 않고 그 사실을 알려 줍니다.",
-        "ja": "オーディオのアクションにある「2つの出力を切り替え」で 2 台のデバイスを選ぶと、押すたびに音がもう一方に移ります。キーはどちらが有効かを表示し、Windows のサウンド設定や Mac のメニューバーで出力を変えても追従します。どちらかが接続されていないときは、残った方に切り替えずにそのことを知らせます。",
-        "zh": "在音频动作中选择“在两个输出设备间切换”，选好两个设备后，每按一次声音就会切到另一个。按键会显示当前哪一个在用，即使你在 Windows 声音设置或 Mac 菜单栏里切换输出，它也会跟上。如果其中一个没有连接，按键会直接说明，而不是切到剩下的那个。"
+        "it": "Un widget che hai installato dallo Store riceve da solo le sue nuove versioni, un giorno o più dopo la pubblicazione. Non alza mai i permessi: se la nuova versione ne chiede di nuovi, resta com'è e un messaggio ti dice che l'aggiornamento aspetta te. La versione nuova viene preparata a parte e scambiata per intero, e la vecchia torna se qualcosa va storto. L'interruttore è in Impostazioni → Widget della community, acceso di default. Anche i pack per sostenitori mostrano ora i loro aggiornamenti.",
+        "en": "A widget you installed from the Store gets its new versions on its own, a day or more after they are published. It never raises permissions: if the new version asks for new ones, it stays as it is and a message tells you the update is waiting for you. The new version is prepared aside and swapped in whole, and the old one comes back if anything goes wrong. The switch is in Settings → Community widgets, on by default. Supporter packs now show their updates too.",
+        "ko": "스토어에서 설치한 위젯은 새 버전이 게시되고 하루 이상 지나면 스스로 업데이트됩니다. 권한은 절대 올리지 않습니다. 새 버전이 새 권한을 요구하면 그대로 두고, 업데이트가 당신을 기다린다는 메시지를 보여 줍니다. 새 버전은 따로 준비해 통째로 교체하며, 문제가 생기면 이전 버전으로 돌아갑니다. 스위치는 설정 → 커뮤니티 위젯에 있고 기본으로 켜져 있습니다. 후원자 팩도 이제 업데이트가 표시됩니다.",
+        "ja": "ストアからインストールしたウィジェットは、新しいバージョンが公開されてから 1 日以上たつと自動で更新されます。権限は決して引き上げません。新しいバージョンが新しい権限を求める場合はそのままにして、更新があなたを待っているとメッセージでお知らせします。新しいバージョンは別に用意して丸ごと入れ替え、問題があれば古いバージョンに戻します。スイッチは 設定 → コミュニティウィジェット にあり、初期状態でオンです。サポーター向けパックも更新が表示されるようになりました。",
+        "zh": "你从商店安装的小组件，会在新版本发布一天或更久之后自动更新。它绝不会提升权限：如果新版本需要新的权限，就保持原样，并通过消息告诉你更新在等你处理。新版本会先在一旁准备好再整体替换，出问题时会恢复旧版本。开关在 设置 → 社区小组件 中，默认开启。支持者礼包现在也会显示更新。"
       },
       "media": "",
       "mediaType": "image"
     }
   ],
   "footer": {
-    "it": "E questi sono solo i punti principali. La 4.11.10 porta anche ai widget il traffico di ogni scheda di rete e di ogni disco, un ? nel riquadro Trasferimento file che spiega come inviare dal telefono, e i server Discord che si chiudono nella scheda Canali. Tra le correzioni, un aggiornamento non azzera più lo stile che hai dato a ogni riquadro, lo slideshow continua a cambiare foto mentre giochi, e °F vale ovunque, non solo nel meteo. Tutto nel changelog.",
-    "en": "And those are only the main points. 4.11.10 also gives widgets the traffic of every network adapter and every disk, adds a ? to the File transfer tile that explains how to send from a phone, and lets Discord servers fold away in the Channels tab. Among the fixes, an update no longer resets the style you gave each tile, the slideshow keeps changing photos while you play, and °F now applies everywhere, not only in the weather. All of it is in the changelog.",
-    "ko": "이것은 주요 내용일 뿐입니다. 4.11.10에서는 위젯이 네트워크 어댑터와 디스크별 트래픽을 받을 수 있고, 파일 전송 타일에 휴대폰에서 보내는 방법을 알려 주는 ?가 생겼으며, 채널 탭에서 Discord 서버를 접을 수 있습니다. 수정 사항으로는 업데이트 후 타일마다 지정한 스타일이 더 이상 초기화되지 않고, 게임 중에도 슬라이드쇼 사진이 계속 바뀌며, °F가 날씨뿐 아니라 모든 곳에 적용됩니다. 전체 내용은 변경 기록에 있습니다.",
-    "ja": "これらは主な点だけです。4.11.10 では、ウィジェットがネットワークアダプターごと・ディスクごとの転送量を受け取れるようになり、ファイル転送タイルにスマートフォンからの送り方を説明する ? が付き、チャンネルタブで Discord サーバーを折りたためるようになりました。修正としては、アップデートでタイルごとのスタイルがリセットされなくなり、ゲーム中もスライドショーの写真が切り替わり続け、°F が天気だけでなくすべての表示に適用されます。すべて変更履歴にあります。",
-    "zh": "以上只是主要内容。4.11.10 还让小组件能获取每个网络适配器和每块磁盘的流量，在文件传输磁贴里加了一个说明如何从手机发送的 ?，并且可以在频道标签页中折叠 Discord 服务器。修复方面，更新后不再重置你给每个磁贴设置的样式，玩游戏时幻灯片会继续换照片，°F 现在对所有温度生效，而不只是天气。全部都在更新日志中。"
+    "it": "Questi sono solo i punti principali. La 4.11.11 porta anche una dimensione del testo fino al 250%, un interruttore per l'aggiornamento automatico di Xenon, un pulsante che installa Xenon Helper per te e un interruttore per cambiare altoparlanti senza spostare le chiamate. Tra le correzioni, i riquadri non proiettano più un'ombra e l'AppImage di Linux parte anche quando la avvia un altro utente. Tutto nel changelog.",
+    "en": "Those are only the main points. 4.11.11 also brings text size up to 250%, a switch for Xenon's own automatic updates, a button that installs Xenon Helper for you, and a switch to change speakers without moving your calls. Among the fixes, tiles no longer cast a drop shadow and the Linux AppImage starts when another user launches it. All of it is in the changelog.",
+    "ko": "이것은 주요 내용일 뿐입니다. 4.11.11에서는 글자 크기가 최대 250%까지 커지고, Xenon 자체 자동 업데이트 스위치가 생기고, Xenon Helper를 대신 설치해 주는 버튼이 추가되고, 통화를 옮기지 않고 스피커를 바꾸는 스위치도 생겼습니다. 수정 사항으로는 타일이 더 이상 그림자를 드리우지 않고, 다른 사용자가 실행해도 Linux AppImage가 시작됩니다. 전체 내용은 변경 기록에 있습니다.",
+    "ja": "これらは主な点だけです。4.11.11 では、文字サイズが最大 250% まで大きくなり、Xenon 自体の自動更新のスイッチが加わり、Xenon Helper をインストールするボタンが付き、通話を移さずにスピーカーを切り替えるスイッチも加わりました。修正としては、タイルが影を落とさなくなり、別のユーザーが起動しても Linux の AppImage が起動します。すべて変更履歴にあります。",
+    "zh": "以上只是主要内容。4.11.11 还把文字大小提高到最大 250%，新增了 Xenon 自动更新的开关、替你安装 Xenon Helper 的按钮，以及切换扬声器时不转移通话的开关。修复方面，磁贴不再投下阴影，其他用户启动时 Linux AppImage 也能运行。全部都在更新日志中。"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest"
 }
