@@ -36,7 +36,12 @@ async function seeded(names = ['a.jpg', 'b.jpg', 'c.jpg']) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'xfer-init-'));
   await fsp.mkdir(path.join(dir, 'files'), { recursive: true });
   let n = 0;
-  const mk = () => ft.createFileTransfer({ dir, rand: () => String(++n).padStart(16, '0') });
+  let t = 1000;
+  const mk = () => ft.createFileTransfer({
+    dir,
+    rand: () => String(++n).padStart(16, '0'),
+    now: () => (t += 1000),
+  });
   const store = mk();
   await store.init();
   for (const name of names) {
