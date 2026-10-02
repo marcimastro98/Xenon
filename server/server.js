@@ -19084,6 +19084,8 @@ const handleRequest = async (req, res) => {
       json({
         ...(await diskSpace.status()),
         fdaBlocked: process.platform === 'darwin' && !_macFdaGranted && _macFdaBlockedRoots.length > 0,
+        // The helper download exists on Windows only (POST /audio/levels/install-helper).
+        canInstallHelper: process.platform === 'win32',
       });
     } catch (e) { err500(e.message); }
 
