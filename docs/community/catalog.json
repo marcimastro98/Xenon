@@ -6,8 +6,9 @@
       "kind": "bundle",
       "name": "Nitrato",
       "author": "xenon",
-      "authorSupporter": true,
+      "supportersOnly": true,
       "locked": true,
+      "featured": "main",
       "description": "A crooked 1920 town cut as a woodcut and projected like a silent film. The tint follows your clock, amber by day, blue at night: windows light up, smoke rises, a cat walks the roofs. The Didascalia title card counts down every hour. With a matching Ambient scene. AI-generated woodcut plates.",
       "category": "style",
       "tags": [
@@ -24,12 +25,13 @@
         "bg": "#201A13",
         "text": "#EADFC8"
       },
-      "shots": 6,
+      "shots": 4,
       "active": false,
-      "activeFrom": "2026-10-01",
+      "activeFrom": "2026-10-01T00:00:00+02:00",
       "activeUntil": "2026-11-02T23:59:59+01:00",
       "addedAt": "2026-10-02",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-10-02"
     },
     {
       "id": "workload-river",
@@ -38,7 +40,7 @@
       "author": "Xenon",
       "authorSupporter": true,
       "locked": true,
-      "featured": "main",
+      "featured": "on",
       "description": "What is weighing on this PC, and since when. An overview of CPU, memory and each graphics card, then one row per app with its last five minutes in your theme's colour, deeper where it worked harder. One sentence on top says what matters now; tap a row for the detail.",
       "category": "system",
       "tags": [
