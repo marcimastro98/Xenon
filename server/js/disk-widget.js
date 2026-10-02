@@ -1767,6 +1767,50 @@
     return hint;
   }
 
+  // The Xenon Helper card. The helper builds the disk index, and a setup that never
+  // brought it, or a clean-up that took it away, left this card telling people to run
+  // an installer that the setup .exe never shows them. On Windows the same verified
+  // download the setup does is one press away (the route is the one Settings uses
+  // under the Media tile). A paired phone cannot press it: that route is for the PC,
+  // so there the card only says what is missing.
+  function renderHelperHint() {
+    const hint = el('div', 'diskw-hint');
+    hint.appendChild(el('div', 'diskw-hint-mark', '◌'));
+    hint.appendChild(el('div', 'diskw-hint-title', tr('disk_helper_title', 'Serve Xenon Helper')));
+    const canInstall = status.canInstallHelper === true && !window.__xenonRemote;
+    hint.appendChild(el('div', 'diskw-hint-text', canInstall
+      ? tr('disk_helper_text_win', 'Xenon Helper è il componente che costruisce l’indice del disco, e su questo PC non c’è. Premi il pulsante per scaricarlo di nuovo.')
+      : tr('disk_helper_text', 'L’analisi del disco ha bisogno di un indice: aggiungi una cartella in Impostazioni → Ricerca e disco.')));
+    if (!canInstall) return hint;
+
+    const label = tr('settings_media_viz_install', 'Installa Xenon Helper');
+    const btn = el('button', 'diskw-btn', label);
+    btn.type = 'button';
+    const result = el('div', 'diskw-hint-text diskw-hint-result');
+    result.hidden = true;
+    btn.addEventListener('click', async () => {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = tr('settings_media_viz_installing', 'Installazione in corso…');
+      result.hidden = true;
+      const r = await api('/audio/levels/install-helper', {});
+      if (r && r.ok) { await refresh(); return; }   // the real tile replaces this card
+      btn.disabled = false;
+      btn.textContent = label;
+      const code = (r && (r.status || r.error)) || 'no_server';
+      const key = (code === 'not-ready' || code === 'skip-not-latest' || code === 'offline' || code === 'timeout')
+        ? 'settings_media_viz_install_offline'
+        : (code === 'signature-invalid' || code === 'mismatch')
+          ? 'settings_media_viz_install_unverified'
+          : 'settings_media_viz_install_failed';
+      result.textContent = tr(key, 'Xenon Helper non si è installato.') + ' (' + code + ')';
+      result.hidden = false;
+    });
+    hint.appendChild(btn);
+    hint.appendChild(result);
+    return hint;
+  }
+
   function render(mount) {
     mount.replaceChildren();
     if (!status) {
@@ -1774,11 +1818,7 @@
       return;
     }
     if (!status.helper) {
-      const hint = el('div', 'diskw-hint');
-      hint.appendChild(el('div', 'diskw-hint-mark', '◌'));
-      hint.appendChild(el('div', 'diskw-hint-title', tr('disk_helper_title', 'Serve Xenon Helper')));
-      hint.appendChild(el('div', 'diskw-hint-text', tr('disk_helper_text', 'L’analisi del disco ha bisogno di un indice: aggiungi una cartella in Impostazioni → Ricerca e disco.')));
-      mount.appendChild(hint);
+      mount.appendChild(renderHelperHint());
       return;
     }
 

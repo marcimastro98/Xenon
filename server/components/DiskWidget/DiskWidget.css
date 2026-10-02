@@ -1533,6 +1533,11 @@
   margin-top: 12px;
 }
 
+/* Why the helper download did not work: said under the button, in the danger colour. */
+.diskw-hint-result {
+  color: var(--color-danger);
+}
+
 .diskw-state-error {
   border-color: color-mix(in srgb, var(--color-danger), transparent 66%);
   background: var(--danger-bg);
