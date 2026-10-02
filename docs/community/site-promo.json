@@ -1,6 +1,51 @@
 {
   "promos": [
     {
+      "id": "nitrato-corner",
+      "entryId": "nitrato",
+      "format": "corner",
+      "activeUntil": "2026-11-02T23:59:59+01:00",
+      "video": "https://assets.xenon-app.com/community/promo/nitrato.mp4",
+      "poster": "https://assets.xenon-app.com/community/promo/nitrato-poster.png",
+      "url": "https://xenon-app.com/catalog/nitrato/",
+      "look": {
+        "paper": "#0f0b08",
+        "ink": "#eadfc8"
+      },
+      "text": {
+        "en": {
+          "title": "Nitrato",
+          "line": "A woodcut town for Xenon supporters. Amber by day, blue at night, with a silent-film title card.",
+          "cta": "Unlock Nitrato"
+        },
+        "it": {
+          "title": "Nitrato",
+          "line": "Una città in xilografia per i sostenitori di Xenon. Ambra di giorno, blu di notte, con un cartello da film muto.",
+          "cta": "Sblocca Nitrato"
+        },
+        "es": {
+          "title": "Nitrato",
+          "line": "Un pueblo en xilografía para quienes apoyan Xenon. Ámbar de día, azul de noche, con un rótulo de cine mudo.",
+          "cta": "Desbloquea Nitrato"
+        },
+        "ja": {
+          "title": "Nitrato",
+          "line": "Xenonサポーター向けの木版画の街。昼は琥珀色、夜は青。無声映画風のタイトルカード付き。",
+          "cta": "Nitratoを解除"
+        },
+        "ko": {
+          "title": "Nitrato",
+          "line": "Xenon 서포터를 위한 목판화 도시. 낮에는 호박색, 밤에는 파란색, 무성 영화풍 자막 카드가 함께합니다.",
+          "cta": "Nitrato 잠금 해제"
+        },
+        "zh": {
+          "title": "Nitrato",
+          "line": "献给 Xenon 支持者的木刻小镇。白天是琥珀色，夜晚变成蓝色，附带默片风格的字幕卡。",
+          "cta": "解锁 Nitrato"
+        }
+      }
+    },
+    {
       "id": "nitrato-spotlight",
       "entryId": "nitrato",
       "format": "spotlight",
