@@ -9,7 +9,9 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "build:mac": "tauri build --target universal-apple-darwin",
-    "build:linux": "NO_STRIP=true tauri build"
+    "build:linux": "node ../../tools/build-linux.mjs",
+    "build:arch": "NO_STRIP=true tauri build --no-bundle && node ../../tools/package-arch.mjs",
+    "package:arch": "node ../../tools/package-arch.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4"
