@@ -39,7 +39,7 @@
   --panel-alpha: 0.94;
   --panel-soft-alpha: 0.92;
   --panel-border-alpha: 0.12;
-  --panel-shadow-alpha: 0.22;
+  --panel-shadow-alpha: 0;   /* no tile drop shadow until the page says otherwise (Settings → Panel shadow) */
   --panel-highlight-alpha: 0.05;
   --panel: rgba(var(--panel-rgb), var(--panel-alpha));
   --panel-soft: rgba(var(--panel-soft-rgb), var(--panel-soft-alpha));

@@ -74,7 +74,7 @@
     'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText', 'lineColor', 'accentText',
     'successColor', 'warningColor', 'dangerColor', 'infoColor', 'paletteVariants',
     'contrastGuard', 'dynamicAlbumTheme',
-    'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
+    'panelAlpha', 'panelBorderStrength', 'tileShadowStrength',
     'uiRoundness', 'glassBlur', 'glassSaturate',
     'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom'];
   // The optional semantic roles of the palette: null means "derive from
@@ -625,9 +625,14 @@
       if (!rEnc || typeof rEnc.iv !== 'string' || typeof rEnc.ct !== 'string') return null;
       const entryId = env.redeem && typeof env.redeem.entryId === 'string' ? env.redeem.entryId : '';
       if (!REDEEM_ENTRY_ID_RE.test(entryId)) return null;
+      // Which of the entry's keys this file was sealed with (the hub keeps one key
+      // per published version). Absent on a file that predates versions.
+      const kv = env.redeem && Number.isInteger(env.redeem.kv) && env.redeem.kv >= 1 && env.redeem.kv <= 1000
+        ? env.redeem.kv : null;
       return {
         remote: true,
         entryId,
+        kv,
         kind: env.kind,
         name: typeof env.name === 'string' ? env.name.slice(0, 60) : '',
         appVersion: typeof env.appVersion === 'string' ? env.appVersion : '',
@@ -690,6 +695,31 @@
       const plain = await subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(locked.enc.iv) }, cek, base64ToBytes(locked.enc.ct));
       return new TextDecoder().decode(plain);
     } catch { return null; }
+  }
+
+  // What a /api/community/update answer means for the file we hold. Pure, so the
+  // rule that matters is testable without a browser: the key must open a file made
+  // FOR THE ENTRY THAT WAS ASKED ABOUT. `code` is the public locked file ('' for a
+  // limited copy, whose file is private and comes inside the answer); the entry id
+  // inside whichever file is used has to equal `entryId`, or a key for one entry
+  // could be pointed at another entry's file.
+  //   { kind: 'current' }                    nothing newer
+  //   { kind: 'open', inner, version }       the new version, decrypted, for the review dialog
+  //   { kind: 'unreadable' }                 an answer that does not open its file
+  //   { kind: 'not_linked' }                 the hub does not know this install as an owner
+  //   { kind: 'offline' }                    no usable answer
+  async function ownedUpdateOutcome(entryId, code, answer) {
+    if (answer && answer.ok === true && answer.upToDate === true) return { kind: 'current' };
+    if (answer && answer.ok === true && typeof answer.cek === 'string' && answer.cek) {
+      const bundle = typeof answer.bundle === 'string' && answer.bundle ? answer.bundle : (typeof code === 'string' ? code : '');
+      const locked = bundle ? peekLocked(bundle) : null;
+      const inner = locked && locked.remote && locked.entryId === entryId ? await unlockWithCek(locked, answer.cek) : null;
+      return inner
+        ? { kind: 'open', inner, version: typeof answer.version === 'string' ? answer.version : '' }
+        : { kind: 'unreadable' };
+    }
+    if (!answer || typeof answer !== 'object' || answer.error === 'network') return { kind: 'offline' };
+    return { kind: 'not_linked' };
   }
 
   // ── Browser controller (dialogs + apply) ──────────────────────────
@@ -2039,7 +2069,8 @@
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols, tx) {
-      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0, ids: [] } };
+      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0, ids: [], placed: [] } };
+      const pageBinds = [];
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
         // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
@@ -2048,7 +2079,7 @@
       }
       if (Array.isArray(data.pages)) {
         for (const p of data.pages) {
-          if (p && p.data && applyPage(p.data, p.name, gridCols, tx)) out.pages++;
+          if (p && p.data && applyPage(p.data, p.name, gridCols, tx, pageBinds)) out.pages++;
         }
       }
       // Deck profiles: rebuilt through sanitizeDeckProfile (untrusted!) and landed
@@ -2103,6 +2134,13 @@
           }
           updateAmbientSetting('sceneId', firstScene);
           out.ambientScene = firstScene;
+        }
+        // The pages landed first, so any tile that names one of THIS bundle's widgets
+        // could not be filled yet. Fill them now, so the page opens with its widget
+        // instead of the chooser. Only the bundle's own packages are bound here.
+        const mine = pageBinds.filter(b => out.widgets.ids.includes(b.pkg));
+        if (mine.length && window.CustomWidget && typeof CustomWidget.bindPackages === 'function') {
+          out.widgets.placed = CustomWidget.bindPackages(mine);
         }
       }
       return out;
@@ -2162,7 +2200,10 @@
         return true;
       } catch { return false; }
     }
-    function applyPage(data, name, gridCols, tx) {
+    // `bindSink`: a bundle passes an array to receive the tiles that name a package,
+    // because the page lands BEFORE the bundle's widgets are installed and the bundle
+    // binds them afterwards. Without one, binding happened at insert time.
+    function applyPage(data, name, gridCols, tx, bindSink) {
       const DP = window.DashboardPresets;
       if (!DP || !data || !Array.isArray(data.items) || !data.items.length) return false;
       const raw = {
@@ -2188,6 +2229,7 @@
         setDashboardPresets(list);
         // Adds it to the saved-presets dock AND drops it onto a fresh page now.
         const inserted = typeof insertDashboardPreset === 'function' ? insertDashboardPreset(norm.id) : null;
+        if (bindSink && inserted && Array.isArray(inserted.bind)) bindSink.push(...inserted.bind);
         if (tx) {
           addUnique(tx.resources.pagePresetIds, norm.id);
           if (inserted && inserted.pageId) addUnique(tx.resources.pageIds, inserted.pageId);
@@ -2605,6 +2647,59 @@
       body.appendChild(note);
     }
 
+    // Update something this install already unlocked, without asking for a code.
+    //
+    // `prefill` is the public locked file when the catalog has one ('' for a
+    // limited copy, whose file is private). `sourceMeta.owner` = { entryId, have }
+    // names what is installed. The hub answers only a device it already recorded
+    // as an owner of that entry, so nothing is asked of the user and nothing a
+    // stranger could ask for is handed out. What comes back is opened in the
+    // normal import dialog, which is where the review and the permission check
+    // happen: an update is never applied straight from here.
+    //
+    // Falls back instead of failing: with a public file the usual dialog opens and
+    // asks for the code as before; a limited copy has no public file, so the user is
+    // told how to bring the file in themselves. Resolves to what happened.
+    async function updateOwned(prefill, sourceMeta) {
+      const meta = sourceMeta && typeof sourceMeta === 'object' ? sourceMeta : {};
+      const owner = meta.owner && typeof meta.owner === 'object' ? meta.owner : null;
+      const code = typeof prefill === 'string' ? prefill : '';
+      const entryId = owner && typeof owner.entryId === 'string' ? owner.entryId : '';
+      const fallback = (why) => {
+        if (code) { openImport(code, meta); return 'dialog'; }
+        toast(tr(why === 'offline' ? 'preset_redeem_offline' : 'preset_update_not_linked',
+          why === 'offline'
+            ? 'Couldn’t reach the unlock service — check your connection and try again.'
+            : 'This copy is not linked to this PC yet. Open the download link you were sent, choose the file here, and enter your code once.'), '', 'error');
+        return 'none';
+      };
+      if (!REDEEM_ENTRY_ID_RE.test(entryId)) return fallback('not_linked');
+      const locked = code ? peekLocked(code) : null;
+      let r = null;
+      try {
+        const res = await fetch('/api/community/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId, have: typeof owner.have === 'string' ? owner.have : '', kv: (locked && locked.kv) || undefined }),
+        });
+        r = await res.json();
+      } catch { r = null; }
+      const outcome = await ownedUpdateOutcome(entryId, code, r);
+      if (outcome.kind === 'current') {
+        toast(tr('preset_update_current', 'You already have the latest version.'), '', 'info');
+        return 'current';
+      }
+      if (outcome.kind === 'open') {
+        openImport(outcome.inner, Object.assign({}, meta, { sourceVersion: meta.sourceVersion || outcome.version }));
+        return 'opened';
+      }
+      if (outcome.kind === 'unreadable') {
+        toast(tr('preset_update_failed', 'Could not open the update. Try again, or import it with your code.'), '', 'error');
+        return code ? (openImport(code, meta), 'dialog') : 'none';
+      }
+      return fallback(outcome.kind);
+    }
+
     function openImport(prefill, sourceMeta) {
       const source = sourceMeta && typeof sourceMeta === 'object' ? sourceMeta : {};
       importSource = {
@@ -2777,7 +2872,7 @@
               const res = await fetch('/api/community/redeem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value }),
+                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value, kv: locked.kv || undefined }),
               });
               r = await res.json();
             } catch { r = null; }
@@ -3248,16 +3343,43 @@
           toast(tr('preset_import_ok', 'Preset imported'),
             tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
         }
-        if (res.widgets.installed) {
-          toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
-            tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
-        }
+        // A widget the page already carries needs no "add to this page" offer.
+        if (res.widgets.installed) offerAddToPage(res.widgets.ids.filter(id => !res.widgets.placed.includes(id)));
         if (res.widgets.failed) {
           toast(tr('preset_bundle_widgets_failed', 'Some widgets could not be installed.'), '', 'error');
         }
       });
       row.appendChild(go);
       body.appendChild(row);
+    }
+
+    // After a Store widget lands, say where it goes and offer to put it there.
+    // One tile widget: a button that adds it to the page on screen now, through
+    // the same path as the "+" panel (permissions asked there if needed). Several:
+    // where to find them, "+" then "Installed". Ambient scenes and headless
+    // widgets have no tile, so they are not offered a page.
+    function offerAddToPage(pkgIds) {
+      const CW = window.CustomWidget;
+      if (!CW || typeof CW.cachedPackages !== 'function' || !window.XenonToast) return false;
+      const ids = (pkgIds || []).filter(Boolean).map(String);
+      const pkgs = (CW.cachedPackages() || []).filter((p) => p && ids.includes(p.id) && p.surface !== 'ambient');
+      if (!pkgs.length) return false;
+      if (pkgs.length === 1 && typeof CW.addToPage === 'function') {
+        const pkg = pkgs[0];
+        window.XenonToast.show({
+          type: 'success', duration: 14000,
+          title: tr('preset_widget_ready', '{name} is installed').replace('{name}', String(pkg.name)),
+          message: tr('preset_widget_ready_msg', 'Put it on this page now, or later from + in Layout mode, under Installed.'),
+          actions: [{ label: tr('preset_widget_add_here', 'Add to this page'), primary: true, onClick: () => CW.addToPage(pkg.id) }],
+        });
+      } else {
+        window.XenonToast.show({
+          type: 'success', duration: 10000,
+          title: tr('preset_bundle_widgets_note_title', 'Widgets installed'),
+          message: tr('preset_widgets_ready_many', 'Add them from + in Layout mode, under Installed.'),
+        });
+      }
+      return true;
     }
 
     // Review step for a single imported community widget: its name, what it can
@@ -3304,9 +3426,11 @@
         const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true }));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
-        toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
-        toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
-          tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
+        // The installed widget says where it goes; a scene or a headless widget,
+        // which has no tile, just gets the plain confirmation.
+        if (!offerAddToPage([w.id || (w.payload && w.payload.id)])) {
+          toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
+        }
       });
       row.appendChild(go);
       body.appendChild(row);
@@ -3955,13 +4079,13 @@
     // receipt engine behind the Store's "Installed" tab (js/installed-manager.js)
     // — ONE removal path, so the two surfaces can never disagree about what a
     // download owns or reference-count it differently.
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset, buildModal, currentTheme, currentThemeImported };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, updateOwned, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset, peekLocked, buildModal, currentTheme, currentThemeImported };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename, themeImportPatch };
+    module.exports = { ownedUpdateOutcome, encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename, themeImportPatch };
   }
 })();

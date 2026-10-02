@@ -16,7 +16,7 @@ community catalog) — every one of those calls is listed in the [privacy page](
 ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-4.11.10-informational)
+![version](https://img.shields.io/badge/version-4.11.11-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 <p align="center">
@@ -283,7 +283,7 @@ To remove Xenon on Windows, open **Settings → Apps → Installed apps**, find 
 
 ### Updating
 
-Xenon updates itself. When a new release is out, the dashboard shows an **update prompt** — one tap downloads it (signature-verified), installs the dashboard engine first and then the app, shows real progress, and automatically restores your previous version if anything goes wrong. Your data, layouts and settings are always preserved, and leftover files from old versions are cleaned up. No manual downloads needed.
+Xenon updates itself. When a new release is out, the dashboard shows an **update prompt** — one tap downloads it (signature-verified), installs the dashboard engine first and then the app, shows real progress, and automatically restores your previous version if anything goes wrong. Your data, layouts and settings are always preserved, and leftover files from old versions are cleaned up. No manual downloads needed. Widgets from the Store update themselves too, a day or more after a new version is published, and only when it asks for no new permissions; anything that does is left for you to approve. One switch in Settings turns it off.
 
 ---
 
@@ -348,8 +348,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
 | Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
 | Incoming-call card (ring + silence + open the app) | ✅ | Discord only ¹⁸ | ✅ ⁶ |
-| Answering a call from the dashboard | ✅ | ✅ ¹⁹ | ✅ ²⁰ |
-| Living Index, PC search, disk cleanup | ✅ | — | ✅ ¹⁰ |
+| Answering a call from the dashboard | ✅ | Discord only ¹⁹ | ✅ ²⁰ |
+| Living Index, PC search, disk cleanup | ✅ | ✅ ²¹ | ✅ ¹⁰ |
 | Embedded browser tile | ✅ | ✅ ⁷ | ✅ ⁷ |
 | Phone as a second screen (QR pairing) | ✅ | ✅ | ✅ |
 | Secure access away from home (Tailscale + HTTPS) | ✅ | ✅ ¹⁷ | ✅ ¹⁷ |
@@ -393,9 +393,11 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 
 ¹⁸ macOS gives no application a way to read another app's notifications, so the ring can only come from an app that reports it directly. Discord does, over its local RPC connection, so Discord calls ring on a Mac exactly as they do everywhere else. Teams, Zoom and mirrored phone calls do not raise a card there.
 
-¹⁹ Discord is answered outright over its RPC connection, on all three systems. Teams and Zoom are answered the way you would by hand — Xenon brings their window to the front and presses the shortcut each app documents — which on macOS needs Xenon Helper allowed under System Settings → Privacy & Security → Accessibility. Until you allow it, the card still rings, silences and opens the app, and Settings says which permission is missing.
+¹⁹ Discord calls are answered outright over its RPC connection, as on the other two systems. Teams, Zoom and phone calls never ring on a Mac (see ¹⁸), so there is nothing of theirs to answer.
 
-²⁰ Same two routes as macOS. Pressing a shortcut into another window needs `xdotool` on an X11 session, or `ydotool` on Wayland, which forbids one application from typing into another by design. Without either, Discord calls are still answered (that path is a network call, not a keystroke) and everything else rings and offers to open the app.
+²⁰ Discord is answered outright over its RPC connection. Teams and Zoom are answered the way you would by hand: Xenon brings their window to the front and presses the shortcut each app documents. Pressing a shortcut into another window needs `xdotool` on an X11 session, or `ydotool` on Wayland, which forbids one application from typing into another by design. Without either, Discord calls are still answered (that path is a network call, not a keystroke) and everything else rings and offers to open the app.
+
+²¹ Through the Xenon Helper, which holds the index for the folders you choose and moves what you clean to the Trash, so a cleanup can be undone from there. The Trash and most of `~/Library/Caches` are only visible once Xenon has [Full Disk Access](#macos-full-disk-access). Search matches file names: content search, the part Windows Search provides, is not offered on a Mac.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 

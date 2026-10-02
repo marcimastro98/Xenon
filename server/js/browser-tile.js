@@ -105,10 +105,15 @@
 
   // A group streams only while it's on screen AND not suspended by game/performance
   // mode. Re-evaluated whenever either input changes.
+  // `perfOverride` is the user asking for this tile anyway (typing an address or
+  // tapping "Show anyway"): a paused tile that ignored the address bar looked broken
+  // with nothing saying why. It lasts until performance mode ends.
   function applyGroupState(group) {
-    const want = group.onScreen && !perfPaused;
+    const paused = perfPaused && !group.perfOverride;
+    const want = group.onScreen && !paused;
     if (want && !group.visible) showGroup(group);
     else if (!want && group.visible) hideGroup(group);
+    if (group.onScreen && paused) showPaused(group);
   }
 
   function evalPerfPause() {
@@ -122,6 +127,7 @@
     } catch (e) { pause = false; }
     if (pause === perfPaused) return;
     perfPaused = pause;
+    if (!pause) groups.forEach((group) => { group.perfOverride = false; });
     groups.forEach((group) => applyGroupState(group));
   }
 
@@ -257,7 +263,7 @@
   function showLoading(group) {
     const el = group.loadingEl;
     if (!el) return;
-    el.classList.remove('is-error');
+    el.classList.remove('is-error', 'is-paused');
     const spin = document.createElement('div');
     spin.className = 'browser-spinner'; spin.setAttribute('aria-hidden', 'true');
     const txt = document.createElement('span');
@@ -270,15 +276,36 @@
   function showEmpty(group) {
     const el = group.loadingEl;
     if (!el) return;
-    el.classList.remove('is-error');
+    el.classList.remove('is-error', 'is-paused');
     el.textContent = t('browser_new_tab_hint', 'Enter an address to get started.');
     el.hidden = false;
     if (group.urlInput) { group.urlInput.value = ''; try { group.urlInput.focus(); } catch (e) { /* ignore */ } }
   }
 
+  // Paused by performance mode: say so over the (frozen or blank) canvas, with a
+  // way to bring this one tile back without turning the mode off.
+  function showPaused(group) {
+    const el = group.loadingEl;
+    if (!el || (!el.hidden && el.classList.contains('is-paused'))) return;
+    const txt = document.createElement('span');
+    txt.textContent = t('browser_perf_paused', 'Paused while Performance Mode is on.');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'browser-paused-resume';
+    btn.textContent = t('browser_perf_resume', 'Show anyway');
+    btn.addEventListener('click', () => { group.perfOverride = true; applyGroupState(group); });
+    el.replaceChildren(txt, btn);
+    el.classList.remove('is-error');
+    el.classList.add('is-paused');
+    el.hidden = false;
+  }
+
   function showGroup(group) {
     group.visible = true;
     if (group.closeTimer) { clearTimeout(group.closeTimer); group.closeTimer = null; }
+    // Leaving the paused state: a resumed screencast may take a moment to send
+    // its first frame, so show progress instead of the stale pause message.
+    if (group.loadingEl && group.loadingEl.classList.contains('is-paused')) showLoading(group);
     openActive(group);
   }
 
@@ -309,6 +336,14 @@
     saveTabs(group);                     // persist
     renderTabStrip(group);               // label may change immediately
     showLoading(group);                  // show progress immediately on a new address
+    // Typing an address is the user asking for this page now, performance mode or
+    // not. When resuming opens the tab it opens on the new address already.
+    if (perfPaused && !group.perfOverride) {
+      const wasOpened = tab.opened;
+      group.perfOverride = true;
+      applyGroupState(group);
+      if (!wasOpened && tab.opened) return;
+    }
     if (tab.opened) { relaySend({ type: 'navigate', tile: tab.tileId, url }); return; }
     // A hidden group's stage measures 0, so opening here would launch the page at
     // the 64px floor and leave it there until the resize watchdog caught up.
@@ -354,7 +389,7 @@
       // already-hidden element still schedules a style recalculation, which a
       // streaming camera page would otherwise trigger on every frame (#99).
       const group = tab.group;
-      if (group && activeTab(group) === tab && group.loadingEl && !group.loadingEl.hidden) {
+      if (group && activeTab(group) === tab && group.loadingEl && !group.loadingEl.hidden && group.visible) {
         group.loadingEl.hidden = true; group.loadingEl.classList.remove('is-error');
       }
       // Every frame states the viewport it was rendered at, so a resize that was
@@ -413,6 +448,7 @@
     const msg = friendlyError(code);
     if (!msg || !group.loadingEl) return;
     group.loadingEl.textContent = msg;
+    group.loadingEl.classList.remove('is-paused');
     group.loadingEl.classList.add('is-error');
     group.loadingEl.hidden = false;
   }
@@ -731,13 +767,15 @@
     if (group.urlInput && document.activeElement !== group.urlInput) group.urlInput.value = (next && next.url) || '';
     renderTabStrip(group);
     // Reset the loading overlay to reflect the newly active tab.
-    if (group.loadingEl) { group.loadingEl.hidden = true; group.loadingEl.classList.remove('is-error'); }
+    if (group.loadingEl) { group.loadingEl.hidden = true; group.loadingEl.classList.remove('is-error', 'is-paused'); }
     if (group.visible) {
       openActive(group);
       // Re-assert size for the tab we're switching to (it may have been resized while inactive).
       pushResize(group, false);
     } else if (next && !next.url) {
       showEmpty(group);
+    } else if (group.onScreen) {
+      applyGroupState(group);   // on screen but not streaming = paused: say so again
     }
     saveTabs(group);   // persist the active-tab change
   }

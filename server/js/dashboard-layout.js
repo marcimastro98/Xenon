@@ -342,15 +342,22 @@ function createDashboardControls(element, kind, groupId, itemId) {
   // are trapped below that overlay and can't be clicked — the click lands on the
   // overlay and starts a drag instead (the "only the move hand" report). Host the
   // widget controls on the grid-item content, a sibling of the overlay just like
-  // the other edit handles (gs-size-cycle, gs-add-tab…), so their z-index 60 wins.
+  // the other edit handles (the tile edit bar), so their z-index (50) wins over it.
   // Cards are not grid items and keep hosting their own controls.
-  const host = (kind === 'widget' && element.closest('.grid-stack-item-content')) || element;
+  // Since the edit bar (dashboard-grid.js ensureTileHandles) exists, the pair
+  // joins it, so every control of a tile is in one row above its content.
+  const gridContent = kind === 'widget' ? element.closest('.grid-stack-item-content') : null;
+  const host = (gridContent && gridContent.querySelector(':scope > .gs-edit-bar')) || gridContent || element;
   const existingControls = findDirectLayoutControls(host, kind);
   if (existingControls) existingControls.remove();
   // Clean up any stale controls left directly on the panel by an earlier build.
   if (host !== element) {
     const strayControls = findDirectLayoutControls(element, kind);
     if (strayControls) strayControls.remove();
+  }
+  if (gridContent && host !== gridContent) {
+    const straySibling = findDirectLayoutControls(gridContent, kind);
+    if (straySibling) straySibling.remove();
   }
   const controls = document.createElement('div');
   controls.className = 'layout-controls';
@@ -729,6 +736,11 @@ function insertDashboardPreset(presetId) {
     return res || { ok: false };
   }
   saveDashboardLayout(layout);
+  // Tiles that name their Store package get it now; a bundle import runs this
+  // before the package exists and binds again once it is installed.
+  if (res.bind && res.bind.length && window.CustomWidget && typeof window.CustomWidget.bindPackages === 'function') {
+    window.CustomWidget.bindPackages(res.bind);
+  }
   if (preset.kind === 'page' && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
     window.DashboardPages.rebuild();
     if (res.pageId && pager && typeof pager.goToPage === 'function') pager.goToPage(res.pageId);
@@ -1483,6 +1495,7 @@ function applyTileStyle(el, style, opts) {
 function applyTileEffects(el, content, style, colorsOnly) {
   el.removeAttribute('data-tile-glass');
   el.removeAttribute('data-tile-plain');
+  el.removeAttribute('data-tile-shadow');
   let any = false;
   if (style) any = applyTileTokens(el, style);
   // A widget PACKAGE may declare the silhouette of its own tile. It is consulted
@@ -1550,6 +1563,9 @@ function applyTileTokens(el, style) {
     const palette = (typeof window.getEffectiveThemePalette === 'function') ? window.getEffectiveThemePalette() : null;
     const drop = (window.PANEL_DROP_CSS || {})[palette && palette.tone === 'light' ? 'light' : 'dark'];
     if (drop) el.style.setProperty('--panel-drop', drop);
+    // The user asked for a shadow on THIS tile. That is the one case where a tile
+    // with no panel left still casts one (see DashboardGrid.css, data-tile-plain).
+    el.setAttribute('data-tile-shadow', '');
     any = true;
   }
   return any;

@@ -29,14 +29,22 @@
   // touches the persisted per-rail collapsed choice (topbarRails).
   const AUTO_HIDE_MS = 10000;
   let autoHideTimer = null;
-  let railsHidden = false;
+  // Per side, because a touch only ever means ONE side. A rail that is tucked away
+  // because it was collapsed and one tucked away by the idle timer are drawn
+  // identically (the 22px handle), so a touch that woke BOTH of them slid open
+  // whichever side the user had left open, whichever handle they had tapped:
+  // "I tap the right one and the left one opens, and the other way round".
+  const railsHidden = { left: false, right: false };
   let autoHideBound = false;
-  // When a tap on the peeking handle only summons the auto-hidden rails, swallow
-  // the handle's own click so it doesn't ALSO flip the persisted collapsed state
-  // (which would re-hide the rail the very tap just revealed). Auto-disarmed so a
-  // reveal via the edge strip (no handle click follows) can't suppress a later tap.
-  let suppressHandleToggle = false;
-  let suppressToggleTimer = null;
+  // When a tap on a peeking handle only summons a rail that is OPEN but tucked
+  // away, swallow the handle's own click so it doesn't ALSO flip the persisted
+  // collapsed state (which would re-hide the rail the very tap just revealed). A
+  // rail that is COLLAPSED gets no such shield: revealing it changes nothing on
+  // screen, so the tap has to be the one that opens it. Per side, and auto-disarmed
+  // so a reveal via the edge strip (no handle click follows) can't suppress a
+  // later tap.
+  const suppressHandleToggle = { left: false, right: false };
+  const suppressToggleTimer = { left: null, right: null };
 
   function readRailState() {
     const s = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarRails) || null;
@@ -333,10 +341,15 @@
     handle.title = (typeof t === 'function') ? t('topbar_rail_toggle') : '';
     handle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     handle.addEventListener('click', () => {
-      // The preceding pointerdown already revealed auto-hidden rails; this click
-      // must not then collapse them. One tap = reveal, no toggle.
-      if (suppressHandleToggle) { suppressHandleToggle = false; return; }
-      const state = readRailState();
+      // The preceding pointerdown already revealed an auto-hidden OPEN rail; this
+      // click must not then collapse it. One tap = reveal, no toggle.
+      if (suppressHandleToggle[side]) { suppressHandleToggle[side] = false; return; }
+      // The rails on screen are the truth for both sides. The stored copy can lag
+      // (it is synced between screens), and writing back a stale value for the
+      // OTHER side would quietly flip it on the next launch.
+      const state = ui
+        ? { left: ui.left.rail.classList.contains('is-collapsed'), right: ui.right.rail.classList.contains('is-collapsed') }
+        : readRailState();
       state[side] = !rail.classList.contains('is-collapsed');
       writeRailState(state);
       syncRail(rail, handle, state[side]);
@@ -375,11 +388,13 @@
     if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null; }
   }
 
-  function setRailsHidden(hidden) {
+  // One side, or both when `side` is left out (the idle timer hides both).
+  function setRailsHidden(hidden, side) {
     if (!ui) return;
-    railsHidden = hidden;
-    ui.left.rail.classList.toggle('is-auto-hidden', hidden);
-    ui.right.rail.classList.toggle('is-auto-hidden', hidden);
+    (side ? [side] : ['left', 'right']).forEach((sd) => {
+      railsHidden[sd] = hidden;
+      ui[sd].rail.classList.toggle('is-auto-hidden', hidden);
+    });
   }
 
   // Start (or restart) the idle countdown. No-op when disabled/inactive.
@@ -389,16 +404,20 @@
     autoHideTimer = setTimeout(() => { autoHideTimer = null; setRailsHidden(true); }, AUTO_HIDE_MS);
   }
 
-  // A rail was touched (or summoned): reveal both and restart the countdown.
-  function wakeRails() {
-    if (railsHidden) {
-      setRailsHidden(false);
-      // This same gesture may land a click on the handle it woke — mark it so the
-      // handle's click reveals only, without toggling the collapsed state. Clears
-      // itself right after the click would fire, so it never leaks to a later tap.
-      suppressHandleToggle = true;
-      if (suppressToggleTimer) clearTimeout(suppressToggleTimer);
-      suppressToggleTimer = setTimeout(() => { suppressHandleToggle = false; suppressToggleTimer = null; }, 400);
+  // A rail was touched (or summoned): reveal THAT side and restart the countdown.
+  // The other side is left as it was, so a touch on one edge can never open the bar
+  // on the opposite one.
+  function wakeRail(side) {
+    if (railsHidden[side]) {
+      setRailsHidden(false, side);
+      // This same gesture may land a click on the handle it woke. When the rail is
+      // open, that click reveals only: it must not toggle the collapsed state. When
+      // it is collapsed the click is what opens it (see the note at the top).
+      // Clears itself right after the click would fire, so it never leaks to a
+      // later tap.
+      suppressHandleToggle[side] = !!ui && !ui[side].rail.classList.contains('is-collapsed');
+      if (suppressToggleTimer[side]) clearTimeout(suppressToggleTimer[side]);
+      suppressToggleTimer[side] = setTimeout(() => { suppressHandleToggle[side] = false; suppressToggleTimer[side] = null; }, 400);
     }
     armAutoHide();
   }
@@ -406,12 +425,13 @@
   // Reveal the rails when the user touches within an edge strip (they've slid off
   // there). Capture phase so it fires even though the rail itself is off-screen.
   function onEdgePointerDown(e) {
-    if (!active || !railsHidden) return;
+    if (!active || !(railsHidden.left || railsHidden.right)) return;
     const w = window.innerWidth || document.documentElement.clientWidth || 0;
     if (!w) return;
     const zone = Math.max(28, w * 0.03);   // a touch-friendly edge strip, not a wide band
     const x = e.clientX;
-    if (x <= zone || x >= w - zone) wakeRails();
+    if (x <= zone) wakeRail('left');
+    else if (x >= w - zone) wakeRail('right');
   }
 
   // Bound once against the singleton rails + document; all handlers early-return
@@ -420,9 +440,10 @@
     if (autoHideBound || !ui) return;
     autoHideBound = true;
     document.addEventListener('pointerdown', onEdgePointerDown, true);
-    [ui.left.rail, ui.right.rail].forEach((rail) => {
-      rail.addEventListener('pointerdown', wakeRails, { passive: true });
-      rail.addEventListener('pointermove', wakeRails, { passive: true });
+    ['left', 'right'].forEach((side) => {
+      const rail = ui[side].rail;
+      rail.addEventListener('pointerdown', () => wakeRail(side), { passive: true });
+      rail.addEventListener('pointermove', () => wakeRail(side), { passive: true });
     });
   }
 
@@ -434,7 +455,7 @@
     if (!active) { clearAutoHideTimer(); return; }
     bindAutoHide();
     if (!autoHideEnabled()) { clearAutoHideTimer(); setRailsHidden(false); return; }
-    if (!autoHideTimer && !railsHidden) armAutoHide();
+    if (!autoHideTimer && !railsHidden.left && !railsHidden.right) armAutoHide();
   }
 
   function enable() {

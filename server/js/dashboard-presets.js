@@ -8,6 +8,8 @@
 
 const PRESET_KINDS = ['widget', 'group', 'page'];
 const PRESET_MAX = 60;
+// Same shape as an SDK package id (WIDGET_ID_RE in sdk-widgets.js).
+const PRESET_PKG_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grid units presets are stored in. Presets saved on the old 12-column grid
 // carry no gridCols field and are scaled ×2 by normalizePresets; new presets
 // are stamped at creation (see saveTilePreset / saveCurrentPagePreset).
@@ -196,6 +198,9 @@ function _normPayload(kind, d, known) {
         const item = Object.assign({ type: 'widget', widget: it.widget }, _coordGeom(it));
         const st = _tileStyle(it.style);
         if (st) item.style = st;
+        // A custom tile may name the Store package that fills it, so a page that
+        // ships with its widget opens with the widget in place instead of the chooser.
+        if (it.widget === 'custom' && typeof it.pkg === 'string' && PRESET_PKG_RE.test(it.pkg)) item.pkg = it.pkg;
         items.push(item);
       }
     });
@@ -298,6 +303,12 @@ function _materializeWidget(layout, widget, pageId, geom, style) {
   if (!primaryPlaced) {
     w.visible = true; w.page = pageId; w.x = geom.x; w.y = geom.y; w.w = geom.w; w.h = geom.h;
     if (st) w.style = st; else delete w.style;
+    // Which Store widget a host tile shows lives outside the layout, keyed by
+    // instance id, and survives the tile being hidden. Reusing the hidden
+    // primary would bring back whatever it held last time, which the preset
+    // never named; it starts empty instead, as addWidgetToPage does.
+    if (widget === 'custom' && typeof window !== 'undefined' && window.CustomWidget
+        && typeof window.CustomWidget.clearAssign === 'function') window.CustomWidget.clearAssign('custom');
     return widget;
   }
   if (!_isDuplicable(widget)) return null; // already placed and can't be cloned
@@ -361,12 +372,14 @@ function insertPreset(layout, preset, pageId) {
   // page: create a new page and reproduce its tiles at their saved geometry.
   const newPageId = _addPage(layout, preset.name, preset.imported === true, preset.installId);
   if (!newPageId) return { ok: false, full: true };
+  const bind = [];   // custom tiles that name their package: [{ instance, pkg }]
   (data.items || []).forEach(item => {
     const geom = { x: item.x || 0, y: item.y || 0, w: item.w || 8, h: item.h || 6 };
-    if (item.type === 'group') _materializeGroup(layout, item, newPageId, geom);
-    else _materializeWidget(layout, item.widget, newPageId, geom, item.style);
+    if (item.type === 'group') { _materializeGroup(layout, item, newPageId, geom); return; }
+    const id = _materializeWidget(layout, item.widget, newPageId, geom, item.style);
+    if (id && item.pkg) bind.push({ instance: id, pkg: item.pkg });
   });
-  return { ok: true, pageId: newPageId };
+  return { ok: true, pageId: newPageId, bind };
 }
 
 if (typeof window !== 'undefined') {

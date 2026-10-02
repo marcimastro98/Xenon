@@ -123,6 +123,8 @@ const communityCatalog = require('./community-catalog');
 const communityMessages = require('./community-messages');
 const communityInstalls = require('./community-installs');
 const supporterRedeem = require('./supporter-redeem');
+const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
+const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
 const versionPing = require('./version-ping');
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
@@ -177,8 +179,9 @@ const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for 
 const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
 const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
 const UPDATE_MEDIA_MAX = 6;                     // at most this many bare URLs get a content-type probe
-let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
+let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
 const { parseSemver, semverNewer } = require('./semver');
+const autoUpdateLib = require('./auto-update');
 const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
 // ── Release-notes media (screenshots + videos) ──────────────────────────────
@@ -255,7 +258,7 @@ async function checkLatestRelease(force) {
   const now = Date.now();
   const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
   if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
+  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', noAuto: false, mediaTypes: {} };
   try {
     const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
@@ -271,6 +274,9 @@ async function checkLatestRelease(force) {
           notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
           name: String((rel && rel.name) || tag),
           publishedAt: String((rel && rel.published_at) || ''),
+          // Read from the WHOLE body, before the notes are capped: the marker
+          // must work wherever in the notes it was written.
+          noAuto: autoUpdateLib.hasNoAutoMarker(String((rel && rel.body) || '')),
           mediaTypes: {},
         };
         // Resolve embedded screenshots/videos (GitHub-hosted only). Best-effort —
@@ -622,7 +628,7 @@ function buildCoreAiFunctions() {
           glass_blur: { type: 'NUMBER', description: 'Glass blur in px 0–40 (default 22)' },
           glass_saturation: { type: 'NUMBER', description: 'Glass colour saturation % 100–220 (default 160)' },
           border_strength: { type: 'NUMBER', description: 'Panel border strength 0–2 (1 = default)' },
-          shadow_strength: { type: 'NUMBER', description: 'Panel shadow strength 0–2 (1 = default)' },
+          shadow_strength: { type: 'NUMBER', description: 'Tile drop shadow strength 0–2 (0 = default, no shadow)' },
         } } },
         { name: 'create_animated_background', description: 'Write and apply a custom ANIMATED BACKGROUND for the dashboard from the user\'s description. YOU author the code: define a JavaScript function draw(ctx, t, w, h) that paints ONE frame — ctx is a canvas 2D context, t is elapsed seconds (float), w and h are the pixel size. It is called ~60×/second on a full-screen canvas behind the dashboard. Keep it self-contained (declare any particles/state with const or let ABOVE the draw function so it persists across frames), efficient, and tasteful behind a UI (avoid a pure-white fill or harsh strobing). The code runs in an isolated sandbox with NO network, DOM, storage or dashboard access, so use only the canvas 2D API, Math and Date. Use for requests like "crea uno sfondo animato con particelle blu", "make me a drifting starfield background", "sfondo tipo nebulosa viola". Applies live and persists.', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short name for this background (e.g. "Nebulosa viola")' },
@@ -1920,14 +1926,16 @@ async function installWidgetPayload(payload, origin, catalogVersion) {
     // Capture BEFORE writing: "no folder yet" means a brand-new id, so a plain
     // import records 'import' instead of inheriting the local-folder default.
     const existed = await fs.promises.access(dest).then(() => true, () => false);
-    await fs.promises.mkdir(dest, { recursive: true });
-    for (const f of v.files) {
-      const abs = path.join(dest, ...f.relPath.split('/'));
-      // Defense in depth: relPath is already traversal-proof, assert anyway.
-      if (abs !== dest && !abs.startsWith(dest + path.sep)) continue;
-      await fs.promises.mkdir(path.dirname(abs), { recursive: true });
-      await fs.promises.writeFile(abs, f.bytes);
-    }
+    // The same swap the automatic update uses: the package is written beside the
+    // live one and renamed into place, so a failure half way leaves the old version
+    // whole, and a file the new version no longer ships does not linger from the
+    // old one (a mixed tree is how an update ends up running the old script against
+    // the new page). The widget's own data lives in widget-store, not in this folder.
+    const swapped = await sdkWidgets.installPackageStaged(SDK_WIDGETS_DIR, SDK_STAGING_DIR, v, async () => {
+      const scan = await refreshSdkScan();
+      return scan.packages.some((p) => p.id === v.id && p.version === v.manifest.version);
+    });
+    if (!swapped.ok) return { ok: false, error: 'install_failed' };
     await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(existed ? widgetOriginOf(v.id) : null, origin), catalogVersion);
     await refreshSdkScan();
     return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts };
@@ -5115,6 +5123,23 @@ function setMicMute(mute) {
   }
 }
 
+// Make a device the default. Windows keeps three defaults per direction:
+// Console and Multimedia (together, what the Sound panel calls the Default
+// Device) and Communications (what Discord, Teams and call apps use), and
+// SoundVolumeView sets one role per call or 'all'. Everything in Xenon that
+// switches a device comes through here, so one setting decides for all of
+// them. Asked on Discord: "would only swap the default device (not the
+// communication device)". macOS and Linux have one default and ignore roles.
+async function setDefaultAudioDevice(id, settings) {
+  const s = settings || _serverHubSettings || {};
+  if (process.platform !== 'win32' || s.audioSetCommunications !== false) {
+    await svvExec(['/SetDefault', id, 'all']);
+    return;
+  }
+  await svvExec(['/SetDefault', id, '0']);   // Console
+  await svvExec(['/SetDefault', id, '1']);   // Multimedia
+}
+
 // Promise wrapper around a single SoundVolumeView call, and the ONE place that
 // knows SoundVolumeView is Windows-only: on Linux the same argv is translated to
 // wpctl. Every SVV call site goes through here, so there is no execFile shadow
@@ -6014,7 +6039,7 @@ const deckRegistryDeps = {
     try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
     const match = resolveOutputDevice(wanted, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
-    await svvExec(['/SetDefault', match.id, 'all']);
+    await setDefaultAudioDevice(match.id);
     cachedSpeakerId = match.id;
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
@@ -6027,7 +6052,7 @@ const deckRegistryDeps = {
     try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
     const match = pickToggleDevice(a, b, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
-    await svvExec(['/SetDefault', match.id, 'all']);
+    await setDefaultAudioDevice(match.id);
     cachedSpeakerId = match.id;
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
@@ -6965,7 +6990,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         // exportable/shareable — unlike packages that arrive via import.
         const r = await installWidgetPayload(payload, 'creator');
         fnResult = r.ok
-          ? { ok: true, id: r.id, name: r.name, note: 'Installed. Tell the user to add a "Custom widget" tile from the + palette and pick it — its permissions are approved there, never automatically.' }
+          ? { ok: true, id: r.id, name: r.name, note: 'Installed. Tell the user to add it from the + panel in Layout mode (it is listed by name, and under the Installed filter); its permissions are approved there, never automatically.' }
           : { ok: false, error: r.error };
       }
     } else if (fnName === 'deck_action_catalog') {
@@ -7745,7 +7770,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
           if (!match || !match.id) {
             fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
           } else {
-            await svvExec(['/SetDefault', match.id, 'all']);
+            await setDefaultAudioDevice(match.id);
             if (kind === 'speaker') cachedSpeakerId = match.id;
             else { cachedMicId = match.id; if (isMuted) setMicMute(true); }
             fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
@@ -8100,7 +8125,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   clockDateScale: 1,
   clockDateFormat: 'full',
   panelBorderStrength: 1,
-  panelShadowStrength: 1,
+  tileShadowStrength: 0,   // off, and renamed on purpose; see the client twin in js/settings.js
   mutedText: null,
   lineColor: null,
   backgroundMedia: null,
@@ -8178,6 +8203,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Native app only: hide the kiosk window while the machine is used over RDP
   // (monitor.rs watches SM_REMOTESESSION; native-bridge.js relays the toggle).
   hideOnRdp: false,
+  // Windows keeps a separate default for calls (Discord, Teams): true = moving
+  // the output or input moves that one too, as Xenon always did.
+  audioSetCommunications: true,
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -8203,6 +8231,19 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // each module).
   hubMessages: true,
   catalogDrops: true,
+  monthlyDrops: true,
+  // Automatic updates (server/auto-update.js). ON by default and normalized
+  // with `!== false`, so existing installs get it with this update as well: it
+  // sends nothing anywhere new (the release check already runs), it only
+  // installs what the user would otherwise be asked to install, at a moment
+  // they are not using the PC. One tap in Settings -> General turns it off.
+  autoUpdate: true,
+  // Store widgets update themselves (server/widget-auto-update.js). Same posture
+  // as autoUpdate: ON, normalized with `!== false`, sends nothing anywhere new (it
+  // reads the catalog the Store already reads). It never raises a widget's
+  // permissions and never touches a theme, a page or a Deck: a version that asks
+  // for more than was approved waits for the user, as an update always did.
+  autoUpdateWidgets: true,
   // Counts an install of a catalog entry, with NO identifier attached: the hub
   // bumps a per-entry counter and discards the request (see community-installs.js).
   // Normalized `=== true` like versionPing, NOT `!== false` like the two above:
@@ -9606,7 +9647,7 @@ function normalizeHubSettings(value) {
     clockDateScale: clampNumber(source.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
     clockDateFormat: ['full', 'medium', 'short'].includes(source.clockDateFormat) ? source.clockDateFormat : DEFAULT_HUB_SETTINGS.clockDateFormat,
     panelBorderStrength: clampNumber(source.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
-    panelShadowStrength: clampNumber(source.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
+    tileShadowStrength: clampNumber(source.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength),
     mutedText: normalizeHex(source.mutedText, null),
     lineColor: normalizeHex(source.lineColor, null),
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
@@ -9630,8 +9671,9 @@ function normalizeHubSettings(value) {
     upcomingColumns: [0, 1, 2].includes(Number(source.upcomingColumns)) ? Number(source.upcomingColumns) : 0,
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
-    nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
+    nativeZoom: clampNumber(source.nativeZoom, 0.6, 2.5, DEFAULT_HUB_SETTINGS.nativeZoom),
     hideOnRdp: source.hideOnRdp === true,
+    audioSetCommunications: source.audioSetCommunications !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
     versionPing: source.versionPing === true,
     // `!== false` on purpose: absent means on, so existing installs keep getting
@@ -9639,6 +9681,9 @@ function normalizeHubSettings(value) {
     // update. See the note on the defaults above.
     hubMessages: source.hubMessages !== false,
     catalogDrops: source.catalogDrops !== false,
+    monthlyDrops: source.monthlyDrops !== false,
+    autoUpdate: source.autoUpdate !== false,
+    autoUpdateWidgets: source.autoUpdateWidgets !== false,
     catalogStats: source.catalogStats === true,
     // The release id the What's New modal was dismissed for, and the Discord
     // card's flag. Both `=== true`/bounded-string rather than `!== false`: an
@@ -9796,7 +9841,12 @@ function normalizeHubSettings(value) {
     // Third-party widget SDK: feature flag + per-tile package assignments + the
     // per-package permission grants (client-owned schema; the client re-validates
     // on load, and the bridge enforces grants before any action is dispatched).
-    sdkWidgets: sanitizeServerPassthrough(source.sdkWidgets),
+    // Its own, larger cap: the client keeps up to 32 grants, each carrying its
+    // streams, actions, hosts, hooks, handlers and filled-in addresses — about
+    // 330 bytes typical and over 2 KB for a widget that asks for everything. At
+    // the shared 8000 the whole object was DROPPED past roughly two dozen
+    // widgets, taking every grant and assignment with it in silence.
+    sdkWidgets: sanitizeServerPassthrough(source.sdkWidgets, SDK_WIDGETS_SETTINGS_MAX),
     // Monotonic save revision (client-owned): round-tripped so the client's
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
@@ -9971,11 +10021,12 @@ function sanitizeCustomThemes(value) {
 
 // Defensive passthrough for a client-owned settings object: keep it only if it's
 // a plain object that serializes within a sane size, returning a clean copy.
-function sanitizeServerPassthrough(value) {
+const SDK_WIDGETS_SETTINGS_MAX = 128 * 1024;
+function sanitizeServerPassthrough(value, maxLen = 8000) {
   if (!value || typeof value !== 'object') return undefined;
   try {
     const json = JSON.stringify(value);
-    if (json.length > 8000) return undefined;
+    if (json.length > maxLen) return undefined;
     return JSON.parse(json);
   } catch { return undefined; }
 }
@@ -10719,6 +10770,121 @@ deckRegistryDeps.remote = remoteControl;
 // elevated applier. Disabled on a git checkout.
 const selfUpdate = createSelfUpdate({ root: path.join(__dirname, '..'), dataDir: DATA_DIR });
 
+// Automatic updates: decides WHEN to run the same prepare/apply as the button.
+// Everything it reads about the machine is gathered here, the policy lives in
+// server/auto-update.js. Each blocker is one thing a restart would break for
+// someone: a game, a Performance Mode session, a file on its way, a disk
+// cleanup, Claude waiting on an answer, a live voice session, a ringing call.
+const AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'auto-update.json');
+// Test-only knobs for the end-to-end run, never set by an install: a release
+// age of 0 hours, and an idle PC. Logged loudly so they cannot go unnoticed.
+const AUTO_UPDATE_MIN_AGE_MS = (() => {
+  const h = Number(process.env.XENON_AUTOUPDATE_MIN_AGE_H);
+  return Number.isFinite(h) && h >= 0 && h < 24 * 30 ? h * 3600 * 1000 : undefined;
+})();
+const AUTO_UPDATE_ASSUME_IDLE = process.env.XENON_AUTOUPDATE_ASSUME_IDLE === '1';
+if (AUTO_UPDATE_MIN_AGE_MS !== undefined) console.warn('[auto-update] TEST OVERRIDE: release age limit ' + (AUTO_UPDATE_MIN_AGE_MS / 3600000) + 'h');
+if (AUTO_UPDATE_ASSUME_IDLE) console.warn('[auto-update] TEST OVERRIDE: the PC is treated as idle');
+
+async function autoUpdateIdleSeconds() {
+  if (AUTO_UPDATE_ASSUME_IDLE) return 24 * 3600;
+  if (POWERSHELL_SUPPORTED) {
+    // A sample the idle probe took in the last minute is as good as a new one.
+    if (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000 && typeof _idleProbe.sec === 'number') return _idleProbe.sec;
+    try {
+      const r = await runCollector(IDLE_SCRIPT, [], 5000);
+      if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) return Math.max(0, Number(r.idleSec));
+    } catch { /* unknown */ }
+    return null;
+  }
+  if (nativeCollectors && typeof nativeCollectors.idleSeconds === 'function') {
+    try { return await nativeCollectors.idleSeconds(); } catch { return null; }
+  }
+  return null;
+}
+
+async function autoUpdateSignals() {
+  const blockers = [];
+  try { if (gameDetect.isGaming() || gameDetect.isGameRunning()) blockers.push('game'); } catch { /* probe off */ }
+  const perf = _serverHubSettings && _serverHubSettings.performance;
+  if (perf && perf.active === true) blockers.push('performance');
+  try { if (fileTransfer.stats().inflight > 0) blockers.push('transfer'); } catch { /* not ready */ }
+  try {
+    const ds = await diskSpace.status();
+    if (ds && (ds.running || (ds.clean && ds.clean.running))) blockers.push('disk');
+  } catch { /* disk module unavailable: nothing running there */ }
+  try { if (_claudeBridge.pendingCount > 0) blockers.push('claude'); } catch { /* bridge off */ }
+  if (_liveActive) blockers.push('voice');
+  try { if (calls.current().length > 0) blockers.push('call'); } catch { /* calls off */ }
+  return { blockers, idleSec: await autoUpdateIdleSeconds() };
+}
+
+const autoUpdater = autoUpdateLib.createAutoUpdater({
+  currentVersion: APP_VERSION,
+  selfUpdate,
+  checkRelease: (force) => checkLatestRelease(force),
+  isEnabled: () => !!(_serverHubSettings && _serverHubSettings.autoUpdate !== false),
+  signals: autoUpdateSignals,
+  readLastResult: () => readPwshJson(path.join(DATA_DIR, 'update-result.json')),
+  store: {
+    read: () => readPwshJson(AUTO_UPDATE_STATE_PATH),
+    write: (obj) => writeFileAtomic(AUTO_UPDATE_STATE_PATH, JSON.stringify(obj)),
+  },
+  broadcast: (event, data) => { try { broadcastSSE(event, data); } catch { /* no clients */ } },
+  log: (msg) => console.log('[auto-update] ' + msg),
+  port: PORT,
+  minAgeMs: AUTO_UPDATE_MIN_AGE_MS,
+});
+
+// Store widgets that update themselves. The decision logic lives in
+// widget-auto-update.js; this only hands it the server's own readers and the one
+// install path (the staged swap with rollback). Every package still passes
+// validateWidgetPayload before a byte is written, and no grant is ever issued.
+const WIDGET_AUTO_UPDATE_STATE_PATH = path.join(DATA_DIR, 'widget-auto-update.json');
+const SDK_STAGING_DIR = path.join(DATA_DIR, 'widget-staging');   // beside the packages dir, never inside it
+const widgetAutoUpdater = widgetAutoUpdateLib.createWidgetAutoUpdater({
+  currentVersion: APP_VERSION,
+  isEnabled: () => !!(_serverHubSettings && _serverHubSettings.autoUpdateWidgets !== false),
+  safeMode: () => !!(_serverHubSettings && _serverHubSettings.safeMode === true),
+  signals: autoUpdateSignals,
+  fetchCatalog: () => communityCatalog.fetchVisibleCatalog(false),
+  fetchCode: (id) => communityCatalog.fetchCode(id),
+  // The supporter pass already saved on this PC, never a typed one.
+  redeem: (entryId, kv) => supporterRedeem.redeem({ entryId, code: '', kv, dataDir: DATA_DIR }),
+  // Tried first for a locked widget: an install the hub already knows as an owner
+  // needs no pass, which is what lets a purchased (XL) widget update by itself.
+  update: (entryId, opts) => supporterRedeem.update({ entryId, have: opts && opts.have, kv: opts && opts.kv, dataDir: DATA_DIR }),
+  codec: { peekLocked: presetCodec.peekLocked, decodePreset: presetCodec.decodePreset },
+  validatePayload: (payload) => sdkWidgets.validateWidgetPayload(payload),
+  listInstalled: async () => (await sdkPackagesCached()).packages,
+  originOf: (id) => widgetOriginOf(id),
+  catalogVersionOf: (id) => widgetCatalogVersionOf(id),
+  isSuspended: (id) => sdkPkgSuspended(id),
+  // The RAW approved grants: sdkGrantsFor() masks to empty under safe mode and for
+  // a suspended package, which would read as "nothing approved" here.
+  grantsOf: (id) => {
+    const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+    return (sw && sw.grants && typeof sw.grants === 'object' && sw.grants[id]) || {};
+  },
+  installStaged: async (validated, catalogVersion) => {
+    const res = await sdkWidgets.installPackageStaged(SDK_WIDGETS_DIR, SDK_STAGING_DIR, validated, async () => {
+      const scan = await refreshSdkScan();
+      return scan.packages.some((p) => p.id === validated.id && p.version === validated.manifest.version);
+    });
+    if (res.ok) {
+      await recordWidgetOrigin(validated.id, sdkWidgets.mergeOrigin(widgetOriginOf(validated.id), 'import'), catalogVersion);
+      await refreshSdkScan();
+    }
+    return res;
+  },
+  store: {
+    read: () => readPwshJson(WIDGET_AUTO_UPDATE_STATE_PATH),
+    write: (obj) => writeFileAtomic(WIDGET_AUTO_UPDATE_STATE_PATH, JSON.stringify(obj)),
+  },
+  broadcast: (event, data) => { try { broadcastSSE(event, data); } catch { /* no clients */ } },
+  log: (msg) => console.log('[widget-auto-update] ' + msg),
+});
+
 // Guardian — opt-in hardware-health history. The interval only does real work
 // while the user has enabled the feature in Settings → Funzioni AI; collection
 // is local and free, the AI reads the digest via the guardian_report tool.
@@ -11162,6 +11328,11 @@ const PROCESSES_POLL_MS = 2000;
 const PROCESSES_TOP = 8;          // per metric; the collector sends the union of the three
 let _processesBusy = false;
 let _processesProblemSaid = '';
+// The last five minutes of readings, so a widget that draws history opens with
+// it already drawn (GET /api/processes/history, replayed by the SDK host as a
+// `history` message). Filled by the tick below and nothing else: no timer of its
+// own, no disk, ~0.5 MB, and empty until someone has been granted the stream.
+const _processesHistory = require('./stream-history').createStreamHistory({ maxAgeMs: 5 * 60 * 1000, maxItems: 160 });
 
 function processesWanted() {
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
@@ -11256,6 +11427,7 @@ setInterval(async () => {
     const data = normalizeProcesses(raw);
     if (!data) { announceProcessesProblem('unavailable'); return; }
     announceProcessesProblem('');
+    _processesHistory.push(data);
     if (sseClients.size > 0) broadcastSSE('processes', data);
   } catch {
     announceProcessesProblem('unavailable');
@@ -12153,7 +12325,13 @@ let _claudeLastFetch = 0;
 // hooks here (see claude-link.js for how that config is installed). It supplies
 // the two things the filesystem cannot — the real subscription quota, and a
 // blocking permission request the user answers from the touchscreen.
-const _claudeBridge = claudeBridge.createBridge({ onChange: () => _claudeBridgeChanged() });
+// Claude Code's permissions.defaultMode, re-read just before a plan card is
+// built (see the /api/claude/permission route) so it is never stale.
+let _claudeDefaultMode = '';
+const _claudeBridge = claudeBridge.createBridge({
+  onChange: () => _claudeBridgeChanged(),
+  defaultMode: () => _claudeDefaultMode,
+});
 let _claudeBridgeToken = '';        // resolved once at boot from DATA_DIR
 let _claudeBridgePushTimer = null;
 
@@ -12215,6 +12393,26 @@ function _claudeBridgeAuth(req) {
 // Resolve (or mint) the bridge token once at boot. Until it lands, both ingest
 // endpoints reject — which is the safe direction, and the window is a few ms.
 claudeLink.ensureToken(DATA_DIR).then((t) => { _claudeBridgeToken = t; }).catch(() => {});
+
+// A Claude Code link that is there but incomplete is repaired once at boot and
+// again whenever the widget asks: an older Xenon wrote a smaller hook set, and
+// something may rewrite settings.json after us. Without this the widget reported
+// "connected" over a link that could not deliver a question or a follow-up.
+// Only an existing link is touched (repairLink never connects on its own), and
+// the time of the last repair is exposed so the widget can say that sessions
+// already open must be restarted to pick it up.
+let _claudeLinkRepairedAt = 0;
+async function _claudeLinkStatus() {
+  const st = await claudeLink.repairLink(DATA_DIR, PORT);
+  if (st && st.repaired) {
+    _claudeLinkRepairedAt = Date.now();
+    _claudeBridgeToken = await claudeLink.ensureToken(DATA_DIR);
+    console.log('[claude] Claude Code link updated to the current hook set: '
+      + (st.repairedMissing || []).length + ' missing, ' + (st.repairedOutdated || 0) + ' out of date');
+  }
+  return { ...st, repairedAt: _claudeLinkRepairedAt };
+}
+_claudeLinkStatus().catch(() => {});
 
 function _claudeSettings() {
   const s = _serverHubSettings && _serverHubSettings.claude;
@@ -12330,6 +12528,10 @@ function isJsonpAllowed(pathname) {
 // sends no Origin, so the loopback/Origin checks below can't catch it. They are
 // guarded by the Sec-Fetch-Site check in the request handler.
 const CSRF_MUTATION_PATHS = new Set([
+  // Postpones the automatic update by an hour. It can only delay, never start
+  // an install, but a page on another site has no business holding updates
+  // back for the user either.
+  '/update/auto/postpone',
   // Raises a UAC prompt and changes the startup task's run level. POST-only, but
   // guarded here too: a cross-site drive-by must not be able to make the local
   // server throw an administrator prompt at the user.
@@ -12385,6 +12587,10 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // The owner update: POST-only, an outbound request to the supporter hub, and a
+  // successful answer carries a content key and sometimes a private file, so a
+  // drive-by or a sandboxed iframe with a null Origin must not be able to ask.
+  '/api/community/update',
   // Same shape one step further: the remembered pass. /forget destroys
   // something only the user can restore (by typing the code again) and /save
   // would let a sandboxed widget plant a code of its own, so neither may be
@@ -13847,6 +14053,13 @@ const handleRequest = async (req, res) => {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/processes/history' && req.method === 'GET') {
+    // The recent `processes` readings, as ages rather than clock times (the
+    // reader may be a paired phone with its own clock). A pure read of what the
+    // SSE stream already carried, so it widens nothing on the paired-device
+    // door; empty when no package holds the grant, exactly like the stream.
+    json({ ok: true, items: processesWanted() ? _processesHistory.toWire() : [] });
+
   } else if (reqPath === '/api/disks/io' && req.method === 'GET') {
     // Per-disk throughput and IOPS, for the SDK's `diskIo` stream. A read, and
     // a costed one — it is pulled by a widget that is on screen asking, never
@@ -14409,6 +14622,32 @@ const handleRequest = async (req, res) => {
       minVersion: audioLevels.minVersion(),
     });
 
+  } else if (reqPath === '/audio/levels/install-helper' && req.method === 'POST') {
+    // "Install Xenon Helper", under the wave switch in Settings. The boot heal
+    // only ever replaces a helper that is already there, so one that never
+    // arrived had no way in short of re-running the setup. This is the same
+    // verified download (signed SHA256SUMS, pinned key, fail closed), for this
+    // version's release. A paired device cannot reach it (remote-access.js).
+    try {
+      await readBody(req);
+      if (process.platform !== 'win32') { json({ ok: false, status: 'unsupported' }); return; }
+      if (!_helperInstall) {
+        _helperInstall = createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION }).install()
+          .finally(() => { _helperInstall = null; });
+      }
+      const status = await _helperInstall;
+      const ok = status === 'installed' || status === 'up-to-date';
+      startupLog.write('helper install from Settings: ' + status);
+      if (ok) {
+        writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {});
+        // A helper that gave up (too old, kept dying) gets a fresh start now,
+        // not at the next restart.
+        audioLevels.reset();
+        refreshAudioLevelsWatch();
+      }
+      json({ ok, status });
+    } catch (e) { json({ ok: false, status: 'error', detail: String(e && e.message || e) }); }
+
   } else if (reqPath === '/audio/apps' && req.method === 'GET') {
     // Broader app list for the Deck editor's app picker: every application audio
     // session (active OR inactive) that has a real exe, deduped by process name.
@@ -14592,13 +14831,13 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      svvExec(['/SetDefault', id, 'all']).then(() => { cachedSpeakerId = id; json({ ok: true }); }, e => err500(e.message));
+      setDefaultAudioDevice(id).then(() => { cachedSpeakerId = id; json({ ok: true }); }, e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/mic/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      svvExec(['/SetDefault', id, 'all']).then(() => {
+      setDefaultAudioDevice(id).then(() => {
         cachedMicId = id;
         if (isMuted) setMicMute(true);
         json({ ok: true });
@@ -15060,9 +15299,36 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/update/apply' && req.method === 'POST') {
     // Hand off to the external applier (elevated, detached). Only valid once a
     // build is staged; from here the swap happens outside this process.
+    // The port is this server's, so an install on XENON_PORT updates itself
+    // and not whatever else listens on 3030.
     try {
       await readBody(req);
-      json(selfUpdate.apply());
+      json(selfUpdate.apply({ port: PORT }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/auto-status' && req.method === 'GET') {
+    // Where the automatic updater stands, for the line in Settings -> General.
+    // ?safe=1 also answers "could the app restart right now?", which the native
+    // app asks before updating its own shell; it reads idle time, so it is only
+    // computed on request.
+    try {
+      const out = autoUpdater.status();
+      if (urlObj.searchParams.get('safe') === '1') out.safeNow = await autoUpdater.safeNow();
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/widgets/auto-update' && req.method === 'GET') {
+    // Where the widget auto-updater stands, for the line in Settings -> Widget e
+    // condivisione: the switch, the last run, and what is waiting for the user.
+    // Read-only, names and versions only.
+    try { json(await widgetAutoUpdater.status()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/auto/postpone' && req.method === 'POST') {
+    // "Postpone by an hour" from the countdown on any dashboard. It can only
+    // delay an update, never start one, so a paired phone may send it too.
+    try {
+      await readBody(req);
+      json(autoUpdater.postpone());
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/native/status' && req.method === 'GET') {
@@ -15413,6 +15679,12 @@ const handleRequest = async (req, res) => {
       _serverHubSettings = settings;
       return { prev, settings };
       });
+      if ((prev && prev.autoUpdate !== false) !== (settings.autoUpdate !== false)) {
+        try { autoUpdater.settingsChanged(); } catch { /* next tick reads it anyway */ }
+      }
+      if ((prev && prev.autoUpdateWidgets !== false) !== (settings.autoUpdateWidgets !== false)) {
+        try { widgetAutoUpdater.settingsChanged(); } catch { /* next tick reads it anyway */ }
+      }
       // Ad-blocker toggle changed → tear the headless Edge down so the next tile
       // open relaunches it with (or without) --load-extension. Open tiles re-open
       // via BrowserTile.restart() on the client right after this save resolves.
@@ -15585,7 +15857,20 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await supporterRedeem.redeem({
-        entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
+        entryId: body.entryId, code: body.code, kv: body.kv, dataDir: DATA_DIR,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/update' && req.method === 'POST') {
+    // Owner update: "I already unlocked this entry on this install, is there a newer
+    // version and may I have its key?" Sends no code. The hub answers only a device
+    // it recorded as an owner (the activation /redeem wrote) and says not_owner to
+    // every other caller. The key and any private bundle go to the browser exactly
+    // as a redeem answer does, and are never kept here. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await supporterRedeem.update({
+        entryId: body.entryId, have: body.have, kv: body.kv, dataDir: DATA_DIR,
       }));
     } catch (e) { err500(e.message); }
 
@@ -15825,19 +16110,31 @@ const handleRequest = async (req, res) => {
       // If one reaches this route anyway (an older link, a hand-edited config),
       // it gets no decision, which is the tool proceeding to ask normally.
       if (data && data.tool_name === 'AskUserQuestion') { json({}); return; }
+      // Whether the plan card offers auto mode depends on it (claude-bridge.js,
+      // planChoices). One small read, only for a plan.
+      if (data && data.tool_name === 'ExitPlanMode') {
+        _claudeDefaultMode = await claudeLink.defaultMode().catch(() => '');
+      }
       const pendingReq = _claudeBridge.requestPermission(data);
       if (!pendingReq) { json({}); return; }        // too many already waiting
       // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
       // card nobody can answer any more.
       const onGone = () => _claudeBridge.cancel(pendingReq.id);
       res.on('close', onGone);
-      const { verdict } = await pendingReq.promise;
+      const out = await pendingReq.promise;
       res.off('close', onGone);
       // The wait can end because the caller vanished (Ctrl-C), in which case the
       // socket is already gone and writing would throw from inside the catch.
       if (res.writableEnded || res.destroyed) return;
-      if (verdict === 'allow' || verdict === 'deny') {
-        json({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: verdict } } });
+      if (out.verdict === 'allow' || out.verdict === 'deny') {
+        // A plan also carries the echoed input and the chosen mode: without
+        // updatedInput Claude Code ignores an allow for ExitPlanMode and keeps
+        // its own dialog up (claude-bridge.js, header note 2).
+        const decision = { behavior: out.verdict };
+        if (out.verdict === 'allow' && out.updatedInput) decision.updatedInput = out.updatedInput;
+        if (out.verdict === 'allow' && out.updatedPermissions) decision.updatedPermissions = out.updatedPermissions;
+        if (out.verdict === 'deny' && out.message) decision.message = out.message;
+        json({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } });
       } else {
         json({});                                    // timed out → ask in the terminal
       }
@@ -15847,12 +16144,10 @@ const handleRequest = async (req, res) => {
     // A question from Claude, answered on the touchscreen.
     //
     // This is a PreToolUse hook scoped to AskUserQuestion, and it blocks the
-    // same way the permission route does. The answer cannot be returned as the
-    // tool's result — no hook can do that — so it is returned as a DENY whose
-    // reason carries the user's choice, which Claude reads and acts on. That
-    // mechanism was measured before this route existed; see the header of
-    // claude-bridge.js, note 2, and answerReason() for the wording that makes
-    // Claude treat it as an answer rather than a refusal.
+    // same way the permission route does. The answer is returned as an ALLOW
+    // whose updatedInput is the tool's own input with `answers` filled in, so
+    // the tool runs and hands Claude the choice as its normal result — what the
+    // terminal would have produced (claude-bridge.js, header note 2).
     //
     // Every non-answer path is an empty object: the tool then runs and asks in
     // the terminal, exactly as it would if Xenon were not installed. Nothing
@@ -15873,8 +16168,14 @@ const handleRequest = async (req, res) => {
       const out = await ask.promise;
       res.off('close', onGone);
       if (res.writableEnded || res.destroyed) return;
-      if (out.verdict === 'answer' && out.reason) {
-        json({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: out.reason } });
+      if (out.verdict === 'answer' && out.updatedInput) {
+        // For an allow the reason is shown to the user, not to Claude: it is
+        // the line in the terminal that says where the answer came from.
+        json({ hookSpecificOutput: {
+          hookEventName: 'PreToolUse', permissionDecision: 'allow',
+          permissionDecisionReason: 'Answered on the Xenon dashboard',
+          updatedInput: out.updatedInput,
+        } });
       } else {
         json({});                                    // skipped or timed out → the terminal asks
       }
@@ -15904,14 +16205,17 @@ const handleRequest = async (req, res) => {
     // The touchscreen answering a question. Browser-originated, so CSRF-guarded
     // rather than token-gated, like /decide. `selections` is one array of option
     // labels per question; the bridge matches them against the options Claude
-    // itself published and refuses anything else, so the text that reaches the
-    // model is never text the page made up.
+    // itself published and refuses anything else. `typed` is one string per
+    // question: the "Other" box, or a text/number answer — the user's own words,
+    // as the terminal's "Other" row would send them.
     try {
       const body = JSON.parse(await readBody(req));
       const id = String(body && body.id || '');
       const ok = body && body.skip === true
         ? _claudeBridge.skipQuestion(id)
-        : _claudeBridge.answer(id, Array.isArray(body && body.selections) ? body.selections : []);
+        : _claudeBridge.answer(id,
+          Array.isArray(body && body.selections) ? body.selections : [],
+          Array.isArray(body && body.typed) ? body.typed : []);
       json({ ok });
     } catch (e) { err500(e.message); }
 
@@ -15936,14 +16240,19 @@ const handleRequest = async (req, res) => {
     // CSRF-guarded rather than token-gated.
     try {
       const body = JSON.parse(await readBody(req));
-      const ok = _claudeBridge.decide(String(body && body.id || ''), body && body.behavior === 'allow' ? 'allow' : 'deny');
+      // mode/feedback only mean something for a plan card; the bridge ignores
+      // them for any other request.
+      const ok = _claudeBridge.decide(String(body && body.id || ''), body && body.behavior === 'allow' ? 'allow' : 'deny', {
+        mode: typeof (body && body.mode) === 'string' ? body.mode : '',
+        feedback: typeof (body && body.feedback) === 'string' ? body.feedback : '',
+      });
       // ok:false means the request already expired or was answered on another
       // surface — the widget tells the user rather than silently doing nothing.
       json({ ok });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/link' && req.method === 'GET') {
-    try { json(await claudeLink.status(DATA_DIR, PORT)); }
+    try { json(await _claudeLinkStatus()); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/link' && req.method === 'POST') {
@@ -16816,12 +17125,15 @@ const handleRequest = async (req, res) => {
       if (_features.genesis === true) {
         const ds = (aiBody.dashboardState && typeof aiBody.dashboardState === 'object') ? aiBody.dashboardState : null;
         const _avail = (ds && Array.isArray(ds.availableWidgets) ? ds.availableWidgets : [])
-          .filter(w => typeof w === 'string').slice(0, 32).map(w => w.slice(0, 24));
+          // 64, not 32: the list has grown past 40, and the cut fell on the
+          // newest widgets (search, disk, transfer, phone…), which the model was
+          // then never told exist.
+          .filter(w => typeof w === 'string').slice(0, 64).map(w => w.slice(0, 24));
         const _pages = (ds && Array.isArray(ds.pages) ? ds.pages : [])
           .filter(p => p && typeof p === 'object').slice(0, 8)
           .map(p => ({
             name: String(p.name || '').slice(0, 40),
-            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 32).map(w => String(w).slice(0, 24)),
+            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 64).map(w => String(w).slice(0, 24)),
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(
@@ -21194,6 +21506,7 @@ async function refreshStartupTaskState() {
 }
 
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
+let _helperInstall = null;   // one Settings install at a time; a second tap waits on the first
 const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
 const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
 function ensureHelperUpToDate(attempt = 1) {
@@ -21287,6 +21600,9 @@ function _startListen(host) {
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
+    // Its first look is two minutes in: the dashboard's own startup comes first.
+    autoUpdater.start().catch((e) => console.warn('[auto-update] start failed:', e && e.message));
+    widgetAutoUpdater.start().catch((e) => console.warn('[widget-auto-update] start failed:', e && e.message));
     // The logon task that opens the dashboard in a browser outlives the script it
     // points at, and a stale one greets the user with a wscript error box at every
     // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it
@@ -21818,6 +22134,9 @@ process.on('uncaughtException', (err) => {
 // exiting. A 3-second safety timeout force-exits if connections drain slowly.
 function _gracefulShutdown() {
   _shuttingDown = true;
+  // No countdown or install may start while this process is going away.
+  try { autoUpdater.stop(); } catch {}
+  try { widgetAutoUpdater.stop(); } catch {}
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename.

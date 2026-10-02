@@ -1376,9 +1376,40 @@ async function processes(top = 8) {
   };
 }
 
+// --- Idle time, from logind ---------------------------------------------------
+// There is no one Linux answer: X11 has XScreenSaver, Wayland compositors each
+// have their own. logind's per-user IdleHint is the common ground, set by the
+// desktop session (GNOME, KDE) when it considers the user idle. A desktop that
+// never sets it leaves IdleSinceHint at 0 and IdleHint at "no" forever, which
+// must NOT read as "someone is always here" (the automatic updater would never
+// run) nor as "idle" (it would run on top of the user): it is null, unknown,
+// and the caller falls back to its night window. The value is the time since
+// the session DECLARED idle, so it undercounts, which errs toward waiting.
+function parseLoginctlIdle(text, nowMs) {
+  const props = {};
+  for (const line of splitLines(text)) {
+    const i = line.indexOf('=');
+    if (i > 0) props[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+  }
+  const sinceUs = Number(props.IdleSinceHint);
+  if (!Number.isFinite(sinceUs) || sinceUs <= 0) return null;
+  if (props.IdleHint === 'no') return 0;
+  if (props.IdleHint !== 'yes') return null;
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+  return Math.max(0, Math.floor((now * 1000 - sinceUs) / 1e6));
+}
+async function idleSeconds() {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : null;
+  if (uid == null) return null;
+  try {
+    const out = await run('loginctl', ['show-user', String(uid), '-p', 'IdleHint', '-p', 'IdleSinceHint'], 4000);
+    return parseLoginctlIdle(out, Date.now());
+  } catch { return null; }
+}
+
 module.exports = {
   gpu, disks, diskIo, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  sendKeys, keysAvailable, processes,
+  sendKeys, keysAvailable, processes, idleSeconds, parseLoginctlIdle,
   // exported for unit tests
   parseProcStat,
   parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,

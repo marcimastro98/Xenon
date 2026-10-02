@@ -31,12 +31,42 @@
   const tiles = new Map();         // instanceId -> tile state
   let relay = null;
   let perfPaused = false;
+  // The user tapped "Show anyway" on a paused tile. Global, not per tile: every
+  // tile shows the same capture and a 'stop' ends it for all of them, so one tile
+  // still paused would take the stream away from the one that was resumed. Lasts
+  // until performance mode ends.
+  let perfOverride = false;
+  const isPaused = () => perfPaused && !perfOverride;
 
   // ── Streaming gate (visible AND not suspended by game/performance mode) ───────
   function applyTileState(tile, id) {
-    const want = tile.onScreen && !perfPaused && tile.ready;
+    const want = tile.onScreen && !isPaused() && tile.ready;
     if (want && !tile.streaming) startStream(tile, id);
     else if (!want && tile.streaming) stopStream(tile, id);
+    syncPaused(tile);
+  }
+
+  // A paused tile says so instead of holding its last frame as if it were live.
+  function syncPaused(tile) {
+    const el = tile.loadingEl;
+    if (!el) return;
+    const paused = tile.ready && isPaused();
+    if (paused === el.classList.contains('is-paused')) return;
+    el.classList.toggle('is-paused', paused);
+    if (paused) {
+      const txt = document.createElement('span');
+      txt.textContent = t('browser_perf_paused', 'Paused while Performance Mode is on.');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ss-paused-resume';
+      btn.textContent = t('browser_perf_resume', 'Show anyway');
+      btn.addEventListener('click', () => { perfOverride = true; tiles.forEach((tl, id) => applyTileState(tl, id)); });
+      el.replaceChildren(txt, btn);
+      el.hidden = false;
+    } else {
+      // The next frame hides this again, exactly as on first connect.
+      el.textContent = t('second_screen_connecting', 'Connecting…');
+    }
   }
 
   // Same opt-in signal the Browser tile uses: body `.game-mode` (gaming) or
@@ -54,6 +84,7 @@
     } catch (e) { pause = false; }
     if (pause === perfPaused) return;
     perfPaused = pause;
+    if (!pause) perfOverride = false;
     tiles.forEach((tile, id) => applyTileState(tile, id));
   }
 
@@ -82,7 +113,7 @@
       relay.binaryType = 'arraybuffer';
     } catch (e) { relay = null; return; }
     relay.addEventListener('open', () => {
-      tiles.forEach((tile, id) => { tile.streaming = false; if (tile.onScreen && !perfPaused && tile.ready) startStream(tile, id); });
+      tiles.forEach((tile, id) => { tile.streaming = false; if (tile.onScreen && !isPaused() && tile.ready) startStream(tile, id); });
     });
     relay.addEventListener('message', (ev) => {
       if (ev.data instanceof ArrayBuffer) { handleBinaryFrame(ev.data); return; }
@@ -151,7 +182,7 @@
     // Brief grace before stopping the capture, so a quick page flip doesn't churn it.
     tile.closeTimer = setTimeout(() => {
       tile.closeTimer = null;
-      if (!tile.onScreen || perfPaused) relaySend({ type: 'stop' });
+      if (!tile.onScreen || isPaused()) relaySend({ type: 'stop' });
     }, CLOSE_DELAY_MS);
   }
 
@@ -184,7 +215,7 @@
       bmp.close && bmp.close();
       // Only touch the overlay when it's actually shown — re-assigning
       // `hidden = true` still schedules a style recalc on every frame (#99).
-      if (tile.loadingEl && !tile.loadingEl.hidden) tile.loadingEl.hidden = true;
+      if (tile.loadingEl && !tile.loadingEl.hidden && tile.streaming) tile.loadingEl.hidden = true;
     }).catch(() => {}).then(() => {
       tile._decoding = false;
       const next = tile._pendingFrame;

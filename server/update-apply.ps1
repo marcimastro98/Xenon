@@ -57,7 +57,25 @@ $log       = Join-Path $updDir 'update.log'
 $script:selfHashBefore = ""
 try { $script:selfHashBefore = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash } catch { }
 $runner    = Join-Path $server 'start-hidden.vbs'
-$dashUrl   = 'http://127.0.0.1:3030/'
+# The port and "quiet" arrive as ENVIRONMENT variables set by self-update.js,
+# never as parameters: the hand-off below runs the copy of this script the
+# update installed, and that copy may be another version - an unknown parameter
+# would stop it from starting, an unknown variable is ignored. Every relaunch
+# (worker, hand-off, the restarted server) inherits them.
+#   XENON_PORT          the port the server listens on (the same variable the
+#                       server itself reads); 3030 when unset or not a number
+#   XENON_UPDATE_QUIET  '1' = do not open the dashboard in a browser when done
+#                       (the automatic updater runs while nobody is at the PC)
+# An ELEVATED relaunch (the UAC path) starts from a fresh environment, so there
+# both fall back to their defaults: 3030 is what every install without
+# XENON_PORT uses anyway, and the automatic updater never takes that path.
+$port = 3030
+if (('' + $env:XENON_PORT) -match '^\d{1,5}$') {
+  $n = [int]$env:XENON_PORT
+  if ($n -ge 1 -and $n -le 65535) { $port = $n }
+}
+$quiet     = ('' + $env:XENON_UPDATE_QUIET) -eq '1'
+$dashUrl   = "http://127.0.0.1:$port/"
 $nm        = Join-Path $root 'node_modules'
 $nmBak     = Join-Path $root 'node_modules.xenon-rollback'
 # Durable side-channel files live directly in DATA_DIR, NOT under update\ -
@@ -113,7 +131,7 @@ function Write-ApplyResult($obj) { Write-JsonAtomic $resultPath $obj }
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 $pr = New-Object Security.Principal.WindowsPrincipal($id)
 $isAdmin = $pr.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-Log "launcher invoked (elevated=$isAdmin, worker=$Worker, noElevate=$NoElevate)"
+Log "launcher invoked (elevated=$isAdmin, worker=$Worker, noElevate=$NoElevate, port=$port, quiet=$quiet)"
 if (-not $Worker) {
   $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
   $relArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`""),'-Worker')
@@ -191,7 +209,7 @@ function Invoke-UpdaterHandoff($fromVer) {
 
 function Stop-Server {
   try {
-    $p = (Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue).OwningProcess
+    $p = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess
     if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }
   } catch {}
   Start-Sleep -Milliseconds 900
@@ -213,7 +231,7 @@ function Wait-ServerVersion($expected, $timeoutSec) {
   while ([DateTime]::UtcNow -lt $deadline) {
     $v = ''
     try {
-      $r = Invoke-WebRequest -Uri 'http://127.0.0.1:3030/version' -UseBasicParsing -TimeoutSec 3
+      $r = Invoke-WebRequest -Uri "http://127.0.0.1:$port/version" -UseBasicParsing -TimeoutSec 3
       $v = ('' + (ConvertFrom-Json $r.Content).version).Trim() -replace '^[vV]', ''
     } catch {}
     if ($v) {
@@ -483,7 +501,7 @@ try {
     if ($LASTEXITCODE -ge 8) { throw "backup failed ($LASTEXITCODE)" }
     Log 'backup done'
 
-    # 2) Free port 3030 (stop the running server that launched us).
+    # 2) Free the server port (stop the running server that launched us).
     $script:phase = 'stop_server'
     Stop-Server
 
@@ -561,7 +579,7 @@ try {
   Remove-Item $backupDir -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item $nmBak -Recurse -Force -ErrorAction SilentlyContinue
   Log 'apply OK'
-  try { Start-Process $dashUrl } catch {}
+  if (-not $quiet) { try { Start-Process $dashUrl } catch {} } else { Log 'quiet: not opening the dashboard' }
   exit 0
 }
 catch {

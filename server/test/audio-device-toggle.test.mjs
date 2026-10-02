@@ -98,8 +98,8 @@ test('the server switches to the device from the live list, never to the raw str
   assert.ok(at > 0, 'the dep exists');
   const body = SERVER.slice(at, SERVER.indexOf('\n  },', at));
   assert.match(body, /const match = pickToggleDevice\(a, b, info && info\.speakers\);/);
-  assert.match(body, /svvExec\(\['\/SetDefault', match\.id, 'all'\]\)/);
-  assert.doesNotMatch(body, /SetDefault', (a|b)\b/);
+  assert.match(body, /setDefaultAudioDevice\(match\.id\)/);
+  assert.doesNotMatch(body, /setDefaultAudioDevice\((a|b)\b/);
 });
 
 // ── the key's face ────────────────────────────────────────────────────────

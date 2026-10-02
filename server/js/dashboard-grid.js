@@ -269,7 +269,23 @@ function ensureTileHandles() {
       ov.appendChild(grip);
       content.appendChild(ov);
     }
-    if (!content.querySelector(':scope > .gs-size-cycle')) {
+    // One bar for every edit control of this tile, in a strip the tile gives up
+    // at its top while editing (CSS), so no control ever sits on the tile's own
+    // content: the "+ Tab" pill used to cover the bottom row of every widget,
+    // and the corner buttons its header. Order is fixed by CSS `order`, so the
+    // buttons may be created in any sequence (the hide / move-page pair arrives
+    // later from dashboard-layout.js and is adopted here).
+    let bar = content.querySelector(':scope > .gs-edit-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'gs-edit-bar';
+      const spacer = document.createElement('span');
+      spacer.className = 'gs-bar-spacer';
+      bar.appendChild(spacer);
+      content.appendChild(bar);
+    }
+    content.querySelectorAll(':scope > .layout-controls').forEach((c) => bar.appendChild(c));
+    if (!bar.querySelector('.gs-size-cycle')) {
       const item = content.closest('.grid-stack-item');
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -282,22 +298,30 @@ function ensureTileHandles() {
         const id = item && item.getAttribute('gs-id');
         if (id) cycleTileSize(id);
       });
-      content.appendChild(btn);
+      bar.appendChild(btn);
     }
     // "+ Tab": add another component to THIS tile as a tab (creates a copy of a
     // duplicable component, so it never removes the original).
-    if (!content.querySelector(':scope > .gs-add-tab')) {
+    if (!bar.querySelector('.gs-add-tab')) {
       const tabItem = content.closest('.grid-stack-item');
       const tabBtn = document.createElement('button');
       tabBtn.type = 'button';
       tabBtn.className = 'gs-add-tab';
-      tabBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Tab</span>';
+      const tabLabel = (typeof t === 'function') ? t('layout_add_tab') : 'Tab';
+      tabBtn.title = (typeof t === 'function') ? t('palette_tab_title') : 'Add as tab';
+      tabBtn.setAttribute('aria-label', tabBtn.title);
+      tabBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+      const tabText = document.createElement('span');
+      tabText.className = 'gs-bar-label';
+      tabText.setAttribute('data-i18n', 'layout_add_tab');
+      tabText.textContent = tabLabel === 'layout_add_tab' ? 'Tab' : tabLabel;
+      tabBtn.appendChild(tabText);
       tabBtn.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
         const id = tabItem && tabItem.getAttribute('gs-id');
         if (id && window.DashboardPalette) window.DashboardPalette.open(null, tabBtn, { tabTargetMember: _tabTargetMember(id) });
       });
-      content.appendChild(tabBtn);
+      bar.appendChild(tabBtn);
     }
     // "Save preset": store THIS tile (a widget or a whole tab-group) as a reusable
     // template, restorable from the layout dock. Top-left, clear of the other handles.
@@ -311,7 +335,7 @@ function ensureTileHandles() {
     const saveIsGroup = !!(saveGsId && layout && layout.groups && layout.groups[saveGsId]);
     const saveIsDeck = !!(saveGsId && !saveIsGroup && window.DashboardInstances
       && window.DashboardInstances.baseWidgetOf(saveGsId) === 'deck');
-    if (!saveIsDeck && !content.querySelector(':scope > .gs-save-preset')) {
+    if (!saveIsDeck && !bar.querySelector('.gs-save-preset')) {
       const saveBtn = document.createElement('button');
       saveBtn.type = 'button';
       saveBtn.className = 'gs-save-preset';
@@ -324,12 +348,12 @@ function ensureTileHandles() {
         const id = saveItem && saveItem.getAttribute('gs-id');
         if (id && typeof window.saveTilePreset === 'function') window.saveTilePreset(id);
       });
-      content.appendChild(saveBtn);
+      bar.appendChild(saveBtn);
     }
     // Per-tile style: open a small editor to give THIS tile its own accent /
     // colours / opacity / font, or send it back to the global theme.
     const styleItem = content.closest('.grid-stack-item');
-    if (!content.querySelector(':scope > .gs-tile-style')) {
+    if (!bar.querySelector('.gs-tile-style')) {
       const styleBtn = document.createElement('button');
       styleBtn.type = 'button';
       styleBtn.className = 'gs-tile-style';
@@ -342,24 +366,26 @@ function ensureTileHandles() {
         const id = styleItem && styleItem.getAttribute('gs-id');
         if (id && typeof window.openTileStyleEditor === 'function') window.openTileStyleEditor(id, styleBtn);
       });
-      content.appendChild(styleBtn);
+      bar.appendChild(styleBtn);
     }
     // Copy tiles get a delete (×) — they have no other remove control. (Primary
     // tiles keep their own hide control; adding a component is done via the "+".)
     const item = content.closest('.grid-stack-item');
     const gsId = item && item.getAttribute('gs-id');
-    if (gsId && copyIds.has(gsId) && !content.querySelector(':scope > .gs-remove')) {
+    if (gsId && copyIds.has(gsId) && !bar.querySelector('.gs-remove')) {
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 'gs-remove';
-      rm.title = 'Remove copy';
-      rm.setAttribute('aria-label', 'Remove copy');
-      rm.textContent = '×';
+      rm.title = (typeof t === 'function' && t('layout_remove_copy') !== 'layout_remove_copy') ? t('layout_remove_copy') : 'Remove copy';
+      rm.setAttribute('aria-label', rm.title);
+      // A drawn cross, not the × character: a glyph sits on the font's baseline
+      // and never looks centred in a square button.
+      rm.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>';
       rm.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
         removePlacement(gsId);
       });
-      content.appendChild(rm);
+      bar.appendChild(rm);
     }
   });
 }
@@ -723,6 +749,9 @@ function placeNewWidget(occupied, defW, defH, pageId) {
   return { x: slot.x, y: slot.y, w: defW, h: defH };
 }
 
+// Returns the instance id that now shows the widget (the widget id itself, or
+// the new copy's id), or undefined when the widget is unknown. The palette
+// search needs it to hand a fresh custom tile its Store package.
 function addWidgetToPage(widgetId, pageId) {
   const layout = getDashboardLayout();
   const w = layout.widgets[widgetId];
@@ -749,7 +778,7 @@ function addWidgetToPage(widgetId, pageId) {
     layout.copies.push({ id, widget: widgetId, x: place.x, y: place.y, w: place.w, h: place.h, page: pageId });
     saveDashboardLayout(layout);
     if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
-    return;
+    return id;
   }
   // Otherwise (first placement, or a not-yet-duplicable widget): show the single
   // instance here. If it lives in a group, pull it out first.
@@ -763,6 +792,7 @@ function addWidgetToPage(widgetId, pageId) {
   // the last widget it held. (Copies already start unassigned via stripCustomClone.)
   if (window.CustomWidget && DI && DI.baseWidgetOf(widgetId) === 'custom') window.CustomWidget.clearAssign(widgetId);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+  return widgetId;
 }
 
 // Position the per-page "+" affordance over the page's largest free area, so it
@@ -972,5 +1002,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
+  module.exports = { availableWidgets, addableWidgetIds, addWidgetToPage, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
 }

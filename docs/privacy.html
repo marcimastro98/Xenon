@@ -309,8 +309,8 @@
           </tr>
           <tr>
             <td data-i18n-html="pv.t.hub.what">Supporter hub<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>
-            <td data-i18n="pv.t.hub.when">When you rate a catalog item or redeem a supporter code</td>
-            <td data-i18n-html="pv.t.hub.why">Your PC keeps a random UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. That UUID never leaves your machine: what is sent is a one-way hash of it, and rating something and redeeming a code use <strong>different</strong> hashes of the same UUID. That is deliberate: with one shared value, a supporter code (which can be linked to a Discord account) and a star rating would sit in the database under the same identifier, and I would be able to see which creations a named supporter rated. With two, there is nothing to match them on. Neither hash is tied to your hardware or your name; delete the file and a new UUID is generated.</td>
+            <td data-i18n="pv.t.hub.when">When you rate a catalog item, redeem a supporter code, or update something you unlocked</td>
+            <td data-i18n-html="pv.t.hub.why">Your PC keeps a random UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. That UUID never leaves your machine: what is sent is a one-way hash of it, and rating something and redeeming a code use <strong>different</strong> hashes of the same UUID. That is deliberate: with one shared value, a supporter code (which can be linked to a Discord account) and a star rating would sit in the database under the same identifier, and I would be able to see which creations a named supporter rated. With two, there is nothing to match them on. Neither hash is tied to your hardware or your name; delete the file and a new UUID is generated. Updating something you unlocked sends that same hash, the id of the creation and the version you have, and no code: the hub answers only a PC it already knows as an owner.</td>
           </tr>
           <tr>
             <td><code>ipwho.is</code></td>

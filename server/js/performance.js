@@ -143,6 +143,31 @@
     // when the session didn't also pause animations.
     document.body.classList.toggle('perf-active', !!p.active);
     _syncStaleWatch();
+    _syncIdleWatch();
+    _syncSystemButtons(p);
+  }
+
+  // The System tile's button is "Migliora" while nothing runs and "Ripristina"
+  // while a session does. body.perf-active changes nothing you can see, so this
+  // button was the only place a running session could have shown itself. The
+  // i18n attributes move with the text so a language switch keeps the right label.
+  function _syncSystemButtons(p) {
+    const on = !!p.active;
+    document.querySelectorAll('.sys-optimize-btn').forEach((btn) => {
+      if (btn.classList.contains('is-active') === on && btn.dataset.perfSynced) return;
+      btn.dataset.perfSynced = '1';
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const titleKey = on ? 'settings_perf_restore_title' : 'sys_optimize';
+      btn.setAttribute('data-i18n-title', titleKey);
+      btn.title = on ? tr(titleKey, 'Performance Mode is on. Tap to restore') : tr(titleKey, 'Optimize performance');
+      const label = btn.querySelector('span');
+      if (label) {
+        const key = on ? 'settings_perf_restore' : 'sys_optimize_short';
+        label.setAttribute('data-i18n', key);
+        label.textContent = on ? tr(key, 'Restore') : tr(key, 'Optimize');
+      }
+    });
   }
 
   // ── Server helpers ────────────────────────────────────────────────
@@ -489,6 +514,55 @@
       clearInterval(_stalePoll);
       _stalePoll = null;
       if (_staleRecheck) { clearTimeout(_staleRecheck); _staleRecheck = null; }
+    }
+  }
+
+  // ── …and a session started for no app ends when nothing needs it ──
+  // The stale check above needs `boostedProc`, and a session started with no game
+  // or opted-in activity in the foreground ("Migliora" on the System tile, while
+  // just using the desktop) never records one. That session had no end at all.
+  // Found on a real install: on for days, with the Browser tile paused and the
+  // power plan on High the whole time. So it ends after IDLE_END_MS in which no
+  // game ran and no activity the user opted into was in front. Anything that
+  // counts as busy restarts the count, so it never ends under a game.
+  const IDLE_END_MS = 20 * 60 * 1000;
+  const IDLE_TICK_MS = 60 * 1000;
+  let _idleSince = 0;
+  let _idleTimer = null;
+
+  function _idleEligible(p) {
+    return !!(p.active && p.activatedBy === 'manual' && !(p.applied && p.applied.boostedProc));
+  }
+
+  function _busyNow(p) {
+    if (_gameRunning) return true;
+    return _lastActivity !== 'other' && !!(p.autoActivities && p.autoActivities[_lastActivity]);
+  }
+
+  async function _idleTick() {
+    const p = currentPerf();
+    if (!_idleEligible(p)) return;
+    if (_busyNow(p)) { _idleSince = 0; return; }
+    const now = Date.now();
+    if (!_idleSince) { _idleSince = now; return; }
+    // A surface nobody is looking at leaves this to the one that is: restore()
+    // relaunches closed apps, and two surfaces doing it at once would do it twice.
+    if (document.hidden) return;
+    if (now - _idleSince < IDLE_END_MS) return;
+    _idleSince = 0;
+    await restore({ auto: true });   // toasts, so it is never a silent change
+  }
+
+  function _syncIdleWatch() {
+    const want = _idleEligible(currentPerf());
+    if (want && !_idleTimer) {
+      _idleSince = 0;
+      _idleTimer = setInterval(() => { _idleTick().catch(() => {}); }, IDLE_TICK_MS);
+      _idleTick().catch(() => {});
+    } else if (!want && _idleTimer) {
+      clearInterval(_idleTimer);
+      _idleTimer = null;
+      _idleSince = 0;
     }
   }
 
@@ -866,6 +940,8 @@
     // was started FOR that app — including a manual one, which has no other way
     // to end — starts counting its way out.
     if (wasGameRunning && !_gameRunning) { _expediteAutoRestore(); _checkStale(false); }
+    // A game or opted-in activity between two idle ticks still counts as busy.
+    if (_idleTimer && _busyNow(currentPerf())) _idleSince = 0;
   }
 
   // Live OBS state (obs SSE event): going on-air counts as a streaming session

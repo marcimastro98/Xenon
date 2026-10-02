@@ -86,10 +86,12 @@ async function vizStatus(status, mode = 'wave') {
   const src = read('../js/settings.js');
   const code = 'let _mediaVizStatusSeq = 0;\n' + cut(src, 'async function refreshMediaVizStatus(recheck) {', '\n}\n');
   const el = { textContent: '', dataset: {}, hidden: true };
+  const btn = { hidden: true, disabled: false };
+  el.btn = btn;
   const fn = new Function('fetch', 't', '$', 'mediaVisualizerMode', 'setTimeout', code + '\nreturn refreshMediaVizStatus;')(
     async () => ({ ok: !!status, json: async () => status }),
     (k) => k + (k === 'settings_media_viz_st_old' ? ':{version}' : ''),
-    () => el,
+    (id) => (id === 'settings-media-viz-install' ? btn : el),
     () => mode,
     () => {},
   );
@@ -115,6 +117,16 @@ test('Settings says whether the wave can be drawn, and what to do when it cannot
   assert.equal(el.hidden, true, 'nothing to say while it is off and would work');
   el = await vizStatus({ ok: true, platform: 'win32', available: false, failure: 'no-helper' }, 'off');
   assert.equal(el.hidden, false, 'a missing helper is said before the wave is even switched on');
+});
+
+test('the Install Xenon Helper button shows with every problem it fixes, and only then', async () => {
+  for (const failure of ['no-helper', 'helper-too-old', 'helper-failed']) {
+    const el = await vizStatus({ ok: true, platform: 'win32', available: failure !== 'no-helper', failure, minVersion: '0.7.0' });
+    assert.equal(el.btn.hidden, false, failure);
+  }
+  assert.equal((await vizStatus({ ok: true, platform: 'win32', available: true, failure: '' })).btn.hidden, true, 'working');
+  assert.equal((await vizStatus({ ok: true, platform: 'darwin', available: false, failure: 'no-helper' })).btn.hidden, true, 'nothing to install on a Mac');
+  assert.equal((await vizStatus(null)).btn.hidden, true, 'no answer, no button');
 });
 
 test('the status route says which platform it runs on', () => {

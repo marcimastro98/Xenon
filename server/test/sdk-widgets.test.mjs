@@ -17,7 +17,7 @@ test('manifest: valid minimal manifest normalizes', () => {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
     badgeAction: false, mini: false,
-    clipboard: false, accent: false, expand: false, shape: null, storage: false, storageGroup: '', secrets: false,
+    clipboard: false, accent: false, expand: false, shape: null, icon: null, category: null, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });

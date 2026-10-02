@@ -183,3 +183,88 @@ test('a foreign http hook to another local service is left alone', () => {
   const out = link.stripOurHooks(hooks, PORT);
   assert.equal(out.Stop.length, 1);
 });
+
+// ── completeness and repair ──────────────────────────────────────────────────
+// The shape an older Xenon wrote: seven lifecycle events on /event (Stop among
+// them), the permission hook, no AskUserQuestion interceptor, no /turn-end. It
+// counted as "linked", so questions never reached the tile.
+function olderLink(token) {
+  const h = (p, t) => ({ type: 'http', url: `http://127.0.0.1:${PORT}/api/claude/${p}`, timeout: t, headers: { 'X-Xenon-Bridge': token } });
+  const hooks = {};
+  for (const ev of ['SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop']) {
+    hooks[ev] = [{ hooks: [h('event', 5)] }];
+  }
+  hooks.PermissionRequest = [{ hooks: [h('permission', 600)] }];
+  return hooks;
+}
+
+test('a fresh link is complete', async () => {
+  const s = sandbox();
+  try {
+    const st = await link.link(s.data, PORT);
+    assert.equal(st.complete, true);
+    assert.deepEqual(st.missing, []);
+    assert.equal(st.outdated, 0);
+    assert.equal(st.hookCount, st.expectedHooks);
+  } finally { s.cleanup(); }
+});
+
+test('a link written by an older Xenon is linked but not complete', async () => {
+  const s = sandbox();
+  try {
+    const token = await link.ensureToken(s.data);
+    s.write({ hooks: olderLink(token), statusLine: { type: 'command', command: 'node "x/claude-statusline.js"' } });
+    const st = await link.status(s.data, PORT);
+    assert.equal(st.linked, true);
+    assert.equal(st.complete, false);
+    assert.ok(st.missing.includes('PreToolUse(AskUserQuestion) /question'));
+    assert.ok(st.missing.includes('Stop /turn-end'));
+    assert.equal(st.outdated, 1, 'Stop on /event is left over from the older set');
+  } finally { s.cleanup(); }
+});
+
+test('a hook carrying an old token is not current', async () => {
+  const s = sandbox();
+  try {
+    await link.link(s.data, PORT);
+    const cfg = s.read();
+    cfg.hooks.PermissionRequest[0].hooks[0].headers['X-Xenon-Bridge'] = 'f'.repeat(48);
+    s.write(cfg);
+    const st = await link.status(s.data, PORT);
+    assert.equal(st.complete, false);
+    assert.ok(st.missing.includes('PermissionRequest /permission'));
+  } finally { s.cleanup(); }
+});
+
+test('repairLink brings an older link up to date and keeps the user\'s own hooks', async () => {
+  const s = sandbox();
+  try {
+    const token = await link.ensureToken(s.data);
+    const hooks = olderLink(token);
+    hooks.PreToolUse.push({ matcher: 'Bash', hooks: [{ type: 'command', command: 'my-guard.sh' }] });
+    s.write({ hooks, statusLine: { type: 'command', command: 'node "x/claude-statusline.js"' } });
+    const r = await link.repairLink(s.data, PORT);
+    assert.equal(r.repaired, true);
+    assert.equal(r.complete, true);
+    const cfg = s.read();
+    const q = cfg.hooks.PreToolUse.find((g) => g.matcher === 'AskUserQuestion');
+    assert.ok(q && q.hooks[0].url.endsWith('/api/claude/question'));
+    assert.ok(cfg.hooks.Stop.some((g) => g.hooks.some((x) => x.url && x.url.endsWith('/api/claude/turn-end'))));
+    assert.ok(!cfg.hooks.Stop.some((g) => g.hooks.some((x) => x.url && x.url.endsWith('/api/claude/event'))), 'the old Stop entry is gone');
+    assert.ok(cfg.hooks.PreToolUse.some((g) => g.hooks.some((x) => x.command === 'my-guard.sh')), 'the user\'s own hook survives');
+    // Idempotent: a second pass finds nothing to do.
+    const again = await link.repairLink(s.data, PORT);
+    assert.equal(again.repaired, false);
+  } finally { s.cleanup(); }
+});
+
+test('repairLink never connects Claude Code on its own', async () => {
+  const s = sandbox();
+  try {
+    s.write({ hooks: {}, permissions: { allow: [] } });
+    const r = await link.repairLink(s.data, PORT);
+    assert.equal(r.repaired, false);
+    assert.equal(r.linked, false);
+    assert.deepEqual(s.read().hooks, {});
+  } finally { s.cleanup(); }
+});

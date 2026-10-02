@@ -46,7 +46,7 @@ const { validateAction, clampDelay } = require('./js/deck-actions.js');
 // A package may declare the SILHOUETTE of its own tile. It goes through the very
 // same validator a shared preset does (js/dashboard-instances.js) rather than a
 // second copy of the rules here — one boundary, two doors.
-const { normalizeTileShape } = require('./js/dashboard-instances.js');
+const { normalizeTileShape, normalizeWidgetIcon } = require('./js/dashboard-instances.js');
 
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
@@ -806,6 +806,15 @@ function normalizeManifest(raw, folderId) {
       // a unit square). The user's per-tile choice always wins over it: the
       // package proposes, the dashboard's own style editor disposes.
       shape,
+      // The package's own glyph for its tab and its "+" result (a 24x24 path,
+      // drawn as the built-in icons are). Cosmetic and confined to the package's
+      // own entries, so no grant; a malformed one is dropped and the generic
+      // puzzle stays, like every other cosmetic field.
+      icon: normalizeWidgetIcon(raw.icon),
+      // Where the "+" panel files the widget: one of the panel's own categories.
+      // Cosmetic like the icon (no grant); anything else is dropped and the panel
+      // falls back to the catalog entry's category, then "other".
+      category: ['productivity', 'media', 'system', 'streaming'].includes(raw.category) ? raw.category : null,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,
@@ -1075,6 +1084,73 @@ function validateWidgetPayload(raw) {
   return { ok: true, id, manifest: res.manifest, files };
 }
 
+// ── Staged install (the automatic update path) ─────────────────────────────
+// A plain install writes files OVER the package folder one at a time: a crash or
+// a full disk half way leaves the old manifest with the new scripts, and a file
+// the new version dropped stays behind. That is tolerable when the user pressed
+// the button and is watching; it is not for an update nobody asked for at that
+// moment. So this builds the new package in `stagingRoot`, swaps the two folders
+// with renames, asks `verify()` whether the scan now sees the package, and puts
+// the old folder back if anything in that sequence failed. The package is
+// therefore either the old version, whole, or the new one, whole.
+//
+// `stagingRoot` must be on the same volume as `widgetsDir` (a rename is the only
+// atomic step here) and must NOT be inside it: the folder scan would list a
+// half-built package as a broken one.
+async function renameWithRetry(from, to) {
+  let last;
+  for (let i = 0; i < 6; i++) {
+    try { await fs.promises.rename(from, to); return; }
+    catch (e) {
+      last = e;
+      // Windows refuses to rename a folder something has a handle on (an
+      // antivirus scan, an indexer). It is almost always gone within a second.
+      if (!e || (e.code !== 'EPERM' && e.code !== 'EBUSY' && e.code !== 'EACCES')) throw e;
+      await new Promise(r => setTimeout(r, 150 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
+async function installPackageStaged(widgetsDir, stagingRoot, validated, verify) {
+  if (!validated || !validated.ok || !WIDGET_ID_RE.test(String(validated.id || ''))) return { ok: false, error: 'bad_payload' };
+  const id = validated.id;
+  const dest = path.join(widgetsDir, id);
+  const stage = path.join(stagingRoot, id);
+  const old = path.join(stagingRoot, id + '.previous');
+  if (!dest.startsWith(widgetsDir + path.sep) || !stage.startsWith(stagingRoot + path.sep)) return { ok: false, error: 'bad_path' };
+  const rm = (p) => fs.promises.rm(p, { recursive: true, force: true });
+  let swapped = false;
+  let hadOld = false;
+  try {
+    await fs.promises.mkdir(stagingRoot, { recursive: true });
+    await rm(stage); await rm(old);   // leftovers of a run that died half way
+    await fs.promises.mkdir(stage, { recursive: true });
+    for (const f of validated.files) {
+      const abs = path.join(stage, ...f.relPath.split('/'));
+      if (abs !== stage && !abs.startsWith(stage + path.sep)) throw new Error('path_escape');
+      await fs.promises.mkdir(path.dirname(abs), { recursive: true });
+      await fs.promises.writeFile(abs, f.bytes);
+    }
+    hadOld = await fs.promises.access(dest).then(() => true, () => false);
+    if (hadOld) await renameWithRetry(dest, old);
+    try { await renameWithRetry(stage, dest); swapped = true; }
+    catch (e) { if (hadOld) await renameWithRetry(old, dest); throw e; }
+    if (typeof verify === 'function' && !(await verify())) throw new Error('verify_failed');
+    await rm(old);
+    return { ok: true };
+  } catch (e) {
+    // Put the old version back. A failure of THIS is the one case where the
+    // package could be missing, so it is reported rather than swallowed.
+    try {
+      if (swapped) await rm(dest);
+      if (hadOld && !(await fs.promises.access(dest).then(() => true, () => false))) await renameWithRetry(old, dest);
+      await rm(stage);
+    } catch (e2) { return { ok: false, error: 'rollback_failed', detail: String(e2 && e2.message || e2).slice(0, 120) }; }
+    return { ok: false, error: e && e.message === 'verify_failed' ? 'verify_failed' : 'install_failed' };
+  }
+}
+
 // ── Package origin (redistribution policy, not a security boundary) ─────────
 // Where an installed package came from decides whether the user may RE-export
 // it: only their own creations are shareable. Origins:
@@ -1172,6 +1248,7 @@ module.exports = {
   injectPerfProbe,        // unit-tested (probe injection is a pure transform)
   listPackages,
   validateWidgetPayload,  // unit-tested (bundle install boundary)
+  installPackageStaged,   // unit-tested (the automatic update's swap-and-rollback install)
   readPackagePayload,
   mergeOrigin,            // unit-tested (redistribution policy)
   originExportable,

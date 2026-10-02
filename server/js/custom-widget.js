@@ -361,6 +361,15 @@
   const SURFACE_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const lastData = {};        // stream → last payload (seed for late frames)
   let discordSeedInflight = null;   // shared one-shot seed of the `discord` stream
+  // Streams whose widgets draw the recent PAST, not only the present. For these
+  // the host keeps the last minutes of payloads and hands them to a frame as one
+  // `history` message when it starts and when it comes back into view, so a chart
+  // opens full instead of filling up while the user watches (WIDGET_SDK.md,
+  // `processes`). The first mount on a fresh page seeds the ring from the
+  // server, which kept the same readings while this page did not exist.
+  const HISTORY_STREAMS = { processes: { maxAgeMs: 5 * 60 * 1000, maxItems: 160, url: '/api/processes/history' } };
+  const streamHistory = {};         // stream → [{ t, data }] oldest first, host clock
+  const historySeed = {};           // stream → 'pending' | 'done'
   // Deck states published by widgets over the bridge, keyed "pkg/stateId".
   // Authoritative copy — pushed wholesale into the Deck snapshot on change.
   const sdkStates = {};
@@ -428,6 +437,36 @@
     const next = on ? (cur.includes(pkgId) ? cur : cur.concat(pkgId)) : cur.filter(id => id !== pkgId);
     persist({ suspended: next });
     syncServiceFrames();
+  }
+
+  // A package's own glyph (manifest `icon`) as an SVG element, or null when it
+  // has none. Re-validated here through the same normalizer the manifest door
+  // uses, and built with createElementNS + setAttribute('d'): the path data is
+  // never parsed as markup. Drawn like the built-in widget icons (2 px round
+  // stroke in the text colour) unless the package asked for a solid glyph.
+  function packageIconEl(pkg) {
+    const DI = window.DashboardInstances;
+    const icon = pkg && DI && typeof DI.normalizeWidgetIcon === 'function' ? DI.normalizeWidgetIcon(pkg.icon) : null;
+    if (!icon) return null;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    if (icon.fill) {
+      svg.setAttribute('fill', 'currentColor');
+    } else {
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+    }
+    for (const d of icon.path) {
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d);
+      svg.appendChild(p);
+    }
+    return svg;
   }
 
   function packageById(id) {
@@ -1733,6 +1772,9 @@
         // itself was speaking. Cheap to send, and it closes that guess.
         service: entry.service === true,
       });
+      // History first, then the latest value: a widget building a chart gets the
+      // past and then the present, in order.
+      grant.streams.forEach(stream => { if (HISTORY_STREAMS[stream]) postHistory(entry, stream); });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
       });
@@ -1836,6 +1878,7 @@
   function onData(stream, payload) {
     if (stream === 'system') payload = withFanLabels(payload);
     lastData[stream] = payload;
+    if (HISTORY_STREAMS[stream] && payload && !payload.problem) historyPush(stream, payload, Date.now());
     for (const [, entry] of frames) {
       // A background service frame is deliberately ALWAYS fed — even with the
       // dashboard tab hidden: it exists exactly to keep the package's deck
@@ -1911,9 +1954,70 @@
   // the widget's own change-detection absorbs a repeat of what it already has.
   function replayTo(entry) {
     if (!entry || !entry.ready || entry.service || entry.ambient) return;   // never gated → never stale
-    grantsFor(entry.pkgId).streams.forEach(stream => {
+    const streams = grantsFor(entry.pkgId).streams;
+    // A history widget missed every reading while it was parked; the ring has
+    // them, so the gap closes instead of showing as a hole in its chart.
+    streams.forEach(stream => { if (HISTORY_STREAMS[stream]) postHistory(entry, stream); });
+    streams.forEach(stream => {
       if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
     });
+  }
+
+  // ---- short stream history (HISTORY_STREAMS) ------------------------------
+  function historyPrune(stream, now) {
+    const cfg = HISTORY_STREAMS[stream];
+    const ring = streamHistory[stream];
+    if (!cfg || !ring) return;
+    while (ring.length && now - ring[0].t > cfg.maxAgeMs) ring.shift();
+    while (ring.length > cfg.maxItems) ring.shift();
+  }
+  function historyPush(stream, data, t) {
+    const ring = streamHistory[stream] || (streamHistory[stream] = []);
+    const last = ring[ring.length - 1];
+    if (last && t < last.t) ring.length = 0;   // the clock stepped back: start over
+    ring.push({ t, data });
+    historyPrune(stream, t);
+  }
+  // Send what the ring holds. On the first mount of a fresh page the ring is
+  // empty, so ask the server for the readings it kept, merge the ones older than
+  // anything seen here, and send again to every granted frame.
+  function postHistory(entry, stream) {
+    historyPrune(stream, Date.now());
+    const ring = streamHistory[stream] || [];
+    if (ring.length) post(entry, { type: 'history', stream, items: ring.slice() });
+    if (!historySeed[stream]) seedHistory(stream);
+  }
+  async function seedHistory(stream) {
+    const cfg = HISTORY_STREAMS[stream];
+    if (!cfg || historySeed[stream]) return;
+    historySeed[stream] = 'pending';
+    try {
+      const res = await api(cfg.url);
+      const items = res && Array.isArray(res.items) ? res.items : [];
+      const now = Date.now();
+      const ring = streamHistory[stream] || (streamHistory[stream] = []);
+      const firstLocal = ring.length ? ring[0].t : Infinity;
+      // The server speaks in ages (its clock is not ours); keep only what is
+      // older than the readings this page already holds, so nothing repeats.
+      const older = [];
+      items.forEach(it => {
+        if (!it || typeof it !== 'object' || it.data == null) return;
+        const age = Number(it.age);
+        if (!Number.isFinite(age) || age < 0) return;
+        const t = now - age;
+        if (t < firstLocal - 500) older.push({ t, data: it.data });
+      });
+      if (older.length) {
+        streamHistory[stream] = older.concat(ring);
+        historyPrune(stream, now);
+        for (const [, entry] of frames) {
+          if (entry.ready && grantsFor(entry.pkgId).streams.includes(stream)) {
+            post(entry, { type: 'history', stream, items: streamHistory[stream].slice() });
+          }
+        }
+      }
+    } catch { /* an older server has no history route: the widget fills as before */ }
+    historySeed[stream] = 'done';
   }
   // A page change flips visibility for every frame it moved off or onto the
   // screen; postVisibility replays to the ones that just came back, so the replay
@@ -3291,6 +3395,39 @@
     }
   }
 
+  // The server updated Store widgets on its own (server/widget-auto-update.js),
+  // or found an update it will not apply without the user: a new permission, or a
+  // supporter widget with no saved code. Reload the packages so mounted frames
+  // take the new files, and say so once. Names come from a widget manifest, so
+  // they only ever reach the toast as text.
+  function onAutoUpdated(data) {
+    if (!data || typeof data !== 'object') return;
+    const names = (list) => (Array.isArray(list) ? list : [])
+      .map((x) => String((x && x.name) || (x && x.id) || '').slice(0, 60)).filter(Boolean);
+    const updated = names(data.updated);
+    const waiting = names(data.attention);
+    if (updated.length) fetchPackages(true).catch(() => {});
+    if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
+    if (updated.length) {
+      window.XenonToast.show({
+        type: 'success', duration: 6000,
+        title: updated.length === 1
+          ? t('widget_autoupdate_toast_one', '{name} updated').replace('{name}', updated[0])
+          : t('widget_autoupdate_toast_n', '{n} widgets updated').replace('{n}', String(updated.length)),
+        message: t('widget_autoupdate_toast_sub', 'Updated on their own, with no new permissions'),
+      });
+    }
+    if (waiting.length) {
+      window.XenonToast.show({
+        type: 'info', duration: 9000,
+        title: waiting.length === 1
+          ? t('widget_autoupdate_wait_one', '{name} has an update waiting for you').replace('{name}', waiting[0])
+          : t('widget_autoupdate_wait_n', '{n} widgets have an update waiting for you').replace('{n}', String(waiting.length)),
+        message: t('widget_autoupdate_wait_sub', 'Open Settings, Community widgets, Manage installed'),
+      });
+    }
+  }
+
   // Package list access for AmbientMode / the Settings scene picker.
   async function getPackages(force) {
     if (!pkgCache || force) await fetchPackages(!!force);
@@ -3340,8 +3477,95 @@
     openPermDialog(pkg, null, onAllow);
   }
 
+  // The palette search adds a Store widget in one step: it places a custom tile
+  // and hands it here. The package goes through the SAME dialog the tile's own
+  // Add button opens, so grants, addresses and review are decided in one place;
+  // cancelling it leaves the tile showing its chooser, as a fresh tile would.
+  function assignToTile(instId, pkgId) {
+    const pkg = packageById(pkgId);
+    if (!instId || !pkg || pkg.surface === 'ambient') return false;
+    openPermDialog(pkg, instId);
+    return true;
+  }
+
+  // Put an installed package in a NEW tile: the "+" panel (on a page or as a
+  // tab), the Installed list and the after-install prompt all come through here.
+  // `makeTile()` creates the host tile and returns its instance id; `dropTile(id)`
+  // takes it away again. A package already approved is assigned at once (a second
+  // copy of a widget the user allowed asks nothing twice). Otherwise the same
+  // permission dialog as the tile's own Add button decides, and a Cancel removes
+  // the empty tile it was about to fill: "no" leaves the dashboard as it was,
+  // instead of a chooser nobody asked for. Tapping "add" is also the user turning
+  // Store widgets on, so a switched-off SDK is switched on here (safe mode still
+  // masks it: that flag is never touched).
+  function placePackage(pkgId, makeTile, dropTile) {
+    const pkg = packageById(pkgId);
+    if (!pkg || pkg.surface === 'ambient' || typeof makeTile !== 'function') return null;
+    const instId = makeTile();
+    if (!instId) return null;
+    const cur = sdk();
+    if (packageGranted(pkg)) {
+      persist({ enabled: true, assign: { ...(cur.assign || {}), [instId]: pkg.id } });
+      return instId;
+    }
+    if (!cur.enabled) persist({ enabled: true });
+    // The dialog runs onClose on every path, and on Allow it runs it BEFORE
+    // onAllow (closePermDialog is called first), so a flag set in onAllow would
+    // still read "no" here and take away the tile the user just approved. Ask
+    // the saved state instead: Allow has already written the assignment.
+    openPermDialog(pkg, instId, null, () => {
+      const now = sdk();
+      const assigned = !!(now.assign && now.assign[instId] === pkg.id);
+      if (!assigned && typeof dropTile === 'function') { try { dropTile(instId); } catch { /* the tile shows its chooser instead */ } }
+    });
+    return instId;
+  }
+  // A page that ships with its widget: put each named package in the custom tile
+  // the page just created. Only INSTALLED, tile-capable packages are bound; the
+  // rest keep the chooser. No grants are given here: a bound tile whose package
+  // is not approved yet shows the permission card, and the import flow asks for
+  // the approvals right after (requestGrants), exactly as for a tile placed by hand.
+  // Returns the pkg ids that were bound.
+  function bindPackages(pairs) {
+    const list = Array.isArray(pairs) ? pairs : [];
+    const cur = sdk();
+    const assign = { ...(cur.assign || {}) };
+    const bound = [];
+    for (const p of list) {
+      const pkg = p && packageById(p.pkg);
+      if (!pkg || pkg.surface === 'ambient' || !p.instance) continue;
+      assign[p.instance] = pkg.id;
+      bound.push(pkg.id);
+    }
+    if (bound.length) persist({ enabled: true, assign });
+    return bound;
+  }
+  // The two ways a Store widget lands: on a page (the current one by default),
+  // or as a tab of a tile. Each knows how to take its own tile back.
+  function addToPage(pkgId, pageId) {
+    const DG = window.DashboardGrid;
+    if (!DG || typeof DG.addWidgetToPage !== 'function') return null;
+    const page = pageId || (window.DashboardPager && window.DashboardPager.getCurrentPage && window.DashboardPager.getCurrentPage()) || undefined;
+    return placePackage(pkgId, () => DG.addWidgetToPage('custom', page), (id) => {
+      if (id.includes('~')) { DG.removePlacement(id); return; }
+      // The primary host tile is hidden, as its own control would.
+      const layout = getDashboardLayout();
+      if (layout.widgets[id]) layout.widgets[id].visible = false;
+      saveDashboardLayout(layout);
+      if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+    });
+  }
+  function addAsTab(pkgId, targetMember) {
+    const TG = window.DashboardTabGroups;
+    if (!TG || typeof TG.addAsTab !== 'function' || !targetMember) return null;
+    return placePackage(pkgId, () => TG.addAsTab('custom', targetMember), (id) => {
+      const gid = TG.widgetGroupOf(getDashboardLayout().groups, id);
+      if (gid && typeof TG.removeMemberFromGroup === 'function') TG.removeMemberFromGroup(gid, id);
+    });
+  }
+
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onAutoUpdated, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
     // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
     publishStream,
@@ -3352,7 +3576,16 @@
     // Ambient scenes and canvas scenes mount their own frames but must load a
     // package from the SAME base as a tile does — see sdkAssetBase.
     assetBase: sdkAssetBase,
-    getPackages, cachedPackages, packageGranted, requestGrant, requestGrants,
+    getPackages, cachedPackages, packageGranted, requestGrant, requestGrants, assignToTile,
+    // A Store widget in a NEW tile, on a page or as a tab: the "+" panel, the
+    // Installed list and the after-install prompt all use these.
+    addToPage, addAsTab, bindPackages,
+    // The bundled examples not installed yet, and installing one: the "+" panel
+    // offers them under Installed, as the empty tile's chooser always has.
+    missingExamples, installExample,
+    // Effective on/off (safe mode masks it): the palette offers Store widgets
+    // only while a tile could actually run one.
+    enabled: () => !!sdk().enabled,
     getPerfStats, setSuspended, isSuspended,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
@@ -3367,6 +3600,17 @@
         return (pkg && pkg.name) ? String(pkg.name) : '';
       } catch { return ''; }
     },
+    // The assigned package's own glyph for a custom tile's tab, or null (no
+    // package yet, or one without an `icon`): the caller keeps the puzzle.
+    assignedIcon(instId) {
+      try {
+        const cfg = sdk();
+        const id = (cfg.assign && typeof cfg.assign === 'object') ? cfg.assign[instId || 'custom'] : null;
+        return packageIconEl(id ? packageById(id) : null);
+      } catch { return null; }
+    },
+    // Same, for a package object (the "+" search results).
+    packageIcon(pkg) { try { return packageIconEl(pkg); } catch { return null; } },
     // Does this package still have a live (DOM-connected) frame? SdkIsland's
     // orphan sweep uses it to auto-clear island text whose owner tile is gone.
     pkgHasLiveFrame(pkgId) {
