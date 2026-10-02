@@ -2,6 +2,36 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "nitrato",
+      "kind": "bundle",
+      "name": "Nitrato",
+      "author": "xenon",
+      "authorSupporter": true,
+      "locked": true,
+      "description": "A crooked 1920 town cut as a woodcut and projected like a silent film. The tint follows your clock, amber by day, blue at night: windows light up, smoke rises, a cat walks the roofs. The Didascalia title card counts down every hour. With a matching Ambient scene. AI-generated woodcut plates.",
+      "category": "style",
+      "tags": [
+        "halloween",
+        "silent-film",
+        "woodcut",
+        "calendar",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "appVersionMin": "4.11.10",
+      "preview": {
+        "accent": "#D6AA6A",
+        "bg": "#201A13",
+        "text": "#EADFC8"
+      },
+      "shots": 6,
+      "active": false,
+      "activeFrom": "2026-10-01",
+      "activeUntil": "2026-11-02T23:59:59+01:00",
+      "addedAt": "2026-10-02",
+      "codeFile": true
+    },
+    {
       "id": "workload-river",
       "kind": "widget",
       "name": "Workload River",
