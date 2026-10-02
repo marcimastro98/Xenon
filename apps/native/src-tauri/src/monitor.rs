@@ -154,6 +154,61 @@ fn placement_cache() -> PlacementCache {
         .clone()
 }
 
+// ── Screen reads, always made on the main thread ────────────────────────────
+//
+// Every monitor read in this crate goes through these five, never through
+// `available_monitors()` / `primary_monitor()` / `current_monitor()` directly.
+// Tauri hands the QUERY to the event loop but builds the `Monitor` it returns on
+// the CALLING thread, and on Linux that build asks GDK for the work area: an X11
+// request on the connection the main thread is reading events from. The app-level
+// variants do not even hop. From the watchdog (every 3 s) that is two threads on
+// one Xlib connection, and Xlib aborts the process with "[xcb] Unknown request in
+// queue while dequeuing" — which is how the AppImage died at launch in the
+// AppImageHub test (PR #7417). On macOS the same build reads NSScreen, which
+// AppKit also expects on the main thread. `run_on_main_thread` runs inline when
+// already there, so these are safe from any thread, and from a background thread
+// they block exactly as the window getters they replace already did.
+
+fn on_main<R, F>(app: &AppHandle, f: F) -> Option<R>
+where
+    R: Send + 'static,
+    F: FnOnce() -> R + Send + 'static,
+{
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.run_on_main_thread(move || {
+        let _ = tx.send(f());
+    })
+    .ok()?;
+    // An event loop that has already exited drops the task unrun: `recv` then
+    // fails instead of waiting forever.
+    rx.recv().ok()
+}
+
+fn monitors_of(window: &WebviewWindow) -> Option<Vec<Monitor>> {
+    let w = window.clone();
+    on_main(window.app_handle(), move || w.available_monitors().ok()).flatten()
+}
+
+fn primary_of(window: &WebviewWindow) -> Option<Monitor> {
+    let w = window.clone();
+    on_main(window.app_handle(), move || w.primary_monitor().ok().flatten()).flatten()
+}
+
+fn current_of(window: &WebviewWindow) -> Option<Monitor> {
+    let w = window.clone();
+    on_main(window.app_handle(), move || w.current_monitor().ok().flatten()).flatten()
+}
+
+fn app_monitors(app: &AppHandle) -> Vec<Monitor> {
+    let a = app.clone();
+    on_main(app, move || a.available_monitors().unwrap_or_default()).unwrap_or_default()
+}
+
+pub(crate) fn app_primary(app: &AppHandle) -> Option<Monitor> {
+    let a = app.clone();
+    on_main(app, move || a.primary_monitor().ok().flatten()).flatten()
+}
+
 /// Mark this session as a deliberate, user-initiated launch, so phone mode does
 /// not hide a window the user just asked for by double-clicking the app. Set at
 /// startup when the process was NOT started by the login entry. Session-only:
@@ -354,7 +409,7 @@ fn is_edge(monitor: &Monitor) -> bool {
 /// wrong or unavailable, the worst case is the old behaviour rather than no Edge
 /// at all.
 fn find_edge(window: &WebviewWindow) -> Option<Monitor> {
-    find_edge_in(window.available_monitors().ok()?)
+    find_edge_in(monitors_of(window)?)
 }
 
 /// The same search over a list read from anywhere — the window, or the app handle
@@ -375,9 +430,9 @@ fn find_edge_in(monitors: Vec<Monitor>) -> Option<Monitor> {
 
 /// Whether the window currently sits on the given monitor (compared by origin).
 fn window_is_on(window: &WebviewWindow, monitor: &Monitor) -> bool {
-    match window.current_monitor() {
-        Ok(Some(current)) => current.position() == monitor.position(),
-        _ => false,
+    match current_of(window) {
+        Some(current) => current.position() == monitor.position(),
+        None => false,
     }
 }
 
@@ -550,8 +605,8 @@ fn windowed_size_for(monitor: &Monitor) -> LogicalSize<f64> {
 /// second-screen display, which advertises 2560×720 — so a user who had chosen a
 /// real monitor got the full-screen flash this is meant to remove.
 pub fn initial_window(app: &AppHandle, prefs: &prefs::DisplayPrefs) -> (f64, f64, bool) {
-    let monitors = app.available_monitors().unwrap_or_default();
-    let primary = app.primary_monitor().ok().flatten();
+    let monitors = app_monitors(app);
+    let primary = app_primary(app);
     // (target screen, kiosk-or-fullscreen), mirroring `resolve`.
     let (target, fullscreen) = match prefs.placement {
         // Nothing on this PC. A deliberate launch still shows an ORDINARY window
@@ -647,11 +702,7 @@ fn place_fullscreen_on(window: &WebviewWindow, monitor: &Monitor) {
 
 /// The primary monitor, or the first available one if the primary is unknown.
 fn primary_or_first(window: &WebviewWindow) -> Option<Monitor> {
-    window
-        .primary_monitor()
-        .ok()
-        .flatten()
-        .or_else(|| window.available_monitors().ok().and_then(|m| m.into_iter().next()))
+    primary_of(window).or_else(|| monitors_of(window).and_then(|m| m.into_iter().next()))
 }
 
 /// Prefix marking a display id that is a PLACE, not an OS name (see `display_ids`).
@@ -706,7 +757,7 @@ fn display_ids(monitors: &[Monitor]) -> Vec<String> {
 /// The id of one specific monitor, computed in the context of every monitor
 /// attached with it. Matched by ORIGIN, the one property no two screens share.
 fn id_of(window: &WebviewWindow, target: &Monitor) -> Option<String> {
-    let monitors = window.available_monitors().ok()?;
+    let monitors = monitors_of(window)?;
     let i = monitors
         .iter()
         .position(|m| m.position() == target.position())?;
@@ -720,7 +771,7 @@ fn id_of(window: &WebviewWindow, target: &Monitor) -> Option<String> {
 /// name was unique at the time): a plain OS name that has since stopped being
 /// unique still finds its screen instead of falling through to "not connected".
 fn monitor_by_id(window: &WebviewWindow, id: &str) -> Option<Monitor> {
-    let monitors = window.available_monitors().ok()?;
+    let monitors = monitors_of(window)?;
     let i = find_by_id(&monitors, id)?;
     monitors.into_iter().nth(i)
 }
@@ -756,9 +807,7 @@ fn fingerprint(monitor: &Monitor) -> String {
 }
 
 fn monitor_by_fingerprint(window: &WebviewWindow, fp: &str) -> Option<Monitor> {
-    window
-        .available_monitors()
-        .ok()?
+    monitors_of(window)?
         .into_iter()
         .find(|m| fingerprint(m) == fp)
 }
@@ -868,10 +917,7 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
                 // placement gets. (Same repair `exit_home` already performs for this
                 // mode, and safe to do here: the watchdog `continue`s on `Phone`, so
                 // this runs on deliberate placements only, never every tick.)
-                if let Some(m) = window
-                    .current_monitor()
-                    .ok()
-                    .flatten()
+                if let Some(m) = current_of(window)
                     .or_else(|| primary_or_first(window))
                 {
                     place_windowed_on(window, &m);
@@ -1067,7 +1113,7 @@ pub fn enter_home(window: &WebviewWindow) {
     // a different screen from the one the dashboard was just filling.
     let target = chosen_monitor(window, &cache)
         .or_else(|| find_edge(window))
-        .or_else(|| window.current_monitor().ok().flatten())
+        .or_else(|| current_of(window))
         .or_else(|| primary_or_first(window));
     // The kiosk carries a 640×240 minimum; drop it so the button can be this small.
     let _ = window.set_min_size(None::<LogicalSize<f64>>);
@@ -1128,7 +1174,7 @@ pub fn exit_home(window: &WebviewWindow) {
     // just promised the current session it could keep — so give it back as an
     // ordinary desktop window on the screen it is already on.
     if placement_cache().mode == Placement::Phone {
-        if let Some(monitor) = window.current_monitor().ok().flatten() {
+        if let Some(monitor) = current_of(window) {
             place_windowed_on(window, &monitor);
         }
     } else {
@@ -1173,8 +1219,8 @@ impl DisplayInfo {
 /// the dashboard renders them as chips, and the tray, which has no chips, spells
 /// them into the label itself (see `tray_label`).
 pub fn displays(window: &WebviewWindow) -> Vec<DisplayInfo> {
-    let primary = window.primary_monitor().ok().flatten();
-    let monitors = window.available_monitors().ok().unwrap_or_default();
+    let primary = primary_of(window);
+    let monitors = monitors_of(window).unwrap_or_default();
     describe(monitors, primary)
 }
 
@@ -1187,8 +1233,8 @@ pub fn displays(window: &WebviewWindow) -> Vec<DisplayInfo> {
 /// dashboard loads, and that a page which never gets one leaves stuck on "Reading
 /// the screens on this PC…".
 pub fn displays_for_app(app: &AppHandle) -> Vec<DisplayInfo> {
-    let primary = app.primary_monitor().ok().flatten();
-    let monitors = app.available_monitors().unwrap_or_default();
+    let primary = app_primary(app);
+    let monitors = app_monitors(app);
     describe(monitors, primary)
 }
 
@@ -1240,10 +1286,7 @@ pub fn display_state(window: &WebviewWindow) -> serde_json::Value {
     // Reported with `display_id`, the same key the list uses, so the dashboard's
     // `d.id === state.active` comparison keeps working on outputs the OS did not
     // name (where it used to compare against `null` and never match).
-    let active = window
-        .current_monitor()
-        .ok()
-        .flatten()
+    let active = current_of(window)
         .and_then(|m| id_of(window, &m));
     let missing = cache.mode == Placement::Screen && chosen_monitor(window, &cache).is_none();
     serde_json::json!({
@@ -1380,7 +1423,7 @@ pub fn push_display_state(app: &AppHandle) {
 /// tell a genuine topology change from an idle tick. Empty if monitors can't be
 /// read this tick (treated as "unknown", never a change).
 fn topology_signature(window: &WebviewWindow) -> String {
-    let Ok(monitors) = window.available_monitors() else { return String::new() };
+    let Some(monitors) = monitors_of(window) else { return String::new() };
     let mut parts: Vec<String> = monitors
         .iter()
         .map(|m| {
@@ -1395,10 +1438,7 @@ fn topology_signature(window: &WebviewWindow) -> String {
     // Edge; the position list alone can miss that if the remaining monitors keep
     // their coordinates, so key the primary's size + name in explicitly so such a
     // change still moves the signature and re-asserts fullscreen over the taskbar.
-    let primary = window
-        .primary_monitor()
-        .ok()
-        .flatten()
+    let primary = primary_of(window)
         .map(|m| {
             let s = m.size();
             let name = m.name().cloned().unwrap_or_default();
