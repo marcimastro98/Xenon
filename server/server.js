@@ -14648,6 +14648,14 @@ const handleRequest = async (req, res) => {
       json({ ok, status });
     } catch (e) { json({ ok: false, status: 'error', detail: String(e && e.message || e) }); }
 
+  } else if (reqPath === '/audio/watch' && req.method === 'GET') {
+    // "A Volume or Microphone panel is on screen". The prefix check at the top of
+    // this handler has already re-armed the 8 second audio tick, which is all this
+    // route is for: the dashboard sends it every 30 seconds while a mixer is in view
+    // and not at all while none is. It reads nothing and spawns nothing, so a mixer
+    // left on screen all day costs one empty request every half minute.
+    json({ ok: true });
+
   } else if (reqPath === '/audio/apps' && req.method === 'GET') {
     // Broader app list for the Deck editor's app picker: every application audio
     // session (active OR inactive) that has a real exe, deduped by process name.
