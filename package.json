@@ -21,7 +21,6 @@
     "postinstall": "node tools/link-shared.mjs",
     "native:dev": "node tools/dev.mjs --native",
     "native:build": "npm run build --workspace @xenon/native",
-    "native:build:linux": "npm run build:linux --workspace @xenon/native",
     "native:build:arch": "npm run build:arch --workspace @xenon/native",
     "native:package:arch": "node tools/package-arch.mjs",
     "icue:validate": "icuewidget validate widget",
