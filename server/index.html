@@ -670,7 +670,7 @@
             </button>
           </div>
           <div class="system-tabs-right">
-            <button type="button" class="sys-optimize-btn" id="sys-optimize-btn" onclick="optimizePerformanceNow()" data-i18n-title="sys_optimize" title="Migliora performance">
+            <button type="button" class="sys-optimize-btn" id="sys-optimize-btn" onclick="togglePerformanceFromSystem()" data-i18n-title="sys_optimize" title="Migliora performance">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg>
               <span data-i18n="sys_optimize_short">Migliora</span>
             </button>
@@ -972,6 +972,12 @@
     </div>
     <div class="settings-body">
       <nav class="settings-nav" id="settings-nav" aria-label="Categorie impostazioni">
+        <!-- Settings search (js/settings-search.js). Above the category list and
+             outside it, so on a phone it stays visible while the list is folded. -->
+        <div class="settings-search" role="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+          <input type="search" id="settings-search-input" class="settings-search-input settings-text-input" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="settings-search-results" aria-autocomplete="list" data-i18n-placeholder="settings_search_placeholder" data-i18n-aria-label="settings_search_placeholder" placeholder="Cerca nelle impostazioni" aria-label="Cerca nelle impostazioni">
+        </div>
         <div class="settings-nav-scroll" id="settings-nav-scroll">
         <button type="button" class="settings-nav-btn" data-settings-cat="general" onclick="settingsSetCategory('general')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h13M20 17h.01"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18.5" cy="17" r="2"/></svg><span data-i18n="settings_cat_general">Generale</span></button>
         <button type="button" class="settings-nav-btn active" data-settings-cat="appearance" onclick="settingsSetCategory('appearance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="11.5" r="2.5"/><circle cx="17" cy="14" r="2.5"/><circle cx="9.5" cy="18" r="2.5"/></svg><span data-i18n="settings_cat_appearance">Aspetto</span></button>
@@ -1032,6 +1038,7 @@
         </div>
       </nav>
       <div class="settings-content" id="settings-content">
+      <div class="settings-search-results" id="settings-search-results" aria-live="polite" hidden></div>
       <div class="settings-preview settings-span-all" aria-hidden="true" data-settings-cat="appearance">
         <div class="settings-preview-card">
           <div class="settings-preview-kicker" data-i18n="settings_preview_kicker">Anteprima live</div>
@@ -1229,7 +1236,7 @@
           </label>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_panel_shadow">Ombra pannelli</span><span class="settings-value" id="settings-panel-shadow-value">100%</span></span>
-            <input class="settings-range" id="settings-panel-shadow" type="range" min="0" max="2" step="0.05" oninput="updateSettingsRange('panelShadowStrength', this.value)">
+            <input class="settings-range" id="settings-panel-shadow" type="range" min="0" max="2" step="0.05" oninput="updateSettingsRange('tileShadowStrength', this.value)">
           </label>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_roundness">Raggio angoli</span><span class="settings-value" id="settings-roundness-value">100%</span></span>
@@ -1327,6 +1334,7 @@
             <button class="settings-media-viz settings-segment-btn" type="button" data-media-viz="wave" onclick="updateMediaVisualizer('wave')" aria-pressed="false" data-i18n="settings_media_viz_wave">Onda</button>
           </div>
           <span class="settings-hint settings-media-viz-status" id="settings-media-viz-status" role="status" aria-live="polite" hidden></span>
+          <button class="settings-btn settings-media-viz-install" id="settings-media-viz-install" type="button" onclick="installXenonHelper()" data-i18n="settings_media_viz_install" hidden>Installa Xenon Helper</button>
           <span class="settings-note" data-i18n="settings_media_viz_note">Disegna il suono che l'app sta davvero producendo, con i colori della copertina. Non cambia nulla del riquadro: si aggiunge sotto, e con Nessuna non viene disegnato niente. Minimal è una riga sottile che respira, Onda è la versione piena. Serve Windows con Xenon Helper installato: senza di lui il livello audio non si può misurare e non esiste un ripiego. La misurazione parte solo quando scegli Minimal o Onda.</span>
         </div>
       </div>
@@ -1414,6 +1422,13 @@
           <span class="settings-hint" data-i18n="settings_updates_hint">Xenon controlla già se esiste una versione più recente</span>
         </div>
         <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-auto-update" type="checkbox" onchange="updateAutoUpdate(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_auto_update">Aggiorna Xenon da solo</span>
+            <span class="settings-hint" data-i18n="settings_auto_update_hint">scarica e installa le nuove versioni in automatico, quando non stai usando il PC. Spenta, Xenon avvisa comunque quando ce n'è una, ma aspetta che tu prema Aggiorna</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
           <input class="settings-check" id="settings-version-ping" type="checkbox" onchange="updateVersionPing(this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_version_ping">Conta questa installazione, in forma anonima</span>
@@ -1442,10 +1457,10 @@
           </span>
         </label>
         <label class="settings-toggle-row full">
-          <input class="settings-check" id="settings-catalog-drops" type="checkbox" onchange="updateCatalogDrops(this.checked)">
+          <input class="settings-check" id="settings-monthly-drops" type="checkbox" onchange="updateMonthlyDrops(this.checked)">
           <span class="settings-label-line">
-            <span data-i18n="settings_catalog_drops">Segnala nuove edizioni limitate e contenuti per sostenitori</span>
-            <span class="settings-hint" data-i18n="settings_catalog_drops_hint">la scheda che compare quando esce una copia numerata o un pacchetto per sostenitori</span>
+            <span data-i18n="settings_monthly_drops">Drop del mese</span>
+            <span class="settings-hint" data-i18n="settings_monthly_drops_hint">a ogni avvio, una finestra con i contenuti per sostenitori e le edizioni limitate usciti negli ultimi 30 giorni che non hai ancora</span>
           </span>
         </label>
       </div>
@@ -1492,9 +1507,9 @@
           <span data-i18n="settings_native_zoom">Scala interfaccia</span>
           <span class="settings-hint" data-i18n="settings_native_zoom_hint">zoom della dashboard</span>
         </div>
-        <label class="settings-row full">
+        <label class="settings-row full" data-search-kw="settings_native_zoom_kw">
           <span class="settings-label-line"><span data-i18n="settings_native_zoom_label">Zoom</span><span class="settings-value" id="settings-native-zoom-value">100%</span></span>
-          <input class="settings-range" id="settings-native-zoom" type="range" min="0.6" max="1.6" step="0.05" oninput="updateNativeZoom(this.value)">
+          <input class="settings-range" id="settings-native-zoom" type="range" min="0.6" max="2.5" step="0.05" oninput="updateNativeZoom(this.value)">
           <span class="settings-note" data-i18n="settings_native_zoom_note">Ingrandisci o rimpicciolisci tutta la dashboard, indipendentemente dalla scala di Windows. Puoi anche usare Ctrl + rotellina del mouse.</span>
           <span class="settings-note" id="settings-native-zoom-remote" data-i18n="settings_native_zoom_remote" hidden>Vale per l'app Xenon, non per questa finestra: qui usa lo zoom del browser. Puoi regolarla da qui mentre guardi l'Edge.</span>
         </label>
@@ -1511,6 +1526,21 @@
           <span class="settings-label-line">
             <span data-i18n="settings_swipe_home">Scorri in alto per il desktop</span>
             <span class="settings-hint" data-i18n="settings_swipe_home_hint">come su iPhone: uno scorrimento veloce verso l'alto dal fondo dello schermo riduce Xenon a una barra e mostra il desktop di Windows</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Windows only: syncAudioCommsControl() hides it elsewhere (one default per direction there). -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-audio-comms-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_audio_head">Audio</span>
+          <span class="settings-hint" data-i18n="settings_audio_hint">cambio di altoparlanti e microfono</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-audio-comms" type="checkbox" checked onchange="updateAudioSetCommunications(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_audio_comms">Cambia anche il dispositivo di comunicazione</span>
+            <span class="settings-hint" data-i18n="settings_audio_comms_desc">quando Xenon cambia altoparlanti o microfono, dal riquadro Volume, da un tasto del Deck o dall'assistente, sposta anche quello che usano Discord, Teams e le app di chiamata. Disattivalo per cambiare solo il dispositivo predefinito e lasciare le chiamate dove sono</span>
           </span>
         </label>
       </div>
@@ -2103,7 +2133,7 @@
               <option value="7" data-i18n="settings_weather_days_7">7 giorni</option>
             </select>
           </label>
-          <div class="settings-row full">
+          <div class="settings-row full" data-search-kw="settings_temp_unit_kw">
             <span class="settings-label-line"><span data-i18n="settings_temp_unit">Unità temperatura</span></span>
             <div class="settings-segmented" role="group" aria-label="Unità temperatura">
               <button class="settings-temp-unit settings-segment-btn" type="button" data-temp-unit="c" onclick="updateTempUnit('c')" aria-pressed="true">°C</button>
@@ -3171,6 +3201,14 @@
                 <span class="settings-hint" data-i18n="settings_safe_mode_hint">mette in pausa widget di terze parti, tema personalizzato e sfondi importati e torna all'aspetto di fabbrica. Non disinstalla niente: togli la spunta e tutto torna come prima. Utile per capire se un contenuto installato causa problemi</span>
               </span>
             </label>
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-auto-update-widgets" type="checkbox" onchange="updateAutoUpdateWidgets(this.checked)">
+              <span class="settings-label-line">
+                <span data-i18n="settings_widget_auto_update">Aggiorna i widget da solo</span>
+                <span class="settings-hint" data-i18n="settings_widget_auto_update_hint">installa da solo le nuove versioni dei widget dello Store. Non aggiorna mai un widget che chiede permessi nuovi: quello resta a te. Spenta, gli aggiornamenti restano a portata di tap in Gestisci gli installati</span>
+              </span>
+            </label>
+            <p class="settings-note" id="settings-auto-update-widgets-line" hidden></p>
             <div class="settings-share-buttons">
               <button type="button" class="settings-btn" onclick="if(window.CommunityGallery)CommunityGallery.open('__installed')" data-i18n="settings_sdk_manage">Gestisci gli installati…</button>
             </div>
@@ -3207,6 +3245,7 @@
               </span>
             </div>
             <div class="settings-supporter-row">
+              <span class="settings-supporter-saved" id="settings-supporter-saved" data-i18n="settings_supporter_stored" hidden>Codice salvato</span>
               <input type="text" class="settings-supporter-field" id="settings-supporter-code"
                      autocomplete="off" spellcheck="false" placeholder="XS-XXXX-XXXX-XXXX"
                      data-i18n-placeholder="preset_redeem_placeholder">
@@ -4088,7 +4127,9 @@
 <script src="js/slideshow-widget.js"></script>
 <script src="js/theme-palette.js"></script>
 <script src="js/content-installs.js"></script>
+<script src="js/fuzzy-find.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/settings-search.js"></script>
 <script src="js/performance.js"></script>
 <script src="js/tile-decor-presets.js"></script>
 <script src="js/tile-shape-presets.js"></script>
@@ -4112,6 +4153,7 @@
 <script src="js/dashboard-grid.js"></script>
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages.js"></script>
+<script src="js/palette-model.js"></script>
 <script src="js/dashboard-palette.js"></script>
 <script src="js/dashboard-presets.js"></script>
 <script src="js/genesis.js"></script>

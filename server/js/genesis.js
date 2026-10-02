@@ -16,8 +16,13 @@
     if (typeof showHubToast === 'function') showHubToast('Genesis', message, '');
   }
 
+  // The ids Genesis may place: every built-in widget except the Store widgets'
+  // host tile. Placed on its own, 'custom' is an empty tile asking which widget
+  // to show; a Store widget is added by name from the "+" panel instead.
+  const genesisWidgetIds = () => (typeof DASHBOARD_WIDGET_IDS !== 'undefined' ? DASHBOARD_WIDGET_IDS : []).filter(id => id !== 'custom');
+
   function validWidgetIds(list) {
-    const known = new Set(typeof DASHBOARD_WIDGET_IDS !== 'undefined' ? DASHBOARD_WIDGET_IDS : []);
+    const known = new Set(genesisWidgetIds());
     const seen = new Set();
     const out = [];
     (Array.isArray(list) ? list : []).forEach(w => {
@@ -116,7 +121,7 @@
         widgets: DASHBOARD_WIDGET_IDS.filter(w =>
           layout.widgets[w] && layout.widgets[w].visible && layout.widgets[w].page === p.id),
       }));
-      return { pages, availableWidgets: DASHBOARD_WIDGET_IDS.slice(), maxPages: DASHBOARD_PAGES_MAX };
+      return { pages, availableWidgets: genesisWidgetIds(), maxPages: DASHBOARD_PAGES_MAX };
     } catch {
       return null;
     }

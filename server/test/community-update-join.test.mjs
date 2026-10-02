@@ -107,3 +107,42 @@ test('update join: a catalog stamp is preferred over the package manifest', () =
 
   assert.equal(installedPkgVersion(null), null);
 });
+
+// A protected (locked) supporter drop is updatable like any other: the update is
+// the import dialog, which unlocks with the saved pass or asks for the code once.
+// It used to be skipped here, so owners of a locked pack never saw a badge.
+function loadFindUpdates(idx) {
+  const { verLess } = loadVersionCompare();
+  const start = SRC.indexOf('  async function findUpdates(entries) {');
+  assert.ok(start > 0, 'findUpdates not found');
+  const end = SRC.indexOf('\n  }', start);   // the 2-space close of the function, CRLF-safe
+  assert.ok(end > start, 'findUpdates block not delimited as expected');
+  const ctx = vm.createContext({ verLess, refreshInstallIndex: async () => idx, installedPkgVersion: (r) => r });
+  vm.runInContext(SRC.slice(start, end + 4) + '\nthis.findUpdates = findUpdates;', ctx);
+  return ctx.findUpdates;
+}
+
+test('update join: a locked entry you own offers its update', async () => {
+  const findUpdates = loadFindUpdates({
+    pkg: new Map([['workload-river', '1.0.0']]),
+    receipts: new Map([['nitrato', '1.0.0'], ['cards', '2.0.0']]),
+    dropReceipts: new Map(),
+  });
+  const out = await findUpdates([
+    { id: 'nitrato', version: '1.1.0', locked: true },
+    { id: 'workload-river', pkgId: 'workload-river', version: '1.0.1', locked: true },
+    { id: 'cards', version: '2.0.0', locked: true },   // current: no update
+    { id: 'other', version: '1.0.0', locked: true },   // not owned: no update
+  ]);
+  assert.deepEqual(out.map((e) => e.id), ['nitrato', 'workload-river']);
+});
+
+test('update action: a protected drop goes to the import dialog, not a silent install', () => {
+  const mgr = readFileSync(fileURLToPath(new URL('../js/installed-manager.js', import.meta.url)), 'utf8');
+  const at = mgr.indexOf('async function applyUpdate');
+  assert.ok(at > 0);
+  const body = mgr.slice(at, mgr.indexOf('function renderRow', at));
+  assert.ok(body.indexOf('peekLocked') > 0 && body.indexOf('peekLocked') < body.indexOf('decodePreset'),
+    'the locked check must come before decodePreset, which returns null for a locked code');
+  assert.match(SRC, /async function findUpdates[\s\S]{0,200}!e \|\| !e\.version\) return false;/);
+});

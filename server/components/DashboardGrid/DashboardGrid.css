@@ -78,12 +78,21 @@
 /* A tile asked to be fully transparent loses the panel MATERIAL — the top-lit
    wash and the hairline highlight are part of the fill, and a "transparent"
    card that still carried them read as a faint white sheet over the wallpaper.
-   The border and the shadow are separate controls and are deliberately NOT
-   touched here: an outline with nothing inside it is a legitimate look. */
+   The border is a separate control and is deliberately NOT touched here: an
+   outline with nothing inside it is a legitimate look. The shadow is dealt with
+   below. */
 .grid-stack-item[data-tile-plain] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
   background-image: none;
   --panel-topline: transparent;
 }
+/* …and it casts no shadow either. The drop shadow above is painted by the WRAPPER
+   just outside the tile's edge, so on a tile with nothing inside it, it is the only
+   thing left on screen: a soft dark strip under an empty box, which reads as a card
+   sitting behind the widgets (reported: "there seems to be a card behind the
+   cards"). Measured on a real dashboard: about 18% darker along the bottom edge,
+   fading over ~12px. The border stays, since an outline with nothing inside it is
+   a legitimate look. A shadow the user set on THIS tile (data-tile-shadow) stays. */
+.grid-stack-item[data-tile-plain]:not([data-tile-shadow]) { box-shadow: none; }
 
 /* ── Per-tile glass (opt-in) ────────────────────────────────────────────────
    backdrop-filter is a per-frame GPU cost and the Edge composites on the
@@ -122,8 +131,8 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
    scrolling lists) can't swallow the gesture. The real GridStack drag handle is
    the content node itself (stable across re-renders — see mountPageGrid); the
    overlay is the hit-surface plus a grip pill as the visual affordance. All
-   tile edit controls (size / +Tab / save / × / .layout-controls, z 58-62) and
-   the tab bars (below) sit above it. */
+   tile edit controls (the .gs-edit-bar, z 50) and the tab bars (below) sit
+   above it; the floating layout dock (56) stays above them all. */
 .gs-edit-overlay { display: none; }
 .layout-editing .gs-edit-overlay {
   display: block; position: absolute; inset: 0; z-index: 40;
@@ -188,7 +197,7 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
    2) Tap the size button just above it (cycles preset sizes; reliable on touch). */
 .grid-stack > .grid-stack-item > .ui-resizable-handle { display: none; }
 .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
-  display: block; width: 22px; height: 22px; right: 4px; bottom: 4px; z-index: 62;
+  display: block; width: 22px; height: 22px; right: 4px; bottom: 4px; z-index: 52;
   border: 1px solid rgba(var(--accent-rgb), 0.55); border-radius: 7px;
   background: rgba(6, 10, 10, 0.9); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   transform: none; touch-action: none;
@@ -198,76 +207,63 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
   border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
 }
 
-.gs-size-cycle { display: none; }
-.layout-editing .gs-size-cycle {
-  display: grid; place-items: center; position: absolute; right: 5px; bottom: 32px;
-  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
-  background: rgba(6, 10, 10, 0.82); color: var(--accent);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  transition: background 0.15s ease, transform 0.1s ease;
+/* ── The edit bar ─────────────────────────────────────────────────────────
+   Every control of a tile in one row: + Tab, style, save preset, size, then on
+   the right hide / move-page (a primary tile) or remove (a copy). While editing
+   the tile turns into a column and the bar takes a strip at its top, so no
+   control ever lies on the widget's own content: the old "+ Tab" pill covered
+   the bottom row of every tile and the corner buttons its header. The widget
+   gives up those 40 px only while the layout is being edited.
+   Buttons are opaque, flat, and drawn with icons (a × glyph never centres). */
+.gs-edit-bar { display: none; }
+.layout-editing .grid-stack-item-content { flex-direction: column; }
+.layout-editing .gs-edit-bar {
+  display: flex; align-items: center; gap: 6px; flex: 0 0 auto; order: -1;
+  /* 50: above the drag overlay (40) and the tab bars (45), BELOW the floating
+     layout dock (56, TopbarMinimal.css) and everything above it. Grid items
+     make no stacking context, so this competes with the dock directly; at 61
+     a bar as wide as its tile covered the dock and its Done button. */
+  position: relative; z-index: 50; height: 40px; padding: 4px 4px 6px;
+  overflow-x: auto; scrollbar-width: none; container-type: inline-size;
 }
-.layout-editing .gs-size-cycle:hover { background: rgba(var(--accent-rgb), 0.2); }
-.layout-editing .gs-size-cycle:active { transform: scale(0.92); }
-.gs-size-cycle svg { width: 14px; height: 14px; }
-
-/* Delete (×) on a COPY tile — top-right, always red (touch has no hover). */
-.gs-remove { display: none; }
-.layout-editing .gs-remove {
-  display: grid; place-items: center; position: absolute; right: 6px; top: 6px;
-  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer; line-height: 1;
-  border: 1px solid rgba(231, 76, 60, 0.5); border-radius: 7px;
-  background: rgba(231, 76, 60, 0.18); color: var(--red);
-  font-size: 18px; font-weight: 700;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  transition: background 0.15s ease, transform 0.1s ease;
+.layout-editing .gs-edit-bar::-webkit-scrollbar { display: none; }
+.gs-bar-spacer { flex: 1 1 auto; order: 5; }
+.gs-edit-bar > button,
+.gs-edit-bar .layout-control-btn {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 32px; height: 30px; padding: 0 8px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px;
+  background: rgb(var(--panel-rgb, 14, 17, 22)); color: var(--text, #e7e9ee);
+  font: inherit; font-size: 12px; font-weight: 700; line-height: 1;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.layout-editing .gs-remove:hover { background: rgba(231, 76, 60, 0.3); }
-.layout-editing .gs-remove:active { transform: scale(0.92); }
-
-/* ── "+ Tab" — bottom-centre pill: add another component to THIS tile as a tab. */
-.gs-add-tab { display: none; }
-.layout-editing .gs-add-tab {
-  display: inline-flex; align-items: center; gap: 4px; position: absolute;
-  left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 61;
-  padding: 4px 10px 4px 7px; cursor: pointer;
-  border: 1px solid rgba(var(--accent-rgb), 0.5); border-radius: 999px;
-  background: rgba(var(--accent-rgb), 0.14); color: var(--accent);
-  font: inherit; font-size: 11px; font-weight: 850; letter-spacing: 0.3px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
-  transition: background 0.15s ease, transform 0.1s ease;
+.gs-edit-bar > button:hover,
+.gs-edit-bar .layout-control-btn:hover { border-color: rgba(var(--accent-rgb), 0.55); color: var(--text, #e7e9ee); background: rgb(var(--panel-rgb, 14, 17, 22)); }
+.gs-edit-bar > button:focus-visible,
+.gs-edit-bar .layout-control-btn:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
+.gs-edit-bar svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.gs-add-tab { order: 1; color: var(--accent) !important; }
+.gs-tile-style { order: 2; }
+.gs-save-preset { order: 3; }
+.gs-size-cycle { order: 4; }
+.gs-edit-bar .layout-controls { order: 6; }
+.gs-remove { order: 7; color: var(--red, #e74c3c) !important; border-color: rgba(231, 76, 60, 0.5) !important; }
+/* hide / move-page, adopted from dashboard-layout.js: its floating box is
+   dropped here, the buttons join the row as equals. */
+.layout-editing .gs-edit-bar .layout-controls {
+  position: static; display: inline-flex; gap: 6px; padding: 0;
+  border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none;
 }
-.layout-editing .gs-add-tab:hover { background: rgba(var(--accent-rgb), 0.26); }
-.layout-editing .gs-add-tab:active { transform: translateX(-50%) scale(0.95); }
-.gs-add-tab svg { width: 13px; height: 13px; }
-
-/* "Save preset" — top-left, clear of the size / remove handles. */
-.gs-save-preset { display: none; }
-.layout-editing .gs-save-preset {
-  display: grid; place-items: center; position: absolute; left: 6px; top: 6px;
-  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
-  background: rgba(6, 10, 10, 0.82); color: var(--accent);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  transition: background 0.15s ease, transform 0.1s ease;
+/* A narrow tile keeps the icons and drops the one label. */
+@container (max-width: 250px) { .gs-bar-label { display: none; } }
+/* The grip pill sits just under the bar, on the content it moves. */
+.layout-editing .gs-edit-grip { top: 46px; }
+/* Fingers, not a mouse. */
+@media (pointer: coarse) {
+  .layout-editing .gs-edit-grip { top: 54px; }
+  .layout-editing .gs-edit-bar { height: 48px; }
+  .gs-edit-bar > button, .gs-edit-bar .layout-control-btn { min-width: 38px; height: 38px; }
 }
-.layout-editing .gs-save-preset:hover { background: rgba(var(--accent-rgb), 0.2); }
-.layout-editing .gs-save-preset:active { transform: scale(0.92); }
-.gs-save-preset svg { width: 14px; height: 14px; }
-
-/* "Tile style" — top-left, just below Save preset. */
-.gs-tile-style { display: none; }
-.layout-editing .gs-tile-style {
-  display: grid; place-items: center; position: absolute; left: 6px; top: 38px;
-  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
-  background: rgba(6, 10, 10, 0.82); color: var(--accent);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-.layout-editing .gs-tile-style:hover { background: rgba(var(--accent-rgb), 0.2); }
-.layout-editing .gs-tile-style:active { transform: scale(0.92); }
-.gs-tile-style svg { width: 15px; height: 15px; }
 
 /* ── Per-tile style editor popover ── */
 /* A side panel, NOT a blurred cover — so the tile updates live behind it and you
@@ -449,12 +445,12 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
 }
 /* Raise the real widget content above the background/glow layers (z 0). The
    exclusion list is load-bearing: the edit-mode affordances (drag overlay,
-   size/remove/add-tab/save/style buttons) are absolutely positioned by their own
+   edit bar) are placed by their own
    rules — if this rule forced them `position: relative` they would rejoin the
    content flex row and squash the widget while editing. Excluding them (and the
    decor layers) keeps them absolute. */
 .grid-stack-item[data-tile-decor] > .grid-stack-item-content
-  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.tile-shape-outline):not(.gs-edit-overlay):not(.gs-size-cycle):not(.gs-add-tab):not(.gs-save-preset):not(.gs-tile-style):not(.gs-remove) {
+  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.tile-shape-outline):not(.gs-edit-overlay):not(.gs-edit-bar) {
   position: relative; z-index: 1;
 }
 .tile-decor-bg {
@@ -566,6 +562,9 @@ body.gs-manipulating .page-add-widget {
 .widget-palette-overlay {
   position: fixed; inset: 0; z-index: 1200;
   display: flex; align-items: center; justify-content: center; padding: 18px;
+  /* A phone's notch and home bar are not part of the sheet. */
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
   background: rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   animation: widget-palette-fade 0.16s ease;
@@ -573,6 +572,8 @@ body.gs-manipulating .page-add-widget {
 @keyframes widget-palette-fade { from { opacity: 0; } to { opacity: 1; } }
 .widget-palette-modal {
   width: min(760px, 94vw); max-height: min(86vh, 660px);
+  /* dvh: on a phone the browser bars come and go, and vh is measured without them. */
+  max-height: min(86dvh, 660px);
   display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px;
   border-radius: 18px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   /* Opaque surface (like ColorPicker / preset-modal): actionable content must stay
@@ -590,9 +591,34 @@ body.gs-manipulating .page-add-widget {
   display: inline-flex; transition: background 0.14s ease, color 0.14s ease;
 }
 .widget-palette-close svg { width: 18px; height: 18px; }
+.widget-palette-close { align-items: center; justify-content: center; min-width: 32px; min-height: 32px; }
+
+/* Filters: All, Installed and each category with something in it. One row of
+   plain buttons; the one that is on is drawn in the text colour, like the
+   selected button of a segmented control. On a narrow screen the row scrolls
+   sideways under the finger (native scrolling; nothing scrolls it for you). */
+.widget-palette-filters {
+  flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain;
+  scrollbar-width: none; margin: 0 -2px; padding: 0 2px;
+}
+.widget-palette-filters::-webkit-scrollbar { display: none; }
+.widget-palette-filters:empty { display: none; }
+.widget-palette-filter {
+  flex: 0 0 auto; appearance: none; cursor: pointer; white-space: nowrap;
+  min-height: 34px; padding: 0 14px; border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1); background: transparent;
+  color: var(--text-dim, #8b91a1); font: inherit; font-size: 12.5px; font-weight: 700;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.widget-palette-filter:hover { color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05); }
+.widget-palette-filter.is-on { background: var(--text, #e7e9ee); border-color: transparent; color: rgb(var(--panel-rgb, 14, 17, 22)); }
+.widget-palette-filter:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
 .widget-palette-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
 .widget-palette-body {
   min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  /* One grid for the whole panel: every section uses the same columns, so
+     items line up from one group to the next whatever each group holds. */
+  container-type: inline-size; --pal-cols: 3;
   /* Reserve the scrollbar's width even when it's absent, so a category that only
      needs the bar at some sizes can't shift the column flow sideways as the bar
      appears/disappears (which reflowed "Custom widget" between columns). */
@@ -600,31 +626,27 @@ body.gs-manipulating .page-add-widget {
   display: flex; flex-direction: column; gap: 3px;
 }
 .widget-palette-cat {
-  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--text-dim, #8b91a1); padding: 9px 4px 5px;
+  /* A heading in sentence case, not tracked capitals: it names the group the
+     filter above also names, and reads as the same word. */
+  font-size: 12.5px; font-weight: 700;
+  color: var(--text-dim, #8b91a1); padding: 10px 4px 6px;
 }
 .widget-palette-cat:first-child { padding-top: 2px; }
 .widget-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
-/* Mega-menu layout (normal "+" add): each category is a self-contained COLUMN laid
-   side by side, so the whole list fits on the wide-but-short Xeneon Edge without a
-   tall scroll. Columns are independent — a category's heading and its items never
-   split across columns, so nothing is ever orphaned — and they top-align, so the
-   layout reads as clean parallel lists. On a narrow viewport whole columns wrap.
-   Sizing/scroll is owned by the modal card; here we only set the column flow. */
-.widget-palette-body.widget-palette--cols {
-  flex-direction: row; flex-wrap: wrap; align-items: flex-start;
-  gap: 4px 14px;
-}
-.widget-palette-section {
-  display: flex; flex-direction: column; min-width: 0;
-  flex: 1 1 168px; max-width: 240px;
-}
-.widget-palette--cols .widget-palette-cat { padding-top: 4px; }
-.widget-palette--cols .widget-palette-grid { grid-template-columns: 1fr; gap: 6px; }
+/* Sections stacked full width, each a heading and a grid of equal columns
+   shared by the whole panel (--pal-cols, set by the width of the body). */
+.widget-palette-body.widget-palette--cols { flex-direction: column; gap: 6px; }
+.widget-palette-section { display: flex; flex-direction: column; min-width: 0; }
+.widget-palette-grid { grid-template-columns: repeat(var(--pal-cols), minmax(0, 1fr)); }
+@container (max-width: 520px) { .widget-palette-grid { --pal-cols: 2; } }
+/* A phone: one column, so a long widget name is never cut. */
+@container (max-width: 380px) { .widget-palette-grid { --pal-cols: 1; } }
 .widget-palette-item {
   display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left;
-  padding: 9px 11px; border-radius: 10px;
+  /* Every item the same height, with or without an author line, so the rows
+     of the grid stay even. */
+  height: 50px; padding: 0 11px; border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
   color: inherit; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer;
   transition: background 0.14s ease, border-color 0.14s ease, transform 0.06s ease;
@@ -634,7 +656,53 @@ body.gs-manipulating .page-add-widget {
 .widget-palette-ico { display: inline-flex; flex: 0 0 auto; color: rgb(var(--accent-rgb)); }
 .widget-palette-ico svg { width: 18px; height: 18px; }
 .widget-palette-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.widget-palette-empty { opacity: 0.7; padding: 12px; text-align: center; }
+.widget-palette-empty { flex: 1 1 100%; padding: 18px 12px; text-align: center; color: var(--text-dim, #8b91a1); }
+.widget-palette-empty-btn {
+  display: block; margin: 12px auto 0; min-height: 36px; padding: 0 16px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(var(--accent-rgb), 0.5); background: rgba(var(--accent-rgb), 0.14);
+  color: var(--text, #e7e9ee); font: inherit; font-size: 13px; font-weight: 700;
+}
+/* A phone: one column, the whole width, and a little less margin around the sheet. */
+@media (max-width: 480px) {
+  .widget-palette-overlay { padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+  .widget-palette-modal { width: 100%; padding: 14px 14px 16px; }
+}
+
+/* Search (js/dashboard-palette.js). Its own row under the title, so on a phone
+   it gets the full width. The field's colours come from the shared
+   input[type="search"] rule in theme-contract.css, like every other field. */
+.widget-palette-searchrow { position: relative; flex: 0 0 auto; }
+.widget-palette-searchrow > svg {
+  position: absolute; left: 12px; top: 50%; width: 16px; height: 16px;
+  transform: translateY(-50%); color: var(--text-dim, #8b91a1); pointer-events: none;
+}
+.widget-palette-search {
+  width: 100%; height: 42px; padding: 0 12px 0 36px;
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 11px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  -webkit-user-select: text; user-select: text;
+}
+.widget-palette-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.5); }
+.widget-palette-search::-webkit-search-cancel-button { cursor: pointer; }
+/* Results: one flowing grid rather than the category columns. */
+/* Results use the same columns as the grouped view. */
+.widget-palette-text { display: flex; flex-direction: column; min-width: 0; }
+.widget-palette-sub {
+  font-size: 11px; font-weight: 600; color: var(--text-dim, #8b91a1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.widget-palette-item.is-selected { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.55); }
+.widget-palette-item mark {
+  background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius: 3px; padding: 0 1px;
+}
+/* Fingers, not a mouse: every item at least 44px tall, and 16px text in the
+   field so iOS does not zoom the page when it takes focus. */
+@media (pointer: coarse) {
+  .widget-palette-item { height: 52px; }
+  .widget-palette-search { font-size: 16px; height: 44px; }
+  .widget-palette-close { min-width: 44px; min-height: 44px; }
+  .widget-palette-filter { min-height: 40px; }
+}
 
 /* ── Tab-group tile (generic) ── */
 .tabgroup { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
@@ -681,6 +749,11 @@ body.gs-manipulating .page-add-widget {
   border-radius: 6px; font-size: 15px; line-height: 1; font-weight: 700;
   color: var(--red); background: rgba(231, 76, 60, 0.16);
   border: 1px solid rgba(231, 76, 60, 0.4);
+  letter-spacing: 0;
+}
+.layout-editing .tabgroup-remove svg {
+  width: 10px; height: 10px; display: block;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round;
 }
 .layout-editing .tabgroup-remove:hover { background: rgba(231, 76, 60, 0.3); }
 .tabgroup-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; }

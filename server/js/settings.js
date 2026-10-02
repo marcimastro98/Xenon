@@ -300,7 +300,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
-  nativeZoom: 1, // native app: WebView2 interface scale, 0.5–3 (Settings slider; native-bridge.js)
+  audioSetCommunications: true, // Windows: switching a device also moves the calls default (server setDefaultAudioDevice)
+  nativeZoom: 1, // native app: interface scale, 0.6–2.5 (Settings slider; native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -350,7 +351,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   glassBlur: 22, // --glass-blur px, 0..40
   glassSaturate: 160, // --glass-saturate %, 100..220
   panelBorderStrength: 1, // multiplier on the derived panel-border alpha, 0..2
-  panelShadowStrength: 1, // multiplier on the derived panel-shadow alpha, 0..2
+  // Multiplier on the derived panel-shadow alpha, 0..2. Off: since v4.11.9 every tile
+  // cast a soft drop shadow, which on a dark wallpaper reads as a dark strip under each
+  // card (and a "card behind the cards" under a transparent one). The key used to be
+  // panelShadowStrength, and every install that ever saved its settings stored 1 there,
+  // theme cards and shared theme codes too. Renaming it is what turns the shadow off
+  // for them as well: the old key is simply no longer read. The slider is still there
+  // for whoever wants one. Never read panelShadowStrength again.
+  tileShadowStrength: 0,
   mutedText: null, // optional secondary-text colour (#rrggbb) or null = auto
   lineColor: null, // optional divider/border colour (#rrggbb) or null = auto
   backgroundMedia: null,
@@ -400,11 +408,17 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // users read "off unless you turn it on" and left it alone, which is a choice.
   // Do not "simplify" that test to `!== false`: it would flip exactly those people.
   versionPing: true,
+  autoUpdate: true,
+  // Store widgets update themselves (server/widget-auto-update.js). On unless switched off.
+  autoUpdateWidgets: true,
   // Announcements and the paid-drop card. ON by default, and normalized with
   // `!== false` — the opposite of versionPing above, deliberately: this is a
   // preference about being interrupted, not a data opt-in.
   hubMessages: true,
   catalogDrops: true,
+  // The month's paid drops, shown once per session (js/catalog-drop.js). A new
+  // key on purpose: it starts on for everybody, whatever catalogDrops said.
+  monthlyDrops: true,
   // `=== true` like versionPing, not `!== false`: a new outbound report starts
   // on for fresh installs only, never switched on under an existing user.
   catalogStats: true,
@@ -797,7 +811,7 @@ const THEME_SETTING_KEYS = Object.freeze([
   'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard',
   'paletteVariants',
   'dynamicAlbumTheme',
-  'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
+  'panelAlpha', 'panelBorderStrength', 'tileShadowStrength',
   'uiRoundness', 'glassBlur', 'glassSaturate',
   'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom',
   'uiFont',
@@ -1568,7 +1582,7 @@ function normalizeCustomThemes(list) {
       dynamicAlbumTheme: raw.dynamicAlbumTheme !== false,
       panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, D.panelAlpha),
       panelBorderStrength: clampNumber(raw.panelBorderStrength, 0, 2, D.panelBorderStrength),
-      panelShadowStrength: clampNumber(raw.panelShadowStrength, 0, 2, D.panelShadowStrength),
+      tileShadowStrength: clampNumber(raw.tileShadowStrength, 0, 2, D.tileShadowStrength),
       uiRoundness: clampNumber(raw.uiRoundness, 0, 2, D.uiRoundness),
       glassBlur: clampNumber(raw.glassBlur, 0, 40, D.glassBlur),
       glassSaturate: clampNumber(raw.glassSaturate, 100, 220, D.glassSaturate),
@@ -1688,7 +1702,8 @@ function normalizeSettings(source) {
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
     hideOnRdp: value.hideOnRdp === true,
-    nativeZoom: clampNumber(value.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
+    audioSetCommunications: value.audioSetCommunications !== false,
+    nativeZoom: clampNumber(value.nativeZoom, 0.6, 2.5, DEFAULT_HUB_SETTINGS.nativeZoom),
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -1717,7 +1732,7 @@ function normalizeSettings(source) {
     glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(value.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
     panelBorderStrength: clampNumber(value.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
-    panelShadowStrength: clampNumber(value.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
+    tileShadowStrength: clampNumber(value.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength),
     mutedText: normalizeHex(value.mutedText, null),
     lineColor: normalizeHex(value.lineColor, null),
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
@@ -1730,8 +1745,12 @@ function normalizeSettings(source) {
     mediaVisualizer: ['off', 'minimal', 'wave'].includes(value.mediaVisualizer) ? value.mediaVisualizer : (value.mediaVisualizer === true ? 'wave' : 'off'),
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
+    // Automatic updates: on unless the user switched them off (server/auto-update.js).
+    autoUpdate: value.autoUpdate !== false,
+    autoUpdateWidgets: value.autoUpdateWidgets !== false,
     hubMessages: value.hubMessages !== false,
     catalogDrops: value.catalogDrops !== false,
+    monthlyDrops: value.monthlyDrops !== false,
     // Mirror of normalizeHubSettings in server.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: value.discordInviteSeen === true,
@@ -4247,7 +4266,7 @@ function applyHubSettings() {
   // Border/shadow strength are user multipliers (1 = stock look); caps widened so
   // a 2× still fits, but the default value is byte-for-byte the previous formula.
   const borderStrength = clampNumber(hubSettings.panelBorderStrength, 0, 2, 1);
-  const shadowStrength = clampNumber(hubSettings.panelShadowStrength, 0, 2, 1);
+  const shadowStrength = clampNumber(hubSettings.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength);
   const panelBorderAlpha = Math.min(0.4, (0.045 + (hubSettings.panelAlpha * 0.08)) * borderStrength);
   const panelShadowAlpha = Math.min(0.6, (0.05 + (hubSettings.panelAlpha * 0.18)) * shadowStrength);
   const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
@@ -4875,10 +4894,15 @@ function syncSettingsControls() {
   }
   const versionPing = $('settings-version-ping');
   if (versionPing) versionPing.checked = hubSettings.versionPing === true;
+  const autoUpdateChk = $('settings-auto-update');
+  if (autoUpdateChk) autoUpdateChk.checked = hubSettings.autoUpdate !== false;
+  const autoUpdateWidgetsChk = $('settings-auto-update-widgets');
+  if (autoUpdateWidgetsChk) autoUpdateWidgetsChk.checked = hubSettings.autoUpdateWidgets !== false;
+  refreshWidgetAutoUpdateLine();
   const hubMsg = $('settings-hub-messages');
   if (hubMsg) hubMsg.checked = hubSettings.hubMessages !== false;
-  const catDrops = $('settings-catalog-drops');
-  if (catDrops) catDrops.checked = hubSettings.catalogDrops !== false;
+  const catDrops = $('settings-monthly-drops');
+  if (catDrops) catDrops.checked = hubSettings.monthlyDrops !== false;
   const catStats = $('settings-catalog-stats');
   if (catStats) catStats.checked = hubSettings.catalogStats === true;
 
@@ -4887,7 +4911,7 @@ function syncSettingsControls() {
     ['settings-panel-border', String(hubSettings.panelBorderStrength)],
     ['settings-clock-scale', String(hubSettings.clockScale)],
     ['settings-clock-date-scale', String(hubSettings.clockDateScale)],
-    ['settings-panel-shadow', String(hubSettings.panelShadowStrength)],
+    ['settings-panel-shadow', String(hubSettings.tileShadowStrength)],
     ['settings-roundness', String(hubSettings.uiRoundness)],
     ['settings-glass-blur', String(hubSettings.glassBlur)],
     ['settings-glass-saturate', String(hubSettings.glassSaturate)],
@@ -4907,7 +4931,7 @@ function syncSettingsControls() {
   const borderVal = $('settings-panel-border-value');
   if (borderVal) borderVal.textContent = formatPercent(hubSettings.panelBorderStrength);
   const shadowVal = $('settings-panel-shadow-value');
-  if (shadowVal) shadowVal.textContent = formatPercent(hubSettings.panelShadowStrength);
+  if (shadowVal) shadowVal.textContent = formatPercent(hubSettings.tileShadowStrength);
   const clockVal = $('settings-clock-scale-value');
   if (clockVal) clockVal.textContent = formatPercent(hubSettings.clockScale);
   const clockDateVal = $('settings-clock-date-scale-value');
@@ -4946,6 +4970,7 @@ function syncSettingsControls() {
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
   syncHideRdpControl();
+  syncAudioCommsControl();
   syncNativeZoomControl();
   syncStackModeControls();
   syncBrowserAdblockControl();
@@ -5253,6 +5278,7 @@ function applySurfaceKind(kind, state) {
 let _settingsCat = 'appearance';
 function settingsSetCategory(cat) {
   _settingsCat = cat;
+  if (window.SettingsSearch) SettingsSearch.leave();
   if (cat === 'appearance') refreshMediaVizStatus();
   const content = document.getElementById('settings-content');
   if (content) {
@@ -5342,9 +5368,17 @@ async function syncSupporterCodeBox() {
     ? t('settings_supporter_saved')
     : t('settings_supporter_none');
   forget.hidden = !saved;
-  // Never repopulate the field: there is nothing to put in it, and a masked
-  // placeholder in a text box invites the user to "fix" a value that is fine.
-  if (saved) field.value = '';
+  // A saved code is a STATE: "Code saved" and Remove, nothing to type. An empty
+  // field and a Save button beside a saved code read as "enter your code", which
+  // is exactly what a supporter who already did it was being asked. To replace
+  // it, Remove brings the field back. The field is never repopulated: the code
+  // does not come back from the server, and a masked value invites a "fix".
+  field.value = '';
+  field.hidden = saved;
+  const save = $('settings-supporter-save');
+  if (save) save.hidden = saved;
+  const savedLine = $('settings-supporter-saved');
+  if (savedLine) savedLine.hidden = !saved;
 }
 
 async function saveSupporterCode() {
@@ -5574,6 +5608,7 @@ function toggleSettings() {
     if (nav) nav.classList.remove('is-open');
     renderSettingsModal();
     settingsSetCategory(_settingsCat);
+    if (window.SettingsSearch) SettingsSearch.onOpen();
   }
   else if (window.NewsWidget) NewsWidget.mountFeedManager(null);
   freezeSettingsAmbient(!overlay.hidden);
@@ -5758,7 +5793,7 @@ function applyAiCreateStyle(opts) {
     glassBlur: num(o.glass_blur, 0, 40),
     glassSaturate: num(o.glass_saturation, 100, 220),
     panelBorderStrength: num(o.border_strength, 0, 2),
-    panelShadowStrength: num(o.shadow_strength, 0, 2),
+    tileShadowStrength: num(o.shadow_strength, 0, 2),
   };
   for (const [key, val] of Object.entries(nums)) if (val != null) patch[key] = val;
   if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
@@ -5842,7 +5877,7 @@ function onHexInput(key, rawValue) {
 }
 
 function updateSettingsRange(key, value) {
-  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'panelShadowStrength', 'clockScale', 'clockDateScale'].includes(key)) return;
+  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'tileShadowStrength', 'clockScale', 'clockDateScale'].includes(key)) return;
   hubSettings = normalizeSettings({ ...hubSettings, [key]: value });
   saveHubSettings();
   applyHubSettings();
@@ -7895,6 +7930,13 @@ function optimizePerformanceNow() {
   if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
 }
 
+// The System tile's button: optimize when nothing runs, restore when a session
+// does (performance.js relabels it to match).
+function togglePerformanceFromSystem() {
+  const p = normalizePerformance(hubSettings.performance);
+  if (p.active) restorePerformance(); else optimizePerformanceNow();
+}
+
 function restorePerformance() {
   if (window.PerfMode && typeof window.PerfMode.restore === 'function') window.PerfMode.restore();
 }
@@ -8452,9 +8494,43 @@ async function refreshMediaVizStatus(recheck) {
   el.textContent = key ? t(key).replace('{version}', (st && st.minVersion) || '') : '';
   el.dataset.state = state;
   el.hidden = !key;
+  // Every one of the three problems is fixed by the same verified download, so
+  // the fix sits right under the sentence that names it.
+  const btn = $('settings-media-viz-install');
+  if (btn && !btn.disabled) btn.hidden = state !== 'bad';
   // A helper too old for metering is only found out once it is started, which
   // switching the wave on has just asked for: look again in a moment.
   if (on && !recheck && st && st.available && !st.failure) setTimeout(() => refreshMediaVizStatus(true), 4000);
+}
+
+// "Install Xenon Helper": the verified download the setup does, from here. Asked
+// for on Discord by someone on the setup .exe who was told to re-run INSTALL.bat,
+// a file that install never shows anyone.
+async function installXenonHelper() {
+  const btn = $('settings-media-viz-install');
+  const el = $('settings-media-viz-status');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = t('settings_media_viz_installing');
+  let r = null;
+  try { const res = await fetch('/audio/levels/install-helper', { method: 'POST' }); r = res.ok ? await res.json() : null; } catch { r = null; }
+  btn.disabled = false;
+  btn.textContent = t('settings_media_viz_install');
+  if (r && r.ok) {
+    await refreshMediaVizStatus();
+    // With the wave off there is nothing else to say, so say this.
+    if (el && el.hidden) { el.textContent = t('settings_media_viz_st_installed'); el.dataset.state = 'ok'; el.hidden = false; }
+    return;
+  }
+  if (!el) return;
+  const code = (r && r.status) || 'no_server';
+  const key = (code === 'not-ready' || code === 'skip-not-latest') ? 'settings_media_viz_install_offline'
+    : (code === 'signature-invalid' || code === 'mismatch') ? 'settings_media_viz_install_unverified'
+    : 'settings_media_viz_install_failed';
+  el.textContent = t(key) + ' (' + code + ')';
+  el.dataset.state = 'bad';
+  el.hidden = false;
+  btn.hidden = false;
 }
 
 function updateMediaVisualizer(mode) {
@@ -8528,6 +8604,26 @@ function updateHideOnRdp(checked) {
   syncHideRdpControl();
 }
 
+// ── Audio: which Windows defaults a device switch moves ─────────────────────
+// Windows keeps a separate default for calls. On, a switch from the Volume
+// tile, a Deck key or the assistant moves that one too (as it always did);
+// off, it moves only the Default Device and leaves Discord and Teams where
+// they are. macOS and Linux have one default, so the row is not shown there.
+function syncAudioCommsControl() {
+  const row = $('settings-audio-comms-row');
+  const check = $('settings-audio-comms');
+  const platform = window.XenonPlatform;
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  if (row) row.style.display = (platform && platform !== 'win32') ? 'none' : '';
+  if (check) check.checked = hubSettings.audioSetCommunications !== false;
+}
+
+function updateAudioSetCommunications(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, audioSetCommunications: checked === true });
+  saveHubSettings();
+  syncAudioCommsControl();
+}
+
 // ── Interface scale / zoom (native app only) ────────────────────────────────
 // The native kiosk can scale its whole webview (WebView2 zoom factor),
 // independent of the Windows display scale. The row only shows inside the
@@ -8558,7 +8654,7 @@ function syncNativeZoomControl() {
   if (row) row.style.display = '';
   const remoteNote = $('settings-native-zoom-remote');
   if (remoteNote) remoteNote.hidden = isNativeApp;
-  const scale = clampNumber(hubSettings.nativeZoom, 0.6, 1.6, 1);
+  const scale = clampNumber(hubSettings.nativeZoom, 0.6, 2.5, 1);
   if (slider) slider.value = String(scale);
   if (valueEl) valueEl.textContent = formatPercent(scale);
   if (isNativeApp && window.XenonNative && typeof window.XenonNative.setNativeZoom === 'function') {
@@ -8657,6 +8753,45 @@ function updateVersionPing(checked) {
   syncSettingsControls();
 }
 
+// Automatic self-update. On by default (server/auto-update.js). Off means Xenon
+// still checks and still shows the What’s New modal (js/update.js) — it just
+// never downloads or applies a release on its own.
+function updateAutoUpdate(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, autoUpdate: checked !== false });
+  saveHubSettings();
+  syncSettingsControls();
+}
+
+// Store widgets that update themselves. On by default (server/widget-auto-update.js).
+// Off means the update is still offered, as it always was, and waits for the user.
+function updateAutoUpdateWidgets(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, autoUpdateWidgets: checked !== false });
+  saveHubSettings();
+  syncSettingsControls();
+}
+
+// The line under that switch: what was last updated, and what is waiting for the
+// user. Read from the server; a failed read just leaves the line empty.
+async function refreshWidgetAutoUpdateLine() {
+  const line = document.getElementById('settings-auto-update-widgets-line');
+  if (!line) return;
+  try {
+    const res = await fetch(SERVER + '/api/widgets/auto-update');
+    const st = res.ok ? await res.json() : null;
+    const names = (list) => (Array.isArray(list) ? list : []).map((x) => String((x && x.name) || (x && x.id) || '').slice(0, 60)).filter(Boolean);
+    const parts = [];
+    if (st && st.last && Array.isArray(st.last.updated) && st.last.updated.length) {
+      const when = st.last.at ? new Date(st.last.at).toLocaleDateString() : '';
+      parts.push(t('settings_widget_auto_update_last').replace('{names}', names(st.last.updated).join(', ')).replace('{when}', when));
+    }
+    if (st && Array.isArray(st.waitingForYou) && st.waitingForYou.length) {
+      parts.push(t('settings_widget_auto_update_wait').replace('{names}', names(st.waitingForYou).join(', ')));
+    }
+    line.textContent = parts.join(' · ');
+    line.hidden = !parts.length;
+  } catch { line.hidden = true; }
+}
+
 // Announcements / paid-drop card. Both were localStorage-only before v4.9.0, so
 // turning one back ON here must also clear the legacy per-device flag — otherwise
 // a user who once pressed "don't show me these again" would flip the switch and
@@ -8679,6 +8814,12 @@ function updateCatalogStats(checked) {
   syncSettingsControls();
 }
 function updateCatalogDrops(checked) { updateAnnouncementPref('catalogDrops', checked); }
+// The month's drops window. No legacy per-device flag: it is a new setting.
+function updateMonthlyDrops(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, monthlyDrops: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
 
 // ── "Don't show again" for the two startup cards ────────────────────────────
 // The What's New modal (js/update.js) and the Discord invite card
@@ -10165,6 +10306,7 @@ function applyPlatformGating(platform) {
   // late answer is better than one wrong on Windows.
   window.XenonPlatform = platform || '';
   renderPlatformBeta(platform);
+  syncAudioCommsControl();   // a Windows-only row inside a shared pane
   if (platform === 'win32') return;
   document.querySelectorAll('[data-settings-win-only]').forEach((el) => {
     const cat = el.dataset.settingsCat || el.dataset.settingsWinOnly;

@@ -246,7 +246,6 @@ body.topbar-minimal .topbar-mini .cv-bar { width: 18px; }
   padding: 10px 12px; border-radius: 12px;
   color: var(--text);
   background: color-mix(in srgb, rgb(var(--vt-rgb)) 12%, var(--surface-alt));
-  border-left: 3px solid rgb(var(--vt-rgb));
 }
 .vt-card-actions { display: flex; gap: 10px; margin-top: 2px; }
 .vt-btn {

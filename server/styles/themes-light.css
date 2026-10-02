@@ -381,6 +381,9 @@
 :root[data-appearance="light"] .widget-palette-title { color: var(--lt-strong); }
 :root[data-appearance="light"] .widget-palette-close { color: var(--lt-soft); }
 :root[data-appearance="light"] .widget-palette-cat { color: var(--lt-soft); }
+:root[data-appearance="light"] .widget-palette-filter { border-color: var(--lt-border); color: var(--lt-soft); }
+:root[data-appearance="light"] .pager-page-tools { border-left-color: var(--lt-border); }
+:root[data-appearance="light"] .widget-palette-filter.is-on { background: var(--lt-strong); color: var(--surface); }
 :root[data-appearance="light"] .widget-palette-item {
   background: var(--surface-alt);
   border-color: var(--lt-border);
@@ -394,8 +397,10 @@
    The per-tile size / save-preset / resize handles use a near-black fill
    built for the dark dashboard; on light tiles they read as harsh dark
    blocks. Match the light layout-dock treatment. */
-:root[data-appearance="light"] .layout-editing .gs-size-cycle,
-:root[data-appearance="light"] .layout-editing .gs-save-preset,
+:root[data-appearance="light"] .layout-editing .gs-edit-bar > button,
+:root[data-appearance="light"] .layout-editing .gs-edit-bar .layout-control-btn {
+  background: var(--surface); border-color: var(--lt-border); color: var(--lt-strong);
+}
 :root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
   background: var(--surface);
   border-color: var(--lt-border);

@@ -385,7 +385,7 @@
   // entirely in the dashboard, so it also works on already-installed shells
   // without a native rebuild. It mirrors the fractional-DPR compensation in
   // index.html (which is disabled in the native shell so the two never fight).
-  const ZOOM_MIN = 0.6, ZOOM_MAX = 1.6, ZOOM_STEP = 0.1;
+  const ZOOM_MIN = 0.6, ZOOM_MAX = 2.5, ZOOM_STEP = 0.1;
   let currentNativeZoom = 1; // last applied scale (also read by the wheel/keys)
 
   function clampZoom(value) {

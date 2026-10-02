@@ -9,17 +9,21 @@
 // takes away the chassis, the shadow and the key well ("bare keys floating on
 // the dashboard", says the CSS). It left the header behind — the FACEPLATE's
 // header, on the one finish with no faceplate — so a profile name, a badge and a
-// pencil hung in mid-air over nothing. The option was not missing; it was
-// half-finished.
+// pencil hung in mid-air over nothing.
 //
-// Removing it outright is not an option either: that bar is the only way into
-// edit mode and the only profile switcher. It collapses to a strip instead.
+// The first fix collapsed the header to an invisible strip that came back on
+// hover or on a tap. It looked right and lost the controls: that bar is the only
+// way into edit mode and the only profile switcher, and on a transparent deck
+// nobody found either ("the pencil and the profile switch are gone", Discord).
+// The header is now drawn quietly and always: a slim ghost row, full strength
+// when touched, focused or in use.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const CSS = readFileSync(new URL('../components/DeckPanel/DeckPanel.css', import.meta.url), 'utf8');
-const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
+// LF only, so the slices below find their ends on a CRLF (Windows) checkout too.
+const CSS = readFileSync(new URL('../components/DeckPanel/DeckPanel.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 /** The declarations of the first rule whose selector list contains `needle`. */
 function rule(needle) {
@@ -38,46 +42,71 @@ test('the page readout appears only when there is a page to go to', () => {
     'the footer no longer appears on multi-page decks — the readout would be the only pager left');
 });
 
-test('the "none" finish collapses its header instead of leaving it floating', () => {
-  const collapsed = rule('.deck-root[data-plate="none"] .deck-bar {');
-  assert.match(collapsed, /max-height:\s*10px/);
-  assert.match(collapsed, /overflow:\s*hidden/);
-  assert.match(collapsed, /opacity:\s*0/);
-  // min-height:22px on the base rule would otherwise hold the bar open.
-  assert.match(collapsed, /min-height:\s*0/);
+test('the "none" finish keeps its header on screen, quietly', () => {
+  const ghost = rule('.deck-root[data-plate="none"] .deck-bar {');
+  // Visible at rest: the pencil and the profile switcher must never be hidden.
+  assert.match(ghost, /opacity:\s*\.55/, 'a ghost, not gone');
+  assert.doesNotMatch(ghost, /opacity:\s*0[;\s]/, 'the bar is invisible at rest again');
+  assert.doesNotMatch(ghost, /max-height:\s*10px/, 'the bar is a collapsed strip again');
+  assert.doesNotMatch(ghost, /overflow:\s*hidden/, 'the bar clips its own controls again');
+  assert.doesNotMatch(ghost, /display:\s*none|visibility:\s*hidden/);
+  // Slimmer than the 26px faceplate header, and readable on any wallpaper.
+  assert.match(ghost, /height:\s*20px/);
+  assert.match(ghost, /text-shadow:/);
 });
 
-test('it is a strip, not a removal — every way back in is still there', () => {
+test('the pencil and the profile switcher are never hidden by this finish', () => {
+  const noneRules = [...CSS.matchAll(/\.deck-root\[data-plate="none"\][^{]*\.deck-bar[^{]*\{([^}]*)\}/g)].map((m) => m[1]).join('\n');
+  assert.ok(noneRules.length > 0);
+  assert.doesNotMatch(noneRules, /display:\s*none/);
+  assert.doesNotMatch(noneRules, /visibility:\s*hidden/);
+  assert.doesNotMatch(noneRules, /pointer-events:\s*none/);
+  for (const sel of ['.deck-edit', '.deck-crumb-btn']) {
+    assert.ok(!new RegExp(`\\[data-plate="none"\\][^{]*${sel.replace('.', '\\.')}[^{]*\\{[^}]*(display:\\s*none|opacity:\\s*0[;\\s])`).test(CSS),
+      `${sel} is hidden under the none finish`);
+  }
+});
+
+test('the cap chrome goes, but the lit "Done" pencil of edit mode stays lit', () => {
+  const at = CSS.indexOf('.deck-root[data-plate="none"]:not(.is-editing) .deck-bar :is(.deck-edit, .deck-back)');
+  assert.ok(at >= 0, 'the key-cap chrome around the pencil is back, or it now overrides the edit state');
+  const body = CSS.slice(CSS.indexOf('{', at) + 1, CSS.indexOf('}', at));
+  assert.match(body, /background:\s*none/);
+  assert.match(body, /box-shadow:\s*none/);
+  // The edit-mode fill is declared once, for every finish, and is not overridden.
+  assert.match(CSS, /\.deck-root\.is-editing \.deck-bar \.deck-edit \{\s*\n\s*background: linear-gradient/);
+});
+
+test('it comes to full strength when it is touched, focused or in use', () => {
   const open = rule('.deck-root[data-plate="none"] .deck-bar:hover,');
-  assert.match(open, /max-height:\s*64px/);
   assert.match(open, /opacity:\s*1/);
   const selectors = CSS.slice(CSS.indexOf('.deck-root[data-plate="none"] .deck-bar:hover,'),
     CSS.indexOf('{', CSS.indexOf('.deck-root[data-plate="none"] .deck-bar:hover,')));
   for (const trigger of [':hover', ':focus-within', '.bar-open', '.bar-peek']) {
-    assert.ok(selectors.includes(trigger), `${trigger} no longer reveals the bar`);
+    assert.ok(selectors.includes(trigger), `${trigger} no longer brings the bar to full strength`);
   }
 });
 
-test('the strip is the trigger, never the whole deck', () => {
-  // Revealing on any hover over the tile would slide the keys down every time
-  // the pointer crossed it.
+test('the bar is the trigger, never the whole deck', () => {
+  // Brightening on any hover over the tile would flicker every time the pointer
+  // crossed it.
   assert.ok(!/\.deck-root\[data-plate="none"\] \.deck-device:hover/.test(CSS),
-    'hovering the whole device reveals the bar again');
+    'hovering the whole device brightens the bar again');
 });
 
-test('the bar comes back while it is being used', () => {
+test('the bar is at full strength while it is being used', () => {
   // Edit mode: Done lives in it. Profile menu: it is portaled to <body> and
-  // would otherwise float over a bar that collapsed underneath it.
+  // would otherwise float over a bar that was still faded.
   assert.match(JS, /root\.classList\.toggle\('bar-open', !!\(state\.editing \|\| state\.profileMenu\)\);/);
 });
 
-test('a touchscreen gets the bar by tapping, since it has no hover', () => {
+test('a touchscreen can bring it to full strength by tapping, since it has no hover', () => {
   const at = JS.indexOf("bar.addEventListener('pointerdown'");
-  assert.ok(at >= 0, 'the touch peek is gone — the Edge is a touchscreen with no way in');
+  assert.ok(at >= 0, 'the touch peek is gone');
   const body = JS.slice(at, JS.indexOf('});', at));
   assert.match(body, /pointerType === 'mouse'/, 'a mouse already has hover; this must not double up');
   assert.match(body, /e\.target !== bar/, 'a tap on the pencil or the profile is that control\'s, not a peek');
-  assert.match(body, /setTimeout/, 'a peek that never ends is just the bar again');
+  assert.match(body, /setTimeout/, 'a peek that never ends is just the bar at full strength');
   // Straight on the node: going through state would re-render the keys under a
   // finger already travelling towards the pencil.
   assert.ok(!/state\.barPeek/.test(JS));
@@ -85,9 +114,9 @@ test('a touchscreen gets the bar by tapping, since it has no hover', () => {
 
 test('the other finishes are untouched', () => {
   // Graphite, carbon, steel and midnight all HAVE a faceplate, so they keep its
-  // header. Only the finish that removes the chassis removes the header.
+  // header exactly as it was. Only the finish that removes the chassis changes it.
   for (const plate of ['graphite', 'carbon', 'steel', 'midnight']) {
     assert.ok(!new RegExp(`\\[data-plate="${plate}"\\][^{]*\\.deck-bar`).test(CSS),
-      `${plate} now hides its header too`);
+      `${plate} now restyles its header too`);
   }
 });

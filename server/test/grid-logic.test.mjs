@@ -166,3 +166,34 @@ test('resolveLayoutOverlaps is a no-op for a healthy non-overlapping layout', ()
   assert.deepEqual({ x: layout.widgets.media.x, y: layout.widgets.media.y }, { x: 0, y: 0 });
   assert.deepEqual({ x: layout.widgets.system.x, y: layout.widgets.system.y }, { x: 4, y: 0 });
 });
+
+// The palette search adds a Store widget in one step: it places a custom tile
+// and then hands THAT tile its package, so it needs to know which instance the
+// add created — the widget itself on first placement, a new copy after.
+test('addWidgetToPage returns the instance that now shows the widget', () => {
+  const DI = require('../js/dashboard-instances.js');
+  const layout = {
+    pages: [{ id: 'dashboard' }],
+    widgets: { custom: { visible: false, page: 'dashboard', x: 0, y: 0, w: 8, h: 6 } },
+    copies: [],
+    groups: {},
+  };
+  const saved = [];
+  const cleared = [];
+  const prev = { window: globalThis.window, get: globalThis.getDashboardLayout, save: globalThis.saveDashboardLayout };
+  globalThis.window = { DashboardInstances: DI, CustomWidget: { clearAssign: (id) => cleared.push(id) } };
+  globalThis.getDashboardLayout = () => layout;
+  globalThis.saveDashboardLayout = (l) => saved.push(JSON.parse(JSON.stringify(l)));
+  try {
+    assert.equal(g.addWidgetToPage('custom', 'dashboard'), 'custom');
+    assert.deepEqual(cleared, ['custom']);
+    const copy = g.addWidgetToPage('custom', 'dashboard');
+    assert.ok(copy && copy.startsWith('custom~'), `a copy id, got ${copy}`);
+    assert.ok(layout.copies.some((c) => c.id === copy));
+    assert.equal(g.addWidgetToPage('nope', 'dashboard'), undefined);
+  } finally {
+    globalThis.window = prev.window;
+    globalThis.getDashboardLayout = prev.get;
+    globalThis.saveDashboardLayout = prev.save;
+  }
+});

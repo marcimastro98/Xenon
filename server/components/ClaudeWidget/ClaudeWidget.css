@@ -1,422 +1,493 @@
-/* Claude Code widget. Three stacked bands (quota → sessions → totals) with a
-   permission card that can take over the tile, and a fullscreen overlay for an
-   urgent one. Everything is horizontal and tabular on purpose: the previous
-   canvas reactor looked good in a screenshot and told you nothing at a glance.
-   Reads at arm's length on the Xeneon Edge — numbers are large, labels are
-   small, and the only colour that changes meaning is the quota bar's. */
+/* Claude Code widget: an instrument, not a report.
+
+   Built as a dark cockpit. At rest the tile is grey and quiet; colour appears
+   only where something needs a person, and means one thing each: the accent is
+   "working, fine", amber is "this needs you", red is "cannot be undone". Two
+   faces, Live and Usage, instead of one long scroll. Lanes for sessions, a
+   segmented gauge per quota window with an even-pace marker, and a decision
+   card that says what a request would reach before it asks for a tap.
+
+   Everything reads at arm's length on a Xeneon Edge and folds down on a phone:
+   the layout is driven by the tile's own size (container queries), never by the
+   window's. The one looping animation (a waiting session's dot) joins the four
+   freeze states every infinite animation in the dashboard obeys. */
+
+.claude-widget-mount,
+.cw-overlay {
+  --cw-ink: var(--text, #eef0f2);
+  --cw-2: color-mix(in srgb, var(--cw-ink) 66%, transparent);
+  --cw-3: color-mix(in srgb, var(--cw-ink) 45%, transparent);
+  --cw-line: color-mix(in srgb, var(--cw-ink) 11%, transparent);
+  --cw-well: color-mix(in srgb, var(--cw-ink) 5.5%, transparent);
+  --cw-go: var(--accent, #1ed760);
+  --cw-on-go: var(--on-accent, #06121f);
+  /* The palette's own state colours: each has a light-mode twin that reads on
+     a pale surface, which a fixed amber (about 2:1 on cream) did not. */
+  --cw-warn: var(--color-warn, #f0b84f);
+  --cw-crit: var(--color-danger, #ff6268);
+  --cw-code: rgba(0, 0, 0, 0.3);
+  --cw-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-appearance="light"] .claude-widget-mount,
+:root[data-appearance="light"] .cw-overlay { --cw-code: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
 
 .claude-widget-mount {
-  height: 100%; min-height: 0; box-sizing: border-box; padding: 13px 15px;
+  height: 100%; min-height: 0; box-sizing: border-box; padding: 12px 14px;
   container-type: size; container-name: cw;
+  color: var(--cw-ink);
 }
-.cw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 11px; }
+/* .cw-wrap is also CustomWidget's class; this tile sets its own box. */
+.claude-widget-mount .cw-wrap {
+  display: flex; flex-direction: column; gap: 10px;
+  width: 100%; height: 100%; min-height: 0; padding: 0; overflow: hidden;
+}
 
 .cw-state {
   flex: 1 1 auto; display: grid; place-items: center; text-align: center;
-  font-size: 12.5px; opacity: 0.55; color: var(--text, #f0f3f1); padding: 0 18px; line-height: 1.5;
+  font-size: 13px; color: var(--cw-2); padding: 0 18px; line-height: 1.5;
 }
 
-/* ── shared band chrome ── */
-.cw-band-head, .cw-quota-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px;
-}
-.cw-band-title, .cw-quota-title {
-  font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
-  opacity: 0.6; color: var(--text, #f0f3f1);
-}
-.cw-band-hint, .cw-quota-hint { font-size: 11px; opacity: 0.45; font-variant-numeric: tabular-nums; }
-
-/* ── quota band ── */
-.cw-quota { flex: 0 0 auto; }
-.cw-quota-edit {
-  border: 0; background: transparent; padding: 2px 6px; margin: -2px -6px;
-  color: var(--accent, #1ed760); font-size: 11.5px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; border-radius: 6px;
-}
-.cw-quota-edit:hover { background: color-mix(in srgb, var(--accent, #1ed760) 14%, transparent); }
-
-.cw-lim { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
-.cw-lim:last-child { margin-bottom: 0; }
-.cw-lim-key {
-  flex: 0 0 26px; font-size: 12.5px; font-weight: 700; opacity: 0.7;
-  color: var(--text, #f0f3f1); font-variant-numeric: tabular-nums;
-}
-.cw-lim-track {
-  flex: 1 1 auto; height: 11px; border-radius: 999px; min-width: 0;
-  background: rgba(255,255,255,0.07); overflow: hidden;
-}
-.cw-lim-fill {
-  height: 100%; border-radius: 999px; background: var(--accent, #1ed760);
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
-}
-.cw-lim-fill.is-warn { background: var(--xe-warn, #f5a524); }
-.cw-lim-fill.is-critical { background: var(--xe-stock-down, #ff5b6a); }
-/* The percentage USED, matching what Claude's own usage page reports, so the two
-   can be compared without arithmetic. Largest type in the band. */
-.cw-lim-val {
-  flex: 0 0 auto; min-width: 50px; text-align: right;
-  font-size: 19px; font-weight: 750; letter-spacing: -0.015em;
-  color: var(--text, #f0f3f1); font-variant-numeric: tabular-nums; line-height: 1;
-}
-.cw-lim-val.is-warn { color: var(--xe-warn, #f5a524); }
-.cw-lim-val.is-critical { color: var(--xe-stock-down, #ff5b6a); }
-.cw-lim-reset {
-  flex: 0 0 auto; min-width: 48px; text-align: right;
-  font-size: 12px; opacity: 0.5; font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-
-/* ── sessions band ── */
-/* The sessions band is sized by its rows and shrinks when the tile runs out of
-   room, scrolling inside itself rather than clipping a row in half or pushing
-   the totals off the tile. It must NOT grow to fill: one session in a tall tile
-   was leaving a band of dead space above the totals. Collapsing the sections
-   below still hands their height over — it just goes to rows that exist. */
-/* The band may shrink, but not to a sliver: a row cut in half reads as broken,
-   and the sessions are the reason to look at this tile. The floor is about two
-   rows plus the heading; a run card or the collapsed sections give way first. */
-.cw-live { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-@container cw (min-height: 260px) {
-  .cw-live { min-height: 108px; }
-}
-.cw-sess-scroll {
-  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.18) transparent;
-}
-.cw-sess-scroll::-webkit-scrollbar { width: 6px; }
-.cw-sess-scroll::-webkit-scrollbar-track { background: transparent; }
-.cw-sess-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
-.cw-sess {
-  display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 11px;
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-  min-width: 0; margin-bottom: 5px;
-}
-.cw-sess:last-child { margin-bottom: 0; }
-.cw-sess-dot { position: relative; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.25); }
-.cw-sess.is-running .cw-sess-dot { background: var(--xe-stock-up, #4ade80); }
-.cw-sess.is-waiting .cw-sess-dot { background: var(--xe-warn, #f5a524); }
-/* Compositor-only ripple (transform/opacity) — animating box-shadow spread would
-   tick style→paint on the main thread every frame while a session is live. */
-.cw-sess.is-running .cw-sess-dot::after,
-.cw-sess.is-waiting .cw-sess-dot::after {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  background: currentColor; opacity: 0.5;
-  animation: cw-pulse 1.9s ease-out infinite;
-  will-change: transform, opacity; pointer-events: none;
-}
-.cw-sess.is-running .cw-sess-dot::after { background: rgba(74,222,128,0.55); }
-.cw-sess.is-waiting .cw-sess-dot::after { background: rgba(245,165,36,0.6); }
-/* Freeze states. The extra `.cw-sess` in the selector is load-bearing, not
-   decoration: the ripple above is declared with the `animation` SHORTHAND, which
-   sets animation-play-state to `running`, and it does so from a (0,3,1) selector.
-   The previous rule here was `body.overlay-frozen .cw-sess-dot::after` — (0,2,2),
-   which LOSES on class count — so the freeze never applied and the ripple kept
-   compositing under every overlay, in ambient idle, in game mode and on the
-   low-power GPU path. Verified live before and after. Same reason the sibling
-   rules use `animation: none` plus a static opacity rather than play-state alone
-   (see the deck-key note in DeckPanel.css): a running animation beats a static
-   declaration, so `opacity: 0` on its own changes nothing. */
-body.overlay-frozen .cw-sess .cw-sess-dot::after,
-body.ambient-idle .cw-sess .cw-sess-dot::after,
-body.game-mode .cw-sess .cw-sess-dot::after,
-body.low-power-gpu .cw-sess .cw-sess-dot::after { animation: none; opacity: 0; }
-
-.cw-sess-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.cw-sess-top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
-.cw-sess-proj {
-  font-weight: 650; font-size: 12.5px; color: var(--text, #f0f3f1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto;
-}
-/* branch yields its space first so the project name shows in full */
-.cw-sess-branch { flex: 0 100000 auto; font-size: 11.5px; opacity: 0.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cw-sess-sub { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cw-sess-task { opacity: 0.5; }
-.cw-sess-tool { color: var(--accent, #1ed760); font-weight: 650; opacity: 0.85; }
-.cw-sess-state { opacity: 0.55; font-weight: 600; }
-.cw-sess.is-waiting .cw-sess-state { color: var(--xe-warn, #f5a524); opacity: 1; }
-/* The argument, next to the tool name. "Bash" for six minutes says nothing;
-   "Bash · npm test · 6m" says everything, so the detail gets the room and the
-   tool name stays the small label in front of it. */
-.cw-sess-tooldetail {
-  margin-left: 6px; opacity: 0.6; font-size: 11.5px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-.cw-sess-toolage { margin-left: 6px; opacity: 0.4; font-size: 11px; font-variant-numeric: tabular-nums; }
-
-/* Sub-agents. Several at once look like one stuck session without this. */
-.cw-sess-agents { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.cw-agent-chip {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.03em; padding: 2px 6px; border-radius: 999px;
-  color: var(--text, #f0f3f1); background: rgba(255,255,255,0.07); opacity: 0.75; white-space: nowrap;
-}
-.cw-agent-chip.is-more { opacity: 0.45; }
-
-/* ── why a session is waiting ──
-   The row could say "waiting for you" and never what for, which from across the
-   room is indistinguishable from a hang. */
-.cw-wait {
-  display: flex; flex-direction: column; gap: 1px; margin-top: 5px;
-  padding: 6px 9px; border-radius: 8px;
-  background: color-mix(in srgb, var(--xe-warn, #f5a524) 12%, transparent);
-  border-left: 2px solid var(--xe-warn, #f5a524);
-}
-.cw-wait.is-error {
-  background: color-mix(in srgb, var(--xe-danger, #f26d6d) 12%, transparent);
-  border-left-color: var(--xe-danger, #f26d6d);
-}
-.cw-wait-label { font-size: 10.5px; font-weight: 750; color: var(--xe-warn, #f5a524); }
-.cw-wait.is-error .cw-wait-label { color: var(--xe-danger, #f26d6d); }
-.cw-wait-text {
-  font-size: 11px; line-height: 1.35; opacity: 0.7; color: var(--text, #f0f3f1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* ── the plan lane ──
-   Claude's own TodoWrite list. This is the lane the widget was rebuilt around:
-   "it is busy" is what every other tool tells you; where it has got to is the
-   thing worth putting on a dashboard. */
-.cw-plan { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.cw-plan-head { display: flex; align-items: baseline; gap: 6px; }
-.cw-plan-title {
-  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; opacity: 0.45;
-  color: var(--text, #f0f3f1);
-}
-.cw-plan-count { font-size: 10px; opacity: 0.5; font-variant-numeric: tabular-nums; margin-left: auto; }
-.cw-plan-track { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
-.cw-plan-fill { height: 100%; border-radius: 999px; background: var(--accent, #1ed760); transition: width 0.3s ease; }
-/* A data-driven TRANSITION, which the freeze sweep cannot see — it looks for
-   animations. This one is retriggered by a todo changing rather than by a sensor
-   sample, so it is nowhere near the sparkline's cost, but it joins the same four
-   states on principle: the point of those states is that nothing repaints. */
-body.overlay-frozen .cw-plan-fill,
-body.ambient-idle .cw-plan-fill,
-body.game-mode .cw-plan-fill,
-body.low-power-gpu .cw-plan-fill { transition: none; }
-.cw-plan-steps { display: flex; flex-direction: column; gap: 2px; }
-.cw-plan-step { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.cw-plan-bullet {
-  flex: 0 0 auto; width: 5px; height: 5px; border-radius: 50%;
-  background: rgba(255,255,255,0.22);
-}
-.cw-plan-step.is-doing .cw-plan-bullet { background: var(--accent, #1ed760); }
-.cw-plan-step.is-done .cw-plan-bullet { background: rgba(255,255,255,0.12); }
-.cw-plan-text {
-  font-size: 11px; line-height: 1.35; color: var(--text, #f0f3f1); opacity: 0.55;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.cw-plan-step.is-doing .cw-plan-text { opacity: 1; font-weight: 650; }
-.cw-plan-step.is-done .cw-plan-text { opacity: 0.32; text-decoration: line-through; }
-
-/* ── a follow-up already on its way ──
-   "Sent" would be a lie until the turn ends, so the row says what is true and
-   keeps the way back out next to it. */
-.cw-queued {
-  display: flex; align-items: center; gap: 7px; margin-top: 5px;
-  padding: 6px 9px; border-radius: 8px; min-width: 0;
-  background: color-mix(in srgb, var(--accent, #1ed760) 10%, transparent);
-  border-left: 2px solid color-mix(in srgb, var(--accent, #1ed760) 70%, transparent);
-}
-.cw-queued-label { font-size: 10px; font-weight: 750; color: var(--accent, #1ed760); white-space: nowrap; }
-.cw-queued-text {
-  font-size: 11px; opacity: 0.65; color: var(--text, #f0f3f1); flex: 1 1 auto; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.cw-queued-undo {
-  flex: 0 0 auto; font-size: 10.5px; font-weight: 700; padding: 4px 9px; border-radius: 7px;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
-  color: var(--text, #f0f3f1); cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.cw-queued-undo:hover { background: rgba(255,255,255,0.13); }
-
-/* Says where the text in the composer is about to go. The two destinations look
-   identical from the box and behave differently. */
-.cw-ask-note { font-size: 10.5px; line-height: 1.4; opacity: 0.5; color: var(--text, #f0f3f1); margin-top: 5px; }
-.cw-ask-note.is-warn { color: var(--xe-warn, #f5a524); opacity: 0.9; }
-
-/* "1 need you" is the half of the header worth seeing from across the room. */
-.cw-band-hint.is-waiting { color: var(--xe-warn, #f5a524); opacity: 0.95; font-weight: 700; }
-
-.cw-sess-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; }
-.cw-sess-ctx { font-size: 11px; opacity: 0.45; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cw-sess-age { font-size: 11.5px; opacity: 0.45; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 30px; text-align: right; }
-
-.cw-model-chip {
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 999px;
-  color: var(--m, var(--accent)); background: color-mix(in srgb, var(--m, var(--accent)) 18%, transparent);
-  white-space: nowrap; flex: 0 0 auto;
-}
-
-/* ── totals ── */
-.cw-totals { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-.cw-total {
-  display: flex; flex-direction: column; gap: 2px; min-width: 0;
-  padding: 7px 9px; border-radius: 11px;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-}
-.cw-total-val {
-  font-size: 18px; font-weight: 750; letter-spacing: -0.015em; line-height: 1.05;
-  color: var(--text, #f0f3f1); font-variant-numeric: tabular-nums;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.cw-total.is-accent .cw-total-val { color: var(--accent, #1ed760); }
-.cw-total-key {
-  font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-  opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* ── permission card ── */
-/* ── permission + question cards ──
-   The card answers three questions in reading order: what is Claude about to do
-   (plain language, largest), to what exactly (the literal argument, in a recessed
-   monospace slab so it reads as quoted evidence rather than prose), and how long
-   is left. `--cw-appr` carries the tier colour so one variable retints the whole
-   card: amber for a permission, accent blue for a question, red when urgent —
-   a question is never a risk, so it must not borrow the alarm colour. */
-/* The list may shrink (0 1) rather than holding its natural height: on a short
-   tile a fixed-height list simply overflowed the bottom edge and took the Allow
-   and Deny buttons with it. Cards give up their MIDDLE instead — see
-   .cw-appr-body, which scrolls. */
-.cw-appr-list { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-.cw-appr {
-  --cw-appr: var(--xe-warn, #f5a524);
-  position: relative; overflow: hidden; min-height: 0;
-  display: flex; flex-direction: column; gap: 9px; padding: 12px 13px 12px 15px; border-radius: 14px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--cw-appr) 13%, transparent), transparent 62%),
-    rgba(255,255,255,0.045);
-  border: 1px solid color-mix(in srgb, var(--cw-appr) 34%, transparent);
-}
-/* Tier spine: reads at arm's length before any text does. */
-.cw-appr::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--cw-appr);
-}
-.cw-appr.is-ask { --cw-appr: var(--accent, #6ea8ff); }
-.cw-appr.is-urgent {
-  --cw-appr: var(--xe-danger, #f26d6d);
-  border-color: color-mix(in srgb, var(--cw-appr) 62%, transparent);
-}
-
-.cw-appr-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
-.cw-appr-badge {
-  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
-  color: var(--cw-appr); padding: 3px 7px; border-radius: 6px;
-  background: color-mix(in srgb, var(--cw-appr) 16%, transparent); flex: 0 0 auto;
-}
-.cw-appr-proj {
-  flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 650; opacity: 0.62;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text, #f0f3f1);
-}
-.cw-appr-timer { flex: 0 0 auto; font-size: 11px; opacity: 0.45; font-variant-numeric: tabular-nums; }
-
-/* What is being asked. The only part of the card allowed to run out of room, so
-   the header above it and the buttons below it are always visible however small
-   the tile or however long the question. */
-.cw-appr-body {
-  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  display: flex; flex-direction: column; gap: 9px;
-  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
-}
-
-/* Intent headline + the raw tool name kept as a quiet chip beside it: "Bash"
-   alone means nothing to most people, but it is what the docs and the terminal
-   call it, so it stays available without leading. */
-.cw-appr-tool {
-  display: flex; align-items: baseline; gap: 8px; min-width: 0;
-  font-size: 15.5px; font-weight: 750; letter-spacing: -0.015em; color: var(--text, #f0f3f1);
-}
-.cw-appr-toolname {
-  flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em;
-  opacity: 0.42; text-transform: none;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-}
-/* The command/path being approved. Recessed slab, wrapping to at most three
-   lines: the user has to be able to read what they are agreeing to, but it must
-   not push the buttons off the tile. */
-.cw-appr-detail {
-  font-size: 11.5px; line-height: 1.5; color: var(--text, #f0f3f1); opacity: 0.82;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  padding: 8px 10px; border-radius: 9px;
-  background: rgba(0,0,0,0.26); border: 1px solid rgba(255,255,255,0.06);
-  word-break: break-all; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-}
-
-/* ── the question variant ── */
-.cw-appr-qs { display: flex; flex-direction: column; gap: 9px; }
-.cw-appr-q { display: flex; flex-direction: column; gap: 6px; }
-.cw-appr-qhead {
-  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; opacity: 0.5;
-}
-.cw-appr-qtext { font-size: 12.5px; line-height: 1.45; color: var(--text, #f0f3f1); opacity: 0.9; }
-.cw-appr-qmulti {
-  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
-  opacity: 0.45; color: var(--text, #f0f3f1);
-}
-.cw-appr-qopts { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-/* These are real buttons now. They used to be list items that looked exactly
-   like this and did nothing, which is the whole reason the card read as broken:
-   everything about it said "choose" and none of it was a choice. */
-.cw-appr-qopt {
-  display: flex; flex-direction: column; gap: 1px; text-align: left; width: 100%;
-  padding: 9px 11px; border-radius: 9px; min-height: 44px; justify-content: center;
-  background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.07);
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background 0.14s ease, border-color 0.14s ease;
-}
-.cw-appr-qopt:hover:not(:disabled) { background: rgba(255,255,255,0.075); }
-.cw-appr-qopt:disabled { cursor: default; opacity: 0.5; }
-.cw-appr-qopt.is-picked {
-  background: color-mix(in srgb, var(--accent, #1ed760) 18%, transparent);
-  border-color: color-mix(in srgb, var(--accent, #1ed760) 55%, transparent);
-}
-.cw-appr-qopt-label { font-size: 11.5px; font-weight: 700; color: var(--text, #f0f3f1); }
-.cw-appr-qopt.is-picked .cw-appr-qopt-label { color: var(--accent, #1ed760); }
-.cw-appr-qopt-desc { font-size: 10.5px; line-height: 1.4; opacity: 0.55; color: var(--text, #f0f3f1); }
-/* The plan being approved by an ExitPlanMode call. Monospaced and scrollable
-   inside the card body, because agreeing to a plan means reading it. */
-.cw-appr-plan {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
-  padding: 9px 11px; border-radius: 9px; background: rgba(0,0,0,0.28);
-  color: var(--text, #f0f3f1); opacity: 0.92;
-}
-
-.cw-appr-acts { flex: 0 0 auto; display: flex; gap: 8px; margin-top: 1px; }
-.cw-appr-allow, .cw-appr-deny, .cw-appr-ok {
-  flex: 1 1 0; min-height: 44px; border-radius: 11px; cursor: pointer;
-  font-size: 13px; font-weight: 750; letter-spacing: 0.01em;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.08s ease;
+/* ── the top line: name, faces, the one action ── */
+.cw-top { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cw-name {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 32px; min-width: 0;
+  font-size: 14px; font-weight: 700; letter-spacing: -0.005em; cursor: pointer;
+  border-radius: 8px; padding: 0 6px; margin-left: -6px;
   -webkit-tap-highlight-color: transparent;
 }
-.cw-appr-allow:active:not(:disabled), .cw-appr-deny:active:not(:disabled),
-.cw-appr-ok:active:not(:disabled) { transform: translateY(1px); }
-/* A notice's only button dismisses the card. It is deliberately quiet: nothing
-   is waiting on the tap, so it must not read like the decision the Allow button
-   is. Full width, because there is nothing to sit beside. */
-.cw-appr-ok {
-  flex: 1 1 0;
-  border: 1px solid rgba(255,255,255,0.16); color: var(--text, #f0f3f1);
-  background: rgba(255,255,255,0.05);
+.cw-name:hover { background: var(--cw-well); }
+.cw-name-t { white-space: nowrap; }
+.cw-link-mark { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+.cw-link-mark.is-on { background: var(--cw-go); }
+.cw-link-mark.is-partial { background: var(--cw-warn); }
+.cw-link-mark.is-off, .cw-link-mark.is-unknown { box-shadow: inset 0 0 0 1.5px var(--cw-3); }
+
+.cw-faces {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px;
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
 }
-.cw-appr-ok:hover:not(:disabled) { background: rgba(255,255,255,0.11); }
-.cw-appr-ok:disabled { opacity: 0.45; cursor: default; }
-.cw-appr-allow {
-  border: 1px solid var(--xe-stock-up, #4ade80); color: #06210f;
-  background: var(--xe-stock-up, #4ade80);
+.cw-face {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  min-height: 28px; padding: 0 13px; border-radius: 7px;
+  font: inherit; font-size: 12.5px; font-weight: 650; color: var(--cw-2);
+  -webkit-tap-highlight-color: transparent;
 }
-.cw-appr-allow:hover:not(:disabled) { background: color-mix(in srgb, var(--xe-stock-up, #4ade80) 85%, #fff); }
-/* A question is not a risk to approve, so its primary button follows the card's
-   own accent instead of the green "safe to run" signal. */
-.cw-appr.is-ask .cw-appr-allow {
-  border-color: var(--cw-appr); background: var(--cw-appr); color: var(--on-accent, #06121f);
+.cw-face:hover { color: var(--cw-ink); }
+.cw-face.is-on { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 13%, transparent); }
+
+.claude-widget-mount .cw-ask-open,
+.claude-widget-mount .cw-top .cw-linkbtn {
+  margin-left: auto; flex: 0 0 auto; min-height: 34px; padding: 0 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 750; letter-spacing: 0;
 }
-.cw-appr.is-ask .cw-appr-allow:hover:not(:disabled) { background: color-mix(in srgb, var(--cw-appr) 85%, #fff); }
-.cw-appr-deny {
-  border: 1px solid rgba(255,255,255,0.16); color: var(--text, #f0f3f1);
-  background: rgba(255,255,255,0.05);
+.claude-widget-mount .cw-ask-open { color: var(--cw-on-go); background: var(--cw-go); border: 0; }
+
+.cw-link-btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer; flex: 0 0 auto;
+  min-height: 32px; padding: 0 9px; border-radius: 7px;
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--cw-go);
+  -webkit-tap-highlight-color: transparent;
 }
-.cw-appr-deny:hover:not(:disabled) { background: rgba(255,255,255,0.11); }
-.cw-appr-allow:disabled, .cw-appr-deny:disabled { opacity: 0.45; cursor: default; }
+.cw-link-btn:hover { background: color-mix(in srgb, var(--cw-go) 12%, transparent); }
+
+.cw-notice {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px 7px 12px; border-radius: 9px; background: var(--cw-well);
+  font-size: 12.5px; line-height: 1.4; color: var(--cw-ink);
+}
+.cw-notice.is-warn { color: var(--cw-warn); }
+.cw-notice-t { flex: 1 1 auto; min-width: 0; }
+
+/* ── section heads (sentence case: labels, not eyebrows) ── */
+.cw-sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px; min-width: 0; }
+.cw-sec-title { font-size: 12.5px; font-weight: 650; color: var(--cw-2); white-space: nowrap; }
+.cw-sec-sum { margin-left: auto; font-size: 12.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-sec-sum.is-needs { color: var(--cw-warn); font-weight: 700; }
+.claude-widget-mount .cw-section-t { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 650; opacity: 1; color: var(--cw-2); }
+
+/* ── Live: lanes beside the quota on a wide tile, above it on a narrow one ── */
+/* Narrow: sessions then quota in one scroll, so neither is squeezed to nothing
+   when decisions take the top of the tile. Wide: side by side, the lanes scroll
+   on their own and the quota stays put. */
+.cw-livegrid {
+  flex: 1 1 0; min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: max-content max-content; align-content: start; gap: 14px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+@container cw (min-width: 620px) {
+  .cw-livegrid { grid-template-columns: minmax(0, 1fr) clamp(220px, 31cqw, 330px); grid-template-rows: minmax(0, 1fr); align-content: stretch; gap: 18px; overflow: hidden; }
+  .cw-quota { padding-left: 16px; box-shadow: inset 1px 0 0 var(--cw-line); }
+}
+
+.cw-lanes { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.cw-lanes-scroll { display: flex; flex-direction: column; gap: 6px; }
+@container cw (min-width: 620px) {
+  .cw-lanes-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+}
+.cw-lane {
+  position: relative; flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 9px 12px 9px 15px; border-radius: 10px; background: var(--cw-well);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-lane::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 2px 2px 0;
+  background: transparent;
+}
+.cw-lane.is-working::before { background: var(--cw-go); }
+.cw-lane.is-needs {
+  background: color-mix(in srgb, var(--cw-warn) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 42%, transparent);
+}
+.cw-lane.is-needs::before { background: var(--cw-warn); }
+.cw-lane.is-ended { opacity: 0.72; }
+.cw-lane.is-carded { padding-block: 8px; }
+.cw-lane.is-carded .cw-lane-ask { font-size: 12.5px; }
+.cw-lane.is-tappable { cursor: pointer; }
+.cw-lane.is-tappable:hover { background: color-mix(in srgb, var(--cw-ink) 8%, transparent); }
+.cw-lane.is-needs.is-tappable:hover { background: color-mix(in srgb, var(--cw-warn) 17%, transparent); }
+.cw-lane:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+
+.cw-lane-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.cw-lane-dot { display: none; }
+.cw-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.cw-lane.is-needs .cw-lane-dot {
+  display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cw-warn); align-self: center;
+  animation: cw-breathe 2.4s ease-in-out infinite; will-change: opacity;
+}
+.cw-lane-proj { font-size: 14.5px; font-weight: 700; letter-spacing: -0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cw-lane-tag { font-size: 12px; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-lane-branch { font-family: var(--cw-mono); font-size: 11.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cw-lane-clock { margin-left: auto; flex: 0 0 auto; font-size: 12.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-lane.is-needs .cw-lane-clock { color: var(--cw-warn); font-weight: 700; }
+
+.cw-lane-now { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13.5px; line-height: 1.35; }
+.cw-lane-intent, .cw-lane-state { flex: 0 0 auto; font-weight: 650; white-space: nowrap; }
+.cw-lane-state { color: var(--cw-2); font-weight: 600; }
+.cw-lane-ask { flex: 0 0 auto; color: var(--cw-warn); font-weight: 700; white-space: nowrap; }
+.cw-lane-detail {
+  min-width: 0; font-family: var(--cw-mono); font-size: 12.5px; color: var(--cw-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-lane.is-needs .cw-lane-detail { color: var(--cw-ink); font-family: inherit; font-size: 13px; }
+.cw-lane-task, .cw-lane-said { min-width: 0; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-lane-for { flex: 0 0 auto; margin-left: auto; color: var(--cw-2); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-lane-for.is-quiet { color: var(--cw-warn); margin-left: 0; }
+
+/* The last ten minutes of tool calls, newest on the right, older ones fainter. */
+.cw-trace {
+  position: relative; height: 7px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--cw-ink) 4%, transparent);
+}
+.cw-tick { position: absolute; top: 1px; bottom: 1px; min-width: 2px; border-radius: 1px; background: var(--cw-go); }
+.cw-tick.is-fail { background: var(--cw-crit); }
+.cw-lane.is-needs .cw-tick { background: var(--cw-warn); }
+
+.cw-lane-foot { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; min-width: 0; font-size: 12px; color: var(--cw-2); }
+.cw-rail { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 200px; }
+.cw-rail-segs { display: flex; gap: 2px; flex: 0 0 auto; }
+.cw-rail-seg { width: 9px; height: 6px; border-radius: 1.5px; background: color-mix(in srgb, var(--cw-ink) 16%, transparent); }
+.cw-rail-seg.is-done { background: color-mix(in srgb, var(--cw-go) 75%, transparent); }
+.cw-rail-seg.is-doing { background: var(--cw-ink); }
+.cw-rail-text { display: flex; gap: 6px; min-width: 0; align-items: baseline; }
+.cw-rail-count { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.cw-rail-now { min-width: 0; color: var(--cw-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-ctx { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.cw-ctx-bar { width: 34px; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--cw-ink) 14%, transparent); }
+.cw-ctx-fill { display: block; height: 100%; background: var(--cw-2); }
+.cw-ctx.is-warn .cw-ctx-fill { background: var(--cw-warn); }
+.cw-ctx.is-crit .cw-ctx-fill { background: var(--cw-crit); }
+.cw-ctx-val { font-variant-numeric: tabular-nums; }
+.cw-lane-model { font-weight: 600; flex: 0 0 auto; }
+.cw-lane-lines { display: inline-flex; gap: 6px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.cw-lane-lines .is-add { color: var(--cw-go); }
+.cw-lane-lines .is-del { color: var(--cw-crit); }
+
+.cw-queued {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 5px 4px 5px 9px; border-radius: 8px; font-size: 12.5px;
+  background: color-mix(in srgb, var(--cw-go) 10%, transparent);
+}
+.cw-queued-label { flex: 0 0 auto; font-weight: 650; }
+.cw-queued-text { flex: 1 1 auto; min-width: 0; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.cw-empty { padding: 12px 14px; border-radius: 10px; background: var(--cw-well); }
+.cw-empty-t { font-size: 14px; font-weight: 650; }
+.cw-empty-s { margin-top: 3px; font-size: 12.5px; color: var(--cw-2); }
+
+/* ── quota: segmented gauges with an even-pace marker ── */
+.cw-quota { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
+.cw-gauge { display: flex; flex-direction: column; gap: 7px; }
+.cw-gauge-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.cw-gauge-key { flex: 0 0 auto; min-width: 2.2em; font-size: 13px; font-weight: 650; color: var(--cw-2); }
+.cw-gauge-val {
+  flex: 0 0 auto; font-size: clamp(20px, 6.5cqh, 34px); font-weight: 760; line-height: 1;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.cw-gauge.is-warn .cw-gauge-val { color: var(--cw-warn); }
+.cw-gauge.is-crit .cw-gauge-val { color: var(--cw-crit); }
+.cw-gauge-reset { margin-left: auto; font-size: 12.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-gauge-head .cw-link-btn { margin-left: auto; }
+.cw-gauge-track { position: relative; display: flex; gap: 3px; height: 12px; }
+.cw-seg { flex: 1 1 0; border-radius: 2px; background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-seg.is-on { background: var(--cw-go); }
+.cw-gauge.is-warn .cw-seg.is-on { background: var(--cw-warn); }
+.cw-gauge.is-crit .cw-seg.is-on { background: var(--cw-crit); }
+/* Where an even pace would be now. Fill past it = burning faster than the
+   window allows. Drawn in ink with a dark rim so it reads over any segment. */
+.cw-gauge-pace {
+  position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px;
+  background: var(--cw-ink); box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55);
+}
+.cw-pace { font-size: 12.5px; line-height: 1.4; color: var(--cw-2); }
+.cw-pace.is-warn { color: var(--cw-warn); font-weight: 650; }
+.cw-quiet-note { font-size: 13px; line-height: 1.45; color: var(--cw-2); }
+
+/* ── decisions ── */
+.cw-decs { flex: 0 0 auto; min-height: 0; max-height: 64cqh; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.cw-decs-more { font-size: 12.5px; color: var(--cw-2); padding-left: 2px; }
+/* Two decisions on a wide tile sit side by side: stacked, the second one pushed
+   the sessions off a 720px-tall Edge. */
+@container cw (min-width: 860px) {
+  .cw-decs.is-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .cw-decs.is-pair > .cw-decs-more { grid-column: 1 / -1; }
+}
+.cw-dec {
+  --cw-dec: var(--cw-warn);
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0;
+  /* A long plan or a many-option question scrolls inside its card; the keys
+     under it never leave the screen. */
+  max-height: 64cqh; box-sizing: border-box;
+  padding: 12px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--cw-dec) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-dec) 48%, transparent);
+}
+.cw-dec.is-question { --cw-dec: var(--cw-go); }
+.cw-dec.is-risky { --cw-dec: var(--cw-crit); }
+.cw-dec-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 12.5px; color: var(--cw-2); }
+.cw-dec-kind { flex: 0 0 auto; font-weight: 750; color: var(--cw-dec); }
+.cw-dec-where { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-dec-timer { margin-left: auto; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.cw-dec-body { flex: 0 1 auto; display: flex; flex-direction: column; gap: 9px; min-height: 0; overflow-y: auto; }
+.cw-dec-what { font-size: clamp(15px, 4.4cqh, 19px); font-weight: 720; letter-spacing: -0.01em; }
+.cw-dec-cmd, .cw-dec-plan {
+  font-family: var(--cw-mono); font-size: 13px; line-height: 1.45; color: var(--cw-ink);
+  background: var(--cw-code); border-radius: 8px; padding: 8px 10px;
+  white-space: pre-wrap; word-break: break-word; max-height: 7.2em; overflow-y: auto;
+}
+.cw-dec-plan { font-family: inherit; max-height: 11em; }
+.cw-dec-risks { display: flex; flex-wrap: wrap; gap: 5px 14px; font-size: 12.5px; font-weight: 650; }
+.cw-risk { display: inline-flex; align-items: center; gap: 6px; }
+.cw-risk::before { content: ''; width: 7px; height: 7px; border-radius: 1.5px; background: currentColor; }
+.cw-risk.is-irreversible { color: var(--cw-crit); }
+.cw-risk.is-publish, .cw-risk.is-network, .cw-risk.is-outside { color: var(--cw-warn); }
+.cw-risk.is-readonly { color: var(--cw-2); }
+
+.cw-dec-acts { display: flex; gap: 10px; flex: 0 0 auto; }
+.cw-key {
+  position: relative; overflow: hidden; flex: 1 1 0; min-height: 46px; padding: 0 14px;
+  appearance: none; border: 0; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 750; letter-spacing: -0.005em;
+  -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation;
+}
+.cw-key.is-allow { background: var(--cw-go); color: var(--cw-on-go); }
+.cw-key.is-deny { background: color-mix(in srgb, var(--cw-ink) 13%, transparent); color: var(--cw-ink); }
+.cw-key.is-quiet { background: transparent; color: var(--cw-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-ink) 26%, transparent); }
+.cw-key:hover:not(:disabled) { filter: brightness(1.08); }
+.cw-key:active:not(:disabled) { transform: translateY(1px); }
+.cw-key:disabled { opacity: 0.42; cursor: default; }
+.cw-key:focus-visible, .cw-opt:focus-visible { outline: 2px solid var(--cw-ink); outline-offset: 2px; }
+.cw-key-label { position: relative; }
+/* Hold to allow: the key fills while it is held; letting go early cancels. */
+.cw-key.is-hold {
+  background: color-mix(in srgb, var(--cw-crit) 16%, transparent); color: var(--cw-ink);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-crit) 70%, transparent);
+}
+.cw-key-fill { position: absolute; inset: 0; background: var(--cw-crit); transform: scaleX(0); transform-origin: left center; }
+.cw-key.is-holding .cw-key-fill { transform: scaleX(1); transition: transform 900ms linear; }
+.cw-key.is-holding { color: #fff; }
+/* Arming: the card is on screen but not yet taking taps. */
+.cw-dec.is-arming .cw-key, .cw-dec.is-arming .cw-opt { opacity: 0.5; }
+
+.cw-dec-qs { display: flex; flex-direction: column; gap: 12px; }
+.cw-dec-q { display: flex; flex-direction: column; gap: 7px; }
+.cw-dec-qhead { font-size: 12px; font-weight: 750; color: var(--cw-go); }
+.cw-dec-qtext { font-size: 15px; font-weight: 650; line-height: 1.35; }
+.cw-dec-qnote { font-size: 12px; color: var(--cw-2); }
+.cw-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+.cw-opt {
+  display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 9px 11px;
+  appearance: none; border: 0; border-radius: 9px; cursor: pointer; text-align: left;
+  font: inherit; color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 7%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-opt:hover:not(:disabled) { background: color-mix(in srgb, var(--cw-ink) 11%, transparent); }
+.cw-opt.is-picked { background: color-mix(in srgb, var(--cw-go) 20%, transparent); box-shadow: inset 0 0 0 1.5px var(--cw-go); }
+.cw-opt-n {
+  flex: 0 0 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+  font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--cw-ink) 13%, transparent);
+}
+.cw-opt.is-picked .cw-opt-n { background: var(--cw-go); color: var(--cw-on-go); }
+.cw-opt-text { min-width: 0; }
+.cw-opt-label { display: block; font-size: 13.5px; font-weight: 650; line-height: 1.3; }
+.cw-opt-desc { display: block; margin-top: 2px; font-size: 12px; line-height: 1.35; color: var(--cw-2); }
+
+/* Typed answers: the "Other" box, a text/number question, a plan's feedback. */
+.cw-dec-input {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px;
+  border-radius: 9px; border: 1px solid color-mix(in srgb, var(--cw-ink) 20%, transparent);
+  background: color-mix(in srgb, var(--cw-ink) 6%, transparent); color: var(--cw-ink);
+  font: inherit; font-size: 14px; line-height: 1.4; resize: none;
+}
+.cw-dec-input:focus { outline: none; border-color: var(--cw-go); }
+.cw-dec-input::placeholder { color: var(--cw-2); }
+.cw-dec-input:disabled { opacity: 0.5; }
+
+/* The plan card: the terminal's rows stacked, then "keep planning" with its box. */
+.cw-dec.is-plan { --cw-dec: var(--cw-go); }
+.cw-dec-acts.is-plan { flex-direction: column; gap: 8px; }
+.cw-opts.is-col { grid-template-columns: minmax(0, 1fr); }
+.cw-dec-acts.is-plan .cw-opt { align-items: center; }
+.cw-dec-back { display: flex; gap: 8px; align-items: stretch; }
+.cw-dec-back .cw-dec-input { flex: 1 1 auto; min-width: 0; }
+.cw-dec-back .cw-key { flex: 0 0 auto; }
+@container cw (max-width: 420px) {
+  .cw-dec-back { flex-direction: column; }
+}
+/* The overlay sits outside the tile's container, so a phone needs its own rule. */
+@media (max-width: 520px) {
+  .cw-overlay .cw-dec-back { flex-direction: column; }
+}
+
+/* ── the escalation: one decision, full screen ── */
+.cw-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(10px, 3vh, 28px); box-sizing: border-box;
+  /* No backdrop blur: a full-screen blur is a per-frame cost on the Edge's
+     integrated GPU, and a dark scrim already takes the dashboard out of focus. */
+  background: rgba(6, 7, 9, 0.86);
+  animation: cw-fade 0.18s ease-out;
+  color: var(--cw-ink);
+}
+.cw-dec.is-big {
+  width: min(880px, 100%); max-height: 100%;
+  gap: 16px; padding: 22px 26px; border-radius: 18px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--cw-dec) 9%, transparent), color-mix(in srgb, var(--cw-dec) 9%, transparent)),
+    rgba(16, 18, 21, 0.98);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 0 1px color-mix(in srgb, var(--cw-dec) 55%, transparent);
+}
+.cw-dec.is-big .cw-dec-head { font-size: 14px; }
+.cw-dec.is-big .cw-dec-what { font-size: clamp(20px, 3.2vh + 8px, 30px); }
+.cw-dec.is-big .cw-dec-cmd { font-size: 15.5px; max-height: 38vh; padding: 12px 14px; }
+.cw-dec.is-big .cw-dec-plan { font-size: 14.5px; max-height: 44vh; }
+.cw-dec.is-big .cw-dec-risks { font-size: 14px; }
+.cw-dec.is-big .cw-dec-qtext { font-size: 19px; }
+.cw-dec.is-big .cw-opt { min-height: 56px; padding: 12px 14px; }
+.cw-dec.is-big .cw-opt-label { font-size: 15px; }
+.cw-dec.is-big .cw-opt-desc { font-size: 13px; }
+.cw-dec.is-big .cw-key { min-height: 60px; font-size: 18px; border-radius: 12px; }
+.cw-dec.is-big .cw-dec-input { font-size: 16px; min-height: 52px; }
+.cw-dec.is-big.is-plan .cw-dec-plan { max-height: 34vh; }
+@media (max-height: 560px) {
+  .cw-dec.is-big { gap: 11px; padding: 15px 18px; border-radius: 15px; }
+  .cw-dec.is-big .cw-dec-what { font-size: 19px; }
+  .cw-dec.is-big .cw-dec-cmd { font-size: 14px; max-height: 30vh; }
+  .cw-dec.is-big .cw-key { min-height: 48px; font-size: 16px; }
+}
+
+/* ── Usage ── */
+.cw-usage {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start;
+}
+@container cw (min-width: 640px) {
+  .cw-usage { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); column-gap: 26px; }
+  .cw-usage > .cw-sec-head, .cw-split { grid-column: 1 / -1; }
+  .cw-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 26px; }
+}
+.cw-usage > .cw-sec-head { margin-bottom: -6px; }
+.cw-usage:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; border-radius: 6px; }
+.cw-ledger { margin: 0; display: flex; flex-direction: column; }
+.cw-ledger-row { display: flex; align-items: baseline; gap: 12px; padding: 7px 0; box-shadow: inset 0 -1px 0 var(--cw-line); }
+.cw-ledger-row dt { margin: 0; font-size: 13px; color: var(--cw-2); min-width: 0; }
+.cw-ledger-row dd { margin: 0 0 0 auto; display: flex; align-items: baseline; gap: 6px; flex: 0 0 auto; }
+.cw-ledger-v { font-size: 17px; font-weight: 740; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.cw-ledger-n { font-size: 12px; color: var(--cw-2); }
+.cw-ledger-row.is-value .cw-ledger-v { color: var(--cw-go); }
+
+.cw-days { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cw-days-bars {
+  display: flex; align-items: flex-end; gap: 3px; height: clamp(70px, 26cqh, 140px);
+  padding-bottom: 18px; box-shadow: inset 0 -19px 0 -18px var(--cw-line);
+}
+.cw-day { position: relative; flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.cw-day-stack { width: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: 2px 2px 0 0; }
+.cw-day-fresh { flex: 1 1 auto; background: color-mix(in srgb, var(--cw-ink) 42%, transparent); }
+.cw-day-cache { flex: 0 0 auto; background: color-mix(in srgb, var(--cw-ink) 17%, transparent); }
+.cw-day.is-today .cw-day-fresh { background: var(--cw-go); }
+.cw-day.is-today .cw-day-cache { background: color-mix(in srgb, var(--cw-go) 45%, transparent); }
+.cw-day-tick { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-day.is-today .cw-day-tick { color: var(--cw-ink); font-weight: 700; }
+.cw-days-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--cw-2); }
+.cw-leg { display: inline-flex; align-items: center; gap: 6px; }
+.cw-leg i { width: 9px; height: 9px; border-radius: 2px; }
+.cw-leg i.is-cache { background: color-mix(in srgb, var(--cw-ink) 17%, transparent); }
+.cw-leg i.is-fresh { background: color-mix(in srgb, var(--cw-ink) 42%, transparent); }
+
+.cw-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.cw-projects, .cw-models { display: flex; flex-direction: column; min-width: 0; }
+.cw-projects .cw-sec-title, .cw-models .cw-sec-title { margin-bottom: 6px; }
+.cw-bar-row { display: grid; grid-template-columns: minmax(0, 40%) minmax(0, 1fr) 3.2em; align-items: center; gap: 10px; padding: 4px 0; }
+.cw-bar-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-bar-track { height: 6px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--cw-ink) 9%, transparent); }
+.cw-bar-fill { display: block; height: 100%; background: color-mix(in srgb, var(--cw-ink) 58%, transparent); }
+.cw-bar-val { text-align: right; font-size: 12.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-bar-more { font-size: 12px; color: var(--cw-2); padding-top: 2px; }
+.cw-model-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 2px 0 8px; background: color-mix(in srgb, var(--cw-ink) 9%, transparent); }
+.cw-model-seg { height: 100%; min-width: 2px; }
+.cw-model-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 4.4em; align-items: center; gap: 10px; padding: 3px 0; font-size: 13px; }
+.cw-model-dot { width: 9px; height: 9px; border-radius: 2px; }
+.cw-model-name { font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-model-tok, .cw-model-cost { text-align: right; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── small tiles: keep what answers "does anything need me" ── */
+@container cw (max-height: 300px) {
+  .cw-trace, .cw-lane-foot { display: none; }
+  .cw-pace { display: none; }
+  .cw-gauge-val { font-size: 21px; }
+}
+@container cw (max-height: 200px) {
+  .cw-sec-head { display: none; }
+  .cw-lane { padding-top: 7px; padding-bottom: 7px; }
+}
+@container cw (max-width: 430px) {
+  .cw-lane-branch, .cw-lane-tag { display: none; }
+  .cw-face { padding: 0 10px; }
+  .claude-widget-mount .cw-ask-open { padding: 0 12px; }
+}
+
+@keyframes cw-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes cw-fade { from { opacity: 0; } to { opacity: 1; } }
+/* The one looping animation joins the dashboard's freeze states. */
+body.overlay-frozen .cw-lane-dot,
+body.ambient-idle .cw-lane-dot,
+body.game-mode .cw-lane-dot,
+body.low-power-gpu .cw-lane-dot { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cw-lane.is-needs .cw-lane-dot { animation: none; }
+  .cw-overlay { animation: none; }
+}
+
+/* ── kept as they were: asking Claude, runs, the connection and budget panels,
+   the folding sections, the topbar marker and the "another session" notice ── */
 
 /* ── asking Claude from the touchscreen ── */
 .cw-ask-open {
@@ -675,50 +746,6 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 }
 .cw-run-stop:hover { background: rgba(255,255,255,0.12); }
 
-/* ── fullscreen escalation ── */
-/* The Xeneon Edge is a SHORT display, and a question card with several options
-   is tall. Centring a box that no longer fits cut it off at both ends with no
-   way to scroll — so the padding scales with the viewport and the card is
-   capped at the height actually available. */
-.cw-overlay {
-  position: fixed; inset: 0; z-index: 9000;
-  display: flex; align-items: center; justify-content: center;
-  padding: clamp(10px, 3vh, 24px); box-sizing: border-box;
-  background: rgba(6, 8, 10, 0.82); backdrop-filter: blur(10px);
-  animation: cw-fade 0.18s ease-out;
-}
-.cw-appr--big {
-  width: min(560px, 100%); max-height: 100%;
-  gap: 13px; padding: 24px 26px 24px 28px; border-radius: 20px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--cw-appr) 14%, transparent), transparent 58%),
-    rgba(18, 20, 24, 0.96);
-  box-shadow: 0 24px 70px rgba(0,0,0,0.55), 0 0 0 1px color-mix(in srgb, var(--cw-appr) 22%, transparent);
-}
-.cw-appr--big::before { width: 4px; }
-.cw-appr--big .cw-appr-tool { font-size: 23px; }
-.cw-appr--big .cw-appr-toolname { font-size: 11px; }
-/* Full screen and scrollable, so there is no reason to hide the tail of a
-   command here: you are being asked to approve it, you get to read all of it. */
-.cw-appr--big .cw-appr-detail { font-size: 13px; padding: 11px 13px; display: block; -webkit-line-clamp: none; }
-.cw-appr--big .cw-appr-qtext { font-size: 15px; }
-.cw-appr--big .cw-appr-qopt { padding: 12px 14px; min-height: 52px; }
-.cw-appr--big .cw-appr-qopt-label { font-size: 13px; }
-.cw-appr--big .cw-appr-qopt-desc { font-size: 11.5px; }
-.cw-appr--big .cw-appr-plan { font-size: 12px; }
-.cw-appr--big .cw-appr-allow, .cw-appr--big .cw-appr-deny,
-.cw-appr--big .cw-appr-ok { min-height: 54px; font-size: 15px; }
-/* Under ~560px of height the generous version stops fitting: give the padding
-   and the headline back to the question rather than letting the card fill the
-   screen edge to edge. Touch targets stay at 44px, which is the floor. */
-@media (max-height: 560px) {
-  .cw-appr--big { gap: 10px; padding: 15px 17px 15px 19px; border-radius: 16px; }
-  .cw-appr--big .cw-appr-tool { font-size: 19px; }
-  .cw-appr--big .cw-appr-qtext { font-size: 13.5px; }
-  .cw-appr--big .cw-appr-allow, .cw-appr--big .cw-appr-deny,
-  .cw-appr--big .cw-appr-ok { min-height: 46px; font-size: 14px; }
-}
-
 /* ── connect call-to-action ── */
 .cw-cta {
   flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
@@ -801,57 +828,6 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 }
 .cw-section-chev.is-open { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) { .cw-section-chev { transition: none; } }
-
-.cw-spark-bars { display: flex; align-items: flex-end; gap: 2px; height: 48px; }
-.cw-bar { flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; min-width: 0; }
-.cw-bar-stack {
-  width: 100%; border-radius: 3px 3px 1px 1px; position: relative; overflow: hidden;
-  background: color-mix(in srgb, var(--accent, #1ed760) 60%, transparent); min-height: 0;
-}
-.cw-bar-cache { position: absolute; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--accent, #1ed760) 22%, transparent); }
-.cw-bar.is-today .cw-bar-stack { background: var(--accent, #1ed760); }
-
-.cw-proj { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
-.cw-proj-name { flex: 0 0 34%; font-size: 12.5px; font-weight: 600; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cw-proj-track { flex: 1 1 auto; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
-.cw-proj-bar { height: 100%; border-radius: 999px; background: var(--accent, #1ed760); transition: width 0.5s ease; }
-.cw-proj-val { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; opacity: 0.65; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
-
-.cw-model-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.06); }
-.cw-model-seg { height: 100%; min-width: 2px; }
-.cw-model-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 9px; }
-.cw-model-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; }
-.cw-model-legdot { width: 7px; height: 7px; border-radius: 2px; flex: 0 0 auto; }
-.cw-model-legname { opacity: 0.7; font-weight: 600; }
-.cw-model-legval { opacity: 0.45; font-variant-numeric: tabular-nums; }
-
-@keyframes cw-pulse {
-  0% { transform: scale(1); opacity: 1; }
-  70% { transform: scale(3); opacity: 0; }
-  100% { transform: scale(1); opacity: 0; }
-}
-@keyframes cw-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  /* Must repeat the ripple's own two selectors: a bare `.cw-sess-dot::after` is
-     (0,1,1) and loses to the (0,3,1) rule that declares the animation, so the
-     ripple ignored this preference entirely. Matching the shape makes it a tie
-     that this rule wins on source order. */
-  .cw-sess.is-running .cw-sess-dot::after,
-  .cw-sess.is-waiting .cw-sess-dot::after { animation: none; opacity: 0; }
-  .cw-overlay { animation: none; }
-  .cw-lim-fill, .cw-proj-bar { transition: none; }
-}
-
-/* ── container-query reveals ──
-   Short tile: quota + sessions + totals only. Taller tiles fill in the history,
-   then the project split, then the model split. */
-@container cw (max-width: 300px) {
-  .cw-totals { grid-template-columns: 1fr 1fr; }
-  .cw-sess-ctx { display: none; }
-}
-@container cw (min-height: 330px) { .cw-more { display: flex; } }
-@container cw (min-height: 330px) and (max-height: 409px) { .cw-projects, .cw-models { display: none; } }
-@container cw (min-height: 410px) and (max-height: 479px) { .cw-models { display: none; } }
 
 /* ── the topbar marker ──────────────────────────────────────────────────────
    #clock-claude is a plain span inside .clock in the base markup, so the

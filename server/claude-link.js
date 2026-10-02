@@ -95,6 +95,14 @@ async function readJson(file) {
   } catch { return null; }
 }
 
+// The user's permissions.defaultMode in Claude Code's own settings. Read-only:
+// the plan card uses it to decide whether auto mode is one of its choices.
+async function defaultMode() {
+  const cfg = await readJson(settingsPath());
+  const m = cfg && cfg.permissions && cfg.permissions.defaultMode;
+  return typeof m === 'string' ? m : '';
+}
+
 // ── hub-side state (token + what we replaced) ────────────────────────────────
 async function readState(dataDir) {
   const s = await readJson(path.join(dataDir, STATE_FILE));
@@ -155,26 +163,67 @@ function ourHandler(url, timeoutSec, token) {
 }
 
 // ── status ───────────────────────────────────────────────────────────────────
+// One entry per handler link() installs. A link is COMPLETE only when every one
+// of these is present with the current port and token, and nothing of ours is
+// left over from an older set. Counting our handlers was not enough: a link made
+// by an older Xenon (no AskUserQuestion interceptor, Stop still on /event) had 8
+// of the 15 and was reported as linked, so questions never reached the tile and
+// follow-ups were never delivered, with nothing on screen to say why.
+function expectedHandlers() {
+  const list = EVENT_HOOKS.map((event) => ({ event, path: '/event', matcher: '' }));
+  list.push({ event: PERMISSION_EVENT, path: '/permission', matcher: '' });
+  list.push({ event: TURN_END_EVENT, path: '/turn-end', matcher: '' });
+  list.push({ event: QUESTION_EVENT, path: '/question', matcher: QUESTION_MATCHER });
+  return list;
+}
+
+// Our handlers as installed: which event, which endpoint, which port, which token.
+function installedHandlers(hooks) {
+  const out = [];
+  for (const event of Object.keys(hooks || {})) {
+    const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
+    for (const g of groups) {
+      const handlers = (g && Array.isArray(g.hooks)) ? g.hooks : [];
+      for (const h of handlers) {
+        if (!isOurHandler(h, 0)) continue;
+        const m = /^http:\/\/127\.0\.0\.1:(\d+)\/api\/claude(\/[a-z-]+)/.exec(String(h.url || ''));
+        out.push({
+          event,
+          matcher: String((g && g.matcher) || ''),
+          path: m ? m[2] : '',
+          port: m ? Number(m[1]) : 0,
+          token: String((h.headers && h.headers['X-Xenon-Bridge']) || ''),
+        });
+      }
+    }
+  }
+  return out;
+}
+
 async function status(dataDir, port) {
   const file = settingsPath();
   const settings = await readJson(file);
   const state = await readState(dataDir);
   const hooks = (settings && settings.hooks) || {};
 
-  let ourHookCount = 0;
-  for (const event of Object.keys(hooks)) {
-    const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
-    for (const g of groups) {
-      const handlers = (g && Array.isArray(g.hooks)) ? g.hooks : [];
-      ourHookCount += handlers.filter(h => isOurHandler(h, port)).length;
-    }
-  }
+  const installed = installedHandlers(hooks);
+  const ourHookCount = installed.length;
+  const same = (a, b) => a.event === b.event && a.path === b.path && a.matcher === b.matcher;
+  const current = (h) => h.port === Number(port) && !!state.token && h.token === state.token;
+  const expected = expectedHandlers();
+  const missing = expected.filter((e) => !installed.some((h) => same(h, e) && current(h)));
+  const outdated = installed.filter((h) => !expected.some((e) => same(h, e)) || !current(h));
   const sl = settings && settings.statusLine;
   const ours = isOurStatusLine(sl);
 
   return {
-    // "linked" means the pieces that make the widget work are actually present.
+    // "linked" means the user connected Claude Code: our entries are there.
     linked: ourHookCount > 0 && ours,
+    // "complete" means every piece the widget relies on is there and current.
+    // A linked-but-incomplete config is repaired by the server (repairLink).
+    complete: ourHookCount > 0 && ours && missing.length === 0 && outdated.length === 0,
+    missing: missing.map((e) => e.event + (e.matcher ? '(' + e.matcher + ')' : '') + ' ' + e.path),
+    outdated: outdated.length,
     settingsPath: file,
     settingsExists: !!settings,
     hookCount: ourHookCount,
@@ -251,6 +300,21 @@ async function link(dataDir, port) {
 }
 
 // ── unlink ───────────────────────────────────────────────────────────────────
+// ── repair ───────────────────────────────────────────────────────────────────
+// A link the user made that is now incomplete (written by an older Xenon, or
+// rewritten since by something else) is brought back to the current set, once,
+// through the same link() that made it: same backup rule, same statusline
+// chaining, same precise entries. Only a link that EXISTS is repaired; this can
+// never connect Claude Code on its own. Hooks are read by Claude Code when a
+// session starts, so a repair reaches sessions opened after it, and the widget
+// says so.
+async function repairLink(dataDir, port) {
+  const st = await status(dataDir, port);
+  if (!st.linked || st.complete) return { ...st, repaired: false };
+  const next = await link(dataDir, port);
+  return { ...next, repaired: true, repairedMissing: st.missing, repairedOutdated: st.outdated };
+}
+
 async function unlink(dataDir, port) {
   const file = settingsPath();
   const settings = await readJson(file);
@@ -278,8 +342,10 @@ module.exports = {
   link,
   unlink,
   status,
+  repairLink,
   ensureToken,
   readState,
+  defaultMode,
   settingsPath,
   configDir,
   // exported for tests
@@ -288,6 +354,8 @@ module.exports = {
   isOurStatusLine,
   EVENT_HOOKS,
   PERMISSION_EVENT,
+  expectedHandlers,
+  installedHandlers,
 };
 
 // ── CLI: `node server/claude-link.js unlink` ─────────────────────────────────

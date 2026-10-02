@@ -843,37 +843,56 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 .deck-root[data-plate="none"] .deck-device::after { display: none; }
 .deck-root[data-plate="none"] .deck-device::before { display: none; }
 .deck-root[data-plate="none"] .deck-well { background: transparent; box-shadow: none; }
+/* The dashboard tile around it casts a drop shadow of its own, painted just outside
+   its edge (DashboardGrid.css). With the chassis gone it is the only thing left of
+   the tile: a dark strip along the bottom edge of bare keys, "a shadow behind the
+   cards" (reported on Discord). deck.js and dashboard-tabgroups.js mark the tile, or
+   the tab-group tile mounting the Deck, with data-deck-bare; a shadow the user set
+   on that tile (data-tile-shadow) is kept. */
+.grid-stack-item:not([data-tile-shadow]):has(> .grid-stack-item-content > [data-deck-bare]) { box-shadow: none; }
 
-/* …and the header goes with it. It is the FACEPLATE's header — the CSS above
-   calls it that — so leaving it behind on the one finish that has no faceplate
-   left a profile name, a page badge and a pencil hanging in mid-air over nothing,
-   which is exactly the "it takes space and looks out of place" this finish exists
-   to avoid. Reported from a Xeneon Edge, where the tile is short and 26px of
-   chrome is a row of keys.
+/* …and the header stays, as a ghost. It is the FACEPLATE's header, so on the one
+   finish with no faceplate a full-strength profile name, page badge and pencil hung
+   in mid-air over nothing, which is the "it takes space and looks out of place"
+   this finish exists to avoid (reported from a Xeneon Edge, where the tile is short
+   and 26px of chrome is a row of keys).
 
-   Collapsed to a strip rather than removed: the bar is the ONLY way into edit
-   mode and the only profile switcher, so hiding it outright would trap someone
-   in a deck they cannot change. Hovering the strip brings it back — a menu bar
-   that gets out of the way, not a menu bar that is gone.
+   The first answer collapsed it to an invisible strip that appeared on hover or on
+   a tap. That fixed the look and lost the controls: the bar is the ONLY way into
+   edit mode and the only profile switcher, and on a deck made transparent nobody
+   found either. Reported on Discord: "the pencil and the profile switch are gone".
 
-   The strip is the trigger, never the whole device: revealing on any hover over
-   the deck would slide the keys down every time the pointer crossed the tile. */
+   So it is drawn quietly and always: no key-cap chrome around the pencil, the
+   profile name at about half strength with a soft shadow so it reads on any
+   wallpaper, and a row 20px tall instead of 26. It comes to full strength when it
+   is touched, focused, or in use. The keys sit 6px lower than they did with the
+   strip collapsed; that is the price of the controls being there.
+
+   The bar is the trigger, never the whole device: brightening on any hover over the
+   deck would flicker every time the pointer crossed the tile. */
 .deck-root[data-plate="none"] .deck-bar {
   min-height: 0;
-  max-height: 10px;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-height .18s ease, opacity .18s ease;
+  height: 20px;
+  opacity: .55;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .65);
+  transition: opacity .18s ease;
 }
+/* The cap chrome (gradient, hairline, drop shadow) belongs to a faceplate too. Not
+   while editing: the filled pencil there is the "Done" state and must stay lit. */
+.deck-root[data-plate="none"]:not(.is-editing) .deck-bar :is(.deck-edit, .deck-back) {
+  background: none; border-color: transparent; box-shadow: none;
+}
+.deck-root[data-plate="none"] .deck-bar .deck-index {
+  background: none; border-color: transparent; box-shadow: none; text-shadow: inherit;
+}
+.deck-root[data-plate="none"] .deck-bar svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
 /* `bar-open` is set while the bar is in USE (edit mode, profile menu open) and
    `bar-peek` by a tap on a touchscreen, which has no hover to offer — see the
-   pointerdown handler in deck.js. 64px is a ceiling for a 26px bar, not a size:
-   max-height cannot animate to `auto`. */
+   pointerdown handler in deck.js. */
 .deck-root[data-plate="none"] .deck-bar:hover,
 .deck-root[data-plate="none"] .deck-bar:focus-within,
 .deck-root[data-plate="none"].bar-open .deck-bar,
 .deck-root[data-plate="none"].bar-peek .deck-bar {
-  max-height: 64px;
   opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {

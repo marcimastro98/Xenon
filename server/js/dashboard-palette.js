@@ -1,7 +1,9 @@
 'use strict';
-// "+" quick-add: lists the addable widgets, grouped into categories with an icon
-// each, and adds the chosen one to the current page — OR (tab mode) merges it
-// into a target tile as a new tab. Plain popover; closes on pick or outside click.
+// "+" quick-add: lists the addable widgets, built-in and installed from the
+// Store, grouped into categories with an icon each, filtered and searchable, and
+// adds the chosen one to the current page — OR (tab mode) merges it into a
+// target tile as a new tab. Which entries exist and where they are filed is
+// js/palette-model.js; this file draws them.
 (function () {
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
@@ -59,23 +61,43 @@
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
+  const PM = () => window.PaletteModel;
+  const CW = () => window.CustomWidget;
 
-  // `id` is what the pick handler receives (a widget id, or a copy instance id).
-  // `base` drives the icon + label and defaults to `id` (so callers passing a
-  // copy instance id like "system~ab12" still show the right glyph and name).
-  function makeItem(id, onPick, base) {
-    const labelBase = base || id;
+  // ── One item, whatever it is ────────────────────────────────────────────
+  // A built-in widget (its i18n name and glyph), a Store widget (its own name,
+  // author and glyph, the puzzle when it has none) or a tile already on the
+  // page (tab mode's "move here": a Store widget's tile shows its package).
+  // `query` highlights the match while searching; `idx` marks a search result
+  // for the arrow keys.
+  function makeEntryItem(entry, onPick, query, idx) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'widget-palette-item';
+    if (idx != null) btn.dataset.idx = String(idx);
     const ico = document.createElement('span');
     ico.className = 'widget-palette-ico';
-    ico.innerHTML = WIDGET_ICONS[labelBase] || FALLBACK_ICON;   // static, trusted SVG
+    const own = entry.iconEl ? entry.iconEl() : null;   // a package's own glyph (inert SVG element)
+    if (own) ico.appendChild(own);
+    else ico.innerHTML = WIDGET_ICONS[entry.base] || FALLBACK_ICON;   // static, trusted SVG
+    const text = document.createElement('span');
+    text.className = 'widget-palette-text';
     const lbl = document.createElement('span');
     lbl.className = 'widget-palette-label';
-    lbl.setAttribute('data-i18n', 'layout_widget_' + labelBase);
-    lbl.textContent = tr('layout_widget_' + labelBase, labelBase);
-    btn.append(ico, lbl);
+    if (query) window.FuzzyFind.renderHighlighted(lbl, entry.label, query);
+    else {
+      // Built-in names follow a language change; a package's name is its own.
+      if (entry.i18nKey) lbl.setAttribute('data-i18n', entry.i18nKey);
+      lbl.textContent = entry.label;
+    }
+    text.appendChild(lbl);
+    if (entry.sub) {
+      const sub = document.createElement('span');
+      sub.className = 'widget-palette-sub';
+      sub.textContent = entry.sub;
+      text.appendChild(sub);
+    }
+    btn.append(ico, text);
     // An item near the bottom of a scrolling palette would otherwise take focus on
     // press and the browser would scroll it into view — yanking it out from under
     // the cursor before mouseup, so the tap lands on empty space and never fires
@@ -83,30 +105,14 @@
     // scroll-into-view) on press; the click below still fires and keyboard focus
     // via Tab is unaffected.
     btn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
-    btn.addEventListener('click', () => onPick(id));
+    btn.addEventListener('click', () => onPick(entry));
     return btn;
   }
 
-  // A single titled grid section (used by the tab-mode two-section layout).
-  // `entries` is an array of { id, base }.
-  function renderSection(pop, headingKey, entries, onPick) {
+  // A titled block of items: the heading, then the items on the panel's one
+  // shared grid, so every block's columns line up with the others.
+  function renderBlock(pop, headingKey, entries, onPick) {
     if (!entries.length) return;
-    const head = document.createElement('div');
-    head.className = 'widget-palette-cat';
-    head.setAttribute('data-i18n', headingKey);
-    head.textContent = tr(headingKey, '');
-    pop.appendChild(head);
-    const grid = document.createElement('div');
-    grid.className = 'widget-palette-grid';
-    entries.forEach(e => grid.appendChild(makeItem(e.id, onPick, e.base)));
-    pop.appendChild(grid);
-  }
-
-  // One self-contained category block (heading + its items), so the popover can lay
-  // the categories out as side-by-side columns (a mega-menu) instead of one tall
-  // scrolling list — the Xeneon Edge is wide and short, so vertical space is scarce.
-  function renderCatBlock(pop, headingKey, ids, onPick) {
-    if (!ids.length) return;
     const section = document.createElement('div');
     section.className = 'widget-palette-section';
     const head = document.createElement('div');
@@ -116,22 +122,198 @@
     section.appendChild(head);
     const grid = document.createElement('div');
     grid.className = 'widget-palette-grid';
-    ids.forEach(id => grid.appendChild(makeItem(id, onPick)));
+    entries.forEach((e) => grid.appendChild(makeEntryItem(e, onPick)));
     section.appendChild(grid);
     pop.appendChild(section);
   }
 
-  function renderCategorized(pop, ids, onPick) {
-    pop.classList.add('widget-palette--cols'); // multi-column category layout (no scroll)
-    const remaining = new Set(ids);
-    WIDGET_CATEGORIES.forEach(cat => {
-      const inCat = cat.ids.filter(id => remaining.has(id));
-      inCat.forEach(id => remaining.delete(id));
-      renderCatBlock(pop, cat.labelKey, inCat, onPick);
+  // ── Search ──────────────────────────────────────────────────────────────
+  // Typing replaces the category view with one ranked list, matched in all 11
+  // languages plus hidden words per widget (palette_kw_<id> in i18n.js), and the
+  // Store widgets by name, author, description and category. It searches inside
+  // the filter that is on. Matching is js/fuzzy-find.js; this is only the
+  // palette's half.
+  let _search = null;   // { input, pop, render, entries, index, results, selected }
+  // The filter chosen last, kept for the session: reopening the panel to add a
+  // second Store widget should not send you back to "all".
+  let _lastFilter = 'all';
+
+  function catKeyOf(base) {
+    const cat = WIDGET_CATEGORIES.find(c => c.ids.includes(base));
+    return cat ? cat.labelKey : 'palette_cat_other';
+  }
+
+  function builtinFields(base) {
+    const FF = window.FuzzyFind;
+    if (!FF || typeof i18n !== 'object') return [];
+    const cur = (typeof lang === 'string' && lang) ? lang : 'en';
+    return [
+      ...FF.i18nFields(i18n, 'layout_widget_' + base, 1, { lang: cur, fuzzy: true }),
+      ...FF.i18nFields(i18n, 'palette_kw_' + base, 0.8, { lang: cur, fuzzy: true }),
+      ...FF.i18nFields(i18n, catKeyOf(base), 0.3, { lang: cur, mainOnly: true }),
+    ];
+  }
+
+  function packageFields(pkg, category) {
+    const FF = window.FuzzyFind;
+    const cur = (typeof lang === 'string' && lang) ? lang : 'en';
+    const catKey = PM() ? PM().CATEGORY_KEY[category] : '';
+    return [
+      { text: String(pkg.name), weight: 1, fuzzy: true },
+      { text: String(pkg.author || ''), weight: 0.5 },
+      { text: String(pkg.description || ''), weight: 0.4 },
+      ...(FF && catKey && typeof i18n === 'object' ? FF.i18nFields(i18n, catKey, 0.3, { lang: cur, mainOnly: true }) : []),
+    ];
+  }
+
+  // Store widgets this panel may offer: installed, not an Ambient scene, not
+  // paused. Safe mode hides them (a tile would only say safe mode is on). A
+  // switched-off SDK does NOT: adding one is the user switching it on, which
+  // CustomWidget.addToPage does in the same tap.
+  function storePackages() {
+    const C = CW();
+    if (!C || typeof C.cachedPackages !== 'function') return [];
+    if (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.safeMode) return [];
+    return C.cachedPackages().filter(p => p && p.id && p.name && p.surface !== 'ambient'
+      && !(typeof C.isSuspended === 'function' && C.isSuspended(p.id)));
+  }
+
+  // The catalog is read only to file a Store widget whose manifest names no
+  // category, once per session (the server keeps its own cache). Offline, such
+  // a widget is simply filed under "other".
+  let _catalog = null;
+  let _catalogAsk = null;
+  function loadCatalog() {
+    if (_catalog) return Promise.resolve(_catalog);
+    if (!_catalogAsk) {
+      _catalogAsk = fetch('/api/community/catalog').then((r) => r.json())
+        .then((c) => { _catalog = Array.isArray(c && c.entries) ? c.entries : []; return _catalog; })
+        .catch(() => { _catalogAsk = null; return []; });
+    }
+    return _catalogAsk;
+  }
+
+  function selectResult(i) {
+    if (!_search) return;
+    const items = _search.pop.querySelectorAll('.widget-palette-item[data-idx]');
+    if (!items.length) return;
+    _search.selected = (i + items.length) % items.length;
+    items.forEach((b) => {
+      const on = Number(b.dataset.idx) === _search.selected;
+      b.classList.toggle('is-selected', on);
+      if (on) b.scrollIntoView({ block: 'nearest' });
     });
-    // Any uncategorised ids (e.g. a future widget) — keep them in a trailing block.
-    if (remaining.size) {
-      renderCatBlock(pop, 'palette_cat_other', ids.filter(id => remaining.has(id)), onPick);
+  }
+
+  function renderResults() {
+    const S = _search;
+    const q = S.input.value;
+    if (!q.trim()) { S.results = []; S.render(); return; }
+    if (!S.index) S.index = window.FuzzyFind.createIndex(S.entries());
+    const res = window.FuzzyFind.search(S.index, q, { limit: 40 });
+    const pop = S.pop;
+    pop.textContent = '';
+    pop.classList.remove('widget-palette--cols');
+    pop.classList.add('widget-palette--results');
+    S.results = [];
+    if (!res.length) {
+      const empty = document.createElement('div');
+      empty.className = 'widget-palette-empty';
+      empty.textContent = tr('palette_search_empty', '');
+      pop.appendChild(empty);
+      return;
+    }
+    // One heading per group, groups in the order of their best match.
+    const groups = new Map();
+    for (const r of res) {
+      const g = r.entry.group;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(r.entry);
+    }
+    for (const [groupKey, list] of groups) {
+      const head = document.createElement('div');
+      head.className = 'widget-palette-cat';
+      head.textContent = tr(groupKey, '');
+      pop.appendChild(head);
+      const grid = document.createElement('div');
+      grid.className = 'widget-palette-grid widget-palette-results';
+      for (const entry of list) {
+        grid.appendChild(makeEntryItem(entry, (e) => e.pick(), q, S.results.length));
+        S.results.push(entry);
+      }
+      pop.appendChild(grid);
+    }
+    selectResult(0);
+  }
+
+  function attachSearch(modal, before, pop, render, entries) {
+    const row = document.createElement('div');
+    row.className = 'widget-palette-searchrow';
+    row.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>';
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.className = 'widget-palette-search';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.setAttribute('autocapitalize', 'off');
+    input.setAttribute('enterkeyhint', 'search');
+    input.setAttribute('data-i18n-placeholder', 'palette_search_placeholder');
+    input.setAttribute('data-i18n-aria-label', 'palette_search_placeholder');
+    input.placeholder = tr('palette_search_placeholder', '');
+    input.setAttribute('aria-label', input.placeholder);
+    row.appendChild(input);
+    modal.insertBefore(row, before);
+    _search = { input, pop, render, entries, index: null, results: [], selected: 0 };
+    let raf = 0;
+    input.addEventListener('input', () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; if (_search && _search.input === input) renderResults(); });
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (!_search || !_search.results.length) return;
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        selectResult(_search.selected + (ev.key === 'ArrowDown' ? 1 : -1));
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const e = _search.results[_search.selected] || _search.results[0];
+        if (e) e.pick();
+      }
+    });
+    // Straight into the field with a keyboard. Never where there is a touch
+    // surface: focusing would raise the on-screen keyboard over the Edge's
+    // 720 pixels before anyone asked for it.
+    const touch = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+    if (!touch) setTimeout(() => { try { input.focus({ preventScroll: true }); } catch { /* best effort */ } }, 0);
+    return input;
+  }
+
+  // Esc from main.js (capture phase): a query is cleared first, the palette
+  // closes on the next one.
+  function handleEscape() {
+    if (!_search || !document.getElementById('widget-palette') || !_search.input.value) return false;
+    _search.input.value = '';
+    _search.results = [];
+    _search.render();
+    return true;
+  }
+
+  // The filter row: "All", "Installed" (the Store widgets on this PC) and each
+  // category that has something in it. Plain buttons in one row; on a narrow
+  // screen the row scrolls sideways under the finger (native scrolling only).
+  function renderFilters(row, filters, active, onPick) {
+    row.textContent = '';
+    for (const f of filters) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'widget-palette-filter' + (f === active ? ' is-on' : '');
+      b.setAttribute('aria-pressed', String(f === active));
+      const key = f === 'all' ? 'palette_filter_all' : f === 'installed' ? 'palette_filter_installed' : PM().CATEGORY_KEY[f];
+      b.setAttribute('data-i18n', key);
+      b.textContent = tr(key, f);
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); });
+      b.addEventListener('click', () => onPick(f));
+      row.appendChild(b);
     }
   }
 
@@ -173,28 +355,30 @@
     closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
     closeBtn.addEventListener('click', closePalette);
     head.append(title, closeBtn);
-    // `pop` is the scrolling content container (the modal body); the section/grid
-    // builders below append into it exactly as before.
+    const filterRow = document.createElement('div');
+    filterRow.className = 'widget-palette-filters';
+    // `pop` is the scrolling content container (the modal body).
     const pop = document.createElement('div');
     pop.className = 'widget-palette-body';
-    modal.append(head, pop);
+    modal.append(head, filterRow, pop);
     overlay.appendChild(modal);
 
+    // ── What can be offered ──────────────────────────────────────────────
+    const tg = window.DashboardTabGroups;
+    let builtins = [];
+    let moveEntries = [];
+    let members = [];
     if (tabTarget) {
-      // Two sections: MOVE an instance already on the group's page into the tab,
-      // or ADD/DUPLICATE another component.
-      const tg = window.DashboardTabGroups;
       const groupOf = (id) => (tg ? tg.widgetGroupOf(layout.groups, id) : null);
       const targetGid = groupOf(tabTarget);
       const group = targetGid && layout.groups[targetGid];
-      const members = group ? group.members : [tabTarget];
+      members = group ? group.members : [tabTarget];
       const groupPage = group ? group.page
         : (layout.widgets[tabTarget] && layout.widgets[tabTarget].page)
         || ((layout.copies || []).find(c => c.id === tabTarget) || {}).page
         || ((layout.pages && layout.pages[0] && layout.pages[0].id) || 'dashboard');
       // MOVE: standalone-visible widgets + copies that live on this page and are
       // not already in a group. Picking one relocates the real tile into the tab.
-      const moveEntries = [];
       DASHBOARD_WIDGET_IDS.forEach(id => {
         if (id === tabTarget || members.includes(id)) return;
         const w = layout.widgets[id];
@@ -205,31 +389,9 @@
         if (c.page === groupPage && !groupOf(c.id)) moveEntries.push({ id: c.id, base: c.widget });
       });
       // ADD / DUPLICATE: every known widget not already a member (a duplicable one
-      // is duplicated; a hidden one is brought in).
-      // `custom` is exempt from the "already a member" filter: every SDK package
-      // shares that one widget id and each add mints its own copy instance, so one
-      // group can hold several custom widgets (Thermal Card + Keyring + …).
-      let addIds = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && (id === 'custom' || !members.includes(id)));
-      if (!remoteConfigured()) addIds = addIds.filter(id => id !== 'remote');
-      if (!secondScreenSupported()) addIds = addIds.filter(id => id !== 'secondscreen');
-      const addEntries = addIds.map(id => ({ id, base: id }));
-
-      if (!moveEntries.length && !addEntries.length) {
-        const empty = document.createElement('div');
-        empty.className = 'widget-palette-empty';
-        empty.setAttribute('data-i18n', 'palette_empty');
-        empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
-        pop.appendChild(empty);
-      } else {
-        renderSection(pop, 'palette_move_existing', moveEntries, (id) => {
-          closePalette();
-          if (tg) tg.addAsTab(id, tabTarget, { move: true });
-        });
-        renderSection(pop, 'palette_add_new', addEntries, (id) => {
-          closePalette();
-          if (tg) tg.addAsTab(id, tabTarget);
-        });
-      }
+      // is duplicated; a hidden one is brought in). Store widgets are entries of
+      // their own below, never the generic host tile.
+      builtins = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && !members.includes(id)).map(id => ({ id, base: id }));
     } else {
       const addable = window.DashboardGrid && window.DashboardGrid.addableWidgetIds
         ? window.DashboardGrid.addableWidgetIds(layout.widgets, layout.groups, DASHBOARD_WIDGET_IDS)
@@ -237,26 +399,159 @@
       const DI = window.DashboardInstances;
       const set = new Set(addable);
       if (DI) DASHBOARD_WIDGET_IDS.forEach(id => { if (layout.widgets[id] && DI.isDuplicable(id)) set.add(id); });
-      let ids = DASHBOARD_WIDGET_IDS.filter(id => set.has(id));
-      if (!remoteConfigured()) {
-        ids = ids.filter(id => id !== 'remote');
-        const RC = window.RemoteControl;
-        if (RC && typeof RC.refreshStatus === 'function' && !RC.getStatus()) RC.refreshStatus();
+      builtins = DASHBOARD_WIDGET_IDS.filter(id => set.has(id)).map(id => ({ id, base: id }));
+    }
+    if (!remoteConfigured()) {
+      builtins = builtins.filter(b => b.id !== 'remote');
+      const RC = window.RemoteControl;
+      if (!tabTarget && RC && typeof RC.refreshStatus === 'function' && !RC.getStatus()) RC.refreshStatus();
+    }
+    if (!secondScreenSupported()) builtins = builtins.filter(b => b.id !== 'secondscreen');
+
+    // ── Picking ──────────────────────────────────────────────────────────
+    const pickBuiltin = (id) => {
+      closePalette();
+      if (tabTarget) { if (tg) tg.addAsTab(id, tabTarget); }
+      else if (window.DashboardGrid) window.DashboardGrid.addWidgetToPage(id, pageId);
+    };
+    const pickPackage = (pkgId) => {
+      closePalette();
+      const C = CW();
+      if (!C) return;
+      if (tabTarget) C.addAsTab(pkgId, tabTarget);
+      else C.addToPage(pkgId, pageId);
+    };
+    const pickMove = (id) => { closePalette(); if (tg) tg.addAsTab(id, tabTarget, { move: true }); };
+    // A bundled example is installed first, then placed like any Store widget.
+    const pickExample = async (id) => {
+      closePalette();
+      const C = CW();
+      if (!C || typeof C.installExample !== 'function') return;
+      try { await C.installExample(id); await C.getPackages(true); } catch { return; }
+      if (tabTarget) C.addAsTab(id, tabTarget);
+      else C.addToPage(id, pageId);
+    };
+    const examples = () => {
+      const C = CW();
+      const safe = typeof hubSettings !== 'undefined' && hubSettings && hubSettings.safeMode;
+      if (safe || !C || typeof C.missingExamples !== 'function') return [];
+      return C.missingExamples().map((ex) => ({
+        base: 'custom', label: String(ex.name), sub: String(ex.desc || ''),
+        group: 'palette_examples', pick: () => pickExample(ex.id),
+        fields: [{ text: String(ex.name), weight: 1, fuzzy: true }, { text: String(ex.desc || ''), weight: 0.4 }],
+      }));
+    };
+
+    // ── Entries, as the panel draws them ─────────────────────────────────
+    const receipts = () => (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls)) ? hubSettings.contentInstalls : [];
+    const moveItem = (e) => {
+      const C = CW();
+      const isPkg = e.base === 'custom';
+      const name = isPkg && C && C.assignedName ? C.assignedName(e.id) : '';
+      return {
+        base: e.base, label: name || tr('layout_widget_' + e.base, e.base), i18nKey: name ? '' : 'layout_widget_' + e.base,
+        iconEl: isPkg && C && C.assignedIcon ? () => C.assignedIcon(e.id) : null,
+        group: 'palette_move_existing', pick: () => pickMove(e.id),
+        fields: name ? [{ text: name, weight: 1, fuzzy: true }] : builtinFields(e.base),
+      };
+    };
+    const toItem = (m) => {
+      if (m.kind === 'pkg') {
+        const pkg = m.pkg;
+        return {
+          base: 'custom', label: String(pkg.name), sub: pkg.author ? String(pkg.author) : '',
+          iconEl: () => (CW() && CW().packageIcon ? CW().packageIcon(pkg) : null),
+          group: 'palette_group_store', pick: () => pickPackage(pkg.id), fields: packageFields(pkg, m.category),
+        };
       }
-      if (!secondScreenSupported()) ids = ids.filter(id => id !== 'secondscreen');
-      if (!ids.length) {
+      return {
+        base: m.base, label: tr('layout_widget_' + m.base, m.base), i18nKey: 'layout_widget_' + m.base,
+        group: tabTarget ? 'palette_add_new' : 'palette_group_builtin', pick: () => pickBuiltin(m.id), fields: builtinFields(m.base),
+      };
+    };
+    let model = [];
+    const rebuild = () => {
+      model = PM().buildEntries({ builtins, packages: storePackages(), table: WIDGET_CATEGORIES, catalog: _catalog || [], receipts: receipts() });
+    };
+    rebuild();
+
+    let filter = _lastFilter;
+    const filtersNow = () => PM().availableFilters(model, true);
+    const paintFilters = () => {
+      if (!filtersNow().includes(filter)) filter = 'all';
+      renderFilters(filterRow, filtersNow(), filter, (f) => {
+        filter = f; _lastFilter = f;
+        paintFilters();
+        if (_search) _search.index = null;
+        if (_search && _search.input.value.trim()) renderResults(); else render();
+      });
+    };
+    const render = () => {
+      paintFilters();
+      pop.textContent = '';
+      pop.classList.remove('widget-palette--results');
+      pop.classList.add('widget-palette--cols');
+      const shown = PM().filterEntries(model, filter);
+      if (tabTarget && filter === 'all') renderBlock(pop, 'palette_move_existing', moveEntries.map(moveItem), (e) => e.pick());
+      for (const [cat, list] of PM().groupByCategory(shown)) {
+        renderBlock(pop, PM().CATEGORY_KEY[cat], list.map(toItem), (e) => e.pick());
+      }
+      if (!pop.childElementCount) {
+        // The text sits in its own span: applyTranslations rewrites the text of
+        // a data-i18n element, and would take the Store button with it.
         const empty = document.createElement('div');
         empty.className = 'widget-palette-empty';
-        empty.setAttribute('data-i18n', 'palette_empty');
-        empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
+        const msg = document.createElement('span');
+        empty.appendChild(msg);
+        const safe = typeof hubSettings !== 'undefined' && hubSettings && hubSettings.safeMode;
+        const key = filter === 'installed' ? (safe ? 'palette_store_safe' : 'palette_store_empty') : 'palette_empty';
+        msg.setAttribute('data-i18n', key);
+        msg.textContent = tr(key, key === 'palette_empty' ? 'Tutti i widget sono già in uso' : '');
+        if (filter === 'installed' && !safe && window.CommunityGallery && typeof window.CommunityGallery.open === 'function') {
+          const open = document.createElement('button');
+          open.type = 'button';
+          open.className = 'widget-palette-empty-btn';
+          open.setAttribute('data-i18n', 'palette_open_store');
+          open.textContent = tr('palette_open_store', 'Open the Store');
+          open.addEventListener('click', () => { closePalette(); window.CommunityGallery.open('widget'); });
+          empty.appendChild(open);
+        }
         pop.appendChild(empty);
-      } else {
-        renderCategorized(pop, ids, (id) => {
-          closePalette();
-          if (window.DashboardGrid) window.DashboardGrid.addWidgetToPage(id, pageId);
-        });
       }
-    }
+      // Under Installed, the bundled examples not installed yet: one tap installs
+      // and places one. The reference widget the SDK guide starts from lives here.
+      if (filter === 'installed') renderBlock(pop, 'palette_examples', examples(), (e) => e.pick());
+    };
+    render();
+    // The search looks inside the filter that is on; tab mode's "move here"
+    // entries stay a section of their own, because moving a tile that is already
+    // on the page and adding a new one are different acts.
+    const input = attachSearch(modal, filterRow, pop, render, () => [
+      ...(tabTarget && filter === 'all' ? moveEntries.map(moveItem) : []),
+      ...PM().filterEntries(model, filter).map(toItem),
+      ...(filter === 'installed' ? examples() : []),
+    ]);
+
+    // Store widgets may not be loaded yet (no tile on screen this session), and
+    // one without a manifest category is filed from the catalog: fetch both,
+    // then redraw whatever view is up.
+    const refresh = () => {
+      if (!_search || _search.input !== input) return;
+      rebuild();
+      _search.index = null;
+      if (input.value.trim()) renderResults(); else render();
+    };
+    const C = CW();
+    // A fresh list every time the panel opens: a widget folder just created by
+    // hand (the SDK guide's first step) or installed on another surface shows up
+    // without a reload. One small local request.
+    const loaded = (C && typeof C.getPackages === 'function') ? C.getPackages(true).catch(() => null) : Promise.resolve(null);
+    loaded.then(() => {
+      refresh();
+      const needCatalog = storePackages().some((p) => !(PM().MANIFEST_CATEGORIES.includes(p.category)));
+      if (needCatalog && !_catalog) loadCatalog().then(refresh);
+    });
+
     document.body.appendChild(overlay);
     if (typeof applyTranslations === 'function') applyTranslations();
     // Dismiss on a backdrop tap (never on a click inside the card) or Escape.
@@ -267,6 +562,7 @@
   function closePalette() {
     const p = document.getElementById('widget-palette');
     if (p) p.remove();
+    _search = null;
     document.removeEventListener('keydown', _escClose);
   }
 
@@ -275,5 +571,5 @@
   // from, instead of keeping their own drifting copy. null for unknown ids.
   function iconFor(base) { return WIDGET_ICONS[base] || null; }
 
-  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor };
+  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor, handleEscape };
 })();

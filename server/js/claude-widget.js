@@ -1,20 +1,18 @@
 'use strict';
-// Claude Code widget. Three bands, in order of what you need from across the room:
+// Claude Code widget: an instrument for the sessions running on this PC.
 //
-//   1. QUOTA — the real subscription windows (5-hour and 7-day) as horizontal
-//      bars with a countdown to their reset. These come from Claude Code itself
-//      via the statusline bridge; when it isn't linked (or the user is on an API
-//      key, which has no windows) the band falls back to the user-set weekly
-//      token budget it always had.
-//   2. LIVE — one row per running session: project, what it's doing, which model,
-//      and its actual state (running / waiting for you / idle) reported by hooks
-//      rather than guessed from file timestamps.
-//   3. TOTALS — today, this week, cache hit rate. Quiet, tabular, last.
-//
-// On top of all that sits the APPROVAL card: Claude Code blocks on a permission
-// request and the user answers it here. An unanswered request escalates to a
-// fullscreen overlay, because a tool call waiting on a tap nobody noticed is
-// worse than an interruption.
+//   DECISIONS first, on both faces: a permission Claude Code is blocked on, or a
+//     question it asked, with what the request would reach (publishes, network,
+//     outside the project, cannot be undone) said before the keys. An
+//     irreversible one is allowed by holding the key, not tapping it. One left
+//     unanswered escalates to a fullscreen overlay.
+//   LIVE face: one lane per session (state, the step it is on, ten minutes of
+//     activity, its own plan, context used) beside the real 5-hour and 7-day
+//     windows, each with an even-pace marker and a sentence saying where this
+//     pace ends. Without the link it falls back to the user-set weekly budget.
+//   USAGE face: one 30-day window, said as such, read from the transcripts:
+//     today, since Monday, the total, the cache share, the value at list
+//     prices, thirty days of columns, projects and models.
 //
 // Every string here is filesystem- or Claude-derived and renders through
 // textContent / the el() factory — never innerHTML.
@@ -33,6 +31,9 @@
   const deciding = new Set(); // approval ids with a decision in flight
   let ticker = null;        // 1s interval, only while something counts down
   let overlay = null;       // fullscreen approval overlay element
+  let pressing = false;     // a pointer is down on the widget (see onSSE)
+  let pressTimer = 0;
+  let renderDeferred = false;
 
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="claude"]')).filter(n => n.closest('.pager-page'));
@@ -74,26 +75,28 @@
     if (n >= 10) return '$' + n.toFixed(0);
     return '$' + n.toFixed(n >= 1 ? 1 : 2);
   }
-  function ago(ms) {
+  // A compact duration in the reader's language: "4h07", "3 min", "2g5h" in
+  // Italian, "4時間7分" in Japanese. The units used to be hard-coded, so every
+  // language read Italian days ("4g23h").
+  const CJK = /^(ja|ko|zh)$/;
+  function dur(ms) {
     const s = Math.max(0, Math.round((ms || 0) / 1000));
-    if (s < 60) return s + 's';
-    const m = Math.round(s / 60); if (m < 60) return m + 'm';
-    const h = Math.round(m / 60); if (h < 24) return h + 'h';
-    return Math.round(h / 24) + 'g';
+    const U = (k, fb) => t('claude_unit_' + k, fb);
+    const cjk = CJK.test(String(document.documentElement.lang || '').slice(0, 2));
+    if (s < 60) return s + U('s', 's');
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + U('m', 'm');
+    const h = Math.floor(m / 60), mm = m % 60;
+    if (h < 24) return h + U('h', 'h') + (mm ? (cjk ? mm + U('m', 'm') : String(mm).padStart(2, '0')) : '');
+    const d = Math.floor(h / 24), hh = h % 24;
+    return d + U('d', 'd') + (hh ? hh + U('h', 'h') : '');
   }
-  // Countdown to an absolute epoch-seconds instant, coarse on purpose: the exact
-  // second only matters in the last minute.
+  function ago(ms) { return dur(ms); }
+  // Countdown to an absolute epoch-seconds instant.
   function until(epochSec) {
     const ms = (Number(epochSec) || 0) * 1000 - Date.now();
     if (!Number.isFinite(ms) || ms <= 0) return '';
-    const s = Math.round(ms / 1000);
-    if (s < 60) return s + 's';
-    const m = Math.floor(s / 60);
-    if (m < 60) return m + 'm';
-    const h = Math.floor(m / 60);
-    if (h < 24) return h + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '');
-    const d = Math.floor(h / 24);
-    return d + 'g' + (h % 24 ? String(h % 24) + 'h' : '');
+    return dur(ms);
   }
   function mmss(ms) {
     const s = Math.max(0, Math.round((ms || 0) / 1000));
@@ -152,83 +155,191 @@
     return u.sessions.map(s => ({ ...s, state: 'running', inferred: true }));
   }
 
-  // ── quota band ─────────────────────────────────────────────────────────────
-  // Bar and number both read USED, the same way Claude's own usage page does
-  // (claude.ai → Impostazioni → Utilizzo → "3% utilizzato"). They used to
-  // disagree: the bar filled with what was consumed while the number beside it
-  // showed what was left, so a 3%-full bar sat next to "97%" and the widget
-  // looked broken against the figures Claude itself reports. Colour crosses to
-  // warn/critical near the ceiling.
-  function limitBar(key, label, win) {
-    const row = el('div', 'cw-lim');
-    row.appendChild(el('span', 'cw-lim-key', label));
+  // ── formatting in the reader's language ────────────────────────────────────
+  // Counts, money and clock times go through Intl in the UI language, so an
+  // Italian dashboard reads "4,36 Mrd" and "1.991 US$", and a Japanese one
+  // "43.6億". The old hand-rolled "B"/"$" formatting was English everywhere.
+  function uiLang() { return String(document.documentElement.lang || 'en').slice(0, 2) || 'en'; }
+  function fmtTokens(n) {
+    const v = Math.max(0, Math.round(n || 0));
+    try { return new Intl.NumberFormat(uiLang(), { notation: 'compact', maximumFractionDigits: v >= 1e9 ? 2 : 1 }).format(v); }
+    catch { return hTok(v); }
+  }
+  function fmtMoney(n) {
+    const v = Math.max(0, n || 0);
+    try { return new Intl.NumberFormat(uiLang(), { style: 'currency', currency: 'USD', maximumFractionDigits: v >= 100 ? 0 : 2 }).format(v); }
+    catch { return hCost(v); }
+  }
+  // A share with a decimal, written the reader's way ("96,1 %" in French).
+  function fmtPct(fraction, digits) {
+    const v = Math.max(0, Number(fraction) || 0);
+    try { return new Intl.NumberFormat(uiLang(), { style: 'percent', maximumFractionDigits: digits }).format(v); }
+    catch { return (Math.round(v * 100 * Math.pow(10, digits)) / Math.pow(10, digits)) + '%'; }
+  }
+  function sameLocalDay(a, b) {
+    const x = new Date(a), y = new Date(b);
+    return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+  }
+  // A clock time, with the weekday in front when it is not today.
+  function fmtWhen(ms) {
+    try {
+      // timeParts() carries Settings → Time format (12h/24h), not the locale's.
+      const opts = sameLocalDay(ms, Date.now()) ? timeParts() : timeParts({ weekday: 'short' });
+      return new Intl.DateTimeFormat(uiLang(), opts).format(new Date(ms));
+    } catch { return new Date(ms).toLocaleTimeString(); }
+  }
+  function fmtDay(ms) {
+    try { return new Intl.DateTimeFormat(uiLang(), { day: 'numeric', month: 'short' }).format(new Date(ms)); }
+    catch { return new Date(ms).toLocaleDateString(); }
+  }
+  // "claude-opus-5-5" → "Opus 5.5": the name Anthropic uses, not the API id.
+  function prettyModel(model) {
+    const id = String(model || '').replace(/^claude-/, '').replace(/-\d{8}$/, '');
+    if (!id) return '';
+    const parts = id.split('-');
+    const name = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+    const ver = parts.slice(1).filter((p) => /^\d+$/.test(p)).join('.');
+    return ver ? name + ' ' + ver : name;
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-    const track = el('div', 'cw-lim-track');
-    const used = Math.max(0, Math.min(100, Number(win.pct) || 0));
-    const fill = el('div', 'cw-lim-fill');
-    fill.style.width = used + '%';
-    if (used >= 90) fill.classList.add('is-critical');
-    else if (used >= 70) fill.classList.add('is-warn');
-    track.appendChild(fill);
-    row.appendChild(track);
-
-    const val = el('span', 'cw-lim-val', Math.round(used) + '%');
-    if (used >= 90) val.classList.add('is-critical');
-    else if (used >= 70) val.classList.add('is-warn');
-    row.appendChild(val);
-
-    const reset = el('span', 'cw-lim-reset');
-    reset.dataset.resetAt = String(win.resetsAt || 0);
-    reset.textContent = win.resetsAt ? until(win.resetsAt) : '';
-    row.appendChild(reset);
-    return row;
+  // ── ages that tick ─────────────────────────────────────────────────────────
+  // Every age on this tile ("waiting 0:42", "running 3m") used to be frozen at
+  // the moment the server built the payload: a session showed "0s" until the
+  // next change. The server sends how old things were WHEN IT SENT them; this
+  // side adds the time since it arrived. That is right on a paired phone whose
+  // clock disagrees with the PC's, where comparing two clocks would not be.
+  let payloadAt = Date.now();
+  function aged(msAtSend) { return Math.max(0, (Number(msAtSend) || 0) + (Date.now() - payloadAt)); }
+  function ageNode(cls, msAtSend, prefix) {
+    const n = el('span', cls);
+    n.dataset.ageBase = String(Number(msAtSend) || 0);
+    n.dataset.agePrefix = prefix || '';
+    n.textContent = (prefix || '') + dur(aged(msAtSend));
+    return n;
   }
 
-  function quotaBand() {
+  // ── quota: two instruments ─────────────────────────────────────────────────
+  // Each window is a segmented gauge of what is USED (the number Claude's own
+  // usage page shows), with a marker where an even pace would put you right
+  // now: fill past the marker means burning faster than the window allows. The
+  // sentence under it turns that into a time. Both come straight from the two
+  // numbers Claude Code reports (used % and the reset instant) and the window's
+  // known length, so nothing here is sampled, smoothed or guessed.
+  const WINDOW_MS = Object.freeze({ fiveHour: 5 * 3600 * 1000, sevenDay: 7 * 86400 * 1000 });
+  const SEGMENTS = 20;
+  // Below this share of the window elapsed, the pace is mostly noise.
+  const PACE_MIN_ELAPSED = 0.15;
+
+  function level(used) { return used >= 90 ? 'crit' : used >= 70 ? 'warn' : 'ok'; }
+
+  function paceLine(used, elapsed, start, reset) {
+    if (!reset || elapsed === null || elapsed < PACE_MIN_ELAPSED || used <= 0) return null;
+    const projected = used / elapsed;
+    if (projected >= 100) {
+      const hitAt = start + (Date.now() - start) * (100 / used);
+      return el('div', 'cw-pace is-warn',
+        t('claude_pace_hit', 'At this pace you reach the limit at {time}').replace('{time}', fmtWhen(hitAt)));
+    }
+    return el('div', 'cw-pace',
+      t('claude_pace_end', 'At this pace you end this window at {pct}%').replace('{pct}', String(Math.round(projected))));
+  }
+
+  function gauge(key, label, win) {
+    const L = WINDOW_MS[key];
+    const reset = (Number(win.resetsAt) || 0) * 1000;
+    const nowMs = Date.now();
+    // Past its reset instant a window has started over: showing the old figure
+    // until the next statusline post (it used to stay for minutes) is showing a
+    // number that is no longer true.
+    const renewed = !!reset && reset <= nowMs;
+    const used = renewed ? 0 : clamp(Number(win.pct) || 0, 0, 100);
+    const start = reset - L;
+    const elapsed = reset && !renewed ? clamp((nowMs - start) / L, 0, 1) : null;
+
+    const box = el('div', 'cw-gauge is-' + level(used));
+    const head = el('div', 'cw-gauge-head');
+    head.appendChild(el('span', 'cw-gauge-key', label));
+    head.appendChild(el('span', 'cw-gauge-val', Math.round(used) + '%'));
+    const reset$ = el('span', 'cw-gauge-reset');
+    if (renewed) reset$.textContent = t('claude_new_window', 'new window');
+    else if (reset) {
+      reset$.appendChild(el('span', 'cw-gauge-reset-l', t('claude_resets_in', 'resets in') + ' '));
+      const cd = el('span', 'cw-gauge-reset-t', until(win.resetsAt));
+      cd.dataset.resetAt = String(win.resetsAt);
+      reset$.appendChild(cd);
+    }
+    head.appendChild(reset$);
+    box.appendChild(head);
+
+    const track = el('div', 'cw-gauge-track');
+    track.setAttribute('role', 'meter');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', '100');
+    track.setAttribute('aria-valuenow', String(Math.round(used)));
+    track.setAttribute('aria-label', label);
+    const lit = Math.round((used / 100) * SEGMENTS);
+    for (let i = 0; i < SEGMENTS; i++) track.appendChild(el('span', 'cw-seg' + (i < lit ? ' is-on' : '')));
+    if (elapsed !== null) {
+      const mark = el('span', 'cw-gauge-pace');
+      mark.style.left = (elapsed * 100).toFixed(2) + '%';
+      mark.title = t('claude_pace_mark', 'An even pace would be here now');
+      track.appendChild(mark);
+    }
+    box.appendChild(track);
+    const pace = paceLine(used, elapsed, start, reset);
+    if (pace) box.appendChild(pace);
+    return box;
+  }
+
+  // Has any session posted a statusline yet? With Claude Code linked, the quota
+  // arrives on those posts; before the first one there is nothing to show YET,
+  // which is different from an API-key account that has no windows at all.
+  function statusSeen() {
+    return sessions().some((s) => typeof s.contextPct === 'number' || typeof s.cost === 'number');
+  }
+
+  function quotaPanel() {
     const lim = limits();
-    const band = el('div', 'cw-quota');
+    const panel = el('div', 'cw-quota');
+    panel.appendChild(el('div', 'cw-sec-title', t('claude_quota', 'Quota')));
 
     if (lim && (lim.fiveHour || lim.sevenDay)) {
-      const head = el('div', 'cw-quota-head');
-      head.appendChild(el('span', 'cw-quota-title', t('claude_quota', 'Quota')));
-      head.appendChild(el('span', 'cw-quota-hint', t('claude_quota_used', 'used · resets in')));
-      band.appendChild(head);
-      if (lim.fiveHour) band.appendChild(limitBar('5h', t('claude_5h', '5h'), lim.fiveHour));
-      if (lim.sevenDay) band.appendChild(limitBar('7d', t('claude_7d', '7d'), lim.sevenDay));
-      return band;
+      if (lim.fiveHour) panel.appendChild(gauge('fiveHour', t('claude_5h', '5h'), lim.fiveHour));
+      if (lim.sevenDay) panel.appendChild(gauge('sevenDay', t('claude_7d', '7d'), lim.sevenDay));
+      return panel;
+    }
+    if (linkState && linkState.linked && !statusSeen()) {
+      panel.appendChild(el('div', 'cw-quiet-note', t('claude_quota_waiting', "The quota appears with Claude's next reply.")));
+      return panel;
     }
 
-    // No real windows: either not linked, or an API-key user who has none. Fall
-    // back to the weekly token budget, and say plainly which one is on screen.
+    // No real windows: an API-key account, or Claude Code not connected. The
+    // user's own weekly budget stands in, and says what it counts.
     const u = payload && payload.usage;
     const b = payload && payload.budget;
     const week = u ? u.week.tokens : 0;
     const weekly = b ? b.weekly : 0;
-
-    const head = el('div', 'cw-quota-head');
-    head.appendChild(el('span', 'cw-quota-title', t('claude_budget_band', 'Weekly budget')));
-    const btn = el('button', 'cw-quota-edit'); btn.type = 'button';
-    btn.textContent = weekly > 0 ? t('claude_edit', 'edit') : t('claude_set_budget_short', 'set');
-    btn.addEventListener('click', openBudget);
-    head.appendChild(btn);
-    band.appendChild(head);
-
-    const row = el('div', 'cw-lim');
-    row.appendChild(el('span', 'cw-lim-key', t('claude_week_short', 'wk')));
-    const track = el('div', 'cw-lim-track');
-    const used = weekly > 0 ? Math.max(0, Math.min(100, (week / weekly) * 100)) : 0;
-    const fill = el('div', 'cw-lim-fill');
-    fill.style.width = (weekly > 0 ? used : 0) + '%';
-    if (used >= 90) fill.classList.add('is-critical');
-    else if (used >= 70) fill.classList.add('is-warn');
-    track.appendChild(fill);
-    row.appendChild(track);
-    row.appendChild(el('span', 'cw-lim-val', weekly > 0 ? Math.round(used) + '%' : hTok(week)));
-    // With a budget set, the trailing slot says how many tokens are still under
-    // it — the useful half of "38% used" when the ceiling is one you typed in.
-    row.appendChild(el('span', 'cw-lim-reset', weekly > 0 ? hTok(Math.max(0, weekly - week)) + ' ' + t('claude_left_short', 'left') : ''));
-    band.appendChild(row);
-    return band;
+    const box = el('div', 'cw-gauge is-' + (weekly > 0 ? level((week / weekly) * 100) : 'ok'));
+    const head = el('div', 'cw-gauge-head');
+    head.appendChild(el('span', 'cw-gauge-key', t('claude_budget_band', 'Weekly budget')));
+    const used = weekly > 0 ? clamp((week / weekly) * 100, 0, 100) : 0;
+    head.appendChild(el('span', 'cw-gauge-val', weekly > 0 ? Math.round(used) + '%' : fmtTokens(week)));
+    const edit = el('button', 'cw-link-btn'); edit.type = 'button';
+    edit.textContent = weekly > 0 ? t('claude_edit', 'edit') : t('claude_set_budget_short', 'set');
+    edit.addEventListener('click', openBudget);
+    head.appendChild(edit);
+    box.appendChild(head);
+    if (weekly > 0) {
+      const track = el('div', 'cw-gauge-track');
+      const lit = Math.round((used / 100) * SEGMENTS);
+      for (let i = 0; i < SEGMENTS; i++) track.appendChild(el('span', 'cw-seg' + (i < lit ? ' is-on' : '')));
+      box.appendChild(track);
+      box.appendChild(el('div', 'cw-pace', fmtTokens(Math.max(0, weekly - week)) + ' ' + t('claude_left_short', 'left')
+        + ' · ' + t('claude_budget_counts', 'counts every token, cache reads included')));
+    }
+    panel.appendChild(box);
+    return panel;
   }
 
   // ── approvals ──────────────────────────────────────────────────────────────
@@ -248,15 +359,18 @@
     return t('claude_ended', 'finished');
   }
 
-  async function decide(id, behavior) {
+  // `extra` is only for a plan card: the mode its row approves into, or the
+  // feedback it is sent back with.
+  async function decide(id, behavior, extra) {
     if (deciding.has(id)) return;
     deciding.add(id);
     paint();
     const d = await api('/api/claude/decide', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, behavior }),
+      body: JSON.stringify({ id, behavior, ...(extra || {}) }),
     });
     deciding.delete(id);
+    typedAns.delete(id);
     if (!d || !d.ok) {
       // Expired, or answered on another surface. Say so — a silent no-op here
       // reads as a broken button.
@@ -275,6 +389,19 @@
   // because every SSE push rebuilds the tile, and a half-made choice must
   // survive Claude finishing a tool call in the middle of it.
   const qsel = new Map();
+  // What has been typed, per card: approvalId → array (one string per question:
+  // the "Other" box or a text/number answer; for a plan card, index 0 is the
+  // feedback). Mirrored on input and never repainted from, so the caret stays
+  // where the user left it.
+  const typedAns = new Map();
+  // The terminal's "Other" row, as a pick. Never sent as a label: its text is.
+  const OTHER = '\u0000other';
+
+  function typedFor(a) {
+    let cur = typedAns.get(a.id);
+    if (!cur) { cur = []; typedAns.set(a.id, cur); }
+    return cur;
+  }
 
   function pickOption(a, qi, label, multi) {
     const cur = qsel.get(a.id) || a.questions.map(() => []);
@@ -290,21 +417,38 @@
   }
 
   function answerReady(a) {
-    const cur = qsel.get(a.id);
-    return !!(cur && cur.some((row) => row && row.length));
+    const cur = qsel.get(a.id) || [];
+    const typed = typedAns.get(a.id) || [];
+    return (a.questions || []).some((q, qi) => {
+      const text = String(typed[qi] || '').trim();
+      if (q.kind === 'text' || q.kind === 'number') return !!text;
+      const row = cur[qi] || [];
+      return row.some((l) => l !== OTHER) || (row.indexOf(OTHER) !== -1 && !!text);
+    });
   }
 
   async function sendAnswer(a, skip) {
     if (deciding.has(a.id)) return;
     deciding.add(a.id);
     paint();
-    const body = skip ? { id: a.id, skip: true } : { id: a.id, selections: qsel.get(a.id) || [] };
+    const cur = qsel.get(a.id) || [];
+    const typed = typedAns.get(a.id) || [];
+    // A typed answer counts only where it is the answer: its question is a
+    // text/number one, or "Other" is picked. Text left in a box the user then
+    // closed is not something they chose to send.
+    const body = skip ? { id: a.id, skip: true } : {
+      id: a.id,
+      selections: (a.questions || []).map((q, qi) => (cur[qi] || []).filter((l) => l !== OTHER)),
+      typed: (a.questions || []).map((q, qi) => (
+        q.kind === 'text' || q.kind === 'number' || (cur[qi] || []).indexOf(OTHER) !== -1 ? String(typed[qi] || '') : '')),
+    };
     const d = await api('/api/claude/answer', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     deciding.delete(a.id);
     qsel.delete(a.id);
+    typedAns.delete(a.id);
     if (!d || !d.ok) {
       // Claude stopped waiting, or it was answered in the terminal. Saying so
       // beats a button that appears to do nothing.
@@ -359,108 +503,248 @@
     return f ? f() : (tool || 'tool');
   }
 
-  // A question from Claude, answered here. The options used to be a list you
-  // could read and not touch, over a card whose only button meant "seen" — which
-  // is why it read as broken: everything about it looked like a choice, and
-  // nothing about it was one. They are buttons now, and the answer really does
-  // reach the session (see the header of server/claude-bridge.js for how).
-  function questionBody(a) {
-    const wrap = el('div', 'cw-appr-qs');
+  // ── the decision card ──────────────────────────────────────────────────────
+  // With auto mode on (Claude Code's default since August 2026) routine calls
+  // never reach a person, so a request that does is the unusual one. The card is
+  // built for that: what it wants to do in words, the exact command as evidence,
+  // what makes it unusual (the risk line), and two keys.
+  //
+  // Two guards against the wrong tap, both learned from how these cards fail:
+  //   ARMING  a card ignores taps for its first moments on screen, so a finger
+  //           already on its way to something else (or the tap that woke the
+  //           screen) cannot land on Allow as the card appears under it.
+  //   HOLD    an irreversible request (deletes, force-pushes, resets) is allowed
+  //           by holding the key, not tapping it. Deny is always one tap.
+  const ARM_MS = 450;
+  const HOLD_MS = 900;
+  const firstSeen = new Map();   // approval id → when this surface first drew it
+  const armTimers = new Set();
+
+  function isArmed(a) {
+    if (!firstSeen.has(a.id)) firstSeen.set(a.id, Date.now());
+    const left = firstSeen.get(a.id) + ARM_MS - Date.now();
+    if (left <= 0) return true;
+    if (!armTimers.has(a.id)) {
+      armTimers.add(a.id);
+      setTimeout(() => { armTimers.delete(a.id); paint(); }, left + 30);
+    }
+    return false;
+  }
+  function forgetSeen() {
+    const alive = new Set(approvals().map((a) => a.id));
+    for (const id of firstSeen.keys()) if (!alive.has(id)) firstSeen.delete(id);
+  }
+
+  const RISK_LABEL = {
+    irreversible: () => t('claude_risk_irreversible', 'Cannot be undone'),
+    publish: () => t('claude_risk_publish', 'Publishes your work'),
+    network: () => t('claude_risk_network', 'Reaches the network'),
+    outside: () => t('claude_risk_outside', 'Outside the project folder'),
+    readonly: () => t('claude_risk_readonly', 'Only reads'),
+  };
+
+  function key(cls, label, onTap, a) {
+    const b = el('button', 'cw-key ' + cls); b.type = 'button';
+    b.appendChild(el('span', 'cw-key-label', label));
+    b.disabled = deciding.has(a.id);
+    b.addEventListener('click', () => { if (isArmed(a)) onTap(); });
+    return b;
+  }
+
+  // Allow for an irreversible request: hold for HOLD_MS. A keyboard has no
+  // "hold" the page can rely on, so there it is two presses within 3 seconds.
+  function holdKey(a) {
+    const b = el('button', 'cw-key is-allow is-hold'); b.type = 'button';
+    b.appendChild(el('span', 'cw-key-fill'));
+    const label = el('span', 'cw-key-label', t('claude_hold_allow', 'Hold to allow'));
+    b.appendChild(label);
+    b.disabled = deciding.has(a.id);
+    let timer = 0;
+    const stop = () => { clearTimeout(timer); timer = 0; b.classList.remove('is-holding'); };
+    b.addEventListener('pointerdown', (e) => {
+      if (!isArmed(a) || b.disabled) return;
+      try { b.setPointerCapture(e.pointerId); } catch { /* not all pointers capture */ }
+      b.classList.add('is-holding');
+      timer = setTimeout(() => { timer = 0; b.classList.remove('is-holding'); decide(a.id, 'allow'); }, HOLD_MS);
+    });
+    b.addEventListener('pointerup', stop);
+    b.addEventListener('pointercancel', stop);
+    b.addEventListener('lostpointercapture', stop);
+    let keyAt = 0;
+    b.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      if (!isArmed(a)) return;
+      if (Date.now() - keyAt < 3000) { decide(a.id, 'allow'); return; }
+      keyAt = Date.now();
+      label.textContent = t('claude_press_again', 'Press again to allow');
+    });
+    return b;
+  }
+
+  // One numbered row, the shape the terminal's own lists have.
+  function optRow(n, label, desc, picked, disabled, onTap) {
+    const btn = el('button', 'cw-opt' + (picked ? ' is-picked' : ''));
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
+    btn.disabled = disabled;
+    btn.appendChild(el('span', 'cw-opt-n', String(n)));
+    const text = el('span', 'cw-opt-text');
+    text.appendChild(el('span', 'cw-opt-label', label));
+    if (desc) text.appendChild(el('span', 'cw-opt-desc', desc));
+    btn.appendChild(text);
+    btn.addEventListener('click', onTap);
+    return btn;
+  }
+
+  // A text box whose value lives in typedAns rather than in the DOM, so a
+  // repaint rebuilds it with the same text; `data-keep` lets paint() give it
+  // its focus and caret back (keepFocus).
+  function typedBox(a, qi, keep, opts) {
+    const o = opts || {};
+    const input = o.multiline ? document.createElement('textarea') : document.createElement('input');
+    input.className = 'cw-dec-input';
+    if (o.multiline) input.rows = 2;
+    else input.type = o.number ? 'number' : 'text';
+    if (o.number) {
+      input.inputMode = 'decimal';
+      if (Number.isFinite(o.min)) input.min = String(o.min);
+      if (Number.isFinite(o.max)) input.max = String(o.max);
+      if (Number.isFinite(o.step)) input.step = String(o.step);
+    }
+    input.maxLength = 2000;
+    input.placeholder = o.placeholder || '';
+    input.dataset.keep = keep;
+    input.value = typedFor(a)[qi] || '';
+    input.disabled = deciding.has(a.id);
+    input.addEventListener('input', () => {
+      typedFor(a)[qi] = input.value;
+      if (typeof o.onInput === 'function') o.onInput();
+    });
+    return input;
+  }
+
+  function questionKeys(a, onInput) {
+    const wrap = el('div', 'cw-dec-qs');
     const cur = qsel.get(a.id) || a.questions.map(() => []);
+    const busy = deciding.has(a.id);
+    const ph = t('claude_q_other_ph', 'Type your answer');
     a.questions.forEach((q, qi) => {
-      const box = el('div', 'cw-appr-q');
-      if (q.header) box.appendChild(el('div', 'cw-appr-qhead', q.header));
-      box.appendChild(el('div', 'cw-appr-qtext', q.question));
-      if (q.options && q.options.length) {
-        const list = el('div', 'cw-appr-qopts');
-        // Multi-select is Claude's own flag, so the control has to match it or
-        // the card would promise a choice the tool will not accept.
-        if (q.multiSelect) box.appendChild(el('div', 'cw-appr-qmulti', t('claude_q_multi', 'Pick one or more')));
-        q.options.forEach((o) => {
-          const picked = (cur[qi] || []).indexOf(o.label) !== -1;
-          const btn = el('button', 'cw-appr-qopt' + (picked ? ' is-picked' : ''));
-          btn.type = 'button';
-          btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
-          btn.disabled = deciding.has(a.id);
-          btn.appendChild(el('span', 'cw-appr-qopt-label', o.label));
-          if (o.description) btn.appendChild(el('span', 'cw-appr-qopt-desc', o.description));
-          btn.addEventListener('click', () => pickOption(a, qi, o.label, !!q.multiSelect));
-          list.appendChild(btn);
-        });
-        box.appendChild(list);
+      const box = el('div', 'cw-dec-q');
+      if (q.header) box.appendChild(el('div', 'cw-dec-qhead', q.header));
+      box.appendChild(el('div', 'cw-dec-qtext', q.question));
+      if (q.kind === 'text' || q.kind === 'number') {
+        box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, {
+          number: q.kind === 'number', min: q.min, max: q.max, step: q.step,
+          placeholder: q.kind === 'number' && q.unit ? q.unit : (q.placeholder || ph), onInput,
+        }));
+        wrap.appendChild(box);
+        return;
       }
+      if (q.multiSelect) box.appendChild(el('div', 'cw-dec-qnote', t('claude_q_multi', 'Pick one or more')));
+      const list = el('div', 'cw-opts');
+      const row = cur[qi] || [];
+      (q.options || []).forEach((o, oi) => {
+        list.appendChild(optRow(oi + 1, o.label, o.description, row.indexOf(o.label) !== -1, busy,
+          () => { if (isArmed(a)) pickOption(a, qi, o.label, !!q.multiSelect); }));
+      });
+      // The terminal adds this row to every choice question; the card showed
+      // the same question without it, so an answer that was none of the
+      // options could only be given at the keyboard.
+      const other = row.indexOf(OTHER) !== -1;
+      list.appendChild(optRow((q.options || []).length + 1, t('claude_q_other', 'Other'), '', other, busy,
+        () => { if (isArmed(a)) pickOption(a, qi, OTHER, !!q.multiSelect); }));
+      box.appendChild(list);
+      if (other) box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, { placeholder: ph, onInput }));
       wrap.appendChild(box);
     });
     return wrap;
   }
 
-  function approvalCard(a, big) {
-    // The kind comes from the server, never from the tool name: a permission
-    // decides whether something RUNS, a question only decides how Claude
-    // proceeds, and they are answered through different mechanisms.
-    const isAsk = a.kind === 'question';
-    const card = el('div', 'cw-appr'
-      + (big ? ' cw-appr--big' : '')
-      + (a.urgent ? ' is-urgent' : '')
-      + (isAsk ? ' is-ask' : ''));
+  // The rows of Claude Code's plan dialog, with its wording: approve into a
+  // mode, or keep planning with what to change. "Allow" over a plan said
+  // nothing about what happens next, and did nothing in the terminal either.
+  const PLAN_CHOICE_LABEL = {
+    auto: () => t('claude_xp_auto', 'Yes, and use auto mode'),
+    acceptEdits: () => t('claude_xp_accept', 'Yes, auto-accept edits'),
+    default: () => t('claude_xp_manual', 'Yes, manually approve edits'),
+  };
+  function planKeys(a) {
+    const box = el('div', 'cw-dec-acts is-plan');
+    const busy = deciding.has(a.id);
+    const list = el('div', 'cw-opts is-col');
+    const choices = Array.isArray(a.choices) && a.choices.length ? a.choices : ['default'];
+    choices.forEach((mode, i) => {
+      const label = PLAN_CHOICE_LABEL[mode] ? PLAN_CHOICE_LABEL[mode]() : mode;
+      list.appendChild(optRow(i + 1, label, '', false, busy,
+        () => { if (isArmed(a)) decide(a.id, 'allow', { mode }); }));
+    });
+    box.appendChild(list);
+    const back = el('div', 'cw-dec-back');
+    back.appendChild(typedBox(a, 0, 'xp-' + a.id, { multiline: true, placeholder: t('claude_xp_feedback', 'Tell Claude what to change') }));
+    back.appendChild(key('is-deny', t('claude_xp_keep', 'No, keep planning'),
+      () => decide(a.id, 'deny', { feedback: String(typedFor(a)[0] || '') }), a));
+    box.appendChild(back);
+    return box;
+  }
 
-    const head = el('div', 'cw-appr-head');
-    head.appendChild(el('span', 'cw-appr-badge',
-      isAsk ? t('claude_question', 'Question') : t('claude_permission', 'Permission')));
-    if (a.project) head.appendChild(el('span', 'cw-appr-proj', a.project));
-    const left = el('span', 'cw-appr-timer');
+  function decisionCard(a, big) {
+    const isAsk = a.kind === 'question';
+    const isPlan = a.kind === 'plan';
+    const risks = Array.isArray(a.risks) ? a.risks : [];
+    const irreversible = risks.indexOf('irreversible') !== -1;
+    const armed = isArmed(a);
+    const card = el('section', 'cw-dec is-' + (isAsk ? 'question' : isPlan ? 'plan' : 'permission')
+      + (big ? ' is-big' : '') + (irreversible ? ' is-risky' : '') + (armed ? '' : ' is-arming'));
+    card.setAttribute('aria-live', 'polite');
+
+    const head = el('div', 'cw-dec-head');
+    head.appendChild(el('span', 'cw-dec-kind', isAsk ? t('claude_question', 'Question')
+      : isPlan ? t('claude_xp_kind', 'Plan') : t('claude_permission', 'Permission')));
+    const where = el('span', 'cw-dec-where');
+    where.textContent = [a.project, prettyModel(a.model)].filter(Boolean).join(' · ');
+    head.appendChild(where);
+    const left = el('span', 'cw-dec-timer');
+    // "8:42" alone reads as a time of day; the template says it is what is left.
     left.dataset.expiresAt = String(Date.now() + (a.expiresInMs || 0));
-    left.textContent = mmss(a.expiresInMs);
+    left.dataset.tpl = t('claude_dec_left', '{t} left');
+    left.textContent = left.dataset.tpl.replace('{t}', mmss(a.expiresInMs));
+    left.title = t('claude_dec_expires', 'After this the terminal asks instead');
     head.appendChild(left);
     card.appendChild(head);
 
-    // Everything between the header and the buttons goes in one scrollable box.
-    // Without it a card taller than the tile (or than a short display, for the
-    // fullscreen one) was simply cut off — and what got cut was the bottom,
-    // which is where Allow and Deny live. Now the card can only ever lose the
-    // MIDDLE, which scrolls, and the two things you must be able to see — what
-    // is being asked and the buttons that answer it — always stay on screen.
-    const body = el('div', 'cw-appr-body');
-    const intent = el('div', 'cw-appr-tool', toolIntent(a.tool));
-    intent.appendChild(el('span', 'cw-appr-toolname', a.tool || ''));
-    body.appendChild(intent);
+    // Typing never repaints, so the Answer key's enabled state is updated here.
+    let send = null;
+    const refreshSend = () => { if (send) send.disabled = deciding.has(a.id) || !answerReady(a); };
 
-    if (isAsk) body.appendChild(questionBody(a));
-    // ExitPlanMode: the plan IS the thing being approved. Showing the tool name
-    // and an Allow button over it asked the user to approve something they could
-    // not read.
-    else if (a.plan) body.appendChild(el('div', 'cw-appr-plan', a.plan));
-    else if (a.detail) body.appendChild(el('div', 'cw-appr-detail', a.detail));
+    const body = el('div', 'cw-dec-body');
+    if (isAsk) {
+      body.appendChild(questionKeys(a, refreshSend));
+    } else if (isPlan) {
+      body.appendChild(el('div', 'cw-dec-what', t('claude_xp_what', 'Ready to code?')));
+      if (a.plan) body.appendChild(el('div', 'cw-dec-plan', a.plan));
+    } else {
+      body.appendChild(el('div', 'cw-dec-what', toolIntent(a.tool)));
+      if (a.plan) body.appendChild(el('div', 'cw-dec-plan', a.plan));
+      else if (a.detail) body.appendChild(el('div', 'cw-dec-cmd', a.detail));
+      if (risks.length) {
+        const line = el('div', 'cw-dec-risks');
+        risks.forEach((r) => { if (RISK_LABEL[r]) line.appendChild(el('span', 'cw-risk is-' + r, RISK_LABEL[r]())); });
+        body.appendChild(line);
+      }
+    }
     card.appendChild(body);
 
-    const busy = deciding.has(a.id);
-    const acts = el('div', 'cw-appr-acts');
+    if (isPlan) { card.appendChild(planKeys(a)); return card; }
+    const acts = el('div', 'cw-dec-acts');
     if (isAsk) {
-      // Send is disabled until something is chosen, so the primary button can
-      // never be the no-op the old "Got it" was. The secondary is an honest way
-      // out that says where the question goes instead.
-      const send = el('button', 'cw-appr-allow'); send.type = 'button';
-      send.textContent = t('claude_q_send', 'Answer');
-      send.disabled = busy || !answerReady(a);
-      send.addEventListener('click', () => sendAnswer(a, false));
-      const term = el('button', 'cw-appr-deny'); term.type = 'button';
-      term.textContent = t('claude_q_terminal', 'In the terminal');
-      term.title = t('claude_q_terminal_hint', 'Leave it to the terminal, where Claude is also asking');
-      term.disabled = busy;
-      term.addEventListener('click', () => sendAnswer(a, true));
+      acts.appendChild(key('is-quiet', t('claude_q_terminal', 'In the terminal'), () => sendAnswer(a, true), a));
+      send = key('is-allow', t('claude_q_send', 'Answer'), () => sendAnswer(a, false), a);
+      refreshSend();
       acts.appendChild(send);
-      acts.appendChild(term);
     } else {
-      const allow = el('button', 'cw-appr-allow'); allow.type = 'button';
-      allow.textContent = t('claude_allow', 'Allow');
-      allow.disabled = busy;
-      allow.addEventListener('click', () => decide(a.id, 'allow'));
-      const deny = el('button', 'cw-appr-deny'); deny.type = 'button';
-      deny.textContent = t('claude_deny', 'Deny');
-      deny.disabled = busy;
-      deny.addEventListener('click', () => decide(a.id, 'deny'));
-      acts.appendChild(allow);
-      acts.appendChild(deny);
+      acts.appendChild(key('is-deny', t('claude_deny', 'Deny'), () => decide(a.id, 'deny'), a));
+      acts.appendChild(irreversible ? holdKey(a) : key('is-allow', t('claude_allow', 'Allow'), () => decide(a.id, 'allow'), a));
     }
     card.appendChild(acts);
     return card;
@@ -469,10 +753,13 @@
   // The escalation: an urgent request takes the whole display. Rendered outside
   // the tile so it works even when the widget isn't on the current page.
   function syncOverlay() {
+    if (pressing) { renderDeferred = true; return; }
     const urgent = approvals().filter(a => a.urgent)[0];
     if (!urgent) { closeOverlay(); return; }
     if (!overlay) {
       overlay = el('div', 'cw-overlay');
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
       document.body.appendChild(overlay);
       // This is a full-screen backdrop-filter, and it was in none of the three
       // registries every other one joins. Two real consequences: a Store promo
@@ -482,7 +769,13 @@
       // per-frame cost ambientFreeze exists to remove.
       if (typeof window.ambientFreeze === 'function') window.ambientFreeze('claude-approval', true);
     }
-    overlay.replaceChildren(approvalCard(urgent, true));
+    // Rebuilt on every push like the tile, so it keeps the reader's place in a
+    // long plan and the focus of a box being typed into, the same way.
+    const focus = keepFocus(overlay);
+    const kept = keepScroll(overlay);
+    overlay.replaceChildren(decisionCard(urgent, true));
+    restoreScroll(overlay, kept);
+    focus();
   }
   function closeOverlay() {
     if (!overlay) return;
@@ -502,229 +795,246 @@
     return (same.length > 1 && s.id) ? s.id.slice(0, 4) : '';
   }
 
-  // Claude's own plan, ticking over. This is the lane the widget was rebuilt
-  // around: "it is busy" is what every other tool tells you, and where it has
-  // got to is what you actually want to know from across the room. Read off
-  // TodoWrite, so it is Claude's list rather than our guess at one.
-  function planLane(s) {
+  // ── sessions: one lane each ────────────────────────────────────────────────
+  // A dark cockpit: a lane that is fine stays grey and quiet, and colour means
+  // something. Working is a thin line in the accent; waiting for you lights the
+  // lane and moves it to the top, longest-waiting first; a finished session is
+  // filed below. Each lane answers, left to right: which project, what it is
+  // doing right now in words, how its plan is going, and how full its context is.
+  const TRACE_MS = 10 * 60 * 1000;     // the activity trace covers the last 10 minutes
+  const QUIET_MS = 2 * 60 * 1000;      // "working" with no event for this long says so
+
+  function laneState(s) {
+    if (s.ended) return 'ended';
+    if (s.waitFor || s.state === 'waiting') return 'needs';
+    if (s.state === 'running') return 'working';
+    return 'idle';
+  }
+  const LANE_ORDER = { needs: 0, working: 1, idle: 2, ended: 3 };
+  function sortLanes(list) {
+    return list.slice().sort((a, b) => {
+      const d = LANE_ORDER[laneState(a)] - LANE_ORDER[laneState(b)];
+      if (d) return d;
+      if (a.waitFor && b.waitFor) return (b.waitFor.forMs || 0) - (a.waitFor.forMs || 0);
+      return (a.ageMs || 0) - (b.ageMs || 0);
+    });
+  }
+
+  // The last ten minutes of tool calls as marks on a time line, newest on the
+  // right, older ones fading: a session that is flowing, one that is thinking
+  // and one that is stuck look different at a glance, with no log to read.
+  function traceEl(s) {
+    const acts = Array.isArray(s.activity) ? s.activity : [];
+    if (!acts.length) return null;
+    // Activity times are the server's clock. The payload says what that clock
+    // read when it was sent, and the time since then is measured here, so a
+    // phone whose clock disagrees with the PC's still draws the trace right.
+    const l = live();
+    const sentAt = Number(l && l.now) || 0;
+    if (!sentAt) return null;
+    const drift = Date.now() - payloadAt;
+    const wrap = el('div', 'cw-trace');
+    wrap.setAttribute('aria-hidden', 'true');
+    let drawn = 0;
+    acts.forEach((x) => {
+      const endAt = Number(x.at) || 0;
+      const age = (sentAt - endAt) + drift;
+      if (age < 0 || age > TRACE_MS) return;
+      const len = clamp(Number(x.ms) || 0, 0, TRACE_MS);
+      const right = 1 - age / TRACE_MS;
+      const width = Math.max(0.004, len / TRACE_MS);
+      const mark = el('span', 'cw-tick' + (x.ok === false ? ' is-fail' : ''));
+      mark.style.left = (clamp(right - width, 0, 1) * 100).toFixed(2) + '%';
+      mark.style.width = (width * 100).toFixed(2) + '%';
+      mark.style.opacity = (0.28 + 0.72 * right).toFixed(2);
+      wrap.appendChild(mark);
+      drawn++;
+    });
+    return drawn ? wrap : null;
+  }
+
+  function planRail(s) {
     const todos = Array.isArray(s.todos) ? s.todos : [];
     if (!todos.length) return null;
     const done = todos.filter((x) => x.status === 'done').length;
-    const lane = el('div', 'cw-plan');
-
-    const head = el('div', 'cw-plan-head');
-    head.appendChild(el('span', 'cw-plan-title', t('claude_plan', 'Plan')));
-    head.appendChild(el('span', 'cw-plan-count', done + '/' + todos.length));
-    lane.appendChild(head);
-
-    const track = el('div', 'cw-plan-track');
-    const fill = el('div', 'cw-plan-fill');
-    fill.style.width = Math.round((done / todos.length) * 100) + '%';
-    track.appendChild(fill);
-    lane.appendChild(track);
-
-    // Only the step in flight and what is still ahead of it. A finished list is
-    // history and pushes the live line off a short tile.
-    const doing = todos.findIndex((x) => x.status === 'doing');
-    const from = doing === -1 ? done : doing;
-    const list = el('div', 'cw-plan-steps');
-    todos.slice(from, from + 3).forEach((x) => {
-      const step = el('div', 'cw-plan-step is-' + x.status);
-      step.appendChild(el('span', 'cw-plan-bullet'));
-      step.appendChild(el('span', 'cw-plan-text', x.text));
-      list.appendChild(step);
-    });
-    lane.appendChild(list);
-    return lane;
+    const doing = todos.find((x) => x.status === 'doing');
+    const rail = el('div', 'cw-rail');
+    const segs = el('div', 'cw-rail-segs');
+    segs.setAttribute('aria-hidden', 'true');
+    todos.forEach((x) => segs.appendChild(el('span', 'cw-rail-seg is-' + x.status)));
+    rail.appendChild(segs);
+    const text = el('span', 'cw-rail-text');
+    text.appendChild(el('span', 'cw-rail-count', done + '/' + todos.length));
+    if (doing) text.appendChild(el('span', 'cw-rail-now', doing.text));
+    rail.appendChild(text);
+    return rail;
   }
 
-  // Why a session is waiting. The old row could say "waiting for you" and never
-  // what for, which is indistinguishable from a hang.
-  function waitLine(s) {
-    const w = s.waitFor;
-    if (!w) return null;
-    const line = el('div', 'cw-wait is-' + w.kind);
-    const label = w.kind === 'permission' ? t('claude_wait_perm', 'Waiting for your approval')
-      : w.kind === 'question' ? t('claude_wait_q', 'Waiting for your answer')
-        : w.kind === 'error' ? t('claude_wait_err', 'The turn ended on an error')
-          : t('claude_state_waiting', 'waiting for you');
-    line.appendChild(el('span', 'cw-wait-label', label));
-    if (w.text) line.appendChild(el('span', 'cw-wait-text', w.text));
+  function ctxGauge(pct) {
+    const p = clamp(Math.round(pct), 0, 100);
+    const g = el('span', 'cw-ctx' + (p >= 90 ? ' is-crit' : p >= 75 ? ' is-warn' : ''));
+    g.title = t('claude_ctx_hint', 'How full the context window is');
+    const bar = el('span', 'cw-ctx-bar');
+    const fill = el('span', 'cw-ctx-fill'); fill.style.width = p + '%';
+    bar.appendChild(fill);
+    g.appendChild(bar);
+    g.appendChild(el('span', 'cw-ctx-val', t('claude_ctx', 'ctx') + ' ' + p + '%'));
+    return g;
+  }
+
+  function nowLine(s, st) {
+    const line = el('div', 'cw-lane-now');
+    if (st === 'ended') { line.appendChild(el('span', 'cw-lane-state', endedLabel(s))); return line; }
+    if (s.compacting) { line.appendChild(el('span', 'cw-lane-state', t('claude_compacting', 'compacting the conversation'))); return line; }
+    if (st === 'needs') {
+      const w = s.waitFor || {};
+      const label = w.kind === 'permission' ? t('claude_wait_perm', 'Waiting for your approval')
+        : w.kind === 'question' ? t('claude_wait_q', 'Waiting for your answer')
+          : w.kind === 'error' ? t('claude_wait_err', 'The turn ended on an error')
+            : t('claude_state_waiting', 'waiting for you');
+      line.appendChild(el('span', 'cw-lane-ask', label));
+      if (w.text) line.appendChild(el('span', 'cw-lane-detail', w.text));
+      return line;
+    }
+    if (st === 'working' && s.tool) {
+      line.appendChild(el('span', 'cw-lane-intent', toolIntent(s.tool)));
+      if (s.toolDetail) line.appendChild(el('span', 'cw-lane-detail', s.toolDetail));
+      // How long it has been on this one step: a build and a hang look the same without it.
+      if (s.toolForMs > 4000) line.appendChild(ageNode('cw-lane-for', s.toolForMs, ''));
+      return line;
+    }
+    if (st === 'working' && s.ageMs > QUIET_MS) {
+      line.appendChild(el('span', 'cw-lane-state', t('claude_thinking', 'Thinking')));
+      line.appendChild(ageNode('cw-lane-for is-quiet', s.ageMs, t('claude_quiet_for', 'no activity for') + ' '));
+      return line;
+    }
+    if (s.lastSaid && st !== 'working') { line.appendChild(el('span', 'cw-lane-said', s.lastSaid)); return line; }
+    if (s.task) { line.appendChild(el('span', 'cw-lane-task', s.task)); return line; }
+    line.appendChild(el('span', 'cw-lane-state', st === 'working' ? t('claude_state_running', 'working') : t('claude_state_idle', 'idle')));
     return line;
   }
 
-  function sessionRow(s) {
-    const state = s.state || 'running';
-    const row = el('div', 'cw-sess is-' + state);
-    // Tapping a row sends it a follow-up. Only once linked (the panel starts a
-    // real run) and only with a session id to resume — an inferred row read off
-    // the transcripts has no id Claude Code would accept.
-    if (linkState && linkState.linked && s.id) {
+  // A session whose request is already on a card above (or full screen) needs
+  // one line here, not a second copy of the same command.
+  function carded(s) {
+    return approvals().some((a) => a.sessionId && a.sessionId === s.id);
+  }
+
+  function lane(s) {
+    const st = laneState(s);
+    const short = st === 'needs' && carded(s);
+    const row = el('article', 'cw-lane is-' + st + (s.inferred ? ' is-inferred' : '') + (short ? ' is-carded' : ''));
+    // Tapping a lane opens its conversation, to read it or send a follow-up.
+    // Only once linked, and only with a session id Claude Code would accept.
+    if (linkState && linkState.linked && s.id && !s.inferred) {
       row.classList.add('is-tappable');
       row.tabIndex = 0;
       row.setAttribute('role', 'button');
       const open = () => openAsk(s.id, s.project || '', '');
-      row.title = (s.project || '') + (sessionTag(s) ? ' #' + sessionTag(s) : '');
       row.addEventListener('click', open);
       row.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); }
       });
     }
-    row.appendChild(el('span', 'cw-sess-dot'));
 
-    const main = el('div', 'cw-sess-main');
-    const top = el('div', 'cw-sess-top');
-    top.appendChild(el('span', 'cw-sess-proj', s.project || '?'));
+    const top = el('div', 'cw-lane-top');
+    // The state is drawn as colour (the edge bar, the dot); its name is said
+    // too, for a screen reader and for whoever cannot tell the colours apart.
+    const dot = el('span', 'cw-lane-dot');
+    dot.setAttribute('aria-hidden', 'true');
+    top.appendChild(dot);
+    top.appendChild(el('span', 'cw-sr', (st === 'ended' ? endedLabel(s)
+      : STATE_LABEL[st === 'needs' ? 'waiting' : st === 'working' ? 'running' : 'idle']()) + ':'));
+    top.appendChild(el('span', 'cw-lane-proj', s.project || '?'));
     const tag = sessionTag(s);
-    if (tag) top.appendChild(el('span', 'cw-sess-tag', '#' + tag));
-    if (s.branch) top.appendChild(el('span', 'cw-sess-branch', s.branch));
-    main.appendChild(top);
-
-    // Second line: what it is actually doing, now. The tool NAME on its own was
-    // the old answer and it is barely an answer — "Bash" for six minutes tells
-    // you nothing, "Bash · npm test · 6m" tells you everything.
-    const sub = el('div', 'cw-sess-sub');
-    if (s.ended) {
-      sub.appendChild(el('span', 'cw-sess-state', endedLabel(s)));
-    } else if (s.compacting) {
-      sub.appendChild(el('span', 'cw-sess-state', t('claude_compacting', 'compacting the conversation')));
-    } else if (state === 'waiting') {
-      sub.appendChild(el('span', 'cw-sess-state', STATE_LABEL.waiting()));
-    } else if (s.tool) {
-      sub.appendChild(el('span', 'cw-sess-tool', s.tool));
-      if (s.toolDetail) sub.appendChild(el('span', 'cw-sess-tooldetail', s.toolDetail));
-      // How long it has been on this one step. A build and a hang look identical
-      // without it.
-      if (s.toolForMs > 4000) sub.appendChild(el('span', 'cw-sess-toolage', ago(s.toolForMs)));
-    } else if (s.task) {
-      sub.appendChild(el('span', 'cw-sess-task', s.task));
-    } else {
-      sub.appendChild(el('span', 'cw-sess-state', (STATE_LABEL[state] || STATE_LABEL.idle)()));
+    if (tag) top.appendChild(el('span', 'cw-lane-tag', '#' + tag));
+    if (s.branch) top.appendChild(el('span', 'cw-lane-branch', s.branch));
+    // The one clock a lane shows: how long it has waited for you, or how long
+    // since it last did anything.
+    const clock = st === 'needs' && s.waitFor
+      ? ageNode('cw-lane-clock', s.waitFor.forMs, '')
+      : ageNode('cw-lane-clock', s.ageMs, '');
+    if (short) {
+      const w = s.waitFor || {};
+      top.appendChild(el('span', 'cw-lane-ask', w.kind === 'question'
+        ? t('claude_wait_q', 'Waiting for your answer') : t('claude_wait_perm', 'Waiting for your approval')));
     }
-    main.appendChild(sub);
+    // A running step already carries its own timer on the line below.
+    if (!(st === 'working' && s.tool && s.toolForMs > 4000)) top.appendChild(clock);
+    row.appendChild(top);
+    if (short) return row;
 
-    // Fan-out. Several subagents look like one stuck session without this.
+    row.appendChild(nowLine(s, st));
+    if (st !== 'ended') { const tr = traceEl(s); if (tr) row.appendChild(tr); }
+
+    const foot = el('div', 'cw-lane-foot');
+    const rail = planRail(s); if (rail) foot.appendChild(rail);
+    if (typeof s.contextPct === 'number') foot.appendChild(ctxGauge(s.contextPct));
+    if (s.model) foot.appendChild(el('span', 'cw-lane-model', prettyModel(s.model)));
     if (s.subagents && s.subagents.length) {
-      const fan = el('div', 'cw-sess-agents');
-      s.subagents.slice(0, 4).forEach((agent) => {
-        fan.appendChild(el('span', 'cw-agent-chip', agent.type || t('claude_agent', 'agent')));
-      });
-      if (s.subagents.length > 4) fan.appendChild(el('span', 'cw-agent-chip is-more', '+' + (s.subagents.length - 4)));
-      main.appendChild(fan);
+      const n = s.subagents.length;
+      foot.appendChild(el('span', 'cw-lane-agents', n === 1 ? t('claude_agents_1', '1 agent')
+        : t('claude_agents_n', '{n} agents').replace('{n}', String(n))));
     }
+    if ((s.linesAdded || 0) + (s.linesRemoved || 0) > 0) {
+      const lines = el('span', 'cw-lane-lines');
+      lines.appendChild(el('span', 'is-add', '+' + (s.linesAdded || 0)));
+      lines.appendChild(el('span', 'is-del', '−' + (s.linesRemoved || 0)));
+      foot.appendChild(lines);
+    }
+    if (foot.childNodes.length) row.appendChild(foot);
 
-    const wait = waitLine(s);
-    if (wait) main.appendChild(wait);
-    const plan = planLane(s);
-    if (plan) main.appendChild(plan);
-
-    // A follow-up already on its way. "Sent" would be a lie until the turn ends,
-    // so the tile says what is true and offers the way back out.
+    // A follow-up already on its way: queued until the turn ends, cancellable.
     if (s.queued) {
       const q = el('div', 'cw-queued');
       q.appendChild(el('span', 'cw-queued-label', t('claude_queued', 'Queued for the end of this turn')));
       q.appendChild(el('span', 'cw-queued-text', s.queued.text));
-      const undo = el('button', 'cw-queued-undo'); undo.type = 'button';
+      const undo = el('button', 'cw-link-btn'); undo.type = 'button';
       undo.textContent = t('claude_queued_cancel', 'Cancel');
       undo.addEventListener('click', (ev) => { ev.stopPropagation(); cancelReply(s.id); });
       q.appendChild(undo);
-      main.appendChild(q);
+      row.appendChild(q);
     }
-    row.appendChild(main);
-
-    const meta = el('div', 'cw-sess-meta');
-    if (s.model) {
-      const chip = el('span', 'cw-model-chip');
-      chip.style.setProperty('--m', modelHue(s.model));
-      chip.textContent = shortModel(s.model);
-      meta.appendChild(chip);
-    }
-    if (typeof s.contextPct === 'number') meta.appendChild(el('span', 'cw-sess-ctx', t('claude_ctx', 'ctx') + ' ' + Math.round(s.contextPct) + '%'));
-    meta.appendChild(el('span', 'cw-sess-age', ago(s.ageMs)));
-    row.appendChild(meta);
     return row;
   }
 
-  function liveBand() {
-    const band = el('div', 'cw-live');
+  function lanesPanel() {
+    const panel = el('div', 'cw-lanes');
     const list = sessions();
+    const active = sortLanes(list.filter((s) => !s.resting));
+    const resting = sortLanes(list.filter((s) => s.resting));
 
-    // Sessions that have gone quiet are the ones you come back to, so they are
-    // kept and filed rather than dropped. Splitting them out means a morning's
-    // worth of finished work cannot crowd out the one session actually running.
-    const active = list.filter(s => !s.resting);
-    const resting = list.filter(s => s.resting);
-
-    const head = el('div', 'cw-band-head');
-    head.appendChild(el('span', 'cw-band-title', t('claude_sessions', 'Sessions')));
-    // One true sentence about everything at once, so the tile answers "is
-    // anything waiting on me" without being read line by line.
-    const working = active.filter((s) => s.state === 'running' && !s.ended).length;
-    const needs = active.filter((s) => s.waitFor).length;
+    const head = el('div', 'cw-sec-head');
+    head.appendChild(el('span', 'cw-sec-title', t('claude_sessions', 'Sessions')));
+    const working = active.filter((s) => laneState(s) === 'working').length;
+    const needs = active.filter((s) => laneState(s) === 'needs').length;
     const parts = [];
-    if (working) parts.push(working + ' ' + t('claude_running', 'running'));
-    if (needs) parts.push(needs + ' ' + t('claude_needs_you', 'need you'));
-    if (parts.length) {
-      const hint = el('span', 'cw-band-hint' + (needs ? ' is-waiting' : ''), parts.join(' · '));
-      head.appendChild(hint);
-    }
-    // Start work from here. Only offered once Claude Code is linked: without the
-    // hooks a run's permission prompts would land in a terminal the user is not
-    // looking at, which is the opposite of the point.
-    if (linkState && linkState.linked) {
-      const ask = el('button', 'cw-ask-open'); ask.type = 'button';
-      ask.textContent = t('claude_ask_open', 'Ask');
-      ask.addEventListener('click', () => openAsk('', '', ''));
-      head.appendChild(ask);
-    }
-    band.appendChild(head);
+    // One and many are different words in most of the eleven languages.
+    const count = (n, one, many, fbOne, fbMany) => (n === 1 ? t(one, fbOne) : t(many, fbMany)).replace('{n}', String(n));
+    if (needs) parts.push(count(needs, 'claude_sum_needs_1', 'claude_sum_needs_n', '1 needs you', '{n} need you'));
+    if (working) parts.push(count(working, 'claude_sum_working_1', 'claude_sum_working_n', '1 working', '{n} working'));
+    if (parts.length) head.appendChild(el('span', 'cw-sec-sum' + (needs ? ' is-needs' : ''), parts.join(' · ')));
+    panel.appendChild(head);
 
     if (!list.length) {
+      const empty = el('div', 'cw-empty');
+      empty.appendChild(el('div', 'cw-empty-t', t('claude_no_sessions', 'No session running')));
       const u = payload && payload.usage;
-      const empty = el('div', 'cw-sess is-idle');
-      empty.appendChild(el('span', 'cw-sess-dot'));
-      const main = el('div', 'cw-sess-main');
-      main.appendChild(el('div', 'cw-sess-top', t('claude_no_sessions', 'No session running')));
-      if (u && u.live && u.live.at) main.appendChild(el('div', 'cw-sess-sub', t('claude_last_active', 'last active') + ' ' + ago(u.live.ageMs)));
-      empty.appendChild(main);
-      band.appendChild(empty);
-      return band;
+      if (u && u.live && u.live.at) empty.appendChild(el('div', 'cw-empty-s', t('claude_last_active', 'last active') + ' ' + dur(u.live.ageMs) + ' · ' + (u.live.project || '')));
+      panel.appendChild(empty);
+      return panel;
     }
-    // The rows live in their own scroller so a long list absorbs whatever height
-    // the collapsed sections gave back, instead of pushing the totals off the
-    // tile or being cut mid-row. The cap is a safety valve, not a display limit:
-    // scrolling is what shows the rest.
-    const scroller = el('div', 'cw-sess-scroll');
-    active.slice(0, 20).forEach(s => scroller.appendChild(sessionRow(s)));
-
+    const scroller = el('div', 'cw-lanes-scroll cw-sess-scroll');
+    active.slice(0, 20).forEach((s) => scroller.appendChild(lane(s)));
     if (resting.length) {
-      const key = 'finished';
-      scroller.appendChild(collapsibleTitle(key,
-        t('claude_sess_finished', 'Finished'),
-        String(resting.length)));
-      if (!isCollapsed(key)) resting.slice(0, 20).forEach(s => scroller.appendChild(sessionRow(s)));
+      scroller.appendChild(collapsibleTitle('finished', t('claude_sess_finished', 'Finished'), String(resting.length)));
+      if (!isCollapsed('finished')) resting.slice(0, 20).forEach((s) => scroller.appendChild(lane(s)));
     }
-    band.appendChild(scroller);
-    return band;
+    panel.appendChild(scroller);
+    return panel;
   }
 
-  // ── totals ─────────────────────────────────────────────────────────────────
-  function totalsBand(u) {
-    const band = el('div', 'cw-totals');
-    const add = (label, value, accent) => {
-      const cell = el('div', 'cw-total' + (accent ? ' is-accent' : ''));
-      cell.appendChild(el('span', 'cw-total-val', value));
-      cell.appendChild(el('span', 'cw-total-key', label));
-      band.appendChild(cell);
-    };
-    add(t('claude_today', 'today'), hTok(u.today.tokens));
-    add(t('claude_week', 'this week'), hTok(u.week.tokens));
-    add(t('claude_cache', 'cache'), Math.round((u.cacheHitRate || 0) * 100) + '%');
-    add(t('claude_api_value', 'API value'), hCost(u.total.cost), true);
-    return band;
-  }
-
-  // ── lower detail (revealed by container queries on a tall tile) ────────────
+  // ── sections that fold ─────────────────────────────────────────────────────
   // The 30-day chart and the project bars are reference, not live state: useful
   // to open, not worth the vertical space all the time. Collapsing one hands its
   // height to the session list, which is the part that actually changes and the
@@ -775,74 +1085,138 @@
     return b;
   }
 
-  function sparks(u) {
-    const wrap = el('div', 'cw-spark');
-    wrap.appendChild(collapsibleTitle('spark', t('claude_last30', 'Last 30 days'), t('claude_cache_legend', 'cache · fresh')));
-    if (isCollapsed('spark')) return wrap;
-    const chart = el('div', 'cw-spark-bars');
-    const max = u.daily.reduce((m, d) => Math.max(m, d.tokens), 0) || 1;
-    const todayIdx = u.daily.length - 1;
+  // ── the Usage face ─────────────────────────────────────────────────────────
+  // Everything here describes ONE window and says which: the last 30 days, and
+  // the date the data really starts when Claude Code has already deleted older
+  // transcripts (it does, so "30 days" can hold eight). Today and "since Monday"
+  // are the two exceptions, and are named for exactly what they are. No figure
+  // on this face is all-time next to a 30-day one.
+  function usageFace(u) {
+    const face = el('div', 'cw-usage');
+    const w = u.window || { days: 30, startsAt: 0, dataFrom: 0, tokens: 0, cost: 0 };
+    // It scrolls and holds nothing focusable, so it takes focus itself: a
+    // keyboard can then scroll it too.
+    face.tabIndex = 0;
+    face.setAttribute('role', 'region');
+    face.setAttribute('aria-label', t('claude_usage_window', 'Last {n} days').replace('{n}', String(w.days || 30)));
+
+    const head = el('div', 'cw-sec-head');
+    head.appendChild(el('span', 'cw-sec-title', t('claude_usage_window', 'Last {n} days').replace('{n}', String(w.days || 30))));
+    if (w.dataFrom && w.startsAt && w.dataFrom > w.startsAt + 86400000) {
+      head.appendChild(el('span', 'cw-sec-sum', t('claude_since', 'data since {date}').replace('{date}', fmtDay(w.dataFrom))));
+    }
+    face.appendChild(head);
+
+    // A ledger, not a row of stat cards: label on the left, figure on the right,
+    // one line each, so it reads like a statement.
+    const ledger = el('dl', 'cw-ledger');
+    const row = (label, value, note, cls) => {
+      const r = el('div', 'cw-ledger-row' + (cls ? ' ' + cls : ''));
+      r.appendChild(el('dt', null, label));
+      const dd = el('dd');
+      dd.appendChild(el('span', 'cw-ledger-v', value));
+      if (note) dd.appendChild(el('span', 'cw-ledger-n', note));
+      r.appendChild(dd);
+      ledger.appendChild(r);
+    };
+    const tok = t('claude_tokens', 'tokens');
+    row(t('claude_ledger_today', 'Today'), fmtTokens(u.today.tokens), tok);
+    row(t('claude_since_monday', 'Since Monday'), fmtTokens(u.week.tokens), tok);
+    row(t('claude_ledger_total', 'Total'), fmtTokens(w.tokens), tok);
+    row(t('claude_cache_read', 'Read from cache'), fmtPct(u.cacheHitRate, 1),
+      t('claude_cache_read_hint', 'of the input'));
+    row(t('claude_ledger_value', 'API value'), fmtMoney(w.cost), t('claude_api_value_hint', 'at list prices'), 'is-value');
+    face.appendChild(ledger);
+
+    face.appendChild(daysChart(u));
+    const split = el('div', 'cw-split');
+    const p = projectList(u, w); if (p) split.appendChild(p);
+    const m = modelList(u); if (m) split.appendChild(m);
+    face.appendChild(split);
+    return face;
+  }
+
+  // Thirty days on one axis, today on the right. Each column is that day's
+  // tokens, the lower part what was read from cache. Mondays carry their date
+  // so the week is findable; days with no work are an empty slot, not a gap in
+  // the axis.
+  function daysChart(u) {
+    const wrap = el('div', 'cw-days');
+    const chart = el('div', 'cw-days-bars');
+    const max = u.daily.reduce((mx, d) => Math.max(mx, d.tokens), 0) || 1;
+    const last = u.daily.length - 1;
     u.daily.forEach((d, i) => {
-      const col = el('div', 'cw-bar' + (i === todayIdx ? ' is-today' : ''));
-      col.title = d.day + ' · ' + hTok(d.tokens);
-      const h = d.tokens > 0 ? Math.max(3, Math.round((d.tokens / max) * 100)) : 0;
-      const cacheFrac = d.tokens > 0 ? Math.max(0, Math.min(1, d.cacheRead / d.tokens)) : 0;
-      const stack = el('div', 'cw-bar-stack'); stack.style.height = h + '%';
-      const cache = el('div', 'cw-bar-cache'); cache.style.height = Math.round(cacheFrac * 100) + '%';
+      const [y, mo, da] = d.day.split('-').map(Number);
+      const date = new Date(y, mo - 1, da);
+      const col = el('div', 'cw-day' + (i === last ? ' is-today' : '') + (date.getDay() === 1 ? ' is-monday' : ''));
+      col.title = fmtDay(date.getTime()) + ' · ' + fmtTokens(d.tokens) + ' ' + t('claude_tokens', 'tokens');
+      const h = d.tokens > 0 ? Math.max(2, Math.round((d.tokens / max) * 100)) : 0;
+      // Two blocks, not an overlay: a translucent layer over the bar's own fill
+      // came out LIGHTER than the rest, the opposite of what the legend said.
+      const stack = el('div', 'cw-day-stack'); stack.style.height = h + '%';
+      const cache = el('div', 'cw-day-cache');
+      cache.style.height = (d.tokens > 0 ? Math.round(clamp(d.cacheRead / d.tokens, 0, 1) * 100) : 0) + '%';
+      stack.appendChild(el('div', 'cw-day-fresh'));
       stack.appendChild(cache);
       col.appendChild(stack);
+      if (date.getDay() === 1 || i === last) col.appendChild(el('span', 'cw-day-tick', String(date.getDate())));
       chart.appendChild(col);
     });
     wrap.appendChild(chart);
-    return wrap;
-  }
-
-  function projectBars(u) {
-    if (!u.projects.length) return null;
-    const wrap = el('div', 'cw-projects');
-    wrap.appendChild(collapsibleTitle('projects', t('claude_projects', 'Projects'), ''));
-    if (isCollapsed('projects')) return wrap;
-    const total = u.projects.reduce((s, p) => s + p.tokens, 0) || 1;
-    const top = u.projects[0].tokens || 1;
-    u.projects.slice(0, 5).forEach(p => {
-      const row = el('div', 'cw-proj');
-      row.appendChild(el('span', 'cw-proj-name', p.name));
-      const track = el('div', 'cw-proj-track');
-      const bar = el('div', 'cw-proj-bar'); bar.style.width = Math.max(4, Math.round((p.tokens / top) * 100)) + '%';
-      track.appendChild(bar);
-      row.appendChild(track);
-      row.appendChild(el('span', 'cw-proj-val', Math.round((p.tokens / total) * 100) + '%'));
-      wrap.appendChild(row);
-    });
-    return wrap;
-  }
-
-  function modelSplit(u) {
-    if (!u.models.length) return null;
-    const wrap = el('div', 'cw-models');
-    const total = u.models.reduce((s, m) => s + m.tokens, 0) || 1;
-    const bar = el('div', 'cw-model-bar');
-    u.models.forEach(m => {
-      if (m.tokens <= 0) return;
-      const seg = el('div', 'cw-model-seg');
-      seg.style.width = (m.tokens / total * 100) + '%';
-      seg.style.background = modelHue(m.model);
-      seg.title = shortModel(m.model) + ' · ' + hTok(m.tokens);
-      bar.appendChild(seg);
-    });
-    wrap.appendChild(bar);
-    const legend = el('div', 'cw-model-legend');
-    u.models.slice(0, 4).forEach(m => {
-      if (m.tokens <= 0) return;
-      const it = el('span', 'cw-model-leg');
-      const dot = el('span', 'cw-model-legdot'); dot.style.background = modelHue(m.model);
-      it.appendChild(dot);
-      it.appendChild(el('span', 'cw-model-legname', shortModel(m.model)));
-      it.appendChild(el('span', 'cw-model-legval', hTok(m.tokens)));
-      legend.appendChild(it);
-    });
+    const legend = el('div', 'cw-days-legend');
+    const item = (cls, text) => { const s = el('span', 'cw-leg'); s.appendChild(el('i', cls)); s.appendChild(document.createTextNode(text)); return s; };
+    legend.appendChild(item('is-cache', t('claude_leg_cache', 'read from cache')));
+    legend.appendChild(item('is-fresh', t('claude_leg_fresh', 'everything else')));
     wrap.appendChild(legend);
     return wrap;
+  }
+
+  function projectList(u, w) {
+    if (!u.projects || !u.projects.length) return null;
+    const box = el('div', 'cw-projects');
+    box.appendChild(el('div', 'cw-sec-title', t('claude_projects', 'Projects')));
+    const total = w.tokens || u.projects.reduce((s, x) => s + x.tokens, 0) || 1;
+    u.projects.slice(0, 6).forEach((x) => {
+      const r = el('div', 'cw-bar-row');
+      r.appendChild(el('span', 'cw-bar-name', x.name));
+      const track = el('span', 'cw-bar-track');
+      const fill = el('span', 'cw-bar-fill'); fill.style.width = clamp((x.tokens / total) * 100, 0.5, 100).toFixed(1) + '%';
+      track.appendChild(fill);
+      r.appendChild(track);
+      // Share of the whole window, so the column adds up to 100 with the rest.
+      const pct = (x.tokens / total) * 100;
+      r.appendChild(el('span', 'cw-bar-val', fmtPct(pct / 100, pct >= 10 ? 0 : 1)));
+      box.appendChild(r);
+    });
+    const more = (u.projectCount || u.projects.length) - Math.min(6, u.projects.length);
+    if (more > 0) box.appendChild(el('div', 'cw-bar-more', t('claude_more_projects', '+{n} more').replace('{n}', String(more))));
+    return box;
+  }
+
+  function modelList(u) {
+    const models = (u.models || []).filter((m) => m.tokens > 0);
+    if (!models.length) return null;
+    const box = el('div', 'cw-models');
+    box.appendChild(el('div', 'cw-sec-title', t('claude_models', 'Models')));
+    const total = models.reduce((s, x) => s + x.tokens, 0) || 1;
+    const bar = el('div', 'cw-model-bar');
+    models.forEach((m) => {
+      const seg = el('span', 'cw-model-seg');
+      seg.style.width = ((m.tokens / total) * 100).toFixed(2) + '%';
+      seg.style.background = modelHue(m.model);
+      bar.appendChild(seg);
+    });
+    box.appendChild(bar);
+    models.slice(0, 4).forEach((m) => {
+      const r = el('div', 'cw-model-row');
+      const dot = el('i', 'cw-model-dot'); dot.style.background = modelHue(m.model);
+      r.appendChild(dot);
+      r.appendChild(el('span', 'cw-model-name', prettyModel(m.model)));
+      r.appendChild(el('span', 'cw-model-tok', fmtTokens(m.tokens)));
+      r.appendChild(el('span', 'cw-model-cost', fmtMoney(m.cost)));
+      box.appendChild(r);
+    });
+    return box;
   }
 
   // ── link panel ─────────────────────────────────────────────────────────────
@@ -1369,6 +1743,7 @@
       : t('claude_ask_placeholder', 'What should Claude do?');
     ta.title = t('claude_ask_enter_hint', 'Enter sends, Shift+Enter adds a line');
     ta.maxLength = 4000;
+    ta.dataset.keep = 'ask';
     // Repainting on every keystroke would fight the caret, so the value is only
     // mirrored into state and read back when something else needs it.
     ta.addEventListener('input', () => { askText = ta.value; });
@@ -1642,64 +2017,140 @@
   }
 
   // ── render ────────────────────────────────────────────────────────────────
+  // ── the frame: header, faces, the connection notice ────────────────────────
+  // Two faces instead of one long scroll: LIVE is what is happening and what
+  // needs you, USAGE is the record. The choice is per surface and survives a
+  // reload (a view preference, so localStorage, not the settings store).
+  const FACE_KEY = 'xeneonedge.claude.face.v1';
+  const REPAIR_SEEN_KEY = 'xeneonedge.claude.repairSeen.v1';
+  let face = null;
+  function currentFace() {
+    if (face) return face;
+    try { face = localStorage.getItem(FACE_KEY) === 'usage' ? 'usage' : 'live'; } catch { face = 'live'; }
+    return face;
+  }
+  function setFace(f) {
+    face = f === 'usage' ? 'usage' : 'live';
+    try { localStorage.setItem(FACE_KEY, face); } catch { /* private mode: session only */ }
+    paint();
+  }
+
+  function header() {
+    const h = el('div', 'cw-top');
+    const title = el('div', 'cw-name');
+    // The connection as a mark, not a sentence: complete, partly there, or off.
+    const state = !linkState ? 'unknown' : !linkState.linked ? 'off' : linkState.complete === false ? 'partial' : 'on';
+    const mark = el('span', 'cw-link-mark is-' + state);
+    mark.title = state === 'on' ? t('claude_connected', 'Connected')
+      : state === 'partial' ? t('claude_link_incomplete', 'Part of the Claude Code connection is missing.')
+        : t('claude_cta', 'Show real quota and approve from here');
+    title.appendChild(mark);
+    title.appendChild(el('span', 'cw-name-t', 'Claude Code'));
+    title.setAttribute('role', 'button');
+    title.tabIndex = 0;
+    const openLink = () => { linkPanel = true; paint(); };
+    title.addEventListener('click', openLink);
+    title.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openLink(); } });
+    h.appendChild(title);
+
+    const faces = el('div', 'cw-faces');
+    faces.setAttribute('role', 'tablist');
+    [['live', t('claude_face_live', 'Live')], ['usage', t('claude_face_usage', 'Usage')]].forEach(([id, label]) => {
+      const b = el('button', 'cw-face' + (currentFace() === id ? ' is-on' : ''), label);
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', currentFace() === id ? 'true' : 'false');
+      b.addEventListener('click', () => setFace(id));
+      faces.appendChild(b);
+    });
+    h.appendChild(faces);
+
+    if (linkState && linkState.linked) {
+      const ask = el('button', 'cw-ask-open'); ask.type = 'button';
+      ask.textContent = t('claude_ask_open', 'Ask');
+      ask.addEventListener('click', () => openAsk('', '', ''));
+      h.appendChild(ask);
+    } else {
+      h.appendChild(linkButton());
+    }
+    return h;
+  }
+
+  // What changed about the connection, said once where it matters. A repair
+  // only reaches sessions started after it (Claude Code reads its hooks when a
+  // session starts), so the notice says to restart the open ones.
+  function linkNotice() {
+    if (!linkState || !linkState.linked) return null;
+    if (linkState.complete === false) {
+      const n = el('div', 'cw-notice is-warn');
+      n.appendChild(el('span', 'cw-notice-t', t('claude_link_incomplete', 'Part of the Claude Code connection is missing.')));
+      const b = el('button', 'cw-link-btn'); b.type = 'button';
+      b.textContent = t('claude_link_repair', 'Repair');
+      b.addEventListener('click', () => doLink(true));
+      n.appendChild(b);
+      return n;
+    }
+    let seen = 0;
+    try { seen = Number(localStorage.getItem(REPAIR_SEEN_KEY)) || 0; } catch { /* private mode */ }
+    if (linkState.repairedAt && linkState.repairedAt > seen) {
+      const n = el('div', 'cw-notice');
+      n.appendChild(el('span', 'cw-notice-t', t('claude_link_repaired', 'The Claude Code connection was updated. Restart the Claude Code sessions that are open to use it.')));
+      const b = el('button', 'cw-link-btn'); b.type = 'button';
+      b.textContent = t('claude_notice_ok', 'OK');
+      b.addEventListener('click', () => {
+        try { localStorage.setItem(REPAIR_SEEN_KEY, String(linkState.repairedAt)); } catch { /* private mode */ }
+        paint();
+      });
+      n.appendChild(b);
+      return n;
+    }
+    return null;
+  }
+
   function build() {
     const wrap = el('div', 'cw-wrap');
     if (editing) { wrap.appendChild(budgetEditor()); return wrap; }
     if (linkPanel) { wrap.appendChild(linkPanelView()); return wrap; }
     if (askOpen) { wrap.appendChild(askPanel()); return wrap; }
 
-    // Approvals render FIRST and unconditionally. The usage aggregate is only
-    // scanned while the tile is on the dashboard, so it can still be null at the
-    // moment a permission request lands — and a blocked tool call must never be
-    // hidden behind a "loading" placeholder.
-    const pend = approvals().filter(a => !a.urgent);
+    wrap.appendChild(header());
+    const notice = linkNotice(); if (notice) wrap.appendChild(notice);
+
+    // Decisions render first and on both faces: a blocked tool call must never
+    // wait behind a tab, a loading placeholder or a scroll position. The one
+    // escalated to full screen is drawn there instead of twice.
+    const pend = approvals().filter((a) => !a.urgent);
     if (pend.length) {
-      const box = el('div', 'cw-appr-list');
-      pend.slice(0, 3).forEach(a => box.appendChild(approvalCard(a, false)));
+      const box = el('div', 'cw-decs');
+      // Two at most, side by side on a wide tile (see .cw-decs.is-pair).
+      if (pend.length > 1) box.classList.add('is-pair');
+      pend.slice(0, 2).forEach((a) => box.appendChild(decisionCard(a, false)));
+      if (pend.length > 2) box.appendChild(el('div', 'cw-decs-more', t('claude_more_waiting', '{n} more waiting').replace('{n}', String(pend.length - 2))));
       wrap.appendChild(box);
     }
 
-    // Runs the dashboard started sit with the approvals, above the bands: they
-    // are the thing the user is waiting on, and like an approval they must show
-    // before the usage aggregate has finished loading.
     const rl = runs();
     if (rl.length) {
       const box = el('div', 'cw-run-list');
-      rl.slice(-2).forEach(r => box.appendChild(runCard(r)));
+      rl.slice(-2).forEach((r) => box.appendChild(runCard(r)));
       wrap.appendChild(box);
     }
 
     const u = payload && payload.usage;
-    // The live bridge is the fast half and the transcript aggregate is the slow
-    // one. When there are sessions on screen, waiting for the second to arrive
-    // before drawing the first would blank the tile for no reason.
+    if (currentFace() === 'usage') {
+      if (!u) { wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…'))); return wrap; }
+      wrap.appendChild(usageFace(u));
+      return wrap;
+    }
+
     if (!u && !sessions().length) {
       wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…')));
       return wrap;
     }
-
-    // Sessions come FIRST now. The bands used to open on quota, which is the one
-    // thing on this tile that does not change while you watch it — what is
-    // happening right now belongs at the top.
-    wrap.appendChild(liveBand());
-    wrap.appendChild(quotaBand());
-    if (u) wrap.appendChild(totalsBand(u));
-
-    // Offer the connection only when it would actually add something.
-    if (!linkState || !linkState.linked) {
-      const cta = el('div', 'cw-cta');
-      cta.appendChild(el('span', 'cw-cta-text', t('claude_cta', 'Show real quota and approve from here')));
-      cta.appendChild(linkButton());
-      wrap.appendChild(cta);
-    }
-    if (!u) return wrap;
-
-    const more = el('div', 'cw-more');
-    more.appendChild(sparks(u));
-    const proj = projectBars(u); if (proj) more.appendChild(proj);
-    const models = modelSplit(u); if (models) more.appendChild(models);
-    wrap.appendChild(more);
-
+    const grid = el('div', 'cw-livegrid');
+    grid.appendChild(lanesPanel());
+    grid.appendChild(quotaPanel());
+    wrap.appendChild(grid);
     return wrap;
   }
 
@@ -1708,10 +2159,11 @@
   // that would throw away scroll position and fight the user's taps, so the tick
   // mutates just those nodes — and stops entirely when nothing counts down.
   function tick() {
-    const nodes = document.querySelectorAll('[data-reset-at], [data-expires-at]');
+    const nodes = document.querySelectorAll('[data-reset-at], [data-expires-at], [data-age-base]');
     nodes.forEach(n => {
       if (n.dataset.resetAt) n.textContent = until(Number(n.dataset.resetAt));
-      else n.textContent = mmss(Number(n.dataset.expiresAt) - Date.now());
+      else if (n.dataset.expiresAt) n.textContent = (n.dataset.tpl || '{t}').replace('{t}', mmss(Number(n.dataset.expiresAt) - Date.now()));
+      else n.textContent = (n.dataset.agePrefix || '') + dur(aged(Number(n.dataset.ageBase)));
     });
     if (!nodes.length) stopTicker();
   }
@@ -1725,13 +2177,17 @@
   }
 
   function paint() {
+    // A finger is on the widget: see "a tap must survive an SSE push".
+    if (pressing) { renderDeferred = true; return; }
     // Half-made choices belong to cards that still exist. Approval ids are
     // unique per request, so without this the map keeps one entry per question
     // ever asked, for as long as the page is open — the unbounded Map the
     // codebase rules out everywhere else.
-    if (qsel.size) {
+    forgetSeen();
+    if (qsel.size || typedAns.size) {
       const alive = new Set(approvals().map(a => a.id));
       for (const id of qsel.keys()) if (!alive.has(id)) qsel.delete(id);
+      for (const id of typedAns.keys()) if (!alive.has(id)) typedAns.delete(id);
     }
     tiles().forEach(tile => {
       const mount = tile.querySelector('.claude-widget-mount');
@@ -1748,8 +2204,10 @@
       // A repaint rebuilds the tile, and an SSE push can land at any moment —
       // so without this the session list would jump back to the top while the
       // user is scrolling through it.
-      const prev = mount.querySelector('.cw-sess-scroll');
-      const keepTop = prev ? prev.scrollTop : 0;
+      // Every area that scrolls: the lanes, the Live face on a narrow tile, the
+      // Usage face, the decisions and each card's body. Without this a push
+      // threw whoever was reading the Usage face back to its top every time.
+      const kept = keepScroll(mount);
       // The conversation gets the same treatment, and needs it more: it now
       // reloads itself every couple of seconds while a session works, so
       // without this every refresh would throw the reader back to the top
@@ -1757,19 +2215,46 @@
       // was already there.
       const prevThread = mount.querySelector('.cw-thread');
       const keepThread = prevThread ? prevThread.scrollTop : 0;
+      const focus = keepFocus(mount);
       mount.replaceChildren(build());
-      if (keepTop) {
-        const next = mount.querySelector('.cw-sess-scroll');
-        if (next) next.scrollTop = keepTop;
-      }
+      restoreScroll(mount, kept);
+      focus();
       if (keepThread && threadAtBottom === false) {
         const nextThread = mount.querySelector('.cw-thread');
         if (nextThread) nextThread.scrollTop = keepThread;
       }
     });
     syncOverlay();
-    const needsTick = !!(limits() || approvals().length);
+    const needsTick = !!(limits() || approvals().length || sessions().length);
     if (needsTick) startTicker(); else stopTicker();
+  }
+
+  // A text box inside a rebuilt subtree is a NEW element, so typing into one
+  // while a session works lost focus on the next push, several times a second.
+  // Boxes that carry `data-keep` get focus and caret back after the rebuild;
+  // their text survives because it is held in state, not in the DOM.
+  function keepFocus(root) {
+    const a = document.activeElement;
+    const k = a && root.contains(a) && a.dataset ? a.dataset.keep : '';
+    if (!k) return () => {};
+    let s = null, e = null;
+    try { s = a.selectionStart; e = a.selectionEnd; } catch { /* a number input has no selection */ }
+    return () => {
+      const n = Array.from(root.querySelectorAll('[data-keep]')).find((x) => x.dataset.keep === k);
+      if (!n || n.disabled) return;
+      try { n.focus({ preventScroll: true }); } catch { return; }
+      if (s !== null) { try { n.setSelectionRange(s, e); } catch { /* not a text field */ } }
+    };
+  }
+
+  const SCROLLERS = ['.cw-sess-scroll', '.cw-livegrid', '.cw-usage', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
+  function keepScroll(root) {
+    return SCROLLERS.map((sel) => Array.from(root.querySelectorAll(sel), (n) => n.scrollTop));
+  }
+  function restoreScroll(root, kept) {
+    SCROLLERS.forEach((sel, i) => {
+      root.querySelectorAll(sel).forEach((n, j) => { if (kept[i][j]) n.scrollTop = kept[i][j]; });
+    });
   }
 
   async function seed() {
@@ -1777,7 +2262,7 @@
     seedInflight = true;
     try {
       const d = await api('/api/claude');
-      if (d) payload = d;
+      if (d) { payload = d; payloadAt = Date.now(); }
     } finally { seedInflight = false; }
     paint();
     loadLinkState();
@@ -2031,21 +2516,56 @@
     host.replaceChildren(chip);
   }
 
+  // ── a tap must survive an SSE push ─────────────────────────────────────────
+  // A tap is pointerdown + pointerup on the SAME element. The tile, the overlay
+  // and the topbar marker are rebuilt from scratch on every push, and while any
+  // other session is working those arrive several times a second, so a button
+  // replaced between the two halves of a tap never received its click. That was
+  // "I tap Allow, or an answer, and nothing happens". While a pointer is down on
+  // any of the three, rebuilds wait, and run just after the click lands.
+  const PRESS_SCOPE = '.claude-widget-mount, .cw-overlay, #clock-claude';
+  function renderNow() {
+    syncTopbar();
+    if (!tiles().length) syncOverlay();
+    else paint();
+  }
+  function releasePress() {
+    if (!pressing) return;
+    pressing = false;
+    clearTimeout(pressTimer);
+    if (!renderDeferred) return;
+    renderDeferred = false;
+    // After the click, not before it: click is dispatched after pointerup in
+    // the same input task, and a timer only runs once that task is over.
+    setTimeout(renderNow, 40);
+  }
+  document.addEventListener('pointerdown', (e) => {
+    const target = e.target;
+    if (!(target && target.closest && target.closest(PRESS_SCOPE))) return;
+    pressing = true;
+    clearTimeout(pressTimer);
+    // A release can happen where we never hear about it (the pointer left the
+    // window); rendering is never held back for longer than a long press.
+    pressTimer = setTimeout(releasePress, 2500);
+  }, true);
+  document.addEventListener('pointerup', releasePress, true);
+  document.addEventListener('pointercancel', releasePress, true);
+
   function onSSE(data) {
     if (!data) return;
     payload = data;
+    payloadAt = Date.now();
     // Presence runs on EVERY payload, before the early return below: the topbar
     // marker and the "another session answered" notice have to keep working
     // when the tile is on another page, or not on the dashboard at all.
     trackPresence();
-    syncTopbar();
     // A session that just started or just stopped working flips whether the
     // thread needs watching, so the poll is re-evaluated on every payload.
     syncThreadPoll();
+    if (pressing) { renderDeferred = true; return; }
     // The overlay is global, so live state has to be applied even when the tile
     // isn't mounted on the current page.
-    if (!tiles().length) { syncOverlay(); return; }
-    paint();
+    renderNow();
   }
 
   // Either switch was flipped in Settings. Both surfaces are redrawn from the

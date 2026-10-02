@@ -311,3 +311,115 @@ test('supported() is exactly "no reason to refuse"', () => {
     assert.equal(su.supported(), su.unsupportedReason() === '', platform + ' ' + existing.length);
   }
 });
+
+// ── Hardening for the automatic updater (and two dashboards racing) ─────────
+
+test('prepare(): a second prepare while one runs is refused, not raced', async () => {
+  const su = makePrepareSelfUpdate('3.3.0');
+  const first = su.prepare({ tag: 'v3.3.0', version: '3.3.0' });
+  assert.equal(su.isPreparing(), true);
+  await assert.rejects(su.prepare({ tag: 'v3.3.0', version: '3.3.0' }), /prepare_in_flight/);
+  await first;
+  assert.equal(su.isPreparing(), false);
+  // Once it is over, a new one is allowed again.
+  await su.prepare({ tag: 'v3.3.0', version: '3.3.0' });
+});
+
+test('prepare(): a failed prepare releases the lock', async () => {
+  const su = makePrepareSelfUpdate('3.3.0', { sums: null });
+  await assert.rejects(su.prepare({ tag: 'v3.3.0', version: '3.3.0' }), /integrity_missing/);
+  assert.equal(su.isPreparing(), false);
+});
+
+test('apply() refuses while a prepare is running, prepare() refuses while an apply is', async () => {
+  // A prepare wipes DATA_DIR/update, which is what the applier copies from.
+  const calls = [];
+  const fsImpl = makeFs({ applier: true, app: true, marker: { version: '3.3.0' }, writable: true });
+  const spawn = (file, args, opts) => { calls.push({ file, args, opts }); return { unref() {}, on() {} }; };
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const fetchImpl = async () => { await gate; return { ok: false }; };
+  const su = createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl: { ...fsImpl, mkdirSync() {} }, spawn, fetchImpl });
+  const p = su.prepare({ tag: 'v3.3.0', version: '3.3.0' });
+  assert.deepEqual(su.apply(), { ok: false, error: 'prepare_in_flight' });
+  release();
+  await assert.rejects(p, /download_failed/);
+  assert.deepEqual(su.apply(), { ok: true, started: true });
+  assert.equal(su.applyInFlight(), true);
+  await assert.rejects(su.prepare({ tag: 'v3.3.0', version: '3.3.0' }), /apply_in_flight/);
+});
+
+test('apply(): an applier that cannot start frees the guard and says why', () => {
+  let onError = null;
+  const fsImpl = makeFs({ applier: true, app: true, marker: { version: '3.3.0' }, writable: true });
+  const spawn = () => ({ unref() {}, on(ev, cb) { if (ev === 'error') onError = cb; } });
+  const su = createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl, spawn, platform: 'win32' });
+  assert.deepEqual(su.apply(), { ok: true, started: true });
+  assert.equal(typeof onError, 'function', 'an error handler is attached (no uncaught exception)');
+  onError(Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }));
+  assert.equal(su.lastSpawnError(), 'ENOENT');
+  assert.equal(su.applyInFlight(), false, 'nothing is running, so a retry is not held off');
+});
+
+test('apply({quiet, hidden, port}) on Windows: environment, hidden console, no new parameters', () => {
+  const rw = make({ applier: true, app: true, marker: { version: '3.3.0' }, writable: true });
+  rw.su.apply({ quiet: true, hidden: true, port: 3099 });
+  const c = rw.calls[0];
+  assert.equal(c.opts.env.XENON_PORT, '3099');
+  assert.equal(c.opts.env.XENON_UPDATE_QUIET, '1');
+  assert.equal(c.opts.windowsHide, true);
+  // The installed copy of the applier may be another version: parameters it
+  // does not know would stop it from starting, so none are added.
+  assert.ok(!c.args.some((a) => /^-(Port|Quiet)$/i.test(a)), c.args.join(' '));
+});
+
+test('apply() without options behaves exactly as before: visible, no quiet flag', () => {
+  const prev = process.env.XENON_UPDATE_QUIET;
+  process.env.XENON_UPDATE_QUIET = '1';   // a stale value must not leak into a manual update
+  try {
+    const rw = make({ applier: true, app: true, marker: { version: '3.3.0' }, writable: true });
+    rw.su.apply();
+    const c = rw.calls[0];
+    assert.equal(c.opts.windowsHide, false);
+    assert.equal(c.opts.env.XENON_UPDATE_QUIET, undefined);
+  } finally {
+    if (prev === undefined) delete process.env.XENON_UPDATE_QUIET; else process.env.XENON_UPDATE_QUIET = prev;
+  }
+});
+
+test('apply({hidden}) never hides the window when a UAC prompt is coming', () => {
+  const ro = make({ applier: true, app: true, marker: { version: '3.3.0' }, writable: false });
+  ro.su.apply({ quiet: true, hidden: true, port: 3030 });
+  assert.equal(ro.calls[0].opts.windowsHide, false);
+  assert.equal(ro.su.needsElevation(), true);
+  assert.equal(make({ writable: true }).su.needsElevation(), false);
+  assert.equal(make({ platform: 'linux', writable: false }).su.needsElevation(), false, 'POSIX installs are per-user');
+});
+
+test('apply({quiet, port}) on Linux via systemd-run hands the variables to the transient unit', () => {
+  const lin = make({ platform: 'linux', applier: true, app: true, marker: { version: '3.3.0' }, systemdRun: true });
+  lin.su.apply({ quiet: true, port: 3099 });
+  const c = lin.calls[0];
+  assert.ok(c.args.includes('--setenv=XENON_PORT=3099'), c.args.join(' '));
+  assert.ok(c.args.includes('--setenv=XENON_UPDATE_QUIET=1'));
+  // The flags belong to systemd-run, before the command it runs.
+  assert.ok(c.args.indexOf('--setenv=XENON_PORT=3099') < c.args.indexOf('/bin/bash'));
+});
+
+test('apply({quiet, port}) on macOS: environment only, same single argument', () => {
+  const mac = make({ platform: 'darwin', applier: true, app: true, marker: { version: '3.3.0' } });
+  mac.su.apply({ quiet: true, port: 3099 });
+  const c = mac.calls[0];
+  assert.equal(c.args.length, 1);
+  assert.equal(c.opts.env.XENON_PORT, '3099');
+  assert.equal(c.opts.env.XENON_UPDATE_QUIET, '1');
+});
+
+test('apply(): a port out of range is ignored rather than passed on', () => {
+  for (const port of [0, -1, 70000, 3.5, '3099']) {
+    const rw = make({ applier: true, app: true, marker: { version: '3.3.0' }, writable: true });
+    const before = process.env.XENON_PORT;
+    rw.su.apply({ port });
+    assert.equal(rw.calls[0].opts.env.XENON_PORT, before, String(port));
+  }
+});
