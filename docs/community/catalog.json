@@ -53,12 +53,11 @@
         "text": "#EADFC8"
       },
       "shots": 4,
-      "active": false,
       "activeFrom": "2026-10-01T00:00:00+02:00",
       "activeUntil": "2026-11-02T23:59:59+01:00",
       "addedAt": "2026-10-02",
-      "codeFile": true,
-      "updatedAt": "2026-10-02"
+      "updatedAt": "2026-10-02",
+      "codeFile": true
     },
     {
       "id": "workload-river",
