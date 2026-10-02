@@ -35,6 +35,10 @@ serde_json = "1"
 # `webview_guard` to hear the render process die.
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "=2.0.2"
+# Same versions already in the lockfile via webkit2gtk's transitive graph; pinned
+# with `=` so Cargo keeps the single copy rather than resolving a second one.
+gdk = "=0.18.2"
+gtk = "=0.18.2"
 
 [features]
 # Keep default empty; custom Cargo features can be added later without touching
