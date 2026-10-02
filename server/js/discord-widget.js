@@ -103,6 +103,13 @@
   let notifInflight = null;
   const NOTIF_MAX = 30;
   const notifRevealed = new Set();   // ids tapped open while "hide content" is on
+  // Avatar URLs that did not load. Discord hands one out for accounts with no
+  // picture of their own and it does not always resolve, so a remembered URL is
+  // never turned back into an <img>: without this every rebuild of the feed drew
+  // the circle and then hid it again. Bounded — the feed itself is capped, and a
+  // long session that somehow collects more than this starts the list over.
+  const notifIconBad = new Set();
+  const NOTIF_ICON_BAD_MAX = 200;
   let notifUnread = 0;               // arrivals while another tab is open → red badge on the tab
 
   // Open Settings → Streaming (from the widget's "not linked" notice).
@@ -752,11 +759,15 @@
   // "hide content" is on, the body stays masked until the row is tapped.
   function notifRow(n) {
     const row = el('div', 'dc-notif');
-    if (n.icon) {
+    if (n.icon && !notifIconBad.has(n.icon)) {
       const img = document.createElement('img');
       img.className = 'dc-notif-ico'; img.alt = '';
       img.src = n.icon;
-      img.addEventListener('error', () => { img.hidden = true; });
+      img.addEventListener('error', () => {
+        if (notifIconBad.size >= NOTIF_ICON_BAD_MAX) notifIconBad.clear();
+        notifIconBad.add(n.icon);
+        img.hidden = true;
+      }, { once: true });
       row.appendChild(img);
     }
     const txt = el('div', 'dc-notif-txt');
@@ -784,6 +795,23 @@
   function paintNotifs(mount) {
     const list = mount.querySelector('.dc-notif-list');
     if (!list) return;
+    // Skip the rebuild when nothing drawn has changed. paint() runs on every
+    // voice push — a SPEAKING_START/STOP for anyone in the channel, several a
+    // second while people are talking — and rebuilding the rows re-creates every
+    // <img>, which is what made the avatars in the feed blink. Same guard, and
+    // for the same reason, as the one in paintChannels. Reported on Discord.
+    const sig = connected !== true ? 'x'
+      : notifItems === null ? 'loading'
+      : !notif.enabled ? 'off'
+      : notif.state === 'scope_missing' ? 'relink'
+      : !notifItems.length ? 'empty'
+      : notifItems.map(n => n.id + ((notif.hide && n.body && !notifRevealed.has(n.id)) ? 'm' : '')).join('|');
+    // The states, the masked body and the times are all rendered here, so a
+    // language change or a 12/24h change has to redraw them.
+    const full = sig + '#' + (document.documentElement.lang || '')
+      + '#' + (timeParts().hour12 ? '12' : '24');
+    if (list.dataset.dcSig === full) return;
+    list.dataset.dcSig = full;
     const showMsg = (key, fb, cta) => {
       const box = el('div', 'dc-notif-empty');
       box.appendChild(el('span', 'dc-notif-empty-txt', t(key, fb)));

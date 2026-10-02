@@ -573,6 +573,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // surface's frames of that package so they re-read it (GitHub #109).
       try { if (window.CustomWidget && typeof window.CustomWidget.onStoreChanged === 'function') window.CustomWidget.onStoreChanged(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('widget_auto_updated', e => {
+      // The server updated Store widgets by itself, or found one that needs the
+      // user's approval (server/widget-auto-update.js).
+      try { if (window.CustomWidget && typeof window.CustomWidget.onAutoUpdated === 'function') window.CustomWidget.onAutoUpdated(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('calls', e => {
       // Incoming calls: the whole ringing list, replaced wholesale, so a call
       // answered on another surface closes the card here too.

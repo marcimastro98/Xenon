@@ -361,12 +361,55 @@
   // Everything else goes back through PresetShare.openImport — the same full
   // preview + approval a first install gets. Neither path ever swaps content
   // silently, which is the property that makes a one-click update safe to offer.
-  async function applyUpdate(upd) {
+  // What the HUB knows this install by, and what is installed: a numbered copy is
+  // 'vanguard-50-01' on the hub while the catalog lists 'vanguard-50', so the
+  // receipt's own id wins over the entry's. `have` is the catalog version stamped at
+  // install, falling back to the package manifest for installs that predate the stamp.
+  function ownedTarget(upd, row) {
+    const rec = row && row.record;
+    const pkg = row && row.pkg;
+    return {
+      entryId: (rec && rec.sourceId) || upd.id,
+      have: (rec && rec.sourceVersion) || (pkg && (pkg.catalogVersion || pkg.version)) || '',
+    };
+  }
+
+  // An update of something locked or limited. Returns true when it handled it.
+  // The hub is asked first as the OWNER of this install, which needs no code and is
+  // the only route a limited copy has (its file is private). The outcome, review and
+  // permission check all belong to the import dialog it opens, so this never reports
+  // a finished install and the row is not repainted from here.
+  async function applyOwnedUpdate(upd, row) {
+    if (!(upd.locked === true || upd.limited) || !window.PresetShare || !PresetShare.updateOwned) return false;
+    let code = '';
+    if (!upd.limited) {
+      code = upd.code || '';
+      if (!code) {
+        const d = await fetch('/api/community/code?id=' + encodeURIComponent(upd.id)).then((r) => r.json()).catch(() => null);
+        code = d && d.ok && typeof d.code === 'string' ? d.code : '';
+      }
+    }
+    await PresetShare.updateOwned(code, {
+      source: 'catalog', sourceId: ownedTarget(upd, row).entryId, sourceVersion: upd.version || '',
+      perfWarning: upd.perfWarning === true, owner: ownedTarget(upd, row),
+    });
+    return true;
+  }
+
+  async function applyUpdate(upd, row) {
     try {
+      if (await applyOwnedUpdate(upd, row)) return false;
       const codeRes = upd.code
         ? { ok: true, code: upd.code }
         : await fetch('/api/community/code?id=' + encodeURIComponent(upd.id)).then((r) => r.json());
       if (!codeRes || !codeRes.ok || !codeRes.code) throw new Error('bad_code');
+      // A protected (locked) drop is not a preset until it is unlocked, so it goes
+      // straight to the import dialog: it unlocks with this PC's saved supporter
+      // pass, or asks for the code once and saves it.
+      if (PS() && typeof PS().peekLocked === 'function' && PS().peekLocked(codeRes.code)) {
+        PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '' });
+        return false;
+      }
       const env = PS() ? PS().decodePreset(codeRes.code) : null;
       if (!env) throw new Error('bad_code');
 
@@ -456,7 +499,7 @@
       b.type = 'button';
       b.addEventListener('click', async () => {
         b.disabled = true;
-        const done = await applyUpdate(upd);
+        const done = await applyUpdate(upd, row);
         if (done) { catalogCache = null; repaint(); }
         else b.disabled = false;
       });
@@ -619,9 +662,11 @@
     // preview + approval, and firing several of those at once would bury the user
     // under stacked modals — so they keep their per-row button and are counted
     // out of this banner rather than silently included in a promise it can't keep.
+    // Locked and limited ones are left out of the sweep: each opens its own review
+    // dialog, and a stack of dialogs is not an update-all. They stay one tap each.
     const updatable = rows.filter((row) => {
       const u = updateFor(row, cat);
-      return u && row.pkg && cat.updates.has(row.pkg.id);
+      return u && row.pkg && cat.updates.has(row.pkg.id) && !(u.locked === true || u.limited);
     });
     const otherUpdates = rows.filter((row) => updateFor(row, cat)).length - updatable.length;
     if (updatable.length) {

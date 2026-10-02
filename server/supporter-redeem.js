@@ -33,6 +33,19 @@ const HUB_CODE_RE = /^X[SL][A-Z0-9]{12}$/;
 // 'wrong_code' = valid code, wrong tier/entry (e.g. a supporter code on a
 // limited drop, or an item code on a different entry than it was issued for).
 const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code']);
+// What /update can answer besides success. 'not_owner' is the hub's ONE answer for
+// every kind of refusal (it never says why), and the app treats it as "ask for the
+// code the usual way".
+const UPDATE_ERRORS = new Set(['bad_request', 'bad_entry', 'not_owner', 'rate_limited', 'unavailable']);
+// A private (limited) bundle comes back inside the /update answer. The hub caps one
+// at 2 MB; the JSON around it is small, so 3 MB is the ceiling and anything bigger
+// is a broken or hostile answer, not a bundle.
+const MAX_UPDATE_RESPONSE_BYTES = 3 * 1024 * 1024;
+const MAX_BUNDLE_CHARS = 2 * 1024 * 1024 + 4096;
+const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
+// A key version names which of the entry's keys a file was sealed with (see the
+// hub's versions.js). Small positive integer or nothing.
+const cleanKv = (v) => (Number.isInteger(v) && v >= 1 && v <= 1000 ? v : null);
 
 // ── Install id ───────────────────────────────────────────────────────────────
 // One random UUID per install, persisted in DATA_DIR. Not a secret — just a
@@ -165,7 +178,7 @@ async function saveTypedCode(dataDir, code) {
 // ── Outbound POST ────────────────────────────────────────────────────────────
 let _transport = postJson; // swappable for tests
 
-function postJson(url, body) {
+function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES) {
   return new Promise((resolve) => {
     if (!/^https:\/\//i.test(url)) return resolve({ ok: false, error: 'network' });
     const payload = JSON.stringify(body);
@@ -194,7 +207,7 @@ function postJson(url, body) {
       const chunks = [];
       res.on('data', (c) => {
         size += c.length;
-        if (size > MAX_RESPONSE_BYTES) { req.destroy(new Error('body too large')); return; }
+        if (size > maxBytes) { req.destroy(new Error('body too large')); return; }
         chunks.push(c);
       });
       res.on('end', () => {
@@ -207,7 +220,7 @@ function postJson(url, body) {
 }
 
 // ── Redemption ───────────────────────────────────────────────────────────────
-async function redeem({ entryId, code, dataDir }) {
+async function redeem({ entryId, code, dataDir, kv }) {
   const id = String(entryId || '');
   let canon = canonCode(code);
   // No code on the request means "use the pass this machine already redeemed
@@ -222,7 +235,12 @@ async function redeem({ entryId, code, dataDir }) {
   try { scopedId = await getScopedId(dataDir, SCOPE_DEVICES); }
   catch { return { ok: false, error: 'network' }; }
   let out;
-  try { out = await _transport(HUB_BASE + '/redeem', { entryId: id, code: canon, scopedId }); }
+  // The key version the file was sealed with, when the file says so; the hub
+  // answers with its latest key when it is left out (every app before versions).
+  const payload = { entryId: id, code: canon, scopedId };
+  const keyVersion = cleanKv(kv);
+  if (keyVersion) payload.kv = keyVersion;
+  try { out = await _transport(HUB_BASE + '/redeem', payload); }
   catch { return { ok: false, error: 'network' }; }
   if (out && out.ok === true && typeof out.cek === 'string' && out.cek) {
     // Remember it only once it has been proven to work, and only when the user
@@ -253,8 +271,50 @@ async function redeem({ entryId, code, dataDir }) {
   return { ok: false, error };
 }
 
+// ── Owner update ─────────────────────────────────────────────────────────────
+// "I already unlocked this on this install: is there a newer version, and may I
+// have its key?" No code is sent and none is needed: the hub answers a device it
+// has already recorded as an owner of the entry (the same activation /redeem
+// writes), with the ONE refusal 'not_owner' for everything else. What comes back
+// is used once, in the browser, to open the new version, and is never stored here.
+//
+// This is how the owner of a purchased (XL) or limited copy is updated without
+// retyping a code the app never kept, and the only way a limited copy CAN be
+// updated at all: its file is private on the hub, so the answer carries it.
+async function update({ entryId, have, kv, dataDir }) {
+  const id = String(entryId || '');
+  if (!ENTRY_ID_RE.test(id)) return { ok: false, error: 'bad_request' };
+  const haveVersion = VERSION_RE.test(String(have || '')) ? String(have) : '';
+  let scopedId;
+  try { scopedId = await getScopedId(dataDir, SCOPE_DEVICES); }
+  catch { return { ok: false, error: 'network' }; }
+  const payload = { entryId: id, scopedId };
+  if (haveVersion) payload.have = haveVersion;
+  const keyVersion = cleanKv(kv);
+  if (keyVersion) payload.kv = keyVersion;
+  let out;
+  try { out = await _transport(HUB_BASE + '/update', payload, MAX_UPDATE_RESPONSE_BYTES); }
+  catch { return { ok: false, error: 'network' }; }
+  if (out && out.ok === true && out.upToDate === true) return { ok: true, upToDate: true };
+  if (out && out.ok === true && typeof out.cek === 'string' && out.cek
+      && typeof out.version === 'string' && VERSION_RE.test(out.version) && cleanKv(out.kv)) {
+    const answer = {
+      ok: true,
+      version: out.version,
+      kv: out.kv,
+      cek: out.cek,
+      changelog: typeof out.changelog === 'string' ? out.changelog.slice(0, 300) : '',
+      name: typeof out.name === 'string' ? out.name.slice(0, 120) : '',
+    };
+    if (typeof out.bundle === 'string' && out.bundle && out.bundle.length <= MAX_BUNDLE_CHARS) answer.bundle = out.bundle;
+    return answer;
+  }
+  return { ok: false, error: out && UPDATE_ERRORS.has(out.error) ? out.error : 'network' };
+}
+
 module.exports = {
   redeem,
+  update,
   savedStatus,
   saveTypedCode,
   forgetCode,
