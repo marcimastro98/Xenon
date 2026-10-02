@@ -120,6 +120,9 @@ fn update_prompt_js(version: &str) -> String {
 #[cfg(desktop)]
 fn spawn_update_check(app: tauri::AppHandle) {
     use tauri_plugin_updater::UpdaterExt;
+    if !shell_self_update() {
+        return;
+    }
     tauri::async_runtime::spawn(async move {
         let updater = match app.updater() {
             Ok(u) => u,
@@ -305,6 +308,10 @@ fn spawn_update_install(app: tauri::AppHandle) {
     use tauri_plugin_updater::UpdaterExt;
     tauri::async_runtime::spawn(async move {
         report_update_event(&app, json!({ "phase": "checking" }));
+        if !shell_self_update() {
+            report_update_event(&app, json!({ "phase": "error", "code": "managed_install" }));
+            return;
+        }
         let updater = match app.updater() {
             Ok(u) => u,
             Err(e) => {
@@ -1378,6 +1385,40 @@ fn prefer_host_graphics_libs() {
 #[cfg(not(target_os = "linux"))]
 fn prefer_host_graphics_libs() {}
 
+/// On a Wayland compositor that offers explicit sync (Hyprland, and so Omarchy,
+/// among others) WebKitGTK's DMABUF renderer can make the compositor drop the
+/// window with protocol error 71, "Missing acquire timeline". Turning the
+/// renderer off avoids it, at the price of copying each frame, so it is done
+/// only where that error can happen: a session GTK will draw through Wayland.
+/// Under X11 (including a forced GDK_BACKEND=x11 on a Wayland desktop) nothing
+/// changes. A value the user already set always wins, so "=0" brings it back.
+#[cfg(target_os = "linux")]
+fn disable_dmabuf_on_wayland() {
+    const VAR: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
+    let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some_and(|v| !v.is_empty());
+    let forced_x11 = std::env::var("GDK_BACKEND").is_ok_and(|b| b.trim_start().starts_with("x11"));
+    if wayland && !forced_x11 && std::env::var_os(VAR).is_none() {
+        std::env::set_var(VAR, "1");
+    }
+}
+
+/// Whether this shell may replace its own binary. On Linux the bundler stamps an
+/// AppImage, .deb or .rpm binary with its bundle type; an unstamped one (the
+/// pacman package `tools/package-arch.mjs` builds, or a dev build) belongs to
+/// whoever installed it, and the updater would fall back to the AppImage path
+/// and try to overwrite /usr/bin/xenon-native in place. The dashboard reads this
+/// as `shellSelfUpdate` and skips the app phase; the backend still updates.
+fn shell_self_update() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        tauri::utils::platform::bundle_type().is_some()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
 ///
 /// The window itself — borderless, full-screen kiosk pointed at the bundled
@@ -1396,13 +1437,9 @@ pub fn run() {
     crash_log::install();
     crash_log::session_start();
 
-    // WebKitGTK 2.42+ / 2.52 on Wayland compositors advertising explicit sync
-    // (wp_linux_drm_syncobj_v1) crashes with "Missing acquire timeline" (Error 71)
-    // unless dmabuf rendering is disabled.
+    // Before GTK starts and before any thread exists (set_var is not thread-safe).
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
+    disable_dmabuf_on_wayland();
 
     // Before anything can touch a display: an AppImage whose bundled libraries
     // shadow the host's driver stack renders NOTHING, and never says so.
@@ -1539,6 +1576,7 @@ pub fn run() {
                 serde_json::json!({
                     "shellVersion": app.package_info().version.to_string(),
                     "updateEvents": true,
+                    "shellSelfUpdate": shell_self_update(),
                     "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
                     "displayPicker": true,
                     // The monitor list, injected BEFORE the page loads. It used

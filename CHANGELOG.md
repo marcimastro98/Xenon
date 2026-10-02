@@ -4,7 +4,12 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **A native package for Arch Linux and Omarchy (#133).** On Arch Linux and the distributions built on it, `npm run native:build:arch` builds the Xenon app and packages it for pacman, so it installs, shows up in the app menu and uninstalls like any other package (`sudo pacman -U`). It is built on your own PC rather than downloaded, since the release builds run on Ubuntu. Because pacman owns the installed app, Xenon does not try to replace it; the dashboard still updates itself as usual. (Thanks to the community contribution behind this.)
+
 ### 🐛 Fixed
+- **The Linux app could close on Wayland desktops such as Hyprland (#133).** On some Wayland desktops, the ones that use "explicit sync" (Hyprland, which Omarchy is built on, among them), the app could close with a "Missing acquire timeline" error. On a Wayland session Xenon now switches off the WebKit drawing mode that triggers it. X11 sessions are unchanged. (Thanks to the community contribution behind this.)
+
 - **A limited or purchased pack you saved keeps opening after it is updated.** A pack file saved before Xenon gave each version its own key does not say which key it was sealed with, and Xenon asked the unlock service for "the newest". That is the right key today, but it stops being the right one the day a newer version of the pack is published, so re-importing your original file, on a new PC for example, would have said the code was wrong. Xenon now asks for the first key, which is the one those files were sealed with. Updating through the Store was never affected.
 
 - **The Linux app could close by itself, often within seconds of opening.** Every few seconds Xenon checks which screens are connected, so it can keep its window on the one you picked. On Linux that check ran outside the thread that draws the window, and the two could talk to the display server at the same moment, which made the app quit with an "[xcb] Unknown request in queue" error. All screen checks now run on the drawing thread, on Windows and macOS too, where they were not causing a crash.

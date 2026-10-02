@@ -644,7 +644,10 @@
     const latest = stripV(info && info.latest);
     // Unknown shell version (older shell without the caps injection) ⇒ assume
     // the shell is outdated and let its own updater decide (it no-ops when current).
-    const shellOutdated = caps.shellVersion ? semverNewer(latest, caps.shellVersion) : true;
+    // A shell that cannot replace itself (an Arch package: pacman owns it) is
+    // never "outdated" here; asking it to update would only report a failure.
+    const shellOutdated = caps.shellSelfUpdate === false ? false
+      : caps.shellVersion ? semverNewer(latest, caps.shellVersion) : true;
     const backendOutdated = !!(info && info.updateAvailable);
     const st = await fetchSelfStatus();
     const ctrl = showUpdatingOverlay();

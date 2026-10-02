@@ -885,11 +885,6 @@ jobs:
           else
             echo "::warning::no rpm was built - this release ships without one"
           fi
-          ARCH_PKG=$(ls "$BUNDLE"/arch/*.pkg.tar.zst 2>/dev/null | head -1 || true)
-          if [ -n "$ARCH_PKG" ]; then
-            cp "$ARCH_PKG" "stage/$(basename "$ARCH_PKG")"
-            cp "$ARCH_PKG" stage/Xenon-Linux-x86_64.pkg.tar.zst
-          fi
 
       - name: Upload native Linux artifacts
         uses: actions/upload-artifact@v5
@@ -976,7 +971,6 @@ jobs:
               ["assets/Xenon-Linux-x86_64.AppImage", "Xenon-Linux-x86_64.AppImage", false],
               ["assets/Xenon-Linux-x86_64.deb", "Xenon-Linux-x86_64.deb", false],
               ["assets/Xenon-Linux-x86_64.rpm", "Xenon-Linux-x86_64.rpm", false],
-              ["assets/Xenon-Linux-x86_64.pkg.tar.zst", "Xenon-Linux-x86_64.pkg.tar.zst", false],
             ];
             let sums = "";
             for (const [path, name, required] of entries) {
