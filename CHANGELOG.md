@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **The "+" panel says where a widget is when it is already on your dashboard.** The panel only offers widgets that are not placed yet, so one you had added, Weather for instance, was simply missing from the list, and that reads as a widget that vanished. They are now listed too, under **Already on your dashboard**: the same items, quieter, each saying where it is (this page, another page by name, or a tab of this tile), and a tap takes you there, turning to the page and lighting the tile for a moment. The search finds them as well, so typing "weather" lands on it instead of on an empty list. If a widget is marked as placed but no tile is on any page, the tap puts it on the page you are on. Asked on Discord: "where is the Weather widget in my menu, it disappeared".
+
 - **A native package for Arch Linux and Omarchy (#133).** On Arch Linux and the distributions built on it, `npm run native:build:arch` builds the Xenon app and packages it for pacman, so it installs, shows up in the app menu and uninstalls like any other package (`sudo pacman -U`). It is built on your own PC rather than downloaded, since the release builds run on Ubuntu. Because pacman owns the installed app, Xenon does not try to replace it; the dashboard still updates itself as usual. (Thanks to the community contribution behind this.)
 
 ### 🐛 Fixed
