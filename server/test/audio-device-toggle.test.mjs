@@ -140,7 +140,7 @@ test('the deck follows the real default output, and asks for it right after a sw
   assert.match(DECK, /if \(node\._deckState && node\._deckState\.source === 'outputDevice'\) wantsOutput = true;/);
   assert.match(DECK, /setOutputWatch\(wantsOutput\);/);
   assert.match(DECK, /scheduleHaWatchSync\(\);[^\n]*\n    syncOutputWatch\(\);/, 'and starts watching as soon as such a key is drawn');
-  assert.match(DECK, /action\.type === 'audioDevice' \|\| action\.type === 'audioDeviceToggle'\)\) pollOutputDevice\(\);/);
+  assert.match(DECK, /action\.type === 'audioDevice' \|\| action\.type === 'audioDeviceToggle' \|\| action\.type === 'audioDeviceFirst'\)\) pollOutputDevice\(\);/);
   // The live audio push feeds it on the dashboard and in the Deck popup alike.
   assert.match(read('../js/main.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);
   assert.match(read('../js/deck-popup.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);
@@ -172,7 +172,8 @@ test('a widget reaches it through the audioDevice grant it may already have', ()
   }
   assert.ok(sdk.SDK_ACTION_TYPES.includes('audioDeviceToggle'));
   // The host's own copy, which gates the bridge before anything is sent.
-  assert.match(read('../js/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle'\],/);
+  // (Later output actions join the same list after it: audioDeviceFirst, v4.11.12.)
+  assert.match(read('../js/custom-widget.js'), /audioDevice: \['audioDevice', 'audioDeviceToggle'(, '[A-Za-z]+')*\],/);
 });
 
 test('a package can ship it as a Deck macro when it declares the grant', () => {
@@ -187,5 +188,5 @@ test('a package can ship it as a Deck macro when it declares the grant', () => {
 test('the SDK guide documents it', () => {
   const DOC = read('../../docs/WIDGET_SDK.md');
   assert.match(DOC, /### 5f\. Moving the sound between two outputs: `audioDeviceToggle` \(v4\.11\.10\)/);
-  assert.match(DOC, /\| `audioDevice` \| `audioDevice`, `audioDeviceToggle` \|/, 'generated reference is current');
+  assert.match(DOC, /\| `audioDevice` \| `audioDevice`, `audioDeviceToggle`(, `[A-Za-z]+`)* \|/, 'generated reference is current');
 });

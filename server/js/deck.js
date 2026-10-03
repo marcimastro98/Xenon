@@ -868,7 +868,7 @@
       if (!(data && data.ok)) reportActionError(data && data.error);
       // The output just changed: ask now rather than wait for the next audio
       // tick, so the key's face follows the press instead of trailing it.
-      if (data && data.ok && (action.type === 'audioDevice' || action.type === 'audioDeviceToggle')) pollOutputDevice();
+      if (data && data.ok && (action.type === 'audioDevice' || action.type === 'audioDeviceToggle' || action.type === 'audioDeviceFirst')) pollOutputDevice();
       return !!(data && data.ok);
     } catch (e) { return false; }
   }
@@ -883,6 +883,7 @@
     blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
     unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
     unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
+    none_connected: ['deck_err_none_connected', 'none of these outputs is connected right now'],
     // Voicemeeter. Every one of these is something the person holding the
     // machine can fix — install it, start it, pick a strip their edition has —
     // which is the bar this map sets. The opaque ones (read/write refused by

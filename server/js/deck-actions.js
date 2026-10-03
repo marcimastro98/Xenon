@@ -80,6 +80,11 @@ const ACTION_CATALOG = [
   // the same live-list check as the key above; the key's state follows which
   // output is really active (deck-model 'outputDevice'), so its second face
   // is right even when the output is changed from the OS instead.
+  // An ordered list of outputs: the key lands on the first one connected right
+  // now (headphones when they are on, speakers otherwise). Same picker and live
+  // check; the third choice is optional. Its face lights while the first choice
+  // is the output in use.
+  { type: 'audioDeviceFirst', group: 'audio', requires: 'soundVolumeView', labelKey: 'deck_act_audioDeviceFirst', params: [{ name: 'device1', kind: 'audioDevice' }, { name: 'device2', kind: 'audioDevice' }, { name: 'device3', kind: 'audioDevice', optional: true }] },
   { type: 'audioDeviceToggle', group: 'audio', requires: 'soundVolumeView', labelKey: 'deck_act_audioDeviceToggle', params: [{ name: 'deviceA', kind: 'audioDevice' }, { name: 'deviceB', kind: 'audioDevice' }] },
   { type: 'obsScene',  group: 'obs', labelKey: 'deck_act_obsScene',  params: [{ name: 'scene',  kind: 'obsScene' }] },
   { type: 'obsSceneNext', group: 'obs', labelKey: 'deck_act_obsSceneNext', params: [] },

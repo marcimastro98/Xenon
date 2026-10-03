@@ -1385,6 +1385,9 @@
       // face while its second device is on, a single-device key lights for its own.
       const tgl = find((s) => s.type === 'audioDeviceToggle' && s.params && s.params.deviceB);
       if (tgl) return { source: 'outputDevice', device: tgl.params.deviceB };
+      // A priority list lights while its first choice is the output in use.
+      const pri = find((s) => s.type === 'audioDeviceFirst' && s.params && s.params.device1);
+      if (pri) return { source: 'outputDevice', device: pri.params.device1 };
       const dev = find((s) => s.type === 'audioDevice' && s.params && s.params.device);
       if (dev) return { source: 'outputDevice', device: dev.params.device };
       if (find((s) => s.type === 'obsRecord')) return { source: 'obsRecording' };

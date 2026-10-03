@@ -88,7 +88,7 @@ const icsFeeds = require('./ics-feeds.js');
 // isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
 // surface that opens a file the user did not type the path of: the Spotlight
 // results, and the transfer widget's received files.
-const { createRegistry, resolveOutputDevice, pickToggleDevice, isBlockedOpenPath } = require('./actions/registry');
+const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnected, isBlockedOpenPath } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
@@ -6053,6 +6053,21 @@ const deckRegistryDeps = {
     const match = pickToggleDevice(a, b, info && info.speakers);
     if (!match) return { ok: false, error: 'unknown_device' };
     await setDefaultAudioDevice(match.id);
+    cachedSpeakerId = match.id;
+    cachedSpeakerName = match.name || cachedSpeakerName;
+    return { ok: true };
+  },
+  // The first output of an ordered list that is connected right now: headphones
+  // when they are on, the speakers otherwise. Asked on Discord for a key that
+  // ends a session on "my Bluetooth headphones if connected, else speakers".
+  // Already the default: nothing is switched, so the sound does not drop out
+  // for a change that changes nothing.
+  audioDeviceFirst: async (ids) => {
+    let info;
+    try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
+    const match = pickFirstConnected(ids, info && info.speakers);
+    if (!match) return { ok: false, error: 'none_connected' };
+    if (!match.isDefault) await setDefaultAudioDevice(match.id);
     cachedSpeakerId = match.id;
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
