@@ -260,17 +260,24 @@
 .day-cell.today { color: var(--green); border-color: rgba(var(--accent-rgb),0.32); }
 .day-cell.selected { background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.56); color: var(--text); }
 
-.day-cell.has-events::after {
-  content: '';
+/* The dots under a day: one per calendar colour that day, at most three, side by
+   side and centred. --dot is the calendar's colour; with none (a local event) the
+   dot keeps the accent it always had, and its glow follows whichever it is. */
+.day-dots {
   position: absolute;
   left: 50%;
   bottom: 3px;
+  display: flex;
+  gap: 3px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.day-dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 10px rgba(var(--accent-rgb),0.55);
-  transform: translateX(-50%);
+  background: var(--dot, var(--green));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--dot, var(--accent)) 55%, transparent);
 }
 
 .upcoming-block {
@@ -339,8 +346,8 @@
 
 .upcoming-dot {
   width: 5px; height: 5px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 8px rgba(var(--accent-rgb),0.5);
+  background: var(--dot, var(--green));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--dot, var(--accent)) 50%, transparent);
 }
 
 .upcoming-name {
