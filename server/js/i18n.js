@@ -34029,6 +34029,85 @@ Object.assign(i18n.nl, {
   palette_placed_tab: "Een tabblad hier",
 });
 
+// Deck and SDK: the first output of an ordered list that is connected right now.
+Object.assign(i18n.it, {
+  deck_act_audioDeviceFirst: "Passa alla prima uscita collegata",
+  deck_param_device1: "Prima scelta",
+  deck_param_device2: "Se non è collegata",
+  deck_param_device3: "Poi (facoltativa)",
+  deck_err_none_connected: "nessuna di queste uscite è collegata adesso",
+});
+Object.assign(i18n.en, {
+  deck_act_audioDeviceFirst: "Switch to the first connected output",
+  deck_param_device1: "First choice",
+  deck_param_device2: "If it is not connected",
+  deck_param_device3: "Then (optional)",
+  deck_err_none_connected: "none of these outputs is connected right now",
+});
+Object.assign(i18n.ko, {
+  deck_act_audioDeviceFirst: "연결된 첫 번째 출력으로 전환",
+  deck_param_device1: "첫 번째 선택",
+  deck_param_device2: "연결되어 있지 않으면",
+  deck_param_device3: "그다음 (선택 사항)",
+  deck_err_none_connected: "지금 연결된 출력 장치가 하나도 없습니다",
+});
+Object.assign(i18n.ja, {
+  deck_act_audioDeviceFirst: "接続されている最初の出力に切り替え",
+  deck_param_device1: "第1候補",
+  deck_param_device2: "接続されていない場合",
+  deck_param_device3: "次に（任意）",
+  deck_err_none_connected: "これらの出力はどれも今は接続されていません",
+});
+Object.assign(i18n.zh, {
+  deck_act_audioDeviceFirst: "切换到第一个已连接的输出",
+  deck_param_device1: "首选",
+  deck_param_device2: "如果未连接",
+  deck_param_device3: "然后（可选）",
+  deck_err_none_connected: "这些输出设备现在都未连接",
+});
+Object.assign(i18n.es, {
+  deck_act_audioDeviceFirst: "Cambiar a la primera salida conectada",
+  deck_param_device1: "Primera opción",
+  deck_param_device2: "Si no está conectada",
+  deck_param_device3: "Después (opcional)",
+  deck_err_none_connected: "ninguna de estas salidas está conectada ahora",
+});
+Object.assign(i18n.fr, {
+  deck_act_audioDeviceFirst: "Passer à la première sortie connectée",
+  deck_param_device1: "Premier choix",
+  deck_param_device2: "Si elle n’est pas connectée",
+  deck_param_device3: "Ensuite (facultatif)",
+  deck_err_none_connected: "aucune de ces sorties n’est connectée pour le moment",
+});
+Object.assign(i18n.de, {
+  deck_act_audioDeviceFirst: "Zum ersten verbundenen Ausgang wechseln",
+  deck_param_device1: "Erste Wahl",
+  deck_param_device2: "Wenn er nicht verbunden ist",
+  deck_param_device3: "Danach (optional)",
+  deck_err_none_connected: "keiner dieser Ausgänge ist gerade verbunden",
+});
+Object.assign(i18n.pt, {
+  deck_act_audioDeviceFirst: "Mudar para a primeira saída ligada",
+  deck_param_device1: "Primeira escolha",
+  deck_param_device2: "Se não estiver ligada",
+  deck_param_device3: "Depois (opcional)",
+  deck_err_none_connected: "nenhuma destas saídas está ligada agora",
+});
+Object.assign(i18n.ru, {
+  deck_act_audioDeviceFirst: "Переключить на первый подключённый выход",
+  deck_param_device1: "Первый вариант",
+  deck_param_device2: "Если он не подключён",
+  deck_param_device3: "Затем (необязательно)",
+  deck_err_none_connected: "ни один из этих выходов сейчас не подключён",
+});
+Object.assign(i18n.nl, {
+  deck_act_audioDeviceFirst: "Wisselen naar de eerste verbonden uitgang",
+  deck_param_device1: "Eerste keuze",
+  deck_param_device2: "Als die niet verbonden is",
+  deck_param_device3: "Daarna (optioneel)",
+  deck_err_none_connected: "geen van deze uitgangen is nu verbonden",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

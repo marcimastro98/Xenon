@@ -93,7 +93,9 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // the choice made for you, both ids go through the same live-list check, and
   // a widget granted this could already move the sound to either device. It
   // stays inside "choose which speakers your sound comes out of".
-  audioDevice: Object.freeze(['audioDevice', 'audioDeviceToggle']),
+  // `audioDeviceFirst` (v4.11.12) joins it on the same terms: the first output
+  // of an ordered list that is connected, each id through the same check.
+  audioDevice: Object.freeze(['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst']),
   mic: Object.freeze(['micMute']),
   lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),

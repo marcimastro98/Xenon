@@ -99,6 +99,7 @@ test('audioDevice is its own SDK category, never folded into volume', () => {
   assert.ok(!sdk.SDK_ACTION_CATEGORIES.volume.includes('audioDeviceToggle'));
   // The toggle (v4.11.10) is the same act, choosing an output from the live
   // list, so it lives in this grant and nowhere else.
-  assert.deepEqual([...sdk.SDK_ACTION_CATEGORIES.audioDevice], ['audioDevice', 'audioDeviceToggle']);
+  // So is the priority list (v4.11.12): the first of several outputs that is connected.
+  assert.deepEqual([...sdk.SDK_ACTION_CATEGORIES.audioDevice], ['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst']);
   assert.ok(sdk.SDK_ACTION_TYPES.includes('audioDevice'));
 });

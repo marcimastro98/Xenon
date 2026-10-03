@@ -580,6 +580,18 @@ function createRegistry(deps) {
           const r = await d.audioDeviceToggle(a, b);
           return r && r.ok === false ? { ok: false, error: r.error || 'audio_device_failed' } : { ok: true };
         }
+        case 'audioDeviceFirst': {
+          // An ordered list of outputs: the first one connected right now wins.
+          // Same shape check as audioDevice for each id given; device3 is optional
+          // (validateAction drops it when empty), one id is enough. Which device it
+          // ends on is decided in the dep against the live list (pickFirstConnected).
+          if (typeof d.audioDeviceFirst !== 'function') return { ok: false, error: 'unavailable' };
+          const ids = [action.device1, action.device2, action.device3]
+            .map((v) => String(v == null ? '' : v).trim()).filter(Boolean);
+          if (!ids.length || ids.some((v) => v.length > 260)) return { ok: false, error: 'no_device' };
+          const r = await d.audioDeviceFirst(ids);
+          return r && r.ok === false ? { ok: false, error: r.error || 'audio_device_failed' } : { ok: true };
+        }
         case 'obsSceneNext': {
           if (typeof d.obsNext !== 'function') return { ok: false, error: 'obs_unavailable' };
           await d.obsNext();
@@ -918,4 +930,16 @@ function pickToggleDevice(a, b, speakers) {
   return current && current.id === first.id ? second : first;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice, pickToggleDevice };
+// The output an ordered list lands on: the first id that is in the live list,
+// each through the same check as a single device (a microphone id never
+// resolves). Null when none of them is connected, so the key can say so
+// instead of picking something that was not on the list.
+function pickFirstConnected(ids, speakers) {
+  for (const id of Array.isArray(ids) ? ids : []) {
+    const hit = resolveOutputDevice(id, speakers);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice, pickToggleDevice, pickFirstConnected };

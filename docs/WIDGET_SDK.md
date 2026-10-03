@@ -1587,7 +1587,7 @@ the same gate Deck keys go through):
 |----------|---------|
 | `media` | `{ type: 'media', cmd: 'playpause' \| 'next' \| 'previous' }`, `{ type: 'mediaSeek', position }` — seek to an absolute position in seconds. `position` must be finite and non-negative; fractional values are rounded to the nearest whole second and the registry caps them at 24 hours before the active player may clamp them to the track. A live/non-seekable source returns `not_seekable` or `unavailable`. While dragging a timeline, preview locally and send one action on pointer release instead of fighting the bridge's 250 ms action rate limit. |
 | `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' \| 'set', value }`, `{ type: 'appVolume', app, mode, value }`, `{ type: 'appMute', app, mode }` — `app` is the `proc` field from the `audio` stream. Note `appVolume` with `mode:'set'` does **not** unmute: raise a muted app and send `appMute` too, or nothing comes out. |
-| `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. `{ type: 'audioDeviceToggle', deviceA, deviceB }` (v4.11.10) flips between two of them in one call: see *Moving the sound between two outputs* below. |
+| `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. `{ type: 'audioDeviceToggle', deviceA, deviceB }` (v4.11.10) flips between two of them in one call: see *Moving the sound between two outputs* below. `{ type: 'audioDeviceFirst', device1, device2, device3? }` (v4.11.12) moves it to the first of a list that is connected right now: see *The first output that is connected* below. |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
 | `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off`; `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
@@ -1944,6 +1944,40 @@ action: { type: 'audioDeviceToggle', deviceA: speakersId, deviceB: headsetId }
   switchaudio-osx`), the same as the `audioDevice` action; without it the
   answer names what is missing.
 
+### 5g. The first output that is connected: `audioDeviceFirst` (v4.11.12)
+
+The Deck's *Switch to the first connected output* key, reachable from a widget:
+an ordered list of outputs, and the sound goes to the first one that is
+connected at the moment of the call. Headphones when they are on, the speakers
+otherwise; a dock's DAC when the laptop is docked, its own speakers when it is
+not.
+
+```js
+action: { type: 'audioDeviceFirst', device1: headsetId, device2: speakersId }
+// { ok: true }, or { ok: false, error: 'none_connected' | 'no_device' | 'audio_unavailable' | … }
+```
+
+```json
+{ "actions": ["audioDevice"], "streams": ["audio"] }
+```
+
+- **Two or three ids, in order of preference.** `device1` and `device2` are
+  the usual pair, `device3` is optional. One id is accepted too, and then it
+  behaves like `audioDevice`. Every id is a `speakers[].id` value from the
+  `audio` stream and goes through the same check against the live output
+  list, so nothing that is not an output can ever be chosen.
+- **The host decides, at the moment of the call.** The first id that is
+  connected wins. If it is already the default output, nothing is switched,
+  so the sound does not drop out for a change that changes nothing, and the
+  answer is still `{ ok: true }`.
+- **None connected** is its own answer, `none_connected`, and nothing is
+  switched. An empty or overlong id is `no_device`, as for `audioDevice`.
+- **Same grant as `audioDevice`**: it moves the sound to devices your widget
+  could already choose one at a time, so it asks the user for nothing new.
+- The result does not say which device was chosen. Read `speaker.id` from the
+  next `audio` push (or the entry in `speakers[]` with `isDefault: true`).
+- On macOS, switching needs `SwitchAudioSource`, as for `audioDevice`.
+
 <!-- SDK-REFERENCE:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
 ### Capability reference (auto-generated)
 
@@ -1957,7 +1991,7 @@ the user granted, and every action is re-validated server-side.
 
 | Category | Action types |
 |----------|--------------|
-| `audioDevice` | `audioDevice`, `audioDeviceToggle` |
+| `audioDevice` | `audioDevice`, `audioDeviceToggle`, `audioDeviceFirst` |
 | `browser` | `browserOpen` |
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` |
