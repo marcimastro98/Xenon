@@ -164,6 +164,36 @@ function eventsForDate(dateValue) {
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
 }
 
+// The colour an event's dot wears. An external event belongs to a calendar the
+// user gave a colour (Settings → External calendars), and the dot says which one.
+// The calendar's live colour comes first, so a colour just changed in Settings
+// shows at once instead of when the events are next fetched (up to 5 minutes);
+// then the colour the event itself carries; then nothing, which is a local event
+// and keeps the accent dot. Pure: `feeds` is hubSettings.calendarFeeds, passed in.
+function eventDotColor(event, feeds) {
+  if (!event) return '';
+  const feed = event.source && Array.isArray(feeds) ? feeds.find((f) => f && f.id === event.source) : null;
+  return (feed && feed.color) || event.color || '';
+}
+
+// The dots under a day: one per distinct calendar colour among its events, in the
+// order they happen, at most `max`. A day with only local events gets the one
+// accent dot it always had (an empty colour). Pure.
+function dayDotColors(events, feeds, max) {
+  const limit = max > 0 ? max : 3;
+  const out = [];
+  for (const event of Array.isArray(events) ? events : []) {
+    const color = eventDotColor(event, feeds);
+    if (!out.includes(color)) out.push(color);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function _calendarFeedsNow() {
+  return (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.calendarFeeds)) ? hubSettings.calendarFeeds : [];
+}
+
 // First weekday column: 0 = Sunday, 1 = Monday (default). Reads the user's
 // preference from hubSettings when present, else keeps the historical Monday.
 function calendarWeekStart() {
@@ -212,8 +242,22 @@ function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
     cell.className = 'day-cell';
     if (dateValue === todayValue) cell.classList.add('today');
     if (dateValue === selectedCalendarDate) cell.classList.add('selected');
-    if (eventsForDate(dateValue).length) cell.classList.add('has-events');
+    const dayEvents = eventsForDate(dateValue);
     cell.textContent = day;
+    if (dayEvents.length) {
+      cell.classList.add('has-events');
+      // One dot per calendar colour that day (at most three), side by side.
+      const dots = document.createElement('span');
+      dots.className = 'day-dots';
+      dots.setAttribute('aria-hidden', 'true');
+      for (const color of dayDotColors(dayEvents, _calendarFeedsNow(), 3)) {
+        const dot = document.createElement('span');
+        dot.className = 'day-dot';
+        if (color) dot.style.setProperty('--dot', color);
+        dots.appendChild(dot);
+      }
+      cell.appendChild(dots);
+    }
     cell.onclick = () => openDayModal(dateValue);
     daysEl.appendChild(cell);
   }
@@ -410,6 +454,8 @@ function _buildUpcomingInto(list) {
     item.title = title + '\n' + fmt.format(new Date(e.startsAt));
     const dot = document.createElement('span');
     dot.className = 'upcoming-dot';
+    const dotColor = eventDotColor(e, _calendarFeedsNow());
+    if (dotColor) dot.style.setProperty('--dot', dotColor);
     const name = document.createElement('span');
     name.className = 'upcoming-name';
     name.textContent = title;
@@ -483,7 +529,8 @@ function renderDayModalEvents() {
     if (event.readOnly) {
       const badge = document.createElement('span');
       badge.className = 'event-source-badge';
-      if (event.color) badge.style.background = event.color;
+      const badgeColor = eventDotColor(event, _calendarFeedsNow());
+      if (badgeColor) badge.style.background = badgeColor;
       badge.title = t('external_event');
       top.appendChild(name);
       top.appendChild(time);
