@@ -34108,6 +34108,52 @@ Object.assign(i18n.nl, {
   deck_err_none_connected: "geen van deze uitgangen is nu verbonden",
 });
 
+// Volume tab, Layout editing: the hidden Volume card, with a way back where it was.
+Object.assign(i18n.it, {
+  layout_volume_hidden: "Scheda Volume nascosta",
+  layout_volume_show: "Mostra",
+});
+Object.assign(i18n.en, {
+  layout_volume_hidden: "Volume card hidden",
+  layout_volume_show: "Show",
+});
+Object.assign(i18n.ko, {
+  layout_volume_hidden: "볼륨 카드가 숨겨져 있음",
+  layout_volume_show: "표시",
+});
+Object.assign(i18n.ja, {
+  layout_volume_hidden: "音量カードは非表示です",
+  layout_volume_show: "表示",
+});
+Object.assign(i18n.zh, {
+  layout_volume_hidden: "音量卡片已隐藏",
+  layout_volume_show: "显示",
+});
+Object.assign(i18n.es, {
+  layout_volume_hidden: "Tarjeta de volumen oculta",
+  layout_volume_show: "Mostrar",
+});
+Object.assign(i18n.fr, {
+  layout_volume_hidden: "Carte Volume masquée",
+  layout_volume_show: "Afficher",
+});
+Object.assign(i18n.de, {
+  layout_volume_hidden: "Lautstärke-Karte ausgeblendet",
+  layout_volume_show: "Anzeigen",
+});
+Object.assign(i18n.pt, {
+  layout_volume_hidden: "Cartão de volume oculto",
+  layout_volume_show: "Mostrar",
+});
+Object.assign(i18n.ru, {
+  layout_volume_hidden: "Карточка громкости скрыта",
+  layout_volume_show: "Показать",
+});
+Object.assign(i18n.nl, {
+  layout_volume_hidden: "Volumekaart verborgen",
+  layout_volume_show: "Tonen",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;
