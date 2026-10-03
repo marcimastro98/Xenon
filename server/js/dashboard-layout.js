@@ -2430,7 +2430,32 @@ function applyDashboardCards(layout) {
   if (audioBlock && layout.cards.audio) {
     const hasVisibleAudio = DASHBOARD_CARD_IDS.audio.some(cardId => layout.cards.audio[cardId].visible);
     audioBlock.dataset.audioHidden = hasVisibleAudio ? 'false' : 'true';
+    syncVolumeHiddenHint(audioBlock, !layout.cards.audio.volume.visible);
   }
+}
+
+// "Volume card hidden · Show", in the Volume tab where the card was. Only exists
+// while the card is hidden, and only shows while Layout is being edited (CSS):
+// the dock's chip under "Hidden audio controls" was the only way back, and a
+// tab left with just the two device rows does not say that anything is gone.
+// The button is an inline handler so a copy of the tile cloned from this
+// content keeps working.
+function syncVolumeHiddenHint(audioBlock, hidden) {
+  let hint = audioBlock.querySelector(':scope > .vol-hidden-hint');
+  if (!hidden) { if (hint) hint.remove(); return; }
+  if (hint) return;
+  hint = document.createElement('div');
+  hint.className = 'vol-hidden-hint';
+  const text = document.createElement('span');
+  text.setAttribute('data-i18n', 'layout_volume_hidden');
+  text.textContent = t('layout_volume_hidden');
+  const show = document.createElement('button');
+  show.type = 'button';
+  show.setAttribute('data-i18n', 'layout_volume_show');
+  show.textContent = t('layout_volume_show');
+  show.setAttribute('onclick', "restoreDashboardLayoutItem('card', 'audio', 'volume')");
+  hint.append(text, show);
+  audioBlock.insertBefore(hint, audioBlock.firstChild);
 }
 
 function applyDashboardTabs(layout) {
