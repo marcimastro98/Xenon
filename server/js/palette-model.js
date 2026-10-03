@@ -90,6 +90,38 @@
     return out;
   }
 
+  // The built-in widgets the panel cannot add because they are already on the
+  // dashboard, so it can say where they are instead of leaving them out without a
+  // word ("where did my Weather go?" is what an absent entry looks like to the
+  // person who put it there). Same rules as the offer itself: a widget that is
+  // visible and not in a tab group is placed; one that can be duplicated is offered
+  // again as a copy; a tab in a group is offered (it is pulled out). In tab mode the
+  // only ones worth naming are the other tabs of the tile being added to.
+  //   widgets: layout.widgets   ids: every built-in id   pageId: where the panel was opened
+  //   groupOf(id): the id of the tab group holding it, or null
+  //   isDuplicable(id)   table: the category table   tabTarget/members: tab mode
+  // Each entry says where it is: { type: 'here' } on the page the panel was opened
+  // from, { type: 'page', page } on another one, { type: 'tab' } in this tile.
+  function placedBuiltins({ widgets, ids, pageId, groupOf, isDuplicable, table, tabTarget, members }) {
+    const w = widgets && typeof widgets === 'object' ? widgets : {};
+    const out = [];
+    if (tabTarget) {
+      for (const id of Array.isArray(members) ? members : []) {
+        if (!id || id === tabTarget || id === 'custom' || String(id).includes('~') || !w[id]) continue;
+        out.push({ kind: 'placed', id, base: id, category: builtinCategory(id, table), where: { type: 'tab' } });
+      }
+      return out;
+    }
+    for (const id of Array.isArray(ids) ? ids : []) {
+      if (id === 'custom' || !w[id] || w[id].visible === false) continue;
+      if (typeof groupOf === 'function' && groupOf(id)) continue;
+      if (typeof isDuplicable === 'function' && isDuplicable(id)) continue;
+      const where = w[id].page && w[id].page !== pageId ? { type: 'page', page: w[id].page } : { type: 'here' };
+      out.push({ kind: 'placed', id, base: id, category: builtinCategory(id, table), where });
+    }
+    return out;
+  }
+
   // 'all' | 'installed' | a category id.
   function filterEntries(entries, filter) {
     const list = Array.isArray(entries) ? entries : [];
@@ -118,6 +150,6 @@
   return {
     CATEGORIES, CATEGORY_KEY, FROM_CATALOG, MANIFEST_CATEGORIES,
     packageCategory, catalogEntryForPackage, builtinCategory,
-    buildEntries, filterEntries, availableFilters, groupByCategory,
+    buildEntries, placedBuiltins, filterEntries, availableFilters, groupByCategory,
   };
 });

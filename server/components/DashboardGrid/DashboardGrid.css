@@ -691,6 +691,26 @@ body.gs-manipulating .page-add-widget {
   font-size: 11px; font-weight: 600; color: var(--text-dim, #8b91a1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* Already on the dashboard: the same item, quieter, ending in an arrow. It goes to the
+   widget instead of adding one, so it keeps the hover of any other item but not its
+   accent glyph. */
+.widget-palette-item.is-placed { background: transparent; border-color: rgba(255, 255, 255, 0.06); font-weight: 600; }
+.widget-palette-item.is-placed .widget-palette-ico { color: var(--text-dim, #8b91a1); }
+.widget-palette-item.is-placed .widget-palette-label { color: var(--text-dim, #8b91a1); }
+.widget-palette-item.is-placed:hover .widget-palette-ico,
+.widget-palette-item.is-placed:hover .widget-palette-label,
+.widget-palette-item.is-placed.is-selected .widget-palette-label { color: inherit; }
+.widget-palette-item.is-placed:hover .widget-palette-ico,
+.widget-palette-item.is-placed.is-selected .widget-palette-ico { color: rgb(var(--accent-rgb)); }
+.widget-palette-go { display: inline-flex; flex: 0 0 auto; margin-left: auto; color: var(--text-dim, #8b91a1); opacity: 0.7; }
+.widget-palette-go svg { width: 16px; height: 16px; }
+.widget-palette-item.is-placed:hover .widget-palette-go { color: rgb(var(--accent-rgb)); opacity: 1; }
+/* The tile a tap on one of them goes to, lit for a moment so the eye finds it. */
+@keyframes widget-found {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+  25%, 70% { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.85), 0 0 30px rgba(var(--accent-rgb), 0.4); }
+}
+.grid-stack-item.widget-found { animation: widget-found 2s ease; }
 .widget-palette-item.is-selected { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.55); }
 .widget-palette-item mark {
   background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius: 3px; padding: 0 1px;

@@ -33961,6 +33961,74 @@ Object.assign(i18n.nl, {
   settings_gamemode_kw: "gamemodus, tijdens het gamen, zwarte achtergrond, donkere achtergrond, achtergrond verdwijnt, aurora, neonraster, geanimeerde achtergrond, game op volledig scherm, effecten pauzeren, prestaties",
 });
 
+// "+" panel: the widgets already on the dashboard, with where each one is.
+Object.assign(i18n.it, {
+  palette_placed: "Già nella tua dashboard",
+  palette_placed_page: "Nella pagina “{page}”",
+  palette_placed_here: "In questa pagina",
+  palette_placed_tab: "Un tab qui",
+});
+Object.assign(i18n.en, {
+  palette_placed: "Already on your dashboard",
+  palette_placed_page: "On page “{page}”",
+  palette_placed_here: "On this page",
+  palette_placed_tab: "A tab here",
+});
+Object.assign(i18n.ko, {
+  palette_placed: "이미 대시보드에 있음",
+  palette_placed_page: "“{page}” 페이지에 있음",
+  palette_placed_here: "이 페이지에 있음",
+  palette_placed_tab: "여기의 탭",
+});
+Object.assign(i18n.ja, {
+  palette_placed: "すでにダッシュボードにあります",
+  palette_placed_page: "ページ「{page}」にあります",
+  palette_placed_here: "このページにあります",
+  palette_placed_tab: "ここのタブ",
+});
+Object.assign(i18n.zh, {
+  palette_placed: "已在仪表盘中",
+  palette_placed_page: "在页面“{page}”",
+  palette_placed_here: "在此页面",
+  palette_placed_tab: "此处的标签页",
+});
+Object.assign(i18n.es, {
+  palette_placed: "Ya está en tu panel",
+  palette_placed_page: "En la página «{page}»",
+  palette_placed_here: "En esta página",
+  palette_placed_tab: "Una pestaña aquí",
+});
+Object.assign(i18n.fr, {
+  palette_placed: "Déjà sur votre tableau de bord",
+  palette_placed_page: "Sur la page « {page} »",
+  palette_placed_here: "Sur cette page",
+  palette_placed_tab: "Un onglet ici",
+});
+Object.assign(i18n.de, {
+  palette_placed: "Bereits auf deinem Dashboard",
+  palette_placed_page: "Auf Seite „{page}“",
+  palette_placed_here: "Auf dieser Seite",
+  palette_placed_tab: "Ein Tab hier",
+});
+Object.assign(i18n.pt, {
+  palette_placed: "Já está no teu painel",
+  palette_placed_page: "Na página «{page}»",
+  palette_placed_here: "Nesta página",
+  palette_placed_tab: "Um separador aqui",
+});
+Object.assign(i18n.ru, {
+  palette_placed: "Уже на вашей панели",
+  palette_placed_page: "На странице «{page}»",
+  palette_placed_here: "На этой странице",
+  palette_placed_tab: "Вкладка здесь",
+});
+Object.assign(i18n.nl, {
+  palette_placed: "Al op je dashboard",
+  palette_placed_page: "Op pagina “{page}”",
+  palette_placed_here: "Op deze pagina",
+  palette_placed_tab: "Een tabblad hier",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

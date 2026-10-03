@@ -98,6 +98,28 @@
       text.appendChild(sub);
     }
     btn.append(ico, text);
+    if (entry.placed) {
+      // Already on the dashboard: the same item, quieter, with an arrow that says
+      // the tap goes there instead of adding something.
+      btn.classList.add('is-placed');
+      const go = document.createElement('span');
+      go.className = 'widget-palette-go';
+      go.setAttribute('aria-hidden', 'true');
+      // Drawn node by node: this function's only markup is the static icon table.
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      const arrow = document.createElementNS(NS, 'path');
+      arrow.setAttribute('d', 'm9 6 6 6-6 6');
+      svg.appendChild(arrow);
+      go.appendChild(svg);
+      btn.appendChild(go);
+    }
     // An item near the bottom of a scrolling palette would otherwise take focus on
     // press and the browser would scroll it into view — yanking it out from under
     // the cursor before mouseup, so the tap lands on empty space and never fires
@@ -408,6 +430,52 @@
     }
     if (!secondScreenSupported()) builtins = builtins.filter(b => b.id !== 'secondscreen');
 
+    // ── Already on the dashboard ─────────────────────────────────────────
+    // A widget that is placed is not offered again, and an entry that is simply
+    // absent reads as "it disappeared" (asked on Discord about Weather). So the
+    // panel lists them too, last and quietly, saying where each one is; a tap goes
+    // there. Which ones count is palette-model.js's placedBuiltins.
+    const tabGroupId = tabTarget && tg ? tg.widgetGroupOf(layout.groups, tabTarget) : null;
+    const placedModel = PM().placedBuiltins({
+      widgets: layout.widgets, ids: DASHBOARD_WIDGET_IDS, pageId, table: WIDGET_CATEGORIES,
+      groupOf: (id) => (tg ? tg.widgetGroupOf(layout.groups, id) : null),
+      isDuplicable: (id) => !!(window.DashboardInstances && window.DashboardInstances.isDuplicable(id)),
+      tabTarget, members,
+    }).filter((m) => !(m.id === 'remote' && !remoteConfigured()) && !(m.id === 'secondscreen' && !secondScreenSupported()));
+    const pageNameOf = (id) => {
+      const page = (layout.pages || []).find((x) => x.id === id);
+      return page && typeof pageDisplayName === 'function' ? pageDisplayName(page) : String(id);
+    };
+    const whereText = (where) => (where.type === 'tab' ? tr('palette_placed_tab', 'A tab here')
+      : where.type === 'page' ? tr('palette_placed_page', 'On page “{page}”').replace('{page}', pageNameOf(where.page))
+      : tr('palette_placed_here', 'On this page'));
+    const showPlaced = (m) => {
+      closePalette();
+      if (m.where.type === 'tab') { if (tg && tabGroupId) tg.setGroupActive(tabGroupId, m.id); return; }
+      const at = layout.widgets[m.id];
+      const P = window.DashboardPager;
+      if (P && typeof P.goToPage === 'function' && at && at.page) P.goToPage(at.page);
+      // The page scrolls in first; then the tile is brought into view and lit.
+      setTimeout(() => {
+        const tile = document.querySelector('.grid-stack-item[gs-id="' + m.id + '"]');
+        if (!tile || tile.closest('#widget-pool')) {
+          // Marked as placed, with no tile on any page: nothing to show, so put it
+          // here, which is what the person was looking for.
+          if (window.DashboardGrid) window.DashboardGrid.addWidgetToPage(m.id, pageId);
+          return;
+        }
+        tile.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        tile.classList.add('widget-found');
+        setTimeout(() => tile.classList.remove('widget-found'), 2000);
+      }, 450);
+    };
+    const toPlacedItem = (m) => ({
+      base: m.base, label: tr('layout_widget_' + m.base, m.base), i18nKey: 'layout_widget_' + m.base,
+      sub: whereText(m.where), placed: true, group: 'palette_placed', pick: () => showPlaced(m),
+      // Found by the same words, a little below an entry that can be added.
+      fields: builtinFields(m.base).map((f) => ({ ...f, weight: (f.weight || 1) * 0.85 })),
+    });
+
     // ── Picking ──────────────────────────────────────────────────────────
     const pickBuiltin = (id) => {
       closePalette();
@@ -521,6 +589,8 @@
       // Under Installed, the bundled examples not installed yet: one tap installs
       // and places one. The reference widget the SDK guide starts from lives here.
       if (filter === 'installed') renderBlock(pop, 'palette_examples', examples(), (e) => e.pick());
+      // What is already on the dashboard, inside the filter that is on.
+      renderBlock(pop, 'palette_placed', PM().filterEntries(placedModel, filter).map(toPlacedItem), (e) => e.pick());
     };
     render();
     // The search looks inside the filter that is on; tab mode's "move here"
@@ -530,6 +600,7 @@
       ...(tabTarget && filter === 'all' ? moveEntries.map(moveItem) : []),
       ...PM().filterEntries(model, filter).map(toItem),
       ...(filter === 'installed' ? examples() : []),
+      ...PM().filterEntries(placedModel, filter).map(toPlacedItem),
     ]);
 
     // Store widgets may not be loaded yet (no tile on screen this session), and
