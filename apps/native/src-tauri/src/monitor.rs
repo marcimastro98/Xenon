@@ -19,7 +19,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
-use std::time::Duration;
+#[cfg(target_os = "macos")]
+use std::time::Instant;
+use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, LogicalSize, Manager, Monitor, PhysicalSize, WebviewWindow};
 
 use crate::prefs;
@@ -313,6 +315,52 @@ const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
 /// legitimately needs repairing is left unrepaired.
 const MAX_REPIN_ATTEMPTS: u32 = 5;
 
+/// After the quick attempts, one more full re-placement this often while the
+/// window is still off its screen, instead of never again. Reported from a Mac:
+/// after every wake from sleep the dashboard sat on the main screen as a small
+/// window until it was moved back by hand. The quick attempts had run out while
+/// the displays were still coming back, the layout then read the same as before
+/// the sleep (so no "topology change" re-armed them), and nothing ever tried again.
+/// Once a minute cannot thrash a display that is flapping, and it does not apply
+/// in a game (see `repin_action`).
+const SLOW_REPIN_EVERY: Duration = Duration::from_secs(60);
+
+/// A gap between two watchdog ticks longer than this means the machine slept.
+/// Measured on the wall clock: the monotonic clock stops during sleep on macOS,
+/// so an `Instant` would see three seconds where the user saw a night.
+const SLEEP_GAP: Duration = Duration::from_secs(20);
+
+/// After a wake, how long the attempt cap is lifted: the time a display takes to
+/// come back from sleep, renegotiate its link and report its real mode. The Edge
+/// can be the last screen to do so.
+const SETTLE_AFTER_WAKE: Duration = Duration::from_secs(30);
+
+/// Slow retries write to the crash log at most this often, so a window that can
+/// never land (a display that is gone for good) does not fill the file.
+const SLOW_REPIN_LOG_EVERY: Duration = Duration::from_secs(30 * 60);
+
+/// How long a cross-screen move on macOS may take before the window is sized. See
+/// `wait_until_on`.
+#[cfg(target_os = "macos")]
+const LANDING_WAIT: Duration = Duration::from_millis(600);
+#[cfg(target_os = "macos")]
+const LANDING_POLL: Duration = Duration::from_millis(50);
+
+/// The length of the sleep between two ticks, or `None` when there was none (an
+/// ordinary tick, or a clock that was set back, which is not a sleep).
+fn slept(prev: SystemTime, now: SystemTime) -> Option<Duration> {
+    match now.duration_since(prev) {
+        Ok(gap) if gap > SLEEP_GAP => Some(gap),
+        _ => None,
+    }
+}
+
+/// Whether a re-placement goes in the crash log: every quick attempt, and a slow
+/// retry only when the last logged one is old enough.
+fn should_log_repin(attempts: u32, since_last_slow_log: Option<Duration>) -> bool {
+    attempts < MAX_REPIN_ATTEMPTS || since_last_slow_log.map_or(true, |d| d >= SLOW_REPIN_LOG_EVERY)
+}
+
 /// What one watchdog tick does about a kiosk or full-screen window.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Repin {
@@ -338,11 +386,16 @@ enum Repin {
 /// dashboard moved to the main display and stayed there, behind the game, until
 /// Alt+Tab ended game mode. Turning HDR on from Windows settings moved it too,
 /// and it came back a few seconds later, because nothing was being played.
-fn repin_action(gaming: bool, drifted: bool, topology_changed: bool, attempts: u32) -> Repin {
-    let chase = drifted && attempts < MAX_REPIN_ATTEMPTS;
+///
+/// `since_last` is the time since the previous attempt. Past the cap, a window
+/// still off its screen gets one full attempt per `SLOW_REPIN_EVERY`, outside a
+/// game only: in a game the quick, quiet attempts are all there is.
+fn repin_action(gaming: bool, drifted: bool, topology_changed: bool, attempts: u32, since_last: Option<Duration>) -> Repin {
+    let quick = drifted && attempts < MAX_REPIN_ATTEMPTS;
+    let slow = drifted && since_last.map_or(false, |d| d >= SLOW_REPIN_EVERY);
     if gaming {
-        if chase { Repin::Quiet } else { Repin::Nothing }
-    } else if topology_changed || chase {
+        if quick { Repin::Quiet } else { Repin::Nothing }
+    } else if topology_changed || quick || slow {
         Repin::Full
     } else {
         Repin::Nothing
@@ -533,9 +586,42 @@ fn place_on_edge(window: &WebviewWindow, edge: &Monitor, focus: bool) {
     let _ = window.set_decorations(false);
     let _ = window.set_skip_taskbar(true);
     let _ = window.set_position(point(rect.x, rect.y));
+    #[cfg(target_os = "macos")]
+    if !wait_until_on(window, edge) {
+        crate::crash_log::note("display", "the window had not reached its screen after 600 ms; sizing it anyway");
+    }
     enter_borderless_fullscreen(window, edge);
     if focus {
         let _ = window.set_focus();
+    }
+}
+
+/// Let a cross-screen move land before the window is sized.
+///
+/// tao queues `set_position` and `set_size` on the main queue, and after a wake
+/// from sleep the resize could be applied while the window was still on the main
+/// screen: AppKit then fitted it to that screen and it stayed there as a small
+/// window. Reported from a Mac, together with the way out the reporter found by
+/// hand: put the window on the Edge first, then choose the Edge. This is that,
+/// automatically: wait until the window really is on the target, then size it.
+///
+/// Only off the main thread (the watchdog). On the main thread the queued move
+/// cannot run while we wait, so waiting would only freeze the app; there the
+/// sizing follows straight away, as before.
+#[cfg(target_os = "macos")]
+fn wait_until_on(window: &WebviewWindow, monitor: &Monitor) -> bool {
+    if thread::current().name() == Some("main") {
+        return window_is_on(window, monitor);
+    }
+    let deadline = Instant::now() + LANDING_WAIT;
+    loop {
+        if window_is_on(window, monitor) {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(LANDING_POLL);
     }
 }
 
@@ -749,6 +835,12 @@ fn place_fullscreen_on(window: &WebviewWindow, monitor: &Monitor) {
     let _ = window.set_skip_taskbar(false);
     let rect = monitor_rect(monitor);
     let _ = window.set_position(point(rect.x, rect.y));
+    // macOS takes a window full screen on the display it is on NOW, so the same
+    // wait as `place_on_edge`: the move first, then full screen.
+    #[cfg(target_os = "macos")]
+    if !wait_until_on(window, monitor) {
+        crate::crash_log::note("display", "the window had not reached its screen after 600 ms; going full screen anyway");
+    }
     let _ = window.set_fullscreen(true);
     let _ = window.set_focus();
 }
@@ -1501,6 +1593,34 @@ fn topology_signature(window: &WebviewWindow) -> String {
     format!("P:{}|{}", primary, parts.join("|"))
 }
 
+/// One crash-log line per re-placement of a window that was off its screen:
+/// where it was, where it is going, and which attempt this is, so a report of
+/// "it is still on the wrong screen" comes with what was tried. Slow retries are
+/// logged sparingly (`should_log_repin`); the moment the quick attempts run out
+/// is said once.
+fn note_repin(window: &WebviewWindow, target: &Monitor, attempts: u32, now: SystemTime, last_slow_log: &mut Option<SystemTime>) {
+    let since = last_slow_log.and_then(|t| now.duration_since(t).ok());
+    if !should_log_repin(attempts, since) {
+        return;
+    }
+    if attempts >= MAX_REPIN_ATTEMPTS {
+        *last_slow_log = Some(now);
+    }
+    let r = monitor_rect(target);
+    let from = current_of(window)
+        .map(|m| format!("{} at {},{}", m.name().map(String::as_str).unwrap_or("?"), m.position().x, m.position().y))
+        .unwrap_or_else(|| "unknown screen".to_string());
+    let name = target.name().map(String::as_str).unwrap_or("?");
+    let mut line = format!(
+        "re-placing the window (attempt {}): it is on {}, its screen is {} {:.0}x{:.0} at {:.0},{:.0}",
+        attempts + 1, from, name, r.w, r.h, r.x, r.y
+    );
+    if attempts + 1 == MAX_REPIN_ATTEMPTS {
+        line.push_str("; last quick attempt, then once a minute");
+    }
+    crate::crash_log::note("display", &line);
+}
+
 /// Start the background watchdog. Re-pins the window to the Edge whenever it is
 /// present but the window has drifted off it (display reorder, replug, resume) or
 /// the display topology changes (e.g. a monitor powered off relocates the Windows
@@ -1516,8 +1636,29 @@ pub fn start_watchdog(app: AppHandle) {
         // Consecutive ticks spent chasing a window that has not landed. Reset the
         // moment it lands or the layout changes; see MAX_REPIN_ATTEMPTS.
         let mut repin_attempts: u32 = 0;
+        // Wake from sleep, and the slow retry past the cap (see SLOW_REPIN_EVERY).
+        let mut last_tick = SystemTime::now();
+        let mut settle_until: Option<SystemTime> = None;
+        let mut last_attempt: Option<SystemTime> = None;
+        let mut last_slow_log: Option<SystemTime> = None;
         loop {
         thread::sleep(WATCHDOG_INTERVAL);
+
+        // The machine slept. The displays come back one by one, and the OS has
+        // probably moved the window onto whichever came back first; the layout
+        // will read the same as before the sleep, so nothing else would re-arm the
+        // repair. Lift the attempt cap for a while and start counting afresh.
+        let now = SystemTime::now();
+        if let Some(gap) = slept(last_tick, now) {
+            crate::crash_log::note("display", &format!("woke after {} s: checking the window is on its screen", gap.as_secs()));
+            settle_until = Some(now + SETTLE_AFTER_WAKE);
+            repin_attempts = 0;
+        }
+        last_tick = now;
+        if settle_until.map_or(false, |t| now < t) {
+            repin_attempts = 0;
+        }
+        let since_last = last_attempt.and_then(|t| now.duration_since(t).ok());
 
         let window = match app.get_webview_window("main") {
             Some(w) => w,
@@ -1614,17 +1755,20 @@ pub fn start_watchdog(app: AppHandle) {
                     if !drifted || topology_changed {
                         repin_attempts = 0;
                     }
-                    match repin_action(game_mode(), drifted, topology_changed, repin_attempts) {
+                    match repin_action(game_mode(), drifted, topology_changed, repin_attempts, since_last) {
                         Repin::Nothing => {}
                         Repin::Quiet => {
                             // `drifted` is only ever true for the kiosk and
                             // full-screen targets, which both own the whole screen.
                             repin_attempts += 1;
+                            last_attempt = Some(now);
                             move_back_quietly(&window, &target);
                         }
                         Repin::Full => {
                             if drifted {
-                                repin_attempts += 1;
+                                note_repin(&window, &target, repin_attempts, now, &mut last_slow_log);
+                                repin_attempts = repin_attempts.saturating_add(1);
+                                last_attempt = Some(now);
                             }
                             let focus = kiosk_has_foreground(&window);
                             if is_edge_panel(&target) {
@@ -1670,15 +1814,18 @@ pub fn start_watchdog(app: AppHandle) {
             if !drifted || topology_changed {
                 repin_attempts = 0;
             }
-            match repin_action(game_mode(), drifted, topology_changed, repin_attempts) {
+            match repin_action(game_mode(), drifted, topology_changed, repin_attempts, since_last) {
                 Repin::Nothing => {}
                 Repin::Quiet => {
                     repin_attempts += 1;
+                    last_attempt = Some(now);
                     move_back_quietly(&window, &edge);
                 }
                 Repin::Full => {
                     if drifted {
-                        repin_attempts += 1;
+                        note_repin(&window, &edge, repin_attempts, now, &mut last_slow_log);
+                        repin_attempts = repin_attempts.saturating_add(1);
+                        last_attempt = Some(now);
                     }
                     // Re-place, but only re-raise if the kiosk already had the
                     // foreground — see `place_on_edge`. A window the user moved onto
@@ -1703,32 +1850,65 @@ pub fn start_watchdog(app: AppHandle) {
 mod repin_tests {
     use super::*;
 
+    const NEVER: Option<Duration> = None;
+    fn secs(n: u64) -> Option<Duration> { Some(Duration::from_secs(n)) }
+
     #[test]
     fn outside_a_game_a_topology_change_or_a_drift_re_places_fully() {
-        assert_eq!(repin_action(false, false, true, 0), Repin::Full);
-        assert_eq!(repin_action(false, true, false, 0), Repin::Full);
-        assert_eq!(repin_action(false, false, false, 0), Repin::Nothing);
+        assert_eq!(repin_action(false, false, true, 0, NEVER), Repin::Full);
+        assert_eq!(repin_action(false, true, false, 0, NEVER), Repin::Full);
+        assert_eq!(repin_action(false, false, false, 0, NEVER), Repin::Nothing);
     }
 
     #[test]
     fn a_game_switching_resolution_is_left_alone() {
         // The exclusive full-screen bounce: the layout changed, the window is where
         // it belongs. Nothing may run, or the game loses the foreground.
-        assert_eq!(repin_action(true, false, true, 0), Repin::Nothing);
+        assert_eq!(repin_action(true, false, true, 0, NEVER), Repin::Nothing);
     }
 
     #[test]
     fn a_window_moved_off_its_screen_mid_game_comes_back_quietly() {
         // A game turning HDR on: Windows moved the dashboard to the main display.
-        assert_eq!(repin_action(true, true, true, 0), Repin::Quiet);
-        assert_eq!(repin_action(true, true, false, 2), Repin::Quiet);
+        assert_eq!(repin_action(true, true, true, 0, NEVER), Repin::Quiet);
+        assert_eq!(repin_action(true, true, false, 2, secs(3)), Repin::Quiet);
     }
 
     #[test]
     fn the_attempt_cap_holds_in_and_out_of_a_game() {
-        assert_eq!(repin_action(true, true, false, MAX_REPIN_ATTEMPTS), Repin::Nothing);
-        assert_eq!(repin_action(false, true, false, MAX_REPIN_ATTEMPTS), Repin::Nothing);
+        assert_eq!(repin_action(true, true, false, MAX_REPIN_ATTEMPTS, secs(3)), Repin::Nothing);
+        assert_eq!(repin_action(false, true, false, MAX_REPIN_ATTEMPTS, secs(3)), Repin::Nothing);
         // A real layout change outside a game still re-places past the cap.
-        assert_eq!(repin_action(false, true, true, MAX_REPIN_ATTEMPTS), Repin::Full);
+        assert_eq!(repin_action(false, true, true, MAX_REPIN_ATTEMPTS, secs(3)), Repin::Full);
+    }
+
+    #[test]
+    fn past_the_cap_a_window_still_off_its_screen_is_retried_once_a_minute() {
+        // The Mac after a wake: five quick attempts did not land, the layout reads
+        // the same as before the sleep. It used to stay on the main screen for good.
+        assert_eq!(repin_action(false, true, false, MAX_REPIN_ATTEMPTS, secs(59)), Repin::Nothing);
+        assert_eq!(repin_action(false, true, false, MAX_REPIN_ATTEMPTS, secs(60)), Repin::Full);
+        assert_eq!(repin_action(false, true, false, MAX_REPIN_ATTEMPTS + 40, secs(600)), Repin::Full);
+        // Only while it is off its screen, and never in a game.
+        assert_eq!(repin_action(false, false, false, MAX_REPIN_ATTEMPTS, secs(600)), Repin::Nothing);
+        assert_eq!(repin_action(true, true, false, MAX_REPIN_ATTEMPTS, secs(600)), Repin::Nothing);
+    }
+
+    #[test]
+    fn a_long_gap_between_ticks_is_a_sleep_and_a_short_one_is_not() {
+        let t0 = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+        assert_eq!(slept(t0, t0 + Duration::from_secs(3)), None, "an ordinary tick");
+        assert_eq!(slept(t0, t0 + SLEEP_GAP), None, "exactly the threshold is not a sleep");
+        assert_eq!(slept(t0, t0 + Duration::from_secs(8 * 3600)), Some(Duration::from_secs(8 * 3600)));
+        assert_eq!(slept(t0, t0 - Duration::from_secs(3600)), None, "a clock set back is not a sleep");
+    }
+
+    #[test]
+    fn slow_retries_are_logged_sparingly() {
+        assert!(should_log_repin(0, None));
+        assert!(should_log_repin(MAX_REPIN_ATTEMPTS - 1, Some(Duration::from_secs(1))));
+        assert!(should_log_repin(MAX_REPIN_ATTEMPTS, None), "the first slow retry is logged");
+        assert!(!should_log_repin(MAX_REPIN_ATTEMPTS, Some(Duration::from_secs(60))));
+        assert!(should_log_repin(MAX_REPIN_ATTEMPTS, Some(SLOW_REPIN_LOG_EVERY)));
     }
 }
