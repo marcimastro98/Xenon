@@ -150,6 +150,13 @@ fn append(kind: &str, detail: &str) {
     let _ = f.flush();
 }
 
+/// One line about something the app did that a later report will want to see
+/// (where the display watchdog put the window after a wake, say). Same file and
+/// format as everything else here, so "Open crash log" shows it in order.
+pub fn note(kind: &str, detail: &str) {
+    append(kind, detail);
+}
+
 /// Note that the WEB process died and the shell survived it.
 ///
 /// A panic here would not do: this is not our process crashing. On Linux the
