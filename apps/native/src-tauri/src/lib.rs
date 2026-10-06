@@ -196,7 +196,10 @@ pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
     if want {
         // Idempotent, and it REWRITES the entry — which is what migrates an
         // existing registration onto the new `--autostart` argument.
-        let _ = manager.enable();
+        if manager.enable().is_ok() {
+            #[cfg(windows)]
+            quote_login_entry(app);
+        }
     } else if manager.is_enabled().unwrap_or(false) {
         // Gated on is_enabled: the underlying crate's Windows `disable()` deletes
         // a registry value and returns an error when it is already absent.
@@ -206,6 +209,50 @@ pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
 
 #[cfg(not(desktop))]
 pub(crate) fn sync_autostart(_app: &tauri::AppHandle) {}
+
+/// Rewrite the Windows login entry with the program path in quotes.
+///
+/// The autostart crate writes `C:\Users\John Smith\...\xenon-native.exe --autostart`
+/// with no quotes. Under a user folder with a space in it Windows then has to
+/// guess where the program name ends, and it can drop the `--autostart`
+/// argument (the same bug in another Tauri app: localsend/localsend#1293), so a
+/// login launch would be taken for a deliberate one. Same value name, so the
+/// crate's `is_enabled` and `disable` still find it.
+#[cfg(windows)]
+fn quote_login_entry(app: &tauri::AppHandle) {
+    #[link(name = "advapi32")]
+    extern "system" {
+        fn RegSetKeyValueW(
+            hkey: isize,
+            sub_key: *const u16,
+            value_name: *const u16,
+            kind: u32,
+            data: *const core::ffi::c_void,
+            bytes: u32,
+        ) -> i32;
+    }
+    // HKEY_CURRENT_USER is the sign-extended (LONG)0x80000001.
+    const HKEY_CURRENT_USER: isize = 0x8000_0001_u32 as i32 as isize;
+    const REG_SZ: u32 = 1;
+    let Ok(exe) = std::env::current_exe() else { return };
+    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let sub_key = wide(r"Software\Microsoft\Windows\CurrentVersion\Run");
+    let name = wide(&app.package_info().name);
+    let data = wide(&format!("\"{}\" --autostart", exe.display()));
+    let status = unsafe {
+        RegSetKeyValueW(
+            HKEY_CURRENT_USER,
+            sub_key.as_ptr(),
+            name.as_ptr(),
+            REG_SZ,
+            data.as_ptr().cast(),
+            (data.len() * 2) as u32,
+        )
+    };
+    if status != 0 {
+        crate::crash_log::note("autostart", &format!("could not quote the login entry (error {status})"));
+    }
+}
 
 /// Handle one `xenon-display:` signal. Runs on a spawned thread — never on the
 /// WebView UI thread the navigation hook is called from.
@@ -1446,14 +1493,16 @@ pub fn run() {
     prefer_host_graphics_libs();
 
     let mut builder = tauri::Builder::default()
-        // Only one kiosk instance may own the Edge. A second launch re-focuses
-        // the existing window instead of opening a duplicate.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
+        // Only one kiosk instance may own the Edge. A second launch shows the
+        // existing window, on its screen, instead of opening a duplicate. A second
+        // LOGIN launch is not the user asking for anything (macOS has two login
+        // entries that both start the app), so it changes nothing: showing the
+        // window there would undo phone mode at every login.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.iter().any(|a| a == "--autostart") {
+                return;
             }
+            monitor::reveal(app);
         }))
         // Open external links (Support, Community Discord, Report a bug, …) in
         // the user's default browser instead of trapping them in the kiosk.
@@ -1920,6 +1969,7 @@ pub fn run() {
             // watchdog running so it returns there after display reorders, replug
             // or resume from standby.
             monitor::place_now(&window);
+            monitor::note_startup(&window, autostarted);
             // Seed the watchdog's Remote-Desktop-hide flag from the saved pref so a
             // launch that starts inside an RDP session already knows to hide (the
             // dashboard's toggle updates it live once the page loads).
