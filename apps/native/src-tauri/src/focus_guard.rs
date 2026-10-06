@@ -152,9 +152,21 @@ pub fn start(window: &WebviewWindow) {
     });
 }
 
-/// The dashboard entered/left game mode (`xenon-focus:guard-on/off`).
+/// The dashboard saw a game start or stop (`xenon-focus:guard-on/off`).
+///
+/// The crash log gets one line when a game starts and one when it ends, so a
+/// report of "the game loses focus when I tap Xenon" says whether the game was
+/// detected at all. A dashboard reload re-sends the current state; that is not
+/// a change and writes nothing.
 pub fn set_game_mode(on: bool) {
-    GAME_MODE.store(on, Ordering::Relaxed);
+    if GAME_MODE.swap(on, Ordering::Relaxed) != on {
+        let line = match (on, ENABLED.load(Ordering::Relaxed)) {
+            (true, true) => "game detected: keeping it focused while Xenon is touched",
+            (true, false) => "game detected: Keep games focused is off in the tray, so taps on Xenon take the focus",
+            (false, _) => "game closed",
+        };
+        crate::crash_log::note("focus", line);
+    }
     if !on {
         TYPING.store(false, Ordering::Relaxed);
     }
