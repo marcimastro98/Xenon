@@ -61,13 +61,19 @@ function Build-Sql($q) {
     if ($null -eq $raw) { continue }
     $t = Sanitize-Term ([string]$raw)
     if ($t.Length -lt 1 -or $t.Length -gt 64) { continue }
+    # LIKE is accent-SENSITIVE (measured: '%universita%' misses "Universita" spelled with a grave accent),
+    # and the parser strips accents from every term, so LIKE alone could never
+    # find an accented name. CONTAINS on the name is accent-insensitive but only
+    # matches word starts; together they cover the substring AND the accent.
+    $name = "System.FileName LIKE '%$t%' OR CONTAINS(System.FileName, '""$t*""')"
     if ($q.content) {
       # Name match OR indexed-content match. Which one hit is not knowable
       # per-row; Node treats every row as a potential content hit and lets the
-      # ranker floor the ones whose NAME does not match.
-      $conds.Add("(System.FileName LIKE '%$t%' OR CONTAINS(System.Search.Contents, '""$t""'))")
+      # ranker floor the ones whose NAME does not match. A prefix, as for the
+      # name: the content is searched while the word is still being typed.
+      $conds.Add("($name OR CONTAINS(System.Search.Contents, '""$t*""'))")
     } else {
-      $conds.Add("(System.FileName LIKE '%$t%')")
+      $conds.Add("($name)")
     }
   }
 

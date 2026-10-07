@@ -197,6 +197,22 @@ function rasterToCanvas(file, maxEdge) {
   });
 }
 
+// Put `node` into `parent` (before `ref`, or at the end) WITHOUT reloading the
+// iframes inside it. appendChild/insertBefore of a node already in the page is a
+// remove and an insert, and an iframe that leaves the document is torn down and
+// loads again. For the Twitch tile that was a new pre-roll ad every time the
+// dashboard re-homed it (rebuilding the pages parks every tile in #widget-pool
+// and puts it back: measured, one fresh load per rebuild). Element.moveBefore
+// is an atomic move that keeps the frame running, including through the hidden
+// pool. It only applies when both nodes are in the document; anything else, or
+// an engine without it (Safari, so a paired iPhone), takes the old path.
+function moveNode(parent, node, ref = null) {
+  if (typeof parent.moveBefore === 'function' && parent.isConnected && node.isConnected) {
+    try { parent.moveBefore(node, ref); return node; } catch { /* not movable atomically here */ }
+  }
+  return parent.insertBefore(node, ref);
+}
+
 // True unless `el` sits on a pager page the user isn't currently viewing. The
 // pager keeps off-screen pages mounted (transformed away, not display:none), so
 // offsetParent / document.hidden don't catch a widget parked on another page —

@@ -343,7 +343,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | "Hey Xenon" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
-| Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
+| Streaming, Spotify, Discord, Home Assistant, Claude Code, OpenAI Codex | ✅ | ✅ | ✅ |
 | In-game FPS counter | ✅ | — | ✅ ¹³ |
 | Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
 | Mirroring desktop notifications | ✅ | — | ✅ ⁶ |

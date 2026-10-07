@@ -36,6 +36,8 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Stocks (Borsa)](#stocks-borsa)
 - [Football (Calcio)](#football-calcio)
 - [Claude Code](#claude-code)
+- [Codex](#codex)
+- [Ask ChatGPT](#ask-chatgpt)
 - [News](#news)
 - [Vitals](#vitals)
 - [Ambient mode (screensaver)](#ambient-mode-screensaver)
@@ -708,6 +710,29 @@ If you use **Claude Code** on your PC, this tile shows what your sessions are do
 - **Usage** — the last 30 days: today, since Monday, the total, the share read from cache and the value at API list prices, a column for each day, and the split by project and by model.
 - **Ask and Deck keys** — start Claude Code in one of your projects from the tile or from a Deck key, and stop a run from the dashboard.
 - **Local** — usage is read from Claude Code's own session files in `~/.claude`; live state arrives from Claude Code's hooks and status line on `127.0.0.1`, each report carrying a key Xenon created. Connecting backs up your `settings.json` first and keeps a status line you already had. Fully localised (11 languages).
+
+---
+
+## Codex
+
+If you use **OpenAI Codex**, in the ChatGPT desktop app, the Codex extension for your editor or the `codex` command, this tile shows your plan and the sessions working on this PC. Add the **Codex** tile from the **"+" → System** palette. The plan side works as soon as Codex is installed and signed in; sessions and approvals need **Codex → Connect** on the tile, then trusting the Xenon hooks once in Codex with `/hooks`.
+
+- **Requests first** — when a Codex session asks to run a command or change files, the card sits at the top of the tile with the command, or the list of files with the deletes marked, and **Allow**, **Deny** or **Answer in Codex**. It says what makes the request unusual (the network, publishing, outside the project, more access than the session has, or something that cannot be undone); a request that cannot be undone is allowed by **holding** the key. A request left for 25 seconds takes over the screen. While it waits here Codex shows no prompt of its own, so after 90 seconds it goes back to Codex (Settings → Codex). Nothing is approved for you.
+- **Plan usage** — the usage windows Codex reports for your plan, labelled by their real length (5 hours and a week on a paid plan, one 30-day window on Free), each with the time to its reset and a mark where an even pace would be now, plus credits when your plan has them.
+- **Live** — a row for each session the hooks report (what you asked, the model, working or waiting for you) and the conversations Codex lists, with where they ran: the ChatGPT app, the terminal or the editor.
+- **Usage** — tokens today, over 7 and 30 days and in total, and a column for each of the last 30 days. The numbers are your whole account's, as Codex reports them.
+- **How it works** — the plan side comes from `codex app-server`, the program the ChatGPT app and the editor extension use to talk to Codex, which Xenon runs only while the tile is on a dashboard and closes when it is not needed. The live side comes from five hooks in `~/.codex/hooks.json`, which run a small script on this PC and report to `127.0.0.1` with a key Xenon created. Connecting backs up `hooks.json` first and leaves your own hooks as they are; Xenon never marks a hook trusted for you. Fully localised (11 languages).
+
+---
+
+## Ask ChatGPT
+
+A chat tile answered by your own **ChatGPT plan**, without an API key. Add **Ask ChatGPT** from the **"+" → Media** palette.
+
+- **How it answers** — ChatGPT has no way for another app to read or continue your chats, so the tile asks through OpenAI's **Codex** on this PC, signed in with your ChatGPT account: the official program, read-only, with no tools and no files. It needs Codex installed and signed in (the ChatGPT app, the Codex extension for your editor or the `codex` command) and says so when it is not.
+- **Conversations** — follow-ups carry the conversation so far. **Chats** lists them, opens one or deletes it, and holds the model picker (the list comes from Codex). Up to 40 conversations are kept on this PC; they do not appear in your ChatGPT history.
+- **While it thinks** — a line counts the seconds, with **Stop**. The answer arrives on every screen showing the tile, so you can ask from the phone and read on the Edge.
+- **The plan** — the header shows the busiest usage window of your plan (the same numbers as the Codex tile), since these answers count against it. Fully localised (11 languages).
 
 ---
 

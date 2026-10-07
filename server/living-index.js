@@ -139,8 +139,12 @@ function createLivingIndex(opts) {
         terms: q.terms || [], exts: q.exts || null,
         after: q.after, before: q.before, minBytes: q.minBytes, maxBytes: q.maxBytes,
         max: q.max || 60,
+        // Folders whose name matches, and words found in a folder above the
+        // file. An older helper ignores both and answers files only.
+        dirs: q.dirs || 0,
+        pathTerms: q.pathTerms === true,
       }, 10000);
-      return { items: out.items || [], building: out.building === true };
+      return { items: out.items || [], dirs: Array.isArray(out.dirs) ? out.dirs : [], building: out.building === true };
     } catch { return null; }
   }
 
@@ -161,6 +165,9 @@ function createLivingIndex(opts) {
         dupeMax: cfg.dupeMax,
         detailRoots: cfg.detailRoots,
         detailMax: cfg.detailMax,
+        staleMinBytes: cfg.staleMinBytes,
+        staleBefore: cfg.staleBefore,
+        staleMax: cfg.staleMax,
       }, OVERVIEW_TIMEOUT_MS);
     } catch { return null; }
   }
@@ -200,6 +207,9 @@ function createLivingIndex(opts) {
         on: true, helper: true,
         ready: s.ready === true, building: s.building === true,
         files: s.files || 0, dirs: s.dirs || 0, bytes: s.bytes || 0,
+        // Moves on every change the index applies (absent on an older helper).
+        // diskspace.js reuses a disk snapshot for as long as it stands still.
+        version: Number.isFinite(s.version) ? s.version : null,
         ramMB: s.ramMB || 0, roots: host.roots.slice(),
         // The entry cap this host derived from the machine's RAM, so the UI
         // can warn BEFORE it is hit — "capped" arrives when it is too late.

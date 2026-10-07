@@ -65,6 +65,8 @@ test('only what needs a person at the PC is refused', () => {
     ['/second-screen/create-display', 'POST'],
     ['/api/claude/event', 'POST'],       // Claude Code's own token-gated ingest
     ['/api/claude/permission', 'POST'],
+    ['/api/codex/event', 'POST'],        // the same for OpenAI Codex (codex-hook.js)
+    ['/api/codex/permission', 'POST'],
     // …plus the pairing admin, which is loopback-only by being denied here: a
     // phone must not enrol another phone or revoke the device that kicks it off.
     ['/api/remote-access/status', 'GET'],
@@ -161,6 +163,11 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // are the same actions taken by a person the hub has already authenticated.
     'POST /api/claude/question',
     'POST /api/claude/turn-end',
+    // The OpenAI Codex twins: posted by codex-hook.js, which Codex runs, against
+    // a token minted on the PC. A phone answers a Codex card through
+    // /api/codex/decide, like any other dashboard.
+    'POST /api/codex/event',
+    'POST /api/codex/permission',
     'POST /api/gamemode/install-presentmon',
     'POST /api/lighting/sdk-install',
     'POST /api/native/install',

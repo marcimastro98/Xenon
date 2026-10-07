@@ -53,8 +53,18 @@ final class FileIndex {
         return entries
     }
 
+    // Bumped each time a walk is swapped in. The server keys its disk snapshot
+    // cache on it, the same contract the Windows host's live counter has.
+    private var version = 0
+
+    var currentVersion: Int {
+        lock.lock(); defer { lock.unlock() }
+        return version
+    }
+
     func setEntries(_ list: [Entry], capped: Bool, cappedRoots: [String]) {
         lock.lock()
+        self.version += 1
         self.entries = list
         self.capped = capped
         self.cappedRoots = cappedRoots
@@ -85,6 +95,55 @@ enum IndexHost {
     static let index = FileIndex()
     static var watcherStream: FSEventStreamRef?
     static var rootList: [String] = []
+
+    // ── Matching ────────────────────────────────────────────────────────────
+
+    // What a name is MATCHED on: case- and accent-folded. The server strips
+    // accents from every typed term ("città" → "citta"), so a name kept with
+    // its accents could never match one; macOS also stores names decomposed
+    // (NFD), which folding removes as well.
+    static func fold(_ s: String) -> String {
+        s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    // 0 exact · 1 prefix · 2 word boundary · 3 substring · -1 miss — the same
+    // tiers the Windows host uses, so both platforms hand the ranker the BEST
+    // candidates rather than the first ones the walk happened to meet.
+    static func matchTier(_ name: String, _ term: String) -> Int {
+        guard let r = name.range(of: term, options: .literal) else { return -1 }
+        if r.lowerBound == name.startIndex {
+            if r.upperBound == name.endIndex { return 0 }
+            if name[r.upperBound] == "." && !name[name.index(after: r.upperBound)...].contains(".") { return 0 }
+            return 1
+        }
+        let prev = name[name.index(before: r.lowerBound)]
+        return " -_.(".contains(prev) ? 2 : 3
+    }
+
+    // ── File kinds ──────────────────────────────────────────────────────────
+    // The capacity bar's split. The same lists as helper/IndexHost.cs and
+    // server/disk-kinds.js (a test compares them): by extension, except that a
+    // file inside a game library folder is a game whatever its extension.
+    static let kindNames = ["other", "video", "image", "audio", "document", "archive", "app", "game"]
+    static let extKinds: [String: Int] = {
+        let lists: [(Int, String)] = [
+            (1, "mp4 mkv mov avi wmv flv webm m4v mpg mpeg ts m2ts mts 3gp vob"),
+            (2, "jpg jpeg png gif bmp tif tiff webp heic heif raw cr2 cr3 nef arw dng orf rw2 psd ico avif jxl"),
+            (3, "mp3 wav flac aac ogg m4a wma opus aiff aif alac mid midi"),
+            (4, "pdf doc docx xls xlsx ppt pptx odt ods odp rtf txt md csv epub pages numbers key"),
+            (5, "zip rar 7z tar gz tgz bz2 xz zst iso img dmg cab lz4 wim vhd vhdx"),
+            (6, "exe dll msi sys appx msix msixbundle so dylib pkg deb rpm drv ocx mui cat nls efi jar"),
+        ]
+        var m: [String: Int] = [:]
+        for (kind, list) in lists { for ext in list.split(separator: " ") { m[String(ext)] = kind } }
+        return m
+    }()
+    static let gameLibraryNames: Set<String> = ["steamapps", "epic games", "xboxgames", "gog games", "riot games", "ea games", "rockstar games"]
+
+    static func kindOf(_ e: FileIndex.Entry) -> Int {
+        for part in e.path.split(separator: "/").dropLast() where gameLibraryNames.contains(part.lowercased()) { return 7 }
+        return extKinds[(e.name as NSString).pathExtension.lowercased()] ?? 0
+    }
 
     // ── Walking ─────────────────────────────────────────────────────────────
 
@@ -132,7 +191,7 @@ enum IndexHost {
                 let size = Int64(values.fileSize ?? 0)
                 let mtime = (values.contentModificationDate?.timeIntervalSince1970 ?? 0) * 1000
                 let name = values.name ?? url.lastPathComponent
-                out.append(FileIndex.Entry(path: url.path, name: name, lowerName: name.lowercased(),
+                out.append(FileIndex.Entry(path: url.path, name: name, lowerName: fold(name),
                                            size: isDir ? 0 : size, mtime: mtime, isDir: isDir))
                 since += 1
                 if since >= 20_000 { since = 0; onProgress(out.count, root) }
@@ -227,22 +286,52 @@ enum IndexHost {
                 ("files", .i(files.count)),
                 ("dirs", .i(all.count - files.count)),
                 ("bytes", .n(Double(bytes))),
+                ("version", .i(index.currentVersion)),
                 ("ramMB", .n(ramMB.rounded())),
                 ("capped", .b(index.isCapped)),
                 ("cappedRoots", .arr(index.incompleteRoots.map { .s($0) })),
             ])
 
         case "query":
-            let terms = ((req["terms"] as? [String]) ?? []).map { $0.lowercased() }.filter { !$0.isEmpty }
+            let terms = ((req["terms"] as? [String]) ?? []).map { fold($0) }.filter { !$0.isEmpty }
             let exts = (req["exts"] as? [String])?.map { $0.lowercased() }
             let max = (req["max"] as? Int) ?? 60
             let minBytes = Int64((req["minBytes"] as? Int) ?? 0)
             let maxBytes = Int64((req["maxBytes"] as? Int) ?? 0)
             let after = (req["after"] as? Double) ?? 0
             let before = (req["before"] as? Double) ?? 0
-            var hits: [FileIndex.Entry] = []
-            for e in all where !e.isDir {
-                if !terms.isEmpty && !terms.allSatisfy({ e.lowerName.contains($0) }) { continue }
+            // Folders whose own name matches (asked for with `dirs`, plain name
+            // queries only) and words held by a folder above the file
+            // (`pathTerms`): the Windows host's contract, so the server reads
+            // one shape.
+            let dirMax = Swift.max(0, Swift.min(50, (req["dirs"] as? Int) ?? 0))
+            let pathTerms = (req["pathTerms"] as? Bool) == true && terms.count >= 2
+            let plain = !terms.isEmpty && (exts ?? []).isEmpty && minBytes == 0 && maxBytes == 0 && after == 0 && before == 0
+            // Ranking is server-side (search-rank.js), but it can only reorder
+            // what it is handed. Stopping at the first max*4 hits in walk order
+            // handed it whatever the walk met first; this keeps the best
+            // (tier, then newest) across the WHOLE index, trimmed as it goes.
+            var best: [(tier: Int, e: FileIndex.Entry, pt: Int)] = []
+            var bestDirs: [(tier: Int, e: FileIndex.Entry, pt: Int)] = []
+            func trim(_ list: inout [(tier: Int, e: FileIndex.Entry, pt: Int)], _ n: Int) {
+                list.sort { $0.tier != $1.tier ? $0.tier < $1.tier : $0.e.mtime > $1.e.mtime }
+                if list.count > n { list.removeLast(list.count - n) }
+            }
+            for e in all {
+                if e.isDir {
+                    guard dirMax > 0 && plain else { continue }
+                    var tier = 0
+                    var miss = false
+                    for t in terms {
+                        let k = matchTier(e.lowerName, t)
+                        if k < 0 { miss = true; break }
+                        if k > tier { tier = k }
+                    }
+                    if miss { continue }
+                    bestDirs.append((tier, e, 0))
+                    if bestDirs.count > dirMax * 4 { trim(&bestDirs, dirMax) }
+                    continue
+                }
                 if let exts, !exts.isEmpty {
                     let ext = (e.name as NSString).pathExtension.lowercased()
                     if !exts.contains(ext) { continue }
@@ -250,14 +339,29 @@ enum IndexHost {
                 if minBytes > 0 && e.size < minBytes { continue }
                 if maxBytes > 0 && e.size > maxBytes { continue }
                 if after > 0 && e.mtime < after { continue }
-                if before > 0 && e.mtime > before { continue }
-                hits.append(e)
-                // Ranking is server-side (search-rank.js), so this only has to
-                // hand back a bounded, generous candidate set.
-                if hits.count >= max * 4 { break }
+                // Exclusive, like the Windows host: `before` is the start of the
+                // NEXT day/month, so a file stamped exactly then is outside.
+                if before > 0 && e.mtime >= before { continue }
+                var tier = 0
+                var miss = false
+                var pathOnly = 0
+                var dirParts: [Substring]? = nil
+                for t in terms {
+                    var k = matchTier(e.lowerName, t)
+                    if k < 0 && pathTerms {
+                        if dirParts == nil { dirParts = fold((e.path as NSString).deletingLastPathComponent).split(separator: "/") }
+                        if dirParts!.contains(where: { $0.contains(t) }) { pathOnly += 1; k = 4 }
+                    }
+                    if k < 0 { miss = true; break }
+                    if k > tier { tier = k }
+                }
+                if miss || (pathOnly > 0 && pathOnly >= terms.count) { continue }
+                best.append((tier, e, pathOnly))
+                if best.count > max * 4 { trim(&best, max) }
             }
-            hits.sort { $0.mtime > $1.mtime }
-            let items: [J] = hits.prefix(max).map { e in
+            trim(&best, max)
+            trim(&bestDirs, dirMax)
+            let items: [J] = best.map { hit in
                 // The SHORT keys the Windows host emits and filesearch.js reads
                 // (`p`/`n`/`s`/`m`). This one branch spelled them out in full,
                 // which is not a cosmetic difference: the merge skips any item
@@ -265,14 +369,19 @@ enum IndexHost {
                 // returned nothing at all — with a fully built index sitting
                 // right there reporting `ready`. `dir` is not sent because the
                 // server derives it; the Windows host does not send it either.
-                .obj([
-                    ("p", .s(e.path)),
-                    ("n", .s(e.name)),
-                    ("s", .n(Double(e.size))),
-                    ("m", .n(e.mtime)),
-                ])
+                var pairs: [(String, J)] = [
+                    ("p", .s(hit.e.path)),
+                    ("n", .s(hit.e.name)),
+                    ("s", .n(Double(hit.e.size))),
+                    ("m", .n(hit.e.mtime)),
+                ]
+                if hit.pt > 0 { pairs.append(("pt", .i(hit.pt))) }
+                return .obj(pairs)
             }
-            answer(id, [("items", .arr(items)), ("building", .b(index.isBuilding))])
+            let dirItems: [J] = bestDirs.map { hit in
+                .obj([("p", .s(hit.e.path)), ("n", .s(hit.e.name)), ("s", .n(0)), ("m", .n(hit.e.mtime))])
+            }
+            answer(id, [("items", .arr(items)), ("dirs", .arr(dirItems)), ("building", .b(index.isBuilding))])
 
         case "sizes":
             let scoped = under(path, all)
@@ -433,17 +542,35 @@ enum IndexHost {
                 }
             }
 
-            answer(id, [
+            var kindBytes = [Int64](repeating: 0, count: kindNames.count)
+            for e in files { kindBytes[kindOf(e)] += e.size }
+            let kinds: [(String, J)] = kindNames.enumerated().map { ($0.element, J.n(Double(kindBytes[$0.offset]))) }
+
+            var pairs: [(String, J)] = [
                 ("total", .n(Double(files.reduce(Int64(0)) { $0 + $1.size }))),
                 ("files", .i(files.count)),
                 ("dirs", .arr(bigDirs)),
                 ("topFiles", .arr(topFiles)),
                 ("groups", .arr(groups)),
                 ("detailFiles", .arr(detailFiles)),
+                ("kinds", .obj(kinds)),
+                ("version", .i(index.currentVersion)),
                 ("building", .b(index.isBuilding)),
                 ("capped", .b(index.isCapped)),
                 ("detailCapped", .b(detailCapped)),
-            ])
+            ]
+            // "Large and untouched": asked for with a size floor and a cutoff.
+            let staleMin = Int64((req["staleMinBytes"] as? Int) ?? 0)
+            let staleBefore = (req["staleBefore"] as? Double) ?? 0
+            let staleMax = (req["staleMax"] as? Int) ?? 100
+            if staleMin > 0 && staleBefore > 0 {
+                let stale: [J] = files.filter { $0.size >= staleMin && $0.mtime > 0 && $0.mtime < staleBefore }
+                    .sorted { $0.size > $1.size }
+                    .prefix(staleMax)
+                    .map { fileItem($0) }
+                pairs.append(("staleFiles", .arr(stale)))
+            }
+            answer(id, pairs)
 
         default:
             let json = J.obj([("id", .i(id)), ("ok", .b(false)), ("err", .s("unknown_op"))]).text

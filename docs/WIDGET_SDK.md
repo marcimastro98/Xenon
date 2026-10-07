@@ -86,7 +86,7 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `network`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `youtube`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `network`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `codex`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `youtube`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
 | `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `steam`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `youtubePlayer`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
@@ -295,6 +295,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `football` — followed teams' fixtures, live scores and results
 - `news` — merged headlines from the user's news sources
 - `claude` — local Claude Code usage aggregate (the "Xenon Pulse" data)
+- `codex` — OpenAI Codex plan usage: the plan's usage windows, tokens per day and how many sessions are working. Numbers only, never a folder, a project, a conversation or a command. See *OpenAI Codex plan usage* below
 - `obs` — OBS state (current scene, recording/streaming flags, audio sources)
 - `discord` — Discord voice state (connected, mute/deafen, current channel, speaking) plus `members[]` for the channel the user is in: `{ id, name, mute, deaf, speaking, volume, localMute }`. `mute`/`deaf` are that person's own mic state; `volume` (0-200, `null` if unreported) and `localMute` are what THIS machine hears — the pair `discordUserVol` writes
 - `discordChannels` — `{ ok, channels:[{ id, name, guild, guildId, members:[] }] }`; Discord voice-channel catalog merged with the live roster (same `members[]` shape). `guild` is the server's name and `guildId` its snowflake — group by the id, not the name: it survives a rename and tells two servers that share a name apart
@@ -1188,6 +1189,41 @@ Fullscreen is deliberately withheld from the embed (it breaks the kiosk surface)
 so YouTube's own fullscreen button does not appear. Make the player bigger with
 `rect` — or, if the user expanded your tile, with `rect` again at the new size.
 
+### 3h. OpenAI Codex plan usage — `codex` (v4.12)
+
+The same numbers the built-in Codex tile shows about the user's OpenAI Codex
+plan, which Codex shares across the ChatGPT desktop app, the editor extension
+and the `codex` command. Xenon reads them from Codex itself, so the stream is
+pushed only while something uses it (your widget counts once it is granted).
+
+```js
+{
+  available: true,          // Codex is installed and answering
+  signedIn: true,           // null while Xenon does not know yet
+  plan: 'plus',             // Codex's own plan id, '' when unknown
+  limits: [{                // one entry per limit bucket, the main one first
+    id: 'codex', label: '',
+    primary:   { usedPct: 42, windowMins: 300,   resetsAt: 1800000000000 },
+    secondary: { usedPct: 7,  windowMins: 10080, resetsAt: 1800500000000 },
+    reached: false,
+  }],
+  credits: { has: false, unlimited: false },   // or null
+  usage: { today: 0, last7: 0, last30: 0, days: [{ date: '2026-10-06', tokens: 0 }] },  // or null
+  activity: { running: 1, waiting: 0, approvals: 0 },
+}
+```
+
+- **Name a window from `windowMins`, never from its position.** Paid plans
+  read 5 hours (300) and one week (10080); the Free plan has a single 30-day
+  window (43200) in `primary` and `secondary: null`. A window Codex did not
+  report is `null`, never `0`.
+- `resetsAt` is milliseconds since the epoch. `usage.days` is always the last
+  30 local days, oldest first, with zeros on days without work; the tokens are
+  the whole account's, as Codex reports them, not this PC's alone.
+- **What it never contains:** a folder, a project or conversation name, a
+  prompt, a command or patch, a session id or the account's email. The live
+  approval cards stay in the built-in tile; a widget sees only their count.
+
 ### 4. `theme` — host → widget
 
 Sent whenever the dashboard theme changes: `{ type: 'theme', theme: {…} }`.
@@ -1985,7 +2021,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

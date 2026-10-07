@@ -1,0 +1,277 @@
+{
+ "initialize": {
+  "id": 1,
+  "result": {
+   "userAgent": "xenon/0.155.0-alpha.16.4 (Windows 10.0; x86_64) vscode/1.130.0 (xenon; 4.12.0)",
+   "codexHome": "C:\\Users\\x\\.codex",
+   "platformFamily": "windows",
+   "platformOs": "windows"
+  }
+ },
+ "account": {
+  "id": 2,
+  "result": {
+   "account": {
+    "type": "chatgpt",
+    "email": "user@example.com",
+    "planType": "free"
+   },
+   "requiresOpenaiAuth": true,
+   "workspaceRouting": {
+    "chatgptAccountId": "00000000-0000-7000-8000-000000000001",
+    "backendOrigin": "https://chatgpt.com",
+    "accountRoutingOverride": "NO_CONSTRAINT"
+   }
+  }
+ },
+ "rateLimits": {
+  "id": 3,
+  "result": {
+   "ordinaryUsageAllowed": true,
+   "rateLimits": {
+    "limitId": "codex",
+    "limitName": null,
+    "normalModelSlug": null,
+    "primary": {
+     "usedPercent": 0,
+     "windowDurationMins": 43200,
+     "resetsAt": 1793902266
+    },
+    "secondary": null,
+    "credits": {
+     "hasCredits": false,
+     "unlimited": false,
+     "balance": null
+    },
+    "individualLimit": null,
+    "spendControlReached": false,
+    "planType": "free",
+    "rateLimitReachedType": null
+   },
+   "rateLimitsByLimitId": {
+    "codex": {
+     "limitId": "codex",
+     "limitName": null,
+     "normalModelSlug": null,
+     "primary": {
+      "usedPercent": 0,
+      "windowDurationMins": 43200,
+      "resetsAt": 1793902266
+     },
+     "secondary": null,
+     "credits": {
+      "hasCredits": false,
+      "unlimited": false,
+      "balance": null
+     },
+     "individualLimit": null,
+     "spendControlReached": false,
+     "planType": "free",
+     "rateLimitReachedType": null
+    }
+   },
+   "rateLimitResetCredits": {
+    "availableCount": 0,
+    "credits": []
+   },
+   "accountId": "00000000-0000-7000-8000-000000000001",
+   "rateLimitUpsell": null
+  }
+ },
+ "usage": {
+  "id": 4,
+  "result": {
+   "summary": {
+    "lifetimeTokens": 736119784,
+    "peakDailyTokens": 156106941,
+    "longestRunningTurnSec": 5529,
+    "currentStreakDays": 0,
+    "longestStreakDays": 3
+   },
+   "dailyUsageBuckets": [
+    {
+     "startDate": "2026-07-15",
+     "tokens": 156106941
+    },
+    {
+     "startDate": "2026-07-16",
+     "tokens": 129010762
+    },
+    {
+     "startDate": "2026-07-17",
+     "tokens": 2102342
+    },
+    {
+     "startDate": "2026-07-20",
+     "tokens": 138504842
+    },
+    {
+     "startDate": "2026-07-21",
+     "tokens": 24228492
+    },
+    {
+     "startDate": "2026-07-23",
+     "tokens": 88157767
+    },
+    {
+     "startDate": "2026-07-27",
+     "tokens": 112683332
+    },
+    {
+     "startDate": "2026-07-29",
+     "tokens": 85325306
+    }
+   ],
+   "threadUsage": null
+  }
+ },
+ "threads": {
+  "id": 5,
+  "result": {
+   "data": [
+    {
+     "id": "00000000-0000-7000-8000-000000000002",
+     "environments": null,
+     "extra": null,
+     "sessionId": "00000000-0000-7000-8000-000000000002",
+     "forkedFromId": null,
+     "parentThreadId": null,
+     "preview": "Fix the clock widget\nwith a second line of detail",
+     "ephemeral": false,
+     "section": null,
+     "sectionEnteredAt": null,
+     "projectId": null,
+     "historyMode": "paginated",
+     "modelProvider": "openai",
+     "model": "gpt-5.6-sol",
+     "reasoningEffort": "ultra",
+     "createdAt": 1785308232,
+     "updatedAt": 1785314163,
+     "recencyAt": 1785314135,
+     "status": {
+      "type": "notLoaded"
+     },
+     "path": "/home/x/.codex/sessions/rollout.jsonl",
+     "cwd": "/home/x/proj/xenon",
+     "cliVersion": "0.146.0-alpha.3.1",
+     "originator": "Codex Desktop",
+     "source": "vscode",
+     "canAcceptDirectInput": null,
+     "threadSource": null,
+     "agentNickname": null,
+     "agentRole": null,
+     "gitInfo": {
+      "sha": "0000000000000000000000000000000000000000",
+      "branch": "main",
+      "originUrl": "https://github.com/example/repo.git"
+     },
+     "name": "Fix the clock widget",
+     "daybreakEnabled": null,
+     "turns": []
+    },
+    {
+     "id": "00000000-0000-7000-8000-000000000003",
+     "environments": null,
+     "extra": null,
+     "sessionId": "00000000-0000-7000-8000-000000000003",
+     "forkedFromId": null,
+     "parentThreadId": null,
+     "preview": "Add a weather tile\nwith a second line of detail",
+     "ephemeral": false,
+     "section": null,
+     "sectionEnteredAt": null,
+     "projectId": null,
+     "historyMode": "paginated",
+     "modelProvider": "openai",
+     "model": "gpt-5.6-sol",
+     "reasoningEffort": "ultra",
+     "createdAt": 1785142805,
+     "updatedAt": 1785154844,
+     "recencyAt": 1785151261,
+     "status": {
+      "type": "notLoaded"
+     },
+     "path": "/home/x/.codex/sessions/rollout.jsonl",
+     "cwd": "/home/x/proj/notes-app",
+     "cliVersion": "0.146.0-alpha.3.1",
+     "originator": "Codex Desktop",
+     "source": "vscode",
+     "canAcceptDirectInput": null,
+     "threadSource": null,
+     "agentNickname": null,
+     "agentRole": null,
+     "gitInfo": {
+      "sha": "0000000000000000000000000000000000000000",
+      "branch": "main",
+      "originUrl": "https://github.com/example/repo.git"
+     },
+     "name": "Add a weather tile",
+     "daybreakEnabled": null,
+     "turns": []
+    },
+    {
+     "id": "00000000-0000-7000-8000-000000000004",
+     "environments": null,
+     "extra": null,
+     "sessionId": "00000000-0000-7000-8000-000000000004",
+     "forkedFromId": null,
+     "parentThreadId": null,
+     "preview": "Refactor the deck editor\nwith a second line of detail",
+     "ephemeral": false,
+     "section": null,
+     "sectionEnteredAt": null,
+     "projectId": null,
+     "historyMode": "paginated",
+     "modelProvider": "openai",
+     "model": "gpt-5.6-sol",
+     "reasoningEffort": "xhigh",
+     "createdAt": 1784809204,
+     "updatedAt": 1784818516,
+     "recencyAt": 1784815965,
+     "status": {
+      "type": "notLoaded"
+     },
+     "path": "/home/x/.codex/sessions/rollout.jsonl",
+     "cwd": "/home/x/proj/site",
+     "cliVersion": "0.145.0-alpha.30",
+     "originator": "Codex Desktop",
+     "source": "vscode",
+     "canAcceptDirectInput": null,
+     "threadSource": null,
+     "agentNickname": null,
+     "agentRole": null,
+     "gitInfo": {
+      "sha": "0000000000000000000000000000000000000000",
+      "branch": "main",
+      "originUrl": "https://github.com/example/repo.git"
+     },
+     "name": null,
+     "daybreakEnabled": null,
+     "turns": []
+    }
+   ],
+   "nextCursor": "2026-07-23T14:20:04Z",
+   "backwardsCursor": "2026-07-29T06:57:12.029Z"
+  }
+ },
+ "hooks": {
+  "id": 6,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/x/proj/xenon",
+     "hooks": [],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "unknown": {
+  "error": {
+   "code": -32600,
+   "message": "Invalid request: unknown variant `bogus/method`, expected one of `initialize`, `server/diagnostics`, `userVerification/s..."
+  },
+  "id": 7
+ }
+}

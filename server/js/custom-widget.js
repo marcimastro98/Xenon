@@ -143,6 +143,7 @@
     football: ['cw_stream_football', 'Football fixtures & scores'],
     news: ['cw_stream_news', 'News headlines'],
     claude: ['cw_stream_claude', 'Claude Code usage'],
+    codex: ['cw_stream_codex', 'OpenAI Codex plan usage'],
     obs: ['cw_stream_obs', 'OBS status (scene, recording)'],
     discord: ['cw_stream_discord', 'Discord voice status'],
     discordChannels: ['cw_stream_discord_channels', 'Discord servers, voice channels and members'],
@@ -2792,7 +2793,7 @@
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
-    { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude'] },
+    { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude', 'codex'] },
     { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant'] },
   ];
   // Below this many entries the list is already scannable and the filter bar

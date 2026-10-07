@@ -72,6 +72,19 @@ function sanitizeModel(v) {
 
 // ── locating the programs ───────────────────────────────────────────────────
 let codexCache = null;
+const POSIX_CODEX_DIRS = (home) => [
+  '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin',
+  path.join(home, '.local', 'bin'), path.join(home, '.npm-global', 'bin'),
+  path.join(home, '.volta', 'bin'), path.join(home, '.bun', 'bin'),
+];
+// An npm install on macOS/Linux puts a symlink to a node script on PATH, run
+// through `#!/usr/bin/env node` — which fails under a login service whose PATH
+// has no node. Running the script under the node that runs Xenon avoids that.
+async function asLaunch(file) {
+  let real = file;
+  try { real = await fsp.realpath(file); } catch { /* keep the link */ }
+  return /\.[cm]?js$/i.test(real) ? { cmd: process.execPath, pre: [real] } : { cmd: file, pre: [] };
+}
 async function isFile(p) {
   try { return (await fsp.stat(p)).isFile(); } catch { return false; }
 }
@@ -96,6 +109,12 @@ async function newestCodexCopy() {
     }
   };
   if (win && process.env.LOCALAPPDATA) await scan(path.join(process.env.LOCALAPPDATA, 'OpenAI', 'Codex', 'bin'), 1);
+  // macOS and Linux: the backend runs as a login service whose PATH is the
+  // system's bare default (/usr/bin:/bin:...), so a Homebrew, npm or per-user
+  // install is not on it even though the user's terminal finds it. These are
+  // the places those installers write to; a folder that does not exist costs
+  // one failed readdir.
+  if (!win) for (const dir of POSIX_CODEX_DIRS(home)) await scan(dir, 0);
   for (const editor of ['.vscode', '.vscode-insiders', '.cursor']) {
     const ext = path.join(home, editor, 'extensions');
     let names = [];
@@ -114,7 +133,7 @@ async function resolveCodex() {
   for (const hit of await claudeRun.whichRaw('codex')) {
     const low = hit.toLowerCase();
     if (win ? low.endsWith('.exe') : !low.endsWith('.cmd') && !low.endsWith('.ps1')) {
-      return (codexCache = { cmd: hit, pre: [] });
+      return (codexCache = win ? { cmd: hit, pre: [] } : await asLaunch(hit));
     }
     // npm's Windows shim needs a shell; run the package's entry under node
     // instead, like claude-run.js does for Claude Code.
@@ -122,7 +141,7 @@ async function resolveCodex() {
     if (await isFile(js)) return (codexCache = { cmd: process.execPath, pre: [js] });
   }
   const copy = await newestCodexCopy();
-  return copy ? (codexCache = { cmd: copy, pre: [] }) : null;
+  return copy ? (codexCache = win ? { cmd: copy, pre: [] } : await asLaunch(copy)) : null;
 }
 function resolveExe(provider) {
   return provider === 'claudecode' ? claudeRun.resolveExecutable() : resolveCodex();
@@ -150,8 +169,11 @@ async function workDir() {
 
 // `abortOn`: a pattern in the output that means waiting longer is pointless.
 // Codex, offline, retries "waiting for network" for as long as it is let.
-function run(exe, args, { input = '', timeoutMs = TIMEOUT_MS, env, cwd, abortOn = null } = {}) {
+// `signal`: an AbortSignal; the user pressed Cancel, so the child is killed and
+// the result says `cancelled` rather than looking like a failure.
+function run(exe, args, { input = '', timeoutMs = TIMEOUT_MS, env, cwd, abortOn = null, signal = null } = {}) {
   return new Promise((resolve) => {
+    if (signal && signal.aborted) { resolve({ code: -1, stdout: '', stderr: '', timedOut: false, aborted: false, cancelled: true }); return; }
     let child;
     try {
       child = spawn(exe.cmd, exe.pre.concat(args), { cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
@@ -159,9 +181,16 @@ function run(exe, args, { input = '', timeoutMs = TIMEOUT_MS, env, cwd, abortOn 
       resolve({ code: -1, stdout: '', stderr: String((e && e.message) || e), timedOut: false });
       return;
     }
-    let stdout = '', stderr = '', timedOut = false, aborted = false, done = false;
-    const finish = (code) => { if (done) return; done = true; clearTimeout(timer); resolve({ code, stdout, stderr, timedOut, aborted }); };
+    let stdout = '', stderr = '', timedOut = false, aborted = false, cancelled = false, done = false;
+    const onAbort = () => { cancelled = true; try { child.kill(); } catch { /* gone */ } };
+    const finish = (code) => {
+      if (done) return;
+      done = true; clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve({ code, stdout, stderr, timedOut, aborted, cancelled });
+    };
     const timer = setTimeout(() => { timedOut = true; try { child.kill(); } catch { /* gone */ } }, timeoutMs);
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
     child.stdout.on('data', (d) => {
       if (stdout.length < MAX_STDOUT) stdout += d;
       if (abortOn && !aborted && abortOn.test(String(d))) { aborted = true; try { child.kill(); } catch { /* gone */ } }
@@ -531,7 +560,7 @@ function parseCodex(r) {
 let active = 0;
 // `tools` (Gemini-style declarations) + `executeTool` give the model Xenon's
 // tools for this turn; without them it is a plain answer, as for a summary.
-async function chat({ provider, model, systemText, history, tools, executeTool }) {
+async function chat({ provider, model, systemText, history, tools, executeTool, signal = null }) {
   if (!isCliProvider(provider)) throw new CliError('cli_bad_provider');
   const prompt = buildPrompt(history);
   if (!prompt) throw new CliError('cli_empty');
@@ -550,10 +579,11 @@ async function chat({ provider, model, systemText, history, tools, executeTool }
     const m = sanitizeModel(model);
     const sys = String(systemText || '');
     const dir = await workDir();
-    const opts = { input: prompt, env: childEnv(provider), cwd: dir, timeoutMs: token ? TOOL_TIMEOUT_MS : TIMEOUT_MS, abortOn: provider === 'codex' ? /waiting for network/i : null };
+    const opts = { input: prompt, env: childEnv(provider), cwd: dir, timeoutMs: token ? TOOL_TIMEOUT_MS : TIMEOUT_MS, abortOn: provider === 'codex' ? /waiting for network/i : null, signal };
     const r = provider === 'claudecode'
       ? await runWithOptional(exe, (skip) => claudeArgs(sys, m, skip, token), ['--safe-mode', '--no-session-persistence', '--permission-prompts', '--disable-slash-commands'], opts)
       : await runWithOptional(exe, (skip) => codexArgs(sys, m, dir, skip, token), ['--ephemeral', '--ignore-user-config', '--ignore-rules'], opts);
+    if (r.cancelled) throw new CliError('cli_cancelled');
     if (r.timedOut) throw new CliError('cli_timeout');
     if (r.aborted) throw new CliError('cli_offline');
     const out = provider === 'claudecode' ? parseClaude(r) : parseCodex(r);
@@ -573,7 +603,8 @@ async function oneShot({ provider, model, systemText, userText }) {
 module.exports = {
   PROVIDERS, CLAUDE_MODELS, TIMEOUT_MS,
   isCliProvider, sanitizeModel, status, models, chat, oneShot, CliError,
+  resolveCodex, childEnv, workDir,
   configure, handleMcp,
   // exposed for unit tests
-  _internal: { buildPrompt, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseClaudeInit, parseCodexLogin, parseCodexModels, statusCache, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE },
+  _internal: { run, buildPrompt, claudeArgs, codexArgs, parseClaude, parseCodex, parseClaudeAuth, parseClaudeInit, parseCodexLogin, parseCodexModels, statusCache, childEnv, runWithOptional, UNKNOWN_FLAG_RE, geminiToolsToMcp, openToolSession, toolSessions, BRIDGE },
 };

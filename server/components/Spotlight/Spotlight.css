@@ -463,6 +463,94 @@ img.spot-icon-app {
 :root[data-theme="light"] .spot-row-reveal svg { fill: rgba(0, 0, 0, 0.55); }
 .spot-row-reveal:active { transform: scale(0.92); }
 
+/* ── Filters: a button in the bar, a menu of the parser's own words ── */
+.spot-filter-toggle {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.55;
+  transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.spot-filter-toggle svg { width: 17px; height: 17px; fill: rgba(255, 255, 255, 0.75); }
+:root[data-theme="light"] .spot-filter-toggle svg { fill: rgba(0, 0, 0, 0.6); }
+.spot-filter-toggle:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.07); }
+:root[data-theme="light"] .spot-filter-toggle:hover { background: rgba(0, 0, 0, 0.06); }
+.spot-filter-toggle:active { transform: scale(0.94); }
+.spot-filter-toggle.is-on { opacity: 1; border-color: rgba(var(--accent-rgb), 0.45); }
+
+.spot-filter-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 2px;
+}
+.spot-filter-menu[hidden] { display: none; }
+.spot-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.spot-filter-label {
+  min-width: 88px;
+  font-size: 12.5px;
+  opacity: 0.6;
+}
+.spot-filter-item {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+:root[data-theme="light"] .spot-filter-item { border-color: rgba(0, 0, 0, 0.14); }
+/* The date words are shared with the chips, which read them mid-sentence. */
+.spot-filter-item::first-letter { text-transform: uppercase; }
+.spot-filter-item:hover { background: rgba(var(--accent-rgb), 0.1); border-color: rgba(var(--accent-rgb), 0.45); }
+
+/* ── Groups and the image preview ── */
+.spot-group {
+  padding: 10px 10px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.55;
+}
+.spot-list > .spot-group:first-child { padding-top: 2px; }
+
+.spot-results {
+  display: flex;
+  gap: 10px;
+  min-height: 0;
+}
+.spot-results > .spot-list { flex: 1 1 auto; min-width: 0; }
+.spot-preview {
+  flex: 0 0 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 0;
+  min-width: 0;
+}
+.spot-preview[hidden] { display: none; }
+.spot-preview img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.spot-preview-cap { font-size: 12px; opacity: 0.65; }
+/* No room for both at phone width: the list wins. */
+@media (max-width: 620px) { .spot-preview { display: none !important; } }
+
 /* Edge bar (short viewport). */
 @media (max-height: 760px) {
   .spot-shell { margin-top: 9vh; }
