@@ -65,11 +65,67 @@ test('an extension filter excludes directories outright', () => {
   assert.ok(!li.queryEntries(SET, { terms: [], exts: ['js'] }).some((r) => r.n === 'Projects'));
 });
 
-test('size and date bounds are inclusive of the bound itself', () => {
+test('size bounds and after are inclusive; before is exclusive, as on the other hosts', () => {
   assert.equal(li.queryEntries(SET, { terms: [], minBytes: 5000 }).length, 1);
-  assert.equal(li.queryEntries(SET, { terms: [], maxBytes: 99 }).length, 1); // the dir, at 0
+  // Folders are their own list now (q.dirs), never a file result.
+  assert.equal(li.queryEntries(SET, { terms: [], maxBytes: 99 }).length, 0);
   assert.equal(li.queryEntries(SET, { terms: [], after: 9000 }).length, 1);
   assert.equal(li.queryEntries(SET, { terms: [], before: 999 }).length, 0);
+  // `before` is the start of the NEXT day/month: a file stamped exactly then
+  // is outside the range, which is what Windows and macOS answer too.
+  assert.equal(li.queryEntries(SET, { terms: [], before: 9000 }).length, 3, 'the four files minus the one stamped exactly then');
+});
+
+test('accents: an unaccented term finds an accented name, and the reverse', () => {
+  // The server strips accents from every typed term, so a name compared with
+  // its accents intact could never be found ("citta" vs "Città.docx").
+  const nfd = 'Cafe' + String.fromCharCode(0x301) + ' nfd.txt'; // as macOS and some tools store it
+  const set = [
+    entry('/home/u/Città.docx', { nl: undefined }),
+    entry('/home/u/perché.txt', { nl: li.foldName('perché.txt') }),
+    entry('/home/u/' + nfd, { nl: undefined }),
+  ];
+  assert.deepEqual(li.queryEntries(set, { terms: ['citta'] }).map((r) => r.n), ['Città.docx']);
+  assert.deepEqual(li.queryEntries(set, { terms: ['città'] }).map((r) => r.n), ['Città.docx']);
+  assert.deepEqual(li.queryEntries(set, { terms: ['perche'] }).map((r) => r.n), ['perché.txt']);
+  assert.deepEqual(li.queryEntries(set, { terms: ['cafe'] }).map((r) => r.n), [nfd]);
+});
+
+test('folders come back apart, and only for a plain name query', () => {
+  const set = [
+    entry('/home/u/Fatture 2026', { d: true, s: 0 }),
+    entry('/home/u/Fatture 2026/scontrino.jpg'),
+    entry('/home/u/fattura.pdf'),
+  ];
+  const out = li.queryIndex(set, { terms: ['fattur'], dirs: 5 });
+  assert.deepEqual(out.items.map((r) => r.n), ['fattura.pdf']);
+  assert.deepEqual(out.dirs.map((d) => d.n), ['Fatture 2026']);
+  assert.equal(li.queryIndex(set, { terms: ['fattur'] }).dirs.length, 0, 'not asked, not given');
+  assert.equal(li.queryIndex(set, { terms: ['fattur'], dirs: 5, exts: ['pdf'] }).dirs.length, 0, 'a type filter is about files');
+});
+
+test('a word held by a folder above the file counts, but never every word', () => {
+  const set = [
+    entry('/home/u/Downloads/fattura-marzo.pdf'),
+    entry('/home/u/Downloads/altro.txt'),
+    entry('/home/u/Documenti/fattura-aprile.pdf'),
+  ];
+  const out = li.queryIndex(set, { terms: ['downloads', 'fattura'], pathTerms: true });
+  assert.deepEqual(out.items.map((r) => [r.n, r.pt]), [['fattura-marzo.pdf', 1]]);
+  assert.equal(li.queryIndex(set, { terms: ['downloads', 'fattura'] }).items.length, 0, 'off unless asked');
+  assert.equal(li.queryIndex(set, { terms: ['downloads'], pathTerms: true }).items.length, 0, 'one word is never a path match');
+});
+
+test('the best matches survive the cut, not the first ones the walk met', () => {
+  // 50 substring hits walked first, the exact name last. Stopping at the first
+  // `max` hits handed the ranker 5 substrings and never the file asked for.
+  const set = [];
+  for (let i = 0; i < 50; i++) set.push(entry(`/home/u/old/my-report-${i}.txt`, { m: 5000 + i }));
+  set.push(entry('/home/u/report.txt', { m: 1 }));
+  const out = li.queryEntries(set, { terms: ['report'], max: 5 });
+  assert.equal(out.length, 5);
+  assert.equal(out[0].n, 'report.txt', 'exact match first whatever its age');
+  assert.equal(out[1].n, 'my-report-49.txt', 'then the same tier, newest first');
 });
 
 test('max is honoured and clamped', () => {
@@ -117,6 +173,23 @@ test('the walk indexes a real tree, skips caches, and does not follow symlinks',
     assert.equal(s.ready, true);
     assert.equal(s.capped, false);
     assert.deepEqual(s.cappedRoots, [], 'a complete walk leaves nothing out');
+
+    // ...but node_modules is still MEASURED: the disk map's build-output
+    // category is about exactly that folder, and skipping it outright made it
+    // invisible on Linux.
+    const ov = await idx.overview(tmp, {});
+    const nm = ov.dirs.find((d) => d.p === join(tmp, 'node_modules'));
+    assert.ok(nm, 'node_modules appears in the disk map');
+    assert.equal(nm.s, 5);
+    assert.equal(ov.total, 10);
+    assert.equal(ov.capped, false, 'capped is the index cap, not a long folder list');
+
+    // browse answers from the same walk: node_modules (measured only) and keep
+    // as the root's children, nothing loose at the top.
+    const b = await idx.browse(tmp, {});
+    assert.deepEqual(b.children.map((c) => c.p).sort(), [join(tmp, 'keep'), join(tmp, 'node_modules')].sort());
+    assert.equal(b.total, 10);
+    assert.equal(b.directFiles.length, 0);
     idx.stop();
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -243,6 +316,67 @@ test('overviewFrom: duplicate candidates are same-size groups of two or more', (
 test('overviewFrom: detailRoots collects files from the named subtrees only', () => {
   const ov = li.overviewFrom(TREE, '/r', { detailRoots: ['/r/a'] });
   assert.deepEqual(ov.detailFiles.map((f) => f.p).sort(), ['/r/a/deep/two.txt', '/r/a/one.txt']);
+});
+
+test('overviewFrom: measured-only folder rows count as space, never as files', () => {
+  // sizeWalk's rows for caches/build output: the cleanup categories exist to
+  // find exactly these, so they must weigh in the map; they are not files, so
+  // no top-file, duplicate or detail entry may come from them.
+  const aggs = [
+    { p: '/r/.cache', n: '.cache', s: 0, m: 7, d: true, x: true, fc: 0 },
+    { p: '/r/.cache/google-chrome', n: 'google-chrome', s: 2000, m: 8, d: true, x: true, fc: 40 },
+  ];
+  const ov = li.overviewFrom(TREE, '/r', {}, aggs);
+  assert.equal(ov.total, 1000 + 2000);
+  assert.equal(ov.files, 4 + 40);
+  const byPath = Object.fromEntries(ov.dirs.map((d) => [d.p, d]));
+  assert.equal(byPath['/r/.cache'].s, 2000, 'rolled up into its parent');
+  assert.equal(byPath['/r/.cache/google-chrome'].n, 40);
+  assert.equal(byPath['/r/.cache/google-chrome'].m, 8);
+  assert.ok(!ov.topFiles.some((f) => f.p.includes('.cache')));
+  assert.equal(li.queryEntries(aggs, { terms: ['chrome'] }).length, 0, 'never a search result');
+});
+
+test('overviewFrom: bytes per kind, and large untouched files only when asked', () => {
+  const set = [
+    entry('/r/v/clip.mp4', { s: 500, m: 10 }),
+    entry('/r/steamapps/common/g/data.pak', { s: 300, m: 10 }),
+    entry('/r/docs/a.pdf', { s: 50, m: 99999 }),
+  ];
+  const plain = li.overviewFrom(set, '/r', {});
+  assert.equal(plain.kinds.video, 500);
+  assert.equal(plain.kinds.game, 300);
+  assert.equal(plain.kinds.document, 50);
+  assert.equal(plain.staleFiles, undefined, 'not computed unless asked');
+  const ov = li.overviewFrom(set, '/r', { staleMinBytes: 100, staleBefore: 1000 });
+  assert.deepEqual(ov.staleFiles.map((f) => f.n), ['clip.mp4', 'data.pak'], 'largest first, recent and small left out');
+});
+
+test('browseFrom: direct child folders with their totals, and the folder\'s own files', () => {
+  const set = [
+    entry('/r/a/one.txt', { s: 100, m: 5 }),
+    entry('/r/a/deep/two.txt', { s: 300, m: 9 }),
+    entry('/r/b/three.txt', { s: 50, m: 1 }),
+    entry('/r/loose.iso', { s: 700, m: 3 }),
+    entry('/r/a', { d: true, s: 0 }),
+    entry('/elsewhere/x.txt', { s: 9999 }),
+  ];
+  const aggs = [{ p: '/r/.cache/chrome', n: 'chrome', s: 2000, m: 8, d: true, x: true, fc: 40 }];
+  const b = li.browseFrom(set, '/r/', {}, aggs);
+  assert.equal(b.path, '/r');
+  assert.equal(b.total, 100 + 300 + 50 + 700 + 2000);
+  assert.equal(b.files, 4 + 40);
+  assert.equal(b.directBytes, 700);
+  assert.deepEqual(b.children.map((c) => [c.p, c.s, c.n, c.m]), [
+    ['/r/.cache', 2000, 40, 8],   // a measured-only row counts in its child folder
+    ['/r/a', 400, 2, 9],          // a file 2 levels down counts in the direct child
+    ['/r/b', 50, 1, 1],
+  ]);
+  assert.deepEqual(b.directFiles.map((f) => f.n), ['loose.iso']);
+  const inner = li.browseFrom(set, '/r/a', {}, aggs);
+  assert.deepEqual(inner.children.map((c) => c.p), ['/r/a/deep']);
+  assert.deepEqual(inner.directFiles.map((f) => f.n), ['one.txt']);
+  assert.equal(li.browseFrom(set, '/r', { childMax: 1, fileMax: 1 }, aggs).children.length, 1);
 });
 
 test('overviewFrom: a trailing slash on the root does not lose the tree', () => {

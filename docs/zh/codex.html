@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>在第二块屏幕上查看 OpenAI Codex 套餐用量并审批</title>
+<meta name="description" content="在第二块屏幕或手机上查看 OpenAI Codex 套餐用量、电脑上正在工作的会话及其请求，并一点即可回应。">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="在第二块屏幕上查看 OpenAI Codex 套餐用量并审批">
+<meta property="og:description" content="在第二块屏幕或手机上查看 OpenAI Codex 套餐用量、电脑上正在工作的会话及其请求，并一点即可回应。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/zh/codex.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/zh/codex.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/codex.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/codex.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/codex.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/codex.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/codex.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/codex.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/codex.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"能在第二块屏幕上查看 Codex 的使用限额吗？","acceptedAnswer":{"@type":"Answer","text":"可以。只要安装并登录了 Codex，磁贴就会显示套餐的每个用量窗口、已用多少以及到重置的倒计时。这不需要连接 Codex。"}},{"@type":"Question","name":"它能配合 ChatGPT 桌面应用使用吗？","acceptedAnswer":{"@type":"Answer","text":"套餐、用量和对话列表涵盖 ChatGPT 应用、编辑器扩展和 codex 命令中的 Codex，因为它们共享同一账户和引擎。实时会话和审批需要 Codex 运行钩子，codex 命令会运行它们。"}},{"@type":"Question","name":"如果我不回应请求会怎样？","acceptedAnswer":{"@type":"Answer","text":"不会批准任何内容。90 秒后或 Xenon 关闭时，请求会交回 Codex，照常询问你。"}},{"@type":"Question","name":"为什么必须在 Codex 中信任钩子？","acceptedAnswer":{"@type":"Answer","text":"Codex 只有在你信任了那个钩子之后才会运行它。这是 Codex 自己的安全检查，因此 Xenon 从不替你这样做。如果 Xenon 或 Node 换了文件夹，钩子会变化，Codex 会请你再次信任，磁贴会提示你。"}},{"@type":"Question","name":"磁贴能配合 API 密钥使用吗？","acceptedAnswer":{"@type":"Answer","text":"会话和审批可以。套餐窗口只存在于 ChatGPT 套餐中，因此使用 API 密钥时磁贴没有可显示的窗口。"}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>ZH</span></summary><ul><li><a href="/codex.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/codex.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/codex.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/codex.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/codex.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/codex.html" hreflang="zh" lang="zh" aria-current="page">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">下载</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">菜单</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/zh/#install" data-xl="install">安装</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">请我喝杯咖啡</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/codex.html" aria-current="page" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"在触摸屏上使用 OpenAI Codex","item":"https://xenon-app.com/zh/codex.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="cx.h1">在第二块屏幕上使用 OpenAI Codex</h1>
+    <p class="lede" data-i18n="cx.lede">Xenon 的 Codex 磁贴显示你套餐的用量窗口、每日令牌、电脑上正在工作的会话以及它们的每个请求，并提供允许、拒绝和在 Codex 中回答。它放在电脑旁边的屏幕上：Xeneon Edge、显示器、平板或已配对的手机。</p>
+    <p class="updated" data-i18n="cx.updated">最后更新：2026年10月6日</p>
+
+    <p data-i18n-html="cx.intro">通过 <strong>+</strong> 按钮在<strong>系统</strong>下添加磁贴。只要电脑上安装并登录了 Codex，套餐信息就会显示。会话和审批需要连接 Codex，在磁贴里就能完成。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+
+    <nav class="jump">
+      <a href="#plan" data-i18n="cx.jump.plan">套餐用量</a>
+      <a href="#sessions" data-i18n="cx.jump.sessions">会话</a>
+      <a href="#approve" data-i18n="cx.jump.approve">审批</a>
+      <a href="#link" data-i18n="cx.jump.link">连接</a>
+      <a href="#data" data-i18n="cx.jump.data">数据去向</a>
+      <a href="#faq" data-i18n="cx.jump.faq">常见问题</a>
+    </nav>
+
+    <h2 id="plan" data-i18n="cx.h.plan">套餐用量</h2>
+    <p data-i18n="cx.plan.p1">Codex 会报告你套餐的用量窗口：每个窗口用了多少、何时重置。Xenon 把每个窗口显示为一条进度条，带有到重置的倒计时，以及均匀使用时此刻应在的位置标记。数值在 70% 时变为琥珀色，90% 时变为红色。</p>
+    <p data-i18n="cx.plan.p2">每个窗口的时长由 Codex 提供，因此磁贴按实际情况标注：付费套餐通常是 5 小时和一周，Free 套餐是一个 30 天的窗口。</p>
+    <p data-i18n-html="cx.plan.p3">磁贴的<strong>用量</strong>一面显示今天、7 天、30 天和累计的令牌，并为最近 30 天每天显示一列。这些是 Codex 针对整个账户报告的数字，包含所有设备和应用，而不只是这台电脑。</p>
+
+    <h2 id="sessions" data-i18n="cx.h.sessions">会话与最近的对话</h2>
+    <p data-i18n="cx.sessions.p1">连接 Codex 后，每个会话一开始就会占一行：你让它做什么、模型，以及它在工作还是在等你。下方列出 Codex 保存的对话，以及它们的来源：ChatGPT 应用、编辑器或终端。</p>
+    <p data-i18n-html="cx.sessions.p2">会话信息来自 Codex 的钩子。Codex 在 <code>codex</code> 命令中运行钩子；ChatGPT 应用和编辑器扩展是否也运行，取决于你的 Codex 版本。套餐和对话列表不依赖钩子，三者都涵盖。</p>
+
+    <h2 id="approve" data-i18n="cx.h.approve">回应请求</h2>
+    <p data-i18n-html="cx.approve.p1">当 Codex 会话要运行命令或修改文件时，请求会显示在磁贴上，附带命令，或改动涉及的文件（删除会被标出），以及三个按钮：<strong>允许</strong>、<strong>拒绝</strong>和<strong>在 Codex 中回答</strong>，后者会立即把问题交回 Codex。卡片会说明请求的特别之处：网络、发布你的工作、项目之外的文件、超出会话的权限，或无法撤销的操作。</p>
+    <p data-i18n-html="cx.approve.p2">无法撤销的请求，例如 <code>rm -rf</code> 或删除文件的补丁，需要长按按钮才能允许，而不是点按。25 秒未回应的请求会占满整个屏幕，避免在其他页面上被忽略。</p>
+    <p data-i18n-html="cx.approve.p3">不会替你批准任何请求。请求在磁贴上等待时，Codex 不会显示它自己的提示，因此 90 秒后或 Xenon 关闭时，请求会交回 Codex，照常询问。在<strong>设置 → Codex</strong>中可以更改等待时间或关闭请求。</p>
+    <p data-i18n-html="cx.approve.phone">要在手机上回应，请将手机与 Xenon 配对（Beta）。手机会显示同样的仪表盘和同样的按钮。<a href="/zh/phone.html">如何配对手机</a>。</p>
+
+    <h2 id="link" data-i18n="cx.h.link">连接 Codex</h2>
+    <ol>
+      <li data-i18n-html="cx.link.1">通过 <strong>+</strong> 按钮在<strong>系统</strong>下添加 <strong>Codex</strong> 磁贴。</li>
+      <li data-i18n-html="cx.link.2">在磁贴上点按 <strong>Codex</strong>，然后点按<strong>连接</strong>。</li>
+      <li data-i18n-html="cx.link.3">打开 Codex，输入 <code>/hooks</code> 并信任 Xenon 的钩子。Codex 只有在你信任新钩子后才会运行它；Xenon 从不替你这样做，因为这是 Codex 自己的安全检查。</li>
+      <li data-i18n="cx.link.4">开始一个新会话。钩子作用于此步骤之后开始的会话，磁贴会显示 Codex 是否已信任这些钩子。</li>
+    </ol>
+    <p data-i18n-html="cx.link.writes">连接只修改一个文件：位于 <code>~/.codex</code> 或 <code>CODEX_HOME</code> 所指文件夹中的 Codex <code>hooks.json</code>。它添加五个钩子，用 Node 运行 Xenon 的一个小脚本，该脚本向 <code>127.0.0.1</code>（你自己的电脑）上的 Xenon 报告。你自己的钩子保持原样和原有顺序，Xenon 不会改动 <code>config.toml</code>。</p>
+    <p data-i18n-html="cx.link.backup">在第一次修改前，Xenon 会在旁边保存一份文件副本 <code>hooks.json.xenon-backup</code>。如果文件无法读取，Xenon 会保持原样并告诉你。</p>
+    <p data-i18n-html="cx.link.remove">卸载 Xenon 会移除它添加的钩子并删除备份；你自己的钩子不受影响。若不卸载也想这样做，可在磁贴上点按<strong>断开连接</strong>，或在 Xenon 的安装文件夹中运行 <code>node server/codex-link.js unlink</code>。</p>
+
+    <h2 id="data" data-i18n="cx.h.data">数据去向</h2>
+    <p data-i18n-html="cx.data.p1">磁贴不使用任何 API 密钥，也从不读取你的登录信息。套餐信息来自 <code>codex app-server</code>，即 ChatGPT 应用和编辑器扩展与 Codex 通信所用的程序。Xenon 只在磁贴位于仪表盘上时启动自己的副本，只请求读取，并在不再需要几分钟后关闭它。</p>
+    <p data-i18n-html="cx.data.p2">钩子带着 Xenon 创建的密钥向 <code>127.0.0.1</code>（你自己的电脑）报告。没有密钥的报告会被拒绝；密钥从 Xenon 自己的数据文件夹读取，因此不会出现在命令行中。会话状态只保存在内存中，Xenon 重启后清空。</p>
+    <p data-i18n-html="cx.data.p3">你安装的小组件在获得允许后，可以通过 <code>codex</code> 数据流读取套餐数字：百分比、窗口时长、令牌数和正在工作的会话数。绝不包含文件夹、项目、对话、命令或你的邮箱。</p>
+
+    <h2 id="faq" data-i18n="cx.h.faq">常见问题</h2>
+    <details><summary data-i18n="cx.faq.plan.q">能在第二块屏幕上查看 Codex 的使用限额吗？</summary><div class="body"><p data-i18n="cx.faq.plan.a">可以。只要安装并登录了 Codex，磁贴就会显示套餐的每个用量窗口、已用多少以及到重置的倒计时。这不需要连接 Codex。</p></div></details>
+    <details><summary data-i18n="cx.faq.chatgpt.q">它能配合 ChatGPT 桌面应用使用吗？</summary><div class="body"><p data-i18n="cx.faq.chatgpt.a">套餐、用量和对话列表涵盖 ChatGPT 应用、编辑器扩展和 codex 命令中的 Codex，因为它们共享同一账户和引擎。实时会话和审批需要 Codex 运行钩子，codex 命令会运行它们。</p></div></details>
+    <details><summary data-i18n="cx.faq.none.q">如果我不回应请求会怎样？</summary><div class="body"><p data-i18n="cx.faq.none.a">不会批准任何内容。90 秒后或 Xenon 关闭时，请求会交回 Codex，照常询问你。</p></div></details>
+    <details><summary data-i18n="cx.faq.trust.q">为什么必须在 Codex 中信任钩子？</summary><div class="body"><p data-i18n="cx.faq.trust.a">Codex 只有在你信任了那个钩子之后才会运行它。这是 Codex 自己的安全检查，因此 Xenon 从不替你这样做。如果 Xenon 或 Node 换了文件夹，钩子会变化，Codex 会请你再次信任，磁贴会提示你。</p></div></details>
+    <details><summary data-i18n="cx.faq.api.q">磁贴能配合 API 密钥使用吗？</summary><div class="body"><p data-i18n="cx.faq.api.a">会话和审批可以。套餐窗口只存在于 ChatGPT 套餐中，因此使用 API 密钥时磁贴没有可显示的窗口。</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="cx.cta.h">下载 Xenon</h3>
+      <p data-i18n-html="cx.cta.p">免费，无需账户。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">下载 Windows 版 Xenon</a>，或在<a href="/zh/download.html">下载页面</a>选择你的系统。也在用 Claude Code？请看<a href="/zh/claude-code.html">在触摸屏上使用 Claude Code</a>。</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

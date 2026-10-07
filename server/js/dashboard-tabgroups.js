@@ -274,7 +274,7 @@ function renderGroupTile(gridItem, group) {
     // A copy member may not have a standalone clone yet (copies render skips
     // grouped copies) — create it on demand so the tab body isn't empty.
     if (!atom && mid !== base && typeof createCopyAtom === 'function') atom = createCopyAtom(base, mid);
-    if (atom && atom.parentElement !== body) body.appendChild(atom);
+    if (atom && atom.parentElement !== body) moveNode(body, atom);
     if (atom) { atom.dataset.dashboardHidden = (mid === group.active) ? 'false' : 'true'; memberAtoms.add(atom); }
     const tab = document.createElement('button');
     tab.type = 'button';

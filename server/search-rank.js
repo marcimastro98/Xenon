@@ -78,24 +78,88 @@
     return 0;
   }
 
+  // A word of the query that only a FOLDER above the file holds ("download
+  // fattura" for Download\fattura.pdf): a real match, but never as good as the
+  // name itself, and never on its own (scoreName requires one name hit).
+  const PATH_TERM_SCORE = 0.3;
+  // One typo (two in a long word) against a whole word of the name. Below a
+  // bare substring: a typo is a guess about what the user meant.
+  const TYPO_SCORE = 0.25;
+  // The words appear together, in the order typed ("nuovo contratto" in
+  // "nuovo contratto.pdf", not "contratto nuovo"): the strongest sign it is
+  // the file meant.
+  const PHRASE_BONUS = 0.1;
+
+  // Optimal string alignment distance, bounded: stops early once past `max`.
+  function osa(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    const prev2 = new Array(b.length + 1).fill(0);
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let rowMin = i;
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur[j] = v;
+        if (v < rowMin) rowMin = v;
+      }
+      if (rowMin > max) return max + 1;
+      for (let j = 0; j <= b.length; j++) prev2[j] = prev[j];
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+
+  const WORDS = /[\s\-_.,()\[\]]+/;
+  function typoScore(term, name) {
+    if (term.length < 4) return 0;
+    const max = term.length >= 8 ? 2 : 1;
+    for (const w of name.split(WORDS)) {
+      if (w.length < 3) continue;
+      // A word being typed is a prefix: compare against the same length too.
+      if (osa(term, w, max) <= max || (w.length > term.length && osa(term, w.slice(0, term.length), max) <= max)) return TYPO_SCORE;
+    }
+    return 0;
+  }
+
   // 0..1 for how well a file name matches the query terms. Every term must
   // land somewhere: one term that matches nothing zeroes the name score (the
   // result can still survive via contentHit). No terms (filter-only query,
   // "foto di dicembre" with no leftover words) → neutral 0.5 so recency and
   // usage decide.
-  function scoreName(fileName, terms) {
+  //   opts.dir    the file's folder: a term missing from the name may be
+  //               found in it (PATH_TERM_SCORE), as long as one term is in
+  //               the name
+  //   opts.typos  allow TYPO_SCORE matches (used on small candidate pools)
+  function scoreName(fileName, terms, opts) {
     if (!terms || !terms.length) return 0.5;
+    const o = opts || {};
     const name = norm(fileName);
     const nameNoExt = name.replace(/\.[a-z0-9]{1,6}$/, '');
+    const dirParts = o.dir ? norm(o.dir).split(/[\\/]+/).filter(Boolean) : null;
     let sum = 0;
+    let inName = 0;
     for (const t of terms) {
-      const s = termScore(norm(t), name, nameNoExt);
+      const nt = norm(t);
+      let s = termScore(nt, name, nameNoExt);
+      // A typo outranks the letters-in-order tier it may also satisfy
+      // ("spotfy" is both a subsequence and one typo away from "spotify").
+      if (o.typos && s < TYPO_SCORE) s = Math.max(s, typoScore(nt, nameNoExt));
+      if (s > 0) inName++;
+      else if (dirParts && dirParts.some((part) => part.includes(nt))) s = PATH_TERM_SCORE;
       if (s === 0) return 0;
       sum += s;
     }
-    return sum / terms.length;
+    if (!inName) return 0;
+    let score = sum / terms.length;
+    if (terms.length >= 2) {
+      const phrase = terms.map(norm).join(' ');
+      if (nameNoExt.replace(/[\s\-_.]+/g, ' ').includes(phrase)) score = Math.min(1, score + PHRASE_BONUS);
+    }
+    return score;
   }
-
   function recencyScore(mtime, now) {
     if (!Number.isFinite(mtime) || mtime <= 0) return 0;
     const ageDays = Math.max(0, (now - mtime) / DAY_MS);
@@ -142,8 +206,24 @@
   const USER_ZONE = /\\users\\[^\\]+\\(desktop|documents|downloads|pictures|videos|music|onedrive[^\\]*)(\\|$)/;
   const PROGRAM_FILES = /^[a-z]:\\program files( \(x86\))?(\\|$)/;
 
+  // The same three zones on macOS and Linux, where every Windows pattern above
+  // simply never matched: system roots and ~/Library/~/.cache are noise, the
+  // app bundles and shared program data are program, and the user's own
+  // folders (in the English and the localised names xdg-user-dirs writes) are
+  // the user zone.
+  const POSIX_NOISE_ROOT = /^\/(proc|sys|dev|run|tmp|var|private|system|usr\/(lib|lib64|libexec|include)|snap)(\/|$)/;
+  const POSIX_NOISE_ANYWHERE = /\/(node_modules|__pycache__|caches?|library\/(caches|logs|containers|group containers|application support))(\/|$)|\/target\/(release|debug)(\/|$)|\/\.[a-z0-9]/;
+  const POSIX_PROGRAM = /^\/(applications|opt|usr\/(share|bin|local))(\/|$)|\.app(\/|$)/;
+  const POSIX_USER = /^\/(home|users)\/[^/]+\/(desktop|documents|downloads|pictures|movies|videos|music|scrivania|documenti|scaricati|immagini|video|musica)(\/|$)/;
+
   function zoneFactor(dirLower) {
     if (!dirLower) return 1;
+    if (dirLower[0] === '/') {
+      if (POSIX_NOISE_ROOT.test(dirLower) || POSIX_NOISE_ANYWHERE.test(dirLower)) return ZONE_NOISE;
+      if (POSIX_PROGRAM.test(dirLower)) return ZONE_PROGRAM;
+      if (POSIX_USER.test(dirLower)) return ZONE_USER;
+      return 1;
+    }
     if (NOISE_ROOT.test(dirLower) || NOISE_ANYWHERE.test(dirLower)) return ZONE_NOISE;
     if (PROGRAM_FILES.test(dirLower)) return ZONE_PROGRAM;
     if (USER_ZONE.test(dirLower)) return ZONE_USER;
@@ -159,7 +239,7 @@
     const scored = [];
     for (const it of items || []) {
       if (!it || typeof it.path !== 'string') continue;
-      let name = scoreName(it.name || '', terms);
+      let name = scoreName(it.name || '', terms, { dir: it.dir || '', typos: it.typos === true });
       if (name === 0) {
         if (!it.contentHit) continue;
         name = CONTENT_HIT_NAME_SCORE;
@@ -193,7 +273,9 @@
     };
     const p = norm(path), d = norm(dir || '');
     const prev = u.opens[p];
-    u.opens[p] = { n: (prev && prev.n || 0) + 1, last: now };
+    // `p` keeps the path as spelled: the key is folded for matching, and a
+    // recent file shown or re-offered must carry its real name.
+    u.opens[p] = { n: (prev && prev.n || 0) + 1, last: now, p: String(path) };
     if (d) u.folders[d] = (u.folders[d] || 0) + 1;
     const openKeys = Object.keys(u.opens);
     if (openKeys.length > MAX_OPENS) {
@@ -208,5 +290,5 @@
     return u;
   }
 
-  return { scoreName, rankResults, foldOpen, recencyScore, freqScore, zoneFactor };
+  return { scoreName, rankResults, foldOpen, recencyScore, freqScore, zoneFactor, norm, _osa: osa };
 });

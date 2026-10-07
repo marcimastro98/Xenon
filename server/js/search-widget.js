@@ -4,10 +4,10 @@
 // you type IN the tile, results and the AI mode live IN the tile, nothing
 // jumps to an overlay. At rest it still costs nothing — an idle input plus
 // quick filter chips (Foto / Documenti / Recenti); the first fetch happens on
-// the first keystroke. Past searches are deliberately NOT listed here: the
-// tile sits on a dashboard other people can see, and a search phrase is
-// private by default. (The Spotlight keeps recording them for its own use;
-// nothing displays them.)
+// the first keystroke. Files recently opened from Xenon are NOT listed here by
+// default: the tile sits on a dashboard other people can see, a paired phone
+// included. Settings → Search and disk turns them on (searchSettings.
+// recentInTile); the Spotlight popup on the PC always shows them.
 (function () {
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
@@ -34,11 +34,17 @@
       withClose: false,
       onClose: () => ui.reset(),          // Escape clears the tile search
       onExpand: (expanded) => { idle.hidden = expanded; },
+      showRecent: () => {
+        const s = typeof window.getSearchSettings === 'function' ? window.getSearchSettings() : null;
+        return !!(s && s.recentInTile === true);
+      },
       // onOpened deliberately absent: after opening a file the tile keeps its
       // results — it is a persistent surface, not a transient overlay.
     });
     mount._searchUI = ui;
     mount.append(live, idle);
+    // The empty state: recent files when the setting allows (no-op otherwise).
+    ui.reset();
 
     const chips = document.createElement('div');
     chips.className = 'searchw-chips';

@@ -62,7 +62,9 @@ const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single
 const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
-const { createDiskSpace } = require('./diskspace');             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
+const { createDiskSpace } = require('./diskspace');
+const { listPosixApps } = require('./installed-apps');               // macOS/Linux apps for the search's Applications tier
+const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
 const { createPhone } = require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
@@ -119,6 +121,10 @@ const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
 const claudeAttach = require('./claude-attach');
+const codexAppServer = require('./codex-appserver');
+const codexBridge = require('./codex-bridge');
+const codexLink = require('./codex-link');
+const chatgptAsk = require('./chatgpt-ask');
 const communityCatalog = require('./community-catalog');
 const communityMessages = require('./community-messages');
 const communityInstalls = require('./community-installs');
@@ -837,7 +843,13 @@ function getInstalledApps() {
   const now = Date.now();
   if (now - _installedApps.at < INSTALLED_APPS_TTL_MS) return Promise.resolve(_installedApps.list);
   if (_installedApps.inflight) return _installedApps.inflight;
-  _installedApps.inflight = Promise.all([_enumStartMenuLnks(), _enumStoreApps()])
+  // macOS and Linux: .app bundles and .desktop entries (installed-apps.js).
+  // Off Windows this tier used to answer nothing, so an app's name found its
+  // files and never the app.
+  const enumerate = process.platform === 'win32'
+    ? Promise.all([_enumStartMenuLnks(), _enumStoreApps()])
+    : listPosixApps({ lang: String(process.env.LANG || '').slice(0, 2) }).then((apps) => [apps, []]);
+  _installedApps.inflight = enumerate
     .then(([lnks, store]) => {
       // Same display name in both worlds (a Store app plus a desktop shortcut):
       // the Store entry wins — it launches even when the lnk is stale.
@@ -853,6 +865,22 @@ function getInstalledApps() {
 }
 
 async function launchInstalledApp(app) {
+  // Both POSIX kinds come from installed-apps.js's own enumeration (the search
+  // resolves an opaque id back to it), re-checked to exist before the launch.
+  if (app.kind === 'macapp') {
+    if (!/\.app$/.test(app.target)) throw new Error('bad_app');
+    await fs.promises.stat(app.target);
+    await new Promise((resolve, reject) => {
+      execFile('open', [app.target], { timeout: 8000 }, (e) => (e ? reject(e) : resolve()));
+    });
+    return;
+  }
+  if (app.kind === 'desktop') {
+    if (!/\.desktop$/.test(app.target)) throw new Error('bad_app');
+    await fs.promises.stat(app.target);
+    await launchLinuxApp(app.target);
+    return;
+  }
   if (app.kind === 'store') {
     if (!/^[\w.-]+![\w.-]+$/.test(app.target)) throw new Error('bad_aumid');
     await new Promise((resolve, reject) => {
@@ -889,6 +917,7 @@ const fileSearch = createFileSearch({
   revealExternal: (p, dir) => revealInFileManager(p, dir),
   appsProvider: getInstalledApps,
   launchApp: launchInstalledApp,
+  catalogRunner: process.platform === 'darwin' ? createMdfindRunner() : undefined,
 });
 // Global Spotlight hotkey (helper-gated, opt-in). The helper's hotkey-serve
 // owns a RegisterHotKey + message loop and pushes a line per press; the server
@@ -1309,6 +1338,10 @@ const diskSpace = createDiskSpace({
   // A cleanup runs as a background job; push its progress to the dashboard over
   // SSE so the widget shows real advancement and can re-attach after a reload.
   onCleanProgress: (snapshot) => { try { broadcastSSE('disk_clean', snapshot || {}); } catch {} },
+  // A cached overview learned something after it was answered (the background
+  // duplicate check finished): the widget refetches the drive it names.
+  onDiskUpdate: (info) => { try { broadcastSSE('disk_update', info || {}); } catch {} },
+  revealExternal: (p, dir) => revealInFileManager(p, dir),
 });
 // Installed Deck icon packs (the 'icons' preset kind): one validated folder per
 // pack, written/served only through icon-packs.js (see that module's boundary
@@ -7942,7 +7975,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'phone', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -8007,6 +8040,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    openaicodex: Object.freeze({ x: 16, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    chatgpt:  Object.freeze({ x: 16, y: 48, w: 8, h: 12, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
@@ -8200,6 +8235,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       Object.freeze({ id: 'dots', hidden: false }),
       Object.freeze({ id: 'badges', hidden: false }),
       Object.freeze({ id: 'claude', hidden: false }),
+      Object.freeze({ id: 'codex', hidden: false }),
     ]),
   }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
@@ -8303,6 +8339,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // and both switchable, because they are the two things this widget can put on
   // screen while you are looking at something else.
   claudeWidget: { approvals: true, questions: true, topbar: true },
+  // OpenAI Codex widget: the approval cards, and how long a card waits before
+  // the decision goes back to Codex. Short by default because, unlike Claude
+  // Code, Codex shows no prompt of its own while our hook waits (codex-bridge.js
+  // header). The topbar marker is an island item, owned by topbarClock.
+  codexWidget: { approvals: true, waitSec: 90 },
+  // "Ask ChatGPT" tile: the model Codex answers with ('default' lets Codex choose).
+  chatgptWidget: { model: 'default' },
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -8389,7 +8432,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // indexRoots defaults per platform for the reason spelled out in
   // normalizeSearchSettings: "C:\" is not a path off Windows, and a default the
   // validator there would reject leaves the index permanently off.
-  searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false, recentInTile: false }),
   pageHotkeys: Object.freeze([]),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
@@ -9313,6 +9356,9 @@ function normalizeSearchSettings(value, defaultRoot) {
     // recent opens. Privacy-touching → strict opt-in, anything not literally
     // true stays off (same rule as the wake word).
     aiFullContext: v.aiFullContext === true,
+    // The Search TILE listing recently opened files when its box is empty. Off
+    // unless literally true: the tile sits on a dashboard others can see.
+    recentInTile: v.recentInTile === true,
   };
 }
 
@@ -9373,11 +9419,24 @@ function normalizeTopbarRails(value) {
   return { left: v.left !== false, right: v.right !== false };
 }
 
+// OpenAI Codex widget surfaces outside its tile. Twin of normalizeCodexWidget
+// in js/settings.js. `approvals` is read by /api/codex/permission, which answers
+// "no decision" at once when it is off; `waitSec` is how long a card waits
+// before the decision goes back to Codex (Codex shows nothing else meanwhile).
+function normalizeCodexWidget(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const w = Math.round(Number(source.waitSec));
+  return {
+    approvals: source.approvals !== false,
+    waitSec: Number.isFinite(w) ? Math.max(30, Math.min(540, w)) : 90,
+  };
+}
+
 // Minimal-island personalization: anchor + ordered segment list with hidden
 // flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude'];
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex'];
 function normalizeTopbarClock(value, legacyRoot) {
   const v = value && typeof value === 'object' ? value : {};
   const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
@@ -9809,6 +9868,8 @@ function normalizeHubSettings(value) {
     bgCustom: normalizeBgCustom(source.bgCustom),
     slideshow: normalizeSlideshow(source.slideshow),
     claudeWidget: normalizeClaudeWidget(source.claudeWidget),
+    codexWidget: normalizeCodexWidget(source.codexWidget),
+    chatgptWidget: { model: aiCli.sanitizeModel(source.chatgptWidget && source.chatgptWidget.model) },
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
     stocks: stocks.normalizeStocks(source.stocks),
@@ -10829,6 +10890,8 @@ async function autoUpdateSignals() {
     if (ds && (ds.running || (ds.clean && ds.clean.running))) blockers.push('disk');
   } catch { /* disk module unavailable: nothing running there */ }
   try { if (_claudeBridge.pendingCount > 0) blockers.push('claude'); } catch { /* bridge off */ }
+  try { if (_codexBridge.pendingCount > 0) blockers.push('codex'); } catch { /* bridge off */ }
+  try { if (_chatgptAsker.activeCount > 0) blockers.push('chatgpt'); } catch { /* not ready */ }
   if (_liveActive) blockers.push('voice');
   try { if (calls.current().length > 0) blockers.push('call'); } catch { /* calls off */ }
   return { blockers, idleSec: await autoUpdateIdleSeconds() };
@@ -12513,6 +12576,176 @@ setInterval(() => {
   refreshClaude().catch(() => {});
 }, 10000).unref();
 
+// ── OpenAI Codex ─────────────────────────────────────────────────────────────
+// Two feeds, kept apart because they cost different things:
+//  - the ACCOUNT side (plan windows, tokens per day, recent conversations) comes
+//    from one `codex app-server` child (codex-appserver.js), running only while a
+//    Codex or ChatGPT tile is placed or a widget holds the `codex` stream AND a
+//    dashboard is open, stopped a few minutes after that stops being true;
+//  - the LIVE side (sessions, approvals) is pushed by Codex itself through the
+//    hooks codex-link.js installs (codex-bridge.js) and costs nothing until a
+//    hook fires. Like the Claude bridge it is not gated on the tile: a pending
+//    approval must reach the overlay even when the tile was never added.
+const _codexBridge = codexBridge.createBridge({
+  onChange: () => _codexChanged(),
+  waitMs: () => {
+    const w = _serverHubSettings && _serverHubSettings.codexWidget;
+    return (w && Number.isFinite(w.waitSec) ? w.waitSec : 90) * 1000;
+  },
+});
+const _codexApp = codexAppServer.createAppServer({
+  resolveExe: () => aiCli.resolveCodex(),
+  env: () => aiCli.childEnv('codex'),
+  cwd: () => os.tmpdir(),
+  clientVersion: APP_VERSION || '0.0.0',
+  isOurHook: (cmd) => codexLink.isOurCommand(cmd),
+  onChange: () => { _codexRefreshLink().catch(() => {}); },
+  log: (m) => console.log('[codex] ' + m),
+});
+let _codexBridgeToken = '';
+let _codexPushTimer = null;
+let _codexSig = '';
+let _codexLinkCache = null;
+let _codexLinkRepairedAt = 0;
+
+// "Is this tile on the dashboard", answered strictly: an unknown layout is NO.
+// _feedWidgetInUse() answers yes when unsure, which is right for a cheap read
+// and wrong for starting a long-lived child.
+function _widgetPlaced(widgetId) {
+  const layout = _serverHubSettings && _serverHubSettings.dashboardLayout;
+  if (!layout || typeof layout !== 'object') return false;
+  const w = layout.widgets && layout.widgets[widgetId];
+  if (w && typeof w === 'object' && w.visible === true) return true;
+  if (Array.isArray(layout.copies) && layout.copies.some((c) => c && c.widget === widgetId)) return true;
+  const groups = layout.groups && typeof layout.groups === 'object' ? layout.groups : {};
+  for (const gid of Object.keys(groups)) {
+    const members = groups[gid] && Array.isArray(groups[gid].members) ? groups[gid].members : [];
+    if (members.some((m) => m === widgetId || (typeof m === 'string' && m.indexOf(widgetId + '~') === 0))) return true;
+  }
+  return false;
+}
+// Some installed package actually GRANTED this stream (sdkGrantsFor applies safe
+// mode and per-package suspend, so both switch the feed off for free).
+function _sdkStreamGranted(stream) {
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
+  if (!grants) return false;
+  for (const pkgId of Object.keys(grants)) {
+    if (sdkGrantsFor(pkgId).streams.includes(stream)) return true;
+  }
+  return false;
+}
+function _codexWanted() {
+  return sseClients.size > 0 && (_widgetPlaced('openaicodex') || _widgetPlaced('chatgpt') || _sdkStreamGranted('codex'));
+}
+function _syncCodexDemand() {
+  const wanted = _codexWanted();
+  _codexApp.setDemand({ wanted, visible: wanted });
+}
+
+function _codexBridgeAuth(req) {
+  const got = String(req.headers['x-xenon-bridge'] || '');
+  if (!_codexBridgeToken || got.length !== _codexBridgeToken.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(_codexBridgeToken)); }
+  catch { return false; }
+}
+
+// The link as the tile shows it. `trust` is Codex's own verdict (hooks/list)
+// when the app-server child is running, else null and the tile explains /hooks.
+// Reading never writes: every rewrite of hooks.json costs the user a re-trust.
+async function _codexLinkStatus({ fresh = false } = {}) {
+  const trust = await _codexApp.hooksStatus({ fresh }).catch(() => null);
+  const st = await codexLink.status(DATA_DIR, { trust });
+  _codexLinkCache = {
+    linked: st.linked, complete: st.complete, unparsable: st.unparsable, trust: st.trust,
+    exists: st.exists, linkedAt: st.linkedAt, repairedAt: _codexLinkRepairedAt,
+  };
+  return { ...st, repairedAt: _codexLinkRepairedAt };
+}
+async function _codexRefreshLink() {
+  await _codexLinkStatus().catch(() => {});
+  _codexChanged();
+}
+
+// Boot: the token codex-hook.js presents (and the port it dials, stored next to
+// it), then a repair only for a link the user made whose node or script path
+// moved. A repair changes the hook hash, so the tile says to trust it again.
+codexLink.ensureToken(DATA_DIR, PORT)
+  .then((t) => { _codexBridgeToken = t; return codexLink.repairLink(DATA_DIR, PORT); })
+  .then((st) => {
+    if (st && st.repaired) {
+      _codexLinkRepairedAt = Date.now();
+      console.log('[codex] Codex hooks pointed at a path that moved; updated (trust them again in Codex /hooks)');
+    }
+    return _codexLinkStatus();
+  })
+  .catch(() => {});
+
+function _codexCfg() {
+  const w = _serverHubSettings && _serverHubSettings.codexWidget;
+  return w && typeof w === 'object' ? w : { approvals: true, waitSec: 90 };
+}
+function _codexPayload() {
+  const app = _codexApp.snapshot();
+  return {
+    app,
+    live: _codexBridge.snapshot(),
+    link: _codexLinkCache,
+    cfg: _codexCfg(),
+    // What an SDK widget granted the `codex` stream receives: built here, an
+    // allowlist of numbers (codex-bridge.js sdkProjection). main.js forwards only
+    // this part to widget frames.
+    sdk: codexBridge.sdkProjection(app, _codexBridge.counts()),
+    refreshedAt: Date.now(),
+  };
+}
+function _codexBroadcast() {
+  const payload = _codexPayload();
+  const { refreshedAt, live, ...rest } = payload;
+  const sig = live.sig + '|' + JSON.stringify(rest);
+  if (sig === _codexSig) return payload;
+  _codexSig = sig;
+  broadcastSSE('codex', payload);
+  return payload;
+}
+function _codexChanged() {
+  if (_codexPushTimer || sseClients.size === 0) return;
+  _codexPushTimer = setTimeout(() => {
+    _codexPushTimer = null;
+    try { _codexBroadcast(); } catch { /* a repaint must never break ingest */ }
+  }, 300);
+  if (typeof _codexPushTimer.unref === 'function') _codexPushTimer.unref();
+}
+
+// ── "Ask ChatGPT" tile ───────────────────────────────────────────────────────
+// Conversations answered on the user's ChatGPT plan through OpenAI's own codex
+// program (chatgpt-ask.js has the why). The store is DATA_DIR/chatgpt.json, a
+// bounded cache written atomically; a turn runs off the request and its answer
+// arrives over SSE ('chatgpt'), and every running turn is killed on shutdown.
+const _chatgptStore = chatgptAsk.createStore({ file: path.join(DATA_DIR, 'chatgpt.json'), writeFileAtomic });
+const _chatgptAsker = chatgptAsk.createAsker({
+  store: _chatgptStore,
+  chat: (opts) => aiCli.chat(opts),
+  model: () => {
+    const w = _serverHubSettings && _serverHubSettings.chatgptWidget;
+    return (w && w.model) || 'default';
+  },
+  onChange: (id) => _chatgptChanged(id),
+});
+function _chatgptPayload(changedId) {
+  return {
+    conversations: _chatgptStore.list(),
+    active: _chatgptAsker.snapshot(),
+    // The one conversation that changed, whole, so an open thread repaints
+    // without a second request. Only sent on a change, never on a seed.
+    changed: changedId ? _chatgptStore.get(changedId) : null,
+  };
+}
+function _chatgptChanged(id) {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('chatgpt', _chatgptPayload(id)); } catch { /* a repaint must never break a turn */ }
+}
+
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
@@ -12692,6 +12925,22 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/claude/run',
   '/api/claude/run/stop',
   '/api/claude/attach',
+  // OpenAI Codex bridge, the same shape. /event and /permission are posted by
+  // codex-hook.js (which Codex runs) and are token-gated as well; listing them
+  // stops a page from forging a session or an approval card. /decide answers a
+  // real one, and /link writes the Codex hooks.json, so neither may be reachable
+  // from a drive-by or an Origin:null widget frame. The GET of /link is a pure
+  // read (it never repairs) and is named back in for paired devices.
+  '/api/codex/event',
+  '/api/codex/permission',
+  '/api/codex/decide',
+  '/api/codex/link',
+  '/api/codex/unlink',
+  // The Ask ChatGPT tile: /ask spends the user plan on a program run, /cancel
+  // kills one, /delete removes conversations. None may be a drive-by.
+  '/api/chatgpt/ask',
+  '/api/chatgpt/cancel',
+  '/api/chatgpt/delete',
   // Local file search: /open launches a file with its registered handler and
   // /reveal opens an Explorer window — a drive-by or Origin:null iframe must
   // be able to do neither, even though both only accept server-minted opaque
@@ -12709,6 +12958,8 @@ const CSRF_MUTATION_PATHS = new Set([
   '/disk/scan/cancel',
   '/disk/clean',
   '/disk/clean/cancel',
+  // Opens a file manager window on the PC, like /search/reveal.
+  '/disk/reveal',
   '/api/disk/advisor',
   // Suppresses the Edge fallback after the native kiosk opened the Spotlight
   // window — a drive-by must not be able to swallow the user's hotkey.
@@ -15780,6 +16031,9 @@ const handleRequest = async (req, res) => {
       // Pick up plan/budget changes and a just-enabled News widget/ticker source
       // immediately (their timers are gated on the widget being in use).
       if (_feedWidgetInUse('claude')) refreshClaude().catch(() => {});
+      // A Codex/ChatGPT tile added or removed, or a widget granted the stream.
+      _syncCodexDemand();
+      _codexChanged();
       if (_feedWidgetInUse('news', 'news') && Date.now() - _newsCache.refreshedAt > 60 * 1000) refreshNews().catch(() => {});
       // Tell every OTHER open surface (Xeneon Edge screen / browser / native app)
       // that the settings changed, so they re-hydrate live instead of clobbering
@@ -16357,6 +16611,128 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       json({ ok: _claudeRunner.stop(String(body && body.id || '')) });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/codex' && req.method === 'GET') {
+    // The Codex tile's whole state: account side from app-server, live side from
+    // the hooks, the link, the tile settings. `?refresh` re-reads the account
+    // side now (the tile's refresh button), skipping any read still in flight.
+    try {
+      _syncCodexDemand();
+      if (urlObj.searchParams.has('refresh')) {
+        await Promise.all(['limits', 'usage', 'threads'].map((k) => _codexApp.refresh(k).catch(() => {})));
+      }
+      json(_codexPayload());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/codex/thread' && req.method === 'GET') {
+    // One conversation, as the tile shows it when a row is tapped: requests and
+    // final answers, cleaned of attachment paths (codex-appserver.js parseTurns).
+    // Only a thread Codex listed to us or a session its hooks reported, so this
+    // never reads an arbitrary id.
+    try {
+      const id = String(urlObj.searchParams.get('id') || '');
+      if (!/^[0-9A-Za-z-]{8,64}$/.test(id) || !(_codexApp.knowsThread(id) || _codexBridge.hasSession(id))) {
+        json({ ok: false, error: 'not_found' });
+        return;
+      }
+      json(await _codexApp.readThread(id));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/codex/event' && req.method === 'POST') {
+    // A lifecycle hook from Codex, through codex-hook.js. 204 and no body, ever:
+    // this endpoint has no say in what Codex does.
+    if (!_codexBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    try { _codexBridge.applyHook(JSON.parse(await readBody(req))); } catch { /* malformed: ignored */ }
+    res.writeHead(204); res.end();
+
+  } else if (reqPath === '/api/codex/permission' && req.method === 'POST') {
+    // The blocking one: Codex waits on this answer. Every path that is not an
+    // explicit tap answers `{}`, which codex-hook.js turns into "no decision"
+    // and Codex into its own prompt. This endpoint cannot approve on its own.
+    if (!_codexBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    if (_codexCfg().approvals === false) { req.resume(); json({}); return; }
+    try {
+      const pendingReq = _codexBridge.requestPermission(JSON.parse(await readBody(req)));
+      if (!pendingReq) { json({}); return; }
+      // Codex gave up (Ctrl-C, its own timeout) and killed the hook: drop the card.
+      const onGone = () => _codexBridge.cancel(pendingReq.id);
+      res.on('close', onGone);
+      const out = await pendingReq.promise;
+      res.off('close', onGone);
+      if (res.writableEnded || res.destroyed) return;
+      json(codexBridge.toHookOutput(out));
+    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller gone */ } }
+
+  } else if (reqPath === '/api/codex/decide' && req.method === 'POST') {
+    // The touchscreen answering a pending Codex request: allow, deny, or
+    // handback ("Answer in Codex": no decision, at once).
+    try {
+      const body = JSON.parse(await readBody(req));
+      const behavior = body && ['allow', 'deny', 'handback'].includes(body.behavior) ? body.behavior : '';
+      json({ ok: behavior ? _codexBridge.decide(String(body.id || ''), behavior) : false });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/codex/link' && req.method === 'GET') {
+    try { json(await _codexLinkStatus({ fresh: urlObj.searchParams.has('fresh') })); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/codex/link' && req.method === 'POST') {
+    // Writes Xenon's hooks into the user's Codex hooks.json (backed up first,
+    // their own hooks kept in place). Codex runs them only after the user trusts
+    // them in /hooks; the answer says whether it has, when Codex can tell us.
+    try {
+      const st = await codexLink.link(DATA_DIR, PORT);
+      _codexBridgeToken = await codexLink.ensureToken(DATA_DIR, PORT);
+      if (st.error) { json({ ok: false, ...st }); return; }
+      const fresh = await _codexLinkStatus({ fresh: true });
+      _codexChanged();
+      json({ ok: true, ...fresh });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/codex/unlink' && req.method === 'POST') {
+    try {
+      await codexLink.unlink(DATA_DIR);
+      const st = await _codexLinkStatus({ fresh: true });
+      _codexChanged();
+      json({ ok: true, ...st });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/chatgpt' && req.method === 'GET') {
+    // The conversation list and what is answering right now. Program status
+    // and models come from /api/ai/cli/status and /api/ai/cli/models.
+    try { await _chatgptStore.load(); json(_chatgptPayload(null)); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/chatgpt/conversation' && req.method === 'GET') {
+    try {
+      await _chatgptStore.load();
+      const id = String(urlObj.searchParams.get('id') || '');
+      const c = chatgptAsk.isId(id) ? _chatgptStore.get(id) : null;
+      if (!c) { json({ ok: false, error: 'not_found' }); return; }
+      json({ ok: true, conversation: c });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/chatgpt/ask' && req.method === 'POST') {
+    // Answers at once with the conversation id; the reply arrives over SSE.
+    try {
+      const body = JSON.parse(await readBody(req));
+      json(await _chatgptAsker.ask({ conversationId: body && body.conversationId, text: body && body.text }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/chatgpt/cancel' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const id = String(body && body.conversationId || '');
+      json({ ok: chatgptAsk.isId(id) && _chatgptAsker.cancel(id) });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/chatgpt/delete' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      if (body && body.all === true) { await _chatgptAsker.clear(); json({ ok: true }); return; }
+      const id = String(body && body.id || '');
+      json({ ok: chatgptAsk.isId(id) && await _chatgptAsker.remove(id) });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football' && req.method === 'GET') {
@@ -18846,8 +19222,42 @@ const handleRequest = async (req, res) => {
         disable = rawDisable ? JSON.parse(rawDisable) : undefined;
         if (disable && typeof disable !== 'object') disable = undefined;
       } catch { disable = undefined; }
-      json(await fileSearch.search(q, { disable }));
+      // The dashboard is answered from the index at once (Windows Search gets
+      // a short head start) and collects the catalog's rows with ?catalog=1.
+      json(urlObj.searchParams.get('catalog') === '1'
+        ? await fileSearch.catalog(q, { disable })
+        : await fileSearch.search(q, { disable, catalogWaitMs: 300 }));
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/search/recent' && req.method === 'GET') {
+    // What the empty search shows: files and folders recently opened from
+    // Xenon, re-checked to exist, each with an opaque id. Read-only, from the
+    // usage log in DATA_DIR. The Search TILE asks only when its setting is on.
+    try { json(await fileSearch.recent({ max: 8 })); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/search/thumb' && req.method === 'GET') {
+    // The preview of an image result, by opaque id. Raster types only, bounded,
+    // served as the image it is with nosniff and a sandboxing CSP, never from a
+    // cross-site request (the transfer thumbnail's shape).
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const target = await fileSearch.thumbTarget(urlObj.searchParams.get('id'));
+      if (!target) { res.writeHead(404); res.end(); return; }
+      const body = await fs.promises.readFile(target.path);
+      const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif' };
+      res.writeHead(200, {
+        'Content-Type': MIME[target.ext] || 'application/octet-stream',
+        'Content-Length': String(body.length),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'private, max-age=300',
+      });
+      res.end(body);
+    } catch (e) {
+      if (e && e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message);
+    }
 
   } else if (reqPath === '/search/open' && req.method === 'POST') {
     // Open one search result. The body carries an opaque id minted by the
@@ -18881,7 +19291,9 @@ const handleRequest = async (req, res) => {
       let extractPath = null;
       if (target && target.app) {
         if (target.kind === 'store') icon = await resolveStoreAppIcon(target.target);
-        else extractPath = target.target;
+        // A Start Menu shortcut has an embedded icon to extract; a macOS bundle
+        // or a .desktop entry does not go through the Windows extractor.
+        else if (target.kind === 'lnk') extractPath = target.target;
       } else if (target && (target.ext === 'exe' || target.ext === 'lnk')) {
         extractPath = target.path;
       }
@@ -19108,8 +19520,21 @@ const handleRequest = async (req, res) => {
     // Per-root live overview (Living-Index path): ?i=N indexes the configured
     // roots — the wire never carries a path (Slideshow shape). Read-only
     // compute over the in-RAM index; ?refresh=1 skips the 30s cache.
+    // ?stale=1 answers the last persisted overview instead (display only, no
+    // ids): what the widget shows while the index rebuilds after a restart.
     try {
-      json(await diskSpace.overview(urlObj.searchParams.get('i'), urlObj.searchParams.get('refresh') === '1'));
+      const i = urlObj.searchParams.get('i');
+      json(urlObj.searchParams.get('stale') === '1'
+        ? await diskSpace.snapshot(i)
+        : await diskSpace.overview(i, urlObj.searchParams.get('refresh') === '1'));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/reveal' && req.method === 'POST') {
+    // "Show in folder" for a file or folder of the current disk overview, by
+    // the opaque id it minted. Reveals, never opens: it runs nothing.
+    try {
+      const body = JSON.parse((await readBody(req)) || '{}');
+      json(await diskSpace.reveal(body.i, body.id));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/disk/browse' && req.method === 'GET') {
@@ -19656,7 +20081,9 @@ const handleRequest = async (req, res) => {
     // the same reason the YouTube search is.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      json(await streamTwitch.searchChannels(body.q));
+      // The dashboard's language picks which live streams are read for title and
+      // tag matches (see searchChannels); it is re-validated there.
+      json(await streamTwitch.searchChannels(body.q, { language: body.lang }));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/twitch/chat/send' && req.method === 'POST') {
@@ -21048,7 +21475,8 @@ const handleRequest = async (req, res) => {
     refreshWinNotifWatch();
     refreshWakeWordWatch();
     refreshAudioLevelsWatch();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
+    _syncCodexDemand();
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); _syncCodexDemand(); });
 
     // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
     noteUsageDay();
@@ -21115,6 +21543,9 @@ const handleRequest = async (req, res) => {
     // (display-only feed: only when the widget is on the dashboard).
     try { res.write(`event: claude\ndata: ${JSON.stringify(_claudeFresh())}\n\n`); } catch (e) { /* ignore */ }
     if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
+    // Seed the Codex state (live approvals included, so a card waiting before this
+    // dashboard opened is drawn at once).
+    try { res.write(`event: codex\ndata: ${JSON.stringify(_codexPayload())}\n\n`); } catch (e) { /* ignore */ }
     // Seed the SDK data-only streams (tasks/notes/agenda) for custom widgets.
     // Unlike system/media/audio/status these are broadcast ONLY on change, so a
     // sandboxed widget subscribing to one (it can't fetch) would paint nothing
@@ -22219,6 +22650,13 @@ function _gracefulShutdown() {
   // this orphans a `claude` process (and the tool processes it spawned) with no
   // terminal attached to stop it.
   try { _claudeRunner.stopAll(); } catch {}
+  // Codex: settle every approval codex-hook.js is blocked on (each would
+  // otherwise hold Codex for the rest of its hook timeout), and stop the
+  // app-server child, which has no job object to die with us.
+  try { _codexBridge.stop(); } catch {}
+  try { _codexApp.stop(); } catch {}
+  // Ask ChatGPT turns are codex children with no job object: kill them.
+  try { _chatgptAsker.stopAll(); } catch {}
   // Kill any in-flight STT recorder: unlike the other children it has no stop
   // module, so Ctrl+C mid-recording would orphan an ffmpeg that keeps the mic
   // device open — blocking the wake word after restart.

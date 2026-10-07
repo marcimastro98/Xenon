@@ -30,6 +30,7 @@ export const LANG_PAGES = [
   { page: 'widgets.html', langs: ALL, dict: 'widgets' },
   { page: 'deck.html', langs: ALL, dict: 'deck' },
   { page: 'claude-code.html', langs: ALL, dict: 'claude-code' },
+  { page: 'codex.html', langs: ALL, dict: 'codex' },
   { page: 'sensor-panel.html', langs: ALL, dict: 'sensor-panel' },
 ];
 

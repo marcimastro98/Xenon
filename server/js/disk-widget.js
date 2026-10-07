@@ -22,6 +22,14 @@
   let loadingSlow = false;
   let loadingSlowTimer = null;
   let overviewRequest = 0;
+  let loadingRoot = null;   // the root the in-flight overview request is for
+  // The last overview of each drive this page has seen, so switching back to a
+  // drive (or refreshing it) redraws at once and updates in place instead of
+  // blanking the tile behind a spinner.
+  const overviewCache = new Map();
+  // The drive whose persisted snapshot was already asked for while its index
+  // rebuilds, so the poll does not ask again every 1.8 s.
+  let staleAskedFor = null;
   let overviewAbort = null;
   let activeView = 'overview';
   let treeRoot = null;
@@ -124,6 +132,34 @@
 
   function fmtNumber(value) {
     return Math.max(0, Number(value) || 0).toLocaleString();
+  }
+
+  // "3 min fa": how old the numbers on screen are.
+  function fmtAgo(ts) {
+    const ms = Date.now() - (Number(ts) || 0);
+    if (!Number.isFinite(ms) || ms < 60000) return tr('disk_ago_now', 'adesso');
+    const min = Math.round(ms / 60000);
+    if (min < 60) return tr('disk_ago_min', '{n} min fa').replace('{n}', String(min));
+    const h = Math.round(min / 60);
+    if (h < 36) return tr('disk_ago_hour', '{n} h fa').replace('{n}', String(h));
+    return tr('disk_ago_day', '{n} giorni fa').replace('{n}', String(Math.round(h / 24)));
+  }
+
+  // "Show in folder" opens a window on the PC, so it is offered only on the
+  // PC: from a paired phone it would act on a screen nobody is looking at.
+  const canReveal = () => !window.__xenonRemote;
+
+  async function revealItem(id) {
+    if (!id || selRoot == null) return;
+    const out = await api('/disk/reveal', { i: selRoot, id });
+    if (!out || !out.ok) {
+      lastReport = { text: tr('disk_reveal_failed', 'Non sono riuscito ad aprire la cartella.'), error: true };
+      renderAll();
+    }
+  }
+
+  function revealBtn(id) {
+    return btn('diskw-copy-btn', '↗', () => revealItem(id), tr('disk_reveal', 'Mostra nella cartella'));
   }
 
   // Paths arrive spelled the way the machine spells them, and this widget
@@ -364,14 +400,18 @@
       const chip = btn('diskw-root' + (selRoot === root.i ? ' is-active' : ''), '', async () => {
         closeAdvisorModal();
         selRoot = root.i;
-        overview = null;
+        overview = overviewCache.get(root.i) || null;
+        // The previous drive's root listing must not be drawn under this one.
+        rootBrowse = null;
         overviewError = '';
         treeRoot = null;
         treeStack = [];
         treeError = '';
         confirmCat = null;
         activeView = 'overview';
-        await loadOverview(true);
+        // Not forced: switching drive should reuse the server's snapshot when
+        // it has one. Only ↻ and the reload after a cleanup ask for a rebuild.
+        await loadOverview(false);
       }, info.title);
       appendRootCopy(chip, info);
       chip.setAttribute('aria-pressed', selRoot === root.i ? 'true' : 'false');
@@ -425,20 +465,20 @@
     const title = el('div', 'diskw-title-block');
     title.appendChild(el('div', 'diskw-title', tr('disk_title', 'Spazio intelligente')));
     const idx = status && status.index || {};
-    const subtitle = idx.building
+    // One plain line: what is watched and what that costs in memory. The RAM
+    // figure used to be a capsule badge; it is a fact about the index, not an
+    // alert, so it reads as text (the tooltip says it is not disk space).
+    let subtitle = idx.building
       ? tr('disk_index_building', 'Sto imparando il disco…') + ' ' + fmtNumber((idx.progress && idx.progress.files) || idx.files) + ' file'
       : fmtNumber(idx.files) + ' ' + tr('disk_index_monitored', 'file monitorati localmente');
-    title.appendChild(el('div', 'diskw-subtitle', subtitle));
+    if (!idx.building && idx.ramMB) subtitle += ' · ' + tr('disk_index_ram_line', '{n} MB di RAM per l’indice').replace('{n}', String(idx.ramMB));
+    if (loadingOverview && overview) subtitle = tr('disk_updating', 'Aggiorno l’analisi…');
+    const sub = el('div', 'diskw-subtitle' + (loadingOverview && overview ? ' is-updating' : ''), subtitle);
+    if (!idx.building) sub.title = tr('disk_index_ram_tip', 'Memoria usata per tenere ricercabili i file. Non è spazio occupato sul disco.');
+    title.appendChild(sub);
     head.appendChild(title);
 
     const actions = el('div', 'diskw-head-actions');
-    const badge = el('span', 'diskw-live-badge' + (idx.building ? ' is-building' : ''),
-      idx.building ? tr('disk_badge_learning', 'apprendo') : tr('disk_index_ram', 'RAM indice') + ' · ' + (idx.ramMB || 0) + ' MB');
-    if (!idx.building) {
-      badge.title = tr('disk_index_ram_tip', 'Memoria usata per tenere ricercabili i file. Non è spazio occupato sul disco.');
-      badge.setAttribute('aria-label', badge.textContent + '. ' + badge.title);
-    }
-    actions.appendChild(badge);
     const refreshBtn = btn('diskw-icon-btn', '↻', () => loadOverview(true), tr('disk_refresh', 'Aggiorna analisi'));
     refreshBtn.disabled = cleaning || loadingOverview || selRoot == null;
     actions.appendChild(refreshBtn);
@@ -467,104 +507,189 @@
 
   // ── Overview ─────────────────────────────────────────────────────────────
 
-  function renderGauge(a) {
-    const hero = el('section', 'diskw-capacity');
-    const gauge = el('div', 'diskw-gauge');
-    const pct = a && a.usedPercent != null ? Math.max(0, Math.min(100, a.usedPercent)) : 0;
-    gauge.style.setProperty('--disk-used', pct.toFixed(2) + '%');
-    gauge.dataset.pressure = a ? a.state : 'unknown';
-    const gaugeInner = el('div', 'diskw-gauge-inner');
-    gaugeInner.appendChild(el('strong', '', a && a.freePercent != null ? Math.round(a.freePercent) + '%' : '—'));
-    gaugeInner.appendChild(el('span', '', tr('disk_free', 'libero')));
-    gauge.appendChild(gaugeInner);
-    hero.appendChild(gauge);
+  // What the drive holds, by kind, on one bar: the kinds the index measured,
+  // then the used space it cannot attribute (system files, folders outside the
+  // index), then free space as the empty track. A bar rather than a ring
+  // because it carries several parts at once and reads at a glance on a wide,
+  // short tile, which is what the Xeneon Edge is.
+  const KIND_ORDER = ['video', 'image', 'audio', 'document', 'archive', 'app', 'game', 'other'];
+  const KIND_LABEL = {
+    video: ['disk_kind_video', 'Video'],
+    image: ['disk_kind_image', 'Foto e immagini'],
+    audio: ['disk_kind_audio', 'Musica e audio'],
+    document: ['disk_kind_document', 'Documenti'],
+    archive: ['disk_kind_archive', 'Archivi e immagini disco'],
+    app: ['disk_kind_app', 'App e sistema'],
+    game: ['disk_kind_game', 'Giochi'],
+    other: ['disk_kind_other', 'Altri file'],
+    unlisted: ['disk_kind_unlisted', 'Non indicizzato'],
+  };
+  const kindName = (k) => tr(KIND_LABEL[k][0], KIND_LABEL[k][1]);
+  // A kind under this share of the drive folds into "other": a sliver no one
+  // can see or tap is noise in the bar and a line of nothing in the legend.
+  const KIND_MIN_SHARE = 0.005;
 
-    const copy = el('div', 'diskw-capacity-copy');
-    const freeText = a && a.capacity
-      ? fmtSize(a.free) + ' ' + tr('disk_free_of', 'liberi su') + ' ' + fmtSize(a.capacity)
-      : fmtSize(overview.total) + ' ' + tr('disk_indexed', 'indicizzati');
-    copy.appendChild(el('div', 'diskw-capacity-main', freeText));
-    copy.appendChild(el('div', 'diskw-capacity-sub',
-      fmtSize(overview.total) + ' · ' + fmtNumber(overview.files) + ' ' + tr('disk_files', 'file nella mappa')));
-
-    const metrics = el('div', 'diskw-metrics');
-    const metricData = [
-      [
-        tr('disk_safe_now', 'Pulizia consigliata'),
-        fmtSize(a ? a.safeBytes : 0),
-        'safe',
-        tr('disk_safe_now_hint', 'Cache e file temporanei rigenerabili, sempre da confermare prima del Cestino.'),
-      ],
-      [
-        tr('disk_review_space', 'Solo con una tua scelta'),
-        fmtSize(a ? a.reviewBytes + a.duplicateBytes : 0),
-        'review',
-        tr('disk_review_space_hint', 'Installer, build e copie identiche: Xenon non può sapere quali ti servono.'),
-      ],
-      [
-        tr('disk_index_coverage', 'Spazio spiegato'),
-        a && a.used ? fmtSize(a.indexedBytes) + ' / ' + fmtSize(a.used) : '—',
-        'neutral',
-        tr('disk_index_coverage_hint', 'Quanto dello spazio usato è attribuito a file leggibili; il resto può essere protetto, riservato o inaccessibile.'),
-      ],
-    ];
-    for (const [label, value, tone, hint] of metricData) {
-      const metric = el('div', 'diskw-metric diskw-tone-' + tone);
-      metric.title = hint;
-      metric.appendChild(el('span', '', label));
-      metric.appendChild(el('strong', '', value));
-      metric.appendChild(el('small', '', hint));
-      metrics.appendChild(metric);
+  function capacityParts(a) {
+    if (!a || !a.capacity) return null;
+    const cap = a.capacity;
+    const kinds = overview.kinds || null;
+    const parts = [];
+    let listed = 0;
+    let folded = 0;
+    if (kinds) {
+      for (const k of KIND_ORDER) {
+        const b = Number(kinds[k]) || 0;
+        if (b <= 0) continue;
+        listed += b;
+        if (k !== 'other' && b / cap < KIND_MIN_SHARE) { folded += b; continue; }
+        if (k === 'other') { folded += b; continue; }
+        parts.push({ id: k, bytes: b });
+      }
+      if (folded > 0) parts.push({ id: 'other', bytes: folded });
+    } else if (overview.total > 0) {
+      listed = overview.total;
+      parts.push({ id: 'other', bytes: listed });
     }
-    copy.appendChild(metrics);
-    hero.appendChild(copy);
+    const unlisted = Math.max(0, a.used - listed);
+    if (unlisted / cap >= KIND_MIN_SHARE) parts.push({ id: 'unlisted', bytes: unlisted });
+    return { cap, parts };
+  }
+
+  function renderCapacity(a) {
+    const hero = el('section', 'diskw-cap');
+    hero.dataset.pressure = a ? a.state : 'unknown';
+    const line = el('div', 'diskw-cap-line');
+    line.appendChild(el('strong', 'diskw-cap-free', a && a.capacity
+      ? fmtSize(a.free) + ' ' + tr('disk_free_of', 'liberi su') + ' ' + fmtSize(a.capacity)
+      : fmtSize(overview.total) + ' ' + tr('disk_indexed', 'indicizzati')));
+    if (a && a.usedPercent != null) {
+      line.appendChild(el('span', 'diskw-cap-used',
+        tr('disk_used_pct', '{n}% usato').replace('{n}', String(Math.round(a.usedPercent)))));
+    }
+    hero.appendChild(line);
+
+    const split = capacityParts(a);
+    if (!split) return hero;
+    const bar = el('div', 'diskw-cap-bar');
+    bar.setAttribute('role', 'img');
+    const spoken = [];
+    for (const part of split.parts) {
+      const seg = el('span', 'diskw-seg');
+      seg.dataset.kind = part.id;
+      seg.style.setProperty('--grow', String(part.bytes));
+      const label = kindName(part.id) + ' · ' + fmtSize(part.bytes);
+      seg.title = part.id === 'unlisted'
+        ? label + '. ' + tr('disk_map_residual_tip', 'Spazio non attribuito a una sottocartella: file di sistema o cartelle non indicizzate.')
+        : label;
+      spoken.push(label);
+      bar.appendChild(seg);
+    }
+    const free = el('span', 'diskw-seg diskw-seg-free');
+    free.style.setProperty('--grow', String(Math.max(0, a.free)));
+    free.title = tr('disk_kind_free', 'Libero') + ' · ' + fmtSize(a.free);
+    bar.appendChild(free);
+    spoken.push(free.title);
+    bar.setAttribute('aria-label', spoken.join(', '));
+    hero.appendChild(bar);
+
+    // The legend names every part; identity is never colour alone.
+    const legend = el('div', 'diskw-cap-legend');
+    for (const part of split.parts) {
+      const item = el('span', 'diskw-legend-item');
+      const sw = el('i', 'diskw-swatch');
+      sw.dataset.kind = part.id;
+      item.appendChild(sw);
+      item.appendChild(el('span', 'diskw-legend-name', kindName(part.id)));
+      item.appendChild(el('b', '', fmtSize(part.bytes)));
+      legend.appendChild(item);
+    }
+    hero.appendChild(legend);
     return hero;
   }
 
-  function renderAdvisor(a) {
-    const card = el('section', 'diskw-advisor');
-    const top = el('div', 'diskw-advisor-top');
-    const brand = el('div', 'diskw-advisor-brand');
-    brand.appendChild(el('span', 'diskw-advisor-mark', '✦'));
-    const brandCopy = el('div');
-    brandCopy.appendChild(el('div', 'diskw-advisor-title', tr('disk_advisor', 'Xenon Advisor')));
-    brandCopy.appendChild(el('div', 'diskw-advisor-mode', tr('disk_advisor_mode', 'analisi locale + AI su richiesta')));
-    brand.appendChild(brandCopy);
-    top.appendChild(brand);
-    const ask = btn('diskw-ai-btn', tr('disk_open_analysis', 'Apri analisi'), openAdvisorModal);
-    top.appendChild(ask);
-    card.appendChild(top);
+  // ── What is worth doing ──────────────────────────────────────────────────
+  // Up to three plain sentences, in the order they help: space you can free
+  // now, what grew, when the drive fills up, then what only you can judge. Each
+  // is something measured on this drive; a row with no data is left out,
+  // never filled with a "learning…" placeholder.
+  function treeRefFor(p) {
+    const key = String(p || '').toLowerCase();
+    return (overview.tree || []).find((d) => String(d.p || '').toLowerCase() === key) || null;
+  }
 
-    let headline;
-    let detail;
+  function actionRow(title, sub, onClick) {
+    const row = onClick ? btn('diskw-act', '', onClick) : el('div', 'diskw-act is-static');
+    const copy = el('span', 'diskw-act-copy');
+    copy.appendChild(el('strong', '', title));
+    if (sub) copy.appendChild(el('span', '', sub));
+    row.appendChild(copy);
+    if (onClick) row.appendChild(el('span', 'diskw-act-go', '›'));
+    return row;
+  }
+
+  function goView(view) {
+    withTransition(() => { activeView = view; confirmCat = null; renderAll(); });
+  }
+
+  function renderActions(a) {
+    const section = el('section', 'diskw-section diskw-acts');
+    const head = el('div', 'diskw-section-head');
+    head.appendChild(el('h3', '', tr('disk_acts_title', 'Da sapere')));
+    const deep = btn('diskw-small-btn', tr('disk_open_analysis', 'Apri analisi'), openAdvisorModal);
+    deep.disabled = !!overview.stale;
+    head.appendChild(deep);
+    section.appendChild(head);
+
+    const rows = [];
+    const ins = overview.insights || {};
     if (a && a.safeBytes > 0) {
-      headline = tr('disk_advisor_safe_prefix', 'Puoi recuperare') + ' ' + fmtSize(a.safeBytes) + ' ' +
-        tr('disk_advisor_safe_suffix', 'senza toccare documenti personali.');
-      const first = a.categories.find((c) => c.risk === 'safe');
-      detail = first
-        ? categoryName(first.id) + ' · ' + fmtSize(first.bytes) + '. ' + tr('disk_advisor_review_first', 'Rivedi la selezione prima di confermare.')
-        : tr('disk_advisor_review_first', 'Rivedi la selezione prima di confermare.');
-    } else if (a && a.duplicateBytes > 0) {
-      headline = fmtSize(a.duplicateBytes) + ' ' + tr('disk_advisor_dupes', 'in copie identiche verificate.');
-      detail = tr('disk_advisor_dupes_detail', 'Xenon non sceglie mai quale originale conservare: confronta le posizioni nella scheda Duplicati.');
-    } else {
-      const large = a && a.recommendations.find((r) => r.type === 'large_folder');
-      headline = tr('disk_advisor_clean', 'Nessun residuo sicuro importante: il disco è già pulito.');
-      detail = large
-        ? tr('disk_advisor_large', 'La maggiore opportunità è capire se ti serve ancora la cartella più grande, non cancellarla alla cieca.')
-        : tr('disk_advisor_clean_detail', 'Continua a usare la mappa per individuare app, giochi o archivi che non usi più.');
+      rows.push(actionRow(
+        tr('disk_act_safe', 'Puoi liberare {size} subito').replace('{size}', fmtSize(a.safeBytes)),
+        tr('disk_act_safe_sub', 'Cache e file temporanei. Li rivedi prima che vadano nel Cestino.'),
+        () => goView('clean')));
     }
-    card.appendChild(el('div', 'diskw-advisor-headline', headline));
-    card.appendChild(el('div', 'diskw-advisor-detail', detail));
-
-    const safeguards = el('div', 'diskw-safeguards');
-    for (const text of [
-      tr('disk_guard_human', 'Conferma sempre umana'),
-      tr('disk_guard_bin', 'Cestino come undo'),
-      tr('disk_guard_ai', 'AI senza permesso di eliminare'),
-    ]) safeguards.appendChild(el('span', '', '✓ ' + text));
-    card.appendChild(safeguards);
-    return card;
+    const grown = ins.growth && Array.isArray(ins.growth.folders) ? ins.growth.folders[0] : null;
+    if (grown) {
+      const ref = treeRefFor(grown.p);
+      rows.push(actionRow(
+        tr('disk_act_growth', '{name} è cresciuta di {size} in {days} giorni')
+          .replace('{name}', pathLeaf(grown.p)).replace('{size}', fmtSize(grown.delta)).replace('{days}', String(ins.growth.days)),
+        ltrPath(grown.p),
+        ref && ref.id && !overview.stale ? () => { goView('overview'); void openTreeNode(ref); } : null));
+    }
+    const fc = ins.forecast || {};
+    if (fc.state === 'filling') {
+      rows.push(actionRow(
+        tr('disk_act_fill', 'A questo ritmo il disco è pieno tra circa {days} giorni').replace('{days}', String(Math.max(1, fc.daysToFull))),
+        tr('disk_act_fill_sub', '{size} in più al giorno, misurato su {days} giorni.')
+          .replace('{size}', fmtSize(fc.perDay)).replace('{days}', String(fc.spanDays)),
+        null));
+    } else if (fc.state === 'stable' && fc.spanDays >= 7) {
+      rows.push(actionRow(
+        tr('disk_act_stable', 'Lo spazio usato è stabile'),
+        tr('disk_act_stable_sub', 'Nessuna crescita costante negli ultimi {days} giorni.').replace('{days}', String(fc.spanDays)),
+        null));
+    }
+    const review = a ? a.reviewBytes + a.duplicateBytes : 0;
+    if (review > 0) {
+      rows.push(actionRow(
+        tr('disk_act_review', '{size} da rivedere').replace('{size}', fmtSize(review)),
+        tr('disk_act_review_sub', 'Installer vecchi, cartelle di build e copie identiche. Decidi tu cosa tenere.'),
+        () => goView(a.reviewBytes > 0 ? 'clean' : 'duplicates')));
+    }
+    const stale = Array.isArray(overview.staleFiles) ? overview.staleFiles : [];
+    if (stale.length) {
+      rows.push(actionRow(
+        tr('disk_act_stale', '{n} file grandi non modificati da oltre un anno').replace('{n}', fmtNumber(stale.length)),
+        tr('disk_act_stale_sub', '{size} in tutto. Li trovi in Esplora.')
+          .replace('{size}', fmtSize(stale.reduce((s, f) => s + (Number(f.s) || 0), 0))),
+        () => goView('explore')));
+    }
+    if (!rows.length) {
+      rows.push(actionRow(tr('disk_act_none', 'Niente da sistemare: nessuna pulizia sicura in sospeso.'), '', null));
+    }
+    for (const row of rows.slice(0, 3)) section.appendChild(row);
+    return section;
   }
 
   function renderIndexLimitNote() {
@@ -1129,29 +1254,10 @@
       ? treeStack[treeStack.length - 1]
       : (rootBrowse && rootBrowse.ok ? rootBrowse : null);
     const currentPath = currentBrowse ? currentBrowse.path : (treeRoot || overview.root);
-    title.appendChild(el('p', '', ltrPath(currentPath)));
     head.appendChild(title);
     const base = overview.root.replace(/\\+$/, '');
-    if (currentPath && currentPath.replace(/\\+$/, '') !== base) {
-      head.appendChild(btn('diskw-small-btn', '← ' + tr('disk_up', 'Su'), () => {
-        treeOtherOpen = false;
-        treeOtherItems = null;
-        withTransition(() => {
-          if (treeStack.length) {
-            treeStack.pop();
-            treeRoot = treeStack.length ? treeStack[treeStack.length - 1].path : base;
-          } else {
-            const up = pathParent(treeRoot);
-            // Never climb above the configured root: `base` is the boundary the
-            // ids were minted against.
-            treeRoot = up && up.length >= base.length ? up : base;
-          }
-          treeError = '';
-          renderAll();
-        });
-      }));
-    }
     section.appendChild(head);
+    section.appendChild(renderCrumbs(base, currentPath));
 
     if (treeLoading) {
       const loading = el('div', 'diskw-map-loading');
@@ -1227,7 +1333,11 @@
         node = el('div', 'diskw-cell diskw-cell-other diskw-cell-residual');
         node.title = tr('disk_map_residual_tip', 'Spazio non attribuito a una sottocartella: file di sistema o cartelle non indicizzate.');
       } else if (ref.file) {
-        node = el('div', 'diskw-cell diskw-cell-file');
+        // A file cannot be opened into, but it can be shown where it lives.
+        node = ref.id && canReveal()
+          ? btn('diskw-cell diskw-cell-file is-revealable', '', () => revealItem(ref.id),
+            tr('disk_reveal', 'Mostra nella cartella') + ' · ' + (ref.n || pathLeaf(ref.p)))
+          : el('div', 'diskw-cell diskw-cell-file');
       } else {
         node = btn('diskw-cell', '', () => openTreeNode(ref), ref.p);
       }
@@ -1304,13 +1414,87 @@
     return overlay;
   }
 
+  // Where the map is, as a path you can tap back up. Each level is a button
+  // that returns there: the drill-down stack when it holds that level, else the
+  // level's id from the overview, else (an older server, ids absent) the
+  // local navigation over the overview's tree. Never above the root: `base`
+  // is the boundary the ids were minted against.
+  function joinUnder(base, parts) {
+    const sep = sepOf(base);
+    if (!parts.length) return base;
+    return (base === '/' ? '' : base) + sep + parts.join(sep);
+  }
+
+  function goToLevel(target, base) {
+    treeOtherOpen = false;
+    treeOtherItems = null;
+    treeError = '';
+    const key = target.toLowerCase();
+    withTransition(() => {
+      if (key === base.toLowerCase()) {
+        treeStack = [];
+        treeRoot = base;
+        renderAll();
+        return;
+      }
+      const at = treeStack.findIndex((b) => String(b.path || '').replace(/[\\/]+$/, '').toLowerCase() === key);
+      if (at >= 0) {
+        treeStack = treeStack.slice(0, at + 1);
+        treeRoot = treeStack[at].path;
+        renderAll();
+        return;
+      }
+      const ref = treeRefFor(target);
+      if (ref && ref.id) {
+        treeStack = [];
+        void openTreeNode(ref);
+        return;
+      }
+      treeStack = [];
+      treeRoot = target;
+      renderAll();
+    });
+  }
+
+  function renderCrumbs(base, currentPath) {
+    const nav = el('nav', 'diskw-crumbs');
+    nav.setAttribute('aria-label', tr('disk_crumbs', 'Percorso nella mappa'));
+    const cur = String(currentPath || base).replace(/[\\/]+$/, '') || base;
+    const rel = cur.length > base.length ? cur.slice(base.length) : '';
+    const parts = rel.split(/[\\/]+/).filter(Boolean);
+    const levels = [{ label: pathLeaf(base) || base, path: base }];
+    parts.forEach((p, i) => levels.push({ label: p, path: joinUnder(base, parts.slice(0, i + 1)) }));
+    levels.forEach((lvl, i) => {
+      if (i > 0) nav.appendChild(el('span', 'diskw-crumb-sep', '›'));
+      if (i === levels.length - 1) {
+        const here = el('span', 'diskw-crumb is-current', lvl.label);
+        here.setAttribute('aria-current', 'location');
+        nav.appendChild(here);
+      } else {
+        nav.appendChild(btn('diskw-crumb', lvl.label, () => goToLevel(lvl.path, base), lvl.path));
+      }
+    });
+    return nav;
+  }
+
+  function renderStaleNote() {
+    if (!overview || !overview.stale) return null;
+    return el('div', 'diskw-index-note', tr('disk_stale_note',
+      'Dati dell’ultima analisi, {when}. L’indice si sta ricostruendo: pulizia e cartelle tornano disponibili quando ha finito.')
+      .replace('{when}', fmtAgo(overview.generatedAt)));
+  }
+
   function renderOverview() {
-    const wrap = el('div', 'diskw-view');
+    const wrap = el('div', 'diskw-view diskw-overview');
     const a = analysis();
-    wrap.appendChild(renderGauge(a));
+    const side = el('div', 'diskw-overview-side');
+    side.appendChild(renderCapacity(a));
+    const staleNote = renderStaleNote();
+    if (staleNote) side.appendChild(staleNote);
     const limitNote = renderIndexLimitNote();
-    if (limitNote) wrap.appendChild(limitNote);
-    wrap.appendChild(renderAdvisor(a));
+    if (limitNote) side.appendChild(limitNote);
+    side.appendChild(renderActions(a));
+    wrap.appendChild(side);
     wrap.appendChild(renderTreemap());
     return wrap;
   }
@@ -1353,6 +1537,11 @@
   function renderClean() {
     const wrap = el('div', 'diskw-view');
     const a = analysis();
+    // A saved snapshot shows what was there; it is never a cleanup target.
+    if (overview.stale) {
+      wrap.appendChild(el('div', 'diskw-empty diskw-empty-card', tr('disk_stale_clean', 'La pulizia torna disponibile quando l’indice ha finito di ricostruirsi.')));
+      return wrap;
+    }
     const intro = el('section', 'diskw-clean-summary');
     intro.appendChild(el('span', 'diskw-clean-summary-kicker', tr('disk_cleanup_plan', 'Piano di pulizia protetto')));
     intro.appendChild(el('strong', '', fmtSize(a ? a.safeBytes : 0)));
@@ -1657,6 +1846,7 @@
     copy.appendChild(el('span', '', ltrPath(path)));
     row.appendChild(copy);
     row.appendChild(el('b', 'diskw-path-size', fmtSize(item.s)));
+    if (item.id && canReveal()) row.appendChild(revealBtn(item.id));
     row.appendChild(btn('diskw-copy-btn', '⧉', () => copyPath(path), tr('disk_copy_path', 'Copia percorso')));
     return row;
   }
@@ -1677,6 +1867,23 @@
     for (const file of (overview.topFiles || []).slice(0, 16)) files.appendChild(renderPathRow(file, 'file'));
     if (!(overview.topFiles || []).length) files.appendChild(el('div', 'diskw-empty', tr('disk_no_files', 'Nessun file disponibile.')));
     wrap.appendChild(files);
+
+    // Large files nobody has written to in a year: the space most often worth
+    // a second look, and the one no cleanup rule can judge. Absent (an older
+    // helper) means not measured, so the section is left out rather than
+    // claiming there are none.
+    if (Array.isArray(overview.staleFiles)) {
+      const stale = el('section', 'diskw-section');
+      stale.appendChild(el('h3', '', tr('disk_stale_title', 'Grandi e non modificati da un anno')));
+      for (const file of overview.staleFiles.slice(0, 16)) {
+        const row = renderPathRow(file, 'file');
+        const when = file.m ? new Date(file.m).toLocaleDateString() : '';
+        if (when) row.querySelector('.diskw-path-copy > strong').title = tr('disk_modified_on', 'Modificato il {date}').replace('{date}', when);
+        stale.appendChild(row);
+      }
+      if (!overview.staleFiles.length) stale.appendChild(el('div', 'diskw-empty', tr('disk_stale_empty', 'Nessun file oltre 500 MB fermo da più di un anno.')));
+      wrap.appendChild(stale);
+    }
     return wrap;
   }
 
@@ -1689,6 +1896,9 @@
     intro.appendChild(el('strong', '', fmtSize(total)));
     intro.appendChild(el('p', '', tr('disk_dupes_note', 'Identici byte per byte. Xenon non elimina automaticamente una copia perché solo tu sai quale posizione è quella giusta.')));
     wrap.appendChild(intro);
+    if (overview.dupesPending) {
+      wrap.appendChild(el('div', 'diskw-index-note', tr('disk_dupes_checking', 'Sto confrontando altri file in background. La lista si aggiorna da sola.')));
+    }
 
     if (!dupes.length) {
       wrap.appendChild(el('div', 'diskw-empty diskw-empty-card', tr('disk_no_dupes', 'Nessun grande duplicato verificato in questa fotografia.')));
@@ -1701,9 +1911,12 @@
       head.appendChild(el('strong', '', tr('disk_copy_group', 'Gruppo') + ' ' + (index + 1)));
       head.appendChild(el('span', '', fmtSize(group.s) + ' × ' + group.paths.length + ' · ' + fmtSize(group.wasted) + ' ' + tr('disk_dupes_wasted', 'sprecati')));
       card.appendChild(head);
-      for (const path of group.paths) {
+      for (const entry of group.paths) {
+        // {p, id} from a live overview, a bare path from a saved snapshot.
+        const path = typeof entry === 'string' ? entry : String(entry && entry.p || '');
         const row = el('div', 'diskw-dupe-path');
         row.appendChild(el('span', '', ltrPath(path)));
+        if (entry && entry.id && canReveal()) row.appendChild(revealBtn(entry.id));
         row.appendChild(btn('diskw-copy-btn', '⧉', () => copyPath(path), tr('disk_copy_path', 'Copia percorso')));
         card.appendChild(row);
       }
@@ -1853,11 +2066,13 @@
       mount.appendChild(renderCleaning());
       return;
     }
-    if (loadingOverview) {
+    // The spinner is for a drive with nothing to show yet. Anything already
+    // drawn stays while it is refreshed, and the header says so.
+    if (loadingOverview && !overview) {
       mount.appendChild(renderLoading());
       return;
     }
-    if (overviewError) {
+    if (overviewError && !overview) {
       mount.appendChild(renderError());
       return;
     }
@@ -1885,11 +2100,14 @@
   }
 
   async function loadOverview(refresh) {
-    if (selRoot == null || loadingOverview && !refresh) return;
+    // Skip only a duplicate of the request already in flight. A different
+    // drive must always load, or a chip tapped mid-load would be ignored.
+    if (selRoot == null || (loadingOverview && !refresh && loadingRoot === selRoot)) return;
     const requestId = ++overviewRequest;
     if (overviewAbort) overviewAbort.abort();
     overviewAbort = new AbortController();
     const requestedRoot = selRoot;
+    loadingRoot = requestedRoot;
     loadingOverview = true;
     loadingSlow = false;
     overviewError = '';
@@ -1911,23 +2129,54 @@
     overviewAbort = null;
     if (loadingSlowTimer) { clearTimeout(loadingSlowTimer); loadingSlowTimer = null; }
     if (out && out.ok) {
+      // A refresh of the drive already on screen keeps the level the map is
+      // showing; a different drive (or the first load) starts at its root.
+      const sameDrive = overview && !overview.stale && overview.root === out.root;
       overview = out;
+      overviewCache.set(requestedRoot, out);
       overviewError = '';
-      treeRoot = out.root.replace(/\\+$/, '');
-      treeStack = [];
+      if (!sameDrive) {
+        treeRoot = out.root.replace(/\\+$/, '');
+        treeStack = [];
+        treeOtherOpen = false;
+        treeOtherItems = null;
+      }
       treeError = '';
       rootBrowse = null;
-      treeOtherOpen = false;
-      treeOtherItems = null;
       // Pull the root's real contents (files + folders) so the map matches what
       // drilling in shows. Best-effort: the map falls back to overview.tree
       // until this lands (or if the server predates browse).
       void loadRootBrowse(out.rootId, requestId);
+    } else if (overview && !overview.stale && overview.root) {
+      // A failed refresh leaves the last good analysis on screen and says so.
+      lastReport = { text: friendlyError(out && out.error || 'index_unavailable'), error: true };
     } else {
       overview = null;
       overviewError = out && out.error || 'index_unavailable';
     }
     renderAll();
+  }
+
+  // While the index rebuilds (after a restart, minutes on a big drive) the
+  // widget shows the last analysis it saved, marked with its age, instead of
+  // a spinner. Display only: the server keeps no ids for it.
+  async function loadStaleSnapshot() {
+    if (selRoot == null || overview || staleAskedFor === selRoot) return;
+    staleAskedFor = selRoot;
+    const asked = selRoot;
+    const out = await api('/disk/overview?i=' + encodeURIComponent(asked) + '&stale=1');
+    if (asked !== selRoot || overview || !out || !out.ok) return;
+    overview = out;
+    treeRoot = String(out.root || '').replace(/\\+$/, '');
+    treeStack = [];
+    renderAll();
+  }
+
+  // The server learned something about a drive after answering (the
+  // background duplicate check): refetch it if it is the one on screen.
+  function onDiskUpdate(info) {
+    if (!overview || overview.stale || !info || info.root !== overview.root) return;
+    void loadOverview(false);
   }
 
   async function loadRootBrowse(rootId, requestId) {
@@ -1974,8 +2223,10 @@
     // Crucial transition: the page often loads while the initial index is
     // building. Once it becomes ready, the already-selected chip must load its
     // overview automatically instead of sitting forever on "tap a drive".
-    if (selRoot != null && idx.ready && !overview && !overviewError && !loadingOverview) {
+    if (selRoot != null && idx.ready && (!overview || overview.stale) && !overviewError && !loadingOverview) {
       void loadOverview(false);
+    } else if (selRoot != null && !idx.ready && !overview) {
+      void loadStaleSnapshot();
     }
     renderAll();
   }
@@ -2007,5 +2258,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  window.DiskWidget = { renderWidgets, refresh, onCleanProgress };
+  window.DiskWidget = { renderWidgets, refresh, onCleanProgress, onDiskUpdate };
 })();

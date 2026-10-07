@@ -67,7 +67,7 @@
   // must also be added to the canonical list in normalizeTopbarClock (client
   // settings.js AND its server.js twin) and labelled in TOPBAR_ISLAND_LABELS,
   // or it is dropped on the next settings save.
-  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude'];
+  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex'];
 
   // The chrome BUTTONS, keyed the same way and carried by the same settings
   // object (topbarClock.actions). Selector per id, resolved against the whole
@@ -108,10 +108,11 @@
     const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
     const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
+    const clockCodex = clock.querySelector('.clock-codex'); // OpenAI Codex marker (js/codex-widget.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,
-      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude, clockCodex,
     };
     return els;
   }
@@ -127,6 +128,7 @@
       case 'dots': return els.pagerDots;
       case 'badges': return els.clockBadges;
       case 'claude': return els.clockClaude;
+      case 'codex': return els.clockCodex;
       default: return null;
     }
   }
@@ -225,7 +227,7 @@
     // online indicator and has to stay, so instead the bare row stops taking a
     // row of its own (CSS below) and the face centres on the bar.
     if (els.clock) {
-      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude]
+      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex]
         .some((el) => el && el.hidden !== true && !el.classList.contains('topbar-item-hidden'));
       els.clock.classList.toggle('clock-meta-bare', !metaAlive);
     }
@@ -487,9 +489,9 @@
       el.style.removeProperty('order');
       el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
     });
-    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude
+    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude · codex
     // (fixed original order — must match index.html)
-    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude]
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude, els.clockCodex]
       .forEach(el => { if (el) els.clockMeta.appendChild(el); });
     els.clock.append(els.clockFace, els.clockMeta);
     // Topbar's original child order: quickbar · clock · top-actions, with the

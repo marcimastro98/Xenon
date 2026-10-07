@@ -441,6 +441,22 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Local Claude Code usage aggregate → the Xenon Pulse reactor widget.
       try { const d = JSON.parse(e.data); if (window.ClaudeWidget) window.ClaudeWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('claude', d); } catch {}
     });
+    es.addEventListener('chatgpt', e => {
+      // Ask ChatGPT: the conversation list, what is answering, and the one
+      // conversation that changed.
+      try { const d = JSON.parse(e.data); if (window.ChatGPTWidget) window.ChatGPTWidget.onSSE(d); } catch {}
+    });
+    es.addEventListener('codex', e => {
+      // OpenAI Codex: plan windows, usage, live sessions and approval cards. SDK
+      // widgets get ONLY `sdk`, the server-built allowlist of numbers
+      // (codex-bridge.js sdkProjection), never the tile payload.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.CodexWidget) window.CodexWidget.onSSE(d);
+        if (window.ChatGPTWidget) window.ChatGPTWidget.onCodex(d);
+        if (window.CustomWidget && d && d.sdk) window.CustomWidget.onData('codex', d.sdk);
+      } catch {}
+    });
     es.addEventListener('football_alert', e => {
       // A followed team scored or the match ended → a toast (gated by the master
       // Notifiche switch). The server handles the LED reaction.
@@ -492,6 +508,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // page reloaded mid-cleanup re-attaches to it (the widget also re-reads
       // status.clean on its own poll).
       try { if (window.DiskWidget && window.DiskWidget.onCleanProgress) window.DiskWidget.onCleanProgress(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('disk_update', e => {
+      // A disk overview learned something after it was drawn (the background
+      // duplicate check finished): the widget refetches that drive.
+      try { if (window.DiskWidget && window.DiskWidget.onDiskUpdate) window.DiskWidget.onDiskUpdate(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.

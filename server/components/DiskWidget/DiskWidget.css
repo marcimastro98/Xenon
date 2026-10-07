@@ -63,28 +63,6 @@
   gap: 7px;
 }
 
-.diskw-live-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 25px;
-  padding: 0 9px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 55%);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent), transparent 89%);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.diskw-live-badge.is-building {
-  border-color: var(--line);
-  background: var(--surface-alt);
-  color: var(--muted-text);
-}
-
 .diskw-icon-btn,
 .diskw-copy-btn,
 .diskw-small-btn {
@@ -252,208 +230,274 @@
   min-width: 0;
 }
 
-/* Capacity hero */
+/* Overview layout: stacked, and side by side on a wide tile (the Edge's
+   2560x720 is the shape this is for), where the map gets the height. */
 
-.diskw-capacity {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 16px;
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-tile);
-  background:
-    linear-gradient(125deg, color-mix(in srgb, var(--accent), transparent 94%), transparent 52%),
-    var(--surface-alt);
-}
-
-.diskw-gauge {
-  --gauge-color: var(--accent);
-  display: grid;
-  width: 92px;
-  aspect-ratio: 1;
-  padding: 9px;
-  border-radius: 50%;
-  background: conic-gradient(
-    var(--gauge-color) 0 var(--disk-used),
-    color-mix(in srgb, var(--text), transparent 91%) var(--disk-used) 100%
-  );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text), transparent 93%);
-  place-items: center;
-}
-
-.diskw-gauge[data-pressure="critical"] {
-  --gauge-color: var(--color-danger);
-}
-
-.diskw-gauge[data-pressure="low"] {
-  --gauge-color: var(--color-warn);
-}
-
-.diskw-gauge-inner {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--surface);
-  place-content: center;
-  text-align: center;
-}
-
-.diskw-gauge-inner strong {
-  font-size: 20px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.diskw-gauge-inner span {
-  margin-top: 3px;
-  color: var(--muted-text);
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.diskw-capacity-copy {
+.diskw-overview-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-width: 0;
 }
 
-.diskw-capacity-main {
-  font-size: clamp(15px, 2.4cqw, 21px);
-  font-weight: 760;
-  letter-spacing: -0.03em;
+.diskw-subtitle.is-updating {
+  color: var(--text);
 }
 
-.diskw-capacity-sub {
-  margin-top: 3px;
+/* Capacity bar. Kind colours are the categorical slots of a palette checked
+   for colour-blind separation between neighbours, in that fixed order and
+   with their own steps for a light theme. They are never the theme accent:
+   identity must not change when the user changes theme. Status colours stay
+   reserved for the "% used" warning. */
+
+.diskw-cap {
+  --k-video: #3987e5;
+  --k-image: #d95926;
+  --k-audio: #199e70;
+  --k-document: #c98500;
+  --k-archive: #d55181;
+  --k-app: #008300;
+  --k-game: #9085e9;
+  --k-other: color-mix(in srgb, var(--text), transparent 60%);
+  --k-unlisted: color-mix(in srgb, var(--text), transparent 80%);
+  --k-free: color-mix(in srgb, var(--text), transparent 92%);
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+:root[data-appearance="light"] .diskw-cap {
+  --k-video: #2a78d6;
+  --k-image: #eb6834;
+  --k-audio: #1baf7a;
+  --k-document: #eda100;
+  --k-archive: #e87ba4;
+  --k-app: #008300;
+  --k-game: #4a3aa7;
+}
+
+.diskw-cap-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.diskw-cap-free {
+  overflow: hidden;
+  font-size: clamp(15px, 2.2cqw, 20px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-cap-used {
+  flex: 0 0 auto;
   color: var(--muted-text);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
-.diskw-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 11px;
+.diskw-cap[data-pressure="critical"] .diskw-cap-used {
+  color: var(--color-danger);
+  font-weight: 700;
 }
 
-.diskw-metric {
+.diskw-cap[data-pressure="low"] .diskw-cap-used {
+  color: var(--color-warn);
+  font-weight: 700;
+}
+
+.diskw-cap-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.diskw-seg {
+  flex: var(--grow) 1 0;
   min-width: 0;
-  padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--surface);
+  background: var(--k-other);
 }
 
-.diskw-metric span,
-.diskw-metric strong,
-.diskw-metric small {
-  display: block;
+.diskw-seg[data-kind="video"], .diskw-swatch[data-kind="video"] { background: var(--k-video); }
+.diskw-seg[data-kind="image"], .diskw-swatch[data-kind="image"] { background: var(--k-image); }
+.diskw-seg[data-kind="audio"], .diskw-swatch[data-kind="audio"] { background: var(--k-audio); }
+.diskw-seg[data-kind="document"], .diskw-swatch[data-kind="document"] { background: var(--k-document); }
+.diskw-seg[data-kind="archive"], .diskw-swatch[data-kind="archive"] { background: var(--k-archive); }
+.diskw-seg[data-kind="app"], .diskw-swatch[data-kind="app"] { background: var(--k-app); }
+.diskw-seg[data-kind="game"], .diskw-swatch[data-kind="game"] { background: var(--k-game); }
+.diskw-seg[data-kind="other"], .diskw-swatch[data-kind="other"] { background: var(--k-other); }
+.diskw-seg[data-kind="unlisted"], .diskw-swatch[data-kind="unlisted"] { background: var(--k-unlisted); }
+.diskw-seg-free { background: var(--k-free); }
+
+.diskw-cap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 9px;
+}
+
+.diskw-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+.diskw-legend-item b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.diskw-swatch {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+/* What is worth doing: plain rows, the whole row is the tap target. */
+
+.diskw-acts .diskw-section-head {
+  margin-bottom: 2px;
+}
+
+.diskw-act {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.diskw-section-head + .diskw-act {
+  border-top: 0;
+}
+
+.diskw-act:not(.is-static):hover {
+  background: var(--hover-bg);
+}
+
+.diskw-act.is-static {
+  cursor: default;
+}
+
+.diskw-act-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.diskw-act-copy strong,
+.diskw-act-copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.diskw-metric span {
+.diskw-act-copy strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.diskw-act-copy span {
   color: var(--muted-text);
-  font-size: 9.5px;
-  font-weight: 650;
+  font-size: 10.5px;
 }
 
-.diskw-metric strong {
-  margin-top: 2px;
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
+.diskw-act-go {
+  flex: 0 0 auto;
+  color: var(--muted-text);
+  font-size: 18px;
+  line-height: 1;
 }
 
-.diskw-metric small {
-  margin-top: 3px;
-  color: var(--dim-text);
-  font-size: 8px;
-  line-height: 1.25;
-  white-space: normal;
-}
+/* Where the map is: each level a tap back up. */
 
-.diskw-tone-safe strong {
-  color: var(--color-success);
-}
-
-.diskw-tone-review strong {
-  color: var(--color-warn);
-}
-
-/* Advisor */
-
-.diskw-advisor {
-  position: relative;
-  overflow: hidden;
-  padding: 13px 14px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 66%);
-  border-radius: var(--radius-tile);
-  background:
-    radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent), transparent 84%), transparent 44%),
-    linear-gradient(140deg, color-mix(in srgb, var(--accent), transparent 94%), transparent 60%),
-    var(--surface-alt);
-}
-
-.diskw-advisor::after {
-  position: absolute;
-  top: -38px;
-  right: -28px;
-  width: 116px;
-  height: 116px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 82%);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 18px color-mix(in srgb, var(--accent), transparent 96%),
-    0 0 0 36px color-mix(in srgb, var(--accent), transparent 98%);
-  content: "";
-  pointer-events: none;
-}
-
-.diskw-advisor-top,
-.diskw-advisor-brand,
-.diskw-safeguards {
+.diskw-crumbs {
   display: flex;
   align-items: center;
-}
-
-.diskw-advisor-top {
-  position: relative;
-  z-index: 1;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.diskw-advisor-brand {
+  gap: 2px;
   min-width: 0;
-  gap: 9px;
+  margin: -2px 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.diskw-advisor-mark {
-  display: grid;
+.diskw-crumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.diskw-crumb {
+  flex: 0 1 auto;
+  max-width: 16em;
+  min-height: 30px;
+  padding: 0 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted-text) !important;
+  cursor: pointer;
+  font-size: 11px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.diskw-crumb:hover {
+  background: var(--hover-bg);
+  color: var(--text) !important;
+}
+
+.diskw-crumb.is-current {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text) !important;
+  cursor: default;
+  font-weight: 700;
+}
+
+.diskw-crumb-sep {
   flex: 0 0 auto;
-  width: 31px;
-  height: 31px;
-  border: 1px solid color-mix(in srgb, var(--accent), transparent 54%);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent), transparent 86%);
-  color: var(--accent);
-  font-size: 15px;
-  place-items: center;
+  color: var(--dim-text);
+  font-size: 12px;
 }
 
-.diskw-advisor-title {
-  font-size: 12.5px;
-  font-weight: 760;
+.diskw-cell-file.is-revealable {
+  cursor: pointer;
 }
 
-.diskw-advisor-mode {
-  margin-top: 1px;
-  color: var(--muted-text);
-  font-size: 9.5px;
+@container (min-width: 860px) {
+  .diskw-overview {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.4fr);
+    align-items: start;
+  }
+
+  .diskw-overview .diskw-treemap {
+    height: clamp(200px, 62cqh, 460px);
+  }
 }
 
 .diskw-ai-btn {
@@ -469,45 +513,6 @@
   cursor: pointer;
   font-size: 11px !important;
   font-weight: 750 !important;
-}
-
-.diskw-advisor-headline {
-  position: relative;
-  z-index: 1;
-  max-width: 82%;
-  margin-top: 11px;
-  font-size: clamp(14px, 2.15cqw, 18px);
-  font-weight: 760;
-  letter-spacing: -0.025em;
-  line-height: 1.25;
-}
-
-.diskw-advisor-detail {
-  position: relative;
-  z-index: 1;
-  max-width: 92%;
-  margin-top: 5px;
-  color: var(--muted-text);
-  font-size: 11.5px;
-  line-height: 1.45;
-}
-
-.diskw-safeguards {
-  position: relative;
-  z-index: 1;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 10px;
-}
-
-.diskw-safeguards span {
-  padding: 4px 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface), transparent 18%);
-  color: var(--muted-text);
-  font-size: 9px;
-  font-weight: 650;
 }
 
 /* Sections and treemap */
@@ -1374,7 +1379,10 @@
 
 .diskw-path-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  /* icon, name and path, size, then one or two buttons (show, copy) */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
   align-items: center;
   gap: 8px;
   min-height: 47px;
@@ -1474,7 +1482,9 @@
 
 .diskw-dupe-path {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
   align-items: center;
   gap: 8px;
   min-height: 39px;
@@ -2174,38 +2184,6 @@ body.diskw-advisor-open {
     padding: 10px;
   }
 
-  .diskw-live-badge {
-    max-width: 86px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .diskw-capacity {
-    gap: 11px;
-    padding: 11px;
-  }
-
-  .diskw-gauge {
-    width: 76px;
-  }
-
-  .diskw-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .diskw-metric:last-child {
-    display: none;
-  }
-
-  .diskw-advisor-headline,
-  .diskw-advisor-detail {
-    max-width: 100%;
-  }
-
-  .diskw-safeguards {
-    display: none;
-  }
-
   .diskw-explore {
     grid-template-columns: 1fr;
   }
@@ -2216,10 +2194,6 @@ body.diskw-advisor-open {
 }
 
 @container (max-width: 400px) {
-  .diskw-live-badge {
-    display: none;
-  }
-
   .diskw-title {
     font-size: 14px;
   }
@@ -2228,19 +2202,7 @@ body.diskw-advisor-open {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .diskw-capacity {
-    grid-template-columns: 1fr;
-  }
-
-  .diskw-gauge {
-    display: none;
-  }
-
-  .diskw-advisor-top {
-    align-items: flex-start;
-  }
-
-  .diskw-advisor-mode {
+  .diskw-legend-item b {
     display: none;
   }
 
@@ -2251,20 +2213,7 @@ body.diskw-advisor-open {
 
 @container (max-height: 320px) {
   .diskw-subtitle,
-  .diskw-live-badge,
-  .diskw-safeguards {
-    display: none;
-  }
-
-  .diskw-capacity {
-    padding-block: 9px;
-  }
-
-  .diskw-gauge {
-    width: 64px;
-  }
-
-  .diskw-advisor-detail {
+  .diskw-act-copy span {
     display: none;
   }
 

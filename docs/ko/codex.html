@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko" data-langs="en,es,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>두 번째 화면에서 보는 OpenAI Codex 요금제 사용량과 승인</title>
+<meta name="description" content="OpenAI Codex 요금제 사용량, PC에서 작업 중인 세션과 그 요청을 두 번째 화면이나 휴대폰에서 보고 탭으로 답하세요.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="두 번째 화면에서 보는 OpenAI Codex 요금제 사용량과 승인">
+<meta property="og:description" content="OpenAI Codex 요금제 사용량, PC에서 작업 중인 세션과 그 요청을 두 번째 화면이나 휴대폰에서 보고 탭으로 답하세요.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ko/codex.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/ko/codex.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/codex.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/codex.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/codex.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/codex.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/codex.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/codex.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/codex.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Codex 사용 한도를 두 번째 화면에서 볼 수 있나요?","acceptedAnswer":{"@type":"Answer","text":"네. Codex가 설치되어 로그인되어 있으면 타일에 요금제의 각 사용량 구간과 사용률, 초기화까지 남은 시간이 표시됩니다. 이를 위해 Codex를 연결할 필요는 없습니다."}},{"@type":"Question","name":"ChatGPT 데스크톱 앱에서도 되나요?","acceptedAnswer":{"@type":"Answer","text":"요금제, 사용량, 대화 목록은 같은 계정과 엔진을 공유하므로 ChatGPT 앱, 에디터 확장, codex 명령의 Codex를 모두 포함합니다. 실시간 세션과 승인은 Codex가 훅을 실행해야 하며, codex 명령은 이를 실행합니다."}},{"@type":"Question","name":"요청에 답하지 않으면 어떻게 되나요?","acceptedAnswer":{"@type":"Answer","text":"아무것도 승인되지 않습니다. 90초가 지나거나 Xenon이 닫혀 있으면 요청은 Codex로 돌아가 평소처럼 묻습니다."}},{"@type":"Question","name":"왜 Codex에서 훅을 신뢰해야 하나요?","acceptedAnswer":{"@type":"Answer","text":"Codex는 바로 그 훅을 신뢰한 뒤에만 실행합니다. Codex 자체의 안전 확인이므로 Xenon이 대신하지 않습니다. Xenon이나 Node의 폴더가 바뀌면 훅도 바뀌어 Codex가 다시 신뢰를 요청하며, 타일이 알려 줍니다."}},{"@type":"Question","name":"API 키로도 되나요?","acceptedAnswer":{"@type":"Answer","text":"세션과 승인은 됩니다. 요금제 구간은 ChatGPT 요금제에만 있으므로 API 키로는 표시할 것이 없습니다."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/codex.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/codex.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/it/codex.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/codex.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/codex.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/codex.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">메뉴</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">커피 한 잔 사주기</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/codex.html" aria-current="page" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"터치스크린에서 쓰는 OpenAI Codex","item":"https://xenon-app.com/ko/codex.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="cx.h1">두 번째 화면에서 쓰는 OpenAI Codex</h1>
+    <p class="lede" data-i18n="cx.lede">Xenon의 Codex 타일은 요금제 사용량 구간, 일별 토큰, PC에서 작업 중인 세션과 그 요청을 허용, 거부, Codex에서 답하기와 함께 보여 줍니다. PC 옆 화면에 둡니다. Xeneon Edge, 모니터, 태블릿 또는 페어링한 휴대폰입니다.</p>
+    <p class="updated" data-i18n="cx.updated">최종 업데이트: 2026년 10월 6일</p>
+
+    <p data-i18n-html="cx.intro"><strong>+</strong> 버튼의 <strong>시스템</strong>에서 타일을 추가하세요. PC에 Codex가 설치되어 로그인되어 있으면 요금제는 바로 표시됩니다. 세션과 승인은 Codex를 연결해야 하며, 타일에서 바로 할 수 있습니다. Windows에서 동작하며 macOS와 Linux는 베타입니다.</p>
+
+    <nav class="jump">
+      <a href="#plan" data-i18n="cx.jump.plan">요금제 사용량</a>
+      <a href="#sessions" data-i18n="cx.jump.sessions">세션</a>
+      <a href="#approve" data-i18n="cx.jump.approve">승인</a>
+      <a href="#link" data-i18n="cx.jump.link">연결하기</a>
+      <a href="#data" data-i18n="cx.jump.data">무엇이 어디로 가는지</a>
+      <a href="#faq" data-i18n="cx.jump.faq">자주 묻는 질문</a>
+    </nav>
+
+    <h2 id="plan" data-i18n="cx.h.plan">요금제 사용량</h2>
+    <p data-i18n="cx.plan.p1">Codex는 요금제의 사용량 구간을 알려 줍니다. 각 구간을 얼마나 썼는지와 언제 초기화되는지입니다. Xenon은 각 구간을 막대로 보여 주고, 초기화까지 남은 시간과 균등한 속도라면 지금 어디쯤이어야 하는지 표시합니다. 70%에서 호박색, 90%에서 빨간색으로 바뀝니다.</p>
+    <p data-i18n="cx.plan.p2">각 구간의 길이는 Codex가 알려 주므로 타일은 실제 길이대로 표시합니다. 유료 요금제는 보통 5시간과 1주, Free 요금제는 30일 구간 하나입니다.</p>
+    <p data-i18n-html="cx.plan.p3">타일의 <strong>사용량</strong> 면에는 오늘, 7일, 30일, 전체 토큰과 최근 30일의 일별 막대가 표시됩니다. Codex가 계정 전체에 대해 알려 주는 숫자로, 이 PC뿐 아니라 모든 기기와 앱을 포함합니다.</p>
+
+    <h2 id="sessions" data-i18n="cx.h.sessions">세션과 최근 대화</h2>
+    <p data-i18n="cx.sessions.p1">Codex를 연결하면 세션이 시작될 때마다 한 줄이 생깁니다. 요청한 내용, 모델, 작업 중인지 나를 기다리는지입니다. 그 아래에는 Codex가 보관하는 대화와 그 대화가 진행된 곳(ChatGPT 앱, 에디터, 터미널)이 나열됩니다.</p>
+    <p data-i18n-html="cx.sessions.p2">세션은 Codex의 훅에서 옵니다. Codex는 <code>codex</code> 명령에서 훅을 실행하며, ChatGPT 앱과 에디터 확장에서도 실행되는지는 Codex 버전에 따라 다릅니다. 요금제와 대화 목록은 훅과 상관없이 세 곳 모두를 포함합니다.</p>
+
+    <h2 id="approve" data-i18n="cx.h.approve">요청에 답하기</h2>
+    <p data-i18n-html="cx.approve.p1">Codex 세션이 명령 실행이나 파일 변경을 요청하면, 명령 또는 변경되는 파일(삭제는 표시됨)과 함께 <strong>허용</strong>, <strong>거부</strong>, <strong>Codex에서 답하기</strong> 세 버튼이 타일에 나타납니다. 마지막 버튼은 질문을 바로 Codex로 돌려보냅니다. 카드에는 네트워크, 작업 게시, 프로젝트 밖의 파일, 세션보다 넓은 권한, 되돌릴 수 없는 일 등 무엇이 평소와 다른지 적혀 있습니다.</p>
+    <p data-i18n-html="cx.approve.p2"><code>rm -rf</code>나 파일을 삭제하는 패치처럼 되돌릴 수 없는 요청은 탭이 아니라 버튼을 길게 눌러야 허용됩니다. 25초 동안 답이 없는 요청은 화면 전체를 차지해 다른 페이지에서 놓치지 않게 합니다.</p>
+    <p data-i18n-html="cx.approve.p3">대신 승인되는 것은 없습니다. 요청이 타일에서 기다리는 동안 Codex는 자체 확인을 표시하지 않으므로, 90초가 지나거나 Xenon이 닫혀 있으면 요청은 Codex로 돌아가 평소처럼 묻습니다. <strong>설정 → Codex</strong>에서 대기 시간을 바꾸거나 요청을 끌 수 있습니다.</p>
+    <p data-i18n-html="cx.approve.phone">휴대폰에서 답하려면 Xenon과 페어링하세요(베타). 휴대폰에 같은 대시보드와 같은 버튼이 표시됩니다. <a href="/ko/phone.html">휴대폰 페어링 방법</a>.</p>
+
+    <h2 id="link" data-i18n="cx.h.link">Codex 연결하기</h2>
+    <ol>
+      <li data-i18n-html="cx.link.1"><strong>+</strong> 버튼의 <strong>시스템</strong>에서 <strong>Codex</strong> 타일을 추가합니다.</li>
+      <li data-i18n-html="cx.link.2">타일에서 <strong>Codex</strong>를 탭한 다음 <strong>연결</strong>을 누릅니다.</li>
+      <li data-i18n-html="cx.link.3">Codex를 열고 <code>/hooks</code>를 입력해 Xenon 훅을 신뢰합니다. Codex는 새 훅을 신뢰한 뒤에만 실행합니다. 이는 Codex 자체의 안전 확인이므로 Xenon이 대신하지 않습니다.</li>
+      <li data-i18n="cx.link.4">새 세션을 시작합니다. 훅은 이 단계 이후 시작한 세션에 적용되며, 타일에 Codex가 훅을 신뢰했는지 표시됩니다.</li>
+    </ol>
+    <p data-i18n-html="cx.link.writes">연결은 파일 하나만 수정합니다. <code>~/.codex</code> 또는 <code>CODEX_HOME</code>이 가리키는 폴더의 Codex <code>hooks.json</code>입니다. Node로 Xenon의 작은 스크립트를 실행하는 훅 다섯 개를 추가하며, 이 스크립트는 <code>127.0.0.1</code>(내 PC)의 Xenon에 보고합니다. 기존 훅은 같은 순서로 그대로 두며, Xenon은 <code>config.toml</code>을 건드리지 않습니다.</p>
+    <p data-i18n-html="cx.link.backup">처음 변경하기 전에 Xenon은 파일 사본을 <code>hooks.json.xenon-backup</code>으로 옆에 저장합니다. 파일을 읽을 수 없으면 Xenon은 그대로 두고 알려 줍니다.</p>
+    <p data-i18n-html="cx.link.remove">Xenon을 제거하면 추가한 훅이 빠지고 백업도 삭제됩니다. 기존 훅은 그대로 둡니다. 제거하지 않고 같은 작업을 하려면 타일에서 <strong>연결 해제</strong>를 탭하거나 Xenon이 설치된 폴더에서 <code>node server/codex-link.js unlink</code>를 실행하세요.</p>
+
+    <h2 id="data" data-i18n="cx.h.data">무엇이 어디로 가는지</h2>
+    <p data-i18n-html="cx.data.p1">타일은 API 키를 쓰지 않으며 로그인 정보를 읽지 않습니다. 요금제는 ChatGPT 앱과 에디터 확장이 Codex와 통신할 때 쓰는 <code>codex app-server</code>에서 가져옵니다. Xenon은 타일이 대시보드에 있을 때만 자체 사본을 실행하고, 읽기만 요청하며, 필요 없어지고 몇 분 뒤 종료합니다.</p>
+    <p data-i18n-html="cx.data.p2">훅은 Xenon이 만든 키와 함께 <code>127.0.0.1</code>(내 PC)에 보고합니다. 키가 없는 보고는 거부되며, 키는 Xenon의 데이터 폴더에서 읽으므로 명령줄에 나타나지 않습니다. 세션 상태는 메모리에만 있으며 Xenon을 다시 시작하면 비워집니다.</p>
+    <p data-i18n-html="cx.data.p3">설치한 위젯은 허용하면 <code>codex</code> 스트림으로 요금제 숫자를 읽을 수 있습니다. 비율, 구간 길이, 토큰 수, 작업 중인 세션 수입니다. 폴더, 프로젝트, 대화, 명령, 이메일은 절대 포함되지 않습니다.</p>
+
+    <h2 id="faq" data-i18n="cx.h.faq">자주 묻는 질문</h2>
+    <details><summary data-i18n="cx.faq.plan.q">Codex 사용 한도를 두 번째 화면에서 볼 수 있나요?</summary><div class="body"><p data-i18n="cx.faq.plan.a">네. Codex가 설치되어 로그인되어 있으면 타일에 요금제의 각 사용량 구간과 사용률, 초기화까지 남은 시간이 표시됩니다. 이를 위해 Codex를 연결할 필요는 없습니다.</p></div></details>
+    <details><summary data-i18n="cx.faq.chatgpt.q">ChatGPT 데스크톱 앱에서도 되나요?</summary><div class="body"><p data-i18n="cx.faq.chatgpt.a">요금제, 사용량, 대화 목록은 같은 계정과 엔진을 공유하므로 ChatGPT 앱, 에디터 확장, codex 명령의 Codex를 모두 포함합니다. 실시간 세션과 승인은 Codex가 훅을 실행해야 하며, codex 명령은 이를 실행합니다.</p></div></details>
+    <details><summary data-i18n="cx.faq.none.q">요청에 답하지 않으면 어떻게 되나요?</summary><div class="body"><p data-i18n="cx.faq.none.a">아무것도 승인되지 않습니다. 90초가 지나거나 Xenon이 닫혀 있으면 요청은 Codex로 돌아가 평소처럼 묻습니다.</p></div></details>
+    <details><summary data-i18n="cx.faq.trust.q">왜 Codex에서 훅을 신뢰해야 하나요?</summary><div class="body"><p data-i18n="cx.faq.trust.a">Codex는 바로 그 훅을 신뢰한 뒤에만 실행합니다. Codex 자체의 안전 확인이므로 Xenon이 대신하지 않습니다. Xenon이나 Node의 폴더가 바뀌면 훅도 바뀌어 Codex가 다시 신뢰를 요청하며, 타일이 알려 줍니다.</p></div></details>
+    <details><summary data-i18n="cx.faq.api.q">API 키로도 되나요?</summary><div class="body"><p data-i18n="cx.faq.api.a">세션과 승인은 됩니다. 요금제 구간은 ChatGPT 요금제에만 있으므로 API 키로는 표시할 것이 없습니다.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="cx.cta.h">Xenon 다운로드</h3>
+      <p data-i18n-html="cx.cta.p">무료이며 계정이 필요 없습니다. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows용 Xenon 다운로드</a> 또는 <a href="/ko/download.html">다운로드 페이지</a>에서 시스템을 고르세요. Claude Code도 쓰시나요? <a href="/ko/claude-code.html">터치스크린에서 쓰는 Claude Code</a>를 보세요.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

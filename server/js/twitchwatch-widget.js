@@ -35,6 +35,10 @@
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     viewers: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10.5 13.5"/><path d="M21 3l-6.8 18-3.7-7.5L3 9.8z"/></svg>',
+    cinema: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M15 5v14"/></svg>',
+    fill: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="6.5" y="8.5" width="11" height="7" rx="1" fill="currentColor" stroke="none"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-7l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>',
     smile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>',
   };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -76,9 +80,18 @@
   const player = {
     frame: null, stage: null,
     ch: null,                        // the channel row being watched
-    expanded: false,
-    idle: false, idleT: null,
   };
+
+  // Normal / cinema / fill / full screen, shared with the YouTube tile (see
+  // js/watch-view.js). Only the wrap holding the live player is ever arranged.
+  const view = window.WatchView.createController({
+    prefix: 'tww',
+    storageKey: 'xenon.watch.twitch.v1',
+    tiles,
+    ownerWrap: () => (player.ch && player.frame && player.stage) ? player.stage.closest('.tww-wrap') : null,
+    canIdle: () => !!player.ch,
+    onChange: () => paint(),
+  });
 
   function embedParent() {
     const h = String(location.hostname || '');
@@ -135,11 +148,76 @@
     // player is ours, and ours never touches the app's window.
     f.allow = 'autoplay; encrypted-media; picture-in-picture';
     f.referrerPolicy = 'strict-origin-when-cross-origin';
+    // Anonymous: an empty, throwaway cookie jar, so the embed cannot see the
+    // twitch.tv session (see "Whose account the player uses" below). Set before
+    // src: it only applies to the navigation that follows.
+    if (account.anon) f.credentialless = true;
+    account.who = '';
     const p = new URLSearchParams({ channel: login, parent, autoplay: 'true', muted: 'false' });
     f.src = 'https://player.twitch.tv/?' + p.toString();
     stage.insertBefore(f, stage.firstChild);
     player.frame = f; player.stage = stage;
     return true;
+  }
+
+  // ── Whose account the player uses ─────────────────────────────────────────
+  // The embed recognises a viewer only by twitch.tv's own cookies in the browser
+  // that renders it, never by the account connected in Settings → Streaming,
+  // which is a token the SERVER holds for the lists. So the player is either
+  // "my account" (whatever twitch.tv session this browser has) or anonymous, and
+  // the user chooses, per screen. Anonymous is an iframe with `credentialless`:
+  // the embed loads with an empty, throwaway cookie jar, so nothing has to be
+  // signed out to get there and switching back costs nothing (measured: the
+  // embed's `authenticate` message, which names the account, never arrives in
+  // that mode while the player itself plays normally). Safari has no
+  // credentialless and already withholds the embed's cookies, so a paired iPhone
+  // watches anonymously either way.
+  const ACCT_KEY = 'xenon.twitch.player.v1';
+  function readAnon() {
+    try { return JSON.parse(localStorage.getItem(ACCT_KEY) || '{}').anon === true; } catch { return false; }
+  }
+  const account = { anon: readAnon(), who: '' };
+  function saveAnon() {
+    try { localStorage.setItem(ACCT_KEY, JSON.stringify({ anon: account.anon })); } catch { /* not remembered */ }
+  }
+  // The switch only applies to a new frame, so the stream on screen is reloaded
+  // once: the user asked for it, and it is the only way the embed learns.
+  function remountPlayer() {
+    if (player.ch && player.stage && player.frame) { mountFrame(player.stage, player.ch.login); paint(); }
+  }
+  function setAnon(on) {
+    if (account.anon === !!on) return;
+    account.anon = !!on;
+    saveAnon();
+    remountPlayer();
+  }
+  // The embed says who is signed in: { id, displayName, profileImageURL }. Only
+  // the display name is kept, and only ever written as text.
+  window.addEventListener('message', (e) => {
+    if (e.origin !== 'https://player.twitch.tv') return;
+    const fr = player.frame;
+    if (!fr || e.source !== fr.contentWindow) return;
+    let d = e.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch { return; } }
+    if (!d || d.namespace !== 'twitch-embed' || d.eventName !== 'authenticate') return;
+    const p = d.params || {};
+    const who = String(p.displayName || p.login || '').slice(0, 40);
+    if (who !== account.who) { account.who = who; paintPlayer(); }
+  });
+  // Signed in through the app's own window (apps/native twitch_login.rs): the
+  // player reloads so it reads the session it has just been given.
+  window.addEventListener('xenon:twitch-login', () => {
+    account.anon = false;
+    saveAnon();
+    remountPlayer();
+  });
+  // Only the Windows app has that window; a browser signs in on twitch.tv.
+  const nativeLogin = () => !!(window.__XENON_NATIVE_CAPS__ && window.__XENON_NATIVE_CAPS__.twitchLogin === true);
+  function openAccount(card, open) {
+    const pop = card.querySelector('.tww-acct-pop');
+    pop.classList.toggle('is-open', open);
+    card.querySelector('.tww-acct').setAttribute('aria-expanded', String(open));
+    if (open) view.wake();
   }
 
   function watch(ch, stage) {
@@ -160,49 +238,9 @@
     player.ch = null;
     closeChat();            // no channel, no chat to follow
     chatLines = [];
-    setExpanded(false);
+    view.setScreen(false);
     paint();
     publishWatch();
-  }
-
-  // Expanding only re-positions the card (see the CSS): re-parenting the iframe
-  // into an overlay would reload it, which drops the stream. No dashboard tile
-  // creates a containing block, so `position: fixed` lands on the viewport.
-  function setExpanded(on) {
-    player.expanded = !!on;
-    document.body.classList.toggle('tww-expanded', player.expanded);
-    tiles().forEach(tile => tile.classList.toggle('tww-tile-expanded', player.expanded));
-    if (player.expanded) wakeControls(); else clearIdle();
-    paint();
-  }
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && player.expanded) setExpanded(false); });
-
-  // ── Idle controls at full screen ──────────────────────────────────────────
-  // The controls fade out while something is playing and come back on the first
-  // touch. The catcher is what makes "the first touch" possible: the embed is a
-  // cross-origin iframe, so a finger moving over the picture raises no event this
-  // document can see. It only takes input while the controls are hidden, so once
-  // they are up Twitch's own player controls stay reachable.
-  const IDLE_MS = 3500;
-  function clearIdle() {
-    clearTimeout(player.idleT); player.idleT = null;
-    player.idle = false;
-    document.querySelectorAll('.tww-card--player').forEach(c => c.classList.remove('is-idle'));
-  }
-  function armIdle() {
-    clearTimeout(player.idleT);
-    if (!player.expanded || !player.ch) return;
-    player.idleT = setTimeout(() => {
-      player.idleT = null; player.idle = true;
-      document.querySelectorAll('.tww-card--player.is-expanded').forEach(c => c.classList.add('is-idle'));
-    }, IDLE_MS);
-  }
-  function wakeControls() {
-    if (player.idle) {
-      player.idle = false;
-      document.querySelectorAll('.tww-card--player').forEach(c => c.classList.remove('is-idle'));
-    }
-    armIdle();
   }
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -231,7 +269,7 @@
     const query = String(q || '').trim();
     if (query.length < 2) return;
     lib.loading = 'search'; lib.error = ''; paintLibrary();
-    const r = await api('/stream/twitch/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: query }) });
+    const r = await api('/stream/twitch/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: query, lang: document.documentElement.lang || '' }) });
     lib.loading = '';
     if (r && r.ok) lib.data.search = r.channels || [];
     else lib.error = (r && r.error) || 'failed';
@@ -242,16 +280,13 @@
   function ensure(mount) {
     // Bumped when the built markup changes: a hidden widget's DOM is kept in the
     // pool rather than destroyed, so a stale build would never gain the notice.
-    if (mount.dataset.twwBuilt === '2' && mount.firstChild) return;
-    mount.dataset.twwBuilt = '2';
+    if (mount.dataset.twwBuilt === '3' && mount.firstChild) return;
+    mount.dataset.twwBuilt = '3';
     const wrap = el('div', 'tww-wrap');
+    wrap.dataset.view = 'normal';
 
     const wm = el('div', 'tww-watermark'); wm.innerHTML = ICONS.logo;      // static, trusted SVG
     wrap.appendChild(wm);
-
-    const head = el('div', 'tww-head');
-    head.appendChild(el('span', 'tww-logo', 'Twitch'));
-    wrap.appendChild(head);
 
     // All three cards are taken off screen with no account connected, which left
     // the tile as a watermark on an empty background with nothing saying why.
@@ -287,25 +322,59 @@
     fit.appendChild(stage); stageWrap.appendChild(fit);
     card.appendChild(stageWrap);
 
+    // Over the picture, under the controls, and only taking input while the
+    // floating controls are hidden: the embed is cross-origin, so a finger on the
+    // picture raises nothing this page can hear, and without a catcher there would
+    // be no way to bring the controls back. While they are up it is inert again,
+    // so Twitch's own player controls stay reachable.
     const catcher = el('div', 'tww-idlecatch');
-    catcher.addEventListener('pointerdown', (e) => { e.stopPropagation(); wakeControls(); });
+    catcher.addEventListener('pointerdown', (e) => { e.stopPropagation(); view.wake(); });
     card.appendChild(catcher);
-    ['pointermove', 'pointerdown'].forEach(ev => card.addEventListener(ev, () => { if (player.expanded) wakeControls(); }));
+    ['pointermove', 'pointerdown'].forEach(ev => card.addEventListener(ev, () => { if (view.state().overlay) view.wake(); }));
 
+    // What is on and the controls, on one row right under the picture: the name
+    // belongs to the video, and a row of its own at the bottom of the tile read as
+    // a caption for nothing.
+    const bar = el('div', 'tww-bar');
     const now = el('div', 'tww-now');
     now.append(el('div', 'tww-now-title'), el('div', 'tww-now-sub'));
-    card.appendChild(now);
-
-    const bar = el('div', 'tww-transport');
-    bar.append(
-      el('span', 'tww-transport-gap'),
-      iconBtn('tww-expand', ICONS.expand, t('tww_expand', 'Full screen'), () => setExpanded(!player.expanded)),
+    const ctl = el('div', 'tww-transport');
+    ctl.append(
+      iconBtn('tww-v-cinema', ICONS.cinema, t('watch_cinema_chat', 'Cinema: player and chat'), () => view.toggleView('cinema')),
+      iconBtn('tww-v-fill', ICONS.fill, t('watch_fill', 'Fill the tile'), () => view.toggleView('fill')),
+      iconBtn('tww-v-side', ICONS.chat, t('watch_side_chat', 'Chat alongside'), () => view.toggleSide()),
+      iconBtn('tww-expand', ICONS.expand, t('tww_expand', 'Full screen'), () => view.setScreen(!view.isScreen())),
+      iconBtn('tww-acct', ICONS.user, t('tww_acct', 'Twitch account in the player'), () => {
+        openAccount(card, !card.querySelector('.tww-acct-pop').classList.contains('is-open'));
+      }),
       iconBtn('tww-out', ICONS.external, t('tww_open_browser', 'Open in the browser'), async () => {
         const url = player.ch && channelUrl(player.ch.login);
         if (url) await openOut(url);
       }),
       iconBtn('tww-stop', ICONS.close, t('tww_close_player', 'Close the player'), stopPlayer),
     );
+    ctl.querySelector('.tww-acct').setAttribute('aria-haspopup', 'true');
+
+    // The account menu: which account the player watches with, always with the
+    // anonymous choice next to it, and the way to sign in where there is one.
+    const pop = el('div', 'tww-acct-pop');
+    pop.appendChild(el('div', 'tww-acct-state'));
+    [false, true].forEach(anon => {
+      const b = el('button', 'tww-acct-opt'); b.type = 'button';
+      b.dataset.anon = anon ? '1' : '0';
+      b.setAttribute('role', 'menuitemradio');
+      b.append(el('span', 'tww-acct-dot'), el('span', 'tww-acct-lbl'));
+      b.addEventListener('click', () => { setAnon(anon); openAccount(card, false); });
+      pop.appendChild(b);
+    });
+    const login = el('button', 'tww-acct-login'); login.type = 'button';
+    login.addEventListener('click', () => {
+      openAccount(card, false);
+      // Handled by the native shell's navigation hook; never a real page.
+      if (nativeLogin()) window.location.href = 'xenon-app:twitch-login';
+    });
+    pop.appendChild(login);
+    bar.append(now, ctl, pop);
     card.appendChild(bar);
 
     // Shown only when the page's own address is not something Twitch will accept
@@ -328,6 +397,7 @@
     card.dataset.systemCard = 'library'; card.dataset.systemCardGroup = 'twitchwatch';
 
     const tabsRow = el('div', 'tww-tabs');
+    tabsRow.appendChild(el('span', 'tww-logo', 'Twitch'));
     const TAB_ICON = { followed: ICONS.heart, top: ICONS.fire, search: ICONS.search };
     TABS.forEach(id => {
       const b = el('button', 'tww-tab'); b.type = 'button'; b.dataset.twwTab = id;
@@ -385,9 +455,12 @@
         : '';
       if (url) await openOut(url);
     });
-    row.append(inp, emo, send, out);
+    row.append(inp, emo, send);
 
-    card.append(el('div', 'tww-chat-note'), el('div', 'tww-chat-log'), el('div', 'tww-emopick'), row, el('div', 'tww-chat-err'));
+    const head = el('div', 'tww-chat-head');
+    head.append(el('span', 'tww-chat-title', t('watch_chat', 'Chat')), el('span', 'tww-chat-chan'), out);
+
+    card.append(head, el('div', 'tww-chat-note'), el('div', 'tww-chat-log'), el('div', 'tww-emopick'), row, el('div', 'tww-chat-err'));
     return card;
   }
 
@@ -440,6 +513,11 @@
   document.addEventListener('pointerdown', (e) => {
     document.querySelectorAll('.tww-emopick.is-open').forEach(box => {
       if (!box.contains(e.target)) box.classList.remove('is-open');
+    });
+    document.querySelectorAll('.tww-acct-pop.is-open').forEach(pop => {
+      const card = pop.closest('.tww-card--player');
+      const btn = card && card.querySelector('.tww-acct');
+      if (!pop.contains(e.target) && !(btn && btn.contains(e.target))) openAccount(card, false);
     });
   });
 
@@ -497,7 +575,10 @@
   let chatReconnect = null;
   let chatLines = [];
 
+  // The cinema view shows the chat whether or not the card is on in the layout:
+  // "player and chat" is the whole point of it.
   function chatCardOn() {
+    if (view.state().view === 'cinema') return true;
     return tiles().some(tile => {
       const c = tile.querySelector('.tww-card--chat');
       return !!c && c.dataset.systemCardHidden !== 'true';
@@ -594,6 +675,7 @@
 
   function channelRow(ch) {
     const b = el('button', 'tww-row'); b.type = 'button';
+    b.dataset.login = ch.login || '';
     const art = el('span', 'tww-row-art');
     if (ch.image) art.style.backgroundImage = 'url("' + encodeURI(ch.image) + '")';
     const meta = el('div', 'tww-row-meta');
@@ -638,9 +720,21 @@
     node.innerHTML = svg;                                                  // static, trusted SVG
   }
 
+  function setLabel(node, label) {
+    if (node.title === label) return;
+    node.title = label; node.setAttribute('aria-label', label);
+  }
+  function setToggle(node, on, disabled, label) {
+    node.classList.toggle('is-on', on);
+    node.setAttribute('aria-pressed', String(on));
+    node.disabled = disabled;
+    setLabel(node, label);
+  }
+
   function paintPlayer() {
     const ch = player.ch;
     const canEmbed = !!embedParent();
+    const vs = view.apply();
     eachMount(mount => {
       const card = mount.querySelector('.tww-card--player');
       if (!card) return;
@@ -657,7 +751,10 @@
         empty.textContent = canEmbed ? t('tww_player_empty', 'Pick a channel from the list') : t('tww_no_embed', 'Twitch cannot play at this address.');
       }
       card.classList.toggle('is-playing', owns && !!ch);
-      card.classList.toggle('is-expanded', player.expanded && owns);
+      // Nothing to show and nothing to explain: the card steps out of the layout
+      // and the list gets the tile (see the CSS). It stays when a channel was
+      // picked but cannot play here, because then it carries the explanation.
+      card.classList.toggle('is-vacant', !owns && !(ch && !canEmbed));
 
       card.querySelector('.tww-now-title').textContent = ch ? (ch.name || ch.login) : '';
       const v = ch ? fmtViewers(ch.viewers) : '';
@@ -666,12 +763,47 @@
         : '';
 
       const exp = card.querySelector('.tww-expand');
-      setIcon(exp, player.expanded ? 'shrink' : 'expand', player.expanded ? ICONS.shrink : ICONS.expand);
+      const big = owns && vs.screen;
+      setIcon(exp, big ? 'shrink' : 'expand', big ? ICONS.shrink : ICONS.expand);
+      setLabel(exp, big ? t('watch_exit_screen', 'Leave full screen') : t('tww_expand', 'Full screen'));
       exp.disabled = !ch;
+      // Which arrangement is on is shown by the button's colour alone. At full
+      // screen the tile's own views make no sense and the chat switch takes their
+      // place (see the CSS).
+      const wanted = view.wanted();
+      setToggle(card.querySelector('.tww-v-cinema'), wanted === 'cinema', !ch, t('watch_cinema_chat', 'Cinema: player and chat'));
+      setToggle(card.querySelector('.tww-v-fill'), wanted === 'fill', !ch, t('watch_fill', 'Fill the tile'));
+      setToggle(card.querySelector('.tww-v-side'), vs.side, !ch, t('watch_side_chat', 'Chat alongside'));
       card.querySelector('.tww-out').disabled = !ch;
       card.querySelector('.tww-stop').disabled = !ch;
+      paintAccount(card);
       card.querySelector('.tww-blocked').style.display = (!canEmbed && ch) ? '' : 'none';
     });
+  }
+
+  // Written on every paint, not at build: the language can change under a tile
+  // that is mid-stream, and so can who the embed says is signed in.
+  function paintAccount(card) {
+    const btn = card.querySelector('.tww-acct');
+    setLabel(btn, t('tww_acct', 'Twitch account in the player'));
+    btn.classList.toggle('is-anon', account.anon);
+    const state = card.querySelector('.tww-acct-state');
+    if (account.anon) state.textContent = t('tww_acct_anon_note', 'The player does not use your Twitch account.');
+    else if (account.who) state.textContent = t('tww_acct_signed', 'Signed in as') + ' ' + account.who;
+    else state.textContent = nativeLogin()
+      ? t('tww_acct_guest', 'The player is not signed in to Twitch.')
+      : t('tww_acct_browser', 'To use your account, sign in to twitch.tv in this browser.');
+    card.querySelectorAll('.tww-acct-opt').forEach(b => {
+      const on = (b.dataset.anon === '1') === account.anon;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-checked', String(on));
+      b.querySelector('.tww-acct-lbl').textContent = b.dataset.anon === '1'
+        ? t('tww_acct_anon', 'Anonymously')
+        : t('tww_acct_mine', 'With my Twitch account');
+    });
+    const login = card.querySelector('.tww-acct-login');
+    login.textContent = t('tww_acct_login', 'Sign in to Twitch');
+    login.hidden = !(nativeLogin() && !account.anon && !account.who);
   }
 
   function paintLibrary() {
@@ -689,7 +821,7 @@
       // position away, so only rebuild on a real change.
       const sig = [connected, document.documentElement.lang, lib.tab, lib.loading, lib.error,
         rows === null || rows === undefined ? 'n' : rows.map(r => r.login).join(',')].join('|');
-      if (list.dataset.twwSig === sig) return;
+      if (list.dataset.twwSig === sig) { markCurrent(list); return; }
       list.dataset.twwSig = sig;
 
       // A definite "no account" never resolves, so it must not borrow the loading
@@ -727,7 +859,14 @@
         rows.forEach(ch => frag.appendChild(channelRow(ch)));
       }
       list.replaceChildren(frag);
+      markCurrent(list);
     });
+  }
+  // The row of the channel on screen is marked, so the list says what is playing
+  // without a rebuild (which would lose the scroll position).
+  function markCurrent(list) {
+    const on = player.ch ? player.ch.login : '';
+    list.querySelectorAll('.tww-row').forEach(r => r.classList.toggle('is-current', !!on && r.dataset.login === on));
   }
 
   function paintChat() {
@@ -748,6 +887,9 @@
         : t('tww_chat_empty', 'The chat appears here once you are watching a channel');
       note.style.display = (want && chatLines.length) ? 'none' : '';
       card.classList.toggle('is-empty', !want);
+      card.querySelector('.tww-chat-title').textContent = t('watch_chat', 'Chat');
+      card.querySelector('.tww-chat-chan').textContent = player.ch ? (player.ch.name || player.ch.login) : '';
+      card.querySelector('.tww-chat-out').disabled = !want;
       log.style.display = want ? '' : 'none';
       // Nothing playing means no chat to speak in, so the box goes away rather
       // than sitting there accepting text with nowhere to send it.

@@ -26,6 +26,9 @@ const crypto = require('crypto');
 const DiskCategories = require('./disk-categories');
 const DiskGuard = require('./disk-guard');
 const DiskIntelligence = require('./js/disk-intelligence');
+const DiskHistory = require('./disk-history');
+const DiskKinds = require('./disk-kinds');
+const { createDupeVerifier } = require('./disk-dupes');
 const { writeFileAtomic } = require('./atomic-write');
 
 const SUMMARY_FILE = 'disk-summary.json';
@@ -64,6 +67,12 @@ function createDiskSpace(opts) {
   // running job after a reload through status(). `onCleanProgress` broadcasts;
   // absent (tests) it is a no-op.
   const onCleanProgress = typeof o.onCleanProgress === 'function' ? o.onCleanProgress : () => {};
+  // Told when a cached overview gained something after it was answered (the
+  // background duplicate pass), so the dashboard can refetch. No-op in tests.
+  const onDiskUpdate = typeof o.onDiskUpdate === 'function' ? o.onDiskUpdate : () => {};
+  // "Show in folder", injected from server.js (revealInFileManager) for the same
+  // reason filesearch.js takes it: one platform switch, not two that drift.
+  const revealExternal = typeof o.revealExternal === 'function' ? o.revealExternal : null;
   // The Living Index (living-index.js). When it is on, the widget needs no
   // scan at all: sizes/top/dupes/categories come from the always-current
   // in-RAM index, per root, on demand.
@@ -1109,42 +1118,110 @@ function createDiskSpace(opts) {
   }
 
   // ── Living-Index overviews (the no-scan path) ────────────────────────────
-  // One overview per configured root, computed on demand from the live index
-  // and cached briefly (the index is current by construction; the cache only
-  // bounds classification work). Item ids for /disk/clean are indices into the
+  // One overview per configured root, computed on demand from the live index.
+  // It is reused while it is fresh: younger than OVERVIEW_TTL_MS, or built at
+  // the index version the helper still reports (an index that has not moved
+  // has nothing new to say). Item ids for /disk/clean are indices into the
   // cached category lists — the same opaque-id contract as the scan path.
   const OVERVIEW_TTL_MS = 30 * 1000;
-  const overviews = new Map();   // rootLower -> { at, root, total, files, tree, topFiles, dupes, categories }
+  const overviews = new Map();   // rootLower -> { at, version, root, total, files, tree, topFiles, dupes, categories, ... }
   const overviewBuilds = new Map(); // rootLower -> Promise (dedupe UI + AI requests)
+  const STALE_MIN_BYTES = 500 * 1024 * 1024;   // "large and untouched": at least this big…
+  const STALE_AFTER_DAYS = 365;                // …and not modified for this long
 
-  // Drill-down ids live only with one cached overview. The browser may display
-  // paths, but it can navigate only by an opaque id minted here; a path never
-  // travels client→server and cannot escape the configured root.
+  // Verified duplicates come from a background pass with a hash cache
+  // (disk-dupes.js); the overview answers from what is already proven and is
+  // updated, and the dashboard told, when the pass finds more.
+  const dupeVerifier = createDupeVerifier({ dataDir });
+
+  // The last overview of each drive, persisted, so the widget has something
+  // true to show while the index rebuilds after a restart (minutes on a big
+  // drive) instead of a spinner. Display only: it is never a cleanup target.
+  const SNAPSHOT_FILE = 'disk-snapshot.json';
+  const HISTORY_FILE = 'disk-history.json';
+  let snapshots = null;           // rootLower -> client overview
+  let history = null;             // disk-history.js shape
+  let persistTimer = null;
+
+  async function loadPersisted() {
+    if (snapshots && history) return;
+    snapshots = new Map();
+    history = DiskHistory.normalize(null);
+    try {
+      const raw = JSON.parse(await fs.promises.readFile(path.join(dataDir, SNAPSHOT_FILE), 'utf8'));
+      if (raw && raw.v === 1 && raw.roots && typeof raw.roots === 'object') {
+        for (const [k, v] of Object.entries(raw.roots)) {
+          if (v && typeof v === 'object' && typeof v.root === 'string') snapshots.set(k, v);
+        }
+      }
+    } catch { /* absent or corrupt: nothing to show yet */ }
+    try {
+      history = DiskHistory.normalize(JSON.parse(await fs.promises.readFile(path.join(dataDir, HISTORY_FILE), 'utf8')));
+    } catch { /* absent or corrupt: history starts today */ }
+  }
+
+  function schedulePersist() {
+    if (persistTimer) return;
+    persistTimer = setTimeout(() => { persistTimer = null; void persistNow(); }, 5000);
+    if (persistTimer.unref) persistTimer.unref();
+  }
+
+  async function persistNow() {
+    if (!snapshots || !history) return;
+    const roots = {};
+    for (const [k, v] of snapshots) roots[k] = v;
+    try { await writeFileAtomic(path.join(dataDir, SNAPSHOT_FILE), JSON.stringify({ v: 1, roots })); } catch { /* next build retries */ }
+    try { await writeFileAtomic(path.join(dataDir, HISTORY_FILE), JSON.stringify(history)); } catch { /* next build retries */ }
+  }
+
+  // Drill-down and file ids live only with one cached overview. The browser may
+  // display paths, but it can navigate or reveal only by an opaque id minted
+  // here; a path never travels client→server and cannot escape the root.
   function browseIds(ov) {
     if (ov._browseIds) return ov._browseIds;
-    const state = { next: 0, byId: new Map(), byPath: new Map() };
+    const state = { next: 0, byId: new Map(), byPath: new Map(), nextFile: 0, fileById: new Map(), fileByPath: new Map() };
     Object.defineProperty(ov, '_browseIds', { value: state, enumerable: false });
     return state;
+  }
+
+  function insideRoot(ov, rawPath) {
+    const value = trimSep(rawPath);
+    const key = cmpKey(value);
+    const rootKey = cmpKey(trimSep(ov.root));
+    return value && (key === rootKey || isBelow(key, rootKey)) ? value : '';
   }
 
   function registerBrowsePath(ov, rawPath) {
     // `trimSep`, not a bare strip: a POSIX root is "/" and stripping it left
     // the empty string, which failed the guard below and minted no id for the
     // root itself — the drill-down had nothing to start from.
-    const value = trimSep(rawPath);
-    const root = trimSep(ov.root);
-    const key = cmpKey(value);
-    const rootKey = cmpKey(root);
     // This test ADMITS a path into the id space, so it is the strict one: an
     // id minted here is what /disk/browse resolves against, and nothing
     // outside the root may ever get one.
-    if (!value || (key !== rootKey && !isBelow(key, rootKey))) return '';
+    const value = insideRoot(ov, rawPath);
+    if (!value) return '';
     const state = browseIds(ov);
+    const key = cmpKey(value);
     const known = state.byPath.get(key);
     if (known) return known;
     const id = 'n' + (state.next++).toString(36);
     state.byPath.set(key, id);
     state.byId.set(id, value);
+    return id;
+  }
+
+  // The file twin: an id the widget can hand back to "show in folder". Same
+  // admission rule as a folder id.
+  function registerFilePath(ov, rawPath) {
+    const value = insideRoot(ov, rawPath);
+    if (!value) return '';
+    const state = browseIds(ov);
+    const key = cmpKey(value);
+    const known = state.fileByPath.get(key);
+    if (known) return known;
+    const id = 'f' + (state.nextFile++).toString(36);
+    state.fileByPath.set(key, id);
+    state.fileById.set(id, value);
     return id;
   }
 
@@ -1165,8 +1242,10 @@ function createDiskSpace(opts) {
       const drl = cmpKey(trimSep(dr));
       return drl === rl || isBelow(drl, rl);
     });
+    const now = Date.now();
 
     let sz, bigDirs, topFiles, dupeGroups, detailFiles, indexMeta;
+    let kinds = null, staleFiles = null, version = null;
     const combined = typeof livingIndex.overview === 'function'
       ? await livingIndex.overview(root, {
         dirMinBytes: 10 * 1024 * 1024,
@@ -1176,6 +1255,9 @@ function createDiskSpace(opts) {
         dupeMax: DUPE_GROUPS_MAX,
         detailRoots,
         detailMax: 5000,
+        staleMinBytes: STALE_MIN_BYTES,
+        staleBefore: now - STALE_AFTER_DAYS * 86400000,
+        staleMax: 50,
       })
       : null;
     if (combined) {
@@ -1189,6 +1271,9 @@ function createDiskSpace(opts) {
         capped: combined.capped === true,
         detailCapped: combined.detailCapped === true,
       };
+      kinds = cleanKinds(combined.kinds);
+      staleFiles = Array.isArray(combined.staleFiles) ? combined.staleFiles : null;
+      version = Number.isFinite(combined.version) ? combined.version : null;
     } else {
       // Compatibility with a helper that predates the combined overview
       // protocol. The helper updater replaces it on the next restart.
@@ -1242,9 +1327,9 @@ function createDiskSpace(opts) {
       c.items.forEach((it, i) => { it.i = i; });
     }
 
-    // Verified duplicates: same-size candidates from the index, then the same
-    // bounded SHA-256 pass the scan path uses (only equal hashes are shown).
-    const verifiedDupes = await verifyDupeCandidates(dupeGroups || []);
+    // Duplicates: what the hash cache already proves, at once. The rest is
+    // verified in the background (see scheduleDupes) and pushed when done.
+    const quick = await dupeVerifier.cachedOnly(dupeGroups || []);
 
     let volume = null;
     try {
@@ -1256,16 +1341,70 @@ function createDiskSpace(opts) {
       }
     } catch { /* a configured folder can disappear between requests */ }
 
+    const tree = (bigDirs || []).sort((a, b) => b.s - a.s).slice(0, CLIENT_DIRS_MAX);
+    // Today's point in the drive's history, and what that history says. Only
+    // from a complete index: a half-built one would record a fake drop and
+    // then a fake growth when it finishes.
+    let insightsOut = null;
+    if (volume && !indexMeta.building) {
+      await loadPersisted();
+      const hk = cmpKey(trimSep(root));
+      history = DiskHistory.record(history, hk, { root, capacity: volume.capacity, used: volume.used, tree }, now);
+      const pts = history.roots[hk] || [];
+      insightsOut = {
+        growth: DiskHistory.growth(pts, now, 7),
+        forecast: DiskHistory.forecast(pts, now),
+        historyDays: pts.length,
+      };
+    }
+
     return {
-      at: Date.now(), root,
+      at: now, version, root,
       total: sz.total || 0, files: sz.files || 0,
       volume,
       index: indexMeta,
-      tree: (bigDirs || []).sort((a, b) => b.s - a.s).slice(0, CLIENT_DIRS_MAX),
+      tree,
       topFiles: topFiles || [],
-      dupes: verifiedDupes.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths })),
+      staleFiles,
+      kinds,
+      insights: insightsOut,
+      dupes: quick.groups.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths })),
+      dupesPending: quick.pending > 0,
+      _dupeCandidates: dupeGroups || [],
       categories: cats,
     };
+  }
+
+  // Only the known kinds, as non-negative numbers: this travels to the client.
+  function cleanKinds(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const out = {};
+    for (const k of DiskKinds.KINDS) {
+      const v = Number(raw[k]);
+      out[k] = Number.isFinite(v) && v > 0 ? v : 0;
+    }
+    return out;
+  }
+
+  // The background half of the duplicate check, for the overview just cached.
+  // When it proves more than the overview shows, the cached overview is
+  // updated and the dashboard told (`onDiskUpdate`), which refetches it.
+  function scheduleDupes(key, built) {
+    if (!built.dupesPending) return;
+    void dupeVerifier.verify(built._dupeCandidates).then((out) => {
+      if (overviews.get(key) !== built) return;   // superseded meanwhile
+      built.dupes = out.groups.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths }));
+      built.dupesPending = out.pending > 0;
+      try { onDiskUpdate({ root: built.root, what: 'dupes' }); } catch { /* best effort */ }
+      // A pass bounded by its budget leaves work; the next overview continues it.
+    }).catch(() => {});
+  }
+
+  async function currentVersion() {
+    try {
+      const s = await livingIndex.stats();
+      return s && Number.isFinite(s.version) ? s.version : null;
+    } catch { return null; }
   }
 
   // Overview for the Nth configured root. Wire shape: index in, display data
@@ -1276,7 +1415,11 @@ function createDiskSpace(opts) {
     if (!root) return { ok: false, error: 'bad_root' };
     const key = cmpKey(root);
     const cached = overviews.get(key);
-    if (!refresh && cached && Date.now() - cached.at < OVERVIEW_TTL_MS) return toClientOverview(cached);
+    if (!refresh && cached) {
+      if (Date.now() - cached.at < OVERVIEW_TTL_MS) return toClientOverview(cached);
+      // Older than the TTL but nothing changed since: still the truth.
+      if (cached.version != null && (await currentVersion()) === cached.version) return toClientOverview(cached);
+    }
     let pending = overviewBuilds.get(key);
     if (!pending) {
       pending = buildOverview(root).finally(() => overviewBuilds.delete(key));
@@ -1284,12 +1427,49 @@ function createDiskSpace(opts) {
     }
     const built = await pending;
     if (!built) return { ok: false, error: 'index_unavailable' };
-    overviews.set(key, built);
-    return toClientOverview(built);
+    if (overviews.get(key) !== built) {
+      overviews.set(key, built);
+      scheduleDupes(key, built);
+    }
+    const client = toClientOverview(built);
+    if (!built.index.building) {
+      await loadPersisted();
+      snapshots.set(key, snapshotOf(client));
+      schedulePersist();
+    }
+    return client;
+  }
+
+  // The persisted copy: display data only. Category item lists and every id are
+  // dropped — they belong to a live overview, and a snapshot must never be
+  // something a cleanup or a drill-down can be aimed at.
+  function snapshotOf(client) {
+    return {
+      root: client.root, total: client.total, files: client.files,
+      volume: client.volume, index: client.index, generatedAt: client.generatedAt,
+      kinds: client.kinds, insights: client.insights,
+      tree: client.tree.map(({ p, s, n, m }) => ({ p, s, n, m })),
+      topFiles: client.topFiles.slice(0, 50).map(({ p, n, s, m }) => ({ p, n, s, m })),
+      staleFiles: (client.staleFiles || []).map(({ p, n, s, m }) => ({ p, n, s, m })),
+      dupes: client.dupes.map(({ s, wasted, paths }) => ({ s, wasted, paths: paths.map((x) => x.p) })),
+      categories: Object.fromEntries(Object.entries(client.categories).map(([cat, c]) => [cat, { bytes: c.bytes, count: c.count }])),
+    };
+  }
+
+  // The last persisted overview of a root, marked stale, for the time the
+  // index cannot answer yet. Read only.
+  async function snapshot(rawIndex) {
+    const root = await resolveRoot(rawIndex);
+    if (!root) return { ok: false, error: 'bad_root' };
+    await loadPersisted();
+    const snap = snapshots.get(cmpKey(root));
+    if (!snap) return { ok: false, error: 'no_snapshot' };
+    return { ok: true, stale: true, ...snap };
   }
 
   function toClientOverview(ov) {
     const rootId = registerBrowsePath(ov, ov.root);
+    const withId = (f) => ({ ...f, id: registerFilePath(ov, f.p) });
     return {
       ok: true,
       root: ov.root, total: ov.total, files: ov.files,
@@ -1297,8 +1477,13 @@ function createDiskSpace(opts) {
       volume: ov.volume,
       index: ov.index,
       generatedAt: ov.at,
+      kinds: ov.kinds || null,
+      insights: ov.insights || null,
       tree: ov.tree.map((dir) => ({ ...dir, id: registerBrowsePath(ov, dir.p) })),
-      topFiles: ov.topFiles, dupes: ov.dupes,
+      topFiles: ov.topFiles.map(withId),
+      staleFiles: ov.staleFiles ? ov.staleFiles.map(withId) : null,
+      dupes: ov.dupes.map((g) => ({ s: g.s, wasted: g.wasted, paths: g.paths.map((p) => ({ p, id: registerFilePath(ov, p) })) })),
+      dupesPending: ov.dupesPending === true,
       categories: Object.fromEntries(Object.entries(ov.categories).map(([cat, c]) => [cat, {
         bytes: c.bytes, count: c.count,
         listedCount: Math.min(500, c.items.length),
@@ -1307,6 +1492,30 @@ function createDiskSpace(opts) {
         items: c.items.slice(0, 500).map((it) => ({ i: it.i, p: it.p, s: it.s, m: it.m, kind: it.kind })),
       }])),
     };
+  }
+
+  // "Show in folder" for a file or folder the widget is displaying, by the
+  // opaque id this overview minted. Re-stat'ed first; reveals, never opens:
+  // showing where something is runs nothing, so no extension gate is needed
+  // (the same reasoning as /search/reveal).
+  async function reveal(rawIndex, rawId) {
+    const root = await resolveRoot(rawIndex);
+    if (!root) return { ok: false, error: 'bad_root' };
+    const ov = overviews.get(cmpKey(root));
+    if (!ov) return { ok: false, error: 'no_overview' };
+    const id = String(rawId || '');
+    const ids = browseIds(ov);
+    let target = '';
+    if (/^f[a-z0-9]+$/.test(id)) target = ids.fileById.get(id) || '';
+    else if (/^n[a-z0-9]+$/.test(id)) target = ids.byId.get(id) || '';
+    if (!target) return { ok: false, error: 'bad_id' };
+    try { await fs.promises.stat(target); } catch { return { ok: false, error: 'not_found' }; }
+    if (typeof revealExternal !== 'function') return { ok: false, error: 'unavailable' };
+    try {
+      // A folder is shown selected inside its parent, the same way a file is.
+      revealExternal(target, path.dirname(target));
+    } catch { return { ok: false, error: 'reveal_failed' }; }
+    return { ok: true };
   }
 
   // One-level live drill-down. `node` is an opaque id from this overview (or a
@@ -1366,6 +1575,7 @@ function createDiskSpace(opts) {
       .filter((file) => file && file.p)
       .slice(0, 64)
       .map((file) => ({
+        id: registerFilePath(ov, String(file.p)),
         p: String(file.p), n: String(file.n || path.basename(file.p)),
         s: Number(file.s) || 0, m: Number(file.m) || 0,
       }));
@@ -1450,6 +1660,9 @@ function createDiskSpace(opts) {
   function stop() {
     killScan('shutdown');
     cleanJob.cancelled = true;
+    // Ends the background hash pass between files and saves what it learned.
+    void dupeVerifier.stop();
+    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; void persistNow(); }
     for (const proc of liveDeleteProcs) {
       try { proc.stdin.end(); } catch {}
       const kill = setTimeout(() => { try { proc.kill(); } catch {} }, 1500);
@@ -1460,7 +1673,7 @@ function createDiskSpace(opts) {
 
   return {
     startScan, cancelScan, status, overview, browse, clean, cancelClean,
-    insights, stop, helperPresent,
+    insights, stop, helperPresent, snapshot, reveal,
   };
 }
 

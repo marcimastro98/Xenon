@@ -36,6 +36,8 @@
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
     subs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M6 3h12"/><path d="M11 11l4 2.5-4 2.5z" fill="currentColor" stroke="none"/></svg>',
+    cinema: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M15 5v14"/></svg>',
+    fill: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="6.5" y="8.5" width="11" height="7" rx="1" fill="currentColor" stroke="none"/></svg>',
     list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h11M4 12h11M4 17h7"/><path d="M18 11v8"/><path d="M18 11l3-1v8" fill="none"/></svg>',
   };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -81,14 +83,27 @@
     state: -1,          // YT player state: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
     time: 0, duration: 0,
     muted: false,
-    expanded: false,
     blocked: false,     // the embed refuses to play — offer the browser instead
     errCode: 0,         // the code YouTube gave, because they do not all mean the same thing
     heard: false,       // the current frame has answered us at least once
     hello: null,
-    idle: false, idleT: null,   // full-screen controls faded out (see armIdle)
   };
   const cur = () => (player.qi >= 0 ? player.queue[player.qi] : null) || null;
+
+  // Normal / cinema / fill / full screen, shared with the Twitch tile (see
+  // js/watch-view.js). Here the side panel of the cinema view is the list, so the
+  // next video is one tap away without leaving the big picture.
+  const view = window.WatchView.createController({
+    prefix: 'yt',
+    storageKey: 'xenon.watch.youtube.v1',
+    tiles,
+    ownerWrap: () => (cur() && player.frame && player.stage) ? player.stage.closest('.yt-wrap') : null,
+    // Only while a video is actually playing: hiding the controls over a paused
+    // or stopped picture leaves a screen with nothing on it and no hint that a
+    // touch brings anything back.
+    canIdle: () => player.state === 1,
+    onChange: () => paint(),
+  });
 
   // Videos this dashboard has SEEN refuse to play, by id. YouTube's own answer to
   // "may this be embedded" is the owner's flag, and the player can still refuse a
@@ -240,7 +255,7 @@
     if (next === 1) { player.blocked = false; player.errCode = 0; }
     // Pausing brings the controls back and keeps them; starting to play begins
     // the countdown to hiding them again.
-    if (player.expanded) wakeControls();
+    if (view.state().overlay) view.wake();
     if (next === 0) {
       // A video that has just been swapped in can still report the previous one's
       // ended state for a moment; without this the queue would skip a video.
@@ -332,63 +347,9 @@
     destroyFrame();
     player.queue = []; player.qi = -1; player.state = -1;
     player.time = 0; player.duration = 0; player.blocked = false; player.errCode = 0;
-    setExpanded(false);
-    paintPlayer();
+    view.setScreen(false);
+    paint();
   }
-  // Expanding only re-positions the card (see the CSS): re-parenting the iframe
-  // into an overlay would reload it, which restarts the video the user is
-  // watching. No dashboard tile creates a containing block, so `position: fixed`
-  // lands on the viewport as intended.
-  function setExpanded(on) {
-    player.expanded = !!on;
-    document.body.classList.toggle('yt-expanded', player.expanded);
-    tiles().forEach(tile => tile.classList.toggle('yt-tile-expanded', player.expanded));
-    // Deliberately NOT the Fullscreen API. Asking the browser for real fullscreen
-    // did solve the paint order in one line, and on the kiosk it cost far more
-    // than it bought: leaving fullscreen tore the video down and handed the
-    // window back in a state where the Windows taskbar sat on top of the
-    // dashboard until Xenon was restarted. The overlay below covers the whole
-    // viewport by itself — the stacking contexts that were painting over it are
-    // lifted in CSS for as long as this class is on the body — and it never takes
-    // the app's own window out of the state the kiosk put it in.
-    if (player.expanded) wakeControls(); else clearIdle();
-    paintPlayer();
-  }
-  // Escape leaves the big player without hunting for the button on a touchscreen.
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && player.expanded) setExpanded(false); });
-
-  // ── Idle controls at full screen ──────────────────────────────────────────
-  // The controls fade out while a video plays and come back on the first touch.
-  // The catcher is what makes "the first touch" possible at all: the embed is a
-  // cross-origin iframe, so a finger moving over the picture raises no event this
-  // document can see. It sits over the video ONLY while the controls are hidden —
-  // the tap that wakes them is swallowed, and once they are up it stops taking
-  // input, so YouTube's own captions and quality menus stay reachable.
-  const IDLE_MS = 3500;
-  function clearIdle() {
-    clearTimeout(player.idleT); player.idleT = null;
-    player.idle = false;
-    document.querySelectorAll('.yt-card--player').forEach(c => c.classList.remove('is-idle'));
-  }
-  function armIdle() {
-    clearTimeout(player.idleT);
-    // Only while something is actually playing: hiding the controls over a paused
-    // or stopped picture leaves a screen with nothing on it and no hint that a
-    // touch brings anything back.
-    if (!player.expanded || player.state !== 1) return;
-    player.idleT = setTimeout(() => {
-      player.idleT = null; player.idle = true;
-      document.querySelectorAll('.yt-card--player.is-expanded').forEach(c => c.classList.add('is-idle'));
-    }, IDLE_MS);
-  }
-  function wakeControls() {
-    if (player.idle) {
-      player.idle = false;
-      document.querySelectorAll('.yt-card--player').forEach(c => c.classList.remove('is-idle'));
-    }
-    armIdle();
-  }
-
   // ── Library loading ───────────────────────────────────────────────────────
   const LIB_PATH = { liked: '/stream/youtube/liked', playlists: '/stream/youtube/playlists', subs: '/stream/youtube/subscriptions' };
 
@@ -430,18 +391,13 @@
   function ensure(mount) {
     // Bumped when the built markup changes: a hidden widget's DOM is kept in the
     // pool rather than destroyed, so a stale build would never gain the notice.
-    if (mount.dataset.ytBuilt === '3' && mount.firstChild) return;
-    mount.dataset.ytBuilt = '3';
+    if (mount.dataset.ytBuilt === '4' && mount.firstChild) return;
+    mount.dataset.ytBuilt = '4';
     const wrap = el('div', 'yt-wrap');
+    wrap.dataset.view = 'normal';
 
     const wm = el('div', 'yt-watermark'); wm.innerHTML = ICONS.logo;   // static, trusted SVG
     wrap.appendChild(wm);
-
-    const head = el('div', 'yt-head');
-    const brand = el('div', 'yt-brand');
-    brand.append(el('span', 'yt-logo', 'YouTube'));
-    head.append(brand);
-    wrap.appendChild(head);
 
     const notice = el('button', 'yt-setup'); notice.type = 'button'; notice.hidden = true;
     notice.append(el('span', 'yt-setup-txt', t('youtube_w_setup', 'Connect your YouTube account in Settings → Streaming')));
@@ -480,17 +436,21 @@
     fit.appendChild(stage); stageWrap.appendChild(fit);
     card.appendChild(stageWrap);
     // Above the video, below the controls. Only takes input while the controls
-    // are hidden — see armIdle for why it has to exist at all.
+    // are hidden: the embed is cross-origin, so a finger on the picture raises
+    // nothing this page can hear, and without it the controls could not come back.
     const catcher = el('div', 'yt-idlecatch');
-    catcher.addEventListener('pointerdown', (e) => { e.stopPropagation(); wakeControls(); });
+    catcher.addEventListener('pointerdown', (e) => { e.stopPropagation(); view.wake(); });
     card.appendChild(catcher);
     // Anywhere else on the card — the control strip, the bands beside a 16:9
     // picture — a move or a tap is enough.
-    ['pointermove', 'pointerdown'].forEach(ev => card.addEventListener(ev, () => { if (player.expanded) wakeControls(); }));
+    ['pointermove', 'pointerdown'].forEach(ev => card.addEventListener(ev, () => { if (view.state().overlay) view.wake(); }));
 
+    // Everything about the video sits in one block right under the picture: what
+    // it is, where it is, and the controls.
+    const barBox = el('div', 'yt-bar');
     const now = el('div', 'yt-now');
     now.append(el('div', 'yt-now-title'), el('div', 'yt-now-sub'));
-    card.appendChild(now);
+    barBox.appendChild(now);
 
     const seekRow = el('div', 'yt-seek-row');
     const seek = document.createElement('input');
@@ -505,7 +465,7 @@
       }
     });
     seekRow.append(el('span', 'yt-time yt-time-cur', '0:00'), seek, el('span', 'yt-time yt-time-dur', '0:00'));
-    card.appendChild(seekRow);
+    barBox.appendChild(seekRow);
 
     const bar = el('div', 'yt-transport');
     bar.append(
@@ -516,14 +476,18 @@
       iconBtn('yt-mute', ICONS.sound, t('youtube_mute', 'Mute'), () => {
         player.muted = !player.muted; cmd(player.muted ? 'mute' : 'unMute'); paintPlayer();
       }),
-      iconBtn('yt-expand', ICONS.expand, t('youtube_expand', 'Full screen'), () => setExpanded(!player.expanded)),
+      iconBtn('yt-v-cinema', ICONS.cinema, t('watch_cinema_list', 'Cinema: player and list'), () => view.toggleView('cinema')),
+      iconBtn('yt-v-fill', ICONS.fill, t('watch_fill', 'Fill the tile'), () => view.toggleView('fill')),
+      iconBtn('yt-v-side', ICONS.list, t('watch_side_list', 'List alongside'), () => view.toggleSide()),
+      iconBtn('yt-expand', ICONS.expand, t('youtube_expand', 'Full screen'), () => view.setScreen(!view.isScreen())),
       iconBtn('yt-out', ICONS.external, t('youtube_open_browser', 'Open in the browser'), async (e) => {
         const v = cur(); const url = v && watchUrl(v.id);
         if (url) await openOut(url); else showActionErr(e.currentTarget, 'generic');
       }),
       iconBtn('yt-stop', ICONS.close, t('youtube_close_player', 'Close the player'), stopPlayer),
     );
-    card.appendChild(bar);
+    barBox.appendChild(bar);
+    card.appendChild(barBox);
 
     return card;
   }
@@ -554,6 +518,7 @@
     card.dataset.systemCard = 'library'; card.dataset.systemCardGroup = 'youtube';
 
     const tabsRow = el('div', 'yt-tabs');
+    tabsRow.appendChild(el('span', 'yt-logo', 'YouTube'));
     const TAB_ICON = { liked: ICONS.heart, playlists: ICONS.list, subs: ICONS.subs, search: ICONS.search };
     TABS.forEach(id => {
       const b = el('button', 'yt-tab'); b.type = 'button'; b.dataset.ytTab = id;
@@ -593,6 +558,7 @@
   // ── Rows ──────────────────────────────────────────────────────────────────
   function videoRow(v, index, list) {
     const b = el('button', 'yt-row'); b.type = 'button';
+    b.dataset.vid = v.id || '';
     const art = el('span', 'yt-row-art');
     if (v.image) art.style.backgroundImage = 'url("' + encodeURI(v.image) + '")';
     if (v.seconds != null) art.appendChild(el('span', 'yt-row-dur', fmtTime(v.seconds)));
@@ -654,9 +620,25 @@
     node.innerHTML = svg;                 // static, trusted SVG
   }
 
+  function setLabel(node, label) {
+    if (node.title === label) return;
+    node.title = label; node.setAttribute('aria-label', label);
+  }
+  function setToggle(node, on, disabled, label) {
+    node.classList.toggle('is-on', on);
+    node.setAttribute('aria-pressed', String(on));
+    node.disabled = disabled;
+    setLabel(node, label);
+  }
+
   function paintPlayer() {
     const v = cur();
     const playing = player.state === 1 || player.state === 3;
+    const vs = view.apply();
+    // The list marks the video on screen. The queue advances without the list
+    // repainting, so the mark follows the video here, only when it changes.
+    const vid = v ? v.id : '';
+    if (vid !== markedVid) { markedVid = vid; document.querySelectorAll('.yt-list').forEach(markCurrent); }
     eachMount(mount => {
       const card = mount.querySelector('.yt-card--player');
       if (!card) return;
@@ -670,7 +652,9 @@
       const empty = stage.querySelector('.yt-player-empty');
       if (empty) empty.style.display = owns ? 'none' : '';
       card.classList.toggle('is-playing', owns && !!v);
-      card.classList.toggle('is-expanded', player.expanded && owns);
+      // Nothing queued: the card steps out of the layout and the list gets the
+      // tile (see the CSS) instead of a black box asking to pick something.
+      card.classList.toggle('is-vacant', !owns);
 
       const title = card.querySelector('.yt-now-title');
       const sub = card.querySelector('.yt-now-sub');
@@ -683,7 +667,14 @@
       setIcon(mute, player.muted ? 'muted' : 'sound', player.muted ? ICONS.muted : ICONS.sound);
       mute.classList.toggle('is-on', player.muted);
       const exp = card.querySelector('.yt-expand');
-      setIcon(exp, player.expanded ? 'shrink' : 'expand', player.expanded ? ICONS.shrink : ICONS.expand);
+      const big = owns && vs.screen;
+      setIcon(exp, big ? 'shrink' : 'expand', big ? ICONS.shrink : ICONS.expand);
+      setLabel(exp, big ? t('watch_exit_screen', 'Leave full screen') : t('youtube_expand', 'Full screen'));
+      exp.disabled = !v;
+      const wanted = view.wanted();
+      setToggle(card.querySelector('.yt-v-cinema'), wanted === 'cinema', !v, t('watch_cinema_list', 'Cinema: player and list'));
+      setToggle(card.querySelector('.yt-v-fill'), wanted === 'fill', !v, t('watch_fill', 'Fill the tile'));
+      setToggle(card.querySelector('.yt-v-side'), vs.side, !v, t('watch_side_list', 'List alongside'));
       card.querySelector('.yt-prev').disabled = !v;
       card.querySelector('.yt-next').disabled = !v || player.qi + 1 >= player.queue.length;
       pp.disabled = !v;
@@ -728,7 +719,7 @@
       // user is no longer looking at the video that just failed.
       const sig = [connected, document.documentElement.lang, lib.tab, lib.openPl && lib.openPl.id, lib.loading, lib.error, refused.size,
         rows === null || rows === undefined ? 'n' : rows.map(r => r.id).join(',')].join('|');
-      if (list.dataset.ytSig === sig) return;
+      if (list.dataset.ytSig === sig) { markCurrent(list); return; }
       list.dataset.ytSig = sig;
       // Still waiting on the connection check: say so instead of leaving a blank
       // panel that reads as a broken widget. A definite "no account" is NOT that
@@ -758,7 +749,16 @@
         else vids.forEach((v, i) => frag.appendChild(videoRow(v, i, vids)));
       }
       list.replaceChildren(frag);
+      markCurrent(list);
     });
+  }
+  // The row of the video on screen is marked, so the list says what is playing
+  // without a rebuild (which would lose the scroll position).
+  let markedVid = '';
+  function markCurrent(list) {
+    const v = cur();
+    const on = v ? v.id : '';
+    list.querySelectorAll('.yt-row').forEach(r => r.classList.toggle('is-current', !!on && r.dataset.vid === on));
   }
 
   // Labels are written into the DOM once at build time, but the language can

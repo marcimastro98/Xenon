@@ -366,21 +366,75 @@ function createTwitchProvider(deps) {
     return watchSet('top', { ok: true, channels });
   }
 
-  // Search channels by name. Live ones only: this list exists to be watched, and
-  // a channel that is off air has nothing to put in the player. Search Channels
-  // returns the profile picture rather than a preview and carries no viewer
-  // count, so those two fields are simply absent — the row says less, it does not
-  // say something false.
-  async function searchChannels(query) {
+  // Search live channels the way Twitch's own search box does, as far as the
+  // public API allows. Helix /search/channels matches channel NAMES only, while
+  // twitch.tv also matches what a stream is ABOUT: its title and its tags.
+  // Measured: "santa monica" returned nothing here and a whole page on
+  // twitch.tv, because those words live in titles ("SANTA MONICA day 8") and
+  // tags ("SantaMonica"), never in a channel name. Helix has no endpoint for
+  // that, so the second half is ours: read the live streams in the viewer's
+  // language (busiest first, up to SCAN_PAGES_LANG pages of 100) plus the
+  // busiest ones in any language, and keep the ones whose title, tags, name or
+  // game hold the words. Live ones only: this list exists to be watched.
+  const SCAN_TTL_MS = 60 * 1000;
+  const SCAN_PAGES_LANG = 20;
+  const SCAN_PAGES_ALL = 3;
+  const LANG_RE = /^[a-z]{2}$/;
+  const scanInflight = new Map();
+
+  // One read of the live directory, shared by every search for a minute: the
+  // first search pays for it (23 requests at most, against a rate limit of 800
+  // a minute), the ones after it are instant.
+  function liveStreams(language, pages) {
+    const key = 'scan:' + (language || '*');
+    const hit = watchGet(key, SCAN_TTL_MS);
+    if (hit) return Promise.resolve(hit);
+    if (scanInflight.has(key)) return scanInflight.get(key);
+    const run = (async () => {
+      const out = [];
+      let cursor = '';
+      for (let i = 0; i < pages; i++) {
+        const qs = 'first=100' + (language ? '&language=' + language : '') + (cursor ? '&after=' + encodeURIComponent(cursor) : '');
+        const r = await helix('GET', '/streams?' + qs);
+        const rows = r.ok && r.data && Array.isArray(r.data.data) ? r.data.data : null;
+        if (!rows) break;
+        out.push(...rows);
+        cursor = (r.data.pagination && r.data.pagination.cursor) || '';
+        // Only the cursor says whether there is more. Twitch's pages are often 97
+        // to 99 rows long (measured), so a short page is not the last one.
+        if (!cursor || !rows.length) break;
+      }
+      // A failed first page is not an empty directory: nothing is cached, so the
+      // next search asks again instead of finding nothing for a minute.
+      return out.length ? watchSet(key, out) : out;
+    })().finally(() => scanInflight.delete(key));
+    scanInflight.set(key, run);
+    return run;
+  }
+
+  async function searchChannels(query, opts) {
     const q = String(query == null ? '' : query).trim().slice(0, 100);
     if (q.length < 2) return { ok: false, error: 'bad_request' };
-    const key = 'q:' + q.toLowerCase();
+    const lang = String((opts && opts.language) || '').toLowerCase().slice(0, 2);
+    const language = LANG_RE.test(lang) ? lang : '';
+    const key = 'q:' + language + ':' + q.toLowerCase();
     const hit = watchGet(key, SEARCH_TTL_MS);
     if (hit) return hit;
-    const r = await helix('GET', '/search/channels?live_only=true&first=' + LIST_SIZE + '&query=' + encodeURIComponent(q));
-    if (!r.ok) return { ok: false, error: mapActionError(r) };
-    const channels = rowsOf(r, c => channelRow(c.broadcaster_login, c.display_name, c.title, c.game_name, null, c.thumbnail_url, c.is_live !== false));
-    return watchSet(key, { ok: true, channels });
+    const [byName, inLang, inAll] = await Promise.all([
+      helix('GET', '/search/channels?live_only=true&first=' + LIST_SIZE + '&query=' + encodeURIComponent(q)),
+      language ? liveStreams(language, SCAN_PAGES_LANG) : Promise.resolve([]),
+      liveStreams('', SCAN_PAGES_ALL),
+    ]);
+    // Search Channels returns the profile picture rather than a preview and
+    // carries no viewer count, so on those rows the two fields stay absent: the
+    // row says less, it does not say something false.
+    const named = byName.ok ? rowsOf(byName, c => channelRow(c.broadcaster_login, c.display_name, c.title, c.game_name, null, c.thumbnail_url, c.is_live !== false)) : [];
+    const streams = inLang.concat(inAll);
+    // Only a total failure is an error: either half alone is still a search.
+    if (!byName.ok && !streams.length) return { ok: false, error: mapActionError(byName) };
+    const about = streams.filter(st => streamMatches(st, q))
+      .map(st => channelRow(st.user_login, st.user_name, st.title, st.game_name, st.viewer_count, st.thumbnail_url, true));
+    return watchSet(key, { ok: true, channels: mergeSearch(q, named, about) });
   }
 
   // Speak in ANOTHER channel's chat (user:write:chat). sendChat() above always
@@ -483,4 +537,51 @@ function createTwitchProvider(deps) {
   return { startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, helix, configured, broadcasterId, createClip, createMarker, runAd, setTitle, setGame, sendChat, shoutout, setChatMode, streamStatus, followedChannels, topChannels, searchChannels, sendChatTo, channelEmotes };
 }
 
-module.exports = { createTwitchProvider, normalizeStreamTwitch };
+// ── Search matching (pure) ──────────────────────────────────────────────────
+// Case and accents never decide a match ("Città" is "citta"), and a query
+// written as words also finds the same words run together, which is how tags
+// are spelled: "santa monica" matches the tag "SantaMonica".
+function foldText(text) {
+  return String(text == null ? '' : text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+const squash = (text) => foldText(text).replace(/[^\p{L}\p{N}]+/gu, '');
+function queryWords(q) {
+  return foldText(q).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+// A live stream from /streams matches when every word of the query is in its
+// title, tags, channel name or game, or when the query with its spaces taken out
+// is in them with theirs taken out.
+function streamMatches(stream, q) {
+  const words = queryWords(q);
+  if (!words.length || !stream) return false;
+  const text = [stream.title, Array.isArray(stream.tags) ? stream.tags.join(' ') : '', stream.user_name, stream.user_login, stream.game_name].join(' ');
+  const hay = foldText(text);
+  if (words.every(w => hay.includes(w))) return true;
+  const joined = words.join('');
+  return joined.length >= 4 && squash(text).includes(joined);
+}
+// Channels whose NAME is the query come first, as on twitch.tv; then the streams
+// about it, busiest first; then the rest of the name matches. A channel found by
+// both keeps the stream's row, which carries the viewer count and a preview
+// rather than a profile picture.
+const SEARCH_SIZE = 40;
+function mergeSearch(q, named, about) {
+  const joined = queryWords(q).join('');
+  const streamOf = new Map();
+  (about || []).forEach(r => { if (r && !streamOf.has(r.login)) streamOf.set(r.login, r); });
+  const nameHit = (r) => joined.length > 0 && (squash(r.login).includes(joined) || squash(r.name).includes(joined));
+  const out = [];
+  const seen = new Set();
+  const add = (r) => {
+    if (!r || seen.has(r.login) || out.length >= SEARCH_SIZE) return;
+    seen.add(r.login);
+    out.push(streamOf.get(r.login) || r);
+  };
+  const names = (named || []).filter(Boolean);
+  names.filter(nameHit).forEach(add);
+  Array.from(streamOf.values()).sort((a, b) => (b.viewers || 0) - (a.viewers || 0)).forEach(add);
+  names.forEach(add);
+  return out;
+}
+
+module.exports = { createTwitchProvider, normalizeStreamTwitch, streamMatches, mergeSearch };

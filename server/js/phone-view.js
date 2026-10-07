@@ -263,9 +263,10 @@
     for (let i = 0; i < order.length; i++) { if (order[i] !== i) { sorted = false; break; } }
     items.forEach(stampRows);
     if (sorted) return;
-    const frag = document.createDocumentFragment();
-    order.forEach((idx) => frag.appendChild(items[idx]));
-    grid.appendChild(frag);
+    // One by one to the end, in reading order. Not through a fragment: a fragment
+    // takes each tile out of the page, and every iframe in it (a Twitch stream, a
+    // widget) loads again. moveNode keeps them running where the engine can.
+    order.forEach((idx) => moveNode(grid, items[idx]));
   }
 
   function stampRows(el) {

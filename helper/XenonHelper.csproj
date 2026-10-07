@@ -113,8 +113,16 @@
                   the dashboard page shortcuts are bound through. Version-gated
                   because an existing install would otherwise keep an exe that
                   registers only the first combo it is given, so every page
-                  shortcut would be silently dead. -->
-    <Version>0.14.0</Version>
+                  shortcut would be silently dead;
+         0.15.0 = index-serve keeps live per-folder totals (bytes, files, newest
+                  mtime), child and file links, a large-file set and per-root
+                  bytes by file kind, so overview/browse/subtree deletes walk the
+                  folder tree instead of every file; overview gains kinds,
+                  version and staleFiles, stats gains version; names are matched
+                  accent-folded ("citta" finds "Citta" with an accent). query refines the last query's matches while a word is typed, scans on several cores, and answers folders (dirs) and words held by a folder above the file (pathTerms, pt).
+                  Version-gated: the disk widget's capacity bar and its cache
+                  key read the new fields. -->
+    <Version>0.15.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

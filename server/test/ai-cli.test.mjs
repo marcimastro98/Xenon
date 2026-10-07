@@ -496,3 +496,30 @@ test('Codex is also found inside its desktop app and the VS Code / Cursor extens
   assert.match(src, /\/\^openai\\.chatgpt-\/i/);
   assert.match(src, /const copy = await newestCodexCopy\(\);/, 'after PATH, never instead of it');
 });
+
+// Cancel: the "Ask ChatGPT" tile hands chat() an AbortSignal so a Cancel tap
+// kills the program instead of leaving it to run out its three minutes.
+test('run(): an AbortSignal kills the child and reports cancelled, not a failure', async () => {
+  const { run } = cli._internal;
+  const ac = new AbortController();
+  const exe = { cmd: process.execPath, pre: ['-e', 'setTimeout(() => {}, 20000)'] };
+  const t0 = Date.now();
+  setTimeout(() => ac.abort(), 100);
+  const r = await run(exe, [], { signal: ac.signal, timeoutMs: 15000 });
+  assert.equal(r.cancelled, true);
+  assert.equal(r.timedOut, false);
+  assert.ok(Date.now() - t0 < 10000, 'killed, not waited out');
+  const pre = await run(exe, [], { signal: AbortSignal.abort() });
+  assert.equal(pre.cancelled, true);
+});
+
+test('resolveCodex is exported for the Codex tile, with childEnv stripping the API keys', () => {
+  assert.equal(typeof cli.resolveCodex, 'function');
+  process.env.OPENAI_API_KEY = 'sk-test';
+  process.env.CODEX_API_KEY = 'x';
+  try {
+    const env = cli.childEnv('codex');
+    assert.equal(env.OPENAI_API_KEY, undefined);
+    assert.equal(env.CODEX_API_KEY, undefined);
+  } finally { delete process.env.OPENAI_API_KEY; delete process.env.CODEX_API_KEY; }
+});

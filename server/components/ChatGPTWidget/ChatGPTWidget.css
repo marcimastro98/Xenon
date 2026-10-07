@@ -1,0 +1,97 @@
+/* "Ask ChatGPT" tile. A thread and a box to type in, laid out by the tile's
+   own size so it works on the Edge, a monitor and a phone. No looping
+   animation: the "thinking" line is a ticking counter, not a spinner. */
+
+.chatgpt-widget-mount {
+  --cg-ink: var(--text, #eef0f2);
+  --cg-2: color-mix(in srgb, var(--cg-ink) 66%, transparent);
+  --cg-line: color-mix(in srgb, var(--cg-ink) 11%, transparent);
+  --cg-well: color-mix(in srgb, var(--cg-ink) 6%, transparent);
+  --cg-go: var(--accent, #1ed760);
+  --cg-on-go: var(--on-accent, #06121f);
+  --cg-warn: var(--color-warn, #f0b84f);
+  --cg-crit: var(--color-danger, #ff6268);
+  height: 100%; min-height: 0; box-sizing: border-box; padding: 12px 14px;
+  container-type: size; container-name: cg;
+  color: var(--cg-ink);
+}
+.cg-wrap { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
+.cg-muted { font-size: 12.5px; color: var(--cg-2); }
+
+.cg-top { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cg-name { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.cg-plan { font-size: 12px; font-weight: 650; color: var(--cg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cg-plan.is-warn { color: var(--cg-warn); }
+.cg-plan.is-crit { color: var(--cg-crit); }
+.cg-spacer { flex: 1 1 auto; }
+.cg-btn {
+  appearance: none; border: 0; cursor: pointer; min-height: 32px; padding: 0 12px; border-radius: 9px;
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--cg-ink);
+  background: color-mix(in srgb, var(--cg-ink) 12%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+.cg-btn.is-quiet { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cg-ink) 22%, transparent); }
+.cg-btn.is-on { background: color-mix(in srgb, var(--cg-ink) 14%, transparent); box-shadow: none; }
+.cg-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* ── the conversation ── */
+.cg-chat { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.cg-thread {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 8px; padding-right: 2px;
+}
+.cg-msg { display: flex; }
+.cg-msg.is-user { justify-content: flex-end; }
+.cg-bubble {
+  max-width: min(86%, 720px); padding: 8px 12px; border-radius: 12px;
+  font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
+}
+.cg-msg.is-user .cg-bubble { background: color-mix(in srgb, var(--cg-go) 18%, transparent); white-space: pre-wrap; border-bottom-right-radius: 4px; }
+.cg-msg.is-assistant .cg-bubble { background: var(--cg-well); border-bottom-left-radius: 4px; }
+.cg-msg.is-error .cg-bubble { color: var(--cg-warn); background: color-mix(in srgb, var(--cg-warn) 10%, transparent); }
+.cg-msg.is-thinking .cg-bubble { display: flex; align-items: center; gap: 12px; color: var(--cg-2); }
+.cg-think-t { font-variant-numeric: tabular-nums; }
+.cg-bubble.ai-msg-markdown > :first-child { margin-top: 0; }
+.cg-bubble.ai-msg-markdown > :last-child { margin-bottom: 0; }
+
+.cg-empty { margin: auto 0; display: flex; flex-direction: column; gap: 8px; padding: 0 6px; }
+.cg-p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--cg-2); }
+.cg-p.is-big { font-size: 17px; font-weight: 700; color: var(--cg-ink); }
+
+.cg-compose { flex: 0 0 auto; display: flex; gap: 8px; align-items: stretch; }
+.cg-input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; max-height: 30cqh; box-sizing: border-box; resize: none;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--cg-ink) 20%, transparent);
+  background: var(--cg-well); color: var(--cg-ink); font: inherit; font-size: 14px; line-height: 1.4;
+}
+.cg-input:focus { outline: none; border-color: var(--cg-go); }
+.cg-input::placeholder { color: var(--cg-2); }
+.cg-send {
+  flex: 0 0 auto; min-width: 72px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 750; background: var(--cg-go); color: var(--cg-on-go);
+}
+.cg-send:disabled { opacity: 0.45; cursor: default; }
+
+/* ── conversation list ── */
+.cg-list { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.cg-model { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--cg-2); }
+.cg-select {
+  flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 0 10px; border-radius: 9px; font: inherit; font-size: 13px;
+  color: var(--cg-ink); background: var(--cg-well); border: 1px solid var(--cg-line);
+}
+.cg-list-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: flex; flex-direction: column; gap: 4px; }
+.cg-row { display: flex; align-items: stretch; gap: 6px; border-radius: 9px; }
+.cg-row.is-open { background: var(--cg-well); }
+.cg-row-main {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  appearance: none; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 8px 10px; border-radius: 9px; font: inherit;
+}
+.cg-row-main:hover { background: var(--cg-well); }
+.cg-row-title { font-size: 13.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-row-sub { font-size: 12px; color: var(--cg-2); }
+.cg-del { flex: 0 0 auto; align-self: center; min-width: 36px; padding: 0; }
+
+@container cg (max-width: 360px) {
+  .cg-plan { display: none; }
+  .cg-bubble { max-width: 92%; }
+}

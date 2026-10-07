@@ -209,7 +209,7 @@ if (typeof window !== 'undefined') (function () {
   // (data-dashboard-widget, which duplication and tab-groups preserve) rather
   // than at guessed inner class names means a refactor inside a widget can never
   // silently stop blurring it.
-  const PRIVATE_WIDGETS = ['notes', 'tasks', 'calendar', 'agenda', 'chat', 'claude',
+  const PRIVATE_WIDGETS = ['notes', 'tasks', 'calendar', 'agenda', 'chat', 'claude', 'openaicodex', 'chatgpt',
     'discord', 'notifications', 'search', 'unifi'];
 
   let qrLibPromise = null;

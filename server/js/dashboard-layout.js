@@ -901,7 +901,7 @@ function adoptGridItem(targetGrid, item) {
   if (fromGrid && fromGrid !== targetGrid.gridstack) {
     try { fromGrid.removeWidget(item, false, false); } catch (e) { /* ignore */ }
   }
-  targetGrid.appendChild(item);
+  moveNode(targetGrid, item);   // not appendChild: that reloads every iframe in the tile
 }
 
 // ── Per-tile styling ────────────────────────────────────────────────────────
@@ -2300,7 +2300,7 @@ function applyDashboardWidgets(layout) {
         if (pool) pool.appendChild(own);
       }
       const ownContent = own.querySelector(':scope > .grid-stack-item-content') || own;
-      ownContent.appendChild(tile);
+      moveNode(ownContent, tile);
     }
     const item = tile.closest('.grid-stack-item') || tile;
     if (!preferences.visible) {
@@ -2308,7 +2308,7 @@ function applyDashboardWidgets(layout) {
       if (pool && item.parentElement !== pool) {
         const fromGrid = item.parentElement && item.parentElement.gridstack;
         if (fromGrid) { try { fromGrid.removeWidget(item, false); } catch (e) { /* ignore */ } }
-        pool.appendChild(item);
+        moveNode(pool, item);
       }
       return;
     }
@@ -2383,7 +2383,7 @@ function applyDashboardWidgets(layout) {
       if (DASHBOARD_WIDGET_IDS.includes(id)) {
         if (pool && it.parentElement !== pool) {
           if (fromGrid) { try { fromGrid.removeWidget(it, false); } catch (e) { /* ignore */ } }
-          pool.appendChild(it);
+          moveNode(pool, it);
         }
       } else if (fromGrid) {
         try { fromGrid.removeWidget(it, true, false); } catch (e) { it.remove(); }
@@ -2595,6 +2595,8 @@ function applyDashboardLayout() {
   step('stocksRender', () => { if (window.StockWidget && typeof window.StockWidget.renderWidgets === 'function') window.StockWidget.renderWidgets(); });
   step('footballRender', () => { if (window.FootballWidget && typeof window.FootballWidget.renderWidgets === 'function') window.FootballWidget.renderWidgets(); });
   step('claudeRender', () => { if (window.ClaudeWidget && typeof window.ClaudeWidget.renderWidgets === 'function') window.ClaudeWidget.renderWidgets(); });
+  step('codexRender', () => { if (window.CodexWidget && typeof window.CodexWidget.renderWidgets === 'function') window.CodexWidget.renderWidgets(); });
+  step('chatgptRender', () => { if (window.ChatGPTWidget && typeof window.ChatGPTWidget.renderWidgets === 'function') window.ChatGPTWidget.renderWidgets(); });
   step('newsRender', () => { if (window.NewsWidget && typeof window.NewsWidget.renderWidgets === 'function') window.NewsWidget.renderWidgets(); });
   step('fansRender', () => { if (window.FansWidget && typeof window.FansWidget.renderWidgets === 'function') window.FansWidget.renderWidgets(); });
   step('searchRender', () => { if (window.SearchWidget && typeof window.SearchWidget.renderWidgets === 'function') window.SearchWidget.renderWidgets(); });

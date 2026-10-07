@@ -120,6 +120,10 @@ const REMOTE_DENY = new Set([
   '/api/claude/permission',
   '/api/claude/question',
   '/api/claude/turn-end',
+  // The OpenAI Codex ingest, posted by codex-hook.js (which Codex runs) against
+  // a token minted on the PC. Same reason as Claude's.
+  '/api/codex/event',
+  '/api/codex/permission',
   // The channel's RTMP stream key. Whoever holds it can broadcast to the user's
   // channel, and it is the one credential the dashboard is asked to show on
   // screen. It stays on the PC the user is standing at.
@@ -200,8 +204,10 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
   '/api/claude/unlink', '/api/claude/run', '/api/claude/run/stop', '/api/claude/attach',
+  '/api/codex/event', '/api/codex/permission', '/api/codex/decide', '/api/codex/link', '/api/codex/unlink',
+  '/api/chatgpt/ask', '/api/chatgpt/cancel', '/api/chatgpt/delete',
   '/search/open', '/search/reveal', '/search/ai',
-  '/disk/scan', '/disk/scan/cancel', '/disk/clean', '/disk/clean/cancel', '/api/disk/advisor',
+  '/disk/scan', '/disk/scan/cancel', '/disk/clean', '/disk/clean/cancel', '/disk/reveal', '/api/disk/advisor',
   '/spotlight/claimed', '/api/screenshot', '/api/screenshot/monitor',
   '/api/remote-access/enable', '/api/remote-access/pair', '/api/remote-access/pair/cancel',
   '/api/remote-access/redeem', '/api/remote-access/rename', '/api/remote-access/revoke',
@@ -276,6 +282,7 @@ const GET_READ_EXCEPTIONS = new Set([
   '/api/screenshot',
   '/api/screenshot/monitor',
   '/api/claude/link',
+  '/api/codex/link',
 ]);
 
 /** server.js calls this once at boot with its own CSRF_MUTATION_PATHS. */

@@ -42,6 +42,8 @@
 .searchw-live .spot-bar .spot-input { font-size: 15.5px; }
 .searchw-live .spot-ai-toggle { width: 32px; height: 32px; }
 .searchw-live .spot-ai-toggle svg { width: 17px; height: 17px; }
+.searchw-live .spot-filter-toggle { width: 32px; height: 32px; }
+.searchw-live .spot-filter-toggle svg { width: 15px; height: 15px; }
 
 /* Body: no divider (the bar's own border separates), list fills the tile. */
 .searchw-live .spot-body {
@@ -51,6 +53,9 @@
   padding: 4px 0 0;
 }
 .searchw-live .spot-chips { padding: 8px 2px 0; }
+/* The list sits in .spot-results (beside the preview the overlay has); in
+   the tile that wrapper is what takes the remaining height. */
+.searchw-live .spot-results { flex: 1 1 auto; min-height: 0; }
 .searchw-live .spot-list {
   max-height: none;
   flex: 1 1 auto;

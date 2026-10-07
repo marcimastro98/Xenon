@@ -900,6 +900,7 @@ const STATIC_ROUTES = [
   { loc: '/widgets.html', file: 'docs/widgets.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/deck.html', file: 'docs/deck.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/claude-code.html', file: 'docs/claude-code.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/codex.html', file: 'docs/codex.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/sensor-panel.html', file: 'docs/sensor-panel.html', priority: '0.7', changefreq: 'monthly' },
 ];
 

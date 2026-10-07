@@ -369,6 +369,21 @@ if [ -f "$SERVER_DIR/claude-link.js" ] && command -v node >/dev/null 2>&1; then
   fi
 fi
 
+# The OpenAI Codex link: Xenon's hooks in the user's Codex hooks.json. Left
+# behind, each one starts a script that no longer exists on every prompt.
+if [ -f "$SERVER_DIR/codex-link.js" ] && command -v node >/dev/null 2>&1; then
+  if [ "$DRY_RUN" = 1 ]; then
+    info "would remove Xenon's hooks from Codex"
+  else
+    CODEX_OUT="$(node "$SERVER_DIR/codex-link.js" unlink 2>&1)"
+    case "$CODEX_OUT" in
+      unlinked)   ok "removed Xenon's hooks from Codex" ;;
+      not-linked) : ;;
+      *)          warn "could not unlink Codex: $CODEX_OUT" ;;
+    esac
+  fi
+fi
+
 if [ "$IS_MAC" = 1 ]; then
   # The app's OWN login item, which is not the backend's. Xenon.app registers it
   # itself on first run (tauri-plugin-autostart, MacosLauncher::LaunchAgent), so

@@ -13,6 +13,8 @@ mod monitor;
 mod prefs;
 mod spotlight_window;
 mod tray;
+#[cfg(windows)]
+mod twitch_login;
 #[cfg(target_os = "linux")]
 mod webview_guard;
 
@@ -1628,6 +1630,10 @@ pub fn run() {
                     "shellSelfUpdate": shell_self_update(),
                     "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
                     "displayPicker": true,
+                    // "Sign in to Twitch" in the Twitch tile (xenon-app:twitch-login).
+                    // Windows only: WebKit blocks the third-party cookie the
+                    // player embed would need, so elsewhere it could not work.
+                    "twitchLogin": cfg!(windows),
                     // The monitor list, injected BEFORE the page loads. It used
                     // to arrive only with the first `push_display_state`, after
                     // the dashboard had loaded — so the first-run screen picker
@@ -1777,6 +1783,15 @@ pub fn run() {
                             "spotlight-open" => {
                                 let h = nav_handle.clone();
                                 std::thread::spawn(move || spotlight_window::open(&h));
+                            }
+                            // The Twitch tile's "Sign in to Twitch": twitch.tv's own
+                            // sign-in page in this profile, so the player embed
+                            // in the dashboard reads the session (twitch_login.rs).
+                            // A plain thread for the same reason as above.
+                            #[cfg(windows)]
+                            "twitch-login" => {
+                                let h = nav_handle.clone();
+                                std::thread::spawn(move || twitch_login::open(&h));
                             }
                             _ => {}
                         }

@@ -34,6 +34,10 @@ const REQ_TIMEOUT_MS = 6000;
 const RESULTS_CACHE_MAX = 1000;       // resolvable ids (FIFO eviction)
 const WDS_MAX = 100;                  // rows asked of the catalog per query
 const USAGE_SAVE_DEBOUNCE_MS = 2000;
+const CATALOG_STASH_MS = 15000;      // a catalog answer is collectable this long
+const CATALOG_STASH_MAX = 20;
+const FOLDERS_MAX = 8;                // folder results asked of the index
+const POOL_MAX = 12;                  // usage-log files re-checked per query
 
 function createFileSearch(opts) {
   const o = opts || {};
@@ -45,7 +49,10 @@ function createFileSearch(opts) {
   // Index IS the search backend there, and saying so is not a degradation to
   // apologise for. (macOS does have Spotlight, and `mdfind` would be the exact
   // twin of this host — that is a feature, not this gate.)
-  const CATALOG_SUPPORTED = PLATFORM === 'win32';
+  // macOS brings its own catalog (Spotlight, through mdfind.js), injected as
+  // a runner: same query shape, same {p, n, s, m} rows, no PowerShell host.
+  const catalogRunner = typeof o.catalogRunner === 'function' ? o.catalogRunner : null;
+  const CATALOG_SUPPORTED = PLATFORM === 'win32' || !!catalogRunner;
   const scriptPath = o.scriptPath || path.join(__dirname, 'search.ps1');
   const openExternal = o.openExternal; // async (absPath) — deck-actions 'open' verb
   const revealExternal = o.revealExternal; // (absPath, dir) — the file manager's "show me where"
@@ -142,27 +149,65 @@ function createFileSearch(opts) {
     return proc;
   }
 
+  // The host answers one query at a time, so a fast typist used to queue every
+  // keystroke's query behind the previous ones: "f", "fa", "fat"… each waited
+  // for the one before, and the answer to what was actually typed came last.
+  // Latest wins: one request in flight, at most one waiting, and a newer one
+  // replaces the waiting one, which is told 'superseded' (its caller has been
+  // aborted by the client anyway).
+  let waiting = null;   // { q, resolve, reject }
+  let inFlight = false;
+
+  function dispatch(job) {
+    inFlight = true;
+    const proc = ensureHost();
+    if (!proc) { inFlight = false; job.reject(new Error('wds_unavailable')); drain(); return; }
+    const id = host.nextId++;
+    const timer = setTimeout(() => {
+      rejectPending(id, new Error('search host timeout'));
+      retireHost('search host timeout');
+    }, REQ_TIMEOUT_MS);
+    const settle = (fn) => (v) => { inFlight = false; fn(v); drain(); };
+    host.pending.set(id, { resolve: settle(job.resolve), reject: settle(job.reject), timer });
+    bumpIdle();
+    try {
+      proc.stdin.write(JSON.stringify({ id, q: job.q }) + '\n');
+    } catch (e) {
+      clearTimeout(timer);
+      host.pending.delete(id);
+      inFlight = false;
+      job.reject(e);
+      drain();
+    }
+  }
+
+  function drain() {
+    if (inFlight || !waiting) return;
+    const next = waiting;
+    waiting = null;
+    dispatch(next);
+  }
+
   function hostRequest(q) {
     if (hostRunner) return hostRunner(q);
+    if (catalogRunner) return catalogRunner(q);
     if (!CATALOG_SUPPORTED) return Promise.reject(new Error('wds_unsupported'));
     return new Promise((resolve, reject) => {
-      const proc = ensureHost();
-      if (!proc) { reject(new Error('wds_unavailable')); return; }
-      const id = host.nextId++;
-      const timer = setTimeout(() => {
-        rejectPending(id, new Error('search host timeout'));
-        retireHost('search host timeout');
-      }, REQ_TIMEOUT_MS);
-      host.pending.set(id, { resolve, reject, timer });
-      bumpIdle();
-      try {
-        proc.stdin.write(JSON.stringify({ id, q }) + '\n');
-      } catch (e) {
-        clearTimeout(timer);
-        host.pending.delete(id);
-        reject(e);
-      }
+      const job = { q, resolve, reject };
+      if (!inFlight) { dispatch(job); return; }
+      if (waiting) waiting.reject(new Error('superseded'));
+      waiting = job;
     });
+  }
+
+  // Start the catalog host before it is needed (the Spotlight popup opening):
+  // the first query otherwise pays powershell.exe's start plus the ADODB
+  // connection, and the 5-minute idle retirement brings that back often.
+  // The installed-apps list is built the same way (cold, it is a Get-StartApps
+  // run: measured 1.8 s on the first search after a restart, 76 ms after).
+  function warm() {
+    if (CATALOG_SUPPORTED && !hostRunner && !catalogRunner) { try { ensureHost(); bumpIdle(); } catch { /* best effort */ } }
+    if (typeof appsProvider === 'function') Promise.resolve().then(() => appsProvider()).catch(() => {});
   }
 
   // ── Open-frequency log (ranking signal) ──────────────────────────────────
@@ -197,13 +242,17 @@ function createFileSearch(opts) {
   // ── Living Index (helper index-serve, managed by living-index.js) ────────
   // Instant name matches over EVERYTHING under the configured roots — the
   // primary name source. Answers null when off/unavailable, so search degrades
-  // to WDS-only exactly like a helper-less install.
-  async function livingMatches(q) {
+  // to WDS-only exactly like a helper-less install. A plain name query also
+  // asks for matching FOLDERS, and a query of two or more words lets a word be
+  // found in a folder above the file ("download fattura").
+  async function livingMatches(q, plain) {
     if (!livingIndex) return null;
     return livingIndex.query({
       terms: q.terms, exts: SearchQuery.effectiveExts(q),
       after: q.after, before: q.before, minBytes: q.minBytes, maxBytes: q.maxBytes,
       max: 100,
+      dirs: plain ? FOLDERS_MAX : 0,
+      pathTerms: q.terms.length >= 2,
     });
   }
 
@@ -303,44 +352,144 @@ function createFileSearch(opts) {
     return execQuery(normalizeStructured(spec), opt, now);
   }
 
+  // ── The catalog half, decoupled from the answer ──────────────────────────
+  // Windows Search is the slow source (a powershell host, an ADODB query) and
+  // the only one that reads file CONTENT. The answer used to wait for it on
+  // every keystroke. Now a query starts it, waits at most `catalogWaitMs`, and
+  // answers with what the index had; the catalog's own answer is kept here for
+  // a few seconds so the dashboard's follow-up (`catalog()`) collects it
+  // instead of asking again.
+  const catalogStash = new Map();   // key -> { at, promise }
+
+  function catalogKey(q) {
+    return JSON.stringify([q.terms, SearchQuery.effectiveExts(q), q.after, q.before, q.minBytes, q.maxBytes]);
+  }
+
+  function startCatalog(q) {
+    const key = catalogKey(q);
+    const now = Date.now();
+    const hit = catalogStash.get(key);
+    if (hit && now - hit.at < CATALOG_STASH_MS) return hit.promise;
+    const content = q.terms.length > 0;
+    const promise = hostRequest({
+      terms: q.terms, exts: SearchQuery.effectiveExts(q),
+      after: q.after, before: q.before, minBytes: q.minBytes, maxBytes: q.maxBytes,
+      content, max: WDS_MAX,
+    }).then((items) => ({ items, state: 'ok' }))
+      .catch((e) => {
+        const msg = String(e && e.message);
+        const state = /wds_unsupported/.test(msg) ? 'unsupported'
+          : /wds_unavailable/.test(msg) ? 'unavailable'
+            : /superseded/.test(msg) ? 'superseded' : 'error';
+        return { items: [], state };
+      });
+    catalogStash.set(key, { at: now, promise });
+    for (const [k, v] of catalogStash) {
+      if (catalogStash.size <= CATALOG_STASH_MAX && now - v.at < CATALOG_STASH_MS) break;
+      catalogStash.delete(k);
+    }
+    return promise;
+  }
+
+  function withTimeout(promise, ms) {
+    if (!Number.isFinite(ms)) return promise;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), Math.max(0, ms));
+      promise.then((v) => { clearTimeout(timer); resolve(v); });
+    });
+  }
+
+  function catalogItems(wdsOut, content) {
+    const out = [];
+    for (const it of (wdsOut && wdsOut.items) || []) {
+      if (!it || typeof it.p !== 'string') continue;
+      out.push({
+        path: it.p, name: it.n || path.basename(it.p), dir: path.dirname(it.p),
+        size: it.s || 0, mtime: it.m || 0,
+        // The catalog can match on indexed CONTENT: rows whose name misses the
+        // terms survive ranking via the content floor only when content search
+        // was actually on.
+        contentHit: content,
+        source: 'catalog',
+      });
+    }
+    return out;
+  }
+
+  // A usage record for a FILE or folder: app launches share the log under an
+  // "app:" key, and records from before real paths were kept have none.
+  const isPathRec = (r) => !!r && typeof r.p === 'string' && path.isAbsolute(r.p);
+
+  // Files the user opened from Xenon before, matched against the query with
+  // typo tolerance. The pool is small (the usage log holds 500), which is what
+  // makes a fuzzy match affordable here and nowhere else; and a file the user
+  // keeps opening must never be cut by a backend's top-100.
+  async function usagePool(q, u, have) {
+    const recs = Object.values((u && u.opens) || {})
+      .filter((r) => isPathRec(r) && !have.has(r.p.toLowerCase()))
+      .filter((r) => SearchRank.scoreName(path.basename(r.p), q.terms, { dir: path.dirname(r.p), typos: true }) > 0)
+      .sort((a, b) => (b.last || 0) - (a.last || 0))
+      .slice(0, POOL_MAX);
+    const out = [];
+    await Promise.all(recs.map(async (r) => {
+      try {
+        const st = await fs.promises.stat(r.p);
+        out.push({
+          path: r.p, name: path.basename(r.p), dir: path.dirname(r.p),
+          size: st.isFile() ? st.size : 0, mtime: st.mtimeMs, contentHit: false,
+          typos: true, folder: st.isDirectory(),
+        });
+      } catch { /* gone since it was opened: not a result */ }
+    }));
+    return out;
+  }
+
+  const appKey = (name) => 'app:' + SearchRank.norm(name);
+
+  function scoreApp(a, terms, u, now) {
+    let s = SearchRank.scoreName(a.name, terms);
+    if (s < 0.5) {
+      // A typo in an app name ("spotfy") still finds it; a mere letters-in-
+      // order match (0.2) does not.
+      const typo = SearchRank.scoreName(a.name, terms, { typos: true });
+      s = typo >= 0.25 ? typo : 0;
+    }
+    if (!s) return 0;
+    // Apps launched from here before come first among equals.
+    return s * (1 + 0.3 * SearchRank.freqScore(appKey(a.name), u, now));
+  }
+
   // The engine shared by both entries: q is a parsed/normalized query shape.
+  //   opt.catalogWaitMs  how long to wait for Windows Search before answering
+  //                      without it (the dashboard passes a short one and
+  //                      fetches the rest through catalog()); absent = wait
   async function execQuery(q, opt, now) {
     const hasFilter = q.terms.length || q.exts || q.kind || q.after != null || q.before != null || q.minBytes != null || q.maxBytes != null;
-    if (!hasFilter) return { ok: true, chips: q.chips, terms: q.terms, results: [], wds: 'ok', index: 'off' };
+    if (!hasFilter) {
+      // An empty query is what the dashboard sends when Spotlight opens.
+      warm();
+      return { ok: true, chips: q.chips, terms: q.terms, results: [], wds: 'ok', index: 'off' };
+    }
 
     const content = q.terms.length > 0;
+    const plain = content && !q.exts && !q.kind
+      && q.after == null && q.before == null && q.minBytes == null && q.maxBytes == null;
     // Applications: only for plain name queries (a kind/date/size filter means
     // the user is after FILES), unless the AI explicitly said the user wants
     // an installed application (q.wantApps). Matching quality gates at
     // word/prefix level — a bare substring must not surface half the app list.
-    const wantApps = q.wantApps === true
-      ? q.terms.length > 0
-      : (content && !q.exts && !q.kind
-        && q.after == null && q.before == null && q.minBytes == null && q.maxBytes == null);
+    const wantApps = q.wantApps === true ? q.terms.length > 0 : plain;
     const appsPromise = (wantApps && typeof appsProvider === 'function')
       ? Promise.resolve().then(() => appsProvider()).catch(() => [])
       : Promise.resolve([]);
-    const [wdsOut, living, u, appList] = await Promise.all([
-      hostRequest({
-        terms: q.terms, exts: SearchQuery.effectiveExts(q),
-        after: q.after, before: q.before, minBytes: q.minBytes, maxBytes: q.maxBytes,
-        content, max: WDS_MAX,
-      }).then((items) => ({ items, state: 'ok' }))
-        .catch((e) => {
-          const msg = String(e && e.message);
-          const state = /wds_unsupported/.test(msg) ? 'unsupported'
-            : /wds_unavailable/.test(msg) ? 'unavailable' : 'error';
-          return { items: [], state };
-        }),
-      livingMatches(q),
-      loadUsage(),
-      appsPromise,
-    ]);
+    const catalogP = startCatalog(q);
+    const [living, u, appList] = await Promise.all([livingMatches(q, plain), loadUsage(), appsPromise]);
+    const wdsOut = await withTimeout(catalogP, opt.catalogWaitMs);
 
     const appHits = (Array.isArray(appList) ? appList : [])
       .map((a) => (a && typeof a.name === 'string' && typeof a.target === 'string')
-        ? { a, s: SearchRank.scoreName(a.name, q.terms) } : null)
-      .filter((x) => x && x.s >= 0.5)
+        ? { a, s: scoreApp(a, q.terms, u, now) } : null)
+      .filter((x) => x && x.s > 0)
       .sort((x, y) => y.s - x.s || x.a.name.localeCompare(y.a.name))
       .slice(0, 3)
       .map((x) => ({ id: registerApp(x.a), name: x.a.name }));
@@ -352,21 +501,22 @@ function createFileSearch(opts) {
       if (!it || typeof it.p !== 'string') continue;
       merged.set(it.p.toLowerCase(), {
         path: it.p, name: it.n || path.basename(it.p), dir: path.dirname(it.p),
-        size: it.s || 0, mtime: it.m || 0, contentHit: false,
+        size: it.s || 0, mtime: it.m || 0, contentHit: false, viaPath: (it.pt || 0) > 0,
       });
     }
-    for (const it of wdsOut.items) {
-      if (!it || typeof it.p !== 'string') continue;
-      const k = it.p.toLowerCase();
-      if (merged.has(k)) continue;
-      merged.set(k, {
+    for (const it of (living && living.dirs) || []) {
+      if (!it || typeof it.p !== 'string' || merged.has(it.p.toLowerCase())) continue;
+      merged.set(it.p.toLowerCase(), {
         path: it.p, name: it.n || path.basename(it.p), dir: path.dirname(it.p),
-        size: it.s || 0, mtime: it.m || 0,
-        // The catalog can match on indexed CONTENT: rows whose name misses the
-        // terms survive ranking via the content floor only when content search
-        // was actually on.
-        contentHit: content,
+        size: it.s || 0, mtime: it.m || 0, contentHit: false, folder: true, files: it.f || 0,
       });
+    }
+    for (const it of catalogItems(wdsOut, content)) {
+      const k = it.path.toLowerCase();
+      if (!merged.has(k)) merged.set(k, it);
+    }
+    if (plain) {
+      for (const it of await usagePool(q, u, merged)) merged.set(it.path.toLowerCase(), it);
     }
 
     const ranked = SearchRank.rankResults([...merged.values()], q.terms, u, now);
@@ -375,16 +525,105 @@ function createFileSearch(opts) {
       ok: true,
       chips: q.chips,
       terms: q.terms,
-      wds: wdsOut.state,
+      wds: wdsOut ? wdsOut.state : 'pending',
       index: !living ? 'off' : (living.building ? 'building' : 'ready'),
       apps: appHits,
-      results: top.map((it) => ({
-        id: registerResult(it),
-        name: it.name, path: it.path, dir: it.dir,
-        size: it.size, mtime: it.mtime,
-        ext: path.extname(it.name).toLowerCase().replace(/^\./, ''),
-      })),
+      results: top.map((it) => publicResult(it, q.terms)),
     };
+  }
+
+  // One result as the dashboard sees it. `kind` groups the list (folders
+  // apart), `content` marks a row found only inside the file, `viaPath` a row
+  // where a word matched a folder above it rather than the name.
+  function publicResult(it, terms) {
+    const content = !!it.contentHit && SearchRank.scoreName(it.name, terms, { dir: it.dir }) === 0;
+    return {
+      id: registerResult(it),
+      name: it.name, path: it.path, dir: it.dir,
+      size: it.size, mtime: it.mtime,
+      ext: it.folder ? '' : path.extname(it.name).toLowerCase().replace(/^\./, ''),
+      kind: it.folder ? 'folder' : 'file',
+      ...(it.folder && it.files ? { files: it.files } : {}),
+      ...(content ? { content: true } : {}),
+      ...(it.viaPath ? { viaPath: true } : {}),
+      ...(it.source === 'catalog' ? { source: 'catalog' } : {}),
+    };
+  }
+
+  // The rest of a query the dashboard was answered without: what Windows
+  // Search found, ranked, for the client to add below what it already shows
+  // (it drops the paths it has). Shares the in-flight catalog request.
+  async function catalog(rawQuery, options) {
+    const opt = options || {};
+    const now = Number.isFinite(opt.now) ? opt.now : Date.now();
+    const q = SearchQuery.parseQuery(rawQuery, { now, disable: opt.disable });
+    const hasFilter = q.terms.length || q.exts || q.kind || q.after != null || q.before != null || q.minBytes != null || q.maxBytes != null;
+    if (!hasFilter) return { ok: true, results: [], wds: 'ok' };
+    const [wdsOut, u] = await Promise.all([startCatalog(q), loadUsage()]);
+    const ranked = SearchRank.rankResults(catalogItems(wdsOut, q.terms.length > 0), q.terms, u, now);
+    return {
+      ok: true,
+      wds: wdsOut.state,
+      results: ranked.slice(0, Math.max(1, Math.min(60, opt.max || 40))).map((it) => publicResult(it, q.terms)),
+    };
+  }
+
+  // What the empty search shows: files and folders recently opened from Xenon,
+  // newest first, each checked to still exist. From the usage log only, which
+  // lives in DATA_DIR and is never served as is.
+  async function recent(options) {
+    const opt = options || {};
+    const max = Math.max(1, Math.min(12, opt.max || 8));
+    const u = await loadUsage();
+    const recs = Object.values(u.opens || {})
+      .filter((r) => isPathRec(r) && Number.isFinite(r.last))
+      .sort((a, b) => b.last - a.last)
+      .slice(0, max * 2);
+    const files = [];
+    for (const r of recs) {
+      if (files.length >= max) break;
+      try {
+        const st = await fs.promises.stat(r.p);
+        files.push(publicResult({
+          path: r.p, name: path.basename(r.p), dir: path.dirname(r.p),
+          size: st.isFile() ? st.size : 0, mtime: st.mtimeMs, folder: st.isDirectory(),
+        }, []));
+      } catch { /* gone: not offered */ }
+    }
+    // The folders those files live in, by how often the user opens from them.
+    const byDir = new Map();
+    for (const r of Object.values(u.opens || {})) {
+      if (!isPathRec(r)) continue;
+      const d = path.dirname(r.p);
+      const e = byDir.get(d.toLowerCase()) || { dir: d, n: 0 };
+      e.n += r.n || 1;
+      byDir.set(d.toLowerCase(), e);
+    }
+    const folders = [];
+    for (const e of [...byDir.values()].sort((a, b) => b.n - a.n).slice(0, 8)) {
+      if (folders.length >= 4) break;
+      try {
+        if (!(await fs.promises.stat(e.dir)).isDirectory()) continue;
+        folders.push(publicResult({ path: e.dir, name: path.basename(e.dir) || e.dir, dir: path.dirname(e.dir), size: 0, mtime: 0, folder: true }, []));
+      } catch { /* gone */ }
+    }
+    return { ok: true, files, folders };
+  }
+
+  // The image behind a result id, for the preview: raster types a browser
+  // decodes, bounded, re-stat'ed. Same opaque-id contract as open/reveal.
+  const THUMB_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif']);
+  const THUMB_MAX = 20 * 1024 * 1024;
+  async function thumbTarget(id) {
+    const rec = results.get(String(id || ''));
+    if (!rec || rec.app || !rec.path) return null;
+    const ext = path.extname(rec.path).toLowerCase().replace(/^\./, '');
+    if (!THUMB_EXTS.has(ext)) return null;
+    try {
+      const st = await fs.promises.stat(rec.path);
+      if (!st.isFile() || st.size > THUMB_MAX) return null;
+      return { path: rec.path, ext, size: st.size };
+    } catch { return null; }
   }
 
   // Open a result with its registered handler — same rules as the Deck's
@@ -398,6 +637,11 @@ function createFileSearch(opts) {
       // the exe/lnk blocklist guards arbitrary FILE results, not these.
       if (typeof launchApp !== 'function') return { ok: false, error: 'unavailable' };
       try { await launchApp(rec); } catch { return { ok: false, error: 'open_failed' }; }
+      // Counted like a file open, under its own key: an app launched from here
+      // often is the one a short query means.
+      const u = await loadUsage();
+      usage = SearchRank.foldOpen(u, appKey(rec.name), '', Date.now());
+      scheduleUsageSave();
       return { ok: true };
     }
     if (isBlockedOpenPath(rec.path)) return { ok: false, error: 'blocked_ext', revealable: true };
@@ -474,7 +718,7 @@ function createFileSearch(opts) {
   }
 
   return {
-    search, searchStructured, open, reveal, iconTarget, usageSnapshot, stop,
+    search, searchStructured, catalog, recent, thumbTarget, warm, open, reveal, iconTarget, usageSnapshot, stop,
     _setHostRunner(fn) { hostRunner = typeof fn === 'function' ? fn : null; },
     _resultsCacheSize() { return results.size; },
   };

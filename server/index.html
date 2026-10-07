@@ -101,6 +101,8 @@
 <link rel="stylesheet" href="components/StockWidget/StockWidget.css">
 <link rel="stylesheet" href="components/FootballWidget/FootballWidget.css">
 <link rel="stylesheet" href="components/ClaudeWidget/ClaudeWidget.css">
+<link rel="stylesheet" href="components/CodexWidget/CodexWidget.css">
+<link rel="stylesheet" href="components/ChatGPTWidget/ChatGPTWidget.css">
 <link rel="stylesheet" href="components/NewsWidget/NewsWidget.css">
 <link rel="stylesheet" href="components/FansWidget/FansWidget.css">
 <link rel="stylesheet" href="components/PowerWidget/PowerWidget.css">
@@ -228,6 +230,9 @@
              inside .clock for the same free minimal-topbar reparenting as the
              two above, so it is present in both the full and minimal bars. -->
         <span class="clock-claude" id="clock-claude" hidden></span>
+        <!-- OpenAI Codex marker: a Codex session working, or one waiting on an
+             approval. Populated by js/codex-widget.js; same island rules. -->
+        <span class="clock-codex" id="clock-codex" hidden></span>
       </div>
     </div>
 
@@ -582,6 +587,20 @@
            Fed over SSE ('claude'); hidden by default, added from the "+" palette. -->
       <section class="panel claude-panel dashboard-widget" data-dashboard-widget="claude" data-dashboard-size="normal" data-dashboard-order="27" data-dashboard-hidden="true">
         <div class="claude-widget-mount"></div>
+      </section>
+
+      <!-- OpenAI Codex: plan windows and usage (from `codex app-server`), live
+           sessions and approval cards (from the hooks codex-link.js installs).
+           Fed over SSE ('codex'); hidden by default, added from the "+" palette. -->
+      <section class="panel codex-panel dashboard-widget" data-dashboard-widget="openaicodex" data-dashboard-size="normal" data-dashboard-order="38" data-dashboard-hidden="true">
+        <div class="codex-widget-mount"></div>
+      </section>
+
+      <!-- Ask ChatGPT: conversations answered on the user's ChatGPT plan through
+           OpenAI Codex (server/chatgpt-ask.js). Fed over SSE ('chatgpt'); hidden
+           by default, added from the "+" palette. -->
+      <section class="panel chatgpt-panel dashboard-widget" data-dashboard-widget="chatgpt" data-dashboard-size="normal" data-dashboard-order="39" data-dashboard-hidden="true">
+        <div class="chatgpt-widget-mount"></div>
       </section>
 
       <!-- News — merged headline stream from followed outlets and topics.
@@ -992,6 +1011,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="settings_cat_feeds">Borsa, Calcio e News</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="slideshow" onclick="settingsSetCategory('slideshow')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m4 17 4.5-4 3.5 2.5 3-2.5L20 17"/></svg><span data-i18n="settings_cat_slideshow">Slideshow</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="claude" onclick="settingsSetCategory('claude')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/></svg><span data-i18n="settings_cat_claude">Claude Code</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="codex" onclick="settingsSetCategory('codex')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5"/><path d="M12.5 15h4.5"/></svg><span data-i18n="settings_cat_codex">Codex</span></button>
         <div class="settings-nav-label" id="settings-nav-label-integrations" data-i18n="settings_nav_integrations" aria-hidden="true">Integrazioni</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
@@ -2477,6 +2497,31 @@
         </label>
       </div>
 
+      <!-- OpenAI Codex: what may appear while you are looking elsewhere (the
+           approval cards) and how long a card waits. Linking, trust and plan
+           usage live in the tile itself. -->
+      <div class="settings-group" data-settings-cat="codex">
+        <div class="settings-group-head">
+          <span data-i18n="settings_cat_codex">Codex</span>
+          <span class="settings-hint" data-i18n="settings_codex_hint">Il widget “Codex” si aggiunge dal pulsante “+” della dashboard. Qui decidi solo cosa può comparire quando il widget non è sullo schermo.</span>
+        </div>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-codex-approvals" type="checkbox" onchange="updateCodexWidgetCfg({ approvals: this.checked })">
+          <span class="settings-label-line"><span data-i18n="settings_codex_approvals">Chiedi i permessi su questo schermo</span><span class="settings-hint" data-i18n="settings_codex_approvals_hint">quando Codex chiede di eseguire un comando o di modificare dei file, la richiesta compare qui. Se disattivi, risponde Codex come prima</span></span>
+        </label>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_codex_wait">Quanto aspetta una richiesta</span><span class="settings-hint" data-i18n="settings_codex_wait_hint">mentre la richiesta è qui, Codex non mostra la sua. Allo scadere torna a Codex, che la chiede come sempre</span></span>
+          <select class="settings-select" id="settings-codex-wait" onchange="updateCodexWidgetCfg({ waitSec: Number(this.value) })">
+            <option value="30">30 s</option>
+            <option value="60">1 min</option>
+            <option value="90">1 min 30 s</option>
+            <option value="180">3 min</option>
+            <option value="300">5 min</option>
+            <option value="540">9 min</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Hardware sensors. The WHOLE section is built by js/sensor-access.js →
            initSettings(), heading included, and only when there is something to
            repair. It used to be a static .settings-group with the heading in
@@ -3130,6 +3175,13 @@
           <textarea class="settings-text-input settings-textarea" id="settings-search-folders" rows="3" spellcheck="false" placeholder="C:\" onchange="updateSearchSettings({ indexRoots: this.value.split('\n') })"></textarea>
         </label>
         <p class="settings-note" id="settings-search-index-status" hidden></p>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-search-recent-tile" type="checkbox" onchange="updateSearchSettings({ recentInTile: this.checked })">
+          <span class="settings-label-line">
+            <span data-i18n="settings_search_recent_tile">File recenti nel widget Ricerca</span>
+            <span class="settings-hint" data-i18n="settings_search_recent_tile_hint">a ricerca vuota mostra i file aperti di recente da Xenon; si vedono anche da un telefono abbinato</span>
+          </span>
+        </label>
         <label class="settings-toggle-row">
           <input class="settings-check" id="settings-search-aibrain" type="checkbox" onchange="updateSearchSettings({ aiFullContext: this.checked })">
           <span class="settings-label-line">
@@ -4177,6 +4229,7 @@
 <script src="js/streaming-page.js"></script>
 <script src="js/spotify-settings.js"></script>
 <script src="js/obs-widget.js"></script>
+<script src="js/watch-view.js"></script>
 <script src="js/youtube-widget.js"></script>
 <script src="js/youtubelive-widget.js"></script>
 <script src="js/twitchwatch-widget.js"></script>
@@ -4189,6 +4242,9 @@
 <script src="js/stock-widget.js"></script>
 <script src="js/football-widget.js"></script>
 <script src="js/claude-widget.js"></script>
+<script src="js/approval-keys.js"></script>
+<script src="js/codex-widget.js"></script>
+<script src="js/chatgpt-widget.js"></script>
 <script src="js/news-widget.js"></script>
 <script src="js/sensor-access.js"></script>
 <script src="js/fans-widget.js"></script>

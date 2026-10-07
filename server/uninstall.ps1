@@ -380,6 +380,30 @@ if (-not (Test-Path -LiteralPath $claudeLink)) {
   }
 }
 
+# OpenAI Codex. Same reason: Xenon adds hooks to the user's Codex hooks.json, and
+# left behind each one starts a script that no longer exists on every prompt.
+$codexLink = Join-Path $serverDir 'codex-link.js'
+if (-not (Test-Path -LiteralPath $codexLink)) {
+  Info 'Codex: nothing to undo'
+} elseif ($DryRun) {
+  Info "$tag would remove Xenon's hooks from the Codex hooks.json"
+} else {
+  $nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+  if (-not $nodeExe) {
+    foreach ($p in @("$env:ProgramFiles\nodejs\node.exe", "${env:ProgramFiles(x86)}\nodejs\node.exe", "$localAppData\Programs\nodejs\node.exe")) {
+      if (Test-Path -LiteralPath $p) { $nodeExe = $p; break }
+    }
+  }
+  if (-not $nodeExe) {
+    Warn 'Node.js not found - if you use Codex, run "node server\codex-link.js unlink" before deleting the folder'
+  } else {
+    $out = & $nodeExe $codexLink unlink 2>&1
+    if ($LASTEXITCODE -ne 0) { Warn "could not unlink Codex ($out)" }
+    elseif ($out -match 'unlinked')  { Ok "removed Xenon's hooks from Codex" }
+    else { Info 'Codex was not linked' }
+  }
+}
+
 # The "start Ollama at login" entry. Ollama itself is the user's own install and
 # is deliberately left alone (models are gigabytes and may be used by other
 # tools), but this entry is ours: Xenon wrote it, it is named after Xenon, and

@@ -19,7 +19,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'phone', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -123,6 +123,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    openaicodex: Object.freeze({ x: 16, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    chatgpt:  Object.freeze({ x: 16, y: 48, w: 8, h: 12, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
@@ -259,6 +261,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       { id: 'dots', hidden: false },
       { id: 'badges', hidden: false },
       { id: 'claude', hidden: false },
+      { id: 'codex', hidden: false },
     ],
     // The BUTTONS of the chrome, as opposed to the clock contents above. Order
     // and side apply in both chromes (quickbar/top-actions in Full become the
@@ -604,7 +607,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // search dead while Settings displayed a configured folder. Leaving the key
   // absent is what lets the SERVER supply the platform's default, which is
   // where that decision already belongs (see normalizeSearchSettings).
-  searchSettings: Object.freeze({ hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  searchSettings: Object.freeze({ hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false, recentInTile: false }),
   pageHotkeys: Object.freeze([]),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   // Third-party widget SDK (the Custom widget tile). OFF by default — community
@@ -633,6 +636,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // / question cards (with their fullscreen escalation) and the topbar marker.
   // Both on by default; see js/claude-widget.js.
   claudeWidget: Object.freeze({ approvals: true, questions: true, topbar: true }),
+  // OpenAI Codex widget: the approval cards (Settings → Codex) and how long one
+  // waits before the decision goes back to Codex. See js/codex-widget.js.
+  codexWidget: Object.freeze({ approvals: true, waitSec: 90 }),
+  // "Ask ChatGPT" tile: the model Codex answers with. See js/chatgpt-widget.js.
+  chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -906,7 +914,7 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // — a grant carrying a stream/action the server allows but this list omits gets
 // silently stripped on save, so the widget is granted a capability it can never
 // use. server/test/sdk-grant-cats-sync guards that half.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'spotify', 'scriptStates']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'spotify', 'scriptStates']);
 const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch', 'pages']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
@@ -1145,6 +1153,21 @@ function normalizeClaudeWidget(value) {
   // `questions` is separate from `approvals` on purpose: one decides whether
   // something runs on this PC, the other only picks how Claude proceeds.
   return { approvals: v.approvals !== false, questions: v.questions !== false, topbar: v.topbar !== false };
+}
+
+// OpenAI Codex widget. Mirrored by normalizeCodexWidget on the server, which
+// also reads `approvals` to answer Codex at once when the cards are off.
+function normalizeCodexWidget(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const w = Math.round(Number(v.waitSec));
+  return { approvals: v.approvals !== false, waitSec: Number.isFinite(w) ? Math.max(30, Math.min(540, w)) : 90 };
+}
+
+// "Ask ChatGPT" tile. Same model-name rule as ai-cli.js sanitizeModel on the
+// server: 'default', or a name that starts with a letter or digit.
+function normalizeChatgptWidget(value) {
+  const m = String((value && value.model) || '').trim();
+  return { model: m && m !== 'default' && /^[A-Za-z0-9][A-Za-z0-9._:[\]-]{0,63}$/.test(m) ? m : 'default' };
 }
 
 function cloneDashboardLayout(value) {
@@ -1432,7 +1455,7 @@ function normalizeTopbarRails(value) {
 // is inlined (not a module const) because normalizeSettings runs at load time,
 // before a top-level const would be initialised — a TDZ crash otherwise.
 function normalizeTopbarClock(value, legacyRoot) {
-  const canonical = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude'];
+  const canonical = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex'];
   const v = value && typeof value === 'object' ? value : {};
   const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
   const version = Number(v.version) || 0;
@@ -1847,6 +1870,8 @@ function normalizeSettings(source) {
     bgCustom: normalizeBgCustom(value.bgCustom),
     slideshow: normalizeSlideshow(value.slideshow),
     claudeWidget: normalizeClaudeWidget(value.claudeWidget),
+    codexWidget: normalizeCodexWidget(value.codexWidget),
+    chatgptWidget: normalizeChatgptWidget(value.chatgptWidget),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
@@ -2194,6 +2219,8 @@ function normalizeSearchSettings(value, defaultRoot) {
     // AI full context for explicit Search + Disk Advisor calls —
     // privacy-touching, strict opt-in like the wake word.
     aiFullContext: v.aiFullContext === true,
+    // Recent files in the Search tile's empty state: off unless chosen.
+    recentInTile: v.recentInTile === true,
   };
 }
 
@@ -4885,6 +4912,11 @@ function syncSettingsControls() {
   if (claudeAppr) claudeAppr.checked = claudeCfg.approvals !== false;
   const claudeQ = $('settings-claude-questions');
   if (claudeQ) claudeQ.checked = claudeCfg.questions !== false;
+  const codexCfg = normalizeCodexWidget(hubSettings.codexWidget);
+  const codexAppr = $('settings-codex-approvals');
+  if (codexAppr) codexAppr.checked = codexCfg.approvals;
+  const codexWait = $('settings-codex-wait');
+  if (codexWait) codexWait.value = String(codexCfg.waitSec);
 
   const hybridGpuPause = $('settings-hybrid-gpu-pause');
   if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;
@@ -5488,6 +5520,8 @@ function renderSearchDiskSettings() {
   if (folders && document.activeElement !== folders) folders.value = (s.indexRoots || []).join('\n');
   const brain = document.getElementById('settings-search-aibrain');
   if (brain) brain.checked = s.aiFullContext === true;
+  const recentTile = document.getElementById('settings-search-recent-tile');
+  if (recentTile) recentTile.checked = s.recentInTile === true;
   const dev = document.getElementById('settings-disk-devfolders');
   if (dev && document.activeElement !== dev) dev.value = (d.devFolders || []).join('\n');
   const age = document.getElementById('settings-disk-installer-age');
@@ -8736,6 +8770,17 @@ function updateAutoOpenBrowser(checked) {
 // it off, Claude Code's permission hook is answered immediately with "no
 // decision", which puts the prompt back in the terminal instead of leaving the
 // session blocked on a card that will never be drawn.
+// Settings → Codex. Both values are also read server-side: with approvals off
+// the Codex hook is answered at once with "no decision" (Codex asks itself),
+// and waitSec is how long a card waits before the decision goes back to Codex.
+function updateCodexWidgetCfg(patch) {
+  const current = (hubSettings.codexWidget && typeof hubSettings.codexWidget === 'object') ? hubSettings.codexWidget : {};
+  hubSettings = normalizeSettings({ ...hubSettings, codexWidget: { ...current, ...patch } });
+  saveHubSettings();
+  syncSettingsControls();
+  if (window.CodexWidget && typeof CodexWidget.onSettingsChanged === 'function') CodexWidget.onSettingsChanged();
+}
+
 function updateClaudeWidgetCfg(patch) {
   const current = (hubSettings.claudeWidget && typeof hubSettings.claudeWidget === 'object') ? hubSettings.claudeWidget : {};
   hubSettings = normalizeSettings({ ...hubSettings, claudeWidget: { ...current, ...patch } });
@@ -9405,7 +9450,7 @@ function updateTopbarStyle(style) {
 }
 
 // Built-in island segment id → i18n label key (editor rows).
-const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude' };
+const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude', codex: 'topbar_el_codex' };
 // Chrome-button id → i18n label key. Must stay in step with ACTION_SELECTORS in
 // js/topbar-minimal.js and with the canonical list in BOTH normalizers
 // (js/settings.js and its server.js twin) — pinned by test/topbar-island-sync.

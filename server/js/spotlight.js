@@ -29,8 +29,6 @@
   const DEBOUNCE_MS = 180;
   const PULL_OPEN_PX = 150;    // drag distance that commits the open (short pulls = just the effect)
   const PULL_START_PX = 16;    // vertical movement before the gesture claims the pointer
-  const RECENT_KEY = 'xenon.spotlight.recent';
-  const RECENT_MAX = 8;
 
   // ── tiny formatters ──────────────────────────────────────────────────────
   function fmtSize(n) {
@@ -213,34 +211,50 @@
     return '';
   }
 
-  // ── recent searches (local only) ─────────────────────────────────────────
-  function readRecent() {
-    try {
-      const arr = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-      return Array.isArray(arr) ? arr.filter((s) => typeof s === 'string').slice(0, RECENT_MAX) : [];
-    } catch { return []; }
+  // ── filters the menu adds (as words the parser already understands) ───────
+  // A filter is typed into the query rather than kept apart, so it shows as the
+  // same removable chip a typed "foto" or "questo mese" does, and the query
+  // stays one string the user can read and edit. The parser speaks Italian and
+  // English; other languages get the English words.
+  const FILTER_WORDS = {
+    it: { image: 'foto', video: 'video', audio: 'musica', document: 'documenti', archive: 'archivi',
+      today: 'oggi', week: 'questa settimana', month: 'questo mese', year: "quest'anno",
+      big: 'più di 100 mb', huge: 'più di 1 gb' },
+    en: { image: 'photos', video: 'videos', audio: 'music', document: 'documents', archive: 'archives',
+      today: 'today', week: 'this week', month: 'this month', year: 'this year',
+      big: 'more than 100 mb', huge: 'more than 1 gb' },
+  };
+  function filterWords() {
+    // `lang` is i18n.js's global (a script-level let, not a window property).
+    const l = typeof lang !== 'undefined' ? lang : 'en';
+    return FILTER_WORDS[l === 'it' ? 'it' : 'en'];
   }
-  function pushRecent(q) {
-    const v = String(q || '').trim();
-    if (v.length < 2) return;
-    const arr = [v, ...readRecent().filter((s) => s.toLowerCase() !== v.toLowerCase())].slice(0, RECENT_MAX);
-    try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr)); } catch {}
-  }
+  const FILTER_GROUPS = [
+    ['spot_filter_type', 'Tipo', [['image', 'spot_kind_image', 'Foto'], ['video', 'spot_kind_video', 'Video'], ['audio', 'spot_kind_audio', 'Musica'], ['document', 'spot_kind_document', 'Documenti'], ['archive', 'spot_kind_archive', 'Archivi']]],
+    ['spot_filter_date', 'Modificati', [['today', 'spot_today', 'oggi'], ['week', 'spot_this_week', 'questa settimana'], ['month', 'spot_this_month', 'questo mese'], ['year', 'spot_this_year', 'quest’anno']]],
+    ['spot_filter_size', 'Dimensione', [['big', 'spot_filter_big', 'Oltre 100 MB'], ['huge', 'spot_filter_huge', 'Oltre 1 GB']]],
+  ];
+
+  const PREVIEW_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif']);
+  let rowSeq = 0;
 
   // ── the search surface factory ───────────────────────────────────────────
-  // Builds the bar (glass, input, AI sparkle, optional ×) + body (chips,
-  // status, results) into opts.host and wires the whole engine with
+  // Builds the bar (glass, input, filters, AI sparkle, optional ×) + body
+  // (chips, status, results) into opts.host and wires the whole engine with
   // per-instance state. Used twice: the overlay below, and the Search widget
   // tile (via window.Spotlight.createSearchUI).
-  //   opts.host      element receiving .spot-bar + .spot-body
-  //   opts.stateHost element carrying the state classes (spot-expanded,
-  //                  spot-loading, spot-ai, spot-ai-thinking) — the overlay
-  //                  root or the widget's own container
-  //   opts.keyHost   element the keydown handler attaches to
-  //   opts.withClose build the × button (overlay only)
-  //   opts.onClose   Escape / × (overlay closes; the widget clears)
-  //   opts.onExpand  expanded-state change (the popup resizes its window on it)
-  //   opts.onOpened  a file was successfully opened (overlay closes; widget stays)
+  //   opts.host       element receiving .spot-bar + .spot-body
+  //   opts.stateHost  element carrying the state classes (spot-expanded,
+  //                   spot-loading, spot-ai, spot-ai-thinking) — the overlay
+  //                   root or the widget's own container
+  //   opts.keyHost    element the keydown handler attaches to
+  //   opts.withClose  build the × button (overlay only)
+  //   opts.onClose    Escape / × (overlay closes; the widget clears)
+  //   opts.onExpand   expanded-state change (the popup resizes its window on it)
+  //   opts.onOpened   a file was successfully opened (overlay closes; widget stays)
+  //   opts.showRecent () => boolean: the empty search lists recent files (the
+  //                   overlay always; the tile only with its setting on)
+  //   opts.preview    show an image preview beside the list (overlay only)
   function createSearchUI(opts) {
     const stateHost = opts.stateHost;
     let debTimer = null;
@@ -254,28 +268,38 @@
     let aiMode = false;
     let aiRanFor = null;         // last phrase the AI searched; Enter re-runs only on change
     let aiNotice = '';           // one-shot status line shown with the next results
+    const listId = 'spot-list-' + (++rowSeq);
 
     function setExpanded(expanded) {
       stateHost.classList.toggle('spot-expanded', !!expanded);
       if (typeof opts.onExpand === 'function') opts.onExpand(!!expanded);
     }
 
+    function svgIcon(d, cls) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('aria-hidden', 'true');
+      if (cls) svg.classList.add(...cls.split(' '));
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', d);
+      svg.appendChild(p);
+      return svg;
+    }
+
     // ── DOM ──
     const bar = document.createElement('div');
     bar.className = 'spot-bar';
-    const glass = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    glass.setAttribute('viewBox', '0 0 24 24');
-    glass.setAttribute('aria-hidden', 'true');
-    glass.classList.add('spot-bar-icon');
-    const gp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    gp.setAttribute('d', 'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z');
-    glass.appendChild(gp);
+    const glass = svgIcon('M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z', 'spot-bar-icon');
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'spot-input';
     input.autocomplete = 'off';
     input.spellcheck = false;
     input.placeholder = t('spot_placeholder', 'Cerca sul PC…');
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-controls', listId);
+    input.setAttribute('aria-autocomplete', 'list');
     input.addEventListener('input', () => {
       disabled = {};
       if (aiMode) {
@@ -289,6 +313,17 @@
       }
       runSearch();
     });
+
+    // Filters: a small menu of the parser's own words.
+    const filterBtn = document.createElement('button');
+    filterBtn.type = 'button';
+    filterBtn.className = 'spot-filter-toggle';
+    filterBtn.title = t('spot_filters', 'Filtri');
+    filterBtn.setAttribute('aria-haspopup', 'true');
+    filterBtn.setAttribute('aria-expanded', 'false');
+    filterBtn.appendChild(svgIcon('M3 5h18l-7 8v5l-4 2v-7L3 5Z'));
+    filterBtn.addEventListener('click', () => toggleFilters());
+
     // AI mode toggle: the sparkle. Ctrl+I flips it too.
     const aiBtn = document.createElement('button');
     aiBtn.type = 'button';
@@ -305,7 +340,7 @@
     spark.append(sp1, sp2);
     aiBtn.appendChild(spark);
     aiBtn.addEventListener('click', () => setAiMode(!aiMode));
-    bar.append(glass, input, aiBtn);
+    bar.append(glass, input, filterBtn, aiBtn);
     if (opts.withClose) {
       const closeBtn = document.createElement('button');
       closeBtn.type = 'button';
@@ -316,19 +351,78 @@
       bar.appendChild(closeBtn);
     }
 
+    const filterMenu = document.createElement('div');
+    filterMenu.className = 'spot-filter-menu';
+    filterMenu.hidden = true;
+    for (const [labelKey, labelFb, items] of FILTER_GROUPS) {
+      const group = document.createElement('div');
+      group.className = 'spot-filter-group';
+      const label = document.createElement('span');
+      label.className = 'spot-filter-label';
+      label.textContent = t(labelKey, labelFb);
+      group.appendChild(label);
+      for (const [word, key, fb] of items) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'spot-filter-item';
+        b.textContent = t(key, fb);
+        b.addEventListener('click', () => addFilter(word));
+        group.appendChild(b);
+      }
+      filterMenu.appendChild(group);
+    }
+
+    function toggleFilters(force) {
+      const open = typeof force === 'boolean' ? force : filterMenu.hidden;
+      filterMenu.hidden = !open;
+      filterBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      filterBtn.classList.toggle('is-on', open);
+      if (open) setExpanded(true);
+      else if (!input.value.trim()) renderIdle();
+    }
+
+    function addFilter(word) {
+      const phrase = filterWords()[word];
+      if (!phrase) return;
+      input.value = (input.value.trim() + ' ' + phrase).trim();
+      toggleFilters(false);
+      input.focus();
+      if (aiMode) setAiMode(false);
+      else runSearch();
+    }
+
     const chipsEl = document.createElement('div');
     chipsEl.className = 'spot-chips';
     chipsEl.hidden = true;
 
     const statusEl = document.createElement('div');
     statusEl.className = 'spot-status';
+    statusEl.setAttribute('aria-live', 'polite');
 
     const listEl = document.createElement('div');
     listEl.className = 'spot-list';
+    listEl.id = listId;
+    listEl.setAttribute('role', 'listbox');
+
+    // The preview: one image, shown beside the list for the selected row.
+    const previewEl = document.createElement('div');
+    previewEl.className = 'spot-preview';
+    previewEl.hidden = true;
+    const previewImg = document.createElement('img');
+    previewImg.alt = '';
+    previewImg.decoding = 'async';
+    const previewCap = document.createElement('div');
+    previewCap.className = 'spot-preview-cap';
+    previewEl.append(previewImg, previewCap);
+    previewImg.addEventListener('error', () => { previewEl.hidden = true; stateHost.classList.remove('spot-has-preview'); });
+
+    const resultsWrap = document.createElement('div');
+    resultsWrap.className = 'spot-results';
+    resultsWrap.append(listEl, previewEl);
 
     const body = document.createElement('div');
     body.className = 'spot-body';
-    body.append(chipsEl, statusEl, listEl);
+    body.append(filterMenu, chipsEl, statusEl, resultsWrap);
 
     opts.host.append(bar, body);
 
@@ -362,24 +456,70 @@
       chipsEl.hidden = !chipsEl.childElementCount;
     }
 
-    // Closed state — Apple-style: nothing but the pill. The panel body (chips,
-    // status, results) only exists while there is text.
+    // The empty state. Where recents are allowed: the files and folders last
+    // opened from Xenon. Otherwise (the tile by default) the pill alone,
+    // Apple-style: the panel body only exists while there is text.
+    let recentReq = 0;
     function renderIdle() {
       listEl.textContent = '';
       statusEl.textContent = '';
       chipsEl.textContent = '';
       chipsEl.hidden = true;
+      lastResults = [];
+      selIndex = -1;
+      hidePreview();
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      if (!filterMenu.hidden) { setExpanded(true); return; }
       setExpanded(false);
+      if (typeof opts.showRecent === 'function' && opts.showRecent()) void loadRecent();
+    }
+
+    async function loadRecent() {
+      const req = ++recentReq;
+      let out = null;
+      try { out = await (await fetch('/search/recent')).json(); } catch { out = null; }
+      if (req !== recentReq || input.value.trim() || !out || !out.ok) return;
+      const groups = [
+        ['spot_recent_files', 'Aperti di recente', out.files || []],
+        ['spot_recent_folders', 'Cartelle che usi', out.folders || []],
+      ].filter((g) => g[2].length);
+      if (!groups.length) return;
+      setExpanded(true);
+      renderGroups(groups, []);
     }
 
     // ── results ──
+    function rowsOf() { return listEl.querySelectorAll('.spot-row'); }
+
     function setSelected(i) {
-      const rows = listEl.querySelectorAll('.spot-row');
+      const rows = rowsOf();
       if (!rows.length) { selIndex = -1; return; }
       selIndex = Math.max(0, Math.min(rows.length - 1, i));
-      rows.forEach((r, idx) => r.classList.toggle('is-selected', idx === selIndex));
+      rows.forEach((r, idx) => {
+        r.classList.toggle('is-selected', idx === selIndex);
+        r.setAttribute('aria-selected', idx === selIndex ? 'true' : 'false');
+      });
       const sel = rows[selIndex];
-      if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
+      if (sel) {
+        input.setAttribute('aria-activedescendant', sel.id);
+        if (sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
+      }
+      showPreview(lastResults[selIndex]);
+    }
+
+    function hidePreview() {
+      previewEl.hidden = true;
+      previewImg.removeAttribute('src');
+      stateHost.classList.remove('spot-has-preview');
+    }
+
+    function showPreview(r) {
+      if (!opts.preview || !r || r.app || !PREVIEW_EXTS.has(String(r.ext || '').toLowerCase())) { hidePreview(); return; }
+      previewImg.src = '/search/thumb?id=' + encodeURIComponent(r.id);
+      previewCap.textContent = [fmtSize(r.size), fmtDate(r.mtime)].filter(Boolean).join('  ·  ');
+      previewEl.hidden = false;
+      stateHost.classList.add('spot-has-preview');
     }
 
     async function act(kind, r, row) {
@@ -391,7 +531,6 @@
         });
         const out = await res.json().catch(() => ({}));
         if (out && out.ok) {
-          pushRecent(input.value);
           if (kind === 'open' && typeof opts.onOpened === 'function') opts.onOpened();
           return;
         }
@@ -410,13 +549,87 @@
       }
     }
 
+    async function copyPath(r) {
+      if (!r || r.app || !r.path) return;
+      try {
+        await navigator.clipboard.writeText(r.path);
+        statusEl.textContent = t('spot_path_copied', 'Percorso copiato');
+      } catch {
+        statusEl.textContent = t('spot_copy_failed', 'Copia non riuscita');
+      }
+    }
+
+    function buildRow(r, terms) {
+      const row = document.createElement('div');
+      row.className = r.app ? 'spot-row spot-row-app' : 'spot-row';
+      row.id = listId + '-r' + (lastResults.length);
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', 'false');
+      row.tabIndex = -1;
+
+      let iconEl;
+      if (r.app) iconEl = svgIcon(ICON_PATHS.app, 'spot-icon spot-icon-appglyph');
+      else iconEl = iconFor(r.kind === 'folder' ? { ext: '' } : r);
+      row.appendChild(iconEl);
+      upgradeAppIcon(r, iconEl);
+
+      const mid = document.createElement('div');
+      mid.className = 'spot-row-mid';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'spot-row-name';
+      nameEl.appendChild(highlightName(r.name || '', terms));
+      const metaEl = document.createElement('div');
+      metaEl.className = 'spot-row-meta';
+      if (r.app) metaEl.textContent = t('spot_app', 'Applicazione');
+      else if (r.kind === 'folder') {
+        const files = r.files ? r.files + ' ' + t('spot_files', 'file') : '';
+        metaEl.textContent = [shortDir(r.dir), files].filter(Boolean).join('  ·  ');
+      } else metaEl.textContent = [shortDir(r.dir), fmtSize(r.size), fmtDate(r.mtime)].filter(Boolean).join('  ·  ');
+      mid.append(nameEl, metaEl);
+      row.appendChild(mid);
+
+      lastResults.push(r);
+      const index = lastResults.length - 1;
+      row.addEventListener('mouseenter', () => { if (selIndex !== index) setSelected(index); });
+      row.addEventListener('click', () => act('open', r, row));
+      if (r.app) return row;
+
+      const revealBtn = document.createElement('button');
+      revealBtn.type = 'button';
+      revealBtn.className = 'spot-row-reveal';
+      revealBtn.title = t('spot_reveal', 'Mostra nella cartella') + ' (Ctrl+Invio)';
+      revealBtn.appendChild(svgIcon(ICON_PATHS.folder));
+      revealBtn.addEventListener('click', (e) => { e.stopPropagation(); act('reveal', r, row); });
+      row.appendChild(revealBtn);
+      return row;
+    }
+
+    // Rows in labelled groups, in the order they are listed; the keyboard
+    // walks them as one list.
+    function renderGroups(groups, terms) {
+      listEl.textContent = '';
+      lastResults = [];
+      selIndex = -1;
+      hidePreview();
+      for (const [key, fb, items] of groups) {
+        if (!items.length) continue;
+        const head = document.createElement('div');
+        head.className = 'spot-group';
+        head.setAttribute('role', 'presentation');
+        head.textContent = t(key, fb);
+        listEl.appendChild(head);
+        for (const r of items) listEl.appendChild(buildRow(r, terms));
+      }
+      input.setAttribute('aria-expanded', lastResults.length ? 'true' : 'false');
+      input.removeAttribute('aria-activedescendant');
+    }
+
+    function catalogName() {
+      return window.XenonPlatform === 'darwin' ? 'Spotlight' : 'Windows Search';
+    }
+
     function renderResults(out, terms) {
       setExpanded(true);
-      listEl.textContent = '';
-      // Applications first, macOS-style: launchable entries above file matches.
-      const appRows = (out.apps || []).map((a) => ({ id: a.id, name: a.name, app: true }));
-      lastResults = [...appRows, ...(out.results || [])];
-      selIndex = -1;
       if (out.index === 'building') {
         // The Living Index is still walking the roots: results flow from Windows
         // Search meanwhile, and get complete on their own within a minute.
@@ -428,7 +641,7 @@
         statusEl.textContent = t('spot_index_off', 'Aggiungi una cartella in Impostazioni → Ricerca e disco per attivare la ricerca');
       } else if (out.wds === 'unavailable' && out.index !== 'ready') {
         statusEl.textContent = t('spot_wds_off', 'Windows Search è disattivato su questo PC: risultati limitati');
-      } else if (!lastResults.length) {
+      } else if (!(out.apps || []).length && !(out.results || []).length && out.wds !== 'pending') {
         // With the Living Index ready, "no results" is the honest, complete
         // answer. The gap hint explains a possible omission only while the
         // search runs WITHOUT the index — and it has to name the right cause:
@@ -450,64 +663,34 @@
         statusEl.textContent = statusEl.textContent ? aiNotice + ' · ' + statusEl.textContent : aiNotice;
         aiNotice = '';
       }
-      for (const r of lastResults) {
-        const row = document.createElement('div');
-        row.className = r.app ? 'spot-row spot-row-app' : 'spot-row';
-        row.setAttribute('role', 'button');
-        row.tabIndex = -1;
+      const apps = (out.apps || []).map((a) => ({ id: a.id, name: a.name, app: true }));
+      const results = out.results || [];
+      renderGroups([
+        ['spot_group_apps', 'App', apps],
+        ['spot_group_folders', 'Cartelle', results.filter((r) => r.kind === 'folder')],
+        ['spot_group_files', 'File', results.filter((r) => r.kind !== 'folder' && !r.content)],
+        ['spot_group_content', 'Nel contenuto', results.filter((r) => r.kind !== 'folder' && r.content)],
+      ], terms);
+    }
 
-        let iconEl;
-        if (r.app) {
-          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-          svg.setAttribute('viewBox', '0 0 24 24');
-          svg.setAttribute('aria-hidden', 'true');
-          const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          p.setAttribute('d', ICON_PATHS.app);
-          svg.appendChild(p);
-          svg.classList.add('spot-icon', 'spot-icon-appglyph');
-          iconEl = svg;
-        } else {
-          iconEl = iconFor(r);
-        }
-        row.appendChild(iconEl);
-        upgradeAppIcon(r, iconEl);
-
-        const mid = document.createElement('div');
-        mid.className = 'spot-row-mid';
-        const nameEl = document.createElement('div');
-        nameEl.className = 'spot-row-name';
-        nameEl.appendChild(highlightName(r.name || '', terms));
-        const metaEl = document.createElement('div');
-        metaEl.className = 'spot-row-meta';
-        metaEl.textContent = r.app
-          ? t('spot_app', 'Applicazione')
-          : [shortDir(r.dir), fmtSize(r.size), fmtDate(r.mtime)].filter(Boolean).join('  ·  ');
-        mid.append(nameEl, metaEl);
-        row.appendChild(mid);
-
-        if (r.app) {
-          row.addEventListener('click', () => act('open', r, row));
-          listEl.appendChild(row);
-          continue;
-        }
-
-        const revealBtn = document.createElement('button');
-        revealBtn.type = 'button';
-        revealBtn.className = 'spot-row-reveal';
-        revealBtn.title = t('spot_reveal', 'Mostra nella cartella');
-        const rsvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        rsvg.setAttribute('viewBox', '0 0 24 24');
-        rsvg.setAttribute('aria-hidden', 'true');
-        const rp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        rp.setAttribute('d', ICON_PATHS.folder);
-        rsvg.appendChild(rp);
-        revealBtn.appendChild(rsvg);
-        revealBtn.addEventListener('click', (e) => { e.stopPropagation(); act('reveal', r, row); });
-        row.appendChild(revealBtn);
-
-        row.addEventListener('click', () => act('open', r, row));
-        listEl.appendChild(row);
+    // The catalog's rows that arrived after the answer: added below, never
+    // reshuffling what is already on screen (a row must not move under a
+    // finger about to tap it).
+    function appendCatalog(out, terms) {
+      const have = new Set(lastResults.filter((r) => r.path).map((r) => r.path.toLowerCase()));
+      const extra = (out.results || []).filter((r) => r.path && !have.has(r.path.toLowerCase()));
+      if (!extra.length) {
+        if (!lastResults.length) statusEl.textContent = t('spot_no_results', 'Nessun risultato');
+        return;
       }
+      statusEl.textContent = '';
+      const head = document.createElement('div');
+      head.className = 'spot-group';
+      head.setAttribute('role', 'presentation');
+      head.textContent = t('spot_group_catalog', 'Anche da {name}').replace('{name}', catalogName());
+      listEl.appendChild(head);
+      for (const r of extra) listEl.appendChild(buildRow(r, terms));
+      input.setAttribute('aria-expanded', 'true');
     }
 
     // ── AI mode ──
@@ -586,6 +769,7 @@
       if (debTimer) { clearTimeout(debTimer); debTimer = null; }
       const q = input.value;
       if (!q.trim()) { disabled = {}; if (inflight) inflight.abort(); renderIdle(); return; }
+      recentReq++;
       debTimer = setTimeout(async () => {
         debTimer = null;
         if (inflight) inflight.abort();
@@ -601,6 +785,13 @@
           renderChips(out.chips);
           const terms = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter((s) => s.length >= 2);
           renderResults(out, terms);
+          if (out.wds === 'pending') {
+            // The index answered first; the catalog's rows (and the content
+            // matches only it can find) follow on the same query.
+            const more = await fetch(url + '&catalog=1', { signal: ctrl.signal }).then((r) => r.json()).catch(() => null);
+            if (ctrl !== inflight || !more || !more.ok) return;
+            appendCatalog(more, terms);
+          }
         } catch (e) {
           if (e && e.name === 'AbortError') return;
           setExpanded(true);
@@ -612,12 +803,23 @@
     }
 
     opts.keyHost.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); if (typeof opts.onClose === 'function') opts.onClose(); return; }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (!filterMenu.hidden) { toggleFilters(false); return; }
+        if (typeof opts.onClose === 'function') opts.onClose();
+        return;
+      }
       if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault(); setAiMode(!aiMode); return;
       }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(selIndex + 1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(selIndex - 1); return; }
+      // Ctrl+C with nothing selected in the box copies the selected result's
+      // path; with text selected it is the ordinary copy.
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'c' || e.key === 'C')
+        && selIndex >= 0 && input.selectionStart === input.selectionEnd) {
+        e.preventDefault(); void copyPath(lastResults[selIndex]); return;
+      }
       if (e.key === 'Enter') {
         e.preventDefault();
         // AI mode: the first Enter on a (new) phrase runs the AI search; with
@@ -625,8 +827,11 @@
         if (aiMode && input.value.trim() && input.value.trim() !== aiRanFor) { runAiSearch(); return; }
         const idx = selIndex >= 0 ? selIndex : 0;
         const r = lastResults[idx];
-        const row = listEl.querySelectorAll('.spot-row')[idx];
-        if (r && row) act('open', r, row);
+        const row = rowsOf()[idx];
+        if (!r || !row) return;
+        // Ctrl+Enter shows it in its folder instead of opening it.
+        if (e.ctrlKey && !r.app) act('reveal', r, row);
+        else act('open', r, row);
       }
     });
 
@@ -642,6 +847,8 @@
         if (debTimer) { clearTimeout(debTimer); debTimer = null; }
         if (inflight) { inflight.abort(); inflight = null; }
         stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
+        filterMenu.hidden = true;
+        filterBtn.classList.remove('is-on');
         renderIdle();
       },
       setQuery(q) { input.value = q || ''; runSearch(); },
@@ -649,6 +856,7 @@
       stop() {
         if (debTimer) { clearTimeout(debTimer); debTimer = null; }
         if (inflight) { inflight.abort(); inflight = null; }
+        recentReq++;
       },
     };
   }
@@ -683,6 +891,10 @@
       onClose: () => close(),
       onExpand: announceExpand,
       onOpened: () => close(),
+      // The overlay is the user's own search on the PC: recents always, and
+      // the image preview beside the list.
+      showRecent: () => true,
+      preview: true,
     });
     root.appendChild(shell);
 
@@ -708,6 +920,8 @@
     if (window.ambientFreeze) window.ambientFreeze('spotlight', true);
     ui.reset();
     ui.focus();
+    // Start the catalog host now, so the first query does not pay for it.
+    fetch('/search?q=').catch(() => {});
   }
 
   function openWithQuery(q) {

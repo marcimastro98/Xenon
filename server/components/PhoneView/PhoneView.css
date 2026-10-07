@@ -206,6 +206,7 @@
 .is-phone .topbar .clock-media,
 .is-phone .topbar .clock-sdkbadges,
 .is-phone .topbar .clock-claude,
+.is-phone .topbar .clock-codex,
 .is-phone .topbar .clock-date { display: none; }
 .is-phone .topbar .quickbar,
 .is-phone .topbar .top-actions { gap: 4px; flex-wrap: nowrap; }
