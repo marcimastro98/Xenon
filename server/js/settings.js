@@ -6707,28 +6707,41 @@ function _gameModeDesired() {
   return _gamingActive && hubSettings.gameMode !== false;
 }
 
-// Apply the class immediately — used for direct user actions (toggling the
+// Two classes, two meanings. `game-mode` is the LOOK (fade the background,
+// pause effects) and honours the Game mode switch. `game-running` is the FACT
+// that a game is in front, whatever that switch says: the native shell keeps
+// the game focused off it (native-bridge.js), and that is the tray's own
+// "Keep games focused" to switch off, not a side effect of a background
+// preference. It used to follow `game-mode`, so turning Game mode off to keep
+// the background during games silently let every tap on Xenon take the game's
+// focus while the tray still showed the option ticked.
+function _applyGameClasses() {
+  document.body.classList.toggle('game-mode', _gameModeDesired());
+  document.body.classList.toggle('game-running', _gamingActive);
+}
+
+// Apply the classes immediately — used for direct user actions (toggling the
 // setting, reset, settings re-apply), which must take effect at once.
 function _evalGameModeClass() {
   if (_gameModeTimer) { clearTimeout(_gameModeTimer); _gameModeTimer = null; }
-  document.body.classList.toggle('game-mode', _gameModeDesired());
+  _applyGameClasses();
 }
 
 // Called from the SSE 'status' handler with the live gaming flag. Debounced so a
 // transient foreground change doesn't visibly fade the ambient FX in/out.
 function applyGameMode(gaming) {
   _gamingActive = !!gaming;
-  const desired = _gameModeDesired();
+  const c = document.body.classList;
   // Already in the desired state (or a pending flip would land where we already
   // are): cancel any pending change and stop — nothing to animate.
-  if (desired === document.body.classList.contains('game-mode')) {
+  if (_gameModeDesired() === c.contains('game-mode') && _gamingActive === c.contains('game-running')) {
     if (_gameModeTimer) { clearTimeout(_gameModeTimer); _gameModeTimer = null; }
     return;
   }
   if (_gameModeTimer) clearTimeout(_gameModeTimer);
   _gameModeTimer = setTimeout(() => {
     _gameModeTimer = null;
-    document.body.classList.toggle('game-mode', _gameModeDesired());
+    _applyGameClasses();
   }, GAME_MODE_DWELL_MS);
 }
 

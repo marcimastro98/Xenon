@@ -36093,6 +36093,18 @@ Object.assign(i18n.nl, {
   codex_n_files: "+{n} bijgevoegd",
   codex_thread_foot: "Jouw verzoeken en de antwoorden van Codex. Opdrachten en bestandswijzigingen blijven in Codex.",
 });
+// Game mode is only the look: "Keep games focused" no longer depends on it.
+Object.assign(i18n.it, { settings_gamemode_hint: 'Sfuma lo sfondo animato (aurora e griglia neon) e sospende gli effetti animati mentre gira un gioco. “Keep games focused” nel menu di Xenon funziona in entrambi i casi.' });
+Object.assign(i18n.en, { settings_gamemode_hint: 'Fades out the animated background (aurora and neon grid) and pauses animated effects while a game is running. “Keep games focused” in the Xenon menu works either way.' });
+Object.assign(i18n.ko, { settings_gamemode_hint: '게임 실행 중에는 애니메이션 배경(오로라와 네온 그리드)을 서서히 숨기고 애니메이션 효과를 일시 중지합니다. Xenon 메뉴의 “Keep games focused”는 이 설정과 관계없이 작동합니다.' });
+Object.assign(i18n.ja, { settings_gamemode_hint: 'ゲーム実行中は、アニメーション背景（オーロラとネオングリッド）をフェードアウトし、アニメーション効果を一時停止します。Xenon メニューの「Keep games focused」はこの設定に関係なく動作します。' });
+Object.assign(i18n.zh, { settings_gamemode_hint: '游戏运行时，动画背景（极光和霓虹网格）会淡出，动画效果也会暂停。Xenon 菜单中的“Keep games focused”不受此设置影响。' });
+Object.assign(i18n.es, { settings_gamemode_hint: 'Atenúa el fondo animado (aurora y cuadrícula neón) y pausa los efectos animados mientras se ejecuta un juego. “Keep games focused” en el menú de Xenon funciona en ambos casos.' });
+Object.assign(i18n.fr, { settings_gamemode_hint: 'Estompe le fond animé (aurore et grille néon) et met en pause les effets animés pendant qu’un jeu tourne. « Keep games focused » dans le menu de Xenon fonctionne dans les deux cas.' });
+Object.assign(i18n.de, { settings_gamemode_hint: 'Blendet den animierten Hintergrund (Aurora und Neon-Raster) aus und pausiert animierte Effekte, solange ein Spiel läuft. „Keep games focused“ im Xenon-Menü funktioniert in beiden Fällen.' });
+Object.assign(i18n.pt, { settings_gamemode_hint: 'Esmaece o fundo animado (aurora e grade neon) e pausa os efeitos animados enquanto um jogo está rodando. “Keep games focused” no menu do Xenon funciona nos dois casos.' });
+Object.assign(i18n.ru, { settings_gamemode_hint: 'Приглушает анимированный фон (сияние и неоновую сетку) и приостанавливает анимированные эффекты, пока запущена игра. «Keep games focused» в меню Xenon работает в любом случае.' });
+Object.assign(i18n.nl, { settings_gamemode_hint: 'Laat de geanimeerde achtergrond (aurora en neonraster) vervagen en pauzeert geanimeerde effecten terwijl een game draait. „Keep games focused” in het Xenon-menu werkt in beide gevallen.' });
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)

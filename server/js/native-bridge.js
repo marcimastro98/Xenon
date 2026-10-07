@@ -835,10 +835,9 @@
 
   // ── Native shell: don't steal the game's focus ────────────────────────
   // Tapping the kiosk normally activates its window, so a foreground game
-  // loses focus (exclusive-fullscreen titles minimize outright). While the
-  // dashboard is in game mode (settings.js toggles `body.game-mode` off the
-  // same detector that pauses ambient FX), tell the shell to arm its focus
-  // guard (WS_EX_NOACTIVATE + give-back, see focus_guard.rs). Typing is the
+  // loses focus (exclusive-fullscreen titles minimize outright). While a game
+  // is running (settings.js toggles `body.game-running` off the game detector),
+  // tell the shell to arm its focus guard (WS_EX_NOACTIVATE + give-back, see focus_guard.rs). Typing is the
   // deliberate exception: focusing a text field (AI chat, notes, search)
   // signals type-start so the shell lifts the guard and takes real focus —
   // the keyboard works exactly as before — and leaving the field signals
@@ -868,7 +867,10 @@
     // Always report the initial state (the shell may still be armed from
     // before a dashboard reload) and every change after.
     function syncGameMode() {
-      const on = document.body.classList.contains('game-mode');
+      // Not `game-mode`: that one also needs the Game mode switch, which is
+      // about the background. Whether to guard is the tray's "Keep games
+      // focused", checked by the shell.
+      const on = document.body.classList.contains('game-running');
       if (on === guardOn) return;
       guardOn = on;
       if (!on) {
