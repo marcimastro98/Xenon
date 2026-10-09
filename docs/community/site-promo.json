@@ -18,6 +18,11 @@
           "line": "A woodcut town for Xenon supporters. Amber by day, blue at night, with a silent-film title card.",
           "cta": "Unlock Nitrato"
         },
+        "fr": {
+          "title": "Nitrato",
+          "line": "Une ville avec maisons en bois pour les Xenon supporters. Ambre le jour, bleu la nuit, avec une carte-titre de film muet.",
+          "cta": "Débloquer Nitrato"
+        },
         "it": {
           "title": "Nitrato",
           "line": "Una città in xilografia per i sostenitori di Xenon. Ambra di giorno, blu di notte, con un cartello da film muto.",
@@ -62,6 +67,11 @@
           "title": "Nitrato",
           "line": "A woodcut town for Xenon supporters. Amber by day, blue at night, with a silent-film title card.",
           "cta": "Unlock Nitrato"
+        },
+        "fr": {
+          "title": "Nitrato",
+          "line": "Une ville avec maisons en bois pour les supporters de Xenon. Ambre le jour, bleu la nuit, avec une carte-titre de film muet.",
+          "cta": "Découvrir Nitrato"
         },
         "it": {
           "title": "Nitrato",
@@ -111,6 +121,11 @@
           "title": "Workload River",
           "line": "Which app is weighing on your PC, and since when.",
           "cta": "Unlock Workload River"
+        },
+        "fr": {
+          "title": "Workload River",
+          "line": "Quelle application ralenti votre PC, et depuis quand ?",
+          "cta": "Débloquer Workload River"
         },
         "it": {
           "title": "Workload River",

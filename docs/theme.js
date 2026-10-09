@@ -27,6 +27,7 @@
 
   var T = {
     en: { label: 'Theme', system: 'System', light: 'Light', dark: 'Dark' },
+    fr: { label: 'Thème', system: 'Système', light: 'Clair', dark: 'Sombre' },
     it: { label: 'Tema',  system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
     ko: { label: '테마',   system: '시스템',  light: '라이트',  dark: '다크' },
     ja: { label: 'テーマ', system: 'システム', light: 'ライト', dark: 'ダーク' },
