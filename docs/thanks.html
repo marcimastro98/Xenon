@@ -299,6 +299,7 @@
           <button type="button" data-lang="en" role="option" lang="en">English</button>
           <button type="button" data-lang="it" role="option" lang="it">Italiano</button>
           <button type="button" data-lang="es" role="option" lang="es">Español</button>
+          <button type="button" data-lang="fr" role="option" lang="fr">Français</button>
           <button type="button" data-lang="ja" role="option" lang="ja">日本語</button>
           <button type="button" data-lang="ko" role="option" lang="ko">한국어</button>
           <button type="button" data-lang="zh" role="option" lang="zh">中文</button>
@@ -475,6 +476,64 @@ const I18N = {
   "t.away.nocopy": "Could not copy it here. The link is {url}",
   "t.away.subject": "Xenon download link",
   "t.away.body": "Open this on your computer to download Xenon: {url}"
+ },
+ "fr": {
+  "t.title": "Merci d'avoir téléchargé Xenon",
+  "t.nav.back": "← Retour au site",
+  "t.toast.started": "Votre téléchargement de {file} a démarré. Rien ne s'est passé ? <a id='manual'>Téléchargez-le manuellement<\/a>.",
+  "t.toast.none": "Sélectionnez votre fichier sur la <a href='/download.html'>page de téléchargement<\/a>.",
+  "t.shot": "Scène d'ambiance sur un CORSAIR Xeneon Edge",
+  "t.h1": "Merci d'avoir téléchargé Xenon",
+  "t.lede1": "Xenon est rédigé par une seule personne, sans publicité ni investisseurs. Il continue grâce au soutien de ses lecteurs.",
+  "t.lede2": "L'application reste gratuite et complète, même si vous ne donnez rien.",
+  "t.next": "Ce qui se passe maintenant",
+  "t.win.1": "<strong>Ouvrir Xenon-Setup-x64.exe.<\/strong> Le programme d'installation est signé, Windows affiche donc un éditeur vérifié. SmartScreen peut toujours afficher un avertissement pendant un certain temps, car Microsoft accorde la réputation au fil du temps : cliquez sur <strong>Plus d'informations<\/strong>, puis sur <strong>Exécuter quand même<\/strong>. <a href='/faq.html#warnings'>Plus d'informations dans le FAQ<\/a>.",
+  "t.win.2": "<strong>Appuyez sur Terminer l’installation.<\/strong> L’application s’ouvre automatiquement et vous la propose. Elle installe Node.js, les lecteurs de capteurs et la tâche qui démarre Xenon lors de votre connexion, en vous guidant à chaque étape. Quelques minutes, une seule fois.",
+  "t.mac.1": "<strong>Ouvrez le fichier .dmg et lancez Xenon.<\/strong> Un seul fichier pour Apple Silicon et Intel, macOS 11 ou version ultérieure. La version Mac est une beta et n'est pas notarisée, macOS bloque donc le premier lancement : ouvrez <strong>Réglages Système<\/strong>, puis <strong>Confidentialité et sécurité<\/strong>, et cliquez sur <strong>Ouvrir quand même<\/strong>. <a href='/faq.html#mac-linux'>Le FAQ contient les détails<\/a>.",
+  "t.setup.2": "<strong>Laissez-le se configurer.<\/strong> Au premier lancement, une option est proposée pour préparer le dashboard dans une fenêtre de terminal, et le téléchargement est vérifié avant toute extraction.",
+  "t.linux.1": "<strong>Rendez l'AppImage exécutable et lancez-le.<\/strong> <code>chmod +x<\/code> est tout ce qu'il faut. <a href='/linux.html'>La page Linux<\/a> liste ce qui fonctionne sur X11 et sur Wayland.",
+  "t.linux.pkg.1": "<strong>Installez le package et ouvrez Xenon.<\/strong> Le fichier .deb est destiné à Debian et Ubuntu, le fichier .rpm à Fedora et openSUSE. <a href='/linux.html'>La page Linux<\/a> contient les détails.",
+  "t.step.3": "<strong>Choisissez l'écran.<\/strong> Un moniteur de rechange, une tablette, votre téléphone ou un CORSAIR Xeneon Edge. <a href='/phone.html'>L'appairage d'un téléphone<\/a> prend environ trente secondes.",
+  "t.card.h": "Vous souhaitez aider ?",
+  "t.card.sub": "Les supporters reçoivent les dépôts mensuels pour supporters, le rôle Discord et leur nom sur le site.",
+  "t.seg.once": "Paiement unique",
+  "t.seg.sub": "Adhésion",
+  "t.coffee.name": "Un café",
+  "t.coffee.what": "Un mois de drops pour les supporters, le rôle Discord et votre nom sur le site.",
+  "t.pass.name": "Pass supporter",
+  "t.pass.what": "Cinq mois de sorties, payé une seule fois. Rien ne se renouvelle automatiquement.",
+  "t.free.name": "Un autre montant",
+  "t.free.what": "Chaque café coûte 5 $. Plus vous donnez, plus les gouttes continuent à tomber.",
+  "t.month.name": "Mensuel",
+  "t.month.what": "Les livraisons sont effectuées chaque mois tant que vous restez. Annulez à tout moment.",
+  "t.year.name": "Une année entière",
+  "t.year.what": "Douze mois de sorties, plus un thème que je crée pour vous, une demande par mois.",
+  "t.unit.once": "ponctuel",
+  "t.unit.free": "vous choisissez",
+  "t.unit.month": "un mois",
+  "t.unit.year": "un an",
+  "t.tag.pick": "Recommandé",
+  "t.tag.theme": "Thème personnalisé",
+  "t.go.once": "Continuer sur Buy Me a Coffee",
+  "t.go.sub": "Rejoindre sur Buy Me a Coffee",
+  "t.hint.coffee": "Sur Buy Me a Coffee, laissez-le à <b>1 café<\/b>",
+  "t.hint.pass": "Sur Buy Me a Coffee, choisissez <b>5 cafés<\/b>",
+  "t.hint.free": "Sur Buy Me a Coffee, choisissez <b>combien de cafés<\/b>",
+  "t.hint.month": "Sur la page Abonnement, sélectionnez <b>l’offre mensuelle<\/b>",
+  "t.hint.year": "Sur la page Adhésion, sélectionnez <b>l’offre annuelle<\/b>",
+  "t.foot.pay": "Le paiement est effectué sur Buy Me a Coffee. Xenon ne voit jamais les détails de votre carte.",
+  "t.next.win": "Étapes sur un PC Windows",
+  "t.next.mac": "Étapes sur un Mac",
+  "t.next.linux": "Étapes sur un PC Linux",
+  "t.away.h": "Ce fichier est destiné à un ordinateur",
+  "t.away.p": "Xenon s'installe sur un PC Windows, Mac ou Linux. Ouvrez xenon-app.com sur votre ordinateur, ou envoyez-vous le lien.",
+  "t.away.share": "Envoyer le lien",
+  "t.away.copy": "Copier le lien",
+  "t.away.mail": "Me l'envoyer par e-mail",
+  "t.away.copied": "Lien copié.",
+  "t.away.nocopy": "Impossible de le copier ici. Le lien est {url}",
+  "t.away.subject": "Lien de téléchargement Xenon",
+  "t.away.body": "Ouvrez ceci sur votre ordinateur pour télécharger Xenon : {url}"
  },
  "it": {
   "t.title": "Grazie per aver scaricato Xenon",
@@ -946,7 +1005,7 @@ const I18N = {
   // Same engine and same storage key as the home page and the FAQ, so a
   // visitor's language choice carries across the site.
   (function () {
-    const LANGS = ['en', 'es', 'it', 'ko', 'ja', 'zh'];
+    const LANGS = ['en', 'es', 'fr', 'it', 'ko', 'ja', 'zh'];
     const KEY = 'xenon.site.lang';
     let cur = 'en';
     window.XT = (k) => {

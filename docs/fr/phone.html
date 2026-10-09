@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Utilisez votre téléphone ou votre tablette comme écran Xenon</title>
+<meta name="description" content="Ouvrez votre dashboard Xenon sur un téléphone ou une tablette via votre propre Wi-Fi, ou depuis n'importe où avec Tailscale. Les touches du Deck fonctionnent sur le PC. Rien à installer sur le téléphone.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Utilisez votre téléphone ou votre tablette comme écran Xenon">
+<meta property="og:description" content="Ouvrez votre dashboard Xenon sur un téléphone ou une tablette via votre propre Wi-Fi, ou depuis n'importe où avec Tailscale. Les touches du Deck fonctionnent sur le PC. Rien à installer sur le téléphone.">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://xenon-app.com/fr/phone.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/phone.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/phone.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/phone.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/phone.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/phone.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/phone.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/phone.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/phone.html">
+
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<style>
+  /* ── The two routes, side by side ─────────────────────────────── */
+  .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 28px 0 8px; }
+  .route { background: var(--panel); border: 0; border-radius: var(--r-1); padding: 24px 24px 22px; }
+  .route.pick { background: var(--g-2); }
+  .route .tag { display: block; margin-bottom: 8px; font: 600 15px/1.3 var(--sans); color: var(--muted); }
+  /* Beta mark for the feature this whole page is about. Gold, not green: green
+     is what this page uses for "yes, this works", and a caveat must not borrow it. */
+  .beta-pill {
+    display: inline-block; vertical-align: middle; margin-left: 12px;
+    font: 700 15px/1 var(--sans); letter-spacing: 0;
+    color: var(--beta-fg); background: var(--beta-bg);
+    border-radius: 6px; padding: 5px 9px;
+  }
+  .route h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
+  .route .time { font-size: 15px; color: var(--muted); margin: 0 0 12px; }
+  .route ul { margin: 0; padding-left: 20px; font-size: 16px; }
+  /* ── Numbered steps ───────────────────────────────────────────── */
+  .steps { counter-reset: s; list-style: none; padding: 0; margin: 22px 0 8px; }
+  .steps > li {
+    counter-increment: s; position: relative;
+    padding: 0 0 22px 46px; margin: 0;
+    border-left: 1px solid var(--line); margin-left: 15px;
+  }
+  .steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .steps > li::before {
+    content: counter(s);
+    position: absolute; left: -15px; top: -2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--ink); border: 1px solid var(--rule-2);
+    color: var(--text); font: 700 15px/1 var(--sans);
+    display: grid; place-items: center;
+  }
+  .steps h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
+  .steps p { margin: 0 0 10px; }
+  .steps p:last-child { margin-bottom: 0; }
+  /* ── Device mockups ───────────────────────────────────────────────
+     Drawn in CSS, not photographed. They are an illustration of the
+     LAYOUT — a real screenshot of a dashboard shows its owner's calendar,
+     notes and file paths, and this page is public. */
+  .shots { display: flex; gap: 34px; align-items: flex-end; justify-content: center; flex-wrap: wrap; margin: 34px 0 10px; }
+  /* figure carries a browser default of `margin: 1em 40px`. Left alone it added
+     160px across the pair and pushed the row 9px past the column, which wraps —
+     the two devices are meant to be read side by side. */
+  .shot { text-align: center; margin: 0; max-width: 100%; }
+  .shot figcaption { font-size: 15px; color: var(--muted); margin-top: 12px; }
+  .dev { background: #121614; border: 2px solid var(--rule); box-shadow: none; }
+  .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
+  .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
+  .screen { width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
+            background: linear-gradient(160deg, #0b1512, #101a17 60%, #0a1210);
+            display: flex; flex-direction: column; }
+  .dev-tab .screen { border-radius: 9px; }
+  .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
+         display: flex; align-items: center; gap: 4px; padding: 0 5px; }
+  .bar i { display: block; height: 5px; border-radius: 3px; background: var(--rule-2); }
+  .bar i.a { width: 16px; background: var(--bone-1); }
+  .bar i.b { width: 26px; }
+  .bar i.c { width: 12px; margin-left: auto; }
+  /* phone: one column, tiles of different heights, thumb dock at the bottom */
+  .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
+  .stack > div { border-radius: 7px; background: var(--g-2); border: 1px solid var(--g-2); }
+  .stack > div.t1 { height: 46px; }
+  .stack > div.t2 { height: 72px; }
+  .stack > div.t3 { height: 38px; }
+  .stack > div.t4 { height: 58px; }
+  .stack > div.hl { background: var(--g-2); border-color: var(--rule-2); }
+  .dock { height: 26px; margin: 6px 5px 5px; border-radius: 9px; background: rgba(240,243,241,0.09);
+          display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
+  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: var(--rule-2); }
+  .dock i:first-child { background: var(--bone-1); }
+  /* tablet: the real 24-column grid, kept */
+  .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
+  .grid > div { border-radius: 6px; background: var(--g-2); border: 1px solid var(--g-2); }
+  .grid > div.w2 { grid-column: span 2; }
+  .grid > div.w3 { grid-column: span 3; }
+  .grid > div.w4 { grid-column: span 4; }
+  .grid > div.h2 { grid-row: span 2; }
+  .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
+  /* ── A reproduction of the settings rows ──────────────────────── */
+  .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .ui-row:last-child { border-bottom: none; }
+  .sw { width: 34px; height: 20px; border-radius: 999px; background: var(--rule); flex: none; position: relative; margin-top: 2px; }
+  .sw.on { background: var(--bone-0); }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #0b0d0c; }
+  .sw.on::after { left: auto; right: 3px; background: #08110c; }
+  .ui-txt strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 600; }
+  .ui-txt span { display: block; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .ui-btn { display: inline-block; background: var(--g-2); border: 1px solid var(--rule-2);
+            color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
+  .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
+  .yn ul { list-style: none; padding: 0; margin: 0; }
+  .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
+  .yn .k { flex: none; font-weight: 700; line-height: 1.5; }
+  .can .k { color: var(--green); }
+  .cant .k { color: var(--danger); }
+  @media (max-width: 560px) {
+    .shots { gap: 22px; }
+    .steps > li { padding-left: 38px; }
+  }
+</style>
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrez-moi un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>FR</span></summary><ul><li><a href="/phone.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/phone.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/phone.html" hreflang="fr" lang="fr" aria-current="page">Français <span>FR</span></a></li><li><a href="/it/phone.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/phone.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/phone.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/phone.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Télécharger</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">Menu</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Fermer</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/fr/#screens" data-xl="screens">Écrans</a></li><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/fr/#install" data-xl="install">Installer</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">Offrez-moi un café</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/phone.html" aria-current="page" data-xl="f.phone">Appairage d'un téléphone</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Appairage d'un téléphone","item":"https://xenon-app.com/fr/phone.html"}]}</script><!-- /xenon:crumbs -->
+    <h1><span data-i18n="ph.title">Utilisez votre téléphone comme écran secondaire</span><span class="beta-pill" data-i18n="ph.beta">Beta</span></h1>
+    <p class="lede" data-i18n="ph.lede">Pour utiliser Xenon, vous avez besoin d'un écran que vous pouvez laisser allumé toute la journée. Un moniteur de rechange, une vieille tablette, un Xeneon Edge. C'est ce qui freine la plupart des gens, pas les fonctionnalités. Mais vous avez déjà un écran dans votre poche. Cette page vous montre comment l'utiliser.</p>
+    <p data-i18n-html="ph.intro">Ce que vous obtenez sur le téléphone n'est ni une télécommande ni un aperçu. C'est <strong>votre dashboard</strong>, avec la même mise en page, les mêmes widgets et le même thème. Les touches du Deck fonctionnent réellement sur le PC. Si vous mettez la musique en pause, elle s'arrête. Si vous modifiez un paramètre, il change sur le PC une seconde plus tard. Il n'y a pas de compte, pas de cloud et pas d'application à installer, et rien ne quitte votre réseau domestique.</p>
+
+    <div class="shots">
+      <figure class="shot">
+        <div class="dev dev-phone">
+          <div class="screen">
+            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+            <div class="stack"><div class="t1 hl"></div><div class="t2"></div><div class="t3"></div><div class="t4"></div></div>
+            <div class="dock"><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <figcaption data-i18n="ph.cap.phone">Téléphone : tuiles empilées, barre d'accès en bas</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="dev dev-tab">
+          <div class="screen">
+            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+            <div class="grid">
+              <div class="w2 h2 hl"></div><div class="w2"></div><div class="w2"></div>
+              <div class="w2"></div><div class="w2"></div><div class="w3"></div><div class="w3"></div>
+            </div>
+          </div>
+        </div>
+        <figcaption data-i18n="ph.cap.tab">Tablette : la grille complète, telle que vous l’avez conçue</figcaption>
+      </figure>
+    </div>
+    <p class="note" data-i18n="ph.cap.note">Il s'agit de schémas de la mise en page, et non de captures d'écran réelles. Un véritable dashboard affiche le calendrier, les notes et les chemins d'accès aux fichiers de son propriétaire, et cette page est publique.</p>
+
+    <h2 data-i18n="ph.h.what">Ce qui fonctionne et ce qui ne fonctionne pas</h2>
+    <p data-i18n="ph.what.p">Une fois un appareil appairé, il devient l'un des vôtres. Il peut faire tout ce que le dashboard sur le PC fait, à l'exception d'une courte liste. Tout ce qui figure sur cette liste a la même raison : cela nécessite qu'une personne soit assise devant cet ordinateur.</p>
+    <div class="yn">
+      <div class="can">
+        <ul>
+          <li><span class="k">✓</span><span data-i18n="ph.can.1">Tout le dashboard : capteurs, widgets, pages et thèmes</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.2">Touches du Deck. Ils fonctionnent sur le PC, pas sur le téléphone</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.3">Médias, volume, micro coupé et sélecteur d’applications</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.4">Le store : widgets, packs d'icônes, packs de sons et thèmes</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.5">Xenon IA, et les paramètres enregistrés sur le PC</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.6">Envoi de photos et de fichiers dans les deux sens</span></li>
+        </ul>
+      </div>
+      <div class="cant">
+        <ul>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.1">La boîte de dialogue d’autorisation de Windows. Windows l’affiche sur l’écran de l’ordinateur et nulle part ailleurs, seul l’ordinateur peut donc y répondre.</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.2">Mise à jour de Xenon. La mise à jour redémarre le serveur auquel le téléphone est connecté.</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.3">Installateurs système (helper, PresentMon, pilotes). Chacun installe un programme sur votre disque</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.4">Ajout ou suppression d’appaireils appariés. De cette façon, un téléphone ne peut jamais en ajouter un autre ni supprimer l’appareil qui le verrouillerait.</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card"><p data-i18n-html="ph.trade"><strong>Une chose à savoir avant de commencer.</strong> Un appareil apparié reste un moyen d'accéder à votre PC jusqu'à ce que vous le supprimiez. Ainsi, si vous perdez votre téléphone ou le donnez, supprimez-le. C'est à cela que sert la liste des appareils : vous pouvez supprimer un seul appareil, ou tous d'un simple geste. Un appareil supprimé perd immédiatement la connexion.</p></div>
+
+    <h2 data-i18n="ph.h.xfer">Transfert de photos et de fichiers</h2>
+    <p data-i18n="ph.xfer.p">Une fois un téléphone appairé, il peut envoyer des fichiers vers le PC et en recevoir. Ouvrez Xenon sur le téléphone, appuyez sur Photos et vidéos ou Autres fichiers, sélectionnez ce que vous souhaitez, et ils se retrouveront dans Téléchargements/Xenon sur l'ordinateur avec leurs noms d'origine. Le processus fonctionne aussi dans l'autre sens : déposez un fichier sur la tuile depuis l'Explorateur ou le Finder, puis téléchargez-le sur le téléphone. Rien ne transite par le serveur d'un tiers.</p>
+    <div class="card"><p data-i18n-html="ph.xfer.ios"><strong>Sur un iPhone, vous devez ouvrir Xenon pour envoyer quelque chose.</strong> iOS n'autorise aucun site web à apparaître dans son bouton Partager, et il n'y a aucun moyen de contourner cela depuis une page web. Un fichier téléchargé sur un iPhone est également enregistré dans l'application Fichiers plutôt que dans la galerie de l'appareil photo : appuyez longuement sur une photo et choisissez Ajouter aux photos.</p></div>
+
+    <h2 data-i18n="ph.h.two">Deux façons d'y accéder. Choisissez-en une.</h2>
+    <div class="routes">
+      <div class="route pick">
+        <span class="tag" data-i18n="ph.r1.tag">À la maison</span>
+        <h3 data-i18n="ph.r1.h">Sur votre Wi-Fi</h3>
+        <p class="time" data-i18n="ph.r1.time">Environ 30 secondes, rien à installer</p>
+        <ul>
+      <li data-i18n="ph.r1.1">Activez-le, scannez un code QR, c'est fait</li>
+      <li data-i18n="ph.r1.2">Fonctionne lorsque vous êtes sur le même réseau Wi-Fi</li>
+      <li data-i18n="ph.r1.3">Simple HTTP, donc aucune application installable, aucun micro et aucune notification</li>
+        </ul>
+      </div>
+      <div class="route">
+        <span class="tag" data-i18n="ph.r2.tag">Partout</span>
+        <h3 data-i18n="ph.r2.h">Sécurisé, à la maison comme en déplacement</h3>
+        <p class="time" data-i18n="ph.r2.time">Environ 5 minutes, un bouton et un switch sur une page Web</p>
+        <ul>
+      <li data-i18n="ph.r2.1">Chiffré et fonctionnel depuis n'importe où, sans ouvrir de port sur votre routeur</li>
+      <li data-i18n="ph.r2.2">S'installe sur le téléphone comme une application, avec sa propre icône</li>
+      <li data-i18n="ph.r2.3">Donne accès au micro à l'IA Xenon</li>
+      <li data-i18n="ph.r2.4">L'adresse reste la même, même lorsque votre routeur la modifie</li>
+        </ul>
+      </div>
+    </div>
+    <p data-i18n="ph.two.after">Vous n'avez pas à choisir pour toujours. La deuxième option ajoute une porte d'accès à côté de la première, elle ne la remplace pas. Si vous utilisez uniquement Xenon à la maison, commencez par la première.</p>
+
+    <h2 data-i18n="ph.h.home">À la maison, en trente secondes</h2>
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="ph.s1.h">Ouvrez Paramètres, puis Téléphone, sur le PC</h3>
+        <p data-i18n-html="ph.s1.p">Tout ce dont vous avez besoin se trouve dans un seul panneau, sous <strong>Accès au téléphone</strong>. Raccourci : la première fois que Xenon s'ouvre, il vous demande sur quel écran vous souhaitez l'afficher : sélectionnez <strong>mon téléphone ou ma tablette</strong> et il vous amènera directement à ce panneau avec ces mêmes étapes ouvertes à l'intérieur. Le bouton <strong>Guide étape par étape</strong> en haut du panneau les rouvre à nouveau chaque fois que vous le souhaitez.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s2.h">Activer « Autoriser l’accès depuis d’autres appareils »</h3>
+        <p data-i18n="ph.s2.p">Il est désactivé jusqu'à ce que vous l'activiez. Tant qu'il est désactivé, Xenon ne répond qu'à cet ordinateur et à rien d'autre. Si quelque chose scanne votre réseau, il reçoit la même réponse qu'une version de Xenon sans cette fonctionnalité donnerait, il n'y a donc aucun moyen de savoir que la fonctionnalité est présente.</p>
+        <div class="ui">
+          <div class="ui-row">
+            <span class="sw on"></span>
+            <span class="ui-txt"><strong data-i18n="ph.s2.sw">Autoriser l'accès depuis d'autres appareils</strong><span data-i18n="ph.s2.swsub">Lorsque cette option est désactivée, Xenon ne répond qu'à cet ordinateur.</span></span>
+          </div>
+        </div>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s3.h">Appuyez sur « Ajouter un appareil »</h3>
+        <p data-i18n="ph.s3.p">L'ordinateur affiche un code QR avec un code de huit caractères en dessous. Il s'agit d'une invitation, et non d'un mot de passe. Il est valable trois minutes et cesse de fonctionner après plusieurs tentatives infructueuses.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s4.h">Dirigez l'appareil photo du téléphone vers celui-ci</h3>
+        <p data-i18n="ph.s4.p">Le dashboard s'ouvre dans le navigateur du téléphone. C'est toute la configuration. Rien n'a été installé et le code n'a jamais atteint un serveur, car il voyage dans la partie de l'adresse que les navigateurs gardent pour eux.</p>
+      </li>
+    </ol>
+    <p class="note" data-i18n="ph.home.note">Les deux appareils doivent être connectés au même réseau Wi-Fi. Si votre routeur a l'isolation des clients activée ou si vous êtes sur le réseau invité, ils peuvent être sur le même Wi-Fi sans se voir.</p>
+
+    <h2 data-i18n="ph.h.away">Partout, et en tant qu'application</h2>
+    <p data-i18n="ph.away.1">Sur un simple HTTP, les navigateurs retiennent un ensemble entier de fonctionnalités, et il n'existe aucun moyen de concevoir une solution de contournement. La page ne peut pas s'installer en tant qu'application, elle ne peut pas utiliser le microphone et elle ne peut pas recevoir de notifications. C'est la véritable raison de la seconde voie d'accès. Il ne s'agit pas de distance.</p>
+    <p data-i18n-html="ph.away.2">Xenon utilise <a href="https://tailscale.com" rel="noopener">Tailscale</a> pour cela. Votre PC et votre téléphone rejoignent un petit réseau privé qui vous appartient, votre dashboard reçoit un certificat réel et une adresse qui ne change jamais, et <strong>aucun port de votre routeur n'est ouvert</strong>. L'adresse n'existe pas dans les DNS publics, il n'y a donc rien à l'extérieur que quiconque puisse trouver.</p>
+
+    <div class="card accent">
+      <h3 data-i18n="ph.card.h">Appuyez sur un seul bouton et Xenon fait le reste</h3>
+      <p data-i18n-html="ph.card.1">Dans le même panneau, sous <strong>Accès sécurisé, même en déplacement</strong>, il y a un bouton qui installe Tailscale, ouvre la page de connexion, attend que vous terminiez, puis démarre automatiquement la connexion sécurisée.</p>
+      <div class="ui">
+        <div class="ui-row">
+          <span class="sw on"></span>
+          <span class="ui-txt"><strong data-i18n="ph.card.sw">Accès sécurisé, même en déplacement</strong><span data-i18n="ph.card.swsub">Utilise Tailscale avec HTTPS. Active l’application installable, le microphone et les notifications.</span></span>
+        </div>
+        <div class="ui-row"><span class="ui-btn" data-i18n="ph.card.btn">Configurez-le pour moi</span></div>
+      </div>
+      <p data-i18n-html="ph.card.2"><strong>Il s’arrête une fois, et c’est volontaire.</strong> Les certificats sont un paramètre pour votre réseau privé entier, et vous les modifiez sur le site web Tailscale. Xenon pourrait le faire pour vous, mais uniquement avec une clé que vous devriez créer sur ce même site, ce qui représente plus de travail  au final. Ainsi, Xenon s’arrête là, vous donne le lien, puis détecte tout seul quand vous avez terminé. Vous pouvez laisser la fenêtre ouverte.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="ph.t1.h">Appuyez sur « Je le configure pour vous »</h3>
+        <p data-i18n="ph.t1.p">Windows vous demandera l'autorisation d'installer Tailscale. Un onglet du navigateur s'ouvrira ensuite pour la connexion. Tout compte Google, Microsoft ou GitHub fonctionne, et vous ne créez pas de compte avec Xenon.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t2.h">Activer les certificats HTTPS</h3>
+        <p data-i18n-html="ph.t2.p">Voici l'étape que Xenon ne peut pas effectuer pour vous. Lorsqu'il le demande, appuyez sur le bouton affiché. Il ouvre <code>login.tailscale.com/admin/dns</code>. Faites défiler vers le bas jusqu'à <strong>HTTPS Certificats</strong> et appuyez sur <strong>Activer</strong>. C'est gratuit sur tous les plans. Puis, retournez à Xenon, qui a déjà continué.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t3.h">Installez Tailscale sur le téléphone avec le même compte</h3>
+        <p data-i18n-html="ph.t3.p">Téléchargez-le depuis l'App Store ou Google Play, connectez-vous avec <strong>le même compte que vous venez d'utiliser</strong>, et activez-le. C'est l'étape que les gens oublient, et elle est facile à repérer : le téléphone indique qu'il ne peut pas ouvrir l'adresse du tout. Rien n'est cassé. Cette adresse n'existe que dans votre propre réseau, ce qui explique aussi pourquoi personne sur Internet ne peut y accéder.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t4.h">Appairez à nouveau le téléphone sur la nouvelle adresse</h3>
+        <p data-i18n-html="ph.t4.p">Appuyez sur <strong>Ajouter un appareil</strong> et scannez à nouveau. Le navigateur associe l'appairage à l'adresse sur laquelle il a été effectué, de sorte qu'un téléphone appairé sur l'adresse du domicile n'est pas appairé sur l'adresse sécurisée. Après cela, vous n'aurez besoin que de la nouvelle adresse. Elle fonctionne à la maison comme en déplacement.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t5.h">L'ajouter à l'écran d'accueil</h3>
+        <p data-i18n-html="ph.t5.p">Dans Safari, appuyez sur Partager puis sur <strong>Ajouter à l'écran d'accueil</strong>. Sur Android, Chrome propose de l'installer. Xenon s'ouvre ensuite avec sa propre icône, en plein écran et sans barre d'adresse. Le microphone fonctionne ici, de sorte que Xenon IA peut écouter via le téléphone au lieu du PC. Les notifications fonctionnent également : dans Paramètres, puis Téléphone, activez-les pour cet appareil et un minuteur qui expire vous parviendra même avec l'application fermée.</p>
+      </li>
+    </ol>
+
+    <h2 data-i18n="ph.h.trouble">Si quelque chose ne fonctionne pas</h2>
+    <details>
+      <summary data-i18n="ph.q1">Le téléphone indique qu'il ne peut pas ouvrir l'adresse</summary>
+      <div class="body"><p data-i18n-html="ph.a1">Dans la plupart des cas, le téléphone n'est pas encore sur votre réseau privé. Ouvrez Tailscale sur le téléphone et vérifiez que l'interrupteur est bien <strong>activé</strong>. L'installation de l'application ne suffit pas. Sur un iPhone, vous pouvez le savoir car <strong>VPN</strong> apparaît dans la barre d'état. Vérifiez également que vous êtes connecté avec le même compte que sur le PC, car deux comptes signifient deux réseaux distincts qui ne peuvent pas se voir.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q2">Un widget ressemble à une boîte blanche avec du texte brut</summary>
+      <div class="body"><p data-i18n="ph.a2">Sur un iPhone ou un iPad, jusqu'à la version 4.11, cela se produisait à chaque fois : une règle de sécurité empêchait les widgets de charger leur propre design, et uniquement sur Safari, si bien que le même widget s'affichait correctement sur un PC. Mettez à jour Xenon et le problème disparaît. Si cela se produit encore après la mise à jour, la page exécute un code plus ancien que celui du PC : généralement, un onglet laissé ouvert avant la mise à jour, restauré depuis la mémoire au lieu d'être rechargé. Tirer vers le bas pour actualiser ne suffit souvent pas, il faut donc fermer complètement l'onglet et rouvrir l'adresse.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q3">Ça fonctionnait avant, et maintenant le téléphone semble non apparié</summary>
+      <div class="body"><p data-i18n="ph.a3">Votre routeur a probablement attribué une adresse différente à l'ordinateur. Une association est liée à l'adresse sur laquelle elle a été effectuée ; dès que l'adresse change, le téléphone apparaît comme non associé et vous devez l'ajouter à nouveau. Deux solutions : réserver une adresse fixe pour l'ordinateur dans les paramètres de votre routeur, ou utiliser la méthode sécurisée décrite ci-dessus, où l'adresse ne change jamais.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q4">L'application installée me demande de réappairer</summary>
+      <div class="body"><p data-i18n="ph.a4">Sur un iPhone, une application ajoutée à l'écran d'accueil conserve son propre stockage, distinct de celui de Safari. Par conséquent, l'appairage effectué dans le navigateur n'est pas transféré avec elle. Créez un second code et effectuez l'appairage depuis l'application installée. Elle apparaîtra comme une entrée distincte dans la liste des appareils, et vous pourrez renommer les deux pour les distinguer.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q5">Xenon indique que les certificats HTTPS ne sont pas activés</summary>
+      <div class="body"><p data-i18n-html="ph.a5">Il s'agit d'un paramètre pour votre réseau privé entier, et non pour cet ordinateur. Ouvrez <a href="https://login.tailscale.com/admin/dns" rel="noopener">login.tailscale.com/admin/dns</a>, trouvez <strong>HTTPS Certificats</strong> et appuyez sur <strong>Activer</strong>. Xenon le notifiera dans quelques secondes.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q6">Ma tablette affiche la mise en page bureau et je souhaitais celle empilée</summary>
+      <div class="body"><p data-i18n-html="ph.a6">C'est volontaire. Une tablette est assez grande pour afficher la grille réelle, ce qui est précisément l'intérêt d'une tablette, et un iPad dépasse largement la taille à laquelle Xenon bascule. Si vous préférez la mise en page empilée sur un appareil particulier, vous pouvez la choisir, et Xenon s'en souviendra <em>uniquement sur cet appareil</em>. Elle ne sera jamais transmise à l'ordinateur et votre mise en page enregistrée ne sera jamais écrasée.</p></div>
+    </details>
+
+    <h2 data-i18n="ph.h.not">Ce que cela ne fait pas</h2>
+    <p data-i18n="ph.not.1">Il n'existe aucun compte Xenon, aucun de nos serveurs n'intervient en intermédiaire, et rien concernant votre dashboard n'est uploadé nulle part. Sur votre propre Wi-Fi, la connexion n'est pas chiffrée, c'est pourquoi le panneau vous recommande de l'utiliser sur un réseau auquel vous faites confiance. La méthode sécurisée existe précisément pour résoudre ce problème. Tailscale est une entreprise que vous choisissez d'ajouter, ses propres conditions de confidentialité s'appliquent donc à elle, et Xenon n'en retire rien d'autre que l'adresse et le certificat de votre propre machine.</p>
+    <p data-i18n-html="ph.not.2">Tout ce que Xenon <a href="/fr/privacy.html">envoie et n'envoie pas est indiqué sur la page de confidentialité</a>.</p>
+
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un dashboard gratuit pour les écrans à côté de votre PC. Windows, avec macOS et Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Projet</h2><ul><li><a href="/fr/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/fr/faq.html" data-xl="f.faq">Aide et questions</a></li><li><a href="/fr/privacy.html" data-xl="f.privacy">Confidentialité</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+
+
+</body>
+</html>

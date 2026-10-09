@@ -776,6 +776,25 @@ test('a session started before Xenon shows up, marked as not wired in', () => {
   assert.equal(s.unlinked, true);
 });
 
+test('a session no hook reaches follows the registry from busy to idle and back', () => {
+  const { bridge } = makeBridge();
+  const row = (status) => [{ sessionId: 'pre', pid: 7, alive: true, cwd: 'C:/work/xenon', status }];
+  bridge.mergeRegistry(row('idle'));
+  assert.equal(bridge.snapshot().sessions[0].state, 'idle');
+  bridge.mergeRegistry(row('busy'));
+  assert.equal(bridge.snapshot().sessions[0].state, 'running', 'a prompt typed in the terminal is seen');
+  bridge.mergeRegistry(row('idle'));
+  assert.equal(bridge.snapshot().sessions[0].state, 'idle');
+  bridge.mergeRegistry(row(undefined));
+  assert.equal(bridge.snapshot().sessions[0].state, 'idle', 'an unknown status changes nothing');
+  // Once a hook arrives from it, the hooks own its state again.
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 'pre', cwd: 'C:/work/xenon', prompt: 'go' });
+  bridge.mergeRegistry(row('idle'));
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.unlinked, false);
+  assert.equal(s.state, 'running');
+});
+
 test('the registry corroborates and never overrules the hook feed', () => {
   const { bridge } = makeBridge();
   bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', cwd: '/a/b', tool_name: 'Bash', tool_input: { command: 'npm test' } });

@@ -287,7 +287,9 @@ function threadSource(t) {
   if (s && typeof s === 'object' && s.subAgent) return 'agent';
   return 'other';
 }
-// thread/list → the conversations Codex lists, newest first. Only the folder's
+// thread/list → the conversations Codex lists, most recently active first
+// (asked by recency, and sorted again here: a copy that does not know the sort
+// key lists by creation, which buried a busy old chat). Only the folder's
 // last segment is kept: the full path is the user's disk layout and never needs
 // to leave the PC to say "xenon". Ephemeral threads (Xenon AI's own one-shot
 // turns among them) are not the user's work and are skipped.
@@ -312,9 +314,9 @@ function parseThreads(r) {
       status: threadStatus(t.status),
       updatedAt: Number.isFinite(updated) ? updated * 1000 : null,
     });
-    if (out.length >= MAX_THREADS) break;
   }
-  return out;
+  out.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return out.slice(0, MAX_THREADS);
 }
 
 // What a person typed, without what Codex wrapped around it. Two wrappers are
@@ -342,6 +344,10 @@ function cleanUserText(raw) {
 // it: each turn's request and Codex's final answer, oldest first. Tool calls,
 // reasoning and command output are left out, the same choice the Claude tile's
 // reader makes. Bounded per message and in count.
+// A turn still running also shows Codex's interim notes ("commentary": what it
+// is doing now) as `progress`; once the turn ends only its answer stays, the
+// way Codex itself folds them away. The summary view has no commentary, so
+// readThread swaps in the full items of a running turn.
 const MAX_THREAD_MESSAGES = 30;
 const MAX_MESSAGE_TEXT = 6000;
 // Like str() but keeps line breaks: a message is paragraphs, a title is not.
@@ -368,7 +374,8 @@ function parseTurns(r) {
         }).join('\n').trim();
         if (text || files) out.push({ role: 'user', text: keepLines(text, MAX_MESSAGE_TEXT), files, at });
       } else if (it.type === 'agentMessage' && typeof it.text === 'string' && it.text.trim()) {
-        out.push({ role: 'assistant', text: keepLines(it.text, MAX_MESSAGE_TEXT), at });
+        if (it.phase !== 'commentary') out.push({ role: 'assistant', text: keepLines(it.text, MAX_MESSAGE_TEXT), at });
+        else if (t.status === 'inProgress') out.push({ role: 'progress', text: keepLines(it.text, MAX_MESSAGE_TEXT), at });
       }
     }
     if (t.status === 'failed' || t.status === 'interrupted') out.push({ role: 'note', text: t.status, at });
@@ -424,6 +431,7 @@ function createAppServer({
   let idleTimer = null;
   let tickTimer = null;
   let stopped = false;
+  let byRecency = true;       // false once this copy refused thread/list's sortKey
 
   const caps = Object.create(null);   // method → false once this copy said it does not know it
   const data = { account: null, limits: null, limitsAt: 0, usage: null, usageAt: 0, threads: null, threadsAt: 0, hooks: null, hooksAt: 0 };
@@ -564,7 +572,7 @@ function createAppServer({
         const r = await ask('account/usage/read', {});
         if (r !== undefined) { data.usage = parseUsage(r, now()); data.usageAt = now(); }
       } else if (kind === 'threads') {
-        const r = await ask('thread/list', { limit: MAX_THREADS + 8, archived: false });
+        const r = await listThreads();
         if (r !== undefined) { data.threads = parseThreads(r); data.threadsAt = now(); }
       } else if (kind === 'hooks') {
         const r = await ask('hooks/list', {});
@@ -576,6 +584,21 @@ function createAppServer({
     } finally {
       busy[kind] = false;
     }
+  }
+
+  // By last activity where this copy knows the key. An older one refuses an
+  // unknown sort key as a bad request; that must cost the order, never the
+  // list, so the refusal is caught here instead of going through ask(), which
+  // would mark thread/list itself as missing.
+  async function listThreads() {
+    const params = { limit: MAX_THREADS + 8, archived: false };
+    if (byRecency && caps['thread/list'] !== false) {
+      try { return await rpc.call('thread/list', Object.assign({ sortKey: 'recency_at' }, params)); } catch (e) {
+        if (!(e && e.rpc)) throw e;
+        byRecency = false;
+      }
+    }
+    return ask('thread/list', params);
   }
 
   function due(at, every) { return !at || now() - at >= every; }
@@ -619,6 +642,7 @@ function createAppServer({
   // One conversation, read on request (a tap on the tile). Only a thread this
   // module listed, or one the caller vouches for (a session the hooks report),
   // so the route is never a way to read an arbitrary id.
+  // `running`: the newest turn is still going, so the tile reads again soon.
   async function readThread(threadId) {
     if (!rpc) await start();
     if (!rpc) return { ok: false, error: state === 'missing' ? 'missing' : 'unavailable' };
@@ -626,7 +650,18 @@ function createAppServer({
       .catch((e) => ({ __error: String((e && e.message) || e) }));
     if (r === undefined) return { ok: false, error: 'unsupported' };
     if (r && r.__error) return { ok: false, error: 'failed' };
-    return { ok: true, messages: parseTurns(r) };
+    const turns = Array.isArray(r && r.data) ? r.data : [];
+    const newest = turns.reduce((a, t) => (t && (!a || (Number(t.startedAt) || 0) > (Number(a.startedAt) || 0)) ? t : a), null);
+    const running = !!newest && newest.status === 'inProgress';
+    if (running) await withLiveItems(threadId, newest);
+    return { ok: true, running, messages: parseTurns(r) };
+  }
+  // The running turn's full items, for its interim notes. Best effort: a turn
+  // whose command output makes the page too big to read keeps its summary.
+  async function withLiveItems(threadId, turn) {
+    const f = await ask('thread/turns/list', { threadId, limit: 1, sortDirection: 'desc', itemsView: 'full' }).catch(() => undefined);
+    const full = f && Array.isArray(f.data) ? f.data[0] : null;
+    if (full && full.id === turn.id && Array.isArray(full.items)) turn.items = full.items;
   }
   function knowsThread(id) { return !!(data.threads && data.threads.some((t) => t.id === id)); }
 

@@ -24,9 +24,9 @@
         "text": "#f2f2ea"
       },
       "shots": 4,
-      "active": false,
       "addedAt": "2026-10-02",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-10-02"
     },
     {
       "id": "nitrato",
@@ -53,12 +53,11 @@
         "text": "#EADFC8"
       },
       "shots": 4,
-      "active": false,
       "activeFrom": "2026-10-01T00:00:00+02:00",
       "activeUntil": "2026-11-02T23:59:59+01:00",
       "addedAt": "2026-10-02",
-      "codeFile": true,
-      "updatedAt": "2026-10-02"
+      "updatedAt": "2026-10-02",
+      "codeFile": true
     },
     {
       "id": "workload-river",
@@ -67,7 +66,6 @@
       "author": "Xenon",
       "authorSupporter": true,
       "locked": true,
-      "featured": "on",
       "description": "What is weighing on this PC, and since when. An overview of CPU, memory and each graphics card, then one row per app with its last five minutes in your theme's colour, deeper where it worked harder. One sentence on top says what matters now; tap a row for the detail.",
       "category": "system",
       "tags": [
@@ -87,8 +85,8 @@
       },
       "shots": 4,
       "addedAt": "2026-09-29",
-      "codeFile": true,
-      "updatedAt": "2026-09-29"
+      "updatedAt": "2026-10-02",
+      "codeFile": true
     },
     {
       "id": "tgk-workstation-monitor",

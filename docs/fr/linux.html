@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon sur Linux : dashboard en écran secondaire, AppImage, deb, rpm</title>
+<meta name="description" content="Xenon sur Linux (beta), un dashboard gratuit pour tout écran disponible : téléchargements AppImage, .deb et .rpm, configuration au premier lancement et ce dont a besoin X11.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Xenon sur Linux : dashboard en écran secondaire, AppImage, deb, rpm">
+<meta property="og:description" content="Xenon sur Linux (beta), un dashboard gratuit pour tout écran disponible : téléchargements AppImage, .deb et .rpm, configuration au premier lancement et ce dont a besoin X11.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/fr/linux.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/linux.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/linux.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/linux.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/linux.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/linux.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/linux.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/linux.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/linux.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon fonctionne-t-il sur Linux ?","acceptedAnswer":{"@type":"Answer","text":"Oui, en beta. Le dashboard, les widgets, le catalogue et les intégrations sont identiques à ceux de Windows ; quelques parties qui lisent la machine sont uniquement X11 ou pas encore disponibles."}},{"@type":"Question","name":"Quel paquet Linux dois-je télécharger ?","acceptedAnswer":{"@type":"Answer","text":"L'AppImage fonctionne sur tout bureau x86_64. Il existe également un fichier .deb pour Debian et Ubuntu, ainsi qu'un fichier .rpm pour Fedora et openSUSE."}},{"@type":"Question","name":"Xenon démarre-t-il automatiquement sur Linux ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Le premier lancement enregistre un service utilisateur systemd, avec un mécanisme de démarrage automatique de secours via XDG en l'absence de gestionnaire d'utilisateur."}},{"@type":"Question","name":"Est-ce que Xenon fonctionne sur Wayland ?","acceptedAnswer":{"@type":"Answer","text":"La plupart le font. Les widget d'applications ouvertes, le sélecteur d'applications et la vision d'écran de l'IA ont besoin d'une session X11."}}]}</script>
+
+<style>
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
+  .dl a.pick:hover { border-color: var(--line-2); }
+  .dl .os { font: 700 19px/1.3 var(--display); }
+  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
+  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
+  .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
+  .tablewrap td { vertical-align: top; }
+  pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrez-moi un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>FR</span></summary><ul><li><a href="/linux.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/linux.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/linux.html" hreflang="fr" lang="fr" aria-current="page">Français <span>FR</span></a></li><li><a href="/it/linux.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/linux.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/linux.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/linux.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Télécharger</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">Menu</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Fermer</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/fr/#screens" data-xl="screens">Écrans</a></li><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/fr/#install" data-xl="install">Installer</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">Offrez-moi un café</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/linux.html" aria-current="page" data-xl="f.linux">Xenon sur Linux</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Xenon sur Linux","item":"https://xenon-app.com/fr/linux.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="lx.title">Xenon sur Linux</h1>
+    <p class="lede" data-i18n="lx.lede">Xenon est un dashboard gratuit pour tout écran disponible. Sur Linux, il est en beta : le dashboard est identique à celui de Windows, et cette page liste les différences restantes ainsi que les paquets requis.</p>
+    <p class="updated" data-i18n-html="lx.updated">Dernière mise à jour : 26 septembre 2026 · chaque lien pointe vers <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la dernière version</a></p>
+
+    <nav class="jump">
+      <a href="#get" data-i18n="lx.jump.get">Téléchargements</a>
+      <a href="#setup" data-i18n="lx.jump.setup">Premier lancement</a>
+      <a href="#works" data-i18n="lx.jump.works">Ce qui fonctionne</a>
+      <a href="#wayland" data-i18n="lx.jump.wayland">X11 et Wayland</a>
+    </nav>
+
+    <h2 id="get" data-i18n="lx.h.get">Téléchargements</h2>
+    <div class="dl">
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="linux_page_appimage"><span class="os">AppImage</span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req" data-i18n-html="lx.req.appimage">Tout bureau x86_64. <code>chmod +x</code> et exécutez-le.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="linux_page_deb"><span class="os">Debian, Ubuntu</span><span class="file">Xenon-Linux-x86_64.deb</span><span class="req" data-i18n="lx.req.deb">Installe l'application ; le dashboard est configuré au premier lancement, pour chaque utilisateur.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.rpm" data-track="download_click" data-track-location="linux_page_rpm"><span class="os">Fedora, openSUSE</span><span class="file">Xenon-Linux-x86_64.rpm</span><span class="req" data-i18n="lx.req.rpm">Identique au .deb, pour les distributions RPM.</span></a>
+    </div>
+    <p class="note" data-i18n-html="lx.beta">La prise en charge de Linux est en <strong>beta</strong>. Le dashboard, les widgets, le catalogue et les intégrations sont identiques à ceux de Windows. Ce qui diffère encore, c'est la partie qui lit et pilote la machine, répertoriée dans le tableau ci-dessous. Elle est testée sur GNOME et KDE.</p>
+
+    <h2 id="setup" data-i18n="lx.h.setup">Premier lancement</h2>
+    <p data-i18n-html="lx.setup.p1">Ouvrez l'application. Au premier lancement, il est proposé de configurer le dashboard dans un terminal : il télécharge le moteur, vérifie le téléchargement avant de l'extraire, et enregistre un service <code>systemd --user</code> afin que Xenon démarre lors de votre connexion. En l'absence de gestionnaire d'utilisateurs, il utilise à la place une entrée de démarrage automatique XDG et vous l'indique, en précisant que ce mode de secours ne redémarre pas Xenon après un plantage.</p>
+    <p data-i18n="lx.setup.p2">Les fichiers .deb et .rpm ne le font pas volontairement lors de l'installation : tout ce que la configuration crée appartient à un seul compte utilisateur, tandis qu'un paquet est installé en tant que root pour toute la machine.</p>
+    <p data-i18n="lx.setup.p3">L'installateur énumère également les outils facultatifs dont vous ne disposez pas. Sur Debian et Ubuntu :</p>
+    <pre><code>sudo apt install nodejs npm unzip           # required
+sudo apt install wireplumber                # volume, microphone and the per-app mixer
+sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
+sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
+    <p data-i18n-html="lx.setup.p4">Si votre bureau ne dispose d'aucun émulateur de terminal, l'application ne peut pas vous afficher l'installateur : téléchargez le zip source depuis <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">la release</a>, extrayez-le et exécutez <code>./INSTALL.sh</code>.</p>
+
+    <h2 id="works" data-i18n="lx.h.works">Ce qui fonctionne sur Linux</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="lx.th.area">Fonctionailité</th><th data-i18n="lx.th.status">Statut</th></tr></thead>
+      <tbody>
+        <tr><td data-i18n="lx.row.dash">Dashboard, tuiles, thèmes, catalogue, widget SDK</td><td data-i18n="lx.st.identical">Fonctionne de manière identique à Windows.</td></tr>
+        <tr><td data-i18n="lx.row.native">Application plein écran native, démarre à la connexion et se met à jour automatiquement</td><td data-i18n="lx.st.works">Fonctionnel</td></tr>
+        <tr><td data-i18n="lx.row.basics">CPU, RAM, disques, réseau</td><td data-i18n="lx.st.works">Fonctionnel</td></tr>
+        <tr><td data-i18n="lx.row.sensors">CPU et GPU température, GPU charge, vitesses des ventilateurs</td><td data-i18n="lx.st.sensors">Fonctionne grâce aux capteurs du noyau.</td></tr>
+        <tr><td data-i18n="lx.row.audio">Volume système, micro coupé, mélangeur par application</td><td data-i18n="lx.st.wireplumber">Fonctionne avec WirePlumber installé.</td></tr>
+        <tr><td data-i18n="lx.row.media">Lecture en cours et fonctions multimédias</td><td data-i18n="lx.st.mpris">Fonctionne via MPRIS.</td></tr>
+        <tr><td data-i18n="lx.row.fps">Compteur FPS en jeu</td><td data-i18n="lx.st.mangohud">Fonctionne via MangoHud.</td></tr>
+        <tr><td data-i18n="lx.row.ai">Xenon IA, chat, actions, commande vocale « Hey Xenon »</td><td data-i18n="lx.st.ai">Fonctionnel, cloud et local.</td></tr>
+        <tr><td data-i18n="lx.row.lighting">Éclairage en réseau : WLED, Hue, Nanoleaf, OpenRGB</td><td data-i18n="lx.st.works">Fonctionnel</td></tr>
+        <tr><td data-i18n="lx.row.services">Streaming, Spotify, Discord, Home Assistant</td><td data-i18n="lx.st.works">Fonctionnel</td></tr>
+        <tr><td data-i18n="lx.row.phone">Téléphone ou tablette en tant qu'écran secondaire</td><td data-i18n="lx.st.works">Fonctionnel</td></tr>
+        <tr><td data-i18n="lx.row.notif">Notifications du bureau et carte d'appel entrant</td><td data-i18n="lx.st.works">Fonctionnel</td></tr>
+        <tr><td data-i18n="lx.row.windows">Ouvrir des applications, basculer entre les applications, vision de l'écran pour l'IA</td><td data-i18n="lx.st.x11">X11 sessions uniquement.</td></tr>
+        <tr><td data-i18n="lx.row.hotkey">Raccourci de recherche globale</td><td data-i18n="lx.st.gnome">GNOME uniquement.</td></tr>
+        <tr><td data-i18n="lx.row.icue">Éclairage CORSAIR iCUE</td><td data-i18n="lx.st.icue">Non disponible sur Linux. iCUE est un logiciel Windows ; l'éclairage en réseau ne sont pas affectées.</td></tr>
+        <tr><td data-i18n="lx.row.typing">Saisie de texte et déplacement des fenêtres depuis le dashboard</td><td data-i18n="lx.st.notyet">Pas encore.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" data-i18n-html="lx.readme">Le tableau <a href="https://github.com/marcimastro98/Xenon#platform-support" rel="noopener"> Plateform Support dans le README</a> est la version faisant autorité de cette liste, avec une note de bas de page sur chaque ligne comportant une condition.</p>
+
+    <h2 id="wayland" data-i18n="lx.h.wayland">X11 et Wayland</h2>
+    <p data-i18n-html="lx.wayland.p">La plupart des fonctionnalités du dashboard fonctionnent de la même manière sur les deux. Les parties qui diffèrent sont celles qui doivent voir d'autres fenêtres : le widget des applications ouvertes, le sélecteur d'applications et la vision d'écran par l'IA utilisent les outils X11 (<code>wmctrl</code>, <code>xdotool</code>), de sorte qu'en session Wayland, Xenon les masque au lieu de les proposer puis d'échouer. Si vous en avez besoin, connectez-vous à une session X11.</p>
+
+    <div class="card accent">
+      <h3 data-i18n="lx.report.h">Signaler un problème</h3>
+      <p data-i18n-html="lx.report.p">Linux est en beta car le tableau ci-dessus comporte encore des lacunes. Pour en signaler une, ouvrez un <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" rel="noopener">signalement de bug</a> auprès de votre distribution, en précisant votre bureau et votre type de session. Pour poser une question d'abord, écrivez sur le <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un dashboard gratuit pour les écrans à côté de votre PC. Windows, avec macOS et Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Projet</h2><ul><li><a href="/fr/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/fr/faq.html" data-xl="f.faq">Aide et questions</a></li><li><a href="/fr/privacy.html" data-xl="f.privacy">Confidentialité</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

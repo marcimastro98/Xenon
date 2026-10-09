@@ -24,7 +24,8 @@
   let payload = null;       // { app, live, link, cfg, sdk } from SSE or GET /api/codex
   let seeded = false, seedInflight = false;
   let linkPanel = false;
-  let thread = null;          // { id, title, project, loading, messages, error } while a conversation is open
+  let thread = null;          // { id, title, project, loading, messages, running, error } while a conversation is open
+  let threadTimer = null;
   let threadPinBottom = true;
   let linking = false;
   let refreshing = false;
@@ -336,23 +337,69 @@
   }
 
   // ── one conversation, opened from a row ──
-  async function openThread(id, title, project) {
-    thread = { id, title, project, loading: true, messages: [], error: '' };
+  // Codex writes the conversation from another process, so nothing tells us a
+  // new answer landed: the open view reads it again on its own, often while a
+  // turn runs, now and then while idle (a prompt sent from Codex starts one),
+  // and only while some tile actually shows it.
+  const THREAD_RUNNING_MS = 3000;
+  const THREAD_IDLE_MS = 15000;
+  function threadShown() {
+    return !!thread && document.visibilityState === 'visible' && tiles().some((tile) => !isParked(tile));
+  }
+  function closeThread() {
+    thread = null;
+    if (threadTimer) { clearTimeout(threadTimer); threadTimer = null; }
     paint();
+  }
+  function scheduleThread() {
+    if (threadTimer) { clearTimeout(threadTimer); threadTimer = null; }
+    if (!thread || thread.loading) return;
+    const id = thread.id;
+    threadTimer = setTimeout(() => {
+      threadTimer = null;
+      if (!thread || thread.id !== id) return;
+      if (threadShown()) loadThread(id, false);
+      else scheduleThread();
+    }, thread.running ? THREAD_RUNNING_MS : THREAD_IDLE_MS);
+  }
+  function threadSig(msgs, running) {
+    const last = msgs.length ? msgs[msgs.length - 1] : null;
+    return msgs.length + '|' + (running ? 1 : 0) + '|' + (last ? last.role + last.text.length + last.text.slice(-40) : '');
+  }
+  async function loadThread(id, first) {
     const d = await api('/api/codex/thread?id=' + encodeURIComponent(id));
     if (!thread || thread.id !== id) return;
+    const before = threadSig(thread.messages, thread.running);
+    const wasError = thread.error;
+    if (d && d.ok) {
+      thread.messages = Array.isArray(d.messages) ? d.messages : [];
+      thread.running = d.running === true;
+      thread.error = '';
+    } else if (first || !thread.messages.length) thread.error = (d && d.error) || 'failed';
+    // A refresh that fails keeps what was already on screen.
+    const changed = first || thread.loading || wasError !== thread.error || before !== threadSig(thread.messages, thread.running);
+    if (first || thread.loading) threadPinBottom = true;
     thread.loading = false;
-    if (d && d.ok) thread.messages = Array.isArray(d.messages) ? d.messages : [];
-    else thread.error = (d && d.error) || 'failed';
-    threadPinBottom = true;
+    if (changed) {
+      // A reader parked at the newest message follows the new one in.
+      const th = document.querySelector('.codex-widget-mount .cx-thread');
+      if (th && th.scrollHeight - th.scrollTop - th.clientHeight < 24) threadPinBottom = true;
+      paint();
+    }
+    scheduleThread();
+  }
+  function openThread(id, title, project) {
+    if (threadTimer) { clearTimeout(threadTimer); threadTimer = null; }
+    thread = { id, title, project, loading: true, messages: [], running: false, error: '' };
     paint();
+    loadThread(id, true);
   }
   function threadView() {
     const box = el('div', 'cx-panel cx-thread-panel');
     const top = el('div', 'cx-top');
     const back = el('button', 'cx-btn is-quiet', '‹ Codex');
     back.type = 'button';
-    back.addEventListener('click', () => { thread = null; paint(); });
+    back.addEventListener('click', closeThread);
     top.appendChild(back);
     const head = el('div', 'cx-thread-head');
     head.appendChild(el('span', 'cx-row-title', thread.title || ''));
@@ -370,6 +417,7 @@
     else if (thread.error) list.appendChild(el('div', 'cx-muted', thread.error === 'unsupported' ? t('codex_thread_unsupported', 'This copy of Codex cannot share its conversations. Updating Codex adds it.') : t('codex_thread_failed', 'Codex did not return this conversation.')));
     else if (!thread.messages.length) list.appendChild(el('div', 'cx-muted', t('codex_thread_empty', 'Nothing to show in this conversation yet.')));
     for (const m of thread.messages) {
+      if (m.role === 'progress') { list.appendChild(el('div', 'cx-thread-progress', m.text)); continue; }
       if (m.role === 'note') { list.appendChild(el('div', 'cx-thread-note', m.text === 'failed' ? t('codex_turn_failed', 'This turn ended with an error.') : t('codex_turn_stopped', 'This turn was stopped.'))); continue; }
       const row = el('div', 'cx-msg is-' + m.role);
       const b = el('div', 'cx-bubble' + (m.role === 'assistant' ? ' ai-msg-markdown' : ''));
@@ -381,6 +429,7 @@
       row.appendChild(b);
       list.appendChild(row);
     }
+    if (thread.running) list.appendChild(el('div', 'cx-thread-note is-running', t('codex_state_running', 'Working')));
     box.appendChild(list);
     box.appendChild(el('div', 'cx-muted cx-thread-foot', t('codex_thread_foot', 'Your requests and Codex’s answers. Commands and file changes stay in Codex.')));
     return box;
@@ -755,6 +804,8 @@
     if (!tiles().length) {
       seeded = false;
       stopTicker();
+      if (threadTimer) { clearTimeout(threadTimer); threadTimer = null; }
+      thread = null;
       // The overlay survives: a pending approval stays answerable from any page.
       if (!approvals().length) closeOverlay();
       return;
