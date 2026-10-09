@@ -33,6 +33,13 @@
       reject: 'Reject',
       more: 'Privacy policy',
     },
+    fr: {
+      title: 'Cookies sur ce site',
+      body: 'Ce choix ne concerne que le site Web, et non l\'application sur votre PC. Le site utilise Google Analytics pour savoir quelles pages et téléchargements les utilisateurs consultent réellement.',
+      accept: 'Accepter',
+      reject: 'Rejeter',
+      more: 'Politique de confidentialité',
+    },
     it: {
       title: 'Cookie su questo sito',
       body: "Questa scelta riguarda solo il sito, non l'app sul tuo PC. Il sito usa Google Analytics per capire quali pagine e download vengono davvero raggiunti.",
