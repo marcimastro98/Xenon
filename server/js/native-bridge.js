@@ -413,11 +413,44 @@
   // unzoomed viewport). `__pageZoom` is the contract client-coordinate code reads
   // to divide out the magnification — draggables that clamp with
   // getBoundingClientRect (see clampDashboardDock) rely on it plus a safety reset.
+  //
+  // The macOS shell is the exception (cap `nativePageZoom`): there WKWebView
+  // carries a CSS `zoom` into the sandboxed widget frames without shrinking
+  // their viewport, so SDK widgets rendered enlarged, blurry and cropped. The
+  // shell applies WKWebView page zoom instead, which scales frames like Safari's
+  // own zoom; the page then lays out at the smaller viewport and client
+  // coordinates need no correction, so `__pageZoom` stays 1. Sent with the same
+  // load-safe deferral as the other shell signals; only the latest scale goes.
+  let pageZoomShellSignal = null; // last scale signalled to the shell
+  let pageZoomSignalTimer = null;
+  function sendPageZoomSignalSoon() {
+    if (pageZoomSignalTimer) return; // already queued — it reads the latest scale
+    const fire = () => {
+      pageZoomSignalTimer = setTimeout(() => {
+        pageZoomSignalTimer = null;
+        if (pageZoomShellSignal === currentNativeZoom) return;
+        pageZoomShellSignal = currentNativeZoom;
+        try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom; } catch (e) { /* not native */ }
+      }, 120);
+    };
+    if (document.readyState === 'complete') fire();
+    else window.addEventListener('load', fire, { once: true });
+  }
+
   function applyNativeZoomCss(scale) {
     const z = clampZoom(scale);
     currentNativeZoom = z;
     const el = document.documentElement;
     const body = document.body;
+    const caps = window.__XENON_NATIVE_CAPS__;
+    if (caps && caps.nativePageZoom === true) {
+      if (el) el.style.zoom = '';
+      if (body) { body.style.width = ''; body.style.height = ''; body.style.minHeight = ''; }
+      window.__pageZoom = 1;
+      sendPageZoomSignalSoon();
+      scheduleZoomRelayout();
+      return;
+    }
     if (z === 1) {
       if (el) el.style.zoom = '';
       if (body) { body.style.width = ''; body.style.height = ''; body.style.minHeight = ''; }

@@ -664,6 +664,13 @@
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
     return hs.tempUnit === 'f' ? 'f' : 'c';
   }
+  // The unit the user reads CPU/GPU temperatures in. Usually the same as
+  // tempUnit, but it can be set apart (°F forecast, °C hardware), so a monitor
+  // widget reads this one and a weather widget reads tempUnit.
+  function hwTempUnit() {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    return hs.hwTempUnit === 'c' || hs.hwTempUnit === 'f' ? hs.hwTempUnit : tempUnit();
+  }
 
   // ── postMessage bridge ───────────────────────────────────────────
   // The iframe origin is opaque ('null'), so identity is established by
@@ -1746,6 +1753,7 @@
         theme: themePayload(entry),
         lang: langCode(),
         tempUnit: tempUnit(),
+        hwTempUnit: hwTempUnit(),
         streams: grant.streams.slice(),
         actions: grant.actions.slice(),
         hosts: grant.hosts.slice(),
@@ -2249,8 +2257,9 @@
   // to be reloaded.
   function refreshTempUnit() {
     const unit = tempUnit();
+    const hwUnit = hwTempUnit();
     for (const [, entry] of frames) {
-      if (entry.ready) post(entry, { type: 'tempUnit', tempUnit: unit });
+      if (entry.ready) post(entry, { type: 'tempUnit', tempUnit: unit, hwTempUnit: hwUnit });
     }
   }
 

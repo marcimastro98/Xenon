@@ -8188,6 +8188,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   contentInstalls: Object.freeze([]),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ hero: 'full', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
+  hwTempUnit: 'auto', // 'auto' | 'c' | 'f' — hardware readings; auto follows tempUnit
   // Mirrors js/settings.js: 'off' | 'minimal' | 'wave'. Read by
   // audioLevelsWanted(): anything but 'off' is a first-party reason to run the
   // helper's meter, beside the SDK grants.
@@ -9730,6 +9731,7 @@ function normalizeHubSettings(value) {
     ambientMode: normalizeAmbientMode(source.ambientMode),
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
+    hwTempUnit: ['auto', 'c', 'f'].includes(source.hwTempUnit) ? source.hwTempUnit : 'auto',
     mediaVisualizer: ['off', 'minimal', 'wave'].includes(source.mediaVisualizer) ? source.mediaVisualizer : (source.mediaVisualizer === true ? 'wave' : 'off'),
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',

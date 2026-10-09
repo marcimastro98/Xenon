@@ -401,7 +401,8 @@
 :root[data-appearance="light"] .layout-editing .gs-edit-bar .layout-control-btn {
   background: var(--surface); border-color: var(--lt-border); color: var(--lt-strong);
 }
-:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
+:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se,
+:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw {
   background: var(--surface);
   border-color: var(--lt-border);
   box-shadow: var(--shadow-md);

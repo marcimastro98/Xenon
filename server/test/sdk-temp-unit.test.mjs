@@ -27,6 +27,14 @@ const tempUnit = (hubSettings) => {
   // eslint-disable-next-line no-new-func
   return new Function('hubSettings', `${BRIDGE.slice(at, end)}; return tempUnit();`)(hubSettings);
 };
+const hwTempUnit = (hubSettings) => {
+  const at = BRIDGE.indexOf('function tempUnit() {');
+  const hw = BRIDGE.indexOf('function hwTempUnit() {');
+  assert.notEqual(hw, -1, 'js/custom-widget.js must still define hwTempUnit');
+  const end = BRIDGE.indexOf('\n  }', hw) + 4;
+  // eslint-disable-next-line no-new-func
+  return new Function('hubSettings', `${BRIDGE.slice(at, end)}; return hwTempUnit();`)(hubSettings);
+};
 
 test("the user's choice is what a widget is told", () => {
   assert.equal(tempUnit({ tempUnit: 'f' }), 'f');
@@ -42,20 +50,38 @@ test('anything that is not Fahrenheit is Celsius', () => {
 });
 
 test('it arrives at mount, in init', () => {
-  assert.match(BRIDGE, /lang: langCode\(\),\n        tempUnit: tempUnit\(\),/);
+  assert.match(BRIDGE, /lang: langCode\(\),\n        tempUnit: tempUnit\(\),\n        hwTempUnit: hwTempUnit\(\),/);
+});
+
+test('the hardware unit follows the weather one unless the user set it apart', () => {
+  // Some people read the forecast in °F and their CPU in °C. 'auto' (or junk)
+  // resolves to the weather unit, so a widget only ever sees 'c' or 'f'.
+  assert.equal(hwTempUnit({ tempUnit: 'f' }), 'f');
+  assert.equal(hwTempUnit({ tempUnit: 'f', hwTempUnit: 'auto' }), 'f');
+  assert.equal(hwTempUnit({ tempUnit: 'f', hwTempUnit: 'c' }), 'c');
+  assert.equal(hwTempUnit({ tempUnit: 'c', hwTempUnit: 'f' }), 'f');
+  for (const hs of [{}, null, undefined, { hwTempUnit: 'kelvin' }, { hwTempUnit: 'F' }]) {
+    assert.equal(hwTempUnit(hs), 'c', JSON.stringify(hs));
+  }
 });
 
 test('a change is pushed, not left to the next reload', () => {
   // The lesson from `lang`: a widget author reads the field at init, does the
   // right thing with it, and is still wrong the moment the user changes it.
   assert.match(BRIDGE, /function refreshTempUnit\(\)/);
-  assert.match(BRIDGE, /post\(entry, \{ type: 'tempUnit', tempUnit: unit \}\)/);
+  assert.match(BRIDGE, /post\(entry, \{ type: 'tempUnit', tempUnit: unit, hwTempUnit: hwUnit \}\)/);
   assert.match(BRIDGE, /refreshTheme, refreshLang, refreshTempUnit,/,
     'and it must be exported, or nothing can call it');
   assert.match(SETTINGS, /window\.CustomWidget\.refreshTempUnit\(\)/);
-  const at = SETTINGS.indexOf('function updateTempUnit(');
-  const body = SETTINGS.slice(at, SETTINGS.indexOf('\n}', at));
-  assert.match(body, /refreshTempUnit/, 'pushed from the same place the dashboard repaints itself');
+  const bodyOf = (name) => {
+    const at = SETTINGS.indexOf(`function ${name}(`);
+    assert.notEqual(at, -1, `${name} is gone`);
+    return SETTINGS.slice(at, SETTINGS.indexOf('\n}', at));
+  };
+  assert.match(bodyOf('repaintTempUnits'), /refreshTempUnit/);
+  for (const setter of ['updateTempUnit', 'updateHwTempUnit']) {
+    assert.match(bodyOf(setter), /repaintTempUnits\(\)/, `${setter} must push, from the same place the dashboard repaints itself`);
+  }
 });
 
 test('the values stay Celsius — this says how to show them, not what they are', () => {
@@ -69,6 +95,7 @@ test('the values stay Celsius — this says how to show them, not what they are'
 
 test('the guide documents the message and the conversion', () => {
   assert.match(DOC, /### 3d-bis\. `tempUnit` — Celsius or Fahrenheit/);
-  assert.match(DOC, /\{ xenonSdk: 1, type: 'tempUnit', tempUnit: 'f' \}/);
+  assert.match(DOC, /\{ xenonSdk: 1, type: 'tempUnit', tempUnit: 'f', hwTempUnit: 'c' \}/);
+  assert.match(DOC, /`hwTempUnit`/);
   assert.match(DOC, /c \* 9 \/ 5 \+ 32/, 'a widget author should not have to look up the formula');
 });

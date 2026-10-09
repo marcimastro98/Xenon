@@ -841,8 +841,15 @@ Same shape as `lang`, for the same reason. The `init` payload carries
 pushed to every widget already on screen:
 
 ```js
-{ xenonSdk: 1, type: 'tempUnit', tempUnit: 'f' }
+{ xenonSdk: 1, type: 'tempUnit', tempUnit: 'f', hwTempUnit: 'c' }
 ```
+
+Since v4.11.12 both carry `hwTempUnit` as well: the unit the user reads CPU and
+GPU temperatures in. It is the same as `tempUnit` unless the user set it apart in
+Settings (a forecast in °F with the CPU in °C, say), and it is always `'c'` or
+`'f'`. A widget that shows hardware temperatures reads `hwTempUnit`; a weather
+widget reads `tempUnit`. On an older Xenon the field is missing, so fall back to
+`tempUnit`.
 
 **The numbers are not converted, and will not be.** Every temperature Xenon
 reports — `cpuTemp`, `gpuTemp`, the weather stream, everything — is Celsius, and

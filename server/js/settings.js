@@ -388,6 +388,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     tile: Object.freeze({ hero: 'full', metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
+  // 'auto' | 'c' | 'f' — CPU/GPU temperatures, Guardian and briefing lines.
+  // 'auto' follows tempUnit, which is what everyone had before it existed.
+  hwTempUnit: 'auto',
   // The Media tile's waveform: 'off' | 'minimal' | 'wave'. An ADDITION to that
   // tile, so it defaults to off and has a quiet setting as well as a full one —
   // nobody gets a busier Media tile than the one they already had. Off is also
@@ -1765,6 +1768,7 @@ function normalizeSettings(source) {
     ambientScenes: normalizeAmbientScenes(value.ambientScenes),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
+    hwTempUnit: ['auto', 'c', 'f'].includes(value.hwTempUnit) ? value.hwTempUnit : 'auto',
     mediaVisualizer: ['off', 'minimal', 'wave'].includes(value.mediaVisualizer) ? value.mediaVisualizer : (value.mediaVisualizer === true ? 'wave' : 'off'),
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
@@ -9169,6 +9173,12 @@ function syncWeatherSettingsControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
+  const hwUnit = ['c', 'f'].includes(hubSettings.hwTempUnit) ? hubSettings.hwTempUnit : 'auto';
+  document.querySelectorAll('.settings-hw-temp-unit[data-hw-temp-unit]').forEach(btn => {
+    const active = btn.dataset.hwTempUnit === hwUnit;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
   const providerSelect = $('settings-weather-provider');
   if (providerSelect && providerSelect.value !== weather.provider) {
     providerSelect.value = weather.provider;
@@ -10062,12 +10072,30 @@ function updateTempUnit(unit) {
   syncWeatherSettingsControls();
   if (typeof applyWeather === 'function') applyWeather(typeof weatherData !== 'undefined' ? weatherData : null);
   if (typeof renderLockScreen === 'function') renderLockScreen();
+  repaintTempUnits();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+// The unit for hardware readings: 'auto' follows the weather unit above, 'c' and
+// 'f' pin it, for people who read the forecast in °F and their CPU in °C.
+function updateHwTempUnit(unit) {
+  if (!['auto', 'c', 'f'].includes(unit)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, hwTempUnit: unit });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  repaintTempUnits();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Either unit can change what the CPU/GPU headers say (hardware 'auto' follows
+// the weather one), so both setters repaint them and tell installed widgets.
+function repaintTempUnits() {
+  if (typeof applySystem === 'function' && typeof lastSystemData !== 'undefined' && lastSystemData) applySystem(lastSystemData);
   // Widgets draw temperatures too (a monitor tile, a weather tile). Tell them,
   // the same way a theme or language change is told — see refreshTempUnit.
   if (window.CustomWidget && typeof window.CustomWidget.refreshTempUnit === 'function') {
     window.CustomWidget.refreshTempUnit();
   }
-  setSettingsStatus('settings_weather_saved', 'ok');
 }
 
 function updateWeatherCity(value, commit = false) {
@@ -11697,8 +11725,10 @@ async function refreshWakeWordStatus() {
 async function wakeInstallWhisper(btn) {
   const out = $('settings-wake-status');
   if (btn) btn.disabled = true;
+  let failure = '';
   try {
     await _streamWhisperInstall(p => {
+      if (p.error) failure = String(p.error);
       if (!out) return;
       if (p.error) out.textContent = '⚠ ' + String(p.error);
       else if (p.status || typeof p.percent === 'number') {
@@ -11706,10 +11736,13 @@ async function wakeInstallWhisper(btn) {
       }
     });
   } catch (e) {
-    if (out) out.textContent = String((e && e.message) || e);
+    failure = String((e && e.message) || e);
   } finally {
     if (btn) btn.disabled = false;
-    refreshWakeWordStatus();
+    // The status refresh rewrites this line with "Whisper is needed", which used
+    // to wipe the reason a download failed the instant it appeared. Put it back.
+    await refreshWakeWordStatus();
+    if (failure && out) out.textContent = '⚠ ' + failure;
   }
 }
 
