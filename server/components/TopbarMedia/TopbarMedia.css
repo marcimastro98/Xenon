@@ -92,6 +92,15 @@
 }
 .tbm-artist[hidden] { display: none; }
 
+/* Full bar only: the text column has a fixed width instead of hugging the title.
+   The bar is a `1fr auto 1fr` grid, so every pixel the clock column gains is
+   taken from the quickbar beside it, and the quickbar wraps. With a width that
+   followed the title, one song left the four buttons in a row and the next put
+   them in a 2x2 block, making the whole bar one or two rows tall (Discord).
+   The width now changes only when playback starts or stops. The Minimal island
+   keeps hugging the track: it floats, so its width moves nothing else. */
+body:not(.topbar-minimal) .topbar .tbm-txt { width: 150px; }
+
 .tbm-ctrls { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; }
 
 .tbm-btn {
@@ -160,6 +169,7 @@ body.topbar-minimal .topbar-mini .tbm-artist { max-width: 140px; font-size: 10px
 @media (max-width: 720px) {
   .tbm-art { display: none; }
   .tbm-title, .tbm-artist { max-width: 96px; }
+  body:not(.topbar-minimal) .topbar .tbm-txt { width: 96px; }
 }
 
 /* Text and progress stack; the transport sits beside the pair. */

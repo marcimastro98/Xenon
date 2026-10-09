@@ -333,3 +333,32 @@ test('whisperPaths returns exe and model under server/whisper', () => {
   assert.equal(p.exe, path.join('/srv/app/server', 'whisper', exe));
   assert.equal(p.model, path.join('/srv/app/server', 'whisper', 'ggml-small.bin'));
 });
+
+// whisper.cpp stopped attaching binaries to its tagged versions (v1.9.4, v1.9.5):
+// /releases/latest had no assets, and "Download Whisper" failed at once.
+const rel = (tag, names, extra = {}) => ({
+  tag_name: tag, ...extra,
+  assets: names.map(name => ({ name, browser_download_url: `https://github.com/ggml-org/whisper.cpp/releases/download/${tag}/${name}` })),
+});
+
+test('pickWhisperAsset skips a tagged release with no binaries and takes the newest build that has one', () => {
+  const a = ai.pickWhisperAsset([
+    rel('v1.9.5', []),
+    rel('b5454', ['whisper-bin-ubuntu-x64.tar.gz', 'whisper-bin-win-cuda-12.4.0-x64.zip', 'whisper-blas-bin-x64.zip', 'whisper-bin-x64.zip'], { prerelease: true }),
+    rel('b5130', ['whisper-bin-x64.zip'], { prerelease: true }),
+  ]);
+  assert.equal(a.browser_download_url, 'https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip');
+});
+
+test('pickWhisperAsset prefers a plain CPU zip over an accelerated one, and never a draft', () => {
+  const list = [
+    rel('b2', ['whisper-cublas-12.4.0-bin-x64.zip']),
+    rel('b1', ['whisper-bin-x64.zip']),
+  ];
+  assert.equal(ai.pickWhisperAsset(list).name, 'whisper-bin-x64.zip');
+  assert.equal(ai.pickWhisperAsset([rel('b3', ['whisper-bin-x64.zip'], { draft: true })]), null);
+  assert.equal(ai.pickWhisperAsset([rel('b2', ['whisper-cublas-12.4.0-bin-x64.zip'])]).name, 'whisper-cublas-12.4.0-bin-x64.zip');
+  for (const junk of [null, {}, 'x', [null, rel('v', ['whisper-bin-ubuntu-x64.tar.gz', 'whisper-bin-Win32.zip'])]]) {
+    assert.equal(ai.pickWhisperAsset(junk), null);
+  }
+});

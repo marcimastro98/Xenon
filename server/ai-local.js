@@ -1226,6 +1226,35 @@ function _runBrewInstall(brewPath, formula) {
   });
 }
 
+// Pick the Windows x64 zip to install from a GitHub releases list (newest
+// first). whisper.cpp stopped attaching binaries to its tagged versions in
+// September 2026 (v1.9.4 and v1.9.5 have none): they now ship on the "bNNNN"
+// builds, marked as pre-releases. Asking for /releases/latest therefore found
+// nothing, and the download failed at once. So walk the list and take the
+// newest release, pre-release or not, that carries a usable zip.
+function pickWhisperAsset(releases) {
+  // Prefer the small CPU build (`whisper-bin-x64.zip`, ~4 MB). The accelerated
+  // variants (CUDA can be ~450 MB) need a matching GPU runtime and are far
+  // slower to download AND extract, which is what made the install look frozen.
+  // Never auto-pick them while a plain build exists; STT on the CPU build is fast.
+  const heavy = /cublas|cuda|clblast|hipblas|hip|vulkan|openblas|blas|arm64/i;
+  const isZip = (n) => /x64.*\.zip$/i.test(n) && !/win32|ubuntu|linux|mac/i.test(n);
+  const preds = [
+    (n) => /^whisper-bin-x64\.zip$/i.test(n),        // canonical CPU build (smallest)
+    (n) => isZip(n) && !heavy.test(n),                // any plain (non-accelerated) x64 zip
+    isZip,                                            // last resort: an accelerated x64 build
+  ];
+  const list = (Array.isArray(releases) ? releases : []).filter(r => r && !r.draft);
+  for (const pred of preds) {
+    for (const r of list) {
+      const assets = Array.isArray(r.assets) ? r.assets : [];
+      const a = assets.find(x => x && typeof x.name === 'string' && x.browser_download_url && pred(x.name));
+      if (a) return a;
+    }
+  }
+  return null;
+}
+
 // Recursively locate a whisper executable under `dir`. Returns the full path or
 // null. Used after unzip to find where the release placed the binary.
 function _findWhisperExeRecursive(dir) {
@@ -1275,23 +1304,19 @@ async function installWhisper(serverDir, onProgress) {
         throw new Error('brew install whisper-cpp completed but whisper-cli was not found. Run it manually to see why.');
       }
     }
+  } else if (process.platform !== 'win32') {
+    // whisper.cpp publishes no Linux binary Xenon could unpack without a build
+    // toolchain, and the Windows zip is useless here. The distro package puts
+    // whisper-cli on a system path whisperExe() already looks in.
+    if (!whisperExe(serverDir)) {
+      throw new Error('Install whisper.cpp with your package manager (it provides whisper-cli), then press Download again to fetch the voice model.');
+    }
   } else if (!whisperExe(serverDir)) {
     report('Download Whisper…', 0);
-    const release = await _httpsJson('https://api.github.com/repos/ggerganov/whisper.cpp/releases/latest');
-    const assets = Array.isArray(release && release.assets) ? release.assets : [];
-    // Prefer the small CPU build (`whisper-bin-x64.zip`, ~4 MB). The accelerated
-    // variants (cuBLAS/CUDA can be ~450 MB) need a matching GPU runtime and are far
-    // slower to download AND extract — that heavyweight zip is exactly what made the
-    // install look frozen. Never auto-pick them; STT on the CPU build is plenty fast.
-    const heavy = /cublas|cuda|clblast|hipblas|hip|vulkan|openblas|blas|arm64/i;
-    const isCpuX64 = (n) => /x64.*\.zip$/i.test(n) && !/win32/i.test(n) && !heavy.test(n);
-    const pick = (pred) => assets.find(a => a && typeof a.name === 'string' && a.browser_download_url && pred(a.name));
-    const asset =
-      pick(n => /^whisper-bin-x64\.zip$/i.test(n)) ||                 // canonical CPU build (smallest)
-      pick(isCpuX64) ||                                              // any plain (non-accelerated) x64 zip
-      pick(n => /x64.*\.zip$/i.test(n) && !/win32/i.test(n));        // last resort: an accelerated x64 build
+    const releases = await _httpsJson('https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=20');
+    const asset = pickWhisperAsset(releases);
     if (!asset) {
-      throw new Error('No Windows x64 whisper.cpp release asset found');
+      throw new Error('No Windows x64 whisper.cpp download found on GitHub right now.');
     }
     const zipPath = path.join(dir, 'whisper.zip');
     await _downloadToFile(asset.browser_download_url, zipPath, (received, total) => {
@@ -1374,6 +1399,7 @@ module.exports = {
   whisperPaths,
   whisperExe,
   installWhisper,
+  pickWhisperAsset,
   localStt,
   localTts,
   localStatus,

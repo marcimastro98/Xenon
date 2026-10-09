@@ -36105,6 +36105,18 @@ Object.assign(i18n.de, { settings_gamemode_hint: 'Blendet den animierten Hinterg
 Object.assign(i18n.pt, { settings_gamemode_hint: 'Esmaece o fundo animado (aurora e grade neon) e pausa os efeitos animados enquanto um jogo está rodando. “Keep games focused” no menu do Xenon funciona nos dois casos.' });
 Object.assign(i18n.ru, { settings_gamemode_hint: 'Приглушает анимированный фон (сияние и неоновую сетку) и приостанавливает анимированные эффекты, пока запущена игра. «Keep games focused» в меню Xenon работает в любом случае.' });
 Object.assign(i18n.nl, { settings_gamemode_hint: 'Laat de geanimeerde achtergrond (aurora en neonraster) vervagen en pauzeert geanimeerde effecten terwijl een game draait. „Keep games focused” in het Xenon-menu werkt in beide gevallen.' });
+// Hardware temperatures can have their own unit (forecast in °F, CPU in °C).
+Object.assign(i18n.it, { settings_hw_temp_unit: 'Temperature hardware', settings_hw_temp_unit_hint: 'CPU, GPU e avvisi', settings_hw_temp_unit_auto: 'Come il meteo' });
+Object.assign(i18n.en, { settings_hw_temp_unit: 'Hardware temperatures', settings_hw_temp_unit_hint: 'CPU, GPU and alerts', settings_hw_temp_unit_auto: 'Same as weather' });
+Object.assign(i18n.ko, { settings_hw_temp_unit: '하드웨어 온도', settings_hw_temp_unit_hint: 'CPU, GPU 및 알림', settings_hw_temp_unit_auto: '날씨와 동일' });
+Object.assign(i18n.ja, { settings_hw_temp_unit: 'ハードウェア温度', settings_hw_temp_unit_hint: 'CPU、GPU、アラート', settings_hw_temp_unit_auto: '天気と同じ' });
+Object.assign(i18n.zh, { settings_hw_temp_unit: '硬件温度', settings_hw_temp_unit_hint: 'CPU、GPU 和警报', settings_hw_temp_unit_auto: '与天气相同' });
+Object.assign(i18n.es, { settings_hw_temp_unit: 'Temperaturas del hardware', settings_hw_temp_unit_hint: 'CPU, GPU y avisos', settings_hw_temp_unit_auto: 'Igual que el tiempo' });
+Object.assign(i18n.fr, { settings_hw_temp_unit: 'Températures matérielles', settings_hw_temp_unit_hint: 'CPU, GPU et alertes', settings_hw_temp_unit_auto: 'Comme la météo' });
+Object.assign(i18n.de, { settings_hw_temp_unit: 'Hardware-Temperaturen', settings_hw_temp_unit_hint: 'CPU, GPU und Warnungen', settings_hw_temp_unit_auto: 'Wie beim Wetter' });
+Object.assign(i18n.pt, { settings_hw_temp_unit: 'Temperaturas do hardware', settings_hw_temp_unit_hint: 'CPU, GPU e alertas', settings_hw_temp_unit_auto: 'Igual ao clima' });
+Object.assign(i18n.ru, { settings_hw_temp_unit: 'Температура оборудования', settings_hw_temp_unit_hint: 'CPU, GPU и предупреждения', settings_hw_temp_unit_auto: 'Как у погоды' });
+Object.assign(i18n.nl, { settings_hw_temp_unit: 'Hardwaretemperaturen', settings_hw_temp_unit_hint: 'CPU, GPU en meldingen', settings_hw_temp_unit_auto: 'Zelfde als weer' });
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)

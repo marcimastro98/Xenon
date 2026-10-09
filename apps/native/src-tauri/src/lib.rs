@@ -1634,6 +1634,13 @@ pub fn run() {
                     // Windows only: WebKit blocks the third-party cookie the
                     // player embed would need, so elsewhere it could not work.
                     "twitchLogin": cfg!(windows),
+                    // The interface scale as WKWebView page zoom (xenon-zoom:set).
+                    // macOS only: there the dashboard's CSS `zoom` reaches into
+                    // the sandboxed widget frames without shrinking their
+                    // viewport, so SDK widgets came out enlarged, blurry and
+                    // cropped (Discord, Oct 2026). WebView2 keeps the CSS path:
+                    // it resets native zoom on every cancelled signal navigation.
+                    "nativePageZoom": cfg!(target_os = "macos"),
                     // The monitor list, injected BEFORE the page loads. It used
                     // to arrive only with the first `push_display_state`, after
                     // the dashboard had loaded — so the first-run screen picker
@@ -1901,6 +1908,26 @@ pub fn run() {
                     if scheme == "xenon-cursor" {
                         #[cfg(windows)]
                         cursor_guard::restore();
+                        return false;
+                    }
+                    // The interface scale (never a real page), sent only to shells
+                    // that declare `nativePageZoom`. Clamped to the Settings
+                    // slider's range so a malformed value cannot blow the page up.
+                    // Applied off this thread, like the display signal: this hook
+                    // runs on the event loop the zoom call dispatches to.
+                    #[cfg(target_os = "macos")]
+                    if scheme == "xenon-zoom" {
+                        let z = url
+                            .query_pairs()
+                            .find(|(k, _)| k == "z")
+                            .and_then(|(_, v)| v.parse::<f64>().ok())
+                            .filter(|z| z.is_finite())
+                            .map(|z| z.clamp(0.6, 2.5));
+                        if let (Some(z), Some(win)) = (z, nav_handle.get_webview_window("main")) {
+                            std::thread::spawn(move || {
+                                let _ = win.set_zoom(z);
+                            });
+                        }
                         return false;
                     }
                     if scheme == "xenon-fullscreen" {

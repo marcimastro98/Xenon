@@ -86,7 +86,7 @@ function applySystemInto(root, data) {
   set('cpu-value', cpu + '%'); fillEl('cpu-fill', cpu); set('cpu-name', data.cpuName || '--');
   set('cpu-name-head', shortHwName(data.cpuName));
   const cpuTemp = Number(data.cpuTemp);
-  set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? toDisplayTemp(cpuTemp) + '°' + tempUnitSuffix() : '');
+  set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? toDisplayHwTemp(cpuTemp) + '°' + hwTempUnitSuffix() : '');
 
   const ram = data.memory ? data.memory.percent : 0;
   set('ram-value', ram + '%');
@@ -123,7 +123,7 @@ function applySystemInto(root, data) {
   set('gpu-name', data.gpuName || t('gpu_loading'));
   set('gpu-name-head', shortHwName(data.gpuName));
   const gpuTemp = Number(data.gpuTemp);
-  set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? toDisplayTemp(gpuTemp) + '°' + tempUnitSuffix() : '');
+  set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? toDisplayHwTemp(gpuTemp) + '°' + hwTempUnitSuffix() : '');
 
   if (data.disks && data.disks.length > 0) {
     systemDisks = data.disks;
@@ -148,22 +148,35 @@ function applySystem(data) {
 
 // EVERY temperature inside Xenon is Celsius — the weather API, the hardware
 // collectors, Guardian's alert thresholds, the briefing history. Only the
-// display converts, against a client-side preference (hubSettings.tempUnit),
-// so switching the unit needs no re-fetch and no stored value is ever ambiguous.
+// display converts, against client-side preferences (hubSettings.tempUnit and
+// hubSettings.hwTempUnit), so switching the unit needs no re-fetch and no stored
+// value is ever ambiguous.
 // Returns null/'' unchanged so callers' "--" placeholder still works.
-function toDisplayTemp(celsius) {
+function convertTemp(celsius, fahrenheit) {
   if (celsius === null || celsius === undefined || celsius === '') return celsius;
   const c = Number(celsius);
   if (!Number.isFinite(c)) return celsius;
-  const fahrenheit = typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f';
   return Math.round(fahrenheit ? c * 9 / 5 + 32 : c);
 }
-function tempUnitSuffix() {
-  return (typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f') ? 'F' : 'C';
+function weatherTempIsF() {
+  return typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f';
 }
+// Hardware readings (CPU/GPU headers, Guardian, the briefing) can have their own
+// unit: some people read the forecast in °F and their CPU in °C. 'auto' follows
+// the weather unit, so nobody who never touches it sees a change.
+function hwTempIsF() {
+  const hs = typeof hubSettings === 'object' && hubSettings ? hubSettings : {};
+  return hs.hwTempUnit === 'f' || hs.hwTempUnit === 'c' ? hs.hwTempUnit === 'f' : hs.tempUnit === 'f';
+}
+function toDisplayTemp(celsius) { return convertTemp(celsius, weatherTempIsF()); }
+function tempUnitSuffix() { return weatherTempIsF() ? 'F' : 'C'; }
+function toDisplayHwTemp(celsius) { return convertTemp(celsius, hwTempIsF()); }
+function hwTempUnitSuffix() { return hwTempIsF() ? 'F' : 'C'; }
 
 // Fill the temperature placeholders of a translated string: each named token
 // holds a Celsius number to convert, and every `{u}` becomes the unit letter.
+// Every string that goes through here is a hardware reading, so it follows the
+// hardware unit.
 // The alternative was a .replace() chain at each call site, which is how the
 // hardware headers and the Guardian/briefing toasts ended up printing a hard
 // "°C" to someone who had picked °F — the preference is labelled "Temperature
@@ -172,9 +185,9 @@ function tempUnitSuffix() {
 function fillTemps(text, values) {
   let out = String(text == null ? '' : text);
   for (const token of Object.keys(values || {})) {
-    out = out.split('{' + token + '}').join(String(toDisplayTemp(values[token])));
+    out = out.split('{' + token + '}').join(String(toDisplayHwTemp(values[token])));
   }
-  return out.split('{u}').join(tempUnitSuffix());
+  return out.split('{u}').join(hwTempUnitSuffix());
 }
 
 // A forecast that failed now says WHICH link broke. The server answers ok:false
@@ -261,7 +274,7 @@ function weatherDisplayValue(value, suffix = '') {
 // flipping the unit needs no re-fetch. Level thresholds still read the raw
 // metric value — only the displayed number is converted.
 function weatherIsImperial() {
-  return typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f';
+  return weatherTempIsF();
 }
 function displayWind(kph) {
   if (kph === null || kph === undefined || kph === '') return '--';

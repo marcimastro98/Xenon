@@ -114,11 +114,14 @@ function mountPageGrid(pageId, gridEl) {
     // `.gs-edit-overlay` covers the content, so the drag starts from anywhere on
     // the tile and inner controls can't swallow the gesture.
     draggable: { handle: '.grid-stack-item-content' },
-    // Two resize paths coexist: drag the bottom-right corner handle (precise,
-    // preferred), OR tap the size-cycle button (reliable on touch). The per-tick
+    // Two resize paths coexist: drag a corner handle (precise, preferred), OR tap
+    // the size-cycle button (reliable on touch). Two corners, top-left and
+    // bottom-right, so a tile grows into free space on either side without being
+    // moved first (Discord request). The top-left one sits under the edit bar:
+    // the corner itself holds the bar's buttons. The per-tick
     // 'resize' listener is intentionally NOT subscribed (see below) — calling grid
     // getters inside the active resize loop was what left the drag-resize "stuck".
-    resizable: { handles: 'se' },
+    resizable: { handles: 'se, nw' },
     disableOneColumnMode: true,
   }, gridEl);
   grid.on('change', () => { if (!_suppress) serialize(); scheduleAffordances(); });

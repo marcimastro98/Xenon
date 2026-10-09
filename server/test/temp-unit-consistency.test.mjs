@@ -79,20 +79,38 @@ test('no temperature is rendered with a hard °C any more', () => {
   }
 });
 
-test('the hardware headers convert like the weather does', () => {
+test('the hardware headers convert, with the hardware unit', () => {
+  // Asked on Discord: the forecast in °F, the CPU and GPU in °C. The headers
+  // follow hwTempUnit, which follows the weather unit until it is set apart.
   for (const id of ['cpu-head-temp', 'gpu-head-temp']) {
     const m = new RegExp(`set\\('${id}',[^\\n]*`).exec(SYSTEM);
     assert.ok(m, `the ${id} rule is gone`);
-    assert.match(m[0], /toDisplayTemp\(/, `${id} does not convert`);
-    assert.match(m[0], /tempUnitSuffix\(\)/, `${id} does not label the unit`);
+    assert.match(m[0], /toDisplayHwTemp\(/, `${id} does not convert`);
+    assert.match(m[0], /hwTempUnitSuffix\(\)/, `${id} does not label the unit`);
   }
+});
+
+test('the hardware unit follows the weather one until it is set apart', () => {
+  const at = SYSTEM.indexOf('function convertTemp(');
+  const end = SYSTEM.indexOf('function hwTempUnitSuffix()');
+  assert.ok(at !== -1 && end !== -1, 'the temperature helpers are gone');
+  const body = SYSTEM.slice(at, SYSTEM.indexOf('\n', end));
+  const run = (hubSettings, c) => new Function('hubSettings', `${body}; return [toDisplayTemp(${c}), tempUnitSuffix(), toDisplayHwTemp(${c}), hwTempUnitSuffix()];`)(hubSettings);
+  assert.deepEqual(run({ tempUnit: 'c' }, 100), [100, 'C', 100, 'C']);
+  assert.deepEqual(run({ tempUnit: 'f' }, 100), [212, 'F', 212, 'F']);
+  assert.deepEqual(run({ tempUnit: 'f', hwTempUnit: 'auto' }, 100), [212, 'F', 212, 'F']);
+  assert.deepEqual(run({ tempUnit: 'f', hwTempUnit: 'c' }, 100), [212, 'F', 100, 'C']);
+  assert.deepEqual(run({ tempUnit: 'c', hwTempUnit: 'f' }, 100), [100, 'C', 212, 'F']);
+  assert.deepEqual(run({ tempUnit: 'f', hwTempUnit: 'kelvin' }, 100), [212, 'F', 212, 'F']);
 });
 
 test('fillTemps replaces every occurrence, not just the first', () => {
   const m = /function fillTemps\(text, values\) \{([\s\S]*?)\n\}/.exec(SYSTEM);
   assert.ok(m, 'fillTemps is gone');
   assert.ok(!/\.replace\(/.test(m[1]), 'fillTemps is back on .replace(), which stops at the first match');
-  assert.match(m[1], /\.split\('\{u\}'\)\.join\(tempUnitSuffix\(\)\)/);
+  // Everything it fills is a hardware reading (Guardian, briefing, the thermal hint).
+  assert.match(m[1], /toDisplayHwTemp\(/);
+  assert.match(m[1], /\.split\('\{u\}'\)\.join\(hwTempUnitSuffix\(\)\)/);
 });
 
 test('the RAM alert keeps its percentage out of the conversion', () => {

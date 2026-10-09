@@ -193,18 +193,32 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
 }
 
 /* ── Resize, two ways ──
-   1) Drag the bottom-right CORNER handle (precise).
-   2) Tap the size button just above it (cycles preset sizes; reliable on touch). */
+   1) Drag a CORNER handle (precise): bottom-right grows down/right, top-left
+      grows up/left, so a tile fills free space on either side in one drag.
+   2) Tap the size button in the edit bar (cycles preset sizes; reliable on touch).
+   The top-left handle sits just under the edit bar, never in the corner itself:
+   that strip holds the bar's buttons. */
 .grid-stack > .grid-stack-item > .ui-resizable-handle { display: none; }
-.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
-  display: block; width: 22px; height: 22px; right: 4px; bottom: 4px; z-index: 52;
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se,
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw {
+  display: block; width: 22px; height: 22px; z-index: 52;
   border: 1px solid rgba(var(--accent-rgb), 0.55); border-radius: 7px;
   background: rgba(6, 10, 10, 0.9); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   transform: none; touch-action: none;
 }
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se { right: 4px; bottom: 4px; }
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw { left: 4px; top: 46px; }
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se::after,
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw::after {
+  content: ""; position: absolute; width: 7px; height: 7px;
+}
 .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se::after {
-  content: ""; position: absolute; right: 5px; bottom: 5px; width: 7px; height: 7px;
+  right: 5px; bottom: 5px;
   border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+}
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw::after {
+  left: 5px; top: 5px;
+  border-left: 2px solid var(--accent); border-top: 2px solid var(--accent);
 }
 
 /* ── The edit bar ─────────────────────────────────────────────────────────
@@ -258,11 +272,20 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
 @container (max-width: 250px) { .gs-bar-label { display: none; } }
 /* The grip pill sits just under the bar, on the content it moves. */
 .layout-editing .gs-edit-grip { top: 46px; }
+/* A tile under the Minimal island has its content (and so its edit bar) pushed
+   down by --island-clear (TopbarMinimal.css); the top-left handle follows it. */
+body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear > .ui-resizable-nw {
+  top: calc(var(--island-clear, 0px) + 39px);
+}
 /* Fingers, not a mouse. */
 @media (pointer: coarse) {
   .layout-editing .gs-edit-grip { top: 54px; }
   .layout-editing .gs-edit-bar { height: 48px; }
   .gs-edit-bar > button, .gs-edit-bar .layout-control-btn { min-width: 38px; height: 38px; }
+  .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-nw { top: 54px; }
+  body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear > .ui-resizable-nw {
+    top: calc(var(--island-clear, 0px) + 47px);
+  }
 }
 
 /* ── Per-tile style editor popover ── */
