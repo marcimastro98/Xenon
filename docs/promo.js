@@ -26,12 +26,12 @@
 //   - Every string from the feed goes through textContent.
 //
 // Self-contained like consent.js and theme.js: its own CSS (prefix xp-), its own strings in the
-// site's six languages, only site.css tokens. The pure half is exported for node (server/test).
+// site's seven languages, only site.css tokens. The pure half is exported for node (server/test).
 (function () {
   'use strict';
 
   // ── The pure core ─────────────────────────────────────────────────────────────
-  const LANGS = ['en', 'it', 'es', 'ja', 'ko', 'zh'];
+  const LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
   const FORMATS = ['spotlight', 'strip', 'corner'];
   const ALIASES = { card: 'corner' };     // the 26 Sep feed called the corner card "card"
   const ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
@@ -52,6 +52,7 @@
 
   const KIND = {
     en: { widget: 'A widget', theme: 'A theme', bg: 'A background', ambient: 'An Ambient scene', bundle: 'A pack', deck: 'A Deck profile' },
+    fr: { widget: 'Un widget', theme: 'Un thème', bg: 'Un arrière-plan', ambient: 'Une scène Ambiant', bundle: 'Un pack', deck: 'Un profil de Deck' },
     it: { widget: 'Un widget', theme: 'Un tema', bg: 'Uno sfondo', ambient: 'Una scena Ambient', bundle: 'Un pacchetto', deck: 'Un profilo Deck' },
     es: { widget: 'Un widget', theme: 'Un tema', bg: 'Un fondo', ambient: 'Una escena Ambient', bundle: 'Un paquete', deck: 'Un perfil de Deck' },
     ja: { widget: 'ウィジェット', theme: 'テーマ', bg: '背景', ambient: 'アンビエントシーン', bundle: 'パック', deck: 'Deckプロファイル' },
@@ -60,6 +61,7 @@
   };
   const STR = {
     en: { supK: '{k} for Xenon supporters.', freeK: '{k}, free in the Xenon catalog.', sup: 'For Xenon supporters.', free: 'Free in the Xenon catalog.', unlock: 'Unlock', get: 'Get it', see: 'See {name}', later: 'Not now', close: 'Close', pause: 'Pause the loop', play: 'Play the loop', until: 'Available until {d}.', left: '{n} days left.', last: 'Last day.', preview: 'Preview, not published' },
+    fr: { supK: '{k} pour les supporters de Xenon.', freeK: '{k}, gratuit dans le catalogue Xenon.', sup: 'Pour les supporters de Xenon.', free: 'Gratuit dans le catalogue Xenon.', unlock: 'Déverrouiller', get: 'Obtenez-le', see: 'Voir {name}', later: 'Plus tard', close: 'Fermer', pause: 'Mettre la boucle en pause', play: 'Lire la boucle', until: 'Disponible jusqu\'au {d}.', left: '{n} jours restants.', last: 'Dernier jour.', preview: 'Aperçu, non publié' },
     it: { supK: '{k} per chi sostiene Xenon.', freeK: '{k} gratis nel catalogo Xenon.', sup: 'Per chi sostiene Xenon.', free: 'Gratis nel catalogo Xenon.', unlock: 'Sblocca', get: 'Prendilo', see: 'Vedi {name}', later: 'Non ora', close: 'Chiudi', pause: 'Metti in pausa', play: 'Riproduci', until: 'Disponibile fino al {d}.', left: 'Ancora {n} giorni.', last: 'Ultimo giorno.', preview: 'Anteprima, non pubblicato' },
     es: { supK: '{k} para quienes apoyan Xenon.', freeK: '{k} gratis en el catálogo de Xenon.', sup: 'Para quienes apoyan Xenon.', free: 'Gratis en el catálogo de Xenon.', unlock: 'Desbloquear', get: 'Conseguir', see: 'Ver {name}', later: 'Ahora no', close: 'Cerrar', pause: 'Pausar', play: 'Reproducir', until: 'Disponible hasta el {d}.', left: 'Quedan {n} días.', last: 'Último día.', preview: 'Vista previa, sin publicar' },
     ja: { supK: 'Xenonサポーター向けの{k}。', freeK: 'Xenonカタログの無料の{k}。', sup: 'Xenonサポーター向け。', free: 'Xenonカタログで無料。', unlock: '解除する', get: '入手', see: '{name}を見る', later: '今はしない', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで。', left: '残り{n}日。', last: '最終日。', preview: 'プレビュー（未公開）' },

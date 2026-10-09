@@ -152,7 +152,8 @@ test('the strip slice: the chosen band of the 16:7 loop fills the box, its line 
 test('the page language wins over the browser: an English page is English', () => {
   assert.equal(P.pageLang([null, 'en', 'it-IT']), 'en');
   assert.equal(P.pageLang([undefined, '', 'it']), 'it');
-  assert.equal(P.pageLang(['xx', 'fr']), 'en');
+  assert.equal(P.pageLang(['xx', 'de']), 'en');
+  assert.equal(P.pageLang(['fr-FR']), 'fr');
 });
 
 test('feed text is never markup: kept as a literal string, and the page writes no HTML', () => {

@@ -202,7 +202,9 @@ function fakeCodex(answers) {
         const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1);
         if (m.id === undefined) continue;
         const a = answers[m.method];
-        const reply = a === undefined ? { id: m.id, error: { code: -32600, message: 'unknown variant `' + m.method + '`' } } : { id: m.id, result: typeof a === 'function' ? a(m.params) : a };
+        const r = typeof a === 'function' ? a(m.params) : a;
+        const reply = a === undefined ? { id: m.id, error: { code: -32600, message: 'unknown variant `' + m.method + '`' } }
+          : r && r.__rpcError ? { id: m.id, error: r.__rpcError } : { id: m.id, result: r };
         setImmediate(() => c.stdout.write(JSON.stringify(reply) + '\n'));
       }
     });
@@ -338,6 +340,66 @@ test('parseThreads: a title never carries a local path', () => {
   assert.equal(t[0].title.startsWith('$xenon-creator facciamo'), true);
   assert.equal(t[1].title, 'come mai 2 cartelle?');
   assert.equal(/Users|AppData/.test(JSON.stringify(t)), false);
+});
+
+test('parseThreads: most recently active first, whatever order Codex listed them in', () => {
+  const t = ap.parseThreads({ data: [
+    { id: 'old-busy', preview: 'a', createdAt: 10, updatedAt: 500 },
+    { id: 'new', preview: 'b', createdAt: 300, updatedAt: 300, recencyAt: 310 },
+    { id: 'mid', preview: 'c', createdAt: 200, updatedAt: 200 },
+  ] });
+  assert.deepEqual(t.map((x) => x.id), ['old-busy', 'new', 'mid']);
+});
+
+test('parseTurns: a running turn shows its interim notes, a finished one only its answer', () => {
+  const r = { data: [
+    { id: 't2', status: 'inProgress', startedAt: 20, items: [
+      { type: 'userMessage', content: [{ type: 'text', text: 'now' }] },
+      { type: 'agentMessage', phase: 'commentary', text: 'Reading the tests' },
+      { type: 'commandExecution', command: 'npm test', aggregatedOutput: 'C:/Users/x' },
+    ] },
+    { id: 't1', status: 'completed', startedAt: 10, items: [
+      { type: 'userMessage', content: [{ type: 'text', text: 'before' }] },
+      { type: 'agentMessage', phase: 'commentary', text: 'Looking around' },
+      { type: 'agentMessage', phase: 'final_answer', text: 'Done' },
+    ] },
+  ] };
+  const m = ap.parseTurns(r);
+  assert.deepEqual(m.map((x) => x.role + ':' + x.text), ['user:before', 'assistant:Done', 'user:now', 'progress:Reading the tests']);
+  assert.equal(/npm test|Users/.test(JSON.stringify(m)), false);
+});
+
+test('readThread: a running turn is read in full for its notes and reported as running', async () => {
+  const summary = { data: [{ id: 'run', status: 'inProgress', startedAt: 20, items: [{ type: 'userMessage', content: [{ type: 'text', text: 'go' }] }] }] };
+  const full = { data: [{ id: 'run', status: 'inProgress', startedAt: 20, items: [
+    { type: 'userMessage', content: [{ type: 'text', text: 'go' }] },
+    { type: 'agentMessage', phase: 'commentary', text: 'Editing two files' },
+  ] }] };
+  const views = [];
+  const { spawnFn } = fakeCodex({ initialize: { userAgent: 'x/0.160.1' }, 'account/read': fixture('0.160').account.result,
+    'thread/turns/list': (p) => { views.push(p.itemsView); return p.itemsView === 'full' ? full : summary; } });
+  const s = ap.createAppServer({ resolveExe: async () => ({ cmd: 'c', pre: [] }), env: () => ({}), cwd: () => '.', spawnFn });
+  s.setDemand({ wanted: true });
+  const r = await s.readThread('run');
+  assert.equal(r.running, true);
+  assert.deepEqual(r.messages.map((x) => x.role), ['user', 'progress']);
+  assert.deepEqual(views, ['summary', 'full']);
+  s.stop();
+});
+
+test('thread/list: asked by recency; a copy that refuses the key keeps its list', async () => {
+  const fx = fixture('0.160');
+  const asked = [];
+  const { spawnFn } = fakeCodex({ initialize: fx.initialize.result, 'account/read': fx.account.result,
+    'thread/list': (p) => { asked.push(p.sortKey || null); return p.sortKey ? { __rpcError: { code: -32600, message: 'unknown variant `recency_at`' } } : fx.threads.result; } });
+  const s = ap.createAppServer({ resolveExe: async () => ({ cmd: 'c', pre: [] }), env: () => ({}), cwd: () => '.', spawnFn });
+  s.setDemand({ wanted: true, visible: true });
+  for (let i = 0; i < 10 && !s.snapshot().threads.length; i++) await tick();
+  assert.equal(s.snapshot().threads.length, 3);
+  assert.equal(s.snapshot().caps.threads, true);
+  await s.refresh('threads');
+  assert.deepEqual(asked, ['recency_at', null, null], 'refused once, then asked without the key');
+  s.stop();
 });
 
 test('parseTurns: requests and final answers, oldest first, failures noted, lines kept', () => {

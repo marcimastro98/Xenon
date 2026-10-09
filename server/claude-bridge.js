@@ -519,6 +519,10 @@ function createBridge(opts) {
     // the basename alone cannot tell two `xenon` folders apart.
     const cwd = str(d.cwd, 400);
     if (cwd) touchSession(id, { cwd, project: projectName(cwd) });
+    // A hook from it means it is wired in after all: the hook feed owns its
+    // state from here on, not the registry file.
+    const wired = sessions.get(id);
+    if (wired && wired.unlinked) wired.unlinked = false;
 
     // Present on every event since 2.1.x and worth showing: a session running in
     // acceptEdits or bypassPermissions will never send a permission card, and a
@@ -993,6 +997,13 @@ function createBridge(opts) {
         if (!known.name && r.name && !r.nameDerived) known.name = r.name;
         if (!known.cwd && r.cwd) { known.cwd = r.cwd; known.project = projectName(r.cwd); }
         if (known.endedAt) { known.endedAt = 0; known.endedReason = ''; moved = true; }
+        // ...except for a session no hook reaches (started before the link):
+        // the file is all there is, and a state frozen at first sight left its
+        // open conversation without the refresh a working session gets.
+        if (known.unlinked && (r.status === 'busy' || r.status === 'idle')) {
+          const state = r.status === 'busy' ? 'running' : 'idle';
+          if (known.state !== state) { known.state = state; known.lastAt = now(); moved = true; }
+        }
         continue;
       }
 

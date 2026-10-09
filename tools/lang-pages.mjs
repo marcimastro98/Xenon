@@ -9,14 +9,14 @@
 // (see page-i18n.mjs) or, for the pages that still carry their dictionary
 // inline, from that inline table.
 
-export const LANG_NAMES = { en: 'English', it: 'Italiano', es: 'Español', ja: '日本語', ko: '한국어', zh: '中文' };
-export const OG_LOCALE = { en: 'en_US', it: 'it_IT', es: 'es_ES', ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN' };
-export const HOME_LANGS = ['it', 'es', 'ja', 'ko', 'zh'];
+export const LANG_NAMES = { en: 'English', it: 'Italiano', es: 'Español', fr: 'Français', ja: '日本語', ko: '한국어', zh: '中文' };
+export const OG_LOCALE = { en: 'en_US', it: 'it_IT', es: 'es_ES', fr: 'fr_FR', ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN' };
+export const HOME_LANGS = ['it', 'es', 'fr', 'ja', 'ko', 'zh'];
 
-// Every page ships in the same six languages as the home. English is the page
+// Every page ships in the same seven languages as the home. English is the page
 // itself and the source every translation is made from; a language whose
 // dictionary is not written yet is simply not built (and not listed).
-export const ALL = ['es', 'it', 'ja', 'ko', 'zh'];
+export const ALL = ['es', 'fr', 'it', 'ja', 'ko', 'zh'];
 export const LANG_PAGES = [
   { page: 'download.html', langs: ALL, dict: 'download' },
   { page: 'faq.html', langs: ALL, dict: 'faq' },

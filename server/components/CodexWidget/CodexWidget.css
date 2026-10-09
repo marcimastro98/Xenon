@@ -160,6 +160,9 @@
 .cx-bubble.ai-msg-markdown > :last-child { margin-bottom: 0; }
 .cx-files { color: var(--cx-2); font-size: 12px; white-space: nowrap; }
 .cx-thread-note { align-self: center; font-size: 12px; color: var(--cx-warn); }
+/* What Codex says while it works: quieter than an answer, and gone once the turn ends. */
+.cx-thread-progress { max-width: min(88%, 760px); padding: 0 12px; font-size: 12.5px; line-height: 1.45; color: var(--cx-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cx-thread-note.is-running { color: var(--cx-2); }
 .cx-thread-foot { flex: 0 0 auto; }
 
 /* ── decisions ── */
