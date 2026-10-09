@@ -123,6 +123,7 @@ const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
 const claudeHistory = require('./claude-history');
+const claudeCommands = require('./claude-commands');
 const claudeAttach = require('./claude-attach');
 const codexAppServer = require('./codex-appserver');
 const codexBridge = require('./codex-bridge');
@@ -12445,6 +12446,14 @@ const _claudeRunner = claudeRun.createRunner({
   onChange: () => _claudeBridgeChanged(),
 });
 
+// The "/" picker of the tile's prompt box: names and descriptions of the
+// commands and skills a run can use. The project comes from the runner's own
+// allowlist by id, never from the request.
+const _claudeCommands = claudeCommands.createCommandList({
+  configDir: () => path.dirname(claudeUsage.resolveProjectsDir()),
+  projectDir: async (id) => ((await _claudeRunner.listProjects(false)).find((p) => p.id === id) || {}).path || '',
+});
+
 // The chat list on the tile's Chats face. Removal reuses the disk pipeline's
 // Recycle Bin/Trash path and its guard; a session the bridge sees running is
 // refused, along with any transcript written in the last few minutes.
@@ -12559,12 +12568,17 @@ function _claudeSettings() {
 // whatever plan/budget the user picked).
 function _claudePayload(usage) {
   const cfg = _claudeSettings();
+  const live = _claudeBridge.snapshot();
   return {
     usage,
     // Live state straight from Claude Code (quota, sessions, pending approvals).
     // Null-safe for every consumer: the widget falls back to the transcript
     // aggregate whenever the user hasn't linked Claude Code yet.
-    live: _claudeBridge.snapshot(),
+    live,
+    // The title Claude Code gave each session shown (a /rename wins), so three
+    // sessions in one project stop reading "xenon", "xenon", "xenon". Answered
+    // from memory; a title read in the background repaints the tile.
+    titles: _claudeSessionTitles(live, usage),
     // Runs the dashboard started itself, so the tile can show progress and offer
     // a stop. Empty for every user who never uses the feature.
     runs: _claudeRunner.snapshot(),
@@ -12576,6 +12590,12 @@ function _claudePayload(usage) {
     tile: cfg.tile,
     refreshedAt: Date.now(),
   };
+}
+
+function _claudeSessionTitles(live, usage) {
+  const ids = ((live && live.sessions) || []).map((s) => s.id)
+    .concat(((usage && usage.sessions) || []).map((s) => s.id));
+  return _claudeHistory.titles(ids, () => { try { _claudeBroadcast(); } catch { /* the next push retries */ } });
 }
 
 // Every read path must rebuild the live block rather than serve the copy stored
@@ -12601,7 +12621,8 @@ function _claudeBroadcast(usage) {
   // Elapsed time is deliberately NOT in the signature; a still-running run must
   // not force a repaint every tick.
   const runSig = payload.runs.map(r => `${r.id}:${r.state}:${r.output.length}`).join(',');
-  const fullSig = `${u ? u.sig : ''}|${payload.budget.weekly}|${payload.budget.plan}|${payload.live.sig}|${runSig}`;
+  const titleSig = Object.keys(payload.titles).map((id) => id + '=' + payload.titles[id]).join('\n');
+  const fullSig = `${u ? u.sig : ''}|${payload.budget.weekly}|${payload.budget.plan}|${payload.live.sig}|${runSig}|${titleSig}`;
   const changed = fullSig !== _claudeCache.sig;
   _claudeCache = { data: payload, sig: fullSig, refreshedAt: payload.refreshedAt };
   if (changed) broadcastSSE('claude', payload);
@@ -16658,8 +16679,16 @@ const handleRequest = async (req, res) => {
     // already works in. The client picks one by id — it never sends a path.
     try {
       const list = await _claudeRunner.listProjects(urlObj.searchParams.has('refresh'));
-      json({ projects: list.map(p => ({ id: p.id, name: p.name, path: p.path })) });
+      // What this Claude Code accepts for a run (permission modes, effort), so
+      // the prompt box offers only what will take effect.
+      const options = await claudeRun.cliOptions();
+      json({ projects: list.map(p => ({ id: p.id, name: p.name, path: p.path })), options });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/commands' && req.method === 'GET') {
+    // Names and one-line descriptions only, for the prompt box's "/" picker.
+    try { json({ commands: await _claudeCommands.list(urlObj.searchParams.get('project') || '') }); }
+    catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {
     // The last turns of one session, so a follow-up is not written blind. Pure
@@ -16668,7 +16697,8 @@ const handleRequest = async (req, res) => {
     try {
       const out = await claudeTranscript.readTail(
         claudeUsage.resolveProjectsDir(),
-        urlObj.searchParams.get('session') || '');
+        urlObj.searchParams.get('session') || '',
+        { full: urlObj.searchParams.get('full') === '1' });
       json(out);
     } catch (e) { err500(e.message); }
 
@@ -16723,6 +16753,8 @@ const handleRequest = async (req, res) => {
         projectId,
         prompt: String(body && body.prompt || ''),
         model: String(body && body.model || ''),
+        mode: String(body && body.mode || ''),
+        effort: String(body && body.effort || ''),
         resume,
       });
       json(out);

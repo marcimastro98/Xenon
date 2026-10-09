@@ -461,6 +461,10 @@ function createBridge(opts) {
     s.state = 'waiting';
     s.waitFor = { kind, text: str(text, MAX_STR), at: now() };
   }
+  function hasPendingFor(sessionId) {
+    for (const rec of pending.values()) if (rec.sessionId === sessionId) return true;
+    return false;
+  }
   function clearWait(s, kind) {
     if (!s || !s.waitFor) return;
     if (kind && s.waitFor.kind !== kind) return;
@@ -733,7 +737,10 @@ function createBridge(opts) {
           // reader exists for history, and this is the live line.
           lastSaid: str(d.last_assistant_message, MAX_STR),
         });
-        clearWait(s, 'notification');
+        // A turn that ended is waiting for nothing, unless a card for it is
+        // still open. A permission denied in the terminal left its wait behind,
+        // and the session never counted as finished.
+        if (s && s.waitFor && !hasPendingFor(id)) s.waitFor = null;
         break;
       }
       case 'StopFailure':

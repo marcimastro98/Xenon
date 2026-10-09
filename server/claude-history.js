@@ -19,6 +19,7 @@
 const fsp = require('fs/promises');
 const path = require('path');
 const { isInjectedPrompt } = require('./claude-bridge.js');
+const { findTranscript } = require('./claude-transcript.js');
 
 const SESSION_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const HEAD_BYTES = 64 * 1024;
@@ -28,6 +29,11 @@ const MAX_SESSIONS = 2000;
 const MAX_DELETE = 200;
 const MAX_TITLE = 140;
 const ACTIVE_MS = 3 * 60 * 1000;   // written this recently = probably still open
+// Live-session titles: how often one is looked at again (a stat when the file
+// did not change), and how many the tile can ask for at once.
+const TITLE_RECHECK_MS = 20 * 1000;
+const MAX_TITLES = 50;
+const TITLE_CACHE_MAX = 200;
 const WALK_DEPTH = 6;
 const WALK_ENTRIES = 20000;
 // Per-session folders Claude Code keeps next to the transcript, under its
@@ -118,9 +124,12 @@ async function exists(p) {
  * @param {(root: string, paths: string[]) => Promise<{ok:boolean, moved:string[]}>} o.trash
  * @param {() => Set<string>} [o.liveIds] sessions the bridge sees running
  * @param {() => number} [o.now]
+ * @param {(root: string, id: string, now: number) => Promise<string>} [o.locate] a session's transcript file
  */
-function createSessionStore({ projectsDir, trash, liveIds = () => new Set(), now = Date.now }) {
+function createSessionStore({ projectsDir, trash, liveIds = () => new Set(), now = Date.now, locate = findTranscript }) {
   const cache = new Map();   // file → { key, info }
+  const titleCache = new Map();   // id → { title, key, checkedAt }
+  let titleRefresh = null;
 
   async function describe(file, id, st, configDir) {
     const key = st.size + ':' + st.mtimeMs;
@@ -219,7 +228,68 @@ function createSessionStore({ projectsDir, trash, liveIds = () => new Set(), now
     return { ok: removed.length > 0, removed, refused };
   }
 
-  return { list, remove };
+  // The title of one transcript: Claude Code's newest title from the tail, else
+  // the one already known, else the first thing the user asked.
+  async function readTitle(file, st, prev) {
+    const start = Math.max(0, st.size - TAIL_BYTES);
+    const fromTail = parseTitle(await readSlice(file, start, st.size - start));
+    if (fromTail) return oneLine(fromTail, MAX_TITLE);
+    if (prev) return prev;
+    return oneLine(parseHead(await readSlice(file, 0, HEAD_BYTES)).prompt, MAX_TITLE);
+  }
+
+  async function refreshTitles(ids) {
+    const root = projectsDir();
+    if (!root) return false;
+    let changed = false;
+    for (const id of ids) {
+      const prev = titleCache.get(id) || { title: '', key: '' };
+      const next = { title: prev.title, key: prev.key, checkedAt: now() };
+      try {
+        const file = await locate(root, id, now());
+        if (file) {
+          const st = await fsp.stat(file);
+          const key = st.size + ':' + st.mtimeMs;
+          if (key !== prev.key) { next.key = key; next.title = await readTitle(file, st, prev.title); }
+        }
+      } catch { /* unreadable right now: keep what is known */ }
+      if (next.title !== prev.title) changed = true;
+      titleCache.delete(id);
+      titleCache.set(id, next);
+    }
+    while (titleCache.size > TITLE_CACHE_MAX) titleCache.delete(titleCache.keys().next().value);
+    return changed;
+  }
+
+  /**
+   * Titles for the sessions the tile shows, answered from memory so the live
+   * payload stays synchronous. Ids not looked at recently are re-read in the
+   * background, one batch at a time; `onChange` fires when a title changed.
+   * @param {string[]} ids
+   * @param {() => void} [onChange]
+   * @returns {Record<string, string>}
+   */
+  function titles(ids, onChange) {
+    const out = {};
+    const stale = [];
+    const t = now();
+    for (const raw of (Array.isArray(ids) ? ids : []).slice(0, MAX_TITLES)) {
+      const id = String(raw || '');
+      if (!SESSION_RE.test(id)) continue;
+      const hit = titleCache.get(id);
+      if (hit && hit.title) out[id] = hit.title;
+      if (!hit || t - hit.checkedAt >= TITLE_RECHECK_MS) stale.push(id);
+    }
+    if (stale.length && !titleRefresh) {
+      titleRefresh = refreshTitles(stale)
+        .then((changed) => { if (changed && onChange) onChange(); })
+        .catch(() => { /* titles are a nicety; the next push retries */ })
+        .finally(() => { titleRefresh = null; });
+    }
+    return out;
+  }
+
+  return { list, remove, titles };
 }
 
-module.exports = { createSessionStore, _internal: { parseHead, parseTitle, oneLine, SESSION_RE, ACTIVE_MS } };
+module.exports = { createSessionStore, _internal: { parseHead, parseTitle, oneLine, SESSION_RE, ACTIVE_MS, TITLE_RECHECK_MS } };

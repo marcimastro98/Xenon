@@ -126,3 +126,20 @@ test('oneLine flattens control characters and clamps', () => {
   assert.equal(_internal.oneLine('a\nb\u0007c   d', 100), 'a b c d');
   assert.equal(_internal.oneLine('x'.repeat(500), 10).length, 10);
 });
+
+test('live titles answer from memory, read in the background and fire onChange once', async () => {
+  const fx = await fixture();
+  let t = 1000;
+  const store = createSessionStore({ projectsDir: () => fx.projects, trash: fakeTrash([]), now: () => t });
+  let changes = 0;
+  const onChange = () => { changes++; };
+  assert.deepEqual(store.titles(['aaa-1', 'ccc-3', '../evil'], onChange), {}, 'first ask has nothing cached');
+  for (let i = 0; i < 20 && !changes; i++) await new Promise((r) => setTimeout(r, 10));
+  assert.equal(changes, 1);
+  assert.deepEqual(store.titles(['aaa-1', 'ccc-3'], onChange), { 'aaa-1': 'My login work', 'ccc-3': 'just a prompt' });
+  // A recheck of unchanged files does not fire again.
+  t += _internal.TITLE_RECHECK_MS;
+  store.titles(['aaa-1'], onChange);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(changes, 1);
+});

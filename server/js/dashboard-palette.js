@@ -13,6 +13,9 @@
     { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
   ];
+  // Built-in widgets that open only with a supporter pass. The panel says so up
+  // front, so nobody adds one expecting it to work straight away.
+  const SUPPORTER_WIDGETS = new Set(['devclean']);
   // Inline icons (currentColor) — one per widget id.
   const I = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const WIDGET_ICONS = {
@@ -104,6 +107,13 @@
       text.appendChild(sub);
     }
     btn.append(ico, text);
+    if (entry.supporter) {
+      const badge = document.createElement('span');
+      badge.className = 'widget-palette-badge';
+      badge.setAttribute('data-i18n', 'palette_supporters');
+      badge.textContent = tr('palette_supporters', 'For supporters');
+      btn.appendChild(badge);
+    }
     if (entry.placed) {
       // Already on the dashboard: the same item, quieter, with an arrow that says
       // the tap goes there instead of adding something.
@@ -540,6 +550,7 @@
       }
       return {
         base: m.base, label: tr('layout_widget_' + m.base, m.base), i18nKey: 'layout_widget_' + m.base,
+        supporter: SUPPORTER_WIDGETS.has(m.base),
         group: tabTarget ? 'palette_add_new' : 'palette_group_builtin', pick: () => pickBuiltin(m.id), fields: builtinFields(m.base),
       };
     };

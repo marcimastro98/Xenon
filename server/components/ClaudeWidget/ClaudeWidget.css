@@ -1,16 +1,16 @@
-/* Claude Code widget: an instrument, not a report.
+/* Claude Code widget: mission control for the sessions on this machine.
 
-   Built as a dark cockpit. At rest the tile is grey and quiet; colour appears
-   only where something needs a person, and means one thing each: the accent is
-   "working, fine", amber is "this needs you", red is "cannot be undone". Two
-   faces, Live and Usage, instead of one long scroll. Lanes for sessions, a
-   segmented gauge per quota window with an even-pace marker, and a decision
-   card that says what a request would reach before it asks for a tap.
+   A rail of sessions on the left, each with its own colour and its own Clawd,
+   and one session open in a console beside it, drawn the way Claude Code draws
+   itself in a terminal: the ✻ status line, the ☐/◼/☒ plan, the ⏺/⎿ tool log,
+   "> " in front of what you type. On a narrow tile the rail folds into a strip
+   of chips above the console.
 
-   Everything reads at arm's length on a Xeneon Edge and folds down on a phone:
-   the layout is driven by the tile's own size (container queries), never by the
-   window's. The one looping animation (a waiting session's dot) joins the four
-   freeze states every infinite animation in the dashboard obeys. */
+   Colour means one thing each: Claude's orange is the brand and the prompt,
+   the accent is "fine, working", amber is "this needs you", red is "cannot be
+   undone". The layout follows the tile's own size (container queries), never
+   the window's, and every looping animation joins the dashboard's freeze
+   states and stops for reduced motion. */
 
 .claude-widget-mount,
 .cw-overlay {
@@ -27,10 +27,30 @@
   --cw-crit: var(--color-danger, #ff6268);
   --cw-code: rgba(0, 0, 0, 0.3);
   --cw-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  /* Claude's orange: the brand, the prompt and the spinner, kept apart from
+     the dashboard accent, which still means "fine, working". */
+  --cw-claude: #D97757;
+  --cw-claude-ink: #E89A7E;
+  --cw-on-claude: #1F0E07;
+  --cw-term: rgba(0, 0, 0, 0.26);
 }
+/* One colour per session, everywhere it appears (claude-ident.js picks the
+   slot from the session id). Mid-tones that read on dark and light alike. */
+:where(.claude-widget-mount, .cw-overlay) .is-s0 { --cw-s: #6E9CF7; }
+:where(.claude-widget-mount, .cw-overlay) .is-s1 { --cw-s: #A98BE0; }
+:where(.claude-widget-mount, .cw-overlay) .is-s2 { --cw-s: #3FB9C4; }
+:where(.claude-widget-mount, .cw-overlay) .is-s3 { --cw-s: #79C267; }
+:where(.claude-widget-mount, .cw-overlay) .is-s4 { --cw-s: #E57FB8; }
+:where(.claude-widget-mount, .cw-overlay) .is-s5 { --cw-s: #4CC9A0; }
+:where(.claude-widget-mount, .cw-overlay) .is-s6 { --cw-s: #9AA7B8; }
+:where(.claude-widget-mount, .cw-overlay) .is-s7 { --cw-s: #C98BD9; }
 
 :root[data-appearance="light"] .claude-widget-mount,
-:root[data-appearance="light"] .cw-overlay { --cw-code: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+:root[data-appearance="light"] .cw-overlay {
+  --cw-code: color-mix(in srgb, var(--cw-ink) 7%, transparent);
+  --cw-term: color-mix(in srgb, var(--cw-ink) 4%, transparent);
+  --cw-claude-ink: #B2512F;
+}
 
 .claude-widget-mount {
   height: 100%; min-height: 0; box-sizing: border-box; padding: 12px 14px;
@@ -106,121 +126,114 @@
 .cw-sec-sum.is-needs { color: var(--cw-warn); font-weight: 700; }
 .claude-widget-mount .cw-section-t { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 650; opacity: 1; color: var(--cw-2); }
 
-/* ── Live: lanes beside the quota on a wide tile, above it on a narrow one ── */
-/* Narrow: sessions then quota in one scroll, so neither is squeezed to nothing
-   when decisions take the top of the tile. Wide: side by side, the lanes scroll
-   on their own and the quota stays put. */
-.cw-livegrid {
-  flex: 1 1 0; min-height: 0;
-  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: max-content max-content; align-content: start; gap: 14px;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+/* ── Live: the session rail beside the console ─────────────────────────────
+   One session in the console at a time, beside the list, so it is always clear
+   which chat is which. Wide tile: rail on the left, scrolling on its own.
+   Narrow tile or phone: the rail becomes a strip of chips above the console. */
+.cw-mc {
+  flex: 1 1 0; min-height: 0; min-width: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 10px;
 }
+.cw-mc.is-solo { grid-template-rows: minmax(0, 1fr); }
+.cw-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 @container cw (min-width: 620px) {
-  .cw-livegrid { grid-template-columns: minmax(0, 1fr) clamp(220px, 31cqw, 330px); grid-template-rows: minmax(0, 1fr); align-content: stretch; gap: 18px; overflow: hidden; }
-  .cw-quota { padding-left: 16px; box-shadow: inset 1px 0 0 var(--cw-line); }
+  .cw-mc { grid-template-columns: clamp(220px, 29cqw, 320px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; }
+  .cw-mc.is-solo { grid-template-columns: minmax(0, 1fr); }
 }
 
-.cw-lanes { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.cw-lanes-scroll { display: flex; flex-direction: column; gap: 6px; }
+.cw-rail-list {
+  display: flex; flex-direction: row; gap: 6px; min-width: 0;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; scrollbar-width: thin;
+  padding-bottom: 2px;
+}
 @container cw (min-width: 620px) {
-  .cw-lanes-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .cw-rail-list { flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-x: hidden; overflow-y: auto; padding: 0 2px 0 0; }
 }
-.cw-lane {
-  position: relative; flex: 0 0 auto;
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 9px 12px 9px 15px; border-radius: 10px; background: var(--cw-well);
+.cw-rail-list > .cw-section { flex: 0 0 auto; }
+
+/* A card: Clawd in the session's colour, the title, where it lives, and what
+   it is doing. The left edge carries the colour so it reads even when the
+   mascot is too small to. */
+.cw-rc {
+  position: relative; flex: 0 0 auto; cursor: pointer;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 10px;
+  width: clamp(170px, 46cqw, 240px); padding: 9px 10px 9px 12px; border-radius: 11px;
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px transparent;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.cw-lane::before {
-  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 2px 2px 0;
-  background: transparent;
+@container cw (min-width: 620px) { .cw-rc { width: auto; } }
+.cw-rc::before {
+  content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 0 2px 2px 0;
+  background: var(--cw-s, var(--cw-3));
 }
-.cw-lane.is-working::before { background: var(--cw-go); }
-.cw-lane.is-needs {
+.cw-rc:hover { background: color-mix(in srgb, var(--cw-ink) 8%, transparent); }
+.cw-rc:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-rc.is-sel {
+  background: color-mix(in srgb, var(--cw-s, var(--cw-ink)) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-s, var(--cw-ink)) 62%, transparent);
+}
+.cw-rc.is-needs:not(.is-sel) {
   background: color-mix(in srgb, var(--cw-warn) 12%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 42%, transparent);
 }
-.cw-lane.is-needs::before { background: var(--cw-warn); }
-.cw-lane.is-ended { opacity: 0.72; }
-.cw-lane.is-carded { padding-block: 8px; }
-.cw-lane.is-carded .cw-lane-ask { font-size: 12.5px; }
-.cw-lane.is-tappable { cursor: pointer; }
-.cw-lane.is-tappable:hover { background: color-mix(in srgb, var(--cw-ink) 8%, transparent); }
-.cw-lane.is-needs.is-tappable:hover { background: color-mix(in srgb, var(--cw-warn) 17%, transparent); }
-.cw-lane:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-rc.is-ended { opacity: 0.7; }
+.cw-rc.is-ended.is-sel { opacity: 1; }
+.cw-rc-clawd { margin-top: 1px; }
+.cw-rc-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cw-rc-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.cw-rc-title {
+  flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -0.005em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-rc-clock { flex: 0 0 auto; font-size: 11.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-rc.is-needs .cw-rc-clock { color: var(--cw-warn); font-weight: 700; }
+.cw-rc-sub {
+  font-family: var(--cw-mono); font-size: 11px; color: var(--cw-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-rc-now.cw-lane-now { font-size: 12.5px; }
+.cw-rc-todo { display: flex; gap: 2px; margin-top: 2px; }
+.cw-rc-todo-seg { flex: 1 1 0; max-width: 14px; height: 4px; border-radius: 1px; background: color-mix(in srgb, var(--cw-ink) 16%, transparent); }
+.cw-rc-todo-seg.is-done { background: color-mix(in srgb, var(--cw-go) 75%, transparent); }
+.cw-rc-todo-seg.is-doing { background: var(--cw-claude); }
+/* The strip keeps a card to its title and one line. */
+@container cw (max-width: 619px) {
+  .cw-rc-sub, .cw-rc-todo { display: none; }
+  .cw-rc { padding: 7px 9px 7px 11px; }
+}
 
-.cw-lane-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.cw-lane-dot { display: none; }
+/* What a session is doing, one line: shared by the rail cards. */
+.cw-lane-now { display: flex; align-items: baseline; gap: 7px; min-width: 0; font-size: 13px; line-height: 1.35; }
+.cw-lane-intent, .cw-lane-state { flex: 0 0 auto; font-weight: 650; white-space: nowrap; }
+.cw-lane-state { color: var(--cw-2); font-weight: 600; }
+.cw-lane-ask { flex: 0 1 auto; min-width: 0; color: var(--cw-warn); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-lane-detail {
+  min-width: 0; font-family: var(--cw-mono); font-size: 12px; color: var(--cw-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-lane-task, .cw-lane-said { min-width: 0; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-lane-for { flex: 0 0 auto; margin-left: auto; color: var(--cw-2); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-lane-for.is-quiet { color: var(--cw-warn); margin-left: 0; }
 .cw-sr {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
-.cw-lane.is-needs .cw-lane-dot {
-  display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--cw-warn); align-self: center;
-  animation: cw-breathe 2.4s ease-in-out infinite; will-change: opacity;
-}
-.cw-lane-proj { font-size: 14.5px; font-weight: 700; letter-spacing: -0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.cw-lane-tag { font-size: 12px; color: var(--cw-2); font-variant-numeric: tabular-nums; }
-.cw-lane-branch { font-family: var(--cw-mono); font-size: 11.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.cw-lane-clock { margin-left: auto; flex: 0 0 auto; font-size: 12.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cw-lane.is-needs .cw-lane-clock { color: var(--cw-warn); font-weight: 700; }
 
-.cw-lane-now { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13.5px; line-height: 1.35; }
-.cw-lane-intent, .cw-lane-state { flex: 0 0 auto; font-weight: 650; white-space: nowrap; }
-.cw-lane-state { color: var(--cw-2); font-weight: 600; }
-.cw-lane-ask { flex: 0 0 auto; color: var(--cw-warn); font-weight: 700; white-space: nowrap; }
-.cw-lane-detail {
-  min-width: 0; font-family: var(--cw-mono); font-size: 12.5px; color: var(--cw-2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.cw-lane.is-needs .cw-lane-detail { color: var(--cw-ink); font-family: inherit; font-size: 13px; }
-.cw-lane-task, .cw-lane-said { min-width: 0; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cw-lane-for { flex: 0 0 auto; margin-left: auto; color: var(--cw-2); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cw-lane-for.is-quiet { color: var(--cw-warn); margin-left: 0; }
-
-/* The last ten minutes of tool calls, newest on the right, older ones fainter. */
-.cw-trace {
-  position: relative; height: 7px; border-radius: 2px; overflow: hidden;
-  background: color-mix(in srgb, var(--cw-ink) 4%, transparent);
-}
-.cw-tick { position: absolute; top: 1px; bottom: 1px; min-width: 2px; border-radius: 1px; background: var(--cw-go); }
-.cw-tick.is-fail { background: var(--cw-crit); }
-.cw-lane.is-needs .cw-tick { background: var(--cw-warn); }
-
-.cw-lane-foot { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; min-width: 0; font-size: 12px; color: var(--cw-2); }
-.cw-rail { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 200px; }
-.cw-rail-segs { display: flex; gap: 2px; flex: 0 0 auto; }
-.cw-rail-seg { width: 9px; height: 6px; border-radius: 1.5px; background: color-mix(in srgb, var(--cw-ink) 16%, transparent); }
-.cw-rail-seg.is-done { background: color-mix(in srgb, var(--cw-go) 75%, transparent); }
-.cw-rail-seg.is-doing { background: var(--cw-ink); }
-.cw-rail-text { display: flex; gap: 6px; min-width: 0; align-items: baseline; }
-.cw-rail-count { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-.cw-rail-now { min-width: 0; color: var(--cw-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-ctx { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .cw-ctx-bar { width: 34px; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--cw-ink) 14%, transparent); }
 .cw-ctx-fill { display: block; height: 100%; background: var(--cw-2); }
 .cw-ctx.is-warn .cw-ctx-fill { background: var(--cw-warn); }
 .cw-ctx.is-crit .cw-ctx-fill { background: var(--cw-crit); }
 .cw-ctx-val { font-variant-numeric: tabular-nums; }
-.cw-lane-model { font-weight: 600; flex: 0 0 auto; }
-/* Grows with the subagents' models (from the Claude Code mod): clip, never push the lane wider. */
-.cw-lane-agents { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cw-lane-lines { display: inline-flex; gap: 6px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.cw-lane-lines .is-add { color: var(--cw-go); }
-.cw-lane-lines .is-del { color: var(--cw-crit); }
 
 .cw-queued {
-  display: flex; align-items: center; gap: 8px; min-width: 0;
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-width: 0;
   padding: 5px 4px 5px 9px; border-radius: 8px; font-size: 12.5px;
   background: color-mix(in srgb, var(--cw-go) 10%, transparent);
 }
 .cw-queued-label { flex: 0 0 auto; font-weight: 650; }
 .cw-queued-text { flex: 1 1 auto; min-width: 0; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.cw-empty { padding: 12px 14px; border-radius: 10px; background: var(--cw-well); }
-.cw-empty-t { font-size: 14px; font-weight: 650; }
-.cw-empty-s { margin-top: 3px; font-size: 12.5px; color: var(--cw-2); }
 
 /* ── quota: segmented gauges with an even-pace marker ── */
 .cw-quota { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
@@ -409,6 +422,10 @@
 .cw-usage {
   flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start;
+  /* Rows as tall as what they hold: the face scrolls instead. An auto row
+     would shrink to its item's min-height (0 for the quota) and stack it under
+     the next one. */
+  grid-auto-rows: max-content;
 }
 @container cw (min-width: 640px) {
   .cw-usage { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); column-gap: 26px; }
@@ -506,239 +523,394 @@
 
 /* ── small tiles: keep what answers "does anything need me" ── */
 @container cw (max-height: 300px) {
-  .cw-trace, .cw-lane-foot { display: none; }
   .cw-pace { display: none; }
   .cw-gauge-val { font-size: 21px; }
+  .cw-cs-aside, .cw-cs-chips { display: none; }
 }
 @container cw (max-height: 200px) {
   .cw-sec-head { display: none; }
-  .cw-lane { padding-top: 7px; padding-bottom: 7px; }
 }
 @container cw (max-width: 430px) {
-  .cw-lane-branch, .cw-lane-tag { display: none; }
   .cw-face { padding: 0 10px; }
   .claude-widget-mount .cw-ask-open { padding: 0 12px; }
+  .cw-ask-open-t { display: none; }
 }
 
 @keyframes cw-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes cw-fade { from { opacity: 0; } to { opacity: 1; } }
-/* The one looping animation joins the dashboard's freeze states. */
-body.overlay-frozen .cw-lane-dot,
-body.ambient-idle .cw-lane-dot,
-body.game-mode .cw-lane-dot,
-body.low-power-gpu .cw-lane-dot { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .cw-lane.is-needs .cw-lane-dot { animation: none; }
   .cw-overlay { animation: none; }
 }
 
-/* ── kept as they were: asking Claude, runs, the connection and budget panels,
-   the folding sections, the topbar marker and the "another session" notice ── */
+/* ── Clawd, in the session's colour ─────────────────────────────────────────
+   The same sprite as the topbar marker (claude-clawd.js), moved by the state
+   class on its box: walking while the session works, hopping when it is blocked
+   on you, blinking when it is done, eyes shut once it has ended. The badge says
+   the state again without motion, for the moments motion is switched off. */
+.cw-clawd {
+  position: relative; flex: 0 0 auto; display: inline-grid; place-items: center;
+  width: 30px; height: 26px; border-radius: 8px;
+  color: var(--cw-s, var(--cw-claude));
+  background: color-mix(in srgb, var(--cw-s, var(--cw-claude)) 13%, transparent);
+}
+.cw-clawd-svg { width: 20px; height: 15px; display: block; }
+.cw-clawd.is-ended { color: var(--cw-3); background: var(--cw-well); }
+.cw-clawd.is-ended .cw-cl-eyes { opacity: 1; }
+.cw-clawd.is-working .cw-cl-shell { animation: cw-cl-bob 0.5s steps(1, end) infinite; will-change: transform; }
+.cw-clawd.is-working .cw-cl-legl { animation: cw-cl-stepa 0.5s steps(1, end) infinite; }
+.cw-clawd.is-working .cw-cl-legr { animation: cw-cl-stepb 0.5s steps(1, end) infinite; }
+.cw-clawd.is-idle .cw-cl-eyes { animation: cw-cl-blink 4.5s steps(1, end) infinite; }
+.cw-clawd.is-needs { color: var(--cw-warn); background: color-mix(in srgb, var(--cw-warn) 16%, transparent); }
+.cw-clawd.is-needs .cw-clawd-svg { animation: cw-cl-hop 1.9s steps(1, end) infinite; will-change: transform; }
+.cw-clawd-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; border-radius: 7px;
+  display: grid; place-items: center; padding: 0 3px; box-sizing: border-box;
+  font-size: 10px; font-weight: 850; line-height: 1; color: #1b1205; background: var(--cw-warn);
+}
+.cw-clawd-badge.is-fresh { min-width: 9px; width: 9px; height: 9px; top: -2px; right: -2px; background: var(--cw-go); }
 
-/* ── asking Claude from the touchscreen ── */
-.cw-ask-open {
-  flex: 0 0 auto; appearance: none; cursor: pointer;
-  padding: 4px 12px; border-radius: 999px;
-  font-size: 11.5px; font-weight: 750; letter-spacing: 0.02em;
-  color: var(--on-accent, #06121f); background: var(--accent, #1ed760); border: 0;
+/* The spinner Claude Code prints before what it is doing. Stepped, never
+   eased: it is a glyph changing, not a shape moving. */
+.cw-spin { display: inline-block; width: 1.1em; flex: 0 0 auto; text-align: center; color: var(--cw-claude); font-weight: 700; }
+.cw-spin::before { content: '✻'; }
+.cw-spin.is-on::before { animation: cw-spin-glyph 1.2s steps(1, end) infinite; }
+@keyframes cw-spin-glyph {
+  0% { content: '·'; } 16% { content: '✢'; } 33% { content: '✳'; }
+  50% { content: '✶'; } 66% { content: '✻'; } 83% { content: '✽'; }
+}
+
+/* Every infinite animation here joins the four freeze states, and stops for
+   reduced motion. A blocked session keeps its badge, which carries the state. */
+body.overlay-frozen .cw-clawd *, body.ambient-idle .cw-clawd *,
+body.game-mode .cw-clawd *, body.low-power-gpu .cw-clawd *,
+body.overlay-frozen .cw-spin::before, body.ambient-idle .cw-spin::before,
+body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation: none; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cw-clawd *, .cw-spin::before { animation: none !important; transform: none; }
+}
+
+/* ── the header: brand, the quota at a glance, faces, new session ── */
+.cw-brand { display: inline-grid; place-items: center; color: var(--cw-claude); }
+.cw-brand-mark { width: 24px; height: 18px; display: block; }
+.cw-qmini {
+  appearance: none; border: 0; cursor: pointer; flex: 0 1 auto; min-width: 0;
+  display: inline-flex; align-items: center; gap: 12px; min-height: 32px; padding: 0 10px; border-radius: 9px;
+  font: inherit; color: inherit; background: var(--cw-well);
   -webkit-tap-highlight-color: transparent;
 }
-.cw-ask-open:hover { filter: brightness(1.08); }
+.cw-qmini:hover { background: color-mix(in srgb, var(--cw-ink) 9%, transparent); }
+.cw-qm { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-qm-k { color: var(--cw-2); font-weight: 650; }
+.cw-qm-bar { width: 38px; height: 5px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--cw-ink) 14%, transparent); }
+.cw-qm-fill { display: block; height: 100%; background: var(--cw-go); }
+.cw-qm.is-warn .cw-qm-fill { background: var(--cw-warn); }
+.cw-qm.is-crit .cw-qm-fill { background: var(--cw-crit); }
+.cw-qm-v { font-weight: 700; }
+.cw-qm.is-warn .cw-qm-v { color: var(--cw-warn); }
+.cw-qm.is-crit .cw-qm-v { color: var(--cw-crit); }
+@container cw (max-width: 760px) { .cw-qm-bar { display: none; } .cw-qmini { gap: 9px; } }
+@container cw (max-width: 520px) { .cw-qmini { display: none; } }
 
+.claude-widget-mount .cw-ask-open {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; appearance: none;
+  color: var(--cw-on-claude); background: var(--cw-claude); border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.claude-widget-mount .cw-ask-open:hover { filter: brightness(1.07); }
+.claude-widget-mount .cw-ask-open.is-on { color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 16%, transparent); }
+.cw-ask-open-plus { font-size: 17px; font-weight: 600; line-height: 1; }
+
+/* ── the console: one session, terminal-style ───────────────────────────────
+   Head, status line, decisions, then the conversation with the plan and the
+   tool log beside it when there is room, and the prompt at the bottom. */
+.cw-console {
+  min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 9px;
+  padding: 12px; border-radius: 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
+  container-type: inline-size; container-name: cwc;
+}
+.cw-console > * { flex: 0 0 auto; }
+.cw-console > .cw-cs-body, .cw-console > .cw-thread-spacer { flex: 1 1 auto; }
+
+.cw-cs-head { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.cw-cs-clawd { width: 38px; height: 32px; border-radius: 10px; }
+.cw-cs-clawd .cw-clawd-svg { width: 24px; height: 18px; }
+.cw-cs-names { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cw-cs-title { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-sub { font-family: var(--cw-mono); font-size: 11.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.cw-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 22px; padding: 0 8px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 650; white-space: nowrap; color: var(--cw-2);
+  background: color-mix(in srgb, var(--cw-ink) 7%, transparent);
+}
+.cw-cs-chips .cw-ctx { min-height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; color: var(--cw-2); background: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+.cw-chip-model { color: var(--cw-ink); box-shadow: inset 2px 0 0 hsl(var(--cw-chip-hue, 20) 65% 60%); }
+.cw-chip-mode { font-family: var(--cw-mono); color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 14%, transparent); }
+.cw-chip-mode.is-warn { color: var(--cw-crit); background: color-mix(in srgb, var(--cw-crit) 13%, transparent); }
+.cw-chip-glyph { font-size: 10px; letter-spacing: -0.1em; }
+.cw-chip-lines { font-family: var(--cw-mono); }
+.cw-chip-lines .is-add { color: var(--cw-go); }
+.cw-chip-lines .is-del { color: var(--cw-crit); }
+
+/* The status line, as the terminal prints it under the conversation. */
+.cw-cs-status {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 7px 10px; border-radius: 9px;
+  font-size: 13px; line-height: 1.35; background: var(--cw-term);
+}
+.cw-cs-glyph { flex: 0 0 auto; width: 1.1em; text-align: center; color: var(--cw-3); }
+.cw-cs-glyph.is-idle { color: var(--cw-go); }
+.cw-cs-glyph.is-needs { color: var(--cw-warn); }
+.cw-cs-word { flex: 0 1 auto; min-width: 0; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-status.is-working .cw-cs-word { color: var(--cw-claude-ink); }
+.cw-cs-status.is-needs { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 45%, transparent); }
+.cw-cs-status.is-needs .cw-cs-word { color: var(--cw-warn); }
+.cw-cs-status.is-ended, .cw-cs-status.is-idle:not(:has(.cw-cs-glyph)) { color: var(--cw-2); }
+.cw-cs-detail { flex: 1 1 auto; min-width: 0; font-family: var(--cw-mono); font-size: 12px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-for { flex: 0 0 auto; margin-left: auto; font-size: 12px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Conversation, with the plan and the tool log beside it on a wide console
+   and under the status line's weight on a narrow one. */
+.cw-cs-body { min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+.cw-cs-aside {
+  flex: 0 1 auto; min-width: 0; min-height: 0; max-height: 34%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 10px; padding: 9px 10px; border-radius: 10px; background: var(--cw-term);
+}
+.cw-cs-body.has-aside { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(120px, 1fr) auto; min-height: min-content; }
+@container cwc (min-width: 640px) {
+  .cw-cs-body.has-aside { grid-template-columns: minmax(0, 1fr) clamp(200px, 32cqw, 280px); grid-template-rows: minmax(120px, 1fr); }
+  .cw-cs-body.has-aside .cw-cs-aside { max-height: none; }
+}
+@container cwc (max-width: 639px) {
+  /* The log moves above the conversation, so the rows swap too: it gets its
+     own height and the conversation keeps the stretch. */
+  .cw-cs-body.has-aside { grid-template-rows: auto minmax(120px, 1fr); }
+  .cw-cs-body.has-aside .cw-cs-aside { order: -1; max-height: 120px; }
+}
+.cw-cs-label { font-size: 12px; font-weight: 700; color: var(--cw-2); margin-bottom: 3px; }
+.cw-cs-todos, .cw-cs-acts { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cw-todo { display: flex; align-items: baseline; gap: 7px; min-width: 0; font-size: 12.5px; line-height: 1.4; }
+.cw-todo-box { flex: 0 0 auto; width: 1.1em; font-family: var(--cw-mono); color: var(--cw-3); }
+.cw-todo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-todo.is-done .cw-todo-text { color: var(--cw-3); text-decoration: line-through; }
+.cw-todo.is-done .cw-todo-box { color: var(--cw-go); }
+.cw-todo.is-doing .cw-todo-box, .cw-todo.is-doing .cw-todo-text { color: var(--cw-claude-ink); font-weight: 650; }
+.cw-cs-more { font-size: 11.5px; color: var(--cw-3); padding-left: calc(1.1em + 7px); }
+.cw-act { font-family: var(--cw-mono); font-size: 11.5px; line-height: 1.45; min-width: 0; }
+.cw-act-call { display: flex; gap: 6px; min-width: 0; white-space: nowrap; }
+.cw-act-dot { flex: 0 0 auto; color: var(--cw-go); }
+.cw-act.is-fail .cw-act-dot { color: var(--cw-crit); }
+.cw-act-tool { flex: 0 0 auto; max-width: 60%; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.cw-act-arg { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--cw-2); }
+.cw-act-res { padding-left: 2px; color: var(--cw-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-act.is-fail .cw-act-res { color: var(--cw-crit); }
+
+.cw-cs-note {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px;
+  font-size: 12.5px; line-height: 1.45; color: var(--cw-2); background: var(--cw-term);
+}
+.cw-cs-note > span { flex: 1 1 200px; min-width: 0; }
+
+/* A decision waiting in ANOTHER session: one line on top that switches to it. */
+.cw-elsewhere {
+  appearance: none; border: 0; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 6px 12px 6px 7px; border-radius: 11px; text-align: left;
+  font: inherit; font-size: 12.5px; color: var(--cw-ink);
+  background: color-mix(in srgb, var(--cw-warn) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 40%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-elsewhere:hover { background: color-mix(in srgb, var(--cw-warn) 19%, transparent); }
+.cw-elsewhere-t { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-elsewhere-more { flex: 0 0 auto; font-weight: 800; color: var(--cw-2); }
+.cw-elsewhere-go { flex: 0 0 auto; font-weight: 750; color: var(--cw-warn); }
+
+/* No session in the console: Clawd and the prompt, not an empty panel. */
+.cw-console.is-new { gap: 11px; }
+.cw-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px 4px; text-align: center; }
+.cw-hero-clawd { width: 72px; height: 60px; border-radius: 16px; margin-bottom: 4px; }
+.cw-hero-clawd .cw-clawd-svg { width: 48px; height: 36px; }
+.cw-hero-t { font-size: 17px; font-weight: 750; letter-spacing: -0.01em; }
+.cw-hero-s { font-size: 12.5px; color: var(--cw-2); max-width: 42ch; line-height: 1.45; }
+@container cw (max-height: 360px) {
+  .cw-hero { flex-direction: row; padding: 2px 0; text-align: left; }
+  .cw-hero-clawd { width: 38px; height: 32px; margin: 0; }
+  .cw-hero-clawd .cw-clawd-svg { width: 24px; height: 18px; }
+  .cw-hero-s { display: none; }
+}
+
+/* ── projects for a new session ── */
 .cw-ask-projects { display: flex; flex-wrap: wrap; gap: 7px; }
 .cw-ask-proj {
-  appearance: none; cursor: pointer; padding: 9px 13px; border-radius: 10px;
-  font-size: 12px; font-weight: 650; color: var(--text, #f0f3f1);
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  max-width: 100%; -webkit-tap-highlight-color: transparent;
+  appearance: none; cursor: pointer; min-height: 38px; padding: 0 13px; border-radius: 10px; max-width: 100%;
+  font: inherit; font-size: 12.5px; font-weight: 650; color: var(--cw-ink);
+  background: color-mix(in srgb, var(--cw-ink) 6%, transparent); border: 1px solid var(--cw-line);
+  -webkit-tap-highlight-color: transparent;
 }
-.cw-ask-proj-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cw-ask-proj:hover { background: rgba(255,255,255,0.1); }
-.cw-ask-proj.is-sel {
-  color: var(--on-accent, #06121f); background: var(--accent, #1ed760); border-color: transparent;
-}
+.cw-ask-proj-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cw-mono); font-size: 12px; }
+.cw-ask-proj:hover { background: color-mix(in srgb, var(--cw-ink) 11%, transparent); }
+.cw-ask-proj.is-sel { color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 15%, transparent); border-color: color-mix(in srgb, var(--cw-claude) 60%, transparent); }
 
-/* ── the ask / continue panel ──────────────────────────────────────────────
-   Three regions, in reading order: which session this is (the head), what has
-   been said (the thread), and what you do about it (the composer). The first
-   version stacked six blocks of equal weight and the eye had nowhere to land. */
-.cw-panel.is-ask { overflow: hidden; gap: 12px; }
-.cw-panel-titles { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.cw-panel-sub {
-  display: flex; align-items: baseline; gap: 7px; min-width: 0;
-  font-size: 11.5px; line-height: 1.4; opacity: 0.55; color: var(--text, #f0f3f1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.cw-panel-sub-proj { flex: 0 0 auto; font-weight: 700; opacity: 0.9; }
-/* The last thing this session was asked yields space first: it is the useful
-   detail, but the project and the tag are what identify the session. */
-/* Capped, because the last prompt can be a pasted log: at full width it ate the
-   whole line and the project and tag — the parts that identify the session —
-   stopped reading as the heading. */
-.cw-panel-sub-task {
-  flex: 0 1 auto; min-width: 0; max-width: 46ch;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* Shown only when two sessions share a project name, so the row you tapped and
-   the panel you land in can be matched. Four hex characters of the session id:
-   meaningless on its own, which is the point — it is a tie-breaker, not a name. */
-.cw-sess-tag {
-  flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
-  padding: 1px 5px; border-radius: 5px; opacity: 0.75;
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  color: var(--text, #f0f3f1); background: rgba(255,255,255,0.09);
-}
-
-/* The session's last turns: the tallest thing on screen, because it is the part
-   you actually read before deciding what to write. */
+/* ── the conversation, as the terminal shows it ──────────────────────────────
+   Your turns are a "> " line on a faint band; Claude's are a "⏺ " paragraph.
+   The speaker label stays for screen readers, the glyph says it at a glance. */
 .cw-thread {
   flex: 1 1 auto; min-height: 120px; overflow-y: auto;
   overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
   display: flex; flex-direction: column; gap: 12px;
-  padding: 13px; border-radius: 13px;
-  background: rgba(0,0,0,0.24); border: 1px solid rgba(255,255,255,0.06);
+  padding: 12px 12px 14px; border-radius: 11px; background: var(--cw-term);
+}
+/* The wrap takes the thread's place so the "new reply" chip can float over
+   the bottom edge of the scroller without scrolling with it. */
+.cw-thread-wrap { position: relative; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column; }
+.cw-thread-wrap > .cw-thread { min-height: 0; }
+.cw-thread-new {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  appearance: none; border: 0; cursor: pointer; min-height: 32px; padding: 0 14px; border-radius: 999px;
+  font: inherit; font-size: 12px; font-weight: 750; color: var(--cw-on-claude); background: var(--cw-claude);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35); -webkit-tap-highlight-color: transparent;
 }
 .cw-thread-spacer { flex: 1 1 auto; min-height: 0; }
-.cw-thread-note { font-size: 12px; opacity: 0.5; color: var(--text, #f0f3f1); }
+.cw-thread-note { font-size: 12.5px; color: var(--cw-2); }
 
-.cw-msg { display: flex; }
-.cw-msg.is-user { justify-content: flex-end; }
-.cw-msg-bubble {
-  max-width: 86%; min-width: 0; display: flex; flex-direction: column; gap: 5px;
-  padding: 10px 13px; border-radius: 13px;
-  background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.06);
-}
-/* Your own turns are tinted and pulled right, so a glance says who spoke without
-   having to read the label. */
-.cw-msg.is-user .cw-msg-bubble {
-  background: color-mix(in srgb, var(--accent, #1ed760) 13%, transparent);
-  border-color: color-mix(in srgb, var(--accent, #1ed760) 26%, transparent);
-}
+.cw-msg { display: flex; min-width: 0; }
+.cw-msg-bubble { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding-left: 20px; }
+.cw-msg-bubble::before { position: absolute; left: 2px; top: 0; font-family: var(--cw-mono); font-size: 12.5px; line-height: 1.55; }
+.cw-msg.is-claude .cw-msg-bubble::before { content: '⏺'; color: var(--cw-ink); }
+.cw-msg.is-user .cw-msg-bubble { padding-top: 6px; padding-bottom: 6px; padding-right: 10px; border-radius: 7px; background: color-mix(in srgb, var(--cw-ink) 8%, transparent); }
+.cw-msg.is-user .cw-msg-bubble::before { content: '>'; top: 6px; left: 7px; color: var(--cw-2); font-weight: 700; }
 .cw-msg-who {
-  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
-  opacity: 0.45; color: var(--text, #f0f3f1);
+  position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
 }
-.cw-msg.is-user .cw-msg-who { color: var(--accent, #1ed760); opacity: 0.9; }
-.cw-msg-text {
-  font-size: 12.5px; line-height: 1.55; color: var(--text, #f0f3f1);
-  overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 7px;
+.cw-msg-text { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 7px; }
+.cw-msg.is-user .cw-msg-text { white-space: pre-wrap; color: var(--cw-2); }
+.cw-msg-cut { font-size: 11px; font-style: italic; color: var(--cw-3); padding-top: 3px; border-top: 1px dashed var(--cw-line); }
+.cw-msg-more {
+  align-self: flex-start; appearance: none; border: 0; background: transparent; cursor: pointer;
+  min-height: 28px; padding: 0 6px; margin-left: -6px; font: inherit; font-size: 12px; font-weight: 750; color: var(--cw-claude-ink);
 }
-.cw-msg.is-user .cw-msg-text { white-space: pre-wrap; }
-.cw-msg-cut {
-  font-size: 10px; font-style: italic; opacity: 0.4;
-  padding-top: 2px; border-top: 1px dashed rgba(255,255,255,0.12);
-}
+/* The Stop hook's copy of the final reply, shown until the transcript has it. */
+.cw-msg.is-provisional .cw-msg-text { opacity: 0.85; }
+.cw-msg.is-provisional .cw-msg-bubble::before { color: var(--cw-3); }
 
-/* "Claude is working": the bubble that stands in for the reply not yet written.
-   The transcript is only written a message at a time, so without this the panel
-   would sit unchanged and look finished while the session is mid-thought. */
-.cw-msg.is-typing .cw-msg-bubble { border-style: dashed; }
-.cw-typing { display: flex; align-items: center; gap: 9px; }
-.cw-typing-dots { display: inline-flex; gap: 4px; align-items: center; }
-.cw-typing-dot {
-  width: 5px; height: 5px; border-radius: 50%; background: var(--accent, #1ed760);
-  animation: cw-typing-bounce 1.25s ease-in-out infinite; will-change: opacity, transform;
-}
-.cw-typing-dot:nth-child(2) { animation-delay: 0.16s; }
-.cw-typing-dot:nth-child(3) { animation-delay: 0.32s; }
-@keyframes cw-typing-bounce {
-  0%, 70%, 100% { opacity: 0.3; transform: translateY(0); }
-  35% { opacity: 1; transform: translateY(-3px); }
-}
-/* Joins the freeze set like every other infinite animation. */
-body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
-.cw-typing-t {
-  font-size: 11.5px; font-weight: 600; opacity: 0.55; color: var(--text, #f0f3f1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+/* "Claude is working": the line that stands in for the reply not yet written. */
+.cw-msg.is-typing .cw-msg-bubble::before { content: none; }
+.cw-msg.is-typing .cw-msg-bubble { padding-left: 0; }
+.cw-typing { display: flex; align-items: baseline; gap: 6px; font-size: 13px; }
+.cw-typing .cw-spin { width: 20px; }
+.cw-typing-t { color: var(--cw-claude-ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Rendered markdown inside a bubble. Deliberately quiet: this is context, and a
-   wall of headings and code frames would out-shout the composer below it. */
+/* Rendered markdown. Deliberately quiet: this is context. */
 .cw-md-p { margin: 0; }
-.cw-md-h { font-weight: 750; font-size: 12.5px; letter-spacing: -0.005em; }
+.cw-md-h { font-weight: 750; font-size: 13px; letter-spacing: -0.005em; }
 .cw-md-list { display: flex; flex-direction: column; gap: 4px; }
 .cw-md-li { display: flex; gap: 7px; align-items: baseline; }
-.cw-md-bullet { flex: 0 0 auto; opacity: 0.45; font-size: 11px; min-width: 12px; }
-/* The item's text is one box, so bold and code stay inline inside the sentence
-   instead of becoming siblings of it in the flex row. */
+.cw-md-bullet { flex: 0 0 auto; color: var(--cw-3); font-size: 11px; min-width: 12px; }
+/* The item's text is one box, so bold and code stay inline in the sentence. */
 .cw-md-litext { flex: 1 1 auto; min-width: 0; }
-.cw-md-code {
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 11.5px;
-  padding: 1px 5px; border-radius: 5px; background: rgba(0,0,0,0.36);
-  color: color-mix(in srgb, var(--accent, #1ed760) 72%, var(--text, #f0f3f1));
-}
+.cw-md-code { font-family: var(--cw-mono); font-size: 12px; padding: 1px 5px; border-radius: 5px; background: var(--cw-code); color: var(--cw-claude-ink); }
 .cw-md-pre {
-  margin: 0; padding: 9px 11px; border-radius: 9px; overflow-x: auto;
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 11px; line-height: 1.5; white-space: pre;
-  background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.06);
+  margin: 0; padding: 9px 11px; border-radius: 8px; overflow-x: auto;
+  font-family: var(--cw-mono); font-size: 11.5px; line-height: 1.5; white-space: pre;
+  background: var(--cw-code); box-shadow: inset 2px 0 0 color-mix(in srgb, var(--cw-ink) 18%, transparent);
 }
 
-/* Everything you act on, in one card. */
+/* ── the prompt box ──────────────────────────────────────────────────────────
+   Claude Code's input: a rounded box with "> " in front of what you type, the
+   tools for the run in one row under it, and a plain line saying where the
+   text will go. */
 .cw-composer {
-  flex: 0 0 auto; display: flex; flex-direction: column; gap: 9px;
-  padding: 11px; border-radius: 14px;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 9px; border-radius: 12px;
+  background: var(--cw-term); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-ink) 16%, transparent);
 }
-.cw-composer-bar { display: flex; align-items: center; gap: 8px; }
-.cw-composer-gap { flex: 1 1 auto; }
-.cw-composer .cs-wrap { flex: 0 1 210px; min-width: 130px; }
-.cw-composer .cs-trigger { font-size: 11.5px; padding: 8px 11px; }
+.cw-composer:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-claude) 70%, transparent); }
+.cw-ask-text {
+  width: 100%; box-sizing: border-box; resize: none; min-height: 56px;
+  padding: 6px 8px 6px 26px; border: 0; border-radius: 8px; outline: none;
+  font: inherit; font-family: var(--cw-mono); font-size: 13px; line-height: 1.5; color: var(--cw-ink);
+  background: transparent;
+}
+.cw-composer::before {
+  content: '>'; position: absolute; left: 18px; top: 15px; pointer-events: none;
+  font-family: var(--cw-mono); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--cw-claude-ink);
+}
+.cw-ask-text::placeholder { color: var(--cw-3); }
+.cw-composer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.cw-composer-bar { gap: 6px; }
+/* Model, mode and effort as small pills sized to their words, like the chips
+   in Claude Code's footer, not three full-width form fields. */
+.cw-composer .cs-wrap { flex: 0 1 auto; min-width: 0; }
+.cw-composer .cs-trigger {
+  min-height: 32px; padding: 4px 9px; gap: 5px; border: 0; border-radius: 7px;
+  font-family: var(--cw-mono); font-size: 11.5px; font-weight: 650; color: var(--cw-2);
+  background: color-mix(in srgb, var(--cw-ink) 7%, transparent);
+}
+.cw-composer .cs-trigger:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 12%, transparent); }
+.cw-composer .cs-label { min-width: 0; max-width: 22ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-composer .cs-chevron { width: 10px; height: 10px; opacity: 0.7; }
+
+/* The "/" picker: the commands and skills that match what is typed, under
+   the prompt, as Claude Code lists them (a floating list would be clipped by the console). */
+.cw-slash {
+  display: flex; flex-direction: column; gap: 2px; max-height: 214px; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; padding: 4px; border-radius: 9px; background: var(--cw-well);
+  box-shadow: inset 0 0 0 1px var(--cw-line);
+}
+.cw-slash[hidden] { display: none; }
+.cw-slash-item {
+  appearance: none; border: 0; cursor: pointer; display: flex; align-items: baseline; gap: 10px; min-width: 0;
+  min-height: 34px; padding: 6px 9px; border-radius: 7px; text-align: left; font: inherit; color: var(--cw-ink);
+  background: transparent; -webkit-tap-highlight-color: transparent;
+}
+.cw-slash-item:hover { background: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+.cw-slash-item.is-on { background: color-mix(in srgb, var(--cw-claude) 16%, transparent); }
+.cw-slash-name { flex: 0 0 auto; max-width: 50%; font-family: var(--cw-mono); font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-slash-item.is-on .cw-slash-name { color: var(--cw-claude-ink); }
+.cw-slash-ns { flex: 0 1 auto; min-width: 0; max-width: 30%; font-family: var(--cw-mono); font-size: 11px; color: var(--cw-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-slash-desc { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-slash-empty { padding: 8px 9px; font-size: 12px; color: var(--cw-2); }
+@container cwc (max-width: 380px) {
+  .cw-slash-item { flex-direction: column; gap: 1px; }
+  .cw-slash-name { max-width: 100%; }
+}
 
 .cw-icon-btn {
-  appearance: none; cursor: pointer; flex: 0 0 auto;
-  width: 38px; height: 38px; border-radius: 10px; font-size: 15px; line-height: 1;
-  color: var(--text, #f0f3f1);
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  appearance: none; cursor: pointer; flex: 0 0 auto; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 8px; font-size: 14px; line-height: 1;
+  color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 7%, transparent); border: 0;
   -webkit-tap-highlight-color: transparent;
 }
-.cw-icon-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.cw-icon-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--cw-ink) 13%, transparent); }
 .cw-icon-btn:disabled { opacity: 0.4; cursor: default; }
 
 .cw-attach-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .cw-attach-chip {
-  display: flex; align-items: center; gap: 6px; max-width: 200px;
-  padding: 5px 6px 5px 10px; border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #1ed760) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #1ed760) 32%, transparent);
+  display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 5px 4px 10px; border-radius: 7px;
+  background: color-mix(in srgb, var(--cw-ink) 8%, transparent);
 }
-.cw-attach-name {
-  font-size: 11px; font-weight: 600; color: var(--text, #f0f3f1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.cw-attach-name { font-family: var(--cw-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-attach-rm {
-  appearance: none; cursor: pointer; flex: 0 0 auto;
-  width: 17px; height: 17px; line-height: 1; border-radius: 50%;
-  font-size: 9px; color: var(--text, #f0f3f1);
-  background: rgba(0,0,0,0.3); border: none; opacity: 0.7;
+  appearance: none; cursor: pointer; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 0;
+  font-size: 10px; line-height: 1; color: var(--cw-2); background: transparent;
   -webkit-tap-highlight-color: transparent;
 }
-.cw-attach-rm:hover { opacity: 1; }
+.cw-attach-rm:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
 
-.cw-ask-text {
-  width: 100%; box-sizing: border-box; resize: none;
-  min-height: 68px; padding: 10px 12px; border-radius: 10px;
-  font: inherit; font-size: 13px; line-height: 1.5;
-  color: var(--text, #f0f3f1); background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.cw-ask-text:focus { outline: none; border-color: color-mix(in srgb, var(--accent, #1ed760) 55%, transparent); }
-.cw-ask-text::placeholder { color: var(--text, #f0f3f1); opacity: 0.35; }
-
-.cw-ask-error { font-size: 11.5px; line-height: 1.45; color: var(--xe-danger, #f26d6d); }
+.cw-ask-note { font-size: 11.5px; line-height: 1.4; color: var(--cw-3); padding: 0 4px; }
+.cw-ask-note.is-warn { color: var(--cw-warn); }
+.cw-ask-error { font-size: 12px; line-height: 1.45; color: var(--cw-crit); padding: 0 4px; }
 .cw-ask-send {
-  flex: 0 0 auto; min-height: 38px; padding: 0 22px; border-radius: 10px; cursor: pointer;
-  font-size: 13px; font-weight: 750; border: 0;
-  color: var(--on-accent, #06121f); background: var(--accent, #1ed760);
+  flex: 0 0 auto; min-height: 34px; margin-left: auto; padding: 0 18px; border-radius: 8px; cursor: pointer; border: 0;
+  font: inherit; font-size: 13px; font-weight: 750; color: var(--cw-on-claude); background: var(--cw-claude);
   -webkit-tap-highlight-color: transparent;
 }
-.cw-ask-send:hover:not(:disabled) { filter: brightness(1.08); }
+.cw-ask-send:hover:not(:disabled) { filter: brightness(1.07); }
 .cw-ask-send:disabled { opacity: 0.45; cursor: default; }
-
-/* A session row is tappable only when there is something to send it. */
-.cw-sess.is-tappable { cursor: pointer; }
-.cw-sess.is-tappable:hover { background: rgba(255,255,255,0.07); }
+@container cwc (max-width: 380px) {
+  .cw-composer .cs-label { max-width: 11ch; }
+  .cw-ask-send { padding: 0 14px; }
+}
 
 /* ── runs the dashboard started ── */
 /* A run's card is the newest thing on the tile, not the most important one: the
@@ -782,6 +954,9 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
   background: rgba(0,0,0,0.24); border: 1px solid rgba(255,255,255,0.06);
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
 }
+.cw-run-chips { margin-top: 2px; }
+.cw-run .cw-cs-status { padding: 5px 8px; font-size: 12px; }
+.cw-run .cw-cs-acts { padding: 6px 8px; border-radius: 8px; background: var(--cw-term); }
 .cw-run-err { font-size: 11.5px; line-height: 1.45; color: var(--xe-danger, #f26d6d); }
 .cw-run-stop {
   align-self: flex-start; appearance: none; cursor: pointer;
@@ -852,7 +1027,6 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 .cw-custom-save:hover { background: color-mix(in srgb, var(--accent, #1ed760) 30%, transparent); }
 
 /* ── lower detail sections (revealed by container queries) ── */
-.cw-more { flex: 0 1 auto; min-height: 0; display: none; flex-direction: column; gap: 12px; overflow: hidden; }
 .cw-section { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
 .cw-section-t { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6; color: var(--text, #f0f3f1); }
 .cw-section-hint { font-size: 11px; opacity: 0.42; }
@@ -1024,30 +1198,4 @@ body.game-mode .cw-tb .cw-cl-eyes,      body.low-power-gpu .cw-tb .cw-cl-eyes { 
     animation: none !important; transform: none;
   }
   .cw-tb .cw-cl-eyes { opacity: 0; }
-}
-
-/* ── "another session answered" ─────────────────────────────────────────────
-   Inside an open chat panel: while you write to one session, another can
-   finish and say so nowhere. Tapping switches to it. */
-.cw-notice {
-  appearance: none; cursor: pointer; flex: 0 0 auto;
-  display: flex; align-items: center; gap: 9px;
-  padding: 9px 12px; border-radius: 11px; text-align: left;
-  font: inherit; font-size: 12px; color: var(--text, #f0f3f1);
-  background: color-mix(in srgb, var(--accent, #1ed760) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #1ed760) 34%, transparent);
-  -webkit-tap-highlight-color: transparent;
-}
-.cw-notice:hover { background: color-mix(in srgb, var(--accent, #1ed760) 22%, transparent); }
-.cw-notice-dot {
-  flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent, #1ed760);
-}
-.cw-notice-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cw-notice-more {
-  flex: 0 0 auto; font-size: 10.5px; font-weight: 800; opacity: 0.6;
-}
-.cw-notice-go {
-  flex: 0 0 auto; font-size: 11px; font-weight: 750;
-  color: var(--accent, #1ed760); text-transform: uppercase; letter-spacing: 0.06em;
 }

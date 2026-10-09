@@ -29,8 +29,16 @@ const MAX_MESSAGES = 14;
 // to bound the payload, not to summarise — 14 messages at this size is a few
 // hundred KB at the absolute worst, over loopback.
 const MAX_TEXT = 6000;
+// The newest reply is the one the reader opened the panel for, and Claude Code's
+// closing summaries run long, so it is never cut at MAX_TEXT. This bound only
+// keeps one pathological message from becoming the whole payload. A reader who
+// asks for the full thread (`full`) gets every message at this bound.
+const MAX_FULL_TEXT = 60000;
 const MAX_PROJECT_DIRS = 200;
 const FIND_TTL_MS = 5 * 60 * 1000;
+// A miss is remembered briefly only: a session that just started has no file
+// yet, and its title and thread must show up once Claude Code writes one.
+const FIND_MISS_TTL_MS = 15 * 1000;
 
 // Strip C0/C1 control characters (keeping tab and newline) and clamp the length.
 // Written as a character loop on purpose: the equivalent regex would have to
@@ -74,7 +82,7 @@ const findCache = new Map();     // projectsDir + '|' + sessionId → { file, at
 async function findTranscript(projectsDir, sessionId, now) {
   const cacheKey = projectsDir + '|' + sessionId;
   const hit = findCache.get(cacheKey);
-  if (hit && (now - hit.at) < FIND_TTL_MS) return hit.file;
+  if (hit && (now - hit.at) < (hit.file ? FIND_TTL_MS : FIND_MISS_TTL_MS)) return hit.file;
 
   let dirs;
   try { dirs = await fsp.readdir(projectsDir, { withFileTypes: true }); }
@@ -129,27 +137,36 @@ async function readTail(projectsDir, sessionId, opts) {
     } finally { await fh.close(); }
   } catch { return { ok: false, error: 'unreadable' }; }
 
-  const out = [];
+  const raw = [];
+  // `closed`: Claude Code has written the lines that close a turn
+  // (stop_hook_summary / turn_duration) after the last message. The panel
+  // keeps re-reading after a Stop until it sees this, because the hook fires
+  // around the moment the final reply is appended, not after it.
+  let closed = false;
   for (const line of buf.toString('utf8').split('\n')) {
     if (!line || line.charCodeAt(0) !== 123 /* '{' */) continue;
     let d;
     try { d = JSON.parse(line); } catch { continue; }
-    if (!d || (d.type !== 'user' && d.type !== 'assistant')) continue;
+    if (!d) continue;
+    if (d.type === 'system' && (d.subtype === 'stop_hook_summary' || d.subtype === 'turn_duration')) { closed = true; continue; }
+    if (d.type !== 'user' && d.type !== 'assistant') continue;
     const text = textOf(d.message);
     if (!text) continue;
     // The same filter the session list uses, so a skill preamble or a task
     // notification does not show up here as something you said.
     if (d.type === 'user' && isInjectedPrompt(text)) continue;
+    closed = false;
     const at = Date.parse(d.timestamp);
-    out.push({
-      role: d.type,
-      text: clean(text, MAX_TEXT),
-      truncated: text.length > MAX_TEXT,
-      at: Number.isFinite(at) ? at : 0,
-    });
+    raw.push({ role: d.type, text, at: Number.isFinite(at) ? at : 0 });
   }
 
-  return { ok: true, messages: out.slice(-MAX_MESSAGES) };
+  const full = !!(opts && opts.full);
+  const kept = raw.slice(-MAX_MESSAGES);
+  const messages = kept.map((m, i) => {
+    const cap = (full || (i === kept.length - 1 && m.role === 'assistant')) ? MAX_FULL_TEXT : MAX_TEXT;
+    return { role: m.role, text: clean(m.text, cap), truncated: m.text.length > cap, at: m.at };
+  });
+  return { ok: true, closed, messages };
 }
 
-module.exports = { readTail, _internal: { clean, textOf, SESSION_RE, MAX_MESSAGES, MAX_TEXT } };
+module.exports = { readTail, findTranscript, _internal: { clean, textOf, SESSION_RE, MAX_MESSAGES, MAX_TEXT, MAX_FULL_TEXT } };

@@ -30,6 +30,12 @@
   let busy = false;
   let notice = '';
   const picked = { ollama: new Set(), vscode: new Set() };
+  // Docker or Ollama switched off: look again now and then, so starting it
+  // shows up on the tile without a tap on ↻. Only while the tile is on screen.
+  const RECHECK_MS = 30 * 1000;
+  const STARTABLE = ['docker', 'ollama'];
+  let recheckTimer = null;
+  let recheckDue = false;
 
   function el(tag, cls, text) {
     const node = document.createElement(tag);
@@ -119,7 +125,21 @@
     } else {
       loadError = tr('devclean_error_load', 'Non riesco a leggere i dati adesso. Riprova tra poco.');
     }
+    scheduleRecheck();
     renderAll();
+  }
+
+  function scheduleRecheck() {
+    clearTimeout(recheckTimer);
+    recheckTimer = null;
+    const off = data && STARTABLE.some((k) => data[k] && data[k].reason === 'not_running');
+    if (!off) return;
+    recheckTimer = setTimeout(() => {
+      recheckTimer = null;
+      // Off screen or mid-task: catch up the next time the tile is shown.
+      if (onScreen() && !busy && !confirm && !loading) void loadOverview(true);
+      else recheckDue = true;
+    }, RECHECK_MS);
   }
 
   const UNLOCK_ERRORS = {
@@ -128,6 +148,9 @@
     expired: ['devclean_unlock_expired', 'Il pass è scaduto. Rinnovalo per sbloccare la funzione.'],
     limit: ['devclean_unlock_limit', 'Il pass è già usato su tre dispositivi.'],
     rate_limited: ['devclean_unlock_rate', 'Troppi tentativi. Riprova tra qualche minuto.'],
+    // The hub does not offer this feature yet: not a network problem, and not
+    // the user's code either.
+    bad_entry: ['devclean_unlock_unavailable', 'Lo sblocco non è ancora attivo sul server dei sostenitori. Riprova più tardi.'],
   };
 
   async function unlock() {
@@ -441,6 +464,7 @@
     if (unlocked === null) { void loadState(); return; }
     if (onScreen()) {
       if (unlocked && !data && !loading) { void loadOverview(false); return; }
+      if (unlocked && recheckDue && !loading && !busy) { recheckDue = false; void loadOverview(true); return; }
       if (!unlocked && !preview && !previewLoading) { void loadPreview(); }
     }
     renderAll();

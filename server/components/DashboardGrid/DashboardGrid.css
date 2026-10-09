@@ -710,6 +710,12 @@ body.gs-manipulating .page-add-widget {
 /* Results: one flowing grid rather than the category columns. */
 /* Results use the same columns as the grouped view. */
 .widget-palette-text { display: flex; flex-direction: column; min-width: 0; }
+/* "For supporters", at the item's end so the name keeps its room. */
+.widget-palette-badge {
+  flex: 0 0 auto; margin-left: auto; padding: 2px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.14);
+}
 .widget-palette-sub {
   font-size: 11px; font-weight: 600; color: var(--text-dim, #8b91a1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
