@@ -63,6 +63,8 @@ const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner 
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');
+const { createDevClean } = require('./devclean');
+const { createFeatureUnlock } = require('./feature-unlock');
 const { listPosixApps } = require('./installed-apps');               // macOS/Linux apps for the search's Applications tier
 const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
@@ -120,6 +122,7 @@ const claudeSessions = require('./claude-sessions');
 const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
+const claudeHistory = require('./claude-history');
 const claudeAttach = require('./claude-attach');
 const codexAppServer = require('./codex-appserver');
 const codexBridge = require('./codex-bridge');
@@ -1342,6 +1345,19 @@ const diskSpace = createDiskSpace({
   // duplicate check finished): the widget refetches the drive it names.
   onDiskUpdate: (info) => { try { broadcastSSE('disk_update', info || {}); } catch {} },
   revealExternal: (p, dir) => revealInFileManager(p, dir),
+});
+// Dev cleanup (supporter-only): Docker, Ollama models, stale editor workspace
+// storage, WSL/Docker virtual disks. Every route checks featureUnlock first.
+// Editor folders go through the Disk widget's guarded Recycle-Bin delete; the
+// .vhdx compaction is compact-vhdx.ps1, which raises its own UAC prompt.
+const featureUnlock = createFeatureUnlock({ dataDir: DATA_DIR });
+const devClean = createDevClean({
+  run: execFilePromise,
+  getSettings: () => readHubSettings(),
+  trash: (root, paths) => diskSpace.trashUnder(root, paths),
+  scriptPath: path.join(__dirname, 'compact-vhdx.ps1'),
+  spawnDetached: (exe, args) => { spawn(exe, args, { windowsHide: true, stdio: 'ignore' }).unref(); },
+  onProgress: (info) => { try { broadcastSSE('devclean', info || {}); } catch {} },
 });
 // Installed Deck icon packs (the 'icons' preset kind): one validated folder per
 // pack, written/served only through icon-packs.js (see that module's boundary
@@ -7975,7 +7991,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'transfer', 'phone', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -8050,6 +8066,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    devclean: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
     transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
     // Tall rather than wide: it is a list of people, and the keypad wants the
     // height. Hidden until the user adds it, like every opt-in widget.
@@ -12428,6 +12445,15 @@ const _claudeRunner = claudeRun.createRunner({
   onChange: () => _claudeBridgeChanged(),
 });
 
+// The chat list on the tile's Chats face. Removal reuses the disk pipeline's
+// Recycle Bin/Trash path and its guard; a session the bridge sees running is
+// refused, along with any transcript written in the last few minutes.
+const _claudeHistory = claudeHistory.createSessionStore({
+  projectsDir: () => claudeUsage.resolveProjectsDir(),
+  trash: (root, paths) => diskSpace.trashUnder(root, paths),
+  liveIds: () => new Set((_claudeBridge.snapshot().sessions || []).filter((s) => !s.ended).map((s) => s.id)),
+});
+
 // Bridge-driven repaints are throttled (a busy session fires Pre/PostToolUse per
 // tool call) but NOT gated on the widget being on the dashboard the way the
 // filesystem scan is: a pending approval must reach the fullscreen overlay even
@@ -12468,6 +12494,35 @@ function _claudeBridgeAuth(req) {
   if (!_claudeBridgeToken || got.length !== _claudeBridgeToken.length) return false;
   try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(_claudeBridgeToken)); }
   catch { return false; }
+}
+
+// What /api/claude/mod tells the mod: which hub, and whether the tile is out.
+function _claudeModReply() {
+  return { ok: true, hub: APP_VERSION, tile: _widgetPlaced('claude'), mod: _claudeBridge.modStatus() };
+}
+
+// Shows the approval card and waits for a tap. Resolves the PermissionRequest
+// decision ({ behavior, … }) on an explicit Allow/Deny, null on anything else
+// (expired, too many waiting, caller gone): null always means "the terminal
+// asks". Shared by the hook route and the mod's route.
+async function _claudeHoldPermission(res, data, opts) {
+  const pendingReq = _claudeBridge.requestPermission(data, opts);
+  if (!pendingReq) return null;                    // too many already waiting
+  // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
+  // card nobody can answer any more.
+  const onGone = () => _claudeBridge.cancel(pendingReq.id);
+  res.on('close', onGone);
+  const out = await pendingReq.promise;
+  res.off('close', onGone);
+  if (out.verdict !== 'allow' && out.verdict !== 'deny') return null;
+  // A plan also carries the echoed input and the chosen mode: without
+  // updatedInput Claude Code ignores an allow for ExitPlanMode and keeps its
+  // own dialog up (claude-bridge.js, header note 2).
+  const decision = { behavior: out.verdict };
+  if (out.verdict === 'allow' && out.updatedInput) decision.updatedInput = out.updatedInput;
+  if (out.verdict === 'allow' && out.updatedPermissions) decision.updatedPermissions = out.updatedPermissions;
+  if (out.verdict === 'deny' && out.message) decision.message = out.message;
+  return decision;
 }
 
 // Resolve (or mint) the bridge token once at boot. Until it lands, both ingest
@@ -12913,6 +12968,9 @@ const CSRF_MUTATION_PATHS = new Set([
   // a session to keep going. A page must be able to forge neither.
   '/api/claude/question',
   '/api/claude/turn-end',
+  // The mod feed: token-gated ingest like /event, posted by the claude process.
+  '/api/claude/mod',
+  '/api/claude/mod/permission',
   '/api/claude/decide',
   // Browser-originated like /decide, and guarded for the same reason. /answer
   // resolves a question Claude is blocked on and /reply puts words into a live
@@ -12927,6 +12985,9 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/claude/run',
   '/api/claude/run/stop',
   '/api/claude/attach',
+  // Moves chat transcripts to the Recycle Bin: never from a drive-by page or a
+  // sandboxed widget frame.
+  '/api/claude/history/delete',
   // OpenAI Codex bridge, the same shape. /event and /permission are posted by
   // codex-hook.js (which Codex runs) and are token-gated as well; listing them
   // stops a page from forging a session or an approval card. /decide answers a
@@ -12963,6 +13024,12 @@ const CSRF_MUTATION_PATHS = new Set([
   // Opens a file manager window on the PC, like /search/reveal.
   '/disk/reveal',
   '/api/disk/advisor',
+  // Dev cleanup: prunes Docker, removes Ollama models, recycles editor folders,
+  // raises a UAC prompt to compact a virtual disk; the unlock spends a device
+  // slot of the supporter pass on the hub.
+  '/api/devclean/run',
+  '/api/devclean/compact',
+  '/api/features/devclean/unlock',
   // Suppresses the Edge fallback after the native kiosk opened the Spotlight
   // window — a drive-by must not be able to swallow the user's hotkey.
   '/spotlight/claimed',
@@ -14334,6 +14401,14 @@ const handleRequest = async (req, res) => {
     // polled by the server.
     try   { json(await getDiskIo()); }
     catch (e) { json({ ok: false, disks: [], error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/api/devstorage' && req.method === 'GET') {
+    // The SDK `devStorage` stream: how much space developer tools hold, numbers
+    // only. Not supporter-gated (the cleanup actions are), but it spawns docker
+    // and reg, so it answers only when some package was granted the stream.
+    if (!_sdkStreamGranted('devStorage')) { json({ ok: false, error: 'not_granted' }); return; }
+    try   { json({ ok: true, ...(await devClean.summary()) }); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
@@ -16363,6 +16438,22 @@ const handleRequest = async (req, res) => {
     } catch { /* a malformed event must never fail the caller's tool call */ }
     res.writeHead(204); res.end();
 
+  } else if (reqPath === '/api/claude/mod' && req.method === 'POST') {
+    // The Xenon mod for Claude Code (integrations/claude-code/): its feed of
+    // subagent models, context and quota. Same token as the hooks. Unlike a
+    // hook, the mod reads this body, so it may answer; nothing in it acts on
+    // Claude Code.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    let accepted = false;
+    try { accepted = _claudeBridge.applyMod(JSON.parse(await readBody(req))); }
+    catch { /* malformed: answered as not accepted */ }
+    json({ ..._claudeModReply(), accepted });
+
+  } else if (reqPath === '/api/claude/mod' && req.method === 'GET') {
+    // The mod's /xenon command: does the hub hear this install at all.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    json(_claudeModReply());
+
   } else if (reqPath === '/api/claude/permission' && req.method === 'POST') {
     // The blocking one. Claude Code holds its tool call open while this request
     // is unanswered, so the user can decide on the Xeneon Edge instead of at the
@@ -16389,35 +16480,49 @@ const handleRequest = async (req, res) => {
       // If one reaches this route anyway (an older link, a hand-edited config),
       // it gets no decision, which is the tool proceeding to ask normally.
       if (data && data.tool_name === 'AskUserQuestion') { json({}); return; }
+      // The mod already asked about this call and its wait ran out: the
+      // terminal asks now, not a second card (claude-bridge.js, takeHandBack).
+      if (_claudeBridge.takeHandBack(data)) { json({}); return; }
       // Whether the plan card offers auto mode depends on it (claude-bridge.js,
       // planChoices). One small read, only for a plan.
       if (data && data.tool_name === 'ExitPlanMode') {
         _claudeDefaultMode = await claudeLink.defaultMode().catch(() => '');
       }
-      const pendingReq = _claudeBridge.requestPermission(data);
-      if (!pendingReq) { json({}); return; }        // too many already waiting
-      // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
-      // card nobody can answer any more.
-      const onGone = () => _claudeBridge.cancel(pendingReq.id);
-      res.on('close', onGone);
-      const out = await pendingReq.promise;
-      res.off('close', onGone);
-      // The wait can end because the caller vanished (Ctrl-C), in which case the
-      // socket is already gone and writing would throw from inside the catch.
+      const decision = await _claudeHoldPermission(res, data);
       if (res.writableEnded || res.destroyed) return;
-      if (out.verdict === 'allow' || out.verdict === 'deny') {
-        // A plan also carries the echoed input and the chosen mode: without
-        // updatedInput Claude Code ignores an allow for ExitPlanMode and keeps
-        // its own dialog up (claude-bridge.js, header note 2).
-        const decision = { behavior: out.verdict };
-        if (out.verdict === 'allow' && out.updatedInput) decision.updatedInput = out.updatedInput;
-        if (out.verdict === 'allow' && out.updatedPermissions) decision.updatedPermissions = out.updatedPermissions;
-        if (out.verdict === 'deny' && out.message) decision.message = out.message;
-        json({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } });
-      } else {
-        json({});                                    // timed out → ask in the terminal
-      }
+      json(decision ? { hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } } : {});
     } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+
+  } else if (reqPath === '/api/claude/mod/permission' && req.method === 'POST') {
+    // The mod's approvals: the same card as /api/claude/permission, held only
+    // for the short wait the user chose in the mod (10-120 s). The mod runs
+    // before Claude Code's own PermissionRequest hook, so an explicit tap here
+    // settles the call and the hook never fires; anything else answers
+    // { decision: null } and the mod lets Claude Code go on, which reaches the
+    // hook, which takeHandBack turns into the terminal prompt. Like the hook
+    // route, it can never approve on its own. The mod sends only the one field
+    // the card shows (command, path, URL…), never file content or a prompt.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    if (_serverHubSettings && _serverHubSettings.claudeWidget
+      && _serverHubSettings.claudeWidget.approvals === false) {
+      req.resume();
+      json({ decision: null });
+      return;
+    }
+    try {
+      const body = JSON.parse(await readBody(req));
+      const data = body && body.v === 1 && typeof body.sessionId === 'string' ? {
+        session_id: body.sessionId,
+        tool_name: body.tool,
+        tool_input: body.input,
+        cwd: body.cwd,
+      } : null;
+      if (!data || data.tool_name === 'AskUserQuestion' || data.tool_name === 'ExitPlanMode') { json({ decision: null }); return; }
+      const ttlMs = Math.max(10, Math.min(120, Number(body.waitSec) || 30)) * 1000;
+      const decision = await _claudeHoldPermission(res, data, { ttlMs, fromMod: true });
+      if (res.writableEnded || res.destroyed) return;
+      json({ decision });
+    } catch { try { if (!res.writableEnded && !res.destroyed) json({ decision: null }); } catch { /* caller already gone */ } }
 
   } else if (reqPath === '/api/claude/question' && req.method === 'POST') {
     // A question from Claude, answered on the touchscreen.
@@ -16565,6 +16670,20 @@ const handleRequest = async (req, res) => {
         claudeUsage.resolveProjectsDir(),
         urlObj.searchParams.get('session') || '');
       json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/history' && req.method === 'GET') {
+    // Every chat Claude Code keeps on this PC: id, title, project name, size,
+    // last activity. Read only when the tile's Chats face asks.
+    try { json(await _claudeHistory.list()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/history/delete' && req.method === 'POST') {
+    // Session ids only; the module resolves them against its own listing and
+    // sends the files to the Recycle Bin/Trash.
+    try {
+      const body = JSON.parse(await readBody(req));
+      json(await _claudeHistory.remove(body && body.ids));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/attach' && req.method === 'POST') {
@@ -19670,6 +19789,57 @@ const handleRequest = async (req, res) => {
     // CSRF_MUTATION_PATHS.
     try { json(diskSpace.cancelClean()); } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
+    // Is the supporter-only Dev cleanup unlocked on this install? A boolean.
+    try { json({ ok: true, unlocked: await featureUnlock.isUnlocked('devclean') }); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/features/devclean/preview' && req.method === 'GET') {
+    // What the locked tile shows a non-supporter: this PC's own numbers, the
+    // same names-free summary the SDK's devStorage stream carries for free.
+    // Pulled only while the tile is on screen.
+    try { json({ ok: true, ...(await devClean.summary()) }); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/api/features/devclean/unlock' && req.method === 'POST') {
+    // One /redeem against the hub's `feature-devclean` entry, with the saved
+    // pass (or a code typed in the tile). In CSRF_MUTATION_PATHS + REMOTE_ADMIN.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await featureUnlock.unlock('devclean', typeof body.code === 'string' ? body.code : ''));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/api/devclean/') && !(await featureUnlock.isUnlocked('devclean'))) {
+    // The gate lives here, not only in the tile: every Dev cleanup route
+    // refuses until the feature is unlocked.
+    res.writeHead(403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ ok: false, error: 'locked' }));
+
+  } else if (reqPath === '/api/devclean/overview' && req.method === 'GET') {
+    // Read-only: sizes per source with opaque item ids. Runs the docker/reg
+    // CLIs and reads Ollama's /api/tags, only when the tile asks (15s cache;
+    // ?refresh=1 skips it).
+    try { json({ ok: true, ...(await devClean.overview({ refresh: urlObj.searchParams.get('refresh') === '1' })) }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/devclean/run' && req.method === 'POST') {
+    // { source: docker|ollama|vscode, ids: [...] } — ids from the overview,
+    // never paths or names. A background job; progress on SSE 'devclean'.
+    // In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await devClean.runClean(String(body.source || ''), body.ids));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/devclean/compact' && req.method === 'POST') {
+    // Compact one WSL/Docker .vhdx (Windows). Starts compact-vhdx.ps1, which
+    // raises the UAC prompt and re-validates the disk itself; the item id is
+    // the only input. In CSRF_MUTATION_PATHS + REMOTE_ADMIN: never from a
+    // paired device.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await devClean.compact(String(body.id || '')));
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/transfer/upload' && req.method === 'POST') {
     // The ONLY route in this server that streams a request body to disk.
     // readBody/readBodyBuffer would make a 2 GB video 2 GB of RSS, and every
@@ -22699,6 +22869,7 @@ function _gracefulShutdown() {
   try { shutdownFlush = Promise.all([shutdownFlush, Promise.resolve(fileSearch.stop()).catch(() => {})]); } catch {}
   // Stop a running disk scan (the helper child has no job object).
   try { diskSpace.stop(); } catch {}
+  try { devClean.stop(); } catch {}
   // Stop the Living Index host (in-RAM index + watchers).
   try { livingIndex.stop(); } catch {}
   // Unregister the global Spotlight hotkey (and cancel a pending respawn, so a

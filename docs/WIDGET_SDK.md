@@ -287,6 +287,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
 - `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
+- `devStorage` — `{ ok, docker, ollama, vscode, vhdx, reclaimable }`: how much space developer tools hold and how much could be freed, **numbers only**. See *Developer storage* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
@@ -754,6 +755,40 @@ allow the user to select which ones to display individually."* `streams:
   Windows it is the physical disk index, on Linux the kernel name, on macOS the
   BSD name. `serial` rides along for anyone who wants to be certain across a
   re-plug.
+
+### 3b-quater. Developer storage (v4.11.12)
+
+How much space Docker, Ollama, editor folders and the WSL/Docker virtual disks
+take on this machine. `streams: ["devStorage"]`.
+
+```js
+{
+  ok: true,
+  docker: { available: true, bytes: 9800000000, reclaimable: 7200000000 },
+  ollama: { available: true, bytes: 14100000000, reclaimable: 9600000000, count: 5 },
+  vscode: { available: true, bytes: 1300000000, reclaimable: 640000000, stale: 9 },
+  vhdx:   { available: true, bytes: 12700000000, reclaimable: 4100000000, count: 2 },
+  reclaimable: 21540000000,   // sum of what the Developer cleanup tile could free
+}
+```
+
+- **Numbers, never names.** No image, model, project or path is in it: a widget
+  learns how much space, never what is on the disk. `count` is how many Ollama
+  models or virtual disks there are, `stale` how many editor folders belong to
+  projects that no longer exist. Ollama's `reclaimable` leaves out the model
+  Xenon's own AI uses.
+- **`available: false` means the tool is not there or not running** (Docker
+  daemon off, Ollama closed, `vhdx` off Windows), with `bytes` and `reclaimable`
+  at 0. Show it as "not available", not as an empty disk.
+- **Read-only.** The cleanup itself (prune, delete a model, move folders to the
+  Trash, compact a disk) is the built-in Developer cleanup tile, for supporters,
+  and there is no action for it: a widget can never delete anything through it.
+  The stream is open to every widget that asks for it.
+- **It is a PULL stream, and a slow one.** Each reading runs `docker system df`,
+  asks Ollama and walks the editor folders, so it is cached for a minute on the
+  widget side and 15s on the server. Refresh it when your widget is shown, not on
+  a timer. The server answers `{ ok: false, error: 'not_granted' }` while no
+  installed package holds the grant.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -2028,7 +2063,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

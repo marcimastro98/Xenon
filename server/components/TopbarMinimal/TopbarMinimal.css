@@ -68,6 +68,12 @@ body.topbar-minimal:not([data-panel]) .topbar-mini {
   left: 50%;
   transform: translateX(var(--mini-tx));
   z-index: 57; /* above tiles, below every modal/overlay (same band as rails) */
+  /* Sized to its content, capped at the screen. Left to shrink-to-fit, a fixed
+     box anchored at left:50% can never be wider than HALF the viewport: with
+     time, date, weather and a track in it, the title shrank to nothing and the
+     transport spilled past the capsule's edge (Discord, Oct 2026). */
+  width: max-content;
+  max-width: calc(100vw - 24px);
   display: inline-flex;
   align-items: center;
   gap: 14px;

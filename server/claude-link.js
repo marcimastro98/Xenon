@@ -33,6 +33,18 @@ const STATUSLINE_SCRIPT = path.join(__dirname, 'claude-statusline.js');
 const STATE_FILE = 'claude-bridge.json';   // inside DATA_DIR
 const BACKUP_SUFFIX = '.xenon-backup';
 
+// The Xenon mod for Claude Code (integrations/claude-code/). Installing it is a
+// settings entry, not a spawned `claude`: Claude Code reads extraKnownMarketplaces
+// and enabledPlugins in the user's settings, clones the marketplace on its next
+// start and enables the plugin. The marketplace name must equal the one in the
+// repo's .claude-plugin/marketplace.json.
+const MOD_MARKETPLACE = 'xenon';
+const MOD_REPO = 'marcimastro98/Xenon';
+const MOD_PLUGIN_ID = 'xenon@xenon';
+// The mod's own manifest defaults, written once so the first run does not depend
+// on how Claude Code treats an option with no stored value.
+const MOD_DEFAULT_OPTIONS = { band: true, approvals: false, approvalWaitSec: 30 };
+
 // Non-blocking lifecycle events. Kept to a short timeout: these must never slow
 // a tool call down, and Claude Code treats a timeout as a non-blocking error and
 // carries on regardless.
@@ -200,6 +212,46 @@ function installedHandlers(hooks) {
   return out;
 }
 
+function isPlainObject(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
+// Adds the mod to a settings object. Anything the user already decided stays:
+// a "xenon" marketplace of another source, a plugin they switched off, options
+// they set. Returns the same object it was given.
+function addMod(settings) {
+  const markets = isPlainObject(settings.extraKnownMarketplaces) ? { ...settings.extraKnownMarketplaces } : {};
+  if (markets[MOD_MARKETPLACE] && !(markets[MOD_MARKETPLACE].source && markets[MOD_MARKETPLACE].source.repo === MOD_REPO)) {
+    return settings;                                // the name is theirs: not ours to reuse
+  }
+  markets[MOD_MARKETPLACE] = { source: { source: 'github', repo: MOD_REPO } };
+  settings.extraKnownMarketplaces = markets;
+
+  const enabled = isPlainObject(settings.enabledPlugins) ? { ...settings.enabledPlugins } : {};
+  if (enabled[MOD_PLUGIN_ID] === undefined) enabled[MOD_PLUGIN_ID] = true;
+  settings.enabledPlugins = enabled;
+
+  const configs = isPlainObject(settings.pluginConfigs) ? { ...settings.pluginConfigs } : {};
+  if (!configs[MOD_PLUGIN_ID]) configs[MOD_PLUGIN_ID] = { options: { ...MOD_DEFAULT_OPTIONS } };
+  settings.pluginConfigs = configs;
+  return settings;
+}
+
+// Removes what addMod added, and only the marketplace if it is still ours.
+function removeMod(settings) {
+  for (const key of ['enabledPlugins', 'pluginConfigs']) {
+    if (!isPlainObject(settings[key])) continue;
+    const next = { ...settings[key] };
+    delete next[MOD_PLUGIN_ID];
+    if (Object.keys(next).length) settings[key] = next; else delete settings[key];
+  }
+  if (isPlainObject(settings.extraKnownMarketplaces)) {
+    const next = { ...settings.extraKnownMarketplaces };
+    const m = next[MOD_MARKETPLACE];
+    if (m && m.source && m.source.repo === MOD_REPO) delete next[MOD_MARKETPLACE];
+    if (Object.keys(next).length) settings.extraKnownMarketplaces = next; else delete settings.extraKnownMarketplaces;
+  }
+  return settings;
+}
+
 async function status(dataDir, port) {
   const file = settingsPath();
   const settings = await readJson(file);
@@ -236,11 +288,17 @@ async function status(dataDir, port) {
     chained: state.chained ? String(state.chained.command || '') : (sl && !ours ? String(sl.command || '') : ''),
     backupExists: fs.existsSync(file + BACKUP_SUFFIX),
     linkedAt: state.linkedAt || 0,
+    // Whether the settings ask Claude Code for the mod (not whether it is
+    // running: the bridge's `mod` field says that).
+    modEnabled: !!(settings && isPlainObject(settings.enabledPlugins) && settings.enabledPlugins[MOD_PLUGIN_ID] === true),
   };
 }
 
 // ── link ─────────────────────────────────────────────────────────────────────
-async function link(dataDir, port) {
+// `opts.mod === false` leaves the mod alone (a repair must not add anything the
+// user did not click); otherwise connecting also asks Claude Code for the mod.
+async function link(dataDir, port, opts) {
+  const withMod = !(opts && opts.mod === false);
   const file = settingsPath();
   await fs.promises.mkdir(configDir(), { recursive: true });
 
@@ -293,6 +351,8 @@ async function link(dataDir, port) {
     ...(prev && typeof prev.padding === 'number' ? { padding: prev.padding } : {}),
   };
 
+  if (withMod) addMod(settings);
+
   await writeFileAtomic(file, JSON.stringify(settings, null, 2) + '\n');
   await writeState(dataDir, { ...state, token, chained, port, linkedAt: Date.now() });
 
@@ -311,7 +371,7 @@ async function link(dataDir, port) {
 async function repairLink(dataDir, port) {
   const st = await status(dataDir, port);
   if (!st.linked || st.complete) return { ...st, repaired: false };
-  const next = await link(dataDir, port);
+  const next = await link(dataDir, port, { mod: false });
   return { ...next, repaired: true, repairedMissing: st.missing, repairedOutdated: st.outdated };
 }
 
@@ -329,6 +389,7 @@ async function unlink(dataDir, port) {
       if (state.chained) next.statusLine = state.chained;
       else delete next.statusLine;
     }
+    removeMod(next);
     await writeFileAtomic(file, JSON.stringify(next, null, 2) + '\n');
   }
 

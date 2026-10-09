@@ -6,7 +6,52 @@ try {
       # A folder opens most reliably (and comes to the foreground) via Explorer;
       # files / apps / URLs go through the shell's default handler.
       if (Test-Path -LiteralPath $value -PathType Container) {
+        # The window is created by the running Explorer, which has no right to
+        # take the foreground from whatever the user was looking at, so the
+        # folder opened behind it or minimized (Discord, Oct 2026). Find the
+        # window that showed the folder and bring it forward the way the
+        # Windows tile's focus does. Best effort: the folder is open either way.
+        $shell = New-Object -ComObject Shell.Application
+        $before = @{}
+        foreach ($w in @($shell.Windows())) { try { $before[[int64]$w.HWND] = $true } catch { } }
         Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + $value + '"')
+        $want = ''
+        try { $want = [IO.Path]::GetFullPath($value).TrimEnd('\') } catch { }
+        $hwnd = [int64]0
+        $deadline = (Get-Date).AddMilliseconds(2500)
+        while ($hwnd -eq 0 -and (Get-Date) -lt $deadline) {
+          Start-Sleep -Milliseconds 100
+          foreach ($w in @($shell.Windows())) {
+            try {
+              if ($w.FullName -notmatch 'explorer\.exe$') { continue }
+              $h = [int64]$w.HWND
+              $here = ''
+              try { $here = ([string]$w.Document.Folder.Self.Path).TrimEnd('\') } catch { }
+              # A new window, or (a tab added to one already open) the window
+              # now showing this folder.
+              if (-not $before.ContainsKey($h) -or ($want -and $here -ieq $want)) { $hwnd = $h; break }
+            } catch { }
+          }
+        }
+        if ($hwnd -ne 0) {
+          try {
+            Add-Type -Namespace XenonDeck -Name Win -MemberDefinition @'
+[DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr h, int cmd);
+[DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, int flags, UIntPtr extra);
+'@
+            $h = [IntPtr]$hwnd
+            [XenonDeck.Win]::ShowWindowAsync($h, $(if ([XenonDeck.Win]::IsIconic($h)) { 9 } else { 5 })) | Out-Null
+            [XenonDeck.Win]::BringWindowToTop($h) | Out-Null
+            # A lone Alt press lifts the foreground lock for this call, as in
+            # windows.ps1's Focus.
+            [XenonDeck.Win]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
+            [XenonDeck.Win]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+            [XenonDeck.Win]::SetForegroundWindow($h) | Out-Null
+          } catch { }
+        }
       } else {
         # Set WorkingDirectory to the exe's own folder so apps that look for
         # resources relative to themselves (e.g. OBS locale/) can find them.

@@ -138,6 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Questions de Claude</a>
       <a href="#deck" data-i18n="cc.jump.deck">Demandez et touches du Deck</a>
       <a href="#link" data-i18n="cc.jump.link">Connexion</a>
+      <a href="#mod" data-i18n="cc.jump.mod">Le mod</a>
       <a href="#data" data-i18n="cc.jump.data">Ce qui est envoyé et où</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon IA</a>
       <a href="#faq" data-i18n="cc.jump.faq">Questions fréquentes</a>
@@ -182,8 +183,32 @@
     </ol>
     <p data-i18n-html="cc.link.writes">Modification des connexions dans un seul fichier : votre Claude Code <code>settings.json</code>, dans <code>~/.claude</code> ou le dossier vers lequel pointe <code>CLAUDE_CONFIG_DIR</code>. Il ajoute une ligne de statut et un ensemble de hooks. Chaque hook pointe vers Xenon sur <code>127.0.0.1</code>, votre propre PC, et contient une clé créée par Xenon.</p>
     <p data-i18n-html="cc.link.backup">Avant la première modification, Xenon enregistre une copie du fichier à côté de celui-ci sous le nom <code>settings.json.xenon-backup</code>.</p>
+    <p data-i18n="cc.link.mod">Connecter ajoute aussi trois entrées qui demandent à Claude Code d'installer le mod Xenon, décrit plus bas. Déconnecter les retire aussi.</p>
     <p data-i18n="cc.link.chain">Claude Code n'autorise qu'une seule ligne de statut. Si vous en aviez déjà une, Xenon la conserve : son propre script exécute le vôtre et affiche ce que votre script affiche. Si votre script n'affiche rien dans les trois secondes, la courte ligne propre à Xenon s'affiche à la place.</p>
     <p data-i18n-html="cc.link.remove">Le désinstallateur de Xenon supprime toutes les entrées qu'il a ajoutées, restaure votre ligne de statut et supprime la sauvegarde. Vos propres hooks sont laissés intacts. Pour effectuer la même opération sans désinstaller, exécutez <code>node server/claude-link.js unlink</code> dans le dossier où Xenon est installé.</p>
+
+    <h2 id="mod" data-i18n="cc.h.mod">Le mod Xenon pour Claude Code</h2>
+
+    <p data-i18n="cc.mod.p1">Claude Code peut charger des extensions appelées mods. Xenon en a un et Connecter l'installe : au prochain démarrage, Claude Code le récupère sur la page GitHub du projet et l'active. Il faut une version de Claude Code qui gère les mods. Si la vôtre ne les gère pas, tout ce qui précède fonctionne quand même sans lui.</p>
+
+    <ul>
+
+      <li data-i18n="cc.mod.l1">La tuile indique le modèle utilisé par chaque sous-agent.</li>
+
+      <li data-i18n="cc.mod.l2">La jauge de contexte et les limites de 5 heures et hebdomadaire se mettent à jour dès qu'elles changent.</li>
+
+      <li data-i18n-html="cc.mod.l3"><code>/xenon</code> dans Claude Code indique si Xenon entend cette session. Cela ne consomme aucun token.</li>
+
+      <li data-i18n="cc.mod.l4">Sous le prompt, une ligne n'apparaît que lorsque quelque chose demande votre attention : Xenon est fermé ou non relié, ou une approbation attend sur le tableau de bord. Quand tout va bien, il n'y a pas de ligne.</li>
+
+    </ul>
+
+    <p data-i18n-html="cc.mod.p2">Le mod envoie des chiffres, des noms de modèles et des identifiants d'agents à <code>127.0.0.1</code>, avec la même clé que les hooks. Il n'envoie jamais ce que vous tapez ni le contenu de vos fichiers. Quand Xenon est fermé, il attend et réessaie plus tard, sans ralentir Claude Code.</p>
+
+    <p data-i18n="cc.mod.p3">Approuver depuis le tableau de bord est une option du mod, désactivée par défaut. Activée, une demande d'autorisation apparaît aussi sous forme de carte sur le tableau de bord et y attend 30 secondes, un délai réglable de 10 à 120. Un appui sur Autoriser ou Refuser tranche. Sans appui, Claude Code demande dans le terminal comme d'habitude. La carte reçoit la commande, le chemin du fichier ou l'adresse, jamais le contenu d'un fichier. Une commande de plus de 800 caractères n'est pas envoyée du tout et le terminal demande. Les options se trouvent dans le menu de configuration du plugin dans Claude Code.</p>
+
+    <p data-i18n-html="cc.mod.p4">Pour l'installer à la main, tapez <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> dans Claude Code. Pour le retirer, appuyez sur Déconnecter sur la tuile ou supprimez le plugin dans Claude Code.</p>
+
 
     <h2 id="data" data-i18n="cc.h.data">Ce qui est envoyé et où</h2>
     <p data-i18n="cc.data.p1">La tuile n'utilise aucun compte et aucune clé API. Ses décomptes de jetons proviennent des fichiers sur votre disque, et ses données en direct proviennent de Claude Code sur le même PC.</p>

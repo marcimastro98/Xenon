@@ -205,7 +205,15 @@
       ctlBtn('dc-leave', (b) => runAction(b, { type: 'discordLeave' })),
     );
     pCtl.appendChild(row);
-    // Volumes grouped so the panel can space its blocks (buttons / volumes / call /
+    // Current call: title + members (with live speaking). Hidden when not in a call.
+    // It sits above the volumes: a person's own volume row opens inside it, so the
+    // two volume rows belong underneath the list of people, not between the
+    // buttons and the people (Discord, Oct 2026).
+    const call = el('div', 'dc-call'); call.hidden = true;
+    const mctl = el('div', 'dc-mctl dc-call-mctl'); mctl.hidden = true;
+    call.append(el('div', 'dc-sec-label dc-call-label'), el('div', 'dc-members dc-call-members'), mctl);
+    pCtl.appendChild(call);
+    // Volumes grouped so the panel can space its blocks (buttons / call / volumes /
     // audio) evenly down the full height instead of clustering them at the top.
     const vols = el('div', 'dc-ctl-group dc-ctl-vols');
     vols.append(
@@ -213,11 +221,6 @@
       volRow('dc-vol-out', 'deck_act_discordOutputVol', 'discordOutputVol'),
     );
     pCtl.appendChild(vols);
-    // Current call: title + members (with live speaking). Hidden when not in a call.
-    const call = el('div', 'dc-call'); call.hidden = true;
-    const mctl = el('div', 'dc-mctl dc-call-mctl'); mctl.hidden = true;
-    call.append(el('div', 'dc-sec-label dc-call-label'), el('div', 'dc-members dc-call-members'), mctl);
-    pCtl.appendChild(call);
     // Audio processing toggles.
     const audio = el('div', 'dc-ctl-group dc-ctl-audio');
     audio.appendChild(el('div', 'dc-sec-label', t('layout_card_audio', 'Audio')));

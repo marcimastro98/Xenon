@@ -138,6 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Questions from Claude</a>
       <a href="#deck" data-i18n="cc.jump.deck">Ask and Deck keys</a>
       <a href="#link" data-i18n="cc.jump.link">Connecting it</a>
+      <a href="#mod" data-i18n="cc.jump.mod">The mod</a>
       <a href="#data" data-i18n="cc.jump.data">What is sent where</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">Common questions</a>
@@ -182,8 +183,32 @@
     </ol>
     <p data-i18n-html="cc.link.writes">Connecting edits one file: your Claude Code <code>settings.json</code>, in <code>~/.claude</code> or the folder <code>CLAUDE_CONFIG_DIR</code> points to. It adds a status line and a set of hooks. Each hook points at Xenon on <code>127.0.0.1</code>, your own PC, and carries a key that Xenon created.</p>
     <p data-i18n-html="cc.link.backup">Before the first change, Xenon saves a copy of the file next to it as <code>settings.json.xenon-backup</code>.</p>
+    <p data-i18n="cc.link.mod">Connecting also adds three entries that ask Claude Code to install the Xenon mod, described below. Disconnecting takes them out too.</p>
     <p data-i18n="cc.link.chain">Claude Code allows one status line. If you already had one, Xenon keeps it: its own script runs yours and prints what yours prints. If yours prints nothing within three seconds, Xenon's own short line appears instead.</p>
     <p data-i18n-html="cc.link.remove">Uninstalling Xenon takes out every entry it added, puts your own status line back and deletes the backup. Your own hooks are left alone. To do the same without uninstalling, run <code>node server/claude-link.js unlink</code> in the folder Xenon is installed in.</p>
+
+    <h2 id="mod" data-i18n="cc.h.mod">The Xenon mod for Claude Code</h2>
+
+    <p data-i18n="cc.mod.p1">Claude Code can load add-ons called mods. Xenon has one, and Connect installs it: at its next start, Claude Code fetches it from this project's GitHub page and turns it on. It needs a version of Claude Code that supports mods. If yours does not, everything above still works without it.</p>
+
+    <ul>
+
+      <li data-i18n="cc.mod.l1">The tile shows which model each subagent runs on.</li>
+
+      <li data-i18n="cc.mod.l2">The context gauge and the 5-hour and weekly limits update as soon as they change.</li>
+
+      <li data-i18n-html="cc.mod.l3"><code>/xenon</code> in Claude Code says whether Xenon hears that session. It uses no tokens.</li>
+
+      <li data-i18n="cc.mod.l4">Under the prompt, a line appears only when something needs you: Xenon is closed or not linked, or an approval is waiting on the dashboard. While all is well there is no line.</li>
+
+    </ul>
+
+    <p data-i18n-html="cc.mod.p2">The mod sends numbers, model names and agent ids to <code>127.0.0.1</code>, with the same key as the hooks. It never sends what you type or the content of your files. When Xenon is closed it waits and tries again later, without slowing Claude Code down.</p>
+
+    <p data-i18n="cc.mod.p3">Approving from the dashboard is an option of the mod, off by default. With it on, a permission request also appears as a card on the dashboard and waits there for 30 seconds, a time you can set from 10 to 120. A tap on Allow or Deny decides. With no tap, Claude Code asks in the terminal as usual. The card gets the command, the file path or the address, never the content of a file. A command longer than 800 characters is not sent at all, and the terminal asks. The options are in Claude Code's configuration menu for the plugin.</p>
+
+    <p data-i18n-html="cc.mod.p4">To install it by hand, type <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> in Claude Code. To remove it, press Disconnect on the tile, or remove the plugin in Claude Code.</p>
+
 
     <h2 id="data" data-i18n="cc.h.data">What is sent where</h2>
     <p data-i18n="cc.data.p1">The tile uses no account and no API key. Its token counts come from files on your disk, and its live data comes from Claude Code on the same PC.</p>

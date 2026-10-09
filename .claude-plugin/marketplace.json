@@ -1,0 +1,12 @@
+{
+  "name": "xenon",
+  "owner": { "name": "marcimastro98" },
+  "metadata": { "description": "Claude Code mods from the Xenon dashboard project." },
+  "plugins": [
+    {
+      "name": "xenon",
+      "source": "./integrations/claude-code",
+      "description": "Shows this Claude Code session on the Xenon dashboard: subagent models, live context and quota, a status line under the prompt, a /xenon connection check, and optional approvals from the dashboard."
+    }
+  ]
+}

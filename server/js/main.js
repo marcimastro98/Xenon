@@ -509,6 +509,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // status.clean on its own poll).
       try { if (window.DiskWidget && window.DiskWidget.onCleanProgress) window.DiskWidget.onCleanProgress(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('devclean', e => {
+      // Dev cleanup job progress (prune / model removal / .vhdx compaction).
+      try { if (window.DevCleanWidget && window.DevCleanWidget.onProgress) window.DevCleanWidget.onProgress(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('disk_update', e => {
       // A disk overview learned something after it was drawn (the background
       // duplicate check finished): the widget refetches that drive.

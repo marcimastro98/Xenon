@@ -27,6 +27,7 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Notes](#notes)
 - [Local search (Spotlight)](#local-search-spotlight)
 - [Disk space](#disk-space)
+- [Developer cleanup](#developer-cleanup)
 - [Phone access (Accesso dal telefono)](#phone-access-accesso-dal-telefono)
 - [Phone (Telefono)](#phone-telefono)
 - [File transfer (Trasferimento file)](#file-transfer-trasferimento-file)
@@ -568,6 +569,20 @@ Know what is eating your drive — live, with **no scan button**. Add the **Disk
 
 ---
 
+## Developer cleanup
+
+For supporters. On a development PC most of a full drive is not in your files, and the Disk space tile cannot see it: Docker images and build cache, local AI models, editor folders for projects deleted long ago, and the WSL and Docker virtual disks, which grow and never shrink by themselves. Add **Developer cleanup** from the **"+" → System** palette.
+
+- **Unlocked once with your supporter pass, for good.** The tile uses the supporter pass saved in Settings; once unlocked it stays unlocked on that PC, even after the pass ends. Without it the tile says what it does and how to unlock it. The lock is enforced by the server, not only by the tile.
+- **Docker.** Shows images and build cache from `docker system df` and removes what no container uses with Docker's own `image prune -a` and `builder prune`. Images in use, containers and volumes are not touched. If Docker is not installed or its engine is off, the card says so.
+- **Ollama models.** Lists the installed models to pick from and removes them through Ollama itself. The model Xenon's own AI uses, and its fallback, are shown but cannot be selected.
+- **Editor folders.** VS Code, VS Code Insiders, Cursor and VSCodium keep a folder of local state for every project ever opened. Only the folders whose project no longer exists on disk are offered (a remote, WSL or SSH project, a network path or a drive that is not plugged in is never counted as deleted), and they go to the Recycle Bin or Trash.
+- **Virtual disks (Windows).** Lists Docker's `docker_data.vhdx` and each WSL distribution's `ext4.vhdx` with their size. A disk of 10 GB or more gets **Compact**: Windows asks for administrator permission, Xenon closes Docker and WSL and shrinks the file with diskpart, then reports how much came back. Declining the prompt cancels it and nothing changes. It is not available from a paired phone.
+- **Widgets get the numbers, never the actions.** The `devStorage` SDK stream carries how much space each source holds and how much could be freed, with no names or paths, and it is open to every widget. Nothing in the SDK can delete or compact.
+- Fully localised in all 11 languages.
+
+---
+
 ## Phone access (Accesso dal telefono)
 
 > **Beta in v4.11.0.** It works, and it is new. Settings says so where you turn it on.
@@ -709,6 +724,7 @@ If you use **Claude Code** on your PC, this tile shows what your sessions are do
 - **The real quota** — the 5-hour and 7-day windows of a Pro or Max plan, each with a countdown to its reset, a mark where an even pace would be now, and one sentence saying where the current pace ends. On an API key the tile measures a weekly budget you set instead.
 - **Usage** — the last 30 days: today, since Monday, the total, the share read from cache and the value at API list prices, a column for each day, and the split by project and by model.
 - **Ask and Deck keys** — start Claude Code in one of your projects from the tile or from a Deck key, and stop a run from the dashboard.
+- **The Xenon mod** — pressing **Connect Claude Code** also asks Claude Code to install a small mod from this project's GitHub page, at its next start. It adds each sub-agent's model to the tile, updates the context gauge and the limits the moment they change, and gives Claude Code a `/xenon` command that says whether Xenon hears the session, without using tokens. Under the prompt a line appears only when something needs you: Xenon closed or not linked, or an approval waiting on the dashboard. It sends numbers, model names and agent ids, never what you type or the content of your files. An option, off by default, also shows permission requests as cards on the dashboard for a wait you set (30 seconds unless changed); with no tap the terminal asks as usual, and a command longer than 800 characters is never sent. It needs a Claude Code that supports mods. To install by hand: `/plugin install xenon --marketplace marcimastro98/Xenon`. Disconnecting removes it.
 - **Local** — usage is read from Claude Code's own session files in `~/.claude`; live state arrives from Claude Code's hooks and status line on `127.0.0.1`, each report carrying a key Xenon created. Connecting backs up your `settings.json` first and keeps a status line you already had. Fully localised (11 languages).
 
 ---

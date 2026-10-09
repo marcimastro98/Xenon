@@ -138,6 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Domande da Claude</a>
       <a href="#deck" data-i18n="cc.jump.deck">Chiedi e tasti del Deck</a>
       <a href="#link" data-i18n="cc.jump.link">Collegarlo</a>
+      <a href="#mod" data-i18n="cc.jump.mod">La mod</a>
       <a href="#data" data-i18n="cc.jump.data">Cosa va dove</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">Domande frequenti</a>
@@ -182,8 +183,32 @@
     </ol>
     <p data-i18n-html="cc.link.writes">Il collegamento modifica un solo file: il <code>settings.json</code> di Claude Code, in <code>~/.claude</code> o nella cartella indicata da <code>CLAUDE_CONFIG_DIR</code>. Aggiunge una riga di stato e una serie di hook. Ogni hook punta a Xenon su <code>127.0.0.1</code>, cioè il tuo PC, e porta con sé una chiave creata da Xenon.</p>
     <p data-i18n-html="cc.link.backup">Prima della prima modifica, Xenon salva una copia del file accanto all'originale come <code>settings.json.xenon-backup</code>.</p>
+    <p data-i18n="cc.link.mod">Collegare aggiunge anche tre voci che chiedono a Claude Code di installare la mod di Xenon, descritta qui sotto. Scollegare le toglie.</p>
     <p data-i18n="cc.link.chain">Claude Code consente una sola riga di stato. Se ne avevi già una, Xenon la tiene: il suo script esegue la tua e stampa quello che stampa la tua. Se la tua non stampa niente entro tre secondi, al suo posto compare la riga breve di Xenon.</p>
     <p data-i18n-html="cc.link.remove">Quando disinstalli Xenon vengono tolte tutte le voci che ha aggiunto, torna la tua riga di stato e il backup viene cancellato. I tuoi hook restano come sono. Per fare lo stesso senza disinstallare, esegui <code>node server/claude-link.js unlink</code> nella cartella in cui è installato Xenon.</p>
+
+    <h2 id="mod" data-i18n="cc.h.mod">La mod di Xenon per Claude Code</h2>
+
+    <p data-i18n="cc.mod.p1">Claude Code può caricare componenti aggiuntivi chiamati mod. Xenon ne ha una e Collega la installa: al prossimo avvio Claude Code la scarica dalla pagina GitHub del progetto e la attiva. Serve una versione di Claude Code che supporti le mod. Se la tua non le supporta, tutto quello che c'è sopra funziona lo stesso.</p>
+
+    <ul>
+
+      <li data-i18n="cc.mod.l1">Il riquadro mostra su quale modello gira ogni subagent.</li>
+
+      <li data-i18n="cc.mod.l2">L'indicatore del contesto e i limiti da 5 ore e settimanali si aggiornano appena cambiano.</li>
+
+      <li data-i18n-html="cc.mod.l3"><code>/xenon</code> in Claude Code dice se Xenon sente quella sessione. Non usa token.</li>
+
+      <li data-i18n="cc.mod.l4">Sotto il prompt compare una riga solo quando serve qualcosa da te: Xenon è chiuso o non collegato, oppure un'approvazione aspetta sulla dashboard. Se va tutto bene, la riga non c'è.</li>
+
+    </ul>
+
+    <p data-i18n-html="cc.mod.p2">La mod manda numeri, nomi dei modelli e id degli agent a <code>127.0.0.1</code>, con la stessa chiave degli hook. Non manda mai quello che scrivi né il contenuto dei tuoi file. Quando Xenon è chiuso aspetta e riprova più tardi, senza rallentare Claude Code.</p>
+
+    <p data-i18n="cc.mod.p3">Approvare dalla dashboard è un'opzione della mod, spenta di default. Se la accendi, una richiesta di permesso compare anche come scheda sulla dashboard e lì aspetta 30 secondi, un tempo che puoi impostare da 10 a 120. Un tocco su Consenti o Nega decide. Senza tocco, Claude Code chiede nel terminale come sempre. La scheda riceve il comando, il percorso del file o l'indirizzo, mai il contenuto di un file. Un comando più lungo di 800 caratteri non viene mandato affatto e chiede il terminale. Le opzioni sono nel menu di configurazione del plugin in Claude Code.</p>
+
+    <p data-i18n-html="cc.mod.p4">Per installarla a mano, scrivi <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> in Claude Code. Per toglierla, premi Scollega sul riquadro oppure rimuovi il plugin in Claude Code.</p>
+
 
     <h2 id="data" data-i18n="cc.h.data">Cosa va dove</h2>
     <p data-i18n="cc.data.p1">Il riquadro non usa nessun account e nessuna chiave API. Il conteggio dei token viene dai file sul tuo disco, e i dati in tempo reale arrivano da Claude Code sullo stesso PC.</p>

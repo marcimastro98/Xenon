@@ -10,7 +10,7 @@
   const WIDGET_CATEGORIES = [
     { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'chatgpt', 'browser', 'slideshow'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'disk', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
   ];
   // Inline icons (currentColor) — one per widget id.
@@ -59,6 +59,7 @@
     power: I('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/>'),
     search: I('<circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/>'),
     disk: I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9h-6.5"/>'),
+    devclean: I('<path d="M14.5 3.5 20.5 9.5"/><path d="m17.5 6.5-7 7"/><path d="M10.5 13.5 6 18l-2.5-.5L3 15l4.5-4.5"/><path d="M14 20h7"/>'),
     transfer: I('<path d="M7 20V8"/><path d="m3 12 4-4 4 4"/><path d="M17 4v12"/><path d="m13 12 4 4 4-4"/>'),
     phone: I('<path d="M6.5 3h3l1.5 4-2 1.4a12 12 0 0 0 5.6 5.6l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3Z"/>'),
     battery: I('<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10v4M5.5 10.5v3M9 10.5v3"/>'),

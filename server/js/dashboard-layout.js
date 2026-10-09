@@ -2601,6 +2601,7 @@ function applyDashboardLayout() {
   step('fansRender', () => { if (window.FansWidget && typeof window.FansWidget.renderWidgets === 'function') window.FansWidget.renderWidgets(); });
   step('searchRender', () => { if (window.SearchWidget && typeof window.SearchWidget.renderWidgets === 'function') window.SearchWidget.renderWidgets(); });
   step('diskRender', () => { if (window.DiskWidget && typeof window.DiskWidget.renderWidgets === 'function') window.DiskWidget.renderWidgets(); });
+  step('devcleanRender', () => { if (window.DevCleanWidget && typeof window.DevCleanWidget.renderWidgets === 'function') window.DevCleanWidget.renderWidgets(); });
   step('transferRender', () => { if (window.TransferWidget && typeof window.TransferWidget.renderWidgets === 'function') window.TransferWidget.renderWidgets(); });
   step('phoneRender', () => { if (window.PhoneWidget && typeof window.PhoneWidget.renderWidgets === 'function') window.PhoneWidget.renderWidgets(); });
   step('powerRender', () => { if (window.PowerWidget && typeof window.PowerWidget.renderWidgets === 'function') window.PowerWidget.renderWidgets(); });

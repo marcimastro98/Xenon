@@ -186,6 +186,8 @@
     '/update/prepare', '/update/apply', '/sdk/install', '/icon-pack', '/sound-pack',
     '/search/open', '/search/reveal', '/search/ai', '/spotlight/claimed', '/lock',
     '/api/community/rate', '/api/community/redeem', '/api/screenshot', '/api/screenshot/monitor',
+    '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock',
+    '/api/claude/history/delete',
   ];
   const blockedPrefixes = ['/api/ai/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
 

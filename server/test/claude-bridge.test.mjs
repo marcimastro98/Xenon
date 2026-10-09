@@ -841,3 +841,88 @@ test('statusline cwd also names the project', () => {
   assert.equal(bridge.cwdFor('s2'), 'C:/work/leonardoschool');
   assert.equal(bridge.snapshot().sessions.find(x => x.id === 's2').project, 'leonardoschool');
 });
+
+// ── mod feed (integrations/claude-code) ───────────────────────────────────────
+
+test('applyMod measure reads quota and context through the statusline path', () => {
+  const { bridge } = makeBridge();
+  assert.equal(bridge.applyMod({
+    v: 1, kind: 'measure', sessionId: 's1', version: '0.1.0', contextPct: 37, costUsd: 0.5,
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 23.5, resetsAt: '2026-10-09T12:00:00Z' },
+      { kind: 'spend_limit', percentUsed: 99 },
+    ],
+  }), true);
+  const snap = bridge.snapshot();
+  assert.equal(snap.limits.fiveHour.pct, 23.5);
+  assert.equal(snap.limits.fiveHour.resetsAt, Date.parse('2026-10-09T12:00:00Z') / 1000);
+  assert.equal(snap.limits.sevenDay, null);
+  const s = snap.sessions.find(x => x.id === 's1');
+  assert.equal(s.contextPct, 37);
+  assert.equal(s.cost, 0.5);
+  assert.equal(snap.mod.version, '0.1.0');
+});
+
+test('applyMod measure without figures keeps the last known ones', () => {
+  const { bridge } = makeBridge();
+  bridge.applyStatus({ session_id: 's1', context_window: { used_percentage: 40 }, cost: { total_cost_usd: 2 } });
+  bridge.applyMod({ v: 1, kind: 'measure', sessionId: 's1', rateLimits: [] });
+  const s = bridge.snapshot().sessions.find(x => x.id === 's1');
+  assert.equal(s.contextPct, 40);
+  assert.equal(s.cost, 2);
+});
+
+test('applyMod agent gives a subagent its model, before or after SubagentStart', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a1', agent_type: 'Explore' });
+  bridge.applyMod({ v: 1, kind: 'agent', sessionId: 's1', agentId: 'a1', type: 'Explore', model: 'claude-haiku-5-5' });
+  bridge.applyMod({ v: 1, kind: 'agent', sessionId: 's1', agentId: 'a2', type: 'Plan', model: 'claude-opus-5-5' });
+  bridge.applyHook({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a2', agent_type: 'Plan' });
+  const agents = bridge.snapshot().sessions.find(x => x.id === 's1').subagents;
+  assert.deepEqual(agents.map(a => [a.id, a.model]), [['a1', 'claude-haiku-5-5'], ['a2', 'claude-opus-5-5']]);
+});
+
+test('applyMod refuses unknown versions, kinds and sessionless messages', () => {
+  const { bridge } = makeBridge();
+  assert.equal(bridge.applyMod({ v: 2, kind: 'hello', sessionId: 's1' }), false);
+  assert.equal(bridge.applyMod({ v: 1, kind: 'prompt', sessionId: 's1', text: 'secret' }), false);
+  assert.equal(bridge.applyMod({ v: 1, kind: 'hello' }), false);
+  assert.equal(bridge.applyMod(null), false);
+  assert.equal(bridge.snapshot().sessions.length, 0);
+});
+
+// ── mod approvals: short wait, then the terminal asks ────────────────────────
+
+test('a mod approval waits only its own short window', () => {
+  const { bridge } = makeBridge();
+  const req = bridge.requestPermission({ session_id: 's1', tool_name: 'Bash', tool_input: { command: 'ls' } }, { ttlMs: 30_000, fromMod: true });
+  assert.equal(bridge.snapshot().approvals[0].expiresInMs, 30_000);
+  bridge.cancel(req.id);
+});
+
+test('after a mod approval is handed back, the hook for the same call gets no second card', () => {
+  const { bridge, advance } = makeBridge();
+  const call = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'ls' } };
+  const req = bridge.requestPermission(call, { ttlMs: 30_000, fromMod: true });
+  bridge.cancel(req.id);                          // the mod's wait ended
+  assert.equal(bridge.takeHandBack(call), true);
+  assert.equal(bridge.takeHandBack(call), false); // only that one call
+  bridge.cancel(bridge.requestPermission(call, { fromMod: true }).id);
+  advance(11_000);                                // a later call is a new question
+  assert.equal(bridge.takeHandBack(call), false);
+});
+
+test('the hook withdraws a mod card still pending for the same call', () => {
+  const { bridge } = makeBridge();
+  const call = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'ls' } };
+  bridge.requestPermission(call, { ttlMs: 30_000, fromMod: true });
+  assert.equal(bridge.takeHandBack(call), true);
+  assert.equal(bridge.snapshot().approvals.length, 0);
+});
+
+test('a hook request is never mistaken for a hand back', () => {
+  const { bridge } = makeBridge();
+  const call = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'ls' } };
+  bridge.cancel(bridge.requestPermission(call).id);
+  assert.equal(bridge.takeHandBack(call), false);
+});

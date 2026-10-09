@@ -306,7 +306,11 @@
       box.appendChild(el('div', 'cx-muted', t('codex_limits_reading', 'Reading the plan from Codex…')));
       return box;
     }
-    lim.buckets.slice(0, 3).forEach((b, i) => {
+    // The main limit always; any other (Codex sends extras such as
+    // "gpt-reserve") only while it is the one blocking. Codex's own usage menu
+    // shows just the main 5h + Weekly, so an extra row read as a third limit
+    // nobody could place (Discord, Oct 2026).
+    lim.buckets.slice(0, 3).filter((b, i) => i === 0 || b.reached).forEach((b, i) => {
       if (i > 0 && b.name) box.appendChild(el('div', 'cx-bucket-name', b.name));
       if (b.primary) box.appendChild(gauge(b.primary));
       if (b.secondary) box.appendChild(gauge(b.secondary));
