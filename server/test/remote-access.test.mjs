@@ -129,6 +129,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     .sort();
 
   assert.deepEqual(refused, [
+    // The Claude Code mod /xenon check, token-gated like the ingest below.
+    'GET /api/claude/mod',
     // Pairing admin — loopback-only so a phone cannot enrol another phone or
     // revoke the device that would kick it off.
     'GET /api/remote-access/status',
@@ -154,6 +156,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // Claude Code's own ingest, posted by the `claude` process against a token
     // minted on the PC. Nothing in the dashboard calls these.
     'POST /api/claude/event',
+    // The Claude Code mod feed, posted by the claude process like /event.
+    'POST /api/claude/mod',
+    'POST /api/claude/mod/permission',
     'POST /api/claude/permission',
     // Same family, and the sharper case for refusing them: /question returns
     // text that is put in front of the model, and /turn-end can tell a session
@@ -168,6 +173,11 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // /api/codex/decide, like any other dashboard.
     'POST /api/codex/event',
     'POST /api/codex/permission',
+    // Dev cleanup: compaction raises a UAC prompt on the PC, and the unlock
+    // spends one of the supporter pass's three device slots. Both are decided
+    // by whoever sits at the PC; pruning and the overview stay open.
+    'POST /api/devclean/compact',
+    'POST /api/features/devclean/unlock',
     'POST /api/gamemode/install-presentmon',
     'POST /api/lighting/sdk-install',
     'POST /api/native/install',

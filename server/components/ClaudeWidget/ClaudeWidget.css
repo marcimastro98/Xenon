@@ -204,6 +204,8 @@
 .cw-ctx.is-crit .cw-ctx-fill { background: var(--cw-crit); }
 .cw-ctx-val { font-variant-numeric: tabular-nums; }
 .cw-lane-model { font-weight: 600; flex: 0 0 auto; }
+/* Grows with the subagents' models (from the Claude Code mod): clip, never push the lane wider. */
+.cw-lane-agents { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-lane-lines { display: inline-flex; gap: 6px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .cw-lane-lines .is-add { color: var(--cw-go); }
 .cw-lane-lines .is-del { color: var(--cw-crit); }
@@ -457,6 +459,50 @@
 .cw-model-dot { width: 9px; height: 9px; border-radius: 2px; }
 .cw-model-name { font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-model-tok, .cw-model-cost { text-align: right; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── Chats face: what Claude Code keeps on disk ── */
+.cw-hist { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.cw-hist-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.cw-hist-sum { display: flex; align-items: baseline; gap: 8px; margin-right: auto; min-width: 0; }
+.cw-hist-count { font-size: 15px; font-weight: 740; }
+.cw-hist-size { font-size: 13px; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-hist-proj,
+.cw-hist-btn,
+.cw-hist-icon {
+  min-height: 36px; padding: 0 12px; border-radius: 9px; border: 0; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 650; color: var(--cw-ink);
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-hist-proj { max-width: 44%; text-overflow: ellipsis; }
+.cw-hist-icon { min-width: 36px; padding: 0; font-size: 15px; }
+.cw-hist-btn:disabled, .cw-hist-icon:disabled { opacity: 0.45; cursor: default; }
+.cw-hist-btn.is-danger { color: var(--on-danger, #fff); background: var(--cw-crit); box-shadow: none; }
+.cw-hist-note { margin: 0; font-size: 12.5px; color: var(--cw-2); }
+.cw-hist-note.is-error { color: var(--cw-crit); }
+.cw-hist-list {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;
+}
+.cw-hist-row { display: flex; align-items: center; gap: 10px; min-height: 48px; box-shadow: inset 0 -1px 0 var(--cw-line); }
+.cw-hist-row.is-on { background: color-mix(in srgb, var(--cw-ink) 6%, transparent); }
+.cw-hist-row.is-busy { opacity: 0.6; }
+.cw-hist-check { flex: none; width: 20px; height: 20px; margin: 0 0 0 6px; accent-color: var(--cw-go); cursor: pointer; }
+.cw-hist-open {
+  appearance: none; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;
+  flex: 1 1 auto; min-width: 0; padding: 6px 4px; text-align: left;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cw-hist-title { font-size: 13px; font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-hist-title.is-empty { color: var(--cw-2); font-style: italic; }
+.cw-hist-meta { font-size: 11.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.cw-hist-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px;
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
+}
+.cw-hist-picked { margin-right: auto; font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cw-hist-ask { flex: 1 1 220px; margin: 0; font-size: 12.5px; line-height: 1.4; }
+.cw-hist-bar.is-confirm { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-crit) 55%, transparent); }
 
 /* ── small tiles: keep what answers "does anything need me" ── */
 @container cw (max-height: 300px) {
@@ -787,6 +833,7 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
   font-size: 10px; opacity: 0.35; color: var(--text, #f0f3f1);
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace; word-break: break-all;
 }
+/* A command to copy into Claude Code: readable, and selected whole on one tap. */
 
 .cw-plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .cw-plan {

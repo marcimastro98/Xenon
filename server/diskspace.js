@@ -1081,6 +1081,23 @@ function createDiskSpace(opts) {
     return { ok: true };
   }
 
+  // The Recycle-Bin delete for a caller outside the Disk widget's categories
+  // (Dev cleanup's stale editor workspace folders). Same last gate: every path
+  // is re-probed and must pass the guard against `root`, the folder the caller
+  // enumerated. Returns the paths actually moved.
+  async function trashUnder(root, paths) {
+    const gctx = guardCtx(root);
+    const allowed = [];
+    for (const p of Array.isArray(paths) ? paths : []) {
+      if (guardDelete(p, gctx, await probeFlags(p)).ok) allowed.push(p);
+    }
+    if (!allowed.length) return { ok: false, moved: [] };
+    const res = await runShellDelete({ paths: allowed });
+    const moved = [];
+    for (const p of allowed) if (!(await probeFlags(p)).exists) moved.push(p);
+    return { ok: !!(res && res.ok) && moved.length === allowed.length, moved };
+  }
+
   function runShellDelete(payload) {
     if (shellDeleteRunner) {
       return Promise.resolve().then(() => shellDeleteRunner(payload)).catch(() => ({ ok: false }));
@@ -1673,7 +1690,7 @@ function createDiskSpace(opts) {
 
   return {
     startScan, cancelScan, status, overview, browse, clean, cancelClean,
-    insights, stop, helperPresent, snapshot, reveal,
+    insights, stop, helperPresent, snapshot, reveal, trashUnder,
   };
 }
 

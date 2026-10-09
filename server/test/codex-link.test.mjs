@@ -47,6 +47,8 @@ test('link into a missing file creates exactly our five hooks; status is complet
   assert.equal(p.async, undefined, 'the approval hook must block');
   assert.match(p.command, /codex-hook\.js" permission$|codex-hook\.js' permission$/);
   assert.equal(j.hooks.SessionStart[0].hooks[0].async, true);
+  assert.equal(j.hooks.SessionEnd[0].hooks[0].async, undefined,
+    'Codex runs SessionEnd synchronously and flags an async one as a hook issue');
   assert.equal(JSON.stringify(j).includes('3030'), false, 'the port is never in the file');
   const state = await read(path.join(s.data, 'codex-bridge.json'));
   assert.equal(state.port, 3030);

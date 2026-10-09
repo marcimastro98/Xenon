@@ -1,0 +1,30 @@
+{
+  "name": "xenon",
+  "version": "0.2.3",
+  "description": "Shows this Claude Code session on the Xenon dashboard: subagent models, live context and quota, a status line under the prompt, a /xenon connection check, and optional approvals from the dashboard.",
+  "author": { "name": "marcimastro98" },
+  "homepage": "https://github.com/marcimastro98/Xenon",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "band": {
+      "type": "boolean",
+      "title": "Xenon status line",
+      "description": "Under the prompt, say when Xenon is not reachable or not linked, or an approval is waiting on the dashboard. Nothing is shown while all is well.",
+      "default": true
+    },
+    "approvals": {
+      "type": "boolean",
+      "title": "Approve from the Xenon dashboard",
+      "description": "Permission requests also appear on the Xenon dashboard. With no answer there, the terminal asks as usual.",
+      "default": false
+    },
+    "approvalWaitSec": {
+      "type": "number",
+      "title": "Seconds to wait for the dashboard",
+      "description": "How long a permission request waits on the dashboard before the terminal asks (10 to 120).",
+      "default": 30,
+      "min": 10,
+      "max": 120
+    }
+  }
+}

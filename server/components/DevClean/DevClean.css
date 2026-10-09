@@ -1,0 +1,432 @@
+/* Dev cleanup — same dense, semantic-palette language as the Disk widget. */
+
+.devclean-panel {
+  container-type: size;
+}
+
+.devclean-panel .devclean-widget-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text), transparent 76%) transparent;
+  color: var(--text);
+}
+
+.devclean-widget-mount button,
+.devclean-widget-mount input {
+  color: inherit;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.devclean-widget-mount p {
+  margin: 0;
+}
+
+.devclean-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.devclean-titles {
+  min-width: 0;
+}
+
+.devclean-title {
+  overflow: hidden;
+  font-size: 15.5px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devclean-sub,
+.devclean-card-size,
+.devclean-size {
+  color: var(--muted-text);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.devclean-icon-btn,
+.devclean-btn {
+  min-height: 37px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 730;
+}
+
+.devclean-icon-btn {
+  flex: none;
+  min-width: 37px;
+  padding: 0;
+  font-size: 15px;
+}
+
+.devclean-btn {
+  padding: 0 14px;
+}
+
+.devclean-btn-small {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.devclean-widget-mount .devclean-btn-accent {
+  border-color: color-mix(in srgb, var(--accent), transparent 52%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  color: var(--accent);
+}
+
+.devclean-btn:active,
+.devclean-icon-btn:active {
+  transform: scale(0.97);
+}
+
+.devclean-btn:disabled,
+.devclean-icon-btn:disabled {
+  cursor: default;
+  opacity: 0.42;
+  transform: none;
+}
+
+.devclean-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 8px;
+}
+
+.devclean-card,
+.devclean-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--control-bg), transparent 30%);
+}
+
+.devclean-card.is-off {
+  opacity: 0.7;
+}
+
+.devclean-card-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 730;
+}
+
+.devclean-badge {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent), transparent 84%);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 760;
+}
+
+.devclean-confirm p {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.devclean-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.devclean-code {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.devclean-code-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 37px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.devclean-code-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.devclean-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.devclean-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.devclean-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  min-width: 0;
+}
+
+.devclean-row.is-protected {
+  opacity: 0.6;
+}
+
+.devclean-pick {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.devclean-pick input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.devclean-name {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devclean-disk-side {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.devclean-empty,
+.devclean-progress {
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.devclean-notice {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.devclean-error {
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+/* ── Locked pitch: this PC's own numbers sell the tile ─────────────────── */
+
+.devclean-pitch {
+  display: grid;
+  gap: 14px;
+  min-height: 100%;
+  align-content: center;
+}
+
+@container (min-width: 600px) {
+  .devclean-pitch {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 22px;
+  }
+}
+
+.devclean-pitch-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.devclean-pitch-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.devclean-pitch-hero .devclean-badge {
+  margin-bottom: 4px;
+}
+
+.devclean-pitch-num {
+  font-variant-numeric: proportional-nums;
+  color: var(--accent);
+  font-size: clamp(30px, 9cqi, 46px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.devclean-pitch-title {
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.015em;
+}
+
+.devclean-pitch-title.is-lead {
+  font-size: clamp(18px, 5cqi, 24px);
+  font-weight: 780;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.devclean-pitch-desc,
+.devclean-pitch-note,
+.devclean-pitch-foot {
+  color: var(--muted-text);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.devclean-pitch-note,
+.devclean-pitch-foot {
+  font-size: 11.5px;
+}
+
+.devclean-pitch-perks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.devclean-pitch-perks li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.devclean-pitch-tick {
+  flex: none;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.devclean-pitch-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.devclean-widget-mount .devclean-btn-big {
+  min-height: 44px;
+  padding: 0 20px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.devclean-btn-ghost {
+  min-height: 44px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.devclean-pitch-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--control-bg), transparent 30%);
+}
+
+.devclean-pitch-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.devclean-pitch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+
+.devclean-pitch-row.is-off {
+  opacity: 0.55;
+}
+
+.devclean-pitch-name {
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devclean-pitch-val {
+  font-variant-numeric: proportional-nums;
+  font-weight: 720;
+}
+
+.devclean-pitch-track {
+  grid-column: 1 / -1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text), transparent 90%);
+}
+
+.devclean-pitch-fill {
+  display: block;
+  width: var(--fill, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.6s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .devclean-pitch-fill { transition: none; }
+}

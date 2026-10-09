@@ -138,6 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Claude 的提问</a>
       <a href="#deck" data-i18n="cc.jump.deck">提问和 Deck 按键</a>
       <a href="#link" data-i18n="cc.jump.link">连接方法</a>
+      <a href="#mod" data-i18n="cc.jump.mod">Mod</a>
       <a href="#data" data-i18n="cc.jump.data">什么数据发往哪里</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">常见问题</a>
@@ -182,8 +183,32 @@
     </ol>
     <p data-i18n-html="cc.link.writes">连接只会修改一个文件：你的 Claude Code <code>settings.json</code>，位于 <code>~/.claude</code> 或 <code>CLAUDE_CONFIG_DIR</code> 指向的文件夹中。它会添加一个状态行和一组钩子（hook）。每个钩子都指向 <code>127.0.0.1</code> 上的 Xenon，也就是你自己的电脑，并携带一个由 Xenon 生成的密钥。</p>
     <p data-i18n-html="cc.link.backup">在第一次修改之前，Xenon 会在原文件旁边保存一份副本，名为 <code>settings.json.xenon-backup</code>。</p>
+    <p data-i18n="cc.link.mod">连接时还会添加三个条目，请 Claude Code 安装 Xenon mod（见下文）。断开连接时这些条目也会一并移除。</p>
     <p data-i18n="cc.link.chain">Claude Code 只允许一个状态行。如果你已经有一个，Xenon 会保留它：Xenon 自己的脚本会运行你的脚本，并输出你的脚本输出的内容。如果你的脚本在三秒内没有输出任何内容，就改为显示 Xenon 自己的简短状态行。</p>
     <p data-i18n-html="cc.link.remove">卸载 Xenon 会移除它添加的每一项，恢复你自己的状态行，并删除备份。你自己的钩子不会被改动。如果想在不卸载的情况下做同样的事，请在 Xenon 的安装文件夹中运行 <code>node server/claude-link.js unlink</code>。</p>
+
+    <h2 id="mod" data-i18n="cc.h.mod">适用于 Claude Code 的 Xenon mod</h2>
+
+    <p data-i18n="cc.mod.p1">Claude Code 可以加载名为 mod 的附加组件。Xenon 有一个，点击连接即可安装：Claude Code 下次启动时会从本项目的 GitHub 页面获取并启用它。需要支持 mod 的 Claude Code 版本。如果你的版本不支持，上面的功能不装它也照常使用。</p>
+
+    <ul>
+
+      <li data-i18n="cc.mod.l1">磁贴会显示每个子代理所用的模型。</li>
+
+      <li data-i18n="cc.mod.l2">上下文仪表以及 5 小时和每周额度一有变化就会更新。</li>
+
+      <li data-i18n-html="cc.mod.l3">在 Claude Code 中输入 <code>/xenon</code>，可查看 Xenon 是否收到该会话。它不消耗 token。</li>
+
+      <li data-i18n="cc.mod.l4">提示框下方的一行只在需要你处理时出现：Xenon 已关闭或未连接，或有审批正在仪表板上等待。一切正常时不显示。</li>
+
+    </ul>
+
+    <p data-i18n-html="cc.mod.p2">mod 把数字、模型名称和代理 ID 发送到 <code>127.0.0.1</code>，使用与钩子相同的密钥。它从不发送你输入的内容或文件内容。Xenon 关闭时，它会等待并稍后重试，不会拖慢 Claude Code。</p>
+
+    <p data-i18n="cc.mod.p3">从仪表板审批是 mod 的一个选项，默认关闭。开启后，权限请求也会以卡片形式出现在仪表板上，并在那里等待 30 秒（可在 10 到 120 秒之间设置）。点按“允许”或“拒绝”即可决定。没有点按时，Claude Code 照常在终端里询问。卡片只收到命令、文件路径或地址，绝不包含文件内容。超过 800 个字符的命令不会被发送，由终端询问。这些选项在 Claude Code 的插件配置菜单中。</p>
+
+    <p data-i18n-html="cc.mod.p4">如需手动安装，在 Claude Code 中输入 <code>/plugin install xenon --marketplace marcimastro98/Xenon</code>。如需移除，点击磁贴上的“断开连接”，或在 Claude Code 中删除该插件。</p>
+
 
     <h2 id="data" data-i18n="cc.h.data">什么数据发往哪里</h2>
     <p data-i18n="cc.data.p1">这个磁贴不使用账号，也不使用 API 密钥。它的令牌统计来自你硬盘上的文件，实时数据来自同一台电脑上的 Claude Code。</p>

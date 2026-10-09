@@ -1451,6 +1451,29 @@ fn disable_dmabuf_on_wayland() {
     }
 }
 
+/// Make Xlib safe to use from more than one thread, before GTK opens the display.
+///
+/// Moving our own screen reads onto the main thread (monitor.rs, `on_main`) was
+/// not enough: the AppImageHub test of v4.11.11 (PR #7417) still aborted with
+/// "[xcb] Unknown sequence number ... XInitThreads has not been called" four
+/// seconds after the tray icon appeared, so some other thread, ours or inside a
+/// library (the tray indicator, GDK), still reaches the same X connection.
+/// XInitThreads is Xlib's own answer and must be the first Xlib call in the
+/// process; after it, concurrent use is locked instead of fatal. libX11 is
+/// already loaded by GTK on every Linux desktop, Wayland ones included, so this
+/// adds no dependency, and under Wayland the call is harmless.
+#[cfg(target_os = "linux")]
+fn init_xlib_threads() {
+    #[link(name = "X11")]
+    extern "C" {
+        fn XInitThreads() -> std::os::raw::c_int;
+    }
+    // SAFETY: takes no arguments, and runs before any thread or display exists.
+    unsafe {
+        XInitThreads();
+    }
+}
+
 /// Whether this shell may replace its own binary. On Linux the bundler stamps an
 /// AppImage, .deb or .rpm binary with its bundle type; an unstamped one (the
 /// pacman package `tools/package-arch.mjs` builds, or a dev build) belongs to
@@ -1493,6 +1516,9 @@ pub fn run() {
     // Before anything can touch a display: an AppImage whose bundled libraries
     // shadow the host's driver stack renders NOTHING, and never says so.
     prefer_host_graphics_libs();
+
+    #[cfg(target_os = "linux")]
+    init_xlib_threads();
 
     let mut builder = tauri::Builder::default()
         // Only one kiosk instance may own the Edge. A second launch shows the

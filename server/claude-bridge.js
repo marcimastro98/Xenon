@@ -361,6 +361,35 @@ function followUpReason(text) {
     + t;
 }
 
+// How long after a mod approval is handed back the hook's own request for the
+// same call is still recognised as that call (takeHandBack).
+const HANDBACK_MS = 10 * 1000;
+function handBackKey(sessionId, tool) { return sessionId + '|' + tool; }
+
+// A mod `measure` message in the statusline's shape, so applyStatus stays the
+// one place quota and context are read. The mod reports reset times as ISO
+// 8601; the statusline (and the widget) use epoch seconds.
+const MOD_LIMIT_KINDS = { five_hour: 'five_hour', seven_day: 'seven_day' };
+function modMeasureAsStatus(sessionId, d) {
+  const rate = {};
+  for (const w of Array.isArray(d.rateLimits) ? d.rateLimits.slice(0, 4) : []) {
+    const key = w && MOD_LIMIT_KINDS[w.kind];
+    if (!key) continue;
+    const resetMs = Date.parse(str(w.resetsAt, 40));
+    rate[key] = {
+      used_percentage: w.percentUsed,
+      // undefined, not null: num(null) reads as 0, a reset at the epoch.
+      resets_at: Number.isFinite(resetMs) ? Math.round(resetMs / 1000) : undefined,
+    };
+  }
+  return {
+    session_id: sessionId,
+    context_window: { used_percentage: d.contextPct },
+    cost: { total_cost_usd: d.costUsd },
+    ...(Object.keys(rate).length ? { rate_limits: rate } : {}),
+  };
+}
+
 function createBridge(opts) {
   const options = opts || {};
   const now = () => (typeof options.now === 'function' ? options.now() : Date.now());
@@ -375,6 +404,8 @@ function createBridge(opts) {
   const sessions = new Map();   // session_id → live session record
   const pending = new Map();    // approval id → { …, resolve, timer }
   let limits = null;            // latest rate-limit reading (account-wide)
+  let modSeen = null;           // { at, version } of the mod's last message
+  const handBacks = new Map();  // `session|tool` → when a mod approval was handed back
   let seq = 0;                  // approval id counter (ids are per-boot)
 
   function touchSession(id, patch) {
@@ -499,6 +530,54 @@ function createBridge(opts) {
     const s = touchSession(d.session_id, patch);
     if (s) emit();
     return !!s;
+  }
+
+  // ── mod feed ───────────────────────────────────────────────────────────────
+  // The Xenon mod for Claude Code (integrations/claude-code/). It adds what the
+  // hooks cannot say — each subagent's model, the live context and quota
+  // without waiting for a statusline run — and never prompt text, tool
+  // arguments or file content. It enriches the records the hooks keep; it never
+  // creates a session state of its own.
+  function applyMod(data) {
+    const d = (data && typeof data === 'object') ? data : {};
+    if (d.v !== 1) return false;
+    const id = str(d.sessionId, 80);
+    if (!id) return false;
+    modSeen = { at: now(), version: str(d.version, 20) || (modSeen ? modSeen.version : '') };
+
+    switch (d.kind) {
+      case 'hello': {
+        const model = str(d.model, 60);
+        touchSession(id, model ? { model } : {});
+        emit();
+        return true;
+      }
+      case 'measure':
+        // Same figures the statusline posts, in the mod's units; one reader.
+        return applyStatus(modMeasureAsStatus(id, d));
+      case 'agent': {
+        const agentId = str(d.agentId, 60);
+        const model = str(d.model, 60);
+        if (!agentId || !model) return false;
+        const s = touchSession(id, {});
+        // The spawn can land before or after the SubagentStart hook: fill the
+        // entry that exists, or start it so the hook finds it by id.
+        const known = s.subagents.find((a) => a.id === agentId);
+        if (known) known.model = model;
+        else {
+          s.subagents.push({ id: agentId, type: str(d.type, 40), model, at: now() });
+          if (s.subagents.length > MAX_SUBAGENTS) s.subagents.shift();
+        }
+        emit();
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  function modStatus() {
+    return modSeen ? { version: modSeen.version, ageMs: now() - modSeen.at } : null;
   }
 
   // ── hook feed ──────────────────────────────────────────────────────────────
@@ -738,7 +817,13 @@ function createBridge(opts) {
   // 'timeout' means WE decline to answer, so the caller must respond in a way
   // that hands the choice back to Claude Code's own terminal prompt — never an
   // implicit allow.
-  function requestPermission(data) {
+  // `opts.ttlMs` shortens the wait (the mod's approvals hand back to the
+  // terminal after it); `opts.fromMod` marks a request whose expiry must not
+  // become a second card when Claude Code's own PermissionRequest hook, which
+  // runs right after the mod gives up, asks about the same call (takeHandBack).
+  function requestPermission(data, opts) {
+    const o = opts || {};
+    const ttlMs = Math.max(5000, Math.min(APPROVAL_TTL_MS, num(o.ttlMs) || APPROVAL_TTL_MS));
     const d = (data && typeof data === 'object') ? data : {};
     const sessionId = str(d.session_id, 80);
     const tool = str(d.tool_name, 60) || 'tool';
@@ -777,8 +862,9 @@ function createBridge(opts) {
       task: (s && s.task) || '',
       model: (s && s.model) || '',
       createdAt,
-      expiresAt: createdAt + APPROVAL_TTL_MS,
-      urgentAt: isDestructive(tool, detail) ? createdAt : createdAt + URGENT_AFTER_MS,
+      expiresAt: createdAt + ttlMs,
+      urgentAt: isDestructive(tool, detail) ? createdAt : createdAt + Math.min(URGENT_AFTER_MS, ttlMs / 2),
+      handBackKey: o.fromMod ? handBackKey(sessionId, tool) : '',
       resolve: null,
       timer: null,
     };
@@ -788,9 +874,10 @@ function createBridge(opts) {
       if (pending.get(id) !== rec) return;
       pending.delete(id);
       clearWait(s, 'permission');
+      if (rec.handBackKey) handBacks.set(rec.handBackKey, now());
       rec.resolve({ verdict: 'timeout' });
       emit();
-    }, APPROVAL_TTL_MS);
+    }, ttlMs);
     if (typeof rec.timer.unref === 'function') rec.timer.unref();
 
     pending.set(id, rec);
@@ -950,10 +1037,29 @@ function createBridge(opts) {
     if (!rec) return false;
     pending.delete(rec.id);
     if (rec.timer) clearTimeout(rec.timer);
+    if (rec.handBackKey) handBacks.set(rec.handBackKey, now());
     const s = sessions.get(rec.sessionId);
     clearWait(s, rec.kind === 'question' ? 'question' : 'permission');
     if (rec.resolve) rec.resolve({ verdict: rec.kind === 'question' ? 'skip' : 'timeout' });
     emit();
+    return true;
+  }
+
+  // The mod asked about this call and got no answer in its short wait, so it
+  // let Claude Code go on, and the next thing Claude Code runs is the
+  // PermissionRequest hook link() installed, about the same call. Answering
+  // that one with "no decision" is the hand back to the terminal the user was
+  // promised; a second card waiting 9 minutes would break it. PermissionRequest
+  // carries no call id, so the session and tool, seconds apart, identify it.
+  // A mod card still pending for that pair (the mod gave up first) is withdrawn.
+  function takeHandBack(data) {
+    const d = (data && typeof data === 'object') ? data : {};
+    const key = handBackKey(str(d.session_id, 80), str(d.tool_name, 60) || 'tool');
+    for (const rec of pending.values()) if (rec.handBackKey === key) cancel(rec.id);
+    const t = now();
+    for (const [k, at] of handBacks) if (t - at > HANDBACK_MS) handBacks.delete(k);
+    if (!handBacks.has(key)) return false;
+    handBacks.delete(key);
     return true;
   }
 
@@ -1130,6 +1236,8 @@ function createBridge(opts) {
       // times, and the widget positions them against this, not its own clock.
       now: t,
       limits: limits ? { ...limits, ageMs: t - limits.at } : null,
+      // The mod's last word, so the tile can say whether it is installed.
+      mod: modStatus(),
       sessions: live,
       approvals,
       // Cheap change key so the caller can skip an unchanged SSE push. Covers
@@ -1140,13 +1248,14 @@ function createBridge(opts) {
         s.id, s.state, s.tool, s.toolDetail,
         s.waitFor ? s.waitFor.kind : '',
         s.todos.map(x => x.status).join(''),
-        s.subagents.length, s.activity.length,
+        s.subagents.map(a => a.model || '-').join('/'), s.activity.length,
         s.queued ? 'q' : '', s.ended ? 'e' : '', s.resting ? 1 : 0,
         s.contextPct == null ? '' : Math.round(s.contextPct), s.model || '',
         s.linesAdded || 0, s.linesRemoved || 0,
       ].join(':')).join(',')
         + '|' + approvals.map(a => a.id + (a.urgent ? '!' : '')).join(',')
-        + '|' + (limits ? `${limits.fiveHour && limits.fiveHour.pct}/${limits.sevenDay && limits.sevenDay.pct}` : ''),
+        + '|' + (limits ? `${limits.fiveHour && limits.fiveHour.pct}/${limits.sevenDay && limits.sevenDay.pct}` : '')
+        + '|' + (modSeen ? 'm' : ''),
     };
   }
 
@@ -1195,7 +1304,7 @@ function createBridge(opts) {
   }
 
   return {
-    applyStatus, applyHook, requestPermission, askQuestion, answer, skipQuestion,
+    applyStatus, applyHook, applyMod, modStatus, requestPermission, takeHandBack, askQuestion, answer, skipQuestion,
     decide, cancel, snapshot, stop, cwdFor, mergeRegistry,
     queueFollowUp, cancelFollowUp, takeFollowUp, replyModeFor,
     get pendingCount() { return pending.size; },

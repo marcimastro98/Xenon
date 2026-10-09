@@ -268,3 +268,76 @@ test('repairLink never connects Claude Code on its own', async () => {
     assert.deepEqual(s.read().hooks, {});
   } finally { s.cleanup(); }
 });
+
+// ── the Xenon mod for Claude Code ───────────────────────────────────────────
+
+const MOD_ID = 'xenon@xenon';
+
+test('connecting also asks Claude Code for the mod', async () => {
+  const s = sandbox();
+  try {
+    const st = await link.link(s.data, PORT);
+    const cfg = s.read();
+    assert.deepEqual(cfg.extraKnownMarketplaces.xenon, { source: { source: 'github', repo: 'marcimastro98/Xenon' } });
+    assert.equal(cfg.enabledPlugins[MOD_ID], true);
+    assert.equal(cfg.pluginConfigs[MOD_ID].options.approvals, false);
+    assert.equal(st.modEnabled, true);
+  } finally { s.cleanup(); }
+});
+
+test('the mod never overrides what the user already decided', async () => {
+  const s = sandbox();
+  try {
+    s.write({
+      extraKnownMarketplaces: { other: { source: { source: 'github', repo: 'a/b' } } },
+      enabledPlugins: { [MOD_ID]: false, 'x@y': true },
+      pluginConfigs: { [MOD_ID]: { options: { approvals: true } } },
+    });
+    await link.link(s.data, PORT);
+    const cfg = s.read();
+    assert.equal(cfg.enabledPlugins[MOD_ID], false, 'a plugin they switched off stays off');
+    assert.equal(cfg.pluginConfigs[MOD_ID].options.approvals, true, 'their option stays');
+    assert.ok(cfg.extraKnownMarketplaces.other && cfg.extraKnownMarketplaces.xenon);
+  } finally { s.cleanup(); }
+});
+
+test('a marketplace named xenon that is not ours is left alone', async () => {
+  const s = sandbox();
+  try {
+    const theirs = { source: { source: 'github', repo: 'someone/else' } };
+    s.write({ extraKnownMarketplaces: { xenon: theirs } });
+    await link.link(s.data, PORT);
+    const cfg = s.read();
+    assert.deepEqual(cfg.extraKnownMarketplaces.xenon, theirs);
+    assert.equal(cfg.enabledPlugins, undefined);
+  } finally { s.cleanup(); }
+});
+
+test('a repair never adds the mod to a link that did not have it', async () => {
+  const s = sandbox();
+  try {
+    await link.link(s.data, PORT, { mod: false });
+    const cfg = s.read();
+    delete cfg.hooks.Stop;                            // make the link incomplete
+    s.write(cfg);
+    const out = await link.repairLink(s.data, PORT);
+    assert.equal(out.repaired, true);
+    assert.equal(s.read().enabledPlugins, undefined);
+  } finally { s.cleanup(); }
+});
+
+test('disconnecting removes the mod entries and keeps the user\'s own', async () => {
+  const s = sandbox();
+  try {
+    s.write({
+      extraKnownMarketplaces: { other: { source: { source: 'github', repo: 'a/b' } } },
+      enabledPlugins: { 'x@y': true },
+    });
+    await link.link(s.data, PORT);
+    await link.unlink(s.data, PORT);
+    const cfg = s.read();
+    assert.deepEqual(Object.keys(cfg.extraKnownMarketplaces), ['other']);
+    assert.deepEqual(cfg.enabledPlugins, { 'x@y': true });
+    assert.equal(cfg.pluginConfigs, undefined);
+  } finally { s.cleanup(); }
+});

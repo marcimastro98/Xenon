@@ -13,6 +13,8 @@
 //   USAGE face: one 30-day window, said as such, read from the transcripts:
 //     today, since Monday, the total, the cache share, the value at list
 //     prices, thirty days of columns, projects and models.
+//   CHATS face (js/claude-history.js): every chat kept on this PC, with its
+//     size, and a confirmed move of the chosen ones to the Recycle Bin.
 //
 // Every string here is filesystem- or Claude-derived and renders through
 // textContent / the el() factory — never innerHTML.
@@ -34,6 +36,7 @@
   let pressing = false;     // a pointer is down on the widget (see onSSE)
   let pressTimer = 0;
   let renderDeferred = false;
+  // The one line that installs the Claude Code mod (integrations/claude-code/).
 
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="claude"]')).filter(n => n.closest('.pager-page'));
@@ -973,8 +976,10 @@
     if (s.model) foot.appendChild(el('span', 'cw-lane-model', prettyModel(s.model)));
     if (s.subagents && s.subagents.length) {
       const n = s.subagents.length;
-      foot.appendChild(el('span', 'cw-lane-agents', n === 1 ? t('claude_agents_1', '1 agent')
-        : t('claude_agents_n', '{n} agents').replace('{n}', String(n))));
+      const count = n === 1 ? t('claude_agents_1', '1 agent') : t('claude_agents_n', '{n} agents').replace('{n}', String(n));
+      // Models arrive only from the Claude Code mod; without it the count stands alone.
+      const models = [...new Set(s.subagents.map((a) => (a.model ? prettyModel(a.model) : '')).filter(Boolean))];
+      foot.appendChild(el('span', 'cw-lane-agents', models.length ? count + ' · ' + models.join(', ') : count));
     }
     if ((s.linesAdded || 0) + (s.linesRemoved || 0) > 0) {
       const lines = el('span', 'cw-lane-lines');
@@ -1278,6 +1283,12 @@
     note(t('claude_link_note_backup', 'Your settings.json is backed up before the first change.'));
     if (linkState && linkState.chained) note(t('claude_link_note_chain', 'Your existing status line keeps running.'));
     note(t('claude_link_note_restart', 'Sessions already open need a restart to report.'));
+    const mod = live() && live().mod;
+    const modSetUp = !!(linkState && linkState.modEnabled);
+    if (!linked) note(t('claude_link_note_mod', 'Also installs the Xenon mod for Claude Code.'));
+    else if (mod) note(t('claude_mod_on', 'The Xenon mod is active in Claude Code.'));
+    else if (modSetUp) note(t('claude_mod_pending', 'The mod is set up. It starts with your next Claude Code session.'));
+    else note(t('claude_mod_hint', 'Not installed yet: adds subagent models, live context and approvals on this screen.'));
     wrap.appendChild(notes);
 
     const acts = el('div', 'cw-panel-acts');
@@ -1288,6 +1299,15 @@
       : (linked ? t('claude_disconnect', 'Disconnect') : t('claude_connect_go', 'Connect'));
     go.addEventListener('click', () => doLink(!linked));
     acts.appendChild(go);
+    // One tap for a link made before the mod existed: connecting again writes the
+    // same hooks and adds the mod.
+    if (linked && !mod && !modSetUp) {
+      const add = el('button', 'cw-panel-go'); add.type = 'button';
+      add.disabled = linking;
+      add.textContent = t('claude_mod_install', 'Install the mod');
+      add.addEventListener('click', () => doLink(true));
+      acts.appendChild(add);
+    }
     wrap.appendChild(acts);
 
     if (linkState && linkState.settingsPath) wrap.appendChild(el('div', 'cw-panel-path', linkState.settingsPath));
@@ -2018,19 +2038,20 @@
 
   // ── render ────────────────────────────────────────────────────────────────
   // ── the frame: header, faces, the connection notice ────────────────────────
-  // Two faces instead of one long scroll: LIVE is what is happening and what
-  // needs you, USAGE is the record. The choice is per surface and survives a
+  // Faces instead of one long scroll: LIVE is what is happening and what
+  // needs you, USAGE is the record, CHATS is what is kept on disk. The choice is per surface and survives a
   // reload (a view preference, so localStorage, not the settings store).
   const FACE_KEY = 'xeneonedge.claude.face.v1';
   const REPAIR_SEEN_KEY = 'xeneonedge.claude.repairSeen.v1';
+  const FACES = ['live', 'usage', 'history'];
   let face = null;
   function currentFace() {
     if (face) return face;
-    try { face = localStorage.getItem(FACE_KEY) === 'usage' ? 'usage' : 'live'; } catch { face = 'live'; }
+    try { face = FACES.includes(localStorage.getItem(FACE_KEY)) ? localStorage.getItem(FACE_KEY) : 'live'; } catch { face = 'live'; }
     return face;
   }
   function setFace(f) {
-    face = f === 'usage' ? 'usage' : 'live';
+    face = FACES.includes(f) ? f : 'live';
     try { localStorage.setItem(FACE_KEY, face); } catch { /* private mode: session only */ }
     paint();
   }
@@ -2055,7 +2076,7 @@
 
     const faces = el('div', 'cw-faces');
     faces.setAttribute('role', 'tablist');
-    [['live', t('claude_face_live', 'Live')], ['usage', t('claude_face_usage', 'Usage')]].forEach(([id, label]) => {
+    [['live', t('claude_face_live', 'Live')], ['usage', t('claude_face_usage', 'Usage')], ['history', t('claude_face_history', 'Chats')]].forEach(([id, label]) => {
       const b = el('button', 'cw-face' + (currentFace() === id ? ' is-on' : ''), label);
       b.type = 'button';
       b.setAttribute('role', 'tab');
@@ -2134,6 +2155,11 @@
       const box = el('div', 'cw-run-list');
       rl.slice(-2).forEach((r) => box.appendChild(runCard(r)));
       wrap.appendChild(box);
+    }
+
+    if (currentFace() === 'history') {
+      wrap.appendChild(window.ClaudeHistory.render({ t, ago, paint, openAsk: (id, label) => openAsk(id, label, '') }));
+      return wrap;
     }
 
     const u = payload && payload.usage;
@@ -2247,7 +2273,7 @@
     };
   }
 
-  const SCROLLERS = ['.cw-sess-scroll', '.cw-livegrid', '.cw-usage', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
+  const SCROLLERS = ['.cw-sess-scroll', '.cw-livegrid', '.cw-usage', '.cw-hist-list', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
   function keepScroll(root) {
     return SCROLLERS.map((sel) => Array.from(root.querySelectorAll(sel), (n) => n.scrollTop));
   }

@@ -131,6 +131,7 @@
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
     network: ['cw_stream_network', 'Network adapters and how much each one is moving'],
     diskIo: ['cw_stream_diskio', 'Which disks are busy, and how busy'],
+    devStorage: ['cw_stream_devstorage', 'How much space developer tools take up'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
@@ -218,6 +219,19 @@
       const d = await api('/api/disks/io');
       if (!d || typeof d !== 'object') return { ok: false, disks: [] };
       return { ok: d.ok !== false, disks: Array.isArray(d.disks) ? d.disks : [] };
+    } }),
+    // Space held by Docker, Ollama, editor folders and WSL disks. Numbers only;
+    // the server runs docker/reg to get them, so a long TTL — this changes when
+    // someone pulls an image, not every second.
+    devStorage: Object.freeze({ ttl: 60000, load: async () => {
+      const d = await api('/api/devstorage');
+      if (!d || typeof d !== 'object' || d.ok === false) return { ok: false };
+      const src = (s) => (s && typeof s === 'object' ? s : { available: false, bytes: 0, reclaimable: 0 });
+      return {
+        ok: true,
+        docker: src(d.docker), ollama: src(d.ollama), vscode: src(d.vscode), vhdx: src(d.vhdx),
+        reclaimable: Number(d.reclaimable) || 0,
+      };
     } }),
     network: Object.freeze({ ttl: 1500, load: async () => {
       const d = await api('/network');

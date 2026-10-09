@@ -56,8 +56,11 @@ const LIFECYCLE = Object.freeze([
   Object.freeze({ event: 'SessionStart', mode: 'event', timeout: 10, async: true }),
   Object.freeze({ event: 'UserPromptSubmit', mode: 'event', timeout: 10, async: true }),
   Object.freeze({ event: 'Stop', mode: 'event', timeout: 10, async: true }),
-  // SessionEnd is capped at 3 seconds by Codex.
-  Object.freeze({ event: 'SessionEnd', mode: 'event', timeout: 3, async: true }),
+  // SessionEnd is capped at 3 seconds by Codex, and never async: Codex runs it
+  // synchronously anyway and flags an async one as "1 issue loading hooks" in
+  // its hooks list (Discord, Oct 2026). The hook only posts to loopback, so
+  // the wait is short.
+  Object.freeze({ event: 'SessionEnd', mode: 'event', timeout: 3, async: false }),
 ]);
 const EXPECTED = Object.freeze([PERMISSION].concat(LIFECYCLE));
 

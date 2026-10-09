@@ -138,6 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Preguntas de Claude</a>
       <a href="#deck" data-i18n="cc.jump.deck">Pedir y teclas del Deck</a>
       <a href="#link" data-i18n="cc.jump.link">Conectarlo</a>
+      <a href="#mod" data-i18n="cc.jump.mod">El mod</a>
       <a href="#data" data-i18n="cc.jump.data">Qué se envía y adónde</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">Preguntas frecuentes</a>
@@ -182,8 +183,32 @@
     </ol>
     <p data-i18n-html="cc.link.writes">Conectarlo modifica un solo archivo: el <code>settings.json</code> de tu Claude Code, en <code>~/.claude</code> o en la carpeta a la que apunte <code>CLAUDE_CONFIG_DIR</code>. Añade una línea de estado y un conjunto de hooks. Cada hook apunta a Xenon en <code>127.0.0.1</code>, tu propio PC, y lleva una clave que ha creado Xenon.</p>
     <p data-i18n-html="cc.link.backup">Antes del primer cambio, Xenon guarda una copia del archivo a su lado, como <code>settings.json.xenon-backup</code>.</p>
+    <p data-i18n="cc.link.mod">Conectar también añade tres entradas que piden a Claude Code que instale el mod de Xenon, descrito más abajo. Desconectar también las quita.</p>
     <p data-i18n="cc.link.chain">Claude Code permite una sola línea de estado. Si ya tenías una, Xenon la conserva: su propio script ejecuta la tuya y muestra lo que muestra la tuya. Si la tuya no muestra nada en tres segundos, aparece en su lugar la línea corta de Xenon.</p>
     <p data-i18n-html="cc.link.remove">Al desinstalar Xenon se quitan todas las entradas que añadió, se vuelve a poner tu línea de estado y se borra la copia. Tus propios hooks no se tocan. Para hacer lo mismo sin desinstalar, ejecuta <code>node server/claude-link.js unlink</code> en la carpeta donde está instalado Xenon.</p>
+
+    <h2 id="mod" data-i18n="cc.h.mod">El mod de Xenon para Claude Code</h2>
+
+    <p data-i18n="cc.mod.p1">Claude Code puede cargar complementos llamados mods. Xenon tiene uno y Conectar lo instala: en su próximo inicio, Claude Code lo descarga de la página de GitHub del proyecto y lo activa. Hace falta una versión de Claude Code que admita mods. Si la tuya no los admite, todo lo anterior funciona igual sin él.</p>
+
+    <ul>
+
+      <li data-i18n="cc.mod.l1">El panel muestra con qué modelo trabaja cada subagente.</li>
+
+      <li data-i18n="cc.mod.l2">El indicador de contexto y los límites de 5 horas y semanal se actualizan en cuanto cambian.</li>
+
+      <li data-i18n-html="cc.mod.l3"><code>/xenon</code> en Claude Code indica si Xenon oye esa sesión. No gasta tokens.</li>
+
+      <li data-i18n="cc.mod.l4">Bajo el prompt aparece una línea solo cuando algo requiere tu atención: Xenon está cerrado o sin vincular, o hay una aprobación esperando en el panel. Si todo va bien, no hay línea.</li>
+
+    </ul>
+
+    <p data-i18n-html="cc.mod.p2">El mod envía números, nombres de modelos e ids de agentes a <code>127.0.0.1</code>, con la misma clave que los hooks. Nunca envía lo que escribes ni el contenido de tus archivos. Con Xenon cerrado espera y vuelve a intentarlo más tarde, sin ralentizar Claude Code.</p>
+
+    <p data-i18n="cc.mod.p3">Aprobar desde el panel es una opción del mod, desactivada por defecto. Si la activas, una solicitud de permiso aparece también como tarjeta en el panel y espera allí 30 segundos, un tiempo que puedes fijar entre 10 y 120. Un toque en Permitir o Denegar decide. Sin toque, Claude Code pregunta en el terminal como siempre. La tarjeta recibe el comando, la ruta del archivo o la dirección, nunca el contenido de un archivo. Un comando de más de 800 caracteres no se envía y pregunta el terminal. Las opciones están en el menú de configuración del plugin en Claude Code.</p>
+
+    <p data-i18n-html="cc.mod.p4">Para instalarlo a mano, escribe <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> en Claude Code. Para quitarlo, pulsa Desconectar en el panel o elimina el plugin en Claude Code.</p>
+
 
     <h2 id="data" data-i18n="cc.h.data">Qué se envía y adónde</h2>
     <p data-i18n="cc.data.p1">El mosaico no usa ninguna cuenta ni ninguna API key. Sus recuentos de tokens salen de archivos de tu disco, y sus datos en vivo vienen de Claude Code en el mismo PC.</p>

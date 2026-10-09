@@ -123,6 +123,7 @@
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
 <link rel="stylesheet" href="components/DiskWidget/DiskWidget.css">
+<link rel="stylesheet" href="components/DevClean/DevClean.css">
 <link rel="stylesheet" href="components/TransferWidget/TransferWidget.css">
 <link rel="stylesheet" href="components/PhoneWidget/PhoneWidget.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
@@ -634,6 +635,13 @@
            while one runs. Hidden by default. -->
       <section class="panel disk-panel dashboard-widget" data-dashboard-widget="disk" data-dashboard-size="normal" data-dashboard-order="35" data-dashboard-hidden="true">
         <div class="disk-widget-mount"></div>
+      </section>
+
+      <!-- Dev cleanup — supporter-only: Docker, Ollama models, stale editor
+           workspace storage, WSL/Docker virtual disks. Reads only when shown;
+           the server refuses every route until the feature is unlocked. -->
+      <section class="panel devclean-panel dashboard-widget" data-dashboard-widget="devclean" data-dashboard-size="normal" data-dashboard-order="35" data-dashboard-hidden="true">
+        <div class="devclean-widget-mount"></div>
       </section>
 
       <section class="panel transfer-panel dashboard-widget" data-dashboard-widget="transfer" data-dashboard-size="normal" data-dashboard-order="36" data-dashboard-hidden="true">
@@ -4249,6 +4257,7 @@
 <script src="js/call-modal.js"></script>
 <script src="js/stock-widget.js"></script>
 <script src="js/football-widget.js"></script>
+<script src="js/claude-history.js"></script>
 <script src="js/claude-widget.js"></script>
 <script src="js/approval-keys.js"></script>
 <script src="js/codex-widget.js"></script>
@@ -4260,6 +4269,8 @@
 <script src="js/search-widget.js"></script>
 <script src="js/disk-intelligence.js"></script>
 <script src="js/disk-widget.js"></script>
+<script src="js/devclean-pitch.js"></script>
+<script src="js/devclean-widget.js"></script>
 <!-- Says why search and the disk map went empty on a Mac. Self-gating: it acts
      only on the flag the server sets, which exists only on macOS. -->
 <script src="js/macos-fda.js"></script>

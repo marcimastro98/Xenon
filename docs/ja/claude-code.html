@@ -138,6 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Claude からの質問</a>
       <a href="#deck" data-i18n="cc.jump.deck">依頼と Deck キー</a>
       <a href="#link" data-i18n="cc.jump.link">接続</a>
+      <a href="#mod" data-i18n="cc.jump.mod">mod</a>
       <a href="#data" data-i18n="cc.jump.data">何がどこに送られるか</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">よくある質問</a>
@@ -182,8 +183,32 @@
     </ol>
     <p data-i18n-html="cc.link.writes">接続で編集されるファイルは1つだけです。<code>~/.claude</code>、または <code>CLAUDE_CONFIG_DIR</code> が指すフォルダーにある、Claude Code の <code>settings.json</code> です。ステータスラインとフック一式を追加します。各フックは <code>127.0.0.1</code>、つまり自分の PC 上の Xenon を指し、Xenon が作った鍵を持っています。</p>
     <p data-i18n-html="cc.link.backup">最初の変更の前に、Xenon はファイルのコピーを <code>settings.json.xenon-backup</code> として同じ場所に保存します。</p>
+    <p data-i18n="cc.link.mod">接続すると、Xenon の mod を Claude Code にインストールさせる 3 つの項目も追加されます(下記参照)。接続を解除するとそれらも削除されます。</p>
     <p data-i18n="cc.link.chain">Claude Code のステータスラインは1つだけです。すでに自分のものがあった場合、Xenon はそれを残します。Xenon のスクリプトがあなたのスクリプトを実行し、その出力をそのまま表示します。あなたのスクリプトが3秒以内に何も出力しなければ、代わりに Xenon の短い1行が表示されます。</p>
     <p data-i18n-html="cc.link.remove">Xenon をアンインストールすると、追加した項目がすべて取り除かれ、あなたのステータスラインが元に戻り、バックアップが削除されます。あなた自身のフックはそのまま残ります。アンインストールせずに同じことをするには、Xenon をインストールしたフォルダーで <code>node server/claude-link.js unlink</code> を実行します。</p>
+
+    <h2 id="mod" data-i18n="cc.h.mod">Claude Code 用の Xenon mod</h2>
+
+    <p data-i18n="cc.mod.p1">Claude Code には mod と呼ばれる追加機能を読み込む仕組みがあります。Xenon にも mod があり、接続するとインストールされます。次回の起動時に Claude Code がこのプロジェクトの GitHub ページから取得して有効にします。mod に対応したバージョンの Claude Code が必要です。対応していない場合でも、上記の機能は mod なしで動作します。</p>
+
+    <ul>
+
+      <li data-i18n="cc.mod.l1">タイルに、各サブエージェントが使っているモデルが表示されます。</li>
+
+      <li data-i18n="cc.mod.l2">コンテキストのゲージと、5 時間および週間の上限は、変化するとすぐに更新されます。</li>
+
+      <li data-i18n-html="cc.mod.l3">Claude Code の <code>/xenon</code> で、Xenon がそのセッションを受け取れているか確認できます。トークンは使いません。</li>
+
+      <li data-i18n="cc.mod.l4">プロンプトの下の 1 行は、対応が必要なときだけ表示されます。Xenon が閉じている、または未接続のとき、あるいはダッシュボードで承認を待っているときです。問題がなければ表示されません。</li>
+
+    </ul>
+
+    <p data-i18n-html="cc.mod.p2">mod は、数値、モデル名、エージェント ID を、フックと同じキーを付けて <code>127.0.0.1</code> に送ります。入力した内容やファイルの中身は送りません。Xenon が閉じているときは待機し、後で再試行します。Claude Code の動作は遅くなりません。</p>
+
+    <p data-i18n="cc.mod.p3">ダッシュボードからの承認は mod のオプションで、初期設定ではオフです。オンにすると、権限のリクエストがダッシュボードにもカードとして表示され、30 秒待ちます(10〜120 秒で変更できます)。「許可」または「拒否」をタップすると決定されます。タップしない場合は、これまでどおり Claude Code がターミナルで確認します。カードに送られるのはコマンド、ファイルパス、アドレスだけで、ファイルの中身は送られません。800 文字を超えるコマンドは送信されず、ターミナルで確認されます。オプションは Claude Code のプラグイン設定メニューにあります。</p>
+
+    <p data-i18n-html="cc.mod.p4">手動でインストールするには、Claude Code で <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> と入力します。削除するには、タイルで「接続解除」を押すか、Claude Code でプラグインを削除します。</p>
+
 
     <h2 id="data" data-i18n="cc.h.data">何がどこに送られるか</h2>
     <p data-i18n="cc.data.p1">タイルはアカウントも API キーも使いません。トークン数はディスク上のファイルから、ライブのデータは同じ PC 上の Claude Code から取得します。</p>

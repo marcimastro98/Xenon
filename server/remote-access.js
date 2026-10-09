@@ -120,6 +120,8 @@ const REMOTE_DENY = new Set([
   '/api/claude/permission',
   '/api/claude/question',
   '/api/claude/turn-end',
+  '/api/claude/mod',
+  '/api/claude/mod/permission',
   // The OpenAI Codex ingest, posted by codex-hook.js (which Codex runs) against
   // a token minted on the PC. Same reason as Claude's.
   '/api/codex/event',
@@ -204,10 +206,12 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
   '/api/claude/unlink', '/api/claude/run', '/api/claude/run/stop', '/api/claude/attach',
+  '/api/claude/history/delete',
   '/api/codex/event', '/api/codex/permission', '/api/codex/decide', '/api/codex/link', '/api/codex/unlink',
   '/api/chatgpt/ask', '/api/chatgpt/cancel', '/api/chatgpt/delete',
   '/search/open', '/search/reveal', '/search/ai',
   '/disk/scan', '/disk/scan/cancel', '/disk/clean', '/disk/clean/cancel', '/disk/reveal', '/api/disk/advisor',
+  '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock',
   '/spotlight/claimed', '/api/screenshot', '/api/screenshot/monitor',
   '/api/remote-access/enable', '/api/remote-access/pair', '/api/remote-access/pair/cancel',
   '/api/remote-access/redeem', '/api/remote-access/rename', '/api/remote-access/revoke',
@@ -304,6 +308,10 @@ const REMOTE_ADMIN = new Set([
   '/api/remote-access/rename',
   '/api/remote-access/revoke',
   '/api/remote-access/revoke-all',
+  // A UAC prompt on the PC and a supporter-pass device slot: both decisions
+  // belong to the person sitting at the PC, not to a paired phone.
+  '/api/devclean/compact',
+  '/api/features/devclean/unlock',
 ]);
 
 const REMOTE_METHODS = new Set(['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
