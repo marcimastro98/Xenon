@@ -503,7 +503,7 @@
   };
   function toolIntent(tool) {
     const f = TOOL_INTENT[tool];
-    return f ? f() : (tool || 'tool');
+    return f ? f() : (window.ClaudeIdent.toolLabel(tool) || 'tool');
   }
 
   // ── the decision card ──────────────────────────────────────────────────────
@@ -788,89 +788,13 @@
   }
 
   // ── live sessions ──────────────────────────────────────────────────────────
-  // Two sessions in the same folder are the normal case, not an edge one, and
-  // the project name alone then names both of them. A short slice of the session
-  // id is added ONLY to the rows that would otherwise be ambiguous, so the list
-  // stays clean when there is nothing to disambiguate. The same tag is shown in
-  // the panel header, which is what lets you tell which row you opened.
-  function sessionTag(s) {
-    const same = sessions().filter(x => (x.project || '') === (s.project || ''));
-    return (same.length > 1 && s.id) ? s.id.slice(0, 4) : '';
-  }
-
-  // ── sessions: one lane each ────────────────────────────────────────────────
-  // A dark cockpit: a lane that is fine stays grey and quiet, and colour means
-  // something. Working is a thin line in the accent; waiting for you lights the
-  // lane and moves it to the top, longest-waiting first; a finished session is
-  // filed below. Each lane answers, left to right: which project, what it is
-  // doing right now in words, how its plan is going, and how full its context is.
-  const TRACE_MS = 10 * 60 * 1000;     // the activity trace covers the last 10 minutes
+  // The rail (js/claude-rail.js) and the console (js/claude-console.js) draw
+  // them; the helpers they share live here, next to the words they use.
   const QUIET_MS = 2 * 60 * 1000;      // "working" with no event for this long says so
 
-  function laneState(s) {
-    if (s.ended) return 'ended';
-    if (s.waitFor || s.state === 'waiting') return 'needs';
-    if (s.state === 'running') return 'working';
-    return 'idle';
-  }
-  const LANE_ORDER = { needs: 0, working: 1, idle: 2, ended: 3 };
-  function sortLanes(list) {
-    return list.slice().sort((a, b) => {
-      const d = LANE_ORDER[laneState(a)] - LANE_ORDER[laneState(b)];
-      if (d) return d;
-      if (a.waitFor && b.waitFor) return (b.waitFor.forMs || 0) - (a.waitFor.forMs || 0);
-      return (a.ageMs || 0) - (b.ageMs || 0);
-    });
-  }
-
-  // The last ten minutes of tool calls as marks on a time line, newest on the
-  // right, older ones fading: a session that is flowing, one that is thinking
-  // and one that is stuck look different at a glance, with no log to read.
-  function traceEl(s) {
-    const acts = Array.isArray(s.activity) ? s.activity : [];
-    if (!acts.length) return null;
-    // Activity times are the server's clock. The payload says what that clock
-    // read when it was sent, and the time since then is measured here, so a
-    // phone whose clock disagrees with the PC's still draws the trace right.
-    const l = live();
-    const sentAt = Number(l && l.now) || 0;
-    if (!sentAt) return null;
-    const drift = Date.now() - payloadAt;
-    const wrap = el('div', 'cw-trace');
-    wrap.setAttribute('aria-hidden', 'true');
-    let drawn = 0;
-    acts.forEach((x) => {
-      const endAt = Number(x.at) || 0;
-      const age = (sentAt - endAt) + drift;
-      if (age < 0 || age > TRACE_MS) return;
-      const len = clamp(Number(x.ms) || 0, 0, TRACE_MS);
-      const right = 1 - age / TRACE_MS;
-      const width = Math.max(0.004, len / TRACE_MS);
-      const mark = el('span', 'cw-tick' + (x.ok === false ? ' is-fail' : ''));
-      mark.style.left = (clamp(right - width, 0, 1) * 100).toFixed(2) + '%';
-      mark.style.width = (width * 100).toFixed(2) + '%';
-      mark.style.opacity = (0.28 + 0.72 * right).toFixed(2);
-      wrap.appendChild(mark);
-      drawn++;
-    });
-    return drawn ? wrap : null;
-  }
-
-  function planRail(s) {
-    const todos = Array.isArray(s.todos) ? s.todos : [];
-    if (!todos.length) return null;
-    const done = todos.filter((x) => x.status === 'done').length;
-    const doing = todos.find((x) => x.status === 'doing');
-    const rail = el('div', 'cw-rail');
-    const segs = el('div', 'cw-rail-segs');
-    segs.setAttribute('aria-hidden', 'true');
-    todos.forEach((x) => segs.appendChild(el('span', 'cw-rail-seg is-' + x.status)));
-    rail.appendChild(segs);
-    const text = el('span', 'cw-rail-text');
-    text.appendChild(el('span', 'cw-rail-count', done + '/' + todos.length));
-    if (doing) text.appendChild(el('span', 'cw-rail-now', doing.text));
-    rail.appendChild(text);
-    return rail;
+  function stateLabel(s, st) {
+    if (st === 'ended') return endedLabel(s);
+    return STATE_LABEL[st === 'needs' ? 'waiting' : st === 'working' ? 'running' : 'idle']();
   }
 
   function ctxGauge(pct) {
@@ -885,25 +809,23 @@
     return g;
   }
 
+  // One line of what a session is doing, for its rail card.
   function nowLine(s, st) {
     const line = el('div', 'cw-lane-now');
     if (st === 'ended') { line.appendChild(el('span', 'cw-lane-state', endedLabel(s))); return line; }
     if (s.compacting) { line.appendChild(el('span', 'cw-lane-state', t('claude_compacting', 'compacting the conversation'))); return line; }
     if (st === 'needs') {
       const w = s.waitFor || {};
-      const label = w.kind === 'permission' ? t('claude_wait_perm', 'Waiting for your approval')
+      line.appendChild(el('span', 'cw-lane-ask', w.kind === 'permission' ? t('claude_wait_perm', 'Waiting for your approval')
         : w.kind === 'question' ? t('claude_wait_q', 'Waiting for your answer')
           : w.kind === 'error' ? t('claude_wait_err', 'The turn ended on an error')
-            : t('claude_state_waiting', 'waiting for you');
-      line.appendChild(el('span', 'cw-lane-ask', label));
-      if (w.text) line.appendChild(el('span', 'cw-lane-detail', w.text));
+            : t('claude_state_waiting', 'waiting for you')));
       return line;
     }
     if (st === 'working' && s.tool) {
+      line.appendChild(el('span', 'cw-spin is-on'));
       line.appendChild(el('span', 'cw-lane-intent', toolIntent(s.tool)));
       if (s.toolDetail) line.appendChild(el('span', 'cw-lane-detail', s.toolDetail));
-      // How long it has been on this one step: a build and a hang look the same without it.
-      if (s.toolForMs > 4000) line.appendChild(ageNode('cw-lane-for', s.toolForMs, ''));
       return line;
     }
     if (st === 'working' && s.ageMs > QUIET_MS) {
@@ -911,132 +833,27 @@
       line.appendChild(ageNode('cw-lane-for is-quiet', s.ageMs, t('claude_quiet_for', 'no activity for') + ' '));
       return line;
     }
-    if (s.lastSaid && st !== 'working') { line.appendChild(el('span', 'cw-lane-said', s.lastSaid)); return line; }
+    if (st === 'working') {
+      line.appendChild(el('span', 'cw-spin is-on'));
+      line.appendChild(el('span', 'cw-lane-state', t('claude_state_running', 'working')));
+      return line;
+    }
+    if (s.lastSaid) { line.appendChild(el('span', 'cw-lane-said', s.lastSaid)); return line; }
     if (s.task) { line.appendChild(el('span', 'cw-lane-task', s.task)); return line; }
-    line.appendChild(el('span', 'cw-lane-state', st === 'working' ? t('claude_state_running', 'working') : t('claude_state_idle', 'idle')));
+    line.appendChild(el('span', 'cw-lane-state', t('claude_state_idle', 'idle')));
     return line;
   }
 
-  // A session whose request is already on a card above (or full screen) needs
-  // one line here, not a second copy of the same command.
-  function carded(s) {
-    return approvals().some((a) => a.sessionId && a.sessionId === s.id);
-  }
-
-  function lane(s) {
-    const st = laneState(s);
-    const short = st === 'needs' && carded(s);
-    const row = el('article', 'cw-lane is-' + st + (s.inferred ? ' is-inferred' : '') + (short ? ' is-carded' : ''));
-    // Tapping a lane opens its conversation, to read it or send a follow-up.
-    // Only once linked, and only with a session id Claude Code would accept.
-    if (linkState && linkState.linked && s.id && !s.inferred) {
-      row.classList.add('is-tappable');
-      row.tabIndex = 0;
-      row.setAttribute('role', 'button');
-      const open = () => openAsk(s.id, s.project || '', '');
-      row.addEventListener('click', open);
-      row.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); }
-      });
-    }
-
-    const top = el('div', 'cw-lane-top');
-    // The state is drawn as colour (the edge bar, the dot); its name is said
-    // too, for a screen reader and for whoever cannot tell the colours apart.
-    const dot = el('span', 'cw-lane-dot');
-    dot.setAttribute('aria-hidden', 'true');
-    top.appendChild(dot);
-    top.appendChild(el('span', 'cw-sr', (st === 'ended' ? endedLabel(s)
-      : STATE_LABEL[st === 'needs' ? 'waiting' : st === 'working' ? 'running' : 'idle']()) + ':'));
-    top.appendChild(el('span', 'cw-lane-proj', s.project || '?'));
-    const tag = sessionTag(s);
-    if (tag) top.appendChild(el('span', 'cw-lane-tag', '#' + tag));
-    if (s.branch) top.appendChild(el('span', 'cw-lane-branch', s.branch));
-    // The one clock a lane shows: how long it has waited for you, or how long
-    // since it last did anything.
-    const clock = st === 'needs' && s.waitFor
-      ? ageNode('cw-lane-clock', s.waitFor.forMs, '')
-      : ageNode('cw-lane-clock', s.ageMs, '');
-    if (short) {
-      const w = s.waitFor || {};
-      top.appendChild(el('span', 'cw-lane-ask', w.kind === 'question'
-        ? t('claude_wait_q', 'Waiting for your answer') : t('claude_wait_perm', 'Waiting for your approval')));
-    }
-    // A running step already carries its own timer on the line below.
-    if (!(st === 'working' && s.tool && s.toolForMs > 4000)) top.appendChild(clock);
-    row.appendChild(top);
-    if (short) return row;
-
-    row.appendChild(nowLine(s, st));
-    if (st !== 'ended') { const tr = traceEl(s); if (tr) row.appendChild(tr); }
-
-    const foot = el('div', 'cw-lane-foot');
-    const rail = planRail(s); if (rail) foot.appendChild(rail);
-    if (typeof s.contextPct === 'number') foot.appendChild(ctxGauge(s.contextPct));
-    if (s.model) foot.appendChild(el('span', 'cw-lane-model', prettyModel(s.model)));
-    if (s.subagents && s.subagents.length) {
-      const n = s.subagents.length;
-      const count = n === 1 ? t('claude_agents_1', '1 agent') : t('claude_agents_n', '{n} agents').replace('{n}', String(n));
-      // Models arrive only from the Claude Code mod; without it the count stands alone.
-      const models = [...new Set(s.subagents.map((a) => (a.model ? prettyModel(a.model) : '')).filter(Boolean))];
-      foot.appendChild(el('span', 'cw-lane-agents', models.length ? count + ' · ' + models.join(', ') : count));
-    }
-    if ((s.linesAdded || 0) + (s.linesRemoved || 0) > 0) {
-      const lines = el('span', 'cw-lane-lines');
-      lines.appendChild(el('span', 'is-add', '+' + (s.linesAdded || 0)));
-      lines.appendChild(el('span', 'is-del', '−' + (s.linesRemoved || 0)));
-      foot.appendChild(lines);
-    }
-    if (foot.childNodes.length) row.appendChild(foot);
-
-    // A follow-up already on its way: queued until the turn ends, cancellable.
-    if (s.queued) {
-      const q = el('div', 'cw-queued');
-      q.appendChild(el('span', 'cw-queued-label', t('claude_queued', 'Queued for the end of this turn')));
-      q.appendChild(el('span', 'cw-queued-text', s.queued.text));
-      const undo = el('button', 'cw-link-btn'); undo.type = 'button';
-      undo.textContent = t('claude_queued_cancel', 'Cancel');
-      undo.addEventListener('click', (ev) => { ev.stopPropagation(); cancelReply(s.id); });
-      q.appendChild(undo);
-      row.appendChild(q);
-    }
-    return row;
-  }
-
-  function lanesPanel() {
-    const panel = el('div', 'cw-lanes');
-    const list = sessions();
-    const active = sortLanes(list.filter((s) => !s.resting));
-    const resting = sortLanes(list.filter((s) => s.resting));
-
-    const head = el('div', 'cw-sec-head');
-    head.appendChild(el('span', 'cw-sec-title', t('claude_sessions', 'Sessions')));
-    const working = active.filter((s) => laneState(s) === 'working').length;
-    const needs = active.filter((s) => laneState(s) === 'needs').length;
-    const parts = [];
-    // One and many are different words in most of the eleven languages.
-    const count = (n, one, many, fbOne, fbMany) => (n === 1 ? t(one, fbOne) : t(many, fbMany)).replace('{n}', String(n));
-    if (needs) parts.push(count(needs, 'claude_sum_needs_1', 'claude_sum_needs_n', '1 needs you', '{n} need you'));
-    if (working) parts.push(count(working, 'claude_sum_working_1', 'claude_sum_working_n', '1 working', '{n} working'));
-    if (parts.length) head.appendChild(el('span', 'cw-sec-sum' + (needs ? ' is-needs' : ''), parts.join(' · ')));
-    panel.appendChild(head);
-
-    if (!list.length) {
-      const empty = el('div', 'cw-empty');
-      empty.appendChild(el('div', 'cw-empty-t', t('claude_no_sessions', 'No session running')));
-      const u = payload && payload.usage;
-      if (u && u.live && u.live.at) empty.appendChild(el('div', 'cw-empty-s', t('claude_last_active', 'last active') + ' ' + dur(u.live.ageMs) + ' · ' + (u.live.project || '')));
-      panel.appendChild(empty);
-      return panel;
-    }
-    const scroller = el('div', 'cw-lanes-scroll cw-sess-scroll');
-    active.slice(0, 20).forEach((s) => scroller.appendChild(lane(s)));
-    if (resting.length) {
-      scroller.appendChild(collapsibleTitle('finished', t('claude_sess_finished', 'Finished'), String(resting.length)));
-      if (!isCollapsed('finished')) resting.slice(0, 20).forEach((s) => scroller.appendChild(lane(s)));
-    }
-    panel.appendChild(scroller);
-    return panel;
+  // A follow-up already on its way: queued until the turn ends, cancellable.
+  function queuedRow(s) {
+    const q = el('div', 'cw-queued');
+    q.appendChild(el('span', 'cw-queued-label', t('claude_queued', 'Queued for the end of this turn')));
+    q.appendChild(el('span', 'cw-queued-text', s.queued.text));
+    const undo = el('button', 'cw-link-btn'); undo.type = 'button';
+    undo.textContent = t('claude_queued_cancel', 'Cancel');
+    undo.addEventListener('click', () => cancelReply(s.id));
+    q.appendChild(undo);
+    return q;
   }
 
   // ── sections that fold ─────────────────────────────────────────────────────
@@ -1320,7 +1137,6 @@
   // sends an id, never a path), and the run uses Claude Code's normal permission
   // mode — so every command and every file write comes back here as a card the
   // user has to approve. Xenon starts the work; it does not grant it anything.
-  let askOpen = false;
   let askProjects = null;      // null = not loaded yet, [] = none found
   let askProjectId = '';
   let askText = '';
@@ -1329,9 +1145,15 @@
   let askResumeId = '';        // set when continuing an existing session
   let askResumeLabel = '';
   let askModel = '';           // '' = whatever the project's own config picks
+  let askRunMode = '';         // '' = the user's own default permission mode
+  let askEffort = '';          // '' = the model's default effort
+  // What this Claude Code accepts for a run, read from its --help on the server.
+  let askOptions = { effort: false, modes: [] };
   let askAttach = [];          // [{ name, path, size }] — server-written files
   let askAttachBusy = false;
-  let askThread = null;        // null = not loaded, [] = nothing to show
+  // The open session's conversation (js/claude-thread.js): re-reads after every
+  // state change until the turn has closed, so the end of a reply is never missed.
+  const thread = window.ClaudeThread.create({ fetchJson: (url) => api(url), onChange: () => paint() });
 
   // The models to offer are read from what this machine has ACTUALLY used —
   // the model ids in your own transcripts, biggest first. A hard-coded list was
@@ -1378,9 +1200,20 @@
 
   function runs() { return (payload && Array.isArray(payload.runs)) ? payload.runs : []; }
 
+  let askProjectsLoading = false;
   async function loadAskProjects(force) {
+    // Every tile's build() may ask; one request answers them all.
+    if (askProjectsLoading) return;
+    askProjectsLoading = true;
     const d = await api('/api/claude/projects' + (force ? '?refresh=1' : ''));
+    askProjectsLoading = false;
     askProjects = (d && Array.isArray(d.projects)) ? d.projects : [];
+    if (d && d.options) {
+      askOptions = {
+        effort: d.options.effort === true,
+        modes: Array.isArray(d.options.modes) ? d.options.modes.filter((m) => RUN_MODE_LABELS[m]) : [],
+      };
+    }
     resolveAskProject();
     paint();
   }
@@ -1402,66 +1235,90 @@
     if (!askProjectId) askProjectId = askProjects[0].id;
   }
 
-  function openAsk(resumeId, resumeLabel, projectId) {
-    askOpen = true;
-    askError = '';
-    askResumeId = resumeId || '';
-    askResumeLabel = resumeLabel || '';
-    askThread = null;
-    if (projectId) askProjectId = projectId;
-    if (askProjects !== null) resolveAskProject();
+  // ── which session the console shows ────────────────────────────────────────
+  // One session at a time, beside the rail, never a separate screen: the old
+  // modal panel is what made it easy to lose track of which chat was which.
+  // `picked` is a choice the user made and sticks until they make another;
+  // without one the console takes the session that needs you most, ONCE, and
+  // keeps it while it lives, so it never jumps under a finger because another
+  // session changed state.
+  let picked = '';
+  let pickedLabel = '';
+  let autoPicked = '';
+  let composing = false;       // the console holds a new session instead
+  let followRun = '';          // a new run whose session the console moves to once known
+  const drafts = new Map();    // session id ('' = new session) → unsent text
+
+  function sessionById(id) { return id ? (sessions().find((s) => s.id === id) || null) : null; }
+
+  function consoleTarget() {
+    if (composing) return '';
+    if (picked) return picked;
+    const list = sessions();
+    if (autoPicked && list.some((s) => s.id === autoPicked)) return autoPicked;
+    const first = window.ClaudeRail.sort(list.filter((s) => !s.resting))[0] || window.ClaudeRail.sort(list)[0];
+    autoPicked = first ? first.id : '';
+    return autoPicked;
+  }
+
+  // A new run gets its session id from Claude Code's first event; until then
+  // the console stays on the new-session view, which shows the run's card.
+  function followNewRun() {
+    if (!followRun) return;
+    const r = runs().find((x) => x.id === followRun);
+    if (!r || r.state !== 'running') { followRun = ''; if (r && r.sessionId) select(r.sessionId, r.project || ''); return; }
+    if (r.sessionId) { followRun = ''; picked = r.sessionId; pickedLabel = r.project || ''; composing = false; }
+  }
+
+  // Applies the target: swaps the draft, points the thread at it. Idempotent,
+  // so every tile's build() can call it.
+  function syncSelection() {
+    followNewRun();
+    const id = consoleTarget();
+    if (id !== askResumeId) {
+      drafts.set(askResumeId, askText);
+      askText = drafts.get(id) || '';
+      drafts.delete(id);
+      askAttach = []; askError = '';
+      askResumeId = id;
+      const s = sessionById(id);
+      askResumeLabel = s ? (s.project || '') : (id === picked ? pickedLabel : '');
+      if (askProjects !== null) resolveAskProject();
+      if (id && doneNotices.some((n) => n.id === id)) { doneNotices = doneNotices.filter((n) => n.id !== id); topbarSig = ''; }
+    }
+    if (thread.id !== id) thread.open(id);
+    if (drafts.size > 20) drafts.delete(drafts.keys().next().value);
+  }
+
+  function select(id, label) {
+    picked = id || '';
+    pickedLabel = label || '';
+    composing = false;
+    if (currentFace() !== 'live') setFace('live');
     paint();
+  }
+
+  // Kept under its old name: the Chats face, the topbar marker and a finished
+  // notice all open a session through it. No id = a new session.
+  function openAsk(resumeId, resumeLabel, projectId) {
+    if (projectId) askProjectId = projectId;
+    if (resumeId) { select(resumeId, resumeLabel); }
+    else {
+      composing = true;
+      if (currentFace() !== 'live') setFace('live');
+      paint();
+    }
     if (askProjects === null) loadAskProjects(false);
-    if (askResumeId) { threadAtBottom = true; loadThread(askResumeId); }
-    syncThreadPoll();
   }
   function closeAsk() {
-    askOpen = false; askError = ''; askResumeId = ''; askResumeLabel = '';
-    askThread = null; askAttach = [];
-    stopThreadPoll();
+    composing = false;
     paint();
   }
 
-  // What the session has been saying. Writing a follow-up into a conversation
-  // you cannot see is guesswork, and the transcript is right there on disk.
-  let threadTimer = null;
-  let threadAtBottom = true;      // was the reader parked at the newest turn?
-  const THREAD_POLL_MS = 2500;
-
-  async function loadThread(id) {
-    const d = await api('/api/claude/transcript?session=' + encodeURIComponent(id));
-    // Still the same session? A fast second tap must not paint the wrong thread.
-    if (askResumeId !== id) return;
-    const next = (d && d.ok && Array.isArray(d.messages)) ? d.messages : [];
-    // Repainting an unchanged thread would restart the typing dots and fight the
-    // scroll position for nothing.
-    const changed = !askThread || askThread.length !== next.length
-      || (next.length && askThread[askThread.length - 1].text !== next[next.length - 1].text);
-    askThread = next;
-    if (changed) paint();
-  }
-
-  // While a session is working, new replies land in its transcript on their own.
-  // Poll ONLY while the panel is open on a session that is actually running —
-  // an idle session writes nothing, so a timer there would be pure waste — and
-  // stop the moment either stops being true.
-  function syncThreadPoll() {
-    const sess = askSession();
-    const want = askOpen && !!askResumeId && !!sess && sess.state === 'running';
-    if (want && !threadTimer) {
-      threadTimer = setInterval(() => {
-        if (!askOpen || !askResumeId) { stopThreadPoll(); return; }
-        loadThread(askResumeId);
-      }, THREAD_POLL_MS);
-    } else if (!want && threadTimer) {
-      stopThreadPoll();
-      // One last read on the way down, so the reply that ended the run is not
-      // left sitting on disk unread until the next tap.
-      if (askOpen && askResumeId) loadThread(askResumeId);
-    }
-  }
-  function stopThreadPoll() {
-    if (threadTimer) { clearInterval(threadTimer); threadTimer = null; }
+  // The controller polls while the session runs and settles after every state
+  // change; it only needs the live record on each push.
+  function syncThread() {
+    if (thread.id) thread.sync(sessionById(thread.id));
   }
 
   // ── attachments ────────────────────────────────────────────────────────────
@@ -1512,7 +1369,12 @@
   function replyMode() {
     if (!askResumeId) return 'new';
     const s = sessions().find((x) => x.id === askResumeId);
-    if (!s || s.ended) return 'none';
+    // A chat the terminal has closed (or one opened from the Chats face) is
+    // still on disk, and `claude --resume` continues it in the background.
+    if (!s || s.ended) return 'resume';
+    // A session only the registry file shows is not wired to the hooks, so a
+    // follow-up could never be delivered into it.
+    if (s.inferred || s.unlinked) return 'none';
     if (s.queued) return 'queued';
     return (s.state === 'running' || s.state === 'waiting') ? 'followup' : 'resume';
   }
@@ -1539,6 +1401,8 @@
       body: JSON.stringify({
         projectId: askProjectId, prompt: promptWithAttachments(prompt),
         resume: askResumeId, model: askModel,
+        mode: askOptions.modes.includes(askRunMode) ? askRunMode : '',
+        effort: askOptions.effort ? askEffort : '',
       }),
     });
     askBusy = false;
@@ -1550,13 +1414,14 @@
         // reading — that was the whole point of opening it. Stay put, empty the
         // box, and let the thread poll pick the reply up: what you just sent
         // appears in it as soon as Claude Code writes the turn.
-        threadAtBottom = true;
-        loadThread(askResumeId);
-        syncThreadPoll();
+        thread.setAtBottom(true);
+        thread.load();
         paint();
       } else {
-        // A new run has no conversation to stay in yet; the tile shows its card.
-        closeAsk();
+        // A new run has no session id yet. The console keeps showing its card
+        // and moves to the session as soon as Claude Code names it.
+        followRun = d.id || '';
+        paint();
       }
     }
     else { askError = runErrorText(d && d.error); paint(); }
@@ -1687,58 +1552,82 @@
     const bubble = el('div', 'cw-msg-bubble');
     bubble.appendChild(el('div', 'cw-msg-who', t('claude_thread_claude', 'Claude')));
     const line = el('div', 'cw-typing');
-    const dots = el('span', 'cw-typing-dots');
-    for (let i = 0; i < 3; i++) dots.appendChild(el('span', 'cw-typing-dot'));
-    line.appendChild(dots);
-    line.appendChild(el('span', 'cw-typing-t', sess && sess.tool
-      ? sess.tool
-      : t('claude_typing', 'is working')));
+    const spin = el('span', 'cw-spin is-on'); spin.setAttribute('aria-hidden', 'true');
+    line.appendChild(spin);
+    line.appendChild(el('span', 'cw-typing-t', (sess && sess.tool
+      ? toolIntent(sess.tool)
+      : t('claude_typing', 'is working')) + '…'));
     bubble.appendChild(line);
     row.appendChild(bubble);
     return row;
   }
 
+  function messageRow(m) {
+    const mine = m.role === 'user';
+    const row = el('div', 'cw-msg is-' + (mine ? 'user' : 'claude') + (m.provisional ? ' is-provisional' : ''));
+    const bubble = el('div', 'cw-msg-bubble');
+    bubble.appendChild(el('div', 'cw-msg-who', mine
+      ? t('claude_thread_you', 'you')
+      : t('claude_thread_claude', 'Claude')));
+    const body = el('div', 'cw-msg-text');
+    // Your own words are shown as written; Claude's are markdown.
+    if (mine) body.textContent = m.text;
+    else markdownInto(body, m.text);
+    if (m.truncated) {
+      body.appendChild(el('div', 'cw-msg-cut', t('claude_thread_cut', 'cut short here')));
+      if (!thread.full) {
+        const more = el('button', 'cw-msg-more', t('claude_thread_show_all', 'Show all'));
+        more.type = 'button';
+        more.addEventListener('click', () => thread.showFull());
+        body.appendChild(more);
+      }
+    }
+    bubble.appendChild(body);
+    row.appendChild(bubble);
+    return row;
+  }
+
   function threadView() {
+    const wrap = el('div', 'cw-thread-wrap');
     const box = el('div', 'cw-thread');
+    wrap.appendChild(box);
     const sess = askSession();
     const working = !!(sess && sess.state === 'running');
-    if (askThread === null) {
+    const list = thread.view(sess);
+    if (list === null) {
       box.appendChild(el('div', 'cw-thread-note', t('claude_thread_loading', 'Reading the conversation…')));
-      return box;
+      return wrap;
     }
-    if (!askThread.length) {
-      if (working) box.appendChild(typingBubble(sess));
-      else box.appendChild(el('div', 'cw-thread-note', t('claude_thread_empty', 'Nothing to show from this session yet.')));
-      return box;
+    if (!list.length && !working) {
+      box.appendChild(el('div', 'cw-thread-note', t('claude_thread_empty', 'Nothing to show from this session yet.')));
+      return wrap;
     }
-    askThread.forEach(m => {
-      const mine = m.role === 'user';
-      const row = el('div', 'cw-msg is-' + (mine ? 'user' : 'claude'));
-      const bubble = el('div', 'cw-msg-bubble');
-      bubble.appendChild(el('div', 'cw-msg-who', mine
-        ? t('claude_thread_you', 'you')
-        : t('claude_thread_claude', 'Claude')));
-      const body = el('div', 'cw-msg-text');
-      // Your own words are shown as written; Claude's are markdown.
-      if (mine) body.textContent = m.text;
-      else markdownInto(body, m.text);
-      if (m.truncated) body.appendChild(el('div', 'cw-msg-cut', t('claude_thread_cut', 'cut short here')));
-      bubble.appendChild(body);
-      row.appendChild(bubble);
-      box.appendChild(row);
-    });
+    list.forEach((m) => box.appendChild(messageRow(m)));
     if (working) box.appendChild(typingBubble(sess));
 
     // Land on the newest turn — but only when the view was ALREADY at the
-    // bottom. The thread now refreshes itself while the session works, and
-    // yanking someone back down mid-sentence because a new reply arrived is
-    // worse than making them scroll.
-    const stick = threadAtBottom !== false;
+    // bottom. Yanking someone back down mid-sentence because a new reply
+    // arrived is worse than making them scroll; they get a chip instead.
+    const stick = thread.atBottom;
     requestAnimationFrame(() => { try { if (stick) box.scrollTop = box.scrollHeight; } catch {} });
     box.addEventListener('scroll', () => {
-      threadAtBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 40;
+      const bottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 40;
+      if (bottom === thread.atBottom) return;
+      const hadUnread = thread.unread;
+      thread.setAtBottom(bottom);
+      if (hadUnread && bottom) { const chip = wrap.querySelector('.cw-thread-new'); if (chip) chip.remove(); }
     }, { passive: true });
-    return box;
+    if (thread.unread) {
+      const chip = el('button', 'cw-thread-new', '↓ ' + t('claude_thread_new_reply', 'New reply'));
+      chip.type = 'button';
+      chip.addEventListener('click', () => {
+        box.scrollTop = box.scrollHeight;
+        thread.setAtBottom(true);
+        chip.remove();
+      });
+      wrap.appendChild(chip);
+    }
+    return wrap;
   }
 
   const CLIP_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" '
@@ -1751,8 +1640,151 @@
   // you attach, which model, and the button. Three separate stacked blocks read
   // as three unrelated things, and on a touchscreen the eye has to travel the
   // whole panel to find the one control it wants.
+  // The permission modes a run can start in, as Claude Code's footer names
+  // them. '' keeps whatever the user set as their default.
+  const RUN_MODE_LABELS = {
+    manual: ['claude_run_mode_manual', 'Ask for everything'],
+    acceptEdits: ['claude_mode_accept', 'accept edits on'],
+    plan: ['claude_mode_plan', 'plan mode on'],
+  };
+  const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+
+  // One of the composer's dropdowns. It uses the app's own select so a long
+  // list stays on the display; a change never repaints, which would throw away
+  // what is typed.
+  function composerSelect(cls, label, options, value, onChange) {
+    const sel = document.createElement('select');
+    sel.className = cls;
+    sel.setAttribute('data-cs-fixed', '');
+    sel.setAttribute('aria-label', label);
+    sel.title = label;
+    options.forEach((o) => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.label;
+      if (o.note) opt.dataset.csNote = o.note;
+      if (o.id === value) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => onChange(sel.value));
+    if (typeof window.initCustomSelect === 'function') {
+      requestAnimationFrame(() => { try { window.initCustomSelect(sel); } catch {} });
+    }
+    return sel;
+  }
+
+  function runModeSelect() {
+    const opts = [{ id: '', label: t('claude_run_mode_default', 'Default mode'), note: t('claude_run_mode_default_note', 'your Claude Code setting') }];
+    askOptions.modes.forEach((m) => opts.push({ id: m, label: t(RUN_MODE_LABELS[m][0], RUN_MODE_LABELS[m][1]) }));
+    return composerSelect('cw-ask-mode-sel', t('claude_run_mode', 'Permission mode'), opts, askRunMode, (v) => { askRunMode = v; });
+  }
+
+  function effortSelect() {
+    const opts = [{ id: '', label: t('claude_effort', 'effort') + ': ' + t('claude_model_auto', 'Auto') }];
+    EFFORTS.forEach((e) => opts.push({ id: e, label: t('claude_effort', 'effort') + ': ' + e }));
+    return composerSelect('cw-ask-effort-sel', t('claude_effort', 'effort'), opts, askEffort, (v) => { askEffort = v; });
+  }
+
+  // ── the "/" picker ─────────────────────────────────────────────────────────
+  // Typing "/" at the start of a new or resumed run lists the user's commands
+  // and skills (names only, from /api/claude/commands). Picking one writes
+  // "/name " into the box and Claude Code expands it when the run starts. Not
+  // offered for a message queued into a live session: that text is handed to
+  // the session as a reply, where a slash command would not run.
+  const MAX_PICKS = 6;
+  const commandLists = new Map();   // project id → [{ name, desc, kind }] | 'loading'
+  let pickAt = 0;
+
+  function commandsFor(projectId) {
+    const key = projectId || '';
+    const got = commandLists.get(key);
+    if (Array.isArray(got)) return got;
+    if (got !== 'loading') {
+      commandLists.set(key, 'loading');
+      api('/api/claude/commands?project=' + encodeURIComponent(key)).then((d) => {
+        commandLists.set(key, d && Array.isArray(d.commands) ? d.commands : []);
+        paint();
+      });
+    }
+    return null;
+  }
+
+  // The word being typed, when the box is exactly "/word" so far.
+  function slashQuery(text) {
+    const m = /^\/([^\s]*)$/.exec(text);
+    return m ? m[1].toLowerCase() : null;
+  }
+
+  function slashMatches(text) {
+    const q = slashQuery(text);
+    if (q === null) return null;
+    const list = commandsFor(askProjectId);
+    if (!list) return [];
+    // Names that start with the word first, then names that contain it.
+    const starts = list.filter((c) => c.name.toLowerCase().startsWith(q));
+    const contains = list.filter((c) => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q));
+    return starts.concat(contains).slice(0, MAX_PICKS);
+  }
+
+  function drawPicker(picker, ta) {
+    picker.textContent = '';
+    const list = slashMatches(ta.value);
+    picker.hidden = !list;
+    if (!list) return;
+    if (!list.length) {
+      picker.appendChild(el('div', 'cw-slash-empty', commandLists.get(askProjectId || '') === 'loading'
+        ? t('claude_slash_loading', 'Reading your commands…') : t('claude_slash_none', 'No command or skill with that name')));
+      return;
+    }
+    pickAt = Math.min(pickAt, list.length - 1);
+    list.forEach((c, i) => {
+      const row = el('button', 'cw-slash-item' + (i === pickAt ? ' is-on' : '')); row.type = 'button';
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', i === pickAt ? 'true' : 'false');
+      // The command's own name first, its plugin after it and quieter: a long
+      // "plugin:command" cut short would otherwise lose the part that matters.
+      // Picking still inserts the full name.
+      const cut = c.name.lastIndexOf(':');
+      row.appendChild(el('span', 'cw-slash-name', '/' + (cut > 0 ? c.name.slice(cut + 1) : c.name)));
+      if (cut > 0) row.appendChild(el('span', 'cw-slash-ns', c.name.slice(0, cut)));
+      if (c.desc) row.appendChild(el('span', 'cw-slash-desc', c.desc));
+      // mousedown, not click: the textarea must keep focus for the next keys.
+      row.addEventListener('mousedown', (e) => { e.preventDefault(); applyPick(c, picker, ta); });
+      picker.appendChild(row);
+    });
+  }
+
+  function applyPick(c, picker, ta) {
+    ta.value = '/' + c.name + ' ';
+    askText = ta.value;
+    pickAt = 0;
+    drawPicker(picker, ta);
+    ta.focus();
+    try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch {}
+  }
+
+  // Arrow keys move, Tab or Enter picks, Escape closes. True when handled.
+  function pickerKey(e, picker, ta) {
+    if (picker.hidden) return false;
+    const list = slashMatches(ta.value) || [];
+    if (!list.length) return false;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      pickAt = (pickAt + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+      drawPicker(picker, ta);
+      return true;
+    }
+    if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.isComposing)) {
+      applyPick(list[pickAt], picker, ta);
+      return true;
+    }
+    if (e.key === 'Escape') { picker.hidden = true; return true; }
+    return false;
+  }
+
   function composer() {
     const box = el('div', 'cw-composer');
+    const runLike = replyMode() === 'new' || replyMode() === 'resume';
+    if (askProjects === null) loadAskProjects(false);
 
     const ta = document.createElement('textarea');
     ta.className = 'cw-ask-text';
@@ -1766,11 +1798,18 @@
     ta.dataset.keep = 'ask';
     // Repainting on every keystroke would fight the caret, so the value is only
     // mirrored into state and read back when something else needs it.
-    ta.addEventListener('input', () => { askText = ta.value; });
+    const picker = el('div', 'cw-slash');
+    picker.setAttribute('role', 'listbox');
+    picker.hidden = true;
+    ta.addEventListener('input', () => {
+      askText = ta.value;
+      if (runLike) { pickAt = 0; drawPicker(picker, ta); }
+    });
     // Enter sends, Shift+Enter breaks the line — the arrangement every chat box
     // has, and the one that was missing here. `isComposing` is checked because
     // an IME's Enter commits the candidate word and must not also send.
     ta.addEventListener('keydown', (e) => {
+      if (runLike && pickerKey(e, picker, ta)) { e.preventDefault(); return; }
       if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
       e.preventDefault();
       askText = ta.value;
@@ -1786,6 +1825,8 @@
       addAttachments(Array.from(items));
     });
     box.appendChild(ta);
+    box.appendChild(picker);
+    if (runLike) drawPicker(picker, ta);
 
     const input = document.createElement('input');
     input.type = 'file';
@@ -1831,26 +1872,11 @@
     // picking a cheaper model for a small job is a per-run decision. It uses the
     // app's own dropdown, not a native one, so a long list stays inside the
     // display instead of falling off the bottom of the Xeneon Edge.
-    const sel = document.createElement('select');
-    sel.className = 'cw-ask-model-sel';
-    sel.setAttribute('data-cs-fixed', '');
-    sel.setAttribute('aria-label', t('claude_ask_model', 'Model'));
-    askModelOptions().forEach(o => {
-      const opt = document.createElement('option');
-      opt.value = o.id;
-      opt.textContent = o.label;
-      if (o.note) opt.dataset.csNote = o.note;
-      if (o.id === askModel) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    // No repaint: rebuilding the composer here would throw away what is typed.
-    sel.addEventListener('change', () => { askModel = sel.value; });
-    bar.appendChild(sel);
-    if (typeof window.initCustomSelect === 'function') {
-      requestAnimationFrame(() => { try { window.initCustomSelect(sel); } catch {} });
-    }
-
-    bar.appendChild(el('div', 'cw-composer-gap'));
+    bar.appendChild(composerSelect('cw-ask-model-sel', t('claude_ask_model', 'Model'), askModelOptions(), askModel, (v) => { askModel = v; }));
+    // Mode and effort apply when a run starts; a message queued into a live
+    // session goes into that session as it is, so they are not offered there.
+    if (runLike && askOptions.modes.length) bar.appendChild(runModeSelect());
+    if (runLike && askOptions.effort) bar.appendChild(effortSelect());
 
     const mode = replyMode();
     const send = el('button', 'cw-ask-send'); send.type = 'button';
@@ -1875,66 +1901,183 @@
     return box;
   }
 
-  function askPanel() {
-    const wrap = el('div', 'cw-panel is-ask');
-    const head = el('div', 'cw-panel-head');
-    const titles = el('div', 'cw-panel-titles');
-    titles.appendChild(el('div', 'cw-panel-title',
-      askResumeId ? t('claude_ask_continue_title', 'Continue this session') : t('claude_ask_title', 'Ask Claude')));
-    // One line of context instead of a paragraph and a full-width badge: when
-    // continuing, the folder IS the context, and the caveat about a shared
-    // transcript belongs near it rather than above everything.
-    // Naming the folder was not enough: two sessions in the same folder is the
-    // ordinary case, and both then read as "xenon". Carry the same #tag the list
-    // row shows, and say what this session was last asked to do — that is the
-    // thing that actually tells the two apart.
-    if (askResumeId) {
-      const s = askSession();
-      const tag = s ? sessionTag(s) : '';
-      const line = el('div', 'cw-panel-sub');
-      line.appendChild(el('span', 'cw-panel-sub-proj', askResumeLabel || t('claude_ask_session', 'session')));
-      if (tag) line.appendChild(el('span', 'cw-sess-tag', '#' + tag));
-      const last = (s && (s.tool || s.task)) || '';
-      if (last) line.appendChild(el('span', 'cw-panel-sub-task', last));
-      else line.appendChild(el('span', 'cw-panel-sub-task', t('claude_ask_continue_sub', 'shares its transcript with the terminal')));
-      titles.appendChild(line);
-    } else {
-      titles.appendChild(el('div', 'cw-panel-sub',
-        t('claude_ask_sub', 'Whatever it runs or writes comes back here to approve')));
+  // ── the console ────────────────────────────────────────────────────────────
+  // The selected session, the way a terminal shows it: who it is, what it is
+  // doing, what it wants from you, its plan and its last tool calls, the
+  // conversation, and the prompt. Decisions render here, in the console of the
+  // session that asks; a decision from ANOTHER session is a one-line bar on
+  // top that switches to it, so a blocked call is never hidden behind a choice.
+  function consoleHelpers() {
+    return { el, t, ageNode, dur, toolIntent, endedLabel, prettyModel, modelHue, fmtMoney, ctxGauge };
+  }
+
+  function titles() { return (payload && payload.titles) || {}; }
+
+  function decisionsFor(id) {
+    const pend = approvals().filter((a) => !a.urgent);
+    // A request with no session id cannot be placed; it shows wherever you are.
+    return {
+      mine: pend.filter((a) => !a.sessionId || a.sessionId === id),
+      others: pend.filter((a) => a.sessionId && a.sessionId !== id),
+    };
+  }
+
+  function decisionStack(list) {
+    if (!list.length) return null;
+    const box = el('div', 'cw-decs');
+    if (list.length > 1) box.classList.add('is-pair');
+    list.slice(0, 2).forEach((a) => box.appendChild(decisionCard(a, false)));
+    if (list.length > 2) box.appendChild(el('div', 'cw-decs-more', t('claude_more_waiting', '{n} more waiting').replace('{n}', String(list.length - 2))));
+    return box;
+  }
+
+  function othersBar(others) {
+    const a = others[0];
+    const s = sessionById(a.sessionId);
+    const who = window.ClaudeIdent.describe(s || { id: a.sessionId, project: a.project }, titles());
+    const bar = el('button', 'cw-elsewhere is-s' + who.slot); bar.type = 'button';
+    const mascot = el('span', 'cw-clawd is-needs');
+    mascot.appendChild(window.ClaudeClawd.make('cw-clawd-svg'));
+    bar.appendChild(mascot);
+    const txt = el('span', 'cw-elsewhere-t');
+    txt.appendChild(el('strong', '', who.title || '?'));
+    txt.appendChild(document.createTextNode(' ' + (a.kind === 'question'
+      ? t('claude_wait_q', 'Waiting for your answer') : t('claude_wait_perm', 'Waiting for your approval'))));
+    bar.appendChild(txt);
+    if (others.length > 1) bar.appendChild(el('span', 'cw-elsewhere-more', '+' + (others.length - 1)));
+    bar.appendChild(el('span', 'cw-elsewhere-go', t('claude_notice_go', 'open')));
+    bar.addEventListener('click', () => select(a.sessionId, a.project || ''));
+    return bar;
+  }
+
+  function runsFor(id) {
+    return runs().filter((r) => (id ? r.sessionId === id : (!r.sessionId || !sessionById(r.sessionId))));
+  }
+
+  // What you can do about a session you cannot write to from here, said once.
+  function composerOrNote(s) {
+    if (!(linkState && linkState.linked)) {
+      const n = el('div', 'cw-cs-note');
+      n.appendChild(el('span', '', t('claude_cs_link', 'Connect Claude Code to write to its sessions from here.')));
+      n.appendChild(linkButton());
+      return n;
     }
-    head.appendChild(titles);
-    const back = el('button', 'cw-panel-close'); back.type = 'button';
-    back.setAttribute('aria-label', t('back', 'Back'));
-    back.textContent = '✕';
-    back.addEventListener('click', closeAsk);
-    head.appendChild(back);
-    wrap.appendChild(head);
+    if (s && (s.inferred || s.unlinked)) {
+      return el('div', 'cw-cs-note', t('claude_cs_unlinked', 'This session started before Xenon was connected. Restart it in the terminal to reply from here.'));
+    }
+    return composer();
+  }
 
-    const notice = noticeBar();
-    if (notice) wrap.appendChild(notice);
+  function sessionConsole(pane, id) {
+    const s = sessionById(id);
+    const rec = s || { id, project: askResumeLabel };
+    const st = s ? window.ClaudeRail.stateOf(s) : 'idle';
+    const h = consoleHelpers();
+    const who = window.ClaudeIdent.describe(rec, titles(), askResumeLabel || t('claude_ask_session', 'session'));
+    pane.classList.add('is-s' + who.slot);
+    pane.appendChild(window.ClaudeConsole.head(h, rec, who, st));
+    if (s) pane.appendChild(window.ClaudeConsole.status(h, s, st));
+    else pane.appendChild(el('div', 'cw-cs-status is-idle', t('claude_cs_closed', 'Not open in a terminal. A message continues it in the background.')));
 
+    const decs = decisionStack(decisionsFor(id).mine);
+    if (decs) pane.appendChild(decs);
+
+    const body = el('div', 'cw-cs-body');
+    body.appendChild(threadView());
+    if (s) {
+      const aside = el('div', 'cw-cs-aside');
+      const todos = window.ClaudeConsole.todos(h, s); if (todos) aside.appendChild(todos);
+      const acts = window.ClaudeConsole.activity(h, s); if (acts) aside.appendChild(acts);
+      if (aside.childNodes.length) { body.appendChild(aside); body.classList.add('has-aside'); }
+    }
+    pane.appendChild(body);
+
+    runsFor(id).slice(-1).forEach((r) => pane.appendChild(runCard(r)));
+    if (s && s.queued) pane.appendChild(queuedRow(s));
+    pane.appendChild(composerOrNote(s));
+  }
+
+  function projectPicker() {
     if (askProjects === null) {
-      wrap.appendChild(el('div', 'cw-panel-note', t('claude_ask_loading', 'Reading your projects…')));
-    } else if (!askProjects.length) {
-      wrap.appendChild(el('div', 'cw-panel-note', t('claude_ask_noprojects', 'No projects found. Open Claude Code in a folder once, then come back.')));
-    } else if (!askResumeId) {
-      // Resuming already knows its project; picking another would send the
-      // follow-up somewhere the session does not live.
-      const list = el('div', 'cw-ask-projects');
-      askProjects.slice(0, 8).forEach(p => {
-        const b = el('button', 'cw-ask-proj' + (p.id === askProjectId ? ' is-sel' : '')); b.type = 'button';
-        b.appendChild(el('span', 'cw-ask-proj-name', p.name));
-        b.title = p.path;
-        b.addEventListener('click', () => { askProjectId = p.id; paint(); });
-        list.appendChild(b);
-      });
-      wrap.appendChild(list);
+      loadAskProjects(false);
+      return el('div', 'cw-panel-note', t('claude_ask_loading', 'Reading your projects…'));
     }
+    if (!askProjects.length) {
+      return el('div', 'cw-panel-note', t('claude_ask_noprojects', 'No projects found. Open Claude Code in a folder once, then come back.'));
+    }
+    const list = el('div', 'cw-ask-projects');
+    askProjects.slice(0, 8).forEach((p) => {
+      const b = el('button', 'cw-ask-proj' + (p.id === askProjectId ? ' is-sel' : '')); b.type = 'button';
+      b.appendChild(el('span', 'cw-ask-proj-name', p.name));
+      b.title = p.path;
+      b.addEventListener('click', () => { askProjectId = p.id; paint(); });
+      list.appendChild(b);
+    });
+    return list;
+  }
 
-    if (askResumeId) wrap.appendChild(threadView());
-    else wrap.appendChild(el('div', 'cw-thread-spacer'));
-    wrap.appendChild(composer());
-    return wrap;
+  // No session in the console: a new one, or nothing running at all. Clawd
+  // stands in the middle with the prompt under him rather than an empty panel.
+  function newConsole(pane) {
+    pane.classList.add('is-new');
+    const hero = el('div', 'cw-hero');
+    const mascot = el('span', 'cw-hero-clawd cw-clawd is-idle');
+    mascot.appendChild(window.ClaudeClawd.make('cw-clawd-svg'));
+    hero.appendChild(mascot);
+    const none = !sessions().length;
+    hero.appendChild(el('div', 'cw-hero-t', none && !composing
+      ? t('claude_no_sessions', 'No session running') : t('claude_new_title', 'New session')));
+    hero.appendChild(el('div', 'cw-hero-s', t('claude_ask_sub', 'Whatever it runs or writes comes back here to approve')));
+    if (composing && !none) {
+      const back = el('button', 'cw-link-btn'); back.type = 'button';
+      back.textContent = t('claude_cs_back', 'Back to the sessions');
+      back.addEventListener('click', closeAsk);
+      hero.appendChild(back);
+    }
+    pane.appendChild(hero);
+
+    const decs = decisionStack(decisionsFor('').mine);
+    if (decs) pane.appendChild(decs);
+    runsFor('').slice(-2).forEach((r) => pane.appendChild(runCard(r)));
+
+    if (!(linkState && linkState.linked)) { pane.appendChild(composerOrNote(null)); return; }
+    pane.appendChild(projectPicker());
+    pane.appendChild(el('div', 'cw-thread-spacer'));
+    pane.appendChild(composer());
+  }
+
+  function consolePane() {
+    const pane = el('section', 'cw-console');
+    const id = askResumeId;
+    const others = decisionsFor(id).others;
+    if (others.length) pane.appendChild(othersBar(others));
+    if (id) sessionConsole(pane, id);
+    else newConsole(pane);
+    return pane;
+  }
+
+  // Rail + console. A run the dashboard started whose session is not on the
+  // rail yet has nowhere else to be, so the new-session console carries it.
+  function missionControl() {
+    syncSelection();
+    const mc = el('div', 'cw-mc');
+    const list = sessions();
+    if (list.length) {
+      const side = el('div', 'cw-side');
+      side.appendChild(window.ClaudeRail.render({
+        el, t, list, titles: titles(), selected: askResumeId,
+        fresh: new Set(doneNotices.map((n) => n.id)),
+        onSelect: (id, label) => select(id, label),
+        ageNode, nowLine, stateLabel,
+        finishedTitle: (n) => collapsibleTitle('finished', t('claude_sess_finished', 'Finished'), String(n)),
+        showFinished: !isCollapsed('finished'),
+      }));
+      mc.appendChild(side);
+    } else {
+      mc.classList.add('is-solo');
+    }
+    mc.appendChild(consolePane());
+    return mc;
   }
 
   // A run in progress, or its result. Deliberately plain: the interesting part
@@ -1947,7 +2090,17 @@
     head.appendChild(el('span', 'cw-run-state', runStateText(r)));
     card.appendChild(head);
 
+    const chips = runChips(r);
+    if (chips) card.appendChild(chips);
     card.appendChild(el('div', 'cw-run-prompt', r.prompt));
+    // What the run is doing now and its last tool calls, as the console shows
+    // them for a session open in a terminal.
+    if (r.state === 'running') {
+      card.appendChild(window.ClaudeConsole.status(consoleHelpers(),
+        { id: r.id, tool: r.tool, toolDetail: r.toolDetail, runForMs: r.elapsedMs }, 'working'));
+    }
+    const acts = window.ClaudeConsole.activity(consoleHelpers(), r);
+    if (acts) card.appendChild(acts);
     if (r.output) card.appendChild(el('div', 'cw-run-out', r.output));
     if (r.state === 'failed' && r.error) card.appendChild(el('div', 'cw-run-err', r.error));
 
@@ -1958,6 +2111,16 @@
       card.appendChild(stop);
     }
     return card;
+  }
+  // The mode and effort the run was started with, when not the defaults.
+  function runChips(r) {
+    const box = el('div', 'cw-cs-chips cw-run-chips');
+    const mode = r.mode === 'manual'
+      ? el('span', 'cw-chip', t(RUN_MODE_LABELS.manual[0], RUN_MODE_LABELS.manual[1]))
+      : window.ClaudeConsole.modeChip(consoleHelpers(), r.mode);
+    if (mode) box.appendChild(mode);
+    if (r.effort) box.appendChild(el('span', 'cw-chip', t('claude_effort', 'effort') + ' ' + r.effort));
+    return box.childNodes.length ? box : null;
   }
   function runStateText(r) {
     if (r.state === 'running') return t('claude_run_working', 'working') + ' · ' + ago(r.elapsedMs);
@@ -2056,17 +2219,46 @@
     paint();
   }
 
+  // The quota, small enough to live in the header: two bars, the number, and
+  // the full instruments one tap away on the Usage face.
+  function quotaMini() {
+    const lim = limits();
+    if (!lim || !(lim.fiveHour || lim.sevenDay)) return null;
+    const box = el('button', 'cw-qmini'); box.type = 'button';
+    box.title = t('claude_quota', 'Quota');
+    const now = Date.now();
+    [['fiveHour', t('claude_5h', '5h')], ['sevenDay', t('claude_7d', '7d')]].forEach(([k, label]) => {
+      const win = lim[k];
+      if (!win) return;
+      const renewed = win.resetsAt && win.resetsAt * 1000 <= now;
+      const used = renewed ? 0 : clamp(Number(win.pct) || 0, 0, 100);
+      const q = el('span', 'cw-qm is-' + level(used));
+      q.appendChild(el('span', 'cw-qm-k', label));
+      const bar = el('span', 'cw-qm-bar');
+      const fill = el('span', 'cw-qm-fill'); fill.style.width = Math.round(used) + '%';
+      bar.appendChild(fill);
+      q.appendChild(bar);
+      q.appendChild(el('span', 'cw-qm-v', Math.round(used) + '%'));
+      box.appendChild(q);
+    });
+    box.addEventListener('click', () => setFace('usage'));
+    return box;
+  }
+
   function header() {
     const h = el('div', 'cw-top');
     const title = el('div', 'cw-name');
     // The connection as a mark, not a sentence: complete, partly there, or off.
     const state = !linkState ? 'unknown' : !linkState.linked ? 'off' : linkState.complete === false ? 'partial' : 'on';
+    const brand = el('span', 'cw-brand');
+    brand.appendChild(window.ClaudeClawd.make('cw-brand-mark'));
+    title.appendChild(brand);
+    title.appendChild(el('span', 'cw-name-t', 'Claude Code'));
     const mark = el('span', 'cw-link-mark is-' + state);
-    mark.title = state === 'on' ? t('claude_connected', 'Connected')
+    title.title = state === 'on' ? t('claude_connected', 'Connected')
       : state === 'partial' ? t('claude_link_incomplete', 'Part of the Claude Code connection is missing.')
         : t('claude_cta', 'Show real quota and approve from here');
     title.appendChild(mark);
-    title.appendChild(el('span', 'cw-name-t', 'Claude Code'));
     title.setAttribute('role', 'button');
     title.tabIndex = 0;
     const openLink = () => { linkPanel = true; paint(); };
@@ -2074,9 +2266,12 @@
     title.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openLink(); } });
     h.appendChild(title);
 
+    const q = quotaMini();
+    if (q) h.appendChild(q);
+
     const faces = el('div', 'cw-faces');
     faces.setAttribute('role', 'tablist');
-    [['live', t('claude_face_live', 'Live')], ['usage', t('claude_face_usage', 'Usage')], ['history', t('claude_face_history', 'Chats')]].forEach(([id, label]) => {
+    [['live', t('claude_sessions', 'Sessions')], ['usage', t('claude_face_usage', 'Usage')], ['history', t('claude_face_history', 'Chats')]].forEach(([id, label]) => {
       const b = el('button', 'cw-face' + (currentFace() === id ? ' is-on' : ''), label);
       b.type = 'button';
       b.setAttribute('role', 'tab');
@@ -2087,8 +2282,10 @@
     h.appendChild(faces);
 
     if (linkState && linkState.linked) {
-      const ask = el('button', 'cw-ask-open'); ask.type = 'button';
-      ask.textContent = t('claude_ask_open', 'Ask');
+      const ask = el('button', 'cw-ask-open' + (composing ? ' is-on' : '')); ask.type = 'button';
+      ask.appendChild(el('span', 'cw-ask-open-plus', '+'));
+      ask.appendChild(el('span', 'cw-ask-open-t', t('claude_new_session', 'New session')));
+      ask.setAttribute('aria-label', t('claude_new_session', 'New session'));
       ask.addEventListener('click', () => openAsk('', '', ''));
       h.appendChild(ask);
     } else {
@@ -2132,51 +2329,35 @@
     const wrap = el('div', 'cw-wrap');
     if (editing) { wrap.appendChild(budgetEditor()); return wrap; }
     if (linkPanel) { wrap.appendChild(linkPanelView()); return wrap; }
-    if (askOpen) { wrap.appendChild(askPanel()); return wrap; }
 
     wrap.appendChild(header());
     const notice = linkNotice(); if (notice) wrap.appendChild(notice);
 
-    // Decisions render first and on both faces: a blocked tool call must never
-    // wait behind a tab, a loading placeholder or a scroll position. The one
-    // escalated to full screen is drawn there instead of twice.
-    const pend = approvals().filter((a) => !a.urgent);
-    if (pend.length) {
-      const box = el('div', 'cw-decs');
-      // Two at most, side by side on a wide tile (see .cw-decs.is-pair).
-      if (pend.length > 1) box.classList.add('is-pair');
-      pend.slice(0, 2).forEach((a) => box.appendChild(decisionCard(a, false)));
-      if (pend.length > 2) box.appendChild(el('div', 'cw-decs-more', t('claude_more_waiting', '{n} more waiting').replace('{n}', String(pend.length - 2))));
-      wrap.appendChild(box);
-    }
-
-    const rl = runs();
-    if (rl.length) {
-      const box = el('div', 'cw-run-list');
-      rl.slice(-2).forEach((r) => box.appendChild(runCard(r)));
-      wrap.appendChild(box);
-    }
-
-    if (currentFace() === 'history') {
+    const f = currentFace();
+    // The console is the only reader of the thread; off it, stop reading.
+    if (f !== 'live' && thread.id) thread.close();
+    if (f === 'history') {
+      // A blocked call must never wait behind a tab.
+      const decs = decisionStack(approvals().filter((a) => !a.urgent));
+      if (decs) wrap.appendChild(decs);
       wrap.appendChild(window.ClaudeHistory.render({ t, ago, paint, openAsk: (id, label) => openAsk(id, label, '') }));
       return wrap;
     }
-
     const u = payload && payload.usage;
-    if (currentFace() === 'usage') {
+    if (f === 'usage') {
+      const decs = decisionStack(approvals().filter((a) => !a.urgent));
+      if (decs) wrap.appendChild(decs);
       if (!u) { wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…'))); return wrap; }
-      wrap.appendChild(usageFace(u));
+      const face = usageFace(u);
+      face.insertBefore(quotaPanel(), face.firstChild);
+      wrap.appendChild(face);
       return wrap;
     }
-
-    if (!u && !sessions().length) {
+    if (!payload) {
       wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…')));
       return wrap;
     }
-    const grid = el('div', 'cw-livegrid');
-    grid.appendChild(lanesPanel());
-    grid.appendChild(quotaPanel());
-    wrap.appendChild(grid);
+    wrap.appendChild(missionControl());
     return wrap;
   }
 
@@ -2215,6 +2396,7 @@
       for (const id of qsel.keys()) if (!alive.has(id)) qsel.delete(id);
       for (const id of typedAns.keys()) if (!alive.has(id)) typedAns.delete(id);
     }
+    let painted = 0;
     tiles().forEach(tile => {
       const mount = tile.querySelector('.claude-widget-mount');
       if (!mount) return;
@@ -2227,6 +2409,11 @@
       // moment it can next be looked at. The overlay, topbar marker and ticker
       // are handled outside this loop and stay live regardless of page.
       if (isParked(tile)) return;
+      painted++;
+      // An open dropdown (model, mode, effort) lives in the subtree a rebuild
+      // replaces, so a push would snap it shut under the finger. Hold this
+      // tile until it closes, then catch up.
+      if (mount.querySelector('.cs-wrap.cs-open')) { paintLater(); return; }
       // A repaint rebuilds the tile, and an SSE push can land at any moment —
       // so without this the session list would jump back to the top while the
       // user is scrolling through it.
@@ -2245,14 +2432,23 @@
       mount.replaceChildren(build());
       restoreScroll(mount, kept);
       focus();
-      if (keepThread && threadAtBottom === false) {
+      if (keepThread && !thread.atBottom) {
         const nextThread = mount.querySelector('.cw-thread');
         if (nextThread) nextThread.scrollTop = keepThread;
       }
     });
+    // No console on screen: nobody is reading the thread, so stop polling it.
+    // The next paint that shows the console opens it again.
+    if (!painted && thread.id) thread.close();
     syncOverlay();
     const needsTick = !!(limits() || approvals().length || sessions().length);
     if (needsTick) startTicker(); else stopTicker();
+  }
+
+  let laterTimer = null;
+  function paintLater() {
+    if (laterTimer) return;
+    laterTimer = setTimeout(() => { laterTimer = null; paint(); }, HELD_PAINT_MS);
   }
 
   // A text box inside a rebuilt subtree is a NEW element, so typing into one
@@ -2273,13 +2469,20 @@
     };
   }
 
-  const SCROLLERS = ['.cw-sess-scroll', '.cw-livegrid', '.cw-usage', '.cw-hist-list', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
+  // The rail scrolls sideways on a narrow tile, so both axes are kept.
+  const HELD_PAINT_MS = 400;
+  const SCROLLERS = ['.cw-rail-list', '.cw-cs-aside', '.cw-console', '.cw-usage', '.cw-hist-list', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
   function keepScroll(root) {
-    return SCROLLERS.map((sel) => Array.from(root.querySelectorAll(sel), (n) => n.scrollTop));
+    return SCROLLERS.map((sel) => Array.from(root.querySelectorAll(sel), (n) => [n.scrollTop, n.scrollLeft]));
   }
   function restoreScroll(root, kept) {
     SCROLLERS.forEach((sel, i) => {
-      root.querySelectorAll(sel).forEach((n, j) => { if (kept[i][j]) n.scrollTop = kept[i][j]; });
+      root.querySelectorAll(sel).forEach((n, j) => {
+        const k = kept[i][j];
+        if (!k) return;
+        if (k[0]) n.scrollTop = k[0];
+        if (k[1]) n.scrollLeft = k[1];
+      });
     });
   }
 
@@ -2357,27 +2560,6 @@
     paint();
   }
 
-  function noticeBar() {
-    const list = otherNotices();
-    if (!list.length) return null;
-    const n = list[list.length - 1];
-    const bar = el('button', 'cw-notice'); bar.type = 'button';
-    bar.appendChild(el('span', 'cw-notice-dot'));
-    const txt = el('span', 'cw-notice-t');
-    txt.appendChild(el('strong', '', n.project || t('claude_thread_claude', 'Claude')));
-    txt.appendChild(document.createTextNode(' ' + t('claude_notice_done', 'finished answering')));
-    bar.appendChild(txt);
-    if (list.length > 1) bar.appendChild(el('span', 'cw-notice-more', '+' + (list.length - 1)));
-    bar.appendChild(el('span', 'cw-notice-go', t('claude_notice_go', 'open')));
-    // Switching panels: the thread and any half-written follow-up belong to the
-    // session being left, so both are replaced rather than carried over.
-    bar.addEventListener('click', () => {
-      clearNotice(n.id);
-      askText = '';
-      openAsk(n.id, n.project || '', '');
-    });
-    return bar;
-  }
 
   // ── the topbar marker ──────────────────────────────────────────────────────
   // Lives in the clock island, so it is present in both the full and the minimal
@@ -2387,69 +2569,9 @@
   // yet. Tapping it opens that session.
   let topbarSig = '';
 
-  // ── Clawd ───────────────────────────────────────────────────────────────────
-  // Claude Code's own pixel mascot, in the top bar, animated by what the session
-  // is doing. It replaced a text pill and then a generic four-point sparkle:
-  // neither said whose session this was, and the pill spent six characters
-  // saying what a shape says instantly.
-  //
-  // The geometry is not a drawing from memory. It was read back out of the
-  // sprite: the PNG was decoded, the body colour measured (#D77757, which is the
-  // orange this codebase already carries as #D97757 — one step off in red, and
-  // the established value is what ships; see the note in ClaudeWidget.css), the
-  // cell edges found from the pixel runs, and the whole thing resampled onto its
-  // real 16x12 grid:
-  //
-  //     ..############..      rows 0-1   head
-  //     ..############..
-  //     ..##.######.##..      rows 2-4   eyes, as HOLES at cols 4 and 11
-  //     ..##.######.##..
-  //     ..##.######.##..
-  //     ################      rows 5-6   arms, two cells proud on each side
-  //     ################
-  //     ..############..      rows 7-9   body
-  //     ..############..
-  //     ..############..
-  //     ...#.#....#.#...      rows 10-11 four legs, at cols 3, 5, 10, 12
-  //     ...#.#....#.#...
-  //
-  // Drawn as merged runs rather than 150 one-unit rects, split into the groups
-  // the animation needs to move independently: the shell, each pair of legs, and
-  // two eye covers that are painted in the body colour to blink.
-  const CLAWD = Object.freeze({
-    shell: [[2, 0, 12, 2], [2, 2, 2, 3], [5, 2, 6, 3], [12, 2, 2, 3], [0, 5, 16, 2], [2, 7, 12, 3]],
-    legL: [[3, 10, 1, 2], [5, 10, 1, 2]],
-    legR: [[10, 10, 1, 2], [12, 10, 1, 2]],
-    eyes: [[4, 2, 1, 3], [11, 2, 1, 3]],
-  });
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-  function rects(parent, list, cls) {
-    const g = document.createElementNS(SVG_NS, 'g');
-    if (cls) g.setAttribute('class', cls);
-    for (const [x, y, w, h] of list) {
-      const r = document.createElementNS(SVG_NS, 'rect');
-      r.setAttribute('x', x); r.setAttribute('y', y);
-      r.setAttribute('width', w); r.setAttribute('height', h);
-      g.appendChild(r);
-    }
-    parent.appendChild(g);
-    return g;
-  }
-  function clawd() {
-    const svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 16 12');
-    svg.setAttribute('class', 'cw-tb-mark');
-    svg.setAttribute('aria-hidden', 'true');
-    // Square pixels, whatever the device ratio: the whole point of the thing.
-    svg.setAttribute('shape-rendering', 'crispEdges');
-    rects(svg, CLAWD.shell, 'cw-cl-shell');
-    rects(svg, CLAWD.legL, 'cw-cl-leg cw-cl-legl');
-    rects(svg, CLAWD.legR, 'cw-cl-leg cw-cl-legr');
-    // Same colour as the shell, revealed only for a blink. An eye is a hole in
-    // this sprite, so closing one means filling it back in.
-    rects(svg, CLAWD.eyes, 'cw-cl-eyes');
-    return svg;
-  }
+  // Clawd, Claude Code's own mascot (js/claude-clawd.js). It replaced a text
+  // pill and then a generic sparkle: neither said whose session this was.
+  function clawd() { return window.ClaudeClawd.make('cw-tb-mark'); }
 
   function syncTopbar() {
     const host = document.getElementById('clock-claude');
@@ -2585,9 +2707,9 @@
     // marker and the "another session answered" notice have to keep working
     // when the tile is on another page, or not on the dashboard at all.
     trackPresence();
-    // A session that just started or just stopped working flips whether the
-    // thread needs watching, so the poll is re-evaluated on every payload.
-    syncThreadPoll();
+    // A session that just started or stopped working flips whether the thread
+    // needs watching, and any state change re-reads it until the turn closes.
+    syncThread();
     if (pressing) { renderDeferred = true; return; }
     // The overlay is global, so live state has to be applied even when the tile
     // isn't mounted on the current page.

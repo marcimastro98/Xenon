@@ -94,3 +94,24 @@ test('malformed lines are skipped, not fatal', async () => {
   assert.equal(out.ok, true);
   assert.deepEqual(out.messages.map(m => m.text), ['survived']);
 });
+
+test('closed: true once the turn-closing lines follow the last message', async () => {
+  const sys = (subtype) => ({ type: 'system', subtype, timestamp: '2026-07-19T10:00:09Z' });
+  const open = makeProjects('t1', [userLine('go', '2026-07-19T10:00:00Z'), claudeLine('done', '2026-07-19T10:00:05Z')]);
+  assert.equal((await ct.readTail(open, 't1')).closed, false);
+  const shut = makeProjects('t2', [userLine('go', '2026-07-19T10:00:00Z'), claudeLine('done', '2026-07-19T10:00:05Z'), sys('stop_hook_summary'), sys('turn_duration')]);
+  assert.equal((await ct.readTail(shut, 't2')).closed, true);
+  const reopened = makeProjects('t3', [sys('turn_duration'), userLine('again', '2026-07-19T10:01:00Z')]);
+  assert.equal((await ct.readTail(reopened, 't3')).closed, false);
+});
+
+test('the newest reply is never cut at the per-message cap; full uncuts the rest', async () => {
+  const long = 'x'.repeat(ct._internal.MAX_TEXT + 500);
+  const root = makeProjects('t4', [claudeLine(long, '2026-07-19T10:00:00Z'), userLine('more', '2026-07-19T10:00:01Z'), claudeLine(long, '2026-07-19T10:00:05Z')]);
+  const out = await ct.readTail(root, 't4');
+  assert.equal(out.messages[0].truncated, true);
+  assert.equal(out.messages.at(-1).truncated, false);
+  assert.equal(out.messages.at(-1).text.length, long.length);
+  const all = await ct.readTail(root, 't4', { full: true });
+  assert.equal(all.messages[0].truncated, false);
+});

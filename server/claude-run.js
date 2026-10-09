@@ -13,12 +13,14 @@
 //    transcripts, which is to say from places the user already works in. The
 //    same shape as the Slideshow folder source: enumerate server-side, address
 //    by index.
-//  - NEVER a permission bypass. Runs start in Claude Code's normal permission
-//    mode, so every tool call goes through the PermissionRequest hook and comes
-//    back to the touchscreen as an approval card. `bypassPermissions` and
-//    `--dangerously-skip-permissions` are deliberately not options here, not
-//    even behind a setting: a button that silently grants an agent write access
-//    to the disk is not a feature this dashboard should own.
+//  - NEVER a permission bypass. A run starts in the user's own default mode,
+//    or in one of RUN_MODES picked on the tile: `manual` (ask for everything),
+//    `acceptEdits` or `plan`. Whatever still needs a person goes through the
+//    PermissionRequest hook and comes back to the touchscreen as an approval
+//    card. `bypassPermissions`, `dontAsk` and `--dangerously-skip-permissions`
+//    are deliberately not options here, not even behind a setting: a button
+//    that silently grants an agent write access to the disk is not a feature
+//    this dashboard should own.
 //
 // Runs are in-memory and per-boot, like the bridge. Nothing here writes to disk.
 
@@ -36,6 +38,14 @@ const RUN_TTL_MS = 30 * 60 * 1000;
 const PROJECT_TTL_MS = 60 * 1000; // project list cache
 const HEAD_BYTES = 65536;         // how much of a transcript we read to find cwd
 const START_TIMEOUT_MS = 20 * 60 * 1000;
+const MAX_ACTIVITY = 6;           // tool calls kept per run
+const MAX_DETAIL = 120;
+const HELP_TIMEOUT_MS = 8000;
+
+// The permission modes a run may start in, and the effort levels Claude Code
+// accepts. Each is offered only when the installed CLI's --help lists it.
+const RUN_MODES = ['manual', 'acceptEdits', 'plan'];
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 // Control characters are stripped rather than escaped. Nothing here is a shell
 // argument (there is no shell), but a stray escape sequence out of a transcript
@@ -98,6 +108,40 @@ async function resolveExecutable() {
     if (await isFile(cli)) return (execCache = { cmd: process.execPath, pre: [cli] });
   }
   return null;
+}
+
+// What the installed CLI accepts, read once from its own --help (argv, no
+// shell). An older Claude Code without --effort or one of the modes simply
+// does not get that option offered.
+let optionsCache = null;
+
+function helpText(exe) {
+  return new Promise((resolve) => {
+    execFile(exe.cmd, exe.pre.concat(['--help']), { timeout: HELP_TIMEOUT_MS, windowsHide: true, maxBuffer: 1 << 20 },
+      (err, stdout) => resolve(String(stdout || '')));
+  });
+}
+
+function parseOptions(help) {
+  const text = String(help || '');
+  const modes = text.includes('--permission-mode') ? RUN_MODES.filter((m) => text.includes('"' + m + '"')) : [];
+  return { effort: text.includes('--effort'), modes };
+}
+
+async function cliOptions() {
+  if (optionsCache) return optionsCache;
+  const exe = await resolveExecutable();
+  if (!exe) return { effort: false, modes: [] };
+  optionsCache = parseOptions(await helpText(exe));
+  return optionsCache;
+}
+
+// One line saying what a tool call touches: the command, the file, the
+// pattern, the address. Never the content of a file or an edit.
+function toolDetail(input) {
+  const i = input && typeof input === 'object' ? input : {};
+  const v = i.command || i.file_path || i.notebook_path || i.path || i.pattern || i.url || i.query || i.description || '';
+  return str(String(v).split('\n')[0], MAX_DETAIL);
 }
 
 // ── the project allowlist ────────────────────────────────────────────────────
@@ -223,6 +267,13 @@ function createRunner(opts) {
     if (ev.type === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
       for (const block of ev.message.content) {
         if (block && block.type === 'text' && typeof block.text === 'string') appendOut(rec, block.text);
+        if (block && block.type === 'tool_use') toolStarted(rec, block);
+      }
+      return;
+    }
+    if (ev.type === 'user' && ev.message && Array.isArray(ev.message.content)) {
+      for (const block of ev.message.content) {
+        if (block && block.type === 'tool_result') toolEnded(rec, block);
       }
       return;
     }
@@ -232,6 +283,23 @@ function createRunner(opts) {
       if (typeof ev.total_cost_usd === 'number') rec.costUsd = ev.total_cost_usd;
       if (ev.is_error === true) rec.error = rec.error || 'run_error';
     }
+  }
+
+  // The tool log the console shows for a run, the same shape as a live
+  // session's `activity`: { tool, detail, ok, ms }. Keyed by the tool_use id so
+  // a block seen twice is one call.
+  function toolStarted(rec, block) {
+    const id = str(block.id, 80);
+    if (id && rec.activity.some((a) => a.id === id)) return;
+    rec.activity.push({ id, tool: str(block.name, 80) || 'tool', detail: toolDetail(block.input), ok: null, ms: 0, at: now() });
+    if (rec.activity.length > MAX_ACTIVITY) rec.activity.shift();
+  }
+
+  function toolEnded(rec, block) {
+    const a = rec.activity.find((x) => x.id && x.id === block.tool_use_id);
+    if (!a || a.ok !== null) return;
+    a.ok = block.is_error !== true;
+    a.ms = Math.max(0, now() - a.at);
   }
 
   function settle(rec, state, error) {
@@ -265,11 +333,22 @@ function createRunner(opts) {
 
     const model = str(i.model, 40);
     if (model && !/^[a-z0-9][a-z0-9._-]{0,39}$/i.test(model)) return { ok: false, error: 'bad_model' };
+    // Both are checked against fixed lists before they get near argv, and
+    // dropped (not refused) when this Claude Code does not know them.
+    const mode = str(i.mode, 20);
+    if (mode && !RUN_MODES.includes(mode)) return { ok: false, error: 'bad_mode' };
+    const effort = str(i.effort, 10);
+    if (effort && !EFFORTS.includes(effort)) return { ok: false, error: 'bad_effort' };
+    const cli = (mode || effort) ? await cliOptions() : { effort: false, modes: [] };
+    const useMode = mode && cli.modes.includes(mode) ? mode : '';
+    const useEffort = effort && cli.effort ? effort : '';
 
     const args = exe.pre.slice();
     if (resume) args.push('--resume', resume);
     args.push('-p', prompt, '--output-format', 'stream-json', '--verbose', '--include-partial-messages');
     if (model) args.push('--model', model);
+    if (useMode) args.push('--permission-mode', useMode);
+    if (useEffort) args.push('--effort', useEffort);
 
     let child;
     try {
@@ -289,6 +368,9 @@ function createRunner(opts) {
       project: proj.name,
       prompt,
       model,
+      mode: useMode,
+      effort: useEffort,
+      activity: [],
       sessionId: resume || '',
       resumed: !!resume,
       state: 'running',
@@ -366,6 +448,11 @@ function createRunner(opts) {
     }
   }
 
+  function openCall(rec) {
+    for (let k = rec.activity.length - 1; k >= 0; k--) if (rec.activity[k].ok === null) return rec.activity[k];
+    return {};
+  }
+
   function snapshot() {
     sweep();
     const t = now();
@@ -377,6 +464,13 @@ function createRunner(opts) {
         projectId: r.projectId,
         prompt: r.prompt,
         model: r.model,
+        mode: r.mode,
+        effort: r.effort,
+        // The call still running, if any, and the last few with their outcome.
+        tool: r.state === 'running' ? (openCall(r).tool || '') : '',
+        toolDetail: r.state === 'running' ? (openCall(r).detail || '') : '',
+        activity: r.activity.filter((a) => a.ok !== null).slice(-4)
+          .map((a) => ({ tool: a.tool, detail: a.detail, ok: a.ok, ms: a.ms })),
         sessionId: r.sessionId,
         resumed: r.resumed,
         state: r.state,
@@ -394,10 +488,14 @@ module.exports = {
   createRunner,
   MAX_PROMPT,
   MAX_RUNS,
+  RUN_MODES,
+  EFFORTS,
+  cliOptions,
   // Shared with ai-cli.js (the Claude Code chat provider), so there is one
   // answer to "where is claude" and one PATH probe.
   resolveExecutable,
   whichRaw,
   // exposed for unit tests
-  _internal: { str, projectId, readCwdFromTranscript, resolveExecutable },
+  _internal: { str, projectId, readCwdFromTranscript, resolveExecutable, toolDetail, parseOptions,
+    setOptions: (o) => { optionsCache = o; } },
 };

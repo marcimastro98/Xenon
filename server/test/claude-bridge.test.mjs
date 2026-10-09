@@ -926,3 +926,25 @@ test('a hook request is never mistaken for a hand back', () => {
   bridge.cancel(bridge.requestPermission(call).id);
   assert.equal(bridge.takeHandBack(call), false);
 });
+
+test('Stop clears a leftover wait when no card for the session is open', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  bridge.applyHook({ hook_event_name: 'StopFailure', session_id: 's1', error: 'overloaded' });
+  assert.equal(bridge.snapshot().sessions[0].waitFor.kind, 'error');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1', last_assistant_message: 'Done.' });
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.state, 'idle');
+  assert.equal(s.waitFor, null, 'a finished turn waits for nothing');
+});
+
+test('Stop keeps the wait while a card for that session is still pending', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  const call = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'rm -rf build' } };
+  const rec = bridge.requestPermission(call);
+  assert.equal(bridge.snapshot().sessions[0].waitFor.kind, 'permission');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  assert.notEqual(bridge.snapshot().sessions[0].waitFor, null);
+  bridge.cancel(rec.id);
+});
