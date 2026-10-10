@@ -316,8 +316,10 @@ function checkCalendarDayRollover() {
 // this very function out of the source.
 // Until when an event still counts as current.
 //
-// A timed event is its own start: once 15:00 has passed, the 15:00 meeting is no
-// longer upcoming. A WHOLE-DAY event is not a thing that happens at 00:00 — it
+// A timed event with an end stays current until that end: a 17:00-23:00 event is
+// still on the list at 19:00 (reported on Discord, Oct 2026 — it vanished an hour
+// or two in). One with no usable end is its own start, as before. A WHOLE-DAY
+// event is not a thing that happens at 00:00 — it
 // covers the days it names, so it stays current until the end of the last one.
 // Reading its 00:00 start as the moment it expires is what made today's all-day
 // events disappear from the list one minute after midnight: at 9am, a day that
@@ -327,7 +329,14 @@ function checkCalendarDayRollover() {
 // Local midnight on purpose: an all-day event is wall-clock, not an instant.
 function eventActiveUntil(e) {
   const start = Date.parse(e && e.startsAt);
-  if (!e || !e.allDay) return start;
+  if (!e) return start;
+  if (!e.allDay) {
+    // Local events store a naive local time, feed events a UTC instant; Date.parse
+    // reads both correctly. An end before the start is bad data, not a reason to
+    // keep the event around.
+    const end = Date.parse(e.endsAt);
+    return Number.isFinite(end) && end > start ? end : start;
+  }
   // endsAt names the LAST day the event covers (ics-feeds.js already turns RFC
   // 5545's exclusive DTEND into an inclusive one); a single-day event has none
   // to speak of, so its start day is its end day.

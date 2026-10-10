@@ -49,13 +49,21 @@ test('a multi-day event lasts to the end of its LAST day', () => {
   assert.ok(activeUntil(e) < at('2026-09-17T00:00:00'));
 });
 
-test('a timed event is unchanged: it expires at its start', () => {
-  // The whole point is that nothing else moves. A 15:00 meeting stops being
-  // upcoming at 15:00, exactly as before.
-  const e = { startsAt: '2026-09-14T15:00:00', endsAt: '2026-09-14T16:00:00' };
-  assert.equal(activeUntil(e), at('2026-09-14T15:00:00'));
-  // An event carrying no flag is a timed event, whatever its hour.
+test('a timed event stays current until its end', () => {
+  // Reported: a 17:00-23:00 event disappeared an hour or two in.
+  const e = { startsAt: '2026-09-14T17:00', endsAt: '2026-09-14T23:00' };
+  assert.equal(activeUntil(e), at('2026-09-14T23:00'));
+  // Feed events carry UTC instants.
+  const feed = { startsAt: '2026-09-14T15:00:00.000Z', endsAt: '2026-09-14T21:00:00.000Z' };
+  assert.equal(activeUntil(feed), at('2026-09-14T21:00:00Z'));
+});
+
+test('a timed event with no usable end expires at its start', () => {
   assert.equal(activeUntil({ startsAt: '2026-09-14T00:00' }), at('2026-09-14T00:00'));
+  assert.equal(activeUntil({ startsAt: '2026-09-14T15:00', endsAt: '2026-09-14T15:00' }), at('2026-09-14T15:00'));
+  // An end before the start is bad data.
+  assert.equal(activeUntil({ startsAt: '2026-09-14T15:00', endsAt: '2026-09-14T14:00' }), at('2026-09-14T15:00'));
+  assert.equal(activeUntil({ startsAt: '2026-09-14T15:00', endsAt: 'garbage' }), at('2026-09-14T15:00'));
 });
 
 test('the parser marks whole-day events and the mapper passes the flag on', () => {
