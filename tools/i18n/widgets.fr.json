@@ -46,7 +46,7 @@
     "wg.media.intro": "5 widgets.",
     "wg.w.media": "<strong>Lecture.</strong> Ce qui est en cours de lecture dans n'importe quelle application multimédia sur le PC, avec la pochette, les boutons lecture/pause, précédent et suivant.",
     "wg.w.chat": "<strong>Chat.</strong> Le chat Xenon IA, où vous posez des questions, joignez des images, des PDFs et des fichiers texte, et lui demandez d'apporter des modifications sur le dashboard.",
-    "wg.w.chatgpt": "<strong>Posez une question à ChatGPT.</strong> Une conversation répondue par votre propre abonnement ChatGPT via OpenAI Codex sur le PC, sans clé API. Les conversations sont conservées sur le PC et non dans votre historique ChatGPT.",
+    "wg.w.chatgpt": "<strong>Posez une question à ChatGPT.</strong> Une conversation à laquelle répond votre propre abonnement ChatGPT via OpenAI Codex sur le PC, sans clé API. Les conversations sont conservées sur le PC et non dans votre historique ChatGPT.",
     "wg.w.browser": "<strong>Navigateur.</strong> Une page web dans une tuile, avec des onglets, une barre d'adresse et des boutons retour/avancer, exécutée par un navigateur Chromium sur le PC afin qu'il ouvre également les sites qui refusent d'être intégrés.",
     "wg.w.slideshow": "<strong>Diaporama.</strong> Fait défiler les images et GIFs animés que vous ajoutez, ou un dossier sur le PC. Une touche le met en pause ou permet de l'avancer manuellement.",
     "wg.shot.media": "L’onglet Lecture de la tuile Médias : un morceau Spotify avec sa pochette, les boutons précédent, pause et suivant, ainsi qu’un curseur de volume, l’onglet Chat se trouvant à côté",
