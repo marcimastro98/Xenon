@@ -4,6 +4,8 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🐛 Fixed
+- **Widgets added while the interface is scaled now fit their tile in the macOS app.** The 4.11.12 fix covered widgets already on the dashboard when the scale changed, but a Store widget such as Nocturne Now Playing added while the scale was already above 100% still came out enlarged and cropped until the scale was changed and set back. The macOS app now applies the scale again whenever a widget loads. Reported on Discord by Piotr.
 
 ## [v4.11.12] - 09-10-2026
 ### ✨ Added
