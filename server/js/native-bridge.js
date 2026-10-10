@@ -437,6 +437,31 @@
     else window.addEventListener('load', fire, { once: true });
   }
 
+  // A frame that loads while the page is already scaled comes out unscaled:
+  // WKWebView sizes a new frame without the page zoom and only corrects it on
+  // the next zoom change (Discord, Oct 2026: a widget added at 150% was
+  // enlarged and cropped until the scale went to 100% and back). So a frame
+  // load at any scale but 100% re-sends it with `nudge=1`, which the shell
+  // applies as a change. Debounced: a page of widgets mounting is one nudge.
+  let pageZoomNudgeTimer = null;
+  function nudgePageZoomSoon() {
+    if (currentNativeZoom === 1 || pageZoomNudgeTimer) return;
+    pageZoomNudgeTimer = setTimeout(() => {
+      pageZoomNudgeTimer = null;
+      if (currentNativeZoom === 1 || document.readyState !== 'complete') return;
+      try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom + '&nudge=1'; } catch (e) { /* not native */ }
+    }, 200);
+  }
+
+  function watchFrameLoadsForPageZoom() {
+    const caps = window.__XENON_NATIVE_CAPS__;
+    if (!caps || caps.nativePageZoom !== true) return;
+    // `load` does not bubble; the capture phase sees every iframe's.
+    document.addEventListener('load', (e) => {
+      if (e.target instanceof HTMLIFrameElement) nudgePageZoomSoon();
+    }, true);
+  }
+
   function applyNativeZoomCss(scale) {
     const z = clampZoom(scale);
     currentNativeZoom = z;
@@ -479,6 +504,7 @@
 
   function initNativeZoom() {
     if (!isNative) return;
+    watchFrameLoadsForPageZoom();
     // Ctrl + wheel to zoom (WebView2's own zoom is left disabled, so this is the
     // only handler — no double zoom). preventDefault stops the page scrolling
     // while zooming; the pager ignores Ctrl+wheel so nothing else claims it.

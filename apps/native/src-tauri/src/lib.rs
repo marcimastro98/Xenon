@@ -1949,8 +1949,17 @@ pub fn run() {
                             .and_then(|(_, v)| v.parse::<f64>().ok())
                             .filter(|z| z.is_finite())
                             .map(|z| z.clamp(0.6, 2.5));
+                        // `nudge=1`: a widget frame loaded at this scale and came
+                        // out unscaled. Setting the same zoom again is a no-op in
+                        // WebKit, so step a hair off it first: that re-zooms every
+                        // frame, the new one included.
+                        let nudge = url.query_pairs().any(|(k, v)| k == "nudge" && v == "1");
                         if let (Some(z), Some(win)) = (z, nav_handle.get_webview_window("main")) {
                             std::thread::spawn(move || {
+                                if nudge {
+                                    let off = if z >= 2.5 { -0.001 } else { 0.001 };
+                                    let _ = win.set_zoom(z + off);
+                                }
                                 let _ = win.set_zoom(z);
                             });
                         }
