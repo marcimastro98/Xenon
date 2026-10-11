@@ -220,6 +220,46 @@ test('an attachment is named, not silently dropped', () => {
   assert.match(p, /an image was attached, which this assistant cannot see/);
 });
 
+test('the image of the message being answered is forwarded, earlier ones stay a name', () => {
+  const png = { inlineData: { mimeType: 'image/png', data: 'AAAA' } };
+  const old = { inlineData: { mimeType: 'image/png', data: 'BBBB' } };
+  const h = [
+    { role: 'user', parts: [{ text: 'prima' }, old] },
+    { role: 'model', parts: [{ text: 'ok' }] },
+    { role: 'user', parts: [{ text: 'spiega la carta' }, png] },
+  ];
+  const imgs = I.latestImages(h);
+  assert.deepEqual(imgs.map((i) => i.data), ['AAAA']);
+  const p = I.buildPrompt(h, new Set(imgs.map((i) => i.part)));
+  assert.match(p, /spiega la carta\n\[an image is attached to this message\]/);
+  assert.match(p, /an image was attached, which this assistant cannot see/, 'the older one is still only named');
+  const line = JSON.parse(I.claudeImageInput('ciao', imgs));
+  assert.equal(line.type, 'user');
+  assert.deepEqual(line.message.content[0], { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } });
+  assert.deepEqual(line.message.content[1], { type: 'text', text: 'ciao' });
+});
+
+test('only real, small images are forwarded', () => {
+  const mk = (mimeType, data) => [{ role: 'user', parts: [{ inlineData: { mimeType, data } }] }];
+  assert.equal(I.latestImages(mk('image/svg+xml', 'AAAA')).length, 0);
+  assert.equal(I.latestImages(mk('application/pdf', 'AAAA')).length, 0);
+  assert.equal(I.latestImages(mk('image/png', 'not base64!')).length, 0);
+  assert.equal(I.latestImages(mk('image/png', 'A'.repeat(10 * 1024 * 1024 + 4))).length, 0);
+  assert.equal(I.latestImages([{ role: 'model', parts: [{ inlineData: { mimeType: 'image/png', data: 'AAAA' } }] }]).length, 0);
+});
+
+test('images change how each program is started, and the result is still found', () => {
+  const c = I.claudeArgs('', 'default', new Set(), '', true);
+  assert.deepEqual(c.slice(0, 6), ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose']);
+  assert.ok(c.includes('--tools'), 'tools stay off');
+  const x = I.codexArgs('', 'default', '/tmp/x', new Set(), '', ['/tmp/a.png', '/tmp/b.jpg']);
+  assert.deepEqual(x.slice(0, 6), ['exec', '--image', '/tmp/a.png', '--image', '/tmp/b.jpg', '--json']);
+  assert.equal(x[x.length - 1], '-', 'the prompt is still on stdin');
+  const out = [{ type: 'system', subtype: 'init' }, { type: 'result', subtype: 'success', is_error: false, result: 'Una carta', modelUsage: {} }, { type: 'system', subtype: 'ui_invalidate' }]
+    .map((l) => JSON.stringify(l)).join('\n');
+  assert.equal(I.parseClaude({ stdout: out }).text, 'Una carta', 'trailing events do not hide the result');
+});
+
 // ── the server and the page ───────────────────────────────────────────────
 
 test('the chat route gives these providers Xenon\'s tools, run by the same executeAiTool', () => {

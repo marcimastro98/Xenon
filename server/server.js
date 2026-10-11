@@ -6018,6 +6018,7 @@ function runUserScript(p, hidden) {
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   lockWorkstation: () => lockWorkstation().then(() => ({ ok: true }), (err) => ({ ok: false, error: String(err) })),
+  pageTurn: (target) => routePageHotkey({ target }),
   // Apply a named SignalRGB scene (scene switcher, not a colour provider — see
   // signalrgb.js). Gated on the user enabling SignalRGB in Settings → Lighting,
   // so a stale Deck key can't drive it after the integration is turned off.
@@ -17715,8 +17716,8 @@ const handleRequest = async (req, res) => {
               title: { type: 'STRING', description: 'Short key label in the user\'s language (max ~12 chars)' },
               icon: { type: 'STRING', description: 'A single emoji for the key, e.g. 🎙️' },
               color: { type: 'STRING', description: 'Accent hex color for the key, e.g. #ff3b30' },
-              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, play_sound, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, app_volume_up, app_volume_down, app_mute, ai_voice, ai_chat, ai_prompt, lighting_color, open_app, open_file, open_store_app, open_url, hotkey, webhook, obs_record, obs_stream, obs_scene, obs_scene_next, twitch_clip, twitch_marker, twitch_ad, twitch_title, twitch_game, twitch_chat, twitch_shoutout, twitch_chatmode, yt_broadcast, sb_action, remote_disconnect, remote_block, remote_screen_cycle' },
-              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt; hex color for lighting_color; URL for open_url/webhook; app path for open_app/open_file; key combo for hotkey (e.g. "ctrl+shift+m"); scene name for obs_scene; app name for app_volume_up/down and app_mute; new title/game/message/login for twitch_title/twitch_game/twitch_chat/twitch_shoutout. Omit otherwise.' },
+              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, play_sound, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, app_volume_up, app_volume_down, app_mute, ai_voice, ai_chat, ai_prompt, lighting_color, open_app, open_file, open_store_app, open_url, hotkey, webhook, dashboard_page, obs_record, obs_stream, obs_scene, obs_scene_next, twitch_clip, twitch_marker, twitch_ad, twitch_title, twitch_game, twitch_chat, twitch_shoutout, twitch_chatmode, yt_broadcast, sb_action, remote_disconnect, remote_block, remote_screen_cycle' },
+              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt; hex color for lighting_color; URL for open_url/webhook; app path for open_app/open_file; key combo for hotkey (e.g. "ctrl+shift+m"); a page name or next/prev/back for dashboard_page; scene name for obs_scene; app name for app_volume_up/down and app_mute; new title/game/message/login for twitch_title/twitch_game/twitch_chat/twitch_shoutout. Omit otherwise.' },
               ledColor: { type: 'STRING', description: 'Optional hex color: flashes the RGB lighting when the key fires. Use on the most important keys.' },
             }, required: ['title', 'icon', 'action'] } },
           }, required: ['profile', 'keys'] } },

@@ -4,7 +4,12 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **A Deck key can now change the dashboard page.** The new action "Go to page" (in the System group) turns the dashboard to one of your pages, picked from a list of your own pages, or to the next page, the previous one, or back to the page you were on. Put it on a key, in a Multi-Action after other steps, or on a double tap or hold. It turns the screen the key was pressed on; from the Virtual Deck window it turns the dashboards on this PC. The Xenon AI can also add it when it builds a Deck for you. Asked on Discord by SeibiRiho.
+- **Widget Deck macros can change page too.** A widget package that declares the `pages` permission can use the same action in its Deck macros, which turns every dashboard watching, like a page shortcut. The SDK guide is updated.
+
 ### 🐛 Fixed
+- **The Xenon chat now really sends your pictures to Claude Code and Codex.** With either of those as the AI, an image you attached or pasted never reached the model: it answered that it could not see anything. The picture of the message you send is now passed to the program (up to 4 PNG, JPEG, GIF or WebP images, 10 MB each), so "explain this card" or "what is in this screenshot" works. Pictures from earlier messages are still only mentioned, not re-sent. Tested with Claude Code; the Codex path could not be run here.
 - **Events with a start and an end time now stay in Upcoming until they end.** A 5 p.m. to 11 p.m. event used to drop off the Upcoming list (and the lock screen) soon after 5 p.m., because only its start time was checked. It now stays until its end time, like an all-day event stays all day. Events with no end time behave as before. Reported on Discord by Piotr.
 - **Widgets added while the interface is scaled now fit their tile in the macOS app.** The 4.11.12 fix covered widgets already on the dashboard when the scale changed, but a Store widget such as Nocturne Now Playing added while the scale was already above 100% still came out enlarged and cropped until the scale was changed and set back. The macOS app now applies the scale again whenever a widget loads. Reported on Discord by Piotr.
 

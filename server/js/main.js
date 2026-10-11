@@ -654,11 +654,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const pager = window.DashboardPager;
         if (!pager) return;
-        const target = String(JSON.parse(e.data).target || '');
-        if (target === 'next') pager.goByDelta(1);
-        else if (target === 'prev') pager.goByDelta(-1);
-        else if (target === 'back') pager.goBack();
-        else if (target) pager.goToPage(target);
+        pager.navigate(JSON.parse(e.data).target);
       } catch {}
     });
     es.addEventListener('spotlight_hotkey', () => {

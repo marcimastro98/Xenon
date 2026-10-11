@@ -1769,6 +1769,7 @@
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
       typeText: _ai('<path d="M4 7V5h16v2M12 5v14M9 19h6"/>'),
       lockWorkstation: _ai('<path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 0 1 6.2 0z"/>'),
+      dashboardPage: _ai('<rect x="3" y="5" width="12" height="14" rx="2"/><path d="M18 8l3 4-3 4"/>'),
       signalRgbEffect: _ai('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
@@ -2411,6 +2412,36 @@
       return wrap;
     }
 
+    // A param control for the dashboardPage kind: the three moves the page
+    // shortcuts offer (next / previous / back) plus every page of THIS layout,
+    // stored by page id. Pages are per device, so a typed field stands in when
+    // the list is not reachable, and an id this layout lacks stays selectable
+    // rather than being rewritten to something else.
+    function dashboardPageControl(step, name) {
+      const pages = (window.DashboardPages && typeof window.DashboardPages.list === 'function')
+        ? window.DashboardPages.list() : [];
+      const cur = step.params[name] || '';
+      if (!pages.length) {
+        const txt = input('text', cur);
+        txt.placeholder = t('deck_param_page');
+        const writeTxt = () => { step.params[name] = txt.value; };
+        txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+        return txt;
+      }
+      const items = ['next', 'prev', 'back'].map((m) => ({ value: m, label: t('settings_pagehk_move_' + m) }))
+        .concat(pages.map((pg) => ({ value: pg.id, label: pg.label })));
+      if (cur && !items.some((it) => it.value === cur)) items.push({ value: cur, label: cur });
+      const wrap = document.createElement('div');
+      const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+      sel.value = cur || items[0].value;
+      step.params[name] = sel.value;
+      sel.addEventListener('change', () => { step.params[name] = sel.value; });
+      wrap.appendChild(sel);
+      enhanceSelects(wrap);
+      return wrap;
+    }
+
     // A param control for the lightDevice kind: a dropdown of the user's lighting
     // devices ({value:id, label}), stored by device id. A typed field is the
     // fallback while no lighting is configured, so an assigned id survives offline
@@ -2773,6 +2804,12 @@
         if (p.kind === 'claudeProject') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(claudeProjectPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'dashboardPage') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(dashboardPageControl(step, p.name));
           host.appendChild(f);
           return;
         }

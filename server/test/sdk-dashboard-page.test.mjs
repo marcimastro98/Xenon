@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const sdk = require(join(ROOT, 'server', 'sdk-widgets.js'));
+const { navigateTo } = require(join(ROOT, 'server', 'js', 'dashboard-pager.js'));
 const CW = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
 const PAGER = readFileSync(join(ROOT, 'server', 'js', 'dashboard-pager.js'), 'utf8');
 const DOC = readFileSync(join(ROOT, 'docs', 'WIDGET_SDK.md'), 'utf8');
@@ -29,11 +30,14 @@ test('it is its own grant, not folded into an existing one', () => {
   }
 });
 
-test('a Deck macro cannot declare it', () => {
-  // The Deck action validator does not know browser-dispatched types, so a
-  // manifest macro naming one must fail at install rather than ship a dead key.
+test('a Deck macro can declare it, and the server turns every screen', () => {
+  // The Deck gained the same action, so the validator knows the type and a
+  // manifest macro naming it installs. A macro runs server-side, which has no
+  // single "this screen": the registry relays it to every dashboard, the same
+  // broadcast the global page shortcuts use.
   const reg = readFileSync(join(ROOT, 'server', 'actions', 'registry.js'), 'utf8');
-  assert.ok(!reg.includes('dashboardPage'), 'the registry knows a type that is dispatched in the browser');
+  assert.match(reg, /case 'dashboardPage'/);
+  assert.match(reg, /pageTurn/);
 });
 
 // Run the real dispatch branch against a stub pager.
@@ -51,13 +55,15 @@ function dispatch(action, pager) {
 function stubPager(pages, at) {
   let here = at;
   let last = null;
-  return {
+  const pager = {
     goToPage: (id) => { if (pages.includes(id)) { last = here; here = id; } },
     goByDelta: (d) => { const i = pages.indexOf(here); here = pages[Math.max(0, Math.min(pages.length - 1, i + d))]; },
     goBack: () => { if (!last) return false; const t = last; last = here; here = t; return true; },
     getCurrentPage: () => here,
     where: () => here,
   };
+  pager.navigate = (t) => navigateTo(pager, t);
+  return pager;
 }
 
 test('a page this screen has is turned to', () => {

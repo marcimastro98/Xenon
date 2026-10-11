@@ -181,10 +181,11 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // button per page, or one that brings the media page up when something starts
   // playing.
   //
-  // Browser-dispatched like `browser` and `watch` (no registry case — the page
-  // belongs to the dashboard, not to the machine), and NOT usable from a
-  // manifest Deck macro, so declaring one fails at install rather than shipping
-  // a dead key.
+  // From a widget's own code it is browser-dispatched (like `browser` and
+  // `watch`) so only THIS screen turns. It is also a Deck action now, so a
+  // manifest Deck macro may name it: a macro runs server-side, where the
+  // registry relays the page to every dashboard, the same broadcast the global
+  // page shortcuts use. Each dashboard still resolves it against its own pages.
   //
   // Its own grant rather than a corner of an existing one, for the reason
   // `audioDevice` was split out of `volume`: what it does is not a stronger

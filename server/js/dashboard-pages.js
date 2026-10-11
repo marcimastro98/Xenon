@@ -360,6 +360,7 @@ if (typeof window !== 'undefined') {
     init: initDashboardPages,
     rebuild: rebuildDashboardPages,
     pageDisplayName,
+    list: () => dashboardPagesList().map(page => ({ id: page.id, label: pageDisplayName(page) })),
     add: addDashboardPage,
     rename: renameDashboardPage,
     storedName: storedPageName,

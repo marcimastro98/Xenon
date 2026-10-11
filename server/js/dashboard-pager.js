@@ -476,14 +476,34 @@
     scheduleParkSettle();   // re-park even when the scrollTo lands on the same offset
   }
 
+  // The one reading of a page target, shared by every caller that names a page
+  // as a string: the global page shortcuts, an SDK widget's `dashboardPage`
+  // action and a Deck key. `next` / `prev` / `back` are moves, anything else is
+  // one of THIS layout's page ids. Answers {ok, error} instead of acting
+  // silently, because "nothing happened" is a real answer to a widget or a key:
+  // goToPage ignores an id it does not have, so the only honest test is whether
+  // the current page is now the one asked for. Asking for the page you are
+  // already on is a success, not a miss. `pager` is passed in so this stays
+  // testable under Node.
+  function navigateTo(pager, target) {
+    const id = String(target == null ? '' : target).trim().slice(0, 64);
+    if (!id) return { ok: false, error: 'bad_page' };
+    if (id === 'next') { pager.goByDelta(1); return { ok: true }; }
+    if (id === 'prev') { pager.goByDelta(-1); return { ok: true }; }
+    if (id === 'back') return pager.goBack() === true ? { ok: true } : { ok: false, error: 'not_found' };
+    const before = pager.getCurrentPage();
+    pager.goToPage(id);
+    return (id === before || pager.getCurrentPage() === id) ? { ok: true } : { ok: false, error: 'not_found' };
+  }
+
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, setLabel, goToPage, goByDelta, goBack, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe };
+    window.DashboardPager = { init, registerPage, setLabel, goToPage, goByDelta, goBack, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices };
+    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices, navigateTo };
   }
 })();

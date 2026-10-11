@@ -33,6 +33,11 @@ const ACTION_CATALOG = [
   { type: 'phoneCall', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneCall', params: [{ name: 'number', kind: 'text', maxLen: 40 }] },
   { type: 'phoneMessage', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneMessage', params: [{ name: 'number', kind: 'text', maxLen: 40 }, { name: 'text', kind: 'text', maxLen: 1000 }] },
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
+  // Turn the dashboard to one of its own pages: a page id, or next / prev / back.
+  // Runs in the browser that pressed the key (deck.js) so only THAT screen turns;
+  // a surface with no pager (the Virtual Deck window) falls through to the server
+  // registry, which relays it to every dashboard like a global page shortcut.
+  { type: 'dashboardPage', group: 'system', labelKey: 'deck_act_dashboardPage', params: [{ name: 'page', kind: 'dashboardPage', maxLen: 64 }] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  requires: 'media', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   // SDK-only absolute timeline seek. A separate hidden type keeps the Deck

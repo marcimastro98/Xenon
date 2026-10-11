@@ -1180,24 +1180,14 @@
     // something else.
     if (msg.action.type === 'dashboardPage') {
       const pager = window.DashboardPager;
-      if (!pager || typeof pager.goToPage !== 'function') {
+      if (!pager || typeof pager.navigate !== 'function') {
         post(entry, { type: 'action_result', id: reqId, ok: false, error: 'unavailable' });
         return;
       }
-      const target = String(msg.action.page == null ? '' : msg.action.page).trim().slice(0, 64);
-      let ok = false;
-      if (target === 'next') { pager.goByDelta(1); ok = true; }
-      else if (target === 'prev') { pager.goByDelta(-1); ok = true; }
-      else if (target === 'back') { ok = pager.goBack() === true; }
-      else if (target) {
-        const before = pager.getCurrentPage();
-        pager.goToPage(target);
-        // goToPage refuses an id it does not have (and a hidden page) silently,
-        // so "did anything happen" is the only honest test — and asking for the
-        // page you are already on is a success, not a miss.
-        ok = target === before || pager.getCurrentPage() === target;
-      }
-      post(entry, { type: 'action_result', id: reqId, ok, error: ok ? undefined : (target ? 'not_found' : 'bad_page') });
+      // One reading of the target for every caller (pager.navigate), so a
+      // widget, a Deck key and a global shortcut cannot drift apart.
+      const res = pager.navigate(msg.action.page);
+      post(entry, { type: 'action_result', id: reqId, ok: res.ok, error: res.ok ? undefined : res.error });
       return;
     }
     if (msg.action.type === 'twitchWatchPlay' || msg.action.type === 'ytWatchPlay') {

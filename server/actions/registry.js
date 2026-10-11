@@ -287,6 +287,7 @@ function isRunnableScriptPath(p, platform) {
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,
 //         mediaAction(cmd)->Promise, micMute(mode)->Promise<{muted}>, volume(mode)->Promise,
 //         obs(requestType, requestData)->Promise, obsNext()->Promise,
+//         pageTurn(target) (relay a page turn to every dashboard),
 //         lighting(action)->Promise<boolean>,
 //         claudeRun({projectId,prompt,model})->Promise<{ok,error}>, claudeStop()->bool,
 //         remote: RemoteControl orchestrator instance (optional, injected after init),
@@ -457,6 +458,16 @@ function createRegistry(deps) {
           if (typeof d.lockWorkstation !== 'function') return { ok: false, error: 'unavailable' };
           const r = await d.lockWorkstation();
           return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
+        }
+        case 'dashboardPage': {
+          // A page id or next/prev/back; each dashboard resolves it against its
+          // own layout, so the server only relays the name (never validates it
+          // against pages it cannot see).
+          const target = String(action.page || '').trim();
+          if (!target) return { ok: false, error: 'bad_page' };
+          if (typeof d.pageTurn !== 'function') return { ok: false, error: 'unavailable' };
+          d.pageTurn(target);
+          return { ok: true };
         }
         case 'media': await d.mediaAction(action.cmd); return { ok: true };
         case 'mediaSeek': {

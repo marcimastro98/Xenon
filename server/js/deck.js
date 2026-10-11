@@ -853,6 +853,14 @@
     if (!action) return true;
     if (action.type === 'playSound') return playDeckSound(action);   // browser-played soundboard
     if (action.type === 'soundStopAll') return stopAllDeckSounds();  // stop every playing clip
+    // Turn THIS screen's dashboard. Without a pager (the Virtual Deck window) it
+    // is not handled here and goes to the server, which relays it to the
+    // dashboards. A page this layout lacks is a real failure, so the key flashes.
+    if (action.type === 'dashboardPage' && window.DashboardPager) {
+      const res = window.DashboardPager.navigate(action.page);
+      if (!res.ok) reportActionError('bad_page');
+      return res.ok;
+    }
     if (runClientAction(action)) return true;
     try {
       const res = await fetch('/actions/run', {
@@ -882,6 +890,7 @@
     launch_failed: ['deck_err_launch_failed', 'the app would not start'],
     blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
     unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
+    bad_page: ['deck_err_bad_page', 'this screen has no such page, pick another for this key'],
     unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
     none_connected: ['deck_err_none_connected', 'none of these outputs is connected right now'],
     // Voicemeeter. Every one of these is something the person holding the

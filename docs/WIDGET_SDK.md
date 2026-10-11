@@ -1869,9 +1869,13 @@ action: { type: 'dashboardPage', page: 'next' }   // 'next' | 'prev' | 'back'
   tap, or to something the user would expect to change the view.
 - **You cannot read the page list**, and there is no event when the page turns.
   Use `visibility` (§4c) to know whether your own tile is the one being looked at.
-- **Not available in manifest Deck macros**, for the same reason as `browserOpen`
-  and `watch`: the Deck action validator does not know the type, so a macro
-  declaring one fails at install instead of shipping a dead key.
+- **Also a Deck action, and allowed in manifest Deck macros** (declare `pages` in
+  the top-level `actions`, like any category a macro step uses). One difference
+  from the bridge action: a macro runs on the server, which has no single "this
+  screen", so it relays the page to **every dashboard watching**, exactly like a
+  global page shortcut. Each dashboard still resolves the id against its own
+  pages and ignores one it does not have. Pressed on a dashboard, a Deck key
+  turns only that screen.
 
 Listed to the user as "Turn the dashboard to another page".
 
