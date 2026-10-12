@@ -645,7 +645,10 @@
         return;
       }
       if (q.multiSelect) box.appendChild(el('div', 'cw-dec-qnote', t('claude_q_multi', 'Pick one or more')));
-      const list = el('div', 'cw-opts');
+      // Options with a description stack like the terminal's list; side by side
+      // they were cut to a few words each and the card scrolled.
+      const stacked = (q.options || []).some((o) => o.description);
+      const list = el('div', 'cw-opts' + (stacked ? ' is-col' : ''));
       const row = cur[qi] || [];
       (q.options || []).forEach((o, oi) => {
         list.appendChild(optRow(oi + 1, o.label, o.description, row.indexOf(o.label) !== -1, busy,
@@ -655,7 +658,7 @@
       // the same question without it, so an answer that was none of the
       // options could only be given at the keyboard.
       const other = row.indexOf(OTHER) !== -1;
-      list.appendChild(optRow((q.options || []).length + 1, t('claude_q_other', 'Other'), '', other, busy,
+      list.appendChild(optRow((q.options || []).length + 1, t('claude_q_other', 'Other'), stacked ? ph : '', other, busy,
         () => { if (isArmed(a)) pickOption(a, qi, OTHER, !!q.multiSelect); }));
       box.appendChild(list);
       if (other) box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, { placeholder: ph, onInput }));

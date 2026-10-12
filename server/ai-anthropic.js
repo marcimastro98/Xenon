@@ -212,7 +212,7 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
 }
 
 // One-shot completion (no tools) → plain text. Used by summarize / JSON helpers.
-async function oneShot({ apiKey, model, systemText, userText, maxTokens }) {
+async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('Claude (Anthropic): no API key configured.'); e.code = 'no_key'; throw e; }
   const body = {
@@ -222,6 +222,9 @@ async function oneShot({ apiKey, model, systemText, userText, maxTokens }) {
   };
   if (systemText) body.system = systemText;
   const resp = await _post(key, body, 60000);
+  const u = resp && resp.usage;
+  const used = u ? Number(u.input_tokens) + Number(u.output_tokens) : NaN;
+  if (typeof onUsage === 'function' && Number.isSafeInteger(used)) onUsage(used);
   return _textFrom(resp && resp.content).trim();
 }
 

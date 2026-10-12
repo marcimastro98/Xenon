@@ -17,7 +17,7 @@ const { writeFileAtomic } = require('./atomic-write.js');
 const supporterRedeem = require('./supporter-redeem.js');
 
 const FILE = 'feature-unlocks.json';
-const FEATURES = new Set(['devclean']);
+const FEATURES = new Set(['devclean', 'lyrics']);
 const entryIdFor = (feature) => 'feature-' + feature;
 
 function createFeatureUnlock({ dataDir, redeem = supporterRedeem.redeem }) {

@@ -124,6 +124,8 @@
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
 <link rel="stylesheet" href="components/DiskWidget/DiskWidget.css">
 <link rel="stylesheet" href="components/DevClean/DevClean.css">
+<link rel="stylesheet" href="components/LyricsView/LyricsView.css">
+<link rel="stylesheet" href="components/LyricsWidget/LyricsWidget.css">
 <link rel="stylesheet" href="components/TransferWidget/TransferWidget.css">
 <link rel="stylesheet" href="components/PhoneWidget/PhoneWidget.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
@@ -642,6 +644,13 @@
            the server refuses every route until the feature is unlocked. -->
       <section class="panel devclean-panel dashboard-widget" data-dashboard-widget="devclean" data-dashboard-size="normal" data-dashboard-order="35" data-dashboard-hidden="true">
         <div class="devclean-widget-mount"></div>
+      </section>
+
+      <!-- Lyrics — supporter-only: the lyrics of whatever is playing, large.
+           The lyrics themselves are free (Media tile button); the server only
+           gates the unlock. Times and fetches nothing while off screen. -->
+      <section class="panel lyrics-panel dashboard-widget" data-dashboard-widget="lyrics" data-dashboard-size="normal" data-dashboard-order="35" data-dashboard-hidden="true">
+        <div class="lyrics-widget-mount"></div>
       </section>
 
       <section class="panel transfer-panel dashboard-widget" data-dashboard-widget="transfer" data-dashboard-size="normal" data-dashboard-order="36" data-dashboard-hidden="true">
@@ -1365,6 +1374,13 @@
           <button class="settings-btn settings-media-viz-install" id="settings-media-viz-install" type="button" onclick="installXenonHelper()" data-i18n="settings_media_viz_install" hidden>Installa Xenon Helper</button>
           <span class="settings-note" data-i18n="settings_media_viz_note">Disegna il suono che l'app sta davvero producendo, con i colori della copertina. Non cambia nulla del riquadro: si aggiunge sotto, e con Nessuna non viene disegnato niente. Minimal è una riga sottile che respira, Onda è la versione piena. Serve Windows con Xenon Helper installato: senza di lui il livello audio non si può misurare e non esiste un ripiego. La misurazione parte solo quando scegli Minimal o Onda.</span>
         </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-media-lyrics" type="checkbox" onchange="updateMediaLyrics(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_media_lyrics">Testi delle canzoni</span>
+            <span class="settings-hint" data-i18n="settings_media_lyrics_hint">cerca il testo su LRCLIB (invia titolo e artista)</span>
+          </span>
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="island">
@@ -4178,6 +4194,11 @@
 <script src="js/album-theme.js"></script>
 <script src="js/media.js"></script>
 <script src="js/media-spotify.js"></script>
+<script src="js/lyrics-core.js"></script>
+<script src="js/lyrics-view.js"></script>
+<script src="js/lyrics-translation.js"></script>
+<script src="js/lyrics-stage.js"></script>
+<script src="js/media-lyrics.js"></script>
 <script src="js/calendar.js"></script>
 <script src="js/system.js"></script>
 <script src="js/network.js"></script>
@@ -4276,6 +4297,8 @@
 <script src="js/disk-widget.js"></script>
 <script src="js/devclean-pitch.js"></script>
 <script src="js/devclean-widget.js"></script>
+<script src="js/lyrics-widget-options.js"></script>
+<script src="js/lyrics-widget.js"></script>
 <!-- Says why search and the disk map went empty on a Mac. Self-gating: it acts
      only on the flag the server sets, which exists only on macOS. -->
 <script src="js/macos-fda.js"></script>

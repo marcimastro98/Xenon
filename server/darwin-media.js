@@ -182,6 +182,7 @@ function shapeNowPlaying(payload, sinceMs) {
     playbackStatus: status,
     thumbnail: artworkUri(p),
     position: Math.round(position),
+    positionMs: Math.round(position * 1000),   // unrounded twin, for the lyrics clock
     duration: Math.round(duration),
     selectionMode: 'auto',
   };

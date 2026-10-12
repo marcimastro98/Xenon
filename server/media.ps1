@@ -117,9 +117,14 @@ function Get-SessionInfo($Session, $IsCurrent) {
 
   $duration = 0
   $position = 0
+  $durationMs = 0.0
+  $positionMs = 0.0
+  $rate = 1.0
+  $readAt = [DateTimeOffset]::UtcNow
   try {
-    $duration = [Math]::Max(0, [int][Math]::Round(($timeline.EndTime - $timeline.StartTime).TotalSeconds))
-    $position = [Math]::Max(0, [int][Math]::Round(($timeline.Position - $timeline.StartTime).TotalSeconds))
+    $durationMs = [Math]::Max(0.0, ($timeline.EndTime - $timeline.StartTime).TotalMilliseconds)
+    $positionMs = [Math]::Max(0.0, ($timeline.Position - $timeline.StartTime).TotalMilliseconds)
+    $duration = [int][Math]::Round($durationMs / 1000)
     # Spotify (and a few other apps) only push a fresh SMTC timeline on events
     # (play/pause/seek/track change), so the raw Position goes stale mid-song.
     # While playing, project it forward by the wall-clock time since the app's
@@ -127,16 +132,18 @@ function Get-SessionInfo($Session, $IsCurrent) {
     # (default epoch -> absurd elapsed) skips the projection, and so does a zero
     # duration (live streams/radio): with nothing to clamp against the projection
     # would grow without bound - same rule as server.js liveMediaSnapshot.
+    # Rounded once, at the end: rounding the read and the projection
+    # separately put the position up to a second off.
     if ($status -eq 'Playing' -and $duration -gt 0) {
-      $elapsed = ([DateTimeOffset]::UtcNow - $timeline.LastUpdatedTime).TotalSeconds
-      if ($elapsed -gt 0 -and $elapsed -lt 86400) {
-        $rate = 1.0
+      $elapsed = ($readAt - $timeline.LastUpdatedTime).TotalMilliseconds
+      if ($elapsed -gt 0 -and $elapsed -lt 86400000) {
         $pr = $playback.PlaybackRate
         if ($null -ne $pr -and $pr -gt 0 -and $pr -le 16) { $rate = [double]$pr }
-        $position += [int][Math]::Round($elapsed * $rate)
+        $positionMs += $elapsed * $rate
       }
-      if ($position -gt $duration) { $position = $duration }
+      $positionMs = [Math]::Min($positionMs, $durationMs)
     }
+    $position = [int][Math]::Round($positionMs / 1000)
   } catch { }
 
   return [pscustomobject]@{
@@ -150,6 +157,10 @@ function Get-SessionInfo($Session, $IsCurrent) {
     playbackStatus = $status
     position = $position
     duration = $duration
+    positionMs = $positionMs
+    durationMs = $durationMs
+    rate = $rate
+    readAt = $readAt
     thumbnailRef = $props.Thumbnail
   }
 }
@@ -332,6 +343,12 @@ function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource, [d
     }
 
     $thumbnail = Read-Thumbnail $selected
+    # The unrounded position as the payload is written, so the time spent on
+    # scoring and the thumbnail does not set the lyrics clock back.
+    $positionMs = $selected.positionMs
+    if ($selected.playbackStatus -eq 'Playing' -and $selected.durationMs -gt 0) {
+      $positionMs = [Math]::Min($selected.durationMs, $positionMs + ([DateTimeOffset]::UtcNow - $selected.readAt).TotalMilliseconds * $selected.rate)
+    }
 
     return @{
       active = $true
@@ -343,6 +360,7 @@ function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource, [d
       playbackStatus = $selected.playbackStatus
       thumbnail = $thumbnail
       position = $selected.position
+      positionMs = [long][Math]::Round([Math]::Max(0.0, $positionMs))
       duration = $selected.duration
       score = $selected.score
       sessions = $sessionSummaries

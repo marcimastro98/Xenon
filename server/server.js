@@ -158,6 +158,10 @@ const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
 const { normalizeMediaSeekResult } = require('./media-seek-result');
+const lyrics = require('./lyrics');
+const { createLyricsCache } = require('./lyrics-cache');
+const { createLyricsOffsets } = require('./lyrics-offsets');
+const { createLyricsTranslator, cleanCap: cleanLyricsTranslateCap } = require('./lyrics-translator');
 
 // App version — read once from package.json so the in-app indicator always
 // matches the shipped build. Falls back gracefully if the file is unreadable.
@@ -774,6 +778,12 @@ communityCatalog.initCache({ dataDir: DATA_DIR });
 // Last-known model lists, so the first AI turn after a restart resolves against
 // what the providers actually offer instead of the built-in offline defaults.
 aiModels.initCache({ dataDir: DATA_DIR });
+// Song lyrics already fetched from LRCLIB (and the songs it has none for), so a
+// replay is instant and offline. Loaded lazily on the first lookup.
+const lyricsCache = createLyricsCache({ dataDir: DATA_DIR });
+// Supporter Lyrics widget: per-song timing, and translations paid for once.
+const lyricsOffsets = createLyricsOffsets({ dataDir: DATA_DIR });
+const lyricsTranslator = createLyricsTranslator({ dataDir: DATA_DIR, complete: (req) => completeLyricsTranslation(req) });
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
@@ -4204,6 +4214,10 @@ function liveMediaSnapshot(data, ageMs) {
     const position = Number(snapshot.position) || 0;
     const duration = Number(snapshot.duration) || 0;
     snapshot.position = Math.min(duration, position + Math.floor(ageMs / 1000));
+    // The unrounded twin (hosts that send it) ages by the exact time, so the
+    // lyrics clock is not up to a second off.
+    const positionMs = Number(snapshot.positionMs);
+    if (Number.isFinite(positionMs)) snapshot.positionMs = Math.round(Math.min(duration * 1000, positionMs + ageMs));
   }
   return snapshot;
 }
@@ -4940,14 +4954,18 @@ async function getMediaInfo(force = false) {
   mediaPending = (async () => {
   try {
     const data = normalizeMedia(await runMediaRequest('info', 12000));
+    // Aged from when the host answered: an online cover lookup can take seconds.
+    const readAt = Date.now();
     const hydrated = applyStickyThumb(await hydrateArtwork(data));
-    mediaCache = { data: hydrated, updatedAt: Date.now() };
+    mediaCache = { data: hydrated, updatedAt: readAt };
     mediaPending = null;
-    return hydrated;
+    return liveMediaSnapshot(hydrated, Date.now() - readAt);
   } catch (e) {
     if (mediaCache.data) {
       mediaPending = null;
-      return mediaCache.data;
+      // Aged like a cache hit: the raw copy carries a position seconds old,
+      // which the lyrics would read as a seek back.
+      return liveMediaSnapshot(mediaCache.data, Date.now() - mediaCache.updatedAt);
     }
     const fallback = applyStickyThumb(await hydrateArtwork(normalizeMedia(await getMediaFallback(e.message))));
     mediaCache = { data: fallback, updatedAt: Date.now() };
@@ -5045,6 +5063,125 @@ async function mediaSeek(position) {
     mediaCache.updatedAt = 0;
     return { ok: false, error: 'unavailable' };
   }
+}
+
+// ── Song lyrics (LRCLIB) ─────────────────────────────────────────────────────
+// Lyrics for whatever is playing, from any host (lyrics.js builds the query,
+// lyrics-cache.js remembers the answer). One lookup per track at a time, and a
+// 429/503 from LRCLIB pauses EVERY lookup until its Retry-After has passed —
+// their API terms require it.
+const LYRICS_USER_AGENT = `Xenon v${APP_VERSION || '0'} (https://github.com/marcimastro98/Xenon)`;
+const _lyricsPending = new Map();
+let _lyricsCooldownUntil = 0;
+
+function lyricsReply(media, key, result) {
+  const out = { ok: true, state: result.state, key, title: String(media.title || ''), source: 'LRCLIB' };
+  if (result.state === 'synced') out.lines = result.lines;
+  else if (result.state === 'plain') out.plain = result.plain;
+  return out;
+}
+
+function lookupLyricsOnce(media, key) {
+  if (_lyricsPending.has(key)) return _lyricsPending.get(key);
+  const pending = (async () => {
+    try {
+      const out = await lyrics.lookup(media, { userAgent: LYRICS_USER_AGENT });
+      if (out.state === 'busy') {
+        _lyricsCooldownUntil = Date.now() + out.retryAfter * 1000;
+        await lyricsCache.set(key, out, { until: _lyricsCooldownUntil });
+      } else {
+        await lyricsCache.set(key, out);
+      }
+      return out;
+    } finally {
+      _lyricsPending.delete(key);
+    }
+  })();
+  _lyricsPending.set(key, pending);
+  return pending;
+}
+
+async function getCurrentLyrics() {
+  if (_serverHubSettings.mediaLyrics === false) return { ok: true, state: 'off' };
+  const media = await getMediaInfo();
+  if (!media || !media.active || !String(media.title || '').trim()) return { ok: true, state: 'idle' };
+  const key = lyrics.trackKey(media);
+  if (!key) return { ok: true, state: 'idle' };
+  if (!lyrics.validDuration(media)) return lyricsReply(media, key, { state: 'live' });
+  const cached = await lyricsCache.get(key);
+  const result = cached
+    || (Date.now() < _lyricsCooldownUntil ? { state: 'busy' } : await lookupLyricsOnce(media, key));
+  const out = lyricsReply(media, key, result);
+  // The song's own timing, set from the supporter widget; the free Media-tile
+  // view applies it too, so the song is right on every screen.
+  const songOffset = await lyricsOffsets.get(key);
+  if (songOffset !== null) out.offsetMs = songOffset;
+  return out;
+}
+
+// The lyrics of the song playing NOW, when `key` names it. Both supporter
+// writes below act only on that song: a stale screen asking about the previous
+// one gets a 409 instead of changing a song nobody is looking at.
+async function lyricsForPlayingKey(key) {
+  if (typeof key !== 'string' || !key) return { status: 400 };
+  const media = await getMediaInfo();
+  if (!media || !media.active || lyrics.trackKey(media) !== key) return { status: 409 };
+  return { status: 200, entry: await lyricsCache.get(key) };
+}
+
+// The texts a translation is made from: always the server's own copy.
+function lyricsTexts(entry) {
+  if (!entry) return null;
+  if (entry.state === 'synced') return entry.lines.map(l => l.text);
+  if (entry.state === 'plain') return entry.plain;
+  return null;
+}
+
+// One request to the user's configured Xenon AI provider → { text, tokens }.
+// Gemini runs on its cheapest current tier (newest Flash-Lite). The CLI
+// providers are not offered: they are slow and meant for actions a person
+// starts by hand (see cliOneShot).
+async function completeLyricsTranslation({ system, user, maxTokens }) {
+  const settings = await readHubSettings().catch(() => null) || {};
+  const provider = aiLocal.sanitizeProvider(settings.aiProvider);
+  let tokens = 0;
+  const onUsage = (n) => { tokens = n; };
+  let text = '';
+  if (provider === 'ollama') {
+    const result = await aiLocal.localChat({
+      baseUrl: aiLocal.sanitizeOllamaUrl(settings.ollamaUrl),
+      model: aiLocal.resolveModel(aiLocal.sanitizeModel(settings.ollamaModel), settings.hardwareScan),
+      geminiTools: [], history: [{ role: 'user', parts: [{ text: user }] }], systemText: system,
+      executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+    });
+    text = result && result.text;
+  } else if (provider === 'openai' || provider === 'anthropic') {
+    const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+    text = await mod.oneShot({
+      apiKey: provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey,
+      model: providerModelFor(provider, 'chat', settings), systemText: system, userText: user, maxTokens, onUsage,
+    });
+  } else if (provider === 'gemini') {
+    const apiKey = await geminiKeyFor('');
+    const model = aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey);
+    text = await _geminiOneShot(apiKey, [{ text: user }], system, maxTokens, { model, temperature: 0.2, json: true, onUsage });
+  } else {
+    throw new Error('provider not supported');
+  }
+  return { text: String(text || ''), tokens };
+}
+
+// Why translation cannot run right now, or '' when it can. Checked before any
+// request is made, so a missing key never costs a round trip.
+async function lyricsTranslateBlocker() {
+  if (_serverHubSettings.lyricsTranslate !== true) return 'off';
+  const settings = await readHubSettings().catch(() => null) || {};
+  const provider = aiLocal.sanitizeProvider(settings.aiProvider);
+  if (aiCli.isCliProvider(provider)) return 'provider_unsupported';
+  if (provider === 'openai' && !settings.openaiApiKey) return 'no_ai';
+  if (provider === 'anthropic' && !settings.anthropicApiKey) return 'no_ai';
+  if (provider === 'gemini' && !(await geminiKeyFor(''))) return 'no_ai';
+  return '';
 }
 
 function parseCsvLine(line) {
@@ -6777,16 +6914,23 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
 // One-shot Gemini text generation (no tools, no history). Used by the opt-in
 // advanced features (Game Companion, Guardian) for single fire-and-forget
 // analyses. `parts` follows the Gemini content-part shape (text / inlineData).
-function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
+// `opts` (all optional): `model` overrides the chat model, `temperature`,
+// `json` asks for a JSON reply, `onUsage(totalTokens)` reports what it cost.
+function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
   return new Promise((resolve, reject) => {
+    const generationConfig = {
+      temperature: Number.isFinite(opts.temperature) ? opts.temperature : 0.7,
+      maxOutputTokens: maxTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 },
+      ...(opts.json ? { responseMimeType: 'application/json' } : {}),
+    };
     const payload = JSON.stringify({
       ...(systemText ? { system_instruction: { parts: [{ text: String(systemText) }] } } : {}),
       contents: [{ role: 'user', parts }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: maxTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig,
     });
     const gReq = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${encodeURIComponent(opts.model || AI_MODELS.chat)}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (gRes) => {
@@ -6796,6 +6940,8 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
         try {
           const parsed = JSON.parse(d);
           if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
+          const used = Number(parsed?.usageMetadata?.totalTokenCount);
+          if (typeof opts.onUsage === 'function' && Number.isSafeInteger(used)) opts.onUsage(used);
           const text = (parsed?.candidates?.[0]?.content?.parts || [])
             .filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join('').trim();
           if (!text) return reject(new Error('empty response'));
@@ -7993,7 +8139,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -8069,6 +8215,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     devclean: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    lyrics: Object.freeze({ x: 8, y: 64, w: 6, h: 10, visible: false, page: 'dashboard' }),
     transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
     // Tall rather than wide: it is a list of people, and the keypad wants the
     // height. Hidden until the user adds it, like every opt-in widget.
@@ -8212,6 +8359,19 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // audioLevelsWanted(): anything but 'off' is a first-party reason to run the
   // helper's meter, beside the SDK grants.
   mediaVisualizer: 'off',
+  // Song lyrics from LRCLIB (sends title + artist; listed on the privacy page).
+  // false = /api/lyrics answers 'off' and never reaches out.
+  mediaLyrics: true,
+  // Lyrics widget timing nudge, ms; a positive value shows lines earlier.
+  lyricsOffsetMs: 0,
+  // Supporter Lyrics widget. Translation sends the song's lines to the user's
+  // own Xenon AI provider (one request per song, capped per month), so it is
+  // off until they turn it on. Reading = romanization for ja/ko/zh lines.
+  lyricsTranslate: false,
+  lyricsReading: true,
+  lyricsTranslateCap: 200,
+  // Stage: the widget fills the screen while music plays on its page.
+  lyricsStage: false,
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
   // Minimal-mode edge-rail drawer positions (true = collapsed). Persisted here —
@@ -9752,6 +9912,12 @@ function normalizeHubSettings(value) {
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
     hwTempUnit: ['auto', 'c', 'f'].includes(source.hwTempUnit) ? source.hwTempUnit : 'auto',
     mediaVisualizer: ['off', 'minimal', 'wave'].includes(source.mediaVisualizer) ? source.mediaVisualizer : (source.mediaVisualizer === true ? 'wave' : 'off'),
+    mediaLyrics: source.mediaLyrics !== false,
+    lyricsOffsetMs: Math.round(clampNumber(source.lyricsOffsetMs, -3000, 3000, 0) / 100) * 100,
+    lyricsTranslate: source.lyricsTranslate === true,
+    lyricsReading: source.lyricsReading !== false,
+    lyricsTranslateCap: cleanLyricsTranslateCap(source.lyricsTranslateCap),
+    lyricsStage: source.lyricsStage === true,
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(source.topbarRails),
@@ -13052,6 +13218,14 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/devclean/run',
   '/api/devclean/compact',
   '/api/features/devclean/unlock',
+  // GET, but a cache miss sends one outbound lookup to LRCLIB for the song
+  // playing now, so a cross-site page must not be able to drive it.
+  '/api/lyrics',
+  '/api/features/lyrics/unlock',
+  // Supporter Lyrics widget writes: a song's timing, and a translation that may
+  // spend the user's AI provider quota. POST-only.
+  '/api/lyrics/offset',
+  '/api/lyrics/translate',
   // Suppresses the Edge fallback after the native kiosk opened the Spotlight
   // window — a drive-by must not be able to swallow the user's hotkey.
   '/spotlight/claimed',
@@ -19822,6 +19996,65 @@ const handleRequest = async (req, res) => {
     // CSRF_MUTATION_PATHS.
     try { json(diskSpace.cancelClean()); } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/lyrics' && req.method === 'GET') {
+    // Lyrics for the song playing now. No parameters: the server reads its own
+    // media session, so nothing from the page reaches the LRCLIB query. Kept
+    // out of /media/ on purpose: that prefix is JSONP-readable by any site.
+    try { json(await getCurrentLyrics()); }
+    catch (e) { json({ ok: false, state: 'error', error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/api/features/lyrics' && req.method === 'GET') {
+    // Is the supporter-only Lyrics widget unlocked on this install? A boolean.
+    // The lyrics themselves stay free: the Media tile's button reads them too.
+    try { json({ ok: true, unlocked: await featureUnlock.isUnlocked('lyrics') }); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/features/lyrics/unlock' && req.method === 'POST') {
+    // One /redeem against the hub's `feature-lyrics` entry, with the saved pass
+    // (or a code typed in the tile). In CSRF_MUTATION_PATHS + REMOTE_ADMIN.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await featureUnlock.unlock('lyrics', typeof body.code === 'string' ? body.code : ''));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lyrics/offset' && req.method === 'POST') {
+    // Supporter widget: this song's own timing, { key, ms } (0 = back to the
+    // global one). Only for the song playing now. In CSRF_MUTATION_PATHS.
+    try {
+      if (!(await featureUnlock.isUnlocked('lyrics'))) { json({ ok: false, error: 'locked' }); return; }
+      const body = JSON.parse(await readBody(req) || '{}');
+      const playing = await lyricsForPlayingKey(body.key);
+      if (playing.status !== 200) { json({ ok: false, error: 'stale' }); return; }
+      const ms = await lyricsOffsets.set(body.key, body.ms);
+      json(ms === null ? { ok: false, error: 'bad_value' } : { ok: true, offsetMs: ms });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lyrics/translate' && req.method === 'POST') {
+    // Supporter widget: translation and reading of the song playing now,
+    // { key, lang, cachedOnly }. The lines come from the server's own lyrics
+    // cache, never from the request. A request to the user's AI provider is made
+    // only when they turned translation on, under the monthly cap, once per
+    // song (lyrics-translator.js). In CSRF_MUTATION_PATHS.
+    try {
+      if (!(await featureUnlock.isUnlocked('lyrics'))) { json({ ok: false, error: 'locked' }); return; }
+      const blocker = await lyricsTranslateBlocker();
+      if (blocker) { json({ ok: false, error: blocker }); return; }
+      const body = JSON.parse(await readBody(req) || '{}');
+      const playing = await lyricsForPlayingKey(body.key);
+      if (playing.status !== 200) { json({ ok: false, error: 'stale' }); return; }
+      const texts = lyricsTexts(playing.entry);
+      if (!texts) { json({ ok: false, error: 'no_lyrics' }); return; }
+      json(await lyricsTranslator.translate({
+        songKey: body.key, texts, lang: String(body.lang || '').slice(0, 5),
+        reading: _serverHubSettings.lyricsReading !== false,
+        cap: _serverHubSettings.lyricsTranslateCap, cachedOnly: body.cachedOnly === true,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lyrics/translate/usage' && req.method === 'GET') {
+    // This month's translated songs and tokens, for the counter in the widget.
+    try { json({ ok: true, ...(await lyricsTranslator.usage(_serverHubSettings.lyricsTranslateCap)) }); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
     // Is the supporter-only Dev cleanup unlocked on this install? A boolean.
     try { json({ ok: true, unlocked: await featureUnlock.isUnlocked('devclean') }); } catch (e) { err500(e.message); }
@@ -22811,6 +23044,10 @@ function _gracefulShutdown() {
   // tokens are already on disk — but a shutdown should not lose the last hour
   // of "when did my phone last connect".
   try { shutdownFlush = shutdownFlush.then(() => remoteAccess.flush()).catch(() => {}); } catch {}
+  // Write the debounced lyrics cache now rather than lose the last few songs.
+  try { shutdownFlush = shutdownFlush.then(() => lyricsCache.flush()).catch(() => {}); } catch {}
+  try { shutdownFlush = shutdownFlush.then(() => lyricsOffsets.flush()).catch(() => {}); } catch {}
+  try { shutdownFlush = shutdownFlush.then(() => lyricsTranslator.flush()).catch(() => {}); } catch {}
   // The T2 listener holds its own sockets — including SSE streams, which never
   // end on their own — and the process would not exit with them open.
   try { shutdownFlush = shutdownFlush.then(() => remoteHttps.stop()).catch(() => {}); } catch {}

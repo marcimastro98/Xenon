@@ -178,6 +178,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // by whoever sits at the PC; pruning and the overview stay open.
     'POST /api/devclean/compact',
     'POST /api/features/devclean/unlock',
+    // Same supporter-slot decision, for the Lyrics widget.
+    'POST /api/features/lyrics/unlock',
     'POST /api/gamemode/install-presentmon',
     'POST /api/lighting/sdk-install',
     'POST /api/native/install',

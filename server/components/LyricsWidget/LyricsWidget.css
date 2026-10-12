@@ -1,0 +1,425 @@
+/* Lyrics widget (supporter-only, js/lyrics-widget.js). Large type for reading
+   across the room, over the song's cover: the same blurred, evenly darkened
+   backdrop as the Media tile's lyrics mode (--lyw-cover, set by the script). */
+
+.lyrics-panel {
+  container-type: size;
+}
+
+.lyrics-panel .lyrics-widget-mount {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  padding: 14px 16px 10px;
+  border-radius: inherit;
+  color: var(--text);
+}
+
+/* A still layer, never animated: the blur is drawn once per cover. */
+.lyrics-panel.has-cover .lyrics-widget-mount::before,
+.lyrics-panel.has-cover .lyrics-widget-mount::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.lyrics-panel.has-cover .lyrics-widget-mount::before {
+  inset: -40px;
+  z-index: -2;
+  background: var(--lyw-cover) center / cover no-repeat;
+  filter: blur(34px) saturate(1.35) brightness(0.78);
+  transform: scale(1.15);
+}
+.lyrics-panel.has-cover .lyrics-widget-mount::after {
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(7,12,11,0.62), rgba(7,12,11,0.74));
+}
+/* Over the dark backdrop the type and the small buttons are light in every theme. */
+.lyrics-panel.has-cover .lyrics-widget-mount {
+  --text: #f4f6f5;
+  --muted-text: rgba(244, 246, 245, 0.68);
+  --floating-ui-bg: rgba(255, 255, 255, 0.1);
+  --floating-ui-border: rgba(255, 255, 255, 0.18);
+}
+
+.lyrics-widget-mount button,
+.lyrics-widget-mount input {
+  color: inherit;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lyrics-widget-mount p { margin: 0; }
+
+/* The view sizes its type from this tile, not from the Media tile. */
+.lyrics-panel .lyv { --lyv-size: clamp(18px, 6.2cqi, 40px); }
+
+.lyw-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lyw-titles { flex: 1 1 auto; min-width: 0; }
+
+.lyw-title,
+.lyw-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lyw-title {
+  font-size: 15px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.lyw-sub {
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.lyw-sub[hidden] { display: none; }
+
+.lyw-offset {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.lyw-offset[hidden] { display: none; }
+
+.lyw-step {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: var(--radius-control);
+  background: var(--floating-ui-bg);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lyw-step:active { transform: scale(0.95); }
+.lyw-step:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+.lyw-offset-val {
+  min-width: 4.2em;
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* This song has its own nudge: the value is in the accent and tapping it
+   drops the nudge. Without one it is a plain label. */
+button.lyw-offset-val:not(:disabled) { cursor: pointer; }
+.lyw-offset-val:disabled { opacity: 1; }
+.lyw-offset-val.is-song { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.lyrics-panel.has-cover .lyw-offset-val.is-song { color: var(--text); }
+
+.lyw-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: var(--radius-control);
+  background: var(--floating-ui-bg);
+  cursor: pointer;
+}
+
+.lyw-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lyw-icon:active { transform: scale(0.95); }
+
+/* Translation state ("after 20 s of listening", limit reached…). */
+.lyw-trstat {
+  flex: 0 0 auto;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  font-weight: 620;
+  line-height: 1.35;
+}
+
+.lyw-trstat[hidden] { display: none; }
+
+.lyw-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Small tile: the nudge is a fine-tuning control, the lyrics come first. */
+@container (max-width: 300px) {
+  .lyw-head .lyw-offset { display: none; }
+}
+
+/* ── Stage: the tile fills the screen (js/lyrics-stage.js) ────────────────
+   In place with position:fixed, like an expanded SDK widget; the shell is
+   lifted for the same reason (see CustomWidget.css). */
+body.lyw-has-stage .shell { z-index: 70; }
+
+.lyrics-panel.lyw-staged {
+  position: fixed;
+  inset: 0;
+  z-index: 12050;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  background: var(--bg, #070808);
+}
+
+.lyrics-panel.lyw-staged .lyrics-widget-mount { padding: 22px clamp(18px, 6vw, 96px) 16px; }
+.lyrics-panel.lyw-staged .lyv { --lyv-size: clamp(24px, 4.6cqi, 64px); }
+.lyrics-panel.lyw-staged .lyw-head { padding-right: 52px; }
+
+.lyw-stage-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(10, 12, 20, 0.55);
+  color: #f4f6f5;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lyw-stage-close:active { transform: scale(0.94); }
+
+/* ── Options sheet (js/lyrics-widget-options.js) ─────────────────────────── */
+.lyrics-widget-mount.has-options > :not(.lyo-sheet) { visibility: hidden; }
+
+.lyo-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--panel-bg, var(--bg));
+  color: var(--text);
+}
+
+.lyrics-panel.has-cover .lyo-sheet { background: rgba(7, 12, 11, 0.9); }
+
+.lyo-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lyo-title { margin: 0; font-size: 15px; font-weight: 760; }
+
+.lyo-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lyo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.lyo-row.is-static { align-items: center; justify-content: space-between; cursor: default; }
+
+.lyo-check { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+
+.lyo-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.lyo-label { font-size: 13px; font-weight: 700; }
+.lyo-hint { color: var(--muted-text); font-size: 11.5px; line-height: 1.4; }
+
+.lyo-cost {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 30px;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.lyo-warn { color: var(--color-danger); }
+.lyo-link { color: var(--accent); font-weight: 680; text-underline-offset: 3px; }
+.lyrics-panel.has-cover .lyo-link { color: var(--text); }
+
+.lyo-usage { margin-left: 30px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: pre-line; }
+.lyo-usage:empty { display: none; }
+
+.lyo-select {
+  flex: none;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: var(--radius-control);
+  background: var(--floating-ui-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+@container (max-height: 180px) {
+  .lyw-head { display: none; }
+}
+
+/* ── Locked ──────────────────────────────────────────────────────────────── */
+
+.lyw-pitch {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.lyw-badge {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent), transparent 84%);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 760;
+}
+
+.lyw-pitch-lead {
+  font-size: clamp(18px, 5cqi, 24px);
+  font-weight: 780;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.lyw-pitch-desc,
+.lyw-note {
+  color: var(--muted-text);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.lyw-note { font-size: 11.5px; }
+
+.lyw-perks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.lyw-perks li { display: flex; align-items: baseline; gap: 8px; }
+.lyw-tick { flex: none; color: var(--accent); font-weight: 800; }
+
+.lyw-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.lyw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  font-size: 12.5px;
+  font-weight: 730;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lyrics-widget-mount .lyw-btn.is-big {
+  padding: 0 20px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.lyrics-widget-mount .lyw-btn.is-accent {
+  border-color: color-mix(in srgb, var(--accent), transparent 52%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  color: var(--accent);
+}
+
+.lyw-btn.is-ghost {
+  border-color: transparent;
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lyw-btn:active { transform: scale(0.97); }
+.lyw-btn:disabled { opacity: 0.42; cursor: default; transform: none; }
+
+.lyw-code { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.lyw-code-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.lyw-code-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.lyw-error { color: var(--color-danger); font-size: 12px; }

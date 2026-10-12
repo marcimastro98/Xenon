@@ -19,7 +19,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -134,6 +134,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     devclean: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    lyrics: Object.freeze({ x: 8, y: 64, w: 6, h: 10, visible: false, page: 'dashboard' }),
     transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
     // Mirrors the server's entry, key for key: normalizeDashboardLayout runs on
     // both sides and reads a default per id, so an id present on one side only
@@ -399,6 +400,16 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // the cost follows the choice, the same rule the SDK `audioLevels` grant
   // follows, which until now was the only thing that could start it.
   mediaVisualizer: 'off',
+  // Song lyrics from LRCLIB (title + artist leave the PC; see the privacy page).
+  mediaLyrics: true,
+  // Lyrics widget timing nudge in ms, -3000..3000 in 100 ms steps.
+  lyricsOffsetMs: 0,
+  // Supporter Lyrics widget: translation through the user's own AI provider
+  // (off until turned on, capped per month), ja/ko/zh reading, stage mode.
+  lyricsTranslate: false,
+  lyricsReading: true,
+  lyricsTranslateCap: 200,
+  lyricsStage: false,
   // Open the dashboard in the default browser at Windows logon (default on).
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
@@ -1771,6 +1782,12 @@ function normalizeSettings(source) {
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     hwTempUnit: ['auto', 'c', 'f'].includes(value.hwTempUnit) ? value.hwTempUnit : 'auto',
     mediaVisualizer: ['off', 'minimal', 'wave'].includes(value.mediaVisualizer) ? value.mediaVisualizer : (value.mediaVisualizer === true ? 'wave' : 'off'),
+    mediaLyrics: value.mediaLyrics !== false,
+    lyricsOffsetMs: Math.round(clampNumber(value.lyricsOffsetMs, -3000, 3000, 0) / 100) * 100,
+    lyricsTranslate: value.lyricsTranslate === true,
+    lyricsReading: value.lyricsReading !== false,
+    lyricsTranslateCap: [50, 200, 500].includes(Number(value.lyricsTranslateCap)) ? Number(value.lyricsTranslateCap) : 200,
+    lyricsStage: value.lyricsStage === true,
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
     // Automatic updates: on unless the user switched them off (server/auto-update.js).
@@ -4291,6 +4308,7 @@ function applyHubSettings() {
   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
   syncSwipeNavigationControl();
   syncMediaVisualizerControl();
+  syncMediaLyricsControl();
   syncSwipeHomeControl();
   syncHideRdpControl();
   const root = document.documentElement;
@@ -8603,6 +8621,21 @@ function updateSwipeNavigation(checked) {
   saveHubSettings();
   syncSwipeNavigationControl();
   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
+}
+
+// Song lyrics (Media tile button + Lyrics widget). Off means no LRCLIB lookup
+// at all, so the views re-sync straight away instead of on the next media tick.
+function syncMediaLyricsControl() {
+  const el = $('settings-media-lyrics');
+  if (el) el.checked = hubSettings.mediaLyrics !== false;
+  if (window.MediaLyrics) window.MediaLyrics.sync();
+  if (window.LyricsCore) window.LyricsCore.sync();
+}
+
+function updateMediaLyrics(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, mediaLyrics: checked === true });
+  saveHubSettings();
+  syncMediaLyricsControl();
 }
 
 // ── Swipe-up home gesture (native app only) ─────────────────────────────────

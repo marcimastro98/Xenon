@@ -71,7 +71,22 @@ internal sealed class MediaHost
         public string PlaybackStatus = "";
         public int Position;
         public int Duration;
+        public double PositionMs;
+        public double DurationMs;
+        public double Rate = 1.0;
+        public DateTimeOffset ReadAt;
         public IRandomAccessStreamReference? ThumbnailRef;
+
+        // The unrounded position at the moment the payload is written: the
+        // timeline read plus the time spent since (scoring, thumbnail), so the
+        // lyrics clock is not set back by our own work.
+        public long PositionMsNow()
+        {
+            var ms = PositionMs;
+            if (PlaybackStatus == "Playing" && DurationMs > 0)
+                ms = Math.Min(DurationMs, ms + (DateTimeOffset.UtcNow - ReadAt).TotalMilliseconds * Rate);
+            return (long)Math.Round(Math.Max(0, ms));
+        }
     }
 
     // One full request: session enumeration, scoring/selection, then either the
@@ -188,6 +203,7 @@ internal sealed class MediaHost
                 ["playbackStatus"] = selected.PlaybackStatus,
                 ["thumbnail"] = thumbnail,
                 ["position"] = selected.Position,
+                ["positionMs"] = selected.PositionMsNow(),
                 ["duration"] = selected.Duration,
                 ["score"] = selected.Score,
                 ["sessions"] = summaries,
@@ -334,10 +350,15 @@ internal sealed class MediaHost
 
         var duration = 0;
         var position = 0;
+        var durationMs = 0.0;
+        var positionMs = 0.0;
+        var rate = 1.0;
+        var readAt = DateTimeOffset.UtcNow;
         try
         {
-            duration = Math.Max(0, (int)Math.Round((timeline.EndTime - timeline.StartTime).TotalSeconds));
-            position = Math.Max(0, (int)Math.Round((timeline.Position - timeline.StartTime).TotalSeconds));
+            durationMs = Math.Max(0, (timeline.EndTime - timeline.StartTime).TotalMilliseconds);
+            positionMs = Math.Max(0, (timeline.Position - timeline.StartTime).TotalMilliseconds);
+            duration = (int)Math.Round(durationMs / 1000);
             // Spotify (and a few other apps) only push a fresh SMTC timeline on
             // events (play/pause/seek/track change), so the raw Position goes stale
             // mid-song. While playing, project it forward by the wall-clock time
@@ -347,17 +368,20 @@ internal sealed class MediaHost
             // duration (live streams/radio): with nothing to clamp against the
             // projection would grow without bound — same rule as server.js
             // liveMediaSnapshot.
+            // Rounded once, at the end: rounding the read and the projection
+            // separately put the position up to a second off.
             if (status == "Playing" && duration > 0)
             {
-                var elapsed = (DateTimeOffset.UtcNow - timeline.LastUpdatedTime).TotalSeconds;
-                if (elapsed > 0 && elapsed < 86400)
+                var elapsed = (readAt - timeline.LastUpdatedTime).TotalMilliseconds;
+                if (elapsed > 0 && elapsed < 86400000)
                 {
-                    var rate = playback.PlaybackRate ?? 1.0;
+                    rate = playback.PlaybackRate ?? 1.0;
                     if (rate <= 0 || rate > 16) rate = 1.0;
-                    position += (int)Math.Round(elapsed * rate);
+                    positionMs += elapsed * rate;
                 }
-                if (position > duration) position = duration;
+                positionMs = Math.Min(positionMs, durationMs);
             }
+            position = (int)Math.Round(positionMs / 1000);
         }
         catch { }
 
@@ -373,6 +397,10 @@ internal sealed class MediaHost
             PlaybackStatus = status,
             Position = position,
             Duration = duration,
+            PositionMs = positionMs,
+            DurationMs = durationMs,
+            Rate = rate,
+            ReadAt = readAt,
             ThumbnailRef = props.Thumbnail,
         };
     }

@@ -125,12 +125,15 @@
 }
 /* An expanded widget owns the whole screen and does its own positioning. */
 .is-stacked .grid-stack-item.cw-expanded,
-.is-stacked .grid-stack-item.cw-expanded > .grid-stack-item-content {
+.is-stacked .grid-stack-item.cw-expanded > .grid-stack-item-content,
+.is-stacked .grid-stack-item.lyw-stage-item,
+.is-stacked .grid-stack-item.lyw-stage-item > .grid-stack-item-content {
   position: fixed !important;
   min-height: 0;
 }
 /* An expanded tile must not keep a column slot it is no longer standing in. */
-.is-stacked .dashboard.grid-stack > .grid-stack-item.cw-expanded { grid-column: 1 / -1; }
+.is-stacked .dashboard.grid-stack > .grid-stack-item.cw-expanded,
+.is-stacked .dashboard.grid-stack > .grid-stack-item.lyw-stage-item { grid-column: 1 / -1; }
 
 /* The page itself scrolls; the pager still swipes between pages horizontally. */
 .is-stacked .pager-page {

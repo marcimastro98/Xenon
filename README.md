@@ -10,7 +10,7 @@ Monitor your PC, control media and audio, mute your mic, manage your day, talk t
 And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
 
 Everything runs **100% locally**: no cloud, no telemetry, no account required. The app does check for
-updates at launch, and reaches the network for features you turn on (weather, media artwork, the
+updates at launch, and reaches the network for features you turn on (weather, media artwork, song lyrics, the
 community catalog) — every one of those calls is listed in the [privacy page](https://xenon-app.com/privacy.html).
 
 ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)

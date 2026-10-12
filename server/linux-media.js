@@ -172,7 +172,8 @@ function shapeNowPlaying(rec, sinceMs) {
   const duration = Math.round(seconds(rec.length, div));
   const elapsed = seconds(rec.position, div);
   const projected = playing ? elapsed + Math.max(0, sinceMs) / 1000 : elapsed;
-  const position = Math.round(duration ? Math.min(duration, projected) : projected);
+  const exact = duration ? Math.min(duration, projected) : projected;
+  const position = Math.round(exact);
   const app = appNameFor(rec.player);
   const info = {
     active: true,
@@ -187,6 +188,7 @@ function shapeNowPlaying(rec, sinceMs) {
     playbackStatus: status,
     thumbnail: artUrl(rec.art),
     position,
+    positionMs: Math.round(exact * 1000),   // unrounded twin, for the lyrics clock
     duration,
     selectionMode: 'auto',
   };

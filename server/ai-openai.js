@@ -184,7 +184,8 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
 }
 
 // One-shot completion (no tools) → plain text. Used by summarize / JSON helpers.
-async function oneShot({ apiKey, model, systemText, userText, maxTokens }) {
+// `onUsage(totalTokens)`, when given, hears what the call cost.
+async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
   const messages = [];
@@ -193,6 +194,8 @@ async function oneShot({ apiKey, model, systemText, userText, maxTokens }) {
   const body = { model: sanitizeModel(model), messages };
   if (maxTokens) body.max_tokens = maxTokens;
   const resp = await _post('/chat/completions', key, body, 60000);
+  const used = Number(resp && resp.usage && resp.usage.total_tokens);
+  if (typeof onUsage === 'function' && Number.isSafeInteger(used)) onUsage(used);
   const msg = resp && resp.choices && resp.choices[0] && resp.choices[0].message;
   return (msg && typeof msg.content === 'string') ? msg.content.trim() : '';
 }

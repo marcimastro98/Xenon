@@ -1,0 +1,242 @@
+/* Song lyrics view, shared by the Media tile sheet and the Lyrics widget
+   (js/lyrics-view.js). The synced list moves as one track inside a clipped
+   viewport (transform only, never scrollTop). Depth is opacity and a small
+   scale; every line has the same weight so the active one never rewraps, and
+   nothing here uses filter or blur. */
+
+.lyv {
+  --lyv-size: clamp(16px, 5.4cqi, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  color: var(--text);
+}
+
+.lyv.is-compact {
+  --lyv-size: clamp(15px, 4.6cqi, 20px);
+}
+
+.lyv-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  /* Vertical drags move the lyrics; horizontal swipes still turn the page. */
+  touch-action: pan-x;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 82%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 82%, transparent);
+}
+
+.lyv-viewport[hidden] { display: none; }
+
+.lyv-track {
+  display: flex;
+  flex-direction: column;
+  transform: translate3d(0, var(--lyv-y, 0px), 0);
+  transition: transform 420ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.lyv-track.no-anim { transition: none; }
+.lyv-track.is-moving { will-change: transform; }
+
+.lyv-line {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.28em 0.2em;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--lyv-size);
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  opacity: 0.45;
+  transform: scale(0.96);
+  transform-origin: left center;
+  transition: opacity 320ms ease, transform 420ms cubic-bezier(.22, 1, .36, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lyv-line.is-past { opacity: 0.28; }
+.lyv-line.is-active { opacity: 1; transform: none; }
+.lyv-line:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+@media (hover: hover) {
+  .lyv-line:not(.is-active):hover { opacity: 0.7; }
+}
+
+/* Reading and translation under a line (supporter widget). Smaller and
+   lighter, so the sung line still leads; it fades with its row. */
+.lyv-sub {
+  display: block;
+  margin-top: 0.18em;
+  font-size: 0.62em;
+  font-weight: 560;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.lyv-sub[hidden],
+.lyv-read[hidden],
+.lyv-tr[hidden] { display: none; }
+
+.lyv-read,
+.lyv-tr { display: block; }
+
+.lyv-read { opacity: 0.86; }
+.lyv-tr { opacity: 0.72; }
+
+.lyv-plain-line .lyv-sub { font-size: 0.74em; }
+
+/* Long instrumental pause: three dots that light up one at a time. */
+.lyv-gap {
+  display: flex;
+  align-items: center;
+  gap: 0.32em;
+  height: 1.6em;
+  padding: 0 0.3em;
+  font-size: var(--lyv-size);
+}
+
+.lyv-gap.is-short { height: 0; overflow: hidden; }
+
+.lyv-dot {
+  width: 0.34em;
+  height: 0.34em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.22;
+  transition: opacity 300ms ease;
+}
+
+.lyv-gap.is-active .lyv-dot.is-on { opacity: 1; }
+.lyv-gap.is-past .lyv-dot { opacity: 0.22; }
+
+/* Lyrics without timings: a plain list the user scrolls by hand. */
+.lyv-viewport.is-plain {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text), transparent 76%) transparent;
+}
+
+.lyv-viewport.is-plain .lyv-track { transform: none; transition: none; }
+
+.lyv-plain-line {
+  margin: 0;
+  padding: 0.2em 0.2em;
+  font-size: calc(var(--lyv-size) * 0.86);
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.lyv-plain-line.is-blank { height: 0.7em; }
+
+/* States the list cannot show. */
+.lyv-status {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 8px;
+  text-align: center;
+}
+
+.lyv-status[hidden] { display: none; }
+
+.lyv-status-text {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.lyv-status-btn,
+.lyv-follow {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: var(--radius-control);
+  background: var(--floating-ui-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.lyv-status-btn[hidden],
+.lyv-follow[hidden] { display: none; }
+
+.lyv-status-btn:active,
+.lyv-follow:active { transform: scale(0.97); }
+
+.lyv-skel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 0.2em;
+}
+
+.lyv-skel[hidden] { display: none; }
+
+.lyv-skel-bar {
+  height: calc(var(--lyv-size) * 0.8);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text), transparent 90%);
+}
+
+.lyv-skel-bar:nth-child(1) { width: 72%; }
+.lyv-skel-bar:nth-child(2) { width: 88%; }
+.lyv-skel-bar:nth-child(3) { width: 56%; }
+
+.lyv-foot {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.lyv-foot[hidden] { display: none; }
+.lyv-note[hidden] { display: none; }
+.lyv-credit { margin-right: auto; opacity: 0.8; }
+.lyv-follow { min-height: 30px; padding: 0 12px; font-size: 11.5px; }
+
+/* Word by word: js/lyrics-view.js startWords() lights each word of the line
+   being sung with a short script animation (see there why not a CSS one). */
+
+/* Frozen dashboard (overlay, game mode, low-power GPU): lines jump instead of
+   gliding and the whole line lights at once. NOT on ambient-idle: lyrics are
+   watched, not touched, and "no input for a minute" is how they are read; the
+   same reason the ticker is exempt (#72). A glide is one composited transform
+   every few seconds. */
+body.overlay-frozen .lyv-track, body.game-mode .lyv-track, body.low-power-gpu .lyv-track,
+body.overlay-frozen .lyv-line, body.game-mode .lyv-line, body.low-power-gpu .lyv-line,
+body.overlay-frozen .lyv-dot, body.game-mode .lyv-dot, body.low-power-gpu .lyv-dot { transition: none; }
+
+/* !important outranks a script animation already running when the freeze lands. */
+body.overlay-frozen .lyv-w, body.game-mode .lyv-w, body.low-power-gpu .lyv-w { opacity: 1 !important; }
+
+/* Reduced motion: no glide (words switch on instead of fading, in the script). */
+@media (prefers-reduced-motion: reduce) {
+  .lyv-track, .lyv-line, .lyv-dot { transition: none; }
+}

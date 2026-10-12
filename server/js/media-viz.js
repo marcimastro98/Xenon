@@ -252,6 +252,8 @@
     if (document.hidden) return false;
     if (!playing) return false;
     if (problem || !sawLevels) return false;
+    const host = panel();
+    if (host && host.classList.contains('lyrics-open')) return false;
     if (performance.now() - geomAt > GEOM_TTL_MS) measure();
     return geomOk;
   }

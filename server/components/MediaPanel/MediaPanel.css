@@ -729,6 +729,24 @@
   .msp-ctl, .msp-item-go, .msp-range::-webkit-slider-thumb { transition: none; }
 }
 
+/* Lyrics button (js/media-lyrics.js): it borrows the look of whichever row it
+   sits in, .msp-ctl in the Spotify row or .control-btn after the transport.
+   Its icon is drawn with strokes, so the filled-icon rule of .control-btn must
+   not paint it solid. The layout it switches on is "Lyrics mode" at the end. */
+.media-lyrics-btn svg { fill: none; }
+.media-actions .media-lyrics-btn { margin-left: 4px; }
+.media-actions .media-lyrics-btn svg { width: 19px; height: 19px; }
+.media-actions .media-lyrics-btn.is-on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent), transparent 50%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+}
+/* A fourth round button in the Spotify row needs a little more width than the
+   340px the row was drawn for, or Devices pokes past the seek bar's end. */
+.msp:has(.media-lyrics-btn:not([hidden])) { max-width: 380px; }
+/* 44px touch target around the 30px face in the Spotify row. */
+.msp-ctl.media-lyrics-btn::after { content: ""; position: absolute; inset: -7px; }
+
 /* ── Tile size ladder ────────────────────────────────────────────────────────
    The media tile is resizable on the grid and can also be dropped into a tab
    group, so its available box changes with no viewport change at all — the
@@ -913,4 +931,75 @@
    is playing, and the title and the transport are what the tile is for. */
 @container mediatile (max-height: 165px) {
   .media-panel .media-app-row { display: none; }
+}
+
+/* ── Lyrics mode (js/media-lyrics.js) ─────────────────────────────────────────
+   The tile itself becomes the lyrics view: no card on top of it. The cover drops
+   to a thumbnail beside the title and stays as the blurred backdrop, darkened
+   evenly so it never competes with the words, and the transport, the Spotify
+   row and the volume keep working underneath. .media-content turns into
+   display:contents so its children can share one grid with the cover and the
+   lyrics. Every rule carries .lyrics-open, which outranks the size ladder above;
+   the ladder still decides what is hidden, this block only decides where the
+   rest goes. Too small for a few lines, there is no lyrics mode at all. */
+@container mediatile (min-height: 166px) and (min-width: 241px) {
+  .media-panel.lyrics-open .media-overlay {
+    background: linear-gradient(180deg, rgba(7,12,11,0.62), rgba(7,12,11,0.74));
+  }
+  .media-panel.lyrics-open .media-pane-play:not([hidden]) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 2px 0;
+  }
+  .media-panel.lyrics-open .media-content { display: contents; }
+  .media-panel.lyrics-open .media-art {
+    grid-column: 1; grid-row: 1 / 3;
+    width: 56px; margin-right: 14px; border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .media-panel.lyrics-open .media-art .media-placeholder { display: none; }
+  .media-panel.lyrics-open .media-app-row { grid-column: 2; grid-row: 1; align-self: end; margin-bottom: 4px; }
+  .media-panel.lyrics-open .media-textblock { grid-column: 2; grid-row: 2; align-self: start; }
+  .media-panel.lyrics-open .media-title { font-size: 19px; line-clamp: 1; -webkit-line-clamp: 1; }
+  .media-panel.lyrics-open .media-artist { font-size: 13px; }
+  .media-panel.lyrics-open .media-lyrics {
+    grid-column: 1 / -1; grid-row: 3; align-self: stretch;
+    display: flex; flex-direction: column; min-height: 0; margin: 10px 0 8px;
+  }
+  .media-panel.lyrics-open .media-lyrics .lyv { --lyv-size: clamp(17px, 3.6cqi, 28px); gap: 4px; }
+  .media-panel.lyrics-open .media-lyrics .lyv-foot { min-height: 24px; }
+  .media-panel.lyrics-open .media-actions { grid-column: 1 / -1; grid-row: 4; margin-top: 0; }
+  .media-panel.lyrics-open .msp { grid-column: 1 / -1; grid-row: 5; max-width: none; margin-top: 10px; }
+  .media-panel.lyrics-open .media-volume { grid-column: 1 / -1; grid-row: 6; margin-top: 8px; }
+}
+
+/* Tall and wide enough: the transport and the volume share one row, so the tile
+   ends with a single line of controls. Narrower or shorter tiles keep them
+   stacked, there is no room for both side by side. */
+@container mediatile (min-height: 301px) and (min-width: 460px) {
+  .media-panel.lyrics-open .media-actions { grid-column: 1 / 3; justify-self: start; }
+  .media-panel.lyrics-open .media-volume { grid-column: 3; grid-row: 4; width: clamp(160px, 40cqi, 320px); margin: 0 0 0 16px; }
+}
+
+/* The waveform is part of the cover artwork, and the lyrics sit right over it:
+   no waveform while they are open (js/media-viz.js stops drawing it too). */
+.media-panel.lyrics-open .media-viz { display: none; }
+
+/* Short tile: the transport moves up beside the title so the lyrics keep the
+   height, and below that the thumbnail goes too. */
+@container mediatile (min-height: 166px) and (max-height: 300px) and (min-width: 241px) {
+  .media-panel.lyrics-open .media-actions { grid-column: 3; grid-row: 1 / 3; margin-left: 14px; }
+}
+@container mediatile (min-height: 166px) and (max-height: 240px) and (min-width: 241px) {
+  .media-panel.lyrics-open .media-art { display: none; }
+}
+
+.media-lyrics { display: none; }
+.media-lyrics-btn[hidden] { display: none; }
+@container mediatile (max-height: 165px) {
+  .media-panel .media-lyrics-btn { display: none; }
+}
+@container mediatile (max-width: 240px) {
+  .media-panel .media-lyrics-btn { display: none; }
 }

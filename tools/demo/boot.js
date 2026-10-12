@@ -186,7 +186,7 @@
     '/update/prepare', '/update/apply', '/sdk/install', '/icon-pack', '/sound-pack',
     '/search/open', '/search/reveal', '/search/ai', '/spotlight/claimed', '/lock',
     '/api/community/rate', '/api/community/redeem', '/api/screenshot', '/api/screenshot/monitor',
-    '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock',
+    '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock', '/api/features/lyrics/unlock',
     '/api/claude/history/delete',
   ];
   const blockedPrefixes = ['/api/ai/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
@@ -284,6 +284,9 @@
       case '/media/previous': case '/media/prev':
         sim.track = (sim.track + D.playlist.length - 1) % D.playlist.length; sim.position = 0;
         push('media', mediaPayload()); return ok({});
+
+      // The demo playlist is invented, so LRCLIB really has nothing for it.
+      case '/api/lyrics': return ok({ state: 'none', key: '', title: D.playlist[sim.track].title, source: 'LRCLIB' });
 
       case '/notes/list': return ok(D.notes);
       case '/notes/save': return ok({ rev: ++D.notes.rev });

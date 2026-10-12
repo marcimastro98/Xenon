@@ -9,17 +9,19 @@
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
     { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
-    { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'chatgpt', 'browser', 'slideshow'] },
+    { labelKey: 'palette_cat_media', ids: ['media', 'lyrics', 'chat', 'chatgpt', 'browser', 'slideshow'] },
     { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
   ];
   // Built-in widgets that open only with a supporter pass. The panel says so up
   // front, so nobody adds one expecting it to work straight away.
-  const SUPPORTER_WIDGETS = new Set(['devclean']);
+  const SUPPORTER_WIDGETS = new Set(['devclean', 'lyrics']);
   // Inline icons (currentColor) — one per widget id.
   const I = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const WIDGET_ICONS = {
     media: I('<path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>'),
+    // Text lines beside a note: the song's words.
+    lyrics: I('<path d="M4 6h11M4 11h11M4 16h6"/><circle cx="17.5" cy="17" r="2.5"/><path d="M20 17V8l-2.5.8"/>'),
     chat: I('<path d="M21 12a8 8 0 0 1-11.4 7.2L4 21l1.8-5.6A8 8 0 1 1 21 12Z"/>'),
     // Two speech bubbles: a conversation, with no OpenAI mark.
     chatgpt: I('<path d="M14 9a5 5 0 0 1-7.2 4.5L3 15l1.2-3.6A5 5 0 1 1 14 9Z"/><path d="M10.5 16.5A5 5 0 0 0 17.2 19L21 20.5l-1.2-3.6A5 5 0 0 0 16.5 9.5"/>'),
@@ -70,6 +72,11 @@
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
+  const supporterLine = (base) => {
+    const key = 'layout_widget_sub_' + base;
+    const v = tr(key, '');
+    return v && v !== key ? v : '';
+  };
   const PM = () => window.PaletteModel;
   const CW = () => window.CustomWidget;
 
@@ -551,6 +558,9 @@
       return {
         base: m.base, label: tr('layout_widget_' + m.base, m.base), i18nKey: 'layout_widget_' + m.base,
         supporter: SUPPORTER_WIDGETS.has(m.base),
+        // A supporter widget says in one line what it does that the free
+        // dashboard does not; '' (no line) when the string is absent.
+        sub: SUPPORTER_WIDGETS.has(m.base) ? supporterLine(m.base) : '',
         group: tabTarget ? 'palette_add_new' : 'palette_group_builtin', pick: () => pickBuiltin(m.id), fields: builtinFields(m.base),
       };
     };

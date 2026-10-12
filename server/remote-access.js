@@ -189,6 +189,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/audio/app/volume', '/audio/app/mute', '/notes',
   '/media/source', '/media/playpause', '/media/next', '/media/previous',
   '/api/community/catalog', '/api/community/code', '/api/community/messages',
+  '/api/lyrics', '/api/features/lyrics/unlock', '/api/lyrics/offset', '/api/lyrics/translate',
   '/api/community/installed', '/api/community/installs', '/api/community/poll',
   '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
   // The owner update: POST-only like the redeem it sits beside. It hands back a
@@ -279,6 +280,9 @@ const GET_READ_EXCEPTIONS = new Set([
   '/api/community/catalog',
   '/api/community/code',
   '/api/community/messages',
+  // A cache miss asks LRCLIB once for the song already playing; the phone is
+  // showing the same lyrics view the PC does.
+  '/api/lyrics',
   '/api/community/installs',
   '/api/community/ratings',
   '/api/community/limited-status',
@@ -312,6 +316,7 @@ const REMOTE_ADMIN = new Set([
   // belong to the person sitting at the PC, not to a paired phone.
   '/api/devclean/compact',
   '/api/features/devclean/unlock',
+  '/api/features/lyrics/unlock',
 ]);
 
 const REMOTE_METHODS = new Set(['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
