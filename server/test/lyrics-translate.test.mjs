@@ -6,11 +6,13 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const T = require('../lyrics-translate.js');
 const { createLyricsTranslator, cleanCap, FAIL_TTL_MS } = require('../lyrics-translator.js');
 const { createLyricsOffsets, cleanOffset } = require('../lyrics-offsets.js');
+const P = require('../lyrics-translate-price.js');
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const SONG = ['paper boats at noon', '', 'paper boats at noon', 'the kettle hums a tune'];
@@ -169,6 +171,64 @@ test('translations and the month counter survive a restart', async () => {
   assert.equal((await again.translate(ASK)).ok, true);
   assert.equal(p.calls.length, 1);
   assert.equal((await again.usage(200)).songs, 1);
+});
+
+test('the cost estimate prices the model, from a typical song until songs are measured', async () => {
+  const p = fakeProvider([{ ...OK(2), tokens: 3000, input: 1000, output: 2000 }]);
+  const t = createLyricsTranslator({ complete: p.complete });
+  const before = await t.usage(200, 'claude-haiku-5-5');
+  assert.equal(before.estimate.measured, false);
+  assert.equal(before.estimate.songs, 100);
+  await t.translate(ASK);
+  const after = await t.usage(200, 'claude-haiku-5-5');
+  assert.equal(after.model, 'claude-haiku-5-5');
+  assert.equal(after.estimate.measured, true);
+  // 100 × (1000 × $0.10 + 2000 × $0.50) / 1M
+  assert.equal(after.estimate.usd, 0.11);
+  assert.equal((await t.usage(200, 'some-unknown-model')).estimate, null, 'never a guessed price');
+  assert.equal((await t.usage(200, '')).estimate, null, 'Ollama: no model, no price');
+});
+
+test('priceFor takes the longest matching prefix', () => {
+  assert.equal(P.priceFor('gpt-5-mini-2026-08-07').prefix, 'gpt-5-mini');
+  assert.equal(P.priceFor('gemini-3.5-flash-lite').input, 0.30);
+  assert.equal(P.priceFor('gpt-5'), null);
+  assert.equal(P.priceFor('haiku'), null, 'a plan alias has no price');
+});
+
+test('the price table published on the site parses and matches the built-in one', () => {
+  const file = fileURLToPath(new URL('../../docs/community/ai-prices.json', import.meta.url));
+  const published = P.normalizeTable(JSON.parse(fs.readFileSync(file, 'utf8')));
+  assert.ok(published, 'docs/community/ai-prices.json is a usable table');
+  assert.ok(published.checked >= P.BUILT_IN.checked, 'the site is never older than the app');
+  for (const b of P.BUILT_IN.models) assert.deepEqual(P.priceFor(b.prefix, published.models), { ...b });
+});
+
+test('a newer published table wins, a broken or older one is ignored', async () => {
+  const serve = (body) => P._setFetcher(async () => ({ text: JSON.stringify(body) }));
+  try {
+    P._reset();
+    serve({ checked: '2099-01-01', currency: 'USD', models: [{ prefix: 'claude-haiku-5-5', input: 1, output: 1 }, { prefix: 'Bad Prefix!', input: 1, output: 1 }] });
+    await P.refresh();
+    assert.equal(P.priceFor('claude-haiku-5-5').input, 1);
+    assert.equal(P.priceFor('gemini-3.5-flash-lite'), null, 'the newer table replaces the old one whole');
+    assert.equal(P.estimate('claude-haiku-5-5').checked, '2099-01-01');
+
+    P._reset();
+    serve({ checked: '2000-01-01', currency: 'USD', models: [{ prefix: 'claude-haiku-5-5', input: 9, output: 9 }] });
+    await P.refresh();
+    assert.equal(P.priceFor('claude-haiku-5-5').input, 0.10, 'older than the built-in: ignored');
+
+    P._reset();
+    P._setFetcher(async () => ({ text: '<html>' }));
+    await P.refresh();
+    assert.equal(P.priceFor('claude-haiku-5-5').input, 0.10, 'unreadable: the built-in stays');
+    assert.equal(P.normalizeTable({ checked: '2099-01-01', currency: 'EUR', models: [{ prefix: 'x1', input: 1, output: 1 }] }), null);
+    assert.equal(P.normalizeTable({ checked: '2099-01-01', currency: 'USD', models: [{ prefix: 'x1', input: -1, output: 1e9 }] }), null);
+  } finally {
+    P._setFetcher(null);
+    P._reset();
+  }
 });
 
 test('cleanCap keeps the offered choices only', () => {

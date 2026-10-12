@@ -162,6 +162,7 @@ const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
 const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator, cleanCap: cleanLyricsTranslateCap } = require('./lyrics-translator');
+const lyricsPrices = require('./lyrics-translate-price');
 
 // App version — read once from package.json so the in-app indicator always
 // matches the shipped build. Falls back gracefully if the file is unreadable.
@@ -436,7 +437,9 @@ function providerModelFor(provider, role, settings) {
 
 // One answer through the user's Claude Code / Codex subscription (ai-cli.js),
 // for the features a person starts themselves: a search, a button, the fold of
-// their own conversation. Automatic background ones never come here.
+// their own conversation. Automatic background ones never come here; the one
+// exception, lyrics translation, is a supporter's explicit opt-in with a
+// monthly cap, on the plan's small model (completeLyricsTranslation).
 async function cliOneShot(provider, systemText, userText, settings) {
   const s = settings || (await readHubSettings().catch(() => null)) || {};
   const model = provider === 'claudecode' ? s.claudeCodeModel : s.codexModel;
@@ -5142,15 +5145,30 @@ function lyricsTexts(entry) {
   return null;
 }
 
-// One request to the user's configured Xenon AI provider → { text, tokens }.
-// Gemini runs on its cheapest current tier (newest Flash-Lite). The CLI
-// providers are not offered: they are slow and meant for actions a person
-// starts by hand (see cliOneShot).
+// Each cloud provider translates on its small low-cost family, whatever model
+// the user picked for the assistant: a song a day on Opus would be real money.
+const LYRICS_TRANSLATE_FAMILY = Object.freeze({ gemini: 'auto:flash-lite', openai: 'auto:mini', anthropic: 'auto:haiku' });
+
+async function lyricsTranslationModel(provider, settings) {
+  if (aiCli.isCliProvider(provider)) return aiCli.lightModel(provider);
+  const family = LYRICS_TRANSLATE_FAMILY[provider];
+  if (!family) return '';
+  const apiKey = provider === 'gemini' ? await geminiKeyFor('')
+    : provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey;
+  return aiModels.resolve(provider, 'chat', family, apiKey);
+}
+
+// One request to the user's configured Xenon AI provider →
+// { text, tokens, input, output } (the last two split for the cost estimate).
+// Claude Code and Codex run on the user's plan: nothing to pay per song, but
+// each song counts toward the plan's limits, which the widget says before the
+// switch is turned on. They run on the plan's small model at low effort.
 async function completeLyricsTranslation({ system, user, maxTokens }) {
   const settings = await readHubSettings().catch(() => null) || {};
   const provider = aiLocal.sanitizeProvider(settings.aiProvider);
   let tokens = 0;
-  const onUsage = (n) => { tokens = n; };
+  let split = null;
+  const onUsage = (n, parts) => { tokens = n; split = parts || null; };
   let text = '';
   if (provider === 'ollama') {
     const result = await aiLocal.localChat({
@@ -5160,16 +5178,22 @@ async function completeLyricsTranslation({ system, user, maxTokens }) {
       executeTool: async () => ({ fnResult: {}, clientActions: [] }),
     });
     text = result && result.text;
+  } else if (aiCli.isCliProvider(provider)) {
+    text = await aiCli.oneShot({
+      provider, model: await lyricsTranslationModel(provider, settings), effort: 'low',
+      // Total only: a plan's tokens have no price, and Codex's large fixed
+      // instructions would skew the per-song figure a paid provider is priced on.
+      systemText: system, userText: user, onUsage: (n) => { tokens = n; },
+    });
   } else if (provider === 'openai' || provider === 'anthropic') {
     const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
     text = await mod.oneShot({
       apiKey: provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey,
-      model: providerModelFor(provider, 'chat', settings), systemText: system, userText: user, maxTokens, onUsage,
+      model: await lyricsTranslationModel(provider, settings), systemText: system, userText: user, maxTokens, onUsage,
     });
   } else if (provider === 'gemini') {
     const apiKey = await geminiKeyFor('');
-    const model = aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey);
-    const opts = { model, temperature: 0.2, json: true, onUsage };
+    const opts = { model: await lyricsTranslationModel(provider, settings), temperature: 0.2, json: true, onUsage };
     // Measured: 3.x Flash-Lite rejects a zero thinking budget and wants a level;
     // the Flash fallback rejects the "minimal" level and takes the budget. A
     // rejected request is a 400 that is not billed, so one retry costs nothing.
@@ -5182,7 +5206,7 @@ async function completeLyricsTranslation({ system, user, maxTokens }) {
   } else {
     throw new Error('provider not supported');
   }
-  return { text: String(text || ''), tokens };
+  return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output };
 }
 
 // Why translation cannot run right now, or '' when it can. Checked before any
@@ -5191,7 +5215,6 @@ async function lyricsTranslateBlocker() {
   if (_serverHubSettings.lyricsTranslate !== true) return 'off';
   const settings = await readHubSettings().catch(() => null) || {};
   const provider = aiLocal.sanitizeProvider(settings.aiProvider);
-  if (aiCli.isCliProvider(provider)) return 'provider_unsupported';
   if (provider === 'openai' && !settings.openaiApiKey) return 'no_ai';
   if (provider === 'anthropic' && !settings.anthropicApiKey) return 'no_ai';
   if (provider === 'gemini' && !(await geminiKeyFor(''))) return 'no_ai';
@@ -6929,7 +6952,7 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
 // advanced features (Game Companion, Guardian) for single fire-and-forget
 // analyses. `parts` follows the Gemini content-part shape (text / inlineData).
 // `opts` (all optional): `model` overrides the chat model, `temperature`,
-// `json` asks for a JSON reply, `onUsage(totalTokens)` reports what it cost,
+// `json` asks for a JSON reply, `onUsage(totalTokens, { input, output })` reports what it cost,
 // `thinkingLevel` replaces the zero thinking budget: Gemini 3.x Flash-Lite
 // answers 400 "invalid argument" to `thinkingBudget: 0` and takes a level instead.
 function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
@@ -6957,8 +6980,15 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
         try {
           const parsed = JSON.parse(d);
           if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
-          const used = Number(parsed?.usageMetadata?.totalTokenCount);
-          if (typeof opts.onUsage === 'function' && Number.isSafeInteger(used)) opts.onUsage(used);
+          const meta = parsed?.usageMetadata;
+          const used = Number(meta?.totalTokenCount);
+          if (typeof opts.onUsage === 'function' && Number.isSafeInteger(used)) {
+            // Thinking is billed at the output price.
+            opts.onUsage(used, {
+              input: Number(meta.promptTokenCount),
+              output: (Number(meta.candidatesTokenCount) || 0) + (Number(meta.thoughtsTokenCount) || 0),
+            });
+          }
           const text = (parsed?.candidates?.[0]?.content?.parts || [])
             .filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join('').trim();
           if (!text) return reject(new Error('empty response'));
@@ -20068,9 +20098,15 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lyrics/translate/usage' && req.method === 'GET') {
-    // This month's translated songs and tokens, for the counter in the widget.
-    try { json({ ok: true, ...(await lyricsTranslator.usage(_serverHubSettings.lyricsTranslateCap)) }); }
-    catch (e) { err500(e.message); }
+    // This month's translated songs and tokens, for the counter in the widget,
+    // with what 100 songs cost on the model translation runs on. The model id
+    // only, never a key.
+    try {
+      const settings = await readHubSettings().catch(() => null) || {};
+      const model = await lyricsTranslationModel(aiLocal.sanitizeProvider(settings.aiProvider), settings);
+      await lyricsPrices.refresh(); // the published price table, at most every 12 h
+      json({ ok: true, ...(await lyricsTranslator.usage(_serverHubSettings.lyricsTranslateCap, model)) });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
     // Is the supporter-only Dev cleanup unlocked on this install? A boolean.

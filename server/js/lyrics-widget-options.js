@@ -14,6 +14,10 @@
     anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
   };
   const PROVIDER_NAMES = { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', ollama: 'Ollama', claudecode: 'Claude Code', codex: 'Codex' };
+  // Claude Code and Codex run on the user's subscription: no money per song,
+  // but the plan's usage limits.
+  const PLANS = { claudecode: 'Claude', codex: 'ChatGPT' };
+  const MODEL_LABELS = { haiku: 'Haiku', default: '' };
 
   const tr = (key, fallback) => {
     const v = typeof window.t === 'function' ? window.t(key) : '';
@@ -104,11 +108,22 @@
   // The plain account of what translation does with the user's AI provider.
   function costBlock(provider) {
     const box = el('div', 'lyo-cost');
-    box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Xenon AI provider, with the song\'s lines. A song usually takes a few thousand tokens. Songs already translated are kept and never paid for again.')));
+    // A plan is not paid per token, and Codex's fixed instructions make a song
+    // far bigger than "about two thousand": the plan paragraph below says it.
+    if (!PLANS[provider]) box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Xenon AI provider, with the song\'s lines. A song usually takes about two thousand tokens. Songs already translated are kept and never paid for again.')));
     if (provider === 'ollama') box.appendChild(el('p', '', tr('lyrics_opt_cost_ollama', 'With Ollama it is free and stays on this PC.')));
     else if (provider === 'gemini') box.appendChild(el('p', '', tr('lyrics_opt_cost_gemini', 'Gemini uses its cheapest model (Flash-Lite). On Google\'s free tier you pay nothing, but Google may use what you send to improve its products.')));
-    else if (provider === 'claudecode' || provider === 'codex') box.appendChild(el('p', 'lyo-warn', tr('lyrics_tr_provider_unsupported')));
+    else if (PLANS[provider]) {
+      // Filled once the model is known (refreshUsage), said before the switch is on.
+      planLine = el('p', 'lyo-plan', '');
+      estimateLine = el('p', 'lyo-estimate', '');
+      box.append(planLine, estimateLine);
+    }
     if (PRICING[provider]) {
+      modelLine = provider === 'gemini' ? null : el('p', '', '');
+      estimateLine = el('p', 'lyo-estimate', '');
+      if (modelLine) box.appendChild(modelLine);
+      box.appendChild(estimateLine);
       const a = el('a', 'lyo-link', tr('lyrics_opt_prices', '{provider} prices').replace('{provider}', PROVIDER_NAMES[provider]));
       a.href = PRICING[provider];
       a.target = '_blank';
@@ -119,24 +134,72 @@
   }
 
   let usageLine = null;
+  let modelLine = null;
+  let estimateLine = null;
+  let planLine = null;
+
+  const locale = () => (typeof lang === 'string' && lang) || undefined;
+
+  // "About $0.068 per 100 new songs", and what that
+  // figure rests on. No estimate for a model without a known price: then the
+  // line stays empty and only the provider's price page is offered.
+  function paintPlan(u, provider) {
+    const model = u && typeof u.model === 'string' ? (MODEL_LABELS[u.model] ?? u.model) : '';
+    planLine.textContent = tr('lyrics_opt_cost_plan')
+      .replaceAll('{provider}', PROVIDER_NAMES[provider]).replace('{plan}', PLANS[provider])
+      .replace('{model}', model || PROVIDER_NAMES[provider]);
+    estimateLine.replaceChildren();
+    const priced = u && Number(u.songs) > 0 && Number(u.tokens) > 0;
+    if (priced) {
+      const avg = Math.round(Number(u.tokens) / Number(u.songs) / 100) * 100;
+      estimateLine.textContent = tr('lyrics_opt_plan_avg').replace('{tokens}', avg.toLocaleString(locale()));
+    }
+  }
+
+  function paintEstimate(u, provider) {
+    if (planLine) { paintPlan(u, provider); return; }
+    if (modelLine) {
+      modelLine.textContent = u && u.model ? tr('lyrics_opt_cost_model').replace('{model}', u.model) : '';
+    }
+    if (!estimateLine) return;
+    const e = u && u.estimate;
+    estimateLine.replaceChildren();
+    if (!e || !Number.isFinite(e.usd)) return;
+    // Providers bill in US dollars: no conversion that would date faster than the price.
+    const cost = new Intl.NumberFormat(locale(), { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', maximumSignificantDigits: 2 }).format(e.usd);
+    const day = new Date(String(e.checked) + 'T12:00:00');
+    const date = Number.isNaN(day.getTime()) ? '' : day.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
+    const basis = tr(e.measured ? 'lyrics_opt_estimate_measured' : 'lyrics_opt_estimate_typical')
+      .replace('{provider}', PROVIDER_NAMES[provider] || provider).replace('{date}', date);
+    estimateLine.append(
+      el('strong', '', tr('lyrics_opt_estimate', 'About {cost} per {songs} new songs.')
+        .replace('{cost}', cost).replace('{songs}', String(e.songs))),
+      document.createTextNode(' ' + basis));
+  }
+
   async function refreshUsage() {
     if (!usageLine || !window.LyricsTranslation) return;
     const line = usageLine;
+    const provider = typeof settings().aiProvider === 'string' ? settings().aiProvider : 'gemini';
     const u = await window.LyricsTranslation.usage();
     if (!line.isConnected) return;
+    paintEstimate(u, provider);
     if (!u) { line.textContent = ''; return; }
     const songs = tr('lyrics_opt_usage', '{songs} of {cap} songs translated this month')
       .replace('{songs}', String(u.songs)).replace('{cap}', String(u.cap));
     // Ollama reports no tokens: say nothing rather than "0 tokens".
     const tokens = Number(u.tokens) > 0
       ? tr('lyrics_opt_usage_tokens', '{tokens} tokens used')
-        .replace('{tokens}', Number(u.tokens).toLocaleString((typeof lang === 'string' && lang) || undefined))
+        .replace('{tokens}', Number(u.tokens).toLocaleString(locale()))
       : '';
     line.textContent = tokens ? songs + '\n' + tokens : songs;
   }
 
   function open(mount, onClose) {
     close(mount);
+    modelLine = null;
+    estimateLine = null;
+    planLine = null;
     const s = settings();
     const provider = typeof s.aiProvider === 'string' ? s.aiProvider : 'gemini';
     const sheet = el('section', 'lyo-sheet');

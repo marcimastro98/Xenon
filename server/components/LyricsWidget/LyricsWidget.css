@@ -291,6 +291,10 @@ body.lyw-has-stage .shell { z-index: 70; }
 }
 
 .lyo-warn { color: var(--color-danger); }
+.lyo-estimate:empty { display: none; }
+/* Uses the plan's limits: said in full, in the text colour, not as fine print. */
+.lyo-plan { color: var(--text); }
+.lyo-estimate strong { color: var(--text); font-weight: 700; }
 .lyo-link { color: var(--accent); font-weight: 680; text-underline-offset: 3px; }
 .lyrics-panel.has-cover .lyo-link { color: var(--text); }
 

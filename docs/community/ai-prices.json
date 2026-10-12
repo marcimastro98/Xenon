@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "checked": "2026-10-12",
+  "currency": "USD",
+  "note": "Standard prices in US dollars per million tokens for the small models Xenon uses to translate song lyrics. Read by server/lyrics-translate-price.js to show what 100 songs cost; it can only change that displayed figure. Copied from https://ai.google.dev/gemini-api/docs/pricing, https://developers.openai.com/api/docs/pricing and https://platform.claude.com/docs/en/about-claude/pricing on the 'checked' date. When a price changes, update the model AND 'checked' (an older date than the table built into Xenon is ignored). A prefix matches every model id starting with it; the longest wins.",
+  "models": [
+    { "prefix": "gemini-3.5-flash-lite", "input": 0.30, "output": 2.50 },
+    { "prefix": "gemini-3.1-flash-lite", "input": 0.25, "output": 1.50 },
+    { "prefix": "gemini-2.5-flash-lite", "input": 0.10, "output": 0.40 },
+    { "prefix": "gpt-5.4-mini", "input": 0.75, "output": 4.50 },
+    { "prefix": "gpt-5.4-nano", "input": 0.20, "output": 1.25 },
+    { "prefix": "gpt-5-mini", "input": 0.25, "output": 2.00 },
+    { "prefix": "gpt-5-nano", "input": 0.05, "output": 0.40 },
+    { "prefix": "gpt-4.1-mini", "input": 0.40, "output": 1.60 },
+    { "prefix": "gpt-4.1-nano", "input": 0.10, "output": 0.40 },
+    { "prefix": "gpt-4o-mini", "input": 0.15, "output": 0.60 },
+    { "prefix": "claude-haiku-5-5", "input": 0.10, "output": 0.50 },
+    { "prefix": "claude-haiku-4-5", "input": 1.00, "output": 5.00 }
+  ]
+}

@@ -11,13 +11,14 @@
 //   • a monthly cap of songs, counted with the tokens the provider reported, in
 //     DATA_DIR/lyrics-translate-usage.json, shown to the user in the widget.
 // The caller (server.js) supplies `complete({ system, user, maxTokens })` →
-// `{ text, tokens }` for whichever provider is configured.
+// `{ text, tokens, input?, output? }` for whichever provider is configured.
 
 const fsp = require('fs').promises;
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write.js');
 const { createJsonLru } = require('./json-lru.js');
 const T = require('./lyrics-translate.js');
+const { estimate } = require('./lyrics-translate-price.js');
 
 const CACHE_FILE = 'lyrics-translations.json';
 const USAGE_FILE = 'lyrics-translate-usage.json';
@@ -72,10 +73,16 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
     if (usageFile) {
       try { raw = JSON.parse(await fsp.readFile(usageFile, 'utf8')); } catch { /* absent: a fresh month */ }
     }
+    const int = (k) => (raw && Number.isSafeInteger(raw[k]) && raw[k] >= 0 ? raw[k] : 0);
     usage = {
       month: raw && typeof raw.month === 'string' ? raw.month.slice(0, 7) : monthOf(now()),
-      songs: raw && Number.isSafeInteger(raw.songs) && raw.songs >= 0 ? raw.songs : 0,
-      tokens: raw && Number.isSafeInteger(raw.tokens) && raw.tokens >= 0 ? raw.tokens : 0,
+      songs: int('songs'),
+      tokens: int('tokens'),
+      // Songs whose reply split its tokens into sent and received, which is
+      // what the cost estimate is worked out from.
+      priced: int('priced'),
+      inTokens: int('inTokens'),
+      outTokens: int('outTokens'),
     };
     return usage;
   }
@@ -83,14 +90,17 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
   async function currentUsage() {
     const u = await loadUsage();
     const month = monthOf(now());
-    if (u.month !== month) { u.month = month; u.songs = 0; u.tokens = 0; }
+    if (u.month !== month) Object.assign(u, { month, songs: 0, tokens: 0, priced: 0, inTokens: 0, outTokens: 0 });
     return u;
   }
 
-  async function count(tokens) {
+  const positive = (n) => Number.isSafeInteger(n) && n > 0;
+
+  async function count(tokens, input, output) {
     const u = await currentUsage();
     u.songs += 1;
-    if (Number.isSafeInteger(tokens) && tokens > 0) u.tokens += tokens;
+    if (positive(tokens)) u.tokens += tokens;
+    if (positive(input) && positive(output)) { u.priced += 1; u.inTokens += input; u.outTokens += output; }
     if (!usageFile) return;
     try { await writeFile(usageFile, JSON.stringify(u)); }
     catch { /* best effort: the count in memory still holds the cap this run */ }
@@ -126,15 +136,16 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
     const { system, user } = T.buildPrompt(unique, lang, wantReading);
     let out = null;
     let tokens = 0;
+    let res = null;
     try {
-      const res = await complete({ system, user, maxTokens: T.maxTokensFor(unique.length, wantReading) });
+      res = await complete({ system, user, maxTokens: T.maxTokensFor(unique.length, wantReading) });
       tokens = res && Number.isSafeInteger(res.tokens) ? res.tokens : 0;
       out = T.parseReply(res && res.text, unique.length, wantReading);
       if (!out && onError) onError(new Error('the reply could not be used'));
     } catch (e) { out = null; if (onError) onError(e); }
     // A request that reached the provider counts against the month even when
     // its reply was unusable: the user was billed for it either way.
-    if (out || tokens) await count(tokens);
+    if (out || tokens) await count(tokens, res && res.input, res && res.output);
     const entry = out
       ? { same: out.same, tr: out.tr, read: out.read }
       : { failed: true, until: now() + FAIL_TTL_MS };
@@ -142,9 +153,10 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
     return entry;
   }
 
-  async function usageReport(cap) {
+  // `model` is the one translation runs on now: the estimate prices it.
+  async function usageReport(cap, model) {
     const u = await currentUsage();
-    return { month: u.month, songs: u.songs, tokens: u.tokens, cap: cleanCap(cap) };
+    return { month: u.month, songs: u.songs, tokens: u.tokens, cap: cleanCap(cap), model: model || '', estimate: estimate(model, u) };
   }
 
   return { translate, usage: usageReport, flush: cache.flush, stop: cache.stop };

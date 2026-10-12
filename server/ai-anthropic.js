@@ -224,7 +224,9 @@ async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage
   const resp = await _post(key, body, 60000);
   const u = resp && resp.usage;
   const used = u ? Number(u.input_tokens) + Number(u.output_tokens) : NaN;
-  if (typeof onUsage === 'function' && Number.isSafeInteger(used)) onUsage(used);
+  if (typeof onUsage === 'function' && Number.isSafeInteger(used)) {
+    onUsage(used, { input: Number(u.input_tokens), output: Number(u.output_tokens) });
+  }
   return _textFrom(resp && resp.content).trim();
 }
 

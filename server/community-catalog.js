@@ -506,6 +506,7 @@ module.exports = {
   fetchCatalog,
   fetchVisibleCatalog,
   fetchCode,
+  fetchText,
   // Test seams (mirrors community-installs.js): inject the upstream fetcher and
   // reset the module cache so the SWR flow can be exercised without a network.
   _setFetcher(fn) { _fetchImpl = fn || fetchText; },

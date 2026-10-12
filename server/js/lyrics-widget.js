@@ -230,7 +230,6 @@
     same: 'lyrics_tr_same',
     cap: 'lyrics_tr_cap',
     no_ai: 'lyrics_tr_no_ai',
-    provider_unsupported: 'lyrics_tr_provider_unsupported',
     failed: 'lyrics_tr_failed',
     too_long: 'lyrics_tr_too_long',
   };

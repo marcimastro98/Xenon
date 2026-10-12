@@ -360,14 +360,28 @@ async function models(provider, { fresh = false } = {}) {
   if (list.length) codexModels = { at: Date.now(), list };
   return list;
 }
+// Codex names its models freely (luna, terra…) but describes the small one
+// ("Fast and affordable model for easier tasks"). Claude Code has an alias.
+const LIGHT_RE = /\b(affordable|efficient|mini|lite|small|cheap)\b/i;
+
 function parseCodexModels(out) {
   let j;
   try { j = JSON.parse(String(out || '')); } catch { return []; }
   const arr = j && Array.isArray(j.models) ? j.models : [];
   return arr
     .filter((m) => m && typeof m.slug === 'string' && MODEL_RE.test(m.slug) && m.visibility === 'list')
-    .map((m) => ({ id: m.slug, label: String(m.display_name || m.slug).slice(0, 60) }))
+    .map((m) => ({ id: m.slug, label: String(m.display_name || m.slug).slice(0, 60), light: LIGHT_RE.test(String(m.description || '')) }))
     .slice(0, 40);
+}
+
+// The plan's small model, for automatic work that should use as little of the
+// plan's allowance as possible: Haiku on Claude Code, the newest model Codex
+// describes as light (it lists newest first), else the program's own default.
+async function lightModel(provider) {
+  if (provider === 'claudecode') return 'haiku';
+  if (provider !== 'codex') return 'default';
+  const hit = (await models('codex').catch(() => [])).find((m) => m.light);
+  return hit ? hit.id : 'default';
 }
 
 // ── the conversation as one prompt ──────────────────────────────────────────
@@ -548,7 +562,10 @@ function parseClaude(r) {
     const text = typeof j.result === 'string' ? j.result.trim() : '';
     if (j.is_error || j.subtype !== 'success') throw new CliError(NOT_LOGGED_RE.test(text) ? 'cli_not_logged_in' : 'cli_failed', text || String(j.subtype || 'error'));
     const used = j.modelUsage && typeof j.modelUsage === 'object' ? Object.keys(j.modelUsage)[0] || '' : '';
-    return { text, model: used };
+    const u = j.usage || {};
+    // Cache reads and writes are input too: they count toward the plan.
+    const input = ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'].reduce((n, k) => n + (Number(u[k]) || 0), 0);
+    return { text, model: used, usage: { input, output: Number(u.output_tokens) || 0 } };
   }
   const why = (String(r.stderr || '').trim() || String(r.stdout || '').trim()).slice(-400);
   throw new CliError(NOT_LOGGED_RE.test(why) ? 'cli_not_logged_in' : 'cli_failed', why || 'no answer');
@@ -558,7 +575,7 @@ function parseClaude(r) {
 // there (a `--disable` of an unknown feature is a hard error), so an older or
 // newer Codex that renamed one still runs, just with that switch ignored.
 const CODEX_OFF = Object.freeze(['shell_tool', 'unified_exec', 'apps', 'plugins', 'browser_use', 'computer_use', 'image_generation', 'hooks']);
-function codexArgs(systemText, model, dir, skip, token, imageFiles = []) {
+function codexArgs(systemText, model, dir, skip, token, imageFiles = [], effort = '') {
   // --image takes a list, so it goes first and a flag ends it before the prompt.
   const a = ['exec'];
   for (const f of imageFiles) a.push('--image', f);
@@ -583,22 +600,29 @@ function codexArgs(systemText, model, dir, skip, token, imageFiles = []) {
     a.push('-c', 'approval_policy="never"');
   }
   if (model !== 'default') a.push('-m', model);
+  if (effort === 'low') a.push('-c', 'model_reasoning_effort="low"');
   a.push('-');   // the prompt comes on stdin
   return a;
 }
 function parseCodex(r) {
   const texts = [];
   let failed = '', lastError = '';
+  const usage = { input: 0, output: 0 };
   for (const line of String(r.stdout || '').split(/\r?\n/)) {
     let e;
     try { e = JSON.parse(line); } catch { continue; }
     if (!e || typeof e !== 'object') continue;
+    if (e.type === 'turn.completed' && e.usage) {
+      // input_tokens already includes the cached part.
+      usage.input += Number(e.usage.input_tokens) || 0;
+      usage.output += Number(e.usage.output_tokens) || 0;
+    }
     if (e.type === 'item.completed' && e.item && e.item.type === 'agent_message' && typeof e.item.text === 'string') texts.push(e.item.text);
     else if (e.type === 'turn.failed') failed = String((e.error && e.error.message) || 'turn failed');
     else if (e.type === 'error' && typeof e.message === 'string' && !/^Reconnecting/i.test(e.message)) lastError = e.message;
   }
   const text = texts.join('\n\n').trim();
-  if (text && !failed) return { text, model: '' };
+  if (text && !failed) return { text, model: '', usage };
   const why = (failed || lastError || String(r.stderr || '').trim()).slice(-400);
   throw new CliError(NOT_LOGGED_RE.test(why) ? 'cli_not_logged_in' : 'cli_failed', why || 'no answer');
 }
@@ -606,7 +630,8 @@ function parseCodex(r) {
 let active = 0;
 // `tools` (Gemini-style declarations) + `executeTool` give the model Xenon's
 // tools for this turn; without them it is a plain answer, as for a summary.
-async function chat({ provider, model, systemText, history, tools, executeTool, signal = null }) {
+// `effort: 'low'` keeps Codex's reasoning short, for small automatic jobs.
+async function chat({ provider, model, systemText, history, tools, executeTool, signal = null, effort = '' }) {
   if (!isCliProvider(provider)) throw new CliError('cli_bad_provider');
   const images = latestImages(history);
   const prompt = buildPrompt(history, new Set(images.map((i) => i.part)));
@@ -632,13 +657,13 @@ async function chat({ provider, model, systemText, history, tools, executeTool, 
     const opts = { input: withImages ? claudeImageInput(prompt, images) : prompt, env: childEnv(provider), cwd: dir, timeoutMs: token ? TOOL_TIMEOUT_MS : TIMEOUT_MS, abortOn: provider === 'codex' ? /waiting for network/i : null, signal };
     const r = provider === 'claudecode'
       ? await runWithOptional(exe, (skip) => claudeArgs(sys, m, skip, token, withImages), ['--safe-mode', '--no-session-persistence', '--permission-prompts', '--disable-slash-commands'], opts)
-      : await runWithOptional(exe, (skip) => codexArgs(sys, m, dir, skip, token, imageFiles), ['--ephemeral', '--ignore-user-config', '--ignore-rules'], opts);
+      : await runWithOptional(exe, (skip) => codexArgs(sys, m, dir, skip, token, imageFiles, effort), ['--ephemeral', '--ignore-user-config', '--ignore-rules'], opts);
     if (r.cancelled) throw new CliError('cli_cancelled');
     if (r.timedOut) throw new CliError('cli_timeout');
     if (r.aborted) throw new CliError('cli_offline');
     const out = provider === 'claudecode' ? parseClaude(r) : parseCodex(r);
     const clientActions = token ? toolSessions.get(token).clientActions.slice() : [];
-    return { text: out.text, model: out.model, clientActions, newContent: { role: 'model', parts: [{ text: out.text }] } };
+    return { text: out.text, model: out.model, usage: out.usage, clientActions, newContent: { role: 'model', parts: [{ text: out.text }] } };
   } finally {
     if (token) toolSessions.delete(token);
     for (const f of imageFiles) fsp.unlink(f).catch(() => { /* already gone */ });
@@ -646,14 +671,17 @@ async function chat({ provider, model, systemText, history, tools, executeTool, 
   }
 }
 
-async function oneShot({ provider, model, systemText, userText }) {
-  const r = await chat({ provider, model, systemText, history: [{ role: 'user', parts: [{ text: String(userText || '') }] }] });
+// `onUsage(totalTokens, { input, output })`, when given, hears what the run used.
+async function oneShot({ provider, model, systemText, userText, effort, onUsage }) {
+  const r = await chat({ provider, model, systemText, effort, history: [{ role: 'user', parts: [{ text: String(userText || '') }] }] });
+  const u = r.usage;
+  if (typeof onUsage === 'function' && u && (u.input + u.output) > 0) onUsage(u.input + u.output, u);
   return r.text;
 }
 
 module.exports = {
   PROVIDERS, CLAUDE_MODELS, TIMEOUT_MS,
-  isCliProvider, sanitizeModel, status, models, chat, oneShot, CliError,
+  isCliProvider, sanitizeModel, status, models, lightModel, chat, oneShot, CliError,
   resolveCodex, childEnv, workDir,
   configure, handleMcp,
   // exposed for unit tests
