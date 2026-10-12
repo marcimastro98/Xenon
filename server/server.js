@@ -783,7 +783,12 @@ aiModels.initCache({ dataDir: DATA_DIR });
 const lyricsCache = createLyricsCache({ dataDir: DATA_DIR });
 // Supporter Lyrics widget: per-song timing, and translations paid for once.
 const lyricsOffsets = createLyricsOffsets({ dataDir: DATA_DIR });
-const lyricsTranslator = createLyricsTranslator({ dataDir: DATA_DIR, complete: (req) => completeLyricsTranslation(req) });
+const lyricsTranslator = createLyricsTranslator({
+  dataDir: DATA_DIR,
+  complete: (req) => completeLyricsTranslation(req),
+  // The provider's own message (no lyrics, no key): enough to tell a bad key from a bad reply.
+  onError: (e) => console.warn('[lyrics] translation failed:', String((e && e.message) || e).slice(0, 200)),
+});
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
@@ -5164,7 +5169,16 @@ async function completeLyricsTranslation({ system, user, maxTokens }) {
   } else if (provider === 'gemini') {
     const apiKey = await geminiKeyFor('');
     const model = aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey);
-    text = await _geminiOneShot(apiKey, [{ text: user }], system, maxTokens, { model, temperature: 0.2, json: true, onUsage });
+    const opts = { model, temperature: 0.2, json: true, onUsage };
+    // Measured: 3.x Flash-Lite rejects a zero thinking budget and wants a level;
+    // the Flash fallback rejects the "minimal" level and takes the budget. A
+    // rejected request is a 400 that is not billed, so one retry costs nothing.
+    try {
+      text = await _geminiOneShot(apiKey, [{ text: user }], system, maxTokens, { ...opts, thinkingLevel: 'minimal' });
+    } catch (e) {
+      if (!/invalid argument|thinking/i.test(String(e && e.message))) throw e;
+      text = await _geminiOneShot(apiKey, [{ text: user }], system, maxTokens, opts);
+    }
   } else {
     throw new Error('provider not supported');
   }
@@ -6915,12 +6929,15 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
 // advanced features (Game Companion, Guardian) for single fire-and-forget
 // analyses. `parts` follows the Gemini content-part shape (text / inlineData).
 // `opts` (all optional): `model` overrides the chat model, `temperature`,
-// `json` asks for a JSON reply, `onUsage(totalTokens)` reports what it cost.
+// `json` asks for a JSON reply, `onUsage(totalTokens)` reports what it cost,
+// `thinkingLevel` replaces the zero thinking budget: Gemini 3.x Flash-Lite
+// answers 400 "invalid argument" to `thinkingBudget: 0` and takes a level instead.
 function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
   return new Promise((resolve, reject) => {
     const generationConfig = {
       temperature: Number.isFinite(opts.temperature) ? opts.temperature : 0.7,
-      maxOutputTokens: maxTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 },
+      maxOutputTokens: maxTokens, candidateCount: 1,
+      thinkingConfig: opts.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : { thinkingBudget: 0 },
       ...(opts.json ? { responseMimeType: 'application/json' } : {}),
     };
     const payload = JSON.stringify({

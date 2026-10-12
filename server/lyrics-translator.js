@@ -54,7 +54,9 @@ function normalizeEntry(raw) {
   return { same: raw.same === true, tr, read };
 }
 
-function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile = writeFileAtomic, debounceMs } = {}) {
+// `onError(err)` hears why a request failed, so the server can say it in its
+// log: a failure is remembered for 10 minutes and must never be silent.
+function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile = writeFileAtomic, debounceMs, onError } = {}) {
   const cache = createJsonLru({
     dataDir, fileName: CACHE_FILE, maxEntries: MAX_ENTRIES, normalize: normalizeEntry,
     durable: (e) => !e.failed, expired: (e, t) => e.failed === true && t >= e.until,
@@ -128,7 +130,8 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
       const res = await complete({ system, user, maxTokens: T.maxTokensFor(unique.length, wantReading) });
       tokens = res && Number.isSafeInteger(res.tokens) ? res.tokens : 0;
       out = T.parseReply(res && res.text, unique.length, wantReading);
-    } catch { out = null; }
+      if (!out && onError) onError(new Error('the reply could not be used'));
+    } catch (e) { out = null; if (onError) onError(e); }
     // A request that reached the provider counts against the month even when
     // its reply was unusable: the user was billed for it either way.
     if (out || tokens) await count(tokens);

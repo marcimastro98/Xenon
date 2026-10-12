@@ -203,6 +203,8 @@ body.lyw-has-stage .shell { z-index: 70; }
 .lyrics-panel.lyw-staged .lyrics-widget-mount { padding: 22px clamp(18px, 6vw, 96px) 16px; }
 .lyrics-panel.lyw-staged .lyv { --lyv-size: clamp(24px, 4.6cqi, 64px); }
 .lyrics-panel.lyw-staged .lyw-head { padding-right: 52px; }
+/* The options sheet covers the tile, but the ✕ stays above it: keep "Done" clear. */
+.lyrics-panel.lyw-staged .lyo-head { padding-right: 52px; }
 
 .lyw-stage-close {
   position: absolute;
