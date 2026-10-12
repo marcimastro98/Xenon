@@ -46,19 +46,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Widget per Xeneon Edge: i 44 widget della dashboard Xenon</title>
-<meta name="description" content="I 44 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
+<title>Widget per Xeneon Edge: i 45 widget della dashboard Xenon</title>
+<meta name="description" content="I 45 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Widget per Xeneon Edge: i 44 widget della dashboard Xenon">
-<meta property="og:description" content="I 44 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
+<meta property="og:title" content="Widget per Xeneon Edge: i 45 widget della dashboard Xenon">
+<meta property="og:description" content="I 45 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://xenon-app.com/it/widgets.html">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:locale" content="it_IT">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Widget per Xeneon Edge: i 44 widget della dashboard Xenon">
-<meta name="twitter:description" content="I 44 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
+<meta name="twitter:title" content="Widget per Xeneon Edge: i 45 widget della dashboard Xenon">
+<meta name="twitter:description" content="I 45 widget inclusi in Xenon e cosa fa ciascuno: monitor di sistema, media, calendario, tasti del Deck, OBS e altro, su Xeneon Edge, monitor o touchscreen.">
 <meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 <link rel="canonical" href="https://xenon-app.com/it/widgets.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html">
@@ -69,7 +69,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Quanti widget ha Xenon?","acceptedAnswer":{"@type":"Answer","text":"44 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"Per i widget serve uno Xeneon Edge?","acceptedAnswer":{"@type":"Answer","text":"No. La stessa dashboard gira su qualsiasi monitor, su un touchscreen o, in beta, su un telefono o un tablet collegato al tuo Wi-Fi."}},{"@type":"Question","name":"Un riquadro può contenere più widget?","acceptedAnswer":{"@type":"Answer","text":"Sì. In modalità Layout trascina un riquadro al centro di un altro e diventano tab dello stesso riquadro."}},{"@type":"Question","name":"Quante pagine può avere una dashboard di Xenon?","acceptedAnswer":{"@type":"Answer","text":"Fino a 8 pagine, ciascuna su una griglia a 24 colonne."}},{"@type":"Question","name":"Posso creare un widget mio?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con l'SDK dei widget, in beta, scrivi un widget come una pagina HTML e Xenon lo esegue in una sandbox, con solo i dati e le azioni che approva chi lo usa."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Quanti widget ha Xenon?","acceptedAnswer":{"@type":"Answer","text":"45 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"Per i widget serve uno Xeneon Edge?","acceptedAnswer":{"@type":"Answer","text":"No. La stessa dashboard gira su qualsiasi monitor, su un touchscreen o, in beta, su un telefono o un tablet collegato al tuo Wi-Fi."}},{"@type":"Question","name":"Un riquadro può contenere più widget?","acceptedAnswer":{"@type":"Answer","text":"Sì. In modalità Layout trascina un riquadro al centro di un altro e diventano tab dello stesso riquadro."}},{"@type":"Question","name":"Quante pagine può avere una dashboard di Xenon?","acceptedAnswer":{"@type":"Answer","text":"Fino a 8 pagine, ciascuna su una griglia a 24 colonne."}},{"@type":"Question","name":"Posso creare un widget mio?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con l'SDK dei widget, in beta, scrivi un widget come una pagina HTML e Xenon lo esegue in una sandbox, con solo i dati e le azioni che approva chi lo usa."}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -79,7 +79,7 @@
   .wlist li { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
   .wlist li strong { color: var(--text); }
   figure.shot { margin: 26px 0 8px; }
-  figure.shot img {
+  figure.shot img, figure.shot video {
     display: block; width: 100%; height: auto;
     border: 1px solid var(--line); border-radius: 12px; background: var(--g-1);
   }
@@ -128,7 +128,7 @@
   <div class="wrap">
     <!-- xenon:crumbs --><nav class="xc" aria-label="Percorso"><ol><li><a href="/it/" data-xl="home">Home</a></li><li><a href="/it/widgets.html" aria-current="page" data-xl="f.widgets">Tutti i widget</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/it/"},{"@type":"ListItem","position":2,"name":"Tutti i widget","item":"https://xenon-app.com/it/widgets.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="wg.h1">Tutti i widget di Xenon</h1>
-    <p class="lede" data-i18n="wg.lede">Xenon è una dashboard touch gratuita per gli schermi accanto a un PC: un CORSAIR Xeneon Edge, un monitor libero, un touchscreen o, in beta, un telefono o un tablet. Include 44 widget. Qui trovi ciascuno con quello che fa, poi come si posizionano e da dove ne arrivano altri.</p>
+    <p class="lede" data-i18n="wg.lede">Xenon è una dashboard touch gratuita per gli schermi accanto a un PC: un CORSAIR Xeneon Edge, un monitor libero, un touchscreen o, in beta, un telefono o un tablet. Include 45 widget. Qui trovi ciascuno con quello che fa, poi come si posizionano e da dove ne arrivano altri.</p>
     <p class="updated" data-i18n="wg.updated">Ultimo aggiornamento: 27 settembre 2026</p>
 
     <nav class="jump" aria-label="On this page">
@@ -168,14 +168,19 @@
     </figure>
 
     <h2 id="media" data-i18n="wg.h.media">Media</h2>
-    <p data-i18n="wg.media.intro">5 widget.</p>
+    <p data-i18n="wg.media.intro">6 widget.</p>
     <ul class="wlist">
       <li data-i18n-html="wg.w.media"><strong>Riproduzione.</strong> Cosa suona in qualsiasi app multimediale sul PC, con la copertina, play e pausa, brano precedente e successivo.</li>
       <li data-i18n-html="wg.w.chat"><strong>Chat.</strong> La chat scritta di Xenon AI, dove fai domande, alleghi immagini, PDF e file di testo, e le chiedi di cambiare cose sulla dashboard.</li>
       <li data-i18n-html="wg.w.chatgpt"><strong>Chiedi a ChatGPT.</strong> Una chat a cui risponde il tuo piano ChatGPT tramite OpenAI Codex sul PC, senza chiave API. Le conversazioni restano sul PC, non nella cronologia di ChatGPT.</li>
       <li data-i18n-html="wg.w.browser"><strong>Browser.</strong> Una pagina web dentro un riquadro, con tab, barra degli indirizzi, avanti e indietro, gestita da un browser Chromium sul PC, così apre anche i siti che non si lasciano incorporare.</li>
       <li data-i18n-html="wg.w.slideshow"><strong>Slideshow.</strong> Fa scorrere le immagini e le GIF animate che aggiungi, o una cartella del PC, e con un tocco la metti in pausa o vai avanti a mano.</li>
+      <li data-i18n-html="wg.w.lyrics"><strong>Testi delle canzoni.</strong> Per i sostenitori, ed è già dentro Xenon: non c'è niente da scaricare dal catalogo. Il testo del brano che suona su Spotify, YouTube o qualsiasi altro lettore, dalla libreria gratuita LRCLIB, a tempo riga per riga sopra la copertina sfocata, con la traduzione nella tua lingua sotto ogni riga. Corregge anche il tempo di un singolo brano, scrive giapponese, coreano e cinese in lettere latine e può riempire lo schermo quando parte la musica. La traduzione usa l'AI che hai configurato in Xenon.</li>
     </ul>
+    <figure class="shot">
+      <video src="/images/home/lyrics-widget.mp4" poster="/images/home/lyrics-widget.webp" width="1280" height="800" muted loop playsinline preload="none" data-loop aria-label="Il widget Testi delle canzoni: le parole si illuminano una alla volta mentre il brano suona, con la traduzione italiana sotto ogni riga" data-i18n-aria="wg.shot.lyrics"></video>
+      <figcaption data-i18n="wg.cap.lyrics">Il widget Testi delle canzoni, per i sostenitori, con ogni riga tradotta in italiano. Il brano è inventato per questo video.</figcaption>
+    </figure>
     <figure class="shot">
       <img src="/images/home/crop-media.webp" width="836" height="572" loading="lazy" decoding="async" alt="La tab Riproduzione del riquadro Media: un brano di Spotify con la copertina, i pulsanti precedente, pausa e successivo e un cursore del volume, con la tab Chat accanto" data-i18n-alt="wg.shot.media">
       <figcaption data-i18n="wg.cap.media">Riproduzione e Chat condividono un riquadro fin dall'inizio.</figcaption>
@@ -238,7 +243,7 @@
     <p data-i18n-html="wg.own.p3">La <a href="/create/">guida per creare</a> parte da zero e copre temi, pagine, profili Deck e widget. Il <a href="/create/#sdk">riferimento dell'SDK dei widget</a> contiene il protocollo completo.</p>
 
     <h2 id="faq" data-i18n="wg.h.faq">Domande</h2>
-    <details><summary data-i18n="wg.faq.count.q">Quanti widget ha Xenon?</summary><div class="body"><p data-i18n="wg.faq.count.a">44 widget inclusi, in quattro gruppi: Produttività, Media, Sistema e Streaming. In più ci sono i widget del catalogo della community e quelli che crei tu, che girano nel riquadro Widget personalizzato.</p></div></details>
+    <details><summary data-i18n="wg.faq.count.q">Quanti widget ha Xenon?</summary><div class="body"><p data-i18n="wg.faq.count.a">45 widget inclusi, in quattro gruppi: Produttività, Media, Sistema e Streaming. In più ci sono i widget del catalogo della community e quelli che crei tu, che girano nel riquadro Widget personalizzato.</p></div></details>
     <details><summary data-i18n="wg.faq.edge.q">Per i widget serve uno Xeneon Edge?</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">No. La stessa dashboard gira su qualsiasi monitor, su un touchscreen o, in beta, su un telefono o un tablet collegato al tuo Wi-Fi. Vedi <a href="/it/xeneon-edge-widgets.html">Xenon sullo Xeneon Edge</a> e <a href="/it/tablet-dashboard.html">un tablet o un telefono come dashboard</a>.</p></div></details>
     <details><summary data-i18n="wg.faq.tabs.q">Un riquadro può contenere più widget?</summary><div class="body"><p data-i18n="wg.faq.tabs.a">Sì. In modalità Layout trascina un riquadro al centro di un altro e diventano tab dello stesso riquadro. Trascina fuori una tab per separarle di nuovo.</p></div></details>
     <details><summary data-i18n="wg.faq.pages.q">Quante pagine può avere una dashboard?</summary><div class="body"><p data-i18n="wg.faq.pages.a">Fino a 8, ciascuna su una griglia a 24 colonne. Una pagina nuova parte vuota e lascia le altre pagine come sono.</p></div></details>
@@ -267,6 +272,7 @@
   </div>
 </footer>
 <!-- /xenon:footer -->
+<script src="/loop-video.js" defer></script>
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
 </body>

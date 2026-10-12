@@ -46,19 +46,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>Xeneon Edge widgets list : les 44 Xenon dashboard widgets</title>
-<meta name="description" content="Les 44 Xenon widgets intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.">
+<title>Xeneon Edge widgets list : les 45 widgets du dashboard Xenon</title>
+<meta name="description" content="Les 45 widgets Xenon intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="Xeneon Edge widgets list : les 44 Xenon dashboard widgets">
-<meta property="og:description" content="Les 44 Xenon widgets intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.">
+<meta property="og:title" content="Xeneon Edge widgets list : les 45 widgets du dashboard Xenon">
+<meta property="og:description" content="Les 45 widgets Xenon intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://xenon-app.com/fr/widgets.html">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:locale" content="fr_FR">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Xeneon Edge widgets list : les 44 Xenon dashboard widgets">
-<meta name="twitter:description" content="Les 44 Xenon widgets intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.">
+<meta name="twitter:title" content="Xeneon Edge widgets list : les 45 widgets du dashboard Xenon">
+<meta name="twitter:description" content="Les 45 widgets Xenon intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.">
 <meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 <link rel="canonical" href="https://xenon-app.com/fr/widgets.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/widgets.html">
@@ -69,7 +69,7 @@
 <link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/widgets.html">
 <link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/widgets.html">
 <link rel="alternate" hreflang="x-default" href="https://xenon-app.com/widgets.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Combien de widgets Xenon possède-t-il ?","acceptedAnswer":{"@type":"Answer","text":"44 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"Les widgets ont-ils besoin d'un Xeneon Edge ?","acceptedAnswer":{"@type":"Answer","text":"Non. Le même dashboard fonctionne sur n'importe quel moniteur, un écran tactile ou, en beta, sur un téléphone ou une tablette via votre Wi-Fi."}},{"@type":"Question","name":"Une tuile peut-elle contenir plusieurs widgets ?","acceptedAnswer":{"@type":"Answer","text":"Oui. En mode Mise en page, faites glisser une tuile sur le centre d'une autre et elles deviennent des onglets de la même tuile."}},{"@type":"Question","name":"Combien de pages un Xenon dashboard peut-il contenir ?","acceptedAnswer":{"@type":"Answer","text":"Jusqu'à 8 pages, chacune sur une grille de 24 colonnes."}},{"@type":"Question","name":"Puis-je créer mon propre widget ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Avec le widget SDK, en beta, vous écrivez un widget sous forme de page HTML et Xenon l'exécute dans un bac à sable, avec uniquement les données et les actions approuvées par son utilisateur."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Combien de widgets Xenon possède-t-il ?","acceptedAnswer":{"@type":"Answer","text":"45 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make sit next to them in the + panel."}},{"@type":"Question","name":"Les widgets ont-ils besoin d'un Xeneon Edge ?","acceptedAnswer":{"@type":"Answer","text":"Non. Le même dashboard fonctionne sur n'importe quel moniteur, un écran tactile ou, en beta, sur un téléphone ou une tablette via votre Wi-Fi."}},{"@type":"Question","name":"Une tuile peut-elle contenir plusieurs widgets ?","acceptedAnswer":{"@type":"Answer","text":"Oui. En mode Mise en page, faites glisser une tuile sur le centre d'une autre et elles deviennent des onglets de la même tuile."}},{"@type":"Question","name":"Combien de pages un Xenon dashboard peut-il contenir ?","acceptedAnswer":{"@type":"Answer","text":"Jusqu'à 8 pages, chacune sur une grille de 24 colonnes."}},{"@type":"Question","name":"Puis-je créer mon propre widget ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Avec le widget SDK, en beta, vous écrivez un widget sous forme de page HTML et Xenon l'exécute dans un bac à sable, avec uniquement les données et les actions approuvées par son utilisateur."}}]}</script>
 
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
@@ -79,7 +79,7 @@
   .wlist li { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
   .wlist li strong { color: var(--text); }
   figure.shot { margin: 26px 0 8px; }
-  figure.shot img {
+  figure.shot img, figure.shot video {
     display: block; width: 100%; height: auto;
     border: 1px solid var(--line); border-radius: 12px; background: var(--g-1);
   }
@@ -128,7 +128,7 @@
   <div class="wrap">
     <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/widgets.html" aria-current="page" data-xl="f.widgets">Chaque widget</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"Chaque widget","item":"https://xenon-app.com/fr/widgets.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="wg.h1">Chaque Xenon widget</h1>
-    <p class="lede" data-i18n="wg.lede">Xenon est un dashboard tactile gratuit pour les écrans situés à côté d'un PC : un CORSAIR Xeneon Edge, un moniteur de secours, un écran tactile ou, en version beta, un téléphone ou une tablette. Il est livré avec 44 widgets intégrés. Voici chacun d'entre eux et sa fonction, puis comment les placer et d'où proviennent les autres.</p>
+    <p class="lede" data-i18n="wg.lede">Xenon est un dashboard tactile gratuit pour les écrans situés à côté d'un PC : un CORSAIR Xeneon Edge, un moniteur de secours, un écran tactile ou, en version beta, un téléphone ou une tablette. Il est livré avec 45 widgets intégrés. Voici chacun d'entre eux et sa fonction, puis comment les placer et d'où proviennent les autres.</p>
     <p class="updated" data-i18n="wg.updated">Dernière mise à jour : 27 septembre 2026</p>
 
     <nav class="jump" aria-label="On this page">
@@ -168,14 +168,19 @@
     </figure>
 
     <h2 id="media" data-i18n="wg.h.media">Médias</h2>
-    <p data-i18n="wg.media.intro">5 widgets.</p>
+    <p data-i18n="wg.media.intro">6 widgets.</p>
     <ul class="wlist">
       <li data-i18n-html="wg.w.media"><strong>Lecture.</strong> Ce qui est en cours de lecture dans n'importe quelle application multimédia sur le PC, avec la pochette, les boutons lecture/pause, précédent et suivant.</li>
-      <li data-i18n-html="wg.w.chat"><strong>Chat.</strong> Le chat Xenon IA, où vous posez des questions, joignez des images, des PDF et des fichiers texte, et lui demandez d'apporter des modifications sur le dashboard.</li>
-      <li data-i18n-html="wg.w.chatgpt"><strong>Ask ChatGPT.</strong> A chat answered by your own ChatGPT plan through OpenAI Codex on the PC, with no API key. Conversations are kept on the PC, not in your ChatGPT history.</li>
+      <li data-i18n-html="wg.w.chat"><strong>Chat.</strong> Le chat Xenon IA, où vous posez des questions, joignez des images, des PDFs et des fichiers texte, et lui demandez d'apporter des modifications sur le dashboard.</li>
+      <li data-i18n-html="wg.w.chatgpt"><strong>Posez une question à ChatGPT.</strong> Une conversation à laquelle répond votre propre abonnement ChatGPT via OpenAI Codex sur le PC, sans clé API. Les conversations sont conservées sur le PC et non dans votre historique ChatGPT.</li>
       <li data-i18n-html="wg.w.browser"><strong>Navigateur.</strong> Une page web dans une tuile, avec des onglets, une barre d'adresse et des boutons retour/avancer, exécutée par un navigateur Chromium sur le PC afin qu'il ouvre également les sites qui refusent d'être intégrés.</li>
-      <li data-i18n-html="wg.w.slideshow"><strong>Diaporama.</strong> Fait défiler les images et GIF animés que vous ajoutez, ou un dossier sur le PC. Une touche le met en pause ou permet de l'avancer manuellement.</li>
+      <li data-i18n-html="wg.w.slideshow"><strong>Diaporama.</strong> Fait défiler les images et GIFs animés que vous ajoutez, ou un dossier sur le PC. Une touche le met en pause ou permet de l'avancer manuellement.</li>
+      <li data-i18n-html="wg.w.lyrics"><strong>Paroles.</strong> Pour les supporters, et déjà inclus dans Xenon : rien à télécharger depuis le catalogue. Les paroles du morceau en cours dans Spotify, YouTube ou n'importe quel autre lecteur, issues de la bibliothèque gratuite LRCLIB, synchronisées ligne par ligne sur la pochette floutée, avec la traduction dans votre langue sous chaque ligne. Il corrige aussi le timing d'un seul morceau, écrit le japonais, le coréen et le chinois en lettres latines et peut remplir l'écran quand la musique démarre. La traduction utilise l'IA que vous avez configurée dans Xenon.</li>
     </ul>
+    <figure class="shot">
+      <video src="/images/home/lyrics-widget.mp4" poster="/images/home/lyrics-widget.webp" width="1280" height="800" muted loop playsinline preload="none" data-loop aria-label="Le widget Paroles : les mots s'allument un par un pendant le morceau, avec la traduction italienne sous chaque ligne" data-i18n-aria="wg.shot.lyrics"></video>
+      <figcaption data-i18n="wg.cap.lyrics">Le widget Paroles, pour les supporters, avec chaque ligne traduite en italien. Le morceau a été inventé pour cette vidéo.</figcaption>
+    </figure>
     <figure class="shot">
       <img src="/images/home/crop-media.webp" width="836" height="572" loading="lazy" decoding="async" alt="L’onglet Lecture de la tuile Médias : un morceau Spotify avec sa pochette, les boutons précédent, pause et suivant, ainsi qu’un curseur de volume, l’onglet Chat se trouvant à côté" data-i18n-alt="wg.shot.media">
       <figcaption data-i18n="wg.cap.media">Par défaut, la lecture et le chat partagent une même tuile.</figcaption>
@@ -189,7 +194,7 @@
       <li data-i18n-html="wg.w.power"><strong>Énergie.</strong> La consommation électrique de l'ordinateur en watts pour CPU et GPU, l'ensemble de la machine lorsque l'alimentation le signale, ainsi que les capteurs d'énergie Home Assistant situés à proximité. Les mesures de l'ordinateur sont exclusives à Windows ; celles de Home Assistant fonctionnent sur tous les systèmes.</li>
       <li data-i18n-html="wg.w.battery"><strong>Batteries.</strong> La charge des appareils sans fil CORSAIR, des appareils Bluetooth, de la batterie d'un ordinateur portable ou d'un USB connecté via UPS. Windows.</li>
       <li data-i18n-html="wg.w.disk"><strong>Espace disque.</strong> Une carte de ce qui occupe chaque lecteur, avec les fichiers les plus volumineux, les doublons vérifiés et une liste fixe de catégories sûres à nettoyer, envoyées à la Corbeille ou aux Objets supprimés.</li>
-      <li data-i18n-html="wg.w.devclean"><strong>Nettoyage développeur.</strong> Pour les soutiens. Indique la place prise par les images et le cache de build de Docker, les modèles Ollama, les dossiers d’éditeur de projets supprimés et les disques virtuels de WSL et Docker, et la libère : le prune de Docker, la suppression des modèles, les dossiers à la Corbeille ou aux Objets supprimés et, sous Windows, un bouton Compacter pour les disques virtuels de 10 Go ou plus.</li>
+      <li data-i18n-html="wg.w.devclean"><strong>Nettoyage développeur.</strong> Pour les supporters. Indique la place prise par les images et le cache de build de Docker, les modèles Ollama, les dossiers d’éditeur de projets supprimés et les disques virtuels de WSL et Docker, et la libère : le prune de Docker, la suppression des modèles, les dossiers à la Corbeille et, sous Windows, un bouton Compacter pour les disques virtuels de 10 Go ou plus.</li>
       <li data-i18n-html="wg.w.audio"><strong>Volume.</strong> Volume général et coupure du son, périphérique de sortie et d'entrée, ainsi qu'un curseur pour chaque application émettant un son. Les curseurs par application fonctionnent sur Windows et Linux.</li>
       <li data-i18n-html="wg.w.mic"><strong>Microphone.</strong> Un grand bouton permet de couper et de rétablir le son du micro, avec un curseur pour régler sa sensibilité d'entrée.</li>
       <li data-i18n-html="wg.w.secondscreen"><strong>Deuxième écran.</strong> Bureau Windows supplémentaire créé par un pilote d’affichage virtuel, affiché en direct dans la tuile pour que vous puissiez y faire glisser des applications et les utiliser au toucher. Windows uniquement.</li>
@@ -198,7 +203,7 @@
       <li data-i18n-html="wg.w.unifi"><strong>Caméras.</strong> Images en quasi direct des caméras UniFi Protect et de toute caméra exposée par Home Assistant, avec un geste pour agrandir une image.</li>
       <li data-i18n-html="wg.w.lighting"><strong>Éclairage.</strong> Couleur, effets et mode par appareil pour les périphériques iCUE et les lumières réseau telles que WLED, Hue et Nanoleaf. Périphériques iCUE uniquement sur Windows.</li>
       <li data-i18n-html="wg.w.claude"><strong>Claude Code.</strong> Une fois que vous avez connecté Claude Code depuis la tuile : ses limites de 5 heures et hebdomadaires, chaque session en cours d'exécution et ce qu'elle fait, ainsi que les demandes d'autorisation auxquelles vous pouvez répondre depuis la tuile.</li>
-      <li data-i18n-html="wg.w.codex"><strong>Codex.</strong> For OpenAI Codex in the ChatGPT app, your editor or the terminal: the usage windows of your plan and your tokens per day, and once you connect Codex from the tile, each running session and the requests you can answer from the tile.</li>
+      <li data-i18n-html="wg.w.codex"><strong>Codex.</strong> Pour OpenAI Codex dans l'application ChatGPT, votre éditeur ou le terminal : les fenêtres d'utilisation de votre plan et vos jetons par jour, et une fois que vous avez connecté Codex depuis la tuile, chaque session en cours et les requêtes auxquelles vous pouvez répondre depuis la tuile.</li>
     </ul>
     <figure class="shot">
       <img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="La tuile Système : graphiques pour CPU, GPU, RAM et le disque C, puis ping, FPS, latence et vitesse du réseau, avec les onglets Volume et Microphone en haut" data-i18n-alt="wg.shot.sys">
@@ -230,7 +235,7 @@
     <h2 id="catalog" data-i18n="wg.h.catalog">Widgets du catalogue</h2>
     <p data-i18n-html="wg.catalog.p1">Le <a href="/catalog/">catalogue communautaire</a> contient des widgets, des thèmes, des fonds animés, des pages, des profils Deck, des scènes Ambient et des paquets complets créés et partagés par d'autres utilisateurs. Chaque entrée est modérée.</p>
     <p data-i18n-html="wg.catalog.p2">Copiez le code d'une entrée sur la page du catalogue et collez-le dans <strong>Paramètres → Widgets &amp; partage → Importer</strong>, ou ouvrez le store dans l'application, qui répertorie le même catalogue. Avant que quoi que ce soit ne soit appliqué, vous pouvez voir le contenu du code.</p>
-    <p data-i18n-html="wg.catalog.p3">Un widget de catalogue s'exécute dans le widget personnalisé <strong>Custom widget</strong>, en environnement isolé : il ne reçoit que les données, actions et adresses web qu'il a déclarées, et demande d'abord votre autorisation. Le widget widget SDK qui se trouve derrière est en beta.</p>
+    <p data-i18n-html="wg.catalog.p3">Un widget de catalogue s'exécute dans le widget personnalisé <strong>Custom widget</strong>, en environnement isolé : il ne reçoit que les données, actions et adresses web qu'il a déclarées, et demande d'abord votre autorisation. Le SDK des widgets qui se trouve derrière est en beta.</p>
 
     <h2 id="own" data-i18n="wg.h.own">Créer votre propre widget</h2>
     <p data-i18n="wg.own.p1">Votre propre widget est construit avec le widget SDK, qui est en beta : un dossier contenant un manifest.json et un index.html. Xenon l'exécute dans un bac à sable et lui transmet des données en direct et des actions via un seul pont de messagerie.</p>
@@ -238,7 +243,7 @@
     <p data-i18n-html="wg.own.p3">Le <a href="/create/">guide du créateur</a> part de zéro et aborde les thèmes, les pages, les profils Deck et les widgets. La <a href="/create/#sdk">Widget SDK référence</a> contient le protocole complet.</p>
 
     <h2 id="faq" data-i18n="wg.h.faq">Questions</h2>
-    <details><summary data-i18n="wg.faq.count.q">Combien de widgets possède Xenon ?</summary><div class="body"><p data-i18n="wg.faq.count.a">44 widgets intégrés, répartis en quatre groupes : Productivité, Médias, Système et Streaming. Les Widgets du catalogue communautaire et les widgets que vous créez s'exécutent dans la tuile widget Personnalisé, en plus de ceux-ci.</p></div></details>
+    <details><summary data-i18n="wg.faq.count.q">Combien de widgets possède Xenon ?</summary><div class="body"><p data-i18n="wg.faq.count.a">45 widgets intégrés, répartis en quatre groupes : Productivité, Médias, Système et Streaming. Les Widgets du catalogue communautaire et les widgets que vous créez s'exécutent dans la tuile widget Personnalisé, en plus de ceux-ci.</p></div></details>
     <details><summary data-i18n="wg.faq.edge.q">Les widgets ont-ils besoin d'un Xeneon Edge ?</summary><div class="body"><p data-i18n-html="wg.faq.edge.a">Non. Le même dashboard fonctionne sur n'importe quel moniteur, un écran tactile ou, en beta, un téléphone ou une tablette via votre Wi-Fi. Consultez <a href="/fr/xeneon-edge-widgets.html">Xenon sur le Xeneon Edge</a> et <a href="/fr/tablet-dashboard.html"> une tablette ou un téléphone comme dashboard</a>.</p></div></details>
     <details><summary data-i18n="wg.faq.tabs.q">Une tuile peut-elle contenir plusieurs widgets ?</summary><div class="body"><p data-i18n="wg.faq.tabs.a">Oui. En mode Mise en page, faites glisser une tuile au centre d'une autre pour qu'elles deviennent des onglets de la même tuile. Faites glisser un onglet vers l'extérieur pour le séparer à nouveau.</p></div></details>
     <details><summary data-i18n="wg.faq.pages.q">Combien de pages un dashboard peut-il contenir ?</summary><div class="body"><p data-i18n="wg.faq.pages.a">Jusqu'à 8, chacune sur une grille de 24 colonnes. Une nouvelle page démarre vide et laisse les autres pages intactes.</p></div></details>
@@ -248,7 +253,7 @@
       <h3 data-i18n="wg.cta.h">Télécharger Xenon</h3>
       <p data-i18n-html="wg.cta.p">Gratuit pour un usage personnel, sans compte. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Télécharger Xenon pour Windows</a>, trouver les versions macOS et Linux sur la page <a href="/fr/download.html">téléchargement</a>, ou essayer le dashboard d’abord dans la <a href="/demo/">démo navigateur</a>, qui fonctionne sur des données simulées.</p>
     </div>
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -260,13 +265,14 @@
       <p data-xl="tag">Un dashboard gratuit pour les écrans à côté de votre PC. Windows, avec macOS et Linux en beta.</p>
     </div>
     <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Projet</h2><ul><li><a href="/fr/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/fr/faq.html" data-xl="f.faq">Aide et questions</a></li><li><a href="/fr/privacy.html" data-xl="f.privacy">Confidentialité</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR.</span></div>
   </div>
 </footer>
 <!-- /xenon:footer -->
+<script src="/loop-video.js" defer></script>
 <script src="/analytics.js" defer></script>
 <script src="/download-flow.js" defer></script>
 </body>

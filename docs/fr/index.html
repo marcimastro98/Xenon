@@ -40,6 +40,7 @@
 <!-- The month's drops, as published from the hub (site-promo.json): the spotlight, the strip
      above the header and the corner card. -->
 <script src="/promo.js" defer></script>
+<script src="/loop-video.js" defer></script>
 <!-- Theme, before the first paint. A deferred script would let a visitor who
      chose dark see a white page flash first; /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
@@ -475,6 +476,14 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .tier.pick:hover .tier-go { filter: brightness(1.1); }
 .tier:active .tier-go { transform: translateY(2px) scale(.985); }
 .sup-note { margin: 22px 0 0; font-size: 16px; color: var(--fg-2); max-width: 70ch; }
+/* What a code unlocks inside the app: the real tile playing, its name, one
+   fact, and where it lives. Laid out like a widgets row. */
+.sup-in { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; align-items: center; margin: 0 0 clamp(48px, 5vw, 72px); }
+.sup-in-clip { grid-column: 1 / span 7; display: block; width: 100%; height: auto; border-radius: 10px; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 2px 4px rgba(0,0,0,.08), 0 22px 44px -28px rgba(0,0,0,.45); }
+.sup-in-txt { grid-column: 9 / span 4; min-width: 0; }
+.sup-in h3 { margin: 0; font: 760 clamp(28px, 1vw + 20px, 36px)/1.05 var(--f-display); letter-spacing: -0.012em; }
+.sup-in p { margin: 12px 0 0; font-size: 17px; line-height: 1.5; color: var(--fg-2); max-width: 44ch; }
+.sup-in p.sup-in-where { color: var(--fg); }
 
 /* Install */
 .inst { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; }
@@ -579,6 +588,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
 @media (max-width: 860px) {
   .ws-row { display: flex; flex-direction: column; }
   .ws-cat { order: 1; } .ws-lede { order: 2; } .ws-shot { order: 3; margin-top: 22px; } .ws-list { order: 4; margin-top: 18px; grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .sup-in { display: flex; flex-direction: column; align-items: stretch; gap: 22px; }
+  .sup-in-txt { order: -1; }
 }
 
 /* ── Phone: its own logic, not the desktop shrunk ───────────────────── */
@@ -799,6 +810,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       <symbol id="wi-lighting" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2h6c0-.8.4-1.5 1-2A7 7 0 0 0 12 2Z"/></symbol>
       <symbol id="wi-codex" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="16" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5"/><path d="M12.5 15h4.5"/></symbol>
       <symbol id="wi-claude" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2c.35 2.6 1.05 3.3 3.6 3.6-2.55.35-3.25 1.05-3.6 3.6-.35-2.55-1.05-3.25-3.6-3.6 2.55-.35 3.25-1.05 3.6-3.6Z"/></symbol>
+      <symbol id="wi-lyrics" viewBox="0 0 24 24"><path d="M3 6h11M3 10h11M3 14h6"/><path d="M17 18V5l4-1"/><circle cx="15" cy="18" r="2"/></symbol>
       <symbol id="wi-media" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></symbol>
       <symbol id="wi-chatgpt" viewBox="0 0 24 24"><path d="M14 9a5 5 0 0 1-7.2 4.5L3 15l1.2-3.6A5 5 0 1 1 14 9Z"/><path d="M10.5 16.5A5 5 0 0 0 17.2 19L21 20.5l-1.2-3.6A5 5 0 0 0 16.5 9.5"/></symbol>
       <symbol id="wi-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.4 7.2L4 21l1.8-5.6A8 8 0 1 1 21 12Z"/></symbol>
@@ -832,7 +844,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <div class="w">
       <div class="sec-head">
         <h2 id="h-widgets" data-i18n="widgets.h2">Widgets</h2>
-        <p data-i18n="widgets.p">44 intégrés. Redimensionnez-les et placez-les sur une grille de 24 colonnes, répartis sur un maximum de 8 pages.</p>
+        <p data-i18n="widgets.p">45 intégrés. Redimensionnez-les et placez-les sur une grille de 24 colonnes, répartis sur un maximum de 8 pages.</p>
       </div>
       <div class="ws">
       <div class="ws-row">
@@ -843,9 +855,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       </div>
       <div class="ws-row">
         <img class="ws-shot" src="/images/home/crop-media.webp" width="832" height="572" loading="lazy" decoding="async" alt="The Playback widget with the track that is playing" data-i18n-alt="wg.med.alt">
-        <h3 class="ws-cat" id="ws-med"><span data-i18n="ws.media.t">Médias et streaming</span><span class="ws-n">14</span></h3>
+        <h3 class="ws-cat" id="ws-med"><span data-i18n="ws.media.t">Médias et streaming</span><span class="ws-n">15</span></h3>
         <p class="ws-lede" data-i18n="ws.media.p">Ce qui est en cours de lecture dans n'importe quel lecteur, avec ses contrôles, ainsi que vos flux : Twitch, YouTube, OBS, Discord, Streamer.bot et Wave Link.</p>
-        <ul class="ws-list" aria-labelledby="ws-med"><li><svg aria-hidden="true"><use href="#wi-media"/></svg><span data-i18n="ix.media">Lecture</span></li><li><svg aria-hidden="true"><use href="#wi-chat"/></svg><span data-i18n="ix.chat">Chat</span></li><li><svg aria-hidden="true"><use href="#wi-chatgpt"/></svg><span>ChatGPT</span></li><li><svg aria-hidden="true"><use href="#wi-browser"/></svg><span data-i18n="ix.browser">Navigateur</span></li><li><svg aria-hidden="true"><use href="#wi-slideshow"/></svg><span data-i18n="ix.slideshow">Diaporama</span></li><li><svg aria-hidden="true"><use href="#wi-twitch"/></svg><span>Twitch Live</span></li><li><svg aria-hidden="true"><use href="#wi-twitchwatch"/></svg><span>Twitch</span></li><li><svg aria-hidden="true"><use href="#wi-youtube"/></svg><span>YouTube</span></li><li><svg aria-hidden="true"><use href="#wi-youtubelive"/></svg><span>YouTube Live</span></li><li><svg aria-hidden="true"><use href="#wi-obs"/></svg><span>OBS</span></li><li><svg aria-hidden="true"><use href="#wi-discord"/></svg><span>Discord</span></li><li><svg aria-hidden="true"><use href="#wi-spotify"/></svg><span>Spotify</span></li><li><svg aria-hidden="true"><use href="#wi-streamerbot"/></svg><span>Streamer.bot</span></li><li><svg aria-hidden="true"><use href="#wi-wavelink"/></svg><span>Wave Link</span></li><li><svg aria-hidden="true"><use href="#wi-deck"/></svg><span>Deck</span></li></ul>
+        <ul class="ws-list" aria-labelledby="ws-med"><li><svg aria-hidden="true"><use href="#wi-media"/></svg><span data-i18n="ix.media">Lecture</span></li><li><svg aria-hidden="true"><use href="#wi-lyrics"/></svg><span data-i18n="ix.lyrics">Paroles</span></li><li><svg aria-hidden="true"><use href="#wi-chat"/></svg><span data-i18n="ix.chat">Chat</span></li><li><svg aria-hidden="true"><use href="#wi-chatgpt"/></svg><span>ChatGPT</span></li><li><svg aria-hidden="true"><use href="#wi-browser"/></svg><span data-i18n="ix.browser">Navigateur</span></li><li><svg aria-hidden="true"><use href="#wi-slideshow"/></svg><span data-i18n="ix.slideshow">Diaporama</span></li><li><svg aria-hidden="true"><use href="#wi-twitch"/></svg><span>Twitch Live</span></li><li><svg aria-hidden="true"><use href="#wi-twitchwatch"/></svg><span>Twitch</span></li><li><svg aria-hidden="true"><use href="#wi-youtube"/></svg><span>YouTube</span></li><li><svg aria-hidden="true"><use href="#wi-youtubelive"/></svg><span>YouTube Live</span></li><li><svg aria-hidden="true"><use href="#wi-obs"/></svg><span>OBS</span></li><li><svg aria-hidden="true"><use href="#wi-discord"/></svg><span>Discord</span></li><li><svg aria-hidden="true"><use href="#wi-spotify"/></svg><span>Spotify</span></li><li><svg aria-hidden="true"><use href="#wi-streamerbot"/></svg><span>Streamer.bot</span></li><li><svg aria-hidden="true"><use href="#wi-wavelink"/></svg><span>Wave Link</span></li><li><svg aria-hidden="true"><use href="#wi-deck"/></svg><span>Deck</span></li></ul>
       </div>
       <div class="ws-row">
         <img class="ws-shot" src="/images/home/crop-calendar.webp" width="820" height="572" loading="lazy" decoding="async" alt="The Calendar widget with the next events" data-i18n-alt="wg.cal.alt">
@@ -855,7 +867,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       </div>
       </div>
       <div class="ws-end">
-        <p data-i18n="ws.more">Au-delà de ces 44 : les widgets du catalogue, ainsi que ceux que vous créez, également sans code.</p>
+        <p data-i18n="ws.more">Au-delà de ces 45 : les widgets du catalogue, ainsi que ceux que vous créez, également sans code.</p>
         <p class="ws-links"><a href="/fr/widgets.html" data-i18n="ws.all">La liste complète des widgets</a><a href="/catalog/" data-i18n="cat.more">Parcourir le catalogue</a><a href="/create/#widgets" data-i18n="ws.make">Créer un widget</a></p>
       </div>
     </div>
@@ -993,9 +1005,17 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <div class="w">
       <div class="sec-head">
         <h2 id="h-sup" data-i18n="sup.h2">Supporters</h2>
-        <p data-i18n="sup.p">Xenon est gratuit et développé par un seul développeur. Les soutiens reçoivent les sorties mensuelles du catalogue et permettent de faire perdurer le projet.</p>
+        <p data-i18n="sup.p">Xenon est gratuit et développé par un seul développeur. Les supporters reçoivent les sorties mensuelles du catalogue et permettent de faire perdurer le projet.</p>
       </div>
       <div class="bill" id="bill" hidden></div>
+      <div class="sup-in">
+        <video class="sup-in-clip" src="/images/home/lyrics-widget.mp4" poster="/images/home/lyrics-widget.webp" width="1280" height="800" muted loop playsinline preload="none" data-loop aria-label="The Lyrics widget: the words light up one at a time as the song plays, with the Italian translation under each line" data-i18n-aria="sup.in.alt"></video>
+        <div class="sup-in-txt">
+          <h3 data-i18n="sup.in.h">Paroles</h3>
+          <p data-i18n="sup.in.p">Les paroles du morceau en cours, dans n'importe quel lecteur, synchronisées ligne par ligne, avec la traduction dans votre langue sous chaque ligne.</p>
+          <p class="sup-in-where" data-i18n="sup.in.where">Il est déjà inclus dans Xenon, rien à télécharger depuis le catalogue. Un code supporter le débloque, avec Nettoyage développeur, et les deux restent débloqués quand le code expire.</p>
+        </div>
+      </div>
       <div class="tiers" id="tiers">
         <a class="tier" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_coffee">
           <span class="tier-price" data-i18n-html="tier.1.price">5 $ <small>par mois</small></span>
@@ -1064,7 +1084,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <div class="w">
       <div class="sec-head"><h2 id="h-pp" data-i18n="pp.h2">Tarifs et confidentialité</h2></div>
       <dl class="pp">
-        <dt data-i18n="pp.price.t">Prix</dt><dd data-i18n="pp.price.d">Gratuit. Il n'existe pas de version payante ; les soutiens reçoivent les sorties du catalogue mensuel.</dd>
+        <dt data-i18n="pp.price.t">Prix</dt><dd data-i18n="pp.price.d">Gratuit. Il n'existe pas de version payante ; les supporters reçoivent les sorties du catalogue mensuel.</dd>
         <dt data-i18n="pp.src.t">Source</dt><dd data-i18n-html="pp.src.d">Sur <a href="https://github.com/marcimastro98/Xenon">GitHub</a>, sous une licence non commerciale personnalisée.</dd>
         <dt data-i18n="pp.stay.t">Reste sur votre PC</dt><dd data-i18n="pp.stay.d">Paramètres, notes, fichiers, relevés des capteurs et mémoire de l'IA. Aucun compte n'est requis.</dd>
         <dt data-i18n="pp.out.t">Mise en ligne</dt><dd data-i18n-html="pp.out.d">Vérifications de mise à jour et catalogue, un fichier d'annonces quotidien, un comptage anonyme des versions (une option pour le désactiver) ainsi que les services météo,artworks et IA de votre choix. <a href="/fr/privacy.html">La liste complète</a></dd>
@@ -1097,7 +1117,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       <li><a href="/fr/widgets.html" data-i18n="ft.widgets">Chaque widget</a></li>
       <li><a href="/fr/deck.html" data-i18n="ft.deck">touches du Deck</a></li>
       <li><a href="/fr/claude-code.html" data-i18n="ft.claude">Claude Code sur un écran tactile</a></li>
-      <li><a href="/codex.html" data-i18n="ft.codex">OpenAI Codex sur un écran tactile</a></li>
+      <li><a href="/fr/codex.html" data-i18n="ft.codex">OpenAI Codex sur un écran tactile</a></li>
       <li><a href="/fr/sensor-panel.html" data-i18n="ft.sensor">Un panneau de capteurs pour votre PC</a></li>
       <li><a href="/fr/xenon-exe.html" data-i18n="ft.exe">L’installateur est-il sûr ?</a></li>
     </ul></div>
@@ -1171,7 +1191,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         "A voice assistant with Gemini, OpenAI, Anthropic, local models, Claude Code and Codex",
         "Claude Code permission prompts answered from the touchscreen",
         "File transfer between the PC and a paired phone or tablet",
-        "44 widgets on a 24-column grid, up to 8 pages",
+        "45 widgets on a 24-column grid, up to 8 pages",
         "Themes, animated backgrounds, Ambient scenes, a community catalog and a widget SDK",
         "Runs on a CORSAIR Xeneon Edge, a spare monitor, a tablet or a phone"
       ]
@@ -1273,7 +1293,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Drawn to scale: a 27-inch monitor, the 14.5-inch Edge, an 11-inch tablet and a 6.1-inch phone.",
     "beta": "Beta",
     "widgets.h2": "Widgets",
-    "widgets.p": "44 built in. Resize them and place them on a 24-column grid, across up to 8 pages.",
+    "widgets.p": "45 built in. Resize them and place them on a 24-column grid, across up to 8 pages.",
     "wg.sys.alt": "The System widget: CPU, GPU, memory, disk and network graphs",
     "wg.med.alt": "The Playback widget with the track that is playing",
     "wg.cal.alt": "The Calendar widget with the next events",
@@ -1305,6 +1325,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "Batteries",
     "ix.disk": "Disk space",
     "ix.devclean": "Developer cleanup",
+    "ix.lyrics": "Lyrics",
     "ix.audio": "Volume",
     "ix.mic": "Microphone",
     "ix.secondscreen": "Second screen",
@@ -1367,6 +1388,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Twelve months of drops, plus a theme built for you, one request a month. Choose the yearly option on the membership page; it renews each year until you stop it.",
     "tier.go": "Support",
     "sup.note": "The app stays free and complete without it. Codes arrive by email and unlock in Settings, Support.",
+    "sup.in.alt": "The Lyrics widget: the words light up one at a time as the song plays, with the Italian translation under each line",
+    "sup.in.h": "Lyrics",
+    "sup.in.p": "The words of the song playing in any player, synced line by line, with each line translated into your language under it.",
+    "sup.in.where": "It is already inside Xenon, not a catalog download. A supporter code unlocks it, together with Developer cleanup, and both stay unlocked when the code runs out.",
     "bill.top": "Top supporters",
     "bill.mem": "Active members",
     "bill.rest": "With the support of",
@@ -1500,7 +1525,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Représentation à l'échelle : un moniteur de 27 pouces, le Xeneon Edge de 14,5 pouces, une tablette de 11 pouces et un téléphone de 6,1 pouces.",
     "beta": "Beta",
     "widgets.h2": "Widgets",
-    "widgets.p": "44 intégrés. Redimensionnez-les et placez-les sur une grille de 24 colonnes, répartis sur un maximum de 8 pages.",
+    "widgets.p": "45 intégrés. Redimensionnez-les et placez-les sur une grille de 24 colonnes, répartis sur un maximum de 8 pages.",
     "wg.sys.alt": "Le widget système : CPU, GPU, graphiques de la mémoire, du disque et du réseau",
     "wg.med.alt": "Le widget de lecture avec la piste en cours de lecture",
     "wg.cal.alt": "Le widget du calendrier avec les prochains événements",
@@ -1508,7 +1533,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU, GPU, mémoire, disque et réseau avec leur historique, le taux de rafraîchissement réel dans les jeux, puis l’audio, les lumières, la domotique et les caméras.",
     "ws.media.p": "Ce qui est en cours de lecture dans n'importe quel lecteur, avec ses contrôles, ainsi que vos flux : Twitch, YouTube, OBS, Discord, Streamer.bot et Wave Link.",
     "ws.prod.p": "Vos événements, également issus de flux .ics, avec tâches, minuteries et notes dans la même tuile, puis météo, actualités, bourse et football.",
-    "ws.more": "Au-delà de ces 44 : les widgets du catalogue, ainsi que ceux que vous créez, également sans code.",
+    "ws.more": "Au-delà de ces 45 : les widgets du catalogue, ainsi que ceux que vous créez, également sans code.",
     "ws.make": "Créer un widget",
     "cat.prod": "Productivité",
     "cat.system": "Système",
@@ -1532,6 +1557,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "Batteries",
     "ix.disk": "Espace disque",
     "ix.devclean": "Nettoyage développeur",
+    "ix.lyrics": "Paroles",
     "ix.audio": "Volume",
     "ix.mic": "Microphone",
     "ix.secondscreen": "Deuxième écran",
@@ -1582,7 +1608,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "kind.deck": "Deck profil",
     "kind.page": "page",
     "sup.h2": "Supporters",
-    "sup.p": "Xenon est gratuit et développé par un seul développeur. Les soutiens reçoivent les sorties mensuelles du catalogue et permettent de faire perdurer le projet.",
+    "sup.p": "Xenon est gratuit et développé par un seul développeur. Les supporters reçoivent les sorties mensuelles du catalogue et permettent de faire perdurer le projet.",
     "tier.1.price": "5 $ <small>par mois<\/small>",
     "tier.1.name": "Un café",
     "tier.1.what": "Un mois de drops pour les supporters, le rôle Discord et votre nom sur cette page.",
@@ -1594,7 +1620,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Douze mois de sorties, plus un thème conçu pour vous, une demande par mois. Choisissez l'option annuelle sur la page d'adhésion ; elle se renouvelle chaque année jusqu'à ce que vous l'annuliez.",
     "tier.go": "Prise en charge",
     "sup.note": "L'application reste gratuite et complète sans cela. Les codes sont envoyés par e-mail et se débloquent dans Paramètres, Assistance.",
-    "bill.top": "Principaux soutiens",
+    "sup.in.alt": "Le widget Paroles : les mots s'allument un par un pendant le morceau, avec la traduction italienne sous chaque ligne",
+    "sup.in.h": "Paroles",
+    "sup.in.p": "Les paroles du morceau en cours, dans n'importe quel lecteur, synchronisées ligne par ligne, avec la traduction dans votre langue sous chaque ligne.",
+    "sup.in.where": "Il est déjà inclus dans Xenon, rien à télécharger depuis le catalogue. Un code supporter le débloque, avec Nettoyage développeur, et les deux restent débloqués quand le code expire.",
+    "bill.top": "Principaux supporters",
     "bill.mem": "Membres actifs",
     "bill.rest": "Avec le soutien de",
     "bill.you": "Votre nom",
@@ -1618,7 +1648,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "Chaque version répertorie les SHA256 checksums, signés, sur <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub<\/a>. <a href=\"/fr/xenon-exe.html\">Comment vérifier un téléchargement<\/a>",
     "pp.h2": "Tarifs et confidentialité",
     "pp.price.t": "Prix",
-    "pp.price.d": "Gratuit. Il n'existe pas de version payante ; les soutiens reçoivent les sorties du catalogue mensuel.",
+    "pp.price.d": "Gratuit. Il n'existe pas de version payante ; les supporters reçoivent les sorties du catalogue mensuel.",
     "pp.src.t": "Source",
     "pp.src.d": "Sur <a href=\"https://github.com/marcimastro98/Xenon\">GitHub<\/a>, sous une licence non commerciale personnalisée.",
     "pp.stay.t": "Reste sur votre PC",
@@ -1727,7 +1757,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Disegnati in scala: un monitor da 27 pollici, l'Edge da 14,5, un tablet da 11 e un telefono da 6,1.",
     "beta": "Beta",
     "widgets.h2": "Widget",
-    "widgets.p": "44 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.",
+    "widgets.p": "45 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.",
     "wg.sys.alt": "Il widget Sistema: grafici di CPU, GPU, memoria, disco e rete",
     "wg.med.alt": "Il widget Riproduzione con il brano in ascolto",
     "wg.cal.alt": "Il widget Calendario con i prossimi eventi",
@@ -1759,6 +1789,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "Batterie",
     "ix.disk": "Spazio disco",
     "ix.devclean": "Pulizia sviluppatore",
+    "ix.lyrics": "Testi delle canzoni",
     "ix.audio": "Volume",
     "ix.mic": "Microfono",
     "ix.secondscreen": "Secondo schermo",
@@ -1821,6 +1852,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Dodici mesi di drop, più un tema fatto per te, una richiesta al mese. Scegli l'opzione annuale nella pagina della membership; si rinnova ogni anno finché non la fermi.",
     "tier.go": "Sostieni",
     "sup.note": "L'app resta gratuita e completa anche senza. I codici arrivano via email e si sbloccano in Impostazioni, Supporto.",
+    "sup.in.alt": "Il widget Testi delle canzoni: le parole si illuminano una alla volta mentre il brano suona, con la traduzione italiana sotto ogni riga",
+    "sup.in.h": "Testi delle canzoni",
+    "sup.in.p": "Il testo del brano che suona, in qualsiasi lettore, a tempo riga per riga, con la traduzione nella tua lingua sotto ogni riga.",
+    "sup.in.where": "È già dentro Xenon, non si scarica dal catalogo. Un codice sostenitore lo sblocca, insieme a Pulizia sviluppatore, e restano sbloccati anche quando il codice scade.",
     "bill.top": "I maggiori sostenitori",
     "bill.mem": "Membri attivi",
     "bill.rest": "Con il sostegno di",
@@ -1954,7 +1989,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "Dibujados a escala: un monitor de 27 pulgadas, el Edge de 14,5, una tablet de 11 y un teléfono de 6,1.",
     "beta": "Beta",
     "widgets.h2": "Widgets",
-    "widgets.p": "44 incluidos. Cámbialos de tamaño y colócalos en una cuadrícula de 24 columnas, en hasta 8 páginas.",
+    "widgets.p": "45 incluidos. Cámbialos de tamaño y colócalos en una cuadrícula de 24 columnas, en hasta 8 páginas.",
     "wg.sys.alt": "El widget Sistema: gráficas de CPU, GPU, memoria, disco y red",
     "wg.med.alt": "El widget Reproducción con la canción que está sonando",
     "wg.cal.alt": "El widget Calendario con los próximos eventos",
@@ -1986,6 +2021,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "Baterías",
     "ix.disk": "Espacio en disco",
     "ix.devclean": "Limpieza para desarrolladores",
+    "ix.lyrics": "Letra",
     "ix.audio": "Volume",
     "ix.mic": "Microphone",
     "ix.secondscreen": "Second screen",
@@ -2048,6 +2084,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "Doce meses de drops, más un tema hecho para ti, una petición al mes. Elige la opción anual en la página de membresía; se renueva cada año hasta que la canceles.",
     "tier.go": "Apoyar",
     "sup.note": "La app sigue siendo gratis y completa sin esto. Los códigos llegan por correo y se desbloquean en Ajustes, Apoya a Xenon.",
+    "sup.in.alt": "El widget Letra: las palabras se iluminan una a una mientras suena la canción, con la traducción al italiano debajo de cada línea",
+    "sup.in.h": "Letra",
+    "sup.in.p": "La letra de la canción que suena, en cualquier reproductor, sincronizada línea a línea, con la traducción a tu idioma debajo de cada línea.",
+    "sup.in.where": "Ya viene dentro de Xenon, no se descarga del catálogo. Un código de mecenas lo desbloquea, junto con Limpieza para desarrolladores, y los dos siguen desbloqueados cuando el código caduca.",
     "bill.top": "Los mayores mecenas",
     "bill.mem": "Miembros activos",
     "bill.rest": "Con el apoyo de",
@@ -2181,7 +2221,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "実際の比率で描いています。27インチのモニター、14.5インチのEdge、11インチのタブレット、6.1インチのスマートフォンです。",
     "beta": "ベータ",
     "widgets.h2": "ウィジェット",
-    "widgets.p": "44種類を内蔵しています。サイズを変えて24列のグリッドに配置でき、ページは最大8枚まで使えます。",
+    "widgets.p": "45種類を内蔵しています。サイズを変えて24列のグリッドに配置でき、ページは最大8枚まで使えます。",
     "wg.sys.alt": "システムウィジェット。CPU、GPU、メモリ、ディスク、ネットワークのグラフ",
     "wg.med.alt": "再生中の曲を表示した再生ウィジェット",
     "wg.cal.alt": "次の予定を表示したカレンダーウィジェット",
@@ -2189,7 +2229,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU、GPU、メモリ、ディスク、ネットワークを履歴つきで表示し、ゲーム内の実際のFPSも。さらにオーディオ、ライト、スマートホーム、カメラ。",
     "ws.media.p": "どのプレーヤーで再生中の曲もコントロールつきで表示。配信はTwitch、YouTube、OBS、Discord、Streamer.bot、Wave Link。",
     "ws.prod.p": "予定は.icsフィードからも取り込み、タスク、タイマー、メモと同じタイルに。さらに天気、ニュース、株価、サッカー。",
-    "ws.more": "この44個に加えて、カタログのウィジェットや、自分で作ったウィジェットも使えます。コードなしでも作れます。",
+    "ws.more": "この45個に加えて、カタログのウィジェットや、自分で作ったウィジェットも使えます。コードなしでも作れます。",
     "ws.make": "ウィジェットを作る",
     "cat.prod": "生産性",
     "cat.system": "システム",
@@ -2213,6 +2253,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "バッテリー",
     "ix.disk": "ディスク容量",
     "ix.devclean": "開発者向けクリーンアップ",
+    "ix.lyrics": "歌詞",
     "ix.audio": "音量",
     "ix.mic": "マイク",
     "ix.secondscreen": "セカンドスクリーン",
@@ -2275,6 +2316,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "新作12か月分に加えて、あなた専用のテーマを制作します（リクエストは月1回）。メンバーシップのページで年額プランを選んでください。停止するまで毎年更新されます。",
     "tier.go": "支援する",
     "sup.note": "支援しなくても、アプリは無料ですべての機能を使えます。コードはメールで届き、「設定」の「Xenonを応援」で有効にできます。",
+    "sup.in.alt": "歌詞ウィジェット。曲に合わせて単語が1つずつ明るくなり、各行の下にイタリア語の翻訳が表示されている",
+    "sup.in.h": "歌詞",
+    "sup.in.p": "どのプレーヤーで再生中の曲でも、歌詞を1行ずつ曲に合わせて表示し、各行の下にあなたの言語への翻訳を表示します。",
+    "sup.in.where": "最初から Xenon に入っていて、カタログからダウンロードするものではありません。サポーターのコードで「開発者向けクリーンアップ」と一緒に有効になり、コードの期限が切れても使い続けられます。",
     "bill.top": "トップサポーター",
     "bill.mem": "継続メンバー",
     "bill.rest": "ご支援いただいた皆さん",
@@ -2408,7 +2453,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "27인치 모니터, 14.5인치 Edge, 11인치 태블릿, 6.1인치 휴대폰을 실제 비율로 그렸습니다.",
     "beta": "베타",
     "widgets.h2": "위젯",
-    "widgets.p": "44개가 기본으로 들어 있습니다. 크기를 바꿔 24열 그리드에 배치하고, 최대 8개 페이지에 나눠 둘 수 있습니다.",
+    "widgets.p": "45개가 기본으로 들어 있습니다. 크기를 바꿔 24열 그리드에 배치하고, 최대 8개 페이지에 나눠 둘 수 있습니다.",
     "wg.sys.alt": "시스템 위젯: CPU, GPU, 메모리, 디스크, 네트워크 그래프",
     "wg.med.alt": "재생 중인 트랙이 표시된 재생 위젯",
     "wg.cal.alt": "다가오는 일정이 표시된 캘린더 위젯",
@@ -2416,7 +2461,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU, GPU, 메모리, 디스크, 네트워크를 기록과 함께 보여 주고 게임 속 실제 FPS도 보여 줍니다. 그 밖에 오디오, 조명, 스마트 홈, 카메라.",
     "ws.media.p": "어느 플레이어에서 재생 중인 곡이든 컨트롤과 함께 보여 주고, 방송은 Twitch, YouTube, OBS, Discord, Streamer.bot, Wave Link.",
     "ws.prod.p": ".ics 피드까지 포함한 일정과 할 일, 타이머, 메모를 한 타일에. 그 밖에 날씨, 뉴스, 주식, 축구.",
-    "ws.more": "이 44개 외에도 카탈로그의 위젯과 직접 만든 위젯을 쓸 수 있고, 코드 없이도 만들 수 있습니다.",
+    "ws.more": "이 45개 외에도 카탈로그의 위젯과 직접 만든 위젯을 쓸 수 있고, 코드 없이도 만들 수 있습니다.",
     "ws.make": "위젯 만들기",
     "cat.prod": "생산성",
     "cat.system": "시스템",
@@ -2440,6 +2485,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "배터리",
     "ix.disk": "디스크 공간",
     "ix.devclean": "개발자 정리",
+    "ix.lyrics": "가사",
     "ix.audio": "볼륨",
     "ix.mic": "마이크",
     "ix.secondscreen": "두 번째 화면",
@@ -2502,6 +2548,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "12개월분 콘텐츠와 함께 나를 위해 만든 테마를 받습니다(요청은 한 달에 한 번). 멤버십 페이지에서 연간 옵션을 선택하세요. 중단할 때까지 매년 갱신됩니다.",
     "tier.go": "후원하기",
     "sup.note": "후원하지 않아도 앱은 무료이며 모든 기능을 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.",
+    "sup.in.alt": "가사 위젯. 곡이 재생되는 동안 단어가 하나씩 밝아지고, 각 줄 아래에 이탈리아어 번역이 있습니다",
+    "sup.in.h": "가사",
+    "sup.in.p": "어떤 플레이어에서 재생 중인 곡이든 가사를 한 줄씩 곡에 맞춰 보여 주고, 각 줄 아래에 내 언어로 번역해 줍니다.",
+    "sup.in.where": "Xenon에 이미 들어 있으며 카탈로그에서 내려받는 것이 아닙니다. 후원자 코드로 개발자 정리와 함께 잠금 해제되며, 코드가 만료되어도 계속 쓸 수 있습니다.",
     "bill.top": "최고 후원자",
     "bill.mem": "활동 멤버",
     "bill.rest": "함께 후원해 주신 분들",
@@ -2635,7 +2685,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.scale": "按比例绘制：27 英寸显示器、14.5 英寸的 Edge、11 英寸平板和 6.1 英寸手机。",
     "beta": "Beta",
     "widgets.h2": "小组件",
-    "widgets.p": "内置 44 个。可以调整大小，放在 24 列网格上，至多 8 页。",
+    "widgets.p": "内置 45 个。可以调整大小，放在 24 列网格上，至多 8 页。",
     "wg.sys.alt": "系统小组件：CPU、GPU、内存、磁盘和网络图表",
     "wg.med.alt": "播放小组件，显示正在播放的曲目",
     "wg.cal.alt": "日历小组件，显示接下来的活动",
@@ -2643,7 +2693,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ws.sys.p": "CPU、GPU、内存、磁盘和网络，附带历史记录，还有游戏内的真实帧率；此外还有音频、灯光、智能家居和摄像头。",
     "ws.media.p": "任何播放器正在播放的内容，带控制按钮；还有你的直播：Twitch、YouTube、OBS、Discord、Streamer.bot 和 Wave Link。",
     "ws.prod.p": "你的日程（也支持 .ics 订阅），和任务、计时器、笔记放在同一个磁贴里；此外还有天气、新闻、股票和足球。",
-    "ws.more": "除了这 44 个，还有目录里的小组件和你自己做的小组件，无需代码也能做。",
+    "ws.more": "除了这 45 个，还有目录里的小组件和你自己做的小组件，无需代码也能做。",
     "ws.make": "制作小组件",
     "cat.prod": "效率",
     "cat.system": "系统",
@@ -2667,6 +2717,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "ix.battery": "电池",
     "ix.disk": "磁盘空间",
     "ix.devclean": "开发者清理",
+    "ix.lyrics": "歌词",
     "ix.audio": "音量",
     "ix.mic": "麦克风",
     "ix.secondscreen": "第二屏幕",
@@ -2729,6 +2780,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.3.what": "十二个月的专属内容，外加一套为你制作的主题，每月可以提一次需求。请在会员页面选择年付选项；每年自动续费，直到你取消。",
     "tier.go": "支持",
     "sup.note": "不支持也能免费使用完整的应用。代码会通过电子邮件发送，在“设置”>“支持 Xenon”中解锁。",
+    "sup.in.alt": "“歌词”小组件：歌曲播放时单词逐个亮起，每行下方是意大利语翻译",
+    "sup.in.h": "歌词",
+    "sup.in.p": "无论在哪个播放器中播放，都会逐行同步显示正在播放的歌曲的歌词，并在每行下方显示译成你的语言的翻译。",
+    "sup.in.where": "它已经内置在 Xenon 中，无需从目录下载。支持者代码会同时解锁它和“开发者清理”，代码到期后两者仍保持解锁。",
     "bill.top": "主要支持者",
     "bill.mem": "活跃会员",
     "bill.rest": "感谢以下支持者",
@@ -2814,6 +2869,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       document.querySelectorAll('[data-i18n-html]').forEach((el) => { const v = window.XT(el.dataset.i18nHtml); if (v) el.innerHTML = v; });
     }
     document.querySelectorAll('[data-i18n-alt]').forEach((el) => { const v = window.XT(el.dataset.i18nAlt); if (v) el.alt = v; });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => { const v = window.XT(el.dataset.i18nAria); if (v) el.setAttribute('aria-label', v); });
     const curEl = document.getElementById('lang-cur');
     if (curEl) curEl.textContent = cur.toUpperCase();
     document.querySelectorAll('#lang-menu a, #ft-langs a, #mnav-langs a').forEach((a) => {
