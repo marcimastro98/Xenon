@@ -61,6 +61,14 @@ test('"same" needs no translation list', () => {
   assert.deepEqual(plain(T.parseReply('{"same":true,"tr":[]}', 3, false)), { same: true, tr: [], read: [] });
 });
 
+test('"same" comes from the language the model names, not from its yes/no', () => {
+  assert.equal(T.parseReply('{"src":"it","tr":[]}', 3, false, 'it').same, true);
+  assert.equal(T.parseReply('{"src":"en","tr":["a","b","c"]}', 3, false, 'it').same, false);
+  // English lyrics with a wrong legacy "same":true still get translated.
+  assert.equal(T.parseReply('{"src":"en","same":true,"tr":["a"]}', 1, false, 'it').same, false);
+  assert.equal(T.parseReply('{"src":"en","tr":[]}', 3, false, 'it'), null);
+});
+
 test('expand puts answers back on every line, nothing under pauses', () => {
   assert.deepEqual(plain(T.expand([0, -1, 0, 1], ['A', 'B'])), ['A', '', 'A', 'B']);
   assert.deepEqual(plain(T.expand([0, 1], [])), []);

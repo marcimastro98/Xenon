@@ -10,6 +10,11 @@
 // The record lives in DATA_DIR, never in settings.json (which is mirrored to
 // every surface and paired phone). The app is source-available, so this is an
 // honest gate, not DRM: the server refuses the feature's routes until unlocked.
+//
+// A feature in TRIAL_FEATURES can be tried once per install for TRIAL_MS. Only
+// features used every day get one: Lyrics is worth more the longer it runs, so
+// a week of it is the best pitch it has. Dev cleanup is not offered one on
+// purpose: its value is a single clean, which a trial would simply give away.
 
 const fsp = require('fs').promises;
 const path = require('path');
@@ -18,42 +23,90 @@ const supporterRedeem = require('./supporter-redeem.js');
 
 const FILE = 'feature-unlocks.json';
 const FEATURES = new Set(['devclean', 'lyrics']);
+const TRIAL_FEATURES = new Set(['lyrics']);
+const TRIAL_MS = 7 * 24 * 60 * 60 * 1000;
 const entryIdFor = (feature) => 'feature-' + feature;
 
-function createFeatureUnlock({ dataDir, redeem = supporterRedeem.redeem }) {
+function readMap(raw) {
+  const obj = raw && typeof raw === 'object' ? raw : {};
+  return Object.fromEntries(Object.entries(obj).filter(([k, v]) => FEATURES.has(k) && Number.isFinite(v)));
+}
+
+function createFeatureUnlock({ dataDir, redeem = supporterRedeem.redeem, now = Date.now }) {
   let cache = null;
+  // One write at a time, so an unlock and a trial start landing together can
+  // never write over each other's half of the file.
+  let writing = Promise.resolve();
 
   async function load() {
     if (cache) return cache;
     try {
       const parsed = JSON.parse(await fsp.readFile(path.join(dataDir, FILE), 'utf8'));
-      const unlocked = parsed && typeof parsed.unlocked === 'object' && parsed.unlocked ? parsed.unlocked : {};
-      cache = Object.fromEntries(Object.entries(unlocked).filter(([k, v]) => FEATURES.has(k) && Number.isFinite(v)));
+      cache = { unlocked: readMap(parsed && parsed.unlocked), trials: readMap(parsed && parsed.trials) };
     } catch {
-      cache = {};
+      cache = { unlocked: {}, trials: {} };
     }
     return cache;
   }
 
+  function save(change) {
+    const run = writing.then(async () => {
+      const cur = await load();
+      const next = change(cur);
+      await writeFileAtomic(path.join(dataDir, FILE), JSON.stringify(next));
+      cache = next;
+    });
+    writing = run.catch(() => {});
+    return run;
+  }
+
+  // A start time in the future means the clock was moved back after the trial
+  // began; that ends it rather than stretching it.
+  function trialEndsAt(started) {
+    if (!Number.isFinite(started) || started > now()) return 0;
+    return started + TRIAL_MS;
+  }
+
+  async function status(feature) {
+    if (!FEATURES.has(feature)) return { unlocked: false, owned: false, trialEndsAt: null, trialAvailable: false };
+    const { unlocked, trials } = await load();
+    const owned = Boolean(unlocked[feature]);
+    const started = trials[feature];
+    const ends = started ? trialEndsAt(started) : 0;
+    const inTrial = !owned && ends > now();
+    return {
+      unlocked: owned || inTrial,
+      owned,
+      trialEndsAt: inTrial ? ends : null,
+      trialAvailable: !owned && TRIAL_FEATURES.has(feature) && !started,
+    };
+  }
+
   async function isUnlocked(feature) {
-    if (!FEATURES.has(feature)) return false;
-    return Boolean((await load())[feature]);
+    return (await status(feature)).unlocked;
+  }
+
+  async function startTrial(feature) {
+    if (!TRIAL_FEATURES.has(feature)) return { ok: false, error: 'bad_request' };
+    const before = await status(feature);
+    if (before.unlocked) return { ok: true, ...before };
+    if (!before.trialAvailable) return { ok: false, error: 'trial_used' };
+    await save((cur) => ({ ...cur, trials: { ...cur.trials, [feature]: now() } }));
+    return { ok: true, ...(await status(feature)) };
   }
 
   // `code` is optional: without it the hub is asked with the pass this machine
   // already saved, so the value never has to reach the browser.
   async function unlock(feature, code) {
     if (!FEATURES.has(feature)) return { ok: false, error: 'bad_request' };
-    if (await isUnlocked(feature)) return { ok: true, unlocked: true };
+    if ((await status(feature)).owned) return { ok: true, unlocked: true };
     const out = await redeem({ entryId: entryIdFor(feature), code, dataDir });
     if (!out || out.ok !== true) return { ok: false, error: (out && out.error) || 'network', forgot: Boolean(out && out.forgot) };
-    const next = { ...(await load()), [feature]: Date.now() };
-    await writeFileAtomic(path.join(dataDir, FILE), JSON.stringify({ unlocked: next }));
-    cache = next;
+    await save((cur) => ({ ...cur, unlocked: { ...cur.unlocked, [feature]: now() } }));
     return { ok: true, unlocked: true, saved: out.saved === true };
   }
 
-  return { isUnlocked, unlock };
+  return { isUnlocked, status, startTrial, unlock };
 }
 
-module.exports = { createFeatureUnlock, FEATURES, entryIdFor };
+module.exports = { createFeatureUnlock, FEATURES, TRIAL_FEATURES, TRIAL_MS, entryIdFor };

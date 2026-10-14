@@ -12,7 +12,10 @@
   const OFFSET_STEP_MS = 100;
   const OFFSET_LIMIT_MS = 3000;
   const NUDGE_SEND_MS = 700;
-  const SUPPORT_URL = 'https://www.buymeacoffee.com/marcimastro98';
+  // Membership page, counted through the hub (supportUrl in @xenon/core).
+  const supportHref = (source) => (window.Xenon && window.Xenon.constants && typeof window.Xenon.constants.supportUrl === 'function')
+    ? window.Xenon.constants.supportUrl(source)
+    : 'https://www.buymeacoffee.com/marcimastro98/membership';
   // No double quote, backslash or whitespace can leave the url("…") it is
   // written into. Hosts send data: covers (Windows, macOS) or http(s) art URLs
   // (Linux MPRIS); URL-encoded SVG keeps its parentheses, safe inside quotes.
@@ -31,6 +34,13 @@
   let codeDraft = '';
   let unlocking = false;
   let unlockError = '';
+  // The one-week trial (feature-unlock.js). trialEndsAt is set only while one
+  // runs; trialUsed only once the server has said this install spent it.
+  let trialEndsAt = null;
+  let trialAvailable = false;
+  let trialUsed = false;
+  let startingTrial = false;
+  let trialTimer = null;
   const coverOf = new WeakMap();   // panel → the cover it shows
   const instances = new Map();   // mount → { view, unsubscribe, offsetRow, offsetVal, minus, plus }
 
@@ -73,12 +83,43 @@
 
   async function loadState() {
     const out = await api('/api/features/lyrics');
-    unlocked = !!(out && out.unlocked);
+    applyStatus(out);
     if (!unlocked) {
       const s = await api('/api/community/supporter');
       codeSaved = !!(s && s.saved);
     }
     renderWidgets();
+  }
+
+  function applyStatus(out) {
+    const ok = !!(out && out.ok);
+    unlocked = ok && !!out.unlocked;
+    trialEndsAt = ok && Number.isFinite(out.trialEndsAt) ? out.trialEndsAt : null;
+    trialAvailable = ok && out.trialAvailable === true;
+    trialUsed = ok && out.trialAvailable === false && !out.owned && !out.unlocked;
+    scheduleTrialEnd();
+  }
+
+  // When the week runs out with the tile open, it goes back to the pitch by
+  // itself instead of waiting for a reload. One timer, re-armed on every status.
+  function scheduleTrialEnd() {
+    clearTimeout(trialTimer);
+    trialTimer = null;
+    if (!trialEndsAt) return;
+    const wait = Math.min(2147483647, Math.max(0, trialEndsAt - Date.now()) + 1000);
+    trialTimer = setTimeout(() => { trialTimer = null; void loadState(); }, wait);
+  }
+
+  async function startTrial() {
+    startingTrial = true;
+    unlockError = '';
+    renderAll();
+    const out = await api('/api/features/lyrics/trial', {});
+    startingTrial = false;
+    if (out && out.ok) { applyStatus(out); renderWidgets(); return; }
+    if (out && out.error === 'trial_used') { trialAvailable = false; trialUsed = true; }
+    else unlockError = tr('lyrics_trial_error', 'Non riesco ad avviare la prova adesso. Riprova tra poco.');
+    renderAll();
   }
 
   async function unlock() {
@@ -87,7 +128,13 @@
     renderAll();
     const out = await api('/api/features/lyrics/unlock', {});
     unlocking = false;
-    if (out && out.ok) { unlocked = true; renderWidgets(); return; }
+    if (out && out.ok) {
+      unlocked = true;
+      trialEndsAt = null;
+      scheduleTrialEnd();
+      renderWidgets();
+      return;
+    }
     const err = out && out.error;
     const msg = UNLOCK_ERRORS[err];
     unlockError = msg ? tr(msg[0], msg[1]) : tr('devclean_unlock_network', 'Non riesco a contattare il server dei sostenitori.');
@@ -150,27 +197,51 @@
     box.appendChild(perks);
 
     const actions = el('div', 'lyw-actions');
+    const busy = unlocking || startingTrial;
     if (codeSaved) {
       actions.appendChild(btn('lyw-btn is-big', unlocking ? tr('devclean_unlocking', 'Sblocco…')
-        : tr('devclean_unlock', 'Sblocca con il pass'), unlock, unlocking));
+        : tr('devclean_unlock', 'Sblocca con il pass'), unlock, busy));
     } else {
-      const join = el('a', 'lyw-btn is-big', tr('devclean_join', 'Diventa sostenitore'));
-      join.href = SUPPORT_URL;
+      // A week of the real thing is the best pitch this widget has, so the
+      // trial leads while it is still available and joining sits beside it.
+      if (trialAvailable) {
+        actions.appendChild(btn('lyw-btn is-big', startingTrial ? tr('devclean_loading', 'Carico…')
+          : tr('lyrics_trial_start', 'Prova gratis per 7 giorni'), startTrial, busy));
+      }
+      const join = el('a', trialAvailable ? 'lyw-btn is-accent' : 'lyw-btn is-big', tr('devclean_join', 'Diventa sostenitore'));
+      join.href = supportHref('lyrics');
       join.target = '_blank';
       join.rel = 'noopener noreferrer';
       actions.appendChild(join);
     }
     if (!codeFormOpen) {
       actions.appendChild(btn('lyw-btn is-ghost', codeSaved ? tr('devclean_code_change', 'Usa un altro codice')
-        : tr('devclean_code_have', 'Ho già un codice'), () => { codeFormOpen = true; renderAll(); }, unlocking));
+        : tr('devclean_code_have', 'Ho già un codice'), () => { codeFormOpen = true; renderAll(); }, busy));
     }
     box.appendChild(actions);
     if (codeFormOpen) box.appendChild(renderCodeForm());
-    box.appendChild(el('p', 'lyw-note', codeSaved
-      ? tr('devclean_code_saved', 'Su questo PC c’è già un codice sostenitore: sblocca con un tocco.')
-      : tr('devclean_code_missing', 'Il codice ti arriva per email subito dopo aver sostenuto Xenon.')));
+    box.appendChild(el('p', 'lyw-note', pitchNote()));
     if (unlockError) box.appendChild(el('p', 'lyw-error', unlockError));
     return box;
+  }
+
+  function pitchNote() {
+    if (codeSaved) return tr('devclean_code_saved', 'Su questo PC c’è già un codice sostenitore: sblocca con un tocco.');
+    if (trialAvailable) return tr('lyrics_trial_note', 'Una settimana con tutte le funzioni, senza codice. Poi decidi tu.');
+    if (trialUsed) return tr('lyrics_trial_ended', 'La settimana di prova è finita. Diventa sostenitore per tenere il widget.');
+    return tr('devclean_code_missing', 'Il codice ti arriva per email subito dopo aver sostenuto Xenon.');
+  }
+
+  // While a trial runs the tile says until when, with the way to keep it.
+  function paintTrial(inst) {
+    const on = !!trialEndsAt;
+    inst.trialRow.hidden = !on;
+    if (!on) return;
+    let date = '';
+    try {
+      date = new Date(trialEndsAt).toLocaleDateString(uiLangCode() || undefined, { day: 'numeric', month: 'long' });
+    } catch { date = new Date(trialEndsAt).toLocaleDateString(); }
+    inst.trialText.textContent = tr('lyrics_trial_until', 'Prova gratuita fino al {date}').replace('{date}', date);
   }
 
   // ── this song's timing ────────────────────────────────────────────────
@@ -269,11 +340,19 @@
     head.append(titles, offsetRow, stageBtn, optBtn);
     const trStat = el('p', 'lyw-trstat');
     trStat.hidden = true;
+    const trialRow = el('p', 'lyw-trial');
+    const trialText = el('span');
+    const keep = el('a', '', tr('devclean_join', 'Diventa sostenitore'));
+    keep.href = supportHref('lyrics-trial');
+    keep.target = '_blank';
+    keep.rel = 'noopener noreferrer';
+    trialRow.append(trialText, keep);
     const body = el('div', 'lyw-body');
-    mount.replaceChildren(head, trStat, body);
+    mount.replaceChildren(head, trialRow, trStat, body);
     mount.dataset.lywReady = '1';
 
-    const inst = { lang: uiLangCode(), title, sub, offsetRow, offsetVal, minus, plus, trStat, view: window.LyricsView.create(body) };
+    const inst = { lang: uiLangCode(), title, sub, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, view: window.LyricsView.create(body) };
+    paintTrial(inst);
     const isVisible = () => mount.isConnected && mount.getClientRects().length > 0 && !document.hidden && onVisiblePage(mount);
     inst.unsubscribe = window.LyricsCore.subscribe({
       isVisible,
@@ -362,7 +441,7 @@
       if (inst && inst.lang !== uiLangCode()) release(mount);
       // A copy is cloned from the primary and arrives with its dead DOM.
       if (!instances.has(mount)) instances.set(mount, buildTile(mount));
-      else paintOffset(instances.get(mount));
+      else { paintOffset(instances.get(mount)); paintTrial(instances.get(mount)); }
     });
   }
 

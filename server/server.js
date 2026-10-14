@@ -13282,6 +13282,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // playing now, so a cross-site page must not be able to drive it.
   '/api/lyrics',
   '/api/features/lyrics/unlock',
+  // Spends the one trial this install gets: a navigation must not be able to.
+  '/api/features/lyrics/trial',
   // Supporter Lyrics widget writes: a song's timing, and a translation that may
   // spend the user's AI provider quota. POST-only.
   '/api/lyrics/offset',
@@ -20077,9 +20079,16 @@ const handleRequest = async (req, res) => {
     catch (e) { json({ ok: false, state: 'error', error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/api/features/lyrics' && req.method === 'GET') {
-    // Is the supporter-only Lyrics widget unlocked on this install? A boolean.
-    // The lyrics themselves stay free: the Media tile's button reads them too.
-    try { json({ ok: true, unlocked: await featureUnlock.isUnlocked('lyrics') }); } catch (e) { err500(e.message); }
+    // Is the supporter-only Lyrics widget usable on this install? `unlocked`
+    // covers a running trial too; `owned`, `trialEndsAt` and `trialAvailable`
+    // tell the tile which of the two it is. The lyrics themselves stay free:
+    // the Media tile's button reads them too.
+    try { json({ ok: true, ...(await featureUnlock.status('lyrics')) }); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/features/lyrics/trial' && req.method === 'POST') {
+    // Starts the one-week trial, once per install. No hub call, no code. In
+    // CSRF_MUTATION_PATHS; a paired phone may start it like any tile action.
+    try { json(await featureUnlock.startTrial('lyrics')); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/features/lyrics/unlock' && req.method === 'POST') {
     // One /redeem against the hub's `feature-lyrics` entry, with the saved pass

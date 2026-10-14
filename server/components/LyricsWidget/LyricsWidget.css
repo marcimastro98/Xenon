@@ -172,6 +172,22 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 
 .lyw-trstat[hidden] { display: none; }
 
+/* A running trial: when it ends, and the way to keep the widget. */
+.lyw-trial {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  font-weight: 620;
+  line-height: 1.35;
+}
+
+.lyw-trial[hidden] { display: none; }
+.lyw-trial a { color: var(--accent); font-weight: 730; text-underline-offset: 3px; }
+
 .lyw-body {
   display: flex;
   flex: 1 1 auto;

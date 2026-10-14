@@ -140,7 +140,7 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
     try {
       res = await complete({ system, user, maxTokens: T.maxTokensFor(unique.length, wantReading) });
       tokens = res && Number.isSafeInteger(res.tokens) ? res.tokens : 0;
-      out = T.parseReply(res && res.text, unique.length, wantReading);
+      out = T.parseReply(res && res.text, unique.length, wantReading, lang);
       if (!out && onError) onError(new Error('the reply could not be used'));
     } catch (e) { out = null; if (onError) onError(e); }
     // A request that reached the provider counts against the month even when

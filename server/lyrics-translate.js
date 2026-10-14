@@ -56,12 +56,13 @@ function maxTokensFor(count, reading) {
 function buildPrompt(unique, lang, reading) {
   const target = langName(lang) || 'English';
   const fields = reading
-    ? '"same": boolean, "tr": string[], "read": string[]'
-    : '"same": boolean, "tr": string[]';
+    ? '"src": string, "tr": string[], "read": string[]'
+    : '"src": string, "tr": string[]';
   const system = [
     `You translate song lyrics into ${target}, line by line, for on-screen captions.`,
     `Reply with ONLY a JSON object: {${fields}}.`,
-    `"same" is true when the lyrics are already mostly in ${target}; then "tr" is an empty array.`,
+    '"src" is the ISO 639-1 code of the language most of the lyrics are sung in (for example "en", "it", "ja").',
+    `When "src" is "${lang}", "tr" is an empty array.`,
     `Otherwise "tr" has exactly one natural ${target} translation per input line, in the same order.`,
     reading
       ? '"read" has exactly one entry per input line: its romanization (Hepburn for Japanese, Revised Romanization for Korean, Pinyin with tone marks for Chinese), or "" when the line has none of those scripts.'
@@ -84,8 +85,10 @@ function cleanList(value, n) {
 }
 
 // The model's text → { same, tr, read } with arrays exactly `n` long, or null.
+// `same` is decided here from the language the model names, not taken from a
+// yes/no it could get wrong: English lyrics must never read as "already Italian".
 // Tolerates a ```json fence and prose around the object; nothing else.
-function parseReply(text, n, reading) {
+function parseReply(text, n, reading, lang) {
   if (typeof text !== 'string') return null;
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -93,7 +96,8 @@ function parseReply(text, n, reading) {
   let raw;
   try { raw = JSON.parse(text.slice(start, end + 1)); } catch { return null; }
   if (!raw || typeof raw !== 'object') return null;
-  const same = raw.same === true;
+  const src = typeof raw.src === 'string' ? raw.src.trim().toLowerCase().slice(0, 2) : '';
+  const same = src ? src === lang : raw.same === true;
   const tr = same ? [] : cleanList(raw.tr, n);
   if (!tr) return null;
   let read = [];
