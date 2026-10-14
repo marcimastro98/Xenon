@@ -226,6 +226,10 @@ function mask(rawName) {
   }
 }
 
+// A name field can hold an email address. It is never published, whichever
+// source sent it and whatever the privacy mode: "first" alone would print it whole.
+const looksLikeEmail = (s) => /\S@\S/.test(String(s || ''));
+
 function displayName(rawName) {
   const key = norm(rawName);
   if (hide.has(key)) return null;            // excluded entirely
@@ -374,9 +378,9 @@ function displayName(rawName) {
   const supporters = [];
   for (const [rawName] of ranked) {
     const key = norm(rawName);
-    const name = manualDisplay.has(key) ? manualDisplay.get(key) : displayName(rawName);
-    if (!name) continue; // hidden
-    const entry = { name };
+    const shown = manualDisplay.has(key) ? manualDisplay.get(key) : displayName(rawName);
+    if (!shown) continue; // hidden
+    const entry = { name: looksLikeEmail(shown) ? 'Anonymous supporter' : shown };
     if (memberNames.has(key)) entry.tier = 'member';
     if (supporters.length < topCount) { entry.top = true; entry.rank = supporters.length + 1; }
     supporters.push(entry);
