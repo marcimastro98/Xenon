@@ -15934,10 +15934,14 @@ const handleRequest = async (req, res) => {
     // Where the automatic updater stands, for the line in Settings -> General.
     // ?safe=1 also answers "could the app restart right now?", which the native
     // app asks before updating its own shell; it reads idle time, so it is only
-    // computed on request.
+    // computed on request. `shellSilent` says whether that shell update can run
+    // with nobody there to answer a password prompt (see self-update.js).
     try {
       const out = autoUpdater.status();
-      if (urlObj.searchParams.get('safe') === '1') out.safeNow = await autoUpdater.safeNow();
+      if (urlObj.searchParams.get('safe') === '1') {
+        out.safeNow = await autoUpdater.safeNow();
+        out.shellSilent = selfUpdate.shellUpdatesSilently();
+      }
       json(out);
     } catch (e) { err500(e.message); }
 

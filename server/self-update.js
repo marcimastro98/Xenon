@@ -416,9 +416,20 @@ function createSelfUpdate(opts) {
     return platform === 'win32' && !_installWritable();
   }
 
+  // Can the native app replace ITSELF with nobody at the PC? On Windows it is a
+  // per-user NSIS install that the shell's updater runs in passive mode: no UAC,
+  // nothing to answer. On macOS the updater asks for an administrator password
+  // whenever it cannot move the app bundle (a standard account, a bundle someone
+  // else owns, App Management), and it asks from the app's main thread, so the
+  // window freezes until somebody answers; a Linux .deb or .rpm asks through
+  // pkexec. Those installs update the app on the user's own tap only.
+  function shellUpdatesSilently() {
+    return platform === 'win32';
+  }
+
   return {
     isGitCheckout, supported, unsupportedReason, applierPath, staged, prepare, apply,
-    isPreparing, applyInFlight, needsElevation, lastSpawnError: () => lastSpawnError,
+    isPreparing, applyInFlight, needsElevation, shellUpdatesSilently, lastSpawnError: () => lastSpawnError,
     _buildZipUrl: (t) => buildZipUrl(repo, t),
   };
 }

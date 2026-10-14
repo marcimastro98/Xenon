@@ -378,6 +378,7 @@ fn spawn_update_install(app: tauri::AppHandle) {
                 return;
             }
             Err(e) => {
+                crash_log::note("update", &format!("check failed: {}", short_err(&e)));
                 report_update_event(
                     &app,
                     json!({ "phase": "error", "code": "check_failed", "message": short_err(&e) }),
@@ -385,6 +386,10 @@ fn spawn_update_install(app: tauri::AppHandle) {
                 return;
             }
         };
+        // In the crash log too: the app's own update is the one half of an update
+        // that a report from a machine we cannot see would otherwise say nothing
+        // about (the dashboard half has update-result.json).
+        crash_log::note("update", &format!("installing v{}", update.version));
         let progress_app = app.clone();
         let done_app = app.clone();
         let mut received: u64 = 0;
@@ -436,6 +441,7 @@ fn spawn_update_install(app: tauri::AppHandle) {
                 app.restart();
             }
             Err(e) => {
+                crash_log::note("update", &format!("install failed: {}", short_err(&e)));
                 report_update_event(
                     &app,
                     json!({ "phase": "error", "code": "install_failed", "message": short_err(&e) }),

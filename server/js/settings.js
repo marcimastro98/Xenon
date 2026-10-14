@@ -10545,12 +10545,22 @@ function renderPlatformBeta(platform) {
 // Show the running build version at the bottom of the Settings sidebar. Read
 // from the server (which sources it from package.json) so it always matches the
 // shipped build; stays empty and unobtrusive if the request fails.
+// The native app's own version, only when it differs from the dashboard's. The
+// two update through separate channels, and a bare "Xenon v4.11.12" over an app
+// still on 4.11.7 hid exactly the half that had not updated.
+function shellVersionSuffix(version) {
+  const caps = window.__XENON_NATIVE_CAPS__ || {};
+  const shell = String(caps.shellVersion || '').replace(/^v/i, '');
+  if (!shell || shell === String(version).replace(/^v/i, '')) return '';
+  return ' · ' + t('settings_version_app').replace('{v}', shell);
+}
+
 async function initSettingsVersion() {
   const out = document.getElementById('settings-version');
   if (!out) return;
   try {
     const { version, platform } = await (await fetch('/version')).json();
-    if (version) out.textContent = `Xenon v${version}`;
+    if (version) out.textContent = `Xenon v${version}${shellVersionSuffix(version)}`;
     if (platform) applyPlatformGating(platform);
   } catch { /* leave blank — no version indicator is better than a broken one */ }
   // The update pill, the red notification dots and the "Check for updates"
