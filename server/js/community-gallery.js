@@ -22,6 +22,12 @@
   };
   const el = makeEl; // shared DOM factory from utils.js
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
+  // Monthly membership page, counted per surface through the hub (see
+  // supportUrl in @xenon/core); the plain page if the shared module is missing.
+  function supportHref(source) {
+    const c = window.Xenon && window.Xenon.constants;
+    return (c && typeof c.supportUrl === 'function') ? c.supportUrl(source) : BMC_URL + '/membership';
+  }
   const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
   // Default reservation target for limited-edition drops (the project Discord
   // invite). A drop may override it via limited.reserveUrl, but only a Discord
@@ -672,12 +678,12 @@
 
   // "Become a supporter" — the warm heart CTA shown beside a locked entry's
   // "Unlock with a code", for someone who doesn't have a code yet. Same button as
-  // the Supporters "how it works" panel; links straight to Buy Me a Coffee.
+  // the Supporters "how it works" panel; links to the membership page.
   // `cls` overrides the default (compact) classes where the button leads the row.
   function becomeSupporterButton(cls) {
     const a = document.createElement('a');
     a.className = cls || 'cgal-btn cgal-info-bmc cgal-support-cta';
-    a.href = BMC_URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.href = supportHref('store-locked'); a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.appendChild(icon('supporters'));
     a.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
     return a;
@@ -954,7 +960,7 @@
     note.appendChild(mail);
     body.appendChild(note);
     const cta = el('div', 'cgal-info-cta');
-    const bmc = document.createElement('a'); bmc.className = 'cgal-btn cgal-info-bmc'; bmc.href = BMC_URL; bmc.target = '_blank'; bmc.rel = 'noopener noreferrer'; bmc.appendChild(icon('supporters')); bmc.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
+    const bmc = document.createElement('a'); bmc.className = 'cgal-btn cgal-info-bmc'; bmc.href = supportHref('store-info'); bmc.target = '_blank'; bmc.rel = 'noopener noreferrer'; bmc.appendChild(icon('supporters')); bmc.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
     const disc = document.createElement('a'); disc.className = 'cgal-btn'; disc.href = DISCORD_URL; disc.target = '_blank'; disc.rel = 'noopener noreferrer'; disc.textContent = t('gallery_sup_discord', 'Join the Discord');
     cta.appendChild(bmc); cta.appendChild(disc);
     body.appendChild(cta);
@@ -1821,7 +1827,7 @@
               lead: supporterSaved
                 ? t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')
                 : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
-              joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
+              joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: supportHref('store-section'), joinIcon: 'supporters',
               savedLabel: supporterSaved ? t('gallery_supporter_saved', 'Supporter code saved') : '',
               onInfo: openSupporterInfo,
             }));

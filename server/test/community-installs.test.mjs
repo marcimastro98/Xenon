@@ -109,3 +109,35 @@ test('a failed read is not cached, so it retries', async () => {
   await CI.fetchInstallCounts({ ids: 'neon-pack' });
   assert.equal(calls.length, 2);
 });
+
+test('the supporter count is a plain GET that sends nothing', async () => {
+  const calls = capture({ ok: true, active: 30, target: 45 });
+  const out = await CI.fetchSupportGoal();
+  assert.deepEqual(out, { ok: true, active: 30, target: 45 });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/supporters\/count$/);
+  assert.equal(calls[0].opts, undefined, 'no method, no body: nothing about this install travels');
+});
+
+test('the supporter count is asked once an hour, and concurrent reads share it', async () => {
+  const calls = capture({ ok: true, active: 30, target: 45 });
+  await Promise.all([CI.fetchSupportGoal(), CI.fetchSupportGoal()]);
+  await CI.fetchSupportGoal();
+  assert.equal(calls.length, 1);
+});
+
+test('a malformed supporter count is refused and not cached', async () => {
+  for (const reply of [null, { ok: false }, { ok: true }, { ok: true, active: -1 }, { ok: true, active: 2.5 }, { ok: true, active: '30' + 'x' }]) {
+    const calls = capture(reply);
+    assert.deepEqual(await CI.fetchSupportGoal(), { ok: false, error: 'network' }, JSON.stringify(reply));
+    await CI.fetchSupportGoal();
+    assert.equal(calls.length, 2, 'a failure must retry on the next read');
+  }
+});
+
+test('a missing or zero goal is reported as no goal, the count still shows', async () => {
+  capture({ ok: true, active: 7, target: 0 });
+  assert.deepEqual(await CI.fetchSupportGoal(), { ok: true, active: 7, target: null });
+  capture({ ok: true, active: 7 });
+  assert.deepEqual(await CI.fetchSupportGoal(), { ok: true, active: 7, target: null });
+});

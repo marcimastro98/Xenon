@@ -1,0 +1,48 @@
+/* The supporter count and its bar (js/support-goal.js), on the December appeal
+ * and on the Settings support page.
+ *
+ * The colour belongs to whoever holds it. Both holders already paint themselves
+ * in their own pink rather than the theme accent (see SupportAsk.css for why),
+ * so each sets --goal-fill and the bar follows. A native <progress> keeps the
+ * value readable to screen readers without any extra markup.
+ */
+.support-goal {
+  --goal-fill: 255, 77, 141;
+}
+.support-goal:lang(ko) { word-break: keep-all; }   /* wrap Korean at spaces, not mid-word */
+.support-goal[hidden],
+.support-goal-bar[hidden] { display: none; }
+
+.support-goal-line {
+  margin: 0 0 7px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text, #e7e9ee);
+  text-wrap: balance;               /* no "30." alone on the second line */
+}
+
+.support-goal-bar {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(var(--goal-fill), 0.16);
+  color: rgb(var(--goal-fill));
+}
+.support-goal-bar::-webkit-progress-bar {
+  background: rgba(var(--goal-fill), 0.16);
+  border-radius: 999px;
+}
+.support-goal-bar::-webkit-progress-value {
+  background: rgb(var(--goal-fill));
+  border-radius: 999px;
+}
+.support-goal-bar::-moz-progress-bar {
+  background: rgb(var(--goal-fill));
+  border-radius: 999px;
+}

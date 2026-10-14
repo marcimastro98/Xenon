@@ -119,6 +119,7 @@
 <link rel="stylesheet" href="components/UnifiPanel/UnifiPanel.css">
 <link rel="stylesheet" href="components/DiscordInvite/DiscordInvite.css">
 <link rel="stylesheet" href="components/SupportAsk/SupportAsk.css">
+<link rel="stylesheet" href="components/SupportGoal/SupportGoal.css">
 <link rel="stylesheet" href="components/ShareNudge/ShareNudge.css">
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
@@ -3367,10 +3368,24 @@
           </div>
           <div class="support-hero-title" data-i18n="support_title">Ti piace Xenon?</div>
           <p class="support-hero-lead" data-i18n="support_lead">Xenon è gratuito, senza pubblicità e sviluppato da una persona sola nel tempo libero. Se lo usi ogni giorno, un caffè è il modo migliore per dire grazie e tenere vivo il progetto.</p>
-          <a class="support-cta support-cta-coffee" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener noreferrer">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>
-            <span data-i18n="support_coffee_btn">Offrimi un caffè</span>
-          </a>
+          <!-- Monthly first: recurring support is what keeps the project running.
+               Both links go through the hub's counter (supportUrl in @xenon/core). -->
+          <div class="support-cta-row">
+            <a class="support-cta support-cta-coffee" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <span data-i18n="support_ask_monthly">Sostieni ogni mese</span>
+            </a>
+            <a class="support-cta support-cta-once" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings&amp;p=once" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>
+              <span data-i18n="support_coffee_btn">Offrimi un caffè</span>
+            </a>
+          </div>
+          <!-- Filled from the supporter hub when the pane opens (js/support-goal.js);
+               stays hidden when the count cannot be read. -->
+          <div class="support-goal" id="settings-support-goal" hidden>
+            <p class="support-goal-line"></p>
+            <progress class="support-goal-bar" max="1" value="0"></progress>
+          </div>
         </div>
         <div class="support-card support-card-discord">
           <div class="support-card-ico" aria-hidden="true">
@@ -4212,6 +4227,8 @@
 <script src="js/discord-invite.js"></script>
 <script src="js/support-card.js"></script>
 <script src="js/share-nudge.js"></script>
+<script src="js/support-goal.js"></script>
+<script src="js/support-appeal.js"></script>
 <script src="js/custom-bg.js"></script>
 <script src="js/slideshow-widget.js"></script>
 <script src="js/theme-palette.js"></script>

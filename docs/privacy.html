@@ -156,7 +156,7 @@
       The Xenon app runs on your own PC and stores its data there. This website is a separate
       thing with separate rules. This page keeps the two apart and says what each one sends and stores.
     </p>
-    <p class="updated" data-i18n="pv.updated">Last updated: 27 September 2026</p>
+    <p class="updated" data-i18n="pv.updated">Last updated: 14 October 2026</p>
 
     <h2 data-i18n="pv.sum.h">Summary</h2>
     <div class="card accent">
@@ -307,6 +307,11 @@
             <td data-i18n-html="pv.t.count.what">Supporter hub<br><span style="color:var(--dim)">(install counts)</span></td>
             <td data-i18n="pv.t.count.when">When you install something from the Store, and only if that switch is on</td>
             <td data-i18n="pv.t.count.why">Sends the id of the creation you installed, and nothing else: no install UUID, no IP kept, no account. The server adds 1 to that creation's counter and discards the request. Your dashboard remembers on your own PC which ones it has already counted, so it reports each creation at most once, which is why nothing identifying has to be sent to avoid double-counting. The consequence is that the number means "installs reported", not "how many people own it", and it is labelled that way wherever it is shown.</td>
+          </tr>
+          <tr>
+            <td data-i18n-html="pv.t.goal.what">Supporter hub<br><span style="color:var(--dim)">(supporter count)</span></td>
+            <td data-i18n="pv.t.goal.when">When you open Support in Settings, and in December for the once-a-year note</td>
+            <td data-i18n="pv.t.goal.why">Downloads two public numbers: how many people support Xenon right now and how many it takes to cover its costs. Nothing is sent: the request is the same from every PC, with no identifier, and your PC keeps the answer for an hour.</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.hub.what">Supporter hub<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>

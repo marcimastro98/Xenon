@@ -3724,6 +3724,11 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .support-cta svg { width: 18px; height: 18px; }
 .support-cta-coffee { background: #ff4d8d; color: #fff; box-shadow: 0 8px 24px rgba(255,77,141,0.35); }
 .support-cta-coffee:hover { background: #ff5f99; }
+.support-cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.support-cta-once { color: var(--text); border: 1px solid rgba(255,77,141,0.45); }
+.support-cta-once:hover { background: rgba(255,77,141,0.12); }
+/* The supporter count under the buttons (components/SupportGoal). */
+.support-hero .support-goal { max-width: 360px; margin: 16px auto 0; }
 .support-card {
   display: flex;
   align-items: center;

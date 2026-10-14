@@ -8788,6 +8788,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // install and never again — on disk, not in localStorage, because a browser set
   // to clear its site data would otherwise bring it back for good.
   supportAskSeen: false,
+  // The day that ask went away, so the December appeal (js/support-appeal.js)
+  // keeps a month between the two; '' on installs that saw it before the field.
+  supportAskSeenDay: '',
+  // The last calendar year the December appeal was shown. Once a year, at most.
+  supportAppealYear: 0,
   // The one-time "show off your setup" invitation (js/share-nudge.js). Same
   // rules as the ask above, same reason it is here and not in localStorage.
   shareNudgeSeen: false,
@@ -10017,6 +10022,8 @@ function normalizeHubSettings(value) {
     lastUsageDay: DAY_RE.test(String(source.lastUsageDay || '')) ? String(source.lastUsageDay) : '',
     usageDays: clampNumber(Math.floor(Number(source.usageDays) || 0), 0, 100000, 0),
     supportAskSeen: source.supportAskSeen === true,
+    supportAskSeenDay: DAY_RE.test(String(source.supportAskSeenDay || '')) ? String(source.supportAskSeenDay) : '',
+    supportAppealYear: clampNumber(Math.floor(Number(source.supportAppealYear) || 0), 0, 9999, 0),
     shareNudgeSeen: source.shareNudgeSeen === true,
     // Snowflakes only, deduped and capped. This list is echoed straight back to
     // every surface and used as a DOM key, so anything that is not a Discord id
@@ -13126,6 +13133,8 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/community/installed',
   '/api/community/installs',
   '/api/community/poll',
+  // A read, but a cache miss asks the supporter hub for its count.
+  '/api/community/support-goal',
   // POST-only, but it triggers an outbound request to the supporter hub AND a
   // successful call consumes one of the code's device activations — a cross-site
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
@@ -16212,6 +16221,12 @@ const handleRequest = async (req, res) => {
         // so a stale mirror cannot un-dismiss it.
         if (prev.supportAskSeen === true) incoming.supportAskSeen = true;
         if (prev.shareNudgeSeen === true) incoming.shareNudgeSeen = true;
+        // Browser-owned too, and just as one-way: the first day stamped stays,
+        // and the appeal year only moves forward.
+        if (prev.supportAskSeenDay) incoming.supportAskSeenDay = prev.supportAskSeenDay;
+        if (Number(prev.supportAppealYear) > (Number(incoming.supportAppealYear) || 0)) {
+          incoming.supportAppealYear = prev.supportAppealYear;
+        }
       }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
@@ -16422,6 +16437,13 @@ const handleRequest = async (req, res) => {
     try {
       json(await communityInstalls.fetchInstallCounts({ ids: urlObj.searchParams.get('ids') }));
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/support-goal' && req.method === 'GET') {
+    // How many people pay for Xenon right now and the goal that makes it pay for
+    // itself: two public integers from the hub, nothing about this install sent,
+    // so not gated by a setting either. Cached an hour (community-installs.js).
+    // In CSRF_MUTATION_PATHS (a cache miss is an outbound request).
+    try { json(await communityInstalls.fetchSupportGoal()); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/messages' && req.method === 'GET') {
     // Announcement feed — messages.json on the project site, proxied with the

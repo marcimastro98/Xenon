@@ -22,7 +22,9 @@
   let preview = null;      // this PC's names-free numbers, for the locked pitch
   let previewLoading = false;
   // Same destination as the gallery's "Become a supporter" (community-gallery.js).
-  const SUPPORT_URL = 'https://www.buymeacoffee.com/marcimastro98';
+  const SUPPORT_URL = (window.Xenon && window.Xenon.constants && typeof window.Xenon.constants.supportUrl === 'function')
+    ? window.Xenon.constants.supportUrl('devclean')
+    : 'https://www.buymeacoffee.com/marcimastro98/membership';
   let data = null;
   let loading = false;
   let loadError = '';

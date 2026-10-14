@@ -67,7 +67,8 @@
   // Never two cards in the corner. The others arrive earlier on the same boot,
   // so by SHOW_AFTER_MS either is already there or is not coming today.
   function anotherCardUp() {
-    return !!(document.getElementById('support-ask') || document.getElementById('discord-invite'));
+    return !!(document.getElementById('support-ask') || document.getElementById('discord-invite')
+      || document.getElementById('support-appeal'));
   }
 
   function showCard() {

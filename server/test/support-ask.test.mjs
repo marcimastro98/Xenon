@@ -16,6 +16,13 @@ const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
+// The answer to "I already support Xenon" is shared with the December appeal,
+// so it lives in its own function rather than inside the button handler.
+function thankSupporterBody() {
+  const fn = CARD.slice(CARD.indexOf('function thankSupporter()'));
+  return fn.slice(0, fn.indexOf('\n  }'));
+}
+
 test('the gate is thirty days AND ten separate days of use', () => {
   assert.match(CARD, /const DAYS_SINCE_FIRST_RUN = 30;/);
   assert.match(CARD, /const DISTINCT_DAYS_USED = 10;/);
@@ -91,7 +98,9 @@ test('there is a way out for a supporter the check cannot see', () => {
   const fn = CARD.slice(CARD.indexOf("already.addEventListener"));
   const body = fn.slice(0, fn.indexOf('\n    });'));
   assert.match(body, /remember\(\);/, 'it silences the card for good');
-  assert.match(body, /settingsSetCategory\('support'\)/, 'and opens where a pass is entered');
+  assert.match(body, /silenceAppeal\(\);/, 'and the December appeal with it');
+  assert.match(body, /thankSupporter\(\);/, 'then answers them');
+  assert.match(thankSupporterBody(), /settingsSetCategory\('support'\)/, 'and opens where a pass is entered');
 });
 
 // The moments Xenon is being used for something. Same body-class convention the
@@ -125,8 +134,7 @@ test('the perks are a list of things, not a sentence about them', () => {
 // from the outside looks like nothing happened -- the first question asked about
 // this card was "what does that button even do?".
 test('"I already support Xenon" says what it just did', () => {
-  const fn = CARD.slice(CARD.indexOf("already.addEventListener"));
-  const body = fn.slice(0, fn.indexOf('\n    });'));
+  const body = thankSupporterBody();
   assert.match(body, /support_thanks_title/, 'it thanks them');
   assert.match(body, /support_thanks_msg/, 'and says where the code goes');
   assert.match(body, /important: true/, 'the reply to a press is never held back by quiet hours');
@@ -146,7 +154,10 @@ test('the card speaks plainly, with no em dashes', () => {
 test('monthly is the offer, one-off is the alternative', () => {
   assert.ok(CARD.indexOf('support_ask_monthly') < CARD.indexOf('support_ask_once'),
     'the monthly button comes first');
-  assert.match(CARD, /BMC_MONTHLY = BMC \+ '\/membership'/, 'and it opens the membership page');
+  assert.match(CARD, /open\(supportLink\('monthly'\)\)/, 'and it opens the membership page');
+  assert.match(CARD, /plan === 'once' \? BMC : BMC \+ '\/membership'/,
+    'which is also where the fallback goes when the shared module is missing');
+  assert.match(CARD, /c\.supportUrl\('app-ask', plan\)/, 'counted under its own label');
   const css = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
   // The only filled thing on the card. Two equal buttons is the shape of a card
   // that has not decided what it is asking for.

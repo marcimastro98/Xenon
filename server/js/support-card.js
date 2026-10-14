@@ -36,8 +36,14 @@
 (function () {
   const BMC = 'https://www.buymeacoffee.com/marcimastro98';
   // Buy Me a Coffee's own membership tab. The monthly option is the ask; the
-  // one-off is offered underneath it, not instead of it.
-  const BMC_MONTHLY = BMC + '/membership';
+  // one-off is offered underneath it, not instead of it. Counted through the hub
+  // when the shared constants loaded, straight to the page otherwise, so the
+  // button never goes dead.
+  function supportLink(plan) {
+    const c = window.Xenon && window.Xenon.constants;
+    if (c && typeof c.supportUrl === 'function') return c.supportUrl('app-ask', plan);
+    return plan === 'once' ? BMC : BMC + '/membership';
+  }
 
   const DAYS_SINCE_FIRST_RUN = 30;
   const DISTINCT_DAYS_USED = 10;
@@ -133,7 +139,7 @@
     const text = document.createElement('p');
     text.className = 'discord-invite-text';
     text.textContent = t('support_ask_text',
-      'One person writes it, in their spare time. No ads, no investors, no paid version. If it has become useful to you: 5 a month or 50 for the year, or 25 once for five months of drops. Each one unlocks supporter-only themes and widgets, the Discord role and your name on the site. A year of support also gets you a theme built to order.');
+      'One person writes it, in their spare time. No ads, no investors, no paid version. If it has become useful to you: $5 a month or $50 for the year, or $25 once for five months of drops. Each one unlocks supporter-only themes and widgets, the Discord role and your name on the site. A year of support also gets you a theme built to order.');
 
     const perks = document.createElement('ul');
     perks.className = 'support-ask-perks';
@@ -167,13 +173,13 @@
     const monthlyLabel = document.createElement('span');
     monthlyLabel.textContent = t('support_ask_monthly', 'Support monthly');
     monthly.append(monthlyHeart, monthlyLabel);
-    monthly.addEventListener('click', () => { open(BMC_MONTHLY); remember(); hide(); });
+    monthly.addEventListener('click', () => { open(supportLink('monthly')); remember(); hide(); });
 
     const once = document.createElement('button');
     once.type = 'button';
     once.className = 'discord-invite-dismiss support-ask-once';
-    once.textContent = t('support_ask_once', 'Just once: 5 or 25');
-    once.addEventListener('click', () => { open(BMC); remember(); hide(); });
+    once.textContent = t('support_ask_once', 'Just once: $5 or $25');
+    once.addEventListener('click', () => { open(supportLink('once')); remember(); hide(); });
 
     // Third row, quieter: for the supporter this card should never have reached.
     const already = document.createElement('button');
@@ -182,30 +188,11 @@
     already.textContent = t('support_ask_already', 'I already support Xenon');
     already.addEventListener('click', () => {
       remember();
+      // The thank-you promises they will not be asked again, so the December
+      // appeal (js/support-appeal.js) is silenced for good as well.
+      silenceAppeal();
       hide();
-      // Straight to where a pass is entered: they are entitled to the perks and
-      // evidently have not claimed them, which is the actual thing to fix here.
-      //
-      // And SAY so. Pressing this used to close the card and silently open a
-      // settings page, which from the outside looks like nothing happened at
-      // all — the first question asked about it was "what does that button
-      // even do?". The thank-you is the answer, and it carries the one
-      // instruction that turns a supporter into a supporter with their perks.
-      try {
-        if (typeof openSettings === 'function') openSettings();
-        if (typeof settingsSetCategory === 'function') settingsSetCategory('support');
-      } catch { /* the card is gone either way, which is what they asked for */ }
-      try {
-        if (window.XenonToast) {
-          window.XenonToast.show({
-            type: 'success',
-            duration: 9000,
-            important: true,          // the reply to a press is never "quiet hours"
-            title: t('support_thanks_title', 'Thank you, genuinely'),
-            message: t('support_thanks_msg', 'If you have a supporter code, enter it here to unlock the exclusive themes and widgets. You will not be asked again either way.'),
-          });
-        }
-      } catch { /* a missing toast never breaks the button */ }
+      thankSupporter();
     });
 
     actions.append(monthly, once);
@@ -225,6 +212,42 @@
     const c = CARDS();
     if (c && typeof c.rememberSupportAsk === 'function') c.rememberSupportAsk();
   }
+
+  function silenceAppeal() {
+    const c = CARDS();
+    if (c && typeof c.silenceSupportAppeal === 'function') c.silenceSupportAppeal();
+  }
+
+  // The answer to "I already support Xenon", on this card and on the December
+  // appeal. Straight to where a pass is entered: they are entitled to the perks
+  // and evidently have not claimed them, which is the actual thing to fix here.
+  //
+  // And SAY so. Pressing this used to close the card and silently open a
+  // settings page, which from the outside looks like nothing happened at all —
+  // the first question asked about it was "what does that button even do?". The
+  // thank-you is the answer, and it carries the one instruction that turns a
+  // supporter into a supporter with their perks.
+  function thankSupporter() {
+    try {
+      if (typeof openSettings === 'function') openSettings();
+      if (typeof settingsSetCategory === 'function') settingsSetCategory('support');
+    } catch { /* the card is gone either way, which is what they asked for */ }
+    try {
+      if (window.XenonToast) {
+        window.XenonToast.show({
+          type: 'success',
+          duration: 9000,
+          important: true,          // the reply to a press is never "quiet hours"
+          title: t('support_thanks_title', 'Thank you, genuinely'),
+          message: t('support_thanks_msg', 'If you have a supporter code, enter it here to unlock the exclusive themes and widgets. You will not be asked again either way.'),
+        });
+      }
+    } catch { /* a missing toast never breaks the button */ }
+  }
+
+  // The December appeal is this card's yearly sibling and borrows its parts
+  // rather than keeping a second copy of each.
+  window.XenonSupportAsk = { HEART, CLOSE, daysSince, busyRightNow, alreadySupporter, thankSupporter };
 
   async function maybeShow() {
     const c = CARDS();

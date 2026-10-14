@@ -1,12 +1,14 @@
 'use strict';
-// Aggregate counters the dashboard sends — install counts and poll answers.
+// Aggregate counters the dashboard sends — install counts and poll answers —
+// and the one the hub publishes back, the supporter count.
 //   POST /api/community/installed {entryId}          → count one install
 //   GET  /api/community/installs?ids=a,b             → public totals for the Store
 //   POST /api/community/poll {messageId, optionId}   → count one poll answer
+//   GET  /api/community/support-goal                 → paying supporters + the goal
 //
-// The two live together because they share the rule that defines both: nothing
-// identifying is attached, so neither can be traced to a dashboard and the two
-// cannot be joined. Everything below applies to both.
+// They live together because they share the rule that defines them: nothing
+// identifying is attached, so none can be traced to a dashboard and they
+// cannot be joined. Everything below applies to all of them.
 //
 // The number this produces is "installs reported", NOT unique owners, and every
 // surface that shows it has to say so. That is a deliberate trade: counting
@@ -32,6 +34,10 @@ const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
 const MAX_IDS = 100;
 const COUNTS_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 8;
+// The hub caches the supporter count an hour at its edge; asking sooner only
+// gets the same answer back.
+const GOAL_TTL_MS = 60 * 60 * 1000;
+const MAX_SUPPORTERS = 1000000;
 
 function requestJson(url, { method = 'GET', body = null } = {}) {
   return new Promise((resolve) => {
@@ -76,6 +82,8 @@ function requestJson(url, { method = 'GET', body = null } = {}) {
 let _transport = requestJson;
 const _cache = new Map();      // ids key → { at, data }
 const _inFlight = new Map();
+let _goal = null;              // { at, data }
+let _goalInFlight = null;
 
 function cleanIds(ids) {
   const raw = Array.isArray(ids) ? ids : String(ids || '').split(',');
@@ -147,11 +155,41 @@ async function submitPollVote({ messageId, optionId }) {
   return { ok: false, error };
 }
 
+function countOrNull(value, max) {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 && n <= max ? n : null;
+}
+
+// Shape check on the hub's answer: two small integers or nothing. A goal of 0
+// or a missing one means "no goal set", and the dashboard shows the count alone.
+function cleanGoal(out) {
+  const active = out && out.ok === true ? countOrNull(out.active, MAX_SUPPORTERS) : null;
+  if (active == null) return { ok: false, error: 'network' };
+  return { ok: true, active, target: countOrNull(out.target, MAX_SUPPORTERS) || null };
+}
+
+// How many people pay for Xenon right now, and how many it takes to cover its
+// costs, for the "Xenon pays for itself" bar. A failure is not cached, so the
+// next open of the Settings page tries again.
+async function fetchSupportGoal() {
+  if (_goal && Date.now() - _goal.at < GOAL_TTL_MS) return _goal.data;
+  if (_goalInFlight) return _goalInFlight;
+  const run = (async () => {
+    const data = cleanGoal(await _transport(HUB_BASE + '/supporters/count'));
+    if (data.ok) _goal = { at: Date.now(), data };
+    return data;
+  })();
+  _goalInFlight = run;
+  run.finally(() => { _goalInFlight = null; });
+  return run;
+}
+
 module.exports = {
   reportInstall,
   submitPollVote,
   fetchInstallCounts,
+  fetchSupportGoal,
   cleanIds,
   _setTransport(fn) { _transport = fn || requestJson; },
-  _resetCache() { _cache.clear(); _inFlight.clear(); },
+  _resetCache() { _cache.clear(); _inFlight.clear(); _goal = null; _goalInFlight = null; },
 };

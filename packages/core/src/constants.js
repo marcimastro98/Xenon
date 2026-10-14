@@ -27,5 +27,19 @@
     return SUPPORTED_LANGS.includes(code) ? code : '';
   }
 
-  return { LOOPBACK_ORIGIN, SUPPORTED_LANGS, DEFAULT_LANG, normalizeLangCode };
+  // Every "support Xenon" button goes through the supporter hub, which counts
+  // which surface it came from (no identifier, only a daily total per label)
+  // and then redirects to Buy Me a Coffee: the membership page by default, the
+  // one-time page for plan 'once'. Without it nobody could tell which ask works.
+  const SUPPORT_REDIRECT = 'https://xenon-supporter-hub.xenonedge.workers.dev/go/support';
+  const SUPPORT_SOURCE_RE = /^[a-z0-9][a-z0-9_-]{0,23}$/;
+
+  function supportUrl(source, plan) {
+    const s = String(source || '').toLowerCase();
+    let url = SUPPORT_REDIRECT + '?s=' + (SUPPORT_SOURCE_RE.test(s) ? s : 'other');
+    if (plan === 'once') url += '&p=once';
+    return url;
+  }
+
+  return { LOOPBACK_ORIGIN, SUPPORTED_LANGS, DEFAULT_LANG, normalizeLangCode, supportUrl };
 });

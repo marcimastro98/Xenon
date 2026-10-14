@@ -29,3 +29,11 @@ test('barrel re-exports both namespaces', () => {
   assert.equal(typeof core.constants.normalizeLangCode, 'function');
   assert.equal(typeof core.format.formatBytes, 'function');
 });
+
+test('supportUrl goes through the hub counter with a validated label', () => {
+  const base = 'https://xenon-supporter-hub.xenonedge.workers.dev/go/support';
+  assert.equal(c.supportUrl('app-ask'), base + '?s=app-ask');
+  assert.equal(c.supportUrl('store', 'once'), base + '?s=store&p=once');
+  assert.equal(c.supportUrl('<x>&p=evil'), base + '?s=other');
+  assert.equal(c.supportUrl(''), base + '?s=other');
+});

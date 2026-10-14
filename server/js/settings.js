@@ -1807,6 +1807,8 @@ function normalizeSettings(source) {
     lastUsageDay: typeof value.lastUsageDay === 'string' ? value.lastUsageDay.slice(0, 10) : '',
     usageDays: Math.max(0, Math.floor(Number(value.usageDays) || 0)),
     supportAskSeen: value.supportAskSeen === true,
+    supportAskSeenDay: /^\d{4}-\d{2}-\d{2}$/.test(String(value.supportAskSeenDay || '')) ? String(value.supportAskSeenDay) : '',
+    supportAppealYear: Math.min(9999, Math.max(0, Math.floor(Number(value.supportAppealYear) || 0))),
     shareNudgeSeen: value.shareNudgeSeen === true,
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     discordCollapsedGuilds: normalizeSnowflakeList(value.discordCollapsedGuilds),
@@ -5386,6 +5388,9 @@ function settingsSetCategory(cat) {
   // request, and the answer only changes when this same pane or an unlock
   // changes it.
   if (cat === 'sdk') syncSupporterCodeBox();
+  // The supporter count under the support buttons (js/support-goal.js). Cached
+  // an hour by the server, so opening the pane again costs nothing.
+  if (cat === 'support' && window.XenonSupportGoal) XenonSupportGoal.fill($('settings-support-goal'));
   packSettingsColumns();
 }
 
@@ -9014,10 +9019,36 @@ function supportAskDismissed() {
   return !!(hubSettings && hubSettings.supportAskSeen === true);
 }
 
+// The day rides along so the December appeal can keep a month between the two.
 function rememberSupportAskSeen() {
   if (hubSettings && hubSettings.supportAskSeen === true) return;
-  hubSettings = normalizeSettings({ ...hubSettings, supportAskSeen: true });
+  hubSettings = normalizeSettings({ ...hubSettings, supportAskSeen: true, supportAskSeenDay: toDateInputValue(new Date()) });
   saveHubSettings();
+}
+
+// The December appeal (js/support-appeal.js): the last year it was shown, and
+// the day the one-time ask went away ('' when that predates the field).
+// "I already support Xenon", on either card, is an answer for good: the year the
+// appeal stays away through becomes the last one the field can hold.
+const SUPPORT_APPEAL_NEVER = 9999;
+
+function supportAppealYear() {
+  return Math.max(0, Math.floor(Number(hubSettings && hubSettings.supportAppealYear) || 0));
+}
+
+function supportAskSeenDay() {
+  return (hubSettings && hubSettings.supportAskSeenDay) || '';
+}
+
+function rememberSupportAppeal(year) {
+  const y = Math.min(SUPPORT_APPEAL_NEVER, Math.floor(Number(year) || 0));
+  if (y <= supportAppealYear()) return;
+  hubSettings = normalizeSettings({ ...hubSettings, supportAppealYear: y });
+  saveHubSettings();
+}
+
+function silenceSupportAppeal() {
+  rememberSupportAppeal(SUPPORT_APPEAL_NEVER);
 }
 
 // The share invitation (js/share-nudge.js): same shape, same home on disk.
@@ -9106,6 +9137,10 @@ window.XenonStartupCards = {
   rememberDiscordInvite: rememberDiscordInviteSeen,
   supportAskDismissed,
   rememberSupportAsk: rememberSupportAskSeen,
+  supportAskSeenDay,
+  supportAppealYear,
+  rememberSupportAppeal,
+  silenceSupportAppeal,
   shareNudgeDismissed,
   rememberShareNudge: rememberShareNudgeSeen,
   usageHistory,

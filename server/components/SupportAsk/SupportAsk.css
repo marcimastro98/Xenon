@@ -37,6 +37,10 @@
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.16),
               0 0 0 1px rgba(var(--sup-pink), 0.14);
 }
+/* Korean may break between any two syllables, which split the name in the
+   title and half the words in the note. It puts spaces between words, so it
+   wraps there instead. */
+.support-ask:lang(ko) { word-break: keep-all; }
 
 /* ── Header ───────────────────────────────────────────────────────────────
    A tinted band rather than a solid block. The old logo tile was a saturated
@@ -68,6 +72,7 @@
   font-weight: 700;
   letter-spacing: -0.012em;
   line-height: 1.25;
+  text-wrap: balance;               /* two even lines, never one word left alone */
 }
 
 /* ── Body ─────────────────────────────────────────────────────────────── */
@@ -130,6 +135,9 @@
   color: #fff;
   font-weight: 700;
   font-size: 12.5px;
+  /* The ask stays on one line; when the row is short, the one-off next to it
+     wraps instead (it can shrink, this cannot). */
+  white-space: nowrap;
   /* The glow is what makes it read as neon rather than as a pink rectangle. */
   box-shadow: 0 8px 22px rgba(var(--sup-pink), 0.38),
               inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -171,7 +179,9 @@
 /* The one-off is a real option and not a filled button: two equal buttons is the
    shape of a card that has not decided what it is asking for. */
 .support-ask .support-ask-once {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  text-wrap: balance;
   padding: 10px 12px;
   border-radius: 11px;
   background: none;
@@ -211,6 +221,15 @@
 :root[data-appearance="light"] .support-ask-already:hover { color: rgb(var(--sup-pink-deep)); }
 
 .support-ask .discord-invite-close { margin-right: -4px; }
+
+/* ── The December appeal (js/support-appeal.js) ─────────────────────────────
+   The same card with one addition: the supporter count and its bar, between the
+   note and the buttons, in the card's own pink like everything else on it. */
+.support-appeal .support-goal {
+  --goal-fill: var(--sup-pink);
+  padding: 0 16px 14px;
+}
+:root[data-appearance="light"] .support-appeal .support-goal { --goal-fill: var(--sup-pink-deep); }
 
 @media (prefers-reduced-motion: reduce) {
   .support-ask { transition: opacity .2s ease; transform: none; }
