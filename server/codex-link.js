@@ -39,7 +39,7 @@ const { writeFileAtomic } = require('./atomic-write');
 const HOOK_SCRIPT = path.join(__dirname, 'codex-hook.js');
 const STATE_FILE = 'codex-bridge.json';   // inside DATA_DIR
 const BACKUP_SUFFIX = '.xenon-backup';
-const OURS_RE = /codex-hook\.js/;
+const OURS_RE = /codex-hook\.(?:js|cmd)/;
 
 // What each hook is for, so the next person can judge a removal. Every one is
 // a node process started by Codex, so an event earns its place only when the
@@ -77,13 +77,37 @@ function hooksPath() {
 // <command>` elsewhere (read from codex-rs/hooks/src/engine/command_runner.rs).
 // The node binary is named by absolute path: the ChatGPT desktop app's
 // environment does not necessarily have node on PATH.
+//
+// Windows is the exception that needs a wrapper. Codex (checked on the ChatGPT
+// app 26.1007 and codex-cli 0.147/0.153, openai/codex#38168) wraps the whole
+// line in ONE pair of quotes and hands it to cmd, whose legacy quote rules then
+// mangle any quote INSIDE it: a line with a quoted node and a quoted script
+// never starts, and Codex only reports "hook exited with code 1". So on
+// Windows the hook command holds no quote at all: it is the path of a small
+// codex-hook.cmd, which holds the quoted node and script. That also means a
+// Node upgrade rewrites the .cmd only, and costs no re-trust.
 function quotePosix(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
-function hookCommand(platform, nodePath, scriptPath, mode) {
-  if (platform === 'win32') return '"' + nodePath + '" "' + scriptPath + '" ' + mode;
+// A path cmd reads as one bare word: ASCII, no space, no metacharacter. Only
+// DATA_DIR is ever used: it sits in the user's own install, like the script the
+// .cmd runs. A machine-wide folder (ProgramData) would let another local user
+// plant the file Codex executes, so a DATA_DIR that is not a bare word (a user
+// name with a space) keeps the old quoted command instead.
+const CMD_SAFE_PATH = /^[A-Za-z0-9_.:\\/-]+$/;
+function wrapperPath(dataDir, platform = process.platform) {
+  if (platform !== 'win32') return null;
+  const p = path.join(dataDir, 'codex-hook.cmd');
+  return CMD_SAFE_PATH.test(p) ? p : null;
+}
+function wrapperBody(nodePath, scriptPath) {
+  const pct = (s) => String(s).replace(/%/g, '%%');
+  return '@echo off\r\n"' + pct(nodePath) + '" "' + pct(scriptPath) + '" %*\r\n';
+}
+function hookCommand(platform, nodePath, scriptPath, mode, wrapper = null) {
+  if (platform === 'win32') return wrapper ? wrapper + ' ' + mode : '"' + nodePath + '" "' + scriptPath + '" ' + mode;
   return quotePosix(nodePath) + ' ' + quotePosix(scriptPath) + ' ' + mode;
 }
-function ourHandler(spec, platform = process.platform, nodePath = process.execPath, scriptPath = HOOK_SCRIPT) {
-  const h = { type: 'command', command: hookCommand(platform, nodePath, scriptPath, spec.mode), timeout: spec.timeout };
+function ourHandler(spec, platform = process.platform, nodePath = process.execPath, scriptPath = HOOK_SCRIPT, wrapper = null) {
+  const h = { type: 'command', command: hookCommand(platform, nodePath, scriptPath, spec.mode, wrapper), timeout: spec.timeout };
   if (spec.statusMessage) h.statusMessage = spec.statusMessage;
   if (spec.async) h.async = true;
   return h;
@@ -113,6 +137,20 @@ async function readHooksFile(file) {
   } catch { return { exists: true, raw, json: null }; }
 }
 function serialize(obj) { return JSON.stringify(obj, null, 2) + '\n'; }
+
+async function readText(file) {
+  try { return await fs.promises.readFile(file, 'utf8'); } catch { return null; }
+}
+const handlerFor = (wrapper) => (spec) => ourHandler(spec, process.platform, process.execPath, HOOK_SCRIPT, wrapper);
+// Writes the Windows wrapper only when it differs, so a no-op relink stays a no-op.
+async function ensureWrapper(dataDir) {
+  const wrapper = wrapperPath(dataDir);
+  if (!wrapper) return;
+  const body = wrapperBody(process.execPath, HOOK_SCRIPT);
+  if ((await readText(wrapper)) === body) return;
+  await fs.promises.mkdir(path.dirname(wrapper), { recursive: true });
+  await writeFileAtomic(wrapper, body);
+}
 
 async function readJson(file) {
   try {
@@ -209,17 +247,21 @@ async function status(dataDir, { trust = null } = {}) {
   const at = locateOurs(hooks);
   const missing = [];
   const outdated = [];
+  const wrapper = wrapperPath(dataDir);
   for (const spec of EXPECTED) {
     const pos = at[spec.event];
     if (!pos) { missing.push(spec.event); continue; }
-    if (!sameHandler(hooks[spec.event][pos[0]].hooks[pos[1]], ourHandler(spec))) outdated.push(spec.event);
+    if (!sameHandler(hooks[spec.event][pos[0]].hooks[pos[1]], handlerFor(wrapper)(spec))) outdated.push(spec.event);
   }
   const found = EXPECTED.length - missing.length;
+  // The wrapper's own content (node/script path) can go stale without hooks.json changing.
+  const wrapperStale = found > 0 && !!wrapper && (await readText(wrapper)) !== wrapperBody(process.execPath, HOOK_SCRIPT);
   return {
     linked: found > 0,
-    complete: found === EXPECTED.length && outdated.length === 0,
+    complete: found === EXPECTED.length && outdated.length === 0 && !wrapperStale,
     missing,
     outdated,
+    wrapperStale,
     unparsable: f.exists && f.json === null,
     hooksPath: file,
     exists: f.exists,
@@ -235,7 +277,8 @@ async function link(dataDir, port) {
   const f = await readHooksFile(file);
   if (f.json === null) return { ...(await status(dataDir)), error: 'unparsable' };
   await ensureToken(dataDir, port);
-  const next = withOurHooks(f.json);
+  await ensureWrapper(dataDir);
+  const next = withOurHooks(f.json, handlerFor(wrapperPath(dataDir)));
   if (next !== f.json || !f.exists) {
     await fs.promises.mkdir(codexHome(), { recursive: true });
     // The untouched original, byte for byte, exactly once.
@@ -262,6 +305,8 @@ async function unlink(dataDir) {
     }
   }
   await writeState(dataDir, { token: state.token, port: state.port, linkedAt: 0 });
+  const wrapper = wrapperPath(dataDir);
+  if (wrapper) { try { await fs.promises.unlink(wrapper); } catch { /* never written */ } }
   return status(dataDir);
 }
 
@@ -273,14 +318,15 @@ async function repairLink(dataDir, port) {
   const st = await status(dataDir);
   if (!st.linked || st.complete || st.unparsable) return { ...st, repaired: false };
   const next = await link(dataDir, port);
-  return { ...next, repaired: true, needsRetrust: true };
+  // A stale wrapper alone is rewritten in place: hooks.json, and so the trust, is untouched.
+  return { ...next, repaired: true, needsRetrust: st.missing.length + st.outdated.length > 0 };
 }
 
 module.exports = {
   link, unlink, status, repairLink, ensureToken, readState,
   codexHome, hooksPath, isOurCommand,
   // exported for tests
-  hookCommand, ourHandler, isOurHandler, withOurHooks, withoutOurHooks, locateOurs, readHooksFile,
+  hookCommand, ourHandler, wrapperPath, wrapperBody, isOurHandler, withOurHooks, withoutOurHooks, locateOurs, readHooksFile,
   EXPECTED, PERMISSION, LIFECYCLE, BACKUP_SUFFIX, HOOK_SCRIPT,
 };
 

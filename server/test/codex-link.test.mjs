@@ -34,6 +34,23 @@ test('hookCommand: cmd /C form on Windows, single-quoted on POSIX, spaces and ac
     "'/opt/homebrew/bin/node' '/Users/o'\\''neil/Xenon App/server/codex-hook.js' event");
 });
 
+test('Windows hook command holds no quote: it is a space-free .cmd path (openai/codex#38168)', () => {
+  const node = 'C:\\Program Files\\nodejs\\node.exe';
+  const script = 'C:\\Users\\x\\Xenon App\\server\\codex-hook.js';
+  assert.equal(link.hookCommand('win32', node, script, 'permission', 'C:\\x\\data\\codex-hook.cmd'),
+    'C:\\x\\data\\codex-hook.cmd permission');
+  assert.equal(link.wrapperBody(node, script),
+    '@echo off\r\n"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\x\\Xenon App\\server\\codex-hook.js" %*\r\n');
+  assert.match(link.wrapperBody('C:\\100%\\node.exe', script), /"C:\\100%%\\node\.exe"/, 'a % must survive the batch parser');
+});
+
+test('wrapperPath: only DATA_DIR and only as a bare word, never a shared folder, never off Windows', () => {
+  assert.equal(link.wrapperPath('C:\\Xenon\\data', 'win32'), 'C:\\Xenon\\data\\codex-hook.cmd');
+  assert.equal(link.wrapperPath('C:\\Users\\Mary Ann\\Xenon\\data', 'win32'), null);
+  assert.equal(link.wrapperPath('C:\\Users\\città\\data', 'win32'), null);
+  assert.equal(link.wrapperPath('/home/x/data', 'linux'), null);
+});
+
 test('link into a missing file creates exactly our five hooks; status is complete', async () => {
   const s = await sandbox();
   const st = await link.link(s.data, 3030);
@@ -45,7 +62,11 @@ test('link into a missing file creates exactly our five hooks; status is complet
   assert.equal(p.type, 'command');
   assert.equal(p.timeout, 600);
   assert.equal(p.async, undefined, 'the approval hook must block');
-  assert.match(p.command, /codex-hook\.js" permission$|codex-hook\.js' permission$/);
+  assert.match(p.command, /codex-hook\.js" permission$|codex-hook\.js' permission$|codex-hook\.cmd permission$/);
+  if (process.platform === 'win32') {
+    assert.equal(p.command.includes('"'), false, 'a quote inside the command never starts under Codex on Windows');
+    assert.equal(await fs.readFile(link.wrapperPath(s.data), 'utf8'), link.wrapperBody(process.execPath, link.HOOK_SCRIPT));
+  }
   assert.equal(j.hooks.SessionStart[0].hooks[0].async, true);
   assert.equal(j.hooks.SessionEnd[0].hooks[0].async, undefined,
     'Codex runs SessionEnd synchronously and flags an async one as a hook issue');
@@ -94,7 +115,7 @@ test('an out-of-date handler is replaced where it stands, never moved', async ()
   assert.equal(r.repaired, true);
   assert.equal(r.needsRetrust, true);
   const after = await read(s.file);
-  assert.match(after.hooks.PermissionRequest[0].hooks[0].command, /codex-hook\.js/);
+  assert.match(after.hooks.PermissionRequest[0].hooks[0].command, /codex-hook\.(js|cmd)/);
   assert.notEqual(after.hooks.PermissionRequest[0].hooks[0].command, j.hooks.PermissionRequest[0].hooks[0].command);
   assert.deepEqual(after.hooks.PermissionRequest[1], { hooks: [USER_HOOK] }, 'the user group keeps index 1');
 });
