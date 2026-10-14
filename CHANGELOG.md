@@ -31,6 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 🐛 Fixed
 - **Lyrics translation no longer says "already in your language" on a song in another language.** The AI now names the language the lyrics are sung in and Xenon compares it with yours, instead of trusting a yes or no that could be wrong.
+- **Codex approvals: a note about automatic approval.** If Codex has automatic approval turned on, it can approve a command before you answer on the Xenon screen. The Codex setting now says so.
 - **On a PC with two graphics chips, Xenon now renders on the one that drives the screen you chose.** It used to pick the Xeneon Edge, or else the main screen, even when you had chosen another screen in Settings → Display. If that screen was on the other chip, every frame was copied between the two, which costs CPU and GPU all the time. Applies to the Xenon app on Windows.
 - **A video wallpaper no longer starts again behind Settings when you tap inside it.** It is meant to hold still while Settings is open, but any tap restarted it.
 - **Claude's questions on the tile are easier to read.** When the choices of a question have a description, they now stack one under the other, like in the terminal, instead of sitting side by side with the text cut off. The **Other** row says that you can type your own answer.
