@@ -90,6 +90,13 @@ const QUESTION_TTL_MS = 4 * 60 * 1000;
 // If that turn never ends (the session was killed, or it went quiet without a
 // Stop) the text must not sit in a queue forever pretending to be on its way.
 const FOLLOWUP_TTL_MS = 15 * 60 * 1000;
+// A message handed to the mod for an idle session (takeForTerminal) is on its
+// way until Claude Code starts the turn. Past this with no sign of it, the tile
+// stops saying so. It is not offered back either: it may well have arrived, and
+// offering it back invites sending it twice.
+const HANDED_TTL_MS = 60 * 1000;
+// How long a message that did not get into the session is offered back.
+const UNDELIVERED_TTL_MS = 2 * 60 * 1000;
 
 const MAX_SESSIONS = 20;      // bounds the live list (and therefore the payload)
 const MAX_PENDING = 8;        // bounds concurrent approvals
@@ -98,7 +105,9 @@ const MAX_INPUT_CHARS = 800;  // tool-input preview clamp
 const MAX_TODOS = 12;         // the plan lane; a longer list is scrolled, not stored
 const MAX_ACTIVITY = 30;      // per-session ring of finished tool calls
 const MAX_SUBAGENTS = 8;
-const MAX_FOLLOWUP_CHARS = 4000;
+// The tile's box takes 4000 characters; the paths of up to six attached files
+// ride along after them.
+const MAX_FOLLOWUP_CHARS = 6000;
 
 // Tool calls whose blast radius is wide enough that the tile alone is not
 // enough of a prompt — these escalate to the fullscreen overlay immediately
@@ -400,6 +409,12 @@ function createBridge(opts) {
   const defaultMode = () => {
     try { return typeof options.defaultMode === 'function' ? str(options.defaultMode(), 30) : ''; } catch { return ''; }
   };
+  // Is the Xenon mod listening in this session right now (claude-inbox.js)?
+  // Then a message for it while it is idle goes into that session instead of a
+  // background run.
+  const terminal = (id) => {
+    try { return typeof options.terminal === 'function' && options.terminal(id) === true; } catch { return false; }
+  };
 
   const sessions = new Map();   // session_id → live session record
   const pending = new Map();    // approval id → { …, resolve, timer }
@@ -441,11 +456,16 @@ function createBridge(opts) {
         // in applyHook for the one thing this exists to decide.
         turnOver: true,
         lastSaid: '', linesAdded: null, linesRemoved: null,
-        startedAt: now(), lastAt: now(), cost: null, contextPct: null,
+        // turnAt: when the current turn began, for "working for…" on the tile.
+        startedAt: now(), turnAt: 0, lastAt: now(), cost: null, contextPct: null,
         endedAt: 0, endedReason: '',
         // Corroboration from Claude Code's own registry (claude-sessions.js).
         pid: null, alive: true,
         queued: null,
+        // A message handed to the mod for this idle session, until the turn
+        // starts ({ text, at, started }), and one that did not get in, offered
+        // back on the tile ({ text, reason, at }). See takeForTerminal.
+        handed: null, undelivered: null,
       };
       sessions.set(key, s);
     }
@@ -541,7 +561,8 @@ function createBridge(opts) {
   // hooks cannot say — each subagent's model, the live context and quota
   // without waiting for a statusline run — and never prompt text, tool
   // arguments or file content. It enriches the records the hooks keep; it never
-  // creates a session state of its own.
+  // creates a session state of its own. Its one other message is the outcome of
+  // a tile message it took from the inbox, as a code: the text never comes back.
   function applyMod(data) {
     const d = (data && typeof data === 'object') ? data : {};
     if (d.v !== 1) return false;
@@ -571,6 +592,24 @@ function createBridge(opts) {
         else {
           s.subagents.push({ id: agentId, type: str(d.type, 40), model, at: now() });
           if (s.subagents.length > MAX_SUBAGENTS) s.subagents.shift();
+        }
+        emit();
+        return true;
+      }
+      case 'delivery': {
+        // A success only ends the "on its way" state a little sooner than
+        // UserPromptSubmit would; a refusal offers the text back on the tile.
+        // 'dropped' is a prompt hook's block, whose reason Claude Code shows in
+        // the session; anything else is 'refused'.
+        const s = sessions.get(id);
+        if (!s || !s.handed) return false;
+        const { text, started } = s.handed;
+        s.handed = null;
+        if (d.ok !== true) {
+          s.undelivered = { text, reason: d.reason === 'dropped' ? 'dropped' : 'refused', at: now() };
+          // Our own UserPromptSubmit hook fired alongside the one that blocked
+          // it and marked a turn that never began. Nothing will send Stop.
+          if (started && s.state === 'running') { s.state = 'idle'; s.turnOver = true; }
         }
         emit();
         return true;
@@ -636,10 +675,14 @@ function createBridge(opts) {
         // notifications, system reminders, skill preambles — and one of those
         // as the session's headline reads like the user asked for it. Keep the
         // last REAL prompt instead of overwriting it with plumbing.
-        const patch = { state: 'running', tool: '', toolDetail: '', waitFor: null, turnOver: false };
+        const patch = { state: 'running', tool: '', toolDetail: '', waitFor: null, turnOver: false, turnAt: now() };
         const prompt = str(d.prompt, MAX_STR);
         if (prompt && !isInjectedPrompt(prompt)) patch.task = prompt;
-        touchSession(id, patch);
+        const s = touchSession(id, patch);
+        // A tile message handed to the mod has reached Claude Code. Kept until
+        // the mod reports, not cleared: another prompt hook may still block it,
+        // and offering it back then needs the text.
+        if (s && s.handed) s.handed.started = true;
         break;
       }
       case 'PreToolUse': {
@@ -756,7 +799,8 @@ function createBridge(opts) {
           state: 'idle', tool: '', toolDetail: '', waitFor: null, subagents: [], turnOver: true,
           endedAt: now(), endedReason: str(d.reason, 40) || 'other',
         });
-        if (s) s.queued = null;   // nothing will ever deliver it now
+        // Nothing will ever deliver it now.
+        if (s) { giveBack(s, true); s.queued = null; s.handed = null; }
         break;
       }
       default:
@@ -769,20 +813,39 @@ function createBridge(opts) {
   }
 
   // ── follow-ups into a live session ─────────────────────────────────────────
-  // Delivered by the Stop hook (header note 3), so this only works on a session
-  // that is going to finish a turn. An idle session will never fire Stop again;
-  // the caller resumes it as a run instead, and the tile says which of the two
-  // is about to happen rather than offering one box that behaves as either.
+  // Two ways in, and the tile says which one is about to happen rather than
+  // offering one box that behaves as either:
+  //   • 'turn': a turn is running, and the Stop hook delivers the text inside
+  //     it (header note 3).
+  //   • 'terminal': the session is idle, so no Stop is coming, but the Xenon mod
+  //     is listening in it (claude-inbox.js). The mod takes the text and starts
+  //     a new turn with it, as if it were typed there (takeForTerminal).
+  // An idle session with no mod listening is neither: the caller resumes it as
+  // a background run instead.
+  function inFlight(s, t) {
+    return !!(s.handed && !s.handed.started && t - s.handed.at < HANDED_TTL_MS);
+  }
+
   function queueFollowUp(sessionId, text) {
     const s = sessions.get(str(sessionId, 80));
     if (!s) return { ok: false, error: 'unknown_session' };
     if (s.endedAt) return { ok: false, error: 'session_ended' };
     const t = str(text, MAX_FOLLOWUP_CHARS);
     if (!t) return { ok: false, error: 'empty' };
-    if (s.queued) return { ok: false, error: 'already_queued' };
-    s.queued = { text: t, at: now() };
+    if (s.queued || inFlight(s, now())) return { ok: false, error: 'already_queued' };
+    const busy = s.state === 'running' || s.state === 'waiting';
+    // The turn ended while the text was being typed: queued, it would wait for
+    // a Stop that already happened.
+    if (!busy && !terminal(s.id)) return { ok: false, error: 'session_idle' };
+    // The mod hands text in as a message (prompt.submit), never as a command
+    // (command.run), so a "/" command would not run as one. Commands are typed
+    // in the session itself.
+    if (!busy && t.startsWith('/')) return { ok: false, error: 'slash_command' };
+    const via = busy ? 'turn' : 'terminal';
+    s.queued = { text: t, at: now(), via };
+    s.undelivered = null;
     emit();
-    return { ok: true };
+    return { ok: true, via };
   }
 
   function cancelFollowUp(sessionId) {
@@ -808,6 +871,46 @@ function createBridge(opts) {
     s.lastAt = now();
     emit();
     return followUpReason(text);
+  }
+
+  // The mod's side (claude-inbox.js). Hands the text over ONCE and raw: the mod
+  // submits it as the user's own words, so it needs none of followUpReason's
+  // framing. Only to an idle session; one that is working gets it from the
+  // Stop hook, inside its turn. Kept as `handed` until the turn starts, so the
+  // tile can say it is on its way and offer it back if Claude Code refuses it.
+  function takeForTerminal(sessionId) {
+    const s = sessions.get(str(sessionId, 80));
+    if (!s || s.endedAt || !s.queued) return '';
+    if (s.state === 'running' || s.state === 'waiting') return '';
+    const { text, at } = s.queued;
+    s.queued = null;
+    if (now() - at > FOLLOWUP_TTL_MS) { emit(); return ''; }
+    s.handed = { text, at: now(), started: false };
+    emit();
+    return text;
+  }
+
+  // A message still waiting for this session, or handed over with no sign that
+  // it reached Claude Code, did not get in, so it is offered back on the tile
+  // instead of disappearing without a word. `turnToo` is for a session that
+  // ended: no Stop is coming to deliver a message queued for the turn either.
+  function giveBack(s, turnToo) {
+    let text = '';
+    if (s.queued && (turnToo || s.queued.via === 'terminal')) { text = s.queued.text; s.queued = null; }
+    else if (inFlight(s, now())) { text = s.handed.text; s.handed = null; }
+    if (!text) return false;
+    s.undelivered = { text, reason: 'closed', at: now() };
+    return true;
+  }
+
+  // The mod in that session stopped listening (claude-inbox.js): the terminal
+  // was closed, or Claude Code exited. The session itself may still be running
+  // without it, so a message for its turn stays for the Stop hook.
+  function terminalGone(sessionId) {
+    const s = sessions.get(str(sessionId, 80));
+    if (!s || !giveBack(s, false)) return false;
+    emit();
+    return true;
   }
 
   // The "Yes" rows of Claude Code's plan dialog, in its order: auto mode when it
@@ -1094,7 +1197,8 @@ function createBridge(opts) {
           known.endedReason = 'gone';
           known.state = 'idle';
           known.tool = ''; known.toolDetail = ''; known.waitFor = null;
-          known.subagents = []; known.queued = null;
+          giveBack(known, true);
+          known.subagents = []; known.queued = null; known.handed = null;
           moved = true;
         }
         continue;
@@ -1146,7 +1250,8 @@ function createBridge(opts) {
       s.endedAt = now();
       s.endedReason = 'gone';
       s.state = 'idle';
-      s.tool = ''; s.toolDetail = ''; s.waitFor = null; s.queued = null;
+      giveBack(s, true);
+      s.tool = ''; s.toolDetail = ''; s.waitFor = null; s.queued = null; s.handed = null;
       moved = true;
     }
 
@@ -1163,8 +1268,20 @@ function createBridge(opts) {
       // the moment the user has seen it.
       const limit = s.endedAt ? SESSION_RESTING_MS : SESSION_STALE_MS;
       const since = s.endedAt || s.lastAt;
-      if (t - since > limit) sessions.delete(k);
+      if (t - since > limit) { sessions.delete(k); continue; }
+      // Past their window these would say something no longer true.
+      if (s.handed && t - s.handed.at >= HANDED_TTL_MS) s.handed = null;
+      if (s.undelivered && t - s.undelivered.at >= UNDELIVERED_TTL_MS) s.undelivered = null;
     }
+  }
+
+  // Waiting for the end of the turn ('turn') or for the mod ('terminal'). A
+  // message the mod already took counts until the turn starts: it is on its
+  // way, and can no longer be cancelled.
+  function queuedView(s, t) {
+    if (s.queued) return { text: s.queued.text, ageMs: t - s.queued.at, via: s.queued.via };
+    if (inFlight(s, t)) return { text: s.handed.text, ageMs: t - s.handed.at, via: 'terminal', handed: true };
+    return null;
   }
 
   function snapshot() {
@@ -1199,15 +1316,25 @@ function createBridge(opts) {
         linesAdded: s.linesAdded,
         linesRemoved: s.linesRemoved,
         startedAt: s.startedAt,
-        runForMs: t - s.startedAt,
+        // How long the turn has been working, not the session: a session open
+        // for an hour showed "1h" a second into a new turn.
+        runForMs: t - (s.turnAt || s.startedAt),
         ageMs: t - s.lastAt,
         ended: !!s.endedAt,
         endedReason: s.endedReason,
         // A session Xenon can see (its own registry file) but is not wired into,
         // because it started before Claude Code was linked. Its controls would
-        // all fail, so the widget says so instead of offering them.
-        unlinked: !!s.unlinked,
-        queued: s.queued ? { text: s.queued.text, ageMs: t - s.queued.at } : null,
+        // all fail, so the widget says so instead of offering them. Not while
+        // the mod listens in it: a tile message then gets in through the mod,
+        // and after a Xenon restart every open session looks unwired until its
+        // next hook.
+        unlinked: !!s.unlinked && !terminal(s.id),
+        // The Xenon mod is listening in this session right now
+        // (claude-inbox.js), so a message for it while idle goes into it.
+        terminal: !s.endedAt && terminal(s.id),
+        queued: queuedView(s, t),
+        // A tile message that did not get in, offered back once on the tile.
+        undelivered: s.undelivered ? { text: s.undelivered.text, reason: s.undelivered.reason, at: s.undelivered.at } : null,
         // Quiet for long enough that it reads as finished. The widget files
         // these under their own heading instead of dropping them, so a session
         // stays reachable for the follow-up you think of ten minutes later.
@@ -1256,7 +1383,8 @@ function createBridge(opts) {
         s.waitFor ? s.waitFor.kind : '',
         s.todos.map(x => x.status).join(''),
         s.subagents.map(a => a.model || '-').join('/'), s.activity.length,
-        s.queued ? 'q' : '', s.ended ? 'e' : '', s.resting ? 1 : 0,
+        s.queued ? 'q' + s.queued.via + (s.queued.handed ? 'h' : '') : '', s.ended ? 'e' : '', s.resting ? 1 : 0,
+        s.terminal ? 't' : '', s.undelivered ? 'u' + s.undelivered.at : '',
         s.contextPct == null ? '' : Math.round(s.contextPct), s.model || '',
         s.linesAdded || 0, s.linesRemoved || 0,
       ].join(':')).join(',')
@@ -1301,19 +1429,21 @@ function createBridge(opts) {
   // Is this session one we can still act on? The composer asks before offering
   // a box, so it can say which of the two things will happen instead of
   // discovering it on send. 'followup' = a turn is running and Stop will deliver
-  // it; 'resume' = idle, so the caller continues the same conversation as a run;
+  // it; 'terminal' = idle with the mod listening, which starts a turn with it;
+  // 'resume' = idle, so the caller continues the same conversation as a run;
   // 'none' = ended or never ours.
   function replyModeFor(id) {
     const s = sessions.get(str(id, 80));
     if (!s || s.endedAt) return 'none';
-    if (s.queued) return 'queued';
-    return (s.state === 'running' || s.state === 'waiting') ? 'followup' : 'resume';
+    if (s.queued || inFlight(s, now())) return 'queued';
+    if (s.state === 'running' || s.state === 'waiting') return 'followup';
+    return terminal(s.id) ? 'terminal' : 'resume';
   }
 
   return {
     applyStatus, applyHook, applyMod, modStatus, requestPermission, takeHandBack, askQuestion, answer, skipQuestion,
     decide, cancel, snapshot, stop, cwdFor, mergeRegistry,
-    queueFollowUp, cancelFollowUp, takeFollowUp, replyModeFor,
+    queueFollowUp, cancelFollowUp, takeFollowUp, takeForTerminal, terminalGone, replyModeFor,
     get pendingCount() { return pending.size; },
   };
 }
@@ -1333,6 +1463,8 @@ module.exports = {
   URGENT_AFTER_MS,
   QUESTION_TTL_MS,
   FOLLOWUP_TTL_MS,
+  HANDED_TTL_MS,
+  UNDELIVERED_TTL_MS,
   SESSION_STALE_MS,
   SESSION_RESTING_MS,
 };

@@ -118,6 +118,7 @@ const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const claudeBridge = require('./claude-bridge');
+const claudeInbox = require('./claude-inbox');
 const claudeSessions = require('./claude-sessions');
 const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
@@ -12654,6 +12655,18 @@ let _claudeDefaultMode = '';
 const _claudeBridge = claudeBridge.createBridge({
   onChange: () => _claudeBridgeChanged(),
   defaultMode: () => _claudeDefaultMode,
+  terminal: (id) => _claudeInbox.present(id),
+});
+// Tile messages for a session open in a terminal (claude-inbox.js): the Xenon
+// mod holds a request here while its session runs, and a message for that
+// session while it is idle goes through it, as a new turn in the terminal,
+// instead of a background run. The bridge decides what may be handed over.
+const _claudeInbox = claudeInbox.createInbox({
+  take: (id) => _claudeBridge.takeForTerminal(id),
+  onPresence: (id, present) => {
+    if (!present) _claudeBridge.terminalGone(id);
+    _claudeBridgeChanged();
+  },
 });
 let _claudeBridgeToken = '';        // resolved once at boot from DATA_DIR
 let _claudeBridgePushTimer = null;
@@ -13217,8 +13230,10 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/claude/question',
   '/api/claude/turn-end',
   // The mod feed: token-gated ingest like /event, posted by the claude process.
+  // The inbox hands a tile message to the mod, which starts a turn with it.
   '/api/claude/mod',
   '/api/claude/mod/permission',
+  '/api/claude/mod/inbox',
   '/api/claude/decide',
   // Browser-originated like /decide, and guarded for the same reason. /answer
   // resolves a question Claude is blocked on and /reply puts words into a live
@@ -16795,6 +16810,24 @@ const handleRequest = async (req, res) => {
       json({ decision });
     } catch { try { if (!res.writableEnded && !res.destroyed) json({ decision: null }); } catch { /* caller already gone */ } }
 
+  } else if (reqPath === '/api/claude/mod/inbox' && req.method === 'POST') {
+    // The mod (0.3.0+) asking, from a timer in an interactive session, whether
+    // the tile has a message for it. Held open until one is queued or the hold
+    // runs out (claude-inbox.js), and a session with a request held here is
+    // what the tile offers "goes into the open session" for. The answer is
+    // { text } or {}: only an idle session is handed anything, and only once
+    // (claude-bridge.js, takeForTerminal). The text is never logged.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    let sessionId = '';
+    try {
+      const body = JSON.parse(await readBody(req, 4096));
+      if (body && body.v === 1 && typeof body.sessionId === 'string') sessionId = body.sessionId;
+    } catch { /* malformed: refused below as a bad session */ }
+    if (res.writableEnded || res.destroyed) return;
+    const held = _claudeInbox.hold(sessionId, res);
+    if (held === 'bad_session') { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('Bad session'); }
+    else if (held === 'busy') { res.writeHead(429, { 'Content-Type': 'text/plain' }); res.end('Busy'); }
+
   } else if (reqPath === '/api/claude/question' && req.method === 'POST') {
     // A question from Claude, answered on the touchscreen.
     //
@@ -16875,19 +16908,22 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/reply' && req.method === 'POST') {
-    // A follow-up typed on the dashboard for a session that is working. It is
-    // QUEUED, not sent: delivery happens at the end of the current turn, via
-    // /api/claude/turn-end. The tile shows that state, because "sent" would be a
-    // lie for however long the turn still has to run.
+    // A follow-up typed on the dashboard for a live session. It is QUEUED, not
+    // sent, and the tile shows that state, because "sent" would be a lie until
+    // it arrives. Two delivery points (claude-bridge.js, queueFollowUp): the end
+    // of the running turn, via /api/claude/turn-end, or, for an idle session
+    // whose mod is listening, the mod, woken here so it arrives at once.
     //
-    // A session that is idle will never fire Stop again, so nothing here could
-    // deliver it. The client asks replyModeFor() first and offers a resume run
-    // instead — the same conversation, continued the only way it can be.
+    // An idle session with no mod listening will never fire Stop again, so
+    // nothing here could deliver it: it is refused (session_idle), and the tile
+    // offers a resume run instead, the same conversation continued as a run.
     try {
       const body = JSON.parse(await readBody(req));
       const sessionId = String(body && body.sessionId || '');
       if (body && body.cancel === true) { json({ ok: _claudeBridge.cancelFollowUp(sessionId) }); return; }
-      json(_claudeBridge.queueFollowUp(sessionId, String(body && body.text || '')));
+      const out = _claudeBridge.queueFollowUp(sessionId, String(body && body.text || ''));
+      if (out.ok && out.via === 'terminal') _claudeInbox.wake(sessionId);
+      json(out);
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/decide' && req.method === 'POST') {
@@ -23186,6 +23222,8 @@ function _gracefulShutdown() {
   // Settle every pending Claude Code permission request. These are HTTP requests
   // the `claude` process is actively blocked on — exiting without answering would
   // leave each of them hanging until their own 600s hook timeout expires.
+  // The mod's held inbox requests too, for the same reason.
+  try { _claudeInbox.stop(); } catch {}
   try { _claudeBridge.stop(); } catch {}
   try { if (_claudeRegistryTimer) { clearInterval(_claudeRegistryTimer); _claudeRegistryTimer = null; } } catch {}
   // Runs the dashboard started are children with no job object: exiting without

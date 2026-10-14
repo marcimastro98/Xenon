@@ -9,6 +9,8 @@ export type Message =
   | { kind: 'hello'; model?: string }
   | { kind: 'measure'; contextPct?: number; costUsd?: number; rateLimits: RateLimit[] }
   | { kind: 'agent'; agentId: string; type: string; model: string }
+  // Whether a tile message from the inbox got in: a code, never its text.
+  | { kind: 'delivery'; ok: boolean; reason?: 'dropped' | 'refused' }
 
 export type RateLimit = { kind: string; percentUsed: number; resetsAt?: string }
 

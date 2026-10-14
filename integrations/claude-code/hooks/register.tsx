@@ -3,17 +3,20 @@ import type { Register } from 'claude-code'
 
 import { askXenon } from './approval'
 import { EMPTY_BAND, statusLine } from './band'
+import { createInbox } from './inbox'
 import { findLink, settingsFile } from './link'
 import { createSender, request } from './sender'
 import type { Io } from './sender'
 
 // Xenon for Claude Code: sends the Xenon dashboard what the HTTP hooks cannot
-// (each subagent's model, the live context and quota) and adds /xenon. Never
-// sends prompt text or file content; an approval sends the tool's name and
-// the one field the dashboard card shows (the command, the path, the URL).
-const VERSION = '0.2.3'
+// (each subagent's model, the live context and quota), brings messages typed
+// on the Claude tile into this session, and adds /xenon. Never sends prompt
+// text or file content; an approval sends the tool's name and the one field
+// the dashboard card shows (the command, the path, the URL).
+const VERSION = '0.3.0'
 const FLUSH_MS = 1_000
 const HELLO_MS = 60_000
+const INBOX_MS = 1_000
 // These two have their own dialogs that the dashboard answers through the
 // HTTP hooks, not through a plain allow.
 const OWN_DIALOG = new Set(['AskUserQuestion', 'ExitPlanMode'])
@@ -21,15 +24,17 @@ const OWN_DIALOG = new Set(['AskUserQuestion', 'ExitPlanMode'])
 const band = atom({ plugin: 'xenon', key: 'band' } as const, EMPTY_BAND)
 
 const sender = createSender(VERSION)
+const inbox = createInbox()
 // Bound once the session is ready; /xenon and the timers use it.
 let io: Io | null = null
+let inboxStarted = false
 
 function ago(ms: number): string {
   const s = Math.round(ms / 1000)
   return s < 90 ? `${s} s ago` : `${Math.round(s / 60)} min ago`
 }
 
-async function connectionReport(bound: Io): Promise<string> {
+async function connectionReport(bound: Io, takesMessages: boolean): Promise<string> {
   const link = await bound.readLink()
   if (!link) {
     return 'Xenon: not linked. In Xenon, open the Claude tile, choose Connect Claude Code, then start a new session.'
@@ -42,6 +47,9 @@ async function connectionReport(bound: Io): Promise<string> {
   return [
     `Xenon${reply?.hub ? ' ' + reply.hub : ''}: connected at ${where}.`,
     `Claude tile on the dashboard: ${reply?.tile ? 'yes' : 'no'}.`,
+    takesMessages
+      ? 'Messages from the tile: they arrive here while this session is idle.'
+      : 'Messages from the tile: off in the mod options, so the tile continues this session in the background.',
     okAt ? `Last update sent ${ago(Date.now() - okAt)}.` : 'Nothing sent yet in this session.',
   ].join('\n')
 }
@@ -50,6 +58,7 @@ export const register: Register = (on, options) => {
   const showBand = options.band !== false
   const approvals = options.approvals === true
   const waitSec = typeof options.approvalWaitSec === 'number' ? options.approvalWaitSec : 30
+  const takeMessages = options.inbox !== false
 
   on('session.start', async ($, e, next) => {
     io = {
@@ -79,11 +88,31 @@ export const register: Register = (on, options) => {
       if (showBand) $.ui.status(statusLine(await read($, band)))
     })
     $.clock.every(HELLO_MS, () => { void hello() })
+    // Tile messages (inbox.ts), only where someone sees the turn they start: a
+    // -p run, like the one Xenon starts to continue a session in the
+    // background, draws nowhere and never asks.
+    if (takeMessages && !inboxStarted && (await $.session.surfaces()).length > 0) {
+      inboxStarted = true
+      $.clock.every(INBOX_MS, async () => {
+        if (!io) return
+        await inbox.poll(io, await $.session.id(), text => {
+          // Not awaited: it resolves only once the turn starts.
+          void $.prompt.submit({ text, asUser: true })
+            .catch(() => $.prompt.submit({ text })) // a build without asUser
+            .then(
+              r => sender.enqueue(typeof r.drop === 'string'
+                ? { kind: 'delivery', ok: false, reason: 'dropped' }
+                : { kind: 'delivery', ok: true }),
+              () => sender.enqueue({ kind: 'delivery', ok: false, reason: 'refused' }),
+            )
+        })
+      })
+    }
     return next(e)
   })
 
   on('command.run', { command: 'xenon' }, async () => ({
-    text: io ? await connectionReport(io) : 'Xenon: the mod is still starting. Try again in a moment.',
+    text: io ? await connectionReport(io, takeMessages) : 'Xenon: the mod is still starting. Try again in a moment.',
   }))
 
   on('session.measure', (_$, e, next) => {

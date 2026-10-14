@@ -598,7 +598,7 @@ test('a follow-up is queued while Claude works and delivered at the end of the t
   bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'build it' });
   assert.equal(bridge.replyModeFor('s1'), 'followup');
 
-  assert.deepEqual(bridge.queueFollowUp('s1', 'also update the changelog'), { ok: true });
+  assert.deepEqual(bridge.queueFollowUp('s1', 'also update the changelog'), { ok: true, via: 'turn' });
   // "Sent" would be a lie for however long the turn still has to run, so the
   // snapshot says queued and the tile shows that.
   assert.equal(bridge.snapshot().sessions[0].queued.text, 'also update the changelog');
@@ -646,6 +646,185 @@ test('a follow-up the user typed a quarter of an hour ago is not delivered', () 
   bridge.queueFollowUp('s1', 'and then deploy');
   advance(cb.FOLLOWUP_TTL_MS + 1000);
   assert.equal(bridge.takeFollowUp('s1'), '');
+});
+
+// ── tile messages into an open terminal (claude-inbox.js) ─────────────────────
+
+// `listening` stands in for the inbox: the sessions whose mod is asking right now.
+function makeTerminalBridge() {
+  let now = 1_000_000;
+  const listening = new Set();
+  const bridge = cb.createBridge({ now: () => now, terminal: (id) => listening.has(id) });
+  return { bridge, listening, advance: (ms) => { now += ms; } };
+}
+
+test('an idle session with the mod listening takes a message as a new turn, once', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  assert.equal(bridge.replyModeFor('s1'), 'resume', 'no mod: a background run, as before');
+  listening.add('s1');
+  assert.equal(bridge.replyModeFor('s1'), 'terminal');
+  assert.equal(bridge.snapshot().sessions[0].terminal, true);
+
+  assert.deepEqual(bridge.queueFollowUp('s1', 'now write the tests'), { ok: true, via: 'terminal' });
+  assert.equal(bridge.snapshot().sessions[0].queued.via, 'terminal');
+  assert.equal(bridge.replyModeFor('s1'), 'queued');
+
+  // Raw: the mod submits it as the user's own words, so no dashboard framing.
+  assert.equal(bridge.takeForTerminal('s1'), 'now write the tests');
+  assert.equal(bridge.takeForTerminal('s1'), '', 'handed over once');
+  const onItsWay = bridge.snapshot().sessions[0].queued;
+  assert.equal(onItsWay.handed, true, 'on its way until the turn starts');
+  assert.equal(bridge.queueFollowUp('s1', 'and the docs').error, 'already_queued');
+
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'now write the tests' });
+  assert.equal(bridge.snapshot().sessions[0].queued, null);
+  assert.equal(bridge.replyModeFor('s1'), 'followup');
+  assert.equal(bridge.applyMod({ v: 1, sessionId: 's1', kind: 'delivery', ok: true }), true);
+  assert.equal(bridge.snapshot().sessions[0].undelivered, null);
+});
+
+test('a session that is working keeps the Stop hook path even with the mod listening', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  listening.add('s1');
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'build it' });
+  assert.equal(bridge.queueFollowUp('s1', 'then lint').via, 'turn');
+  assert.equal(bridge.takeForTerminal('s1'), '', 'the mod never takes from a running turn');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  assert.ok(bridge.takeFollowUp('s1').includes('then lint'));
+});
+
+test('an idle message is refused where nothing could take it', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  // The turn ended while it was being typed: it would wait for a Stop that
+  // already happened.
+  assert.equal(bridge.queueFollowUp('s1', 'hello').error, 'session_idle');
+  listening.add('s1');
+  assert.equal(bridge.queueFollowUp('s1', '/compact').error, 'slash_command');
+  assert.equal(bridge.snapshot().sessions[0].queued, null);
+});
+
+test('a message Claude Code refused is offered back, and the turn it never began is over', () => {
+  const { bridge, listening, advance } = makeTerminalBridge();
+  listening.add('s1');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.queueFollowUp('s1', 'deploy to prod');
+  bridge.takeForTerminal('s1');
+  // Our own UserPromptSubmit hook fires next to the one that blocks it.
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'deploy to prod' });
+  assert.equal(bridge.applyMod({ v: 1, sessionId: 's1', kind: 'delivery', ok: false, reason: 'dropped' }), true);
+  let s = bridge.snapshot().sessions[0];
+  assert.deepEqual({ text: s.undelivered.text, reason: s.undelivered.reason }, { text: 'deploy to prod', reason: 'dropped' });
+  assert.equal(s.state, 'idle');
+  assert.equal(bridge.replyModeFor('s1'), 'terminal');
+
+  bridge.queueFollowUp('s1', 'try again');
+  bridge.takeForTerminal('s1');
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'delivery', ok: false, reason: 'anything' });
+  s = bridge.snapshot().sessions[0];
+  assert.equal(s.undelivered.reason, 'refused');
+  advance(cb.UNDELIVERED_TTL_MS + 1000);
+  assert.equal(bridge.snapshot().sessions[0].undelivered, null);
+  assert.equal(bridge.applyMod({ v: 1, sessionId: 's1', kind: 'delivery', ok: false }), false, 'nothing was handed over');
+});
+
+test('a closed terminal gives back a message that never reached Claude Code', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  listening.add('s1');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.queueFollowUp('s1', 'one more thing');
+  listening.delete('s1');
+  assert.equal(bridge.terminalGone('s1'), true);
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.queued, null);
+  assert.equal(s.undelivered.reason, 'closed');
+  assert.equal(s.undelivered.text, 'one more thing');
+
+  // Once the turn has started there is nothing to give back.
+  listening.add('s1');
+  bridge.queueFollowUp('s1', 'arrived');
+  bridge.takeForTerminal('s1');
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'arrived' });
+  assert.equal(bridge.terminalGone('s1'), false);
+});
+
+test('a session that ends first still gives back what never reached it', () => {
+  // SessionEnd, or the registry seeing the process gone, can come before the
+  // inbox's grace runs out and calls terminalGone: the message must not go
+  // with the session.
+  const { bridge, listening } = makeTerminalBridge();
+  listening.add('s1');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.queueFollowUp('s1', 'typed as it closed');
+  bridge.applyHook({ hook_event_name: 'SessionEnd', session_id: 's1', reason: 'prompt_input_exit' });
+  let s = bridge.snapshot().sessions[0];
+  assert.equal(s.queued, null);
+  assert.deepEqual({ text: s.undelivered.text, reason: s.undelivered.reason }, { text: 'typed as it closed', reason: 'closed' });
+  assert.equal(bridge.terminalGone('s1'), false, 'offered back once, not twice');
+
+  // A killed process sends no SessionEnd; the registry says it is gone. No Stop
+  // is coming for a message queued for the turn either.
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's2', prompt: 'go' });
+  bridge.mergeRegistry([{ sessionId: 's2', pid: 9, alive: true, cwd: '/a' }]);
+  assert.equal(bridge.queueFollowUp('s2', 'for the turn').via, 'turn');
+  bridge.mergeRegistry([{ sessionId: 's2', pid: 9, alive: false, cwd: '/a' }]);
+  s = bridge.snapshot().sessions.find(x => x.id === 's2');
+  assert.equal(s.ended, true);
+  assert.deepEqual({ text: s.undelivered.text, reason: s.undelivered.reason }, { text: 'for the turn', reason: 'closed' });
+});
+
+test('what arrived, or may have, is not given back when the session ends', () => {
+  const { bridge, listening, advance } = makeTerminalBridge();
+  listening.add('s1');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.queueFollowUp('s1', 'arrived');
+  bridge.takeForTerminal('s1');
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'arrived' });
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.queueFollowUp('s1', 'maybe arrived');
+  bridge.takeForTerminal('s1');
+  advance(cb.HANDED_TTL_MS + 1000);
+  bridge.applyHook({ hook_event_name: 'SessionEnd', session_id: 's1', reason: 'other' });
+  assert.equal(bridge.snapshot().sessions[0].undelivered, null);
+});
+
+test('a handed message with no sign of arrival stops showing, and is not offered back', () => {
+  const { bridge, listening, advance } = makeTerminalBridge();
+  listening.add('s1');
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.queueFollowUp('s1', 'maybe arrived');
+  bridge.takeForTerminal('s1');
+  advance(cb.HANDED_TTL_MS + 1000);
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.queued, null);
+  assert.equal(s.undelivered, null, 'it may have arrived: offering it back invites a duplicate');
+  assert.deepEqual(bridge.queueFollowUp('s1', 'next'), { ok: true, via: 'terminal' });
+});
+
+test('the change key moves when the mod starts or stops listening', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  const before = bridge.snapshot().sig;
+  listening.add('s1');
+  assert.notEqual(bridge.snapshot().sig, before);
+});
+
+test('after Xenon restarts, an open session with the mod listening still takes messages', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  // A restart forgets every session. The registry file brings an idle one back
+  // before any hook from it, which reads as "started before Xenon was linked".
+  bridge.mergeRegistry([{ sessionId: 'open', pid: 7, alive: true, cwd: 'C:/work/xenon', status: 'idle' }]);
+  assert.equal(bridge.snapshot().sessions[0].unlinked, true);
+  listening.add('open');
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.unlinked, false, 'a tile message gets in through the mod, hooks or not');
+  assert.equal(s.terminal, true);
+  assert.equal(bridge.replyModeFor('open'), 'terminal');
+  assert.deepEqual(bridge.queueFollowUp('open', 'carry on'), { ok: true, via: 'terminal' });
+  assert.equal(bridge.takeForTerminal('open'), 'carry on');
+  listening.delete('open');
+  assert.equal(bridge.snapshot().sessions[0].unlinked, true, 'without the mod, nothing reaches it again');
 });
 
 test('destructive commands are urgent immediately', () => {
@@ -947,4 +1126,13 @@ test('Stop keeps the wait while a card for that session is still pending', () =>
   bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
   assert.notEqual(bridge.snapshot().sessions[0].waitFor, null);
   bridge.cancel(rec.id);
+});
+
+test('"working for" counts from the start of the turn, not of the session', () => {
+  const { bridge, advance } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'SessionStart', session_id: 's1', cwd: 'C:/work/xenon' });
+  advance(60 * 60 * 1000);
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  advance(3000);
+  assert.equal(bridge.snapshot().sessions[0].runForMs, 3000);
 });

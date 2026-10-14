@@ -158,6 +158,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /api/claude/event',
     // The Claude Code mod feed, posted by the claude process like /event.
     'POST /api/claude/mod',
+    // The mod asking for a tile message: the answer IS the message text.
+    'POST /api/claude/mod/inbox',
     'POST /api/claude/mod/permission',
     'POST /api/claude/permission',
     // Same family, and the sharper case for refusing them: /question returns

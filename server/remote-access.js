@@ -122,6 +122,8 @@ const REMOTE_DENY = new Set([
   '/api/claude/turn-end',
   '/api/claude/mod',
   '/api/claude/mod/permission',
+  // Hands a tile message to the mod: the answer is the text of the message.
+  '/api/claude/mod/inbox',
   // The OpenAI Codex ingest, posted by codex-hook.js (which Codex runs) against
   // a token minted on the PC. Same reason as Claude's.
   '/api/codex/event',
@@ -189,9 +191,9 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/audio/app/volume', '/audio/app/mute', '/notes',
   '/media/source', '/media/playpause', '/media/next', '/media/previous',
   '/api/community/catalog', '/api/community/code', '/api/community/messages',
-  '/api/lyrics', '/api/features/lyrics/unlock', '/api/lyrics/offset', '/api/lyrics/translate',
+  '/api/lyrics', '/api/features/lyrics/unlock', '/api/features/lyrics/trial', '/api/lyrics/offset', '/api/lyrics/translate',
   '/api/community/installed', '/api/community/installs', '/api/community/poll',
-  '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
+  '/api/community/support-goal', '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
   // The owner update: POST-only like the redeem it sits beside. It hands back a
   // content key (and sometimes a private file), so a navigation must not reach it.
   // A paired phone DOES reach it by POST: updating what you own is the dashboard.
@@ -284,6 +286,8 @@ const GET_READ_EXCEPTIONS = new Set([
   // showing the same lyrics view the PC does.
   '/api/lyrics',
   '/api/community/installs',
+  // The supporter count on the Settings support page and the December card.
+  '/api/community/support-goal',
   '/api/community/ratings',
   '/api/community/limited-status',
   '/stream/youtube/chat',

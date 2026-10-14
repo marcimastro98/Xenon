@@ -463,15 +463,17 @@
   }
 
   // ── a follow-up into a live session ────────────────────────────────────────
-  // Only offered while a turn is running, because the delivery point is the end
-  // of that turn. An idle session takes the resume path instead (submitAsk), and
-  // the composer says which of the two is about to happen before you press send.
+  // Offered while a turn is running (delivered when it ends), or while the
+  // session is idle with the Xenon mod listening in it (the mod starts a turn
+  // with it there). Any other idle session takes the resume path instead
+  // (submitAsk), and the composer says which is about to happen before you
+  // press send.
   async function queueReply(sessionId, text) {
     const d = await api('/api/claude/reply', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, text }),
     });
-    return d && d.ok ? { ok: true } : { ok: false, error: (d && d.error) || 'failed' };
+    return d && d.ok ? { ok: true, via: d.via || 'turn' } : { ok: false, error: (d && d.error) || 'failed' };
   }
   async function cancelReply(sessionId) {
     await api('/api/claude/reply', {
@@ -847,16 +849,37 @@
     return line;
   }
 
-  // A follow-up already on its way: queued until the turn ends, cancellable.
+  // A follow-up already on its way: queued until the turn ends, or on its way
+  // to the open session. Cancellable until the mod has taken it.
   function queuedRow(s) {
     const q = el('div', 'cw-queued');
-    q.appendChild(el('span', 'cw-queued-label', t('claude_queued', 'Queued for the end of this turn')));
+    const label = s.queued.via === 'terminal'
+      ? t('claude_queued_terminal', 'Sending to the open session…')
+      : t('claude_queued', 'Queued for the end of this turn');
+    q.appendChild(el('span', 'cw-queued-label', label));
     q.appendChild(el('span', 'cw-queued-text', s.queued.text));
+    if (s.queued.handed) return q;
     const undo = el('button', 'cw-link-btn'); undo.type = 'button';
     undo.textContent = t('claude_queued_cancel', 'Cancel');
     undo.addEventListener('click', () => cancelReply(s.id));
     q.appendChild(undo);
     return q;
+  }
+
+  // A message the open session did not take comes back into the box, once per
+  // failure, with the reason. A draft typed since then is never overwritten.
+  const restored = new Set();
+  function restoreUndelivered(s) {
+    const u = s && s.undelivered;
+    if (!u || s.id !== askResumeId) return;
+    const key = s.id + ':' + u.at;
+    if (restored.has(key)) return;
+    restored.add(key);
+    if (restored.size > 20) restored.delete(restored.values().next().value);
+    if (!askText.trim()) askText = u.text;
+    askError = u.reason === 'dropped' ? t('claude_terminal_e_dropped', 'Claude Code did not take the message. The session shows why.')
+      : u.reason === 'closed' ? t('claude_terminal_e_closed', 'The session was closed before the message got there.')
+        : t('claude_terminal_e_refused', 'The message could not reach the open session.');
   }
 
   // ── sections that fold ─────────────────────────────────────────────────────
@@ -1363,12 +1386,13 @@
     return text + '\n\nAttached files on this PC (read them):\n' + lines.join('\n');
   }
 
-  // Which of the two things writing here will do. A session mid-turn takes the
+  // Which of the things writing here will do. A session mid-turn takes the
   // follow-up path — the text lands in THAT conversation when the turn ends. An
-  // idle one has no turn left to end, so nothing could deliver it, and it is
-  // continued as a resumed run instead. Same conversation either way; the
-  // composer says which before you press send, rather than one box that quietly
-  // behaves as either.
+  // idle one with the Xenon mod listening takes it as a new turn, there, as if
+  // it were typed in it. Any other idle one has no turn left to end, so nothing
+  // could deliver it, and it is continued as a resumed run instead. Same
+  // conversation every time; the composer says which before you press send,
+  // rather than one box that quietly behaves as any of them.
   function replyMode() {
     if (!askResumeId) return 'new';
     const s = sessions().find((x) => x.id === askResumeId);
@@ -1379,21 +1403,46 @@
     // follow-up could never be delivered into it.
     if (s.inferred || s.unlinked) return 'none';
     if (s.queued) return 'queued';
-    return (s.state === 'running' || s.state === 'waiting') ? 'followup' : 'resume';
+    if (s.state === 'running' || s.state === 'waiting') return 'followup';
+    return s.terminal ? 'terminal' : 'resume';
+  }
+
+  // A resume is always a second process. While the session is still open in a
+  // terminal without the mod listening, that terminal never sees the exchange,
+  // so the note says where the reply will be.
+  function resumeNote() {
+    const s = sessionById(askResumeId);
+    return s && !s.ended
+      ? t('claude_resume_note_open', 'The terminal is idle, so Claude replies here and not in the terminal')
+      : t('claude_resume_note', 'Continues this conversation in the background');
   }
 
   async function submitAsk() {
     const prompt = askText.trim();
     if (!prompt || askBusy) return;
 
-    // Follow-up into a turn that is still running: queue it, do not start a
-    // second process against the same conversation.
-    if (replyMode() === 'followup') {
+    // Into the open session itself: at the end of the running turn, or as a new
+    // turn the mod starts there. Either way no second process runs against the
+    // same conversation.
+    const mode = replyMode();
+    if (mode === 'followup' || mode === 'terminal') {
+      if (mode === 'terminal' && prompt.startsWith('/')) {
+        askError = t('claude_terminal_e_slash', 'Commands that start with / have to be typed in the session itself.');
+        paint();
+        return;
+      }
       askBusy = true; askError = ''; paint();
-      const q = await queueReply(askResumeId, prompt);
+      const q = await queueReply(askResumeId, promptWithAttachments(prompt));
       askBusy = false;
-      if (q.ok) { askText = ''; askAttach = []; }
-      else askError = replyErrorText(q.error);
+      if (q.ok) {
+        askText = ''; askAttach = [];
+        if (q.via === 'terminal') { thread.setAtBottom(true); thread.load(); }
+      } else {
+        askError = replyErrorText(q.error);
+        // The turn ended while this was typed: the next send takes the idle path.
+        const s = q.error === 'session_idle' ? sessionById(askResumeId) : null;
+        if (s) s.state = 'idle';
+      }
       paint();
       return;
     }
@@ -1434,6 +1483,8 @@
     if (code === 'already_queued') return t('claude_reply_e_queued', 'There is already a message waiting to be delivered');
     if (code === 'session_ended') return t('claude_reply_e_ended', 'That session has closed');
     if (code === 'unknown_session') return t('claude_reply_e_unknown', 'Xenon has lost track of that session');
+    if (code === 'session_idle') return t('claude_reply_e_idle', 'This session has finished its turn. Send again to continue it.');
+    if (code === 'slash_command') return t('claude_terminal_e_slash', 'Commands that start with / have to be typed in the session itself.');
     return t('claude_reply_e_failed', 'Could not queue that message');
   }
 
@@ -1874,28 +1925,32 @@
     // The model sits with the composer rather than behind a settings screen:
     // picking a cheaper model for a small job is a per-run decision. It uses the
     // app's own dropdown, not a native one, so a long list stays inside the
-    // display instead of falling off the bottom of the Xeneon Edge.
-    bar.appendChild(composerSelect('cw-ask-model-sel', t('claude_ask_model', 'Model'), askModelOptions(), askModel, (v) => { askModel = v; }));
-    // Mode and effort apply when a run starts; a message queued into a live
+    // display instead of falling off the bottom of the small screens.
+    // Model, mode and effort apply when a run starts; a message for a live
     // session goes into that session as it is, so they are not offered there.
+    if (runLike) bar.appendChild(composerSelect('cw-ask-model-sel', t('claude_ask_model', 'Model'), askModelOptions(), askModel, (v) => { askModel = v; }));
     if (runLike && askOptions.modes.length) bar.appendChild(runModeSelect());
     if (runLike && askOptions.effort) bar.appendChild(effortSelect());
 
     const mode = replyMode();
     const send = el('button', 'cw-ask-send'); send.type = 'button';
+    const busyLabel = mode === 'followup' ? t('claude_reply_sending', 'Queueing…')
+      : mode === 'terminal' ? t('claude_terminal_sending', 'Sending…')
+        : t('claude_ask_sending', 'Starting…');
     send.textContent = askBusy
-      ? (mode === 'followup' ? t('claude_reply_sending', 'Queueing…') : t('claude_ask_sending', 'Starting…'))
+      ? busyLabel
       : (askResumeId ? t('claude_ask_send_more', 'Send') : t('claude_ask_send', 'Start'));
     send.disabled = askBusy || mode === 'none' || (askProjects !== null && !askProjects.length);
     send.addEventListener('click', () => { askText = ta.value; submitAsk(); });
     bar.appendChild(send);
 
     box.appendChild(bar);
-    // Say where the text is going BEFORE it is sent. The two destinations look
+    // Say where the text is going BEFORE it is sent. The destinations look
     // identical from here and behave differently, and the old composer only ever
     // did one of them whatever it looked like it was doing.
     const note = mode === 'followup' ? t('claude_reply_note', 'Goes into this session when the current turn ends')
-      : mode === 'resume' ? t('claude_resume_note', 'Continues this conversation in the background')
+      : mode === 'terminal' ? t('claude_terminal_note', 'Shows up in the open session, as if you typed it there')
+      : mode === 'resume' ? resumeNote()
         : mode === 'queued' ? t('claude_queued_note', 'A message is already waiting to be delivered')
           : mode === 'none' ? t('claude_reply_e_ended', 'That session has closed')
             : '';
@@ -1995,8 +2050,15 @@
     }
     pane.appendChild(body);
 
-    runsFor(id).slice(-1).forEach((r) => pane.appendChild(runCard(r)));
+    // A resumed run writes into this session's own transcript, so once it is
+    // done the thread above already shows its prompt and reply and the card
+    // would repeat them. It stays while the run works (status and Stop) and when
+    // it failed (the error is shown nowhere else).
+    runsFor(id).slice(-1)
+      .filter((r) => r.state === 'running' || r.state === 'failed')
+      .forEach((r) => pane.appendChild(runCard(r)));
     if (s && s.queued) pane.appendChild(queuedRow(s));
+    if (s) restoreUndelivered(s);
     pane.appendChild(composerOrNote(s));
   }
 
