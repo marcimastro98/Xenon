@@ -31,7 +31,7 @@
     "ld.q.where": "Où puis-je télécharger Xenon ?",
     "ld.a.where": "À partir des liens de cette page, qui pointent toujours vers la dernière version publiée sur GitHub : Xenon-Setup-x64.exe pour Windows, Xenon-macOS-universal.dmg pour macOS, et un AppImage, .deb ou .rpm pour Linux.",
     "ld.q.free": "Xenon est-il gratuit à télécharger ?",
-    "ld.a.free": "Oui. Il n'existe pas de version payante, ni d'essai, ni de compte. Le code source est public sur GitHub sous une licence non commerciale.",
+    "ld.a.free": "Oui. Il n'existe pas de version payante, ni de compte. Le code source est public sur GitHub sous une licence non commerciale.",
     "ld.q.warn": "Pourquoi Windows me met-il en garde concernant l’installateur Xenon ?",
     "ld.a.warn": "Car Microsoft accorde la réputation SmartScreen au fil du temps. L'installateur Windows est signé, de sorte que Windows affiche un éditeur vérifié, mais SmartScreen peut toujours afficher un avertissement pendant un certain temps : cliquez sur Plus d'informations, puis sur Exécuter quand même. Chaque version est également livrée avec un fichier SHA256SUMS signé afin que vous puissiez vérifier le téléchargement vous-même.",
     "ld.q.update": "Xenon se met-il à jour ?",

@@ -9,7 +9,7 @@
     "ld.q3": "iCUE のウィジェットと Xenon を同時に使えますか？",
     "ld.a3": "はい。Xenon は iCUE のパネルを1つ Web ウィジェットとして使い、ほかのパネルはそのまま残ります。",
     "ld.q4": "Xenon は無料ですか？",
-    "ld.a4": "はい。個人利用は無料で、ソースは非商用ライセンスで GitHub に公開されています。試用期間も、ロックされた機能もありません。",
+    "ld.a4": "はい。個人利用は無料で、ソースは非商用ライセンスで GitHub に公開されています。サポーターは、アプリに入っている「歌詞」と「開発者向けクリーンアップ」の2つのウィジェットと、毎月サポーター向けに出るテーマやウィジェットも使えます。",
     "edge.h1": "Xeneon Edge のウィジェット",
     "edge.lede": "Edge は良い画面ですが、ウィジェットの種類は多くありません。Xenon はその形に合わせて作られた無料のダッシュボードです。自分の手で並べるページ、PC を実際に操作するコントロール、ゲームのフォーカスを奪わないタッチを備え、iCUE があってもなくても動きます。",
     "edge.updated": "最終更新: 2026年9月26日",
@@ -47,7 +47,7 @@
     "edge.faq.both.q": "iCUE のウィジェットと Xenon を同時に使えますか？",
     "edge.faq.both.a": "はい。iCUE では Edge がいくつかのパネルに分かれています。Xenon はそのうち1つを Web ウィジェットとして使い、残りはそのまま残ります。好みで、ディスプレイ全体を Xenon にすることもできます。",
     "edge.faq.free.q": "Xenon は無料ですか？",
-    "edge.faq.free.a": "はい。個人利用は無料で、ソースは非商用ライセンスで GitHub に公開されています。試用期間はなく、上位プランでしか使えない機能もありません。サポーターにはお礼として追加のテーマがいくつかあります。",
+    "edge.faq.free.a": "はい。個人利用は無料で、ソースは非商用ライセンスで GitHub に公開されています。サポーターは、アプリに入っている「歌詞」と「開発者向けクリーンアップ」の2つのウィジェットと、毎月サポーター向けに出るテーマやウィジェットも使えます。",
     "edge.cta.h": "Xenon をダウンロード",
     "edge.cta.p": "インストーラーは1つ、アカウントは不要で、設定とファイルは PC に残ります。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS 版と Linux 版</a>を入手してください。質問は <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a> へどうぞ。"
   }

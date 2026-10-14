@@ -9,7 +9,7 @@
     "ld.q3": "Can I use iCUE widgets and Xenon at the same time?",
     "ld.a3": "Yes. Xenon takes one iCUE panel as a web widget and the other panels stay as they were.",
     "ld.q4": "Is Xenon free?",
-    "ld.a4": "Yes. Free for personal use, source public on GitHub under a non-commercial licence, no trial and no locked features.",
+    "ld.a4": "Yes. Free for personal use, with the source public on GitHub under a non-commercial licence. Supporters also unlock two built-in widgets, Lyrics and Developer cleanup, and the themes and widgets made for them each month.",
     "edge.h1": "Xeneon Edge widgets",
     "edge.lede": "The Edge is a good screen with a small widget catalog. Xenon is a free dashboard designed around its exact shape: pages you arrange by hand, controls that act on the PC, touch that never steals a game’s focus, and it runs with or without iCUE.",
     "edge.updated": "Last updated: 26 September 2026",
@@ -47,7 +47,7 @@
     "edge.faq.both.q": "Can I use iCUE widgets and Xenon at the same time?",
     "edge.faq.both.a": "Yes. In iCUE the Edge is split into panels; Xenon takes one panel as a web widget and the rest stay as they were. It can also take the whole strip if you prefer.",
     "edge.faq.free.q": "Is Xenon free?",
-    "edge.faq.free.a": "Yes. Free for personal use, source public on GitHub under a non-commercial licence, no trial and no feature locked behind a tier. Supporters get a few extra themes as a thank-you.",
+    "edge.faq.free.a": "Yes. Free for personal use, with the source public on GitHub under a non-commercial licence. Supporters also unlock two built-in widgets, Lyrics and Developer cleanup, and the themes and widgets made for them each month.",
     "edge.cta.h": "Download Xenon",
     "edge.cta.p": "One installer, no account, and your settings and files stay on your PC. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or get the <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS and Linux builds</a>. Questions go to the <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>."
   },
@@ -61,7 +61,7 @@
     "ld.q3": "¿Puedo usar los widgets de iCUE y Xenon a la vez?",
     "ld.a3": "Sí. Xenon ocupa un panel de iCUE como widget web y los demás paneles siguen como estaban.",
     "ld.q4": "¿Xenon es gratis?",
-    "ld.a4": "Sí. Gratis para uso personal, con el código fuente público en GitHub bajo una licencia no comercial, sin periodo de prueba y sin funciones bloqueadas.",
+    "ld.a4": "Sí. Gratis para uso personal, con el código fuente público en GitHub bajo una licencia no comercial. Quienes apoyan el proyecto desbloquean además dos widgets que ya trae la app, Letra y Limpieza para desarrolladores, y los temas y widgets que se publican para ellos cada mes.",
     "edge.h1": "Widgets para Xeneon Edge",
     "edge.lede": "El Edge es una buena pantalla con un catálogo de widgets pequeño. Xenon es un panel gratuito diseñado para su formato exacto: páginas que ordenas a mano, controles que actúan en el PC, toques que nunca le quitan el foco a un juego, y funciona con o sin iCUE.",
     "edge.updated": "Última actualización: 26 de septiembre de 2026",
@@ -99,7 +99,7 @@
     "edge.faq.both.q": "¿Puedo usar los widgets de iCUE y Xenon a la vez?",
     "edge.faq.both.a": "Sí. En iCUE el Edge se divide en paneles; Xenon ocupa un panel como widget web y el resto sigue como estaba. Si lo prefieres, también puede ocupar toda la tira.",
     "edge.faq.free.q": "¿Xenon es gratis?",
-    "edge.faq.free.a": "Sí. Gratis para uso personal, con el código fuente público en GitHub bajo una licencia no comercial, sin periodo de prueba y sin funciones bloqueadas tras un nivel. Quienes apoyan el proyecto reciben algunos temas extra como agradecimiento.",
+    "edge.faq.free.a": "Sí. Gratis para uso personal, con el código fuente público en GitHub bajo una licencia no comercial. Quienes apoyan el proyecto desbloquean además dos widgets que ya trae la app, Letra y Limpieza para desarrolladores, y los temas y widgets que se publican para ellos cada mes.",
     "edge.cta.h": "Descargar Xenon",
     "edge.cta.p": "Un instalador, sin cuenta, y tus ajustes y archivos se quedan en tu PC. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a> o consigue las <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">versiones para macOS y Linux</a>. Para preguntas, está el <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>."
   },
@@ -113,7 +113,7 @@
     "ld.q3": "Posso usare insieme i widget di iCUE e Xenon?",
     "ld.a3": "Sì. Xenon occupa un pannello di iCUE come widget web e gli altri pannelli restano come prima.",
     "ld.q4": "Xenon è gratis?",
-    "ld.a4": "Sì. Gratis per uso personale, codice sorgente pubblico su GitHub con licenza non commerciale, nessuna prova a tempo e nessuna funzione bloccata.",
+    "ld.a4": "Sì. Gratis per uso personale, con il codice sorgente pubblico su GitHub con licenza non commerciale. Chi sostiene il progetto sblocca anche due widget già dentro l'app, Testi delle canzoni e Pulizia sviluppatore, e i temi e i widget che escono per i sostenitori ogni mese.",
     "edge.h1": "Widget per lo Xeneon Edge",
     "edge.lede": "L'Edge è un buon schermo con un catalogo di widget piccolo. Xenon è una dashboard gratuita pensata per il suo formato esatto: pagine che disponi a mano, controlli che agiscono sul PC, un touch che non ruba mai il focus al gioco, e funziona con o senza iCUE.",
     "edge.updated": "Ultimo aggiornamento: 26 settembre 2026",
@@ -151,7 +151,7 @@
     "edge.faq.both.q": "Posso usare insieme i widget di iCUE e Xenon?",
     "edge.faq.both.a": "Sì. In iCUE l'Edge è diviso in pannelli; Xenon occupa un pannello come widget web e gli altri restano come prima. Se preferisci, può anche prendere tutta la striscia.",
     "edge.faq.free.q": "Xenon è gratis?",
-    "edge.faq.free.a": "Sì. Gratis per uso personale, codice sorgente pubblico su GitHub con licenza non commerciale, nessuna prova a tempo e nessuna funzione chiusa dietro un livello. Chi sostiene il progetto riceve qualche tema in più come ringraziamento.",
+    "edge.faq.free.a": "Sì. Gratis per uso personale, con il codice sorgente pubblico su GitHub con licenza non commerciale. Chi sostiene il progetto sblocca anche due widget già dentro l'app, Testi delle canzoni e Pulizia sviluppatore, e i temi e i widget che escono per i sostenitori ogni mese.",
     "edge.cta.h": "Scarica Xenon",
     "edge.cta.p": "Un installer, nessun account, e impostazioni e file restano sul tuo PC. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Scarica Xenon per Windows</a> oppure le <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">versioni per macOS e Linux</a>. Per le domande c'è il <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>."
   }

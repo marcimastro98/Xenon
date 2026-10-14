@@ -9,7 +9,7 @@
     "ld.q3": "Puis-je utiliser les widgets iCUE et Xenon en même temps ?",
     "ld.a3": "Oui. Xenon prend un panneau iCUE en tant que widget web et les autres panneaux restent tels qu'ils étaient.",
     "ld.q4": "Xenon est-il gratuit ?",
-    "ld.a4": "Oui. Gratuit pour un usage personnel, code source public sur GitHub sous une licence non commerciale, sans essai ni fonctionnalités verrouillées.",
+    "ld.a4": "Oui. Gratuit pour un usage personnel, avec le code source public sur GitHub sous une licence non commerciale. Les supporters débloquent aussi deux widgets déjà inclus dans l'application, Paroles et Nettoyage développeur, et les thèmes et widgets qui sortent pour eux chaque mois.",
     "edge.h1": "Widgets Xeneon Edge",
     "edge.lede": "Le Xeneon Edge est un bon écran doté d'un petit catalogue de widget. Xenon est un dashboard gratuit conçu autour de sa forme exacte : des pages que vous organisez manuellement, des commandes qui agissent sur le PC, un contrôle tactile qui conserve le focus d'un jeu, et il fonctionne avec ou sans iCUE.",
     "edge.updated": "Dernière mise à jour : 26 septembre 2026",
@@ -47,7 +47,7 @@
     "edge.faq.both.q": "Puis-je utiliser les widgets iCUE et Xenon en même temps ?",
     "edge.faq.both.a": "Oui. Dans iCUE, le Xeneon Edge est divisé en panneaux ; Xenon prend un panneau comme widget web et le reste reste tel quel. Il peut également prendre toute l'écran si vous préférez.",
     "edge.faq.free.q": "Xenon est-il gratuit ?",
-    "edge.faq.free.a": "Oui. Gratuit pour un usage personnel, code source public sur GitHub sous une licence non commerciale, sans période d'essai et sans fonctionnalité verrouillée derrière un abonnement. Les supporters reçoivent quelques thèmes supplémentaires en guise de remerciement.",
+    "edge.faq.free.a": "Oui. Gratuit pour un usage personnel, avec le code source public sur GitHub sous une licence non commerciale. Les supporters débloquent aussi deux widgets déjà inclus dans l'application, Paroles et Nettoyage développeur, et les thèmes et widgets qui sortent pour eux chaque mois.",
     "edge.cta.h": "Télécharger Xenon",
     "edge.cta.p": "Un seul installateur, aucun compte, et vos paramètres et fichiers restent sur votre PC. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Télécharger Xenon pour Windows</a>, ou obtenir les <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">versions macOS et Linux</a>. Les questions sont à poser sur le <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>."
   }

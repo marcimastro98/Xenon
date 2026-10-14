@@ -122,7 +122,7 @@
     <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/claude-code.html" aria-current="page" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"在触摸屏上使用 Claude Code","item":"https://xenon-app.com/zh/claude-code.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="cc.h1">副屏上的 Claude Code</h1>
     <p class="lede" data-i18n="cc.lede">Xenon 的 Claude Code 磁贴会显示你真实的 5 小时和 7 天额度、每个会话正在做什么，以及每一个带有“允许”和“拒绝”的权限请求。它放在电脑旁边的屏幕上：Xeneon Edge、显示器、平板或已配对的手机。</p>
-    <p class="updated" data-i18n="cc.updated">最后更新：2026年9月27日</p>
+    <p class="updated" data-i18n="cc.updated">最后更新：2026年10月14日</p>
 
     <figure class="shot">
       <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="Claude Code 磁贴：一个运行 git push 的请求，带“拒绝”和“允许”，标明它会发布你的工作；一个在等它的会话，另一个正在运行测试、计划 5 步中已完成 2 步；以及 5 小时和 7 天的额度，各自标出按当前速度会到哪里" data-i18n-alt="cc.shot.alt">
@@ -138,7 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Claude 的提问</a>
       <a href="#deck" data-i18n="cc.jump.deck">提问和 Deck 按键</a>
       <a href="#link" data-i18n="cc.jump.link">连接方法</a>
-      <a href="#mod" data-i18n="cc.jump.mod">Mod</a>
+      <a href="#mod" data-i18n="cc.jump.mod">Xenon mod</a>
       <a href="#data" data-i18n="cc.jump.data">什么数据发往哪里</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">常见问题</a>
@@ -171,7 +171,8 @@
 
     <h2 id="deck" data-i18n="cc.h.deck">提问和 Deck 按键</h2>
     <p data-i18n-html="cc.deck.p1">连接 Claude Code 后，磁贴上的<strong>提问</strong>按钮可以直接从屏幕启动 Claude Code。选择你的某个项目，写下你想做的事，需要的话再选一个模型，Claude Code 就会在那个文件夹中启动。进度和回答会回到磁贴上，运行期间还有一个“停止”按钮。</p>
-    <p data-i18n="cc.deck.p2">点按一个会话就可以给它写后续消息。如果它还在工作，这条消息会等待，在当前这一轮结束后进入同一段对话。</p>
+    <p data-i18n="cc.deck.p2">点按一个会话就可以给它写后续消息。如果它还在工作，这条消息会等待，在当前这一轮结束后进入同一段对话。如果它正在装有 Xenon mod 的终端里等你，消息会出现在那个终端中，就像你在那里输入的一样，Claude 也会在那里回答，所以终端和磁贴显示的是同一段对话。否则，磁贴会在后台继续这个会话，回复会回到磁贴上。</p>
+    <p data-i18n="cc.deck.p2b">发送之前，输入框会说明消息将去往哪里。如果 Claude Code 没有接受这条消息，或者终端先关闭了，消息会带着原因回到输入框。以 / 开头的命令需要直接在会话中输入。</p>
     <p data-i18n-html="cc.deck.p3">Deck 为此提供两个按键，位于连接 Claude Code 后出现的 Claude Code 分组中。<strong>向 Claude 提问</strong>保存一个项目、一个请求以及可选的模型，按一下就能开始这项工作。<strong>停止 Claude</strong>会停止从仪表盘启动、仍在进行的最新一次运行。</p>
     <p data-i18n="cc.deck.p4">从磁贴或按键启动的运行使用 Claude Code 的常规权限模式，而且无法跳过，所以你的 Claude Code 设置中尚未允许的任何操作，都会以卡片的形式回来等你批准。没有任何按键可以批准请求。项目列表是根据 Claude Code 自己的历史记录生成的，所以仪表盘只能在你已经用过的文件夹中启动工作。</p>
 
@@ -183,31 +184,33 @@
     </ol>
     <p data-i18n-html="cc.link.writes">连接只会修改一个文件：你的 Claude Code <code>settings.json</code>，位于 <code>~/.claude</code> 或 <code>CLAUDE_CONFIG_DIR</code> 指向的文件夹中。它会添加一个状态行和一组钩子（hook）。每个钩子都指向 <code>127.0.0.1</code> 上的 Xenon，也就是你自己的电脑，并携带一个由 Xenon 生成的密钥。</p>
     <p data-i18n-html="cc.link.backup">在第一次修改之前，Xenon 会在原文件旁边保存一份副本，名为 <code>settings.json.xenon-backup</code>。</p>
-    <p data-i18n="cc.link.mod">连接时还会添加三个条目，请 Claude Code 安装 Xenon mod（见下文）。断开连接时这些条目也会一并移除。</p>
+    <p data-i18n="cc.link.mod">连接时还会添加三项，请 Claude Code 安装下文介绍的 Xenon mod。断开连接时，这三项也会一起移除。</p>
     <p data-i18n="cc.link.chain">Claude Code 只允许一个状态行。如果你已经有一个，Xenon 会保留它：Xenon 自己的脚本会运行你的脚本，并输出你的脚本输出的内容。如果你的脚本在三秒内没有输出任何内容，就改为显示 Xenon 自己的简短状态行。</p>
     <p data-i18n-html="cc.link.remove">卸载 Xenon 会移除它添加的每一项，恢复你自己的状态行，并删除备份。你自己的钩子不会被改动。如果想在不卸载的情况下做同样的事，请在 Xenon 的安装文件夹中运行 <code>node server/claude-link.js unlink</code>。</p>
 
     <h2 id="mod" data-i18n="cc.h.mod">适用于 Claude Code 的 Xenon mod</h2>
 
-    <p data-i18n="cc.mod.p1">Claude Code 可以加载名为 mod 的附加组件。Xenon 有一个，点击连接即可安装：Claude Code 下次启动时会从本项目的 GitHub 页面获取并启用它。需要支持 mod 的 Claude Code 版本。如果你的版本不支持，上面的功能不装它也照常使用。</p>
+    <p data-i18n="cc.mod.p1">Claude Code 可以加载一种叫作 mod 的扩展。Xenon 有一个 mod，连接时就会安装：Claude Code 下次启动时，会从本项目的 GitHub 页面获取并启用它。这需要支持 mod 的 Claude Code 版本。如果你的版本不支持，上面介绍的所有功能在没有它的情况下照样可用。</p>
 
     <ul>
 
-      <li data-i18n="cc.mod.l1">磁贴会显示每个子代理所用的模型。</li>
+      <li data-i18n="cc.mod.inbox">从 0.3.0 版起，你在磁贴上写给某个正在终端里等待的会话的消息，会出现在那个终端中，就像在那里输入的一样。如果想改为由磁贴在后台继续会话，请在 mod 的选项中关闭“Messages from the Xenon tile”。</li>
 
-      <li data-i18n="cc.mod.l2">上下文仪表以及 5 小时和每周额度一有变化就会更新。</li>
+      <li data-i18n="cc.mod.l1">磁贴会显示每个子代理运行在哪个模型上。</li>
 
-      <li data-i18n-html="cc.mod.l3">在 Claude Code 中输入 <code>/xenon</code>，可查看 Xenon 是否收到该会话。它不消耗 token。</li>
+      <li data-i18n="cc.mod.l2">上下文仪表、5 小时限额和每周限额一有变化就会更新。</li>
 
-      <li data-i18n="cc.mod.l4">提示框下方的一行只在需要你处理时出现：Xenon 已关闭或未连接，或有审批正在仪表板上等待。一切正常时不显示。</li>
+      <li data-i18n-html="cc.mod.l3">在 Claude Code 中输入 <code>/xenon</code>，可以看到 Xenon 是否收到了这个会话的数据。它不消耗令牌。</li>
+
+      <li data-i18n="cc.mod.l4">只有在需要你处理时，Claude Code 输入框下方才会出现一行提示：Xenon 已关闭或未连接，或者仪表盘上有等待批准的请求。一切正常时不会出现这一行。</li>
 
     </ul>
 
-    <p data-i18n-html="cc.mod.p2">mod 把数字、模型名称和代理 ID 发送到 <code>127.0.0.1</code>，使用与钩子相同的密钥。它从不发送你输入的内容或文件内容。Xenon 关闭时，它会等待并稍后重试，不会拖慢 Claude Code。</p>
+    <p data-i18n-html="cc.mod.p2">mod 会带着与钩子相同的密钥，把数字、模型名称和代理 ID 发送到 <code>127.0.0.1</code>。它从不发送你输入的内容，也不发送你文件的内容。对于磁贴上的消息，它会询问 Xenon 是否有消息在等待这个会话，并且只告诉 Xenon 消息有没有送进会话。Xenon 关闭时，它会等待并稍后重试，不会拖慢 Claude Code。</p>
 
-    <p data-i18n="cc.mod.p3">从仪表板审批是 mod 的一个选项，默认关闭。开启后，权限请求也会以卡片形式出现在仪表板上，并在那里等待 30 秒（可在 10 到 120 秒之间设置）。点按“允许”或“拒绝”即可决定。没有点按时，Claude Code 照常在终端里询问。卡片只收到命令、文件路径或地址，绝不包含文件内容。超过 800 个字符的命令不会被发送，由终端询问。这些选项在 Claude Code 的插件配置菜单中。</p>
+    <p data-i18n="cc.mod.p3">在仪表盘上批准是 mod 的一个选项，默认关闭。开启后，权限请求也会以卡片形式出现在仪表盘上，并在那里等待 30 秒，这个时间可以在 10 到 120 秒之间设置。点按“允许”或“拒绝”即可决定。如果不点按，Claude Code 会像平常一样在终端里询问。卡片收到的是命令、文件路径或地址，绝不会是文件内容。超过 800 个字符的命令根本不会发送，而是由终端询问。这些选项在 Claude Code 中该插件的配置菜单里。</p>
 
-    <p data-i18n-html="cc.mod.p4">如需手动安装，在 Claude Code 中输入 <code>/plugin install xenon --marketplace marcimastro98/Xenon</code>。如需移除，点击磁贴上的“断开连接”，或在 Claude Code 中删除该插件。</p>
+    <p data-i18n-html="cc.mod.p4">如需手动安装，请在 Claude Code 中输入 <code>/plugin install xenon --marketplace marcimastro98/Xenon</code>。如需更新，请在终端中运行 <code>claude plugin update xenon@xenon</code>，然后开始一个新会话。如需移除，请在磁贴上按“断开连接”，或在 Claude Code 中移除该插件。</p>
 
 
     <h2 id="data" data-i18n="cc.h.data">什么数据发往哪里</h2>

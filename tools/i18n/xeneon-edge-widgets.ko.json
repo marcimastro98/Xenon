@@ -9,7 +9,7 @@
     "ld.q3": "iCUE 위젯과 Xenon을 동시에 쓸 수 있나요?",
     "ld.a3": "네. Xenon은 iCUE 패널 하나를 웹 위젯으로 쓰고, 나머지 패널은 그대로 남습니다.",
     "ld.q4": "Xenon은 무료인가요?",
-    "ld.a4": "네. 개인적인 사용은 무료이고, 소스는 비상업적 라이선스로 GitHub에 공개되어 있습니다. 체험판도 없고 잠긴 기능도 없습니다.",
+    "ld.a4": "네. 개인적인 사용은 무료이고, 소스는 비상업적 라이선스로 GitHub에 공개되어 있습니다. 후원자는 앱에 들어 있는 위젯 두 개, 가사와 개발자 정리, 그리고 매달 후원자용으로 나오는 테마와 위젯도 쓸 수 있습니다.",
     "edge.h1": "Xeneon Edge 위젯",
     "edge.lede": "Edge는 좋은 화면이지만 위젯 카탈로그가 작습니다. Xenon은 이 화면의 형태에 맞춰 설계한 무료 대시보드입니다. 페이지는 직접 배치하고, 컨트롤은 PC에서 실제로 동작하며, 터치해도 게임의 포커스를 빼앗지 않습니다. iCUE가 있어도 없어도 실행됩니다.",
     "edge.updated": "마지막 업데이트: 2026년 9월 26일",
@@ -47,7 +47,7 @@
     "edge.faq.both.q": "iCUE 위젯과 Xenon을 동시에 쓸 수 있나요?",
     "edge.faq.both.a": "네. iCUE에서 Edge는 여러 패널로 나뉩니다. Xenon이 패널 하나를 웹 위젯으로 쓰고 나머지는 그대로 남습니다. 원한다면 화면 전체를 Xenon에 맡길 수도 있습니다.",
     "edge.faq.free.q": "Xenon은 무료인가요?",
-    "edge.faq.free.a": "네. 개인적인 사용은 무료이고, 소스는 비상업적 라이선스로 GitHub에 공개되어 있습니다. 체험판도 없고, 등급 뒤에 잠긴 기능도 없습니다. 후원자는 감사의 표시로 추가 테마 몇 개를 받습니다.",
+    "edge.faq.free.a": "네. 개인적인 사용은 무료이고, 소스는 비상업적 라이선스로 GitHub에 공개되어 있습니다. 후원자는 앱에 들어 있는 위젯 두 개, 가사와 개발자 정리, 그리고 매달 후원자용으로 나오는 테마와 위젯도 쓸 수 있습니다.",
     "edge.cta.h": "Xenon 다운로드",
     "edge.cta.p": "설치 프로그램은 하나이고 계정은 필요 없으며, 설정과 파일은 PC에 남습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon을 다운로드</a>하거나 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS와 Linux 빌드</a>를 받으세요. 질문은 <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>에서 받습니다."
   }

@@ -122,7 +122,7 @@
     <!-- xenon:crumbs --><nav class="xc" aria-label="パンくずリスト"><ol><li><a href="/ja/" data-xl="home">ホーム</a></li><li><a href="/ja/claude-code.html" aria-current="page" data-xl="f.claude">タッチスクリーンでClaude Code</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ja/"},{"@type":"ListItem","position":2,"name":"タッチスクリーンでClaude Code","item":"https://xenon-app.com/ja/claude-code.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="cc.h1">セカンドスクリーンで使う Claude Code</h1>
     <p class="lede" data-i18n="cc.lede">Xenon の Claude Code タイルは、実際の5時間と7日間の使用量、各セッションが何をしているか、そしてすべての許可リクエストを「許可」と「拒否」のボタン付きで表示します。置き場所は PC の横の画面です。Xeneon Edge、モニター、タブレット、ペアリングしたスマートフォンが使えます。</p>
-    <p class="updated" data-i18n="cc.updated">最終更新: 2026年9月27日</p>
+    <p class="updated" data-i18n="cc.updated">最終更新: 2026年10月14日</p>
 
     <figure class="shot">
       <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="Claude Code のタイル。git push の実行を求めるリクエストに「拒否」と「許可」があり、作業を公開するものとして示されている。それを待っているセッションと、テストを実行中で計画の5つの手順のうち2つを終えたセッション、5時間と7日間の使用量と、それぞれ今のペースでどこまで行くかが表示されている" data-i18n-alt="cc.shot.alt">
@@ -138,7 +138,7 @@
       <a href="#questions" data-i18n="cc.jump.questions">Claude からの質問</a>
       <a href="#deck" data-i18n="cc.jump.deck">依頼と Deck キー</a>
       <a href="#link" data-i18n="cc.jump.link">接続</a>
-      <a href="#mod" data-i18n="cc.jump.mod">mod</a>
+      <a href="#mod" data-i18n="cc.jump.mod">Xenon の mod</a>
       <a href="#data" data-i18n="cc.jump.data">何がどこに送られるか</a>
       <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
       <a href="#faq" data-i18n="cc.jump.faq">よくある質問</a>
@@ -171,7 +171,8 @@
 
     <h2 id="deck" data-i18n="cc.h.deck">依頼と Deck キー</h2>
     <p data-i18n-html="cc.deck.p1">Claude Code を接続すると、タイルの <strong>依頼</strong> ボタンで、画面から Claude Code を始められます。プロジェクトを1つ選び、やってほしいことを書き、必要ならモデルを選ぶと、そのフォルダーで Claude Code が始まります。進み具合と回答はタイルに戻り、実行中は停止ボタンが表示されます。</p>
-    <p data-i18n="cc.deck.p2">セッションをタップすると、続きを書けます。まだ作業中の場合、メッセージは待機し、今のターンが終わったときに同じ会話に入ります。</p>
+    <p data-i18n="cc.deck.p2">セッションをタップすると、続きを書けます。まだ作業中の場合、メッセージは待機し、今のターンが終わったときに同じ会話に入ります。Xenon の mod が入ったターミナルで入力を待っている場合は、そこで入力したのと同じようにメッセージがそのターミナルに表示され、Claude もそこで答えます。そのため、ターミナルとタイルには同じ会話が表示されます。それ以外の場合は、タイルがバックグラウンドでセッションを続け、返信はタイルに戻ってきます。</p>
+    <p data-i18n="cc.deck.p2b">送信する前に、メッセージの行き先が入力欄に表示されます。Claude Code がメッセージを受け付けなかった場合や、先にターミナルが閉じた場合は、メッセージが理由とともに入力欄に戻ります。/ で始まるコマンドは、セッションで直接入力してください。</p>
     <p data-i18n-html="cc.deck.p3">Deck にはそのためのキーが2つあり、Claude Code を接続すると表示される Claude Code のグループに入っています。<strong>Claude に依頼</strong> はプロジェクト、依頼内容、必要ならモデルを保持するので、1回押すだけでその作業が始まります。<strong>Claude を停止</strong> は、ダッシュボードから始めてまだ動いている実行のうち、いちばん新しいものを止めます。</p>
     <p data-i18n="cc.deck.p4">タイルやキーから始めた実行は Claude Code の通常の許可モードを使い、それを飛ばす方法はありません。そのため、Claude Code の設定でまだ許可していないことは、すべて承認用のカードとして戻ってきます。リクエストを承認するキーはありません。プロジェクトの一覧は Claude Code 自身の履歴から作られるので、ダッシュボードから作業を始められるのは、すでに使っているフォルダーだけです。</p>
 
@@ -183,31 +184,33 @@
     </ol>
     <p data-i18n-html="cc.link.writes">接続で編集されるファイルは1つだけです。<code>~/.claude</code>、または <code>CLAUDE_CONFIG_DIR</code> が指すフォルダーにある、Claude Code の <code>settings.json</code> です。ステータスラインとフック一式を追加します。各フックは <code>127.0.0.1</code>、つまり自分の PC 上の Xenon を指し、Xenon が作った鍵を持っています。</p>
     <p data-i18n-html="cc.link.backup">最初の変更の前に、Xenon はファイルのコピーを <code>settings.json.xenon-backup</code> として同じ場所に保存します。</p>
-    <p data-i18n="cc.link.mod">接続すると、Xenon の mod を Claude Code にインストールさせる 3 つの項目も追加されます(下記参照)。接続を解除するとそれらも削除されます。</p>
+    <p data-i18n="cc.link.mod">接続すると、Claude Code に Xenon の mod のインストールを頼む項目も3つ追加されます。mod については下で説明します。接続を解除すると、これらの項目も取り除かれます。</p>
     <p data-i18n="cc.link.chain">Claude Code のステータスラインは1つだけです。すでに自分のものがあった場合、Xenon はそれを残します。Xenon のスクリプトがあなたのスクリプトを実行し、その出力をそのまま表示します。あなたのスクリプトが3秒以内に何も出力しなければ、代わりに Xenon の短い1行が表示されます。</p>
     <p data-i18n-html="cc.link.remove">Xenon をアンインストールすると、追加した項目がすべて取り除かれ、あなたのステータスラインが元に戻り、バックアップが削除されます。あなた自身のフックはそのまま残ります。アンインストールせずに同じことをするには、Xenon をインストールしたフォルダーで <code>node server/claude-link.js unlink</code> を実行します。</p>
 
-    <h2 id="mod" data-i18n="cc.h.mod">Claude Code 用の Xenon mod</h2>
+    <h2 id="mod" data-i18n="cc.h.mod">Xenon の Claude Code 用 mod</h2>
 
-    <p data-i18n="cc.mod.p1">Claude Code には mod と呼ばれる追加機能を読み込む仕組みがあります。Xenon にも mod があり、接続するとインストールされます。次回の起動時に Claude Code がこのプロジェクトの GitHub ページから取得して有効にします。mod に対応したバージョンの Claude Code が必要です。対応していない場合でも、上記の機能は mod なしで動作します。</p>
+    <p data-i18n="cc.mod.p1">Claude Code は、mod と呼ばれる拡張機能を読み込めます。Xenon にも mod があり、接続するとインストールされます。Claude Code は次に起動したときに、このプロジェクトの GitHub ページから mod を取得して有効にします。mod に対応したバージョンの Claude Code が必要です。お使いのバージョンが対応していなくても、ここまでに説明したことはすべて mod なしで動きます。</p>
 
     <ul>
 
-      <li data-i18n="cc.mod.l1">タイルに、各サブエージェントが使っているモデルが表示されます。</li>
+      <li data-i18n="cc.mod.inbox">バージョン 0.3.0 から、ターミナルで待っているセッションに向けてタイルで書いたメッセージは、そこで入力したのと同じようにそのターミナルに届きます。代わりにタイルがバックグラウンドでセッションを続けるようにしたい場合は、mod のオプションで「Messages from the Xenon tile」をオフにします。</li>
 
-      <li data-i18n="cc.mod.l2">コンテキストのゲージと、5 時間および週間の上限は、変化するとすぐに更新されます。</li>
+      <li data-i18n="cc.mod.l1">各サブエージェントがどのモデルで動いているかが、タイルに表示されます。</li>
 
-      <li data-i18n-html="cc.mod.l3">Claude Code の <code>/xenon</code> で、Xenon がそのセッションを受け取れているか確認できます。トークンは使いません。</li>
+      <li data-i18n="cc.mod.l2">コンテキストのメーター、5時間の上限、週の上限は、変わるとすぐに更新されます。</li>
 
-      <li data-i18n="cc.mod.l4">プロンプトの下の 1 行は、対応が必要なときだけ表示されます。Xenon が閉じている、または未接続のとき、あるいはダッシュボードで承認を待っているときです。問題がなければ表示されません。</li>
+      <li data-i18n-html="cc.mod.l3">Claude Code で <code>/xenon</code> と入力すると、Xenon がそのセッションのデータを受け取れているかがわかります。トークンは使いません。</li>
+
+      <li data-i18n="cc.mod.l4">プロンプトの下には、対応が必要なときだけ1行表示されます。Xenon が閉じているか接続されていないとき、またはダッシュボードで承認待ちのリクエストがあるときです。問題がなければ、この行は表示されません。</li>
 
     </ul>
 
-    <p data-i18n-html="cc.mod.p2">mod は、数値、モデル名、エージェント ID を、フックと同じキーを付けて <code>127.0.0.1</code> に送ります。入力した内容やファイルの中身は送りません。Xenon が閉じているときは待機し、後で再試行します。Claude Code の動作は遅くなりません。</p>
+    <p data-i18n-html="cc.mod.p2">mod は、数値、モデル名、エージェント ID を、フックと同じ鍵を付けて <code>127.0.0.1</code> に送ります。あなたが入力した内容やファイルの中身は決して送りません。タイルからのメッセージについては、そのセッション宛てのメッセージが待っているかを Xenon に尋ね、メッセージが入ったかどうかだけを伝えます。Xenon が閉じているときは、待ってから後でもう一度試すので、Claude Code が遅くなることはありません。</p>
 
-    <p data-i18n="cc.mod.p3">ダッシュボードからの承認は mod のオプションで、初期設定ではオフです。オンにすると、権限のリクエストがダッシュボードにもカードとして表示され、30 秒待ちます(10〜120 秒で変更できます)。「許可」または「拒否」をタップすると決定されます。タップしない場合は、これまでどおり Claude Code がターミナルで確認します。カードに送られるのはコマンド、ファイルパス、アドレスだけで、ファイルの中身は送られません。800 文字を超えるコマンドは送信されず、ターミナルで確認されます。オプションは Claude Code のプラグイン設定メニューにあります。</p>
+    <p data-i18n="cc.mod.p3">ダッシュボードからの承認は mod のオプションで、最初はオフになっています。オンにすると、許可のリクエストがダッシュボードにもカードとして表示され、そこで30秒待ちます。この時間は10秒から120秒の間で変えられます。「許可」か「拒否」をタップすると決まります。タップしなければ、いつもどおり Claude Code がターミナルで確認します。カードに届くのはコマンド、ファイルのパス、またはアドレスで、ファイルの中身が届くことはありません。800文字を超えるコマンドはまったく送られず、ターミナルで確認されます。オプションは、Claude Code のプラグインの設定メニューにあります。</p>
 
-    <p data-i18n-html="cc.mod.p4">手動でインストールするには、Claude Code で <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> と入力します。削除するには、タイルで「接続解除」を押すか、Claude Code でプラグインを削除します。</p>
+    <p data-i18n-html="cc.mod.p4">手動でインストールするには、Claude Code で <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> と入力します。更新するには、ターミナルで <code>claude plugin update xenon@xenon</code> を実行し、新しいセッションを始めます。削除するには、タイルの「接続を解除」を押すか、Claude Code でプラグインを削除します。</p>
 
 
     <h2 id="data" data-i18n="cc.h.data">何がどこに送られるか</h2>

@@ -456,9 +456,9 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .bill-note { grid-column: 4 / -1; margin: 0; font-size: 15.5px; line-height: 1.5; color: var(--fg-3); max-width: 76ch; }
 .bill-foot { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; }
 
-/* The three offers, on one surface, each closing on a key: the recommended
-   one lit, the other two the Deck's dark caps. */
-.tiers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); background: var(--room-2); border-radius: 16px; overflow: hidden; }
+/* The four offers, on one surface, each closing on a key: the recommended
+   one lit, the others the Deck's dark caps. */
+.tiers { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); background: var(--room-2); border-radius: 16px; overflow: hidden; }
 .tier { --lit: #008DFF; display: flex; flex-direction: column; padding: 30px 30px 30px; text-decoration: none; color: var(--fg); transition: background-color .15s; }
 .tier + .tier { box-shadow: inset 1px 0 0 var(--room-3); }
 .tier:hover { background: color-mix(in oklab, var(--room-3) 45%, var(--room-2)); text-decoration: none; }
@@ -1013,7 +1013,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         <div class="sup-in-txt">
           <h3 data-i18n="sup.in.h">가사</h3>
           <p data-i18n="sup.in.p">어떤 플레이어에서 재생 중인 곡이든 가사를 한 줄씩 곡에 맞춰 보여 주고, 각 줄 아래에 내 언어로 번역해 줍니다.</p>
-          <p class="sup-in-where" data-i18n="sup.in.where">Xenon에 이미 들어 있으며 카탈로그에서 내려받는 것이 아닙니다. 후원자 코드로 개발자 정리와 함께 잠금 해제되며, 코드가 만료되어도 계속 쓸 수 있습니다.</p>
+          <p class="sup-in-where" data-i18n="sup.in.where">Xenon에 이미 들어 있으며 카탈로그에서 내려받는 것이 아닙니다. PC마다 한 번, 7일 동안 무료로 써 볼 수 있습니다. 후원자 코드로 개발자 정리와 함께 잠금 해제되며, 코드가 만료되어도 계속 쓸 수 있습니다.</p>
         </div>
       </div>
       <div class="tiers" id="tiers">
@@ -1029,6 +1029,12 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <span class="tier-what" data-i18n="tier.2.what">5개월분 콘텐츠를 한 번에 결제합니다. 자동으로 갱신되지 않습니다.</span>
           <span class="tier-go" data-i18n="tier.go">후원하기</span>
         </a>
+        <a class="tier" href="https://www.buymeacoffee.com/marcimastro98/membership" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_month">
+          <span class="tier-price" data-i18n-html="tier.month.price">5달러 <small>월간</small></span>
+          <span class="tier-name" data-i18n="tier.month.name">매달</span>
+          <span class="tier-what" data-i18n="tier.month.what">멤버로 있는 동안 매달 콘텐츠를 받습니다. 멤버십 페이지에서 월간 옵션을 선택하세요. 언제든 해지할 수 있습니다.</span>
+          <span class="tier-go" data-i18n="tier.go">후원하기</span>
+        </a>
         <a class="tier" href="https://www.buymeacoffee.com/marcimastro98/membership" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_year">
           <span class="tier-price" data-i18n-html="tier.3.price">50달러 <small>연간</small></span>
           <span class="tier-name" data-i18n="tier.3.name">1년</span>
@@ -1036,7 +1042,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <span class="tier-go" data-i18n="tier.go">후원하기</span>
         </a>
       </div>
-      <p class="sup-note" data-i18n="sup.note">후원하지 않아도 앱은 무료이며 모든 기능을 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.</p>
+      <p class="sup-note" data-i18n="sup.note">후원하지 않아도 앱은 무료로 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.</p>
     </div>
   </section>
 
@@ -1084,7 +1090,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <div class="w">
       <div class="sec-head"><h2 id="h-pp" data-i18n="pp.h2">가격과 개인정보</h2></div>
       <dl class="pp">
-        <dt data-i18n="pp.price.t">가격</dt><dd data-i18n="pp.price.d">무료입니다. 유료 버전은 없으며, 후원자는 매달 새로 나오는 카탈로그 콘텐츠를 받습니다.</dd>
+        <dt data-i18n="pp.price.t">가격</dt><dd data-i18n="pp.price.d">무료입니다. 유료 버전은 없으며, 후원자는 매달 새로 나오는 카탈로그 콘텐츠와 위젯 두 개, 가사와 개발자 정리를 받습니다.</dd>
         <dt data-i18n="pp.src.t">소스 코드</dt><dd data-i18n-html="pp.src.d"><a href="https://github.com/marcimastro98/Xenon">GitHub</a>에 있으며, 자체 비상업적 라이선스가 적용됩니다.</dd>
         <dt data-i18n="pp.stay.t">PC에 남는 것</dt><dd data-i18n="pp.stay.d">설정, 메모, 파일, 센서 측정값, AI 메모리. 계정을 만들 필요가 없습니다.</dd>
         <dt data-i18n="pp.out.t">온라인으로 나가는 것</dt><dd data-i18n-html="pp.out.d">업데이트 확인과 카탈로그, 하루 한 번 받는 공지 파일, 익명 버전 집계(스위치 하나로 끌 수 있음), 그리고 직접 선택한 날씨, 앨범 아트, AI 서비스. <a href="/ko/privacy.html">전체 목록</a></dd>
@@ -1383,15 +1389,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.2.price": "$25 <small>once</small>",
     "tier.2.name": "Supporter pass",
     "tier.2.what": "Five months of drops, paid once. Nothing renews by itself.",
+    "tier.month.price": "$5 <small>a month</small>",
+    "tier.month.name": "Monthly",
+    "tier.month.what": "Drops every month while you stay. Choose the monthly option on the membership page; you can cancel any time.",
     "tier.3.price": "$50 <small>a year</small>",
     "tier.3.name": "A whole year",
     "tier.3.what": "Twelve months of drops, plus a theme built for you, one request a month. Choose the yearly option on the membership page; it renews each year until you stop it.",
     "tier.go": "Support",
-    "sup.note": "The app stays free and complete without it. Codes arrive by email and unlock in Settings, Support.",
+    "sup.note": "The app stays free without it. Codes arrive by email and unlock in Settings, Support Xenon.",
     "sup.in.alt": "The Lyrics widget: the words light up one at a time as the song plays, with the Italian translation under each line",
     "sup.in.h": "Lyrics",
     "sup.in.p": "The words of the song playing in any player, synced line by line, with each line translated into your language under it.",
-    "sup.in.where": "It is already inside Xenon, not a catalog download. A supporter code unlocks it, together with Developer cleanup, and both stay unlocked when the code runs out.",
+    "sup.in.where": "It is already inside Xenon, not a catalog download. You can try it free for 7 days, once per PC. A supporter code unlocks it, together with Developer cleanup, and both stay unlocked when the code runs out.",
     "bill.top": "Top supporters",
     "bill.mem": "Active members",
     "bill.rest": "With the support of",
@@ -1416,7 +1425,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "Every release lists SHA256 checksums, signed, on <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub</a>. <a href=\"/ko/xenon-exe.html\">How to check a download</a>",
     "pp.h2": "Price and privacy",
     "pp.price.t": "Price",
-    "pp.price.d": "Free. There is no paid version; supporters get the monthly catalog drops.",
+    "pp.price.d": "Free. There is no paid version; supporters get the monthly catalog drops and two extra widgets, Lyrics and Developer cleanup.",
     "pp.src.t": "Source",
     "pp.src.d": "On <a href=\"https://github.com/marcimastro98/Xenon\">GitHub</a>, under a custom non-commercial licence.",
     "pp.stay.t": "Stays on your PC",
@@ -1609,21 +1618,24 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "kind.page": "page",
     "sup.h2": "Supporters",
     "sup.p": "Xenon est gratuit et développé par un seul développeur. Les supporters reçoivent les sorties mensuelles du catalogue et permettent de faire perdurer le projet.",
-    "tier.1.price": "5 $ <small>par mois<\/small>",
+    "tier.1.price": "5 $ <small>une fois<\/small>",
     "tier.1.name": "Un café",
     "tier.1.what": "Un mois de drops pour les supporters, le rôle Discord et votre nom sur cette page.",
     "tier.2.price": "25 $ <small>une fois<\/small>",
     "tier.2.name": "Pass Supporter",
     "tier.2.what": "Cinq mois de sorties, payés une seule fois. Rien ne se renouvelle automatiquement.",
+    "tier.month.price": "5 $ <small>par mois<\/small>",
+    "tier.month.name": "Mensuel",
+    "tier.month.what": "Des sorties chaque mois tant que vous restez. Choisissez l'option mensuelle sur la page d'adhésion ; vous pouvez l'annuler quand vous voulez.",
     "tier.3.price": "50 $ <small>par an<\/small>",
     "tier.3.name": "Une année entière",
     "tier.3.what": "Douze mois de sorties, plus un thème conçu pour vous, une demande par mois. Choisissez l'option annuelle sur la page d'adhésion ; elle se renouvelle chaque année jusqu'à ce que vous l'annuliez.",
-    "tier.go": "Prise en charge",
-    "sup.note": "L'application reste gratuite et complète sans cela. Les codes sont envoyés par e-mail et se débloquent dans Paramètres, Assistance.",
+    "tier.go": "Soutenir",
+    "sup.note": "L'application reste gratuite sans cela. Les codes sont envoyés par e-mail et se débloquent dans Paramètres, Soutenir Xenon.",
     "sup.in.alt": "Le widget Paroles : les mots s'allument un par un pendant le morceau, avec la traduction italienne sous chaque ligne",
     "sup.in.h": "Paroles",
     "sup.in.p": "Les paroles du morceau en cours, dans n'importe quel lecteur, synchronisées ligne par ligne, avec la traduction dans votre langue sous chaque ligne.",
-    "sup.in.where": "Il est déjà inclus dans Xenon, rien à télécharger depuis le catalogue. Un code supporter le débloque, avec Nettoyage développeur, et les deux restent débloqués quand le code expire.",
+    "sup.in.where": "Il est déjà inclus dans Xenon, rien à télécharger depuis le catalogue. Vous pouvez l'essayer gratuitement pendant 7 jours, une fois par PC. Un code supporter le débloque, avec Nettoyage développeur, et les deux restent débloqués quand le code expire.",
     "bill.top": "Principaux supporters",
     "bill.mem": "Membres actifs",
     "bill.rest": "Avec le soutien de",
@@ -1648,7 +1660,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "Chaque version répertorie les SHA256 checksums, signés, sur <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub<\/a>. <a href=\"/ko/xenon-exe.html\">Comment vérifier un téléchargement<\/a>",
     "pp.h2": "Tarifs et confidentialité",
     "pp.price.t": "Prix",
-    "pp.price.d": "Gratuit. Il n'existe pas de version payante ; les supporters reçoivent les sorties du catalogue mensuel.",
+    "pp.price.d": "Gratuit. Il n'existe pas de version payante ; les supporters reçoivent les sorties mensuelles du catalogue et deux widgets en plus, Paroles et Nettoyage développeur.",
     "pp.src.t": "Source",
     "pp.src.d": "Sur <a href=\"https://github.com/marcimastro98/Xenon\">GitHub<\/a>, sous une licence non commerciale personnalisée.",
     "pp.stay.t": "Reste sur votre PC",
@@ -1847,15 +1859,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.2.price": "25 $ <small>una volta</small>",
     "tier.2.name": "Pass sostenitore",
     "tier.2.what": "Cinque mesi di drop, pagati una volta. Non si rinnova da solo.",
+    "tier.month.price": "5 $ <small>al mese</small>",
+    "tier.month.name": "Mensile",
+    "tier.month.what": "Drop ogni mese finché resti. Scegli l'opzione mensile nella pagina della membership; puoi disdire quando vuoi.",
     "tier.3.price": "50 $ <small>all'anno</small>",
     "tier.3.name": "Un anno intero",
     "tier.3.what": "Dodici mesi di drop, più un tema fatto per te, una richiesta al mese. Scegli l'opzione annuale nella pagina della membership; si rinnova ogni anno finché non la fermi.",
     "tier.go": "Sostieni",
-    "sup.note": "L'app resta gratuita e completa anche senza. I codici arrivano via email e si sbloccano in Impostazioni, Supporto.",
+    "sup.note": "L'app resta gratuita anche senza. I codici arrivano via email e si sbloccano in Impostazioni, Sostieni Xenon.",
     "sup.in.alt": "Il widget Testi delle canzoni: le parole si illuminano una alla volta mentre il brano suona, con la traduzione italiana sotto ogni riga",
     "sup.in.h": "Testi delle canzoni",
     "sup.in.p": "Il testo del brano che suona, in qualsiasi lettore, a tempo riga per riga, con la traduzione nella tua lingua sotto ogni riga.",
-    "sup.in.where": "È già dentro Xenon, non si scarica dal catalogo. Un codice sostenitore lo sblocca, insieme a Pulizia sviluppatore, e restano sbloccati anche quando il codice scade.",
+    "sup.in.where": "È già dentro Xenon, non si scarica dal catalogo. Puoi provarlo gratis per 7 giorni, una volta per PC. Un codice sostenitore lo sblocca, insieme a Pulizia sviluppatore, e restano sbloccati anche quando il codice scade.",
     "bill.top": "I maggiori sostenitori",
     "bill.mem": "Membri attivi",
     "bill.rest": "Con il sostegno di",
@@ -1880,7 +1895,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "Ogni release elenca i checksum SHA256, firmati, su <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub</a>. <a href=\"/ko/xenon-exe.html\">Come controllare un download</a>",
     "pp.h2": "Prezzo e privacy",
     "pp.price.t": "Prezzo",
-    "pp.price.d": "Gratis. Non esiste una versione a pagamento; i sostenitori ricevono i drop mensili del catalogo.",
+    "pp.price.d": "Gratis. Non esiste una versione a pagamento; i sostenitori ricevono i drop mensili del catalogo e due widget in più, Testi delle canzoni e Pulizia sviluppatore.",
     "pp.src.t": "Codice",
     "pp.src.d": "Su <a href=\"https://github.com/marcimastro98/Xenon\">GitHub</a>, con una licenza non commerciale.",
     "pp.stay.t": "Resta sul tuo PC",
@@ -2079,15 +2094,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.2.price": "25 $ <small>una vez</small>",
     "tier.2.name": "Pase de mecenas",
     "tier.2.what": "Cinco meses de drops, pagados una vez. No se renueva solo.",
+    "tier.month.price": "5 $ <small>al mes</small>",
+    "tier.month.name": "Mensual",
+    "tier.month.what": "Drops cada mes mientras sigas. Elige la opción mensual en la página de membresía; puedes cancelarla cuando quieras.",
     "tier.3.price": "50 $ <small>al año</small>",
     "tier.3.name": "Un año entero",
     "tier.3.what": "Doce meses de drops, más un tema hecho para ti, una petición al mes. Elige la opción anual en la página de membresía; se renueva cada año hasta que la canceles.",
     "tier.go": "Apoyar",
-    "sup.note": "La app sigue siendo gratis y completa sin esto. Los códigos llegan por correo y se desbloquean en Ajustes, Apoya a Xenon.",
+    "sup.note": "La app sigue siendo gratis aunque no apoyes. Los códigos llegan por correo y se desbloquean en Ajustes, Apoya a Xenon.",
     "sup.in.alt": "El widget Letra: las palabras se iluminan una a una mientras suena la canción, con la traducción al italiano debajo de cada línea",
     "sup.in.h": "Letra",
     "sup.in.p": "La letra de la canción que suena, en cualquier reproductor, sincronizada línea a línea, con la traducción a tu idioma debajo de cada línea.",
-    "sup.in.where": "Ya viene dentro de Xenon, no se descarga del catálogo. Un código de mecenas lo desbloquea, junto con Limpieza para desarrolladores, y los dos siguen desbloqueados cuando el código caduca.",
+    "sup.in.where": "Ya viene dentro de Xenon, no se descarga del catálogo. Puedes probarlo gratis durante 7 días, una vez por PC. Un código de mecenas lo desbloquea, junto con Limpieza para desarrolladores, y los dos siguen desbloqueados cuando el código caduca.",
     "bill.top": "Los mayores mecenas",
     "bill.mem": "Miembros activos",
     "bill.rest": "Con el apoyo de",
@@ -2112,7 +2130,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "Cada versión incluye sus sumas de comprobación SHA256, firmadas, en <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub</a>. <a href=\"/ko/xenon-exe.html\">Cómo comprobar una descarga</a>",
     "pp.h2": "Precio y privacidad",
     "pp.price.t": "Precio",
-    "pp.price.d": "Gratis. No hay versión de pago; los mecenas reciben los drops mensuales del catálogo.",
+    "pp.price.d": "Gratis. No hay versión de pago; los mecenas reciben los drops mensuales del catálogo y dos widgets más, Letra y Limpieza para desarrolladores.",
     "pp.src.t": "Código fuente",
     "pp.src.d": "En <a href=\"https://github.com/marcimastro98/Xenon\">GitHub</a>, con una licencia propia no comercial.",
     "pp.stay.t": "Se queda en tu PC",
@@ -2311,15 +2329,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.2.price": "25ドル <small>1回</small>",
     "tier.2.name": "サポーターパス",
     "tier.2.what": "新作5か月分を1回のお支払いで。自動更新はありません。",
+    "tier.month.price": "5ドル <small>月額</small>",
+    "tier.month.name": "毎月",
+    "tier.month.what": "続けている間、毎月新作が届きます。メンバーシップのページで月額プランを選んでください。いつでも解約できます。",
     "tier.3.price": "50ドル <small>年額</small>",
     "tier.3.name": "まる1年",
     "tier.3.what": "新作12か月分に加えて、あなた専用のテーマを制作します（リクエストは月1回）。メンバーシップのページで年額プランを選んでください。停止するまで毎年更新されます。",
     "tier.go": "支援する",
-    "sup.note": "支援しなくても、アプリは無料ですべての機能を使えます。コードはメールで届き、「設定」の「Xenonを応援」で有効にできます。",
+    "sup.note": "支援しなくても、アプリは無料で使えます。コードはメールで届き、「設定」の「Xenonを応援」で有効にできます。",
     "sup.in.alt": "歌詞ウィジェット。曲に合わせて単語が1つずつ明るくなり、各行の下にイタリア語の翻訳が表示されている",
     "sup.in.h": "歌詞",
     "sup.in.p": "どのプレーヤーで再生中の曲でも、歌詞を1行ずつ曲に合わせて表示し、各行の下にあなたの言語への翻訳を表示します。",
-    "sup.in.where": "最初から Xenon に入っていて、カタログからダウンロードするものではありません。サポーターのコードで「開発者向けクリーンアップ」と一緒に有効になり、コードの期限が切れても使い続けられます。",
+    "sup.in.where": "最初から Xenon に入っていて、カタログからダウンロードするものではありません。PC ごとに1回、7日間無料で試せます。サポーターのコードで「開発者向けクリーンアップ」と一緒に有効になり、コードの期限が切れても使い続けられます。",
     "bill.top": "トップサポーター",
     "bill.mem": "継続メンバー",
     "bill.rest": "ご支援いただいた皆さん",
@@ -2344,7 +2365,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "各リリースには、署名付きのSHA256チェックサムが<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub</a>に掲載されています。<a href=\"/ko/xenon-exe.html\">ダウンロードの確認方法</a>",
     "pp.h2": "価格とプライバシー",
     "pp.price.t": "価格",
-    "pp.price.d": "無料です。有料版はありません。サポーターには毎月カタログの新作が届きます。",
+    "pp.price.d": "無料です。有料版はありません。サポーターには毎月カタログの新作が届き、「歌詞」と「開発者向けクリーンアップ」の2つのウィジェットも使えます。",
     "pp.src.t": "ソースコード",
     "pp.src.d": "<a href=\"https://github.com/marcimastro98/Xenon\">GitHub</a>で公開しています。独自の非商用ライセンスです。",
     "pp.stay.t": "PCに残るもの",
@@ -2543,15 +2564,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.2.price": "25달러 <small>1회</small>",
     "tier.2.name": "후원자 패스",
     "tier.2.what": "5개월분 콘텐츠를 한 번에 결제합니다. 자동으로 갱신되지 않습니다.",
+    "tier.month.price": "5달러 <small>월간</small>",
+    "tier.month.name": "매달",
+    "tier.month.what": "멤버로 있는 동안 매달 콘텐츠를 받습니다. 멤버십 페이지에서 월간 옵션을 선택하세요. 언제든 해지할 수 있습니다.",
     "tier.3.price": "50달러 <small>연간</small>",
     "tier.3.name": "1년",
     "tier.3.what": "12개월분 콘텐츠와 함께 나를 위해 만든 테마를 받습니다(요청은 한 달에 한 번). 멤버십 페이지에서 연간 옵션을 선택하세요. 중단할 때까지 매년 갱신됩니다.",
     "tier.go": "후원하기",
-    "sup.note": "후원하지 않아도 앱은 무료이며 모든 기능을 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.",
+    "sup.note": "후원하지 않아도 앱은 무료로 쓸 수 있습니다. 코드는 이메일로 받고 설정 → Xenon 후원에서 잠금 해제합니다.",
     "sup.in.alt": "가사 위젯. 곡이 재생되는 동안 단어가 하나씩 밝아지고, 각 줄 아래에 이탈리아어 번역이 있습니다",
     "sup.in.h": "가사",
     "sup.in.p": "어떤 플레이어에서 재생 중인 곡이든 가사를 한 줄씩 곡에 맞춰 보여 주고, 각 줄 아래에 내 언어로 번역해 줍니다.",
-    "sup.in.where": "Xenon에 이미 들어 있으며 카탈로그에서 내려받는 것이 아닙니다. 후원자 코드로 개발자 정리와 함께 잠금 해제되며, 코드가 만료되어도 계속 쓸 수 있습니다.",
+    "sup.in.where": "Xenon에 이미 들어 있으며 카탈로그에서 내려받는 것이 아닙니다. PC마다 한 번, 7일 동안 무료로 써 볼 수 있습니다. 후원자 코드로 개발자 정리와 함께 잠금 해제되며, 코드가 만료되어도 계속 쓸 수 있습니다.",
     "bill.top": "최고 후원자",
     "bill.mem": "활동 멤버",
     "bill.rest": "함께 후원해 주신 분들",
@@ -2576,7 +2600,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "모든 릴리스에는 서명된 SHA256 체크섬 목록이 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub</a>에 함께 올라갑니다. <a href=\"/ko/xenon-exe.html\">다운로드 파일 확인 방법</a>",
     "pp.h2": "가격과 개인정보",
     "pp.price.t": "가격",
-    "pp.price.d": "무료입니다. 유료 버전은 없으며, 후원자는 매달 새로 나오는 카탈로그 콘텐츠를 받습니다.",
+    "pp.price.d": "무료입니다. 유료 버전은 없으며, 후원자는 매달 새로 나오는 카탈로그 콘텐츠와 위젯 두 개, 가사와 개발자 정리를 받습니다.",
     "pp.src.t": "소스 코드",
     "pp.src.d": "<a href=\"https://github.com/marcimastro98/Xenon\">GitHub</a>에 있으며, 자체 비상업적 라이선스가 적용됩니다.",
     "pp.stay.t": "PC에 남는 것",
@@ -2775,15 +2799,18 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "tier.2.price": "25 美元 <small>一次性</small>",
     "tier.2.name": "支持者通行证",
     "tier.2.what": "五个月的专属内容，一次付清。不会自动续费。",
+    "tier.month.price": "5 美元 <small>每月</small>",
+    "tier.month.name": "按月",
+    "tier.month.what": "只要你还在支持，每月都会收到专属内容。请在会员页面选择月付选项；随时可以取消。",
     "tier.3.price": "50 美元 <small>每年</small>",
     "tier.3.name": "一整年",
     "tier.3.what": "十二个月的专属内容，外加一套为你制作的主题，每月可以提一次需求。请在会员页面选择年付选项；每年自动续费，直到你取消。",
     "tier.go": "支持",
-    "sup.note": "不支持也能免费使用完整的应用。代码会通过电子邮件发送，在“设置”>“支持 Xenon”中解锁。",
+    "sup.note": "不支持也能免费使用这个应用。代码会通过电子邮件发送，在“设置”>“支持 Xenon”中解锁。",
     "sup.in.alt": "“歌词”小组件：歌曲播放时单词逐个亮起，每行下方是意大利语翻译",
     "sup.in.h": "歌词",
     "sup.in.p": "无论在哪个播放器中播放，都会逐行同步显示正在播放的歌曲的歌词，并在每行下方显示译成你的语言的翻译。",
-    "sup.in.where": "它已经内置在 Xenon 中，无需从目录下载。支持者代码会同时解锁它和“开发者清理”，代码到期后两者仍保持解锁。",
+    "sup.in.where": "它已经内置在 Xenon 中，无需从目录下载。每台电脑可以免费试用一次，为期 7 天。支持者代码会同时解锁它和“开发者清理”，代码到期后两者仍保持解锁。",
     "bill.top": "主要支持者",
     "bill.mem": "活跃会员",
     "bill.rest": "感谢以下支持者",
@@ -2808,7 +2835,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "inst.check": "每个版本都在 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\">GitHub</a> 上列出已签名的 SHA256 校验和。<a href=\"/ko/xenon-exe.html\">如何校验下载的文件</a>",
     "pp.h2": "价格和隐私",
     "pp.price.t": "价格",
-    "pp.price.d": "免费。没有付费版本；支持者可以获得每月的目录新内容。",
+    "pp.price.d": "免费。没有付费版本；支持者可以获得每月的目录新内容，以及“歌词”和“开发者清理”两个小组件。",
     "pp.src.t": "源代码",
     "pp.src.d": "托管在 <a href=\"https://github.com/marcimastro98/Xenon\">GitHub</a> 上，采用自定义的非商业许可证。",
     "pp.stay.t": "保留在你的电脑上",

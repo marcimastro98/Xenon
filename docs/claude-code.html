@@ -122,7 +122,7 @@
     <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/claude-code.html" aria-current="page" data-xl="f.claude">Claude Code on a touchscreen</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Claude Code on a touchscreen","item":"https://xenon-app.com/claude-code.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="cc.h1">Claude Code on a second screen</h1>
     <p class="lede" data-i18n="cc.lede">Xenon's Claude Code tile shows your real 5-hour and 7-day quota, what each session is doing, and every permission request with Allow and Deny. It lives on the screen next to your PC: a Xeneon Edge, a monitor, a tablet or a paired phone.</p>
-    <p class="updated" data-i18n="cc.updated">Last updated: 27 September 2026</p>
+    <p class="updated" data-i18n="cc.updated">Last updated: 14 October 2026</p>
 
     <figure class="shot">
       <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Claude Code tile: a request to run git push with Deny and Allow, marked as publishing your work; one session waiting for it and one running its tests with 2 of 5 plan steps done; the 5-hour and 7-day quota, each with where its current pace ends" data-i18n-alt="cc.shot.alt">
@@ -171,7 +171,8 @@
 
     <h2 id="deck" data-i18n="cc.h.deck">Ask and Deck keys</h2>
     <p data-i18n-html="cc.deck.p1">Once Claude Code is connected, the <strong>Ask</strong> button on the tile starts Claude Code from the screen. Pick one of your projects, write what you want done, choose a model if you care to, and Claude Code starts in that folder. Progress and the answer come back to the tile, with a Stop button while it runs.</p>
-    <p data-i18n="cc.deck.p2">Tap a session to write it a follow-up. If it is still working, the message waits and goes into the same conversation when the current turn ends.</p>
+    <p data-i18n="cc.deck.p2">Tap a session to write it a follow-up. If it is still working, the message waits and goes into the same conversation when the current turn ends. If it is waiting for you in a terminal that has the Xenon mod, the message shows up in that terminal as if you had typed it, and Claude answers there, so the terminal and the tile show the same conversation. Otherwise the tile continues the session in the background, and the reply comes back to the tile.</p>
+    <p data-i18n="cc.deck.p2b">The box says where the message will go before you send it. If Claude Code does not take the message, or the terminal closes first, it comes back into the box with the reason. Commands that start with / have to be typed in the session itself.</p>
     <p data-i18n-html="cc.deck.p3">The Deck has two keys for it, in a Claude Code group that appears once Claude Code is connected. <strong>Ask Claude</strong> holds a project, a request and optionally a model, so one press starts that job. <strong>Stop Claude</strong> stops the newest run started from the dashboard that is still going.</p>
     <p data-i18n="cc.deck.p4">Runs started from the tile or a key use Claude Code's normal permission mode, with no way to skip it, so anything your Claude Code settings do not already allow comes back as a card to approve. There is no key that approves a request. The project list is built from Claude Code's own history, so the dashboard can only start work in folders you already use.</p>
 
@@ -193,6 +194,8 @@
 
     <ul>
 
+      <li data-i18n="cc.mod.inbox">From version 0.3.0, a message you write on the tile for a session waiting in its terminal arrives in that terminal, as if typed there. To have the tile continue the session in the background instead, turn off Messages from the Xenon tile in the mod's options.</li>
+
       <li data-i18n="cc.mod.l1">The tile shows which model each subagent runs on.</li>
 
       <li data-i18n="cc.mod.l2">The context gauge and the 5-hour and weekly limits update as soon as they change.</li>
@@ -203,11 +206,11 @@
 
     </ul>
 
-    <p data-i18n-html="cc.mod.p2">The mod sends numbers, model names and agent ids to <code>127.0.0.1</code>, with the same key as the hooks. It never sends what you type or the content of your files. When Xenon is closed it waits and tries again later, without slowing Claude Code down.</p>
+    <p data-i18n-html="cc.mod.p2">The mod sends numbers, model names and agent ids to <code>127.0.0.1</code>, with the same key as the hooks. It never sends what you type or the content of your files. For the tile's messages it asks Xenon whether one is waiting for that session, and tells it only whether the message got in. When Xenon is closed it waits and tries again later, without slowing Claude Code down.</p>
 
     <p data-i18n="cc.mod.p3">Approving from the dashboard is an option of the mod, off by default. With it on, a permission request also appears as a card on the dashboard and waits there for 30 seconds, a time you can set from 10 to 120. A tap on Allow or Deny decides. With no tap, Claude Code asks in the terminal as usual. The card gets the command, the file path or the address, never the content of a file. A command longer than 800 characters is not sent at all, and the terminal asks. The options are in Claude Code's configuration menu for the plugin.</p>
 
-    <p data-i18n-html="cc.mod.p4">To install it by hand, type <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> in Claude Code. To remove it, press Disconnect on the tile, or remove the plugin in Claude Code.</p>
+    <p data-i18n-html="cc.mod.p4">To install it by hand, type <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> in Claude Code. To update it, run <code>claude plugin update xenon@xenon</code> in a terminal and start a new session. To remove it, press Disconnect on the tile, or remove the plugin in Claude Code.</p>
 
 
     <h2 id="data" data-i18n="cc.h.data">What is sent where</h2>

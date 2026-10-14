@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Utilisation du plan OpenAI Codex et approbations sur un second écran</title>
+<meta name="description" content="Consultez l'utilisation de votre plan OpenAI Codex, les sessions en cours sur votre PC et leurs requêtes sur un second écran ou un téléphone, et répondez-y d'un simple geste.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="Utilisation du plan OpenAI Codex et approbations sur un second écran">
+<meta property="og:description" content="Consultez l'utilisation de votre plan OpenAI Codex, les sessions en cours sur votre PC et leurs requêtes sur un second écran ou un téléphone, et répondez-y d'un simple geste.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/fr/codex.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/fr/codex.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/codex.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/codex.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/codex.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/codex.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/codex.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/codex.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/codex.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/codex.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Puis-je voir mes limites d'utilisation de Codex sur un deuxième écran ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Une fois Codex installé et connecté, la tuile affiche chaque fenêtre d'utilisation de votre plan, avec le volume utilisé et un compte à rebours jusqu'à sa réinitialisation. La connexion à Codex n'est pas nécessaire pour cela."}},{"@type":"Question","name":"Fonctionne-t-il avec l’application de bureau ChatGPT ?","acceptedAnswer":{"@type":"Answer","text":"Le plan, l'utilisation et la liste des conversations couvrent Codex dans l'application ChatGPT, l'extension d'éditeur et la commande codex, car ils partagent le même compte et le même moteur. Les sessions en direct et les approbations nécessitent que Codex exécute les hooks, ce que la commande codex permet de faire."}},{"@type":"Question","name":"Que se passe-t-il si je ne réponds pas à une demande ?","acceptedAnswer":{"@type":"Answer","text":"Rien n'est approuvé. Après 90 secondes, ou si Xenon est fermé, la demande est renvoyée à Codex, qui vous pose la question comme d'habitude."}},{"@type":"Question","name":"Pourquoi dois-je faire confiance aux hooks dans Codex ?","acceptedAnswer":{"@type":"Answer","text":"Codex exécute un hook uniquement après que vous avez fait confiance à ce hook exact. Il s'agit d'une vérification de sécurité propre à Codex, de sorte que Xenon ne le fait jamais pour vous. Si Xenon ou Node est déplacé dans un autre dossier, les hooks changent et Codex vous demande de leur faire confiance à nouveau ; la tuile indique quand."}},{"@type":"Question","name":"La tuile fonctionne-t-elle avec une clé API ?","acceptedAnswer":{"@type":"Answer","text":"Les sessions et les approbations fonctionnent. Les fenêtres de plan n'existent que sur un plan ChatGPT, donc avec une clé API, la tuile n'a rien à afficher."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrez-moi un café</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>FR</span></summary><ul><li><a href="/codex.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/codex.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/codex.html" hreflang="fr" lang="fr" aria-current="page">Français <span>FR</span></a></li><li><a href="/it/codex.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/codex.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/codex.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/codex.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Télécharger</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">Menu</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Fermer</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/fr/#screens" data-xl="screens">Écrans</a></li><li><a href="/fr/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Démo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogue</a></li><li><a href="/create/" data-xl="create">Créer</a></li><li><a href="/fr/#support" data-xl="support">Assistance</a></li><li><a href="/fr/faq.html" data-xl="help">Aide</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/fr/#install" data-xl="install">Installer</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">Offrez-moi un café</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Vous êtes ici"><ol><li><a href="/fr/" data-xl="home">Accueil</a></li><li><a href="/fr/codex.html" aria-current="page" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/fr/"},{"@type":"ListItem","position":2,"name":"OpenAI Codex sur un écran tactile","item":"https://xenon-app.com/fr/codex.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="cx.h1">OpenAI Codex sur un second écran</h1>
+    <p class="lede" data-i18n="cx.lede">La tuile Codex de Xenon affiche les fenêtres d'utilisation de votre plan, vos jetons par jour, les sessions en cours sur votre PC et chaque requête qu'elles génèrent, avec les options Autoriser, Refuser et Répondre dans Codex. Elle s'affiche à l'écran, à côté de votre PC : un Xeneon Edge, un moniteur, une tablette ou un téléphone apparié.</p>
+    <p class="updated" data-i18n="cx.updated">Dernière mise à jour : 6 octobre 2026</p>
+
+    <p data-i18n-html="cx.intro">Ajoutez la tuile depuis le bouton <strong>+</strong>, sous <strong>Système</strong>. Le plan fonctionne dès que Codex est installé et connecté sur le PC. Les sessions et les approbations nécessitent que Codex soit connecté, ce que vous faites depuis la tuile elle-même. Elle fonctionne sur Windows, ainsi que sur macOS et Linux, qui sont en beta.</p>
+
+    <nav class="jump">
+      <a href="#plan" data-i18n="cx.jump.plan">Utilisation du plan</a>
+      <a href="#sessions" data-i18n="cx.jump.sessions">Sessions</a>
+      <a href="#approve" data-i18n="cx.jump.approve">Approbations</a>
+      <a href="#link" data-i18n="cx.jump.link">Connexion</a>
+      <a href="#data" data-i18n="cx.jump.data">Ce qui est envoyé et où</a>
+      <a href="#faq" data-i18n="cx.jump.faq">Questions fréquentes</a>
+    </nav>
+
+    <h2 id="plan" data-i18n="cx.h.plan">Utilisation du plan</h2>
+    <p data-i18n="cx.plan.p1">Codex signale les fenêtres d'utilisation de votre plan : la quantité utilisée pour chacune et le moment où elle se réinitialise. Xenon affiche chacune sous forme de barre avec un compte à rebours jusqu'à sa réinitialisation et un repère indiquant où se situerait le rythme actuel si l'avancement était régulier. Les chiffres passent en ambre à 70 % et en rouge à 90 %.</p>
+    <p data-i18n="cx.plan.p2">La durée de chaque fenêtre provient de Codex, la tuile l'étiquette donc telle qu'elle est : sur un plan payant, il s'agit généralement de 5 heures et d'une semaine, tandis que sur le plan Gratuit, il y a une fenêtre de 30 jours.</p>
+    <p data-i18n-html="cx.plan.p3">Le côté <strong>Utilisation</strong> de la tuile affiche vos jetons pour aujourd'hui, sur 7 et 30 jours ainsi que le total, avec une colonne pour chacun des 30 derniers jours. Il s'agit des chiffres signalés par Codex pour l'ensemble de votre compte, tous les appareils et applications inclus, et non uniquement pour cet ordinateur.</p>
+
+    <h2 id="sessions" data-i18n="cx.h.sessions">Sessions et conversations récentes</h2>
+    <p data-i18n="cx.sessions.p1">Avec Codex connecté, chaque session reçoit une ligne à son démarrage : ce que vous lui avez demandé de faire, le modèle utilisé et s'il est en cours d'exécution ou en attente de votre intervention. En dessous, la tuile répertorie les conversations conservées par Codex, ainsi que l'endroit où elles ont été exécutées : l'application ChatGPT, l'éditeur ou le terminal.</p>
+    <p data-i18n-html="cx.sessions.p2">Les sessions proviennent des hooks de Codex. Codex les exécute via la commande <code>codex</code> ; le fait que l'application ChatGPT et l'extension d'éditeur les exécutent également dépend de votre version de Codex. Le plan et la liste des conversations ne dépendent pas des hooks et couvrent les trois.</p>
+
+    <h2 id="approve" data-i18n="cx.h.approve">Réponse aux demandes</h2>
+    <p data-i18n-html="cx.approve.p1">Lorsqu'une session Codex demande d'exécuter une commande ou de modifier des fichiers, la requête s'affiche sur la tuile avec la commande, ou les fichiers touchés par la modification (les suppressions étant signalées), ainsi que trois boutons : <strong>Autoriser</strong>, <strong>Refuser</strong> et <strong>Répondre dans Codex</strong>, ce qui renvoie immédiatement la question à Codex. La carte indique ce qui rend la requête inhabituelle : le réseau, la publication de votre travail, un fichier situé en dehors du projet, des accès supérieurs à ceux de la session, ou une action irréversible.</p>
+    <p data-i18n-html="cx.approve.p2">Une demande irréversible, telle que <code>rm -rf</code> ou un correctif supprimant un fichier, est autorisée en maintenant le bouton enfoncé, et non par une simple pression. Une demande laissée sans action pendant 25 secondes prend le contrôle de l'écran entier, afin qu'elle ne reste pas invisible sur une autre page.</p>
+    <p data-i18n-html="cx.approve.p3">Rien n'est approuvé pour vous. Pendant qu'une demande est en attente sur la tuile, Codex n'affiche pas son propre message, donc après 90 secondes, ou si Xenon est fermé, la demande est renvoyée à Codex, qui pose la question comme d'habitude. <strong>Paramètres → Codex</strong> modifie le délai d'attente ou désactive les demandes.</p>
+    <p data-i18n-html="cx.approve.phone">Pour répondre depuis votre téléphone, associez-le à Xenon (beta). Le téléphone affiche le même dashboard, avec les mêmes boutons. <a href="/fr/phone.html">Comment associer un téléphone</a>.</p>
+
+    <h2 id="link" data-i18n="cx.h.link">Connexion à Codex</h2>
+    <ol>
+      <li data-i18n-html="cx.link.1">Ajoutez la tuile <strong>Codex</strong> à partir du bouton <strong>+</strong>, sous <strong>Système</strong>.</li>
+      <li data-i18n-html="cx.link.2">Sur la tuile, appuyez sur <strong>Codex</strong>, puis sur <strong>Connecter</strong>.</li>
+      <li data-i18n-html="cx.link.3">Ouvrez Codex, tapez <code>/hooks</code> et faites confiance aux hooks Xenon. Codex n'exécute un nouveau hook qu'après que vous lui avez accordé votre confiance ; Xenon ne le fait jamais à votre place, car il s'agit de sa propre vérification de sécurité.</li>
+      <li data-i18n="cx.link.4">Démarrez une nouvelle session. Les hooks accèdent aux sessions démarrées après cette étape, et la tuile indique si Codex fait confiance aux hooks.</li>
+    </ol>
+    <p data-i18n-html="cx.link.writes">La connexion modifie un seul fichier : le <code>hooks.json</code> de Codex, dans <code>~/.codex</code> ou le dossier vers lequel pointe <code>CODEX_HOME</code>. Elle ajoute cinq hooks qui exécutent un petit script de Xenon avec Node, lequel envoie un rapport à Xenon sur <code>127.0.0.1</code>, votre propre PC. Vos propres hooks restent tels quels et dans le même ordre, et Xenon ne touche pas à <code>config.toml</code>.</p>
+    <p data-i18n-html="cx.link.backup">Avant la première modification, Xenon enregistre une copie du fichier à côté de celui-ci sous le nom <code>hooks.json.xenon-backup</code>. Si le fichier ne peut pas être lu, Xenon le laisse tel quel et l'indique.</p>
+    <p data-i18n-html="cx.link.remove">La désinstallation de Xenon supprime les hooks qu'il a ajoutés et efface la sauvegarde ; vos propres hooks sont laissés intacts. Pour effectuer la même opération sans désinstaller, appuyez sur <strong>Déconnecter</strong> sur la tuile, ou exécutez <code>node server/codex-link.js unlink</code> dans le dossier où Xenon est installé.</p>
+
+    <h2 id="data" data-i18n="cx.h.data">Ce qui est envoyé et où</h2>
+    <p data-i18n-html="cx.data.p1">La tuile n'utilise aucune clé API et ne lit jamais vos informations de connexion. Le plan provient de <code>codex app-server</code>, le programme utilisé par l'application ChatGPT et l'extension d'édition pour communiquer avec Codex. Xenon démarre sa propre copie uniquement lorsque la tuile est sur un dashboard, lui demande uniquement de lire, et la ferme quelques minutes après qu'elle n'est plus nécessaire.</p>
+    <p data-i18n-html="cx.data.p2">Les hooks envoient leur rapport à <code>127.0.0.1</code>, votre propre PC, avec une clé créée par Xenon. Xenon refuse tout rapport sans cette clé, et la clé est lue depuis le dossier de données propre à Xenon, elle n'apparaît donc jamais dans une ligne de commande. L'état de la session en direct est conservé en mémoire et démarre vide lorsque Xenon redémarre.</p>
+    <p data-i18n-html="cx.data.p3">Les widgets que vous installez peuvent lire les chiffres du plan via le flux <code>codex</code>, si vous y consentez : pourcentages, longueurs de fenêtre, nombre de jetons et nombre de sessions en cours. Jamais un dossier, un projet, une conversation, une commande ou votre adresse e-mail.</p>
+
+    <h2 id="faq" data-i18n="cx.h.faq">Questions fréquentes</h2>
+    <details><summary data-i18n="cx.faq.plan.q">Puis-je voir mes limites d'utilisation de Codex sur un deuxième écran ?</summary><div class="body"><p data-i18n="cx.faq.plan.a">Oui. Une fois Codex installé et connecté, la tuile affiche chaque fenêtre d'utilisation de votre plan avec le volume utilisé et un compte à rebours jusqu'à sa réinitialisation. La connexion à Codex n'est pas nécessaire pour cela.</p></div></details>
+    <details><summary data-i18n="cx.faq.chatgpt.q">Fonctionne-t-il avec l’application de bureau ChatGPT ?</summary><div class="body"><p data-i18n="cx.faq.chatgpt.a">Le plan, l’utilisation et la liste des conversations couvrent Codex dans l’application ChatGPT, l’extension d’éditeur et la commande codex, car ils partagent le même compte et le même moteur. Les sessions en direct et les approbations nécessitent que Codex exécute les hooks, ce que la commande codex permet.</p></div></details>
+    <details><summary data-i18n="cx.faq.none.q">Que se passe-t-il si je ne réponds pas à une demande ?</summary><div class="body"><p data-i18n="cx.faq.none.a">Rien n'est approuvé. Après 90 secondes, ou si Xenon est fermé, la demande est renvoyée à Codex, qui vous pose la question comme d'habitude.</p></div></details>
+    <details><summary data-i18n="cx.faq.trust.q">Pourquoi dois-je faire confiance aux hooks dans Codex ?</summary><div class="body"><p data-i18n="cx.faq.trust.a">Codex exécute un hook uniquement après que vous avez fait confiance à ce hook exact. Il s'agit d'un contrôle de sécurité propre à Codex, de sorte que Xenon ne le fait jamais à votre place. Si Xenon ou Node est déplacé dans un autre dossier, les hooks changent et Codex vous demande de leur faire confiance à nouveau ; la tuile indique quand.</p></div></details>
+    <details><summary data-i18n="cx.faq.api.q">La tuile fonctionne-t-elle avec une clé API ?</summary><div class="body"><p data-i18n="cx.faq.api.a">Les sessions et les approbations fonctionnent. Les fenêtres de plan n'existent que sur un plan ChatGPT, donc avec une clé API, la tuile n'a rien à afficher.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="cx.cta.h">Télécharger Xenon</h3>
+      <p data-i18n-html="cx.cta.p">Gratuit, sans compte. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Télécharger Xenon pour Windows</a>, ou choisissez votre système sur la <a href="/fr/download.html">page de téléchargement</a>. Vous utilisez aussi Claude Code ? Consultez <a href="/fr/claude-code.html">Claude Code sur écran tactile</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">Plus de guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul><p class="xg-dl"><a href="/fr/download.html" data-xl="f.download">Télécharger</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/fr/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <p data-xl="tag">Un dashboard gratuit pour les écrans à côté de votre PC. Windows, avec macOS et Linux en beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">Application</h2><ul><li><a href="/fr/download.html" data-xl="f.download">Télécharger</a></li><li><a href="/demo/" data-xl="f.demo">Démo du navigateur</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogue</a></li><li><a href="/create/" data-xl="f.create">Créer des widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versions</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/fr/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sur le Xeneon Edge</a></li><li><a href="/fr/tablet-dashboard.html" data-xl="f.tablet">Tablette ou téléphone en tant que dashboard</a></li><li><a href="/fr/phone.html" data-xl="f.phone">Appairage d'un téléphone</a></li><li><a href="/fr/mac.html" data-xl="f.mac">Xenon sur un Mac</a></li><li><a href="/fr/linux.html" data-xl="f.linux">Xenon sur Linux</a></li><li><a href="/fr/widgets.html" data-xl="f.widgets">Chaque widget</a></li><li><a href="/fr/deck.html" data-xl="f.deck">Touches du Deck</a></li><li><a href="/fr/claude-code.html" data-xl="f.claude">Claude Code sur un écran tactile</a></li><li><a href="/fr/codex.html" data-xl="f.codex">OpenAI Codex sur un écran tactile</a></li><li><a href="/fr/sensor-panel.html" data-xl="f.sensor">Un panneau de capteurs pour votre PC</a></li><li><a href="/fr/xenon-exe.html" data-xl="f.exe">L’installateur est-il sûr ?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Projet</h2><ul><li><a href="/fr/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/fr/faq.html" data-xl="f.faq">Aide et questions</a></li><li><a href="/fr/privacy.html" data-xl="f.privacy">Confidentialité</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon est un projet indépendant. Xeneon et iCUE sont des marques déposées de CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

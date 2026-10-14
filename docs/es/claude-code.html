@@ -122,7 +122,7 @@
     <!-- xenon:crumbs --><nav class="xc" aria-label="Ruta de navegación"><ol><li><a href="/es/" data-xl="home">Inicio</a></li><li><a href="/es/claude-code.html" aria-current="page" data-xl="f.claude">Claude Code en una pantalla táctil</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/es/"},{"@type":"ListItem","position":2,"name":"Claude Code en una pantalla táctil","item":"https://xenon-app.com/es/claude-code.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="cc.h1">Claude Code en una segunda pantalla</h1>
     <p class="lede" data-i18n="cc.lede">El mosaico Claude Code de Xenon muestra tu cuota real de 5 horas y de 7 días, lo que está haciendo cada sesión y cada solicitud de permiso con Permitir y Denegar. Vive en la pantalla que tienes junto al PC: un Xeneon Edge, un monitor, una tablet o un teléfono vinculado.</p>
-    <p class="updated" data-i18n="cc.updated">Última actualización: 27 de septiembre de 2026</p>
+    <p class="updated" data-i18n="cc.updated">Última actualización: 14 de octubre de 2026</p>
 
     <figure class="shot">
       <img src="/images/home/crop-claude.webp" width="836" height="572" loading="lazy" decoding="async" alt="El mosaico Claude Code: una solicitud para ejecutar git push con Denegar y Permitir, marcada como una que publica tu trabajo; una sesión que la espera y otra que ejecuta sus pruebas, con 2 de los 5 pasos de su plan hechos; la cuota de 5 horas y de 7 días, cada una con adónde llega al ritmo actual" data-i18n-alt="cc.shot.alt">
@@ -171,7 +171,8 @@
 
     <h2 id="deck" data-i18n="cc.h.deck">El botón Pedir y las teclas del Deck</h2>
     <p data-i18n-html="cc.deck.p1">Con Claude Code conectado, el botón <strong>Pedir</strong> del mosaico inicia Claude Code desde la pantalla. Elige uno de tus proyectos, escribe lo que quieres que haga, elige un modelo si te interesa, y Claude Code arranca en esa carpeta. El progreso y la respuesta vuelven al mosaico, con un botón Detener mientras se ejecuta.</p>
-    <p data-i18n="cc.deck.p2">Toca una sesión para escribirle un mensaje más. Si todavía está trabajando, el mensaje espera y entra en la misma conversación cuando termina el turno actual.</p>
+    <p data-i18n="cc.deck.p2">Toca una sesión para escribirle un mensaje más. Si todavía está trabajando, el mensaje espera y entra en la misma conversación cuando termina el turno actual. Si te está esperando en una terminal que tiene el mod de Xenon, el mensaje aparece en esa terminal como si lo hubieras escrito tú, y Claude responde allí, así que la terminal y el mosaico muestran la misma conversación. Si no, el mosaico continúa la sesión en segundo plano y la respuesta vuelve al mosaico.</p>
+    <p data-i18n="cc.deck.p2b">Antes de que lo envíes, el cuadro de texto indica adónde irá el mensaje. Si Claude Code no acepta el mensaje, o la terminal se cierra antes, el mensaje vuelve al cuadro con el motivo. Los comandos que empiezan por / se escriben en la propia sesión.</p>
     <p data-i18n-html="cc.deck.p3">El Deck tiene dos teclas para esto, en un grupo Claude Code que aparece cuando Claude Code está conectado. <strong>Preguntar a Claude</strong> guarda un proyecto, una petición y, si quieres, un modelo, así que una pulsación inicia ese trabajo. <strong>Detener Claude</strong> detiene la ejecución más reciente iniciada desde el panel que siga en marcha.</p>
     <p data-i18n="cc.deck.p4">Las ejecuciones iniciadas desde el mosaico o desde una tecla usan el modo de permisos normal de Claude Code, sin forma de saltárselo, así que todo lo que tu configuración de Claude Code no permita ya vuelve como una tarjeta para aprobar. No hay ninguna tecla que apruebe una solicitud. La lista de proyectos sale del propio historial de Claude Code, así que el panel solo puede iniciar trabajo en carpetas que ya usas.</p>
 
@@ -183,31 +184,33 @@
     </ol>
     <p data-i18n-html="cc.link.writes">Conectarlo modifica un solo archivo: el <code>settings.json</code> de tu Claude Code, en <code>~/.claude</code> o en la carpeta a la que apunte <code>CLAUDE_CONFIG_DIR</code>. Añade una línea de estado y un conjunto de hooks. Cada hook apunta a Xenon en <code>127.0.0.1</code>, tu propio PC, y lleva una clave que ha creado Xenon.</p>
     <p data-i18n-html="cc.link.backup">Antes del primer cambio, Xenon guarda una copia del archivo a su lado, como <code>settings.json.xenon-backup</code>.</p>
-    <p data-i18n="cc.link.mod">Conectar también añade tres entradas que piden a Claude Code que instale el mod de Xenon, descrito más abajo. Desconectar también las quita.</p>
+    <p data-i18n="cc.link.mod">Al conectarlo también se añaden tres entradas que piden a Claude Code que instale el mod de Xenon, descrito más abajo. Al desconectarlo, también se quitan.</p>
     <p data-i18n="cc.link.chain">Claude Code permite una sola línea de estado. Si ya tenías una, Xenon la conserva: su propio script ejecuta la tuya y muestra lo que muestra la tuya. Si la tuya no muestra nada en tres segundos, aparece en su lugar la línea corta de Xenon.</p>
     <p data-i18n-html="cc.link.remove">Al desinstalar Xenon se quitan todas las entradas que añadió, se vuelve a poner tu línea de estado y se borra la copia. Tus propios hooks no se tocan. Para hacer lo mismo sin desinstalar, ejecuta <code>node server/claude-link.js unlink</code> en la carpeta donde está instalado Xenon.</p>
 
     <h2 id="mod" data-i18n="cc.h.mod">El mod de Xenon para Claude Code</h2>
 
-    <p data-i18n="cc.mod.p1">Claude Code puede cargar complementos llamados mods. Xenon tiene uno y Conectar lo instala: en su próximo inicio, Claude Code lo descarga de la página de GitHub del proyecto y lo activa. Hace falta una versión de Claude Code que admita mods. Si la tuya no los admite, todo lo anterior funciona igual sin él.</p>
+    <p data-i18n="cc.mod.p1">Claude Code puede cargar complementos llamados mods. Xenon tiene uno, y se instala al pulsar Conectar: la próxima vez que arranque, Claude Code lo descarga de la página de GitHub de este proyecto y lo activa. Hace falta una versión de Claude Code que admita mods. Si la tuya no los admite, todo lo anterior sigue funcionando sin él.</p>
 
     <ul>
 
-      <li data-i18n="cc.mod.l1">El panel muestra con qué modelo trabaja cada subagente.</li>
+      <li data-i18n="cc.mod.inbox">Desde la versión 0.3.0, un mensaje que escribes en el mosaico para una sesión que espera en su terminal llega a esa terminal, como si lo escribieras allí. Si prefieres que el mosaico continúe la sesión en segundo plano, desactiva «Messages from the Xenon tile» en las opciones del mod.</li>
 
-      <li data-i18n="cc.mod.l2">El indicador de contexto y los límites de 5 horas y semanal se actualizan en cuanto cambian.</li>
+      <li data-i18n="cc.mod.l1">El mosaico muestra en qué modelo se ejecuta cada subagente.</li>
 
-      <li data-i18n-html="cc.mod.l3"><code>/xenon</code> en Claude Code indica si Xenon oye esa sesión. No gasta tokens.</li>
+      <li data-i18n="cc.mod.l2">El indicador del contexto, el límite de 5 horas y el semanal se actualizan en cuanto cambian.</li>
 
-      <li data-i18n="cc.mod.l4">Bajo el prompt aparece una línea solo cuando algo requiere tu atención: Xenon está cerrado o sin vincular, o hay una aprobación esperando en el panel. Si todo va bien, no hay línea.</li>
+      <li data-i18n-html="cc.mod.l3"><code>/xenon</code> en Claude Code te dice si a Xenon le llegan los datos de esa sesión. No gasta tokens.</li>
+
+      <li data-i18n="cc.mod.l4">Debajo del prompt aparece una línea solo cuando algo te necesita: Xenon está cerrado o no está conectado, o hay una aprobación esperando en el panel. Mientras todo va bien, no hay ninguna línea.</li>
 
     </ul>
 
-    <p data-i18n-html="cc.mod.p2">El mod envía números, nombres de modelos e ids de agentes a <code>127.0.0.1</code>, con la misma clave que los hooks. Nunca envía lo que escribes ni el contenido de tus archivos. Con Xenon cerrado espera y vuelve a intentarlo más tarde, sin ralentizar Claude Code.</p>
+    <p data-i18n-html="cc.mod.p2">El mod envía números, nombres de modelos e ids de agentes a <code>127.0.0.1</code>, con la misma clave que los hooks. Nunca envía lo que escribes ni el contenido de tus archivos. Para los mensajes del mosaico, pregunta a Xenon si hay alguno esperando para esa sesión, y solo le dice si el mensaje ha entrado. Cuando Xenon está cerrado, espera y lo vuelve a intentar más tarde, sin ralentizar Claude Code.</p>
 
-    <p data-i18n="cc.mod.p3">Aprobar desde el panel es una opción del mod, desactivada por defecto. Si la activas, una solicitud de permiso aparece también como tarjeta en el panel y espera allí 30 segundos, un tiempo que puedes fijar entre 10 y 120. Un toque en Permitir o Denegar decide. Sin toque, Claude Code pregunta en el terminal como siempre. La tarjeta recibe el comando, la ruta del archivo o la dirección, nunca el contenido de un archivo. Un comando de más de 800 caracteres no se envía y pregunta el terminal. Las opciones están en el menú de configuración del plugin en Claude Code.</p>
+    <p data-i18n="cc.mod.p3">Aprobar desde el panel es una opción del mod, desactivada por defecto. Con ella activada, una solicitud de permiso aparece también como una tarjeta en el panel y espera allí 30 segundos, un tiempo que puedes ajustar entre 10 y 120. Basta un toque en Permitir o Denegar para decidir. Si no tocas nada, Claude Code pregunta en la terminal como siempre. La tarjeta recibe el comando, la ruta del archivo o la dirección, nunca el contenido de un archivo. Un comando de más de 800 caracteres no se envía en absoluto, y se pregunta en la terminal. Las opciones están en el menú de configuración del plugin, en Claude Code.</p>
 
-    <p data-i18n-html="cc.mod.p4">Para instalarlo a mano, escribe <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> en Claude Code. Para quitarlo, pulsa Desconectar en el panel o elimina el plugin en Claude Code.</p>
+    <p data-i18n-html="cc.mod.p4">Para instalarlo a mano, escribe <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> en Claude Code. Para actualizarlo, ejecuta <code>claude plugin update xenon@xenon</code> en una terminal y abre una sesión nueva. Para quitarlo, pulsa Desconectar en el mosaico, o quita el plugin en Claude Code.</p>
 
 
     <h2 id="data" data-i18n="cc.h.data">Qué se envía y adónde</h2>
