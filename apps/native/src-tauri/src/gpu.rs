@@ -237,15 +237,20 @@ pub fn virtual_display_names() -> Vec<String> {
         .collect()
 }
 
-/// The display the kiosk will present on: the Edge when it is connected (matched by
-/// its panel size in either orientation), else the primary, else whatever is first —
-/// i.e. wherever `monitor::place_now` lands the window.
+/// The display the kiosk presents on. `presenting` is the GDI name of the screen
+/// `monitor.rs` placed (or is about to place) the window on, and wins whenever it
+/// names a real display: the user can pick ANY screen, and guessing here while
+/// `monitor.rs` decides there pinned the webview to the primary's adapter while the
+/// window sat on a monitor wired to the other one — the cross-adapter copy, on
+/// every hybrid where someone chose a second screen on the motherboard output.
 ///
-/// Virtual displays are excluded by the caller, not here, so this reads exactly like
-/// `monitor::find_edge`: same panel size, same preference order, same skip.
-fn target<'a>(real: &'a [&'a Display]) -> Option<&'a Display> {
-    real.iter()
-        .find(|d| is_edge_size(d.width, d.height))
+/// Without a usable name, the old guess: the Edge (by panel size, either
+/// orientation), else the primary, else whatever is first. Virtual displays are
+/// excluded by the caller, so a phantom name falls through to that guess too.
+fn target<'a>(real: &'a [&'a Display], presenting: Option<&str>) -> Option<&'a Display> {
+    presenting
+        .and_then(|name| real.iter().find(|d| d.name.eq_ignore_ascii_case(name)))
+        .or_else(|| real.iter().find(|d| is_edge_size(d.width, d.height)))
         .or_else(|| real.iter().find(|d| d.primary))
         .or_else(|| real.first())
         .copied()
@@ -258,9 +263,9 @@ fn target<'a>(real: &'a [&'a Display]) -> Option<&'a Display> {
 /// stops being a hybrid — the iGPU-driven screen unplugged — still has a webview
 /// pinned to the integrated adapter, and that is a mismatch even though `decide`
 /// would now answer `None`.
-fn flag_for_target(displays: &[Display]) -> Option<&'static str> {
+fn flag_for_target(displays: &[Display], presenting: Option<&str>) -> Option<&'static str> {
     let real: Vec<&Display> = displays.iter().filter(|d| !d.virtual_display).collect();
-    let t = target(&real)?;
+    let t = target(&real, presenting)?;
     if is_discrete(&t.gpu) {
         Some(FLAG_DISCRETE)
     } else if is_integrated(&t.gpu) {
@@ -279,13 +284,13 @@ fn flag_for_target(displays: &[Display]) -> Option<&'static str> {
 /// judged: a phantom adapter is neither integrated nor discrete, and one advertising
 /// the Edge's 2560×720 would otherwise be chosen as the target and pin the webview to
 /// a GPU that presents nothing.
-fn decide(displays: &[Display]) -> Option<&'static str> {
+fn decide(displays: &[Display], presenting: Option<&str>) -> Option<&'static str> {
     if !hybrid(displays) {
         // The render and present GPUs already agree; forcing an adapter here could
         // only pick the wrong one, so leave Chromium's default.
         return None;
     }
-    flag_for_target(displays)
+    flag_for_target(displays, presenting)
 }
 
 /// A genuine integrated + discrete pair among the real (non-virtual) displays —
@@ -315,14 +320,17 @@ static APPLIED: OnceLock<Option<&'static str>> = OnceLock::new();
 static PINNING: AtomicBool = AtomicBool::new(true);
 
 /// Decide the launch flag once, record it, and hand it back. Called from `lib.rs`
-/// before the first webview is built; every later builder reads `applied()`.
+/// before the first webview is built, with the screen `monitor::initial_screen_name`
+/// says the window will open on; every later builder reads `applied()`.
 ///
 /// Idempotent: a second call returns the first decision rather than re-deciding, so
 /// a display change between two window creations cannot hand two webviews different
 /// environment options (which WebView2 answers by silently refusing the second).
-pub fn arm(pin_enabled: bool) -> Option<&'static str> {
+pub fn arm(pin_enabled: bool, presenting: Option<&str>) -> Option<&'static str> {
     PINNING.store(pin_enabled, Ordering::SeqCst);
-    *APPLIED.get_or_init(|| if pin_enabled { decide(&enumerate_displays()) } else { None })
+    *APPLIED.get_or_init(|| {
+        if pin_enabled { decide(&enumerate_displays(), presenting) } else { None }
+    })
 }
 
 /// The flag every webview in this process must be built with. `None` before `arm`,
@@ -333,19 +341,19 @@ pub fn applied() -> Option<&'static str> {
 
 /// True when the adapter we pinned at launch is no longer the one presenting the
 /// kiosk — a display was plugged in, unplugged, or moved, and the cross-adapter frame
-/// copy is back. Only a restart can change the pin, so this is what the tray's
-/// Restart entry reports.
+/// copy is back. `presenting` is the screen the window is on NOW. Only a restart can
+/// change the pin, so this is what Settings → Screen reports.
 ///
 /// Deliberately quiet in three cases: pinning turned off (we made no claim), no flag
 /// applied (Chromium's own default is in charge, and its choice tracks the window),
 /// and an unclassifiable target (guessing would produce a restart prompt that fixes
 /// nothing).
-pub fn mismatch() -> bool {
+pub fn mismatch(presenting: Option<&str>) -> bool {
     if !PINNING.load(Ordering::SeqCst) {
         return false;
     }
     let Some(applied) = applied() else { return false };
-    match flag_for_target(&enumerate_displays()) {
+    match flag_for_target(&enumerate_displays(), presenting) {
         Some(now) => now != applied,
         None => false,
     }
@@ -376,18 +384,18 @@ mod tests {
     // ── not a hybrid → no opinion ───────────────────────────────────────
     #[test]
     fn single_discrete_gpu_is_left_alone() {
-        assert_eq!(decide(&[d(RADEON, 2560, 1440, true)]), None);
+        assert_eq!(decide(&[d(RADEON, 2560, 1440, true)], None), None);
     }
 
     #[test]
     fn single_integrated_gpu_is_left_alone() {
-        assert_eq!(decide(&[d(IGPU, 1920, 1080, true)]), None);
+        assert_eq!(decide(&[d(IGPU, 1920, 1080, true)], None), None);
     }
 
     #[test]
     fn dual_discrete_is_left_alone() {
         assert_eq!(
-            decide(&[d(NVIDIA, 2560, 1440, true), d(RADEON, 1920, 1080, false)]),
+            decide(&[d(NVIDIA, 2560, 1440, true), d(RADEON, 1920, 1080, false)], None),
             None
         );
     }
@@ -400,7 +408,7 @@ mod tests {
         assert!(is_discrete(ARC));
         assert!(!integrated_only(ARC));
         assert_eq!(
-            decide(&[d(ARC, 2560, 1440, true), d(NVIDIA, 1920, 1080, false)]),
+            decide(&[d(ARC, 2560, 1440, true), d(NVIDIA, 1920, 1080, false)], None),
             None
         );
     }
@@ -414,7 +422,7 @@ mod tests {
             decide(&[
                 d(RADEON, 2560, 1440, true),
                 d(IGPU, EDGE_WIDTH, EDGE_HEIGHT, false),
-            ]),
+            ], None),
             Some(FLAG_INTEGRATED)
         );
     }
@@ -425,7 +433,7 @@ mod tests {
             decide(&[
                 d(INTEL_IGPU, 1920, 1080, true),
                 d(NVIDIA, EDGE_WIDTH, EDGE_HEIGHT, false),
-            ]),
+            ], None),
             Some(FLAG_DISCRETE)
         );
     }
@@ -440,7 +448,7 @@ mod tests {
             decide(&[
                 d(RADEON, 2560, 1440, true),
                 d(IGPU, EDGE_HEIGHT, EDGE_WIDTH, false),
-            ]),
+            ], None),
             Some(FLAG_INTEGRATED)
         );
         assert!(is_edge_size(EDGE_HEIGHT, EDGE_WIDTH));
@@ -455,13 +463,66 @@ mod tests {
     #[test]
     fn without_an_edge_the_primary_display_decides() {
         assert_eq!(
-            decide(&[d(NVIDIA, 2560, 1440, true), d(INTEL_IGPU, 1920, 1080, false)]),
+            decide(&[d(NVIDIA, 2560, 1440, true), d(INTEL_IGPU, 1920, 1080, false)], None),
             Some(FLAG_DISCRETE)
         );
         assert_eq!(
-            decide(&[d(INTEL_IGPU, 1920, 1080, true), d(NVIDIA, 2560, 1440, false)]),
+            decide(&[d(INTEL_IGPU, 1920, 1080, true), d(NVIDIA, 2560, 1440, false)], None),
             Some(FLAG_INTEGRATED)
         );
+    }
+
+    // ── the screen the user chose ───────────────────────────────────────
+    fn on(gpu: &str, w: u32, h: u32, primary: bool, name: &str) -> Display {
+        Display { name: name.to_string(), ..d(gpu, w, h, primary) }
+    }
+
+    /// Main monitor on the graphics card, a spare screen on the motherboard output
+    /// chosen for Xenon. Judging by "primary" pinned the webview to the card while
+    /// the window was on the iGPU's screen: every frame copied across adapters.
+    #[test]
+    fn a_chosen_screen_on_the_igpu_pins_to_the_integrated_adapter() {
+        let displays = [
+            on(NVIDIA, 2560, 1440, true, "\\\\.\\DISPLAY1"),
+            on(IGPU, 1920, 1080, false, "\\\\.\\DISPLAY2"),
+        ];
+        assert_eq!(decide(&displays, Some("\\\\.\\DISPLAY2")), Some(FLAG_INTEGRATED));
+        assert_eq!(decide(&displays, None), Some(FLAG_DISCRETE));
+    }
+
+    /// The chosen screen beats an Edge that is attached but not where the window is.
+    #[test]
+    fn a_chosen_screen_beats_an_attached_edge() {
+        let displays = [
+            on(RADEON, 2560, 1440, true, "\\\\.\\DISPLAY1"),
+            on(IGPU, EDGE_WIDTH, EDGE_HEIGHT, false, "\\\\.\\DISPLAY2"),
+        ];
+        assert_eq!(decide(&displays, Some("\\\\.\\DISPLAY1")), Some(FLAG_DISCRETE));
+    }
+
+    /// A name that is not attached, or names a virtual display, falls back to the
+    /// old guess instead of producing no opinion.
+    #[test]
+    fn an_unknown_or_virtual_presenting_name_falls_back() {
+        let displays = [
+            on(RADEON, 2560, 1440, true, "\\\\.\\DISPLAY1"),
+            on(VDD, 1920, 1080, false, "\\\\.\\DISPLAY3"),
+            on(IGPU, EDGE_WIDTH, EDGE_HEIGHT, false, "\\\\.\\DISPLAY2"),
+        ];
+        assert_eq!(decide(&displays, Some("\\\\.\\DISPLAY9")), Some(FLAG_INTEGRATED));
+        assert_eq!(decide(&displays, Some("\\\\.\\DISPLAY3")), Some(FLAG_INTEGRATED));
+    }
+
+    /// The window moved to a screen on the other adapter after launch: the pin
+    /// is now wrong and Settings must say so.
+    #[test]
+    fn moving_the_window_to_the_other_adapter_is_a_mismatch() {
+        let displays = [
+            on(NVIDIA, 2560, 1440, true, "\\\\.\\DISPLAY1"),
+            on(INTEL_IGPU, 1920, 1080, false, "\\\\.\\DISPLAY2"),
+        ];
+        let launched = decide(&displays, Some("\\\\.\\DISPLAY1"));
+        assert_ne!(launched, flag_for_target(&displays, Some("\\\\.\\DISPLAY2")));
     }
 
     // ── virtual displays ────────────────────────────────────────────────
@@ -477,7 +538,7 @@ mod tests {
             d(IGPU, 1920, 1080, false),
         ];
         // The real Edge is absent, so the primary (discrete) decides — not the VDD.
-        assert_eq!(decide(&displays), Some(FLAG_DISCRETE));
+        assert_eq!(decide(&displays, None), Some(FLAG_DISCRETE));
     }
 
     /// A virtual adapter is neither integrated nor discrete, so it must not be able
@@ -485,7 +546,7 @@ mod tests {
     #[test]
     fn a_virtual_display_cannot_create_a_hybrid() {
         assert_eq!(
-            decide(&[d(RADEON, 2560, 1440, true), d(VDD, EDGE_WIDTH, EDGE_HEIGHT, false)]),
+            decide(&[d(RADEON, 2560, 1440, true), d(VDD, EDGE_WIDTH, EDGE_HEIGHT, false)], None),
             None
         );
     }
@@ -498,7 +559,7 @@ mod tests {
                 d(RADEON, 2560, 1440, true),
                 d(VDD, EDGE_WIDTH, EDGE_HEIGHT, false),
                 d(IGPU, EDGE_WIDTH, EDGE_HEIGHT, false),
-            ]),
+            ], None),
             Some(FLAG_INTEGRATED)
         );
     }
@@ -519,10 +580,10 @@ mod tests {
     #[test]
     fn unplugging_the_edge_leaves_the_pin_pointing_at_the_wrong_adapter() {
         let after = [d(RADEON, 2560, 1440, true)];
-        assert_eq!(flag_for_target(&after), Some(FLAG_DISCRETE));
+        assert_eq!(flag_for_target(&after, None), Some(FLAG_DISCRETE));
         // decide() alone would now say None (no longer a hybrid), which is exactly
         // why mismatch asks flag_for_target instead.
-        assert_eq!(decide(&after), None);
+        assert_eq!(decide(&after, None), None);
     }
 
     /// The Edge arrives after launch: launched on the primary (discrete), now
@@ -534,8 +595,8 @@ mod tests {
             d(NVIDIA, 2560, 1440, true),
             d(INTEL_IGPU, EDGE_WIDTH, EDGE_HEIGHT, false),
         ];
-        assert_eq!(decide(&before), Some(FLAG_DISCRETE));
-        assert_eq!(flag_for_target(&after), Some(FLAG_INTEGRATED));
+        assert_eq!(decide(&before, None), Some(FLAG_DISCRETE));
+        assert_eq!(flag_for_target(&after, None), Some(FLAG_INTEGRATED));
     }
 
     /// Moving a second monitor around must not be reported: the target is unchanged,
@@ -551,12 +612,12 @@ mod tests {
             d(IGPU, EDGE_WIDTH, EDGE_HEIGHT, false),
             d(RADEON, 1920, 1080, false),
         ];
-        assert_eq!(decide(&before), flag_for_target(&after));
+        assert_eq!(decide(&before, None), flag_for_target(&after, None));
     }
 
     /// An unclassifiable adapter yields no flag, and therefore no restart prompt.
     #[test]
     fn an_unknown_adapter_produces_no_opinion() {
-        assert_eq!(flag_for_target(&[d("Generic PnP Adapter", 1920, 1080, true)]), None);
+        assert_eq!(flag_for_target(&[d("Generic PnP Adapter", 1920, 1080, true)], None), None);
     }
 }

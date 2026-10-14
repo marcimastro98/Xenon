@@ -1,7 +1,6 @@
 'use strict';
 
 let lockScreenTimer = null;
-let _lockRafLastSecond = -1;
 
 function getLockWidgetPrefs() {
   return normalizeLockWidgets(hubSettings && hubSettings.lockWidgets);
@@ -15,18 +14,22 @@ function toggleWidgetLockScreen() {
   else openWidgetLockScreen();
 }
 
-function _lockRafTick() {
+// One timer aimed just past the next second boundary. A requestAnimationFrame
+// loop polling for the second to change woke the page every vsync (60-240 times
+// a second) to repaint once; the timer lands within a few ms of the same moment.
+const LOCK_TICK_SLACK_MS = 5;
+function _scheduleLockTick() {
+  lockScreenTimer = setTimeout(_lockTick, 1000 - (Date.now() % 1000) + LOCK_TICK_SLACK_MS);
+}
+
+function _lockTick() {
   const overlay = $('lockscreen-overlay');
   if (!overlay || overlay.hidden) {
     lockScreenTimer = null;
     return;
   }
-  const s = new Date().getSeconds();
-  if (s !== _lockRafLastSecond) {
-    _lockRafLastSecond = s;
-    renderLockScreen();
-  }
-  lockScreenTimer = requestAnimationFrame(_lockRafTick);
+  renderLockScreen();
+  _scheduleLockTick();
 }
 
 function openWidgetLockScreen() {
@@ -38,17 +41,16 @@ function openWidgetLockScreen() {
   if ($('tab-switcher') && !$('tab-switcher').hidden) closeTabSwitcher();
   overlay.hidden = false;
   document.body.classList.add('lock-screen-active');
-  _lockRafLastSecond = -1;
   renderLockScreen();
-  if (lockScreenTimer) cancelAnimationFrame(lockScreenTimer);
-  lockScreenTimer = requestAnimationFrame(_lockRafTick);
+  if (lockScreenTimer) clearTimeout(lockScreenTimer);
+  _scheduleLockTick();
 }
 
 function closeWidgetLockScreen() {
   const overlay = $('lockscreen-overlay');
   if (overlay) overlay.hidden = true;
   document.body.classList.remove('lock-screen-active');
-  if (lockScreenTimer) cancelAnimationFrame(lockScreenTimer);
+  if (lockScreenTimer) clearTimeout(lockScreenTimer);
   lockScreenTimer = null;
 }
 

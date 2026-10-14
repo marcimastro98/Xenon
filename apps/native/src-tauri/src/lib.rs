@@ -1608,9 +1608,13 @@ pub fn run() {
             // SAME value (`gpu::applied`) rather than re-deciding. Recomputing per
             // window was a live bug — see the note at the top of gpu.rs. The
             // JS-facing `lowPowerGpu` cap below reads this decision too, instead of
-            // enumerating displays a second time.
+            // enumerating displays a second time. It is aimed at the screen the
+            // window is about to open on, by the same rule that places it.
             #[cfg(windows)]
-            let gpu_flag = gpu::arm(display_prefs.gpu_pin);
+            let gpu_flag = gpu::arm(
+                display_prefs.gpu_pin,
+                monitor::initial_screen_name(app.handle(), &display_prefs).as_deref(),
+            );
             #[cfg(not(windows))]
             let gpu_flag: Option<&'static str> = None;
             // Runtime-only capabilities merged over the shim's literal caps: the

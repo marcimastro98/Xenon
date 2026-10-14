@@ -1688,6 +1688,16 @@ function sdkGrantsFor(pkgId) {
   };
 }
 
+// Whether ANY installed package has been granted a data stream. The demand gate
+// for server work that exists only to feed widgets: fails closed with
+// sdkGrantsFor, so safe mode and a suspended package cost nothing.
+function sdkStreamGranted(stream) {
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
+  if (!grants) return false;
+  return Object.keys(grants).some((pkgId) => sdkGrantsFor(pkgId).streams.includes(stream));
+}
+
 // ── SDK persistent store + secret vault (per-package, host-mediated) ─────────
 // The sandbox denies widgets localStorage/cookies (opaque origin), so these two
 // on-disk stores are their ONLY persistence — and they live OUTSIDE the package
@@ -11647,13 +11657,7 @@ let _processesProblemSaid = '';
 const _processesHistory = require('./stream-history').createStreamHistory({ maxAgeMs: 5 * 60 * 1000, maxItems: 160 });
 
 function processesWanted() {
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
-  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
-  if (!grants) return false;
-  for (const pkgId of Object.keys(grants)) {
-    if (sdkGrantsFor(pkgId).streams.includes('processes')) return true;
-  }
-  return false;
+  return sdkStreamGranted('processes');
 }
 
 // The collector is ours, but this is still parsed input crossing a boundary:
@@ -22018,7 +22022,11 @@ const handleRequest = async (req, res) => {
     // so without this it sits on "Looking for devices…" for up to a minute and a
     // half after every reload. getDevices() is TTL-cached and dedups concurrent
     // callers, so several surfaces connecting at once still cost one read.
-    batteryMonitor.getDevices().then((payload) => { try { res.write(`event: battery\ndata: ${JSON.stringify(payload)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    // Gated like the tick: nothing that shows a battery, nothing to seed.
+    batteryWanted()
+      .then((wanted) => (wanted ? batteryMonitor.getDevices() : null))
+      .then((payload) => { if (payload) { try { res.write(`event: battery\ndata: ${JSON.stringify(payload)}\n\n`); } catch (e) { /* ignore */ } } })
+      .catch(() => {});
     // Seed the current stock quotes (paint immediately), then kick a refresh if
     // the cache is empty/stale so a freshly opened dashboard fills in fast.
     try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
@@ -22977,10 +22985,24 @@ async function _systemTick() {
 // Peripheral battery moves on a minutes scale and its sources are relatively
 // expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own
 // slow tick with a change-dedup instead of riding the 7s system broadcast.
+// Each read is a PowerShell spawn sweeping every PnP device (~2 s of CPU) plus iCUE
+// round-trips, so it runs only while something can show the result: the Battery
+// widget on the dashboard, a Deck key bound to `battery:<device>`, or a widget
+// granted the `battery` stream. GET /api/battery and the AI tool still read on
+// demand. Like _feedWidgetInUse, any unexpected shape fails OPEN.
+async function batteryWanted() {
+  if (_feedWidgetInUse('battery') || sdkStreamGranted('battery')) return true;
+  try {
+    const store = await readDeckStore();
+    return JSON.stringify(store.configs).includes('"battery:');
+  } catch { return true; }
+}
+
 let _lastBatteryJson = '';
 setInterval(async () => {
   if (sseClients.size === 0) return;
   try {
+    if (!(await batteryWanted())) return;
     const payload = await batteryMonitor.getDevices();
     const j = JSON.stringify(payload);
     if (j === _lastBatteryJson) return;
@@ -23015,13 +23037,7 @@ const AUDIO_WATCH_WINDOW_MS = 120000;
 let _audioWatchedAt = 0;
 function _noteAudioWatched() { _audioWatchedAt = Date.now(); }
 function audioPollWanted() {
-  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
-  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
-  if (grants) {
-    for (const pkgId of Object.keys(grants)) {
-      if (sdkGrantsFor(pkgId).streams.includes('audio')) return true;
-    }
-  }
+  if (sdkStreamGranted('audio')) return true;
   return Date.now() - _audioWatchedAt < AUDIO_WATCH_WINDOW_MS;
 }
 let _lastAudioJson = '';

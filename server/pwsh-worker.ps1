@@ -32,7 +32,10 @@ $root  = $PSScriptRoot
 # alive. Spawned per call it would have to sleep for its deltas and would cost
 # more than the data is worth. It is also why it is cheap -- ~55ms per call once
 # the perf-counter categories are warm.
-$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true; 'processes.ps1' = $true }
+# disk-io.ps1 (the SDK diskIo stream) is stateless raw counters; server.js always
+# sent it here, and before it was listed every read was refused and fell back to
+# spawning a whole PowerShell per poll.
+$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true; 'processes.ps1' = $true; 'disk-io.ps1' = $true }
 
 function Write-Frame($obj) {
   $json = ConvertTo-Json $obj -Compress -Depth 8

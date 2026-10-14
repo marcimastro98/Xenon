@@ -234,6 +234,29 @@ function Get-CpuLhmComputer {
 # CorsairPsu against them. Read-only, and verified to coexist with iCUE polling
 # the same PSU. Reflection over an internal ctor is fragile by nature, so every
 # step fails soft: a broken build simply means no PSU card, never an error.
+# CorsairPsu.Update() asks the PSU for every register it knows (temperatures,
+# input and per-rail volts/amps/watts, uptimes): about 75 ms of HID exchanges on
+# an HX1200i, every read, for the two values below. So its read list is cut down
+# to those two registers (measured ~10x faster), which also leaves iCUE, polling
+# the same controller, fewer exchanges to collide with. Left whole if anything
+# about the private list is not what is expected: slower, never wrong.
+$script:PsuRegistersRead = @('TOTAL_WATTS', 'FAN_RPM')
+
+function Limit-CorsairPsuRegisters {
+  param($Psu, $PsuType)
+
+  try {
+    $flags = [Reflection.BindingFlags]'NonPublic,Instance'
+    $list = $PsuType.GetField('_sensors', $flags).GetValue($Psu)
+    $cmdField = $PsuType.GetNestedType('PsuSensor', [Reflection.BindingFlags]'NonPublic,Public').GetField('_cmd', $flags)
+    $commands = @(foreach ($s in $list) { [string]$cmdField.GetValue($s) })
+    foreach ($wanted in $script:PsuRegistersRead) { if ($commands -notcontains $wanted) { return } }
+    for ($i = $list.Count - 1; $i -ge 0; $i--) {
+      if ($script:PsuRegistersRead -notcontains $commands[$i]) { $list.RemoveAt($i) }
+    }
+  } catch { }
+}
+
 function Get-CorsairPsuDirect {
   if ($global:XenonCorsairPsu) { return $global:XenonCorsairPsu }
   if ($global:XenonCorsairPsuFailedAt -and ((Get-Date) - $global:XenonCorsairPsuFailedAt).TotalSeconds -lt 300) { return $null }
@@ -278,6 +301,7 @@ function Get-CorsairPsuDirect {
     $argv[1] = $settingsCtor.Invoke(@())
     $argv[2] = [int]0
     $psu = $ctor.Invoke($argv)
+    Limit-CorsairPsuRegisters $psu $psuType
     $global:XenonCorsairPsu = $psu
     $global:XenonCorsairPsuFailedAt = $null
     return $psu

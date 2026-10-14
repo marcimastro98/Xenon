@@ -121,6 +121,11 @@ function Get-GpuName([string]$luid) {
   return ''
 }
 
+# One row per pid, as a plain array: [0] name, [1] cpu ms or $null, [2] working set.
+# A row is built ~400 times a call, and `New-Object psobject -Property` there cost
+# 51 ms against 14 ms for the array (measured, Windows PowerShell 5.1): by far the
+# largest share of this script. The same goes for the per-name and per-app rows
+# below, which use [pscustomobject] literals for the same reason.
 function Get-ProcSnapshot {
   $snap = @{}
   foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
@@ -129,7 +134,7 @@ function Get-ProcSnapshot {
     try { $cpu = $p.TotalProcessorTime.TotalMilliseconds } catch { }
     # A protected or exiting process has no readable CPU time. Keep the row for
     # its RAM rather than dropping the app from the list entirely.
-    $snap[$p.Id] = New-Object psobject -Property @{ Name = $p.ProcessName; Cpu = $cpu; Mem = $p.WorkingSet64 }
+    $snap[$p.Id] = @($p.ProcessName, $cpu, $p.WorkingSet64)
   }
   return $snap
 }
@@ -199,7 +204,7 @@ try {
   for ($gi = 0; $gi -lt $ordered.Count; $gi++) {
     $luid = $ordered[$gi]
     $luidIndex[$luid] = $gi
-    $gpus += New-Object psobject -Property @{
+    $gpus += [pscustomobject]@{
       i = $gi
       id = $luid
       name = (Get-GpuName $luid)
@@ -211,14 +216,14 @@ try {
   $rows = @{}
   foreach ($procId in $curr.Keys) {
     $c = $curr[$procId]
-    $name = $c.Name
+    $name = $c[0]
     if (-not $rows.ContainsKey($name)) {
-      $rows[$name] = New-Object psobject -Property @{ n = $name; cpuMs = [double]0; mem = [long]0; gpu = [double]0; gs = @{} }
+      $rows[$name] = [pscustomobject]@{ n = $name; cpuMs = [double]0; mem = [long]0; gpu = [double]0; gs = @{} }
     }
     $r = $rows[$name]
-    $r.mem += $c.Mem
-    if ($null -ne $c.Cpu -and $prev.ContainsKey($procId) -and $null -ne $prev[$procId].Cpu) {
-      $d = $c.Cpu - $prev[$procId].Cpu
+    $r.mem += $c[2]
+    if ($null -ne $c[1] -and $prev.ContainsKey($procId) -and $null -ne $prev[$procId][1]) {
+      $d = $c[1] - $prev[$procId][1]
       if ($d -gt 0) { $r.cpuMs += $d }
     }
     if ($null -ne $gpuByPid) {
@@ -251,7 +256,7 @@ try {
   $apps = @()
   foreach ($r in $rows.Values) {
     $cpuPct = ($r.cpuMs / $windowMs) * 100.0 / [math]::Max(1, $cores)
-    $apps += New-Object psobject -Property @{
+    $apps += [pscustomobject]@{
       n = $r.n.ToLower()
       # 100.0 / 0.0, NOT 100 / 0. An INTEGER literal makes PowerShell bind the
       # [math]::Min(int,int) overload and convert the double argument on the way

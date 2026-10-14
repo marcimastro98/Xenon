@@ -32,7 +32,10 @@ test('the saved id has to agree with the saved shape, and the shape wins', () =>
 
 test('the first frame and every later placement use the same rule', () => {
   assert.match(fnBody(MON, 'chosen_monitor'), /pick_in\(/);
-  assert.match(fnBody(MON, 'initial_window'), /pick_in\(/);
+  assert.match(fnBody(MON, 'initial_target'), /pick_in\(/);
+  assert.match(fnBody(MON, 'initial_window'), /initial_target\(app, prefs\)/);
+  assert.match(fnBody(MON, 'initial_screen_name'), /initial_target\(app, prefs\)/,
+    'the GPU pin asks about the same screen the first frame opens on');
   assert.doesNotMatch(MON, /fn monitor_by_fingerprint\(/, 'the id-first lookup is gone');
 });
 

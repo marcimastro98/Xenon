@@ -147,6 +147,13 @@
   to { transform: rotate(360deg); }
 }
 
+/* The orbit is decoration on a tile that is always on screen: hold it still
+   while a game is in front, under Performance mode, and on the weaker GPU the
+   kiosk pins to on hybrid machines (same gates as the aurora grid). */
+body.game-mode .ring2,
+body.perf-mode .ring2,
+body.low-power-gpu .ring2 { animation-play-state: paused; }
+
 .mic-btn {
   position: relative;
   z-index: 1;

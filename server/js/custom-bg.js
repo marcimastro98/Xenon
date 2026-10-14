@@ -182,14 +182,19 @@
     // the refresh rate. `el` stays on the real clock — skipping frames never
     // slows the animation down. The 1ms tolerance keeps a 60fps cap from
     // dropping every other vsync to timestamp jitter.
-    'var raf=0,start=null,step=1000/__fps,last=-1e9;',
-    'function frame(t){if(start===null)start=t;',
+    // After a paint the loop sleeps on a timer for most of the gap and only then
+    // asks for rAF: at 30 fps on a 240 Hz panel that is ~2 wake-ups per paint
+    // instead of 8. The timer ends RAF_LEAD ms early so a late timer never costs
+    // a paint; the early-skip check above still owns the exact cadence.
+    'var raf=0,tmo=0,start=null,step=1000/__fps,last=-1e9,RAF_LEAD=10;',
+    'function next(){var wait=step-RAF_LEAD;if(wait>4){tmo=setTimeout(function(){tmo=0;raf=requestAnimationFrame(frame);},wait);}else raf=requestAnimationFrame(frame);}',
+    'function frame(t){raf=0;if(start===null)start=t;',
     'if(t-last<step-1){raf=requestAnimationFrame(frame);return;}',
     'last=t;var el=(t-start)/1000;',
-    'try{if(draw)draw(ctx,el,innerWidth,innerHeight,assets);}catch(e){report({k:"runtime",m:String(e&&e.message||e)});raf=0;return;}',
-    'raf=requestAnimationFrame(frame);}',
-    'function play(){if(!raf&&draw)raf=requestAnimationFrame(frame);}',
-    'function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
+    'try{if(draw)draw(ctx,el,innerWidth,innerHeight,assets);}catch(e){report({k:"runtime",m:String(e&&e.message||e)});return;}',
+    'next();}',
+    'function play(){if(!raf&&!tmo&&draw)raf=requestAnimationFrame(frame);}',
+    'function stop(){if(tmo){clearTimeout(tmo);tmo=0;}if(raf){cancelAnimationFrame(raf);raf=0;}}',
     // Pause when the tab is hidden OR the host signals it (perf/game mode).
     // `warmedUp` gates sync() for the first few seconds after boot regardless
     // of why sync() is called: a host pause reason can be true from the very
@@ -273,9 +278,14 @@
     // 150+ FPS in a browser on the same PC's discrete GPU. Unlike the other
     // three flags this one is permanent for the session, not contextual — the
     // backdrop is a still image on this hardware instead of a temporary freeze.
+    // `overlay-frozen` (ambient-freeze.js): a frosted overlay is up, and the
+    // aurora/grid and background video already hold still behind its blur;
+    // this backdrop joins them, for the same flicker reason and to stop paying
+    // full-viewport repaints nobody can make out.
     function hostPaused() {
       const c = document.body.classList;
-      return c.contains('perf-mode') || c.contains('game-mode') || c.contains('ambient-idle') || c.contains('low-power-gpu');
+      return c.contains('perf-mode') || c.contains('game-mode') || c.contains('ambient-idle')
+        || c.contains('low-power-gpu') || c.contains('overlay-frozen');
     }
     function syncPause(force) {
       if (!frameEl || !frameEl.contentWindow) return;

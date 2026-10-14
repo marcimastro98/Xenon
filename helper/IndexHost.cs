@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace XenonHelper;
@@ -384,6 +385,7 @@ internal static class IndexHost
         // stats says building=true and the server tells the user).
         new Thread(() =>
         {
+            UseEfficiencyMode();
             // Watch before walking. A file created or removed during a
             // multi-million-entry initial build must not fall into the gap
             // between the snapshot and watcher startup. Duplicate create
@@ -458,6 +460,38 @@ internal static class IndexHost
         Cancelled = true;
         foreach (var w in Watchers) { try { w.Dispose(); } catch { } }
         return 0;
+    }
+
+    // ── efficiency mode for the bulk threads ──────────────────────────────────
+    // The walk, the repairs and the drain are background bookkeeping nobody is
+    // waiting on, so they run under EcoQoS: Windows keeps them on efficiency
+    // cores and low clocks instead of boosting a performance core for them
+    // while a game or the user's own work wants it. Per THREAD, not per
+    // process: the request loop on the main thread answers searches and must
+    // stay at full speed. EcoQoS lowers speed, never priority, so a throttled
+    // thread holding the index lock still gets scheduled and cannot starve a
+    // query. Unsupported (before Windows 10 1709) = plain threads, as before.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ThreadPowerThrottlingState { public uint Version; public uint ControlMask; public uint StateMask; }
+    private const int ThreadPowerThrottlingClass = 3;      // THREAD_INFORMATION_CLASS.ThreadPowerThrottling
+    private const uint PowerThrottlingExecutionSpeed = 1;  // THREAD_POWER_THROTTLING_EXECUTION_SPEED
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentThread();
+    [DllImport("kernel32.dll")]
+    private static extern bool SetThreadInformation(IntPtr thread, int infoClass, ref ThreadPowerThrottlingState info, int size);
+
+    private static void UseEfficiencyMode()
+    {
+        try
+        {
+            var state = new ThreadPowerThrottlingState
+            {
+                Version = 1,
+                ControlMask = PowerThrottlingExecutionSpeed,
+                StateMask = PowerThrottlingExecutionSpeed,
+            };
+            SetThreadInformation(GetCurrentThread(), ThreadPowerThrottlingClass, ref state, Marshal.SizeOf<ThreadPowerThrottlingState>());
+        }
+        catch { /* entry point missing on an old Windows: run unthrottled */ }
     }
 
     // ── heap trim ─────────────────────────────────────────────────────────────
@@ -1940,6 +1974,7 @@ internal static class IndexHost
     // whatever happened to it in between, and one index lock per pass.
     private static void DrainLoop()
     {
+        UseEfficiencyMode();
         var touched = new List<KeyValuePair<string, bool>>(4096);
         var adds = new List<(string dir, string name, long size, long mtime)>(4096);
         var fileDeletes = new List<(string dir, string name)>();

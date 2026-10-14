@@ -63,11 +63,12 @@ fn game_mode() -> bool {
 /// driving the screen the kiosk is on. Only Windows pins anything (see gpu.rs), so
 /// elsewhere the answer is always "no disagreement".
 #[cfg(windows)]
-fn gpu_mismatch() -> bool {
-    crate::gpu::mismatch()
+fn gpu_mismatch(window: &WebviewWindow) -> bool {
+    let presenting = current_of(window).and_then(|m| m.name().cloned());
+    crate::gpu::mismatch(presenting.as_deref())
 }
 #[cfg(not(windows))]
-fn gpu_mismatch() -> bool {
+fn gpu_mismatch(_window: &WebviewWindow) -> bool {
     false
 }
 
@@ -744,6 +745,38 @@ fn windowed_size_for(monitor: &Monitor) -> LogicalSize<f64> {
 /// second-screen display, which advertises 2560×720 — so a user who had chosen a
 /// real monitor got the full-screen flash this is meant to remove.
 pub fn initial_window(app: &AppHandle, prefs: &prefs::DisplayPrefs) -> (f64, f64, bool) {
+    let (target, fullscreen) = initial_target(app, prefs);
+    match target {
+        Some(m) => {
+            if fullscreen {
+                let scale = m.scale_factor();
+                let size = m.size();
+                (
+                    size.width as f64 / scale,
+                    size.height as f64 / scale,
+                    true,
+                )
+            } else {
+                let size = windowed_size_for(&m);
+                (size.width, size.height, false)
+            }
+        }
+        // No monitor answered — the Edge's own size is as good a guess as any,
+        // and `place_now` corrects it as soon as a screen can be read.
+        None => (EDGE_WIDTH as f64, EDGE_HEIGHT as f64, false),
+    }
+}
+
+/// The OS name of the screen the window is about to open on, for `gpu::arm`:
+/// the render GPU has to be the one driving THAT screen, and it is chosen before
+/// any window exists.
+pub fn initial_screen_name(app: &AppHandle, prefs: &prefs::DisplayPrefs) -> Option<String> {
+    initial_target(app, prefs).0.and_then(|m| m.name().cloned())
+}
+
+/// `(target screen, kiosk-or-fullscreen)` before the window exists, mirroring
+/// `resolve` (see `initial_window` for why it must).
+fn initial_target(app: &AppHandle, prefs: &prefs::DisplayPrefs) -> (Option<Monitor>, bool) {
     let monitors = app_monitors(app);
     let primary = app_primary(app);
     // (target screen, kiosk-or-fullscreen), mirroring `resolve`.
@@ -787,26 +820,7 @@ pub fn initial_window(app: &AppHandle, prefs: &prefs::DisplayPrefs) -> (f64, f64
             }
         },
     };
-    let target = target.or_else(|| monitors.into_iter().next());
-    match target {
-        Some(m) => {
-            if fullscreen {
-                let scale = m.scale_factor();
-                let size = m.size();
-                (
-                    size.width as f64 / scale,
-                    size.height as f64 / scale,
-                    true,
-                )
-            } else {
-                let size = windowed_size_for(&m);
-                (size.width, size.height, false)
-            }
-        }
-        // No monitor answered — the Edge's own size is as good a guess as any,
-        // and `place_now` corrects it as soon as a screen can be read.
-        None => (EDGE_WIDTH as f64, EDGE_HEIGHT as f64, false),
-    }
+    (target.or_else(|| monitors.into_iter().next()), fullscreen)
 }
 
 /// Ordinary, controllable desktop window on the given monitor: a title bar, a
@@ -1660,7 +1674,7 @@ pub fn display_state(window: &WebviewWindow) -> serde_json::Value {
             // as long as the app stays up and can only be fixed by restarting it
             // (see gpu.rs). Reported here because Settings → Screen is both where
             // this becomes true and where the user is standing when it does.
-            "gpuMismatch": gpu_mismatch(),
+            "gpuMismatch": gpu_mismatch(window),
         }
     })
 }

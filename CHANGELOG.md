@@ -14,7 +14,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - **Reading for Japanese, Korean and Chinese**: the line in Latin letters, in the same request as the translation.
   - **Stage mode** (a switch in the options): when music starts, the tile fills the screen, and it gives the dashboard back 8 seconds after the music stops, with ✕ or with Esc. There is also a button to do it by hand.
 
+### ✨ Improvements
+- **Xenon uses less CPU while it sits on screen.** Asked on Reddit. What changed, with nothing to set up:
+  - **GPU usage on AMD and Intel graphics.** On PCs without an NVIDIA card, Xenon read GPU usage in a way that took 5 to 13 seconds per reading on our test PC, longer than the 5 seconds between readings, so the sensor reader never rested. It now reads the same figure in a fraction of a second. The disk activity reading also stopped starting a new PowerShell every time.
+  - **NVIDIA fans and Corsair PSUs.** With LibreHardwareMonitor installed, each reading of the graphics card's fan speeds refreshed every sensor of the card, and each reading of a Corsair i-series PSU asked it for every value it reports (voltages, currents, temperatures, uptime). Xenon now asks only for the fan speeds and for the watts and fan it shows. On our test PC the two readings now take less than half as long, with the same numbers.
+  - **Widgets that list running apps** (the `processes` stream). Building the list every 2 seconds now takes about 45 ms of CPU instead of about 110 ms on our test PC, with the same list.
+  - **Battery.** The battery is checked only when a battery tile, a widget or a Deck key shows it.
+  - **The lock screen and the Ambient canvas scenes** update their clock once a second instead of checking it on every frame of the display (up to 240 times a second).
+  - **Animations that start while the dashboard is idle** now pause like the others, instead of running until the next touch.
+  - **Animated backgrounds made with code** wake the page only when they draw a frame, and hold still behind Settings and other frosted panels, like the built-in background already did.
+  - **Video wallpapers** pause while a game is in front and in Performance mode, and start again by themselves. A paused video keeps its picture.
+  - **The Media tile's waveform** draws at most 60 frames a second and stops in Game mode, Performance mode and behind frosted panels. The microphone tile's rotating ring stops in Game mode and Performance mode.
+  - **File search (Xenon Helper)** builds and updates its index in Windows' efficiency mode, so it no longer competes with a game or your own work for a fast CPU core. Searches still run at full speed.
+
 ### 🐛 Fixed
+- **On a PC with two graphics chips, Xenon now renders on the one that drives the screen you chose.** It used to pick the Xeneon Edge, or else the main screen, even when you had chosen another screen in Settings → Display. If that screen was on the other chip, every frame was copied between the two, which costs CPU and GPU all the time. Applies to the Xenon app on Windows.
+- **A video wallpaper no longer starts again behind Settings when you tap inside it.** It is meant to hold still while Settings is open, but any tap restarted it.
 - **Claude's questions on the tile are easier to read.** When the choices of a question have a description, they now stack one under the other, like in the terminal, instead of sitting side by side with the text cut off. The **Other** row says that you can type your own answer.
 - **The Xenon chat now really sends your pictures to Claude Code and Codex.** With either of those as the AI, an image you attached or pasted never reached the model: it answered that it could not see anything. The picture of the message you send is now passed to the program (up to 4 PNG, JPEG, GIF or WebP images, 10 MB each), so "explain this card" or "what is in this screenshot" works. Pictures from earlier messages are still only mentioned, not re-sent. Tested with Claude Code; the Codex path could not be run here.
 - **Events with a start and an end time now stay in Upcoming until they end.** A 5 p.m. to 11 p.m. event used to drop off the Upcoming list (and the lock screen) soon after 5 p.m., because only its start time was checked. It now stays until its end time, like an all-day event stays all day. Events with no end time behave as before. Reported on Discord by Piotr.

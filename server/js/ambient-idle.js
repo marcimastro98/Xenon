@@ -70,8 +70,10 @@
   // Pause every infinite decorative loop still running. Called right AFTER the
   // ambient-idle class is set, and a sync reflow is forced first, so the aurora/
   // grid/ticker the CSS just paused already read as 'paused' and are skipped —
-  // they stay CSS-owned; we only ever touch (and later resume) the rest. New
-  // loops that start mid-idle simply run until the next idle cycle.
+  // they stay CSS-owned; we only ever touch (and later resume) the rest. Loops
+  // that start mid-idle (a tile re-rendering, a status dot appearing) are caught
+  // by the animationstart listener below: on the Edge nobody touches the screen,
+  // so "until the next idle cycle" used to mean forever, at full display rate.
   function freezeLoops() {
     if (typeof document.getAnimations !== 'function') return;
     void document.body.offsetHeight; // flush style so CSS-paused layers read paused
@@ -137,6 +139,19 @@
 
   const EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
   for (const ev of EVENTS) window.addEventListener(ev, wake, { passive: true });
+
+  // A CSS animation that starts while paused gets the same sweep, once per batch
+  // of starts (a re-render can start dozens in one frame). animationstart bubbles
+  // and fires for pseudo-elements too, which is where most of the loops live.
+  let sweepQueued = false;
+  document.addEventListener('animationstart', () => {
+    if (!paused || sweepQueued) return;
+    sweepQueued = true;
+    setTimeout(() => {
+      sweepQueued = false;
+      if (paused) freezeLoops();
+    }, 0);
+  }, true);
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

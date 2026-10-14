@@ -45,11 +45,13 @@ test('a widget granted the audio stream keeps the poll alive', () => {
   // Without this an installed mixer widget would quietly stop receiving data
   // whenever the user was not also looking at the Volume panel.
   const fn = sliceFn(SRC, 'audioPollWanted');
-  assert.match(fn, /sdkGrantsFor\(pkgId\)\.streams\.includes\('audio'\)/,
+  assert.match(fn, /sdkStreamGranted\('audio'\)/,
     'packages granted the `audio` stream are fed off this tick');
   // sdkGrantsFor fails closed under safe mode and per-package suspend, which is
   // what makes those two switches turn this cost off for free.
-  assert.match(fn, /_serverHubSettings/);
+  const granted = sliceFn(SRC, 'sdkStreamGranted');
+  assert.match(granted, /sdkGrantsFor\(pkgId\)\.streams\.includes\(stream\)/);
+  assert.match(granted, /_serverHubSettings/);
 });
 
 test('the Volume UI keeps the poll alive through a time window', () => {

@@ -64,6 +64,15 @@
   let sawLevels = false;        // has a real payload ever arrived?
   let opacity = 0;              // eased 0..1 so it never pops in or out
   let lastFrameAt = 0;
+  let drawnTickAt = -1;         // lastTickAt of the last frame drawn (reduced motion)
+
+  // The strip slides about 60 px a second. Past 60 fps the extra frames are
+  // invisible, but on a 144-240 Hz monitor each one is still a full canvas
+  // upload and a composited frame, 2-4x the work for the same picture.
+  const MIN_FRAME_MS = 1000 / 60 - 1;
+  // States in which the dashboard has promised to stop decorative motion: a game
+  // is running, Performance Mode is on, or a frosted overlay covers the tile.
+  const QUIET_CLASSES = ['game-mode', 'perf-mode', 'overlay-frozen'];
 
   const reduceMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -250,6 +259,7 @@
   function wanted() {
     if (style === 'off' || !canvas) return false;
     if (document.hidden) return false;
+    if (QUIET_CLASSES.some((c) => document.body.classList.contains(c))) return false;
     if (!playing) return false;
     if (problem || !sawLevels) return false;
     const host = panel();
@@ -274,15 +284,24 @@
   function frame(now) {
     raf = null;
     if (!canvas || !ctx) return;
+    if (now - lastFrameAt < MIN_FRAME_MS) { raf = requestAnimationFrame(frame); return; }
     const dt = Math.min(100, now - lastFrameAt);
     lastFrameAt = now;
 
     const on = wanted();
     const step = dt / FADE_MS;
+    const prevOpacity = opacity;
     opacity = on ? Math.min(1, opacity + step) : Math.max(0, opacity - step);
 
-    ctx.clearRect(0, 0, cssW, cssH);
-    if (opacity > 0.001) draw(now);
+    // Reduced motion parks the strip on the grid, so between ticks every frame
+    // would repaint the identical picture: draw only when a sample or the fade
+    // actually changed it.
+    const still = reduceMotion() && opacity === prevOpacity && drawnTickAt === lastTickAt;
+    if (!still) {
+      drawnTickAt = lastTickAt;
+      ctx.clearRect(0, 0, cssW, cssH);
+      if (opacity > 0.001) draw(now);
+    }
 
     // Keep going while there is something to show OR something to fade out.
     if (on || opacity > 0.001) raf = requestAnimationFrame(frame);

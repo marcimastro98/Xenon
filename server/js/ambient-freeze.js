@@ -15,18 +15,11 @@
 (function () {
   const frozen = new Set();
 
+  // A custom background *video* is the strongest trigger (blur over a decoding
+  // frame every tick). settings.js pauses it off this same class, alongside the
+  // game/perf holds, so a closing overlay never restarts it mid-game.
   function apply() {
-    const on = frozen.size > 0;
-    try { document.body.classList.toggle('overlay-frozen', on); } catch { /* ignore */ }
-    try {
-      // A custom background *video* is the strongest trigger (blur over a decoding
-      // frame every tick), so pause/resume it too — invisible behind the blur.
-      const v = document.getElementById('user-bg-video');
-      if (v) {
-        if (on) v.pause();
-        else { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
-      }
-    } catch { /* ignore */ }
+    try { document.body.classList.toggle('overlay-frozen', frozen.size > 0); } catch { /* ignore */ }
   }
 
   // token: a stable id per overlay ('update', 'settings', …). Idempotent — the Set

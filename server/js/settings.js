@@ -3827,8 +3827,32 @@ function createBackgroundImage(source) {
   return image;
 }
 
+// The wallpaper video holds still whenever the ambient does: behind a frosted
+// overlay (ambient-freeze.js, the flicker guard), while a game is in front
+// (game-mode) and under Performance mode's paused animations (perf-mode).
+// Decoding and compositing a full-screen video every frame is the largest steady
+// cost a wallpaper adds, and during a game it competes with the game for the
+// GPU. A paused video keeps its current frame: a still wallpaper, never a blank.
+const BG_VIDEO_HOLD_CLASSES = ['overlay-frozen', 'game-mode', 'perf-mode'];
+function backgroundVideoHeld() {
+  const classes = document.body.classList;
+  return BG_VIDEO_HOLD_CLASSES.some(cls => classes.contains(cls));
+}
+
+let _bgVideoWasHeld = false;
+function syncBackgroundVideoHold() {
+  const held = backgroundVideoHeld();
+  if (held === _bgVideoWasHeld) return;
+  _bgVideoWasHeld = held;
+  const video = $('user-bg-video');
+  if (!video || video.hidden) return;
+  if (held) video.pause();
+  else ensureBackgroundVideoPlayback(video);
+}
+
 function ensureBackgroundVideoPlayback(video = $('user-bg-video')) {
   if (!video || video.hidden || document.hidden) return;
+  if (backgroundVideoHeld()) { video.pause(); return; }
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
@@ -12066,3 +12090,6 @@ window.addEventListener('pagehide', sendHubSettingsBeacon);
 document.addEventListener('visibilitychange', () => ensureBackgroundVideoPlayback());
 window.addEventListener('focus', () => ensureBackgroundVideoPlayback());
 document.addEventListener('pointerdown', () => ensureBackgroundVideoPlayback(), { passive: true });
+if (typeof MutationObserver === 'function') {
+  new MutationObserver(syncBackgroundVideoHold).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}

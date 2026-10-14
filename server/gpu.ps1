@@ -66,6 +66,48 @@ function Get-GpuLhmComputer {
   }
 }
 
+# NVIDIA fans read the way NvidiaGpu.Update() reads them (fan-cooler status,
+# else the single tachometer), named by LHM's own sensors so the list is the same
+# one the full walk produces. Private members, so: $null whenever anything is not
+# as expected and the caller falls back to Update(); an empty array when the card
+# has no fan sensors at all.
+function Read-NvidiaFansDirect {
+  param($Hardware)
+  try {
+    $flags = [Reflection.BindingFlags]'NonPublic,Public,Instance'
+    $type = $Hardware.GetType()
+    $sensors = $type.GetField('_fans', $flags).GetValue($Hardware)
+    if ($null -eq $sensors -or $sensors.Length -eq 0) { return ,@() }
+    $argv = New-Object 'System.Object[]' 1
+    $status = $type.GetMethod('GetFanCoolersStatus', $flags).Invoke($Hardware, $argv)
+    $statusType = $status.GetType()
+    $count = [int]$statusType.GetField('Count', $flags).GetValue($status)
+    $rpms = @()
+    if ([string]$argv[0] -eq 'OK' -and $count -gt 0) {
+      $items = $statusType.GetField('Items', $flags).GetValue($status)
+      $rpmField = $items[0].GetType().GetField('CurrentRpm', $flags)
+      for ($i = 0; $i -lt [Math]::Min($count, $sensors.Length); $i++) { $rpms += [double]$rpmField.GetValue($items[$i]) }
+    } else {
+      $argv = New-Object 'System.Object[]' 1
+      $tach = $type.GetMethod('GetTachReading', $flags).Invoke($Hardware, $argv)
+      if ([string]$argv[0] -ne 'OK') { return $null }
+      $rpms = @([double]$tach)
+    }
+    $fans = @()
+    for ($i = 0; $i -lt $rpms.Count; $i++) {
+      $rpm = [int][Math]::Round($rpms[$i])
+      if ($rpm -lt 0 -or $rpm -gt 20000) { continue }
+      $name = ([string]$sensors[$i].Name).Trim()
+      if (-not $name) { $name = 'GPU Fan' }
+      if ($name.Length -gt 48) { $name = $name.Substring(0, 48) }
+      $fans += [pscustomobject]@{ name = $name; rpm = $rpm }
+    }
+    return ,$fans
+  } catch {
+    return $null
+  }
+}
+
 # Per-fan RPM straight from each card's tachometer, plus the core and memory
 # clocks off the same enumeration. Cards with the fans stopped (idle zero-RPM
 # mode) legitimately report 0 - that is a reading, not a gap, so it is kept. A
@@ -75,7 +117,14 @@ function Get-GpuLhmComputer {
 # Clocks ride this walk rather than one of their own: the tree is already
 # enumerated and Update()d here, so they cost nothing on top. Returns a hashtable
 # so a card that exposes clocks but no fans is still worth the call.
+#
+# -FansOnly (nvidia-smi already answered both clocks): an NVIDIA card's fans are
+# read straight from NVAPI instead of through Update(), which refreshes every
+# sensor LHM has for the card (power topology, PCIe, D3D memory...) and cost
+# ~60-80 ms a read on an RTX 5080 for the two RPM values used here. The direct
+# read takes well under a millisecond and returns the same tachometers.
 function Get-LhmGpuReadings {
+  param([switch]$FansOnly)
   $fans = @()
   $coreClock = $null
   $memClock = $null
@@ -84,6 +133,10 @@ function Get-LhmGpuReadings {
     if ($null -eq $computer) { return @{ fans = $fans; coreClock = $null; memClock = $null } }
     foreach ($hardware in @($computer.Hardware)) {
       if ($hardware.HardwareType.ToString() -notmatch 'Gpu') { continue }
+      if ($FansOnly -and $hardware.HardwareType.ToString() -eq 'GpuNvidia') {
+        $direct = Read-NvidiaFansDirect $hardware
+        if ($null -ne $direct) { $fans += $direct; continue }
+      }
       try { $hardware.Update() } catch { }
       foreach ($sensor in @($hardware.Sensors)) {
         try {
@@ -155,8 +208,8 @@ try {
         # TARGET rather than the fan itself: an idle card in zero-RPM mode reports
         # "32%" while both fans are stopped. LHM reads each fan's tachometer, so a
         # two-fan card shows two true readings instead of one aggregate guess.
-        # Costs ~77ms on top of nvidia-smi's ~30ms, amortized by the server's 5s
-        # cache; gpuFanPct stays in the payload as the fallback for cards LHM
+        # Read straight from NVAPI when nvidia-smi answered both clocks (well
+        # under 1 ms; a full LHM Update() was ~60-80 ms); gpuFanPct stays in the payload as the fallback for cards LHM
         # exposes no fan sensors for.
         # Always emitted, even empty: the server tells "no fans reported" (drop
         # the stale list) from "no read happened" (keep it) by the key's mere
@@ -167,7 +220,8 @@ try {
         # key absent, which the server reads as "no answer" rather than zero.
         if ($parts[6] -match '^\d+$') { $out.gpuClockMHz  = [int]$parts[6] }
         if ($parts[7] -match '^\d+$') { $out.vramClockMHz = [int]$parts[7] }
-        $lhm = Get-LhmGpuReadings
+        $haveClocks = ($null -ne $out.gpuClockMHz) -and ($null -ne $out.vramClockMHz)
+        $lhm = Get-LhmGpuReadings -FansOnly:$haveClocks
         $out.gpuFans = @($lhm.fans)
         # LHM only fills a gap here - nvidia-smi is the authority on an NVIDIA card.
         if ($null -eq $out.gpuClockMHz  -and $null -ne $lhm.coreClock) { $out.gpuClockMHz  = $lhm.coreClock }
@@ -255,14 +309,68 @@ try {
   }
 } catch { }
 
-# GPU utilization via Windows Performance Counters - vendor-agnostic, no external tool required
+# GPU utilization via the GPU Engine performance counters - vendor-agnostic, no
+# external tool. Read RAW with ReadCategory() and turned into a percentage against
+# the previous call, NOT with Get-Counter: that costs 2.8 s per call and up to
+# 13 s on a busy desktop (measured; see also the header of processes.ps1), longer
+# than the 5 s tick itself, so on every machine without nvidia-smi the sensor
+# worker never rested. The raw read costs a few ms. Same figure as before: the sum over
+# every 3d/compute/video engine instance, clamped to 100; it is now the average
+# over the whole tick instead of a one-second sample inside it.
+$GPU_ENGINE_RE = 'engtype_(3d|compute|videoencode|videodecode)'
+# A delta older than this is a guess (the tick stopped, or the PC slept): re-prime.
+$GPU_STALE_MS = 30000
+# Priming window, paid only on the first read after a (re)start, or on every run
+# of the one-shot fallback, which has no previous call to diff against.
+$GPU_PRIME_MS = 250
+
+function Read-GpuEngineBusy {
+  # Constructed once per worker: the first ReadCategory() builds PDH's instance
+  # map (~330 ms), every later one costs a few ms. 'none' = checked, absent.
+  if ($null -eq $global:XenonGpuEngineCat) {
+    $global:XenonGpuEngineCat = 'none'
+    try {
+      if ([System.Diagnostics.PerformanceCounterCategory]::Exists('GPU Engine')) {
+        $global:XenonGpuEngineCat = New-Object System.Diagnostics.PerformanceCounterCategory 'GPU Engine'
+      }
+    } catch { }
+  }
+  $cat = $global:XenonGpuEngineCat
+  if ($cat -is [string]) { throw 'GPU Engine performance counters are not available' }
+  $col = $cat.ReadCategory()['Utilization Percentage']
+  if ($null -eq $col) { throw 'GPU Engine performance counters are not available' }
+  # Raw = cumulative busy time in 100 ns units, per engine instance.
+  $busy = @{}
+  foreach ($k in $col.Keys) {
+    if ($k -match $GPU_ENGINE_RE) { $busy[$k] = [double]$col[$k].RawValue }
+  }
+  return $busy
+}
+
+function Get-NowMs { [double](([DateTimeOffset]::UtcNow).ToUnixTimeMilliseconds()) }
+
 try {
-  $samples = Get-Counter '\GPU Engine(*)\Utilization Percentage' -ErrorAction Stop
-  $sum = 0
-  foreach ($sample in $samples.CounterSamples) {
-    if ($sample.InstanceName -match 'engtype_(3d|compute|videoencode|videodecode)') {
-      $sum += $sample.CookedValue
-    }
+  $now = Get-NowMs
+  $curr = Read-GpuEngineBusy
+  $prev = $global:XenonGpuEnginePrev
+  $prevAt = 0.0
+  if ($null -ne $global:XenonGpuEnginePrevAt) { $prevAt = [double]$global:XenonGpuEnginePrevAt }
+  if ($null -eq $prev -or $prevAt -le 0 -or ($now - $prevAt) -gt $GPU_STALE_MS) {
+    $prev = $curr
+    $prevAt = $now
+    Start-Sleep -Milliseconds $GPU_PRIME_MS
+    $now = Get-NowMs
+    $curr = Read-GpuEngineBusy
+  }
+  $global:XenonGpuEnginePrev = $curr
+  $global:XenonGpuEnginePrevAt = $now
+  $windowTicks = [Math]::Max(1.0, $now - $prevAt) * 10000.0   # ms -> 100 ns
+  $sum = 0.0
+  foreach ($k in $curr.Keys) {
+    # An engine that appeared this tick has no baseline; it counts from the next.
+    if (-not $prev.ContainsKey($k)) { continue }
+    $d = $curr[$k] - $prev[$k]
+    if ($d -gt 0) { $sum += ($d / $windowTicks) * 100.0 }
   }
   $gpu = [Math]::Min(100, [Math]::Max(0, [Math]::Round($sum, 0)))
   @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm; gpuFans = @($gpuFans); gpuClockMHz = $gpuClockMHz; vramClockMHz = $vramClockMHz } | ConvertTo-Json -Compress
