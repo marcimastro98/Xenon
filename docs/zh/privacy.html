@@ -235,9 +235,9 @@
             <td data-i18n-html="pv.t.hub.why">你的电脑会保存一个随机 UUID（<code>install-id.json</code>），让一次评分只计一次，一个代码也不能无限次重复使用。这个 UUID 从不离开你的电脑：发送的是它的单向哈希，而且评分和兑换代码使用的是同一个 UUID 的<strong>不同</strong>哈希。这是有意为之：如果共用一个值，支持者代码（它可以关联到某个 Discord 账号）和星级评分就会以同一个标识符存放在数据库里，我就能看到某位有名有姓的支持者给哪些作品评过分。用两个不同的值，就没有任何可以用来匹配它们的东西。两个哈希都不和你的硬件或姓名绑定；删掉这个文件，就会生成一个新的 UUID。更新你已解锁的内容时，同样只发送这个哈希、作品的 ID 和你当前的版本，不发送任何代码；中心只会回应它已经认定为所有者的电脑。</td>
           </tr>
           <tr>
-            <td><code>ipwho.is</code></td>
+            <td><code>ipwho.is</code>, <code>get.geojs.io</code>, <code>ipapi.co</code></td>
             <td data-i18n="pv.t.ip.when">仅在天气自动定位开启时</td>
-            <td data-i18n="pv.t.ip.why">把你的 IP 转换成一个大致的城市，让天气小组件知道你在哪里。手动设置位置，这个请求就永远不会发生。</td>
+            <td data-i18n="pv.t.ip.why">把你的 IP 转换成一个大致的城市，让天气小组件知道你在哪里。Xenon 按这个顺序询问这三个服务，使用最先回应的那个。手动设置位置，这些请求就永远不会发生。</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.wx.what">天气和空气质量 API<br><span style="color:var(--dim)">open-meteo、met.no、wttr.in</span></td>

@@ -235,9 +235,9 @@
             <td data-i18n-html="pv.t.hub.why">Il tuo PC conserva un UUID casuale (<code>install-id.json</code>) perché un voto conti una volta sola e un codice non si possa riusare all'infinito. Quell'UUID non lascia mai la tua macchina: quello che viene inviato è un suo hash unidirezionale, e valutare qualcosa e riscattare un codice usano hash <strong>diversi</strong> dello stesso UUID. È voluto: con un unico valore condiviso, un codice supporter (che può essere collegato a un account Discord) e una valutazione a stelle starebbero nel database sotto lo stesso identificativo, e io potrei vedere quali creazioni ha valutato un supporter con nome e cognome. Con due, non c'è niente su cui abbinarli. Nessuno dei due hash è legato al tuo hardware o al tuo nome; cancella il file e viene generato un nuovo UUID. Aggiornare qualcosa che hai sbloccato invia lo stesso hash, l'id della creazione e la versione che hai, e nessun codice: l'hub risponde solo a un PC che già conosce come proprietario.</td>
           </tr>
           <tr>
-            <td><code>ipwho.is</code></td>
+            <td><code>ipwho.is</code>, <code>get.geojs.io</code>, <code>ipapi.co</code></td>
             <td data-i18n="pv.t.ip.when">Solo se la posizione automatica del meteo è attiva</td>
-            <td data-i18n="pv.t.ip.why">Trasforma il tuo IP in una città approssimativa, così il widget meteo sa dove ti trovi. Se imposti la posizione a mano, questa chiamata non avviene mai.</td>
+            <td data-i18n="pv.t.ip.why">Trasforma il tuo IP in una città approssimativa, così il widget meteo sa dove ti trovi. Xenon interroga questi tre servizi in quest'ordine e usa il primo che risponde. Se imposti la posizione a mano, queste chiamate non avvengono mai.</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.wx.what">API meteo e della qualità dell'aria<br><span style="color:var(--dim)">open-meteo, met.no, wttr.in</span></td>

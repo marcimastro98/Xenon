@@ -235,9 +235,9 @@
             <td data-i18n-html="pv.t.hub.why">Votre PC conserve un UUID (<code>install-id.json</code>) aléatoire afin qu'un vote ne soit comptabilisé qu'une seule fois et qu'un code ne puisse pas être réutilisé indéfiniment. Cet UUID ne quitte jamais votre machine : ce qui est envoyé est un hachage à sens unique de celui-ci, et l'évaluation d'un contenu et le rachat d'un code utilisent des <strong>hachages différents</strong> du même UUID. C'est volontaire : avec une seule valeur partagée, un code de supporter (qui peut être lié à un compte Discord) et une note en étoiles seraient stockés dans la base de données sous le même identifiant, et je pourrais voir quelles créations un supporter nommé a évaluées. Avec deux valeurs, il n'y a rien pour les associer. Aucun des deux hachages n'est lié à votre matériel ou à votre nom ; supprimez le fichier et un nouveau UUID est généré. La mise à jour d'un élément que vous avez débloqué envoie ce même hachage, l'identifiant de la création et la version que vous possédez, mais aucun code : le hub ne répond qu'à un PC qu'il connaît déjà comme propriétaire.</td>
           </tr>
           <tr>
-            <td><code>ipwho.is</code></td>
+            <td><code>ipwho.is</code>, <code>get.geojs.io</code>, <code>ipapi.co</code></td>
             <td data-i18n="pv.t.ip.when">Uniquement si la localisation automatique de la météo est activée</td>
-            <td data-i18n="pv.t.ip.why">Convertit votre adresse IP en ville approximative afin que le widget météo sache où vous vous trouvez. Définissez l'emplacement manuellement et cet appel ne se produira jamais.</td>
+            <td data-i18n="pv.t.ip.why">Convertit votre adresse IP en ville approximative afin que le widget météo sache où vous vous trouvez. Xenon interroge ces trois services dans cet ordre et utilise le premier qui répond. Définissez l'emplacement manuellement et ces appels ne se produiront jamais.</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.wx.what">APIs météo et qualité de l'air<br><span style="color:var(--dim)">open-meteo, met.no, wttr.in</span></td>
