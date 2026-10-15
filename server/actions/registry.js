@@ -48,6 +48,46 @@ function isAllowedAppPath(p, platform) {
   return APP_PATH_EXT.test(v);
 }
 
+// Launch arguments for openApp ("--restore-last-session", "--profile-directory=\"Profile 1\"").
+// One free-text field becomes an argv ARRAY here, at the boundary: whitespace
+// separates tokens, double quotes group, a backslash is literal (Windows paths
+// are full of them). Nothing here ever reaches a shell. Returns null for what
+// cannot be one honest argument list: an unbalanced quote, control characters,
+// or more tokens than any real launch line needs.
+const MAX_LAUNCH_ARGS = 32;
+function parseLaunchArgs(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return [];
+  if (/[\x00-\x1f\x7f]/.test(s)) return null;
+  const out = [];
+  let cur = '';
+  let inQuote = false;
+  let started = false;
+  for (const ch of s) {
+    if (ch === '"') { inQuote = !inQuote; started = true; continue; }
+    if (!inQuote && /\s/.test(ch)) {
+      if (started) { out.push(cur); cur = ''; started = false; }
+      continue;
+    }
+    cur += ch;
+    started = true;
+  }
+  if (inQuote) return null;
+  if (started) out.push(cur);
+  return out.length <= MAX_LAUNCH_ARGS ? out : null;
+}
+
+// Which launch routes can really hand arguments to the program. A Windows .lnk
+// carries its own, a Linux .desktop entry is started by `gio launch` (which takes
+// none): saying so beats starting the app and silently dropping what was typed.
+function appPathTakesArgs(p, platform) {
+  const v = String(p == null ? '' : p).trim();
+  const plat = platform || process.platform;
+  if (plat === 'darwin') return /\.app\/?$/i.test(v) || /\.exe$/i.test(v);
+  if (plat === 'linux') return !/\.desktop$/i.test(v);
+  return /\.exe$/i.test(v);
+}
+
 // macOS hides the `.app` extension everywhere a person can see a path: Finder
 // shows "Helium", so does Get Info, so does the Applications folder. The path a
 // Mac user reads off their own screen and types into a key is therefore
@@ -332,16 +372,19 @@ function createRegistry(deps) {
             p = resolved;
           }
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
+          const argv = parseLaunchArgs(action.args);
+          if (!argv) return { ok: false, error: 'bad_args' };
+          if (argv.length && !appPathTakesArgs(p, platform)) return { ok: false, error: 'args_not_supported' };
           // Linux has no registered-handler route to "run this program":
           // xdg-open on a binary or a .desktop file OPENS it as a document (or
           // refuses), so launching goes through its own dep. macOS' `open` and
           // Windows' Start-Process both launch apps natively via openExternal.
           if (platform === 'linux') {
             if (typeof d.launchApp !== 'function') return { ok: false, error: 'unavailable' };
-            const r = await d.launchApp(p);
+            const r = await d.launchApp(p, argv);
             return r && r.ok === false ? { ok: false, error: r.error || 'launch_failed' } : { ok: true };
           }
-          await d.openExternal(p);
+          await d.openExternal(p, argv);
           return { ok: true };
         }
         case 'openFile': {
@@ -953,4 +996,4 @@ function pickFirstConnected(ids, speakers) {
   return null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice, pickToggleDevice, pickFirstConnected };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, parseLaunchArgs, appPathTakesArgs,completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice, pickToggleDevice, pickFirstConnected };

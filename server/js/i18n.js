@@ -25964,6 +25964,19 @@ Object.assign(i18n.nl, {
   deck_param_claude_prompt: 'Verzoek',
 });
 
+// Deck "Open app": optional launch arguments (4.11.13).
+Object.assign(i18n.it, { deck_param_app_args: "Argomenti (facoltativi)" });
+Object.assign(i18n.en, { deck_param_app_args: "Arguments (optional)" });
+Object.assign(i18n.ko, { deck_param_app_args: "인수(선택)" });
+Object.assign(i18n.ja, { deck_param_app_args: "引数（任意）" });
+Object.assign(i18n.zh, { deck_param_app_args: "参数（可选）" });
+Object.assign(i18n.es, { deck_param_app_args: "Argumentos (opcional)" });
+Object.assign(i18n.fr, { deck_param_app_args: "Arguments (facultatif)" });
+Object.assign(i18n.de, { deck_param_app_args: "Argumente (optional)" });
+Object.assign(i18n.pt, { deck_param_app_args: "Argumentos (opcional)" });
+Object.assign(i18n.ru, { deck_param_app_args: "Аргументы (необязательно)" });
+Object.assign(i18n.nl, { deck_param_app_args: "Argumenten (optioneel)" });
+
 // v4.11 i18n gap fill — the Claude Code panel. It shipped in v4.8.0 with only
 // it/en, so every other language rendered the whole widget in English. A few
 // keys had good translations stranded under names the code stopped using

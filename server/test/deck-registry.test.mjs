@@ -44,6 +44,41 @@ test('run openApp enforces extension + existence', async () => {
   assert.deepEqual(calls, ['C:/x/y.exe']);
 });
 
+test('parseLaunchArgs builds an argv array, never a shell line', () => {
+  assert.deepEqual(reg.parseLaunchArgs(''), []);
+  assert.deepEqual(reg.parseLaunchArgs('  --restore-last-session  '), ['--restore-last-session']);
+  // Quotes group; a backslash stays literal so Windows paths survive.
+  assert.deepEqual(reg.parseLaunchArgs('--profile-directory="Profile 1" "C:\\My Files\\a.txt"'),
+    ['--profile-directory=Profile 1', 'C:\\My Files\\a.txt']);
+  assert.deepEqual(reg.parseLaunchArgs('a "" b'), ['a', '', 'b']);
+  // Shell metacharacters are just text inside a token: nothing interprets them.
+  assert.deepEqual(reg.parseLaunchArgs('--x=1&calc|y'), ['--x=1&calc|y']);
+  assert.equal(reg.parseLaunchArgs('--bad "unclosed'), null);
+  assert.equal(reg.parseLaunchArgs('a\nb'), null);
+  assert.equal(reg.parseLaunchArgs(Array(40).fill('x').join(' ')), null);
+});
+
+test('run openApp hands launch arguments over as an array, and refuses where they cannot apply', async () => {
+  const seen = [];
+  const deps = { platform: 'win32', fileExists: () => true, openExternal: (p, a) => { seen.push([p, a]); return Promise.resolve(); } };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'openApp', path: 'C:/x/msedge.exe', args: '--restore-last-session' }), { ok: true });
+  assert.deepEqual(seen, [['C:/x/msedge.exe', ['--restore-last-session']]]);
+  // No args typed: the original shape, an empty list.
+  await r.run({ type: 'openApp', path: 'C:/x/y.exe' });
+  assert.deepEqual(seen[1], ['C:/x/y.exe', []]);
+  // A .lnk carries its own arguments; dropping the typed ones silently would lie.
+  assert.deepEqual(await r.run({ type: 'openApp', path: 'C:/x/y.lnk', args: '--a' }), { ok: false, error: 'args_not_supported' });
+  assert.deepEqual(await r.run({ type: 'openApp', path: 'C:/x/y.exe', args: '--a "b' }), { ok: false, error: 'bad_args' });
+  // Linux: a plain executable gets them, a .desktop entry (gio launch) cannot.
+  const launched = [];
+  const lin = reg.createRegistry({ platform: 'linux', fileExists: () => true, launchApp: (p, a) => { launched.push([p, a]); return Promise.resolve({ ok: true }); } });
+  assert.deepEqual(await lin.run({ type: 'openApp', path: '/usr/bin/firefox', args: '--private-window' }), { ok: true });
+  assert.deepEqual(launched, [['/usr/bin/firefox', ['--private-window']]]);
+  assert.deepEqual(await lin.run({ type: 'openApp', path: '/usr/share/applications/firefox.desktop', args: '--a' }),
+    { ok: false, error: 'args_not_supported' });
+});
+
 test('run openApp on Linux routes through launchApp, never xdg-open', async () => {
   const launched = [];
   const opened = [];

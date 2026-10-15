@@ -933,7 +933,7 @@ const livingIndex = process.platform === 'linux'
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
-  openExternal: (p) => openExternalPath(p),
+  openExternal: (p, args) => openExternalPath(p, args),
   // Injected rather than kept as a second copy of the platform switch: the
   // transfer widget's "show in folder" is the same verb, and two copies of a
   // three-way platform branch drift into one of them working off Windows.
@@ -6055,9 +6055,25 @@ function lockWorkstation() {
 // Deck registry, the Spotlight search results, Performance Mode and the
 // Start-Menu app launcher. Reaching for runPowerShellScript directly is how one
 // of them ends up working on Windows and failing everywhere else.
-function openExternalPath(p) {
+//
+// `args` (openApp only, already an argv array from the registry) are launch
+// arguments for the program. On Windows they travel as base64 JSON so no quote or
+// space in them can re-cut the PowerShell command line; the script rebuilds one
+// correctly quoted line. On macOS they follow `--args`, which an app that is
+// already running ignores (only `open -n` would start a second copy, and that
+// breaks single-instance apps).
+function openExternalPath(p, args) {
+  const argv = Array.isArray(args) ? args.map(String) : [];
   if (process.platform === 'win32') {
-    return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000);
+    const packed = argv.length ? Buffer.from(JSON.stringify(argv), 'utf8').toString('base64') : '';
+    return runPowerShellScript(DECK_ACTIONS_SCRIPT, packed ? ['open', p, packed] : ['open', p], 8000);
+  }
+  if (process.platform === 'darwin' && argv.length) {
+    return new Promise((resolve, reject) => {
+      execFile('/usr/bin/open', ['-a', String(p), '--args', ...argv], { timeout: 8000 }, (err) => {
+        if (err) reject(err); else resolve({ ok: true });
+      });
+    });
   }
   // `--` ends option parsing on macOS, so a file whose name begins with a dash
   // cannot become a flag. xdg-open has no such separator — it rejects `--` as an
@@ -6085,8 +6101,9 @@ function openExternalPath(p) {
 // is spawned directly, detached, resolved on the 'spawn' event so ENOENT and
 // a missing execute bit surface as clean errors instead of silent successes.
 // The registry has already validated shape + existence before this runs.
-function launchLinuxApp(p) {
+function launchLinuxApp(p, args) {
   const target = String(p);
+  const argv = Array.isArray(args) ? args.map(String) : [];
   if (/\.desktop$/i.test(target)) {
     return new Promise((resolve, reject) => {
       execFile('gio', ['launch', target], { timeout: 8000 }, (err) => {
@@ -6097,7 +6114,7 @@ function launchLinuxApp(p) {
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn(target, [], { detached: true, stdio: 'ignore' });
+      child = spawn(target, argv, { detached: true, stdio: 'ignore' });
     } catch (e) { reject(e); return; }
     child.once('error', (e) => reject(e));
     child.once('spawn', () => { child.unref(); resolve({ ok: true }); });
@@ -6213,11 +6230,11 @@ const deckRegistryDeps = {
     }
     return signalrgb.applyEffect(effect);
   },
-  openExternal: (p) => openExternalPath(p),
+  openExternal: (p, args) => openExternalPath(p, args),
   // Linux app launcher (.desktop via `gio launch`, binaries spawned directly)
   // — openExternal's xdg-open opens documents, it does not run programs. Left
   // undefined elsewhere; the registry only routes to it on linux.
-  launchApp: process.platform === 'linux' ? (p) => launchLinuxApp(p) : undefined,
+  launchApp: process.platform === 'linux' ? (p, args) => launchLinuxApp(p, args) : undefined,
   // Run a user-configured script (the runScript action), in a visible or hidden
   // window where the platform has the concept. The path is validated to a real
   // script in the registry before it reaches here.
@@ -6557,8 +6574,8 @@ const deckRegistry = createRegistry(deckRegistryDeps);
 // window helper does the graceful close and protected-process refusal.
 const perfRegistry = createPerfRegistry({
   closeWindow: (id) => runWindowsTool(['close', id], 8000),
-  openExternal: (p) => openExternalPath(p),
-  launchApp: process.platform === 'linux' ? (p) => launchLinuxApp(p) : undefined,
+  openExternal: (p, args) => openExternalPath(p, args),
+  launchApp: process.platform === 'linux' ? (p, args) => launchLinuxApp(p, args) : undefined,
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
 });

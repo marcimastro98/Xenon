@@ -9,7 +9,7 @@
 //             'haEntity' | 'wlChannel' | 'lightDevice' | 'sound' (picker controls).
 
 const ACTION_CATALOG = [
-  { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
+  { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }, { name: 'args', kind: 'text', optional: true, maxLen: 500, labelKey: 'deck_param_app_args' }] },
   { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
   { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
   { type: 'openStoreApp', group: 'system', requires: 'powershell', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },

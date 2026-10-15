@@ -56,11 +56,28 @@ try {
         # Set WorkingDirectory to the exe's own folder so apps that look for
         # resources relative to themselves (e.g. OBS locale/) can find them.
         $dir = Split-Path -Parent $value
-        if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) {
-          Start-Process -FilePath $value -WorkingDirectory $dir
-        } else {
-          Start-Process -FilePath $value
+        $sp = @{ FilePath = $value }
+        if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $sp['WorkingDirectory'] = $dir }
+        # Launch arguments (openApp): $opt is a base64 JSON array, so a quote or a
+        # space inside one argument cannot re-cut the line. Each token is quoted
+        # the way CommandLineToArgvW reads it back, then joined into the single
+        # string Start-Process wants.
+        if ($opt) {
+          # No @(...) around the parse: Windows PowerShell 5.1 emits the array as ONE
+          # object, so wrapping it nests it and every argument fuses into one.
+          $list = ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($opt)))
+          $tokens = foreach ($t in @($list)) {
+            $s = [string]$t
+            if ($s -ne '' -and $s -notmatch '[\s"]') { $s }
+            else {
+              $s = [regex]::Replace($s, '(\\*)"', '$1$1\"')
+              $s = [regex]::Replace($s, '(\\+)$', '$1$1')
+              '"' + $s + '"'
+            }
+          }
+          if ($tokens) { $sp['ArgumentList'] = ($tokens -join ' ') }
         }
+        Start-Process @sp
       }
     }
     'openapp' {
