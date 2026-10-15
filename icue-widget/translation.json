@@ -1,0 +1,92 @@
+{
+  "en": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon is not running",
+      "Open Xenon on this PC and it shows up here by itself.": "Open Xenon on this PC and it shows up here by itself.",
+      "Get Xenon": "Get Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Your Xenon dashboard shows here on the Xeneon Edge."
+    }
+  },
+  "it": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon non è in esecuzione",
+      "Open Xenon on this PC and it shows up here by itself.": "Apri Xenon su questo PC e comparirà qui da solo.",
+      "Get Xenon": "Scarica Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "La tua dashboard Xenon compare qui, sullo Xeneon Edge."
+    }
+  },
+  "de": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon läuft nicht",
+      "Open Xenon on this PC and it shows up here by itself.": "Öffne Xenon auf diesem PC, dann erscheint es hier von selbst.",
+      "Get Xenon": "Xenon holen",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Dein Xenon-Dashboard erscheint hier auf dem Xeneon Edge."
+    }
+  },
+  "es": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon no se está ejecutando",
+      "Open Xenon on this PC and it shows up here by itself.": "Abre Xenon en este PC y aparecerá aquí solo.",
+      "Get Xenon": "Descargar Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Tu panel de Xenon aparece aquí, en el Xeneon Edge."
+    }
+  },
+  "fr": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon n'est pas lancé",
+      "Open Xenon on this PC and it shows up here by itself.": "Ouvre Xenon sur ce PC et il s'affichera ici tout seul.",
+      "Get Xenon": "Obtenir Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Ton tableau de bord Xenon s'affiche ici, sur le Xeneon Edge."
+    }
+  },
+  "ja": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon が起動していません",
+      "Open Xenon on this PC and it shows up here by itself.": "この PC で Xenon を開くと、ここに自動で表示されます。",
+      "Get Xenon": "Xenon を入手",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Xenon のダッシュボードは Xeneon Edge のここに表示されます。"
+    }
+  },
+  "ko": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon이 실행 중이 아닙니다",
+      "Open Xenon on this PC and it shows up here by itself.": "이 PC에서 Xenon을 열면 여기에 자동으로 표시됩니다.",
+      "Get Xenon": "Xenon 받기",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Xenon 대시보드가 Xeneon Edge의 여기에 표시됩니다."
+    }
+  },
+  "pt": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "O Xenon não está em execução",
+      "Open Xenon on this PC and it shows up here by itself.": "Abra o Xenon neste PC e ele aparece aqui sozinho.",
+      "Get Xenon": "Baixar o Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "O seu painel do Xenon aparece aqui, no Xeneon Edge."
+    }
+  },
+  "ru": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon не запущен",
+      "Open Xenon on this PC and it shows up here by itself.": "Откройте Xenon на этом ПК, и он сам появится здесь.",
+      "Get Xenon": "Скачать Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "Ваша панель Xenon появится здесь, на Xeneon Edge."
+    }
+  },
+  "zh_CN": {
+    "translation": {
+      "Xenon": "Xenon",
+      "Xenon is not running": "Xenon 未运行",
+      "Open Xenon on this PC and it shows up here by itself.": "在这台电脑上打开 Xenon，它会自动显示在这里。",
+      "Get Xenon": "获取 Xenon",
+      "Your Xenon dashboard shows here on the Xeneon Edge.": "你的 Xenon 仪表板会显示在 Xeneon Edge 的这里。"
+    }
+  }
+}

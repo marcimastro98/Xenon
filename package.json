@@ -24,7 +24,9 @@
     "native:build:arch": "npm run build:arch --workspace @xenon/native",
     "native:package:arch": "node tools/package-arch.mjs",
     "icue:validate": "icuewidget validate widget",
-    "icue:package": "node tools/package-icue-widget.mjs"
+    "icue:package": "node tools/package-icue-widget.mjs",
+    "icue:xenon:validate": "icuewidget validate icue-widget",
+    "icue:xenon:package": "icuewidget validate icue-widget && icuewidget package icue-widget --output xenon.icuewidget"
   },
   "engines": {
     "node": ">=18.15.0"

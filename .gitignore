@@ -99,6 +99,7 @@ service/logs/
 # iCUE packaging scratch directory + packaged output (rebuild with `npm run icue:package`)
 .icue-package/
 xenonedgehub.icuewidget
+xenon.icuewidget
 
 # Superpowers brainstorming companion (local mockups)
 .superpowers/

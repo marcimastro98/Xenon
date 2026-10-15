@@ -1,0 +1,30 @@
+{
+  "author": "marcimastro98",
+  "id": "com.marcimastro98.xenon",
+  "name": "Xenon",
+  "description": "Your whole Xenon dashboard on the Xeneon Edge. Needs the free Xenon app running on this PC.",
+  "version": "1.0.0",
+  "preview_icon": "resources/icon.png",
+  "min_app_version": "5.47",
+  "min_framework_version": "1.4.0",
+  "os": [{ "platform": "windows" }],
+  "supported_devices": [{ "type": "dashboard_lcd" }],
+  "interactive": true,
+  "required_plugins": [
+    "widgetbuilder.linkprovider:Url:1.0"
+  ],
+  "permissions": [
+    { "type": "url", "domain": "127.0.0.1", "port": 3030 },
+    { "type": "url", "domain": "localhost", "port": 3030 },
+    { "type": "url", "domain": "fonts.googleapis.com" },
+    { "type": "url", "domain": "fonts.gstatic.com" },
+    { "type": "url", "domain": "assets.xenon-app.com" },
+    { "type": "url", "domain": "xenon-supporter-hub.xenonedge.workers.dev" },
+    { "type": "url", "domain": "cdn.discordapp.com" },
+    { "type": "url", "domain": "static-cdn.jtvnw.net" },
+    { "type": "speaker" },
+    { "type": "microphone" },
+    { "type": "clipboard-read-write" },
+    { "type": "notifications" }
+  ]
+}

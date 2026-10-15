@@ -111,6 +111,7 @@ helper-mac/                     export-ignore
 
 # iCUE widget package — a separate distribution, never loaded by the server.
 widget/                         export-ignore
+icue-widget/                    export-ignore
 
 # CI workflows
 .github/                        export-ignore

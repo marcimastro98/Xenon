@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tr('Xenon')</title>
+  <link rel="icon" href="resources/icon.png" type="image/png" />
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <iframe id="xenon" title="Xenon" allow="autoplay; microphone; clipboard-read; clipboard-write; fullscreen" hidden></iframe>
+
+  <main id="panel" class="panel" hidden>
+    <img class="panel-logo" src="resources/icon.png" alt="" />
+    <div class="panel-text">
+      <h1 id="panel-title"></h1>
+      <p id="panel-line"></p>
+    </div>
+    <button id="panel-action" class="panel-action" type="button" hidden></button>
+  </main>
+
+  <script src="scripts/icue.js"></script>
+  <script src="scripts/main.js"></script>
+  <script>
+    // Bare assignment on purpose: the iCUE bridge reads it as a global.
+    icueEvents = { onICUEInitialized: startWidget };
+  </script>
+</body>
+</html>
