@@ -533,4 +533,4 @@ XENON_CALLS_TEST=1 node server/server.js
 
 ## Native iCUE widget (`widget/`)
 
-A separate, in-development native widget package. Consult the offline SDK mirror before relying on web docs: `WidgetBuilder/docs/`, `WidgetBuilder/references/`, `WidgetBuilder/skill.md`. Many features (mic mute, audio, network, app switcher) require the companion server and aren't available via native SDK plugins alone. Keep the widget identity stable; package with `npm run icue:package`.
+A separate, in-development native widget package. Check the official iCUE widget SDK documentation before relying on a behavior. Many features (mic mute, audio, network, app switcher) require the companion server and aren't available via native SDK plugins alone. Keep the widget identity stable; package with `npm run icue:package`.

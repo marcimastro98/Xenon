@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Improvements
+- **The Minimal clock island now cuts into the tile under it.** A tile that sits under the floating clock keeps its full size: the island takes a rounded bite out of its top edge, the tile's border follows the cut, and the content starts just below it. When the island grows or shrinks (a badge, a notification, a wider clock) the cut follows it with a short animation. Before, the tile moved its content down by the island's height, and sometimes the island covered the top of the tile instead.
+- **Search finds a path you paste.** Paste a file or folder path into the search (as Explorer's "Copy as path" gives it, with or without quotes, or in the `~\Desktop\...` form the results show) and that file or folder comes up, ready to open. If it is no longer there, the search looks for its name instead, so a file that was moved is still found. Works on Windows, macOS and Linux.
+- **Supporters are no longer asked to become supporters.** If this PC keeps your supporter code, the new-drop card offers Unlock instead of "Become a supporter" and opens the unlock straight away, the Store's supporter panel shows your saved code instead of the membership offer, and during the Lyrics free week the tile offers to unlock with your code. If the code has ended, you are told so and the way to renew comes back.
+
+### 🐛 Fixed
+- **Adding a widget or a page no longer sends you back to the first page.** The dashboard now stays on the page you added the widget to, and a new page opens as soon as you create it.
+- **The full top bar no longer piles its buttons over the clock.** On narrow or zoomed screens, and in Layout mode where the page tools take extra room, the buttons drop their labels and keep only their icons before they reach the clock. The labels come back when there is room again.
+- **The Layout button's icon is visible again while Layout mode is on.** It was drawn dark on a dark button.
+
 ## [v4.11.13] - 16-10-2026
 ### ✨ Added
 - **A Deck key can now change the dashboard page.** The new action "Go to page" (in the System group) turns the dashboard to one of your pages, picked from a list of your own pages, or to the next page, the previous one, or back to the page you were on. Put it on a key, in a Multi-Action after other steps, or on a double tap or hold. It turns the screen the key was pressed on; from the Virtual Deck window it turns the dashboards on this PC. The Xenon AI can also add it when it builds a Deck for you. Asked on Discord by SeibiRiho.

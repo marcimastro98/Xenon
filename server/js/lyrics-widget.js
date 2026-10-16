@@ -84,7 +84,8 @@
   async function loadState() {
     const out = await api('/api/features/lyrics');
     applyStatus(out);
-    if (!unlocked) {
+    // During the trial too: a supporter trying the tile keeps it with one tap.
+    if (!unlocked || trialEndsAt) {
       const s = await api('/api/community/supporter');
       codeSaved = !!(s && s.saved);
     }
@@ -242,6 +243,11 @@
       date = new Date(trialEndsAt).toLocaleDateString(uiLangCode() || undefined, { day: 'numeric', month: 'long' });
     } catch { date = new Date(trialEndsAt).toLocaleDateString(); }
     inst.trialText.textContent = tr('lyrics_trial_until', 'Prova gratuita fino al {date}').replace('{date}', date);
+    // A refused code (ended, wrong) says why, and the way to join comes back.
+    if (codeSaved && unlockError) inst.trialText.textContent = unlockError;
+    inst.keep.hidden = codeSaved && !unlockError;
+    inst.keepUnlock.hidden = !codeSaved || !!unlockError;
+    inst.keepUnlock.disabled = unlocking;
   }
 
   // ── this song's timing ────────────────────────────────────────────────
@@ -346,12 +352,14 @@
     keep.href = supportHref('lyrics-trial');
     keep.target = '_blank';
     keep.rel = 'noopener noreferrer';
-    trialRow.append(trialText, keep);
+    // A PC that keeps a supporter code unlocks right here instead.
+    const keepUnlock = btn('lyw-trial-unlock', tr('devclean_unlock', 'Sblocca con il pass'), () => { void unlock(); });
+    trialRow.append(trialText, keep, keepUnlock);
     const body = el('div', 'lyw-body');
     mount.replaceChildren(head, trialRow, trStat, body);
     mount.dataset.lywReady = '1';
 
-    const inst = { lang: uiLangCode(), title, sub, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, view: window.LyricsView.create(body) };
+    const inst = { lang: uiLangCode(), title, sub, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, keep, keepUnlock, view: window.LyricsView.create(body) };
     paintTrial(inst);
     const isVisible = () => mount.isConnected && mount.getClientRects().length > 0 && !document.hidden && onVisiblePage(mount);
     inst.unsubscribe = window.LyricsCore.subscribe({

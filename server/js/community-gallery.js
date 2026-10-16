@@ -653,27 +653,32 @@
     if (entry.needsNewerApp) b.disabled = true;
     b.addEventListener('click', async () => {
       b.disabled = true;
-      const code = await resolveCode(entry);
+      await startImport(entry, isUpdate);
       b.disabled = false;
-      if (!code) {
-        if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_error', 'Could not load this entry.') });
-        return;
-      }
-      // #1 — keep the Store open BEHIND the import dialog so several things can be
-      // installed in a row without reopening and losing your place. The import
-      // modal shares the Store's .preset-modal-overlay class and is appended after
-      // it, so it stacks on top; the Store has no Escape/backdrop handler that the
-      // stacked dialog would trip, and it reappears when the dialog closes. On a
-      // committed install, the 'xenon-content-installed' listener repaints it so
-      // the card flips to "Installed".
-      const owner = isUpdate && entry.locked === true ? ownedTargetFor(entry) : null;
-      if (owner && window.PresetShare && PresetShare.updateOwned) {
-        PresetShare.updateOwned(code, { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
-        return;
-      }
-      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true });
     });
     return b;
+  }
+
+  // The one import path behind every Import / Unlock / Update control.
+  async function startImport(entry, isUpdate) {
+    const code = await resolveCode(entry);
+    if (!code) {
+      if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_error', 'Could not load this entry.') });
+      return;
+    }
+    // #1 — keep the Store open BEHIND the import dialog so several things can be
+    // installed in a row without reopening and losing your place. The import
+    // modal shares the Store's .preset-modal-overlay class and is appended after
+    // it, so it stacks on top; the Store has no Escape/backdrop handler that the
+    // stacked dialog would trip, and it reappears when the dialog closes. On a
+    // committed install, the 'xenon-content-installed' listener repaints it so
+    // the card flips to "Installed".
+    const owner = isUpdate && entry.locked === true ? ownedTargetFor(entry) : null;
+    if (owner && window.PresetShare && PresetShare.updateOwned) {
+      PresetShare.updateOwned(code, { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
+      return;
+    }
+    if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true });
   }
 
   // "Become a supporter" — the warm heart CTA shown beside a locked entry's
@@ -938,7 +943,9 @@
     const x = el('button', 'cgal-iconbtn'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close')); x.addEventListener('click', closeIt);
     head.appendChild(x);
     const body = el('div', 'cgal-info-body');
-    body.appendChild(el('p', 'cgal-info-lead', t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.')));
+    body.appendChild(el('p', 'cgal-info-lead', supporterSaved
+      ? t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')
+      : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.')));
     const ul = el('ul', 'cgal-info-perks');
     // perk4 is the yearly tier's commissioned theme: it sits after perk3,
     // which sets up "more money buys more time", because the theme is the one
@@ -958,11 +965,26 @@
     const mail = document.createElement('a');
     mail.className = 'cgal-info-mail'; mail.href = 'mailto:' + SUPPORT_EMAIL; mail.textContent = SUPPORT_EMAIL;
     note.appendChild(mail);
-    body.appendChild(note);
+    // Someone whose code is already saved has had it: the where-is-my-code note is noise.
+    if (!supporterSaved) body.appendChild(note);
     const cta = el('div', 'cgal-info-cta');
-    const bmc = document.createElement('a'); bmc.className = 'cgal-btn cgal-info-bmc'; bmc.href = supportHref('store-info'); bmc.target = '_blank'; bmc.rel = 'noopener noreferrer'; bmc.appendChild(icon('supporters')); bmc.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
+    // A PC that keeps a code is a supporter's: it gets the saved state and the
+    // way back to the entries, not the membership pitch.
+    if (supporterSaved) {
+      const saved = el('span', 'cgal-btn cgal-installed');
+      saved.appendChild(icon('check'));
+      saved.appendChild(el('span', null, t('gallery_supporter_saved', 'Supporter code saved')));
+      const browse = el('button', 'cgal-btn cgal-info-bmc'); browse.type = 'button';
+      browse.appendChild(icon('supporters'));
+      browse.appendChild(el('span', null, t('gallery_supporters_browse', 'See supporter entries')));
+      browse.addEventListener('click', () => { closeIt(); open('__supporters'); });
+      cta.appendChild(browse); cta.appendChild(saved);
+    } else {
+      const bmc = document.createElement('a'); bmc.className = 'cgal-btn cgal-info-bmc'; bmc.href = supportHref('store-info'); bmc.target = '_blank'; bmc.rel = 'noopener noreferrer'; bmc.appendChild(icon('supporters')); bmc.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
+      cta.appendChild(bmc);
+    }
     const disc = document.createElement('a'); disc.className = 'cgal-btn'; disc.href = DISCORD_URL; disc.target = '_blank'; disc.rel = 'noopener noreferrer'; disc.textContent = t('gallery_sup_discord', 'Join the Discord');
-    cta.appendChild(bmc); cta.appendChild(disc);
+    cta.appendChild(disc);
     body.appendChild(cta);
     modal.appendChild(head); modal.appendChild(body);
     scrim.appendChild(modal);
@@ -1987,14 +2009,32 @@
   // Open the Store straight onto one entry's detail view — used by the "new
   // drop" modal so its CTA lands the user on the real purchase/reserve context
   // (same import boundary; openDetail just stacks over the freshly-opened store).
-  function openEntry(entry) {
+  // The saved-code check runs first: on a cold open the detail would otherwise
+  // be drawn before the Store knows about the code, and sell the membership to
+  // someone who already holds it.
+  async function openEntry(entry) {
     if (!entry) { open(); return; }
     open(entry.limited ? '__limited' : undefined);
+    await refreshSupporterSaved();
+    if (!overlayEl) return;   // closed meanwhile
     openDetail(entry);
   }
   // Open the Store and surface the Supporters "how it works" perks panel — the
   // donate/convert path for the supporter drop modal.
-  function openSupporters() { open(); openSupporterInfo(); }
+  async function openSupporters() {
+    open();
+    await refreshSupporterSaved();
+    if (overlayEl) openSupporterInfo();
+  }
+  // "Unlock" from outside the Store (the new-drop card) for a PC that keeps a
+  // supporter code: the entry's detail opens with the unlock dialog straight on
+  // top, the same dialog its own Unlock button opens.
+  async function unlockEntry(entry) {
+    await openEntry(entry);
+    if (!entry || !overlayEl || entry.needsNewerApp) return;
+    const state = entryInstallState(entry);
+    if (state !== 'current') await startImport(entry, state === 'update');
+  }
 
   // kindIcon + SHOTS_BASE are shared with the Installed tab
   // (js/installed-manager.js) so both surfaces draw from ONE icon set and ONE
@@ -2069,5 +2109,5 @@
   // is SWR-cached, so this is cheap and usually instant).
   try { setTimeout(() => { try { refreshStoreDot(); } catch { /* ignore */ } }, 4000); } catch { /* no timers */ }
 
-  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, kindIcon, shotUrl, refreshStoreDot };
+  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, unlockEntry, kindIcon, shotUrl, refreshStoreDot };
 })();

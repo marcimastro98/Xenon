@@ -32,18 +32,52 @@ body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
 }
 
 /* The grid keeps the FULL viewport height: tiles may sit level with the clock
-   island, using the whole top band at the pill's sides. Only a tile that
-   actually lies UNDER the pill insets its content down (--island-clear, set per
-   tile in js/topbar-minimal.js on every fit pass) so its header clears the
-   clock while the tile box — and its neighbours — stay full height. The old
-   full-width `.pager { padding-top: 54px }` reserve kept the whole band
-   off-limits on every page, which wasted the top strip on the fixed-height
-   Xeneon Edge; the known cost of the per-tile inset is that on a screen where a
-   page scrolls vertically the inset scrolls with the tile (cosmetic, and the
-   kiosk never scrolls). No transition on the inset: it's recomputed on every
-   layout fit, so animating it would make the tile bob on each interaction. */
-body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content {
+   island, using the whole top band at the pill's sides. A tile that actually
+   lies UNDER the pill is not shrunk: the island bites into its top edge, like a
+   notch, and the tile wraps around it (shape and measuring in js/island-notch.js
+   and js/topbar-minimal.js, recomputed on every fit pass and every pill resize).
+     - the item is clipped to the cutout (the clip runs 48px past the tile so
+       its drop shadow survives);
+     - the panel's top border becomes a transparent band as deep as the cutout,
+       so the content starts under it while the background still fills it;
+     - an SVG hairline redraws the tile border along the cutout.
+   The values only change when the cutout really changes (the writes are
+   reconciled), so the transitions never make a tile bob on ordinary fits.
+   While EDITING the tile keeps the old whole-content inset instead: the edit
+   bar and the resize handles live at the tile's top edge. */
+body.topbar-minimal.layout-editing .grid-stack-item.island-clear > .grid-stack-item-content {
   top: var(--island-clear, 0px);
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear {
+  clip-path: var(--island-notch, none);
+  transition: clip-path var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  --panel-topline: transparent;
+  border-top-color: transparent;
+  border-top-width: var(--island-inset, 1px);
+  background-origin: border-box;
+  transition: border-top-width var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+}
+.island-notch-edge { display: none; }
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+  fill: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge path {
+  transition: d var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  body.topbar-minimal .grid-stack-item.island-clear,
+  body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content > :is(.panel, .dashboard-widget),
+  body.topbar-minimal .grid-stack-item.island-clear > .island-notch-edge path { transition: none; }
 }
 
 /* ── Island pill — floating capsule, top centre ───────────────

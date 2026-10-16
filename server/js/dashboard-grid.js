@@ -781,6 +781,7 @@ function addWidgetToPage(widgetId, pageId) {
     layout.copies.push({ id, widget: widgetId, x: place.x, y: place.y, w: place.w, h: place.h, page: pageId });
     saveDashboardLayout(layout);
     if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+    showWidgetPage(pageId);
     return id;
   }
   // Otherwise (first placement, or a not-yet-duplicable widget): show the single
@@ -795,7 +796,16 @@ function addWidgetToPage(widgetId, pageId) {
   // the last widget it held. (Copies already start unassigned via stripCustomClone.)
   if (window.CustomWidget && DI && DI.baseWidgetOf(widgetId) === 'custom') window.CustomWidget.clearAssign(widgetId);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+  showWidgetPage(pageId);
   return widgetId;
+}
+
+// The person just put a widget on `pageId`: that is the page they should be
+// looking at, whatever the re-layout did to the scroll position meanwhile.
+// goToPage ignores an id the pager does not have.
+function showWidgetPage(pageId) {
+  const pager = window.DashboardPager;
+  if (pageId && pager && typeof pager.goToPage === 'function') pager.goToPage(pageId);
 }
 
 // Position the per-page "+" affordance over the page's largest free area, so it

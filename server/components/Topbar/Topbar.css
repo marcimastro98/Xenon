@@ -123,13 +123,9 @@
   color: var(--text);
 }
 /* Layout editing is a MODE you are inside, so while it is on the button comes
-   back to full strength — that is a state worth seeing, unlike the resting one. */
-.topbtn.qbtn-layout.active,
-body.layout-editing .topbtn.qbtn-layout {
-  border-color: var(--floating-ui-border);
-  background: var(--floating-ui-bg);
-  color: var(--accent);
-}
+   back to full strength (the accent fill further down, the same one the edge
+   rail uses). It used to be an outline here AND a fill there; the outline won the
+   background and the fill won the icon, which drew a dark icon on a dark plate. */
 
 .topbtn svg {
   width: 16px;
@@ -197,6 +193,11 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   box-shadow: 0 4px 16px rgba(var(--accent-rgb),0.4);
 }
 .topbtn.qbtn-layout.active svg { color: var(--on-accent); filter: none; }
+
+/* Not enough room beside the clock for the labels (js/topbar-fit.js): icons
+   only, same targets. The dots keep their place, the settings dot stays. */
+.topbar.topbar-squeezed .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
+.topbar.topbar-squeezed .topbtn { padding: 0; width: 36px; justify-content: center; }
 
 /* Narrow widths: collapse labels to icons so nothing wraps */
 @media (max-width: 1180px) {

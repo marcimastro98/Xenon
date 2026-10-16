@@ -378,6 +378,8 @@
     syncRail(left.rail, left.handle, state.left);
     syncRail(right.rail, right.handle, state.right);
     ui = { pill, left, right };
+    // Every size change of the pill moves the cutouts it makes in the tiles.
+    if (typeof ResizeObserver === 'function') new ResizeObserver(scheduleReflow).observe(pill);
     return ui;
   }
 
@@ -508,22 +510,89 @@
     setRailsHidden(false);
   }
 
+  // ── Island notch ─────────────────────────────────────────────────────────
+  // A tile under the island keeps its full height and gets a cutout around the
+  // pill (js/island-notch.js has the shape). Three things per tile:
+  //   --island-clear  the old whole-content inset, still used while EDITING, where
+  //                   the edit bar and handles sit at the tile top;
+  //   --island-inset  how far the content starts below the tile top (run mode);
+  //   --island-notch  the clip, plus an <svg> hairline along the cutout.
+  // A cutout grows out of, and shrinks back into, its own centre, so the tile
+  // opens and closes around the island instead of popping.
+  const NOTCH_MS = 360;             // must match the transitions in TopbarMinimal.css
+  const notchState = new WeakMap(); // item -> { geo, line, key, leaving }
+
+  function notchEdge(item) {
+    let svg = item.querySelector(':scope > .island-notch-edge');
+    if (!svg) {
+      const ns = 'http://www.w3.org/2000/svg';
+      svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('class', 'island-notch-edge');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.appendChild(document.createElementNS(ns, 'path'));
+      item.appendChild(svg);
+    }
+    return svg.firstChild;
+  }
+
+  function drawNotch(item, geo, line) {
+    const N = window.IslandNotch;
+    item.style.setProperty('--island-notch', N.clipPath(geo));
+    const d = N.edgePath(geo, line.width);
+    const path = notchEdge(item);
+    // CSS `d` animates together with the clip where supported; the attribute is
+    // the fallback for engines without it (WebKit), which then simply snap.
+    path.setAttribute('d', d);
+    path.style.setProperty('d', 'path("' + d + '")');
+    path.setAttribute('stroke', line.color);
+    path.setAttribute('stroke-width', String(line.width));
+  }
+
+  function dropNotch(item) {
+    const st = notchState.get(item);
+    if (st && st.leaving) clearTimeout(st.leaving);
+    notchState.delete(item);
+    item.classList.remove('island-clear');
+    ['--island-clear', '--island-inset', '--island-notch'].forEach(p => item.style.removeProperty(p));
+    const svg = item.querySelector(':scope > .island-notch-edge');
+    if (svg) svg.remove();
+  }
+
+  function motionOk() {
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // Close a cutout into its centre, then take the tags off once it has.
+  function releaseNotch(item) {
+    const st = notchState.get(item);
+    if (!st || !st.geo || !motionOk() || document.body.classList.contains('layout-editing')) { dropNotch(item); return; }
+    if (st.leaving) return;
+    st.leaving = setTimeout(() => { if (notchState.get(item) === st) dropNotch(item); }, NOTCH_MS);
+    st.key = '';
+    item.style.setProperty('--island-inset', st.line.width + 'px');
+    drawNotch(item, window.IslandNotch.collapsed(st.geo), st.line);
+  }
+
   function clearIslandTags() {
-    document.querySelectorAll('.grid-stack-item.island-clear').forEach(item => {
-      item.classList.remove('island-clear');
-      item.style.removeProperty('--island-clear');
-    });
+    document.querySelectorAll('.grid-stack-item.island-clear').forEach(dropNotch);
+  }
+
+  // The pill changes size on its own (a badge appears, the clock gains a
+  // segment, a notification morphs it): follow it, one pass per frame.
+  let notchFrame = 0;
+  function scheduleReflow() {
+    if (notchFrame) return;
+    notchFrame = requestAnimationFrame(() => { notchFrame = 0; reflowIsland(); });
   }
 
   // The grid keeps the full viewport height in minimal mode, so tiles can sit
   // level with the floating clock island. Every tile whose TOP ROW actually
-  // intersects the pill's span gets its content inset down (--island-clear) so
-  // its header clears the clock — tiles beside the pill keep the whole band.
-  // Grid-local coords keep this correct for off-screen pages, so paging never
-  // reveals an overlap. Called at the tail of fitGridHeights and from the grid
-  // change/dragstop throttle, so the preview tracks live edits.
+  // intersects the pill gets the notch above. Grid-local coords keep this
+  // correct for off-screen pages, so paging never reveals an overlap. Called at
+  // the tail of fitGridHeights, from the grid change/dragstop throttle and on
+  // every pill resize.
   function reflowIsland() {
-    if (!active || !ui || !ui.pill) { clearIslandTags(); return; }
+    if (!active || !ui || !ui.pill || !window.IslandNotch) { clearIslandTags(); return; }
     try {
       const pill = ui.pill.getBoundingClientRect();
       if (!pill.height) { clearIslandTags(); return; }
@@ -531,15 +600,13 @@
       // placed from its GridStack coords rather than its own DOM rect. Pager pages
       // sit side by side at the same size and vertical origin, so one measurement
       // answers for all of them. Two measured reasons, beyond being less work:
-      //   - A rect read inside a parked page (.is-parked → content-visibility:
+      //   - A rect read inside a parked page (.is-parked -> content-visibility:
       //     hidden) forces Chromium to render the very subtree the parking exists
       //     to skip, which is the "Rendering was performed in a subtree hidden by
       //     content-visibility" console flood.
-      //   - Interleaving per-tile reads with the --island-clear writes below
-      //     invalidated layout between them, so each read re-ran it: the 35-56ms
-      //     "Forced reflow while executing JavaScript" violations.
-      // Grid coords stay correct for off-screen pages, so paging still never
-      // reveals an overlap — that is why this must not simply skip parked pages.
+      //   - Interleaving per-tile reads with the writes below invalidated layout
+      //     between them, so each read re-ran it: the 35-56ms "Forced reflow while
+      //     executing JavaScript" violations. Every read happens before any write.
       const grids = Array.from(document.querySelectorAll('.pager-page .grid-stack'));
       const ref = grids.find(g => !g.closest('.pager-page.is-parked')) || grids[0];
       if (!ref) { clearIslandTags(); return; }
@@ -547,41 +614,59 @@
       if (!g.height || !g.width) { clearIslandTags(); return; }
       const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
       if (!clearance) { clearIslandTags(); return; }
-      // The pill is fixed to the viewport; express its span in page-local pixels so
-      // the same test applies to pages scrolled off to either side.
       const cols = (window.DashboardGrid && window.DashboardGrid.GRID_COLUMNS) || 24;
       const colWidth = g.width / cols;
-      const pillLeft = pill.left - g.left;
-      const pillRight = pill.right - g.left;
-      const want = new Map(); // item element -> clearance px string
+      const N = window.IslandNotch;
+      let margin = null;
+      const want = new Map(); // item -> { geo, line }
       grids.forEach(grid => {
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
           const n = item.gridstackNode;
-          if (!n) return;                                // not mounted yet
-          if ((n.y || 0) !== 0) return;                  // top row only
+          if (!n || (n.y || 0) !== 0) return;            // mounted, top row only
+          const content = item.querySelector(':scope > .grid-stack-item-content');
+          const surface = content && content.querySelector(':scope > .panel, :scope > .dashboard-widget');
+          if (!surface) return;
+          // GridStack's gutter is the same on every tile: read it once.
+          if (margin === null) margin = parseFloat(getComputedStyle(content).left) || 0;
           const left = (n.x || 0) * colWidth;
-          const right = left + (n.w || 0) * colWidth;
-          // Must genuinely sit under the pill (≥12px horizontal overlap) — with
-          // the fine 24-column grid more than one tile can straddle it.
-          const overlap = Math.min(right, pillRight) - Math.max(left, pillLeft);
-          if (overlap < 12) return;
-          want.set(item, clearance + 'px');
+          const cs = getComputedStyle(surface);
+          const geo = N.geometry({
+            width: (n.w || 0) * colWidth,
+            margin,
+            radius: parseFloat(cs.borderTopLeftRadius) || 0,
+            pill: { left: pill.left - g.left - left, right: pill.right - g.left - left, bottom: pill.bottom - g.top, height: pill.height },
+          });
+          if (!geo) return;
+          const width = Math.max(1, parseFloat(cs.borderLeftWidth) || 1);
+          want.set(item, { geo, line: { width, color: cs.borderLeftColor } });
         });
       });
-      // Reconcile idempotently: fitGridHeights re-runs on every interaction, so
-      // only touch tiles whose state actually changes — re-tagging an already
-      // correct tile would restart layout work and make it bob on every touch.
+      // Writes. Reconcile idempotently: fitGridHeights re-runs on every
+      // interaction, so a tile whose cutout has not changed is not touched.
       document.querySelectorAll('.grid-stack-item.island-clear').forEach(item => {
-        if (!want.has(item)) {
-          item.classList.remove('island-clear');
-          item.style.removeProperty('--island-clear');
-        }
+        if (!want.has(item)) releaseNotch(item);
       });
-      want.forEach((clearance, item) => {
-        if (item.style.getPropertyValue('--island-clear') !== clearance) {
-          item.style.setProperty('--island-clear', clearance);
+      const animate = motionOk();
+      want.forEach(({ geo, line }, item) => {
+        const prev = notchState.get(item);
+        const key = N.clipPath(geo) + '|' + line.width + '|' + line.color + '|' + clearance;
+        if (prev && !prev.leaving && prev.key === key && item.classList.contains('island-clear')) return;
+        if (prev && prev.leaving) { clearTimeout(prev.leaving); prev.leaving = 0; }
+        const fresh = !prev || !item.classList.contains('island-clear');
+        item.style.setProperty('--island-clear', clearance + 'px');
+        item.style.setProperty('--island-inset', geo.inset + 'px');
+        notchState.set(item, { geo, line, key, leaving: 0 });
+        item.classList.add('island-clear');
+        if (fresh && animate) {
+          // Start closed at the island's centre and open on the next frame.
+          drawNotch(item, N.collapsed(geo), line);
+          requestAnimationFrame(() => {
+            const st = notchState.get(item);
+            if (st && st.key === key) drawNotch(item, geo, line);
+          });
+        } else {
+          drawNotch(item, geo, line);
         }
-        if (!item.classList.contains('island-clear')) item.classList.add('island-clear');
       });
     } catch (e) { /* never break the fit pass */ }
   }

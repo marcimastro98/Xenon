@@ -8,7 +8,8 @@
 // with its persisted open-frequency log.
 //
 // Security shape (mirrors the Slideshow folder source): a search RESPONSE
-// carries paths as display text, but no request ever accepts one. Results get
+// carries paths as display text, but no request ever ACTS on one. A path pasted
+// as the query is only stat'ed, and comes back as an ordinary result. Results get
 // an opaque id; /search/open and /search/reveal resolve the id against THIS
 // module's bounded cache, then open through the same rules as the Deck's
 // openFile (BLOCKED_OPEN_EXT from actions/registry.js + existence check).
@@ -22,11 +23,13 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const crypto = require('crypto');
 const SearchQuery = require('./search-query');
 const SearchRank = require('./search-rank');
 const { writeFileAtomic } = require('./atomic-write');
 const { isBlockedOpenPath } = require('./actions/registry');
+const { pastedPath } = require('./search-pasted-path');
 
 const HOST_IDLE_MS = 5 * 60 * 1000;   // retire the PS host after 5 min without queries
 const HOST_RETRY_MS = 10 * 1000;      // after a host death, wait before respawning
@@ -38,6 +41,8 @@ const CATALOG_STASH_MS = 15000;      // a catalog answer is collectable this lon
 const CATALOG_STASH_MAX = 20;
 const FOLDERS_MAX = 8;                // folder results asked of the index
 const POOL_MAX = 12;                  // usage-log files re-checked per query
+const QUERY_MAX = 200;                // typed queries; a pasted path may be longer
+const PASTED_STAT_MS = 1500;          // a mapped drive that does not answer is not a result
 
 function createFileSearch(opts) {
   const o = opts || {};
@@ -292,8 +297,33 @@ function createFileSearch(opts) {
   async function search(rawQuery, options) {
     const opt = options || {};
     const now = Number.isFinite(opt.now) ? opt.now : Date.now();
-    const q = SearchQuery.parseQuery(rawQuery, { now, disable: opt.disable });
+    const pasted = await pastedTarget(rawQuery);
+    if (pasted && pasted.hit) {
+      return { ok: true, chips: [], terms: [], wds: 'ok', index: 'ready', apps: [], pasted: true, results: [publicResult(pasted.hit, [])] };
+    }
+    const q = SearchQuery.parseQuery(queryText(rawQuery, pasted), { now, disable: opt.disable });
     return execQuery(q, opt, now);
+  }
+
+  // A pasted path: the item itself when it exists. When it does not (moved,
+  // renamed folder, a path from another PC) the search goes on with its last
+  // part, the file's name, which is how a moved file is still found.
+  async function pastedTarget(rawQuery) {
+    const abs = pastedPath(rawQuery, { platform: PLATFORM, home: o.home || os.homedir() });
+    if (!abs) return null;
+    const P = PLATFORM === 'win32' ? path.win32 : path.posix;
+    let st = null;
+    try { st = await withTimeout(fs.promises.stat(abs).catch(() => null), PASTED_STAT_MS); } catch { st = null; }
+    if (!st) return { name: P.basename(abs) };
+    const folder = st.isDirectory();
+    return {
+      name: P.basename(abs),
+      hit: { path: abs, name: P.basename(abs), dir: P.dirname(abs), size: folder ? 0 : st.size, mtime: st.mtimeMs, folder },
+    };
+  }
+
+  function queryText(rawQuery, pasted) {
+    return pasted ? pasted.name : String(rawQuery == null ? '' : rawQuery).slice(0, QUERY_MAX);
   }
 
   // AI mode: the provider translated the phrase into a structured spec. The
@@ -556,7 +586,9 @@ function createFileSearch(opts) {
   async function catalog(rawQuery, options) {
     const opt = options || {};
     const now = Number.isFinite(opt.now) ? opt.now : Date.now();
-    const q = SearchQuery.parseQuery(rawQuery, { now, disable: opt.disable });
+    const pasted = await pastedTarget(rawQuery);
+    if (pasted && pasted.hit) return { ok: true, results: [], wds: 'ok' };   // search() already answered with it
+    const q = SearchQuery.parseQuery(queryText(rawQuery, pasted), { now, disable: opt.disable });
     const hasFilter = q.terms.length || q.exts || q.kind || q.after != null || q.before != null || q.minBytes != null || q.maxBytes != null;
     if (!hasFilter) return { ok: true, results: [], wds: 'ok' };
     const [wdsOut, u] = await Promise.all([startCatalog(q), loadUsage()]);

@@ -206,6 +206,9 @@ function addDashboardPage() {
   saveDashboardLayout(layout);
   rebuildDashboardPages();
   if (typeof refreshDashboardLayoutEditor === 'function') refreshDashboardLayoutEditor();
+  // A page is added to be filled: land on it, instead of leaving the view
+  // wherever the rebuild happened to put it.
+  if (window.DashboardPager && typeof window.DashboardPager.goToPage === 'function') window.DashboardPager.goToPage(id);
 }
 
 // The name a rename dialog should start from: what the user actually typed,

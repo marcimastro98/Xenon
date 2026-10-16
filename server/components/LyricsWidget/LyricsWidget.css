@@ -187,6 +187,21 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 
 .lyw-trial[hidden] { display: none; }
 .lyw-trial a { color: var(--accent); font-weight: 730; text-underline-offset: 3px; }
+.lyw-trial a[hidden], .lyw-trial-unlock[hidden] { display: none; }
+/* Same weight as the join link it replaces, with a real touch target. */
+.lyw-trial-unlock {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 730;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.lyw-trial-unlock:disabled { opacity: .6; cursor: default; }
 
 .lyw-body {
   display: flex;

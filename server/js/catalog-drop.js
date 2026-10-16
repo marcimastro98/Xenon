@@ -34,6 +34,15 @@
 
   const RECENT = 30 * DAY;            // "the month's drops": published in the last 30 days
 
+  // Does this PC keep a supporter code? A supporter is not sold the membership
+  // again: the card offers Unlock, which uses the saved code. Read before every
+  // showing; a failed read keeps the last answer (false until one succeeds).
+  let passSaved = false;
+  async function readPassSaved() {
+    const r = await api('/api/community/supporter');
+    if (r && typeof r.saved === 'boolean') passSaved = r.saved;
+  }
+
   // The announced-id set moved to js/interrupt-queue.js (same storage key, so
   // existing history carries over): a hub announcement can name the same entry
   // this modal already showed, and only a shared set can catch that.
@@ -277,6 +286,7 @@
 
     const sub = entry.description
       || (isLim ? t('drop_limited_sub', 'A limited-edition drop with a fixed number of copies worldwide. Once they’re gone, it retires for good.')
+        : passSaved ? t('drop_supporter_sub_saved', 'A new supporter creation is here. Your saved supporter code unlocks it.')
         : t('drop_supporter_sub', 'A new supporter creation is here. Become a supporter to unlock it — and everything supporters get, forever.'));
     body.appendChild(el('p', 'xdrop-sub', sub));
 
@@ -287,11 +297,15 @@
     // It opens the entry in the Store, where the claim or the unlock lives.
     const primary = el('button', 'xdrop-btn xdrop-primary');
     primary.type = 'button';
-    primary.appendChild(el('span', 'xdrop-btn-label', isLim ? t('gallery_claim_copy', 'Claim your copy') : t('gallery_supporters_join', 'Become a supporter')));
+    const unlockSaved = !isLim && passSaved;
+    primary.appendChild(el('span', 'xdrop-btn-label', isLim ? t('gallery_claim_copy', 'Claim your copy')
+      : unlockSaved ? t('gallery_unlock_saved', 'Unlock') : t('gallery_supporters_join', 'Become a supporter')));
     primary.addEventListener('click', () => {
       close();
-      if (isLim) window.CommunityGallery.openEntry(entry);
-      else window.CommunityGallery.openSupporters();
+      const CG = window.CommunityGallery;
+      if (isLim) CG.openEntry(entry);
+      else if (unlockSaved && typeof CG.unlockEntry === 'function') CG.unlockEntry(entry);
+      else CG.openSupporters();
     });
     const secondary = el('button', 'xdrop-btn xdrop-ghost', t('drop_details', 'See details'));
     secondary.type = 'button';
@@ -431,6 +445,7 @@
         .filter((e) => isPaidDrop(e) && isRecent(e, now) && !isOwned(e))
         .sort((a, b) => (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0));
       if (!drops.length) { markSession(); return; }
+      await readPassSaved();
       presentWhenIdle(drops);   // waits its turn behind What's New
     } catch { /* best-effort — never surface an error for a promo */ }
   }

@@ -74,9 +74,6 @@ docs/llms.txt                   export-ignore
 docs/sitemap.xml                export-ignore
 docs/robots.txt                 export-ignore
 
-# Offline iCUE SDK documentation mirror — development reference only
-WidgetBuilder/                  export-ignore
-
 # ── Development-only trees ───────────────────────────────────────────────────
 # Same reasoning as the website payload above: an install carries whatever the
 # tag archive contains, so anything only a contributor needs is dead weight on

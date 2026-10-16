@@ -19722,7 +19722,8 @@ const handleRequest = async (req, res) => {
     // results carry the user's file names). Result paths travel OUT as display
     // text only; acting on a result goes through the opaque id below.
     try {
-      const q = String(urlObj.searchParams.get('q') || '').slice(0, 200);
+      // Long enough for a pasted path; filesearch cuts a typed query to 200.
+      const q = String(urlObj.searchParams.get('q') || '').slice(0, 1024);
       let disable;
       try {
         const rawDisable = urlObj.searchParams.get('disable');

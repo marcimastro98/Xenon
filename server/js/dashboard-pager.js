@@ -6,6 +6,12 @@
   'use strict';
 
   const WHEEL_THRESHOLD = 24; // px; below this we treat the wheel as noise
+  // Putting the view back where it was after a rebuild is not a navigation: the
+  // pager's CSS asks for smooth scrolling, and a smooth restore travels from
+  // wherever the rebuild left the scroll (page 1 once the old sections are
+  // gone). Anything that lands mid-flight, a settle or a re-snap, then reads the
+  // page as page 1. Restores jump; only real moves (goToPage) glide.
+  const RESTORE_SCROLL = 'instant';
 
   // Keep a page index within [0, count-1]; fall back to 0 when there are none.
   function clampPageIndex(index, count) {
@@ -363,7 +369,7 @@
       if (firstActive >= 0) {
         currentIndex = firstActive;
         unparkAll();
-        if (viewport && pages[firstActive].element) viewport.scrollTo({ left: pages[firstActive].element.offsetLeft });
+        if (viewport && pages[firstActive].element) viewport.scrollTo({ left: pages[firstActive].element.offsetLeft, behavior: RESTORE_SCROLL });
         scheduleParkSettle();   // covers a same-offset jump that fires no scroll event
       }
     }
@@ -471,7 +477,7 @@
     renderDots();
     unparkAll();   // fresh page set: never carry a stale .is-parked over
     if (viewport && pages[currentIndex] && pages[currentIndex].element) {
-      viewport.scrollTo({ left: pages[currentIndex].element.offsetLeft });
+      viewport.scrollTo({ left: pages[currentIndex].element.offsetLeft, behavior: RESTORE_SCROLL });
     }
     scheduleParkSettle();   // re-park even when the scrollTo lands on the same offset
   }

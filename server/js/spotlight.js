@@ -777,7 +777,8 @@
         inflight = ctrl;
         stateHost.classList.add('spot-loading');
         try {
-          let url = '/search?q=' + encodeURIComponent(q.slice(0, 200));
+          // 1024: a pasted path is often longer than a typed query.
+          let url = '/search?q=' + encodeURIComponent(q.slice(0, 1024));
           if (Object.keys(disabled).length) url += '&disable=' + encodeURIComponent(JSON.stringify(disabled));
           const res = await fetch(url, { signal: ctrl.signal });
           const out = await res.json();
