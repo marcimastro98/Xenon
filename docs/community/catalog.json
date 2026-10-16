@@ -2,6 +2,35 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "casa",
+      "kind": "widget",
+      "name": "Casa",
+      "author": "xenon",
+      "supportersOnly": true,
+      "locked": true,
+      "featured": "on",
+      "description": "Your Home Assistant devices as wall plates. Tap a key to switch, drag a dimmer, hold any module for its full controls. Thermostats, energy, 24 hour traces, cameras and media; each copy keeps its own layout. Smoke, a leak, a triggered alarm or a door left open also show in the top bar.",
+      "category": "smart-home",
+      "tags": [
+        "home-assistant",
+        "smart-home",
+        "controls",
+        "camera",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "pkgId": "casa",
+      "appVersionMin": "4.11.13",
+      "preview": {
+        "accent": "#FFB36E",
+        "bg": "#141617",
+        "text": "#E8EAE7"
+      },
+      "shots": 6,
+      "addedAt": "2026-10-16",
+      "codeFile": true
+    },
+    {
       "id": "pagina-100",
       "kind": "bundle",
       "name": "Pagina 100",
