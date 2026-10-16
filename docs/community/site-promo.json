@@ -1,6 +1,51 @@
 {
   "promos": [
     {
+      "id": "casa-strip",
+      "entryId": "casa",
+      "format": "strip",
+      "activeUntil": "2026-10-21T23:59:59+02:00",
+      "video": "https://assets.xenon-app.com/community/promo/casa.mp4",
+      "poster": "https://assets.xenon-app.com/community/promo/casa-poster.png",
+      "url": "https://xenon-app.com/catalog/casa/",
+      "look": {
+        "paper": "#e6e3dc",
+        "ink": "#1c1d1e"
+      },
+      "text": {
+        "en": {
+          "title": "Casa",
+          "line": "Your Home Assistant devices as wall plates for Xenon supporters: tap a key to switch, slide to dim, hold for the rest.",
+          "cta": "Unlock Casa"
+        },
+        "it": {
+          "title": "Casa",
+          "line": "I tuoi dispositivi Home Assistant come placche a muro per i sostenitori di Xenon: tocchi per accendere, scorri per regolare, tieni premuto per il resto.",
+          "cta": "Sblocca Casa"
+        },
+        "es": {
+          "title": "Casa",
+          "line": "Tus dispositivos de Home Assistant como placas de pared para los supporters de Xenon: toca para encender, desliza para regular, mantén pulsado para el resto.",
+          "cta": "Desbloquear Casa"
+        },
+        "ja": {
+          "title": "Casa",
+          "line": "Home Assistant のデバイスを壁のスイッチプレートとして表示する、Xenon サポーター向けのウィジェット。タップで点灯、スライドで調光、長押しで詳細。",
+          "cta": "Casa をアンロック"
+        },
+        "ko": {
+          "title": "Casa",
+          "line": "Home Assistant 기기를 벽 스위치 플레이트로 보여 주는 Xenon 후원자용 위젯: 탭하면 켜지고, 밀면 밝기가 바뀌고, 길게 누르면 나머지 설정이 열립니다.",
+          "cta": "Casa 잠금 해제"
+        },
+        "zh": {
+          "title": "Casa",
+          "line": "把 Home Assistant 设备变成墙面开关面板，供 Xenon 支持者使用：点按开关，滑动调光，长按打开全部控制。",
+          "cta": "解锁 Casa"
+        }
+      }
+    },
+    {
       "id": "nitrato-corner",
       "entryId": "nitrato",
       "format": "corner",
