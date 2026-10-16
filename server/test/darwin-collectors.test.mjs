@@ -62,6 +62,9 @@ test('real macOS output: netstat, displays and audio parse into the shapes serve
   const net = dc.parseNetstatIb(fixture('darwin-real-netstat-ib.txt'));
   assert.ok(net.rx > 0 && net.tx > 0, 'cumulative counters since boot');
   assert.ok(Number.isInteger(net.rx) && Number.isInteger(net.tx));
+  // A VPN tunnel's link row has no hardware address, so one column fewer.
+  const utun = net.interfaces.find((i) => i.id === 'utun1');
+  assert.deepEqual([utun.rxBytes, utun.txBytes, utun.kind], [0, 170622, 'virtual']);
 
   const gpu = dc.parseDisplaysJson(fixture('darwin-real-displays.json'));
   assert.ok(gpu.gpuName, 'Apple Silicon still names itself');
