@@ -4,7 +4,7 @@
     {
       "id": "casa",
       "kind": "widget",
-      "name": "Casa",
+      "name": "Wall Plate",
       "author": "xenon",
       "supportersOnly": true,
       "locked": true,
@@ -18,7 +18,7 @@
         "camera",
         "supporter"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
       "pkgId": "casa",
       "appVersionMin": "4.11.13",
       "preview": {
@@ -28,7 +28,8 @@
       },
       "shots": 6,
       "addedAt": "2026-10-16",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-10-16"
     },
     {
       "id": "pagina-100",
