@@ -1,75 +1,123 @@
 {
-  "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. A .gif works as mediaType \"image\" (the host allowlist is host-based, not extension-based, and an <img> animates it). The docs/images/*.png|gif referenced below resolve once this branch is on main, which the release pipeline does before tagging; they ship inside the build and are read from disk. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.11.11",
-  "title": {
-    "it": "Novità di Xenon 4.11.11",
-    "en": "What's new in Xenon 4.11.11",
-    "ko": "Xenon 4.11.11의 새로운 기능",
-    "ja": "Xenon 4.11.11 の新機能",
-    "zh": "Xenon 4.11.11 新功能"
-  },
-  "highlights": [
-    {
-      "title": {
-        "it": "Un nuovo riquadro Claude Code",
-        "en": "A new Claude Code tile",
-        "ko": "새로워진 Claude Code 타일",
-        "ja": "新しい Claude Code タイル",
-        "zh": "全新的 Claude Code 磁贴"
-      },
-      "body": {
-        "it": "Il riquadro è ricostruito intorno a ciò che aspetta te. Una richiesta di Claude Code in attesa sta in cima e dice cosa toccherebbe prima di chiederti un tocco: pubblicare il tuo lavoro, la rete, un file fuori dalla cartella del progetto o qualcosa che non si può annullare. Un comando irreversibile, come rm -rf, si consente tenendo premuto il pulsante e non con un tocco. Sotto, una riga per ogni sessione con il passo in corso e la tua quota delle 5 ore e dei 7 giorni, e una scheda Uso sugli ultimi 30 giorni.",
-        "en": "The tile is rebuilt around what needs you. A request Claude Code is waiting on sits at the top and says what it would reach before it asks for a tap: publishing your work, the network, a file outside the project folder, or something that cannot be undone. An irreversible command such as rm -rf is allowed by holding the button, not by a tap. Below, a row for each session with the step it is on and your 5-hour and 7-day quota, and a Usage face covering the last 30 days.",
-        "ko": "타일이 지금 나를 기다리는 일을 중심으로 다시 만들어졌습니다. Claude Code가 기다리는 요청이 맨 위에 놓이고, 탭을 요청하기 전에 무엇에 닿을지 알려 줍니다. 작업 게시, 네트워크, 프로젝트 폴더 밖의 파일, 되돌릴 수 없는 일 등입니다. rm -rf 같은 되돌릴 수 없는 명령은 탭이 아니라 버튼을 길게 눌러야 허용됩니다. 아래에는 세션마다 한 줄로 진행 중인 단계가 표시되고, 5시간 및 7일 한도와 지난 30일을 다루는 사용량 화면이 있습니다.",
-        "ja": "タイルは、あなたの対応を待っているものを中心に作り直されました。Claude Code が待っている要求は一番上に表示され、タップを求める前に何に触れるのかを伝えます。作業の公開、ネットワーク、プロジェクトフォルダ外のファイル、元に戻せない操作などです。rm -rf のように元に戻せないコマンドは、タップではなくボタンの長押しで許可します。その下にはセッションごとに 1 行で現在のステップを表示し、5 時間と 7 日の上限、そして直近 30 日の使用量の画面があります。",
-        "zh": "磁贴围绕“需要你处理的事”重新设计。Claude Code 等待的请求会置顶，并在请求你点按之前说明它会触及什么：发布你的工作、网络、项目文件夹之外的文件，或无法撤销的操作。像 rm -rf 这样无法撤销的命令需要长按按钮才能允许，而不是点按。下方每个会话占一行，显示当前步骤，并有 5 小时和 7 天的额度，以及涵盖最近 30 天的用量页面。"
-      },
-      "media": "",
-      "mediaType": "image"
+    "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. A .gif works as mediaType \"image\" (the host allowlist is host-based, not extension-based, and an <img> animates it). The docs/images/*.png|gif referenced below resolve once this branch is on main, which the release pipeline does before tagging; they ship inside the build and are read from disk. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
+    "id": "4.11.13",
+    "title": {
+        "it": "Novità di Xenon 4.11.13",
+        "en": "What's new in Xenon 4.11.13",
+        "es": "Novedades de Xenon 4.11.13",
+        "fr": "Nouveautés de Xenon 4.11.13",
+        "de": "Neu in Xenon 4.11.13",
+        "pt": "Novidades do Xenon 4.11.13",
+        "ru": "Что нового в Xenon 4.11.13",
+        "nl": "Nieuw in Xenon 4.11.13",
+        "ko": "Xenon 4.11.13의 새로운 기능",
+        "ja": "Xenon 4.11.13 の新機能",
+        "zh": "Xenon 4.11.13 新功能"
     },
-    {
-      "title": {
-        "it": "Trova subito quello che cerchi",
-        "en": "Find what you are looking for",
-        "ko": "찾는 것을 바로 찾기",
-        "ja": "探しているものがすぐ見つかる",
-        "zh": "快速找到你要的东西"
-      },
-      "body": {
-        "it": "In Impostazioni c'è un campo di ricerca in cima alla barra laterale: scrivi il nome di un'impostazione, anche con un refuso e in una qualsiasi delle 11 lingue di Xenon, e Impostazioni si apre sulla sua riga. Anche il pannello + per aggiungere un widget ha la sua ricerca, e i widget dello Store compaiono come quelli di Xenon, con nome, autore e icona, senza passare dal riquadro \"Widget personalizzato\".",
-        "en": "Settings has a search field at the top of its sidebar: type the name of a setting, even with a typo and in any of the 11 languages Xenon speaks, and Settings opens on its row. The + panel for adding a widget has its own search too, and Store widgets appear like Xenon's own, with a name, an author and an icon, without going through the \"Custom widget\" tile.",
-        "ko": "설정 사이드바 맨 위에 검색창이 생겼습니다. 오타가 있어도, Xenon이 지원하는 11개 언어 중 어느 것으로든 설정 이름을 입력하면 설정이 해당 항목으로 열립니다. 위젯을 추가하는 + 패널에도 검색이 생겼고, 스토어 위젯은 \"사용자 지정 위젯\" 타일을 거치지 않고 Xenon 기본 위젯처럼 이름, 제작자, 아이콘과 함께 표시됩니다.",
-        "ja": "設定のサイドバーの先頭に検索欄が加わりました。タイプミスがあっても、Xenon の 11 言語のどれでも、設定の名前を入力すればその行で設定が開きます。ウィジェットを追加する + パネルにも検索が付き、ストアのウィジェットは「カスタムウィジェット」タイルを経由せず、Xenon 標準のものと同じように名前、作者、アイコン付きで表示されます。",
-        "zh": "设置侧边栏顶部新增了搜索框：输入设置的名称，哪怕有错字，也可以用 Xenon 支持的 11 种语言中的任意一种，设置就会直接打开对应的那一行。用于添加小组件的 + 面板也有了搜索，商店里的小组件会像 Xenon 自带的一样显示，带有名称、作者和图标，不必再经过“自定义小组件”磁贴。"
-      },
-      "media": "",
-      "mediaType": "image"
+    "highlights": [
+        {
+            "title": {
+                "it": "Il testo della canzone, riga per riga",
+                "en": "Song lyrics, line by line",
+                "es": "La letra de la canción, línea a línea",
+                "fr": "Les paroles de la chanson, ligne par ligne",
+                "de": "Der Songtext, Zeile für Zeile",
+                "pt": "A letra da música, linha a linha",
+                "ru": "Текст песни, строка за строкой",
+                "nl": "De songtekst, regel voor regel",
+                "ko": "노래 가사를 한 줄씩",
+                "ja": "曲の歌詞を一行ずつ",
+                "zh": "逐行显示歌词"
+            },
+            "body": {
+                "it": "Un nuovo pulsante accanto ai comandi del riquadro Media mostra il testo della canzone in riproduzione sopra la sua copertina sfocata. La riga cantata è evidenziata e le sue parole si accendono una alla volta, come al karaoke. Tocca una riga per saltare lì nella canzone. Funziona con Spotify, YouTube nel browser, Apple Music, VLC e ogni altro lettore che Xenon vede. I testi arrivano da LRCLIB, una raccolta gratuita.",
+                "en": "A new button next to the controls of the Media tile shows the words of the song that is playing over its blurred cover. The line being sung is highlighted and its words light up one by one, karaoke style. Tap a line to jump there in the song. It works with Spotify, YouTube in the browser, Apple Music, VLC and any other player Xenon sees. The lyrics come from LRCLIB, a free library.",
+                "es": "Un botón nuevo junto a los controles del mosaico Multimedia muestra la letra de la canción que suena sobre su portada difuminada. La línea que se canta queda resaltada y sus palabras se encienden una a una, como en el karaoke. Toca una línea para saltar a ese punto de la canción. Funciona con Spotify, YouTube en el navegador, Apple Music, VLC y cualquier otro reproductor que Xenon vea. Las letras vienen de LRCLIB, una biblioteca gratuita.",
+                "fr": "Un nouveau bouton à côté des commandes de la tuile Média affiche les paroles de la chanson en cours sur sa pochette floutée. La ligne chantée est mise en avant et ses mots s'allument un à un, comme au karaoké. Touchez une ligne pour aller à ce moment de la chanson. Cela marche avec Spotify, YouTube dans le navigateur, Apple Music, VLC et tout autre lecteur que Xenon voit. Les paroles viennent de LRCLIB, une bibliothèque gratuite.",
+                "de": "Ein neuer Knopf neben den Steuerelementen der Medien-Kachel zeigt den Text des laufenden Songs über seinem unscharfen Cover. Die gesungene Zeile ist hervorgehoben, und ihre Wörter leuchten nacheinander auf, wie beim Karaoke. Tippe auf eine Zeile, um im Song dorthin zu springen. Das klappt mit Spotify, YouTube im Browser, Apple Music, VLC und jedem anderen Player, den Xenon sieht. Die Texte kommen von LRCLIB, einer kostenlosen Sammlung.",
+                "pt": "Um botão novo ao lado dos controlos do mosaico Multimédia mostra a letra da música que está a tocar sobre a capa desfocada. A linha cantada fica destacada e as suas palavras acendem-se uma a uma, como no karaoke. Toque numa linha para saltar para esse ponto da música. Funciona com Spotify, YouTube no navegador, Apple Music, VLC e qualquer outro leitor que o Xenon veja. As letras vêm do LRCLIB, uma biblioteca gratuita.",
+                "ru": "Новая кнопка рядом с управлением плитки «Медиа» показывает текст играющей песни поверх её размытой обложки. Строка, которую поют, выделена, а её слова загораются по одному, как в караоке. Нажмите на строку, чтобы перейти к этому месту песни. Работает со Spotify, YouTube в браузере, Apple Music, VLC и любым другим плеером, который видит Xenon. Тексты берутся из LRCLIB, бесплатной библиотеки.",
+                "nl": "Een nieuwe knop naast de bediening van de Media-tegel toont de tekst van het nummer dat speelt, over de vervaagde hoes. De regel die gezongen wordt licht op en de woorden daarin één voor één, zoals bij karaoke. Tik op een regel om daarheen te springen in het nummer. Het werkt met Spotify, YouTube in de browser, Apple Music, VLC en elke andere speler die Xenon ziet. De teksten komen van LRCLIB, een gratis bibliotheek.",
+                "ko": "미디어 타일의 조작 버튼 옆에 새 버튼이 생겨, 재생 중인 노래의 가사를 흐린 앨범 커버 위에 보여 줍니다. 부르는 줄이 강조되고 그 줄의 단어가 노래방처럼 하나씩 켜집니다. 줄을 탭하면 노래의 그 부분으로 이동합니다. Spotify, 브라우저의 YouTube, Apple Music, VLC 등 Xenon이 인식하는 모든 플레이어에서 작동합니다. 가사는 무료 가사 라이브러리 LRCLIB에서 가져옵니다.",
+                "ja": "メディアタイルの操作ボタンの横に新しいボタンが加わり、再生中の曲の歌詞をぼかしたジャケットの上に表示します。歌われている行が強調され、その行の言葉がカラオケのように一つずつ光ります。行をタップすると曲のその位置に移動します。Spotify、ブラウザの YouTube、Apple Music、VLC など、Xenon が認識するどのプレーヤーでも使えます。歌詞は無料の歌詞ライブラリ LRCLIB から取得します。",
+                "zh": "媒体磁贴的控制按钮旁新增了一个按钮，会在模糊的专辑封面上显示正在播放的歌曲的歌词。正在唱的那一行会高亮，其中的字词像卡拉 OK 一样逐个亮起。点按某一行即可跳到歌曲的那个位置。支持 Spotify、浏览器中的 YouTube、Apple Music、VLC 以及 Xenon 能识别的任何其他播放器。歌词来自免费歌词库 LRCLIB。"
+            },
+            "media": "",
+            "mediaType": "image"
+        },
+        {
+            "title": {
+                "it": "Il widget Testi delle canzoni: provalo gratis per 7 giorni",
+                "en": "The Lyrics widget: try it free for 7 days",
+                "es": "El widget Letra: pruébalo gratis 7 días",
+                "fr": "Le widget Paroles : essai gratuit de 7 jours",
+                "de": "Das Songtext-Widget: 7 Tage kostenlos testen",
+                "pt": "O widget Letra: experimente grátis por 7 dias",
+                "ru": "Виджет «Текст песни»: 7 дней бесплатно",
+                "nl": "De Songtekst-widget: probeer 7 dagen gratis",
+                "ko": "가사 위젯: 7일 무료 체험",
+                "ja": "歌詞ウィジェット: 7日間無料で試せます",
+                "zh": "歌词小组件：免费试用 7 天"
+            },
+            "body": {
+                "it": "Un riquadro solo per il testo, in caratteri grandi che leggi dall'altra parte della stanza, con la traduzione nella tua lingua sotto ogni riga. Corregge i tempi di una singola canzone, scrive giapponese, coreano e cinese in lettere latine e, in modalità palco, riempie lo schermo quando parte la musica. La traduzione usa l'AI che hai configurato in Xenon; con Ollama è gratis. Fa parte del pass sostenitore, da 5 $ al mese, che sblocca anche gli altri widget per sostenitori e i pack per sostenitori dello Store. Aggiungi il widget Testi delle canzoni e tocca \"Prova gratis per 7 giorni\": tutte le funzioni, senza codice, una volta per PC.",
+                "en": "A tile just for the lyrics, in type you can read from across the room, with each line translated into your language right under it. It fixes the timing of a single song, writes Japanese, Korean and Chinese in Latin letters, and in Stage mode fills the screen when the music starts. Translation uses the AI you set up in Xenon; with Ollama it is free. It is part of the supporter pass, from $5 a month, which also unlocks the other supporter widgets and the supporter packs in the Store. Add the Lyrics widget and tap \"Try it free for 7 days\": every feature, no code, once per PC.",
+                "es": "Un mosaico solo para la letra, con letras grandes que se leen desde el otro lado de la habitación y la traducción a tu idioma bajo cada línea. Corrige el tiempo de una sola canción, escribe el japonés, el coreano y el chino en letras latinas y, en modo Escenario, llena la pantalla cuando empieza la música. La traducción usa la IA que configuraste en Xenon; con Ollama es gratis. Forma parte del pase de supporter, desde 5 $ al mes, que también desbloquea los demás widgets para supporters y los packs para supporters de la Tienda. Añade el widget Letra y toca \"Pruébalo gratis 7 días\": todas las funciones, sin código, una vez por PC.",
+                "fr": "Une tuile rien que pour les paroles, en gros caractères lisibles depuis l'autre bout de la pièce, avec la traduction dans votre langue sous chaque ligne. Elle corrige le timing d'une seule chanson, écrit le japonais, le coréen et le chinois en lettres latines et, en mode Scène, remplit l'écran quand la musique démarre. La traduction utilise l'IA configurée dans Xenon ; avec Ollama, elle est gratuite. Elle fait partie du pass supporter, dès 5 $ par mois, qui débloque aussi les autres widgets pour supporters et les packs pour supporters de la Boutique. Ajoutez le widget Paroles et touchez « Essai gratuit de 7 jours » : toutes les fonctions, sans code, une fois par PC.",
+                "de": "Eine Kachel nur für den Songtext, in großer Schrift, die du quer durch den Raum liest, mit der Übersetzung in deine Sprache unter jeder Zeile. Sie korrigiert das Timing eines einzelnen Songs, schreibt Japanisch, Koreanisch und Chinesisch in lateinischen Buchstaben und füllt im Bühnenmodus den Bildschirm, sobald die Musik startet. Die Übersetzung nutzt die KI, die du in Xenon eingerichtet hast; mit Ollama ist sie kostenlos. Sie gehört zum Unterstützer-Pass ab 5 $ im Monat, der auch die anderen Unterstützer-Widgets und die Unterstützer-Pakete im Store freischaltet. Füge das Songtext-Widget hinzu und tippe auf „7 Tage kostenlos testen“: alle Funktionen, ohne Code, einmal pro PC.",
+                "pt": "Um mosaico só para a letra, em letras grandes que se leem do outro lado da sala, com a tradução para o seu idioma por baixo de cada linha. Corrige o tempo de uma única música, escreve japonês, coreano e chinês em letras latinas e, no modo Palco, enche o ecrã quando a música começa. A tradução usa a IA que configurou no Xenon; com o Ollama é grátis. Faz parte do passe de apoiante, a partir de 5 $ por mês, que também desbloqueia os outros widgets para apoiantes e os packs para apoiantes da Loja. Adicione o widget Letra e toque em \"Experimente grátis por 7 dias\": todas as funções, sem código, uma vez por PC.",
+                "ru": "Плитка только для текста песни: крупный шрифт, который читается через всю комнату, и перевод на ваш язык под каждой строкой. Она исправляет тайминг отдельной песни, пишет японский, корейский и китайский латиницей, а в режиме «Сцена» заполняет экран, когда начинается музыка. Перевод делает ИИ, настроенный в Xenon; с Ollama это бесплатно. Виджет входит в пропуск поддерживающего, от 5 $ в месяц, который открывает и другие виджеты для поддерживающих, и их наборы в Магазине. Добавьте виджет «Текст песни» и нажмите «Попробовать бесплатно 7 дней»: все функции, без кода, один раз на ПК.",
+                "nl": "Een tegel alleen voor de songtekst, in grote letters die je van de andere kant van de kamer leest, met de vertaling in jouw taal onder elke regel. Hij corrigeert de timing van één nummer, schrijft Japans, Koreaans en Chinees in Latijnse letters en vult in Podiummodus het scherm zodra de muziek begint. De vertaling gebruikt de AI die je in Xenon hebt ingesteld; met Ollama is het gratis. Hij hoort bij de supporterspas, vanaf $5 per maand, die ook de andere supporterswidgets en de supporterspakketten in de Store ontgrendelt. Voeg de Songtekst-widget toe en tik op \"Probeer 7 dagen gratis\": alle functies, zonder code, één keer per pc.",
+                "ko": "가사만을 위한 타일입니다. 방 건너편에서도 읽히는 큰 글자로, 각 줄 바로 아래에 내 언어로 번역이 붙습니다. 노래 한 곡의 싱크를 따로 맞추고, 일본어·한국어·중국어를 로마자로 적어 주며, 스테이지 모드에서는 음악이 시작되면 화면을 가득 채웁니다. 번역은 Xenon에 설정한 AI를 사용하며, Ollama라면 무료입니다. 매달 5달러부터인 후원자 패스에 포함되며, 이 패스로 다른 후원자 위젯과 스토어의 후원자 팩도 열립니다. 가사 위젯을 추가하고 \"7일 무료 체험\"을 탭하세요. 모든 기능을 코드 없이, PC당 한 번 써 볼 수 있습니다.",
+                "ja": "歌詞のためだけのタイルです。部屋の反対側からでも読める大きな文字で、各行のすぐ下にあなたの言語の翻訳が付きます。曲ごとにタイミングを直せて、日本語・韓国語・中国語をラテン文字で表記し、ステージモードでは音楽が始まると画面いっぱいに広がります。翻訳には Xenon で設定した AI を使い、Ollama なら無料です。月5ドルからのサポーターパスに含まれ、このパスでほかのサポーター向けウィジェットやストアのサポーター向けパックも使えるようになります。歌詞ウィジェットを追加して「7日間無料で試す」をタップしてください。すべての機能を、コードなしで、PC ごとに一度試せます。",
+                "zh": "一个专门显示歌词的磁贴：字号大到在房间另一头也能看清，每一行下面紧跟着你的语言的翻译。它可以单独校正某首歌的时间轴，把日语、韩语和中文写成拉丁字母，在舞台模式下音乐一响就铺满屏幕。翻译使用你在 Xenon 中设置的 AI，用 Ollama 则完全免费。它包含在每月 5 美元起的支持者通行证中，该通行证还会解锁其他支持者小组件和商店里的支持者礼包。添加歌词小组件，点按“免费试用 7 天”：全部功能，无需代码，每台电脑一次。"
+            },
+            "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/home/lyrics-widget.webp",
+            "mediaType": "image"
+        },
+        {
+            "title": {
+                "it": "Scrivi a Claude dal riquadro, risponde nel terminale",
+                "en": "Write to Claude on the tile, it answers in the terminal",
+                "es": "Escribe a Claude en el mosaico, responde en la terminal",
+                "fr": "Écrivez à Claude sur la tuile, il répond dans le terminal",
+                "de": "Schreib Claude auf der Kachel, die Antwort kommt im Terminal",
+                "pt": "Escreva ao Claude no mosaico, ele responde no terminal",
+                "ru": "Пишите Claude на плитке, ответ придёт в терминале",
+                "nl": "Schrijf Claude op de tegel, het antwoord komt in de terminal",
+                "ko": "타일에서 Claude에게 쓰면 터미널에서 답합니다",
+                "ja": "タイルから Claude に書くと、ターミナルで答えます",
+                "zh": "在磁贴上给 Claude 写消息，它在终端里回复"
+            },
+            "body": {
+                "it": "Con il mod di Xenon per Claude Code 0.3.0, un messaggio che scrivi sul riquadro Claude arriva nella sessione aperta nel terminale, come se l'avessi scritto lì, e Claude risponde lì. Così terminale e riquadro mostrano la stessa conversazione. Per averlo: claude plugin update xenon@xenon, poi apri una nuova sessione.",
+                "en": "With the Xenon mod for Claude Code 0.3.0, a message you write on the Claude tile arrives in the session open in your terminal, as if you had typed it there, and Claude answers there. The terminal and the tile show the same conversation. To get it: claude plugin update xenon@xenon, then start a new session.",
+                "es": "Con el mod de Xenon para Claude Code 0.3.0, un mensaje que escribes en el mosaico de Claude llega a la sesión abierta en tu terminal, como si lo hubieras escrito allí, y Claude responde allí. La terminal y el mosaico muestran la misma conversación. Para tenerlo: claude plugin update xenon@xenon y abre una sesión nueva.",
+                "fr": "Avec le mod Xenon pour Claude Code 0.3.0, un message écrit sur la tuile Claude arrive dans la session ouverte dans votre terminal, comme si vous l'aviez tapé là, et Claude y répond. Le terminal et la tuile montrent la même conversation. Pour l'avoir : claude plugin update xenon@xenon, puis ouvrez une nouvelle session.",
+                "de": "Mit der Xenon-Mod für Claude Code 0.3.0 landet eine Nachricht, die du auf der Claude-Kachel schreibst, in der offenen Sitzung im Terminal, als hättest du sie dort getippt, und Claude antwortet dort. Terminal und Kachel zeigen dasselbe Gespräch. So bekommst du es: claude plugin update xenon@xenon, dann eine neue Sitzung starten.",
+                "pt": "Com o mod do Xenon para o Claude Code 0.3.0, uma mensagem que escreve no mosaico do Claude chega à sessão aberta no terminal, como se a tivesse escrito lá, e o Claude responde lá. O terminal e o mosaico mostram a mesma conversa. Para ter isto: claude plugin update xenon@xenon e abra uma sessão nova.",
+                "ru": "С модом Xenon для Claude Code 0.3.0 сообщение, написанное на плитке Claude, попадает в сессию, открытую в терминале, как будто вы набрали его там, и Claude отвечает там же. Терминал и плитка показывают один и тот же разговор. Чтобы включить: claude plugin update xenon@xenon, затем откройте новую сессию.",
+                "nl": "Met de Xenon-mod voor Claude Code 0.3.0 komt een bericht dat je op de Claude-tegel schrijft aan in de sessie die in je terminal openstaat, alsof je het daar typte, en Claude antwoordt daar. Terminal en tegel tonen hetzelfde gesprek. Zo krijg je het: claude plugin update xenon@xenon en start een nieuwe sessie.",
+                "ko": "Claude Code용 Xenon 모드 0.3.0에서는 Claude 타일에 쓴 메시지가 터미널에 열린 세션에 직접 입력한 것처럼 들어가고, Claude도 거기서 답합니다. 터미널과 타일에 같은 대화가 보입니다. 사용하려면 claude plugin update xenon@xenon을 실행하고 새 세션을 여세요.",
+                "ja": "Claude Code 用 Xenon MOD 0.3.0 では、Claude タイルに書いたメッセージが、ターミナルで開いているセッションにそこで入力したかのように届き、Claude もそこで答えます。ターミナルとタイルに同じ会話が表示されます。使うには claude plugin update xenon@xenon を実行し、新しいセッションを開いてください。",
+                "zh": "使用 Claude Code 的 Xenon 模组 0.3.0，你在 Claude 磁贴上写的消息会进入终端里打开的会话，就像你在那里输入的一样，Claude 也在那里回复。终端和磁贴显示同一段对话。启用方法：运行 claude plugin update xenon@xenon，然后开启新会话。"
+            },
+            "media": "",
+            "mediaType": "image"
+        }
+    ],
+    "footer": {
+        "it": "Nella 4.11.13 c'è anche un tasto del Deck che porta la dashboard a un'altra pagina, tasti Home Assistant che impostano un valore esatto (temperatura, temperatura colore, volume, apertura di una tapparella), argomenti per l'azione Apri app, widget che mostrano lo storico e le telecamere di Home Assistant, e meno CPU mentre Xenon resta a schermo. Tra le correzioni, su Mac la scheda Rete mostra di nuovo la velocità e l'app si aggiorna insieme alla dashboard. Xenon va avanti grazie ai sostenitori: in Impostazioni → Sostieni Xenon vedi quanti sono e quanti ne servono per coprire i costi. Tutto il resto è nel changelog.",
+        "en": "Also in 4.11.13: a Deck key that turns the dashboard to another page, Home Assistant keys that set an exact value (temperature, colour temperature, volume, how far a blind is open), arguments for the Open app action, widgets that show Home Assistant history and cameras, and less CPU while Xenon sits on screen. Among the fixes, the Network card on a Mac shows your speed again and the Mac app now updates with its dashboard. Xenon keeps going thanks to its supporters: Settings → Support Xenon shows how many there are and how many it takes to cover its costs. Everything else is in the changelog.",
+        "es": "También en la 4.11.13: una tecla del Deck que lleva el panel a otra página, teclas de Home Assistant que fijan un valor exacto (temperatura, temperatura de color, volumen, apertura de una persiana), argumentos para la acción Abrir app, widgets que muestran el historial y las cámaras de Home Assistant, y menos CPU mientras Xenon está en pantalla. Entre las correcciones, en Mac la tarjeta Red vuelve a mostrar la velocidad y la app se actualiza con su panel. Xenon sigue adelante gracias a sus supporters: Ajustes → Apoya a Xenon muestra cuántos son y cuántos hacen falta para cubrir los costes. Todo lo demás está en el registro de cambios.",
+        "fr": "Aussi dans la 4.11.13 : une touche du Deck qui amène le tableau de bord sur une autre page, des touches Home Assistant qui règlent une valeur exacte (température, température de couleur, volume, ouverture d'un volet), des arguments pour l'action Ouvrir une app, des widgets qui affichent l'historique et les caméras de Home Assistant, et moins de CPU quand Xenon reste à l'écran. Parmi les corrections, sur Mac la carte Réseau affiche de nouveau le débit et l'app se met à jour avec son tableau de bord. Xenon continue grâce à ses supporters : Réglages → Soutenir Xenon montre combien ils sont et combien il en faut pour couvrir les coûts. Tout le reste est dans le journal des modifications.",
+        "de": "Außerdem in 4.11.13: eine Deck-Taste, die das Dashboard auf eine andere Seite bringt, Home-Assistant-Tasten, die einen genauen Wert setzen (Temperatur, Farbtemperatur, Lautstärke, wie weit ein Rollladen offen ist), Argumente für die Aktion „App öffnen“, Widgets mit Home-Assistant-Verlauf und -Kameras und weniger CPU, solange Xenon auf dem Bildschirm steht. Bei den Korrekturen: Auf dem Mac zeigt die Netzwerk-Karte wieder die Geschwindigkeit, und die App aktualisiert sich mit ihrem Dashboard. Xenon läuft dank seiner Unterstützer weiter: Einstellungen → Xenon unterstützen zeigt, wie viele es sind und wie viele es braucht, um die Kosten zu decken. Alles andere steht im Changelog.",
+        "pt": "Também na 4.11.13: uma tecla do Deck que leva o painel para outra página, teclas do Home Assistant que definem um valor exato (temperatura, temperatura de cor, volume, abertura de um estore), argumentos para a ação Abrir app, widgets que mostram o histórico e as câmaras do Home Assistant, e menos CPU enquanto o Xenon está no ecrã. Nas correções, no Mac o cartão Rede volta a mostrar a velocidade e a app atualiza-se com o painel. O Xenon continua graças aos apoiantes: Definições → Apoia o Xenon mostra quantos são e quantos são precisos para cobrir os custos. Todo o resto está no registo de alterações.",
+        "ru": "Ещё в 4.11.13: клавиша Deck, которая переключает панель на другую страницу, клавиши Home Assistant с точным значением (температура, цветовая температура, громкость, насколько открыта штора), аргументы для действия «Открыть приложение», виджеты с историей и камерами Home Assistant и меньше нагрузки на CPU, пока Xenon на экране. Среди исправлений: на Mac карточка «Сеть» снова показывает скорость, а приложение обновляется вместе с панелью. Xenon живёт благодаря поддерживающим: Настройки → Поддержать Xenon показывает, сколько их и сколько нужно, чтобы покрыть расходы. Всё остальное в списке изменений.",
+        "nl": "Ook in 4.11.13: een Deck-toets die het dashboard naar een andere pagina brengt, Home Assistant-toetsen die een exacte waarde instellen (temperatuur, kleurtemperatuur, volume, hoe ver een rolluik open is), argumenten voor de actie App openen, widgets die de geschiedenis en camera's van Home Assistant tonen, en minder CPU terwijl Xenon op het scherm staat. Bij de reparaties: op een Mac toont de Netwerk-kaart weer de snelheid en de app werkt zich bij met het dashboard. Xenon draait dankzij zijn supporters: Instellingen → Steun Xenon toont hoeveel het er zijn en hoeveel er nodig zijn om de kosten te dekken. De rest staat in de changelog.",
+        "ko": "4.11.13에는 이 밖에도 대시보드를 다른 페이지로 넘기는 Deck 키, 정확한 값(온도, 색온도, 볼륨, 블라인드 열림 정도)을 지정하는 Home Assistant 키, 앱 열기 동작의 실행 인수, Home Assistant 기록과 카메라를 보여 주는 위젯, 그리고 Xenon이 화면에 떠 있을 때 줄어든 CPU 사용량이 있습니다. 수정 사항으로는 Mac에서 네트워크 카드가 다시 속도를 보여 주고, 앱이 대시보드와 함께 업데이트됩니다. Xenon은 후원자 덕분에 계속됩니다. 설정 → Xenon 후원에서 후원자가 몇 명인지, 비용을 감당하려면 몇 명이 필요한지 볼 수 있습니다. 나머지는 변경 기록에 있습니다.",
+        "ja": "4.11.13 にはほかにも、ダッシュボードを別のページに切り替える Deck キー、正確な値(温度、色温度、音量、ブラインドの開き具合)を設定する Home Assistant キー、「アプリを開く」アクションの起動引数、Home Assistant の履歴とカメラを表示するウィジェット、そして Xenon を表示しているときの CPU 使用量の削減があります。修正としては、Mac でネットワークカードが再び速度を表示し、アプリがダッシュボードと一緒に更新されるようになりました。Xenon はサポーターのおかげで続いています。設定 → Xenonを応援 で、いまのサポーターの数と、費用をまかなうのに必要な数を確認できます。そのほかはすべて変更履歴にあります。",
+        "zh": "4.11.13 还带来：把仪表板切换到另一页的 Deck 按键，设置精确数值（温度、色温、音量、百叶窗开合程度）的 Home Assistant 按键，“打开应用”操作的启动参数，显示 Home Assistant 历史和摄像头的小组件，以及 Xenon 停留在屏幕上时更低的 CPU 占用。修复方面，Mac 上的网络卡片重新显示网速，应用也会随仪表板一起更新。Xenon 靠支持者才能继续：在 设置 → 支持 Xenon 中可以看到现在有多少支持者，以及需要多少人才能覆盖成本。其余内容都在更新日志中。"
     },
-    {
-      "title": {
-        "it": "I widget dello Store si aggiornano da soli",
-        "en": "Store widgets update themselves",
-        "ko": "스토어 위젯이 스스로 업데이트됩니다",
-        "ja": "ストアのウィジェットが自動で更新されます",
-        "zh": "商店小组件会自动更新"
-      },
-      "body": {
-        "it": "Un widget che hai installato dallo Store riceve da solo le sue nuove versioni, un giorno o più dopo la pubblicazione. Non alza mai i permessi: se la nuova versione ne chiede di nuovi, resta com'è e un messaggio ti dice che l'aggiornamento aspetta te. La versione nuova viene preparata a parte e scambiata per intero, e la vecchia torna se qualcosa va storto. L'interruttore è in Impostazioni → Widget della community, acceso di default. Anche i pack per sostenitori mostrano ora i loro aggiornamenti.",
-        "en": "A widget you installed from the Store gets its new versions on its own, a day or more after they are published. It never raises permissions: if the new version asks for new ones, it stays as it is and a message tells you the update is waiting for you. The new version is prepared aside and swapped in whole, and the old one comes back if anything goes wrong. The switch is in Settings → Community widgets, on by default. Supporter packs now show their updates too.",
-        "ko": "스토어에서 설치한 위젯은 새 버전이 게시되고 하루 이상 지나면 스스로 업데이트됩니다. 권한은 절대 올리지 않습니다. 새 버전이 새 권한을 요구하면 그대로 두고, 업데이트가 당신을 기다린다는 메시지를 보여 줍니다. 새 버전은 따로 준비해 통째로 교체하며, 문제가 생기면 이전 버전으로 돌아갑니다. 스위치는 설정 → 커뮤니티 위젯에 있고 기본으로 켜져 있습니다. 후원자 팩도 이제 업데이트가 표시됩니다.",
-        "ja": "ストアからインストールしたウィジェットは、新しいバージョンが公開されてから 1 日以上たつと自動で更新されます。権限は決して引き上げません。新しいバージョンが新しい権限を求める場合はそのままにして、更新があなたを待っているとメッセージでお知らせします。新しいバージョンは別に用意して丸ごと入れ替え、問題があれば古いバージョンに戻します。スイッチは 設定 → コミュニティウィジェット にあり、初期状態でオンです。サポーター向けパックも更新が表示されるようになりました。",
-        "zh": "你从商店安装的小组件，会在新版本发布一天或更久之后自动更新。它绝不会提升权限：如果新版本需要新的权限，就保持原样，并通过消息告诉你更新在等你处理。新版本会先在一旁准备好再整体替换，出问题时会恢复旧版本。开关在 设置 → 社区小组件 中，默认开启。支持者礼包现在也会显示更新。"
-      },
-      "media": "",
-      "mediaType": "image"
-    }
-  ],
-  "footer": {
-    "it": "Questi sono solo i punti principali. La 4.11.11 porta anche una dimensione del testo fino al 250%, un interruttore per l'aggiornamento automatico di Xenon, un pulsante che installa Xenon Helper per te e un interruttore per cambiare altoparlanti senza spostare le chiamate. Tra le correzioni, i riquadri non proiettano più un'ombra e l'AppImage di Linux parte anche quando la avvia un altro utente. Tutto nel changelog.",
-    "en": "Those are only the main points. 4.11.11 also brings text size up to 250%, a switch for Xenon's own automatic updates, a button that installs Xenon Helper for you, and a switch to change speakers without moving your calls. Among the fixes, tiles no longer cast a drop shadow and the Linux AppImage starts when another user launches it. All of it is in the changelog.",
-    "ko": "이것은 주요 내용일 뿐입니다. 4.11.11에서는 글자 크기가 최대 250%까지 커지고, Xenon 자체 자동 업데이트 스위치가 생기고, Xenon Helper를 대신 설치해 주는 버튼이 추가되고, 통화를 옮기지 않고 스피커를 바꾸는 스위치도 생겼습니다. 수정 사항으로는 타일이 더 이상 그림자를 드리우지 않고, 다른 사용자가 실행해도 Linux AppImage가 시작됩니다. 전체 내용은 변경 기록에 있습니다.",
-    "ja": "これらは主な点だけです。4.11.11 では、文字サイズが最大 250% まで大きくなり、Xenon 自体の自動更新のスイッチが加わり、Xenon Helper をインストールするボタンが付き、通話を移さずにスピーカーを切り替えるスイッチも加わりました。修正としては、タイルが影を落とさなくなり、別のユーザーが起動しても Linux の AppImage が起動します。すべて変更履歴にあります。",
-    "zh": "以上只是主要内容。4.11.11 还把文字大小提高到最大 250%，新增了 Xenon 自动更新的开关、替你安装 Xenon Helper 的按钮，以及切换扬声器时不转移通话的开关。修复方面，磁贴不再投下阴影，其他用户启动时 Linux AppImage 也能运行。全部都在更新日志中。"
-  },
-  "url": "https://github.com/marcimastro98/Xenon/releases/latest"
+    "url": "https://github.com/marcimastro98/Xenon/releases/latest"
 }
