@@ -97,6 +97,7 @@ const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
+const { createHaQuery, normalizeHistoryRequest } = require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
 const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
@@ -1512,6 +1513,7 @@ const EXAMPLE_WIDGETS = {
   'hello-xenon': 'hello-xenon',
   'teleprompter': 'teleprompter',
   'github-stars': 'github-stars',
+  'ha-room': 'ha-room',
 };
 
 // Short-lived cache of the validated package scan, shared by the hot SDK paths
@@ -5418,6 +5420,9 @@ const deckHa = createHomeAssistant(async () => {
   const s = (await readHubSettings().catch(() => null)) || {};
   return { baseUrl: (s.homeAssistant && s.homeAssistant.url) || '', token: (s.homeAssistant && s.homeAssistant.token) || '' };
 });
+
+// SDK widget reads (history, camera frames) over the same connection.
+const haQuery = createHaQuery(deckHa);
 
 // Lazy UniFi Protect client — logs into the user's UniFi OS console on demand and
 // pulls camera JPEG snapshots for the Cameras tile. No persistent socket: an
@@ -17375,6 +17380,39 @@ const handleRequest = async (req, res) => {
     try { json(await buildHaState()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/stream/homeassistant/query' && req.method === 'POST') {
+    // Home Assistant READS for SDK widgets: an entity's recent history, or one
+    // camera frame. Gated per package on the `homeassistant` stream grant, and
+    // only for entities the user already selected (the same ones the stream
+    // shows that widget) — a widget can't name a lock, a person or a camera the
+    // user never chose. POST JSON, so the loopback Origin layer covers it.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const pkgId = String(body.pkg || '');
+      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
+      if (!sdkGrantsFor(pkgId).streams.includes('homeassistant')) { json({ ok: false, error: 'not_allowed' }); return; }
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const ha = (s && s.homeAssistant) || {};
+      if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
+      const allowed = [].concat(ha.entities || [], ha.energyEntities || []);
+      const p = (body.params && typeof body.params === 'object') ? body.params : {};
+      const release = sdkTileGate(pkgId, 'tile');
+      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
+      try {
+        if (body.op === 'history') {
+          const q = normalizeHistoryRequest(p.ids, p.hours, allowed);
+          json(q.error ? { ok: false, error: q.error } : await haQuery.history(q.ids, q.hours));
+        } else if (body.op === 'camera') {
+          json(await haQuery.cameraFrame(p.id, allowed));
+        } else {
+          json({ ok: false, error: 'bad_op' });
+        }
+      } finally { release(); }
+    } catch (e) {
+      // A fixed code: a failed HA call's message can carry the HA host and port.
+      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
+    }
+
   } else if (reqPath === '/ha/deck-watch' && req.method === 'POST') {
     // A SURFACE tells the server which HA entities its deck keys are bound to;
     // the shared watch then includes the UNION across surfaces in the coalesced
@@ -17419,7 +17457,10 @@ const handleRequest = async (req, res) => {
       if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
       const entities = await deckHa.listEntities();
       json({ ok: true, entities });
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
+    } catch (e) {
+      // A fixed code: a failed HA call's message can carry the HA host and port.
+      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
+    }
 
   } else if (reqPath === '/api/homeassistant/test' && req.method === 'POST') {
     // Settings "Connect" button: verify the URL + token by opening one connection.
@@ -17463,7 +17504,10 @@ const handleRequest = async (req, res) => {
       }
       try { probe.close(); } catch (e) { /* ignore */ }
       json(Object.assign({ entities }, r));
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
+    } catch (e) {
+      // A fixed code: a failed HA call's message can carry the HA host and port.
+      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
+    }
 
   } else if (reqPath === '/api/homeassistant/service' && req.method === 'POST') {
     // Call a Home Assistant service (tile controls). POST-only, so the loopback
@@ -17473,7 +17517,10 @@ const handleRequest = async (req, res) => {
       const target = body.entityId ? { entity_id: String(body.entityId) } : null;
       const data = (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) ? body.data : {};
       json(await deckHa.callService(String(body.domain || ''), String(body.service || ''), target, data));
-    } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
+    } catch (e) {
+      // A fixed code: a failed HA call's message can carry the HA host and port.
+      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
+    }
 
   } else if (reqPath === '/api/unifiprotect/state' && req.method === 'GET') {
     // First paint + periodic status poll for the Cameras tile: whether UniFi

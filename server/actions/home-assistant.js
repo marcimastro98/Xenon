@@ -115,6 +115,10 @@ function compactEntity(st, areaFor, deviceFor) {
   if (a.unit_of_measurement) out.unit = String(a.unit_of_measurement);
   if (a.device_class) out.deviceClass = String(a.device_class);
   if (a.icon) out.icon = String(a.icon);
+  // When the state last CHANGED (not every attribute tick), as epoch ms: lets a
+  // widget say "open for 12 minutes" without polling history.
+  const changed = Date.parse(st.last_changed);
+  if (Number.isFinite(changed)) out.changed = changed;
   // Domain-specific extras — enough for the tile's per-device control panel to
   // render the RIGHT controls (a TV's sources, a thermostat's modes, a fan's
   // speed, a light's colour…), kept compact. `features` carries HA's
@@ -204,12 +208,35 @@ function compactEntity(st, areaFor, deviceFor) {
     if (a.step != null) out.step = Number(a.step);
   } else if (domain === 'select' || domain === 'input_select') {
     const opts = strList(a.options, 80); if (opts) out.options = opts;
+  } else if (domain === 'sensor') {
+    // Whether the recorder keeps long-term statistics for it (measurement,
+    // total…) — a widget uses it to decide if a history trace is worth asking for.
+    if (a.state_class) out.stateClass = String(a.state_class);
+  } else if (domain === 'weather') {
+    if (typeof a.temperature === 'number') out.temperature = a.temperature;
+    if (a.temperature_unit) out.tempUnit = String(a.temperature_unit);
+    if (typeof a.humidity === 'number') out.humidity = a.humidity;
+    if (typeof a.wind_speed === 'number') out.windSpeed = a.wind_speed;
+    if (a.wind_speed_unit) out.windUnit = String(a.wind_speed_unit);
   }
+  // person / device_tracker: the state ("home", "not_home", a zone name) is all
+  // that leaves. Their latitude/longitude/gps_accuracy attributes are where
+  // someone IS, and no tile or widget needs that to say "Marco is home".
   return out;
 }
 
 // Map a validated Deck HA action to a concrete { domain, service, target, data },
 // or null if it can't. Kept pure so the registry stays a thin dispatcher.
+// A key's or a widget's numeric `value` param. Empty or whitespace is "no value"
+// (null), never 0: Number('') is 0, and a blank must not become an off command.
+function actionNumber(raw, min, max) {
+  const text = String(raw == null ? '' : raw).trim();
+  if (!text) return null;
+  const n = Number(text.replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  return Math.min(max, Math.max(min, n));
+}
+
 function actionToServiceCall(action) {
   if (!action || typeof action !== 'object') return null;
   const entity = String(action.entity == null ? '' : action.entity).trim();
@@ -252,6 +279,10 @@ function actionToServiceCall(action) {
       if (clamped === 0) return { domain: 'light', service: 'turn_off', target, data: {} };
       return { domain: 'light', service: 'turn_on', target, data: { brightness_pct: clamped } };
     }
+    if (action.mode === 'kelvin') {
+      const k = actionNumber(action.value, 1000, 12000);
+      return k == null ? null : { domain: 'light', service: 'turn_on', target, data: { color_temp_kelvin: Math.round(k) } };
+    }
     return { domain: 'light', service: 'toggle', target, data: {} };
   }
   if (action.type === 'haMedia') {
@@ -259,16 +290,30 @@ function actionToServiceCall(action) {
     const target = { entity_id: entity };
     if (action.cmd === 'mute') return { domain: 'media_player', service: 'volume_mute', target, data: { is_volume_muted: true } };
     if (action.cmd === 'unmute') return { domain: 'media_player', service: 'volume_mute', target, data: { is_volume_muted: false } };
+    if (action.cmd === 'volume_set') {
+      const pct = actionNumber(action.value, 0, 100);
+      return pct == null ? null : { domain: 'media_player', service: 'volume_set', target, data: { volume_level: Math.round(pct) / 100 } };
+    }
     const map = { playpause: 'media_play_pause', next: 'media_next_track', previous: 'media_previous_track', stop: 'media_stop', volume_up: 'volume_up', volume_down: 'volume_down' };
     return { domain: 'media_player', service: map[action.cmd] || 'media_play_pause', target, data: {} };
   }
   if (action.type === 'haCover') {
     if (!isEntityId(entity)) return null;
+    if (action.cmd === 'position') {
+      const pos = actionNumber(action.value, 0, 100);
+      return pos == null ? null : { domain: 'cover', service: 'set_cover_position', target: { entity_id: entity }, data: { position: Math.round(pos) } };
+    }
     const map = { open: 'open_cover', close: 'close_cover', stop: 'stop_cover', toggle: 'toggle' };
     return { domain: 'cover', service: map[action.cmd] || 'toggle', target: { entity_id: entity }, data: {} };
   }
   if (action.type === 'haClimate') {
     if (!isEntityId(entity)) return null;
+    if (action.mode === 'temperature') {
+      // The setpoint in the unit HA is configured for; the bounds only stop a
+      // typo, HA itself clamps to the device's own min/max.
+      const t = actionNumber(action.value, -50, 120);
+      return t == null ? null : { domain: 'climate', service: 'set_temperature', target: { entity_id: entity }, data: { temperature: Math.round(t * 10) / 10 } };
+    }
     const mode = ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only'].includes(action.mode) ? action.mode : 'off';
     return { domain: 'climate', service: 'set_hvac_mode', target: { entity_id: entity }, data: { hvac_mode: mode } };
   }
@@ -542,10 +587,13 @@ function createHomeAssistant(getConfig) {
     return ready;
   }
 
-  function request(type, extra) {
+  // `timeoutMs` is for the few slow reads (recorder history); everything else
+  // keeps the 8 s a service call should never need more than.
+  function request(type, extra, timeoutMs) {
+    const wait = Number.isFinite(timeoutMs) && timeoutMs > 0 ? Math.min(timeoutMs, 60000) : 8000;
     return connect().then(() => new Promise((resolve, reject) => {
       const id = ++msgId;
-      const timer = setTimeout(() => { if (pending.delete(id)) reject(new Error('ha_request_timeout')); }, 8000);
+      const timer = setTimeout(() => { if (pending.delete(id)) reject(new Error('ha_request_timeout')); }, wait);
       pending.set(id, { resolve, reject, timer });
       bumpIdle();
       try { ws.send(JSON.stringify(Object.assign({ id, type }, extra || {}))); }

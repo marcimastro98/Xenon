@@ -44,6 +44,11 @@ test('compactEntity projects domain, name, area and light extras', () => {
   assert.equal(c.brightness, 180);
   assert.deepEqual(c.rgb, [1, 2, 3]);
 });
+test('compactEntity carries when the state last changed, and nothing for a bad stamp', () => {
+  const c = ha.compactEntity({ entity_id: 'binary_sensor.door', state: 'on', last_changed: '2026-10-16T10:00:00+00:00', attributes: {} });
+  assert.equal(c.changed, Date.parse('2026-10-16T10:00:00Z'));
+  assert.equal('changed' in ha.compactEntity({ entity_id: 'binary_sensor.door', state: 'on', last_changed: 'nope', attributes: {} }), false);
+});
 test('compactEntity handles climate and media_player', () => {
   const cl = ha.compactEntity({ entity_id: 'climate.lr', state: 'heat', attributes: { current_temperature: 21.4, temperature: 22 } });
   assert.equal(cl.current, 21.4);
@@ -157,6 +162,25 @@ test('actionToServiceCall maps the new device-specific Deck actions', () => {
   assert.deepEqual(al.data, { code: '1234' });
   // a bad/empty entity always refuses (never a free-form service to HA)
   assert.equal(ha.actionToServiceCall({ type: 'haMedia', entity: 'bad id', cmd: 'next' }), null);
+});
+test('actionToServiceCall maps the value actions (setpoint, colour temperature, volume, position)', () => {
+  assert.deepEqual(ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.sala', mode: 'temperature', value: '21,5' }),
+    { domain: 'climate', service: 'set_temperature', target: { entity_id: 'climate.sala' }, data: { temperature: 21.5 } });
+  assert.deepEqual(ha.actionToServiceCall({ type: 'haLight', entity: 'light.k', mode: 'kelvin', value: '2700' }).data, { color_temp_kelvin: 2700 });
+  assert.deepEqual(ha.actionToServiceCall({ type: 'haLight', entity: 'light.k', mode: 'kelvin', value: '50000' }).data, { color_temp_kelvin: 12000 });
+  assert.deepEqual(ha.actionToServiceCall({ type: 'haMedia', entity: 'media_player.tv', cmd: 'volume_set', value: '35' }),
+    { domain: 'media_player', service: 'volume_set', target: { entity_id: 'media_player.tv' }, data: { volume_level: 0.35 } });
+  assert.deepEqual(ha.actionToServiceCall({ type: 'haCover', entity: 'cover.b', cmd: 'position', value: '140' }).data, { position: 100 });
+  // A blank or non-numeric value refuses: it must never fall through to an off, a
+  // zero volume or a closed cover.
+  for (const value of ['', '  ', 'abc', undefined]) {
+    assert.equal(ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.sala', mode: 'temperature', value }), null);
+    assert.equal(ha.actionToServiceCall({ type: 'haMedia', entity: 'media_player.tv', cmd: 'volume_set', value }), null);
+    assert.equal(ha.actionToServiceCall({ type: 'haCover', entity: 'cover.b', cmd: 'position', value }), null);
+    assert.equal(ha.actionToServiceCall({ type: 'haLight', entity: 'light.k', mode: 'kelvin', value }), null);
+  }
+  // The old shapes are unchanged.
+  assert.deepEqual(ha.actionToServiceCall({ type: 'haClimate', entity: 'climate.ac', mode: 'heat' }).data, { hvac_mode: 'heat' });
 });
 
 // ── settings: normalization + write-only token ───────────────────────────────

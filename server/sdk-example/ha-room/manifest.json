@@ -1,0 +1,12 @@
+{
+  "api": 1,
+  "id": "ha-room",
+  "name": "Home Assistant Room",
+  "version": "1.0.0",
+  "author": "Xenon",
+  "description": "Reference SDK widget for Home Assistant: your lights as keys you tap, and a 24-hour trace of your first sensor. Each copy of the tile can show a different room.",
+  "entry": "index.html",
+  "streams": ["homeassistant"],
+  "actions": ["homeassistant"],
+  "storage": true
+}

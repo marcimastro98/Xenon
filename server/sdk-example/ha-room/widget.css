@@ -1,0 +1,51 @@
+/* Home Assistant Room: reference widget styling. It follows the theme tokens the
+   host sends over the bridge (see widget.js applyTheme). */
+
+:root {
+  --accent: #1ed760;
+  --text: #f0f3f1;
+  --muted: color-mix(in srgb, var(--text) 62%, transparent);
+  --line: color-mix(in srgb, var(--text) 14%, transparent);
+  color-scheme: dark;
+}
+:root[data-appearance="light"] { color-scheme: light; }
+
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 100%; height: 100%; }
+body { font-family: Inter, "Segoe UI", system-ui, sans-serif; color: var(--text); background: transparent; overflow: hidden; }
+
+.room { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
+.area {
+  align-self: flex-start; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 6px; background: transparent;
+  color: var(--text); font: inherit; font-weight: 700; cursor: pointer;
+}
+.empty { color: var(--muted); font-size: 14px; line-height: 1.4; }
+
+/* The keys share one plate: 1px seams between them, not separate cards. */
+.keys {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+}
+.keys:empty { display: none; }
+.key {
+  position: relative; min-height: 76px; padding: 26px 10px 10px;
+  border: 0; border-radius: 0; background: var(--panel, Canvas);
+  color: var(--text); font: inherit; font-size: 13px; font-weight: 600;
+  text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis;
+  transition: transform 80ms linear;
+}
+.key::before {
+  content: ""; position: absolute; top: 10px; left: 10px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--line);
+  transition: background-color 150ms linear;
+}
+.key[aria-pressed="true"] { font-weight: 700; }
+.key[aria-pressed="true"]::before { background: var(--accent); }
+.key:active { transform: translateY(1px); }
+
+.trace { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+.trace figcaption { color: var(--muted); font-size: 13px; }
+.trace b { color: var(--text); font-variant-numeric: tabular-nums; }
+.trace svg { width: 100%; height: 40px; }
+.trace path { fill: none; stroke: var(--text); stroke-width: 1.5; vector-effect: non-scaling-stroke; }

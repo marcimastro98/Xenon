@@ -183,3 +183,11 @@ test('valida remoteBlock con mode coerentizzato', () => {
 test('valida remoteScreenCycle (nessun parametro)', () => {
   assert.deepEqual(da.validateAction({ type: 'remoteScreenCycle' }), { type: 'remoteScreenCycle' });
 });
+
+test('HA value actions keep their value through validateAction, and old keys keep their shape', () => {
+  assert.deepEqual(da.validateAction({ type: 'haClimate', entity: 'climate.sala', mode: 'temperature', value: 21.5 }),
+    { type: 'haClimate', entity: 'climate.sala', mode: 'temperature', value: '21.5' });
+  assert.equal(da.validateAction({ type: 'haMedia', entity: 'media_player.tv', cmd: 'volume_set', value: '40' }).value, '40');
+  assert.equal(da.validateAction({ type: 'haCover', entity: 'cover.b', cmd: 'position', value: '30' }).cmd, 'position');
+  assert.deepEqual(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode: 'heat' }), { type: 'haClimate', entity: 'climate.ac', mode: 'heat' });
+});

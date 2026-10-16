@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Assistant Room</title>
+<link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <main class="room">
+    <button id="area" class="area" type="button" aria-label="Show the next room">All rooms</button>
+    <p id="empty" class="empty" hidden></p>
+    <div id="keys" class="keys"></div>
+    <figure id="trace" class="trace" hidden>
+      <figcaption><span id="traceName"></span> <b id="traceNow"></b></figcaption>
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path id="tracePath"/></svg>
+    </figure>
+  </main>
+  <!-- Inline scripts are blocked by the SDK CSP (script-src 'self') — keep JS in files. -->
+  <script src="widget.js"></script>
+</body>
+</html>

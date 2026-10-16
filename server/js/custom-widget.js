@@ -352,6 +352,7 @@
     { id: 'hello-xenon', name: 'Hello Xenon', desc: 'Reference SDK widget: live clock, CPU/GPU/RAM readout and media keys. Use it as the starting point for your own widget.' },
     { id: 'teleprompter', name: 'Teleprompter', desc: 'Write a script, play it as big auto-scrolling prompter text. Deck keys control play/pause, speed and reset; in the minimal topbar the current line appears in the dynamic island.' },
     { id: 'github-stars', name: 'GitHub Stars', desc: 'Shows a GitHub repository\'s live star count, as a tile and as a small badge next to the clock. Configure the repo once; it refreshes automatically.' },
+    { id: 'ha-room', name: 'Home Assistant Room', desc: 'Reference SDK widget for Home Assistant: your lights as keys you tap, and a 24-hour trace of your first sensor. Each copy of the tile can show a different room.' },
   ];
 
   let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
@@ -1002,6 +1003,36 @@
         body: JSON.stringify({ pkg: entry.pkgId, op, params }),
       });
       reply(r && r.ok ? { ok: true, data: r.data } : { ok: false, error: (r && r.error) || 'failed' });
+    } catch {
+      reply({ ok: false, error: 'failed' });
+    }
+  }
+
+  // Home Assistant READS: `history` (a few entities' last hours as {t,avg,max}
+  // points) and `camera` (one frame as a data: URL, the only image a frame with
+  // no network can show). Gated by the `homeassistant` STREAM grant here and
+  // again server-side, where the entity is also checked against the user's
+  // selection.
+  async function onBridgeHaQuery(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'haQueryResult', id: reqId }, payload));
+    if (!grant.streams.includes('homeassistant')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    const op = msg.op === 'history' || msg.op === 'camera' ? msg.op : '';
+    if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
+    const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
+    const params = op === 'history'
+      ? { ids: Array.isArray(p.ids) ? p.ids.slice(0, 24).map(x => String(x).slice(0, 120)) : [], hours: p.hours }
+      : { id: String(p.id == null ? '' : p.id).slice(0, 120) };
+    try {
+      const r = await api('/stream/homeassistant/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pkg: entry.pkgId, op, params }),
+      });
+      if (!(r && r.ok)) { reply({ ok: false, error: (r && r.error) || 'failed' }); return; }
+      reply(op === 'history'
+        ? { ok: true, hours: r.hours, series: r.series }
+        : { ok: true, src: r.src, at: r.at });
     } catch {
       reply({ ok: false, error: 'failed' });
     }
@@ -1754,6 +1785,10 @@
         type: 'init',
         api: 1,
         pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
+        // Which copy of the tile this frame is ("custom", "custom~k3x9"), stable
+        // across reloads, so two copies of one widget can keep two layouts in
+        // the same storage. Null for a frame that is not a tile (service, ambient).
+        instance: entry.service || entry.ambient ? null : instanceIdOfEntry(entry),
         theme: themePayload(entry),
         lang: langCode(),
         tempUnit: tempUnit(),
@@ -1819,6 +1854,8 @@
       if (entry.ready) onBridgeSpotifyQuery(entry, grant, d);
     } else if (d.type === 'youtubeQuery') {
       if (entry.ready) onBridgeYoutubeQuery(entry, grant, d);
+    } else if (d.type === 'haQuery') {
+      if (entry.ready) onBridgeHaQuery(entry, grant, d);
     } else if (d.type === 'youtubePlayer') {
       if (entry.ready) onBridgeYoutubePlayer(entry, grant, d);
     } else if (d.type === 'refresh') {

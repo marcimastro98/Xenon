@@ -250,6 +250,13 @@ than the manifest requested):
       surfaceSoft: 'rgba(22, 25, 26, 0.92)', panelAlpha: 0.92
     }
   },
+  // Which copy of the tile this frame is (v4.11.13): 'custom' for the first,
+  // 'custom~k3x9' for a copy. Stable across reloads, so key per-copy settings
+  // on it and two copies of your widget can show two different things. A
+  // storage key allows only [A-Za-z0-9._-], so map the rest first:
+  // 'layout.' + instance.replace(/[^A-Za-z0-9._-]/g, '_').
+  // null for a background service frame or an ambient scene.
+  instance: 'custom~k3x9',
   lang:   'en',                       // active UI language (en/it/ko/ja/zh)
   streams: ['system', 'media'],       // granted data streams
   actions: ['media'],                 // granted action categories
@@ -1164,6 +1171,57 @@ Errors: `not_connected` (no YouTube account linked — say so, don't draw an emp
 library), `bad_id`, `bad_page`, `bad_op`, `rate_limited` (the per-widget gate),
 `quotaExceeded` and Google's other reasons passed through by name.
 
+### 3f-bis. Reading Home Assistant history and cameras — `haQuery` (v4.11.13)
+
+The `homeassistant` stream gives you the current state of the entities the user
+picked in Settings → Home Assistant. Two more reads cover what a state alone
+cannot draw: the last hours of a sensor, and a camera frame. Requires the
+**`homeassistant` stream** grant, and works only for entities in that same
+selection; anything else answers `not_selected` without Home Assistant being
+asked.
+
+```js
+// The last 24 hours of up to 12 entities (1 to 72 hours).
+window.parent.postMessage({
+  xenonSdk: 1, type: 'haQuery', id: 21,
+  op: 'history', params: { ids: ['sensor.outside_temp', 'binary_sensor.patio_door'], hours: 24 },
+}, '*');
+
+// One camera frame.
+window.parent.postMessage({
+  xenonSdk: 1, type: 'haQuery', id: 22, op: 'camera', params: { id: 'camera.gate' },
+}, '*');
+
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (!m || m.xenonSdk !== 1 || m.type !== 'haQueryResult') return;
+  if (m.id === 21 && m.ok) {
+    // m.series['sensor.outside_temp'] = { source: 'statistics', points: [{ t, avg, max }, …] }
+    drawTrace(m.series);
+  }
+  if (m.id === 22 && m.ok) img.src = m.src;   // a data:image/jpeg URL; m.at = when it was taken
+});
+```
+
+- **History** uses Home Assistant's hourly statistics when the sensor has them
+  (it has a `stateClass` in the stream), otherwise the recorded states in 48
+  even buckets. On/off style states (`on`, `open`, `home`, `detected`) read as
+  1 and their opposites as 0, so a door or a motion sensor draws a trace too.
+  Answers are cached for five minutes: ask once when shown, not on a timer.
+- **Camera** returns one JPEG (at most 2 MB) as a `data:` URL, the only image
+  your frame can show without network. Ask for a new one every few seconds
+  while visible, and stop on `visibility: false`.
+
+Errors: `not_configured` (Home Assistant not set up), `not_selected`,
+`bad_ids`, `too_many_ids`, `bad_hours`, `bad_camera`, `no_frame`,
+`frame_too_large`, `rate_limited`, `not_allowed`, and Home Assistant's own
+timeouts (`ha_timeout`, `ha_request_timeout`).
+
+The stream itself carries a little more since v4.11.13: `weather.*` entities
+have `temperature`, `tempUnit`, `humidity`, `windSpeed`, `windUnit`; sensors
+have `stateClass`; `person.*` and `device_tracker.*` carry only their state
+(`home`, `not_home`, a zone name), never coordinates. Every entity has `changed`, the epoch ms of its last state change (not of every attribute update), so a widget can say "open for 12 minutes".
+
 ### 3g. A YouTube player inside your widget — `youtubePlayer` (v4.11.8)
 
 `ytWatchPlay` (§ action categories) plays a video in **Xenon's** YouTube tile.
@@ -1675,7 +1733,7 @@ the same gate Deck keys go through):
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair. |
-| `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. |
+| `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. Exact values (v4.11.13), each with a `value` number: `haClimate` mode `temperature` (setpoint), `haLight` mode `kelvin`, `haMedia` cmd `volume_set` (0-100), `haCover` cmd `position` (0-100); an empty or non-numeric `value` refuses. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
 | `youtubePlayer` | `ytPlayer` — a YouTube player **inside your own widget**, owned by Xenon and driven through validated messages. Not a `/actions/run` action: see [A YouTube player inside your widget](#3g-a-youtube-player-inside-your-widget--youtubeplayer-v4118). Separate from `youtube`, which is about the user's broadcast, and from `watch`, which plays in Xenon's own tile. |
