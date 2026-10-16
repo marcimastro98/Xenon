@@ -9,7 +9,7 @@
       "supportersOnly": true,
       "locked": true,
       "featured": "on",
-      "description": "Your Home Assistant devices as wall plates. Tap a key to switch, drag a dimmer, hold any module for its full controls. Thermostats, energy, 24 hour traces, cameras and media; each copy keeps its own layout. Smoke, a leak, a triggered alarm or a door left open also show in the top bar.",
+      "description": "Your Home Assistant devices as wall plates. Tap to switch, drag a dimmer, set volume, power and temperature right on the plate. Compact, comfortable or large keys; thermostats, energy, 24 hour traces, cameras and media. Smoke, a leak, a triggered alarm or an open door also show in the top bar.",
       "category": "smart-home",
       "tags": [
         "home-assistant",
@@ -18,7 +18,7 @@
         "camera",
         "supporter"
       ],
-      "version": "1.0.1",
+      "version": "1.0.2",
       "pkgId": "casa",
       "appVersionMin": "4.11.13",
       "preview": {
