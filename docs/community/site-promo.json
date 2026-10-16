@@ -18,11 +18,6 @@
           "line": "A woodcut town for Xenon supporters. Amber by day, blue at night, with a silent-film title card.",
           "cta": "Unlock Nitrato"
         },
-        "fr": {
-          "title": "Nitrato",
-          "line": "Une ville avec maisons en bois pour les supporters de Xenon. Ambre le jour, bleu la nuit, avec une carte-titre de film muet.",
-          "cta": "Débloquer Nitrato"
-        },
         "it": {
           "title": "Nitrato",
           "line": "Una città in xilografia per i sostenitori di Xenon. Ambra di giorno, blu di notte, con un cartello da film muto.",
@@ -68,11 +63,6 @@
           "line": "A woodcut town for Xenon supporters. Amber by day, blue at night, with a silent-film title card.",
           "cta": "Unlock Nitrato"
         },
-        "fr": {
-          "title": "Nitrato",
-          "line": "Une ville avec maisons en bois pour les supporters de Xenon. Ambre le jour, bleu la nuit, avec une carte-titre de film muet.",
-          "cta": "Découvrir Nitrato"
-        },
         "it": {
           "title": "Nitrato",
           "line": "Una città in xilografia per i sostenitori di Xenon. Ambra di giorno, blu di notte, con un cartello da film muto.",
@@ -97,60 +87,6 @@
           "title": "Nitrato",
           "line": "献给 Xenon 支持者的木刻小镇。白天是琥珀色，夜晚变成蓝色，附带默片风格的字幕卡。",
           "cta": "解锁 Nitrato"
-        }
-      }
-    },
-    {
-      "id": "workload-river-strip",
-      "entryId": "workload-river",
-      "format": "strip",
-      "video": "https://assets.xenon-app.com/community/promo/workload-river.mp4",
-      "poster": "https://assets.xenon-app.com/community/promo/workload-river-poster.png",
-      "url": "https://xenon-app.com/catalog/workload-river/",
-      "look": {
-        "paper": "#f3f5f4",
-        "ink": "#131719"
-      },
-      "slice": {
-        "x": 0.5,
-        "y": 0.286,
-        "w": 0.34
-      },
-      "text": {
-        "en": {
-          "title": "Workload River",
-          "line": "Which app is weighing on your PC, and since when.",
-          "cta": "Unlock Workload River"
-        },
-        "fr": {
-          "title": "Workload River",
-          "line": "Quelle application ralentit votre PC, et depuis quand ?",
-          "cta": "Débloquer Workload River"
-        },
-        "it": {
-          "title": "Workload River",
-          "line": "Quale app sta pesando sul PC, e da quando.",
-          "cta": "Sblocca Workload River"
-        },
-        "es": {
-          "title": "Workload River",
-          "line": "Qué app está cargando tu PC, y desde cuándo.",
-          "cta": "Desbloquea Workload River"
-        },
-        "ja": {
-          "title": "Workload River",
-          "line": "どのアプリがPCを重くしているのか、いつからなのか。",
-          "cta": "Workload Riverを解除"
-        },
-        "ko": {
-          "title": "Workload River",
-          "line": "어떤 앱이 PC를 무겁게 하는지, 언제부터인지.",
-          "cta": "Workload River 잠금 해제"
-        },
-        "zh": {
-          "title": "Workload River",
-          "line": "是哪个应用在拖慢你的电脑，又是从什么时候开始的。",
-          "cta": "解锁 Workload River"
         }
       }
     }
