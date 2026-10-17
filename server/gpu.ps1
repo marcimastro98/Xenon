@@ -74,6 +74,49 @@ function Get-GpuLhmComputer {
   }
 }
 
+# The ONE card the readings come from. Every field used to take the first value
+# any GPU offered, so a PC with two (a Ryzen 7000's integrated Radeon beside a
+# Radeon card is the common case) mixed them: the name from WMI, VRAM, clock and
+# watts from the integrated GPU, the fans from the card (Discord, Oct 2026: a
+# 9070 XT shown with 512 MB of VRAM and 2 W). The card WMI names wins, and WMI
+# is sorted by memory, so that is the discrete one; without a match, the most
+# dedicated memory, which an integrated GPU's small carve-out never beats.
+# Remembered per session: the cards do not change while it is open.
+function Read-LhmDedicatedMemoryMB($Hardware) {
+  foreach ($sensor in @($Hardware.Sensors)) {
+    try {
+      $sname = [string]$sensor.Name
+      if ($sensor.SensorType.ToString() -eq 'SmallData' -and $sname -match 'Memory Total' -and $sname -notmatch 'Shared' -and $null -ne $sensor.Value) {
+        return [double]$sensor.Value
+      }
+    } catch { }
+  }
+  return 0.0
+}
+
+function Select-LhmGpu {
+  param($Computer, [string]$Name)
+  $gpus = @($Computer.Hardware | Where-Object { $_.HardwareType.ToString() -match 'Gpu' })
+  if ($gpus.Count -le 1) { return ($gpus | Select-Object -First 1) }
+  $remembered = [string]$global:XenonGpuLhmPick
+  if ($remembered) {
+    $hit = $gpus | Where-Object { [string]$_.Identifier -eq $remembered } | Select-Object -First 1
+    if ($hit) { return $hit }
+  }
+  $pick = $null
+  if ($Name) { $pick = $gpus | Where-Object { ([string]$_.Name).Trim() -eq $Name.Trim() } | Select-Object -First 1 }
+  if (-not $pick) {
+    $best = -1.0
+    foreach ($candidate in $gpus) {
+      try { $candidate.Update(); Set-LhmUpdated $candidate } catch { }
+      $mb = Read-LhmDedicatedMemoryMB $candidate
+      if ($mb -gt $best) { $best = $mb; $pick = $candidate }
+    }
+  }
+  if ($pick) { $global:XenonGpuLhmPick = [string]$pick.Identifier }
+  return $pick
+}
+
 # NVIDIA fans read the way NvidiaGpu.Update() reads them (fan-cooler status,
 # else the single tachometer), named by LHM's own sensors so the list is the same
 # one the full walk produces. Private members, so: $null whenever anything is not
@@ -177,6 +220,7 @@ function Get-LhmGpuReadings {
     # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
     try { $global:XenonGpuLhm.Close() } catch { }
     $global:XenonGpuLhm = $null
+    $global:XenonGpuLhmPick = $null
   }
   return @{ fans = $fans; coreClock = $coreClock; memClock = $memClock }
 }
@@ -258,8 +302,8 @@ try {
   $computer = Get-GpuLhmComputer
   if ($null -ne $computer) {
     try {
-      foreach ($hardware in @($computer.Hardware)) {
-        if ($hardware.HardwareType.ToString() -notmatch 'Gpu') { continue }
+      foreach ($hardware in @(Select-LhmGpu -Computer $computer -Name $gpuName)) {
+        if ($null -eq $hardware) { continue }
         try { $hardware.Update(); Set-LhmUpdated $hardware } catch { }
         foreach ($sensor in @($hardware.Sensors)) {
           try {
@@ -313,6 +357,7 @@ try {
       # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
       try { $computer.Close() } catch { }
       $global:XenonGpuLhm = $null
+      $global:XenonGpuLhmPick = $null
     }
   }
 } catch { }
