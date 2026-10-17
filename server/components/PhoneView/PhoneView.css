@@ -304,6 +304,13 @@
 }
 .is-stacked .system-block { flex: 0 0 auto; min-height: min-content; }
 .is-stacked .stat-box { min-height: min-content; }
+/* The Volume tab is a SIZE container on the desktop grid (AudioSection.css), and
+   size containment makes its content count as zero height. Under the
+   content-sized block above that left the pane a few pixels tall: the card fell
+   into its one-line strip layout and the app list into a sliver, on any tall
+   screen. Reported from a vertically mounted display. Here the pane takes its
+   natural height and the tile scrolls the rest, like the stat cards. */
+.is-stacked body:not([data-panel]) .system-audio-pane:not([hidden]) { container: none; }
 
 /* Calendar. `minmax(0, 1fr)` rows are right on the Edge, where the tile is tall
    and the month should fill it; here they let a week row fall under the height of

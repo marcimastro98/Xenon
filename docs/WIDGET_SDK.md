@@ -319,6 +319,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change. **Every event, not the slice the Upcoming tile shows.** That tile has its own count and horizon in Settings → Calendar, and they are display settings for the tile alone: what reaches you here is unfiltered, so filter and sort it yourself rather than assuming a window
 - `battery` — wireless peripheral battery levels (see *Hardware sensors*)
 - `processes` — **which apps are using the CPU, memory and GPU right now**. See *Which apps are busy* below; like `audioLevels`, this one has conditions
+- `sensors` (v4.12.0) — **every hardware sensor by name**: each temperature, fan, power and clock reading the PC exposes. See *Every sensor, and which one the user chose* below
 
 `wavelink` and these last four are read-only data feeds; you also get the latest
 cached payload replayed right after `init`, so you paint without waiting.
@@ -857,6 +858,67 @@ rate, the same code simply gets fresher values. Never assume an interval — rea
 the payload when it arrives. A widget that treats 5 seconds as a constant will be
 wrong on the machines that care most about it.
 
+### 3c-bis. Every sensor, and which one the user chose — `sensors` (v4.12.0)
+
+`system` carries one CPU temperature, one GPU temperature and one wattage of
+each. Which physical sensor those come from is now the user's choice, in
+Settings → Performance → *Sensor sources*, and `system` says which one it is:
+
+```js
+{ // …the rest of the system payload…
+  sensorSources: {
+    cpuTemp:  { auto: true, name: 'Core (Tctl/Tdie)' },          // Xenon's own pick
+    gpuTemp:  { auto: false, id: '/gpu-nvidia/0/temperature/2', name: 'GPU Hot Spot', hw: 'NVIDIA GeForce RTX 4080' },
+    cpuWatts: { auto: true, name: '' },
+    gpuWatts: { auto: true, id: '/gpu-nvidia/0/power/0', missing: true, name: '' },
+  },
+}
+```
+
+- **Nothing to change in a widget that reads `cpuTemp`/`gpuTemp`/`power`.** The
+  choice is applied on the server before the payload is sent, so every number in
+  `system` already follows it.
+- **`missing: true`** means the user chose a sensor this machine no longer has (a
+  swapped card). The reading has gone back to the automatic one; say so if your
+  widget names its source.
+
+The `sensors` stream is the whole catalog, for a widget that wants more than the
+headline numbers: the liquid temperature of an AIO, a VRM, one fan by name, the
+hot spot of a GPU. One payload every 3 seconds:
+
+```js
+if (m.type === 'data' && m.stream === 'sensors') {
+  const { sensors, problem, sensorAccess } = m.data;
+  // sensors: [{ id: '/lpc/nct6798d/0/temperature/1', hw: 'Nuvoton NCT6798D',
+  //             hwKind: 'board', type: 'temperature', name: 'CPU Socket',
+  //             value: 41.5, unit: '°C' }, …]
+  //   type:   'temperature' | 'fan' | 'power' | 'clock' | 'load'
+  //   unit:   '°C' | 'RPM' | 'W' | 'MHz' | '%'
+  //   hwKind: 'cpu' | 'gpu' | 'board' | 'storage' | 'cooler' | 'psu' | 'memory' | 'other'
+  const liquid = sensors.find((s) => s.hwKind === 'cooler' && s.type === 'temperature');
+}
+```
+
+1. **Nothing runs until you are granted it**, exactly like `processes`: the
+   catalog is read only while a package holds this grant and a dashboard is
+   open. On a PC with an NVIDIA card a read may refresh the card through
+   LibreHardwareMonitor, which costs 60-80 ms at most every 2 seconds. Do not
+   request it to show a CPU temperature: `system` already has that for free.
+2. **`id` is stable, not readable.** Store it to remember which sensor the user
+   picked in your widget; show `name` and `hw`. On Windows it is
+   LibreHardwareMonitor's identifier and survives a reboot; on Linux it names the
+   chip and the device it sits on (`hwmon/k10temp@0000:00:18.3/temp1`), because
+   the `hwmonN` number changes at every boot.
+3. **`value` is nullable.** A sensor that exists but cannot be read right now
+   (no administrator rights on Windows, a probe that is not connected) is listed
+   with `value: null`. Show "--", not 0.
+4. **The list can be empty, and that is an answer.** A Mac reports one
+   temperature per chip and no catalog, so `sensors` is `[]` there. On Windows
+   without LibreHardwareMonitor it is empty too; `problem: 'unavailable'` means
+   no answer could be read at all, and `sensorAccess` (`'ok'`, `'needs_admin'`,
+   `'missing'`) says why, as it does on `system`.
+5. **`name` and `hw` come from drivers.** Render them with `textContent`.
+
 ### 3d. `lang` — host → widget (v4.11.8)
 
 The `init` payload carries `lang` (the dashboard's language code). It is also
@@ -1192,14 +1254,21 @@ window.parent.postMessage({
   xenonSdk: 1, type: 'haQuery', id: 22, op: 'camera', params: { id: 'camera.gate' },
 }, '*');
 
+// A media player's cover art (v4.12.0), when its stream entity has `art: true`.
+window.parent.postMessage({
+  xenonSdk: 1, type: 'haQuery', id: 23, op: 'artwork', params: { id: 'media_player.living_room' },
+}, '*');
+
 addEventListener('message', (e) => {
   const m = e.data;
   if (!m || m.xenonSdk !== 1 || m.type !== 'haQueryResult') return;
   if (m.id === 21 && m.ok) {
     // m.series['sensor.outside_temp'] = { source: 'statistics', points: [{ t, avg, max }, …] }
+    // m.skipped = ids the user no longer has selected (v4.12.0)
     drawTrace(m.series);
   }
   if (m.id === 22 && m.ok) img.src = m.src;   // a data:image/jpeg URL; m.at = when it was taken
+  if (m.id === 23 && m.ok) cover.src = m.src; // a data: URL (JPEG, PNG, WebP or GIF)
 });
 ```
 
@@ -1208,19 +1277,38 @@ addEventListener('message', (e) => {
   even buckets. On/off style states (`on`, `open`, `home`, `detected`) read as
   1 and their opposites as 0, so a door or a motion sensor draws a trace too.
   Answers are cached for five minutes: ask once when shown, not on a timer.
+  Since v4.12.0 an id the user has since unticked is left out and listed in
+  `skipped`, and the rest of the answer still comes back; only a request with
+  no selected id at all answers `not_selected`.
 - **Camera** returns one JPEG (at most 2 MB) as a `data:` URL, the only image
   your frame can show without network. Ask for a new one every few seconds
   while visible, and stop on `visibility: false`.
+- **Artwork** (v4.12.0) returns the cover of what a selected media player is
+  playing, at most 2 MB, through Home Assistant's own image proxy. The server
+  keeps it until the track changes, so asking again when `title` changes is
+  cheap. A player with `art: false` answers `no_artwork`.
 
 Errors: `not_configured` (Home Assistant not set up), `not_selected`,
 `bad_ids`, `too_many_ids`, `bad_hours`, `bad_camera`, `no_frame`,
-`frame_too_large`, `rate_limited`, `not_allowed`, and Home Assistant's own
-timeouts (`ha_timeout`, `ha_request_timeout`).
+`frame_too_large`, `bad_media_player`, `no_artwork`, `artwork_too_large`,
+`bad_image`, `rate_limited`, `not_allowed`, and Home Assistant's own timeouts
+(`ha_timeout`, `ha_request_timeout`).
 
 The stream itself carries a little more since v4.11.13: `weather.*` entities
 have `temperature`, `tempUnit`, `humidity`, `windSpeed`, `windUnit`; sensors
 have `stateClass`; `person.*` and `device_tracker.*` carry only their state
 (`home`, `not_home`, a zone name), never coordinates. Every entity has `changed`, the epoch ms of its last state change (not of every attribute update), so a widget can say "open for 12 minutes".
+
+Since v4.12.0: `climate.*` entities add `targetLow` and `targetHigh` (the two
+setpoints of `heat_cool`), `targetHumidity`, `minHumidity`, `maxHumidity`;
+`media_player.*` entities add `art` (true when there is cover art to ask for)
+and `group` (the ids of a multiroom group, only when it has two or more). The
+stream is only sent when something in the user's selection changed, so a busy
+home with sensors nobody picked no longer wakes your widget. The payload also
+carries `areaOrder`, the room order the user set in Settings → Smart Home (room
+names, top first; rooms not listed come after, devices with no room last), and
+`entities` is in the user's own order inside each room: follow both if your
+widget groups by room.
 
 ### 3g. A YouTube player inside your widget — `youtubePlayer` (v4.11.8)
 
@@ -1733,7 +1821,7 @@ the same gate Deck keys go through):
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair. |
-| `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. Exact values (v4.11.13), each with a `value` number: `haClimate` mode `temperature` (setpoint), `haLight` mode `kelvin`, `haMedia` cmd `volume_set` (0-100), `haCover` cmd `position` (0-100); an empty or non-numeric `value` refuses. |
+| `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. Exact values (v4.11.13), each with a `value` number: `haClimate` mode `temperature` (setpoint), `haLight` mode `kelvin`, `haMedia` cmd `volume_set` (0-100), `haCover` cmd `position` (0-100); an empty or non-numeric `value` refuses. Added in v4.12.0: `haClimate` mode `heat_cool`, `range` (`value` "20-24", sets both setpoints), `humidity` (0-100), `fan_mode` / `swing_mode` / `preset` (`value` must be one the entity lists in `fanModes` / `swingModes` / `presetModes`); `haMedia` cmd `on`, `off`, `source` / `sound_mode` (`value` from the entity's `sources` / `soundModes`), `seek` (seconds), `shuffle` (`on`/`off`, empty flips), `repeat` (`off`/`all`/`one`, empty steps). An unknown `mode` or `cmd`, or a mode the device does not offer, is refused (`bad_ha_action`) instead of falling back to another command. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
 | `youtubePlayer` | `ytPlayer` — a YouTube player **inside your own widget**, owned by Xenon and driven through validated messages. Not a `/actions/run` action: see [A YouTube player inside your widget](#3g-a-youtube-player-inside-your-widget--youtubeplayer-v4118). Separate from `youtube`, which is about the user's broadcast, and from `watch`, which plays in Xenon's own tile. |
@@ -2125,7 +2213,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

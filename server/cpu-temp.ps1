@@ -478,9 +478,12 @@ if ($script:tempCandidates.Count -eq 0) {
   Add-TempsFromWindowsThermalZones
 }
 
-$cpuTemp = $script:tempCandidates |
+# The winner's name travels too, so Settings -> Sensor sources can say which
+# sensor "Automatic" is showing (Tctl/Tdie, CPU Package...).
+$cpuTempPick = $script:tempCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
-  Select-Object -First 1 -ExpandProperty Value
+  Select-Object -First 1
+$cpuTemp = if ($cpuTempPick) { $cpuTempPick.Value } else { $null }
 
 $cpuWatts = $script:cpuWattCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
@@ -503,6 +506,7 @@ if ($global:XenonCpuLhm) { $sensorAccess = if (Test-SensorAdmin) { 'ok' } else {
 
 [pscustomobject]@{
   cpuTemp      = if ($null -ne $cpuTemp) { [double]$cpuTemp } else { $null }
+  cpuTempSource = if ($cpuTempPick) { [string]$cpuTempPick.Name } else { $null }
   fans         = @($script:fanReadings)
   cpuWatts     = if ($null -ne $cpuWatts) { [double]$cpuWatts } else { $null }
   psuWatts     = if ($null -ne $psuWatts) { [double]$psuWatts } else { $null }

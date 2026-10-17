@@ -1592,6 +1592,10 @@ input[type="range"] { accent-color: var(--green); }
   .settings-overlay { padding: 10px; place-items: stretch; }
   .settings-panel { width: 100%; max-height: calc(100vh - 20px); border-radius: 14px; }
   .settings-grid { grid-template-columns: 1fr; }
+  /* On a phone the hint goes under the title: side by side, a long hint
+     squeezed the title into a column of single words. */
+  .settings-group-head { flex-wrap: wrap; row-gap: 3px; }
+  .settings-group-head > .settings-hint { flex-basis: 100%; text-align: left; }
   .theme-presets { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .settings-upload-row { grid-template-columns: 1fr; }
   .settings-foot { align-items: stretch; flex-direction: column; gap: 10px; }

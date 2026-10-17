@@ -139,9 +139,9 @@ const ACTION_CATALOG = [
   { type: 'spotifyDevice',   group: 'spotify', labelKey: 'deck_act_spotifyDevice',   params: [{ name: 'device', kind: 'text' }] },
   { type: 'haToggle',      group: 'homeassistant', labelKey: 'deck_act_haToggle',      params: [{ name: 'entity', kind: 'haEntity' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
   { type: 'haLight',       group: 'homeassistant', labelKey: 'deck_act_haLight',       params: [{ name: 'entity', kind: 'haEntity', domain: 'light' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off', 'brighter', 'dimmer', 'brightness', 'kelvin'] }, { name: 'value', kind: 'text', optional: true }] },
-  { type: 'haMedia',       group: 'homeassistant', labelKey: 'deck_act_haMedia',       params: [{ name: 'entity', kind: 'haEntity', domain: 'media_player' }, { name: 'cmd', kind: 'select', options: ['playpause', 'next', 'previous', 'stop', 'volume_up', 'volume_down', 'mute', 'unmute', 'volume_set'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'haMedia',       group: 'homeassistant', labelKey: 'deck_act_haMedia',       params: [{ name: 'entity', kind: 'haEntity', domain: 'media_player' }, { name: 'cmd', kind: 'select', strict: true, options: ['playpause', 'next', 'previous', 'stop', 'volume_up', 'volume_down', 'mute', 'unmute', 'volume_set', 'on', 'off', 'source', 'sound_mode', 'seek', 'shuffle', 'repeat'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'haCover',       group: 'homeassistant', labelKey: 'deck_act_haCover',       params: [{ name: 'entity', kind: 'haEntity', domain: 'cover' }, { name: 'cmd', kind: 'select', options: ['open', 'close', 'stop', 'toggle', 'position'] }, { name: 'value', kind: 'text', optional: true }] },
-  { type: 'haClimate',     group: 'homeassistant', labelKey: 'deck_act_haClimate',     params: [{ name: 'entity', kind: 'haEntity', domain: 'climate' }, { name: 'mode', kind: 'select', options: ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only', 'temperature'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'haClimate',     group: 'homeassistant', labelKey: 'deck_act_haClimate',     params: [{ name: 'entity', kind: 'haEntity', domain: 'climate' }, { name: 'mode', kind: 'select', strict: true, options: ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only', 'heat_cool', 'temperature', 'range', 'fan_mode', 'swing_mode', 'preset', 'humidity'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'haFan',         group: 'homeassistant', labelKey: 'deck_act_haFan',         params: [{ name: 'entity', kind: 'haEntity', domain: 'fan' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
   { type: 'haVacuum',      group: 'homeassistant', labelKey: 'deck_act_haVacuum',      params: [{ name: 'entity', kind: 'haEntity', domain: 'vacuum' }, { name: 'cmd', kind: 'select', options: ['start', 'pause', 'stop', 'return', 'locate'] }] },
   { type: 'haLock',        group: 'homeassistant', labelKey: 'deck_act_haLock',        params: [{ name: 'entity', kind: 'haEntity', domain: 'lock' }, { name: 'mode', kind: 'select', options: ['lock', 'unlock'] }] },
@@ -267,7 +267,7 @@ function unquotePath(value) {
 }
 
 // Return a clean action with ONLY the params its spec allows, or null if the
-// type is unknown. select → coerced to a valid option; text/url/path → string,
+// type is unknown or a `strict` select holds a value it does not list. select → coerced to a valid option; text/url/path → string,
 // capped. This is the single source of truth the server registry will reuse.
 function validateAction(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -277,6 +277,10 @@ function validateAction(raw) {
   for (const p of spec.params) {
     let v = raw[p.name];
     if (p.kind === 'select') {
+      // `strict`: an unknown value makes the whole action invalid instead of
+      // falling back to the first option. For a thermostat that option is 'off',
+      // and a typo or a newer client's mode must never switch the heating off.
+      if (p.strict && !(typeof v === 'string' && p.options.includes(v))) return null;
       v = (typeof v === 'string' && p.options.includes(v)) ? v : p.options[0];
     } else {
       v = String(v == null ? '' : v);

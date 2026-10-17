@@ -406,6 +406,13 @@ async function cpuTemp() {
   return { cpuTemp: live.cpuTemp, cpuClockMHz: live.cpuClockMHz };
 }
 
+// --- Sensor catalog (Settings → Sensor sources, the SDK `sensors` stream) ----
+// Empty on a Mac, honestly: the helper and macmon each answer one CPU and one
+// GPU temperature already chosen for us, with no per-sensor names to pick from.
+// The picker reads the empty list and says there is nothing to choose here.
+async function listSensors() { return []; }
+async function readSensors() { return []; }
+
 // --- Disks: df + mount, matching getAllDisksInfo()'s drive object shape ------
 // Only `/` and real volumes under /Volumes are surfaced. Everything under
 // /System/Volumes is an APFS role volume (Preboot, VM, Update, the Data volume
@@ -1280,7 +1287,7 @@ async function idleSeconds() {
 }
 
 module.exports = {
-  gpu, disks, diskIo, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   processes, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
   // exported for unit tests
   parsePsTime, parsePsProcesses,

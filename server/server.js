@@ -73,6 +73,7 @@ const { createPhone } = require('./phone');                    // the paired pho
 const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
+const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
@@ -766,6 +767,10 @@ const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
 // persistent worker (see processes.ps1) — its numbers are deltas between calls,
 // so a one-shot spawn would have to sleep for every one of them.
 const PROCESSES_SCRIPT = path.join(__dirname, 'processes.ps1');
+// Every LHM sensor by identifier, for Settings → Sensor sources and the SDK
+// `sensors` stream. Worker-only like processes.ps1: it walks the sessions
+// cpu-temp.ps1 and gpu.ps1 keep alive there and opens none of its own.
+const SENSORS_SCRIPT = path.join(__dirname, 'sensors.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
 const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
 let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
@@ -2923,7 +2928,7 @@ function sensorRateMs() {
 }
 
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
+let cpuTempCache = { cpuTemp: null, cpuTempSource: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
 // Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
 // widgets can give the one hint that helps instead of guessing.
 const SENSOR_ACCESS = new Set(['ok', 'needs_admin', 'missing']);
@@ -4270,6 +4275,9 @@ async function getCpuTemp() {
       if (fans && !Array.isArray(fans)) fans = [fans];
       cpuTempCache = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
+        // The automatic pick's sensor name (Tctl/Tdie, CPU Package), shown by
+        // Settings → Sensor sources next to "Automatic". Presentation only.
+        cpuTempSource: typeof data.cpuTempSource === 'string' ? data.cpuTempSource.trim().slice(0, 48) || null : null,
         fans: (Array.isArray(fans) ? fans : [])
           .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
           // `kind` says where the fan physically is ('psu' = the PSU's own fan,
@@ -4334,6 +4342,53 @@ async function getGpuInfo() {
   return gpuCache;
   })();
   return gpuPending;
+}
+
+// ── Sensor sources ──────────────────────────────────────────────────────────
+// The catalog of every sensor the collectors can read (Settings → Sensor
+// sources, the SDK `sensors` stream), and the chosen ones read for
+// getSystemInfo. Through the collector seam on macOS/Linux, the worker on
+// Windows. `ids` null = the whole catalog. `known: false` means no answer
+// (worker gone, LHM sessions not open yet), which applySensorSources must not
+// mistake for "the sensor is gone".
+async function collectSensors(ids) {
+  if (nativeCollectors) {
+    if (typeof nativeCollectors.listSensors !== 'function') return { known: true, sensors: [] };
+    const raw = ids ? await nativeCollectors.readSensors(ids) : await nativeCollectors.listSensors();
+    return { known: true, sensors: SensorSources.normalizeSensorCatalog(raw) };
+  }
+  if (!POWERSHELL_SUPPORTED) return { known: true, sensors: [] };
+  // The worker only: sensors.ps1 walks the LHM sessions that live there, so a
+  // one-shot spawn would answer an empty list that looks like a sensorless PC.
+  const raw = parseJsonOutput(await runPowerShellWorker(SENSORS_SCRIPT, ids ? ['read', ids.join('|')] : ['list'], 8000));
+  if (!raw || raw.ok !== true) return { known: false, sensors: [] };
+  const list = Array.isArray(raw.sensors) ? raw.sensors : (raw.sensors ? [raw.sensors] : []);
+  return { known: raw.lhm === true, sensors: SensorSources.normalizeSensorCatalog(list) };
+}
+
+// The chosen sensors' readings, at the same cadence as the readings they
+// replace. Nothing chosen = nothing read: an install that never opened the
+// picker pays nothing for this feature.
+let _chosenSensors = { key: '', readings: null, at: 0 };
+let _chosenSensorsPending = null;
+function readChosenSensors(sources) {
+  const ids = [...new Set(Object.values(sources))];
+  if (!ids.length) return Promise.resolve([]);
+  const key = ids.join('|');
+  if (key === _chosenSensors.key && Date.now() - _chosenSensors.at < sensorRateMs()) return Promise.resolve(_chosenSensors.readings);
+  if (_chosenSensorsPending) return _chosenSensorsPending;
+  _chosenSensorsPending = collectSensors(ids)
+    .then((r) => (r.known ? r.sensors : null))
+    .catch(() => null)
+    .then((readings) => {
+      // A failed read keeps the last good one for the same choice, so a worker
+      // restart does not blink the tile back to the automatic sensor.
+      const keep = readings === null && key === _chosenSensors.key ? _chosenSensors.readings : readings;
+      _chosenSensors = { key, readings: keep, at: Date.now() };
+      return keep;
+    })
+    .finally(() => { _chosenSensorsPending = null; });
+  return _chosenSensorsPending;
 }
 
 // Labels/filesystem/type only — free space is read live via statfs on every
@@ -4662,7 +4717,7 @@ async function getSystemInfo() {
     total: (cpuWatts !== null && gpuWatts !== null) ? Math.round((cpuWatts + gpuWatts) * 10) / 10 : null,
   };
 
-  return {
+  const info = {
     now: new Date().toISOString(),
     hostname: os.hostname(),
     uptime: Math.round(os.uptime()),
@@ -4714,6 +4769,15 @@ async function getSystemInfo() {
     // knows which one is true.
     platform: process.platform,
   };
+
+  // The user's sensor choices (Settings → Sensor sources) go over the automatic
+  // readings HERE and nowhere else, so every consumer of this payload (system
+  // tile, Deck, AI, lighting, Guardian, the SDK `system` stream) follows the
+  // choice without knowing it exists. `sensorSources` says per metric where
+  // the number came from.
+  const sources = SensorSources.normalizeSensorSources(_serverHubSettings && _serverHubSettings.sensorSources);
+  const readings = Object.keys(sources).length ? await readChosenSensors(sources) : [];
+  return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: cpuTempCache.cpuTempSource });
 }
 
 // --- Network info: bandwidth requires a delta between two readings ---
@@ -5659,6 +5723,11 @@ async function buildHaState() {
     connected: configured && deckHa.isConnected(),
     entities: configured ? deckHa.snapshot(ha.entities || []) : [],
     energy: configured ? deckHa.snapshot(ha.energyEntities || []) : [],
+    // The room order and tile view the user set, in the payload so every open
+    // surface (and a widget) redraws from one snapshot, not from a settings
+    // re-fetch that may land after it.
+    areaOrder: Array.isArray(ha.areaOrder) ? ha.areaOrder : [],
+    tileView: typeof ha.tileView === 'string' ? ha.tileView : 'auto',
   };
 }
 
@@ -5679,11 +5748,19 @@ function broadcastHaDeckStates(force) {
 // Coalesce bursts of state_changed events into at most one broadcast per ~250ms —
 // a single HA scene can flip a dozen entities at once, and the tile only needs the
 // settled result. Keeps SSE traffic tiny even in a busy home.
+// The watch fires for EVERY entity of the instance, so the payload is compared
+// with the last one sent: a power meter nobody picked ticking every second must
+// not repaint every tile and widget that reads the selected ones.
+let _haStateLast = '';
 function scheduleHaBroadcast() {
   if (haNotifyTimer) return;
   haNotifyTimer = setTimeout(async () => {
     haNotifyTimer = null;
-    try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
+    try {
+      const state = await buildHaState();
+      const sig = JSON.stringify(state);
+      if (sig !== _haStateLast) { _haStateLast = sig; broadcastSSE('homeassistant', state); }
+    } catch (e) { /* ignore */ }
     // Same coalesced beat feeds the deck-bound entity states (separate event so
     // the deck snapshot stays tiny and independent of the tile's selection).
     try { broadcastHaDeckStates(false); } catch (e) { /* ignore */ }
@@ -5698,13 +5775,14 @@ async function refreshHaWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const ha = (s && s.homeAssistant) || {};
   const want = !!(ha.url && ha.token) && sseClients.size > 0;
-  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || []), JSON.stringify(ha.energyEntities || [])].join(' ') : '';
+  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || []), JSON.stringify(ha.energyEntities || []), JSON.stringify(ha.areaOrder || []), ha.tileView || ''].join(' ') : '';
   if (want && !haStopWatch) {
     haStopWatch = deckHa.watch(scheduleHaBroadcast);
   } else if (!want && haStopWatch) {
     haStopWatch(); haStopWatch = null;
     if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; }
     _haDeckStatesLast = '';   // a future watcher must get a fresh seed
+    _haStateLast = '';
     try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
   } else if (want && haStopWatch && sig !== _haConfigSig) {
     // Already watching AND the config/selection actually changed (the user picked
@@ -10011,6 +10089,9 @@ function normalizeHubSettings(value) {
     // Sensor cadence (ms). Drives the system broadcast AND the caches under it:
     // broadcasting faster alone would only re-send readings up to 5s old.
     sensorRateMs: normalizeSensorRate(source.sensorRateMs),
+    // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
+    // Same rule as the browser's normalizeSettings (js/sensor-sources.js).
+    sensorSources: SensorSources.normalizeSensorSources(source.sensorSources),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
     upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
@@ -11781,6 +11862,31 @@ setInterval(async () => {
     _processesBusy = false;
   }
 }, PROCESSES_POLL_MS).unref();
+
+// ── SDK `sensors` stream ────────────────────────────────────────────────────
+// The whole sensor catalog (collectSensors) for widgets that want the AIO's
+// liquid, a VRM or one fan by name. Demand-gated like `processes`: nothing
+// runs unless a package holds the grant and a surface is connected, and a tick
+// still running skips the next one rather than queueing behind the worker.
+// Slower than `processes` on purpose: on an NVIDIA card a catalog read may
+// refresh the GPU through LHM (60-80 ms, at most every 2 s, see sensors.ps1).
+const SENSORS_STREAM_POLL_MS = 3000;
+let _sensorsStreamBusy = false;
+setInterval(async () => {
+  if (sseClients.size === 0 || _sensorsStreamBusy || !sdkStreamGranted('sensors')) return;
+  _sensorsStreamBusy = true;
+  try {
+    const r = await collectSensors(null);
+    // `problem` only when there is no answer at all, so a widget can explain
+    // the gap (sensorAccess says why) instead of drawing an empty machine.
+    const problem = r.known || r.sensors.length ? undefined : 'unavailable';
+    if (sseClients.size > 0) broadcastSSE('sensors', { sensors: r.sensors, problem, sensorAccess: cpuTempCache.sensorAccess });
+  } catch {
+    if (sseClients.size > 0) broadcastSSE('sensors', { sensors: [], problem: 'unavailable', sensorAccess: cpuTempCache.sensorAccess });
+  } finally {
+    _sensorsStreamBusy = false;
+  }
+}, SENSORS_STREAM_POLL_MS).unref();
 
 // ── Local "Hey Xenon" wake word ─────────────────────────────────────────────
 // Same lifecycle discipline as the notification mirror: the ffmpeg capture
@@ -14661,6 +14767,16 @@ const handleRequest = async (req, res) => {
     try   { json(await getSystemInfo()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/system/sensors' && req.method === 'GET') {
+    // The whole catalog with live values, for the Sensor sources picker. Read
+    // only while the picker is open (it polls this); nothing runs otherwise.
+    try {
+      const r = await collectSensors(null);
+      json({ ok: r.known || r.sensors.length > 0, platform: process.platform, sensorAccess: cpuTempCache.sensorAccess, auto: { cpuTemp: cpuTempCache.cpuTempSource }, sensors: r.sensors });
+    } catch {
+      json({ ok: false, platform: process.platform, sensorAccess: cpuTempCache.sensorAccess, sensors: [] });
+    }
+
   } else if (reqPath === '/api/battery' && req.method === 'GET') {
     // Read-only seed for the battery widget / deck editor (SSE 'battery'
     // pushes updates afterwards). Never a JSONP candidate.
@@ -17381,8 +17497,8 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/homeassistant/query' && req.method === 'POST') {
-    // Home Assistant READS for SDK widgets: an entity's recent history, or one
-    // camera frame. Gated per package on the `homeassistant` stream grant, and
+    // Home Assistant READS for SDK widgets: an entity's recent history, one
+    // camera frame, or a media player's cover art. Gated per package on the `homeassistant` stream grant, and
     // only for entities the user already selected (the same ones the stream
     // shows that widget) — a widget can't name a lock, a person or a camera the
     // user never chose. POST JSON, so the loopback Origin layer covers it.
@@ -17401,9 +17517,11 @@ const handleRequest = async (req, res) => {
       try {
         if (body.op === 'history') {
           const q = normalizeHistoryRequest(p.ids, p.hours, allowed);
-          json(q.error ? { ok: false, error: q.error } : await haQuery.history(q.ids, q.hours));
+          json(q.error ? { ok: false, error: q.error } : Object.assign(await haQuery.history(q.ids, q.hours), { skipped: q.skipped }));
         } else if (body.op === 'camera') {
           json(await haQuery.cameraFrame(p.id, allowed));
+        } else if (body.op === 'artwork') {
+          json(await haQuery.artwork(p.id, allowed));
         } else {
           json({ ok: false, error: 'bad_op' });
         }
@@ -17460,6 +17578,18 @@ const handleRequest = async (req, res) => {
     } catch (e) {
       // A fixed code: a failed HA call's message can carry the HA host and port.
       json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : 'ha_failed' });
+    }
+
+  } else if (reqPath === '/api/homeassistant/dashboards' && req.method === 'GET') {
+    // Settings → Smart Home → "Add as a tile": the user's HA dashboards (Overview
+    // first). Read-only, opened on demand like /entities; never leaks the token.
+    try {
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const ha = (s && s.homeAssistant) || {};
+      if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
+      json({ ok: true, dashboards: await deckHa.listDashboards() });
+    } catch (e) {
+      json({ ok: false, error: 'ha_failed' });   // fixed code: the message can carry the HA host
     }
 
   } else if (reqPath === '/api/homeassistant/test' && req.method === 'POST') {

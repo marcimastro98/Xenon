@@ -121,3 +121,13 @@ test('the bootstrap asks for the startup task without going through cmd', () => 
   // task is absent, and 'Stop' turns that into a terminating NativeCommandError.
   assert.match(text, /\$ErrorActionPreference = 'Continue'/, 'an absent task must stay an answer, not a crash');
 });
+
+// %TEMP% is an 8.3 short path when the user name has a dot (C:\Users\MRC777~1.ELE),
+// and Windows PowerShell 5.1's Remove-Item -Recurse fails on one. The leftover
+// extract folder then stopped every later "Complete setup" before the install.
+test('the bootstrap never deletes its temp folders with Remove-Item -Recurse', () => {
+  const text = read('apps/native/src-tauri/windows/xenon-bootstrap.ps1');
+  const code = text.split(/\r?\n/).filter(line => !/^\s*#/.test(line)).join('\n');
+  assert.ok(!/Remove-Item[^\n]*-Recurse/.test(code), 'Remove-Item -Recurse fails on an 8.3 %TEMP% path');
+  assert.match(text, /\[IO\.Directory\]::Delete\(\$Path, \$true\)/);
+});

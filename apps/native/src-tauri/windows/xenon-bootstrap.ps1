@@ -261,6 +261,16 @@ $headers = @{ 'User-Agent' = 'XenonBootstrap'; 'Accept' = 'application/vnd.githu
 $tmp = Join-Path $env:TEMP 'xenon-bootstrap'
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
+# Windows PowerShell 5.1's Remove-Item -Recurse fails on a path holding an 8.3
+# short name ("An object at the specified path C:\Users\MRC777~1.ELE does not
+# exist"), and %TEMP% is one whenever the user name has a dot or is long. The
+# extract folder a run left behind then stopped every later run before the
+# install, with no sensors, PresentMon or startup task ever set up. .NET's
+# Directory.Delete goes straight to the file system and takes either form.
+function Remove-DirectoryTree([string]$Path) {
+  if ([IO.Directory]::Exists($Path)) { [IO.Directory]::Delete($Path, $true) }
+}
+
 # -- 1) Locate the latest release ---------------------------------------------
 Write-Step 'Looking up the latest Xenon release...'
 try {
@@ -409,7 +419,10 @@ Write-Step 'Signature verified.'
 # -- 5) Extract into the install root (merge, never a directory mirror) -------
 Write-Step "Installing to $InstallRoot..."
 $extract = Join-Path $tmp 'extract'
-if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+# A leftover that still cannot go (a file held open) must not block the install
+# forever: extract beside it instead.
+try { Remove-DirectoryTree $extract }
+catch { $extract = Join-Path $tmp ('extract-' + [guid]::NewGuid().ToString('N')) }
 Expand-Archive -Path $zipPath -DestinationPath $extract -Force
 $top = @(Get-ChildItem -Path $extract -Directory)
 if ($top.Count -ne 1) { Fail 'The downloaded archive has an unexpected layout.' }
@@ -443,7 +456,7 @@ try {
   Move-Item -LiteralPath "$manifestPath.tmp" -Destination $manifestPath -Force
 } catch { }
 
-Remove-Item -Path $extract -Recurse -Force -ErrorAction SilentlyContinue
+try { Remove-DirectoryTree $extract } catch { }
 Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
 
 # -- 6) Run the normal backend installer --------------------------------------

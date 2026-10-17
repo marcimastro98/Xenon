@@ -56,8 +56,13 @@
 
 .lyrics-widget-mount p { margin: 0; }
 
-/* The view sizes its type from this tile, not from the Media tile. */
-.lyrics-panel .lyv { --lyv-size: clamp(18px, 6.2cqi, 40px); }
+/* The view sizes its type from this tile, not from the Media tile: from its
+   width AND its height. Width alone gave a wide, short tile 30-40px lines in a
+   viewport that holds barely one of them, so the sung line sat cut under the
+   header's fade; most visible with the app zoomed, where the header keeps its
+   size and the tile shrinks around it (Discord, Oct 2026, macOS at 150%).
+   12cqb keeps two to three lines in view below the header at any height. */
+.lyrics-panel .lyv { --lyv-size: clamp(16px, min(6.2cqi, 12cqb), 40px); }
 
 .lyw-head {
   display: flex;

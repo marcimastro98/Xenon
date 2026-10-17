@@ -754,7 +754,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
-  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), energyEntities: Object.freeze([]), camAngles: Object.freeze({}), tokenSet: false }),
+  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), energyEntities: Object.freeze([]), camAngles: Object.freeze({}), areaOrder: Object.freeze([]), tileView: 'auto', tokenSet: false }),
   // UniFi Protect cameras. host/username/cameras are client-managed; the console
   // `password` is a server-only secret (redacted on the wire, restored on save),
   // so the client copy is always '' and the server surfaces a `passwordSet` flag.
@@ -929,7 +929,7 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // — a grant carrying a stream/action the server allows but this list omits gets
 // silently stripped on save, so the widget is granted a capability it can never
 // use. server/test/sdk-grant-cats-sync guards that half.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'spotify', 'scriptStates']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates']);
 const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch', 'pages']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
@@ -1764,6 +1764,9 @@ function normalizeSettings(source) {
     // persist this key, so both have to rebuild it the same way or a save from
     // one would strip what the other wrote.
     sensorRateMs: SENSOR_RATE_MS.includes(Math.round(Number(value.sensorRateMs))) ? Math.round(Number(value.sensorRateMs)) : 5000,
+    // Which sensor feeds CPU/GPU temperature and watts; {} = Automatic for all.
+    // One rule with the server (js/sensor-sources.js, loaded before this file).
+    sensorSources: window.SensorSources ? window.SensorSources.normalizeSensorSources(value.sensorSources) : {},
     safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
@@ -2002,6 +2005,9 @@ function normalizeHomeAssistant(value) {
     ? src.energyEntities.filter(isEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, 24)
     : [];
   const camAngles = normalizeCamAngles(src.camAngles, isCam);
+  // Room order and how the tile shows devices: one rule with the server
+  // (js/smart-home-order.js, loaded before this file).
+  const order = window.SmartHomeOrder;
   return {
     url: String(src.url || '').trim().slice(0, 200),
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
@@ -2009,6 +2015,8 @@ function normalizeHomeAssistant(value) {
     cameras,
     energyEntities,
     camAngles,
+    areaOrder: order ? order.normalizeAreaOrder(src.areaOrder) : [],
+    tileView: order ? order.normalizeTileView(src.tileView) : 'auto',
     tokenSet: src.tokenSet === true || (typeof src.token === 'string' && src.token.length > 0),
   };
 }
@@ -5094,6 +5102,8 @@ function syncSettingsControls() {
   if (window.UnifiProtect && typeof window.UnifiProtect.initSettings === 'function') window.UnifiProtect.initSettings();
   // "Enable sensors" card renders into Settings → Performance (only when needed).
   if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings();
+  // "Sensor sources" lists render into Settings → Performance (polls only while shown).
+  if (window.SensorSourcesPage) window.SensorSourcesPage.show();
   // External calendars section — injected dynamically (no HTML change required).
   _initCalendarFeedsSection();
 }
@@ -5377,6 +5387,7 @@ function settingsSetCategory(cat) {
   if (cat === 'slideshow') renderSlideshowSettings();
   if (cat === 'island') renderDynamicIslandSources();
   if (cat === 'search') renderSearchDiskSettings();
+  if (cat === 'performance' && window.SensorSourcesPage) window.SensorSourcesPage.show();
   // The monitor list is live: rendered on open, and re-rendered by the shell's
   // push when a display is plugged in or out while the panel is on screen.
   if (cat === 'display') renderSurfaceSection();
@@ -5716,6 +5727,7 @@ function closeSettings() {
   const overlay = $('settings-overlay');
   if (overlay) overlay.hidden = true;
   if (window.NewsWidget) NewsWidget.mountFeedManager(null);
+  if (window.SensorSourcesPage) window.SensorSourcesPage.stop();
   freezeSettingsAmbient(false);
 }
 

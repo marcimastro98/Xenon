@@ -625,12 +625,136 @@ async function cpuTemp() {
         try { label = await readText(`${dir}/temp${i}_label`); } catch { /* unlabelled */ }
         if (/Tctl|Tdie|Tccd|Package|Core 0/i.test(label) || i === 1) {
           const milli = Number(raw);
-          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, fans, cpuClockMHz };
+          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, cpuTempSource: label || `temp${i}`, fans, cpuClockMHz };
         }
       }
     }
   } catch { /* no hwmon, or unreadable */ }
   return { cpuTemp: null, fans, cpuClockMHz };
+}
+
+// --- Sensor catalog: every hwmon reading, for Settings → Sensor sources -------
+// The same shape sensors.ps1 gives on Windows ({ id, hw, hwKind, type, name,
+// value }). An id names the chip by its driver AND the device it is bound to —
+// hwmon/k10temp@0000:00:18.3/temp1 — because hwmonN is renumbered on every boot
+// and the device is not. Ids are matched against this walk only: one sent back
+// by the browser never becomes a path (see readSensors).
+const HWMON_FILE_RE = /^(temp|fan|power|freq)(\d{1,2})_(input|average)$/;
+const HWMON_TYPES = { temp: 'temperature', fan: 'fan', power: 'power', freq: 'clock' };
+const HWMON_KINDS = [
+  [/^(k10temp|coretemp|zenpower|cpu[_-]thermal)$/, 'cpu'],
+  [/^(amdgpu|radeon|nouveau|i915|xe)$/, 'gpu'],
+  [/^(nvme|drivetemp)$/, 'storage'],
+  [/^(spd5118|jc42)$/, 'memory'],
+  [/^corsairpsu$/, 'psu'],
+  [/^(nzxt|kraken|aquacomputer|corsair-cpro|d5next|octo|quadro)/, 'cooler'],
+  [/^(nct|it8|f71|w83|asus|gigabyte|dell_smm|thinkpad|applesmc|acpitz)/, 'board'],
+];
+const HWMON_CHIPS_MAX = 32;
+
+function hwmonKind(chip) {
+  for (const [re, kind] of HWMON_KINDS) if (re.test(chip)) return kind;
+  return 'other';
+}
+
+// The part of the device path that names it (a PCI address, nct6775.656,
+// nvme0), cut to the characters an id may carry.
+function hwmonDevKey(realDevicePath) {
+  const base = String(realDevicePath || '').split('/').filter(Boolean).pop() || 'virtual';
+  return base.replace(/[^A-Za-z0-9_.:+-]/g, '_').slice(0, 48);
+}
+
+// Pure: one hwmon file's reading as a catalog entry, or null. Kernel units are
+// millidegrees, RPM, microwatts and Hz; the catalog's are °C, RPM, W and MHz.
+function parseHwmonReading(chip, devKey, file, raw, label) {
+  const m = HWMON_FILE_RE.exec(file);
+  if (!m || (m[3] === 'average' && m[1] !== 'power')) return null;
+  const [, kind, idx] = m;
+  let value = isNum(raw) ? Number(raw) : null;
+  if (value !== null) {
+    if (kind === 'temp') value = value > 200 ? value / 1000 : value;   // see parseSysfsGpu
+    else if (kind === 'power' || kind === 'freq') value /= 1e6;
+    value = Math.round(value * 10) / 10;
+  }
+  return {
+    id: `hwmon/${chip}@${devKey}/${kind}${idx}`,
+    hw: chip,
+    hwKind: hwmonKind(chip),
+    type: HWMON_TYPES[kind],
+    name: String(label || '').trim() || `${kind}${idx}`,
+    value,
+  };
+}
+
+// id → where it was found in the last walk, so a read touches only the files
+// asked for. Some of these reads reach real hardware (drivetemp asks the disk),
+// which is why read mode never re-walks every chip on each tick.
+let _hwmonIndex = new Map();
+let _hwmonIndexAt = 0;
+const HWMON_INDEX_TTL_MS = 60 * 1000;
+const HWMON_REWALK_MIN_MS = 5000;
+
+async function readChipFiles(dir, chip, devKey, index, out) {
+  let files = [];
+  try { files = (await fsp.readdir(dir)).filter((f) => HWMON_FILE_RE.test(f)); } catch { return; }
+  // Every `_input` before any `_average`, so a chip offering both for one
+  // sensor keeps the live reading; then natural order (temp2 before temp10).
+  files.sort((a, b) => (a.endsWith('_average') - b.endsWith('_average')) || a.localeCompare(b, 'en', { numeric: true }));
+  for (const f of files) {
+    let raw;
+    try { raw = await readText(`${dir}/${f}`); } catch { continue; }
+    let label = '';
+    try { label = await readText(`${dir}/${f.replace(/_(input|average)$/, '')}_label`); } catch { /* unlabelled */ }
+    const e = parseHwmonReading(chip, devKey, f, raw, label);
+    if (!e || index.has(e.id)) continue;
+    index.set(e.id, { file: `${dir}/${f}`, chip, devKey, label, hw: chip });
+    out.push(e);
+  }
+}
+
+async function listSensors() {
+  const out = [];
+  const index = new Map();
+  const base = '/sys/class/hwmon';
+  let dirs = [];
+  try { dirs = (await fsp.readdir(base)).slice(0, HWMON_CHIPS_MAX); } catch { return out; }
+  for (const d of dirs) {
+    const dir = `${base}/${d}`;
+    let chip = '';
+    try { chip = (await readText(`${dir}/name`)).replace(/[^A-Za-z0-9_.+-]/g, '_').slice(0, 32); } catch { continue; }
+    if (!chip) continue;
+    let devKey = 'virtual';
+    try { devKey = hwmonDevKey(await fsp.realpath(`${dir}/device`)); } catch { /* a virtual chip has no device */ }
+    await readChipFiles(dir, chip, devKey, index, out);
+  }
+  // Two chips of one driver (two NVMe drives) carry their device in the name,
+  // so the picker can tell them apart.
+  const devices = new Map();
+  for (const meta of index.values()) devices.set(meta.chip, (devices.get(meta.chip) || new Set()).add(meta.devKey));
+  for (const e of out) {
+    const meta = index.get(e.id);
+    if (devices.get(meta.chip).size > 1) { meta.hw = `${meta.chip} ${meta.devKey}`; e.hw = meta.hw; }
+  }
+  _hwmonIndex = index;
+  _hwmonIndexAt = Date.now();
+  return out;
+}
+
+async function readSensors(ids) {
+  const wanted = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string');
+  if (!wanted.length) return [];
+  const stale = Date.now() - _hwmonIndexAt > HWMON_INDEX_TTL_MS || wanted.some((id) => !_hwmonIndex.has(id));
+  if (stale && Date.now() - _hwmonIndexAt > HWMON_REWALK_MIN_MS) await listSensors();
+  const out = [];
+  for (const id of wanted) {
+    const meta = _hwmonIndex.get(id);
+    if (!meta) continue;
+    let raw;
+    try { raw = await readText(meta.file); } catch { continue; }
+    const e = parseHwmonReading(meta.chip, meta.devKey, meta.file.split('/').pop(), raw, meta.label);
+    if (e) out.push({ ...e, hw: meta.hw });
+  }
+  return out;
 }
 
 // --- Network: ping (1.1.1.1) + /proc/net/dev, matching network.ps1 shape -----
@@ -1408,11 +1532,11 @@ async function idleSeconds() {
 }
 
 module.exports = {
-  gpu, disks, diskIo, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   sendKeys, keysAvailable, processes, idleSeconds, parseLoginctlIdle,
   // exported for unit tests
   parseProcStat,
-  parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
+  parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseHwmonReading, hwmonDevKey, hwmonKind, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseDiskstats, parseMountsFor,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,

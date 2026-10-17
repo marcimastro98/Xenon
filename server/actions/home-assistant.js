@@ -21,6 +21,7 @@
 const WebSocket = require('ws');
 const http = require('http');
 const https = require('https');
+const { normalizeAreaOrder, normalizeTileView } = require('../js/smart-home-order.js');
 
 // ---- pure helpers (also unit-tested) ---------------------------------------
 
@@ -137,6 +138,12 @@ function compactEntity(st, areaFor, deviceFor) {
   } else if (domain === 'climate') {
     if (a.current_temperature != null) out.current = Number(a.current_temperature);
     if (a.temperature != null) out.target = Number(a.temperature);
+    // heat_cool holds two setpoints instead of one.
+    if (a.target_temp_low != null) out.targetLow = Number(a.target_temp_low);
+    if (a.target_temp_high != null) out.targetHigh = Number(a.target_temp_high);
+    if (typeof a.humidity === 'number') out.targetHumidity = a.humidity;
+    if (a.min_humidity != null) out.minHumidity = Number(a.min_humidity);
+    if (a.max_humidity != null) out.maxHumidity = Number(a.max_humidity);
     const hv = strList(a.hvac_modes, 12); if (hv) out.hvacModes = hv;
     if (a.hvac_action) out.hvacAction = String(a.hvac_action);
     if (a.min_temp != null) out.min = Number(a.min_temp);
@@ -163,6 +170,10 @@ function compactEntity(st, areaFor, deviceFor) {
     if (a.repeat) out.repeat = String(a.repeat);
     if (typeof a.media_position === 'number') out.mediaPos = a.media_position;
     if (typeof a.media_duration === 'number') out.mediaDur = a.media_duration;
+    // Whether HA has cover art for what is playing: the picture itself is
+    // fetched by the artwork query, never sent on the stream.
+    out.art = typeof a.entity_picture === 'string' && a.entity_picture.length > 0;
+    const grp = strList(a.group_members, 16); if (grp && grp.length > 1) out.group = grp.filter(isEntityId);
     out.features = feat;
   } else if (domain === 'fan') {
     if (typeof a.percentage === 'number') out.pct = a.percentage;
@@ -237,7 +248,50 @@ function actionNumber(raw, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-function actionToServiceCall(action) {
+const HVAC_MODES = Object.freeze(['off', 'heat', 'cool', 'auto', 'dry', 'fan_only', 'heat_cool']);
+const REPEAT_MODES = Object.freeze(['off', 'all', 'one']);
+
+const tenths = (n) => Math.round(n * 10) / 10;
+const stateAttrs = (st) => (st && typeof st === 'object' && st.attributes && typeof st.attributes === 'object' ? st.attributes : null);
+
+// A value the entity itself lists (a source, a sound mode, a fan mode…), or
+// null. Without the entity's list there is nothing to check against, so null:
+// a free string never reaches HA as an option.
+function listed(raw, list) {
+  const v = String(raw == null ? '' : raw).trim();
+  if (!v || !Array.isArray(list)) return null;
+  return list.includes(v) ? v : null;
+}
+
+// "on"/"off" (or true/false, 1/0); empty flips the current state.
+function onOff(raw, current) {
+  const v = String(raw == null ? '' : raw).trim().toLowerCase();
+  if (!v) return !current;
+  if (['on', 'true', '1'].includes(v)) return true;
+  if (['off', 'false', '0'].includes(v)) return false;
+  return null;
+}
+
+// off | all | one; empty steps to the next one after the current mode.
+function repeatMode(raw, current) {
+  const v = String(raw == null ? '' : raw).trim().toLowerCase();
+  if (v) return REPEAT_MODES.includes(v) ? v : null;
+  const i = REPEAT_MODES.indexOf(String(current || 'off'));
+  return REPEAT_MODES[(i + 1) % REPEAT_MODES.length];
+}
+
+// A heat_cool range as "low-high" ("20-24", "19.5 – 23", "-2/4"), low below high.
+function tempRange(raw) {
+  const m = /^\s*(-?\d+(?:[.,]\d+)?)\s*(?:-|–|\/)\s*(-?\d+(?:[.,]\d+)?)\s*$/.exec(String(raw == null ? '' : raw));
+  if (!m) return null;
+  const low = actionNumber(m[1], -50, 120);
+  const high = actionNumber(m[2], -50, 120);
+  return low != null && high != null && low < high ? { low: tenths(low), high: tenths(high) } : null;
+}
+
+// `state` is the target entity's raw HA state when the caller has it: the
+// options a device lists (sources, fan modes…) are checked against it.
+function actionToServiceCall(action, state) {
   if (!action || typeof action !== 'object') return null;
   const entity = String(action.entity == null ? '' : action.entity).trim();
   if (action.type === 'haToggle') {
@@ -288,14 +342,38 @@ function actionToServiceCall(action) {
   if (action.type === 'haMedia') {
     if (!isEntityId(entity)) return null;
     const target = { entity_id: entity };
-    if (action.cmd === 'mute') return { domain: 'media_player', service: 'volume_mute', target, data: { is_volume_muted: true } };
-    if (action.cmd === 'unmute') return { domain: 'media_player', service: 'volume_mute', target, data: { is_volume_muted: false } };
+    const call = (service, data) => ({ domain: 'media_player', service, target, data: data || {} });
+    const attrs = stateAttrs(state);
+    if (action.cmd === 'mute') return call('volume_mute', { is_volume_muted: true });
+    if (action.cmd === 'unmute') return call('volume_mute', { is_volume_muted: false });
     if (action.cmd === 'volume_set') {
       const pct = actionNumber(action.value, 0, 100);
-      return pct == null ? null : { domain: 'media_player', service: 'volume_set', target, data: { volume_level: Math.round(pct) / 100 } };
+      return pct == null ? null : call('volume_set', { volume_level: Math.round(pct) / 100 });
+    }
+    if (action.cmd === 'on') return call('turn_on');
+    if (action.cmd === 'off') return call('turn_off');
+    if (action.cmd === 'source') {
+      const source = listed(action.value, attrs && attrs.source_list);
+      return source == null ? null : call('select_source', { source });
+    }
+    if (action.cmd === 'sound_mode') {
+      const mode = listed(action.value, attrs && attrs.sound_mode_list);
+      return mode == null ? null : call('select_sound_mode', { sound_mode: mode });
+    }
+    if (action.cmd === 'seek') {
+      const at = actionNumber(action.value, 0, 86400);
+      return at == null ? null : call('media_seek', { seek_position: Math.round(at) });
+    }
+    if (action.cmd === 'shuffle') {
+      const on = onOff(action.value, attrs && attrs.shuffle === true);
+      return on == null ? null : call('shuffle_set', { shuffle: on });
+    }
+    if (action.cmd === 'repeat') {
+      const mode = repeatMode(action.value, attrs && attrs.repeat);
+      return mode == null ? null : call('repeat_set', { repeat: mode });
     }
     const map = { playpause: 'media_play_pause', next: 'media_next_track', previous: 'media_previous_track', stop: 'media_stop', volume_up: 'volume_up', volume_down: 'volume_down' };
-    return { domain: 'media_player', service: map[action.cmd] || 'media_play_pause', target, data: {} };
+    return map[action.cmd] ? call(map[action.cmd]) : null;
   }
   if (action.type === 'haCover') {
     if (!isEntityId(entity)) return null;
@@ -308,14 +386,33 @@ function actionToServiceCall(action) {
   }
   if (action.type === 'haClimate') {
     if (!isEntityId(entity)) return null;
+    const call = (service, data) => ({ domain: 'climate', service, target: { entity_id: entity }, data });
+    const attrs = stateAttrs(state);
     if (action.mode === 'temperature') {
       // The setpoint in the unit HA is configured for; the bounds only stop a
       // typo, HA itself clamps to the device's own min/max.
       const t = actionNumber(action.value, -50, 120);
-      return t == null ? null : { domain: 'climate', service: 'set_temperature', target: { entity_id: entity }, data: { temperature: Math.round(t * 10) / 10 } };
+      return t == null ? null : call('set_temperature', { temperature: tenths(t) });
     }
-    const mode = ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only'].includes(action.mode) ? action.mode : 'off';
-    return { domain: 'climate', service: 'set_hvac_mode', target: { entity_id: entity }, data: { hvac_mode: mode } };
+    if (action.mode === 'range') {
+      const r = tempRange(action.value);
+      return r ? call('set_temperature', { target_temp_low: r.low, target_temp_high: r.high }) : null;
+    }
+    if (action.mode === 'humidity') {
+      const h = actionNumber(action.value, 0, 100);
+      return h == null ? null : call('set_humidity', { humidity: Math.round(h) });
+    }
+    const pick = { fan_mode: ['fan_modes', 'set_fan_mode'], swing_mode: ['swing_modes', 'set_swing_mode'], preset: ['preset_modes', 'set_preset_mode'] }[action.mode];
+    if (pick) {
+      const v = listed(action.value, attrs && attrs[pick[0]]);
+      return v == null ? null : call(pick[1], { [action.mode === 'preset' ? 'preset_mode' : action.mode]: v });
+    }
+    // An HVAC mode. Anything this list does not name is refused, never turned
+    // into 'off'; one the device does not offer is refused too, when we know.
+    if (!HVAC_MODES.includes(action.mode)) return null;
+    const offered = attrs && Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes : null;
+    if (offered && !offered.includes(action.mode)) return null;
+    return call('set_hvac_mode', { hvac_mode: action.mode });
   }
   if (action.type === 'haFan') {
     if (!isEntityId(entity)) return null;
@@ -364,6 +461,29 @@ function isEntityId(s) {
 // path. Kept separate so a stray non-camera entity can never be snapshot-proxied.
 function isCameraEntity(s) {
   return isEntityId(s) && /^camera\./.test(String(s).trim());
+}
+
+function isMediaPlayerEntity(s) {
+  return isEntityId(s) && /^media_player\./.test(String(s).trim());
+}
+
+// The user's Home Assistant dashboards, for Settings → Smart Home → "Add as a
+// tile". `lovelace` (the Overview) always comes first, since a token that may
+// not list dashboards can still open it. A path that is not a plain HA slug is
+// dropped: the client builds a URL from it.
+const HA_DASHBOARD_PATH_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const HA_DASHBOARDS_MAX = 50;
+function normalizeDashboards(raw) {
+  const out = [{ path: 'lovelace', title: '' }];
+  const seen = new Set(['lovelace']);
+  for (const d of Array.isArray(raw) ? raw : []) {
+    const path = d && typeof d.url_path === 'string' ? d.url_path : '';
+    if (!HA_DASHBOARD_PATH_RE.test(path) || seen.has(path)) continue;
+    seen.add(path);
+    out.push({ path, title: (typeof d.title === 'string' && d.title.trim() ? d.title.trim() : path).slice(0, 80) });
+    if (out.length >= HA_DASHBOARDS_MAX) break;
+  }
+  return out;
 }
 
 // ---- settings normalization + token secrecy --------------------------------
@@ -436,6 +556,10 @@ function normalizeHomeAssistant(input) {
     cameras,
     energyEntities,
     camAngles: normalizeHaCamAngles(src.camAngles),
+    // Smart Home tile: room order and how devices are shown (one rule with the
+    // browser, js/smart-home-order.js). Empty order = rooms as Home Assistant lists them.
+    areaOrder: normalizeAreaOrder(src.areaOrder),
+    tileView: normalizeTileView(src.tileView),
   };
 }
 
@@ -475,6 +599,8 @@ function redactHaToken(settings) {
       cameras: Array.isArray(ha.cameras) ? ha.cameras : [],
       energyEntities: Array.isArray(ha.energyEntities) ? ha.energyEntities : [],
       camAngles: (ha.camAngles && typeof ha.camAngles === 'object') ? ha.camAngles : {},
+      areaOrder: Array.isArray(ha.areaOrder) ? ha.areaOrder : [],
+      tileView: typeof ha.tileView === 'string' ? ha.tileView : 'auto',
       token: '',
       tokenSet: !!ha.token,
     },
@@ -734,6 +860,29 @@ function createHomeAssistant(getConfig) {
     return haHttpGetBuffer(url, token);
   }
 
+  // What identifies a media player's current cover art: HA's entity_picture,
+  // which carries a cache hash that changes with the artwork. '' = no artwork.
+  // Kept in memory by the caller as a cache key only; it is never sent anywhere
+  // (it can hold an access token).
+  function artworkKey(entityId) {
+    const st = isMediaPlayerEntity(entityId) ? states.get(String(entityId).trim()) : null;
+    const pic = st && st.attributes && st.attributes.entity_picture;
+    return typeof pic === 'string' ? pic : '';
+  }
+
+  // The cover art bytes (Buffer) through HA's REST media_player_proxy, which
+  // fetches remote art server-side, so the URL is always the user's HA origin.
+  // Same token rules as cameraSnapshot.
+  async function mediaArtwork(entityId) {
+    if (!isMediaPlayerEntity(entityId)) throw new Error('ha_bad_media_player');
+    const cfg = (await Promise.resolve().then(getConfig)) || {};
+    const origin = haHttpOrigin(cfg.baseUrl);
+    const token = String(cfg.token || '').trim();
+    if (!origin || !token) throw new Error('ha_not_configured');
+    const url = origin + '/api/media_player_proxy/' + encodeURIComponent(String(entityId).trim());
+    return haHttpGetBuffer(url, token);
+  }
+
   // Compact snapshot for the given entity ids (tile/SSE). Missing ids are simply
   // absent. Called with the user's selection from settings.
   function snapshot(entityIds) {
@@ -755,7 +904,12 @@ function createHomeAssistant(getConfig) {
 
   // Execute a validated Deck HA action. Returns {ok} — never throws.
   async function runAction(action) {
-    const call = actionToServiceCall(action);
+    const id = action && String(action.entity == null ? '' : action.entity).trim();
+    // The entity's own lists vet a chosen source or mode; a key pressed before
+    // anything is cached (no tile watching) seeds the states once first. Only an
+    // empty cache does: an id HA does not know must not re-seed on every press.
+    if (id && !states.size) { try { await connect(); await seedStates(); } catch (e) { /* the call below says why */ } }
+    const call = actionToServiceCall(action, id ? states.get(id) : null);
     if (!call) return { ok: false, error: 'bad_ha_action' };
     return callService(call.domain, call.service, call.target, call.data);
   }
@@ -784,6 +938,14 @@ function createHomeAssistant(getConfig) {
     }
   }
 
+  // The dashboards for Settings. A failed connection throws (the caller says
+  // so); a token that may not list them gets the Overview alone.
+  async function listDashboards() {
+    await connect();
+    const raw = await request('lovelace/dashboards/list').catch(() => []);
+    return normalizeDashboards(raw);
+  }
+
   // Keep a live connection and notify on any state change. Returns a stop fn.
   function watch(cb) {
     onChange = cb; watching = true;
@@ -795,7 +957,7 @@ function createHomeAssistant(getConfig) {
     };
   }
 
-  return { request, callService, runAction, listEntities, cameras, cameraSnapshot, snapshot, hasStates, isConnected, test, watch, close };
+  return { request, callService, runAction, listEntities, listDashboards, cameras, cameraSnapshot, artworkKey, mediaArtwork, snapshot, hasStates, isConnected, test, watch, close };
 }
 
 module.exports = {
@@ -805,6 +967,8 @@ module.exports = {
   isConfigured,
   isEntityId,
   isCameraEntity,
+  isMediaPlayerEntity,
+  normalizeDashboards,
   compactEntity,
   actionToServiceCall,
   normalizeHomeAssistant,

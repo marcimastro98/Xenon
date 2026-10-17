@@ -164,6 +164,7 @@
     --g-0: #232323; --g-1: #2C2C2C; --g-2: #333333; --g-3: #3C3C3C;
     --rule: #464646; --rule-2: #5C5C5C;
     --bone-0: #EDEDED; --bone-1: #BDBDBD; --bone-2: #9A9A9A;
+    --store-ring: rgba(255,255,255,.22);
     color-scheme: dark;
   }
 }
@@ -175,6 +176,7 @@
   --g-0: #232323; --g-1: #2C2C2C; --g-2: #333333; --g-3: #3C3C3C;
   --rule: #464646; --rule-2: #5C5C5C;
   --bone-0: #EDEDED; --bone-1: #BDBDBD; --bone-2: #9A9A9A;
+  --store-ring: rgba(255,255,255,.22);
   color-scheme: dark;
 }
 /* ja / ko / zh keep Sofia for Latin runs and hand the rest to the system's own
@@ -292,6 +294,11 @@ h1 {
 .hero-act .key { min-width: min(100%, 330px); }
 .facts { margin: 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 .act-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 16px; }
+.act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; font-size: 16px; }
+/* Microsoft's badge, unaltered; the ring only separates its dark face from a dark page. */
+.store { display: inline-block; justify-self: start; line-height: 0; border-radius: 5px; box-shadow: 0 0 0 1px var(--store-ring, transparent); }
+.store:hover { filter: brightness(1.15); }
+.store img { display: block; width: auto; height: 44px; }
 .proof { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; min-height: 36px; }
 .pf { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; text-decoration: none; color: var(--fg); }
 .pf svg { width: 21px; height: 21px; flex: 0 0 auto; }
@@ -504,6 +511,9 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .os[data-current] .k { display: inline-flex; align-items: center; min-height: 54px; padding: 0 22px; border-radius: 12px; text-decoration: none; font-family: var(--f-display); font-size: 18px; }
 .os .you { font: 700 13.5px/1 var(--f-text); color: var(--fg); background: var(--room); border-radius: 999px; padding: 4px 8px; margin-left: auto; }
 .os .more { font-size: 15.5px; }
+.os .k-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+.os .k-row .k { margin-top: 0; }
+.os[data-current] .store img { height: 54px; }
 .inst-notes { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; margin-top: 26px; }
 .inst-notes p { grid-column: span 6; margin: 0 0 12px; font-size: 16px; color: var(--fg-2); max-width: 62ch; }
 .onphone { display: none; margin-top: 22px; padding: 20px 22px; background: var(--room-2); border-radius: 14px; }
@@ -740,7 +750,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
             <svg aria-hidden="true" data-os-icon><use href="#os-win"/></svg><span data-dl-label data-i18n="cta.download">Xenon 다운로드</span>
           </a>
           <p class="facts for-desk" id="hero-facts" data-i18n="fact.win">Windows 10 및 11, 64비트. 서명된 설치 프로그램.</p>
-          <div class="act-links for-desk"><a href="#install" data-i18n="hero.alt">Mac과 Linux(베타)</a></div>
+          <div class="act-row for-desk">
+            <a class="store" id="hero-store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="hero"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" alt="Get Xenon from the Microsoft Store" data-i18n-alt="store.alt"></a>
+            <a href="#install" data-i18n="hero.alt">Mac과 Linux(베타)</a>
+          </div>
           <p class="proof for-desk" id="proof" aria-live="polite"></p>
           <button class="key for-phone" id="send" type="button" data-track="send_to_pc" data-track-method="share" data-i18n="send.btn">내 PC로 링크 보내기</button>
           <div class="act-links for-phone">
@@ -1071,7 +1084,10 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
           <h3><svg aria-hidden="true"><use href="#os-win"/></svg>Windows<span class="you" data-os-you hidden data-i18n="dl.you">내 시스템</span></h3>
           <span class="file">Xenon-Setup-x64.exe</span>
           <p data-i18n="dl.win.req">Windows 10 또는 11, 64비트. 서명된 설치 프로그램이지만 한동안 SmartScreen 경고가 나타날 수 있습니다. 이때는 추가 정보, 실행을 차례로 누르세요.</p>
-          <a class="k" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="card_windows" data-i18n="dl.win.btn">Windows용 다운로드</a>
+          <div class="k-row">
+            <a class="k" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="card_windows" data-i18n="dl.win.btn">Windows용 다운로드</a>
+            <a class="store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="card_windows"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" loading="lazy" alt="Get Xenon from the Microsoft Store" data-i18n-alt="store.alt"></a>
+          </div>
         </div>
         <div class="os" data-os-card="macos">
           <h3><svg aria-hidden="true"><use href="#os-mac"/></svg>macOS<span class="beta" data-i18n="beta">베타</span><span class="you" data-os-you hidden data-i18n="dl.you">내 시스템</span></h3>
@@ -1277,6 +1293,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "{n} stars on GitHub",
     "p.dc": "{n} people on Discord",
     "hero.alt": "Mac and Linux (beta)",
+
+    "store.alt": "Get Xenon from the Microsoft Store",
     "send.btn": "Send the link to my PC",
     "send.copy": "Copy the link",
     "send.mail": "Email it to me",
@@ -1520,6 +1538,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "{n} étoiles sur GitHub",
     "p.dc": "{n} personnes sur Discord",
     "hero.alt": "Mac et Linux (beta)",
+
+    "store.alt": "Obtenir Xenon sur le Microsoft Store",
     "send.btn": "Envoyer le lien vers mon PC",
     "send.copy": "Copier le lien",
     "send.mail": "Envoyez-le-moi par e-mail",
@@ -1763,6 +1783,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "{n} stelle su GitHub",
     "p.dc": "{n} persone su Discord",
     "hero.alt": "Mac e Linux (beta)",
+
+    "store.alt": "Scarica Xenon dal Microsoft Store",
     "send.btn": "Manda il link al mio PC",
     "send.copy": "Copia il link",
     "send.mail": "Mandamelo via email",
@@ -2006,6 +2028,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "{n} estrellas en GitHub",
     "p.dc": "{n} personas en Discord",
     "hero.alt": "Mac y Linux (beta)",
+
+    "store.alt": "Obtén Xenon en Microsoft Store",
     "send.btn": "Enviar el enlace a mi PC",
     "send.copy": "Copiar el enlace",
     "send.mail": "Enviármelo por correo",
@@ -2249,6 +2273,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "GitHub のスター {n}",
     "p.dc": "Discord の参加者 {n} 人",
     "hero.alt": "MacとLinux（ベータ版）",
+
+    "store.alt": "Microsoft Store で Xenon を入手",
     "send.btn": "自分のPCにリンクを送る",
     "send.copy": "リンクをコピー",
     "send.mail": "メールで自分に送る",
@@ -2492,6 +2518,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "GitHub 스타 {n}개",
     "p.dc": "Discord 멤버 {n}명",
     "hero.alt": "Mac과 Linux(베타)",
+
+    "store.alt": "Microsoft Store에서 Xenon 받기",
     "send.btn": "내 PC로 링크 보내기",
     "send.copy": "링크 복사",
     "send.mail": "이메일로 보내기",
@@ -2735,6 +2763,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "p.st": "GitHub 上 {n} 颗星",
     "p.dc": "Discord 上 {n} 人",
     "hero.alt": "Mac 和 Linux（Beta）",
+
+    "store.alt": "从 Microsoft Store 获取 Xenon",
     "send.btn": "把链接发到我的电脑",
     "send.copy": "复制链接",
     "send.mail": "通过电子邮件发给我",
@@ -3020,12 +3050,23 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
       return null;
     }
     const keys = () => document.querySelectorAll('a[data-track="download_click"]');
+    // The Store badge in the visitor's language (Microsoft ships one per
+    // locale); the hero one only makes sense on Windows.
+    function badges() {
+      const lang = (document.documentElement.lang || 'en').slice(0, 2);
+      const file = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'].includes(lang) ? lang : 'en';
+      document.querySelectorAll('[data-store-badge]').forEach((img) => { img.src = '/images/store/ms-store-' + file + '.svg'; });
+    }
+    badges();
+    document.addEventListener('xenon:lang', badges);
     if (mobile()) {
       document.documentElement.setAttribute('data-mobile', '');
       keys().forEach((a) => { if (!a.closest('[data-os-card]')) a.href = '#install'; });
       return;
     }
     const os = detect();
+    const heroStore = document.getElementById('hero-store');
+    if (heroStore && os && os !== 'windows') heroStore.hidden = true;
     if (!os) return;
     keys().forEach((a) => { if (!a.closest('[data-os-card]')) a.href = BASE + ASSET[os]; });
     const card = document.querySelector('[data-os-card="' + os + '"]');

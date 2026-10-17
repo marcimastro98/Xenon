@@ -290,6 +290,13 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.CustomWidget) window.CustomWidget.onData('processes', JSON.parse(e.data));
       } catch {}
     });
+    // Every hardware sensor by name. Widget-only and demand-driven like
+    // `processes`: sent only while some package holds the `sensors` grant.
+    es.addEventListener('sensors', e => {
+      try {
+        if (window.CustomWidget) window.CustomWidget.onData('sensors', JSON.parse(e.data));
+      } catch {}
+    });
     es.addEventListener('audio', e => {
       try {
         const d = JSON.parse(e.data);

@@ -79,6 +79,23 @@ button.sh-item:active { transform: scale(0.97); }
 .sh-item-name { font-size: 0.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sh-item-sub { font-size: 0.66rem; font-weight: 600; color: rgba(255,255,255,0.44); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.22s ease; }
 
+/* A sensor device's readings ("820 ppm  21.8°  55%"): two columns wide where the
+   tile has two, so the values read in full instead of "820 ppm · …". */
+.sh-item--readings .sh-item-sub { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 1px; white-space: normal; }
+.sh-reading { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.7); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sh-grid { container-type: inline-size; }
+@container (min-width: 284px) { .sh-item--readings { grid-column: span 2; } }
+
+/* A narrow card (two columns on a phone) stacks: icon and switch on top, the
+   name and state below at full width, so names stop ending in "Monit…". The
+   body's zero basis keeps wide cards on one line. */
+.sh-grid > .sh-item:not(.sh-item--value):not(.sh-item--media) { container-type: inline-size; flex-wrap: wrap; row-gap: 8px; }
+.sh-grid > .sh-item:not(.sh-item--value):not(.sh-item--media) > .sh-item-body { flex-basis: 0; }
+@container (max-width: 189px) {
+  .sh-grid > .sh-item:not(.sh-item--value):not(.sh-item--media) > .sh-item-body { order: 1; flex-basis: 100%; }
+  .sh-grid > .sh-item:not(.sh-item--value):not(.sh-item--media) > .sh-item-body + * { margin-left: auto; }
+}
+
 /* ── Toggle item (light / switch / …): lights up in the device's own colour ── */
 /* The bloom is a ::before radial so it sits under the content and can be animated
    without touching layout. Off → transparent; on → the entity's --sh-glow hue. */
@@ -342,6 +359,35 @@ body.overlay-frozen .sh-item--media.is-playing .sh-media-art::after { animation-
 .sh-set-dev { display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 800; color: rgba(255,255,255,0.72); padding: 9px 2px 3px; }
 .sh-set-dev::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--accent-rgb)); flex: 0 0 auto; }
 .sh-set-check--child { margin-left: 14px; }
+/* Settings picker: the order list (rooms, and the devices inside each). */
+/* One flat list with hairline rules: rooms as the strong rows, their devices
+   indented under them. A button with nowhere to go is hidden, not greyed. */
+.sh-set-order { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.sh-set-order[hidden] { display: none; }
+.sh-ord { display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
+.sh-ord-row { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px 0 12px; box-sizing: border-box; }
+.sh-ord-row + .sh-ord-row { border-top: 1px solid rgba(255,255,255,0.06); }
+.sh-ord-row--room { background: rgba(255,255,255,0.03); }
+.sh-ord-row--room + .sh-ord-row--room, .sh-ord-row--unit + .sh-ord-row--room { border-top-color: rgba(255,255,255,0.1); }
+.sh-ord-row--unit { padding-left: 28px; }
+.sh-ord-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.78); }
+.sh-ord-row--room .sh-ord-name { font-weight: 700; color: var(--text, #e7e9ee); }
+.sh-ord-moves { display: inline-flex; flex: 0 0 auto; }
+.sh-ord-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+  border: 0; border-radius: 8px; background: transparent; color: rgba(255,255,255,0.6); cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.sh-ord-btn:hover { background: rgba(255,255,255,0.07); color: var(--text, #e7e9ee); }
+.sh-ord-btn:active { background: rgba(var(--accent-rgb), 0.16); }
+.sh-ord-btn:disabled { visibility: hidden; }
+.sh-ord-btn:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
+.sh-ord-btn svg { width: 18px; height: 18px; }
+/* Settings: "Home Assistant dashboard" — the same rhythm as the picker above it. */
+.sh-set-dash { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sh-set-dash .sh-set-row[hidden] { display: none; }
+.sh-set-dash .sh-set-actions { flex-direction: column; align-items: flex-start; gap: 6px; }
+.sh-set-dash .ui-btn { min-height: 44px; white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .sh-sheet-overlay, .sh-sheet, .sh-switch2::after, .sh-seg-btn, .sh-chip { transition: none; }

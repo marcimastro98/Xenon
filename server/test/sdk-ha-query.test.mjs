@@ -24,14 +24,19 @@ const SELECTED = ['sensor.outside_temp', 'binary_sensor.patio_door', 'camera.gat
 
 // ── The request is bounded by the user's selection ─────────────────────────────
 
-test('history refuses an entity the user never selected, instead of dropping it', () => {
-  assert.deepEqual(q.normalizeHistoryRequest(['sensor.outside_temp', 'lock.front_door'], 24, SELECTED), { error: 'not_selected' });
+test('history leaves out an entity the user never selected, names it, and never asks HA about it', () => {
+  assert.deepEqual(q.normalizeHistoryRequest(['sensor.outside_temp', 'lock.front_door'], 24, SELECTED),
+    { ids: ['sensor.outside_temp'], hours: 24, skipped: ['lock.front_door'] });
   assert.deepEqual(q.normalizeHistoryRequest(['person.marco'], 24, SELECTED), { error: 'not_selected' });
+  assert.deepEqual(q.normalizeHistoryRequest(['person.marco', 'lock.front_door'], 24, SELECTED), { error: 'not_selected' });
 });
 
 test('history ids are validated, de-duplicated and capped', () => {
   assert.deepEqual(q.normalizeHistoryRequest('sensor.outside_temp, SENSOR.OUTSIDE_TEMP', undefined, SELECTED),
-    { ids: ['sensor.outside_temp'], hours: 24 });
+    { ids: ['sensor.outside_temp'], hours: 24, skipped: [] });
+  const strangers = Array.from({ length: q.HISTORY_MAX_IDS }, (_, i) => 'lock.l' + i);
+  assert.deepEqual(q.normalizeHistoryRequest(['light.sofa', ...strangers], 24, SELECTED), { error: 'too_many_ids' },
+    'strangers count toward the cap, so a request cannot grow without bound');
   assert.deepEqual(q.normalizeHistoryRequest([], 24, SELECTED), { error: 'bad_ids' });
   assert.deepEqual(q.normalizeHistoryRequest(['../api/states', 'x'], 24, SELECTED), { error: 'bad_ids' });
   const many = Array.from({ length: q.HISTORY_MAX_IDS + 1 }, (_, i) => 'sensor.s' + i);
@@ -88,6 +93,8 @@ function fakeHa(answers, calls = []) {
       return answers[type] || {};
     },
     async cameraSnapshot(id) { calls.push({ type: 'snapshot', id }); return answers.snapshot; },
+    artworkKey(id) { return (answers.artKey || {})[id] || ''; },
+    async mediaArtwork(id) { calls.push({ type: 'artwork', id }); return answers.artwork; },
   };
 }
 
@@ -124,6 +131,53 @@ test('a camera frame comes back as a data: URL, and only for a selected camera',
   assert.deepEqual(await big.cameraFrame('camera.gate', SELECTED), { ok: false, error: 'frame_too_large' });
 });
 
+test('cover art: selected players only, a real image only, fetched again only when the art changes', async () => {
+  const PLAYERS = [...SELECTED, 'media_player.denon', 'media_player.kef'];
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
+  const calls = [];
+  const answers = { artwork: png, artKey: { 'media_player.denon': '/api/media_player_proxy/media_player.denon?cache=a1' } };
+  const hq = q.createHaQuery(fakeHa(answers, calls));
+  const ok = await hq.artwork('media_player.denon', PLAYERS);
+  assert.equal(ok.ok, true);
+  assert.match(ok.src, /^data:image\/png;base64,/);
+  assert.deepEqual(await hq.artwork('media_player.denon', PLAYERS), ok, 'same art, no second fetch');
+  assert.equal(calls.length, 1);
+  answers.artKey['media_player.denon'] = '/api/media_player_proxy/media_player.denon?cache=b2';
+  await hq.artwork('media_player.denon', PLAYERS);
+  assert.equal(calls.length, 2, 'a new track fetches its cover');
+
+  assert.deepEqual(await hq.artwork('media_player.office', PLAYERS), { ok: false, error: 'not_selected' });
+  assert.deepEqual(await hq.artwork('camera.gate', PLAYERS), { ok: false, error: 'bad_media_player' });
+  assert.deepEqual(await hq.artwork('media_player.kef', PLAYERS), { ok: false, error: 'no_artwork' });
+  assert.equal(calls.length, 2, 'refusals and players without art never reach HA');
+
+  const html = q.createHaQuery(fakeHa({ artwork: Buffer.from('<html><script>x</script></html>'), artKey: answers.artKey }));
+  assert.deepEqual(await html.artwork('media_player.denon', PLAYERS), { ok: false, error: 'bad_image' });
+  const big = q.createHaQuery(fakeHa({ artwork: Buffer.alloc(3 * 1024 * 1024), artKey: answers.artKey }));
+  assert.deepEqual(await big.artwork('media_player.denon', PLAYERS), { ok: false, error: 'artwork_too_large' });
+});
+
+test('image formats are told by their bytes', () => {
+  assert.equal(q.imageMime(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(12)])), 'image/jpeg');
+  assert.equal(q.imageMime(Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 ')])), 'image/webp');
+  assert.equal(q.imageMime(Buffer.concat([Buffer.from('GIF89a'), Buffer.alloc(8)])), 'image/gif');
+  assert.equal(q.imageMime(Buffer.from('<svg onload=alert(1)></svg>')), '');
+  assert.equal(q.imageMime(Buffer.alloc(4)), '');
+});
+
+test('a media player says whether it has art and which players are grouped, nothing more', () => {
+  const c = compactEntity({ entity_id: 'media_player.denon', state: 'playing', attributes: {
+    friendly_name: 'Denon', entity_picture: '/api/media_player_proxy/media_player.denon?token=SECRET&cache=a1',
+    group_members: ['media_player.denon', 'media_player.kitchen', 'not an id'],
+  } });
+  assert.equal(c.art, true);
+  assert.deepEqual(c.group, ['media_player.denon', 'media_player.kitchen']);
+  assert.ok(!JSON.stringify(c).includes('SECRET'), 'the picture URL (and its token) never leaves the server');
+  const solo = compactEntity({ entity_id: 'media_player.kef', state: 'off', attributes: { group_members: ['media_player.kef'] } });
+  assert.equal(solo.art, false);
+  assert.equal(solo.group, undefined);
+});
+
 // ── What an entity carries ────────────────────────────────────────────────────
 
 test('a person or tracker carries where they are by name, never by coordinates', () => {
@@ -154,10 +208,21 @@ test('the route is grant-gated, selection-bound and POST; the bridge checks the 
   assert.match(body, /sdkGrantsFor\(pkgId\)\.streams\.includes\('homeassistant'\)/);
   assert.match(body, /ha\.entities \|\| \[\], ha\.energyEntities/);
   assert.match(body, /sdkTileGate\(pkgId/);
+  assert.match(body, /body\.op === 'artwork'\) \{\s*json\(await haQuery\.artwork\(p\.id, allowed\)\)/);
   const cw = read('server/js/custom-widget.js');
   const fn = cw.slice(cw.indexOf('async function onBridgeHaQuery'));
   assert.match(fn.slice(0, 900), /grant\.streams\.includes\('homeassistant'\)/);
   assert.match(cw, /d\.type === 'haQuery'\) \{\s*if \(entry\.ready\) onBridgeHaQuery/);
+});
+
+test('an unchanged selection is not broadcast again; a new dashboard is seeded at connect', () => {
+  const server = read('server/server.js');
+  const fn = server.slice(server.indexOf('function scheduleHaBroadcast'), server.indexOf('async function refreshHaWatch'));
+  assert.match(fn, /if \(sig !== _haStateLast\) \{ _haStateLast = sig; broadcastSSE\('homeassistant', state\); \}/);
+  const refresh = server.slice(server.indexOf('async function refreshHaWatch'));
+  assert.match(refresh.slice(0, 1600), /_haStateLast = '';/, 'stopping the watch forgets the last payload');
+  assert.match(refresh.slice(0, 800), /JSON\.stringify\(ha\.areaOrder \|\| \[\]\), ha\.tileView/, 'a new room order is pushed at once');
+  assert.match(server, /buildHaState\(\)\.then\(\(st\) => \{ try \{ res\.write\(`event: homeassistant/, 'the SSE connect writes its own seed');
 });
 
 test('init tells a tile which copy it is, and tells a service frame nothing', () => {

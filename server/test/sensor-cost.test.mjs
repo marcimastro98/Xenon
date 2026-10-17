@@ -17,7 +17,7 @@ test('worker collectors never call Get-Counter', () => {
   // Measured 2.8-13 s per call on the GPU Engine set, longer than the 5 s tick:
   // on every machine without nvidia-smi the worker never rested. Raw
   // ReadCategory() deltas give the same figure in a few ms.
-  for (const file of ['server/gpu.ps1', 'server/processes.ps1', 'server/cpu-temp.ps1', 'server/network.ps1']) {
+  for (const file of ['server/gpu.ps1', 'server/processes.ps1', 'server/cpu-temp.ps1', 'server/network.ps1', 'server/sensors.ps1']) {
     assert.doesNotMatch(code(read(file)), /Get-Counter/i, `${file} calls Get-Counter`);
   }
 });

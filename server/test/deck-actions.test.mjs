@@ -32,6 +32,18 @@ test('validateAction keeps only spec params and coerces select to a valid option
   assert.equal(b.cmd, 'playpause');
 });
 
+test('a strict select refuses an unknown value instead of coercing it (an AC must never default to off)', () => {
+  assert.equal(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode: 'bogus' }), null);
+  assert.equal(da.validateAction({ type: 'haClimate', entity: 'climate.ac' }), null);
+  assert.equal(da.validateAction({ type: 'haMedia', entity: 'media_player.tv', cmd: 'bogus' }), null);
+  for (const mode of ['heat_cool', 'range', 'fan_mode', 'swing_mode', 'preset', 'humidity']) {
+    assert.equal(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode, value: '1' }).mode, mode);
+  }
+  for (const cmd of ['on', 'off', 'source', 'sound_mode', 'seek', 'shuffle', 'repeat']) {
+    assert.equal(da.validateAction({ type: 'haMedia', entity: 'media_player.tv', cmd }).cmd, cmd);
+  }
+});
+
 test('mediaSeek is hidden from the Deck editor but validates SDK payloads', () => {
   const spec = da.actionSpec('mediaSeek');
   assert.equal(spec.hidden, true);

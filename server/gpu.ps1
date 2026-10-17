@@ -39,6 +39,14 @@ function Get-LibreHardwareMonitorDll {
   return ($candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
 }
 
+# When each GPU was last Update()d, so sensors.ps1 (Settings -> Sensor sources,
+# the SDK `sensors` stream) refreshes a card only when this collector has not
+# just done it. Keyed by LHM hardware identifier: one stamp per card.
+function Set-LhmUpdated($Hardware) {
+  if ($null -eq $global:XenonLhmUpdatedAt) { $global:XenonLhmUpdatedAt = @{} }
+  $global:XenonLhmUpdatedAt[[string]$Hardware.Identifier] = Get-Date
+}
+
 # Persistent LHM session (same pattern as cpu-temp.ps1): inside pwsh-worker the
 # script runs every few seconds in one process, so the Computer is built once
 # and only Update() runs per read. Process exit reclaims the driver handles.
@@ -137,7 +145,7 @@ function Get-LhmGpuReadings {
         $direct = Read-NvidiaFansDirect $hardware
         if ($null -ne $direct) { $fans += $direct; continue }
       }
-      try { $hardware.Update() } catch { }
+      try { $hardware.Update(); Set-LhmUpdated $hardware } catch { }
       foreach ($sensor in @($hardware.Sensors)) {
         try {
           if ($null -eq $sensor.Value) { continue }
@@ -252,7 +260,7 @@ try {
     try {
       foreach ($hardware in @($computer.Hardware)) {
         if ($hardware.HardwareType.ToString() -notmatch 'Gpu') { continue }
-        try { $hardware.Update() } catch { }
+        try { $hardware.Update(); Set-LhmUpdated $hardware } catch { }
         foreach ($sensor in @($hardware.Sensors)) {
           try {
             $stype = $sensor.SensorType.ToString()

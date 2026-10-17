@@ -133,6 +133,7 @@
     diskIo: ['cw_stream_diskio', 'Which disks are busy, and how busy'],
     devStorage: ['cw_stream_devstorage', 'How much space developer tools take up'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
+    sensors: ['cw_stream_sensors', 'Every temperature, fan, power and clock sensor of your PC'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
     audioLevels: ['cw_stream_audiolevels', 'How loud each app is playing'],
@@ -1009,15 +1010,16 @@
   }
 
   // Home Assistant READS: `history` (a few entities' last hours as {t,avg,max}
-  // points) and `camera` (one frame as a data: URL, the only image a frame with
-  // no network can show). Gated by the `homeassistant` STREAM grant here and
-  // again server-side, where the entity is also checked against the user's
-  // selection.
+  // points), `camera` (one frame) and `artwork` (a media player's cover), both
+  // as a data: URL, the only image a frame with no network can show. Gated by
+  // the `homeassistant` STREAM grant here and again server-side, where the
+  // entity is also checked against the user's selection.
+  const HA_QUERY_OPS = ['history', 'camera', 'artwork'];
   async function onBridgeHaQuery(entry, grant, msg) {
     const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
     const reply = (payload) => post(entry, Object.assign({ type: 'haQueryResult', id: reqId }, payload));
     if (!grant.streams.includes('homeassistant')) { reply({ ok: false, error: 'not_allowed' }); return; }
-    const op = msg.op === 'history' || msg.op === 'camera' ? msg.op : '';
+    const op = HA_QUERY_OPS.includes(msg.op) ? msg.op : '';
     if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
     const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
     const params = op === 'history'
@@ -1031,7 +1033,7 @@
       });
       if (!(r && r.ok)) { reply({ ok: false, error: (r && r.error) || 'failed' }); return; }
       reply(op === 'history'
-        ? { ok: true, hours: r.hours, series: r.series }
+        ? { ok: true, hours: r.hours, series: r.series, skipped: Array.isArray(r.skipped) ? r.skipped : [] }
         : { ok: true, src: r.src, at: r.at });
     } catch {
       reply({ ok: false, error: 'failed' });
@@ -2839,7 +2841,7 @@
   // when at least one listed widget falls in it, so tapping one can never empty
   // the list on its own.
   const PICK_CATS = [
-    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes', 'scriptStates'] },
+    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'sensors', 'battery', 'processes', 'scriptStates'] },
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
