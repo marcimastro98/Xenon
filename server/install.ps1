@@ -406,6 +406,26 @@ function Invoke-WingetInstall {
   return $false
 }
 
+# Brings an installed package up to date. True when winget updated it; false
+# when there was nothing to update (its usual answer) or the update failed,
+# which the caller treats the same: what is installed keeps working as before.
+function Invoke-WingetUpgrade {
+  param([string]$PackageId)
+  $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+  if (-not $winget) { return $false }
+  $arguments = @(
+    'upgrade',
+    '--id', $PackageId,
+    '--exact',
+    '--source', 'winget',
+    '--accept-package-agreements',
+    '--accept-source-agreements',
+    '--silent'
+  )
+  $exitCode = Invoke-ProcessWithSpinner -FilePath $winget.Source -ArgumentList $arguments -Activity "Checking $PackageId for updates"
+  return ($exitCode -eq 0)
+}
+
 function Install-NodeIfNeeded {
   $nodePath = Get-NodePath
   if ($nodePath) {
@@ -871,7 +891,14 @@ function Install-PawnIoIfNeeded {
   $driver = Get-PawnIoDriver
   if ($driver) {
     Write-Step "PawnIO driver found: $($driver.State)"
-    if ($driver.State -ne 'Running') {
+    # Found is not enough: the LibreHardwareMonitor winget installs needs a
+    # recent PawnIO, and with an older one the CPU readings stay empty while
+    # this line said all was well (Discord, Oct 2026: a 7800X3D with no CPU
+    # temperature until LHM's own window offered to update PawnIO). winget
+    # does nothing when it is already current, so this costs only that check.
+    if (Get-Command winget.exe -ErrorAction SilentlyContinue) { Invoke-WingetUpgrade -PackageId $pawnIoPackageId | Out-Null }
+    $driver = Get-PawnIoDriver
+    if ($driver -and $driver.State -ne 'Running') {
       try { & (Join-Path $env:WINDIR 'System32\sc.exe') start pawnio | Out-Null } catch { }
     }
     return

@@ -402,6 +402,7 @@ function Add-SensorsFromLibreHardwareMonitorLibrary {
   $computer = Get-CpuLhmComputer
   if ($null -eq $computer) { return }
   $sawPsu = $false
+  $tempsBefore = @($script:tempCandidates).Count
   try {
     foreach ($hardware in @($computer.Hardware)) {
       $htype = $hardware.HardwareType.ToString()
@@ -428,6 +429,22 @@ function Add-SensorsFromLibreHardwareMonitorLibrary {
     # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
     try { $computer.Close() } catch { }
     $global:XenonCpuLhm = $null
+  }
+  # A session opened before the kernel driver could load (PawnIO installed or
+  # updated later, while Xenon was running) never gains it: its CPU readings
+  # stay empty until Xenon restarts (Discord, Oct 2026). Elevated and still no
+  # CPU temperature after 5 minutes, the session is rebuilt; while nothing
+  # changes that is one re-open every 5 minutes, the same pace as a failed init.
+  if (@($script:tempCandidates).Count -gt $tempsBefore) {
+    $global:XenonCpuLhmBlindSince = $null
+  } elseif ($global:XenonCpuLhm -and (Test-SensorAdmin)) {
+    if (-not $global:XenonCpuLhmBlindSince) {
+      $global:XenonCpuLhmBlindSince = Get-Date
+    } elseif (((Get-Date) - $global:XenonCpuLhmBlindSince).TotalSeconds -ge 300) {
+      try { $computer.Close() } catch { }
+      $global:XenonCpuLhm = $null
+      $global:XenonCpuLhmBlindSince = $null
+    }
   }
   # Only when LHM produced nothing itself - never open the same PSU twice.
   if (-not $sawPsu) { Add-CorsairPsuDirectSensors }
