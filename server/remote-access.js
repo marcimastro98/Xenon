@@ -209,7 +209,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
   '/api/claude/unlink', '/api/claude/run', '/api/claude/run/stop', '/api/claude/attach',
-  '/api/claude/history/delete',
+  '/api/claude/folder', '/api/claude/history/delete',
   '/api/codex/event', '/api/codex/permission', '/api/codex/decide', '/api/codex/link', '/api/codex/unlink',
   '/api/chatgpt/ask', '/api/chatgpt/cancel', '/api/chatgpt/delete',
   '/search/open', '/search/reveal', '/search/ai',
@@ -321,6 +321,8 @@ const REMOTE_ADMIN = new Set([
   '/api/devclean/compact',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
+  // Widens where Claude Code may start work on this PC: the person at the PC decides.
+  '/api/claude/folder',
 ]);
 
 const REMOTE_METHODS = new Set(['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);

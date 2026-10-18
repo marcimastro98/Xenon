@@ -59,6 +59,18 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
   background-origin: border-box;
   transition: border-top-width var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
 }
+/* A mounted SDK widget draws its own look edge to edge (CustomWidget.css,
+   .cw-mounted), so the band above would be the host card showing through: a
+   flat strip across the top of the art with the island sitting in it, which
+   reads as the bar lying ON the widget. The guest keeps the full height and the
+   cutout bites into the art itself, the way a shaped tile's silhouette does. */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .custom-panel:has(.cw-wrap.cw-mounted) {
+  border-top-width: 0;
+}
+/* While the box is being moved frame by frame (js/topbar-minimal.js followIsland)
+   the tiles are redrawn every frame, so their own transitions would only lag it.
+   A tile that is closing sets its own value inline and keeps its transition. */
+body.island-following { --island-notch-ms: 0ms; }
 .island-notch-edge { display: none; }
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge {
   display: block;
@@ -249,11 +261,15 @@ body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead::before { 
 body.topbar-minimal .topbar-mini > .island-seg-hidden { display: none !important; }
 
 /* ── Notification island ──────────────────────────────────────
-   A heads-up notification takes the clock island's place (Apple Dynamic-Island):
-   the toast stack drops onto the pill's exact spot, and while one is showing
-   (body.xtoast-island, set by js/toast.js) the pill recedes so the card appears to
-   expand straight out of it. The capsule→card morph itself lives in Toast.css. */
+   A heads-up notification takes the clock island's place (Apple Dynamic-Island).
+   js/toast-island.js first fades the pill's contents (.mini-yield), then puts a
+   glass of the pill's exact box and look in its place and grows it into the card;
+   the pill steps aside in that same frame (body.xtoast-island, rule below) and
+   comes back in the frame the glass has shrunk onto it again. The glass and the
+   card live in Toast.css. The stack keeps the pill's spot for the rare case a
+   card is already up in it when the chrome turns minimal. */
 body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
+body.topbar-minimal:not([data-panel]) .topbar-mini.mini-yield > * { opacity: 0; }
 
 .topbar-mini {
   transition:
@@ -283,16 +299,20 @@ body.topbar-minimal:not([data-panel]) .topbar-mini.mini-morphing {
 @media (prefers-reduced-motion: reduce) {
   body.topbar-minimal:not([data-panel]) .topbar-mini > * { transition: none; }
 }
-body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
 body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini {
   opacity: 0;
   transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
   pointer-events: none;
 }
+/* Instant both ways, never faded: the notification's glass is standing exactly
+   where the pill is, so any fade would show two of them. */
+body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
+  visibility: hidden;
+  pointer-events: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .topbar-mini { transition: opacity 0.2s ease; }
-  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
   body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini { transform: translateX(var(--mini-tx)); }
 }
 
@@ -373,14 +393,11 @@ body.topbar-minimal.xisland-live:not([data-panel])[data-topbar-align="right"] .s
 .sdk-island.is-leaving.exit-morph { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-5px) scale(0.78); }
 .sdk-island.is-leaving.exit-slide { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-14px); }
 .sdk-island.is-leaving.exit-fade { opacity: 0; }
-/* System toast wins: recede exactly like the pill while a toast is up. */
+/* System toast wins: the capsule steps aside exactly like the pill while a
+   notification's glass holds its place (instant, for the same reason). */
 body.xtoast-island:not([data-panel]) .sdk-island {
-  opacity: 0;
-  transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
+  visibility: hidden;
   pointer-events: none;
-  transition:
-    opacity 0.3s ease,
-    transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
 }
 
 /* Text flows as stacked sentence rows (js/sdk-island.js): dimmed past row,
@@ -584,10 +601,6 @@ body.low-power-gpu .sdk-island-bars.is-animated > i { animation: none; }
 .sdk-island-spacer.is-large { width: 14px; }
 @media (prefers-reduced-motion: reduce) {
   body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .sdk-island { animation: none; }
-  body.xtoast-island:not([data-panel]) .sdk-island {
-    transition: opacity 0.2s ease;
-    transform: translateX(var(--mini-tx));
-  }
   .sdk-island-flow { transition: none; }
   .sdk-island-row { transition: none; animation: none; }
   .sdk-island-bars.is-animated > i { animation: none; }

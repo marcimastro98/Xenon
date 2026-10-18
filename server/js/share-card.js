@@ -605,7 +605,7 @@ if (typeof window !== 'undefined') (function () {
       if (st.display === 'none' || st.visibility === 'hidden') return;
       push(n);
     });
-    document.querySelectorAll('.xtoast-stack, #xenon-home-bar, .edge-preview-chip').forEach(push);
+    document.querySelectorAll('.xtoast-stack, .xisland, #xenon-home-bar, .edge-preview-chip').forEach(push);
     return nodes;
   }
 

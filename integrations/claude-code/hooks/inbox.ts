@@ -12,6 +12,27 @@ export type InboxAnswer =
   | { result: 'rejected' }
   | { result: 'unreachable' }
 
+// A slash command typed on the tile (Xenon's claude-bridge.js checks the same
+// shape, and that the name is one this session lists, before it queues one).
+// Returns the command and its arguments, or null when the text is a message.
+// `known` is this session's own command list ($.command.list): a name outside
+// it stays a plain message, and so do the ones that would end the session.
+const TILE_COMMAND = /^\/([A-Za-z0-9][A-Za-z0-9_.:-]{0,79})(?:[ ]+([^\r\n]+))?$/
+const NEVER_FROM_TILE = new Set(['exit', 'quit', 'logout', 'login'])
+
+export function tileCommand(text: string, known?: ReadonlySet<string>): { command: string; args: string } | null {
+  const m = TILE_COMMAND.exec(text.trim())
+  if (!m) return null
+  const command = m[1]
+  const args = (m[2] || '').trim()
+  if (NEVER_FROM_TILE.has(command)) return null
+  // /model and /effort without a value would open a picker nobody sees here.
+  if ((command === 'model' || command === 'effort') && !args) return null
+  const header = command === 'model' || command === 'effort' || command === 'compact'
+  if (!header && !(known && known.has(command))) return null
+  return { command, args }
+}
+
 const PROTOCOL = 1
 const BACKOFF_FIRST_MS = 5_000
 const BACKOFF_MAX_MS = 60_000

@@ -156,6 +156,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // Claude Code's own ingest, posted by the `claude` process against a token
     // minted on the PC. Nothing in the dashboard calls these.
     'POST /api/claude/event',
+    // Widens where Claude Code may start work on this PC: decided at the PC.
+    'POST /api/claude/folder',
     // The Claude Code mod feed, posted by the claude process like /event.
     'POST /api/claude/mod',
     // The mod asking for a tile message: the answer IS the message text.

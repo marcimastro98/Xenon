@@ -201,16 +201,55 @@ test('TodoWrite becomes the plan lane', () => {
   assert.equal(bridge.snapshot().sessions[0].todos.length, 3);
 });
 
-test('subagents are tracked and released', () => {
-  const { bridge } = makeBridge();
+test('subagents are tracked, kept a while once finished, then released', () => {
+  const { bridge, advance } = makeBridge();
   bridge.applyHook({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a1', agent_type: 'Explore' });
   bridge.applyHook({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a2', agent_type: 'Plan' });
   assert.equal(bridge.snapshot().sessions[0].subagents.length, 2);
   // A duplicate start (a re-delivered hook) must not double-count.
   bridge.applyHook({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a1', agent_type: 'Explore' });
   assert.equal(bridge.snapshot().sessions[0].subagents.length, 2);
-  bridge.applyHook({ hook_event_name: 'SubagentStop', session_id: 's1', agent_id: 'a1' });
+  bridge.applyHook({ hook_event_name: 'SubagentStop', session_id: 's1', agent_id: 'a1', last_assistant_message: '\nFound 3 callers.\nDetails…' });
+  let agents = bridge.snapshot().sessions[0].subagents;
+  assert.deepEqual(agents.map(a => [a.id, a.status]), [['a1', 'done'], ['a2', 'running']]);
+  assert.equal(agents[0].last, 'Found 3 callers.');
+  advance(3 * 60 * 1000);
+  bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'Read', tool_input: { file_path: '/x' } });
   assert.deepEqual(bridge.snapshot().sessions[0].subagents.map(a => a.id), ['a2']);
+});
+
+test('a subagent carries its label, its tools, its effort and its context size', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'Agent', tool_input: { description: 'Find the callers', subagent_type: 'Explore', prompt: 'long secret prompt' } });
+  bridge.applyHook({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a1', agent_type: 'Explore' });
+  bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', agent_id: 'a1', agent_type: 'Explore', tool_name: 'Grep', tool_input: { pattern: 'paint(' } });
+  bridge.applyHook({ hook_event_name: 'PostToolUse', session_id: 's1', agent_id: 'a1', agent_type: 'Explore', tool_name: 'Grep', tool_input: { pattern: 'paint(' } });
+  bridge.applyMod({ v: 1, kind: 'agent', sessionId: 's1', agentId: 'a1', type: 'Explore', model: 'claude-haiku-5-5' });
+  bridge.applyMod({ v: 1, kind: 'agentStat', sessionId: 's1', agentId: 'a1', effort: 'medium', tokens: 45210 });
+  assert.equal(bridge.applyMod({ v: 1, kind: 'agentStat', sessionId: 's1', agentId: 'nope', done: true }), false);
+  const a = bridge.snapshot().sessions[0].subagents[0];
+  assert.equal(a.desc, 'Find the callers');
+  assert.equal(a.tools, 1);
+  assert.equal(a.tool, 'Grep');
+  assert.equal(a.detail, 'paint(');
+  assert.equal(a.model, 'claude-haiku-5-5');
+  assert.equal(a.effort, 'medium');
+  assert.equal(a.tokens, 45210);
+  assert.ok(!JSON.stringify(a).includes('secret'), 'the prompt never reaches the snapshot');
+  bridge.applyMod({ v: 1, kind: 'agentStat', sessionId: 's1', agentId: 'a1', done: true });
+  assert.equal(bridge.snapshot().sessions[0].subagents[0].status, 'done');
+});
+
+test('an agent already running when Xenon started shows up at its first tool call', () => {
+  const { bridge } = makeBridge();
+  // No SubagentStart: it fired before this server was up.
+  bridge.applyHook({ hook_event_name: 'PostToolUse', session_id: 's1', agent_id: 'a9', agent_type: 'general-purpose', tool_name: 'Bash', tool_input: { command: 'ls' } });
+  let a = bridge.snapshot().sessions[0].subagents;
+  assert.deepEqual(a.map(x => [x.id, x.type, x.status, x.tools]), [['a9', 'general-purpose', 'running', 1]]);
+  // The same from the mod's figures alone.
+  bridge.applyMod({ v: 1, kind: 'agentStat', sessionId: 's1', agentId: 'b2', tokens: 1200 });
+  a = bridge.snapshot().sessions[0].subagents;
+  assert.deepEqual(a.map(x => x.id), ['a9', 'b2']);
 });
 
 test('compaction is an explained event, not a mystery drop in the gauge', () => {
@@ -701,7 +740,7 @@ test('an idle message is refused where nothing could take it', () => {
   // already happened.
   assert.equal(bridge.queueFollowUp('s1', 'hello').error, 'session_idle');
   listening.add('s1');
-  assert.equal(bridge.queueFollowUp('s1', '/compact').error, 'slash_command');
+  assert.equal(bridge.queueFollowUp('s1', '/clear').error, 'slash_command');
   assert.equal(bridge.snapshot().sessions[0].queued, null);
 });
 
@@ -1061,6 +1100,32 @@ test('applyMod agent gives a subagent its model, before or after SubagentStart',
   assert.deepEqual(agents.map(a => [a.id, a.model]), [['a1', 'claude-haiku-5-5'], ['a2', 'claude-opus-5-5']]);
 });
 
+test('the last plan Claude wrote stays on the session after it was approved elsewhere', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'SessionStart', session_id: 's1' });
+  bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'ExitPlanMode', tool_input: { plan: '1. Do it' } });
+  let s = bridge.snapshot().sessions.find(x => x.id === 's1');
+  assert.equal(s.plan, '1. Do it');
+  assert.ok(s.planAt > 0);
+  // A resumed session keeps it; a cleared one does not.
+  bridge.applyHook({ hook_event_name: 'SessionStart', session_id: 's1', source: 'resume' });
+  assert.equal(bridge.snapshot().sessions.find(x => x.id === 's1').plan, '1. Do it');
+  bridge.applyHook({ hook_event_name: 'SessionStart', session_id: 's1', source: 'clear' });
+  assert.equal(bridge.snapshot().sessions.find(x => x.id === 's1').plan, '');
+});
+
+test('a hello carries the model and the effort the session runs with', () => {
+  const { bridge } = makeBridge();
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', model: 'claude-opus-5-5', effort: 'high' });
+  let s = bridge.snapshot().sessions.find(x => x.id === 's1');
+  assert.deepEqual([s.model, s.effort], ['claude-opus-5-5', 'high']);
+  // No effort in a hello (not known yet) keeps what is there; a made-up level is ignored.
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', model: 'claude-sonnet-5-5' });
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', effort: 'turbo' });
+  s = bridge.snapshot().sessions.find(x => x.id === 's1');
+  assert.deepEqual([s.model, s.effort], ['claude-sonnet-5-5', 'high']);
+});
+
 test('applyMod refuses unknown versions, kinds and sessionless messages', () => {
   const { bridge } = makeBridge();
   assert.equal(bridge.applyMod({ v: 2, kind: 'hello', sessionId: 's1' }), false);
@@ -1135,4 +1200,95 @@ test('"working for" counts from the start of the turn, not of the session', () =
   bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
   advance(3000);
   assert.equal(bridge.snapshot().sessions[0].runForMs, 3000);
+});
+
+test('describeChange keeps only the lines that differ, and no body for secret files', () => {
+  const c = cb.describeChange('Edit', { file_path: '/p/a.js', old_string: 'one\ntwo\nthree', new_string: 'one\n2\nthree' });
+  assert.equal(c.file, 'a.js');
+  assert.deepEqual([c.del, c.add], [1, 1]);
+  assert.deepEqual(c.lines, [{ k: '-', t: 'two' }, { k: '+', t: '2' }]);
+  const w = cb.describeChange('Write', { file_path: '/p/new.txt', content: 'a\nb' });
+  assert.equal(w.add, 2);
+  const secret = cb.describeChange('Edit', { file_path: '/p/.env', old_string: 'K=1', new_string: 'K=2' });
+  assert.deepEqual(secret.lines, []);
+  assert.equal(secret.add, 1);
+  assert.equal(cb.describeChange('Bash', { command: 'ls' }), null);
+  assert.equal(cb.describeChange('Edit', { file_path: '/p/a', old_string: 'x', new_string: 'x' }), null);
+});
+
+test('the header commands go to an idle session as commands, and not at all to a busy one', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  listening.add('s1');
+  // A mod older than 0.4.0 would submit "/effort high" as a message: refused.
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', version: '0.3.0' });
+  assert.equal(bridge.queueFollowUp('s1', '/effort high').error, 'mod_old');
+  assert.equal(bridge.snapshot().sessions[0].modCommands, false);
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', version: '0.4.0' });
+  assert.equal(bridge.snapshot().sessions[0].modCommands, true);
+  // Other "/" text is still refused: it would reach the session as a message.
+  assert.equal(bridge.queueFollowUp('s1', '/clear').error, 'slash_command');
+  assert.equal(bridge.queueFollowUp('s1', '/model opus; rm -rf').error, 'slash_command');
+
+  assert.deepEqual(bridge.queueFollowUp('s1', '/model opus'), { ok: true, via: 'terminal' });
+  assert.equal(bridge.takeForTerminal('s1'), '/model opus');
+  // No turn follows a command, so it is never "on its way" nor offered back.
+  assert.equal(bridge.snapshot().sessions[0].queued, null);
+  assert.equal(bridge.snapshot().sessions[0].undelivered, null);
+  assert.deepEqual(bridge.queueFollowUp('s1', '/compact'), { ok: true, via: 'terminal' });
+
+  bridge.takeForTerminal('s1');
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  // While a turn runs, a command waits for its end and is not a reply inside it.
+  assert.deepEqual(bridge.queueFollowUp('s1', '/effort high'), { ok: true, via: 'terminal' });
+  assert.equal(bridge.takeFollowUp('s1'), '');
+  assert.equal(bridge.takeForTerminal('s1'), '');
+  assert.equal(bridge.snapshot().sessions[0].queued.text, '/effort high');
+});
+
+test('a command the session lists runs from the tile; one it does not list, or one that ends it, does not', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  listening.add('s1');
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', version: '0.5.0' });
+  assert.equal(bridge.commandListFor('s1'), null);
+  assert.equal(bridge.queueFollowUp('s1', '/plan').error, 'slash_command', 'no list yet');
+
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'commands', version: '0.5.0', commands: [
+    { name: 'plan', description: 'Enable plan mode' },
+    { name: 'searchfit-seo:create-topic', description: 'Topic plan' },
+    { name: 'exit', description: 'Quit' },
+    { name: 'bad name', description: 'x' },
+  ] });
+  assert.deepEqual(bridge.commandListFor('s1').map((c) => c.name), ['plan', 'searchfit-seo:create-topic']);
+  assert.ok(bridge.snapshot().sessions[0].commandsAt > 0);
+
+  assert.deepEqual(bridge.queueFollowUp('s1', '/plan'), { ok: true, via: 'terminal' });
+  assert.equal(bridge.takeForTerminal('s1'), '/plan');
+  assert.deepEqual(bridge.queueFollowUp('s1', '/searchfit-seo:create-topic seo for xenon'), { ok: true, via: 'terminal' });
+  bridge.cancelFollowUp('s1');
+  assert.equal(bridge.queueFollowUp('s1', '/exit').error, 'slash_command');
+  assert.equal(bridge.queueFollowUp('s1', '/unlisted').error, 'slash_command');
+});
+
+test('a session is asked for its command list once per boot, and its mod records go with it', () => {
+  const { bridge, advance } = makeBridge();
+  bridge.applyMod({ v: 1, sessionId: 'm1', kind: 'hello', version: '0.6.2' });
+  assert.equal(bridge.wantsCommandList('m1'), true);
+  assert.equal(bridge.wantsCommandList('m1'), false, 'an empty or missing list is not asked for again');
+  bridge.applyMod({ v: 1, sessionId: 'm2', kind: 'commands', version: '0.6.2', commands: [{ name: 'plan', description: 'x' }] });
+  assert.equal(bridge.wantsCommandList('m2'), false, 'a session that sent its list is never asked');
+  advance(3 * 60 * 60 * 1000);
+  bridge.snapshot();
+  assert.equal(bridge.commandListFor('m2'), null, 'dropped with the stale session');
+  assert.equal(bridge.wantsCommandList('m1'), true, 'a session back after that is asked again');
+});
+
+test('/model and /effort without a value are refused, not sent as a message', () => {
+  const { bridge, listening } = makeTerminalBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  listening.add('s1');
+  bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', version: '0.6.2' });
+  assert.equal(bridge.queueFollowUp('s1', '/model').error, 'needs_value');
+  assert.equal(bridge.queueFollowUp('s1', '/effort ').error, 'needs_value');
 });

@@ -98,14 +98,22 @@
     box.appendChild(names);
 
     const chips = h.el('div', 'cw-cs-chips');
-    if (s.model) {
+    // Idle in a terminal with the mod listening: the model and effort chips are
+    // menus and Compact is a button, each one a command typed into the session.
+    // The mode stays a label: Claude Code has no command that sets it.
+    const ctl = h.controls ? h.controls(s) : null;
+    if (ctl) {
+      chips.appendChild(ctl.modelSelect(s.model));
+    } else if (s.model) {
       const m = h.el('span', 'cw-chip cw-chip-model', h.prettyModel(s.model));
       m.style.setProperty('--cw-chip-hue', h.modelHue(s.model));
       chips.appendChild(m);
     }
     const mode = modeChip(h, s.permissionMode);
     if (mode) chips.appendChild(mode);
-    if (s.effort) chips.appendChild(h.el('span', 'cw-chip', h.t('claude_effort', 'effort') + ' ' + s.effort));
+    if (ctl) chips.appendChild(ctl.effortSelect(s.effort));
+    else if (s.effort) chips.appendChild(h.el('span', 'cw-chip', h.t('claude_effort', 'effort') + ' ' + s.effort));
+    if (ctl) chips.appendChild(ctl.compactButton());
     if (typeof s.contextPct === 'number') chips.appendChild(h.ctxGauge(s.contextPct));
     if ((s.linesAdded || 0) + (s.linesRemoved || 0) > 0) {
       const lines = h.el('span', 'cw-chip cw-chip-lines');
@@ -114,34 +122,83 @@
       chips.appendChild(lines);
     }
     if (s.cost > 0) chips.appendChild(h.el('span', 'cw-chip', h.fmtMoney(s.cost)));
-    if (s.subagents && s.subagents.length) {
-      const n = s.subagents.length;
-      chips.appendChild(h.el('span', 'cw-chip', n === 1 ? h.t('claude_agents_1', '1 agent')
-        : h.t('claude_agents_n', '{n} agents').replace('{n}', String(n))));
+    // Finished agents stay in the panel a while; the chip counts the working ones
+    // and opens the Agents view.
+    const n = (s.subagents || []).filter((a) => a.status === 'running').length;
+    if (n) {
+      const chip = h.el('button', 'cw-chip cw-chip-btn', n === 1 ? h.t('claude_agents_1', '1 agent')
+        : h.t('claude_agents_n', '{n} agents').replace('{n}', String(n)));
+      chip.type = 'button';
+      if (h.openAgents) chip.addEventListener('click', h.openAgents);
+      chips.appendChild(chip);
     }
     if (chips.childNodes.length) box.appendChild(chips);
     return box;
   }
 
   /** Claude Code's todo list, as its checklist: ☒ done, ◼ doing, ☐ to do. */
-  function todos(h, s) {
+  // `full` is the Plan view of the side panel: every step, each on as many
+  // lines as it needs, with a progress bar. Without it, the compact window.
+  function todos(h, s, full) {
     const list = Array.isArray(s.todos) ? s.todos : [];
     if (!list.length) return null;
-    const box = h.el('div', 'cw-cs-todos');
+    const box = h.el('div', 'cw-cs-todos' + (full ? ' is-full' : ''));
     const done = list.filter((x) => x.status === 'done').length;
     box.appendChild(h.el('div', 'cw-cs-label', h.t('claude_cs_plan', 'Plan') + ' ' + done + '/' + list.length));
+    if (full) {
+      const bar = h.el('div', 'cw-plan-bar');
+      bar.setAttribute('aria-hidden', 'true');
+      const fill = h.el('span', 'cw-plan-fill');
+      fill.style.setProperty('--cw-plan', Math.round(done * 100 / list.length) + '%');
+      bar.appendChild(fill);
+      box.appendChild(bar);
+    }
     // A long plan shows the window around the step in progress.
     const at = Math.max(0, list.findIndex((x) => x.status === 'doing'));
-    const start = Math.max(0, Math.min(at - 2, list.length - MAX_TODOS));
-    list.slice(start, start + MAX_TODOS).forEach((x) => {
+    const cap = full ? list.length : MAX_TODOS;
+    const start = full ? 0 : Math.max(0, Math.min(at - 2, list.length - cap));
+    list.slice(start, start + cap).forEach((x) => {
       const row = h.el('div', 'cw-todo is-' + x.status);
       row.appendChild(h.el('span', 'cw-todo-box', x.status === 'done' ? '☒' : x.status === 'doing' ? '◼' : '☐'));
       row.appendChild(h.el('span', 'cw-todo-text', x.text));
       box.appendChild(row);
     });
-    const hidden = list.length - Math.min(MAX_TODOS, list.length);
+    const hidden = list.length - Math.min(cap, list.length);
     if (hidden > 0) box.appendChild(h.el('div', 'cw-cs-more', '+' + hidden));
     return box;
+  }
+
+  // Which edits the user opened. The tile is rebuilt on every push, so the open
+  // state lives here and not on the node.
+  const openChanges = new Set();
+
+  /** "Added 3 lines, removed 1", and on a tap the lines themselves, + green and - red. */
+  function change(h, a, key) {
+    const c = a.change;
+    const wrap = h.el('div', 'cw-chg');
+    const plus = c.add ? h.t('claude_chg_added', 'added') + ' ' + c.add : '';
+    const minus = c.del ? h.t('claude_chg_removed', 'removed') + ' ' + c.del : '';
+    const sum = h.el('button', 'cw-chg-sum');
+    sum.type = 'button';
+    sum.appendChild(h.el('span', 'cw-chg-file', c.file));
+    if (plus) sum.appendChild(h.el('span', 'is-add', plus));
+    if (minus) sum.appendChild(h.el('span', 'is-del', minus));
+    wrap.appendChild(sum);
+    // Older edits (and files that may hold secrets) arrive without lines.
+    if (!c.lines || !c.lines.length) { sum.disabled = true; return wrap; }
+    const body = h.el('div', 'cw-chg-body');
+    c.lines.forEach((l) => body.appendChild(h.el('div', 'cw-chg-l ' + (l.k === '+' ? 'is-add' : 'is-del'), l.k + ' ' + l.t)));
+    const set = (open) => {
+      body.hidden = !open;
+      sum.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    set(openChanges.has(key));
+    sum.addEventListener('click', () => {
+      if (openChanges.has(key)) openChanges.delete(key); else openChanges.add(key);
+      set(openChanges.has(key));
+    });
+    wrap.appendChild(body);
+    return wrap;
   }
 
   /** The last few tool calls, the way the terminal prints them. */
@@ -158,6 +215,7 @@
       row.appendChild(call);
       const res = a.ok === false ? h.t('claude_act_failed', 'failed') : (a.ms ? h.dur(a.ms) : h.t('claude_act_ok', 'done'));
       row.appendChild(h.el('div', 'cw-act-res', '⎿  ' + res));
+      if (a.change) row.appendChild(change(h, a, (s.id || '') + ':' + a.at));
       box.appendChild(row);
     });
     return box;

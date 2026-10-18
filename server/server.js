@@ -125,6 +125,7 @@ const claudeSessions = require('./claude-sessions');
 const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
+const claudeSubagent = require('./claude-subagent.js');
 const claudeHistory = require('./claude-history');
 const claudeCommands = require('./claude-commands');
 const claudeAttach = require('./claude-attach');
@@ -12809,6 +12810,7 @@ const _claudeAttach = claudeAttach.createAttachments({ dir: path.join(DATA_DIR, 
 
 const _claudeRunner = claudeRun.createRunner({
   projectsDir: () => claudeUsage.resolveProjectsDir(),
+  foldersFile: path.join(DATA_DIR, 'claude-folders.json'),
   onChange: () => _claudeBridgeChanged(),
 });
 
@@ -12857,9 +12859,21 @@ async function _claudeSyncRegistry() {
   try { _claudeBridge.mergeRegistry(await claudeSessions.readRegistry()); }
   catch { /* no registry is simply no corroboration */ }
 }
+// Esc in the terminal ends a turn without a Stop hook: the transcript's last
+// line says so, so a session that claims to work is checked against it.
+async function _claudeCheckInterrupts() {
+  try {
+    for (const w of _claudeBridge.workingSessions()) {
+      if (await claudeTranscript.interruptedSince(claudeUsage.resolveProjectsDir(), w.id, w.since)) {
+        _claudeBridge.markInterrupted(w.id);
+      }
+    }
+  } catch { /* a failed check leaves the session as it was */ }
+}
 _claudeRegistryTimer = setInterval(() => {
   if (sseClients.size === 0) return;
   _claudeSyncRegistry();
+  _claudeCheckInterrupts();
 }, 7000);
 if (typeof _claudeRegistryTimer.unref === 'function') _claudeRegistryTimer.unref();
 
@@ -13375,6 +13389,7 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/claude/unlink',
   '/api/claude/run',
   '/api/claude/run/stop',
+  '/api/claude/folder',
   '/api/claude/attach',
   // Moves chat transcripts to the Recycle Bin: never from a drive-by page or a
   // sandboxed widget frame.
@@ -16873,9 +16888,15 @@ const handleRequest = async (req, res) => {
     // Claude Code.
     if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
     let accepted = false;
-    try { accepted = _claudeBridge.applyMod(JSON.parse(await readBody(req))); }
-    catch { /* malformed: answered as not accepted */ }
-    json({ ..._claudeModReply(), accepted });
+    let needCommands = false;
+    try {
+      const body = JSON.parse(await readBody(req));
+      accepted = _claudeBridge.applyMod(body);
+      // This server restarted since the mod last sent its command list, and the
+      // mod only resends a list that changed: ask for it, or the tile's "/" is empty.
+      needCommands = accepted && body.kind === 'hello' && _claudeBridge.wantsCommandList(body.sessionId);
+    } catch { /* malformed: answered as not accepted */ }
+    json({ ..._claudeModReply(), accepted, needCommands });
 
   } else if (reqPath === '/api/claude/mod' && req.method === 'GET') {
     // The mod's /xenon command: does the hub hear this install at all.
@@ -17027,8 +17048,12 @@ const handleRequest = async (req, res) => {
     try {
       const data = JSON.parse(await readBody(req));
       _claudeBridge.applyHook(data);
-      const reason = _claudeBridge.takeFollowUp(String(data && data.session_id || ''));
+      const sid = String(data && data.session_id || '');
+      const reason = _claudeBridge.takeFollowUp(sid);
       json(reason ? { decision: 'block', reason } : {});
+      // A command typed on the tile during the turn waits for the terminal: hand
+      // it to the mod's parked request now, not when that request times out.
+      if (!reason && sid) setImmediate(() => { try { _claudeInbox.wake(sid); } catch { /* next ask takes it */ } });
     } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
 
   } else if (reqPath === '/api/claude/answer' && req.method === 'POST') {
@@ -17118,6 +17143,13 @@ const handleRequest = async (req, res) => {
     try { json({ commands: await _claudeCommands.list(urlObj.searchParams.get('project') || '') }); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/claude/session-commands' && req.method === 'GET') {
+    // The slash commands an OPEN session lists (its mod reports the terminal's
+    // own typeahead), for the tile's "/" list. Names and one line each; null
+    // when that session's mod is too old to report them.
+    try { json({ commands: _claudeBridge.commandListFor(urlObj.searchParams.get('session') || '') }); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {
     // The last turns of one session, so a follow-up is not written blind. Pure
     // read, and the session id is matched against a strict shape before it is
@@ -17128,6 +17160,40 @@ const handleRequest = async (req, res) => {
         urlObj.searchParams.get('session') || '',
         { full: urlObj.searchParams.get('full') === '1' });
       json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/transcript-image' && req.method === 'GET') {
+    // One picture from a session's thread, named by the id the transcript reply
+    // gave it. The session id is matched against a strict shape and the image id
+    // is two numbers; the answer is an allowlisted image type, never a path or HTML.
+    try {
+      const out = await claudeTranscript.readImage(claudeUsage.resolveProjectsDir(),
+        urlObj.searchParams.get('session') || '', urlObj.searchParams.get('id') || '');
+      if (!out.ok) { res.writeHead(out.error === 'bad_request' ? 400 : 404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }
+      res.writeHead(200, {
+        'Content-Type': out.mime,
+        'Content-Length': out.data.length,
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'private, max-age=3600',
+      });
+      res.end(out.data);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/agent' && req.method === 'GET') {
+    // One subagent of a session, read from Claude Code's own files: type, label,
+    // model, effort, context size and its last tool calls. Ids only, both
+    // shape-checked before a path is built; never its prompt or tool results.
+    try {
+      const out = await claudeSubagent.readAgent(claudeUsage.resolveProjectsDir(),
+        urlObj.searchParams.get('session') || '', urlObj.searchParams.get('id') || '');
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/plan' && req.method === 'GET') {
+    // The last plan a session wrote, read back from its transcript: the Plan tab
+    // asks once when the live feed has none (Xenon started after the plan).
+    try {
+      json(await claudeTranscript.lastPlan(claudeUsage.resolveProjectsDir(), urlObj.searchParams.get('session') || ''));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/history' && req.method === 'GET') {
@@ -17186,6 +17252,15 @@ const handleRequest = async (req, res) => {
         resume,
       });
       json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/folder' && req.method === 'POST') {
+    // Adds a folder to the places a run may start in. The only route that takes
+    // a path for this: it is validated and stored, never run, and a paired
+    // device cannot reach it (REMOTE_ADMIN).
+    try {
+      const body = JSON.parse(await readBody(req));
+      json(await _claudeRunner.addFolder(body && body.path));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/run/stop' && req.method === 'POST') {

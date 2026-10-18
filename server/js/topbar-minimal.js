@@ -310,7 +310,12 @@
       // Nothing actually resized (e.g. the takeover is switched off, so a
       // play/pause only changed a glyph) — don't animate a box that isn't moving.
       if (Math.abs(to.width - from.width) < 2 && Math.abs(to.height - from.height) < 2) {
-        pill.classList.remove('mini-morph-dim');
+        // A morph cut short by this one never ran its own cleanup (its end timer was
+        // cleared above): hand the capsule back to content sizing here too.
+        pill.classList.remove('mini-morph-dim', 'mini-morphing');
+        pill.style.removeProperty('width');
+        pill.style.removeProperty('height');
+        reflowIsland();
         return;
       }
       pill.classList.add('mini-morphing');
@@ -380,6 +385,12 @@
     ui = { pill, left, right };
     // Every size change of the pill moves the cutouts it makes in the tiles.
     if (typeof ResizeObserver === 'function') new ResizeObserver(scheduleReflow).observe(pill);
+    // A ResizeObserver never sees a transform. The pill recedes and returns by
+    // transform alone (notification, Spotlight bulge), so measure again once that
+    // settles: a pass that ran while it was scaled down left the cutout too small.
+    const settle = (e) => { if (e.target === pill) scheduleReflow(); };
+    pill.addEventListener('transitionend', settle);
+    pill.addEventListener('animationend', settle);
     return ui;
   }
 
@@ -553,7 +564,7 @@
     if (st && st.leaving) clearTimeout(st.leaving);
     notchState.delete(item);
     item.classList.remove('island-clear');
-    ['--island-clear', '--island-inset', '--island-notch'].forEach(p => item.style.removeProperty(p));
+    ['--island-clear', '--island-inset', '--island-notch', '--island-notch-ms'].forEach(p => item.style.removeProperty(p));
     const svg = item.querySelector(':scope > .island-notch-edge');
     if (svg) svg.remove();
   }
@@ -569,6 +580,7 @@
     if (st.leaving) return;
     st.leaving = setTimeout(() => { if (notchState.get(item) === st) dropNotch(item); }, NOTCH_MS);
     st.key = '';
+    item.style.setProperty('--island-notch-ms', NOTCH_MS + 'ms'); // closes on its own clock while the box follows
     item.style.setProperty('--island-inset', st.line.width + 'px');
     drawNotch(item, window.IslandNotch.collapsed(st.geo), st.line);
   }
@@ -585,6 +597,108 @@
     notchFrame = requestAnimationFrame(() => { notchFrame = 0; reflowIsland(); });
   }
 
+  // An SDK line changing length resizes the capsule, and with it the cutout.
+  let watchedTenant = null;
+  function watchTenant(el) {
+    if (watchedTenant === el || typeof ResizeObserver !== 'function') return;
+    watchedTenant = el;
+    new ResizeObserver(scheduleReflow).observe(el);
+  }
+
+  const boxOf = (r, radius) => ({
+    left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height,
+    // A pill's radius is far past half its height; clamp it so it can be animated.
+    radius: Math.min(Number.isFinite(radius) ? radius : 0, r.height / 2),
+  });
+
+  // Where the island lives, in viewport px: the SDK capsule when a widget has
+  // taken it, else the pill. The cutouts wrap this box only: a notification
+  // (js/toast-island.js) grows out of it and floats OVER the tiles for its few
+  // seconds, so the tiles never change shape for one. The capsule is placed from
+  // its layout size and anchor, so it is never read mid-transform. The pill IS
+  // mid-transform while it returns from receding (a scale), so then its last box
+  // at rest stands in until it has settled. A notification grows out of and back
+  // into this box; `kind` tells it whether there is a pill to dim first.
+  let restBox = null;
+  function homeBox() {
+    if (!active || !ui) return null;
+    const body = document.body;
+    const cap = body.classList.contains('xisland-live') ? document.querySelector('.sdk-island') : null;
+    if (cap && cap.offsetWidth) {
+      watchTenant(cap);
+      const w = cap.offsetWidth, h = cap.offsetHeight;
+      const top = parseFloat(getComputedStyle(cap).top) || 0;
+      const align = body.dataset.topbarAlign;
+      const left = align === 'left' ? 12 : align === 'right' ? window.innerWidth - 12 - w : (window.innerWidth - w) / 2;
+      return { ...boxOf({ left, right: left + w, top, bottom: top + h, height: h }, parseFloat(getComputedStyle(cap).borderTopLeftRadius)), kind: 'sdk' };
+    }
+    const cs = getComputedStyle(ui.pill);
+    let scaled = false;
+    try { scaled = cs.transform !== 'none' && Math.abs(new DOMMatrixReadOnly(cs.transform).a - 1) > 0.001; } catch { /* unparsable: treat as at rest */ }
+    if (scaled && restBox) return { ...restBox, kind: 'pill' };
+    const box = boxOf(ui.pill.getBoundingClientRect(), parseFloat(cs.borderTopLeftRadius));
+    if (!scaled) restBox = box;
+    return { ...box, kind: 'pill' };
+  }
+
+  // ── Following a change of tenant ─────────────────────────────────────────────
+  // An SDK line takes the island's spot and gives it back: the cutouts must
+  // change shape with it. Tiles are redrawn every frame meanwhile
+  // (body.island-following turns their own transitions off; a tile that is
+  // leaving keeps its own, see releaseNotch). The capsule jumps, so the box is
+  // moved toward it on a critically damped spring: it starts and stops softly,
+  // never overshoots, and keeps its momentum mid-flight.
+  const FOLLOW_OMEGA = 18;    // 1/s, settles in about 0.3s
+  const FOLLOW_HOLD_MS = 600; // the pill takes ~0.35s to come back; measure after it
+  const BOX_KEYS = ['left', 'right', 'bottom', 'height', 'radius'];
+  const follow = { raf: 0, last: 0, until: 0, pos: null, vel: null };
+
+  function followStop() {
+    follow.pos = follow.vel = null;
+    document.body.classList.remove('island-following');
+  }
+
+  function followStep(now) {
+    follow.raf = 0;
+    if (!active || !ui || !follow.pos) { followStop(); return; }
+    const dt = Math.min(0.05, Math.max(0.001, (now - follow.last) / 1000));
+    follow.last = now;
+    const target = homeBox();
+    if (!target) { followStop(); return; }
+    const e = Math.exp(-FOLLOW_OMEGA * dt);
+    let moving = false;
+    BOX_KEYS.forEach((k) => {
+      const d = follow.pos[k] - target[k];
+      const t = (follow.vel[k] + FOLLOW_OMEGA * d) * dt;
+      follow.pos[k] = target[k] + (d + t) * e;
+      follow.vel[k] = (follow.vel[k] - FOLLOW_OMEGA * t) * e;
+      if (Math.abs(follow.pos[k] - target[k]) > 0.25 || Math.abs(follow.vel[k]) > 2) moving = true;
+    });
+    if (moving || now < follow.until) {
+      reflowIsland();
+      follow.raf = requestAnimationFrame(followStep);
+      return;
+    }
+    followStop();
+    reflowIsland(); // the real box, with the tiles' own transitions back on
+  }
+
+  // Call when the island's tenant changes. No-op without motion or a known
+  // starting box: the plain reflow then does the job.
+  function followIsland() {
+    if (!active || !ui) return;
+    const start = follow.pos || restBox;
+    if (!motionOk() || document.body.classList.contains('layout-editing') || !start) { reflowIsland(); return; }
+    follow.until = performance.now() + FOLLOW_HOLD_MS;
+    if (!follow.pos) {
+      follow.pos = { ...start };
+      follow.vel = { left: 0, right: 0, bottom: 0, height: 0, radius: 0 };
+      follow.last = performance.now();
+      document.body.classList.add('island-following');
+    }
+    if (!follow.raf) follow.raf = requestAnimationFrame(followStep);
+  }
+
   // The grid keeps the full viewport height in minimal mode, so tiles can sit
   // level with the floating clock island. Every tile whose TOP ROW actually
   // intersects the pill gets the notch above. Grid-local coords keep this
@@ -594,8 +708,8 @@
   function reflowIsland() {
     if (!active || !ui || !ui.pill || !window.IslandNotch) { clearIslandTags(); return; }
     try {
-      const pill = ui.pill.getBoundingClientRect();
-      if (!pill.height) { clearIslandTags(); return; }
+      const pill = follow.pos || homeBox();
+      if (!pill || !pill.height) { clearIslandTags(); return; }
       // Geometry is read ONCE, from a single rendered grid, and every tile is then
       // placed from its GridStack coords rather than its own DOM rect. Pager pages
       // sit side by side at the same size and vertical origin, so one measurement
@@ -618,7 +732,7 @@
       const colWidth = g.width / cols;
       const N = window.IslandNotch;
       let margin = null;
-      const want = new Map(); // item -> { geo, line }
+      const want = new Map(); // item -> { geo, line, inset }
       grids.forEach(grid => {
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
           const n = item.gridstackNode;
@@ -630,15 +744,12 @@
           if (margin === null) margin = parseFloat(getComputedStyle(content).left) || 0;
           const left = (n.x || 0) * colWidth;
           const cs = getComputedStyle(surface);
-          const geo = N.geometry({
-            width: (n.w || 0) * colWidth,
-            margin,
-            radius: parseFloat(cs.borderTopLeftRadius) || 0,
-            pill: { left: pill.left - g.left - left, right: pill.right - g.left - left, bottom: pill.bottom - g.top, height: pill.height },
-          });
+          const tile = { width: (n.w || 0) * colWidth, margin, radius: parseFloat(cs.borderTopLeftRadius) || 0 };
+          const local = (b) => ({ left: b.left - g.left - left, right: b.right - g.left - left, bottom: b.bottom - g.top, height: b.height, radius: b.radius });
+          const geo = N.geometry({ ...tile, pill: local(pill) });
           if (!geo) return;
           const width = Math.max(1, parseFloat(cs.borderLeftWidth) || 1);
-          want.set(item, { geo, line: { width, color: cs.borderLeftColor } });
+          want.set(item, { geo, line: { width, color: cs.borderLeftColor }, inset: geo.inset });
         });
       });
       // Writes. Reconcile idempotently: fitGridHeights re-runs on every
@@ -647,17 +758,24 @@
         if (!want.has(item)) releaseNotch(item);
       });
       const animate = motionOk();
-      want.forEach(({ geo, line }, item) => {
+      // While a notification is out the pill is hidden, so a cut around it would
+      // wrap nothing: it closes into its centre and the tiles are whole again
+      // (body.xtoast-fold, js/toast.js; it lifts as the card heads home). The inset
+      // stays, so their content does not move for a notification.
+      const folded = document.body.classList.contains('xtoast-fold') && !document.body.classList.contains('layout-editing');
+      want.forEach(({ geo, line, inset }, item) => {
         const prev = notchState.get(item);
-        const key = N.clipPath(geo) + '|' + line.width + '|' + line.color + '|' + clearance;
+        const shape = folded ? N.collapsed(geo) : geo;
+        const key = N.clipPath(shape) + '|' + inset + '|' + line.width + '|' + line.color + '|' + clearance;
         if (prev && !prev.leaving && prev.key === key && item.classList.contains('island-clear')) return;
         if (prev && prev.leaving) { clearTimeout(prev.leaving); prev.leaving = 0; }
         const fresh = !prev || !item.classList.contains('island-clear');
+        item.style.removeProperty('--island-notch-ms');
         item.style.setProperty('--island-clear', clearance + 'px');
-        item.style.setProperty('--island-inset', geo.inset + 'px');
+        item.style.setProperty('--island-inset', inset + 'px');
         notchState.set(item, { geo, line, key, leaving: 0 });
         item.classList.add('island-clear');
-        if (fresh && animate) {
+        if (fresh && animate && !follow.pos && !folded) {
           // Start closed at the island's centre and open on the next frame.
           drawNotch(item, N.collapsed(geo), line);
           requestAnimationFrame(() => {
@@ -665,11 +783,16 @@
             if (st && st.key === key) drawNotch(item, geo, line);
           });
         } else {
-          drawNotch(item, geo, line);
+          drawNotch(item, shape, line);
         }
       });
-    } catch (e) { /* never break the fit pass */ }
+    } catch (e) {
+      // Never break the fit pass, but say so once: a silent failure here leaves
+      // the island drawn over a tile with nothing in the console to explain it.
+      if (!islandWarned) { islandWarned = true; console.warn('[island] notch reflow failed:', e); }
+    }
   }
+  let islandWarned = false;
 
   // Idempotent; safe to call from every settings/layout apply pass. The minimal
   // chrome reflects the user's choice in every state — including while editing
@@ -707,7 +830,9 @@
     // Pick up an auto-hide setting change even when already active (enable() would
     // have early-returned). Self-guards when inactive.
     configureAutoHide();
+    // Cards on the island move to the normal stack if the chrome stopped being minimal.
+    if (window.XenonToast && typeof window.XenonToast.refresh === 'function') window.XenonToast.refresh();
   }
 
-  window.TopbarMinimal = { apply, reflowIsland, applyIslandLayout, morphIsland };
+  window.TopbarMinimal = { apply, reflowIsland, followIsland, applyIslandLayout, morphIsland, homeBox };
 })();

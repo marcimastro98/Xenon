@@ -18,6 +18,7 @@ const path = require('path');
 const { writeFileAtomic } = require('./atomic-write.js');
 const { createJsonLru } = require('./json-lru.js');
 const T = require('./lyrics-translate.js');
+const { isSurelyLang } = require('./lyrics-language.js');
 const { estimate } = require('./lyrics-translate-price.js');
 
 const CACHE_FILE = 'lyrics-translations.json';
@@ -115,8 +116,12 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
   async function translate({ songKey, texts, lang, reading, cap, cachedOnly }) {
     if (!T.langName(lang)) return { ok: false, error: 'bad_lang' };
     const { unique, index } = T.uniqueLines(texts);
-    if (!T.fitsBudget(unique)) return { ok: false, error: 'too_long' };
     const wantReading = reading !== false && T.needsReading(unique);
+    // Already in the user's language, and surely so: nothing to translate and no
+    // reading to make, so no request, no count against the cap, and it answers a
+    // cachedOnly ask too. Any doubt falls through to the model (lyrics-language.js).
+    if (!wantReading && isSurelyLang(unique, lang)) return { ok: true, same: true, tr: [], read: [] };
+    if (!T.fitsBudget(unique)) return { ok: false, error: 'too_long' };
     const key = `${songKey}|${lang}|${wantReading ? 'r' : ''}`;
     const cached = await cache.get(key);
     if (cached && cached.failed) return { ok: false, error: 'failed', retryAt: cached.until };

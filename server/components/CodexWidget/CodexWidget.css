@@ -264,7 +264,7 @@
 .cx-tb {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   padding: 3px 7px; min-height: 28px; min-width: 28px; border-radius: 999px;
-  color: var(--text, #f0f3f1);
+  color: var(--text, #f0f3f1); cursor: pointer;
 }
 .cx-tb-mark { width: 20px; height: 15px; display: block; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .cx-tb-n { font-size: 10px; font-weight: 800; opacity: 0.65; font-variant-numeric: tabular-nums; }

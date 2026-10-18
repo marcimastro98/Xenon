@@ -22,7 +22,7 @@
 
   const r1 = (n) => Math.round(n * 2) / 2; // half-pixel steps: stable strings, no churn
 
-  // in: { width, margin, radius, pill: { left, right, bottom, height } }, every
+  // in: { width, margin, radius, pill: { left, right, bottom, height, radius? } }, every
   //     number in item-local px (pill already translated into this item's space).
   // out: null when the island does not sit on this tile, else the cutout:
   //     left/right walls, bottom, corner radii, which sides run off the tile, and
@@ -42,7 +42,11 @@
     const openLeft = left - SHOULDER < tileLeft + radius;
     const openRight = right + SHOULDER > tileRight - radius;
     const depth = bottom - margin;
-    const cornerR = Math.max(0, Math.min(p.height / 2 + GAP, depth, (right - left) / 2));
+    // The cutout's corners are the island's own corners plus the ring: a pill is
+    // fully round, a notification card is not, and a rounder cutout than the card
+    // leaves a wedge of wallpaper at its bottom corners.
+    const pillR = Number.isFinite(p.radius) ? Math.min(Math.max(0, p.radius), p.height / 2) : p.height / 2;
+    const cornerR = Math.max(0, Math.min(pillR + GAP, depth, (right - left) / 2));
     return {
       left: openLeft ? -SPILL : r1(left),
       right: openRight ? width + SPILL : r1(right),

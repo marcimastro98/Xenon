@@ -782,8 +782,18 @@
     if (pending) parts.push(t('codex_bar_waiting', 'Codex wants your OK'));
     if (working) parts.push(t('codex_bar_working', 'Codex is working'));
     chip.title = parts.join(' · ');
-    chip.setAttribute('role', 'img');
     chip.setAttribute('aria-label', chip.title);
+    // A tap takes you to the page that holds the Codex tile.
+    chip.setAttribute('role', 'button');
+    chip.tabIndex = 0;
+    const open = () => {
+      const tile = tiles()[0];
+      if (tile && window.DashboardPager) window.DashboardPager.goToPageOf(tile);
+    };
+    chip.addEventListener('click', open);
+    chip.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); }
+    });
     host.replaceChildren(chip);
   }
 

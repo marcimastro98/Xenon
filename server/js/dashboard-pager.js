@@ -349,6 +349,16 @@
     setCurrentIndex(pages.indexOf(page));
   }
 
+  // Go to the page a widget sits on. false when it is on no page (or on a hidden
+  // one), so the caller can fall back instead of tapping into nothing.
+  function goToPageOf(el) {
+    const host = el instanceof Element ? el.closest('.pager-page') : null;
+    const page = host && pages.find(p => p.element === host);
+    if (!page || page.active === false) return false;
+    goToPage(page.id);
+    return true;
+  }
+
   function goByDelta(delta) {
     const activeIdx = pages.map((p, i) => (p.active === false ? -1 : i)).filter(i => i >= 0);
     const here = activeIdx.indexOf(currentIndex);
@@ -503,7 +513,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, setLabel, goToPage, goByDelta, goBack, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
+    window.DashboardPager = { init, registerPage, setLabel, goToPage, goToPageOf, goByDelta, goBack, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

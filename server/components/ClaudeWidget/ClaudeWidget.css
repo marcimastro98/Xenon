@@ -152,33 +152,25 @@
 .cw-rail-list > .cw-section { flex: 0 0 auto; }
 
 /* A card: Clawd in the session's colour, the title, where it lives, and what
-   it is doing. The left edge carries the colour so it reads even when the
-   mascot is too small to. */
+   it is doing. The sprite carries the colour on its own; the open session is
+   the one with a plain fill and its colour as a bar on the left edge. */
 .cw-rc {
   position: relative; flex: 0 0 auto; cursor: pointer;
   display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 10px;
-  width: clamp(170px, 46cqw, 240px); padding: 9px 10px 9px 12px; border-radius: 11px;
-  background: var(--cw-well); box-shadow: inset 0 0 0 1px transparent;
+  width: clamp(170px, 46cqw, 240px); padding: 9px 10px 9px 12px; border-radius: 10px;
+  background: transparent;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 @container cw (min-width: 620px) { .cw-rc { width: auto; } }
-.cw-rc::before {
-  content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 0 2px 2px 0;
-  background: var(--cw-s, var(--cw-3));
-}
-.cw-rc:hover { background: color-mix(in srgb, var(--cw-ink) 8%, transparent); }
+.cw-rc:hover { background: color-mix(in srgb, var(--cw-ink) 6%, transparent); }
 .cw-rc:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
-.cw-rc.is-sel {
-  background: color-mix(in srgb, var(--cw-s, var(--cw-ink)) 14%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-s, var(--cw-ink)) 62%, transparent);
+.cw-rc.is-sel { background: color-mix(in srgb, var(--cw-ink) 9%, transparent); }
+.cw-rc.is-sel::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px;
+  background: var(--cw-s, var(--cw-ink));
 }
-.cw-rc.is-needs:not(.is-sel) {
-  background: color-mix(in srgb, var(--cw-warn) 12%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-warn) 42%, transparent);
-}
-.cw-rc.is-ended { opacity: 0.7; }
-.cw-rc.is-ended.is-sel { opacity: 1; }
+.cw-rc.is-ended:not(.is-sel) .cw-rc-main { opacity: 0.7; }
 .cw-rc-clawd { margin-top: 1px; }
 .cw-rc-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .cw-rc-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -197,6 +189,27 @@
 .cw-rc-todo-seg { flex: 1 1 0; max-width: 14px; height: 4px; border-radius: 1px; background: color-mix(in srgb, var(--cw-ink) 16%, transparent); }
 .cw-rc-todo-seg.is-done { background: color-mix(in srgb, var(--cw-go) 75%, transparent); }
 .cw-rc-todo-seg.is-doing { background: var(--cw-claude); }
+/* Fold button: only where the rail is a column; the narrow strip has no use for it. */
+.cw-rail-fold { display: none; }
+@container cw (min-width: 620px) {
+  .cw-rail-fold {
+    appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; align-self: flex-end;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; min-height: 28px; margin: 0 2px 6px 0; border-radius: 8px;
+    font: inherit; font-size: 16px; line-height: 1; color: var(--cw-2); background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cw-rail-fold:hover { background: color-mix(in srgb, var(--cw-ink) 8%, transparent); color: var(--cw-ink); }
+  .cw-rail-fold:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+  /* Slim rail: one Clawd per session, still in its colour and still moving the way the session is. */
+  .cw-mc.is-slim { grid-template-columns: 56px minmax(0, 1fr); }
+  .cw-mc.is-slim.is-solo { grid-template-columns: minmax(0, 1fr); }
+  .cw-mc.is-slim .cw-rail-fold { align-self: center; margin-right: 0; }
+  .cw-mc.is-slim .cw-rc { grid-template-columns: auto; justify-items: center; padding: 8px 0; }
+  .cw-mc.is-slim .cw-rc-main { display: none; }
+  .cw-mc.is-slim .cw-rail-list { padding-right: 0; }
+  .cw-mc.is-slim .cw-rail-list > .cw-section { display: none; }
+}
 /* The strip keeps a card to its title and one line. */
 @container cw (max-width: 619px) {
   .cw-rc-sub, .cw-rc-todo { display: none; }
@@ -472,7 +485,7 @@
 .cw-bar-more { font-size: 12px; color: var(--cw-2); padding-top: 2px; }
 .cw-model-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 2px 0 8px; background: color-mix(in srgb, var(--cw-ink) 9%, transparent); }
 .cw-model-seg { height: 100%; min-width: 2px; }
-.cw-model-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 4.4em; align-items: center; gap: 10px; padding: 3px 0; font-size: 13px; }
+.cw-model-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto minmax(4.4em, auto); align-items: center; gap: 10px; padding: 3px 0; font-size: 13px; }
 .cw-model-dot { width: 9px; height: 9px; border-radius: 2px; }
 .cw-model-name { font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-model-tok, .cw-model-cost { text-align: right; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -547,27 +560,42 @@
    class on its box: walking while the session works, hopping when it is blocked
    on you, blinking when it is done, eyes shut once it has ended. The badge says
    the state again without motion, for the moments motion is switched off. */
+/* The sprite stands on its own, no tile behind it, at a whole number of screen
+   pixels per sprite pixel (32x24 is 2:1), and every step it takes is one
+   sprite pixel: nothing lands between pixels and blurs. */
 .cw-clawd {
   position: relative; flex: 0 0 auto; display: inline-grid; place-items: center;
-  width: 30px; height: 26px; border-radius: 8px;
+  width: 32px; height: 28px;
   color: var(--cw-s, var(--cw-claude));
-  background: color-mix(in srgb, var(--cw-s, var(--cw-claude)) 13%, transparent);
 }
-.cw-clawd-svg { width: 20px; height: 15px; display: block; }
-.cw-clawd.is-ended { color: var(--cw-3); background: var(--cw-well); }
+.cw-clawd-svg { width: 32px; height: 24px; display: block; overflow: visible; }
+.cw-clawd.is-ended { color: var(--cw-3); opacity: 0.6; }
 .cw-clawd.is-ended .cw-cl-eyes { opacity: 1; }
-.cw-clawd.is-working .cw-cl-shell { animation: cw-cl-bob 0.5s steps(1, end) infinite; will-change: transform; }
-.cw-clawd.is-working .cw-cl-legl { animation: cw-cl-stepa 0.5s steps(1, end) infinite; }
-.cw-clawd.is-working .cw-cl-legr { animation: cw-cl-stepb 0.5s steps(1, end) infinite; }
+.cw-clawd.is-working .cw-cl-shell { animation: cw-cl-bob-px 0.5s steps(1, end) infinite; will-change: transform; }
+.cw-clawd.is-working .cw-cl-legl { animation: cw-cl-stepa-px 0.5s steps(1, end) infinite; }
+.cw-clawd.is-working .cw-cl-legr { animation: cw-cl-stepb-px 0.5s steps(1, end) infinite; }
 .cw-clawd.is-idle .cw-cl-eyes { animation: cw-cl-blink 4.5s steps(1, end) infinite; }
-.cw-clawd.is-needs { color: var(--cw-warn); background: color-mix(in srgb, var(--cw-warn) 16%, transparent); }
-.cw-clawd.is-needs .cw-clawd-svg { animation: cw-cl-hop 1.9s steps(1, end) infinite; will-change: transform; }
-.cw-clawd-badge {
-  position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; border-radius: 7px;
-  display: grid; place-items: center; padding: 0 3px; box-sizing: border-box;
-  font-size: 10px; font-weight: 850; line-height: 1; color: #1b1205; background: var(--cw-warn);
+.cw-clawd.is-needs { color: var(--cw-warn); }
+.cw-clawd.is-needs .cw-clawd-svg { animation: cw-cl-hop-px 1.9s steps(1, end) infinite; will-change: transform; }
+@keyframes cw-cl-bob-px   { 0% { transform: translateY(0); } 50% { transform: translateY(1px); } }
+@keyframes cw-cl-stepa-px { 0% { transform: translateY(0); } 50% { transform: translateY(1px); } }
+@keyframes cw-cl-stepb-px { 0% { transform: translateY(1px); } 50% { transform: translateY(0); } }
+@keyframes cw-cl-hop-px {
+  0%, 100% { transform: translateY(0); }
+  6%  { transform: translateY(-4px); }
+  12% { transform: translateY(0); }
+  20% { transform: translateY(-4px); }
+  26% { transform: translateY(0); }
 }
-.cw-clawd-badge.is-fresh { min-width: 9px; width: 9px; height: 9px; top: -2px; right: -2px; background: var(--cw-go); }
+/* Square, like the sprite: "!" when it waits for you, one 2x2 dot when it
+   finished while you were elsewhere. */
+.cw-clawd-badge {
+  position: absolute; top: -3px; right: -5px; width: 10px; height: 12px;
+  display: grid; place-items: center;
+  font-family: var(--cw-mono); font-size: 10px; font-weight: 800; line-height: 1; color: var(--cw-on-go); background: var(--cw-warn);
+}
+.cw-clawd-badge.is-needs { color: #1b1205; }
+.cw-clawd-badge.is-fresh { width: 4px; height: 4px; top: 0; right: -3px; background: var(--cw-go); }
 
 /* The spinner Claude Code prints before what it is doing. Stepped, never
    eased: it is a glyph changing, not a shape moving. */
@@ -584,9 +612,11 @@
 body.overlay-frozen .cw-clawd *, body.ambient-idle .cw-clawd *,
 body.game-mode .cw-clawd *, body.low-power-gpu .cw-clawd *,
 body.overlay-frozen .cw-spin::before, body.ambient-idle .cw-spin::before,
-body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation: none; transform: none; }
+body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before,
+body.overlay-frozen .cw-breathing, body.ambient-idle .cw-breathing,
+body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none; transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .cw-clawd *, .cw-spin::before { animation: none !important; transform: none; }
+  .cw-clawd *, .cw-spin::before, .cw-breathing { animation: none !important; transform: none; }
 }
 
 /* ── the header: brand, the quota at a glance, faces, new session ── */
@@ -634,7 +664,7 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 
 .cw-cs-head { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
 .cw-cs-clawd { width: 38px; height: 32px; border-radius: 10px; }
-.cw-cs-clawd .cw-clawd-svg { width: 24px; height: 18px; }
+.cw-cs-clawd .cw-clawd-svg { width: 32px; height: 24px; }
 .cw-cs-names { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cw-cs-title { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-cs-sub { font-family: var(--cw-mono); font-size: 11.5px; color: var(--cw-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -648,6 +678,16 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 .cw-chip-model { color: var(--cw-ink); box-shadow: inset 2px 0 0 hsl(var(--cw-chip-hue, 20) 65% 60%); }
 .cw-chip-mode { font-family: var(--cw-mono); color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 14%, transparent); }
 .cw-chip-mode.is-warn { color: var(--cw-crit); background: color-mix(in srgb, var(--cw-crit) 13%, transparent); }
+/* Header controls of an idle terminal session: the menus and Compact read as chips. */
+.cw-cs-chips .cs-wrap { flex: 0 1 auto; min-width: 0; }
+.cw-cs-chips .cs-label { max-width: 16ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-cs-chips .cs-wrap .cs-trigger { min-height: 22px; padding: 0 8px; font-size: 11.5px; font-weight: 650; border-radius: 6px; }
+.cw-chip-btn {
+  appearance: none; border: 0; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 650;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-chip-btn:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 13%, transparent); }
+.cw-chip-btn:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
 .cw-chip-glyph { font-size: 10px; letter-spacing: -0.1em; }
 .cw-chip-lines { font-family: var(--cw-mono); }
 .cw-chip-lines .is-add { color: var(--cw-go); }
@@ -671,14 +711,14 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 
 /* Conversation, with the plan and the tool log beside it on a wide console
    and under the status line's weight on a narrow one. */
-.cw-cs-body { min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+.cw-cs-body { position: relative; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
 .cw-cs-aside {
-  flex: 0 1 auto; min-width: 0; min-height: 0; max-height: 34%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  flex: 0 1 auto; min-width: 0; min-height: 0; max-height: 34%; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
   display: flex; flex-direction: column; gap: 10px; padding: 9px 10px; border-radius: 10px; background: var(--cw-term);
 }
 .cw-cs-body.has-aside { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(120px, 1fr) auto; min-height: min-content; }
 @container cwc (min-width: 640px) {
-  .cw-cs-body.has-aside { grid-template-columns: minmax(0, 1fr) clamp(200px, 32cqw, 280px); grid-template-rows: minmax(120px, 1fr); }
+  .cw-cs-body.has-aside { grid-template-columns: minmax(0, 1fr) clamp(220px, 34cqw, 300px); grid-template-rows: minmax(120px, 1fr); }
   .cw-cs-body.has-aside .cw-cs-aside { max-height: none; }
 }
 @container cwc (max-width: 639px) {
@@ -687,6 +727,141 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
   .cw-cs-body.has-aside { grid-template-rows: auto minmax(120px, 1fr); }
   .cw-cs-body.has-aside .cw-cs-aside { order: -1; max-height: 120px; }
 }
+/* Side panel head: Activity | Plan tabs and the hide button. */
+.cw-aside-bar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-height: 26px; }
+.cw-aside-tabs { flex: 1 1 auto; min-width: 0; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.cw-aside-tab {
+  appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; min-height: 26px; padding: 0 7px; border-radius: 7px; white-space: nowrap;
+  font: inherit; font-size: 12px; font-weight: 700; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-aside-tab:hover { color: var(--cw-ink); }
+.cw-aside-tab.is-on { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-aside-hide {
+  appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; width: 28px; min-height: 26px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 16px; line-height: 1; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-aside-hide:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-aside-hide:focus-visible, .cw-aside-tab:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-aside-proposal { font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--cw-ink); }
+.cw-aside-proposal + .cw-cs-todos { margin-top: 10px; }
+/* The plan as a roadmap: a rail down the left, done steps filled, the one being
+   worked lit, the rest waiting. */
+.cw-roadmap { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; }
+.cw-rm-step { position: relative; display: flex; align-items: flex-start; gap: 9px; padding: 0 0 11px; min-width: 0; font-size: 12.5px; line-height: 1.4; color: var(--cw-3); }
+.cw-rm-step:last-child { padding-bottom: 0; }
+.cw-rm-step::before { content: ''; position: absolute; left: 9px; top: 20px; bottom: 1px; width: 2px; border-radius: 1px; background: var(--cw-line); }
+.cw-rm-step:last-child::before { display: none; }
+.cw-rm-step.is-done::before { background: color-mix(in srgb, var(--cw-go) 55%, transparent); }
+.cw-rm-dot { position: relative; flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; font-family: var(--cw-mono); color: var(--cw-3); box-shadow: inset 0 0 0 1.5px var(--cw-line); }
+.cw-rm-title { min-width: 0; padding-top: 2px; overflow-wrap: anywhere; }
+.cw-rm-step.is-done { color: var(--cw-2); }
+.cw-rm-step.is-done .cw-rm-dot { color: var(--cw-term-ink, #0b0d0f); background: var(--cw-go); box-shadow: none; }
+.cw-rm-step.is-doing { color: var(--cw-ink); font-weight: 600; }
+.cw-rm-step.is-doing .cw-rm-dot { color: var(--cw-ink); box-shadow: inset 0 0 0 2px var(--cw-go), 0 0 0 4px color-mix(in srgb, var(--cw-go) 22%, transparent); }
+/* The one breathing mark of a live step or agent; frozen with the rest above. */
+.cw-breathing { animation: cw-breathe 1.8s ease-in-out infinite; }
+/* The Agents view: one row per subagent (its square in its own colour, solid
+   while it works, hollow once done), then one agent in full. */
+.cw-agents { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-ag-row {
+  appearance: none; border: 0; width: 100%; cursor: pointer; text-align: left; font: inherit; color: var(--cw-ink);
+  display: flex; align-items: flex-start; gap: 9px; min-height: 40px; padding: 6px 4px; border-radius: 7px; background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-ag-row:hover { background: color-mix(in srgb, var(--cw-ink) 7%, transparent); }
+.cw-ag-row.is-done { color: var(--cw-2); }
+.cw-ag-row:focus-visible, .cw-ag-back:focus-visible, .cw-aside-strip:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-ag-mark { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 5px; background: var(--cw-s, var(--cw-2)); }
+.cw-ag-mark.is-done { background: transparent; box-shadow: inset 0 0 0 2px var(--cw-s, var(--cw-2)); }
+.cw-ag-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-ag-title { font-size: 12.5px; font-weight: 650; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-ag-sub { font-family: var(--cw-mono); font-size: 11px; line-height: 1.4; color: var(--cw-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-ag-time { flex: 0 0 auto; padding-top: 1px; font-size: 11.5px; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-ag-time.is-done { color: var(--cw-3); }
+.cw-agent { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.cw-ag-head { display: flex; align-items: flex-start; gap: 7px; min-width: 0; }
+.cw-ag-back {
+  appearance: none; border: 0; cursor: pointer; flex: 0 0 auto; width: 26px; height: 26px; margin: -4px 0 0 -6px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 16px; line-height: 1; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-ag-back:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-ag-names { flex: 1 1 auto; min-width: 0; }
+.cw-ag-names .cw-ag-title { white-space: normal; overflow-wrap: anywhere; }
+.cw-ag-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 12px; line-height: 1.4; }
+.cw-ag-facts dt { color: var(--cw-2); }
+.cw-ag-facts dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cw-ag-facts dd.is-run { color: var(--cw-go); }
+.cw-ag-facts dd.is-done { color: var(--cw-2); }
+.cw-ag-model { font-weight: 650; color: var(--cw-chip-hue, var(--cw-ink)); }
+.cw-agent .cw-cs-label { margin: 2px 0 -5px; }
+.cw-ag-last { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
+/* The hidden panel's summary: one row over the conversation on a narrow
+   console, the panel's spine beside it on a wide one. No slab of its own, a
+   hairline; agents are small Clawds in their own colours, the plan a ladder
+   of its steps. */
+.cw-cs-body.has-strip { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(120px, 1fr); min-height: min-content; }
+.cw-aside-strip {
+  appearance: none; border: 0; border-bottom: 1px solid var(--cw-line); cursor: pointer; order: -1;
+  min-width: 0; min-height: 36px; padding: 2px 6px 3px 0; overflow: hidden;
+  display: flex; align-items: center; gap: 12px;
+  font: inherit; color: var(--cw-2); background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-aside-strip:hover { color: var(--cw-ink); }
+.cw-strip-open {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  font-size: 16px; line-height: 1;
+}
+.cw-aside-strip:hover .cw-strip-open { background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+.cw-strip-agents { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cw-strip-agent { display: inline-flex; align-items: center; gap: 5px; }
+.cw-strip-clawd { display: block; color: var(--cw-s, var(--cw-2)); }
+.cw-strip-time { font-size: 10.5px; line-height: 12px; color: var(--cw-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cw-strip-more { font-size: 11px; font-weight: 650; color: var(--cw-2); font-variant-numeric: tabular-nums; }
+.cw-strip-plan { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
+.cw-strip-v { font-size: 11.5px; font-weight: 700; color: var(--cw-ink); font-variant-numeric: tabular-nums; }
+.cw-strip-ladder { display: flex; gap: 2px; }
+.cw-strip-step { width: 8px; height: 4px; border-radius: 1px; background: var(--cw-line); }
+.cw-strip-step.is-done { background: var(--cw-go); }
+.cw-strip-step.is-doing { background: color-mix(in srgb, var(--cw-go) 50%, transparent); }
+.cw-strip-ladder.is-bar { width: 48px; height: 4px; border-radius: 2px; overflow: hidden; background: var(--cw-line); }
+.cw-strip-fill { display: block; width: var(--cw-plan, 0%); height: 100%; background: var(--cw-go); }
+/* The spine needs height for its column; a short tile keeps the row. */
+@container cw (min-height: 420px) {
+  @container cwc (min-width: 640px) {
+    .cw-cs-body.has-strip { grid-template-columns: minmax(0, 1fr) 48px; grid-template-rows: minmax(120px, 1fr); }
+    .cw-aside-strip {
+      order: 0; flex-direction: column; justify-content: flex-start; gap: 14px; padding: 4px 0 8px 1px;
+      border-bottom: 0; border-left: 1px solid var(--cw-line);
+    }
+    .cw-strip-agents { flex-direction: column; gap: 10px; }
+    .cw-strip-agent { flex-direction: column; gap: 3px; }
+    .cw-strip-plan { flex-direction: column; gap: 6px; margin: auto 0 0; }
+    .cw-strip-ladder { flex-direction: column; gap: 3px; }
+    .cw-strip-step { width: 20px; height: 4px; }
+    .cw-strip-ladder.is-bar { width: 4px; height: 56px; }
+    .cw-strip-fill { width: 100%; height: var(--cw-plan, 0%); }
+  }
+}
+@container cw (max-height: 300px) {
+  .cw-aside-strip { display: none; }
+  .cw-cs-body.has-strip { display: flex; }
+}
+
+.cw-aside-full { margin-top: 4px; }
+.cw-aside-full > summary { cursor: pointer; padding: 4px 0; font-size: 12px; font-weight: 700; color: var(--cw-2); }
+.cw-aside-full[open] > summary { margin-bottom: 4px; }
+/* The Plan view: every step in full, with the progress bar above. */
+.cw-cs-todos.is-full .cw-todo { align-items: flex-start; }
+.cw-cs-todos.is-full .cw-todo-text { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.cw-plan-bar { height: 5px; border-radius: 3px; margin: 2px 0 6px; background: color-mix(in srgb, var(--cw-ink) 10%, transparent); overflow: hidden; }
+.cw-plan-fill { display: block; height: 100%; width: var(--cw-plan, 0%); border-radius: inherit; background: var(--cw-go); }
 .cw-cs-label { font-size: 12px; font-weight: 700; color: var(--cw-2); margin-bottom: 3px; }
 .cw-cs-todos, .cw-cs-acts { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .cw-todo { display: flex; align-items: baseline; gap: 7px; min-width: 0; font-size: 12.5px; line-height: 1.4; }
@@ -704,6 +879,28 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 .cw-act-arg { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--cw-2); }
 .cw-act-res { padding-left: 2px; color: var(--cw-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-act.is-fail .cw-act-res { color: var(--cw-crit); }
+
+/* What an edit changed: a summary line that opens into the +/- lines. */
+.cw-chg { margin: 2px 0 2px 14px; min-width: 0; }
+.cw-chg-sum {
+  appearance: none; border: 0; background: transparent; cursor: pointer; padding: 2px 0; max-width: 100%;
+  display: flex; align-items: baseline; gap: 8px; text-align: left; font: inherit; color: var(--cw-2);
+  -webkit-tap-highlight-color: transparent;
+}
+.cw-chg-sum:disabled { cursor: default; }
+.cw-chg-sum:not(:disabled):hover .cw-chg-file { color: var(--cw-ink); }
+.cw-chg-sum:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 2px; }
+.cw-chg-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-chg-sum .is-add, .cw-chg-l.is-add { color: var(--cw-go); }
+.cw-chg-sum .is-del, .cw-chg-l.is-del { color: var(--cw-crit); }
+.cw-chg-body {
+  margin-top: 3px; padding: 5px 0; border-radius: 6px; max-height: 220px;
+  overflow: auto; overscroll-behavior: auto; scrollbar-width: thin; background: var(--cw-term);
+}
+.cw-chg-body[hidden] { display: none; }
+.cw-chg-l { white-space: pre; padding: 0 8px; width: max-content; min-width: 100%; }
+.cw-chg-l.is-add { background: color-mix(in srgb, var(--cw-go) 13%, transparent); }
+.cw-chg-l.is-del { background: color-mix(in srgb, var(--cw-crit) 13%, transparent); }
 
 .cw-cs-note {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px;
@@ -735,7 +932,7 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 @container cw (max-height: 360px) {
   .cw-hero { flex-direction: row; padding: 2px 0; text-align: left; }
   .cw-hero-clawd { width: 38px; height: 32px; margin: 0; }
-  .cw-hero-clawd .cw-clawd-svg { width: 24px; height: 18px; }
+  .cw-hero-clawd .cw-clawd-svg { width: 32px; height: 24px; }
   .cw-hero-s { display: none; }
 }
 
@@ -747,6 +944,14 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
   background: color-mix(in srgb, var(--cw-ink) 6%, transparent); border: 1px solid var(--cw-line);
   -webkit-tap-highlight-color: transparent;
 }
+.cw-ask-folder { display: flex; flex: 1 1 100%; gap: 7px; min-width: 0; }
+.cw-ask-folder:has(.cw-ask-proj-add) { flex: 0 0 auto; }
+.cw-ask-folder-in {
+  flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--cw-line);
+  font: inherit; font-family: var(--cw-mono); font-size: 12px; color: var(--cw-ink); background: var(--cw-term);
+}
+.cw-ask-folder-in:focus-visible { outline: 2px solid var(--cw-go); outline-offset: 1px; }
+.cw-ask-proj-add { color: var(--cw-2); border-style: dashed; }
 .cw-ask-proj-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cw-mono); font-size: 12px; }
 .cw-ask-proj:hover { background: color-mix(in srgb, var(--cw-ink) 11%, transparent); }
 .cw-ask-proj.is-sel { color: var(--cw-claude-ink); background: color-mix(in srgb, var(--cw-claude) 15%, transparent); border-color: color-mix(in srgb, var(--cw-claude) 60%, transparent); }
@@ -756,14 +961,25 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
    The speaker label stays for screen readers, the glyph says it at a glance. */
 .cw-thread {
   flex: 1 1 auto; min-height: 120px; overflow-y: auto;
-  overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+  /* No overscroll containment: when the thread fits, the wheel must reach the console that scrolls around it. */
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
   display: flex; flex-direction: column; gap: 12px;
   padding: 12px 12px 14px; border-radius: 11px; background: var(--cw-term);
 }
 /* The wrap takes the thread's place so the "new reply" chip can float over
    the bottom edge of the scroller without scrolling with it. */
-.cw-thread-wrap { position: relative; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column; }
-.cw-thread-wrap > .cw-thread { min-height: 0; }
+.cw-thread-wrap {
+  position: relative; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column;
+  border-radius: 11px; background: var(--cw-term); overflow: hidden;
+}
+/* Basis 0, not auto: with auto the wrap's natural height was the whole
+   conversation, so the console grew and scrolled instead of the thread, and a
+   session opened at its top with the newest turn far below. */
+.cw-thread-wrap > .cw-thread { min-height: 0; flex: 1 1 0; background: transparent; border-radius: 0; }
+/* The status line is the foot of the conversation: same well, a hairline above. */
+.cw-thread-wrap > .cw-cs-status { flex: 0 0 auto; border-radius: 0; background: transparent; box-shadow: inset 0 1px 0 var(--cw-line); }
+.cw-thread-wrap > .cw-cs-status.is-needs { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cw-warn) 55%, transparent); }
+.cw-thread-wrap:has(> .cw-cs-status) > .cw-thread-new { bottom: 52px; }
 .cw-thread-new {
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
   appearance: none; border: 0; cursor: pointer; min-height: 32px; padding: 0 14px; border-radius: 999px;
@@ -794,12 +1010,6 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 .cw-msg.is-provisional .cw-msg-text { opacity: 0.85; }
 .cw-msg.is-provisional .cw-msg-bubble::before { color: var(--cw-3); }
 
-/* "Claude is working": the line that stands in for the reply not yet written. */
-.cw-msg.is-typing .cw-msg-bubble::before { content: none; }
-.cw-msg.is-typing .cw-msg-bubble { padding-left: 0; }
-.cw-typing { display: flex; align-items: baseline; gap: 6px; font-size: 13px; }
-.cw-typing .cw-spin { width: 20px; }
-.cw-typing-t { color: var(--cw-claude-ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Rendered markdown. Deliberately quiet: this is context. */
 .cw-md-p { margin: 0; }
@@ -825,14 +1035,18 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
   background: var(--cw-term); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cw-ink) 16%, transparent);
 }
 .cw-composer:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-claude) 70%, transparent); }
+/* The text, the attach button and the send button share one box: the buttons
+   sit bottom right and the text keeps clear of them. */
+.cw-ask-field { position: relative; display: flex; min-width: 0; }
+.cw-ask-tools { position: absolute; right: 2px; top: 2px; display: flex; align-items: center; gap: 4px; }
 .cw-ask-text {
-  width: 100%; box-sizing: border-box; resize: none; min-height: 56px;
-  padding: 6px 8px 6px 26px; border: 0; border-radius: 8px; outline: none;
+  width: 100%; box-sizing: border-box; resize: none; min-height: 36px; max-height: 160px;
+  padding: 8px 78px 8px 26px; border: 0; border-radius: 8px; outline: none;
   font: inherit; font-family: var(--cw-mono); font-size: 13px; line-height: 1.5; color: var(--cw-ink);
   background: transparent;
 }
-.cw-composer::before {
-  content: '>'; position: absolute; left: 18px; top: 15px; pointer-events: none;
+.cw-ask-field::before {
+  content: '>'; position: absolute; left: 8px; top: 8px; pointer-events: none;
   font-family: var(--cw-mono); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--cw-claude-ink);
 }
 .cw-ask-text::placeholder { color: var(--cw-3); }
@@ -885,10 +1099,17 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 .cw-icon-btn:disabled { opacity: 0.4; cursor: default; }
 
 .cw-attach-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.cw-attach-chip {
-  display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 5px 4px 10px; border-radius: 7px;
+.cw-attach-item {
+  position: relative; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 5px 4px 10px; border-radius: 7px;
   background: color-mix(in srgb, var(--cw-ink) 8%, transparent);
 }
+/* A picture is shown as itself, with the remove button over its corner. */
+.cw-attach-item.is-image { padding: 0; width: 64px; height: 64px; overflow: hidden; }
+.cw-attach-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cw-attach-item.is-image .cw-attach-rm {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; color: #fff; background: rgba(0, 0, 0, 0.6);
+}
+.cw-attach-item.is-image .cw-attach-rm:hover { color: #fff; background: rgba(0, 0, 0, 0.8); }
 .cw-attach-name { font-family: var(--cw-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-attach-rm {
   appearance: none; cursor: pointer; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 0;
@@ -897,19 +1118,49 @@ body.game-mode .cw-spin::before, body.low-power-gpu .cw-spin::before { animation
 }
 .cw-attach-rm:hover { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
 
+/* Inside the box the paperclip has no plate of its own. */
+.cw-ask-tools .cw-icon-btn { background: transparent; color: var(--cw-2); }
+.cw-ask-tools .cw-icon-btn:hover:not(:disabled) { color: var(--cw-ink); background: color-mix(in srgb, var(--cw-ink) 10%, transparent); }
+
+/* A picture at full size. Lives on the body, so it carries its own colours. */
+.cw-lightbox {
+  position: fixed; inset: 0; z-index: 12100; display: grid; place-items: center; padding: 24px;
+  background: rgba(0, 0, 0, 0.9); cursor: zoom-out;
+}
+.cw-lightbox-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.cw-lightbox-x {
+  position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 10px; cursor: pointer;
+  font-size: 16px; color: #fff; background: rgba(255, 255, 255, 0.14); -webkit-tap-highlight-color: transparent;
+}
+.cw-lightbox-x:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* Tool calls between Claude's sentences: one quiet mono line each. */
+.cw-msg-tools { display: flex; flex-direction: column; gap: 2px; padding: 2px 4px; min-width: 0; }
+.cw-msg-tool { display: flex; gap: 8px; min-width: 0; font-family: var(--cw-mono); font-size: 11.5px; line-height: 1.5; color: var(--cw-3); }
+.cw-msg-tool-n { flex: 0 0 auto; font-weight: 700; color: var(--cw-2); }
+.cw-msg-tool-d { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Pictures in the conversation: small tiles under the text, full size on a tap. */
+.cw-msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cw-msg-text:empty { display: none; }
+.cw-msg-text:empty + .cw-msg-images { margin-top: 0; }
+/* A thumbnail hugs the picture: fixed height, width from the aspect ratio, so no empty plate around it. */
+.cw-msg-img { display: block; flex: 0 0 auto; max-width: 100%; line-height: 0; border-radius: 5px; overflow: hidden; outline: 1px solid var(--cw-line); outline-offset: -1px; cursor: zoom-in; }
+.cw-msg-img img { display: block; height: 84px; width: auto; max-width: 100%; object-fit: cover; }
+
 .cw-ask-note { font-size: 11.5px; line-height: 1.4; color: var(--cw-3); padding: 0 4px; }
 .cw-ask-note.is-warn { color: var(--cw-warn); }
 .cw-ask-error { font-size: 12px; line-height: 1.45; color: var(--cw-crit); padding: 0 4px; }
 .cw-ask-send {
-  flex: 0 0 auto; min-height: 34px; margin-left: auto; padding: 0 18px; border-radius: 8px; cursor: pointer; border: 0;
-  font: inherit; font-size: 13px; font-weight: 750; color: var(--cw-on-claude); background: var(--cw-claude);
+  flex: 0 0 auto; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; cursor: pointer; border: 0;
+  color: var(--cw-on-claude); background: var(--cw-claude);
   -webkit-tap-highlight-color: transparent;
 }
+.cw-ask-send.is-busy svg { opacity: 0.5; }
 .cw-ask-send:hover:not(:disabled) { filter: brightness(1.07); }
 .cw-ask-send:disabled { opacity: 0.45; cursor: default; }
 @container cwc (max-width: 380px) {
   .cw-composer .cs-label { max-width: 11ch; }
-  .cw-ask-send { padding: 0 14px; }
 }
 
 /* ── runs the dashboard started ── */

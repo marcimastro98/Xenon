@@ -1,7 +1,7 @@
 {
   "name": "xenon",
-  "version": "0.3.0",
-  "description": "Shows this Claude Code session on the Xenon dashboard: subagent models, live context and quota, messages typed on the Claude tile arriving here, a status line under the prompt, a /xenon connection check, and optional approvals from the dashboard.",
+  "version": "0.7.0",
+  "description": "Shows this Claude Code session on the Xenon dashboard: subagents (model, effort, context), live context and quota, messages typed on the Claude tile arriving here, a status line under the prompt, a /xenon connection check, and optional approvals from the dashboard.",
   "author": { "name": "marcimastro98" },
   "homepage": "https://github.com/marcimastro98/Xenon",
   "types": "./types/index.d.ts",

@@ -340,10 +340,29 @@
     plus.setAttribute('aria-label', tr('lyrics_offset_earlier'));
     plus.title = tr('lyrics_offset_earlier');
     offsetRow.append(minus, offsetVal, plus);
+    // The song's cover beside its name, and the player's own controls: the
+    // lyrics are read from a distance, so pausing or skipping must not need a
+    // walk to the Media tile.
+    const cover = el('img', 'lyw-cover');
+    cover.alt = '';
+    cover.decoding = 'async';
+    cover.hidden = true;
+    const transport = el('div', 'lyw-transport-row');
+    transport.setAttribute('role', 'group');
+    transport.setAttribute('aria-label', tr('tip_play', 'Play/Pause'));
+    const prevBtn = transportBtn(GLYPH_PREV, tr('tip_prev', 'Previous'), () => { if (typeof mediaAction === 'function') void mediaAction('previous'); });
+    const playBtn = transportBtn(GLYPH_PLAY, tr('tip_play', 'Play/Pause'), () => {
+      if (typeof mediaAction !== 'function') return;
+      void mediaAction('playpause');
+      // mediaAction flips the state before it awaits: repaint the glyph now.
+      core().sync();
+    });
+    const nextBtn = transportBtn(GLYPH_NEXT, tr('tip_next', 'Next'), () => { if (typeof mediaAction === 'function') void mediaAction('next'); });
+    transport.append(prevBtn.node, playBtn.node, nextBtn.node);
     const panel = mount.closest('.lyrics-panel');
     const stageBtn = iconBtn('lyw-icon', ICON_STAGE, tr('lyrics_stage'), () => { if (panel && window.LyricsStage) window.LyricsStage.toggle(panel); });
     const optBtn = iconBtn('lyw-icon', ICON_OPTIONS, tr('lyrics_opt_title'), () => toggleOptions(mount));
-    head.append(titles, offsetRow, stageBtn, optBtn);
+    head.append(cover, titles, transport, offsetRow, stageBtn, optBtn);
     const trStat = el('p', 'lyw-trstat');
     trStat.hidden = true;
     const trialRow = el('p', 'lyw-trial');
@@ -359,7 +378,7 @@
     mount.replaceChildren(head, trialRow, trStat, body);
     mount.dataset.lywReady = '1';
 
-    const inst = { lang: uiLangCode(), title, sub, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, keep, keepUnlock, view: window.LyricsView.create(body) };
+    const inst = { lang: uiLangCode(), title, sub, cover, transport, playPath: playBtn.path, offsetRow, offsetVal, minus, plus, trStat, trialRow, trialText, keep, keepUnlock, view: window.LyricsView.create(body) };
     paintTrial(inst);
     const isVisible = () => mount.isConnected && mount.getClientRects().length > 0 && !document.hidden && onVisiblePage(mount);
     inst.unsubscribe = window.LyricsCore.subscribe({
@@ -384,6 +403,9 @@
     inst.title.textContent = (m && (typeof cleanTitle === 'function' ? cleanTitle(m.title) : m.title)) || tr('layout_widget_lyrics', 'Lyrics');
     inst.sub.textContent = (m && (m.artist || m.album)) || '';
     inst.sub.hidden = !inst.sub.textContent;
+    inst.transport.hidden = !m;
+    inst.playPath.setAttribute('d', snap.playing ? GLYPH_PAUSE : GLYPH_PLAY);
+    paintHeadCover(inst, m);
     inst.offsetRow.hidden = snap.state !== 'synced';
     paintOffset(inst);
     inst.view.render(snap);
@@ -394,6 +416,15 @@
   // ── icons ─────────────────────────────────────────────────────────────
   const ICON_STAGE = 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5';
   const ICON_OPTIONS = 'M4 7h10M18 7h2M4 17h2M10 17h10M16 5v4M8 15v4';
+  // Transport glyphs are solid shapes, unlike the outline icons above.
+  const GLYPH_PREV = 'M6 5h2v14H6zM20 5v14L9 12z';
+  const GLYPH_NEXT = 'M16 5h2v14h-2zM4 5v14l11-7z';
+  const GLYPH_PLAY = 'M8 5v14l11-7z';
+  const GLYPH_PAUSE = 'M7 5h4v14H7zM13 5h4v14h-4z';
+  function transportBtn(d, label, onClick) {
+    const b = iconBtn('lyw-icon lyw-transport', d, label, onClick);
+    return { node: b, path: b.querySelector('path') };
+  }
   function iconBtn(cls, d, label, onClick) {
     const b = btn(cls, null, onClick);
     b.setAttribute('aria-label', label);
@@ -406,6 +437,13 @@
     svg.appendChild(path);
     b.appendChild(svg);
     return b;
+  }
+
+  function paintHeadCover(inst, m) {
+    const raw = (m && m.thumbnail) || '';
+    const src = SAFE_COVER.test(raw) ? raw : '';
+    inst.cover.hidden = !src;
+    if (inst.cover.getAttribute('src') !== src) { if (src) inst.cover.src = src; else inst.cover.removeAttribute('src'); }
   }
 
   // The cover, blurred and darkened behind the lyrics like the Media tile's

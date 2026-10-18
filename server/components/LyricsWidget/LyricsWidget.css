@@ -166,6 +166,26 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 
 .lyw-icon:active { transform: scale(0.95); }
 
+/* Cover beside the song name: a plain square, same corner as the buttons. */
+.lyw-cover {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+  background: var(--floating-ui-bg);
+}
+.lyw-cover[hidden] { display: none; }
+
+.lyw-transport-row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+.lyw-transport-row[hidden] { display: none; }
+.lyw-icon.lyw-transport svg { fill: currentColor; stroke: none; }
+
 /* Translation state ("after 20 s of listening", limit reached…). */
 .lyw-trstat {
   flex: 0 0 auto;
@@ -216,8 +236,14 @@ button.lyw-offset-val:not(:disabled) { cursor: pointer; }
 }
 
 /* Small tile: the nudge is a fine-tuning control, the lyrics come first. */
-@container (max-width: 300px) {
+@container (max-width: 420px) {
   .lyw-head .lyw-offset { display: none; }
+}
+@container (max-width: 380px) {
+  .lyw-head .lyw-cover { display: none; }
+}
+@container (max-width: 300px) {
+  .lyw-head .lyw-transport-row .lyw-icon:not(:nth-child(2)) { display: none; }
 }
 
 /* ── Stage: the tile fills the screen (js/lyrics-stage.js) ────────────────
