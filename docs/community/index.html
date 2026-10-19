@@ -6,6 +6,8 @@
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
+<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
 <script src="/theme.js" defer></script>
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">

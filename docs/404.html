@@ -11,6 +11,8 @@
 <!-- GitHub Pages serves this file for any missing path, at any depth, so every
      URL below is root-absolute. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<!-- Halloween skin (Haunted House), 22 Oct to 1 Nov 2026 in the visitor's time; ?halloween=1|0 previews or hides it. -->
+<script>(function(){var d=new Date(),on=d>=new Date(2026,9,22)&&d<new Date(2026,10,2),q=/[?&]halloween=([01])/.exec(location.search),v=q&&q[1];try{if(v)sessionStorage.setItem('xenon.site.hh',v);else v=sessionStorage.getItem('xenon.site.hh');}catch(e){}if(v)on=v==='1';if(!on)return;document.documentElement.classList.add('hh');var l=document.createElement('link');l.rel='stylesheet';l.href='/halloween/halloween.css';l.setAttribute('blocking','render');document.head.appendChild(l);var s=document.createElement('script');s.src='/halloween/halloween.js';s.setAttribute('blocking','render');document.head.appendChild(s);})();</script>
 <link rel="stylesheet" href="/site.css">
 <style>
   body { margin: 0; background: var(--g-0); color: var(--bone-0); font: 400 18px/1.6 var(--sans); }

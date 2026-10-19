@@ -1,0 +1,233 @@
+/* ════════════════════════════════════════════════════════════════════════
+   HAUNTED HOUSE: the Halloween skin, 22 October to 1 November 2026.
+
+   Loaded only by the gate in each page's <head> (it adds html.hh first), so
+   outside those dates nothing here exists. The look is the drop's own: a paper
+   toy theatre. By day (light) the page is bone card stock printed in lamp-black
+   ink; by night (dark) it is the night-blue board the house stands against.
+   Buttons are pumpkin-orange card with a lamp-black keyline and a hard offset
+   shadow, the way a cut-out sits on the board. No gradients, no soft glows.
+
+   Every selector starts with html.hh, so it outranks site.css and the home
+   page's own token blocks (both top out at 0,2,0) without !important.
+   ════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Young Serif";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(/halloween/YoungSerif.woff2) format("woff2");
+  /* Latin and Latin Extended only: CJK falls through to each page's own stack. */
+  unicode-range: U+0000-024F, U+1E00-1EFF, U+2000-206F, U+20AC, U+2122, U+2190-2193;
+}
+
+/* ── Tokens: the night board (also the base, as site.css's base is dark) ── */
+html.hh:root {
+  --hh-pumpkin: #EE7A2B; --hh-pumpkin-hi: #F48C45;
+  --hh-lamp: #2B2724; --hh-card: #F7F1E4; --hh-night: #3F5079; --hh-night-2: #2F3D61;
+  --hh-keyline: #1A2138; --hh-serif: "Young Serif";
+
+  --g-0: #3F5079; --g-1: #36466D; --g-2: #2F3D61; --g-3: #283556;
+  --rule: #6B7BA3; --rule-2: #8A98BD;
+  --bone-0: #F1EADC; --bone-1: #E4DBC9; --bone-2: #D3C8B2;
+  --edge: rgba(241, 234, 220, 0.16);
+  --room: #3F5079; --room-2: #36466D; --room-3: #2F3D61;
+  --fg: #F1EADC; --fg-2: #E4DBC9; --fg-3: #D3C8B2;
+  --edge-line: rgba(241, 234, 220, 0.16);
+  --focus: #F7A35C;
+    --gold: #F2C46B; --gh-star: #F5C451; --iris: #C9C2F0; --discord: #C3C8FF; --danger: #FFB8AC;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  html.hh:root:not([data-theme="light"]) {
+    --hh-keyline: #1A2138;
+    --g-0: #3F5079; --g-1: #36466D; --g-2: #2F3D61; --g-3: #283556;
+    --rule: #6B7BA3; --rule-2: #8A98BD;
+    --bone-0: #F1EADC; --bone-1: #E4DBC9; --bone-2: #D3C8B2;
+    --edge: rgba(241, 234, 220, 0.16);
+    --room: #3F5079; --room-2: #36466D; --room-3: #2F3D61;
+    --fg: #F1EADC; --fg-2: #E4DBC9; --fg-3: #D3C8B2;
+    --edge-line: rgba(241, 234, 220, 0.16);
+    --focus: #F7A35C;
+    --gold: #F2C46B; --gh-star: #F5C451; --iris: #C9C2F0; --discord: #C3C8FF; --danger: #FFB8AC;
+    color-scheme: dark;
+  }
+}
+html.hh:root[data-theme="dark"] {
+  --hh-keyline: #1A2138;
+  --g-0: #3F5079; --g-1: #36466D; --g-2: #2F3D61; --g-3: #283556;
+  --rule: #6B7BA3; --rule-2: #8A98BD;
+  --bone-0: #F1EADC; --bone-1: #E4DBC9; --bone-2: #D3C8B2;
+  --edge: rgba(241, 234, 220, 0.16);
+  --room: #3F5079; --room-2: #36466D; --room-3: #2F3D61;
+  --fg: #F1EADC; --fg-2: #E4DBC9; --fg-3: #D3C8B2;
+  --edge-line: rgba(241, 234, 220, 0.16);
+  --focus: #F7A35C;
+    --gold: #F2C46B; --gh-star: #F5C451; --iris: #C9C2F0; --discord: #C3C8FF; --danger: #FFB8AC;
+  color-scheme: dark;
+}
+
+/* ── Tokens: the paper by day ──────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  html.hh:root:not([data-theme="dark"]) {
+    --hh-keyline: #2B2724;
+    --g-0: #ECE3D0; --g-1: #F4EDDF; --g-2: #E2D7C0; --g-3: #D6C9AE;
+    --rule: #B6A88E; --rule-2: #8E8169;
+    --bone-0: #2B2724; --bone-1: #4A4038; --bone-2: #5C5146;
+    --edge: rgba(43, 39, 36, 0.16);
+    --room: #ECE3D0; --room-2: #E2D7C0; --room-3: #D6C9AE;
+    --fg: #2B2724; --fg-2: #4A4038; --fg-3: #5C5146;
+    --edge-line: rgba(43, 39, 36, 0.16);
+    --focus: #3F5079;
+    --gold: #7A580C; --gh-star: #7A580C; --iris: #574DA3; --discord: #4550C6; --danger: #B22D1E;
+    color-scheme: light;
+  }
+}
+html.hh:root[data-theme="light"] {
+  --hh-keyline: #2B2724;
+  --g-0: #ECE3D0; --g-1: #F4EDDF; --g-2: #E2D7C0; --g-3: #D6C9AE;
+  --rule: #B6A88E; --rule-2: #8E8169;
+  --bone-0: #2B2724; --bone-1: #4A4038; --bone-2: #5C5146;
+  --edge: rgba(43, 39, 36, 0.16);
+  --room: #ECE3D0; --room-2: #E2D7C0; --room-3: #D6C9AE;
+  --fg: #2B2724; --fg-2: #4A4038; --fg-3: #5C5146;
+  --edge-line: rgba(43, 39, 36, 0.16);
+  --focus: #3F5079;
+    --gold: #7A580C; --gh-star: #7A580C; --iris: #574DA3; --discord: #4550C6; --danger: #B22D1E;
+  color-scheme: light;
+}
+
+/* ── Type: Young Serif for headings; its single weight is the only weight ── */
+/* :root in the selector lifts it over page rules like `header.hero h1` (catalog,
+   create, submit), which come later in the head than this sheet. */
+html.hh:root :is(h1, h2, h3), html.hh .tier-price, html.hh .xg h2 {
+  font-family: var(--hh-serif), var(--f-display, var(--display));
+  font-weight: 400; font-synthesis: none; letter-spacing: -0.008em;
+}
+/* CJK headings keep a bold system face; the Latin runs stay Young Serif 400. */
+html.hh:root:is([lang="ja"], [lang="ko"], [lang="zh"]) :is(h1, h2, h3) { font-weight: 700; }
+html.hh:root :is(.xf-col, .ft-col) h2 { font-family: var(--f-text, var(--sans)); font-weight: 700; letter-spacing: 0; }
+
+/* ── Header: a strip of card with a printed keyline under it ───────────── */
+html.hh .hd, html.hh .xh { box-shadow: 0 2px 0 var(--hh-keyline); }
+
+/* ── The cut-out buttons ───────────────────────────────────────────────── */
+html.hh :is(.key, .hd-dl.lit, .mkey, .xh-dl, .xh-key, .tier.pick .tier-go, .hh-go) {
+  background: var(--hh-pumpkin); background-image: none;
+  color: var(--hh-lamp);
+  border: 2px solid var(--hh-lamp); border-radius: 6px;
+  box-shadow: 3px 3px 0 var(--hh-keyline);
+  filter: none;
+  transition: transform .1s ease-out, box-shadow .1s ease-out, background-color .15s;
+}
+html.hh :is(.key, .hd-dl.lit, .mkey, .xh-dl, .xh-key, .hh-go):hover,
+html.hh .tier.pick:hover .tier-go {
+  background: var(--hh-pumpkin-hi); color: var(--hh-lamp); filter: none;
+  transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--hh-keyline);
+}
+html.hh :is(.key, .hd-dl.lit, .mkey, .xh-dl, .xh-key, .hh-go):active,
+html.hh .tier.pick:active .tier-go {
+  transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--hh-keyline);
+}
+html.hh .tier-go { border-radius: 6px; }
+/* The download page's "your system" card is marked with !important in the
+   page itself, so the cut-out has to answer in kind. */
+html.hh .dl .pick.is-you, html.hh a.pick.is-you {
+  background: var(--hh-pumpkin) !important; background-image: none !important;
+  color: var(--hh-lamp) !important; border: 2px solid var(--hh-lamp) !important;
+  box-shadow: 4px 4px 0 var(--hh-keyline) !important;
+}
+html.hh .pick.is-you * { color: var(--hh-lamp) !important; }
+html.hh .pick.is-you .you { background: rgba(247, 241, 228, 0.5); }
+
+/* ── Cards: paper with a keyline and a hard shadow ─────────────────────── */
+html.hh .tiers {
+  border: 2px solid var(--hh-keyline); border-radius: 6px;
+  box-shadow: 5px 5px 0 var(--hh-keyline);
+}
+html.hh .tier + .tier { box-shadow: inset 2px 0 0 var(--hh-keyline); }
+
+/* ── Footer: lamp black, under a row of cut-paper rooftops ─────────────── */
+html.hh :is(.ft, .xf) {
+  position: relative;
+  --g-0: #2B2724; --g-1: #35302B; --g-2: #3F3933; --g-3: #4A433C;
+  --rule: #6A6157; --rule-2: #877C6F;
+  --bone-0: #F1EADC; --bone-1: #DCD2BF; --bone-2: #C8BDA8;
+  --room: #2B2724; --room-2: #35302B; --room-3: #3F3933;
+  --fg: #F1EADC; --fg-2: #DCD2BF; --fg-3: #C8BDA8;
+  --focus: #F7A35C;
+    --gold: #F2C46B; --gh-star: #F5C451; --iris: #C9C2F0; --discord: #C3C8FF; --danger: #FFB8AC;
+  background: var(--hh-lamp); color: var(--bone-1);
+  color-scheme: dark;
+}
+html.hh :is(.ft, .xf)::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 40px;
+  background: var(--hh-lamp); pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 40'%3E%3Cpath d='M0 40V30h18v-8l14-10 14 10v8h12V18h6v-7h6v7l18-12 18 12v12h14v-4h30v-6l12-18 12 18v10h22v-6l18-10 18 10v6h18V20h6v-6h6v6h8l18-10 18 10v10h16v-4l14-8 14 8v4h10v10z'/%3E%3C/svg%3E") left bottom / 360px 40px repeat-x;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 40'%3E%3Cpath d='M0 40V30h18v-8l14-10 14 10v8h12V18h6v-7h6v7l18-12 18 12v12h14v-4h30v-6l12-18 12 18v10h22v-6l18-10 18 10v6h18V20h6v-6h6v6h8l18-10 18 10v10h16v-4l14-8 14 8v4h10v10z'/%3E%3C/svg%3E") left bottom / 360px 40px repeat-x;
+}
+html.hh :is(.ft, .xf) a { color: var(--bone-1); }
+html.hh :is(.ft, .xf) a:hover { color: var(--bone-0); }
+
+/* ── The home's Haunted House block (built by halloween.js) ────────────── */
+.hh-drop { padding-block: clamp(26px, 4svh, 48px) clamp(20px, 3svh, 36px); }
+.hh-drop .hh-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 28px 24px; align-items: start; }
+.hh-intro { grid-column: 1 / span 4; min-width: 0; }
+.hh-drop h2 {
+  margin: 0; font-size: clamp(44px, 4.4vw, 72px); line-height: 0.98; color: var(--fg, var(--bone-0));
+  text-wrap: balance;
+}
+.hh-line { margin: 16px 0 0; max-width: 40ch; font-size: 19px; line-height: 1.5; color: var(--fg, var(--bone-0)); }
+.hh-tonight { margin: 22px 0 0; display: grid; gap: 10px; }
+.hh-wins { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.hh-wins li {
+  width: 22px; height: 28px; border: 2px solid var(--hh-keyline); border-radius: 3px 3px 0 0;
+  background: var(--hh-night-2);
+}
+.hh-wins li.on { background: var(--hh-pumpkin); }
+.hh-status { margin: 0; max-width: 40ch; font-size: 16px; line-height: 1.45; color: var(--fg-2, var(--bone-1)); }
+
+.hh-cards { grid-column: 5 / span 8; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-width: 0; }
+.hh-card {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--hh-card); color: var(--hh-lamp);
+  border: 2px solid var(--hh-keyline); border-radius: 6px;
+  box-shadow: 5px 5px 0 var(--hh-keyline); overflow: hidden;
+}
+.hh-card.sup { background: var(--hh-night-2); color: #F1EADC; }
+.hh-card img { display: block; width: 100%; height: auto; aspect-ratio: 1132 / 584; object-fit: cover; border-bottom: 2px solid var(--hh-keyline); background: var(--hh-night); }
+.hh-body { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 22px; flex: 1; }
+.hh-card h3 { margin: 0; font-size: clamp(24px, 1.2vw + 12px, 30px); line-height: 1.1; color: inherit; }
+.hh-card p { margin: 0; font-size: 16.5px; line-height: 1.5; }
+.hh-card .hh-small { font-size: 15px; color: #4A4038; }
+.hh-card.sup .hh-small { color: #E4DBC9; }
+.hh-go {
+  margin-top: auto; align-self: flex-start;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 0 20px; text-decoration: none;
+  font: 400 18px/1.1 var(--hh-serif), var(--f-display, var(--display));
+}
+.hh-go:hover { text-decoration: none; }
+.hh-act { margin-top: auto; padding-top: 6px; }
+.hh-card.sup .hh-go { border-color: var(--hh-lamp); box-shadow: 3px 3px 0 #141A2C; }
+
+@media (max-width: 1180px) {
+  .hh-intro { grid-column: 1 / -1; }
+  .hh-cards { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .hh-cards { grid-template-columns: 1fr; gap: 20px; }
+  .hh-drop h2 { font-size: clamp(40px, 11vw, 52px); }
+  .hh-line { font-size: 17.5px; }
+  .hh-card { box-shadow: 4px 4px 0 var(--hh-keyline); }
+  html.hh :is(.ft, .xf)::before { height: 28px; -webkit-mask-size: 252px 28px; mask-size: 252px 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.hh :is(.key, .hd-dl.lit, .mkey, .xh-dl, .xh-key, .tier-go, .hh-go) { transition: none; }
+  html.hh :is(.key, .hd-dl.lit, .mkey, .xh-dl, .xh-key, .hh-go):is(:hover, :active),
+  html.hh .tier.pick:is(:hover, :active) .tier-go { transform: none; }
+}
+@media (forced-colors: active) {
+  html.hh :is(.ft, .xf)::before { display: none; }
+  .hh-wins li.on { background: Highlight; }
+}
