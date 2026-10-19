@@ -779,7 +779,7 @@
 @container mediatile (max-height: 360px) {
   .media-panel .media-volume,
   .media-panel .msp { display: none; }
-  .media-panel .media-title { -webkit-line-clamp: 1; }
+  .media-panel .media-title { display: block; white-space: nowrap; text-overflow: ellipsis; }
 }
 
 @container mediatile (max-height: 270px) {
@@ -923,7 +923,7 @@
    A height rule has to win over three width rules, so it is placed where the
    cascade lets it. */
 @container mediatile (max-height: 200px) {
-  .media-panel .media-title { -webkit-line-clamp: 1; }
+  .media-panel .media-title { display: block; white-space: nowrap; text-overflow: ellipsis; }
 }
 
 /* Shorter still and even one line plus the chip does not fit. The chip goes
@@ -961,7 +961,7 @@
   .media-panel.lyrics-open .media-art .media-placeholder { display: none; }
   .media-panel.lyrics-open .media-app-row { grid-column: 2; grid-row: 1; align-self: end; margin-bottom: 4px; }
   .media-panel.lyrics-open .media-textblock { grid-column: 2; grid-row: 2; align-self: start; }
-  .media-panel.lyrics-open .media-title { font-size: 19px; line-clamp: 1; -webkit-line-clamp: 1; }
+  .media-panel.lyrics-open .media-title { font-size: 19px; display: block; white-space: nowrap; text-overflow: ellipsis; }
   .media-panel.lyrics-open .media-artist { font-size: 13px; }
   .media-panel.lyrics-open .media-lyrics {
     grid-column: 1 / -1; grid-row: 3; align-self: stretch;

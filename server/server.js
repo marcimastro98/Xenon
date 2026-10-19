@@ -18439,7 +18439,7 @@ const handleRequest = async (req, res) => {
           });
         });
         aiReq.on('error', reject);
-        aiReq.setTimeout(20000, () => { aiReq.destroy(); reject(new Error('Gemini request timed out')); });
+        aiReq.setTimeout(30000, () => { aiReq.destroy(); reject(new Error('Gemini request timed out (' + chatModel + ')')); });
         aiReq.write(payload);
         aiReq.end();
       });
@@ -18577,7 +18577,8 @@ const handleRequest = async (req, res) => {
       // dead id forever. That is the difference between a fallback and a repair:
       // `gemini-3.5-pro` had been retired and every advanced-reasoning turn paid
       // a failed request before falling back, with nothing saying so.
-      const isMissingModel = (err) => /not found|is not found|not supported|NOT_FOUND|404/i.test(String((err && err.message) || ''));
+      const isMissingModel = (err) => /not found|is not found|not supported|no longer available|NOT_FOUND|404/i.test(String((err && err.message) || ''));
+      const isBusyModel = (err) => /timed out|high demand|overloaded|UNAVAILABLE|503/i.test(String((err && err.message) || ''));
       const callGeminiWithFallback = async (msgs) => {
         try {
           return await callGemini(msgs);
@@ -18585,6 +18586,15 @@ const handleRequest = async (req, res) => {
           if (isMissingModel(err)) aiModels.markMissing('gemini', chatModel);
           const fast = AI_MODELS.chat;
           if (chatModel !== fast) { chatModel = fast; return await callGemini(msgs); }
+          // The fast model is a pin Google has since retired ("no longer available to
+          // new users"), or it timed out / is overloaded: markMissing() cannot repair
+          // a pin, so try what `auto` picks, or its lighter sibling when that is the
+          // model that just failed. One retry, then the real error.
+          if (isMissingModel(err) || isBusyModel(err)) {
+            const alt = [aiModels.resolve('gemini', 'chat', 'auto', apiKey), aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey)]
+              .find(id => id && id !== chatModel);
+            if (alt) { chatModel = alt; return await callGemini(msgs); }
+          }
           throw err;
         }
       };
