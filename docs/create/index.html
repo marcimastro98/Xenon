@@ -868,8 +868,8 @@
     </section>
 
     <section id="sdk-first">
-      <h2>1. Your first widget: two files</h2>
-      <p>A widget is at least two files in a folder: a <strong>manifest.json</strong> (its name and what it needs) and an <strong>index.html</strong> (what it shows). This one needs no data and no permissions. It shows the time and follows your dashboard's accent colour.</p>
+      <h2>1. Your first widget: three files</h2>
+      <p>A widget is a folder: a <strong>manifest.json</strong> (its name and what it needs), an <strong>index.html</strong> (what it shows) and a <strong>widget.js</strong> with its code. This one needs no data and no permissions. It shows the time and follows your dashboard's accent colour.</p>
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">neon-clock/manifest.json</span></div>
         <button class="copy-btn" data-copy>Copy</button>
@@ -895,30 +895,33 @@
          text-shadow:0 0 22px color-mix(in srgb,var(--accent),transparent 50%); }
 &lt;/style&gt;
 &lt;div id="t"&gt;--:--&lt;/div&gt;
-&lt;script&gt;
-  <span class="tok-c">// use this tile's complete, contrast-checked palette</span>
-  function applyTheme(theme) {
-    const p = theme &amp;&amp; (theme.palette || theme); <span class="tok-c">// fallback for older Xenon</span>
-    if (!p) return;
-    if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
-    if (p.text) document.documentElement.style.setProperty('--text', p.text);
-  }
-  addEventListener('message', e =&gt; {
-    const m = e.data;
-    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp;
-        (m.type === 'init' || m.type === 'theme')) applyTheme(m.theme);
-  });
-  <span class="tok-c">// tick the clock every second</span>
-  const pad = n =&gt; String(n).padStart(2,'0');
-  setInterval(() =&gt; {
-    const d = new Date();
-    document.getElementById('t').textContent = pad(d.getHours())+':'+pad(d.getMinutes());
-  }, 1000);
-  <span class="tok-c">// say hello so Xenon starts talking to us</span>
-  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
-&lt;/script&gt;</code></pre>
+&lt;script src="widget.js"&gt;&lt;/script&gt;</code></pre>
       </div>
-      <p class="muted">Two notes for beginners: the folder name must match the manifest <code>id</code> (<em>neon-clock</em>), and <strong>inline <code>&lt;script&gt;</code> only works inside your own widget file</strong>; in bigger widgets put your JS in a <em>widget.js</em> file and load it with <code>&lt;script src="widget.js"&gt;&lt;/script&gt;</code>.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">neon-clock/widget.js</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre tabindex="0"><code><span class="tok-c">// use this tile's complete, contrast-checked palette</span>
+function applyTheme(theme) {
+  const p = theme &amp;&amp; (theme.palette || theme); <span class="tok-c">// fallback for older Xenon</span>
+  if (!p) return;
+  if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+  if (p.text) document.documentElement.style.setProperty('--text', p.text);
+}
+addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp;
+      (m.type === 'init' || m.type === 'theme')) applyTheme(m.theme);
+});
+<span class="tok-c">// tick the clock every second</span>
+const pad = n =&gt; String(n).padStart(2,'0');
+setInterval(() =&gt; {
+  const d = new Date();
+  document.getElementById('t').textContent = pad(d.getHours())+':'+pad(d.getMinutes());
+}, 1000);
+<span class="tok-c">// say hello so Xenon starts talking to us</span>
+parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
+      </div>
+      <p class="muted">Two notes for beginners: the folder name must match the manifest <code>id</code> (<em>neon-clock</em>), and <strong>the code always goes in a <em>.js</em> file of the widget</strong>, loaded with <code>&lt;script src="widget.js"&gt;&lt;/script&gt;</code>. The sandbox refuses a <code>&lt;script&gt;</code> written inside the HTML and attributes like <code>onclick="…"</code>, and the tile stays blank.</p>
 
       <h3 id="sdk-install" data-search-title="Install your widget on the dashboard">Put it on your dashboard</h3>
       <ol class="steps">
@@ -927,6 +930,25 @@
         <li>Add the <b>Custom widget</b> tile from the <b>+</b> palette and tap <b>Rescan</b>. Your widget appears in the picker. Approve its permissions (here, none) and it renders.</li>
       </ol>
       <div class="note"><b>While you build:</b> change a file, tap <b>Rescan</b>, see it update. Because it's sandboxed, a bug in your widget can never touch the dashboard or your PC. The worst case is your own tile misbehaving.</div>
+      <h3 id="sdk-from-web" data-search-title="Turn a web page into a widget">From a web page to a widget</h3>
+      <p>A page that works in a normal browser usually shows a <strong>blank tile</strong> the first time it runs as a widget, because the sandbox refuses things web pages take for granted. Each one has a widget way to do it:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>In a web page</th><th>In a widget</th></tr></thead>
+          <tbody>
+            <tr><td><code>&lt;script src="https://cdn…"&gt;</code> (Tailwind, a chart library)</td><td>Copy the file into your widget folder and load it with a relative path. For Tailwind, build the CSS once and ship the <em>.css</em> file.</td></tr>
+            <tr><td><code>&lt;script&gt;…&lt;/script&gt;</code> written inside the HTML</td><td>Move the code into a <em>.js</em> file in the folder.</td></tr>
+            <tr><td><code>onclick="…"</code>, <code>href="javascript:…"</code></td><td><code>addEventListener</code> in your <em>.js</em> file.</td></tr>
+            <tr><td><code>fetch(url)</code>, <code>XMLHttpRequest</code>, <code>WebSocket</code></td><td>List the domain in the manifest's <code>hosts</code> and let Xenon make the request (<a href="#sdk-fetch">the fetch proxy</a>).</td></tr>
+            <tr><td><code>localStorage</code>, cookies, IndexedDB</td><td><code>"storage": true</code> in the manifest and the <a href="#sdk-storage">host-side store</a>.</td></tr>
+            <tr><td><code>&lt;img src="https://…"&gt;</code> for a picture from the web</td><td>Declare the host and point the image at <code>/sdk/asset/${pkgId}?u=${encodeURIComponent(url)}</code>, which works like <a href="#sdk-tiles">the map tiles</a> and keeps the picture cached.</td></tr>
+            <tr><td>A stylesheet or font from another site</td><td>Ship the file in the folder.</td></tr>
+            <tr><td><code>&lt;iframe&gt;</code> of another site</td><td>Not possible in a widget. To show a page, use the <code>browser</code> action (<a href="#sdk-actions">§6</a>).</td></tr>
+            <tr><td><code>eval</code>, <code>new Function</code></td><td>Not allowed. Write the code directly.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note"><b>From Xenon 4.12:</b> the Store's <b>Installed</b> tab lists what the sandbox blocks in a widget you are making, with the file or domain and the fix. A small file to copy into your widget, <em>xenon-client.js</em> (in the SDK examples), turns these messages into simple calls (<code>xenon.fetch()</code>, <code>xenon.store</code>, <code>xenon.on()</code>) and spaces requests so none is refused for coming too fast. Until then, your browser's developer console shows each refusal.</div>
     </section>
 
     <section id="sdk-share">
@@ -937,7 +959,7 @@
         <li>Go to <b>Settings → Widgets &amp; sharing → Share &amp; Import → Export widget</b> and pick it.</li>
         <li>Xenon hands you the code (or a <em>.json</em> file). Send it to anyone. They paste it into <b>Import</b>, see exactly what it needs, approve, and it's theirs.</li>
       </ol>
-      <p>Here is the <strong>Neon Clock</strong> from step 1, packed into its code. This single string <em>is</em> those two files. Copy it, open <em>Share &amp; Import → Import</em> in Xenon, and you'll get the exact widget:</p>
+      <p>Here is the <strong>Neon Clock</strong> from step 1, packed into its code. This single string <em>is</em> the widget's files. Copy it, open <em>Share &amp; Import → Import</em> in Xenon, and you'll get the exact widget:</p>
       <div class="code oneline">
         <div class="code-bar"><span class="dot"></span><span class="fname">Neon Clock: packed widget code</span><span class="badge">Ready to import</span></div>
         <button class="copy-btn" data-copy>Copy</button>
@@ -984,7 +1006,7 @@
       <div class="note"><b>Golden safety rule:</b> treat every string that arrives in a stream as untrusted. Show it with <code>el.textContent = value</code>, never <code>el.innerHTML</code>. The whole dashboard follows this rule and so should your widget.</div>
 
       <h3 id="sdk-cpu-meter">A real example: a live CPU meter</h3>
-      <p>Same two files, but now the widget asks for the <em>system</em> stream and shows CPU load. Notice the flow: say hello, read <code>init</code> to see what was granted, then handle each <code>data</code> message.</p>
+      <p>The same three files, but now the widget asks for the <em>system</em> stream and shows CPU load. Notice the flow: say hello, read <code>init</code> to see what was granted, then handle each <code>data</code> message.</p>
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">cpu-meter/manifest.json</span></div>
         <button class="copy-btn" data-copy>Copy</button>
@@ -1008,25 +1030,28 @@
   #v { font-size:14vw; font-weight:700; color:var(--accent); }
 &lt;/style&gt;
 &lt;div id="v"&gt;--%&lt;/div&gt;
-&lt;script&gt;
-  addEventListener('message', e =&gt; {
-    const m = e.data;
-    if (!m || m.xenonSdk !== 1) return;
-    <span class="tok-c">// palette comes on init and whenever this tile's theme changes</span>
-    if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme) {
-      const p = m.theme.palette || m.theme;
-      if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
-      if (p.text) document.documentElement.style.setProperty('--text', p.text);
-    }
-    <span class="tok-c">// live data for a stream we were granted</span>
-    if (m.type === 'data' &amp;&amp; m.stream === 'system') {
-      const cpu = Number(m.data &amp;&amp; m.data.cpu);
-      document.getElementById('v').textContent =
-        Number.isFinite(cpu) ? Math.round(cpu) + '%' : '--%';
-    }
-  });
-  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
-&lt;/script&gt;</code></pre>
+&lt;script src="widget.js"&gt;&lt;/script&gt;</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">cpu-meter/widget.js</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre tabindex="0"><code>addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (!m || m.xenonSdk !== 1) return;
+  <span class="tok-c">// palette comes on init and whenever this tile's theme changes</span>
+  if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme) {
+    const p = m.theme.palette || m.theme;
+    if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+    if (p.text) document.documentElement.style.setProperty('--text', p.text);
+  }
+  <span class="tok-c">// live data for a stream we were granted</span>
+  if (m.type === 'data' &amp;&amp; m.stream === 'system') {
+    const cpu = Number(m.data &amp;&amp; m.data.cpu);
+    document.getElementById('v').textContent =
+      Number.isFinite(cpu) ? Math.round(cpu) + '%' : '--%';
+  }
+});
+parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
       </div>
     </section>
 
@@ -1163,19 +1188,22 @@
            border:1px solid #2a3a34; color:var(--bone-0); background:#0e1512; }
 &lt;/style&gt;
 &lt;button id="b"&gt;🎙 Mute&lt;/button&gt;
-&lt;script&gt;
-  let n = 0;
-  document.getElementById('b').addEventListener('click', () =&gt; {
-    parent.postMessage({ xenonSdk:1, type:'action', id:++n,
-      action:{ type:'micMute', mode:'toggle' } }, '*');
-  });
-  addEventListener('message', e =&gt; {
-    const m = e.data;
-    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'action_result' &amp;&amp; !m.ok)
-      console.log('action failed:', m.error);   <span class="tok-c">// e.g. 'not_allowed' if the user declined mic</span>
-  });
-  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
-&lt;/script&gt;</code></pre>
+&lt;script src="widget.js"&gt;&lt;/script&gt;</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">mute-key/widget.js</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre tabindex="0"><code>let n = 0;
+document.getElementById('b').addEventListener('click', () =&gt; {
+  parent.postMessage({ xenonSdk:1, type:'action', id:++n,
+    action:{ type:'micMute', mode:'toggle' } }, '*');
+});
+addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'action_result' &amp;&amp; !m.ok)
+    console.log('action failed:', m.error);   <span class="tok-c">// e.g. 'not_allowed' if the user declined mic</span>
+});
+parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
       </div>
     </section>
 

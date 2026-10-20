@@ -112,7 +112,8 @@ test('the key lights while its first choice is the output in use', () => {
 
 test('after a press the face follows at once, and "none connected" is said in words', () => {
   const D = read('../js/deck.js');
-  assert.match(D, /action\.type === 'audioDeviceFirst'\)\) pollOutputDevice\(\);/);
+  assert.match(D, /const AUDIO_ACTION_TYPES = \[[^\]]*'audioDeviceFirst'/);
+  assert.match(D, /AUDIO_ACTION_TYPES\.includes\(action\.type\)\) pollAudioState\(\);/);
   assert.match(D, /none_connected: \['deck_err_none_connected', 'none of these outputs is connected right now'\],/);
 });
 

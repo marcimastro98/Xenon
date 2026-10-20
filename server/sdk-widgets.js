@@ -924,15 +924,57 @@ function mimeFor(absPath) {
 // security boundary remains the CSP sandbox.
 const PERF_PROBE_FILENAME = '__xenon-perf.js';
 
-// Zero DOM access, one namespaced global, every path try/caught: the probe must
-// never break or observably change a widget. It stays silent while the frame is
-// idle/throttled (all-zero window → no message).
+// Never touches the widget's DOM, one namespaced global, every path try/caught:
+// the probe must never break or observably change a widget. It stays silent
+// while the frame is idle/throttled (all-zero window → no message).
+//
+// It also names what the CSP REFUSED (a CDN script, inline code, a direct
+// fetch, a remote image), so a widget's author learns why the tile is blank
+// (js/sdk-diagnostics.js validates the report). Each distinct refusal is sent
+// once, as a CSP directive plus a bare hostname: never a path or query, which
+// can carry a key. The ReportingObserver is buffered, so refusals made while
+// the page parsed (before this deferred script ran) still count; the event
+// listener covers engines without it, and the shared key dedupes the two.
+// localStorage is NOT caught here and cannot be: to the opaque sandboxed
+// document every package script is cross-origin, so its errors arrive muted
+// ("Script error.", no error object; measured in Chromium). The static scan
+// (GET /sdk/check/<id>) is what names it.
 const PERF_PROBE_SOURCE = [
   '(() => {',
   "  'use strict';",
   '  try {',
   '    if (window.__xenonPerf) return;',
   '    const S = window.__xenonPerf = { lt: 0, ltN: 0, cls: 0, frames: 0, t0: performance.now() };',
+  '    const seen = new Set();',
+  '    let held = [];',
+  '    let flushT = 0;',
+  '    const flush = () => {',
+  '      flushT = 0;',
+  '      try {',
+  '        const items = held.slice(0, 8);',
+  '        held = [];',
+  "        if (items.length) parent.postMessage({ xenonSdk: 1, type: 'blocked', items }, '*');",
+  '      } catch (e) { /* never disturb the widget */ }',
+  '    };',
+  '    const note = (directive, uri) => {',
+  '      try {',
+  "        const u = String(uri || '');",
+  "        let b = '';",
+  "        if (u === 'inline' || u === 'eval' || u === 'wasm-eval') b = u;",
+  "        else if (u) { try { b = new URL(u).hostname; } catch (e) { b = ''; } }",
+  "        const d = String(directive || '').slice(0, 24);",
+  "        const k = d + '|' + b;",
+  '        if (!d || seen.has(k) || seen.size >= 32) return;',
+  '        seen.add(k);',
+  '        held.push({ directive: d, blocked: b });',
+  '        if (!flushT) flushT = setTimeout(flush, 1500);',
+  '      } catch (e) { /* never disturb the widget */ }',
+  '    };',
+  '    try {',
+  '      new ReportingObserver((rs) => { for (const r of rs) note(r.body.effectiveDirective, r.body.blockedURL); },',
+  "        { types: ['csp-violation'], buffered: true }).observe();",
+  '    } catch (e) { /* ReportingObserver unsupported */ }',
+  "    document.addEventListener('securitypolicyviolation', (e) => note(e.effectiveDirective, e.blockedURI), true);",
   '    try {',
   '      new PerformanceObserver((l) => { for (const e of l.getEntries()) { S.lt += e.duration; S.ltN++; } })',
   "        .observe({ type: 'longtask', buffered: true });",

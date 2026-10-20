@@ -2730,6 +2730,30 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   font-size: 0.76rem; line-height: 1.4; color: var(--accent, #35e08e);
   overflow-wrap: anywhere; font-style: italic;
 }
+/* What the sandbox refuses in the user's own widget (installed-manager.js
+   attachSandboxIssues). Collapsed by default: the summary line is the signal,
+   the per-kind fixes open on tap. Same warning tint as .inst-rejected. */
+.inst-issues {
+  margin-top: 2px; padding: 8px 11px; border-radius: 10px;
+  background: color-mix(in srgb, var(--warning, #e0a33e) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning, #e0a33e) 30%, transparent);
+}
+.inst-issues-title {
+  cursor: pointer; min-height: 28px; display: flex; align-items: center;
+  font-size: 0.78rem; font-weight: 600; color: var(--text, #e7e9ee);
+}
+.inst-issues-list { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 8px; }
+.inst-issues-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; min-width: 0; }
+.inst-issues-kind { font-size: 0.76rem; font-weight: 600; color: var(--text, #e7e9ee); }
+.inst-issues-where {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem; padding: 1px 6px; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22); color: var(--text, #e7e9ee);
+  overflow-wrap: anywhere; min-width: 0;
+}
+.inst-issues-fix { flex: 1 1 100%; font-size: 0.74rem; line-height: 1.4; color: var(--muted-text, #aab1c0); }
+.inst-issues-foot { margin: 0; font-size: 0.72rem; line-height: 1.4; color: var(--text-dim, #8b91a1); overflow-wrap: anywhere; }
+
 /* "N updates available · Update all" — sits above the list, so the answer to
    "is anything waiting?" is the first thing the tab says. */
 .inst-updbar {
@@ -2783,7 +2807,10 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 
 @media (max-width: 560px) {
   .inst-row { flex-direction: column; align-items: stretch; }
-  .inst-row-btns { justify-content: flex-end; }
+  /* Three buttons are wider than a phone row: wrap and share the width instead
+     of running past the row's left edge. */
+  .inst-row-btns { flex-wrap: wrap; justify-content: flex-end; }
+  .inst-row-btns > * { flex: 1 1 auto; }
   .inst-foot { flex-direction: column; align-items: stretch; }
   .inst-foot .settings-btn { width: 100%; }
 }

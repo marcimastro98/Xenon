@@ -137,10 +137,11 @@ test('saving a key binds it to the output it switches to', () => {
 test('the deck follows the real default output, and asks for it right after a switch', () => {
   const DECK = read('../js/deck.js');
   assert.match(DECK, /outputDevice: '' \};/, 'seeded empty');
-  assert.match(DECK, /if \(node\._deckState && node\._deckState\.source === 'outputDevice'\) wantsOutput = true;/);
-  assert.match(DECK, /setOutputWatch\(wantsOutput\);/);
-  assert.match(DECK, /scheduleHaWatchSync\(\);[^\n]*\n    syncOutputWatch\(\);/, 'and starts watching as soon as such a key is drawn');
-  assert.match(DECK, /action\.type === 'audioDevice' \|\| action\.type === 'audioDeviceToggle' \|\| action\.type === 'audioDeviceFirst'\)\) pollOutputDevice\(\);/);
+  assert.match(DECK, /const AUDIO_STATE_SOURCES = \[[^\]]*'outputDevice'/);
+  assert.match(DECK, /applySliderValues\(\);\s*syncAudioWatch\(\);/);
+  assert.match(DECK, /scheduleHaWatchSync\(\);[^\n]*\n    syncAudioWatch\(\);/, 'and starts watching as soon as such a key is drawn');
+  assert.match(DECK, /const AUDIO_ACTION_TYPES = \['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst'/);
+  assert.match(DECK, /AUDIO_ACTION_TYPES\.includes\(action\.type\)\) pollAudioState\(\);/);
   // The live audio push feeds it on the dashboard and in the Deck popup alike.
   assert.match(read('../js/main.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);
   assert.match(read('../js/deck-popup.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);

@@ -240,6 +240,13 @@
   flex: 0 0 auto;
 }
 .system-grid[hidden] { display: none !important; }
+/* A vertical screen is a narrow window, so the one-column step for small
+   windows in breakpoints.css fires on it; but there the tile is a full-width
+   band, wide enough for two cards a row, and one column needs twice the height
+   (a vertical Edge at 150% clipped the values). */
+@media (min-width: 400px) {
+  .is-portrait .system-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 .stat-box {
   min-width: 0;

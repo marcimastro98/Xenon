@@ -259,6 +259,16 @@ body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg::before {
 body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead { padding-left: 0; }
 body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead::before { display: none; }
 body.topbar-minimal .topbar-mini > .island-seg-hidden { display: none !important; }
+/* A vertical screen scaled up (an Edge at 150-200%) is narrower than the
+   island's ~540px: the date goes first, then the weather, rather than the
+   page dots and markers running off the edge. Both stay one tap away in the
+   weather modal and the calendar. */
+@media (max-width: 600px) {
+  .is-portrait body.topbar-minimal:not([data-panel]) .topbar-mini > .clock-date { display: none; }
+}
+@media (max-width: 420px) {
+  .is-portrait body.topbar-minimal:not([data-panel]) .topbar-mini > .clock-weather { display: none; }
+}
 
 /* ── Notification island ──────────────────────────────────────
    A heads-up notification takes the clock island's place (Apple Dynamic-Island).

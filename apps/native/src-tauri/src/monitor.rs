@@ -998,6 +998,21 @@ fn fp_size(fp: &str) -> &str {
     fp.split('@').next().unwrap_or(fp)
 }
 
+/// True when two fingerprints are the same panel, also turned by 90°. Rotating a
+/// screen in Windows swaps its width and height; it is still the screen that was
+/// chosen. Without this a saved Edge rotated to vertical read as "the Edge is
+/// not connected yet" and the kiosk stayed hidden (reported 20 Oct 2026).
+fn fp_same_panel(a: &str, b: &str) -> bool {
+    let (a, b) = (fp_size(a), fp_size(b));
+    if a == b {
+        return true;
+    }
+    match (a.split_once('x'), b.split_once('x')) {
+        (Some((aw, ah)), Some((bw, bh))) => aw == bh && ah == bw,
+        _ => false,
+    }
+}
+
 /// True when a saved fingerprint is the shape of a Xeneon Edge.
 fn fp_is_edge(fp: &str) -> bool {
     let mut it = fp_size(fp).split('x').map(|n| n.parse::<u32>());
@@ -1024,14 +1039,15 @@ fn pick_chosen(by_name: Option<usize>, shapes: &[String], saved: Option<&str>) -
         return by_name.map_or(Pick::Missing, Pick::Name);
     };
     if let Some(i) = by_name {
-        if shapes.get(i).map_or(false, |s| fp_size(s) == fp_size(saved)) {
+        if shapes.get(i).map_or(false, |s| fp_same_panel(s, saved)) {
             return Pick::Name(i);
         }
     }
     let found = shapes
         .iter()
         .position(|s| s == saved)
-        .or_else(|| shapes.iter().position(|s| fp_size(s) == fp_size(saved)));
+        .or_else(|| shapes.iter().position(|s| fp_size(s) == fp_size(saved)))
+        .or_else(|| shapes.iter().position(|s| fp_same_panel(s, saved)));
     if let Some(index) = found {
         return Pick::Shape { index, moved: by_name.is_some() };
     }
@@ -2184,6 +2200,23 @@ mod pick_tests {
         assert_eq!(pick_chosen(Some(0), &shapes(&[MAIN]), Some(EDGE)), Pick::Waiting);
         // Vertical mount: still the Edge.
         assert_eq!(pick_chosen(Some(0), &shapes(&[MAIN]), Some("720x2560@1")), Pick::Waiting);
+    }
+
+    #[test]
+    fn a_screen_turned_by_90_degrees_is_still_the_chosen_one() {
+        // The Edge chosen landscape, then rotated to vertical in Windows.
+        assert_eq!(pick_chosen(Some(1), &shapes(&[MAIN, "720x2560@1"]), Some(EDGE)), Pick::Name(1));
+        // …and after a restart that also renumbered the screens.
+        assert_eq!(
+            pick_chosen(Some(1), &shapes(&["720x2560@1", MAIN]), Some(EDGE)),
+            Pick::Shape { index: 0, moved: true }
+        );
+        // An unrotated screen of the saved size still wins over a rotated one.
+        assert_eq!(
+            pick_chosen(None, &shapes(&["720x2560@1", EDGE]), Some(EDGE)),
+            Pick::Shape { index: 1, moved: false }
+        );
+        assert!(!fp_same_panel("2560x1440@1", EDGE));
     }
 
     #[test]

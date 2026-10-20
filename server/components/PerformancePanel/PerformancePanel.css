@@ -262,8 +262,15 @@
   transform: translateX(-50%) translateY(14px);
   z-index: 1200;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  /* left:50% caps a shrink-to-fit width at half the screen, which on a vertical
+     Edge (720 wide) wrapped the message and every button over three lines. Size
+     to the content instead, and let the buttons drop to a second row when the
+     screen really is that narrow. */
+  width: max-content;
   max-width: calc(100vw - 32px);
   padding: 10px 12px 10px 16px;
   background: var(--glass-bg);
@@ -284,7 +291,15 @@
   color: var(--text);
   font-weight: 600;
   margin-right: 4px;
+  text-align: center;
 }
+.perf-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.perf-banner .perf-btn { white-space: nowrap; }
 
 /* Completion toast (visible anywhere — confirms an optimize/restore finished). */
 .perf-toast {
@@ -296,6 +311,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  width: max-content;   /* same half-screen cap as .perf-banner */
+  max-width: calc(100vw - 32px);
   padding: 11px 16px;
   font-weight: 650;
   color: var(--text);

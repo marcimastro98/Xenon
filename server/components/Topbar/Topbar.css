@@ -205,6 +205,22 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   .topbtn { padding: 0; width: 36px; justify-content: center; }
 }
 
+/* A vertical screen (html.is-portrait, js/phone-view.js): the narrow-width
+   fallback stacks the three parts one per row, left-aligned, which left the
+   buttons scattered around an off-centre clock. Both button groups share the
+   first row instead, and the clock sits centred under them with its meta row
+   wrapping rather than running off a scaled-up screen. */
+.is-portrait body:not([data-panel]) .topbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "quick actions" "clock clock";
+  justify-items: stretch;
+  row-gap: 6px;
+}
+.is-portrait body:not([data-panel]) .topbar > .quickbar { grid-area: quick; flex-wrap: nowrap; }
+.is-portrait body:not([data-panel]) .topbar > .top-actions { grid-area: actions; }
+.is-portrait body:not([data-panel]) .topbar > .clock { grid-area: clock; justify-self: center; text-align: center; }
+.is-portrait body:not([data-panel]) .topbar .clock-meta { flex-wrap: wrap; justify-content: center; }
+
 /* The width cap is NOT scoped to a side: since v4.11.4 the user can move this strip
    between the two ends of the bar, and a cap that applied on only one of them
    would let the strip grow without limit on the other — which is the whole reason

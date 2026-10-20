@@ -1003,3 +1003,25 @@
 @container mediatile (max-width: 240px) {
   .media-panel .media-lyrics-btn { display: none; }
 }
+
+/* ── Vertical screen: cover above the text ───────────────────────────────────
+   On a vertical screen the media tile is a full-width band taller than it is
+   wide, and the side-by-side layout leaves a 170px cover floating in the middle
+   of it. Like a phone's now-playing view, the cover goes on top, large, and
+   the text and transport sit under it. Only on the vertical layout
+   (html.is-portrait, js/phone-view.js), so a landscape tile looks as before;
+   lyrics mode keeps its own arrangement. */
+@container mediatile (orientation: portrait) and (min-height: 400px) and (min-width: 300px) {
+  .is-portrait .media-panel:not(.lyrics-open) .media-pane-play:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    justify-items: center;
+    gap: 22px;
+  }
+  /* max-width: the old viewport steps in breakpoints.css cap the cover for
+     narrow windows, and a vertical Edge is a narrow window. */
+  .is-portrait .media-panel:not(.lyrics-open) .media-art { width: min(64cqw, 44cqh, 360px); max-width: none; }
+  .is-portrait .media-panel:not(.lyrics-open) .media-content { width: 100%; align-items: center; text-align: center; }
+  .is-portrait .media-panel:not(.lyrics-open) .media-app-row { justify-content: center; }
+  .is-portrait .media-panel:not(.lyrics-open) .msp { width: 100%; margin-inline: auto; }
+}

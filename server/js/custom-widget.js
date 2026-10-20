@@ -1759,6 +1759,26 @@
     }
   }
 
+  // ── What the sandbox refused (probe `blocked` reports → per-package list) ──
+  // For the widget's AUTHOR: the Installed tab lists these under their own
+  // packages, so a blank tile says why. Same trust as perf: the frame could
+  // forge a report, so SdkDiagnostics validates it to known kinds + a bare
+  // hostname, a per-frame floor bounds the flood, and nothing is granted.
+  const BLOCKED_MIN_INTERVAL_MS = 1000;
+  const blockedByPkg = new Map();   // pkgId → [{ kind, host? }]
+  function onBridgeBlocked(entry, msg) {
+    if (!window.SdkDiagnostics) return;
+    const now = Date.now();
+    if (now - (entry.blockedAt || 0) < BLOCKED_MIN_INTERVAL_MS) return;
+    entry.blockedAt = now;
+    const issues = SdkDiagnostics.validateBlockedReport(msg);
+    if (!issues || !issues.length) return;
+    blockedByPkg.set(entry.pkgId, SdkDiagnostics.mergeIssues(blockedByPkg.get(entry.pkgId), issues));
+  }
+  function getSandboxIssues(pkgId) {
+    return (blockedByPkg.get(pkgId) || []).slice();
+  }
+
   // Plain serializable snapshot for the Installed tab's activity chips.
   function getPerfStats() {
     const out = {};
@@ -1887,6 +1907,10 @@
       // posts 'hello', and those decorative packages are exactly the ones the
       // resource accounting exists to expose.
       onBridgePerf(entry, d);
+    } else if (d.type === 'blocked') {
+      // Same probe, same reasoning: not gated on entry.ready, because a widget
+      // whose inline script was refused never got to say 'hello'.
+      onBridgeBlocked(entry, d);
     } else if (d.type === 'handler_ack') {
       // The widget answered a dispatched deck-handler call. The sandboxed frame
       // has no network, so the HOST page relays the ack to the parked
@@ -3639,7 +3663,7 @@
     // Effective on/off (safe mode masks it): the palette offers Store widgets
     // only while a tile could actually run one.
     enabled: () => !!sdk().enabled,
-    getPerfStats, setSuspended, isSuspended,
+    getPerfStats, setSuspended, isSuspended, getSandboxIssues,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
     // e.g. the tab-group bar — label a custom tile with the real widget name

@@ -75,6 +75,7 @@ const { createLinuxTrash } = require('./linux-trash');         // the recycle-bi
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
+const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
@@ -5447,8 +5448,15 @@ async function setDefaultAudioDevice(id, settings) {
 // wpctl. Every SVV call site goes through here, so there is no execFile shadow
 // and no platform check scattered through the audio code.
 function svvExec(args) {
-  if (nativeCollectors) return nativeCollectors.audioCommand(args);
-  return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
+  const run = nativeCollectors
+    ? Promise.resolve(nativeCollectors.audioCommand(args))
+    : new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
+  // Every audio change goes through here. A read already in flight began before
+  // the change, and getAudioInfo() hands that same read to whoever asks next, so
+  // a Deck mute key asking right after the press got the old state and waited
+  // for the next 8s tick (issue #139). Once the change is done, the next read
+  // starts fresh.
+  return run.finally(() => { audioPending = null; });
 }
 
 // Normalise a per-app audio target for SoundVolumeView: a bare process name with
@@ -6340,6 +6348,9 @@ const deckRegistryDeps = {
     else if (mode === 'unmute') isMuted = false;
     else isMuted = !isMuted;          // 'toggle'
     setMicMute(isMuted);
+    // Push it now rather than on the next 3s status tick, so a Deck key's face
+    // follows the press on every screen (issue #139).
+    broadcastStatusNow();
     return { muted: isMuted };
   },
   volume: async (mode, value) => {
@@ -8297,6 +8308,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 }
 
 const DashboardInstances = require('./js/dashboard-instances.js');
+const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
@@ -8445,6 +8457,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   // field missing from THIS copy is silently dropped on save, so the flag would
   // never survive a reload.
   timerAddCollapsed: false,
+  // The vertical layout (js/dashboard-portrait.js): generated until arranged.
+  portrait: Object.freeze({ custom: false, items: Object.freeze({}) }),
 });
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
@@ -9359,6 +9373,9 @@ function normalizeDashboardLayout(value) {
   layout.topbarHidden = source.topbarHidden === true;
   layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
+  // The vertical layout's own geometry; validated against the ids above, so it
+  // must stay last. Same rule as the client (js/dashboard-portrait.js).
+  layout.portrait = DashboardPortrait.normalizePortrait(source.portrait, layout);
   return layout;
 }
 
@@ -11397,7 +11414,26 @@ deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode)
 let streamSpotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
 // All Spotify Deck actions funnel through the provider. Reads `streamSpotify` at
 // call time so a re-created provider is picked up automatically.
-deckRegistryDeps.spotify = (action) => streamSpotify.runAction(action);
+// While Spotify's Web API refuses the app (a rate limit that can last hours on
+// an app with a low quota, even when nothing has been played), play/pause and
+// skip still reach the Spotify app through Windows' media keys, which never
+// touch the API. Only when the media session in use IS Spotify, so the key can
+// never skip another app's track. The SDK widget does the same client-side.
+const SPOTIFY_LOCAL_FALLBACK = Object.freeze({ spotifyPlay: 'playpause', spotifyNext: 'next', spotifyPrev: 'previous' });
+deckRegistryDeps.spotify = async (action) => {
+  const r = await streamSpotify.runAction(action);
+  const cmd = SPOTIFY_LOCAL_FALLBACK[action.type];
+  if (!cmd || !r || r.ok !== false || r.error !== 'rate_limited') return r;
+  let media = null;
+  try { media = await getMediaInfo(); } catch { return r; }
+  if (!media || !media.active || !/spotify/i.test(String(media.app || ''))) return r;
+  // A key that says "play" or "pause" must stay idempotent: under a rate limit the
+  // key's own idea of the state is stale, so trust Windows and do nothing when the
+  // app is already where the key wants it.
+  const wanted = (action.type === 'spotifyPlay' && (action.mode === 'play' || action.mode === 'pause')) ? action.mode : '';
+  if (wanted && (wanted === 'play') === (media.playbackStatus === 'Playing')) return { ok: true };
+  try { await mediaAction(cmd); return { ok: true }; } catch { return r; }
+};
 
 // Discord voice integration via the local RPC/IPC channel (needs the Discord
 // desktop client + the user's own app credentials). `let` so it can be re-created
@@ -21693,6 +21729,21 @@ const handleRequest = async (req, res) => {
     const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
     if (!payload) { json({ ok: false, error: 'not_found' }); return; }
     json({ ok: true, payload });
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/check/')) {
+    // Sandbox diagnostics for a widget's author: a static read of the package's
+    // own HTML/JS/CSS naming what the sandbox will refuse (CDN scripts, inline
+    // code, direct fetch, localStorage...). Read-only, and it answers kinds,
+    // file names and hostnames only, for files /sdk/widget/ already serves.
+    // readPackagePayload validates the id and applies the asset allowlist/caps.
+    let id = '';
+    try { id = decodeURIComponent(reqPath.slice('/sdk/check/'.length)); } catch { id = ''; }
+    const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
+    if (!payload) { json({ ok: false, error: 'not_found' }); return; }
+    const files = payload.files
+      .filter((f) => /\.(html?|m?js|css)$/i.test(f.path))
+      .map((f) => ({ path: f.path, text: Buffer.from(f.data, 'base64').toString('utf8') }));
+    json({ ok: true, issues: SdkDiagnostics.scanWidgetSource(files) });
 
   } else if (req.method === 'DELETE' && reqPath.startsWith('/sdk/widget/')) {
     // Remove one installed package (Settings → installed-packages manager).

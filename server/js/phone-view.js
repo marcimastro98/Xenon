@@ -33,8 +33,8 @@
   // 24 columns need roughly 22px each to stay legible, so the grid stops being
   // usable somewhere below ~530px. 620 covers every phone in portrait with room
   // to spare while staying clear of tablets, which get their own band below.
-  // A display mounted vertically is wider than this and is claimed by the
-  // TALL_DISPLAY_RATIO rule instead, on its shape rather than its width.
+  // A display mounted vertically can be narrower than this at high scaling and
+  // is told apart by PANEL_RATIO, on its shape rather than its width.
   const PHONE_MAX_W = 620;
 
   // The same phone on its side. Rotating was originally left on the grid on the
@@ -62,30 +62,30 @@
   // question.
   const TABLET_MAX_W = 1120;
 
-  // A DISPLAY MOUNTED VERTICALLY is not a tablet held in portrait, and the
-  // difference matters: a Xeneon Edge stood on its end is 720x2560, inside the
-  // width band above, and two columns of ~360px is not what that screen wants.
-  // The two are distinguishable by how extreme the ratio is — 2560/720 is 3.6,
-  // while every tablet in portrait sits near 1.4 — so anything this tall gets
-  // ONE column instead.
+  // A SCREEN TALLER THAN IT IS WIDE gets the vertical layout
+  // (js/dashboard-portrait.js): the same tiles, arranged for that shape, on the
+  // ordinary grid. Neither older answer worked. Stacking kept each tile's
+  // landscape height and spread it over three times the screen (a vertical
+  // Edge drew the Deck 1258px tall with eight keys in the middle); keeping the
+  // grid drew the landscape layout as a miniature of itself. Reported as the
+  // dashboard "scaling a bit weird" on a vertical Edge.
   //
-  // This used to keep the grid, on the reasoning that the owner of a vertical
-  // mount had built a layout for that shape. That premise is false: there is one
-  // layout, shared by every surface the dashboard renders on, so a layout built
-  // for a vertical screen is the layout on the user's PC too. What the rule
-  // actually produced was the 24-column grid squeezed into 720px — the landscape
-  // layout rendered as a miniature of itself, which is the exact failure the
-  // stacked view exists to prevent. Reported by a user asking how to mount their
-  // screen vertically without the dashboard "scrunching up super tiny".
-  //
-  // Anything wider than TABLET_MAX_W is left alone before this rule is reached,
-  // and that boundary is deliberately the SAME one the grid-vs-stack question
-  // already uses rather than a second, taller-only threshold. Turning a screen
-  // does not change how wide its columns are: at 1200px the grid gives 50px
-  // columns whether the screen is 900 or 3600 tall, so the "squeezed" problem is
-  // identical in both and is already answered. What being tall adds is empty
-  // space below the tiles, which is not a reason to restack a layout that reads.
-  const TALL_DISPLAY_RATIO = 2.5;
+  // 1.2, not 1: a desktop window a few pixels taller than wide is not a vertical
+  // screen, and a 3:4 tablet (1.33) or a rotated 16:9 monitor (1.78) clearly is.
+  const PORTRAIT_RATIO = 1.2;
+  // ...and at least this tall (CSS px). A vertical page holds a landscape
+  // page's tiles one under the other in a single screen, and a shorter one
+  // squeezes them under what their content needs (an upright 768x1024 tablet
+  // drew three 320px tiles and clipped the system cards). Shorter upright
+  // screens keep the tablet band, which scrolls.
+  const PORTRAIT_MIN_H = 1200;
+
+  // A PANEL is never a phone, however narrow. A vertical Edge is 720px wide at
+  // 100% scaling but 480 at 150% and 360 at 200%, inside the phone band above,
+  // and it has none of a phone's problems: it is not held, and it has room.
+  // The shape tells them apart: 2560/720 is 3.6, and the tallest phone screens
+  // (a foldable's cover display) stay under 2.8.
+  const PANEL_RATIO = 3;
 
   // Height per grid row when stacked. The user's `gs-h` is respected as a
   // PROPORTION rather than a pixel size — a tile they made twice as tall stays
@@ -94,6 +94,7 @@
   const ROW_PX = 26;
 
   let active = null;         // null = never applied yet
+  let portrait = false;      // the vertical layout is on (the grid, not a stack)
   let dock = null;
   let observer = null;
   let sorting = false;       // guard: reordering nodes re-triggers the observer
@@ -114,25 +115,28 @@
    */
   function isPhoneSized(w, h) {
     if (!Number.isFinite(w) || w <= 0) return false;
-    if (w <= PHONE_MAX_W) return true;
     const hasH = Number.isFinite(h) && h > 0;
+    if (hasH && h / w >= PANEL_RATIO) return false;
+    if (w <= PHONE_MAX_W) return true;
     return hasH && h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W;
   }
 
   /**
    * Which layout this viewport wants:
-   *   'off'     the grid
-   *   'tablet'  two columns, ordinary chrome
-   *   'column'  one column, ordinary chrome
-   *   'phone'   one column PLUS the compact chrome and the thumb dock
+   *   'off'       the grid
+   *   'portrait'  the grid, with the vertical layout's geometry
+   *   'tablet'    two columns, ordinary chrome
+   *   'column'    one column, ordinary chrome
+   *   'phone'     one column PLUS the compact chrome and the thumb dock
    *
    * Pure, so every threshold is testable without a browser.
    *
    * One function rather than several booleans because the answers are mutually
    * exclusive and their ORDER is the policy — a phone in landscape is inside the
-   * tablet width band and must never be answered with 'tablet', and a display
-   * mounted vertically must be judged on its width BEFORE its shape, or a tall
-   * screen wide enough for the grid would lose it.
+   * tablet width band and must never be answered with 'tablet', and a phone
+   * held upright is taller than wide and must never be answered with 'portrait'.
+   * "A griglia" (`off`) keeps the landscape layout on a vertical screen too, for
+   * anyone who prefers it.
    *
    * 'phone' and 'column' draw the SAME single column and differ only in chrome,
    * and keeping them apart is what fixes this: until v4.11.6 an explicit "Single
@@ -159,14 +163,9 @@
     if (o.preference === 'on') return phone ? 'phone' : 'column';
     if (!Number.isFinite(w) || w <= 0) return 'off';
     if (phone) return 'phone';
-    if (w > TABLET_MAX_W) return 'off';
-    // A display mounted vertically. Still answered with the phone's chrome
-    // rather than 'column': this branch only catches panels under
-    // TABLET_MAX_W and shaped past TALL_DISPLAY_RATIO — a vertical Edge is
-    // 720px wide — where the ordinary topbar has no more room than it does on
-    // a phone. Widening that is a separate question from the one above.
     const hasH = Number.isFinite(h) && h > 0;
-    if (hasH && h / w >= TALL_DISPLAY_RATIO) return 'phone';
+    if (hasH && h / w >= PORTRAIT_RATIO && h >= PORTRAIT_MIN_H) return 'portrait';
+    if (w > TABLET_MAX_W) return 'off';
     return 'tablet';
   }
 
@@ -631,7 +630,16 @@
       embedded: isEmbedded(),
     });
     const was = active;
-    if (want === 'off') disable(); else enable(want);
+    const wasPortrait = portrait;
+    portrait = want === 'portrait';
+    if (want === 'off' || want === 'portrait') disable(); else enable(want);
+    document.documentElement.classList.toggle('is-portrait', portrait);
+    // The tiles are the same, their geometry is not: the layout pass places
+    // them again (dashboard-layout.js listens), and only on a change.
+    if (wasPortrait !== portrait) {
+      syncGridStatic();
+      window.dispatchEvent(new CustomEvent('xenon:portrait-change', { detail: { portrait } }));
+    }
     // The Dynamic Island is a chrome for a screen with room beside the tiles;
     // topbar-minimal.js refuses to enable it while the phone view is on. Tell it
     // to re-decide whenever we cross the threshold, or a dashboard that was
@@ -684,8 +692,11 @@
        *  the island's pill and edge rails need room BESIDE the tiles, which is
        *  the one thing neither of these layouts has. */
       isActive: () => !!active,
-      /** 'phone' | 'tablet' | null — for anything that needs to tell them apart. */
+      /** 'phone' | 'tablet' | 'column' | null — for anything that needs to tell them apart. */
       mode: () => active,
+      /** True while the vertical layout is drawn (js/dashboard-portrait.js). */
+      isPortrait: () => portrait,
+      readingOrder,
       /**
        * Register a dock button for a feature with no topbar button to forward
        * to. Idempotent by id, and safe to call before or after the dock exists:
@@ -729,7 +740,7 @@
     module.exports = {
       stackMode, shouldUsePhoneView, isPhoneSized, readingOrder,
       PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W, ROW_PX,
-      TABLET_MAX_W, TALL_DISPLAY_RATIO,
+      TABLET_MAX_W, PORTRAIT_RATIO, PORTRAIT_MIN_H, PANEL_RATIO,
     };
   }
 })();

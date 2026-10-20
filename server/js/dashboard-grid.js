@@ -213,6 +213,15 @@ const _SIZE_PRESETS = [{ w: 6, h: 6 }, { w: 8, h: 8 }, { w: 12, h: 8 }, { w: 16,
 function cycleTileSize(gsId) {
   if (typeof getDashboardLayout !== 'function') return;
   const layout = getDashboardLayout();
+  const plan = portraitPlan(layout);
+  if (plan) {
+    if (!plan[gsId]) return;
+    const items = window.DashboardPortrait.materialize(layout, plan).items;
+    items[gsId] = window.DashboardPortrait.nextSize(items[gsId]);
+    saveDashboardLayout(layout);
+    if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+    return;
+  }
   const obj = (layout.groups && layout.groups[gsId]) ? layout.groups[gsId] : (layout.widgets && layout.widgets[gsId]);
   if (!obj) return;
   const curArea = (obj.w || 1) * (obj.h || 1);
@@ -442,6 +451,15 @@ function isStackedView() {
 // coordinates say they are.
 function gridStaticFor(editing, stacked) { return !editing || !!stacked; }
 
+// The vertical layout's plan for this screen, or null on any other screen.
+// Every geometric read and write below goes through it: on a vertical screen the
+// rects live in layout.portrait (js/dashboard-portrait.js), never in the
+// landscape geometry, so arranging one arrangement cannot move the other.
+function portraitPlan(layout) {
+  const P = (typeof window !== 'undefined') ? window.DashboardPortrait : null;
+  return (P && layout) ? P.activePlan(layout) : null;
+}
+
 function shouldGridBeStatic() { return gridStaticFor(_editing, isStackedView()); }
 
 // Re-applied when the stacked view goes on or off (PhoneView calls this), since
@@ -458,49 +476,44 @@ function setEditing(on) {
   document.body.classList.toggle('layout-editing', _editing);
 }
 
-// Read every grid's item geometry back into the layout and persist.
+// The layout object a grid item's id stands for: a tab-group, a copy, or a
+// primary widget, in that order (a group id can never be a widget id).
+function placementOf(layout, id) {
+  if (!id) return null;
+  if (layout.groups && layout.groups[id]) return { kind: 'group', ref: layout.groups[id] };
+  const copy = Array.isArray(layout.copies) ? layout.copies.find(c => c.id === id) : null;
+  if (copy) return { kind: 'copy', ref: copy };
+  return layout.widgets[id] ? { kind: 'widget', ref: layout.widgets[id] } : null;
+}
+
+// Read every grid's item geometry back into the layout and persist. On a
+// vertical screen the rects go to layout.portrait; the page is shared either way.
 function serialize() {
   if (typeof getDashboardLayout !== 'function') return;
   const layout = getDashboardLayout();
+  const plan = portraitPlan(layout);
+  const portraitItems = plan ? window.DashboardPortrait.materialize(layout, plan).items : null;
   _grids.forEach((grid, pageId) => {
     grid.getGridItems().forEach(el => {
       const id = el.getAttribute('gs-id');
-      // Group items: write geometry back to layout.groups[id].
-      if (id && layout.groups && layout.groups[id]) {
-        const gnode = el.gridstackNode || {};
-        if (gnode.x != null) layout.groups[id].x = gnode.x;
-        if (gnode.y != null) layout.groups[id].y = gnode.y;
-        if (gnode.w != null) layout.groups[id].w = gnode.w;
-        if (gnode.h != null) layout.groups[id].h = gnode.h;
-        layout.groups[id].page = pageId;
-        // Keep primary members' own page in step with their group: a grouped
-        // widget's page field otherwise goes stale, and everything that later
-        // trusts it (page removal, orphan reassignment) mis-places the widget.
-        (layout.groups[id].members || []).forEach(m => {
+      const placed = placementOf(layout, id);
+      if (!placed) return;
+      const node = el.gridstackNode || {};
+      const geom = portraitItems ? (portraitItems[id] = portraitItems[id] || {}) : placed.ref;
+      if (node.x != null) geom.x = node.x;
+      if (node.y != null) geom.y = node.y;
+      if (node.w != null) geom.w = node.w;
+      if (node.h != null) geom.h = node.h;
+      if (portraitItems) geom.page = pageId;
+      placed.ref.page = pageId;
+      // Keep primary members' own page in step with their group: a grouped
+      // widget's page field otherwise goes stale, and everything that later
+      // trusts it (page removal, orphan reassignment) mis-places the widget.
+      if (placed.kind === 'group') {
+        (placed.ref.members || []).forEach(m => {
           if (layout.widgets[m]) layout.widgets[m].page = pageId;
         });
-        return;
       }
-      // Copy placement: write geometry into layout.copies[].
-      if (id && Array.isArray(layout.copies)) {
-        const copy = layout.copies.find(c => c.id === id);
-        if (copy) {
-          const gnode = el.gridstackNode || {};
-          if (gnode.x != null) copy.x = gnode.x;
-          if (gnode.y != null) copy.y = gnode.y;
-          if (gnode.w != null) copy.w = gnode.w;
-          if (gnode.h != null) copy.h = gnode.h;
-          copy.page = pageId;
-          return;
-        }
-      }
-      if (!id || !layout.widgets[id]) return;
-      const node = el.gridstackNode || {};
-      if (node.x != null) layout.widgets[id].x = node.x;
-      if (node.y != null) layout.widgets[id].y = node.y;
-      if (node.w != null) layout.widgets[id].w = node.w;
-      if (node.h != null) layout.widgets[id].h = node.h;
-      layout.widgets[id].page = pageId;
     });
   });
   saveDashboardLayout(layout, { status: false });
@@ -524,6 +537,31 @@ function applyWidgetGeometry(grid, el, pref) {
     const h = Math.max(Number(pref.h) || 1, MIN_TILE_H);
     grid.update(el, { x: pref.x, y: pref.y, w: pref.w, h, minH: MIN_TILE_H });
   } catch (e) { console.error('grid place failed', e); }
+  _suppress = false;
+}
+
+// Rows far below any real page, where tiles wait while a whole arrangement is
+// swapped (see parkForPlacement).
+const PARK_ROW = 1000;
+
+// Move every tile about to be re-placed out of the way, keeping their relative
+// positions. Tiles are placed one at a time, and a tile sent to a spot another
+// tile still holds pushes that one down (GridStack resolves the collision), so
+// swapping a whole arrangement (vertical ↔ landscape, or a vertical layout
+// synced in another order) stacked tiles below the page. Parked by their
+// targets shifted down rigidly, so they never overlap each other either.
+function parkForPlacement(targets) {
+  _suppress = true;
+  try {
+    _grids.forEach(grid => {
+      (grid.engine.nodes || []).slice().forEach(node => {
+        const id = node.el && node.el.getAttribute('gs-id');
+        const t = id && targets[id];
+        if (!t) return;
+        grid.update(node.el, { x: t.x, y: PARK_ROW + (Number(t.y) || 0), w: t.w, h: Math.max(Number(t.h) || 1, MIN_TILE_H) });
+      });
+    });
+  } catch (e) { console.error('grid park failed', e); }
   _suppress = false;
 }
 
@@ -815,6 +853,9 @@ function showWidgetPage(pageId) {
 function refreshPageAddAffordances() {
   const editing = typeof document !== 'undefined' && document.body.classList.contains('layout-editing');
   const margin = 7;
+  const plan = editing && typeof getDashboardLayout === 'function' ? portraitPlan(getDashboardLayout()) : null;
+  // A vertical page is a fixed 48 rows, all of them real grid you can drop into.
+  const minRows = plan ? window.DashboardPortrait.PORTRAIT_ROWS : 1;
   _grids.forEach((grid, pageId) => {
     try {
       const el = grid.el;
@@ -836,9 +877,11 @@ function refreshPageAddAffordances() {
       // a bogus spot AND made largestFreeRect allocate a huge grid (→ freeze).
       // Use the intended layout rows, capped, so the search stays small and the
       // "+" only ever fills the visible area.
-      let rows = pageRowSpan(pageId);
+      // A parked page is off screen: its drop-zone is recomputed when it is shown.
+      if (section.classList.contains('is-parked')) return;
+      let rows = pageRowSpan(pageId, plan);
       if (rows < 1) rows = (typeof grid.getRow === 'function' ? grid.getRow() : 0) || 2;
-      rows = Math.min(Math.max(rows, 1), 32);
+      rows = Math.min(Math.max(rows, minRows), Math.max(32, minRows));
       const rect = largestFreeRect(occupied, GRID_COLUMNS, rows);
       if (!rect) { add.style.display = 'none'; return; }   // page full
       const cw = el.clientWidth / GRID_COLUMNS;
@@ -873,7 +916,8 @@ function scheduleAffordances() {
 // Row count for a page from the INTENDED layout geometry (visible standalone
 // widgets + groups on that page). Using the layout — not grid.getRow() — keeps
 // this immune to GridStack's trailing-row quirk and to any transient drift.
-function pageRowSpan(pageId) {
+function pageRowSpan(pageId, plan) {
+  if (plan) return window.DashboardPortrait.planRowSpan(plan, pageId);
   if (typeof getDashboardLayout !== 'function') return 0;
   const layout = getDashboardLayout();
   const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
@@ -944,11 +988,15 @@ function pageTileCount(pageId) {
 //
 // Asking for MORE rows only ever lowers the row height, so neither can overflow
 // the page and force a scroll.
-function fitPageRows({ avail, width, rows, tiles }) {
+function fitPageRows({ avail, width, rows, tiles, fixedRows }) {
   const h = Number(avail) || 0;
   const w = Number(width) || 0;
   const baseRows = Math.max(1, Number(rows) || 1);
-  let effRows = (Number(tiles) || 0) <= 1 ? Math.max(baseRows, MIN_FILL_ROWS) : baseRows;
+  // The vertical layout's page is a fixed grid: its rows never stretch to fill
+  // (that is what made one tile half the screen), they are the page.
+  const fixed = Number(fixedRows) || 0;
+  let effRows = fixed > 0 ? Math.max(baseRows, fixed)
+    : ((Number(tiles) || 0) <= 1 ? Math.max(baseRows, MIN_FILL_ROWS) : baseRows);
   // Measured against the page box, not the window: it is the space the tiles
   // actually get, and it is what makes this true for the iCUE panel and a
   // resized browser window as well as for a rotated monitor.
@@ -958,6 +1006,7 @@ function fitPageRows({ avail, width, rows, tiles }) {
 }
 
 function fitGridHeights() {
+  const plan = typeof getDashboardLayout === 'function' ? portraitPlan(getDashboardLayout()) : null;
   _grids.forEach((grid, pageId) => {
     try {
       const el = grid.el;
@@ -968,7 +1017,7 @@ function fitGridHeights() {
       const parent = el && el.parentElement;
       let avail = parent ? parent.clientHeight : 0;
       if (!avail) return;                              // hidden page → skip
-      let rows = pageRowSpan(pageId);
+      let rows = pageRowSpan(pageId, plan);
       if (rows < 1) rows = (typeof grid.getRow === 'function' ? grid.getRow() : 0) || 0;
       if (rows < 1) return;
       const fit = fitPageRows({
@@ -976,6 +1025,7 @@ function fitGridHeights() {
         width: parent ? parent.clientWidth : 0,
         rows,
         tiles: pageTileCount(pageId),
+        fixedRows: plan ? window.DashboardPortrait.PORTRAIT_ROWS : 0,
       });
       const ch = fit.cellHeight;
       // The grid element is sized to its CONTENT, so on a portrait screen the
@@ -999,7 +1049,7 @@ function fitGridHeights() {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, syncStatic, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, syncStatic, serialize, applyWidgetGeometry, parkForPlacement, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // A render-parked page (content-visibility, dashboard-pager .is-parked) reports

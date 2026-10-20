@@ -208,6 +208,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   // folded to a slim "+ New timer" strip. One flag, not one per instance: a
   // Timer copy is cloned without the add row (stripTimerClone).
   timerAddCollapsed: false,
+  // The vertical layout (js/dashboard-portrait.js): generated until arranged.
+  portrait: Object.freeze({ custom: false, items: Object.freeze({}) }),
 });
 
 // The activities Performance Mode can detect and react to. One list, used by
@@ -1452,6 +1454,12 @@ function normalizeDashboardLayout(value) {
   layout.topbarHidden = source.topbarHidden === true;
   layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
+  // The vertical layout's own geometry; validated against the ids above, so it
+  // must stay last. Same rule as the server (js/dashboard-portrait.js, loaded
+  // before this file).
+  layout.portrait = (typeof DashboardPortrait !== 'undefined')
+    ? DashboardPortrait.normalizePortrait(source.portrait, layout)
+    : { custom: false, items: {} };
   return layout;
 }
 

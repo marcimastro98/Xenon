@@ -874,9 +874,10 @@
       // path was right, with no way to tell a refused path from one that failed
       // to launch. The key still flashes; now it also says why.
       if (!(data && data.ok)) reportActionError(data && data.error);
-      // The output just changed: ask now rather than wait for the next audio
-      // tick, so the key's face follows the press instead of trailing it.
-      if (data && data.ok && (action.type === 'audioDevice' || action.type === 'audioDeviceToggle' || action.type === 'audioDeviceFirst')) pollOutputDevice();
+      // The output, the mute or the volume just changed: ask now rather than
+      // wait for the next audio tick, so the key's face follows the press
+      // instead of trailing it.
+      if (data && data.ok && AUDIO_ACTION_TYPES.includes(action.type)) pollAudioState();
       return !!(data && data.ok);
     } catch (e) { return false; }
   }
@@ -2523,7 +2524,7 @@
       }
     }
     scheduleHaWatchSync();   // the rendered key set may have changed its HA bindings
-    syncOutputWatch();       // ...and whether any key follows the audio output
+    syncAudioWatch();        // ...and whether any key follows the audio state
   }
 
   // ── HA entity subscriptions for bound keys ─────────────────────────────────
@@ -3133,42 +3134,48 @@
   }
 
   // ── which audio output is active ────────────────────────────────────────
-  // A key bound to 'outputDevice' needs the default output, which rides the
-  // `audio` SSE event. The server only runs that poll while something has asked
-  // for /audio in the last two minutes (audioPollWanted), and a deck of output
-  // keys asks for nothing else, so while one is on screen the deck asks once a
-  // minute: that keeps the server's 8s poll going and seeds the state at once.
-  const OUTPUT_WATCH_MS = 60000;
-  let outputWatchTimer = null;
-  async function pollOutputDevice() {
+  // Keys bound to the output device or the speaker mute, and the master volume
+  // fader, read the `audio` SSE event. The server only runs that poll while
+  // something has asked for /audio in the last two minutes (audioPollWanted),
+  // and a deck asks for nothing else, so while such a key is on screen the deck
+  // asks once a minute: that keeps the server's 8s poll going and seeds the
+  // state at once. A mute key used to stop following two minutes after the
+  // dashboard loaded (issue #139).
+  const AUDIO_WATCH_MS = 60000;
+  const AUDIO_STATE_SOURCES = ['outputDevice', 'speakerMuted'];
+  const AUDIO_ACTION_TYPES = ['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst', 'volume'];
+  let audioWatchTimer = null;
+  async function pollAudioState() {
     try {
       const res = await fetch((typeof SERVER !== 'undefined' ? SERVER : '') + '/audio');
       const d = await res.json();
-      if (d && !d.unavailable) refreshStates({ outputDevice: (d.speaker && d.speaker.id) || '' });
+      if (!d || d.unavailable || !d.speaker) return;
+      refreshStates({ outputDevice: d.speaker.id || '', speakerMuted: !!d.speaker.muted, masterVolume: Number(d.speaker.volume) });
     } catch { /* offline: keep the last known face */ }
   }
-  function setOutputWatch(wanted) {
-    if (wanted && !outputWatchTimer) {
-      outputWatchTimer = setInterval(() => { if (!document.hidden) pollOutputDevice(); }, OUTPUT_WATCH_MS);
-      pollOutputDevice();
-    } else if (!wanted && outputWatchTimer) {
-      clearInterval(outputWatchTimer); outputWatchTimer = null;
+  function setAudioWatch(wanted) {
+    if (wanted && !audioWatchTimer) {
+      audioWatchTimer = setInterval(() => { if (!document.hidden) pollAudioState(); }, AUDIO_WATCH_MS);
+      pollAudioState();
+    } else if (!wanted && audioWatchTimer) {
+      clearInterval(audioWatchTimer); audioWatchTimer = null;
     }
   }
 
-  function syncOutputWatch() {
-    let wanted = false;
-    document.querySelectorAll('.deck-key[data-state-bound]').forEach((node) => {
-      if (node._deckState && node._deckState.source === 'outputDevice') wanted = true;
-    });
-    setOutputWatch(wanted);
+  function deckReadsAudio() {
+    for (const node of document.querySelectorAll('.deck-key[data-state-bound]')) {
+      if (node._deckState && AUDIO_STATE_SOURCES.includes(node._deckState.source)) return true;
+    }
+    for (const node of document.querySelectorAll('.deck-key.is-slider')) {
+      if (node._deckSlider && node._deckSlider.target === 'volume') return true;
+    }
+    return false;
   }
+  function syncAudioWatch() { setAudioWatch(deckReadsAudio()); }
 
   // Toggle .is-on for every state-bound key node against the current snapshot.
   function applyKeyStates() {
-    let wantsOutput = false;
     document.querySelectorAll('.deck-key[data-state-bound]').forEach((node) => {
-      if (node._deckState && node._deckState.source === 'outputDevice') wantsOutput = true;
       const on = window.DeckModel.evaluateKeyState(node._deckState, stateSnapshot);
       node.classList.toggle('is-on', on);
       applyStateStyle(node, on);
@@ -3181,7 +3188,7 @@
     });
     applyLiveFaces();
     applySliderValues();
-    setOutputWatch(wantsOutput);
+    syncAudioWatch();
   }
 
   // Merge a partial state update (e.g. { micMuted: true }) and re-apply. Called

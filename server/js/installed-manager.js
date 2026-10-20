@@ -441,6 +441,65 @@
     }
   }
 
+  // ── What the sandbox refuses in a widget the user is building ─────────────
+  // A widget written as a normal web page (a CDN script, inline code, onclick=,
+  // fetch, localStorage) used to load as a blank tile with nothing saying why.
+  // Two sources fill one list: the server's static read of the package
+  // (GET /sdk/check/<id>) and what the probe saw the CSP refuse while the widget
+  // ran (CustomWidget.getSandboxIssues). Shown only for the user's own packages:
+  // a dev folder ('unknown' until claimed), a claimed one or a Creator build.
+  // Community installs and the bundled examples stay quiet, because the person
+  // reading this list cannot fix them.
+  const ISSUE_ORIGINS = ['unknown', 'local', 'creator'];
+  const ISSUE_WHERE_MAX = 3;
+
+  function groupIssues(issues) {
+    const byKind = new Map();
+    for (const i of issues) {
+      if (!byKind.has(i.kind)) byKind.set(i.kind, []);
+      const where = i.host || i.file;
+      if (where && !byKind.get(i.kind).includes(where)) byKind.get(i.kind).push(where);
+    }
+    const order = window.SdkDiagnostics ? SdkDiagnostics.ISSUE_KINDS : [];
+    return [...byKind.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+  }
+
+  function issuesBlock(issues) {
+    const groups = groupIssues(issues);
+    const box = el('details', 'inst-issues');
+    box.appendChild(el('summary', 'inst-issues-title', groups.length === 1
+      ? t('installed_issues_one', 'La sandbox blocca 1 cosa in questo widget')
+      : t('installed_issues_n', 'La sandbox blocca {n} cose in questo widget').replace('{n}', String(groups.length))));
+    const list = el('div', 'inst-issues-list');
+    for (const [kind, where] of groups) {
+      const row = el('div', 'inst-issues-row');
+      row.appendChild(el('b', 'inst-issues-kind', t('sdk_issue_' + kind, kind)));
+      if (where.length) {
+        const shown = where.slice(0, ISSUE_WHERE_MAX).join(', ') + (where.length > ISSUE_WHERE_MAX ? ', …' : '');
+        row.appendChild(el('code', 'inst-issues-where', shown));
+      }
+      row.appendChild(el('span', 'inst-issues-fix', t('sdk_issue_' + kind + '_fix', '')));
+      list.appendChild(row);
+    }
+    box.appendChild(list);
+    box.appendChild(el('p', 'inst-issues-foot', t('installed_issues_foot', '')));
+    return box;
+  }
+
+  async function attachSandboxIssues(info, pkg) {
+    let scanned = [];
+    try {
+      const r = await fetch('/sdk/check/' + encodeURIComponent(pkg.id));
+      const d = await r.json();
+      if (d && d.ok && Array.isArray(d.issues)) scanned = d.issues;
+    } catch { /* advisory: the run-time list still shows on its own */ }
+    if (!info.isConnected) return;   // the list repainted meanwhile
+    const live = (window.CustomWidget && typeof CustomWidget.getSandboxIssues === 'function')
+      ? CustomWidget.getSandboxIssues(pkg.id) : [];
+    const issues = window.SdkDiagnostics ? SdkDiagnostics.mergeIssues(scanned, live) : scanned;
+    if (issues.length) info.appendChild(issuesBlock(issues));
+  }
+
   function renderRow(row, cat, repaint) {
     const wrap = el('div', 'inst-row' + (row.record && row.record.legacy ? ' is-legacy' : ''));
     wrap.appendChild(thumbFor(row, entryFor(row, cat)));
@@ -481,6 +540,7 @@
 
     const meta = metaLine(row);
     if (meta) info.appendChild(el('span', 'inst-row-meta', meta));
+    if (row.pkg && ISSUE_ORIGINS.includes(row.pkg.origin)) attachSandboxIssues(info, row.pkg);
     wrap.appendChild(info);
 
     const upd = updateFor(row, cat);
@@ -512,9 +572,20 @@
         && !(typeof CustomWidget.isSuspended === 'function' && CustomWidget.isSuspended(row.pkg.id))) {
       const add = el('button', 'settings-btn', t('settings_sdk_add_page', 'Aggiungi alla pagina'));
       add.type = 'button';
-      add.addEventListener('click', () => {
-        const inst = CustomWidget.addToPage(row.pkg.id);
-        if (inst && typeof toast === 'function') toast(t('settings_sdk_added_page', 'Aggiunto alla pagina'), String(row.pkg.name || ''), 'success');
+      add.addEventListener('click', async () => {
+        // This list reads the server fresh, the tile code reads the package list
+        // it fetched at page load: a folder dropped in since then is listed here
+        // but unknown there, and the tap did nothing. Refresh once and retry.
+        let inst = CustomWidget.addToPage(row.pkg.id);
+        if (!inst && typeof CustomWidget.refreshPackages === 'function') {
+          add.disabled = true;
+          try { await CustomWidget.refreshPackages(); } catch { /* the retry below reports it */ }
+          add.disabled = false;
+          inst = CustomWidget.addToPage(row.pkg.id);
+        }
+        if (typeof toast !== 'function') return;
+        if (inst) toast(t('settings_sdk_added_page', 'Aggiunto alla pagina'), String(row.pkg.name || ''), 'success');
+        else toast(t('settings_sdk_add_page_failed', 'Non è stato possibile aggiungerlo alla pagina. Ricarica la dashboard e riprova.'), String(row.pkg.name || ''), 'error');
       });
       btns.appendChild(add);
     }

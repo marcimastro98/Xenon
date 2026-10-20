@@ -2265,9 +2265,35 @@ if (typeof window !== 'undefined') {
   window.tileShapeInfoOf = tileShapeInfoOf;
 }
 
+// Whether the last placement pass used the vertical arrangement.
+let lastPlacedVertical = false;
+
+// Where each landscape tile goes: visible standalone widgets, groups and copies.
+function landscapeTargets(layout, groupOf) {
+  const out = {};
+  DASHBOARD_WIDGET_IDS.forEach(id => {
+    const w = layout.widgets[id];
+    if (w && w.visible && !groupOf(id)) out[id] = w;
+  });
+  Object.keys(layout.groups || {}).forEach(gid => { out[gid] = layout.groups[gid]; });
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach(c => { if (c && c.id && !groupOf(c.id)) out[c.id] = c; });
+  return out;
+}
+
 function applyDashboardWidgets(layout) {
   const groups = layout.groups || {};
   const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(groups, id) : null);
+  // On a vertical screen every tile is placed by the vertical layout instead
+  // (js/dashboard-portrait.js); the landscape geometry is not touched.
+  const plan = window.DashboardPortrait ? window.DashboardPortrait.activePlan(layout) : null;
+  const geometryOf = (id, landscape) => (plan && plan[id]) || landscape;
+  // A vertical arrangement replaces the tiles' positions wholesale, and so does
+  // the first landscape pass after one: park the tiles first so placing them one
+  // by one cannot push the others down the page.
+  if (window.DashboardGrid && (plan || lastPlacedVertical)) {
+    window.DashboardGrid.parkForPlacement(plan || landscapeTargets(layout, groupOf));
+  }
+  lastPlacedVertical = !!plan;
   // 1) standalone widgets (not members of any group)
   DASHBOARD_WIDGET_IDS.forEach(widgetId => {
     const preferences = layout.widgets[widgetId];
@@ -2316,7 +2342,7 @@ function applyDashboardWidgets(layout) {
     if (!targetGrid) return; // page grid not built yet → leave in pool, place next pass
     adoptGridItem(targetGrid, item);
     if (window.DashboardGrid && targetGrid.gridstack) {
-      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, preferences);
+      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, geometryOf(widgetId, preferences));
     }
     createDashboardControls(tile, 'widget', null, widgetId);
   });
@@ -2341,7 +2367,7 @@ function applyDashboardWidgets(layout) {
     adoptGridItem(targetGrid, item);
     if (window.DashboardTabGroups) window.DashboardTabGroups.renderGroupTile(item, g);
     if (window.DashboardGrid && targetGrid.gridstack) {
-      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, g);
+      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, geometryOf(gid, g));
     }
   });
   // 2.5) copies — deep clone of the base widget atom, stripped to the duplicable
@@ -2366,7 +2392,7 @@ function applyDashboardWidgets(layout) {
     }
     adoptGridItem(targetGrid, item);
     if (window.DashboardGrid && targetGrid.gridstack) {
-      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, copy);
+      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, geometryOf(copy.id, copy));
     }
   });
   // 2.9) an instance that is now a group member must not also keep a standalone
@@ -2779,6 +2805,16 @@ function resetDashboardLayout() {
   const pageId = pageIds.includes(focused) ? focused : pageIds[0];
   const defaultPageId = DEFAULT_DASHBOARD_LAYOUT.pages[0].id;
 
+  // On a vertical screen the reset is about the vertical arrangement of this
+  // page: it goes back to the generated one, and the landscape layout (the one
+  // the person is not looking at) is left exactly as it is.
+  if (window.DashboardPortrait && window.DashboardPortrait.isActive()) {
+    window.DashboardPortrait.resetPortrait(layout, pageId);
+    saveDashboardLayout(layout);
+    applyDashboardLayout();
+    return;
+  }
+
   if (pageId === defaultPageId && layout.pages.length <= 1) {
     saveDashboardLayout(normalizeDashboardLayout(null));
   } else if (pageId === defaultPageId) {
@@ -2819,6 +2855,14 @@ function resetDashboardLayout() {
 
 function initDashboardLayout() {
   applyDashboardLayout();
+}
+
+// A screen turned to vertical (or back) keeps its tiles and swaps their
+// geometry: js/phone-view.js says when, js/dashboard-portrait.js says where.
+if (typeof window !== 'undefined') {
+  window.addEventListener('xenon:portrait-change', () => {
+    if (hubSettings) applyDashboardLayout();
+  });
 }
 
 if (typeof module !== 'undefined' && module.exports) {

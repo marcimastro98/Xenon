@@ -836,14 +836,19 @@
       b.addEventListener('click', onClick);
       return b;
     };
-    el.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => { hideBanner(); optimize(); }));
-    el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), () => { _snoozedActivities.add(_lastActivity); hideBanner(); }));
-    el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => {
+    // One group, so on a narrow screen the buttons drop below the message
+    // together instead of one at a time.
+    const actions = document.createElement('span');
+    actions.className = 'perf-banner-actions';
+    actions.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => { hideBanner(); optimize(); }));
+    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), () => { _snoozedActivities.add(_lastActivity); hideBanner(); }));
+    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => {
       _suppressBanner = true;
       persist({ autoSuggest: false });
       if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
       hideBanner();
     }));
+    el.appendChild(actions);
 
     document.body.appendChild(el);
     return el;

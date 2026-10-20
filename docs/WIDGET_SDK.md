@@ -40,7 +40,8 @@ server/data/widgets/
 One filename is reserved: `__xenon-perf.js`. The host serves its own small
 performance probe under that name inside every package (it measures long tasks
 and frame rate and reports them to the dashboard, so users can see which widget
-is using resources). A file with that name inside your package is ignored. The
+is using resources, and it tells the dashboard what the sandbox refused, see
+*From a web page to a widget*). A file with that name inside your package is ignored. The
 probe never touches your DOM or globals beyond `window.__xenonPerf`, and you do
 not need to do anything to support it.
 
@@ -137,6 +138,62 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
   and the dashboard's Browser tile shows it. See *Opening a page on the dashboard*.
 - All data arrives over `postMessage` from the host; all effects go back the
   same way.
+
+## From a web page to a widget (v4.12)
+
+A page that works in a normal browser usually shows up as a **blank tile** the
+first time it runs as a widget, because the sandbox refuses the things web pages
+take for granted. Nothing is broken: each one has a widget equivalent.
+
+| In a web page | In a widget |
+|---|---|
+| `<script src="https://cdn…">` (Tailwind, a chart library) | Copy the file into your package and load it with a relative path. For Tailwind, build the CSS once and ship the `.css` file. |
+| `<script>…</script>` written inside the HTML | Move the code into a `.js` file in the package. |
+| `onclick="…"`, `href="javascript:…"` | `addEventListener` in your `.js` file. |
+| `fetch(url)`, `XMLHttpRequest`, `WebSocket` | List the domain in the manifest's `hosts` and ask the host: the `fetch` message (§6). |
+| `localStorage`, cookies, IndexedDB | `"storage": true` in the manifest and the `store` message (*Persistent storage*). |
+| `<img src="https://…">` for a picture from the web | Declare the host and point the image at `/sdk/asset/<pkgId>?u=<url>` (*Artwork that stays cached*). |
+| `<link rel="stylesheet" href="https://…">`, a web font | Ship the file in the package. |
+| `<iframe>` of another site | Not possible in a widget. To show a page, use the `browser` action category (§5b). |
+| `eval`, `new Function` | Not allowed. Write the code directly. |
+
+**Xenon tells you what it blocked.** Open the Store, **Installed** tab: under a
+widget you are developing (a folder you dropped in `server/data/widgets/`, one
+you claimed with *I made this*, or a Creator build) a line says how many things
+the sandbox blocks, and tapping it lists each one with the file or domain and
+the fix. It combines two checks: a read of your package's HTML, JS and CSS when
+the tab opens, and what the sandbox actually refused while the widget ran (which
+also catches an address your code builds at run time). Widgets installed from
+the community never show it, because the person reading the list cannot fix
+them. The browser's developer console shows the same refusals in more detail.
+
+**A helper for the bridge.** `server/sdk-example/xenon-client.js` wraps the
+messages in promises, so code written for a web page needs fewer changes. Copy
+it into your package and load it before your own script:
+
+```html
+<script src="xenon-client.js"></script>
+<script src="widget.js"></script>
+```
+
+```js
+// widget.js
+const init = await xenon.ready;                        // the host's init message
+const res = await xenon.fetch('https://site.api.example.com/v2/scores');
+const scores = res.json();                             // throws with the host's error if !res.ok
+await xenon.store.set('teams', ['NE', 'BOS']);
+const teams = await xenon.store.get('teams');          // null when absent
+img.src = xenon.assetUrl(team.logoUrl);                // host must be in `hosts`
+xenon.on('theme', (theme) => applyTheme(theme));       // also 'data', 'size', 'visibility'…
+```
+
+(Top-level `await` needs `<script type="module">`; otherwise use `.then()`.) The
+helper sends `hello` for you, so do not send your own. It queues requests one
+at a time and spaces them past the host's rate limits (one fetch a second, one
+store write every 100 ms), retrying once when the host answers `rate_limited`.
+A reply that never comes resolves as `{ ok: false, error: 'timeout' }` after 30
+seconds. It gives your widget nothing the bridge does not: every call is a
+message you could post yourself, under the same grants.
 
 ## Performance (your widget shares the dashboard's CPU)
 
