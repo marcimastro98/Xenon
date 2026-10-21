@@ -1,5 +1,5 @@
 {
-  "_generated": "2026-10-20T06:42:21.099Z",
+  "_generated": "2026-10-21T06:43:14.383Z",
   "_note": "Auto-generated from Buy Me a Coffee + GitHub Sponsors + the supporter hub (plus any manualSupporters) by tools/build-supporters.mjs. Do not edit by hand — change docs/supporters-overrides.json instead. Names are privacy-masked (manual entries show as typed); full names and profile links are never published. Active members / recurring sponsors carry \"tier\":\"member\" and are highlighted on the site.",
   "supporters": [
     {
@@ -35,15 +35,19 @@
       "name": "Forlin"
     },
     {
-      "name": "Daniele",
-      "tier": "member"
-    },
-    {
       "name": "Wayfinder",
       "tier": "member"
     },
     {
       "name": "cassoce"
+    },
+    {
+      "name": "Simone",
+      "tier": "member"
+    },
+    {
+      "name": "Clarette",
+      "tier": "member"
     },
     {
       "name": "Adrian"
@@ -66,14 +70,6 @@
       "name": "AliciaAster"
     },
     {
-      "name": "Simone",
-      "tier": "member"
-    },
-    {
-      "name": "Clarette",
-      "tier": "member"
-    },
-    {
       "name": "Domi"
     },
     {
@@ -81,6 +77,10 @@
     },
     {
       "name": "Nienor"
+    },
+    {
+      "name": "XtroBag",
+      "tier": "member"
     },
     {
       "name": "xgibsonx",
