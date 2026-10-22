@@ -1,6 +1,57 @@
 {
   "promos": [
     {
+      "id": "haunted-house-strip",
+      "entryId": "haunted-house",
+      "format": "strip",
+      "activeFrom": "2026-10-22T12:00:00+02:00",
+      "activeUntil": "2026-11-01T23:59:59+01:00",
+      "video": "https://assets.xenon-app.com/community/promo/haunted-house.mp4",
+      "poster": "https://assets.xenon-app.com/community/promo/haunted-house-poster.png",
+      "url": "https://xenon-app.com/catalog/haunted-house/",
+      "look": {
+        "paper": "#e6dcc8",
+        "ink": "#2b2724"
+      },
+      "text": {
+        "en": {
+          "title": "Haunted House",
+          "line": "Free pumpkin from 22 October, a new window every evening 25 to 31 October.",
+          "cta": ""
+        },
+        "it": {
+          "title": "Haunted House",
+          "line": "Zucca gratis dal 22 ottobre, poi una finestra nuova ogni sera dal 25 al 31.",
+          "cta": ""
+        },
+        "es": {
+          "title": "Haunted House",
+          "line": "Calabaza gratis desde el 22 de octubre y una ventana nueva cada noche del 25 al 31.",
+          "cta": ""
+        },
+        "fr": {
+          "title": "Haunted House",
+          "line": "Citrouille gratuite dès le 22 octobre, puis une nouvelle fenêtre chaque soir du 25 au 31.",
+          "cta": ""
+        },
+        "ja": {
+          "title": "Haunted House",
+          "line": "カボチャは10月22日から無料。25日から31日まで、毎晩新しい窓に明かりが灯ります。",
+          "cta": ""
+        },
+        "ko": {
+          "title": "Haunted House",
+          "line": "호박은 10월 22일부터 무료이고, 25일부터 31일까지 매일 저녁 새 창문에 불이 켜집니다.",
+          "cta": ""
+        },
+        "zh": {
+          "title": "Haunted House",
+          "line": "南瓜从10月22日起免费，25日至31日每晚亮起一扇新窗户。",
+          "cta": ""
+        }
+      }
+    },
+    {
       "id": "haunted-house-spotlight",
       "entryId": "haunted-house",
       "format": "spotlight",
