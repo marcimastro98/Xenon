@@ -2,6 +2,36 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "haunted-house-all",
+      "kind": "widget",
+      "name": "Haunted House: all 8 windows",
+      "author": "xenon",
+      "authorSupporter": true,
+      "supportersOnly": true,
+      "locked": true,
+      "featured": "on",
+      "description": "A new guest moves in every evening at 8 pm from 25 to 31 October, and late joiners get every past one. They react to your music, the games Xenon sees you play, your PC, the weather and, if you switch on Room lights, your lights. Your carved pumpkin comes with it, and you can remove the free house.",
+      "category": "system",
+      "tags": [
+        "halloween",
+        "haunted-house",
+        "calendar",
+        "pumpkin",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "pkgId": "haunted-house-all",
+      "appVersionMin": "4.11.11",
+      "preview": {
+        "accent": "#EE7A2B",
+        "bg": "#3F5079",
+        "text": "#E6DCC8"
+      },
+      "shots": 5,
+      "addedAt": "2026-10-22",
+      "codeFile": true
+    },
+    {
       "id": "casa",
       "kind": "widget",
       "name": "Wall Plate",
