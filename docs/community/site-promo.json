@@ -232,7 +232,7 @@
       "id": "nitrato-spotlight",
       "entryId": "nitrato",
       "format": "spotlight",
-      "activeUntil": "2026-11-02T23:59:59+01:00",
+      "activeUntil": "2026-10-22T11:59:59+02:00",
       "video": "https://assets.xenon-app.com/community/promo/nitrato.mp4",
       "poster": "https://assets.xenon-app.com/community/promo/nitrato-poster.png",
       "url": "https://xenon-app.com/catalog/nitrato/",
@@ -255,6 +255,11 @@
           "title": "Nitrato",
           "line": "Un pueblo en xilografía para quienes apoyan Xenon. Ámbar de día, azul de noche, con un rótulo de cine mudo.",
           "cta": "Desbloquea Nitrato"
+        },
+        "fr": {
+          "title": "Nitrato",
+          "line": "Une ville en gravure sur bois pour les soutiens de Xenon. Ambre le jour, bleue la nuit, avec un carton de film muet.",
+          "cta": "Débloquer Nitrato"
         },
         "ja": {
           "title": "Nitrato",
