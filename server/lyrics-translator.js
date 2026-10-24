@@ -18,7 +18,7 @@ const path = require('path');
 const { writeFileAtomic } = require('./atomic-write.js');
 const { createJsonLru } = require('./json-lru.js');
 const T = require('./lyrics-translate.js');
-const { isSurelyLang } = require('./lyrics-language.js');
+const { isSurelyLang, surelyOtherLang } = require('./lyrics-language.js');
 const { estimate } = require('./lyrics-translate-price.js');
 
 const CACHE_FILE = 'lyrics-translations.json';
@@ -123,22 +123,25 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
     if (!wantReading && isSurelyLang(unique, lang)) return { ok: true, same: true, tr: [], read: [] };
     if (!T.fitsBudget(unique)) return { ok: false, error: 'too_long' };
     const key = `${songKey}|${lang}|${wantReading ? 'r' : ''}`;
+    // A song surely in another language is never "already in your language", so
+    // a model's wrong "same" is neither believed nor served from the cache.
+    const sung = surelyOtherLang(unique, lang);
     const cached = await cache.get(key);
     if (cached && cached.failed) return { ok: false, error: 'failed', retryAt: cached.until };
-    if (cached) return reply(cached, index);
+    if (cached && !(cached.same && sung)) return reply(cached, index);
     if (cachedOnly) return { ok: false, error: 'not_cached' };
     const u = await currentUsage();
     if (u.songs >= cleanCap(cap)) return { ok: false, error: 'cap' };
     if (!pending.has(key)) {
-      const job = request(key, unique, lang, wantReading).finally(() => pending.delete(key));
+      const job = request(key, unique, lang, wantReading, sung).finally(() => pending.delete(key));
       pending.set(key, job);
     }
     const entry = await pending.get(key);
     return entry.failed ? { ok: false, error: 'failed', retryAt: entry.until } : reply(entry, index);
   }
 
-  async function request(key, unique, lang, wantReading) {
-    const { system, user } = T.buildPrompt(unique, lang, wantReading);
+  async function request(key, unique, lang, wantReading, sung) {
+    const { system, user } = T.buildPrompt(unique, lang, wantReading, sung);
     let out = null;
     let tokens = 0;
     let res = null;
@@ -146,7 +149,8 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
       res = await complete({ system, user, maxTokens: T.maxTokensFor(unique.length, wantReading) });
       tokens = res && Number.isSafeInteger(res.tokens) ? res.tokens : 0;
       out = T.parseReply(res && res.text, unique.length, wantReading, lang);
-      if (!out && onError) onError(new Error('the reply could not be used'));
+      if (out && out.same && sung) { out = null; if (onError) onError(new Error(`the model called a ${sung} song already in the user's language`)); }
+      else if (!out && onError) onError(new Error('the reply could not be used'));
     } catch (e) { out = null; if (onError) onError(e); }
     // A request that reached the provider counts against the month even when
     // its reply was unusable: the user was billed for it either way.

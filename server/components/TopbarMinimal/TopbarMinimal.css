@@ -52,6 +52,18 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear {
   clip-path: var(--island-notch, none);
   transition: clip-path var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
 }
+/* A tile covering the whole screen (full-screen Twitch/YouTube, an expanded SDK
+   widget, the Lyrics stage) is `position: fixed` INSIDE this item, and an
+   ancestor's clip-path clips a fixed child to the item's own box: the player
+   showed as a strip, the dashboard around it. Those tiles mark the panel, not
+   the item, so the item is found with :has(). */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged) {
+  clip-path: none;
+  transition: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged) > .island-notch-edge {
+  display: none;
+}
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
   --panel-topline: transparent;
   border-top-color: transparent;

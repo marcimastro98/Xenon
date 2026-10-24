@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { isSurelyLang, WORDS, words } = require('../lyrics-language.js');
+const { isSurelyLang, surelyOtherLang, WORDS, words } = require('../lyrics-language.js');
 
 const SONGS = {
   it: [
@@ -149,4 +149,12 @@ test('a song in a near language the dashboard does not translate to is never "su
   ];
   assert.equal(isSurelyLang(catalan, 'es'), false);
   assert.equal(isSurelyLang(danish, 'de'), false);
+});
+
+test('surelyOtherLang names the language a song is surely in, when it is not the user\'s', () => {
+  assert.equal(surelyOtherLang(SONGS.en, 'it'), 'en');
+  assert.equal(surelyOtherLang(SONGS.es, 'it'), 'es');
+  assert.equal(surelyOtherLang(SONGS.it, 'it'), '', 'the user\'s own language is never "other"');
+  assert.equal(surelyOtherLang(SONGS.en.slice(0, 4), 'it'), '', 'too short to be sure');
+  assert.equal(surelyOtherLang(['Hola mundo', 'I walk alone'], 'it'), '');
 });

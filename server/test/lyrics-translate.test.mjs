@@ -139,6 +139,52 @@ test('the monthly cap stops new songs, and a new month resets it', async () => {
   assert.equal(u.songs, 0);
 });
 
+// An English song, asked for an Italian dashboard. A small model has been seen
+// answering "src":"it" for one, and that answer was kept for good.
+const EN_SONG = [
+  'I walk alone down the road to my house', "I don't know where I'm going but I'm fine",
+  'The moon is high and the wind is talking', "I've looked for you in every town that I saw",
+  'But you were not there, you were gone', 'A window is lit in the middle of the fog',
+  'When you come back tell me what happened', 'I stay here and I make no sound',
+  'All that I have is an old guitar', 'And I sing for us, for those who are gone',
+];
+const ASK_EN = { songKey: 'nova|glass|201', texts: EN_SONG, lang: 'it', reading: false, cap: 200 };
+const EN_OK = { text: JSON.stringify({ src: 'en', tr: EN_SONG.map((_, i) => 'tr' + i) }), tokens: 200 };
+
+test('a model that calls a surely English song Italian is not believed', async () => {
+  const p = fakeProvider([{ text: '{"src":"it","tr":[]}', tokens: 50 }]);
+  const t = createLyricsTranslator({ complete: p.complete });
+  const out = await t.translate(ASK_EN);
+  assert.equal(out.ok, false);
+  assert.equal(out.error, 'failed');
+  assert.equal((await t.translate(ASK_EN)).error, 'failed', 'and the wrong answer is not kept as "same"');
+});
+
+test("the prompt names the language of a song that is surely not the user's", async () => {
+  const p = fakeProvider([EN_OK]);
+  const t = createLyricsTranslator({ complete: p.complete });
+  const out = await t.translate(ASK_EN);
+  assert.equal(out.ok, true);
+  assert.equal(out.same, false);
+  assert.match(p.calls[0].system, /These lyrics are sung in English/);
+  const plainSong = fakeProvider([OK(2)]);
+  await createLyricsTranslator({ complete: plainSong.complete }).translate(ASK);
+  assert.doesNotMatch(plainSong.calls[0].system, /These lyrics are sung in/, 'no hint when the language is not certain');
+});
+
+test('a stored "already in your language" for a surely English song is not served', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-lyrics-stale-'));
+  fs.writeFileSync(path.join(dir, 'lyrics-translations.json'),
+    JSON.stringify({ entries: [[`${ASK_EN.songKey}|it|`, { same: true, tr: [], read: [] }]] }));
+  const p = fakeProvider([EN_OK]);
+  const t = createLyricsTranslator({ dataDir: dir, complete: p.complete });
+  assert.equal((await t.translate({ ...ASK_EN, cachedOnly: true })).error, 'not_cached');
+  const out = await t.translate(ASK_EN);
+  assert.equal(out.same, false);
+  assert.equal(out.tr.length, EN_SONG.length);
+  assert.equal(p.calls.length, 1);
+});
+
 test('a reply that does not fit is remembered as failed for a while', async () => {
   let now = 1_000_000;
   const p = fakeProvider([{ text: 'nonsense', tokens: 40 }, OK(2)]);

@@ -262,6 +262,15 @@ body.lyw-has-stage .shell { z-index: 70; }
   background: var(--bg, #070808);
 }
 
+/* A fixed child is clipped by an ancestor's clip-path: the island notch on the
+   grid item (dropped in TopbarMinimal.css while a tile covers the screen) and a
+   tile shape on the panel, dropped here, together with the island's border band
+   (or a 46 px strip stays blank at the top). */
+.lyrics-panel.lyw-staged {
+  clip-path: none !important;
+  border-width: 0 !important;
+}
+
 .lyrics-panel.lyw-staged .lyrics-widget-mount { padding: 22px clamp(18px, 6vw, 96px) 16px; }
 .lyrics-panel.lyw-staged .lyv { --lyv-size: clamp(24px, 4.6cqi, 64px); }
 .lyrics-panel.lyw-staged .lyw-head { padding-right: 52px; }

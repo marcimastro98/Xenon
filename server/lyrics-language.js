@@ -119,4 +119,12 @@ function isSurelyLang(unique, lang) {
   return mine >= MIN_SCORE && mine >= DOMINANCE * runnerUp;
 }
 
-module.exports = { isSurelyLang, WORDS, words };
+// The language a song is surely in when it is NOT `lang`, or '' (no certainty).
+// It checks what an AI provider says: a small model sometimes names the
+// dashboard language as the song's, and "already in your language" would then
+// hide a translation the user needed.
+function surelyOtherLang(unique, lang) {
+  return [...LATIN_TARGETS, 'ru'].find(other => other !== lang && isSurelyLang(unique, other)) || '';
+}
+
+module.exports = { isSurelyLang, surelyOtherLang, WORDS, words };

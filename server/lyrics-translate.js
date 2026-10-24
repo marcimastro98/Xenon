@@ -53,7 +53,10 @@ function maxTokensFor(count, reading) {
   return Math.min(8192, 256 + count * (reading ? 90 : 50));
 }
 
-function buildPrompt(unique, lang, reading) {
+// `sung` is a language the song is already known to be in (checked on this PC,
+// lyrics-language.js): said outright, because a small model told to "name the
+// language" has answered with the target's.
+function buildPrompt(unique, lang, reading, sung) {
   const target = langName(lang) || 'English';
   const fields = reading
     ? '"src": string, "tr": string[], "read": string[]'
@@ -62,6 +65,7 @@ function buildPrompt(unique, lang, reading) {
     `You translate song lyrics into ${target}, line by line, for on-screen captions.`,
     `Reply with ONLY a JSON object: {${fields}}.`,
     '"src" is the ISO 639-1 code of the language most of the lyrics are sung in (for example "en", "it", "ja").',
+    langName(sung) ? `These lyrics are sung in ${langName(sung)}: "src" is "${sung}" and "tr" is the translation.` : '',
     `When "src" is "${lang}", "tr" is an empty array.`,
     `Otherwise "tr" has exactly one natural ${target} translation per input line, in the same order.`,
     reading
