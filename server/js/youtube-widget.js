@@ -64,7 +64,7 @@
     search: () => t('youtube_tab_search', 'Search'),
   };
   const lib = {
-    tab: 'liked',
+    tab: window.TileTabMemory ? TileTabMemory.get('youtube', TABS, 'liked') : 'liked',   // remembered across reloads
     data: { liked: null, playlists: null, subs: null, search: null },   // null = never loaded
     loading: '',
     error: '',
@@ -526,6 +526,7 @@
       b.append(ico, el('span', 'yt-tab-lbl', TAB_LABEL[id]()));
       b.addEventListener('click', () => {
         lib.tab = id; lib.openPl = null; lib.plItems = null; lib.error = '';
+        if (window.TileTabMemory) TileTabMemory.set('youtube', id);
         paintLibrary();
         loadTab(id);
       });

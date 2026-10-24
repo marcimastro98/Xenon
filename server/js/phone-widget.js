@@ -26,7 +26,9 @@
   let recents = null;       // null = not loaded; [] = loaded, empty
   let contacts = null;      // null = never pulled (lazy, see the header)
   let live = { incoming: false, active: false };
-  let tab = 'recents';      // 'recents' | 'contacts' | 'dial'
+  // 'recents' | 'contacts' | 'messages' | 'dial', remembered across reloads (TileTabMemory).
+  const PHONE_TABS = ['recents', 'contacts', 'messages', 'dial'];
+  let tab = window.TileTabMemory ? TileTabMemory.get('phone', PHONE_TABS, 'recents') : 'recents';
   let query = '';
   let typed = '';           // the dialler's own number
   let msgList = null;       // null = never pulled (lazy, like contacts)
@@ -238,6 +240,7 @@
       b.type = 'button';
       b.addEventListener('click', () => {
         tab = id;
+        if (window.TileTabMemory) TileTabMemory.set('phone', id);
         openMsg = null;
         // The phonebook and the message list are only fetched when somebody
         // asks to see them: both open a Bluetooth channel other software wants.
@@ -507,6 +510,9 @@
       return wrap;
     }
 
+    // A tab restored from the last visit loads the way a tapped one does.
+    if (tab === 'contacts' && contacts === null) loadContacts();
+    if (tab === 'messages' && hasMessages() && msgList === null) loadMessages();
     wrap.appendChild(tabsBar());
     // Said once, above the list, rather than at the end of a confirm sheet.
     // The rows below are dimmed and inert on this surface, and a control that
@@ -517,7 +523,7 @@
     }
     if (tab === 'contacts') wrap.appendChild(contactsView());
     else if (tab === 'messages' && hasMessages()) wrap.appendChild(messagesView());
-    else if (tab === 'dial') wrap.appendChild(dialView());
+    else if (tab === 'dial' && canDial()) wrap.appendChild(dialView());
     else wrap.appendChild(recentsView());
 
     if (notice) wrap.appendChild(el('div', 'phw-notice', notice));

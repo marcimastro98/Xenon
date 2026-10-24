@@ -51,7 +51,8 @@
     { id: 'activity', labelKey: 'sbw_tab_activity', fb: 'Activity' },
     { id: 'globals', labelKey: 'sbw_tab_globals', fb: 'Globals' },
   ];
-  let activeTab = 'activity';
+  // Remembered across reloads (TileTabMemory).
+  let activeTab = window.TileTabMemory ? TileTabMemory.get('streamerbot', TABS.map((tb) => tb.id), 'activity') : 'activity';
 
   let configured = null;   // null = unknown
   let connected = false;
@@ -106,7 +107,11 @@
     TABS.forEach(tb => {
       const b = el('button', 'sbw-tab', t(tb.labelKey, tb.fb));
       b.type = 'button'; b.dataset.stab = tb.id;
-      b.addEventListener('click', () => { activeTab = tb.id; paint(); });
+      b.addEventListener('click', () => {
+        activeTab = tb.id;
+        if (window.TileTabMemory) TileTabMemory.set('streamerbot', tb.id);
+        paint();
+      });
       tabs.appendChild(b);
     });
     wrap.appendChild(tabs);

@@ -949,6 +949,7 @@ parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
         </table>
       </div>
       <div class="note"><b>From Xenon 4.12:</b> the Store's <b>Installed</b> tab lists what the sandbox blocks in a widget you are making, with the file or domain and the fix. A small file to copy into your widget, <em>xenon-client.js</em> (in the SDK examples), turns these messages into simple calls (<code>xenon.fetch()</code>, <code>xenon.store</code>, <code>xenon.on()</code>) and spaces requests so none is refused for coming too fast. Until then, your browser's developer console shows each refusal.</div>
+      <p><b>Your widget's console.</b> Open the dashboard in Chrome or Edge at <code>http://127.0.0.1:3030</code> and press F12. In the Console tab, the context menu at the top (it starts on <code>top</code>) lists every frame on the page: pick your widget's to see its <code>console.log</code> output and errors, and to run code inside it. The Xenon app window has no developer tools, so debug in the browser.</p>
     </section>
 
     <section id="sdk-share">
@@ -1237,7 +1238,7 @@ addEventListener('message', e =&gt; {
         <li><code>https://</code> to any declared host; plain <code>http://</code> only to LAN gear (private IPs, <code>*.local</code>, single-word names).</li>
         <li>Loopback and link-local are unreachable, even if a hostname resolves to <code>127.0.0.1</code>; they are blocked at connect time.</li>
         <li>Redirects are <b>not</b> followed (you get the status and location and decide). Headers are limited to <code>accept</code>, <code>accept-language</code>, <code>content-type</code>, <code>authorization</code> and <code>x-*</code>.</li>
-        <li>Responses cap at 1&nbsp;MB; text arrives as UTF-8, binary as base64. Rate limit: about one request per second.</li>
+        <li>Responses cap at 4&nbsp;MB (1&nbsp;MB before Xenon 4.12); text arrives as UTF-8, binary as base64. Rate limit: about one request per second.</li>
       </ul>
       <div class="note">Apps like Razer Synapse or Wave Link expose a <code>127.0.0.1</code> endpoint, which the sandbox blocks on purpose. Don't try to reach them directly: use the matching <code>chroma</code> / <code>wavelink</code> action category instead and let Xenon do the local talking.</div>
 

@@ -33,7 +33,9 @@
   let tileCfg = { results: true, standings: true };
   let meta = { live: false, refreshedAt: 0 };
   let seeded = false, seedInflight = false;
-  let view = { mode: 'list', tab: 'matches', teamId: '', favType: 'team' };
+  // The open tab is remembered across reloads (TileTabMemory); the team detail is not.
+  const FW_TABS = ['matches', 'table', 'news'];
+  let view = { mode: 'list', tab: window.TileTabMemory ? TileTabMemory.get('football', FW_TABS, 'matches') : 'matches', teamId: '', favType: 'team' };
   let managing = false;     // the add/manage panel, opened from the + in the tab bar
   let tableLeague = '';     // league id selected in the Classifica tab
   const standingsCache = new Map(); // `${leagueId}|${season}` → data
@@ -296,7 +298,11 @@
       // Each tab fetches from its own render, so switching to one is only ever
       // a state change here — there is no second place that has to remember to
       // kick a load off.
-      b.addEventListener('click', () => { view.tab = id; paint(); });
+      b.addEventListener('click', () => {
+        view.tab = id;
+        if (window.TileTabMemory) TileTabMemory.set('football', id);
+        paint();
+      });
       return b;
     };
     bar.append(

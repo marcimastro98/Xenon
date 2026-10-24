@@ -58,6 +58,7 @@ function b64url(buf) {
 function createSpotifyProvider(deps) {
   const d = deps || {};
   const _fetch = d.fetch || ((...a) => fetch(...a));
+  const _sleep = d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
   const clientId = d.clientId || '';
   const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
   const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
@@ -637,14 +638,29 @@ function createSpotifyProvider(deps) {
     return apiResult(r, 'playback_failed');
   }
 
+  // The Connect device that is THIS computer. On Windows and Linux the desktop
+  // app names itself after the hostname, which picks it out even when a phone or
+  // a speaker is listed too. A Mac uses its friendly name instead, so the
+  // fallback is a computer that was not listed before the app was started.
+  function thisComputer(devices, hostname, knownIds) {
+    const host = String(hostname || '').trim().toLowerCase();
+    const known = knownIds instanceof Set ? knownIds : new Set();
+    return (host && devices.find(x => x.type === 'computer' && x.name.toLowerCase() === host))
+      || devices.find(x => x.type === 'computer' && x.id && !known.has(x.id))
+      || null;
+  }
+
   // Wake an available Spotify Connect device and start playback: transfer to it with
   // play:true (which resumes the last track/context). If there is nothing to resume
   // (a cold-but-open app), fall back to starting the user's first playlist — so the
   // "Play" button always gets music going rather than erroring on no-active-device.
-  async function startPlayback() {
+  // `opts.deviceId` goes first, for the "open Spotify and play" path.
+  async function startPlayback(opts) {
     const dv = await getDevices();
     if (!dv.ok || !dv.devices.length) return { ok: false, error: 'no_active_device' };
-    const target = dv.devices.find(x => x.active) || dv.devices.find(x => x.type === 'computer') || dv.devices[0];
+    const wanted = opts && opts.deviceId;
+    const target = (wanted && dv.devices.find(x => x.id === wanted))
+      || dv.devices.find(x => x.active) || dv.devices.find(x => x.type === 'computer') || dv.devices[0];
     if (!target || !target.id) return { ok: false, error: 'no_active_device' };
     const r = await apiRequest('PUT', '/me/player', { device_ids: [target.id], play: true });
     if (r.ok) return { ok: true };
@@ -653,6 +669,29 @@ function createSpotifyProvider(deps) {
     const uri = (pls.ok && Array.isArray(pls.playlists) && pls.playlists[0]) ? pls.playlists[0].uri : '';
     if (uri) return apiResult(await apiRequest('PUT', '/me/player/play?device_id=' + encodeURIComponent(target.id), { context_uri: uri }), 'play_failed');
     return apiResult(r, 'play_failed');
+  }
+
+  // The ids of the computers listed now, taken BEFORE starting the app, so
+  // playWhenReady can tell the new one apart.
+  async function computerIds() {
+    const dv = await getDevices();
+    return new Set(dv.ok ? dv.devices.filter(x => x.type === 'computer' && x.id).map(x => x.id) : []);
+  }
+
+  // After the desktop app was started on this computer: wait for it to show up as
+  // a Connect device (it takes a few seconds to sign in), then play there. Gives
+  // up after ~24 s with 'not_started'; a missing login ends the wait at once.
+  const READY_TRIES = 12;
+  const READY_INTERVAL_MS = 2000;
+  async function playWhenReady(hostname, knownIds) {
+    for (let i = 0; i < READY_TRIES; i++) {
+      await _sleep(READY_INTERVAL_MS);
+      const dv = await getDevices();
+      if (!dv.ok && (dv.error === 'not_connected' || dv.error === 'forbidden')) return { ok: false, error: dv.error };
+      const pc = dv.ok ? thisComputer(dv.devices, hostname, knownIds) : null;
+      if (pc) return startPlayback({ deviceId: pc.id });
+    }
+    return { ok: false, error: 'not_started' };
   }
 
   // Skip to next/previous. Like PLAY, a 404 means there's no ACTIVE device even
@@ -977,6 +1016,7 @@ function createSpotifyProvider(deps) {
     normalizeQueue,   // pure, and exported so the wrap rules can be pinned without an account
     saveCurrent, playPlaylist, playSearch, queueSearch, setShuffle, transferDevice, transferToId,
     playPause, skipNext, skipPrev, setRepeat, toggleLike, setVolume, seek, runAction,
+    computerIds, playWhenReady,
   };
 }
 

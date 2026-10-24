@@ -167,6 +167,12 @@ also catches an address your code builds at run time). Widgets installed from
 the community never show it, because the person reading the list cannot fix
 them. The browser's developer console shows the same refusals in more detail.
 
+**Seeing your widget's console.** Open the dashboard in Chrome or Edge at
+`http://127.0.0.1:3030` and press F12. In the Console tab, the context menu at
+the top (it starts on `top`) lists every frame on the page: pick your widget's
+to see its `console.log` output and errors, and to run code inside it. The
+Xenon app window has no developer tools, so debug in the browser.
+
 **A helper for the bridge.** `server/sdk-example/xenon-client.js` wraps the
 messages in promises, so code written for a web page needs fewer changes. Copy
 it into your package and load it before your own script:
@@ -2331,7 +2337,7 @@ Rules (enforced server-side against your **manifest**, not just your grant):
 - Redirects are **not** followed (you get `status` + `location` and decide).
 - Request headers are limited to `accept`, `accept-language`, `content-type`,
   `authorization` and custom `x-*` names.
-- Responses are capped at 1 MB; textual bodies arrive as UTF-8 (`encoding:
+- Responses are capped at 4 MB (1 MB before v4.12); textual bodies arrive as UTF-8 (`encoding:
   'utf8'`), everything else as base64 (build a `data:` URI to display images).
 - Rate limit: ~1 request/s per widget instance, plus a per-package floor.
 

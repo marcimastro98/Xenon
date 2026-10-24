@@ -39388,6 +39388,84 @@ Object.assign(i18n.nl, {
   sdk_issue_other: "Iets anders dat de sandbox blokkeert",
   sdk_issue_other_fix: "Zie het deel over de sandbox in docs/WIDGET_SDK.md.",
 });
+// Spotify tile: open the closed app and play on the PC, optionally minimized (4.12.0).
+Object.assign(i18n.it, {
+  spotify_w_open_play: "Apri Spotify e riproduci",
+  spotify_w_launch_failed: "Non è stato possibile aprire Spotify sul PC. L'app desktop è installata?",
+  spotify_w_not_started: "Spotify si sta aprendo ma non è ancora pronto. Premi play quando lo è.",
+  spotify_start_minimized: "Avvia Spotify ridotto a icona",
+  spotify_start_minimized_hint: "Quando la tile Spotify apre l'app per riprodurre, la avvia in background.",
+});
+Object.assign(i18n.en, {
+  spotify_w_open_play: "Open Spotify and play",
+  spotify_w_launch_failed: "Could not open Spotify on the PC. Is the desktop app installed?",
+  spotify_w_not_started: "Spotify is opening but not ready yet. Press play once it is.",
+  spotify_start_minimized: "Start Spotify minimized",
+  spotify_start_minimized_hint: "When the Spotify tile opens the app to play, it starts in the background.",
+});
+Object.assign(i18n.ko, {
+  spotify_w_open_play: "Spotify 열고 재생",
+  spotify_w_launch_failed: "PC에서 Spotify를 열 수 없습니다. 데스크톱 앱이 설치되어 있나요?",
+  spotify_w_not_started: "Spotify를 여는 중이지만 아직 준비되지 않았습니다. 준비되면 재생을 누르세요.",
+  spotify_start_minimized: "Spotify 최소화 상태로 시작",
+  spotify_start_minimized_hint: "Spotify 타일이 재생하려고 앱을 열 때 백그라운드에서 시작합니다.",
+});
+Object.assign(i18n.ja, {
+  spotify_w_open_play: "Spotify を開いて再生",
+  spotify_w_launch_failed: "PC で Spotify を開けませんでした。デスクトップアプリはインストールされていますか？",
+  spotify_w_not_started: "Spotify を起動中ですが、まだ準備ができていません。準備ができたら再生を押してください。",
+  spotify_start_minimized: "Spotify を最小化して起動",
+  spotify_start_minimized_hint: "Spotify タイルが再生のためにアプリを開くとき、バックグラウンドで起動します。",
+});
+Object.assign(i18n.zh, {
+  spotify_w_open_play: "打开 Spotify 并播放",
+  spotify_w_launch_failed: "无法在电脑上打开 Spotify。是否已安装桌面应用？",
+  spotify_w_not_started: "Spotify 正在打开，但还没有准备好。准备好后再按播放。",
+  spotify_start_minimized: "最小化启动 Spotify",
+  spotify_start_minimized_hint: "Spotify 磁贴为播放而打开应用时，在后台启动。",
+});
+Object.assign(i18n.es, {
+  spotify_w_open_play: "Abrir Spotify y reproducir",
+  spotify_w_launch_failed: "No se pudo abrir Spotify en el PC. ¿Está instalada la app de escritorio?",
+  spotify_w_not_started: "Spotify se está abriendo, pero aún no está listo. Pulsa reproducir cuando lo esté.",
+  spotify_start_minimized: "Iniciar Spotify minimizado",
+  spotify_start_minimized_hint: "Cuando el mosaico de Spotify abre la app para reproducir, la inicia en segundo plano.",
+});
+Object.assign(i18n.fr, {
+  spotify_w_open_play: "Ouvrir Spotify et lire",
+  spotify_w_launch_failed: "Impossible d'ouvrir Spotify sur le PC. L'application de bureau est-elle installée ?",
+  spotify_w_not_started: "Spotify s'ouvre mais n'est pas encore prêt. Appuyez sur lecture quand il l'est.",
+  spotify_start_minimized: "Démarrer Spotify réduit",
+  spotify_start_minimized_hint: "Quand la tuile Spotify ouvre l'application pour lire, elle la démarre en arrière-plan.",
+});
+Object.assign(i18n.de, {
+  spotify_w_open_play: "Spotify öffnen und abspielen",
+  spotify_w_launch_failed: "Spotify konnte auf dem PC nicht geöffnet werden. Ist die Desktop-App installiert?",
+  spotify_w_not_started: "Spotify wird geöffnet, ist aber noch nicht bereit. Drücke Wiedergabe, sobald es so weit ist.",
+  spotify_start_minimized: "Spotify minimiert starten",
+  spotify_start_minimized_hint: "Wenn die Spotify-Kachel die App zum Abspielen öffnet, startet sie im Hintergrund.",
+});
+Object.assign(i18n.pt, {
+  spotify_w_open_play: "Abrir o Spotify e tocar",
+  spotify_w_launch_failed: "Não foi possível abrir o Spotify no PC. O app para desktop está instalado?",
+  spotify_w_not_started: "O Spotify está abrindo, mas ainda não está pronto. Toque em reproduzir quando estiver.",
+  spotify_start_minimized: "Iniciar o Spotify minimizado",
+  spotify_start_minimized_hint: "Quando o bloco do Spotify abre o app para tocar, ele inicia em segundo plano.",
+});
+Object.assign(i18n.ru, {
+  spotify_w_open_play: "Открыть Spotify и включить",
+  spotify_w_launch_failed: "Не удалось открыть Spotify на ПК. Установлено ли настольное приложение?",
+  spotify_w_not_started: "Spotify открывается, но ещё не готов. Нажмите воспроизведение, когда он будет готов.",
+  spotify_start_minimized: "Запускать Spotify свёрнутым",
+  spotify_start_minimized_hint: "Когда плитка Spotify открывает приложение для воспроизведения, оно запускается в фоне.",
+});
+Object.assign(i18n.nl, {
+  spotify_w_open_play: "Spotify openen en afspelen",
+  spotify_w_launch_failed: "Spotify kon niet worden geopend op de pc. Is de desktop-app geïnstalleerd?",
+  spotify_w_not_started: "Spotify wordt geopend maar is nog niet klaar. Druk op afspelen zodra het zover is.",
+  spotify_start_minimized: "Spotify geminimaliseerd starten",
+  spotify_start_minimized_hint: "Als de Spotify-tegel de app opent om af te spelen, start die op de achtergrond.",
+});
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)

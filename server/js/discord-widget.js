@@ -82,7 +82,8 @@
   // exist — and is exactly what a second tile is for: asked for on Discord by
   // someone who wanted the notification feed on top and the voice controls
   // underneath, both on screen at once. Stored on the mount so it survives every
-  // repaint and travels with the tile, session-scoped like it always was.
+  // repaint and travels with the tile, and remembered per tile (TileTabMemory) so
+  // a reload opens each tile on the tab it was left on.
   function mounts() {
     return tiles().map((t) => t.querySelector('.discord-widget-mount')).filter(Boolean);
   }
@@ -159,6 +160,8 @@
   function ensure(mount) {
     if (mount.dataset.dcBuilt === '1' && mount.firstChild) return;
     mount.dataset.dcBuilt = '1';
+    const tileId = window.TileTabMemory ? TileTabMemory.tileIdOf(mount, 'discord') : '';
+    if (tileId) mount.dataset.dcTab = TileTabMemory.get(tileId, TABS.map((tb) => tb.id), 'controls');
     const wrap = el('div', 'dc-wrap');
 
     const head = el('div', 'dc-head');
@@ -186,6 +189,7 @@
       if (tb.id === 'notifs') { const bd = el('span', 'dc-tab-badge'); bd.hidden = true; b.appendChild(bd); }
       b.addEventListener('click', () => {
         mount.dataset.dcTab = tb.id;   // this tile only — a sibling tile keeps its own
+        if (tileId) TileTabMemory.set(tileId, tb.id);
         if (tb.id === 'notifs') notifUnread = 0;
         paint();
       });

@@ -412,6 +412,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lyricsReading: true,
   lyricsTranslateCap: 200,
   lyricsStage: false,
+  // Spotify tile: start the closed desktop app minimized (Windows, macOS).
+  spotifyStartMinimized: false,
   // Open the dashboard in the default browser at Windows logon (default on).
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
@@ -1799,6 +1801,7 @@ function normalizeSettings(source) {
     lyricsReading: value.lyricsReading !== false,
     lyricsTranslateCap: [50, 200, 500].includes(Number(value.lyricsTranslateCap)) ? Number(value.lyricsTranslateCap) : 200,
     lyricsStage: value.lyricsStage === true,
+    spotifyStartMinimized: value.spotifyStartMinimized === true,
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
     // Automatic updates: on unless the user switched them off (server/auto-update.js).

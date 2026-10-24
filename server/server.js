@@ -162,6 +162,7 @@ const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
+const spotifyLaunch = require('./spotify-launch');
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
@@ -8543,6 +8544,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lyricsTranslate: false,
   lyricsReading: true,
   lyricsTranslateCap: 200,
+  // Spotify tile: when it starts the closed desktop app, start it minimized
+  // (Windows and macOS; the Linux client cannot, see spotify-launch.js).
+  spotifyStartMinimized: false,
   // Stage: the widget fills the screen while music plays on its page.
   lyricsStage: false,
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
@@ -10098,6 +10102,7 @@ function normalizeHubSettings(value) {
     lyricsTranslate: source.lyricsTranslate === true,
     lyricsReading: source.lyricsReading !== false,
     lyricsTranslateCap: cleanLyricsTranslateCap(source.lyricsTranslateCap),
+    spotifyStartMinimized: source.spotifyStartMinimized === true,
     lyricsStage: source.lyricsStage === true,
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
@@ -21387,7 +21392,7 @@ const handleRequest = async (req, res) => {
       const release = sdkFetchGateAcquire(pkgId);
       if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
       try {
-        const r = await sdkProxy.proxyFetch(outReq);
+        const r = await sdkProxy.proxyFetch({ ...outReq, maxBytes: sdkProxy.PROXY_MAX_FETCH_BYTES });
         const textual = sdkProxy.isTextualContentType(r.contentType);
         json({
           ok: true,
@@ -21856,7 +21861,8 @@ const handleRequest = async (req, res) => {
   // authorize URL the user opens. Playback CONTROL runs through /actions/run (the
   // allowlisted spotify* Deck actions); these routes are reads + the OAuth dance.
   } else if (reqPath === '/stream/spotify/status' && req.method === 'GET') {
-    try { json(await streamSpotify.status()); }
+    // canStartMinimized: whether Settings may offer "start minimized" here.
+    try { json({ ...(await streamSpotify.status()), canStartMinimized: await spotifyLaunch.canStartMinimized() }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/spotify/login' && req.method === 'POST') {
@@ -21939,17 +21945,21 @@ const handleRequest = async (req, res) => {
     catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
-    // Start the Spotify desktop app (via its registered "spotify:" protocol) so the
-    // widget's "Open Spotify" button can bring it up when it isn't running. The
-    // protocol string is a FIXED constant — no user/settings input reaches the spawn.
-    await readBody(req);
+    // Start the Spotify desktop app on this computer when the tile finds it closed
+    // (spotify-launch.js picks the command per platform, minimized when the setting
+    // asks and the platform can). With {play:true} it then waits for the app to
+    // sign in and starts the music on this computer. The body carries one boolean;
+    // nothing from it reaches a command line.
     try {
-      await new Promise((resolve, reject) =>
-        execFile('powershell.exe',
-          ['-NoProfile', '-NonInteractive', '-Command', "try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='spotify:';UseShellExecute=$true})}catch{exit 1}"],
-          { windowsHide: true, timeout: 10000 },
-          (e2) => e2 ? reject(e2) : resolve()));
-      json({ ok: true });
+      let body = {};
+      try { body = JSON.parse(await readBody(req) || '{}') || {}; } catch { body = {}; }
+      const play = body.play === true;
+      // Taken before the launch, so the new computer can be told apart on a Mac.
+      const known = play ? await streamSpotify.computerIds() : null;
+      const launched = await spotifyLaunch.launchSpotify({ minimized: _serverHubSettings.spotifyStartMinimized === true });
+      if (!launched.ok || !play) { json(launched); return; }
+      const played = await streamSpotify.playWhenReady(os.hostname(), known);
+      json({ ...played, launched: true, minimized: launched.minimized });
     } catch (e) { json({ ok: false, error: 'launch_failed' }); }
 
   } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {

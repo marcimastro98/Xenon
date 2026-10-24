@@ -61,7 +61,7 @@
     search: () => t('tww_tab_search', 'Search'),
   };
   const lib = {
-    tab: 'followed',
+    tab: window.TileTabMemory ? TileTabMemory.get('twitchwatch', TABS, 'followed') : 'followed',   // remembered across reloads
     data: { followed: null, top: null, search: null },   // null = never loaded
     loading: '',
     error: '',
@@ -405,6 +405,7 @@
       b.append(ico, el('span', 'tww-tab-lbl', TAB_LABEL[id]()));
       b.addEventListener('click', () => {
         lib.tab = id; lib.error = '';
+        if (window.TileTabMemory) TileTabMemory.set('twitchwatch', id);
         paintLibrary();
         loadTab(id);
       });

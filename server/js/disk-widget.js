@@ -31,7 +31,10 @@
   // rebuilds, so the poll does not ask again every 1.8 s.
   let staleAskedFor = null;
   let overviewAbort = null;
-  let activeView = 'overview';
+  // The tab last tapped is remembered across reloads (TileTabMemory); switching
+  // drive still opens on the overview.
+  const DISK_VIEWS = ['overview', 'clean', 'explore', 'duplicates'];
+  let activeView = window.TileTabMemory ? TileTabMemory.get('disk', DISK_VIEWS, 'overview') : 'overview';
   let treeRoot = null;
   let treeStack = [];
   let treeLoading = false;
@@ -493,6 +496,7 @@
       const tab = btn('diskw-tab' + (activeView === id ? ' is-active' : ''), tr(key, fallback), () => {
         withTransition(() => {
           activeView = id;
+          if (window.TileTabMemory) TileTabMemory.set('disk', id);
           confirmCat = null;
           renderAll();
         });

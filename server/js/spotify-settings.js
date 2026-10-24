@@ -58,6 +58,8 @@
         card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm());
       }
+      // Only where the app can start minimized (not the Linux client).
+      if (st.canStartMinimized) card.appendChild(buildStartMinimizedRow());
       const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
       out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(BASE + '/logout', { method: 'POST' }); render(); });
       card.appendChild(out);
@@ -70,6 +72,27 @@
     card.appendChild(btn);
     card.appendChild(buildCredActions());
     return card;
+  }
+
+  // When the Spotify tile starts the closed desktop app, start it minimized. A
+  // hub setting, saved like any other; the server reads it at launch time.
+  function buildStartMinimizedRow() {
+    const row = el('label', 'settings-toggle-row full');
+    const input = document.createElement('input');
+    input.className = 'settings-check';
+    input.type = 'checkbox';
+    input.checked = !!(typeof hubSettings === 'object' && hubSettings && hubSettings.spotifyStartMinimized === true);
+    input.addEventListener('change', () => {
+      if (typeof saveHubSettings !== 'function' || typeof normalizeSettings !== 'function') return;
+      hubSettings = normalizeSettings({ ...hubSettings, spotifyStartMinimized: input.checked });
+      saveHubSettings();
+    });
+    const line = el('span', 'settings-label-line');
+    line.append(
+      el('span', '', t('spotify_start_minimized', 'Start Spotify minimized')),
+      el('span', 'settings-hint', t('spotify_start_minimized_hint', 'When the Spotify tile opens the app to play, it starts in the background.')));
+    row.append(input, line);
+    return row;
   }
 
   // Manage-credentials strip for an already-configured Spotify app. Without it a

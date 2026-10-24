@@ -15,7 +15,12 @@ const dns = require('dns');
 const net = require('net');
 
 const PROXY_TIMEOUT_MS = 10000;
+// Images (map tiles, cached artwork) keep the 1 MB cap the asset cache's disk
+// budget is sized around. Widget API calls get more room: a full scoreboard or
+// feed from a public API routinely passes 1 MB, and the fetch gate already caps
+// a package at two requests in flight.
 const PROXY_MAX_RESPONSE_BYTES = 1024 * 1024;
+const PROXY_MAX_FETCH_BYTES = 4 * 1024 * 1024;
 
 // Addresses a proxied request may never CONNECT to, whatever name resolved to
 // them: loopback, unspecified, link-local — including their IPv4-mapped-IPv6
@@ -60,7 +65,8 @@ function guardedLookup(hostname, options, callback) {
 // Execute a validated proxy request. Resolves
 // { status, contentType, location, buffer } and rejects with Error whose
 // .code/.message maps to a client-safe error string in the route handler.
-function proxyFetch({ url, method, headers, body }) {
+// maxBytes defaults to the image cap; /sdk/fetch passes PROXY_MAX_FETCH_BYTES.
+function proxyFetch({ url, method, headers, body, maxBytes = PROXY_MAX_RESPONSE_BYTES }) {
   return new Promise((resolve, reject) => {
     let done = false;
     const finish = (fn, arg) => { if (!done) { done = true; fn(arg); } };
@@ -75,7 +81,7 @@ function proxyFetch({ url, method, headers, body }) {
       let size = 0;
       res.on('data', chunk => {
         size += chunk.length;
-        if (size > PROXY_MAX_RESPONSE_BYTES) { req.destroy(new Error('response_too_large')); return; }
+        if (size > maxBytes) { req.destroy(new Error('response_too_large')); return; }
         chunks.push(chunk);
       });
       res.on('end', () => finish(resolve, {
@@ -103,4 +109,4 @@ function isTextualContentType(ct) {
     || v.startsWith('image/svg');
 }
 
-module.exports = { proxyFetch, isBlockedAddress, isTextualContentType, guardedLookup, PROXY_MAX_RESPONSE_BYTES };
+module.exports = { proxyFetch, isBlockedAddress, isTextualContentType, guardedLookup, PROXY_MAX_RESPONSE_BYTES, PROXY_MAX_FETCH_BYTES };
