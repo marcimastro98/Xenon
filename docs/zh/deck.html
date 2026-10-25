@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">动作</a>
       <a href="#steps" data-i18n="deck.jump.steps">多步按键</a>
+      <a href="#behave" data-i18n="deck.jump.behave">按键如何响应</a>
       <a href="#state" data-i18n="deck.jump.state">显示状态的按键</a>
       <a href="#faders" data-i18n="deck.jump.faders">推子</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">配置和页面</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter。</strong>静音某个输入条或设置其增益，把它发送到总线（A1、A2、B1 按钮），静音某条总线或设置其增益，按下你的某个宏按钮，或者设置任何具名参数。</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link。</strong>设置输入、输出或混音的音量，或者将其静音。在 Wave Link 2 上，按键还可以切换监听；在 Wave Link 3 上，按键可以开关效果并选择输出设备。</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant。</strong>切换设备开关，设置灯光，控制媒体播放器、窗帘、温控、风扇、扫地机器人、门锁或警报，激活场景，运行脚本，按下按钮，或者调用任何服务。</li>
-      <li data-i18n-html="deck.act.light"><strong>灯光。</strong>打开或关闭灯光，设置颜色或效果，单独调整某个设备，或者把灯光交还给自动模式。Razer Chroma 设备和 SignalRGB 效果有各自的按键。</li>
+      <li data-i18n-html="deck.act.light"><strong>灯光。</strong>打开或关闭灯光，设置颜色或效果，单独调整某个设备，单独给一个风扇、一条灯带或水泵上色，或者把灯光交还给自动模式。Razer Chroma 设备和 SignalRGB 效果有各自的按键。</li>
       <li data-i18n-html="deck.act.window"><strong>窗口。</strong>把你刚才在用的窗口移到下一台或上一台显示器，贴靠到左半边或右半边，最大化、最小化或居中。</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI 和 Claude Code。</strong>向 AI 发送提示词，开始语音会话或打开聊天。在你的某个项目中发起一个 Claude Code 请求，或者停止正在运行的请求。按键本身不授予任何权限：当 Claude Code 请求运行命令时，请求会显示在屏幕上，由你来批准。</li>
       <li data-i18n-html="deck.act.more"><strong>更多。</strong>通过蓝牙配对的手机打电话或发短信，结束远程会话或阻止远程访问，以及使用你安装的社区小组件添加的按键，每一个都要先经过你的允许。</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">多步按键</h2>
-    <p data-i18n="deck.steps.p1">每个按键有三种手势：点按、双击，以及按住半秒的长按。每种手势都可以有自己的动作。</p>
+    <p data-i18n="deck.steps.p1">每个按键有三种手势：点按、双击和长按。每种手势都可以有自己的动作。</p>
     <p data-i18n="deck.steps.p2">一个手势也可以连续运行多个动作，每个动作之前可以暂停最多 10 秒。例如：静音麦克风，稍等片刻，然后打开一个应用。</p>
     <p data-i18n="deck.steps.p3">即使前面的步骤失败，后面的每一步也都会运行。只要有任何一步失败，按键就会在最后一步运行完后闪红光。</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">按键如何响应</h2>
+    <p data-i18n-html="deck.behave.p1">在按键编辑器的<strong>功能</strong>标签里，<strong>行为</strong>决定按键被按下时如何响应：</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>按钮。</strong>点按运行它的动作。双击和长按可以运行其他动作。</li>
+      <li data-i18n-html="deck.behave.switch"><strong>开关。</strong>点一下打开，再点一下关闭，每次点按运行各自的动作。开关也可以在设定的秒数后自动关闭。</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>按住时。</strong>手指按下时运行一组动作，抬起时运行另一组，就像按键通话。按住期间按键保持点亮。</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>重复。</strong>动作先运行一次，只要一直按住就反复运行，就像音量键。可以设置开始重复前的等待时间和重复间隔。</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>循环。</strong>按键在 2 到 8 个状态之间依次切换，每个状态有自己的动作、标签、图标和颜色。每次点按运行当前状态的动作，然后切到下一个。按键上的圆点显示当前处于哪个状态。</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">长按默认等待半秒，双击需在 260 毫秒内完成。两者都可以在同一处为每个按键单独修改。</p>
+    <p data-i18n="deck.behave.p3">自动关闭只在打开该开关的仪表盘保持打开时才会生效。</p>
 
     <h2 id="state" data-i18n="deck.h.state">显示状态的按键</h2>
     <p data-i18n="deck.state.p1">按键可以跟随一个实时状态，在状态开启时亮起。它可以跟随：</p>

@@ -44,6 +44,9 @@ on:
       - 'tools/demo/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch: {}
+  # A new Xenon Maker release (its own private repo) asks for a redeploy.
+  repository_dispatch:
+    types: [maker-release]
   # Once a day, so the release facts the pages state (version, installer size)
   # follow a release published between two pushes. Never `release: published`:
   # the release pipeline stages assets on a draft and publishes by hand.
@@ -90,6 +93,24 @@ jobs:
       # dangling link.
       - name: Build the browser demo
         run: node tools/build-demo.mjs
+
+      # xenon-app.com/maker/ is built in the private xenon-maker repo and
+      # published there as maker.zip on each release. MAKER_RELEASE_TOKEN is a
+      # read-only fine-grained token on that repo. Without it the site deploys
+      # as before, with a warning; with it, a failed download fails the deploy
+      # rather than shipping a site whose /maker/ links lead nowhere.
+      - name: Add Xenon Maker
+        env:
+          GH_TOKEN: ${{ secrets.MAKER_RELEASE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::MAKER_RELEASE_TOKEN is not set: /maker/ is not published"
+            exit 0
+          fi
+          gh release download --repo marcimastro98/xenon-maker --pattern maker.zip --dir "$RUNNER_TEMP/maker"
+          mkdir -p docs/maker
+          unzip -q "$RUNNER_TEMP/maker/maker.zip" -d docs/maker
+          test -f docs/maker/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

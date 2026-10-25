@@ -208,6 +208,37 @@ All global values are normalized on both client and server before persistence.
 This prevents a restart, another dashboard surface, or backup restore from
 silently stripping semantic colors.
 
+## The top bar's style in a theme (`topbarLook`)
+
+A theme may carry the bar's style as `topbarLook`. Only the look travels, never
+the user's buttons, their order, their per-button options or the side rails:
+those belong to whoever applies the theme (a whole bar is shared with the
+`topbar` code instead, Export → Export top bar).
+
+| key | values | default |
+|---|---|---|
+| `surface` | `theme`, `solid`, `glass`, `clear` | `theme` |
+| `color` | `#rrggbb`, or `''` for the theme's own surface | `''` |
+| `opacity` | 0 to 100 (solid and glass) | 70 |
+| `blur` | px (glass) | 10 |
+| `border` | `theme`, `none`, `accent` | `theme` |
+| `shape` | `rounded`, `square`, `pill` | `rounded` |
+| `shadow` | boolean | `true` |
+| `size` | `compact`, `normal`, `large` | `normal` |
+| `buttonStyle` | `plate`, `ghost` | `plate` |
+| `labels` | `auto`, `always`, `never` | `auto` |
+| `separator` | `line`, `dot`, `none` (Minimal capsule) | `line` |
+| `gap` | `tight`, `normal`, `wide` | `normal` |
+| `clockFont` | `theme`, `mono`, `light` | `theme` |
+| `colonBlink` | boolean | `true` |
+
+A theme saved on an unchanged bar has no `topbarLook`, and a theme without one
+leaves the bar as it is. Applying a theme with one replaces only these keys and
+keeps the rest of the user's bar (highlighted button, notification place, rails,
+per-button options). Values are normalized on the client and the server like
+every other key; an unknown value falls back to its default. On a phone the bar
+keeps its compact size and its buttons stay icons; colour and surface still apply.
+
 ## Widget SDK
 
 Sandboxed SDK widgets receive the effective, contrast-checked palette in both

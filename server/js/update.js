@@ -533,8 +533,7 @@
     overlay.className = 'upd-overlay';
     const card = document.createElement('div');
     card.className = 'upd-card upd-updating';
-    const sp = document.createElement('div');
-    sp.className = 'upd-spinner';
+    const sp = XenonLoader.create({ size: 'lg', bar: true });
     const msg = document.createElement('div');
     msg.className = 'upd-title';
     msg.textContent = tr('update_updating', 'Aggiornamento in corso…');

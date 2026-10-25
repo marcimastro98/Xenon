@@ -70,7 +70,7 @@ function exceedsGrants(manifest, grants, prev) {
   if (list(m, 'hosts').some((h) => !list(g, 'hosts').includes(h))) return 'hosts';
   if (list(m, 'hooks').some((h) => !list(g, 'hooks').includes(h))) return 'hooks';
   if (handlers.some((h) => !list(g, 'handlers').includes(h))) return 'handlers';
-  for (const flag of ['storage', 'secrets', 'island', 'islandDynamic', 'islandFull', 'badge', 'badgeAction', 'mini', 'clipboard', 'accent', 'expand']) {
+  for (const flag of ['storage', 'secrets', 'island', 'islandDynamic', 'islandFull', 'badge', 'badgeAction', 'mini', 'topbarButton', 'clipboard', 'accent', 'expand']) {
     if (m[flag] === true && g[flag] !== true) return flag;
   }
   if (prev && typeof prev === 'object') {

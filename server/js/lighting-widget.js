@@ -240,7 +240,11 @@
     row.appendChild(el('span', 'lgt-dev-dot'));
     row.appendChild(el('span', 'lgt-dev-name', d.name || d.id));
     const sel = document.createElement('select'); sel.className = 'lgt-mode';
-    MODES.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = t('deck_opt_' + m, m); sel.appendChild(o); });
+    // "My LED colours" only where there is a map to paint (Settings → Lighting),
+    // or to keep showing a mode the device is already in.
+    const hasMap = Array.isArray(d.segments) && d.segments.length > 0;
+    const modes = hasMap || d.mode === 'custom' ? MODES.concat('custom') : MODES;
+    modes.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = t('deck_opt_' + m, m); sel.appendChild(o); });
     sel.value = d.mode || 'follow';
     sel.addEventListener('change', () => setDeviceMode(d.id, sel.value));
     row.appendChild(sel);

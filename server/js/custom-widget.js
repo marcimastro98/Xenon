@@ -30,7 +30,7 @@
     volume: ['volume', 'appVolume', 'appMute'],
     audioDevice: ['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst'],
     mic: ['micMute'],
-    lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
+    lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart'],
     chroma: ['chromaColor', 'chromaOff'],
     wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
     voicemeeter: ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro'],
@@ -162,6 +162,7 @@
     agenda: ['cw_stream_agenda', 'Your calendar events'],
     weather: ['cw_stream_weather', 'Weather conditions & forecast'],
     scriptStates: ['cw_stream_scriptstates', 'States your own scripts set (see them, not set them)'],
+    lighting: ['cw_stream_lighting', 'Your lights and their parts (to colour them)'],
   };
   const ACTION_LABELS = {
     media: ['cw_act_media', 'Control media playback'],
@@ -197,6 +198,7 @@
   const BADGE_TEXT_MAX = 20;            // badge chip hard cap — small persistent pill, not a sentence
   const BADGE_TOOLTIP_MAX = 48;         // badge tooltip (title attribute) hard cap
   const BADGE_ICON_MAX = 8;             // badge glyph cap — same bound as a deck state's icon meta
+  const TOPBAR_BUTTON_LABEL_MAX = 24;   // bar button label: the same cap the user's own label has (TopbarLook)
   const CLIP_MIN_INTERVAL_MS = 1200;    // per-instance clipboard-request rate limit (a copy needs a human tap anyway)
   const CLIP_TEXT_MAX = 4096;           // max chars a single copy may carry
   const CLIP_LABEL_MAX = 64;            // the short "what is this" label shown in the confirm prompt
@@ -245,6 +247,23 @@
         latency: d.latency ?? null,
         interfaces: Array.isArray(d.interfaces) ? d.interfaces : [],
       };
+    } }),
+    // The lights a widget can target with lightDevice / lightPart: each device
+    // by id and name, what it shows, and the parts of the ones with a map, in
+    // map order (the index lightPart takes). Names and kinds only, no LED ids.
+    lighting: Object.freeze({ ttl: 3000, load: async () => {
+      const s = await api('/api/lighting/status');
+      if (!s || typeof s !== 'object' || !Array.isArray(s.devices)) return { ok: false, devices: [] };
+      const part = (sg, index) => ({ index, kind: sg.kind, leds: Array.isArray(sg.ledIds) ? sg.ledIds.length : 0, ...(sg.name ? { name: sg.name } : {}) });
+      const devices = s.devices.map((d) => ({
+        id: d.id, name: d.model || d.id, maker: d.maker || (d.source === 'native' ? '' : 'iCUE'), mode: d.mode || 'follow',
+        parts: Array.isArray(d.segments) ? d.segments.map(part) : [],
+      }));
+      (s.providers || []).forEach((p) => (p.devices || []).forEach((d) => {
+        if (d.optedIn === false) return;
+        devices.push({ id: d.id, name: d.name || d.host || d.id, maker: p.name || '', mode: d.mode || 'follow', parts: [] });
+      }));
+      return { ok: true, enabled: !!s.enabled, devices };
     } }),
     discordChannels: Object.freeze({ ttl: 5000, load: async () => {
       const [catalog, roster] = await Promise.all([
@@ -588,6 +607,8 @@
       ? window.getEffectiveThemePalette()
       : null;
     let overrides = [];
+    // The tile's own button/field colours (Widget style → Controls), or null.
+    let controls = null;
     // CSS custom properties do not cross an iframe document boundary. Read the
     // final computed tokens from the frame element itself so a custom SDK widget
     // receives the palette of its own tile, including any per-widget override.
@@ -634,6 +655,7 @@
         p = local;
         const tile = entry.frame.closest('.grid-stack-item');
         if (tile && Array.isArray(tile._xenonThemeOverrides)) overrides = tile._xenonThemeOverrides.slice();
+        if (tile && window.TileControls) controls = window.TileControls.readTileControls(tile);
       } catch { /* detached frame: use the global palette below */ }
     }
     if (p) {
@@ -649,7 +671,7 @@
         // that follows the user's panel opacity, and the raw 0..1 factor.
         surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
       };
-      return { appearance: p.tone, skin: skinMode(), overrides, clock12, dateFormat, ...palette, palette };
+      return { appearance: p.tone, skin: skinMode(), overrides, controls, clock12, dateFormat, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
@@ -803,6 +825,7 @@
       badge: !!(grant && grant.badge === true),
       badgeAction: !!(grant && grant.badgeAction === true),
       mini: !!(grant && grant.mini === true),
+      topbarButton: !!(grant && grant.topbarButton === true),
       clipboard: !!(grant && grant.clipboard === true),
       accent: !!(grant && grant.accent === true),
       expand: !!(grant && grant.expand === true),
@@ -1511,6 +1534,30 @@
     }, wait);
   }
 
+  // Bar button: one real button per package among the bar's own, placed, hidden
+  // and restyled by the user like Lock or Search (id `sdk:<pkg>`). The widget
+  // gives only text: a label, an optional short glyph and a tooltip, cleaned
+  // like a badge's. With no glyph the host draws the package's manifest icon.
+  function onBridgeTopbarButton(entry, grant, msg) {
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.topbarButton !== true || !grant.topbarButton) return;
+    const coerce = (v, max) => String(v == null ? '' : v).replace(/[ -]/g, ' ').trim().slice(0, max);
+    const label = msg.op === 'clear' ? '' : coerce(msg.label, TOPBAR_BUTTON_LABEL_MAX);
+    entry.topbarButtonFace = label
+      ? { label, icon: coerce(msg.icon, BADGE_ICON_MAX), tooltip: coerce(msg.tooltip, BADGE_TOOLTIP_MAX), iconEl: () => packageIconEl(pkg) }
+      : null;
+    if (entry.topbarButtonFlushTimer) return;   // a flush is pending; it carries the latest face
+    const since = Date.now() - (entry.topbarButtonFlushAt || 0);
+    const wait = since >= BADGE_MIN_INTERVAL_MS ? 0 : (BADGE_MIN_INTERVAL_MS - since);
+    entry.topbarButtonFlushTimer = setTimeout(() => {
+      entry.topbarButtonFlushTimer = null;
+      entry.topbarButtonFlushAt = Date.now();
+      if (!window.SdkTopbarButton) return;
+      if (entry.topbarButtonFace) SdkTopbarButton.set(entry.pkgId, entry.topbarButtonFace, () => post(entry, { type: 'topbar_button_action' }));
+      else SdkTopbarButton.clear(entry.pkgId);
+    }, wait);
+  }
+
   // Clipboard copy request. Deliberately NOT a silent write: the widget only ASKS,
   // and the actual navigator.clipboard write happens inside a host-rendered
   // confirmation the user taps (openClipboardConfirm). This is load-bearing —
@@ -1894,6 +1941,8 @@
       if (entry.ready) onBridgeBadge(entry, grant, d);
     } else if (d.type === 'mini') {
       if (entry.ready) onBridgeMini(entry, grant, d);
+    } else if (d.type === 'topbarButton') {
+      if (entry.ready) onBridgeTopbarButton(entry, grant, d);
     } else if (d.type === 'expand') {
       if (entry.ready) onBridgeExpand(entry, grant, d);
     } else if (d.type === 'clipboard') {
@@ -2155,7 +2204,13 @@
       if (entry.service) { target = entry; break; }
       if (!target) target = entry;
     }
-    if (target) post(target, { type: 'handler', handler, args: payload.args || {}, callId: String(payload.callId || '') });
+    if (!target) return;
+    const msg = { type: 'handler', handler, args: payload.args || {}, callId: String(payload.callId || '') };
+    // How the key was pressed (tap, press, release, a cycle state…); absent when
+    // the handler ran some other way.
+    const gesture = window.DeckActions && window.DeckActions.validateGesture(payload.gesture);
+    if (gesture) msg.gesture = gesture;
+    post(target, msg);
   }
 
   // A widget's persistent store was written on ANOTHER surface (SSE `sdk_store`,
@@ -2281,7 +2336,9 @@
         // headless frame for the same reason: the user put it in the bar to watch
         // it, not to watch it go stale whenever its tile is off screen.
         const miniLive = pkg.mini === true && grant.mini;
-        if (!handlersLive && !badgeLive && !islandLive && !miniLive) continue;
+        // A bar button the user placed must answer a tap with no tile on screen.
+        const buttonLive = pkg.topbarButton === true && grant.topbarButton;
+        if (!handlersLive && !badgeLive && !islandLive && !miniLive && !buttonLive) continue;
         wanted.set('svc:' + pkg.id, pkg);
         count++;
       }
@@ -2619,6 +2676,7 @@
     const wantsBadge = pkg.badge === true;
     const wantsBadgeAction = pkg.badgeAction === true;
     const wantsMini = pkg.mini === true;
+    const wantsTopbarButton = pkg.topbarButton === true;
     const wantsClipboard = pkg.clipboard === true;
     const wantsAccent = pkg.accent === true;
     const wantsExpand = pkg.expand === true;
@@ -2695,6 +2753,9 @@
     if (wantsMini) {
       addSection('cw_perm_mini', 'It can show a mini widget in the top bar:', [t('cw_perm_mini_val', 'Xenon-drawn text, icons and meters, where you put it')], {});
     }
+    if (wantsTopbarButton) {
+      addSection('cw_perm_topbar_button', 'It can add a button to the top bar:', [t('cw_perm_topbar_button_val', 'A label and an icon, where you put it; a tap tells the widget')], {});
+    }
     // Clipboard: the widget can ask to copy text, but every copy needs a tap on a
     // Xenon-drawn confirmation first — it can never copy silently or read what you
     // have copied. Say exactly that, so "can copy" doesn't read as "can snoop".
@@ -2716,7 +2777,7 @@
     // Headless running. The manifest normalizer only keeps `background` when the
     // package has something that outlives a tile (handlers, badge or island), so
     // name whichever it actually is rather than always saying "Deck keys".
-    if (pkg.background === true && (deckHandlers.length || wantsBadge || wantsMini || wantsIslandDynamic)) {
+    if (pkg.background === true && (deckHandlers.length || wantsBadge || wantsMini || wantsTopbarButton || wantsIslandDynamic)) {
       const note = (deckHandlers.length && wantsBadge)
         ? t('cw_perm_background_both', 'This widget can keep running hidden in the background, so its Deck keys always answer and its badge stays up to date with no tile on screen.')
         : (wantsIslandDynamic
@@ -2725,13 +2786,15 @@
           ? t('cw_perm_background_badge', 'This widget can keep running hidden in the background, so its badge stays in the top bar and up to date even with no tile on screen.')
           : wantsMini
           ? t('cw_perm_background_mini', 'This widget can keep running hidden in the background, so its mini widget stays in the top bar and up to date even with no tile on screen.')
+          : wantsTopbarButton
+          ? t('cw_perm_background_topbar_button', 'This widget can keep running hidden in the background, so its button stays in the top bar and answers a tap even with no tile on screen.')
           : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
       panel.appendChild(el('div', 'cw-perm-note', note));
     }
     // Every capability that produced a section above must appear here too, or a
     // widget asking for only that one is announced as "Nothing". `accent` was
     // already missing; `expand` joins the list in the same breath.
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsMini && !wantsClipboard && !wantsAccent && !wantsExpand) {
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsMini && !wantsTopbarButton && !wantsClipboard && !wantsAccent && !wantsExpand) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
@@ -2777,7 +2840,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, clipboard: wantsClipboard, accent: wantsAccent, expand: wantsExpand } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, accent: wantsAccent, expand: wantsExpand } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -2870,7 +2933,7 @@
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
     { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude', 'codex'] },
-    { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant'] },
+    { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant', 'lighting'] },
   ];
   // Below this many entries the list is already scannable and the filter bar
   // would cost more tile height than it saves.
@@ -3135,6 +3198,7 @@
       || (pkg.badge === true && !g.badge)
       || (pkg.badgeAction === true && !g.badgeAction)
       || (pkg.mini === true && !g.mini)
+      || (pkg.topbarButton === true && !g.topbarButton)
       || (pkg.clipboard === true && !g.clipboard)
       || (pkg.accent === true && !g.accent)
       || (pkg.expand === true && !g.expand);

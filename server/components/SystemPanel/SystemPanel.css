@@ -56,7 +56,7 @@
   max-width: 100%;
   display: inline-flex;
   flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
   background: var(--surface-alt);
   border: 1px solid rgba(255,255,255,0.055);
@@ -98,6 +98,18 @@
    extracted into a standalone tile, opening an empty pane. Same for History while
    sensor history is off. */
 .sys-tab[hidden] { display: none; }
+/* Tight tile (fit-row.js picks the level): the tabs stay one row and give up
+   their words instead of folding into a column. 1: only the open tab keeps its
+   name; 2: icons only, Optimize too; 3: the uptime goes as well. The name
+   stays readable to screen readers. */
+.sys-tab, .sys-optimize-btn { position: relative; }
+.system-tabs[data-fit="1"] .sys-tab:not(.active) > span,
+.system-tabs:is([data-fit="2"], [data-fit="3"]) :is(.sys-tab, .sys-optimize-btn) > span {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.system-tabs[data-fit="1"] .sys-tab:not(.active),
+.system-tabs:is([data-fit="2"], [data-fit="3"]) .sys-tab { padding-left: 9px; padding-right: 9px; }
+.system-tabs[data-fit="3"] .sys-uptime { display: none; }
 .sys-tab svg {
   width: 12px;
   height: 12px;
@@ -273,7 +285,24 @@
   text-transform: uppercase;
 }
 
+/* A narrow card keeps its head on one line: the label ("DISK C:") never
+   breaks in two under the value, the model name and the value give way first
+   with an ellipsis, and the temperature badge stays whole. */
+.stat-head > :first-child { flex: 0 0 auto; white-space: nowrap; }
+.stat-head > .stat-head-value,
+.stat-head-right > .stat-head-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.stat-head-temp, .disk-cycle-btn { flex: 0 0 auto; }
+/* A badge cannot shrink, so a right group holding one keeps its own width:
+   squeezed below it, the group would spill left over the model name. */
+.stat-head-right:has(> .stat-head-temp:not(:empty)) { flex-shrink: 0; }
+/* Under ~140px the model name would be a lone "…": leave it to the line
+   below the value. The head always stretches to its card, so measuring it
+   as a container cannot collapse it. */
+.stat-head { container: stat-head / inline-size; }
+@container stat-head (max-width: 140px) { .stat-head-name { display: none; } }
+
 .stat-head-right {
+  flex: 0 1 auto;
   min-width: 0;
   display: inline-flex;
   align-items: center;

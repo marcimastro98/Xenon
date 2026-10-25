@@ -52,6 +52,20 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear {
   clip-path: var(--island-notch, none);
   transition: clip-path var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
 }
+/* A glass tile cannot take the clip on the item: an ancestor's clip-path is the
+   backdrop root of everything inside it, so the panel's backdrop-filter blurred
+   an empty backdrop and the tile showed no glass at all (measured: a 40px blur
+   left the wallpaper behind the Lyrics tile pixel-sharp). The same cutout,
+   expressed in the content box, goes on the painted surfaces instead. A shaped
+   tile keeps its own silhouette there (DashboardGrid.css). */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear[data-tile-glass] {
+  clip-path: none;
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear[data-tile-glass]:not([data-tile-shape]):not(:has(.tww-tile-expanded, .yt-tile-expanded, .cw-expanded, .lyw-staged)) > .grid-stack-item-content
+  > :is(.panel, .dashboard-widget, .tile-decor-bg, .tile-decor-overlays, .tile-decor-above) {
+  clip-path: var(--island-notch-surface, none);
+  transition: clip-path var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+}
 /* A tile covering the whole screen (full-screen Twitch/YouTube, an expanded SDK
    widget, the Lyrics stage) is `position: fixed` INSIDE this item, and an
    ancestor's clip-path clips a fixed child to the item's own box: the player
@@ -641,7 +655,8 @@ body.topbar-minimal:not([data-panel]) .edge-rail {
   display: flex;
   align-items: center;
   gap: 4px;
-  transform: translateY(-50%);
+  /* --rail-y and --rail-hide-peek are set only by a chosen look (TopbarLook.css). */
+  transform: translateY(var(--rail-y, -50%));
   transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }
@@ -672,8 +687,8 @@ body.topbar-minimal:not([data-panel]) .edge-rail:not(:has(
   .edge-rail-body .topbar-mini-slot:not([hidden]):not(.topbar-item-hidden)
 )) { display: none; }
 
-body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), -50%); }
-body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), -50%); }
+body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), var(--rail-y, -50%)); }
+body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), var(--rail-y, -50%)); }
 
 /* Auto-hidden after ~10s idle (js/topbar-minimal.js): tuck the rail body off the
    edge but leave the 22px handle peeking — same as .is-collapsed — so there's a
@@ -681,8 +696,8 @@ body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(10
    strip, reveals it). Fully hiding the handle left no discoverable way to reopen.
    Listed after .is-collapsed so it wins when a rail is both (equal specificity →
    source order); both land on the same peek, so the transition stays smooth. */
-body.topbar-minimal .edge-rail-left.is-auto-hidden  { transform: translate(calc(-100% + 22px), -50%); }
-body.topbar-minimal .edge-rail-right.is-auto-hidden { transform: translate(calc(100% - 22px), -50%); }
+body.topbar-minimal .edge-rail-left.is-auto-hidden  { transform: translate(calc(-100% + var(--rail-hide-peek, 22px)), var(--rail-y, -50%)); }
+body.topbar-minimal .edge-rail-right.is-auto-hidden { transform: translate(calc(100% - var(--rail-hide-peek, 22px)), var(--rail-y, -50%)); }
 
 .edge-rail-body {
   display: flex;

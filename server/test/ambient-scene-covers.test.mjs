@@ -56,9 +56,11 @@ test('the note appears for any scene but the classic one, and never for it', () 
 });
 
 test('the note sits with the scene picker and starts hidden', () => {
+  // Right under the picker, inside the Scene block, before the Classic widgets.
   const row = HTML.slice(HTML.indexOf('id="settings-ambient-scene"'));
-  const block = row.slice(0, row.indexOf('</div>'));
-  assert.match(block, /id="settings-ambient-scene-note"/, 'it belongs to the scene row');
+  const block = row.slice(0, row.indexOf('id="settings-ambient-builtin-widgets"'));
+  assert.ok(!block.includes('</section>'), 'it is in the Scene block');
+  assert.match(block, /id="settings-ambient-scene-note"/, 'it belongs to the scene picker');
   assert.match(block, /<span[^>]*id="settings-ambient-scene-note"[^>]*\shidden[^>]*>/, 'and starts hidden');
 });
 

@@ -203,3 +203,11 @@ test('HA value actions keep their value through validateAction, and old keys kee
   assert.equal(da.validateAction({ type: 'haCover', entity: 'cover.b', cmd: 'position', value: '30' }).cmd, 'position');
   assert.deepEqual(da.validateAction({ type: 'haClimate', entity: 'climate.ac', mode: 'heat' }), { type: 'haClimate', entity: 'climate.ac', mode: 'heat' });
 });
+
+// The part picker stores which device the part belongs to; dropping it made
+// every "Colour one part" key fail with bad_part.
+test('lightPart keeps the device its part belongs to', () => {
+  const a = da.validateAction({ type: 'lightPart', device: 'fusion2-5711c000', part: 1, color: '#ff0000' });
+  assert.deepEqual(a, { type: 'lightPart', device: 'fusion2-5711c000', part: '1', color: '#ff0000' });
+  assert.equal(da.validateAction({ type: 'lightPart', device: 'x'.repeat(300), part: 0 }).device.length, 160);
+});

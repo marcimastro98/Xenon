@@ -198,7 +198,7 @@
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   // Kind display order for the grouped ("browse all") view.
-  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds'];
+  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds', 'topbar'];
   const PAGE = 9;              // load-more page size for flat (filtered) views
   const SECTION_PREVIEW = 4;   // cards per kind before "See all"
   const JUST_ADDED_MAX = 8;    // default cap for the "Just added" block
@@ -287,6 +287,7 @@
     deck: S0 + '<rect x="3.5" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="9.9" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="16.3" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="3.5" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="9.9" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="16.3" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="3.5" y="17.5" width="4.3" height="2.3" rx="1.1"/><rect x="9.9" y="17.5" width="10.7" height="2.3" rx="1.1"/></svg>',
     ambient: S0 + '<path d="M20.5 14.3A8 8 0 1 1 9.7 3.5a6.3 6.3 0 0 0 10.8 10.8z"/></svg>',
     bundle: S0 + '<path d="M21 8.5l-9-5-9 5 9 5 9-5z"/><path d="M3 8.5V16l9 5 9-5V8.5"/><path d="M12 13.5V21"/></svg>',
+    topbar: S0 + '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M6.5 6.5h3"/><path d="M15.5 6.5h2"/></svg>',
     new: S0 + '<path d="M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z"/></svg>',
     limited: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
     supporters: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z"/></svg>',

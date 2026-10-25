@@ -549,6 +549,7 @@
         <ul>
           <li><a href="#start">Introduction</a></li>
           <li><a href="#map">What you can make</a></li>
+          <li><a href="#maker">Xenon Maker</a></li>
           <li><a href="#setup">Set up</a></li>
         </ul>
       </div>
@@ -617,8 +618,8 @@
       <h3 id="three-ways">Three ways to create</h3>
       <div class="paths">
         <div class="path">
-          <h4>Click in the app</h4>
-          <p>Themes, backgrounds, pages, Deck keys and simple widgets all have a built-in editor. Point, tap, done. No code at all.</p>
+          <h4>Click in the app or in Xenon Maker</h4>
+          <p>Themes, backgrounds, pages and Deck keys have an editor inside the app. <a href="../maker/" class="inline">Xenon Maker</a>, here on the site, makes all nine kinds, widgets and Ambient scenes too. No code at all.</p>
         </div>
         <div class="path">
           <h4>Ask Xenon AI</h4>
@@ -645,15 +646,28 @@
             <tr><td class="goal">Add a living, moving backdrop</td><td>Animated background</td><td>No (templates) / optional</td><td><a href="#backgrounds">Backgrounds</a></td></tr>
             <tr><td class="goal">Arrange which widgets go where</td><td>Page layout</td><td>No</td><td><a href="#pages">Pages</a></td></tr>
             <tr><td class="goal">Build a Stream-Deck-style key grid</td><td>Deck profile</td><td>No</td><td><a href="#deck">Deck</a></td></tr>
-            <tr><td class="goal">Add a clock / monitor / countdown tile</td><td>Widget (from a template)</td><td>No</td><td><a href="#widgets">Widgets</a></td></tr>
+            <tr><td class="goal">Add a tile that shows my data (clock, CPU, music, weather)</td><td>Widget (Xenon Maker)</td><td>No</td><td><a href="#widgets">Widgets</a></td></tr>
             <tr><td class="goal">Build a completely custom widget</td><td>Widget (SDK)</td><td>Yes</td><td><a href="#sdk">SDK</a></td></tr>
-            <tr><td class="goal">Design a fullscreen screensaver</td><td>Ambient scene</td><td>Some</td><td><a href="#ambient">Ambient</a></td></tr>
-            <tr><td class="goal">Ship a set of key icons for the Deck</td><td>Icon pack (SVG/PNG files)</td><td>No</td><td><em>Settings → Widgets &amp; sharing → Create icon pack</em></td></tr>
-            <tr><td class="goal">Ship a soundboard (clips for Deck keys)</td><td>Sound pack (MP3/OGG/WAV)</td><td>No</td><td><em>Settings → Widgets &amp; sharing → Create sound pack</em></td></tr>
+            <tr><td class="goal">Design a fullscreen screensaver</td><td>Ambient scene</td><td>No (Xenon Maker)</td><td><a href="#ambient">Ambient</a></td></tr>
+            <tr><td class="goal">Ship a set of key icons for the Deck</td><td>Icon pack (SVG/PNG files)</td><td>No</td><td><a href="#maker">Xenon Maker</a> or <em>Settings → Widgets &amp; sharing → Create icon pack</em></td></tr>
+            <tr><td class="goal">Ship a soundboard (clips for Deck keys)</td><td>Sound pack (MP3/OGG/WAV)</td><td>No</td><td><a href="#maker">Xenon Maker</a> or <em>Settings → Widgets &amp; sharing → Create sound pack</em></td></tr>
             <tr><td class="goal">Share my whole setup at once</td><td>Full package</td><td>No</td><td><a href="#packages">Packages</a></td></tr>
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section id="maker">
+      <h2>Xenon Maker</h2>
+      <p><a href="../maker/" class="inline">Xenon Maker</a> is an editor on this site for all nine kinds: widgets, themes, animated backgrounds, Ambient scenes, pages, Deck profiles, icon packs, sound packs and packages. You build with the mouse or a finger and see the result as you go.</p>
+      <ol class="steps">
+        <li><b>Pick what to make</b> and start from a template, or from a blank one.</li>
+        <li><b>Change anything</b> in the panel on the right: colours, fonts, sizes, data, rules, what a tap does. Undo and redo work on every change.</li>
+        <li><b>Try in Xenon</b> shows it full size in the demo dashboard, with sample data.</li>
+        <li><b>Install in Xenon</b> opens the dashboard on this PC with your creation ready to import; you check it and confirm. If Xenon does not open, copy the code or download the file and import it in <b>Settings → Widgets &amp; sharing → Share &amp; Import</b>.</li>
+        <li><b>Submit to the catalog</b>, in the same window, opens the <a href="../submit/" class="inline">submission form</a> with the code already in it.</li>
+      </ol>
+      <div class="note">Anyone can open Xenon Maker and build: the draft stays in that browser. Saving projects with their versions, installing, downloading and submitting to the catalog are for supporters, who sign in once with the supporter code they already use in the app.</div>
     </section>
 
     <section id="setup">
@@ -737,9 +751,10 @@
       <h3 id="themes-override" data-search-title="Give one widget its own colours">Override just one widget</h3>
       <ol class="steps">
         <li>Turn on <b>Layout</b> and tap the paint control on the widget.</li>
-        <li>Switch from <b>Follow theme</b> to <b>Custom</b>, then change only the roles that tile needs. Unset roles continue to inherit the global theme.</li>
+        <li>In <b>Colors</b>, change only the roles that tile needs. A value still taken from the theme reads <b>Theme</b>; the button next to your own value takes it back to the theme.</li>
+        <li>In <b>Controls</b>, restyle the widget's own buttons, tabs, the selected button and text fields. SDK widgets receive this as <code>theme.controls</code>.</li>
         <li>The local palette is contrast-checked, saved with the layout, included in backups and page presets, and passed into sandboxed SDK widgets.</li>
-        <li>Choose <b>Follow theme</b> again to remove the override cleanly.</li>
+        <li><b>Reset</b> at the bottom of the panel removes the whole override.</li>
       </ol>
 
       <h3 id="themes-example" data-search-title="Start from the Nebula theme">Or start from a real one</h3>
@@ -822,14 +837,14 @@
 
     <section id="widgets">
       <h2>Widgets without code</h2>
-      <p>A widget is a tile that does its own thing. The quickest way to make one is the built-in <strong>Create widget</strong> wizard: pick a template, tweak a few options with a live preview, and save. No files, no code.</p>
+      <p>A widget is a tile that does its own thing. <a href="#maker" class="inline">Xenon Maker</a> builds one from layers: text, numbers, bars, rings, charts over time, images, shapes and icons, placed freely or in rows and columns that follow the tile's size.</p>
       <ol class="steps">
-        <li>Go to <b>Settings → Widgets &amp; sharing → Create → Create widget</b>.</li>
-        <li>Pick a template: <b>clock</b>, <b>system monitor</b>, <b>now-playing</b>, <b>label</b> or <b>countdown</b>.</li>
-        <li>Adjust the options (colours, size, what it shows) and watch the preview update. Press <b>Save &amp; install</b> and it appears in your <b>+</b> palette.</li>
-        <li>Share it with <b>Export widget</b>. Anyone who imports it approves its permissions once, then it's theirs.</li>
+        <li>Open <a href="../maker/" class="inline">Xenon Maker</a>, choose <b>Widget</b> and start from a template or a blank tile.</li>
+        <li>Link a layer to live data picked from a list: CPU temperature, the song playing, the next event, the weather and more. The widget asks only for the data its layers use.</li>
+        <li>Add rules that change a layer when something happens, such as red above 80 °C or hidden when nothing plays, and choose what a tap does: play or pause music, next track, next dashboard page.</li>
+        <li>Check it at every tile size, then <b>Install in Xenon</b>. It appears in your <b>+</b> palette; whoever imports it approves its permissions once.</li>
       </ol>
-      <div class="note">Widgets you make with the wizard stay editable: reopen them anytime to change your mind. When a template can't do what you're picturing, that's your cue for the <a href="#sdk" class="inline">Widget SDK</a>.</div>
+      <div class="note">Colours follow the theme of whoever installs the widget unless you fix them. To change a widget later, open its project in Xenon Maker. When you need logic of your own, that's your cue for the <a href="#sdk" class="inline">Widget SDK</a>.</div>
     </section>
 
     <section id="ambient">
@@ -839,7 +854,8 @@
         <li><b>Install one</b> from a share code or the <a href="../catalog/" class="inline">catalog</a> via <b>Share &amp; Import → Import</b>. It lands under <b>Settings → Ambient → My scenes</b>.</li>
         <li><b>Set it as your screensaver</b> there, and it appears whenever the dashboard is idle.</li>
       </ol>
-      <div class="note"><b>Authoring a scene</b> is a code-first job today (there's no in-app scene editor yet). The friendliest route: ask Claude with the Xenon creator tooling to build one from your description, or start from a scene in the catalog and import it. If you want to build one yourself, it's a fullscreen widget: see <a href="#sdk-ambient" class="inline">Ambient scenes</a> in the SDK below.</div>
+      <p><b>What you can touch.</b> A scene is for looking at. Four elements can also be touched, each when its <b>Controls</b> option is on: music (previous, play or pause, next), tasks (tap one to tick it), notifications (tap to show one, tap again to clear it from the screen) and volume (down, up, mute). They work even when the scene came on by itself: a tap on a control does its job, a tap anywhere else closes the scene.</p>
+      <div class="note"><b>Making a scene</b>: in <a href="#maker" class="inline">Xenon Maker</a>, choose <b>Ambient scene</b> and place a clock, the date, the weather, what's playing, your agenda, text, images and shapes on a free canvas, over a colour, gradient or picture. A scene that needs its own drawing code is a fullscreen widget: see <a href="#sdk-ambient" class="inline">Ambient scenes</a> in the SDK below.</div>
     </section>
 
     <section id="packages">
@@ -857,14 +873,14 @@
 
     <section id="sdk">
       <h2>Widget SDK</h2>
-      <p>Templates cover the common tiles. When you want something no template can do (your own design, your own data, your own logic), you build a widget. This is the <strong>complete reference</strong>: everything is on this page, nothing to look up elsewhere. It starts from "I've never written a widget" and goes all the way to the full protocol, so read as far as you need and stop.</p>
+      <p>Xenon Maker covers designs and live data. When you want something it can't do (your own logic, your own data sources), you write a widget. This is the <strong>complete reference</strong>: everything is on this page, nothing to look up elsewhere. It starts from "I've never written a widget" and goes all the way to the full protocol, so read as far as you need and stop.</p>
       <p><strong>What a widget actually is:</strong> a folder with an HTML file. Xenon runs it inside a locked sandbox, with no internet and no access to your files or the dashboard, and it talks to Xenon through one small message channel. You ask for the data and controls you need, the user approves them once, and your widget drives the real thing. Nothing leaves the PC.</p>
       <div class="grid3">
         <div class="mini"><h4>A folder</h4><p>A <em>manifest.json</em> (its name and what it needs) and an <em>index.html</em> (what it shows). Optional CSS/JS, images and fonts alongside. That's it.</p></div>
         <div class="mini"><h4>A sandbox</h4><p>No network, no cookies, no reach into your files or the dashboard. It only ever receives the streams and actions you declared and the user granted.</p></div>
         <div class="mini"><h4>One bridge</h4><p>Your widget and Xenon exchange small messages. You say "hello", Xenon sends live data and the theme, you send actions back. That's the whole API.</p></div>
       </div>
-      <div class="note safe"><b>You don't need to code to have a widget.</b> The no-code <a href="#widgets" class="inline">Create widget</a> wizard builds clocks, monitors, countdowns and more with zero code. The SDK is for when you want to go past the templates.</div>
+      <div class="note safe"><b>You don't need to code to have a widget.</b> <a href="#widgets" class="inline">Xenon Maker</a> builds clocks, monitors, music tiles, countdowns and more with no code. The SDK is for logic of your own.</div>
     </section>
 
     <section id="sdk-first">
@@ -995,7 +1011,8 @@ parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
       accent:<span class="tok-s">'#1ed760'</span>, onAccent:<span class="tok-s">'#111111'</span>,
       success:<span class="tok-s">'#45d483'</span>, warning:<span class="tok-s">'#f0b84f'</span>, danger:<span class="tok-s">'#ff6268'</span>, info:<span class="tok-s">'#62cbea'</span>,
       surfaceSoft:<span class="tok-s">'rgba(22,25,26,0.92)'</span>, panelAlpha:<span class="tok-s">0.92</span>  <span class="tok-c">// card surface at the user's panel opacity (null → use surfaceAlt)</span>
-    } },
+    },
+    controls:<span class="tok-k">null</span> },  <span class="tok-c">// the user's button colours for this tile (Widget style → Controls), or null</span>
   lang:<span class="tok-s">'en'</span>,                 <span class="tok-c">// en · it · ko · ja · zh</span>
   streams:[<span class="tok-s">'system'</span>],       <span class="tok-c">// what the user actually granted</span>
   actions:[<span class="tok-s">'media'</span>] }
@@ -1096,13 +1113,14 @@ parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
             <tr><td><code>hooks</code></td><td>No</td><td>Up to 8 hook ids a local app may push events to (<a href="#sdk-network">§7</a>).</td></tr>
             <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§10</a>).</td></tr>
             <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§9</a>).</td></tr>
-            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets Deck handlers, persistent badges, mini slots or advanced Dynamic Island activities run headless, with no tile on screen.</td></tr>
+            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets Deck handlers, persistent badges, mini slots, bar buttons or advanced Dynamic Island activities run headless, with no tile on screen.</td></tr>
             <tr><td><code>storage</code></td><td>No</td><td><code>true</code> gives your widget a small key/value store that <b>survives updates</b> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>storageGroup</code></td><td>No</td><td>A shared-store id so a set of sibling widgets share one store. Implies <code>storage</code> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>secrets</code></td><td>No</td><td><code>true</code> gives you a write-only vault for API keys, used via <code>{{secret:NAME}}</code> in requests (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>island</code></td><td>No</td><td><code>true</code> keeps the short plain-text line API. <code>{ "dynamic": true }</code> requests a separate advanced permission for Xenon-rendered Live Activities: text, icons, progress, playback bars, selected built-in readouts and up to two action buttons; timed takeover cards animate in/out and restore the previous content. Works in Full and Minimal. See the SDK guide's <i>Dynamic Island</i> chapter.</td></tr>
-            <tr><td><code>badge</code></td><td>No</td><td><code>true</code> adds a small persistent host-rendered chip next to the clock. <code>{ "action": true }</code> requests a separate permission that turns the chip into a button and tells your widget when it is tapped. The user can disable each installed package from Settings → Dynamic Island.</td></tr>
+            <tr><td><code>badge</code></td><td>No</td><td><code>true</code> adds a small persistent host-rendered chip next to the clock. <code>{ "action": true }</code> requests a separate permission that turns the chip into a button and tells your widget when it is tapped. The user can disable each installed package from Settings → Top bar.</td></tr>
             <tr><td><code>mini</code></td><td>No</td><td><code>true</code> lets your widget draw a <b>mini widget among the top bar's buttons</b>, in the place the user put it. Same Xenon-rendered blocks as the Dynamic Island in a smaller room: 4 blocks, 1 button, no clock mirroring and no timed takeover, because a slot in the bar is a state, not an announcement. The user picks its side and position, can hide it, and can switch your package off on its own.</td></tr>
+            <tr><td><code>topbarButton</code></td><td>No</td><td><code>true</code> lets your widget add <b>one button of its own to the top bar</b>: a label up to 24 characters, an optional glyph and a tooltip, drawn by Xenon; a tap tells your widget. It lands at the end of the left side, which in Minimal is the left side rail. The user moves it, hides it, renames it, recolours it and owns the rails it sits in, so keep the same action in your tile too.</td></tr>
             <tr><td><code>clipboard</code></td><td>No</td><td><code>true</code> lets your widget <b>ask</b> to copy text to the clipboard. It can never copy silently and can never read the clipboard: each copy raises a Xenon confirmation the user taps. Right for a password or a one-time code. See the SDK guide's <i>Clipboard</i> chapter.</td></tr>
             <tr><td><code>accent</code></td><td>No</td><td><code>true</code> lets your widget tint the <b>dashboard's accent colour</b> while it runs, through the same channel the album-art theme uses, for players Windows never reports (Plex, a console, a game overlay). The accent only, never saved, and handed back automatically when your widget is removed or paused. See the SDK guide's <i>Dashboard accent</i> chapter.</td></tr>
           </tbody>
@@ -1417,7 +1435,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
       <p>Add <code>"surface": "ambient"</code> to your manifest and your package becomes an <strong>Ambient scene</strong>, a fullscreen screensaver the user selects in Settings → Ambient instead of placing as a tile. Everything else is identical: same folder, same sandbox, same bridge, same permission dialog, same Export / Import.</p>
       <ul>
         <li><b>You render the whole screen.</b> It's landscape and watched from a distance, so design big, calm and dim. Near-black backgrounds are kind to an always-on display. No scrolling (<code>overflow: hidden</code>).</li>
-        <li><b>Keep the top-right corner clear.</b> Xenon draws an exit ✕ there (Escape also closes). Everywhere else, taps reach your page.</li>
+        <li><b>Keep the top-right corner clear.</b> Xenon draws an exit ✕ there (Escape also closes). Everywhere else, taps reach your page when the user opened the scene. When it came on by itself after idle, the first tap or key press closes it instead, so show everything at a glance and treat controls as extras.</li>
         <li><b>The clock is yours</b> (use <code>Date</code> in-frame). Live data still arrives over your granted streams, exactly like a tile.</li>
         <li><b>Pause when hidden:</b> gate your <code>requestAnimationFrame</code> loop on <code>document.hidden</code>: scenes open after long idle and pause during games.</li>
       </ul>

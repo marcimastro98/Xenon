@@ -31,11 +31,18 @@ test('the only required source patch — SERVER in state.js — is still anchore
     'build-demo.mjs prefix-inserts at this exact line; update both together');
 });
 
+test('the curated tile decor URLs the demo makes relative are still anchored', () => {
+  // Root paths 404 under /demo/, so the build rewrites both to relative ones.
+  const src = read('server', 'js', 'tile-decor-presets.js');
+  assert.equal(countOf(src, '`/assets/decor/frame-'), 1, 'build-demo.mjs patches the frame URL here');
+  assert.equal(countOf(src, '`/assets/decor/overlay-'), 1, 'build-demo.mjs patches the sticker URL here');
+});
+
 test('every index.html anchor the build inserts at occurs exactly once', () => {
   const html = read('server', 'index.html');
   const anchors = {
     'analytics prelude': '<meta charset="UTF-8">',
-    'boot scripts': '<script src="shared/src/constants.js"></script>',
+    'boot scripts': '<script src="js/boot-splash.js"></script>',
     'demo UI layer': '<script src="js/main.js"></script>',
     'Edge DPR block': '<!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.',
     'head metadata': '<title>',

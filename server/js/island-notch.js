@@ -70,14 +70,28 @@
 
   // clip-path for the item. ALWAYS the same command list, whatever the case, so
   // the browser can interpolate between two cutouts instead of jumping.
-  function clipPath(g) {
+  // `shift` moves the origin by that many px on both axes: surfaceClipPath()
+  // uses it to express the same cutout in the content box, which starts
+  // `margin` inside the item.
+  function clipPath(g, shift = 0) {
     if (!g) return '';
-    const { left: a, right: b, bottom: d, cornerR: R, shoulderL: fl, shoulderR: fr, margin: m, width: w } = g;
+    const s = Number(shift) || 0;
+    const { cornerR: R, shoulderL: fl, shoulderR: fr } = g;
+    const a = g.left - s, b = g.right - s, d = g.bottom - s, m = g.margin - s, w = g.width - s;
+    const out = -SPILL - s, far = FAR - s;
     return 'path("'
-      + `M ${-SPILL} ${-SPILL} H ${a - fl} V ${m} A ${fl} ${fl} 0 0 1 ${a} ${m + fl}`
+      + `M ${out} ${out} H ${a - fl} V ${m} A ${fl} ${fl} 0 0 1 ${a} ${m + fl}`
       + ` V ${d - R} A ${R} ${R} 0 0 0 ${a + R} ${d} H ${b - R} A ${R} ${R} 0 0 0 ${b} ${d - R}`
-      + ` V ${m + fr} A ${fr} ${fr} 0 0 1 ${b + fr} ${m} V ${-SPILL} H ${w + SPILL} V ${FAR} H ${-SPILL} Z`
+      + ` V ${m + fr} A ${fr} ${fr} 0 0 1 ${b + fr} ${m} V ${out} H ${w + SPILL} V ${far} H ${out} Z`
       + '")';
+  }
+
+  // The same cutout for the tile's painted SURFACES (panel, picture layer). A
+  // clip-path on the item makes it the backdrop root of everything inside, so a
+  // glass tile under the island blurred an empty backdrop and showed no glass at
+  // all; a glass tile clips its surfaces instead (TopbarMinimal.css).
+  function surfaceClipPath(g) {
+    return g ? clipPath(g, g.margin) : '';
   }
 
   // The tile's top hairline, redrawn along the cutout (the tile's own top border
@@ -106,7 +120,7 @@
     return head + tail;
   }
 
-  const api = { geometry, collapsed, clipPath, edgePath, GAP };
+  const api = { geometry, collapsed, clipPath, surfaceClipPath, edgePath, GAP };
   if (typeof window !== 'undefined') window.IslandNotch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

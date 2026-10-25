@@ -318,6 +318,7 @@
             <option value="bundle" data-t="k_bundle">bundle (full package)</option>
             <option value="icons" data-t="k_icons">icons (Deck icon pack)</option>
             <option value="sounds" data-t="k_sounds">sounds (soundboard pack)</option>
+            <option value="topbar" data-t="k_topbar">topbar (top bar setup)</option>
           </select>
         </label>
         <label class="f"><span data-t="f_category">Category *</span>
@@ -455,6 +456,7 @@
       k_bundle: 'bundle (paquet complet)',
       k_icons: 'icônes (pack d\'icônes Deck)',
       k_sounds: 'sons (paquet soundboard)',
+      k_topbar: 'topbar (configuration de la barre supérieure)',
       f_category: 'Catégorie *',
       c_none: 'Choisir un élément…',
       c_style: 'style (thèmes, arrière-plans, apparence)',
@@ -582,7 +584,7 @@
       foot: 'Le proposte sono moderate. I codici vengono ri-validati nell’app all’importazione: una voce del catalogo non può mai cambiare nulla in silenzio.',
       k_bg: 'bg (sfondo animato)', k_page: 'page (pagina dashboard)', k_deck: 'deck (profilo Deck)',
       k_widget: 'widget (widget community)', k_ambient: 'ambient (scena Ambient)', k_bundle: 'bundle (pacchetto completo)',
-      k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)',
+      k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)', k_topbar: 'topbar (configurazione della barra superiore)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
       e_contact: 'Lascia un\'email o un handle Discord, così chi revisiona può scriverti se qualcosa non va.',
       e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto: copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
@@ -652,7 +654,7 @@
       foot: 'Los envíos se moderan. Los códigos se validan de nuevo en la app al importarlos: una entrada del catálogo nunca puede cambiar nada sin avisar.',
       k_bg: 'bg (fondo animado)', k_page: 'page (página del panel)', k_deck: 'deck (perfil de Deck)',
       k_widget: 'widget (widget de la comunidad)', k_ambient: 'ambient (escena Ambient)', k_bundle: 'bundle (paquete completo)',
-      k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)',
+      k_icons: 'icons (pack de iconos del Deck)', k_sounds: 'sounds (pack de sonidos)', k_topbar: 'topbar (configuración de la barra superior)',
       e_name: 'Ponle un nombre a tu creación.', e_code: 'Pega el código para compartir.',
       e_contact: 'Deja un email o tu usuario de Discord, para que quien revisa pueda escribirte si hay que corregir algo.',
       e_code_incomplete: 'El código para compartir parece cortado o incompleto. Cópialo entero desde Xenon (o usa «Cargar desde archivo») y vuelve a enviarlo.',
@@ -847,6 +849,25 @@
     };
     r.readAsText(f);
   });
+
+  // ── From Xenon Maker (?from=maker): the code it left on this origin, taken
+  // once. Only a fresh one is used; it is checked like a pasted code. ──
+  if (qs.get('from') === 'maker') {
+    var handed = null;
+    try {
+      handed = JSON.parse(localStorage.getItem('xenon.maker.submit') || 'null');
+      localStorage.removeItem('xenon.maker.submit');
+    } catch (e) {}
+    if (handed && typeof handed.code === 'string' && handed.code.length <= MAX_CODE &&
+        typeof handed.at === 'number' && Math.abs(Date.now() - handed.at) < 10 * 60 * 1000) {
+      // After the rest of this script has set up what syncFromCode() reads.
+      setTimeout(function () {
+        codeEl.value = handed.code;
+        paintSize();
+        syncFromCode();
+      }, 0);
+    }
+  }
 
   // ── Screenshots ──
   var shots = [null, null, null];

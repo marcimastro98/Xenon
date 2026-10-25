@@ -183,3 +183,7 @@
 }
 .demo-na-in b { font-size: 12.5px; font-weight: 700; color: #ededed; }
 .demo-na-in span { opacity: 0.72; }
+
+/* The Maker's Ambient scene preview rebuilds the scene on every edit: only the
+   first build slides in, later ones replace it in place (demo/maker.js). */
+html.maker-ambient-again .ambient-canvas-overlay { animation: none; }

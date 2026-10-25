@@ -17,6 +17,29 @@ function widgetGroupOf(groups, widgetId) {
   return null;
 }
 
+// A tab group's own tab colours (style.tabs) → custom properties for ONE tab.
+// A background picked without a text colour gets a readable one, so a pick never
+// leaves a label unreadable. Pure: the tests and the style editor read it too.
+const TAB_COLOR_VARS = { bg: '--tgc-bg', text: '--tgc-text', activeBg: '--tgc-active-bg', activeText: '--tgc-active-text' };
+function _readableOn(hex) {
+  const P = (typeof window !== 'undefined' && window.ThemePalette) || null;
+  if (P && P.bestText) return P.bestText(hex);
+  const n = parseInt(String(hex).slice(1), 16);
+  const y = (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
+  return y > 150 ? '#111111' : '#ffffff';
+}
+function tabColorVars(tabs, mid) {
+  const items = tabs && tabs.items;
+  const item = items && Object.prototype.hasOwnProperty.call(items, mid) ? items[mid] : null;
+  const vars = {};
+  if (!item) return vars;
+  if (item.bg) vars[TAB_COLOR_VARS.bg] = item.bg;
+  if (item.text || item.bg) vars[TAB_COLOR_VARS.text] = item.text || _readableOn(item.bg);
+  if (item.activeBg) vars[TAB_COLOR_VARS.activeBg] = item.activeBg;
+  if (item.activeText || item.activeBg) vars[TAB_COLOR_VARS.activeText] = item.activeText || _readableOn(item.activeBg);
+  return vars;
+}
+
 function _makeGroupId() { return 'g-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 // Merge the dragged widget (aId) onto the target widget (bId). If bId is already
@@ -340,8 +363,28 @@ function renderGroupTile(gridItem, group) {
   // Same reason, for the tile's own drop shadow: a group showing a Deck that has no
   // faceplate has nothing on screen to cast it (see stampDeckMount in deck.js).
   tile.toggleAttribute('data-deck-bare', !!(shownRoot && shownRoot.dataset.plate === 'none'));
+  // A Deck with the Theme faceplate is drawn as a tile, so the group keeps its own surface.
+  tile.toggleAttribute('data-deck-themeplate', !!(shownRoot && shownRoot.dataset.plate === 'theme'));
+  paintGroupTabs(gridItem, group.style && group.style.tabs);
   if (typeof applyTranslations === 'function') applyTranslations();
   return tile;
+}
+
+// Paint a group tile's tab colours: the bar, and each tab by its member id. Each
+// part the user set gets a data-tgc-* attribute, so DashboardGrid.css paints only
+// those. Called on every render (the tabs are rebuilt) and by applyTileStyle()
+// (the style editor repaints live without a render).
+function paintGroupTabs(gridItem, tabs) {
+  const bar = gridItem && gridItem.querySelector('.tabgroup-bar');
+  if (!bar) return;
+  bar.style.removeProperty('--tgc-bar-bg');
+  bar.removeAttribute('data-tgc-bar');
+  if (tabs && tabs.barBg) { bar.style.setProperty('--tgc-bar-bg', tabs.barBg); bar.setAttribute('data-tgc-bar', ''); }
+  bar.querySelectorAll(':scope > .tabgroup-tab').forEach((tab) => {
+    Object.values(TAB_COLOR_VARS).forEach((p) => { tab.style.removeProperty(p); tab.removeAttribute('data-' + p.slice(2)); });
+    const vars = tabColorVars(tabs, tab.dataset.member);
+    Object.keys(vars).forEach((p) => { tab.style.setProperty(p, vars[p]); tab.setAttribute('data-' + p.slice(2), ''); });
+  });
 }
 
 function setGroupActive(gid, memberId, fromUser = true) {
@@ -492,7 +535,7 @@ if (typeof window !== 'undefined') {
   // only half of what a custom tab's label depends on — the other half is which
   // package that tile is ASSIGNED, and assigning one repaints the tile without
   // rebuilding the bar, so the tab kept the generic type name until a reload.
-  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, removeMemberFromGroup, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf, refreshLabels: _refreshGroupLabels };
+  window.DashboardTabGroups = { renderGroupTile, paintGroupTabs, tabColorVars, setGroupActive, extractToStandalone, extractMember, removeMemberFromGroup, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf, refreshLabels: _refreshGroupLabels };
   // The SDK package list arrives after the first layout pass on a cold reload, so
   // a custom tab first paints with the generic type name — refresh it once names
   // are known (also covers a Rescan swapping which widget a tile hosts).
@@ -500,5 +543,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { rectsOverlapRatio, widgetGroupOf, mergeWidgets, extractMember, addAsTab, reorderMembers };
+  module.exports = { rectsOverlapRatio, widgetGroupOf, mergeWidgets, extractMember, addAsTab, reorderMembers, tabColorVars };
 }

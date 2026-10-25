@@ -227,7 +227,7 @@
   .settings-upload, .settings-preview-card, .ai-provider-toggle label,
   .app-card, .app-search-wrap, .tab-card,
   .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
-  .wc-card, .wc-preview, .tile-style-seg, .tile-style-tabs,
+  .wc-card, .wc-preview, .tile-style-tabs,
   .deck-ed-side, .deck-ed-step, .deck-ed-preview-stage, .deck-mix-apps,
   .upd-notes code, .upd-hl-footer, .upd-status
 ) {
@@ -281,7 +281,7 @@
    destructive actions and tiny status marks, not entire everyday controls. */
 :root[data-style="comic"] :is(
   .settings-segment-btn.active, .settings-nav-btn.active,
-  .tile-style-seg button.active, .tile-style-tabs button.active,
+  .tile-style-tabs button.active,
   .widget-palette-cat.active, .deck-ed-tab.active, .deck-ed-segbtn.active,
   .deck-ed-trigbtn.active, .deck-pmenu-row.active
 ) {
@@ -312,7 +312,7 @@
 :root[data-style="comic"] :is(
   .notes-area, .settings-text-input, .settings-hex-input,
   .preset-code-field, .deck-pmenu-input, .deck-ed-input,
-  .deck-ed-modal .cs-trigger, .tile-style-font, .wc-input,
+  .deck-ed-modal .cs-trigger, .tsf-select, .wc-input,
   input[type="url"], input[type="email"]
 ) {
   background: var(--comic-paper-soft);
@@ -1087,10 +1087,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: max(34px, 46%);
+  /* The paper badge carries the key's icon-size preset (S/M/L): a fixed badge
+     made the preset do nothing on this cap style. */
+  width: calc(max(34px, 46%) * var(--ico-scale, 1));
   aspect-ratio: 1;
   flex: 0 0 auto;
-  color: var(--comic-ink) !important;
+  color: var(--key-icon-color, var(--comic-ink)) !important;
   background: var(--deck-comic-paper);
   border: 2px solid var(--comic-ink);
   border-radius: 43% 57% 48% 52% / 54% 45% 55% 46%;
@@ -1113,7 +1115,7 @@
   z-index: 2;
   max-width: calc(100% - 8px);
   padding: 2px 6px 3px;
-  color: var(--comic-ink) !important;
+  color: var(--key-label-color, var(--comic-ink)) !important;
   background: var(--deck-comic-paper);
   border: 1px solid var(--comic-ink);
   border-radius: 3px 6px 3px 5px / 5px 3px 6px 3px;
@@ -1295,20 +1297,20 @@
 
 /* The tab-group mount belongs to the dashboard page and must use the same
    paper material as the redrawn device instead of a graphite rectangle. */
-:root[data-style="comic"] .panel.tabgroup.deck-tab-active {
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) {
   background:
     radial-gradient(circle at 20% 30%, var(--comic-pencil) 0 0.55px, transparent 0.75px) 0 0 / 9px 9px,
     var(--comic-paper);
   border-color: var(--comic-ink);
   box-shadow: 1px 1px 0 var(--comic-pencil), var(--panel-drop);
 }
-:root[data-style="comic"] .panel.tabgroup.deck-tab-active .tabgroup-bar {
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-bar {
   background: var(--comic-paper-deep);
   border-color: var(--comic-ink);
   box-shadow: inset 1px 1px 0 var(--comic-pencil);
 }
-:root[data-style="comic"] .panel.tabgroup.deck-tab-active .tabgroup-tab { color: var(--comic-muted); }
-:root[data-style="comic"] .panel.tabgroup.deck-tab-active .tabgroup-tab.active {
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-tab { color: var(--comic-muted); }
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) .tabgroup-tab.active {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 30%, var(--comic-paper));
   border: 1px solid var(--comic-ink);

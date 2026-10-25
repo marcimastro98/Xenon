@@ -294,7 +294,8 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
    right; only a faint dim (no blur) keeps the dashboard readable and sharp. */
 .tile-style-overlay {
   position: fixed; inset: 0; z-index: 200;
-  display: flex; align-items: center; justify-content: flex-end; padding: 20px;
+  /* Top-anchored: centred, the panel jumped up and down with each tab's height. */
+  display: flex; align-items: flex-start; justify-content: flex-end; padding: 20px;
   background: rgba(2, 5, 6, 0.18);
 }
 .tile-style-pop {
@@ -310,48 +311,64 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
 .tile-style-head.tile-style-drag::before {
   content: '⠿'; font-size: 15px; line-height: 1; opacity: 0.5; letter-spacing: -2px;
 }
-.tile-style-seg {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px;
-  border-radius: 11px; background: rgba(255, 255, 255, 0.05);
-}
-.tile-style-seg button {
-  padding: 8px 6px; cursor: pointer; border: 0; border-radius: 8px;
-  background: transparent; color: var(--text); font: inherit; font-weight: 700; font-size: 12.5px;
-  opacity: 0.7; transition: background 0.15s ease, opacity 0.15s ease;
-}
-.tile-style-seg button.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); opacity: 1; }
+/* Moved by its header: the panel is pinned where it was dropped. */
+.tile-style-overlay.is-moved { justify-content: flex-start; align-items: flex-start; }
 .tile-style-body[hidden] { display: none; }
-.tile-style-body { display: flex; flex-direction: column; gap: 10px; }
-.tile-style-row { display: flex; align-items: center; gap: 10px; }
-.tile-style-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: 0 0 auto; }
-.tile-style-label { flex: 1 1 auto; font-size: 13px; }
-.tile-style-row input[type="color"] {
-  width: 40px; height: 28px; padding: 0; border: 1px solid var(--panel-border);
-  border-radius: 7px; background: transparent; cursor: pointer; flex: 0 0 auto;
+.tile-style-body { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Editor fields (tile-style-fields.js) ──
+   Every control is live from the first touch. A value the tile takes from the
+   theme reads "Theme" in the muted colour; a value of its own shows itself and
+   a reset beside it. */
+.tsf-section { display: flex; flex-direction: column; gap: 2px; }
+.tsf-section[hidden] { display: none; }
+.tsf-row {
+  display: flex; align-items: center; gap: 10px; min-height: 40px;
+  padding: 2px 0; font-size: 13px;
 }
-.tile-style-row input[type="color"]:disabled { opacity: 0.4; cursor: default; }
-.tile-style-row input[type="range"] { flex: 1 1 auto; accent-color: var(--accent); }
-/* Gradient control: two swatches that read as a pair, with the angle below. */
-.tile-style-gradblock { display: flex; flex-direction: column; gap: 7px; }
-.tile-style-gradblock .tile-style-row { gap: 8px; }
-.tile-style-grad-sw {
-  width: 30px; height: 26px; padding: 0; border: 1px solid var(--panel-border);
-  border-radius: 7px; background: transparent; cursor: pointer; flex: 0 0 auto;
+.tsf-row[hidden] { display: none; }
+.tsf-col { flex-direction: column; align-items: stretch; gap: 6px; padding: 6px 0; }
+.tsf-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tsf-label { flex: 1 1 auto; min-width: 0; }
+.tsf-range .tsf-label { flex: 0 0 34%; }
+.tsf-note { font-size: 11px; color: var(--muted-text); }
+.tsf-note[hidden] { display: none; }
+.tsf-swatch {
+  width: 36px; height: 30px; padding: 0; flex: 0 0 auto; cursor: pointer;
+  border: 1px solid var(--panel-border); border-radius: 8px; background: transparent;
 }
-.tile-style-grad-sw:disabled { opacity: 0.4; cursor: default; }
-.tile-style-grad-angle { width: 100%; accent-color: var(--accent); }
-.tile-style-grad-angle:disabled { opacity: 0.4; }
-.tile-style-font {
+.tsf-slider { flex: 1 1 auto; min-width: 0; accent-color: var(--accent); }
+.tsf-value {
+  flex: 0 0 auto; min-width: 54px; text-align: right;
+  font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text);
+}
+.tsf-value.is-theme { color: var(--muted-text); }
+.tsf-reset {
+  flex: 0 0 auto; width: 30px; height: 30px; padding: 0; cursor: pointer;
+  display: grid; place-items: center; border: 1px solid var(--panel-border);
+  border-radius: 8px; background: transparent; color: var(--text); font-size: 15px; line-height: 1;
+}
+.tsf-reset:hover { background: var(--hover-bg); }
+.tsf-reset[hidden] { display: none; }
+.tsf-toggle { cursor: pointer; }
+.tsf-check { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+.tsf-grad { display: flex; flex-direction: column; }
+.tsf-grad .tsf-swatch { width: 30px; }
+.tsf-select {
   flex: 0 0 auto; min-width: 150px; padding: 6px 8px; font: inherit; font-size: 12.5px;
   border: 1px solid var(--panel-border); border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06); color: var(--text); cursor: pointer;
+  background: var(--input-bg); color: var(--text); cursor: pointer;
 }
-/* The font/fit pickers are upgraded to the shared custom dropdown when the panel
-   opens (custom-select.js hides the native <select> and inserts a .cs-wrap before
-   it), so the sizing above has to carry over to the wrapper. */
-.tile-style-row > .cs-wrap { flex: 0 0 auto; min-width: 150px; }
-.tile-style-row > .cs-wrap .cs-trigger { width: 100%; font-size: 12.5px; }
-.tile-style-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
+/* The pickers are upgraded to the shared dropdown when the panel opens
+   (custom-select.js inserts a .cs-wrap before the hidden <select>). */
+.tsf-row > .cs-wrap { flex: 0 0 auto; min-width: 150px; }
+.tsf-row > .cs-wrap .cs-trigger { width: 100%; font-size: 12.5px; }
+.tsf-link {
+  padding: 0; margin-left: 6px; border: 0; background: none; cursor: pointer;
+  color: var(--accent); font: inherit; font-weight: 700; text-decoration: underline;
+}
+.tile-style-foot-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.tile-style-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin-top: 2px; }
 .tile-style-btn {
   padding: 8px 16px; cursor: pointer; border: 1px solid var(--panel-border);
   border-radius: 9px; background: rgba(255, 255, 255, 0.05); color: var(--text);
@@ -360,11 +377,12 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
 }
 .tile-style-btn:active { transform: scale(0.96); }
 .tile-style-btn.primary { border-color: transparent; background: var(--accent); color: var(--on-accent); }
+.tile-style-btn:disabled { opacity: 0.45; cursor: default; }
 
-/* ── Tabbed tile-style editor (Colours / Background / Decor / Effects) ── */
+/* ── Tabbed tile-style editor (Colours / Effects / Background / Decor / Controls) ── */
 .tile-style-pop.wide { width: min(420px, calc(100vw - 32px)); }
 .tile-style-tabs {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 3px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 3px;
   border-radius: 11px; background: rgba(255, 255, 255, 0.05);
 }
 .tile-style-tabs button {
@@ -373,14 +391,12 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
   opacity: 0.7; transition: background 0.15s ease, opacity 0.15s ease;
 }
 .tile-style-tabs button.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); opacity: 1; }
-.tile-style-body[hidden] { display: none; }
-.tile-style-subhead { font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
+.tile-style-subhead { font-size: 13px; font-weight: 800; color: var(--muted-text); margin-top: 2px; }
 /* A one-line explanation under a control, for the cases where a setting is
    inert for a reason the user can fix (blur behind an opaque panel). */
 .tile-style-hint { font-size: 11.5px; line-height: 1.45; opacity: 0.72; }
 .tile-style-hint[hidden] { display: none; }
 .tile-style-hint-err { color: var(--color-danger); opacity: 1; }
-.tile-style-row-col { flex-direction: column; align-items: stretch; gap: 6px; }
 /* Shape picker: the silhouette itself is the thumbnail, drawn from the same
    path the tile will be clipped with — no asset to ship or keep in step. */
 .tile-shape-grid {
@@ -423,6 +439,7 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
 .decor-thumb.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4); }
 .decor-thumb:active { transform: scale(0.94); }
 .decor-overlay-list { display: flex; flex-direction: column; gap: 10px; }
+.decor-overlay-list:empty { display: none; }
 .decor-overlay-item {
   display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: start;
   padding: 10px; border: 1px solid var(--panel-border); border-radius: 12px;
@@ -455,13 +472,16 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
 }
 .decor-overlay-del:hover { background: rgba(255, 80, 80, 0.15); }
 .decor-add { display: flex; flex-direction: column; gap: 8px; }
+.decor-add[hidden] { display: none; }
 
 /* ── Per-tile DECOR (images + effects) ──────────────────────────────────────
    Layers built by buildTileDecor() inside .grid-stack-item-content:
      .tile-decor-bg       picture behind the widget (z 0)
      widget content       raised to z 1 while decor is present
+     .tile-decor-above    pattern set over the widget, inner glow, edge bar (z 3)
      .tile-decor-frame    ornamental border art, non-interactive (z 4)
-     .tile-decor-overlays decorative corner images, non-interactive (z 5)      */
+     .tile-decor-overlays decorative corner images, non-interactive (z 5)
+   The fill layer also holds a pattern and the overlays set behind the widget. */
 .grid-stack-item[data-tile-decor] > .grid-stack-item-content {
   padding: var(--tile-frame-inset, 0);
   border-radius: var(--radius-tile, 16px);
@@ -473,19 +493,50 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
    content flex row and squash the widget while editing. Excluding them (and the
    decor layers) keeps them absolute. */
 .grid-stack-item[data-tile-decor] > .grid-stack-item-content
-  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.tile-shape-outline):not(.gs-edit-overlay):not(.gs-edit-bar) {
+  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.tile-decor-above):not(.tile-shape-outline):not(.gs-edit-overlay):not(.gs-edit-bar) {
   position: relative; z-index: 1;
 }
+/* The layer carries the panel fill (colour, or the panel gradient set inline),
+   so the widget root goes transparent above it: a picture left behind an opaque
+   panel never showed at all. */
 .tile-decor-bg {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   border-radius: var(--radius-tile, 16px); overflow: hidden;
+  background-color: var(--panel);
+}
+.grid-stack-item[data-tile-bg] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  background: transparent;
+}
+/* In a styled tab group the group panel paints the fill once. A member panel
+   painted its own on top, so opacity compounded (0.5 read as 0.75) and the
+   member covered the group's picture and glass. */
+.grid-stack-item[data-tile-style] .tabgroup-body > :is(.panel, .dashboard-widget) {
+  background: transparent;
+}
+/* A blur overscans by its own radius so the edges stay as dense as the middle. */
+.tile-decor-bg-art {
+  position: absolute; inset: calc(var(--tile-bg-blur, 0px) * -1.5);
 }
 .tile-decor-bg::after {
   content: ''; position: absolute; inset: 0; background: #000;
   opacity: var(--tile-bg-dim, 0);
 }
-.tile-decor-frame {
-  position: absolute; inset: 0; z-index: 4; pointer-events: none;
+/* Glass moves with the fill: on the widget root it would blur the picture. */
+.grid-stack-item[data-tile-bg][data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.grid-stack-item[data-tile-bg][data-tile-glass] > .grid-stack-item-content > .tile-decor-bg {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+body.low-power-gpu .grid-stack-item[data-tile-bg][data-tile-glass] > .grid-stack-item-content > .tile-decor-bg {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.tile-decor-frame { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.tile-decor-frame-glow, .tile-decor-frame-ink { position: absolute; inset: 0; }
+.tile-decor-frame-ink {
   border-style: solid; border-color: transparent;
   border-image-slice: 33%;
   border-image-repeat: stretch;
@@ -494,9 +545,77 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
   position: absolute; inset: 0; z-index: 5; pointer-events: none;
   border-radius: var(--radius-tile, 16px); overflow: hidden;
 }
-.tile-decor-overlay {
-  position: absolute; height: auto; max-width: 100%;
-  object-fit: contain; user-select: none;
+/* Inside the fill layer, under the widget. */
+.tile-decor-overlays.is-behind { z-index: auto; border-radius: 0; }
+.tile-decor-overlay { position: absolute; max-width: 100%; }
+.tile-decor-ov-img, .tile-decor-ov-sizer {
+  display: block; width: 100%; height: auto; user-select: none;
+}
+/* A tinted overlay: the hidden picture sizes the box, its shape cuts the colour. */
+.tile-decor-ov-sizer { visibility: hidden; }
+.tile-decor-ov-ink {
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.tile-decor-pattern, .tile-decor-pattern-ink { position: absolute; inset: 0; }
+.tile-decor-pattern {
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.tile-decor-pattern-ink {
+  -webkit-mask-size: 180px 180px; mask-size: 180px 180px;
+  -webkit-mask-repeat: repeat; mask-repeat: repeat;
+}
+.tile-decor-above {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  border-radius: var(--radius-tile, 16px); overflow: hidden;
+}
+.tile-decor-glow { position: absolute; inset: 0; border-radius: inherit; }
+.tile-decor-bar { position: absolute; background: var(--tile-bar-c); border-radius: 999px; }
+.tile-decor-bar:is(.is-top, .is-bottom) {
+  height: var(--tile-bar-size); width: var(--tile-bar-len);
+  left: calc((100% - var(--tile-bar-len)) / 2);
+}
+.tile-decor-bar:is(.is-left, .is-right) {
+  width: var(--tile-bar-size); height: var(--tile-bar-len);
+  top: calc((100% - var(--tile-bar-len)) / 2);
+}
+.tile-decor-bar.is-top { top: 0; }
+.tile-decor-bar.is-bottom { bottom: 0; }
+.tile-decor-bar.is-left { left: 0; }
+.tile-decor-bar.is-right { right: 0; }
+.tile-decor-bar:is(.is-top, .is-bottom)[data-align="start"] { left: 0; }
+.tile-decor-bar:is(.is-top, .is-bottom)[data-align="end"] { left: calc(100% - var(--tile-bar-len)); }
+.tile-decor-bar:is(.is-left, .is-right)[data-align="start"] { top: 0; }
+.tile-decor-bar:is(.is-left, .is-right)[data-align="end"] { top: calc(100% - var(--tile-bar-len)); }
+/* Outer glow: one more shadow on the tile. A shaped tile has none (see below). */
+.grid-stack-item[data-tile-glow-outer]:not([data-tile-shape]) {
+  box-shadow: var(--panel-drop), 0 0 var(--tile-glow-outer) calc(var(--tile-glow-outer) / 4) var(--tile-glow-c);
+}
+.grid-stack-item[data-tile-plain][data-tile-glow-outer]:not([data-tile-shadow]):not([data-tile-shape]) {
+  box-shadow: 0 0 var(--tile-glow-outer) calc(var(--tile-glow-outer) / 4) var(--tile-glow-c);
+}
+
+/* Decor motion: opacity and transform only, on layers that hold no filter of
+   their own, so the compositor moves a finished picture. Paused with the rest of
+   the dashboard's motion, and never run for someone who asked for less motion. */
+@keyframes tile-decor-pulse { 50% { opacity: 0.4; } }
+@keyframes tile-ov-float { 50% { transform: translateY(-7%); } }
+@keyframes tile-ov-sway { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@keyframes tile-ov-spin { to { transform: rotate(360deg); } }
+@keyframes tile-ov-pulse { 50% { transform: scale(1.09); } }
+@keyframes tile-ov-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.tile-decor-frame[data-anim="pulse"] { animation: tile-decor-pulse 3.2s ease-in-out infinite; }
+.tile-decor-ov-motion[data-anim="float"] { animation: tile-ov-float 4.2s ease-in-out infinite; }
+.tile-decor-ov-motion[data-anim="sway"] { animation: tile-ov-sway 3.6s ease-in-out infinite; transform-origin: 50% 90%; }
+.tile-decor-ov-motion[data-anim="spin"] { animation: tile-ov-spin 18s linear infinite; }
+.tile-decor-ov-motion[data-anim="pulse"] { animation: tile-ov-pulse 2.6s ease-in-out infinite; }
+.tile-decor-ov-motion[data-anim="twinkle"] { animation: tile-ov-twinkle 2.2s ease-in-out infinite; }
+:is(body.low-power-gpu, body.overlay-frozen, body.ambient-idle, body.game-mode, body.perf-mode) :is(.tile-decor-frame, .tile-decor-ov-motion)[data-anim] {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.tile-decor-frame, .tile-decor-ov-motion)[data-anim] { animation: none; }
 }
 
 /* ── Per-tile SHAPE (the silhouette) ────────────────────────────────────────
@@ -506,7 +625,7 @@ body.topbar-minimal.layout-editing .grid-stack > .grid-stack-item.island-clear >
    tile. --tile-clip points at a <clipPath clipPathUnits="objectBoundingBox">
    in the shared #tile-shape-defs sprite; both are written by applyTileStyle(). */
 .grid-stack-item[data-tile-shape] > .grid-stack-item-content
-  > :is(.panel, .dashboard-widget, .tile-decor-bg, .tile-decor-overlays) {
+  > :is(.panel, .dashboard-widget, .tile-decor-bg, .tile-decor-overlays, .tile-decor-above) {
   clip-path: var(--tile-clip);
   border-radius: 0;
 }
@@ -787,6 +906,15 @@ body.gs-manipulating .page-add-widget {
    the DOM on every pointermove, so an animated background would smear. */
 .tabgroup-bar.is-reordering .tabgroup-tab { transition: none; }
 /* Tab glyph reused from the widget palette (svg carries no width/height). */
+/* A tab's own colours (style.tabs, picked per tab in the widget style editor).
+   Only the parts the user set carry a data-tgc-* attribute. !important because a
+   pick for ONE tab must beat every skin's tab rules (Comic's Deck-mount rule runs
+   eight selectors deep), and nothing else sets these attributes. */
+.tabgroup-bar[data-tgc-bar] { background: var(--tgc-bar-bg) !important; }
+.tabgroup-tab[data-tgc-bg]:not(.active) { background: var(--tgc-bg) !important; }
+.tabgroup-tab[data-tgc-text]:not(.active) { color: var(--tgc-text) !important; }
+.tabgroup-tab[data-tgc-active-bg].active { background: var(--tgc-active-bg) !important; }
+.tabgroup-tab[data-tgc-active-text].active { color: var(--tgc-active-text) !important; }
 .tabgroup-tab-ico { display: inline-flex; flex: 0 0 auto; }
 .tabgroup-tab-ico svg { width: 15px; height: 15px; }
 /* Per-tab remove (×) — shown only in edit mode, always red (touch has no hover),

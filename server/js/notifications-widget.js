@@ -332,8 +332,9 @@
   }
 
   let seedInflight = false;
-  async function seed() {
-    if (!tiles().length || seedInflight) return;
+  // force: seed with no tile on the page (an Ambient scene showing the feed).
+  async function seed(force) {
+    if ((!tiles().length && !force) || seedInflight) return;
     seedInflight = true;
     try {
       const d = await api('/notifications/windows');
@@ -430,5 +431,23 @@
     }
   }, 10000);
 
-  window.NotificationsWidget = { renderWidgets, onState, onItem };
+  // Read side for the Ambient canvas (js/ambient-canvas.js), which can show the
+  // feed with no Notifications tile on the page. `items` is the live array: read
+  // it, never change it. null = not loaded yet.
+  function snapshot() {
+    const flags = wn();
+    return { enabled: !!flags.enabled, hide: !!flags.hide, state: srvState, supported, items };
+  }
+  function ensureSeeded() {
+    if (items === null && !seedInflight) seed(true);
+  }
+  // "Hide content until tapped": a tap on the scene shows it on the tile too.
+  function reveal(id) {
+    if (id == null) return;
+    revealed.add(id);
+    paint();
+  }
+  function isRevealed(id) { return revealed.has(id); }
+
+  window.NotificationsWidget = { renderWidgets, onState, onItem, snapshot, ensureSeeded, reveal, isRevealed };
 })();

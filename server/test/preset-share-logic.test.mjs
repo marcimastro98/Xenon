@@ -510,3 +510,26 @@ test('sanitize strips the imported marker — exported codes never carry provena
   assert.ok(prof);
   assert.equal('imported' in prof, false);
 });
+
+test('a switch key travels with its off action, filtered and disclosed like tap', () => {
+  const prof = sanitizeDeckProfile(rawProfile({
+    toggle: true, confirm: true, dimOff: true,
+    stateStyle: { color: '#EF4444', ring: true, anim: 'pulse' },
+    triggers: {
+      tap: { type: 'micMute', mode: 'mute' },
+      tapOff: { steps: [{ action: { type: 'micMute', mode: 'unmute' } }, { action: { type: 'runScript', path: 'C:/x.ps1' } }] },
+    },
+  }, { look: { capStyle: 'lcd', litRing: true, dimOff: true } }), DEPS);
+  const key = firstKey(prof);
+  assert.equal(key.toggle, true);
+  assert.equal(key.confirm, true);
+  assert.equal(key.dimOff, true);
+  assert.equal(key.stateStyle.ring, true);
+  assert.equal(key.stateStyle.anim, 'pulse');
+  const offTypes = DEPS.actions.triggerSteps(key.triggers.tapOff).map((s) => s.action.type);
+  assert.deepEqual(offTypes, ['micMute'], 'runScript never travels, in tapOff either');
+  assert.equal(prof.look.litRing, true);
+  assert.equal(prof.look.dimOff, true);
+  const summary = profileActionSummary(prof, DEPS);
+  assert.equal(summary.find((r) => r.type === 'micMute').count, 2, 'the off action is shown before import');
+});

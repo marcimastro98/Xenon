@@ -240,6 +240,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Minimal-mode edge rails auto-hide after ~10s untouched (revealed by an edge
   // touch). Default on; off keeps them always visible. See js/topbar-minimal.js.
   topbarRailsAutoHide: true,
+  // The bar's look in every style (surface, size, buttons, clock, where toasts
+  // appear, each button's own icon/label/colours). Rules in js/topbar-look.js.
+  topbarLook: TopbarLook.normalize(null),
   // Dynamic Island personalization shared by Full + Minimal. `items` controls
   // built-in segments (order in Minimal, visibility in both chromes), while
   // hiddenSources holds per-installed-package opt-outs and takeovers gates the
@@ -338,6 +341,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // save GPU (js/ambient-idle.js). On by default; users can switch it off so the
   // dashboard keeps animating while idle.
   idleAnimationPause: true,
+  // The Xenon mark over the first moments of a load (js/boot-splash.js). On by
+  // default; off, the dashboard shows from the first paint as before.
+  bootSplash: true,
   // Safe mode: temporarily run without any imported content — third-party SDK
   // widgets, custom themes/skins, code and image/video backgrounds all go back
   // to factory look. Nothing is uninstalled or overwritten: every stored key
@@ -742,6 +748,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     manualColor: '',
     providers: Object.freeze({}),
     deviceModes: Object.freeze({}),
+    native: Object.freeze({ enabled: false, layouts: Object.freeze({}) }),
   }),
   obsHost: '',
   obsAutoLaunch: true,
@@ -933,7 +940,7 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // — a grant carrying a stream/action the server allows but this list omits gets
 // silently stripped on save, so the widget is granted a capability it can never
 // use. server/test/sdk-grant-cats-sync guards that half.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting']);
 const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch', 'pages']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
@@ -941,7 +948,7 @@ const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // hostname check here is safe — the server re-validates every proxied fetch).
 const SDK_HOST_RE = /^[a-z0-9][a-z0-9.-]{0,252}$/;
 const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
-const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
 // sanitizeBackgroundMedia() runs during that normalize too. A pasted-SVG
 // wallpaper is stored as a base64 data:image/svg+xml URI (not a served
 // /uploads file); bounded so it cannot bloat the persisted settings blob.
@@ -1567,8 +1574,10 @@ function normalizeTopbarActions(value) {
     { id: 'favorites', side: 'right', hidden: false },
   ];
   const byId = new Map(canonical.map((entry) => [entry.id, entry]));
+  const sdkButtonRe = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
   const seen = new Set();
   const out = [];
+  let sdkCount = 0;
   const add = (def, raw) => {
     seen.add(def.id);
     out.push({
@@ -1580,8 +1589,17 @@ function normalizeTopbarActions(value) {
   if (Array.isArray(value)) {
     for (const it of value) {
       const id = it && typeof it === 'object' ? it.id : null;
+      if (seen.has(id)) continue;
+      // A widget's own bar button (Widget SDK `topbarButton`): kept where the
+      // user put it, never forced shown, at most 8 so a list cannot grow.
+      if (typeof id === 'string' && sdkButtonRe.test(id)) {
+        if (sdkCount >= 8) continue;
+        sdkCount++;
+        add({ id, side: 'left', hidden: false }, it);
+        continue;
+      }
       const def = byId.get(id);
-      if (!def || seen.has(id)) continue;
+      if (!def) continue;
       add(def, it);
     }
   }
@@ -1646,6 +1664,10 @@ function normalizeCustomThemes(list) {
     };
     // Redistribution marker: themes that arrived via a share code are someone
     // else's work — export blocks re-sharing them (see exportTheme guard).
+    // The bar's style, when the theme was made on a changed bar (TopbarLook
+    // .themePart: never the user's buttons, rails or notification place).
+    const bar = TopbarLook.themePart(raw.topbarLook);
+    if (bar) theme.topbarLook = bar;
     if (raw.imported === true) theme.imported = true;
     if (theme.imported && typeof ContentInstalls !== 'undefined'
         && ContentInstalls.INSTALL_ID_RE.test(String(raw.installId || ''))) {
@@ -1739,6 +1761,7 @@ function normalizeSettings(source) {
     topbarRails: normalizeTopbarRails(value.topbarRails),
     topbarRailsAutoHide: value.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(value.topbarClock, value),
+    topbarLook: TopbarLook.normalize(value.topbarLook),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     clockScale: clampNumber(value.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
     clockDateScale: clampNumber(value.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
@@ -1770,6 +1793,7 @@ function normalizeSettings(source) {
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
+    bootSplash: value.bootSplash !== false,
     // Sensor cadence (ms). Mirrors normalizeSensorRate in server.js: both sides
     // persist this key, so both have to rebuild it the same way or a save from
     // one would strip what the other wrote.
@@ -2516,6 +2540,7 @@ function normalizeSdkWidgets(value) {
         badge: g.badge === true,
         badgeAction: g.badgeAction === true,
         mini: g.mini === true,
+        topbarButton: g.topbarButton === true,
         clipboard: g.clipboard === true,
         accent: g.accent === true,
         expand: g.expand === true,
@@ -2902,7 +2927,16 @@ function normalizeLighting(value) {
     manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',
     providers: normalizeLightingProviders(v.providers),
     deviceModes: normalizeLightingDeviceModes(v.deviceModes),
+    native: normalizeLightingNative(v.native),
   };
+}
+
+// Server-owned (POST /settings keeps the persisted copy and the server normalizes
+// the layouts): the mirror only keeps the shape, so a page reading it never trips.
+function normalizeLightingNative(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const layouts = v.layouts && typeof v.layouts === 'object' && !Array.isArray(v.layouts) ? v.layouts : {};
+  return { enabled: v.enabled === true, layouts };
 }
 
 function normalizeLightingDeviceModes(value) {
@@ -2920,7 +2954,35 @@ function normalizeLightingDeviceModes(value) {
         speed: clampNumber(v.anim.speed, 1, 100, 50),
       };
     }
+    if (v.leds !== undefined) e.leds = normalizeLightingLedColors(v.leds);
     out[String(id)] = e;
+  }
+  return out;
+}
+
+// Per-LED looks of the 'custom' (lighting map) mode. Mirrors
+// server/lighting-led-colors.js: luid keys, a hex or { style, color, speed }
+// values, max 512. Arrays inlined for the same TDZ reason as below.
+function normalizeLightingLedValue(v) {
+  if (typeof v === 'string') return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  if (!['breathing', 'cycle', 'wave', 'aurora', 'candle', 'temperature', 'album'].includes(v.style)) return null;
+  const color = /^#[0-9a-f]{6}$/i.test(String(v.color)) ? String(v.color).toLowerCase()
+    : (v.style === 'candle' ? '#ff9329' : '#1ed760');
+  return { style: v.style, color, speed: Math.round(clampNumber(v.speed, 1, 100, 50)) };
+}
+
+function normalizeLightingLedColors(value) {
+  const out = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  let n = 0;
+  for (const [k, v] of Object.entries(value)) {
+    if (n >= 512) break;
+    if (!/^\d{1,10}$/.test(k) || Number(k) > 0xffffffff) continue;
+    const clean = normalizeLightingLedValue(v);
+    if (!clean) continue;
+    out[String(Number(k))] = clean;
+    n++;
   }
   return out;
 }
@@ -3205,6 +3267,7 @@ let _hubHydratedFromServer = false;
 function markHubHydrated() {
   if (_hubHydratedFromServer) return;
   _hubHydratedFromServer = true;
+  if (window.BootSplash) window.BootSplash.ready('settings');
   // …which is also the first moment "the server has no dismissal stored" can be
   // told apart from "we have not asked yet", so the pre-v4.11.6 per-device
   // dismissals can be promoted now and never before.
@@ -4391,6 +4454,8 @@ function applyHubSettings() {
   // Idle animation auto-pause (ambient-idle.js runs independently; push the
   // current preference so toggling it takes effect at once).
   if (window.AmbientIdle) window.AmbientIdle.setEnabled(hubSettings.idleAnimationPause !== false);
+  // The next load's splash takes the colours applied now.
+  if (window.BootSplash) window.BootSplash.remember();
 
   // Hybrid-GPU session freeze (js/native-bridge.js owns body.low-power-gpu; a
   // no-op on every other machine and on the browser surface).
@@ -4422,6 +4487,7 @@ function applyHubSettings() {
   root.style.setProperty('--panel-shadow-alpha', (light ? 0.10 * shadowStrength : panelShadowAlpha).toFixed(3));
   root.style.setProperty('--clock-time-scale', String(clockScale));
   root.style.setProperty('--clock-date-scale', String(clockDateScale));
+  TopbarLook.apply(hubSettings.topbarLook);
   root.style.setProperty('--panel-highlight-alpha', light ? '0.55' : panelHighlightAlpha.toFixed(3));
 
   // Comic is opaque paper by default; the palette engine already maps its
@@ -4631,9 +4697,18 @@ function themeSignature(src) {
 // Exactly one card is highlighted: the saved theme whose full snapshot matches
 // the live look, or — if none does (you're on a bare style with your own
 // colours) — the current style (Liquid Glass / Pixel Retro).
+// The bar's share of a look. A theme without one matches any bar: it does not
+// change the bar when applied, so the bar cannot tell it apart either.
+function themeBarSignature(src) {
+  return JSON.stringify(TopbarLook.themePart(src && src.topbarLook));
+}
+function themeMatchesLive(theme) {
+  return themeSignature(theme) === themeSignature(hubSettings)
+    && (!theme.topbarLook || themeBarSignature(theme) === themeBarSignature(hubSettings));
+}
+
 function findActiveThemeId() {
-  const sig = themeSignature(hubSettings);
-  const match = getCustomThemes().find(theme => themeSignature(theme) === sig);
+  const match = getCustomThemes().find(themeMatchesLive);
   if (match) return match.id;
   return hubSettings.styleMode === 'retro' ? 'retro' : 'glass';
 }
@@ -4642,6 +4717,8 @@ function findActiveThemeId() {
 function snapshotCurrentTheme() {
   const snap = {};
   for (const k of THEME_SETTING_KEYS) snap[k] = hubSettings[k];
+  const bar = TopbarLook.themePart(hubSettings.topbarLook);
+  if (bar) snap.topbarLook = bar;
   return snap;
 }
 
@@ -4666,6 +4743,8 @@ function applyThemeById(id) {
     if (!theme) return;
     patch = {};
     for (const k of THEME_SETTING_KEYS) patch[k] = theme[k];
+    // Only the bar's style; the user's buttons and rails stay theirs.
+    if (theme.topbarLook) patch.topbarLook = TopbarLook.withThemePart(hubSettings.topbarLook, theme.topbarLook);
   }
   hubSettings = normalizeSettings({ ...hubSettings, ...patch });
   saveHubSettings();
@@ -4680,7 +4759,8 @@ function applyThemeById(id) {
 function addThemeCard(snapshot, name, opts) {
   const existing = getCustomThemes();
   const sig = themeSignature(snapshot);
-  if (existing.some(theme => themeSignature(theme) === sig)) { renderThemeGallery(); return null; }
+  const bar = themeBarSignature(snapshot);
+  if (existing.some(theme => themeSignature(theme) === sig && themeBarSignature(theme) === bar)) { renderThemeGallery(); return null; }
   const card = {
     ...snapshot,
     id: 'ct_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -4972,6 +5052,8 @@ function syncSettingsControls() {
   if (contrastGuard) contrastGuard.checked = hubSettings.contrastGuard !== false;
   const idleAnimPause = $('settings-idle-anim-pause');
   if (idleAnimPause) idleAnimPause.checked = hubSettings.idleAnimationPause !== false;
+  const bootSplash = $('settings-boot-splash');
+  if (bootSplash) bootSplash.checked = hubSettings.bootSplash !== false;
   // The hybrid-GPU freeze only exists on an iGPU+dGPU machine running the native
   // shell, so the row is hidden everywhere else rather than offering a switch
   // that provably does nothing.
@@ -5397,6 +5479,7 @@ function settingsSetCategory(cat) {
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
   if (cat === 'slideshow') renderSlideshowSettings();
   if (cat === 'island') renderDynamicIslandSources();
+  if (window.SettingsBarPreview) SettingsBarPreview.page(cat);
   if (cat === 'search') renderSearchDiskSettings();
   if (cat === 'performance' && window.SensorSourcesPage) window.SensorSourcesPage.show();
   // The monitor list is live: rendered on open, and re-rendered by the shell's
@@ -5783,6 +5866,13 @@ function updateContrastGuard(enabled) {
   applyHubSettings();
   syncSettingsControls();
   renderThemeGallery();
+}
+
+function updateBootSplash(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, bootSplash: enabled !== false });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
 }
 
 function updateIdleAnimationPause(enabled) {
@@ -8453,14 +8543,18 @@ function updateAmbientSetting(key, value) {
 
 // ── Native canvas scene manager (Settings → Ambient) ─────────────────────────
 // Lists the canvas scenes installed via Import (authored as 'ambient-layout'
-// codes — the xenon-creator flow / the gallery) with a remove action. There is
-// no in-app editor; scenes are created by code and imported.
+// codes — Xenon Maker, the xenon-creator flow, the gallery) with edit and
+// remove actions.
 function renderAmbientSceneManager() {
   const list = $('settings-ambient-scene-list');
   if (!list) return;
   const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
   const activeId = normalizeAmbientMode(hubSettings.ambientMode).sceneId;
-  if (!scenes.length) {
+  // Gallery scenes made in code are packages: listed so the page says where
+  // they are and why there is no Edit, instead of leaving them only in the picker.
+  const packages = (window.CustomWidget && typeof CustomWidget.cachedPackages === 'function')
+    ? CustomWidget.cachedPackages().filter(p => p && p.surface === 'ambient') : [];
+  if (!scenes.length && !packages.length) {
     list.replaceChildren(Object.assign(document.createElement('p'), {
       className: 'settings-ambient-scene-empty',
       textContent: t('ambient_scenes_empty'),
@@ -8479,8 +8573,14 @@ function renderAmbientSceneManager() {
     const meta = document.createElement('span');
     meta.className = 'settings-ambient-scene-meta';
     const count = Array.isArray(sc.components) ? sc.components.length : 0;
-    meta.textContent = t('ambient_editor_count').replace('{n}', count)
+    meta.textContent = (count === 1 ? t('ambient_editor_count_one') : t('ambient_editor_count').replace('{n}', count))
       + (sc.imported ? ' · ' + t('ambient_imported') : '');
+    if (row.classList.contains('is-active')) {
+      const used = document.createElement('span');
+      used.className = 'is-active-label';
+      used.textContent = ' · ' + t('ambient_scene_active');
+      meta.append(used);
+    }
     info.append(name, meta);
     const acts = document.createElement('div');
     acts.className = 'settings-ambient-scene-acts';
@@ -8492,13 +8592,40 @@ function renderAmbientSceneManager() {
       b.addEventListener('click', fn);
       return b;
     };
-    // Scenes are authored as import codes (the xenon-creator flow / the gallery)
-    // and installed through Import — the manager only lists and removes them.
-    acts.append(mk(t('ambient_scene_delete'), 'danger', () => deleteAmbientScene(sc.id)));
+    // Scenes are made in Xenon Maker or imported as codes; Edit changes an
+    // installed one in place (js/ambient-canvas-editor.js), it never starts one.
+    const edit = window.AmbientCanvasEditor
+      ? [mk(t('ace_edit'), '', () => AmbientCanvasEditor.open(sc.id))]
+      : [];
+    acts.append(...edit, mk(t('ambient_scene_delete'), 'settings-ambient-scene-del', () => deleteAmbientScene(sc.id)));
     row.append(info, acts);
     return row;
   });
+  packages.forEach(pkg => rows.push(ambientPackageRow(pkg, pkg.id === activeId)));
   list.replaceChildren(...rows);
+}
+
+function ambientPackageRow(pkg, active) {
+  const row = document.createElement('div');
+  row.className = 'settings-ambient-scene-row is-package';
+  if (active) row.classList.add('is-active');
+  const info = document.createElement('div');
+  info.className = 'settings-ambient-scene-info';
+  const name = document.createElement('span');
+  name.className = 'settings-ambient-scene-name';
+  name.textContent = pkg.name || pkg.id;   // untrusted manifest text → textContent
+  const meta = document.createElement('span');
+  meta.className = 'settings-ambient-scene-meta';
+  meta.textContent = t('ambient_pkg_note');
+  if (active) {
+    const used = document.createElement('span');
+    used.className = 'is-active-label';
+    used.textContent = ' · ' + t('ambient_scene_active');
+    meta.append(used);
+  }
+  info.append(name, meta);
+  row.append(info);
+  return row;
 }
 
 function deleteAmbientScene(id) {
@@ -8518,6 +8645,23 @@ function deleteAmbientScene(id) {
   onAmbientScenesChanged();
   setSettingsStatus('settings_saved', 'ok');
 }
+
+// The in-app editor's save: replace the stored scene with the same id, keeping
+// where it came from. False when it no longer exists or would not fit.
+function saveAmbientScene(scene) {
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  const at = scenes.findIndex(s => s && scene && s.id === scene.id);
+  if (at < 0) return false;
+  const prev = scenes[at];
+  const next = { ...scene, ...(prev.imported ? { imported: prev.imported } : {}), ...(prev.installId ? { installId: prev.installId } : {}) };
+  const others = scenes.filter((_, i) => i !== at);
+  if (!AmbientScene.sceneFits(next, others)) return false;
+  hubSettings = normalizeSettings({ ...hubSettings, ambientScenes: scenes.map((s, i) => (i === at ? next : s)) });
+  saveHubSettings();
+  onAmbientScenesChanged();
+  return true;
+}
+window.saveAmbientScene = saveAmbientScene;
 
 // Called after a scene is imported (preset-share applyAmbientLayout) or deleted —
 // refresh the picker + manager and notify the ambient runtime.
@@ -9550,11 +9694,14 @@ function syncTopbarRailsAutoHide() {
   if (el) el.checked = hubSettings.topbarRailsAutoHide !== false;
 }
 
-// Toggle whether the minimal edge rails hide themselves after ~10s untouched.
+// Toggle whether the minimal edge rails hide themselves when untouched
+// (after topbarLook.railDelay seconds).
 function updateTopbarRailsAutoHide(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, topbarRailsAutoHide: checked === true });
   saveHubSettings();
   syncTopbarRailsAutoHide();
+  // The delay and "what stays on the edge" rows only apply while this is on.
+  if (window.TopbarLookSettings) window.TopbarLookSettings.sync();
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
   if (window.SdkIsland) window.SdkIsland.apply();
   setSettingsStatus('settings_saved', 'ok');
@@ -9588,6 +9735,24 @@ function updateTopbarStyle(style) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// A whole bar at once (a `topbar` share code, js/topbar-share.js): look, style,
+// island, buttons and rails land together, then every control and both chromes
+// repaint. `share` comes from TopbarShare.read(); normalizeSettings still
+// rebuilds each list.
+function applyTopbarSetup(share) {
+  hubSettings = normalizeSettings({ ...hubSettings, ...TopbarShare.patch(hubSettings, share) });
+  saveHubSettings();
+  TopbarLook.apply(hubSettings.topbarLook);
+  syncTopbarStyleControls();
+  syncTopbarClockControls();
+  if (window.TopbarLookSettings) window.TopbarLookSettings.sync();
+  if (window.TopbarButtonOptions) window.TopbarButtonOptions.sync();
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  if (window.SdkIsland) window.SdkIsland.apply();
+  applyTopbarClockSettings();
+  if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
+}
+
 // Built-in island segment id → i18n label key (editor rows).
 const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude', codex: 'topbar_el_codex' };
 // Chrome-button id → i18n label key. Must stay in step with ACTION_SELECTORS in
@@ -9619,6 +9784,8 @@ function syncTopbarClockControls() {
   renderTopbarActionsEditor();
   const takeovers = $('settings-island-takeovers');
   if (takeovers) takeovers.checked = cfg.takeovers !== false;
+  // The look page reads the button sides too (a rail holding Settings or Layout).
+  if (window.TopbarLookSettings) window.TopbarLookSettings.sync();
 }
 
 // Build one editor list: a row per item in display order, each with a drag handle
@@ -9642,7 +9809,7 @@ function renderTopbarSegmentEditor(opts) {
 
     const label = document.createElement('span');
     label.className = 'island-edit-label';
-    label.textContent = t(opts.labels[it.id] || it.id);
+    label.textContent = typeof opts.labelOf === 'function' ? opts.labelOf(it.id) : t(opts.labels[it.id] || it.id);
 
     const hidden = it.hidden === true;
     // A row may refuse to be hidden (Settings). The eye stays, disabled and
@@ -9710,16 +9877,24 @@ function renderTopbarIslandEditor() {
 // The chrome buttons. Same component, plus a left/right control per row: unlike
 // an island segment, a button lives in one of two containers and the user gets to
 // say which. Ordering is within the side it ends up on.
+// Drawn in Settings → Top bar and, while it is open, in the bar panel of
+// Layout mode (js/topbar-layout-panel.js): two views of the same list.
 function renderTopbarActionsEditor() {
+  ['topbar-actions-editor', 'tbp-actions-editor'].forEach(renderTopbarActionsEditorIn);
+}
+
+function renderTopbarActionsEditorIn(hostId) {
   renderTopbarSegmentEditor({
-    hostId: 'topbar-actions-editor',
-    items: (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.actions))
-      ? hubSettings.topbarClock.actions : [],
+    hostId,
+    items: _topbarActionItems(),
     labels: TOPBAR_ACTION_LABELS,
+    labelOf: topbarActionLabel,
     locked: (id) => id === 'settings' || id === 'layout',
     onToggle: toggleTopbarActionItem,
     onReorder: reorderTopbarActionItem,
     buildSide: buildTopbarActionSide,
+    // Each button's own icon, label and colours (js/topbar-button-options.js).
+    buildOptions: (id) => (window.TopbarButtonOptions ? TopbarButtonOptions.panel(id) : null),
   });
 }
 
@@ -9897,9 +10072,42 @@ function setTopbarActionSide(id, side) {
   _saveTopbarActions(_topbarActionItems().map(it => (it.id === id ? { ...it, side } : it)));
 }
 
+// The saved list plus any widget button on screen that is not in it yet (it
+// sits at the end of the left side until then), so the editor's indices match
+// the list it saves and moving such a button saves it.
 function _topbarActionItems() {
-  return (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.actions))
+  const saved = (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.actions))
     ? hubSettings.topbarClock.actions.map(it => ({ ...it })) : [];
+  const live = window.SdkTopbarButton ? SdkTopbarButton.live() : [];
+  for (const b of live) {
+    if (!saved.some(it => it.id === b.id)) saved.push({ id: b.id, side: 'left', hidden: false });
+  }
+  return saved;
+}
+
+// A removed package takes its bar button with it: its place in the list and the
+// look the user gave it. Returns the two keys to merge, unchanged when there is
+// nothing to drop.
+function withoutSdkTopbarButtons(settings, pkgIds) {
+  const gone = new Set((Array.isArray(pkgIds) ? pkgIds : []).map(id => 'sdk:' + id));
+  const clock = (settings && settings.topbarClock) || {};
+  const look = (settings && settings.topbarLook) || {};
+  const buttons = { ...(look.buttons || {}) };
+  for (const id of gone) delete buttons[id];
+  return {
+    topbarClock: { ...clock, actions: (Array.isArray(clock.actions) ? clock.actions : []).filter(it => !(it && gone.has(it.id))) },
+    topbarLook: { ...look, buttons },
+  };
+}
+
+// A built-in button by its translated name; a widget's by the label it shows,
+// or its package id while the widget is not running.
+function topbarActionLabel(id) {
+  if (typeof id === 'string' && id.startsWith('sdk:')) {
+    const live = window.SdkTopbarButton ? SdkTopbarButton.live().find(b => b.id === id) : null;
+    return live ? live.label : id.slice(4);
+  }
+  return t(TOPBAR_ACTION_LABELS[id] || id);
 }
 
 function _saveTopbarActions(actions) {
@@ -9969,7 +10177,7 @@ async function renderDynamicIslandSources() {
   catch { payload = { packages: [] }; }
   if (!host.isConnected) return;
   const packages = (payload && Array.isArray(payload.packages) ? payload.packages : [])
-    .filter((pkg) => pkg && (pkg.island === true || pkg.islandDynamic === true || pkg.badge === true || pkg.mini === true))
+    .filter((pkg) => pkg && (pkg.island === true || pkg.islandDynamic === true || pkg.badge === true || pkg.mini === true || pkg.topbarButton === true))
     .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
   host.replaceChildren();
   if (!packages.length) {
@@ -10023,6 +10231,7 @@ function toggleDynamicIslandSource(pkgId, enabled) {
   if (window.SdkIsland) window.SdkIsland.apply();
   if (window.SdkBadges) window.SdkBadges.apply();
   if (window.SdkMini) window.SdkMini.apply();
+  if (window.SdkTopbarButton) window.SdkTopbarButton.apply();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -10058,6 +10267,7 @@ async function resetDynamicIslandSettings() {
     topbarStyle: DEFAULT_HUB_SETTINGS.topbarStyle,
     topbarRails: { ...DEFAULT_HUB_SETTINGS.topbarRails },
     topbarRailsAutoHide: DEFAULT_HUB_SETTINGS.topbarRailsAutoHide,
+    topbarLook: DEFAULT_HUB_SETTINGS.topbarLook,
     clockFormat: DEFAULT_HUB_SETTINGS.clockFormat,
     topbarClock: { version: 2, align: 'center', takeovers: true, mediaTakeover: false, pageLabels: false, hiddenSources: [], items, actions },
     dashboardLayout: { ...getDashboardLayout(), topbarHidden: false },
@@ -10068,6 +10278,7 @@ async function resetDynamicIslandSettings() {
   syncTopbarStyleControls();
   syncTopbarClockControls();
   syncClockFormatControls();
+  if (window.TopbarLook) TopbarLook.apply(hubSettings.topbarLook);
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
   applyTopbarClockSettings();
   if (typeof tickClock === 'function') tickClock();
@@ -10076,6 +10287,7 @@ async function resetDynamicIslandSettings() {
   if (window.SdkIsland) window.SdkIsland.apply();
   if (window.SdkBadges) window.SdkBadges.apply();
   if (window.SdkMini) window.SdkMini.apply();
+  if (window.SdkTopbarButton) window.SdkTopbarButton.apply();
   renderDynamicIslandSources();
   if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
   setSettingsStatus('settings_saved', 'ok');

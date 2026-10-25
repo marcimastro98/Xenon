@@ -119,6 +119,19 @@ log('materialized shared/src from packages/core');
     'js/state.js SERVER → same-origin'));
 }
 
+// ── 3b. Curated tile decor. The app serves frames and stickers from the root
+//      (/assets/decor/…); the demo is mounted under /demo/, where a root path is
+//      the site's 404. Relative, they resolve against the demo page wherever it
+//      is mounted. These URLs never go through the image allowlist (a preset id
+//      is already validated), so the change is local to the demo.
+{
+  const file = join(OUT, 'js', 'tile-decor-presets.js');
+  let src = readFileSync(file, 'utf8');
+  src = patchOnce(src, '`/assets/decor/frame-', '`assets/decor/frame-', 'tile-decor-presets.js frame URL → relative');
+  src = patchOnce(src, '`/assets/decor/overlay-', '`assets/decor/overlay-', 'tile-decor-presets.js sticker URL → relative');
+  writeFileSync(file, src);
+}
+
 // ── 4. index.html.
 {
   let html = readFileSync(join(ROOT, 'server', 'index.html'), 'utf8');
@@ -136,21 +149,23 @@ log('materialized shared/src from packages/core');
   html = patchOnce(html, '<meta charset="UTF-8">',
     '<meta charset="UTF-8">\n' + prelude, 'analytics + consent prelude');
 
-  // 4b. Boot scripts FIRST. settings.js reads localStorage synchronously at
-  //     script-evaluation time and several modules probe location.hash on the
-  //     way up, so the shims and the seed must already exist.
-  html = patchOnce(html, '<script src="shared/src/constants.js"></script>',
+  // 4b. Boot scripts FIRST, before even the boot splash. settings.js reads
+  //     localStorage synchronously at script-evaluation time, several modules
+  //     probe location.hash on the way up, and boot-splash.js reads its look
+  //     from storage, so the shims and the seed must already exist.
+  html = patchOnce(html, '<script src="js/boot-splash.js"></script>',
     `<script src="demo/data.js?v=${version}"></script>\n`
     + `<script src="demo/boot.js?v=${version}"></script>\n`
-    + '<script src="shared/src/constants.js"></script>',
-    'demo boot scripts before shared/src/constants.js');
+    + '<script src="js/boot-splash.js"></script>',
+    'demo boot scripts before js/boot-splash.js');
 
   // 4c. The UI layer LAST, so the fake EventSource main.js created is already
   //     registered and the grid has mounted.
   html = patchOnce(html, '<script src="js/main.js"></script>',
     '<script src="js/main.js"></script>\n'
     + `<link rel="stylesheet" href="demo/demo.css?v=${version}">\n`
-    + `<script src="demo/demo.js?v=${version}"></script>`,
+    + `<script src="demo/demo.js?v=${version}"></script>\n`
+    + `<script src="demo/maker.js?v=${version}"></script>`,
     'demo UI layer after js/main.js');
 
   // 4d. Remove the Xeneon Edge fractional-DPR block. It applies CSS zoom to
@@ -187,7 +202,7 @@ log('materialized shared/src from packages/core');
 {
   const dst = join(OUT, 'demo');
   mkdirSync(dst, { recursive: true });
-  for (const name of ['data.js', 'boot.js', 'demo.js', 'demo.css']) {
+  for (const name of ['data.js', 'boot.js', 'demo.js', 'maker.js', 'demo.css']) {
     const src = readFileSync(join(ROOT, 'tools', 'demo', name), 'utf8');
     writeFileSync(join(dst, name), src.split('__V__').join(version).split('__BUILD__').join(stamp));
   }

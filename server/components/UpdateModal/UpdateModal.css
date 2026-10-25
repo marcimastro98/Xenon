@@ -310,20 +310,10 @@ video.upd-media-el { cursor: default; }
 .upd-status.ok { background: var(--success-bg); color: var(--color-success); }
 .upd-status.error { background: var(--danger-bg); color: var(--color-danger); }
 
-/* Updating overlay (after Apply): no close button, just a spinner. */
+/* Updating overlay (after Apply): no close button, just the Xenon loader. */
 .upd-updating { align-items: center; text-align: center; padding: 34px 28px; }
 .upd-updating .upd-title { margin-top: 14px; }
 .upd-updating-sub { margin-top: 6px; max-width: 420px; opacity: 0.8; color: inherit; }
-
-.upd-spinner {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.14);
-  border-top-color: rgb(var(--accent-rgb));
-  animation: upd-spin 0.8s linear infinite;
-}
-@keyframes upd-spin { to { transform: rotate(360deg); } }
 
 /* ── Update notification dot ───────────────────────────────────────────────
    Red badge on the topbar Settings button (and on the footer pill) while an

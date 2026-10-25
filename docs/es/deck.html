@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">Acciones</a>
       <a href="#steps" data-i18n="deck.jump.steps">Teclas de varios pasos</a>
+      <a href="#behave" data-i18n="deck.jump.behave">Cómo responde una tecla</a>
       <a href="#state" data-i18n="deck.jump.state">Teclas que muestran un estado</a>
       <a href="#faders" data-i18n="deck.jump.faders">Deslizadores</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">Perfiles y páginas</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> Silencia un canal o ajusta su ganancia, envíalo a un bus (los botones A1, A2, B1), silencia un bus o ajusta su ganancia, pulsa uno de tus botones de macro o fija cualquier parámetro por su nombre.</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> Ajusta o silencia el volumen de una entrada, una salida o una mezcla. Con Wave Link 2 una tecla también puede cambiar la escucha; con Wave Link 3 puede activar y desactivar efectos y elegir el dispositivo de salida.</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> Enciende o apaga un dispositivo, ajusta una luz, controla un reproductor multimedia, una persiana, la climatización, un ventilador, un robot aspirador, una cerradura o una alarma, activa una escena, ejecuta un script, pulsa un botón o llama a cualquier servicio.</li>
-      <li data-i18n-html="deck.act.light"><strong>Iluminación.</strong> Enciende o apaga tus luces, pon un color o un efecto, cambia un solo dispositivo o devuélvelas al modo automático. Los dispositivos Razer Chroma y los efectos de SignalRGB tienen sus propias teclas.</li>
+      <li data-i18n-html="deck.act.light"><strong>Iluminación.</strong> Enciende o apaga tus luces, pon un color o un efecto, cambia un solo dispositivo, colorea un solo ventilador, tira o bomba, o devuélvelas al modo automático. Los dispositivos Razer Chroma y los efectos de SignalRGB tienen sus propias teclas.</li>
       <li data-i18n-html="deck.act.window"><strong>Ventanas.</strong> Mueve la ventana que estabas usando al monitor siguiente o al anterior, ajústala a la mitad izquierda o derecha, maximízala, minimízala o céntrala.</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI y Claude Code.</strong> Envía una instrucción a la IA, inicia una sesión de voz o abre el chat. Inicia una petición de Claude Code en uno de tus proyectos, o detén la que está en marcha. La tecla no concede permisos: cuando Claude Code pide ejecutar un comando, la solicitud llega a la pantalla para que tú la apruebes.</li>
       <li data-i18n-html="deck.act.more"><strong>Más.</strong> Llama o envía mensajes con un teléfono vinculado por Bluetooth, termina una sesión remota o bloquea el acceso remoto, y usa las teclas que añaden los widgets de la comunidad que instalaste, cada una permitida antes por ti.</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">Teclas de varios pasos</h2>
-    <p data-i18n="deck.steps.p1">Cada tecla tiene tres gestos: toque, doble toque y mantener pulsado medio segundo. Cada gesto puede tener sus propias acciones.</p>
+    <p data-i18n="deck.steps.p1">Cada tecla tiene tres gestos: toque, doble toque y mantener pulsado. Cada gesto puede tener sus propias acciones.</p>
     <p data-i18n="deck.steps.p2">Un gesto también puede ejecutar varias acciones seguidas, con una pausa de hasta 10 segundos antes de cada una. Por ejemplo: silenciar el micro, esperar un momento y luego abrir una app.</p>
     <p data-i18n="deck.steps.p3">Cada paso se ejecuta aunque falle uno anterior. Si falla alguno, la tecla parpadea en rojo cuando termina el último paso.</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">Cómo responde una tecla</h2>
+    <p data-i18n-html="deck.behave.p1">En el editor de la tecla, el bloque <strong>Comportamiento</strong> de <strong>Qué hace</strong> decide cómo responde la tecla al pulsarla:</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>Botón.</strong> Un toque ejecuta sus acciones. El doble toque y mantener pulsado pueden ejecutar otras.</li>
+      <li data-i18n-html="deck.behave.switch"><strong>Interruptor.</strong> Un toque lo enciende, el siguiente lo apaga, y cada toque ejecuta sus propias acciones. Un interruptor puede apagarse solo tras los segundos que elijas.</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>Momentáneo.</strong> Unas acciones se ejecutan al apoyar el dedo y otras al levantarlo, como pulsar para hablar. La tecla queda encendida mientras la mantienes pulsada.</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>Repetir.</strong> Las acciones se ejecutan una vez y luego una y otra vez mientras mantienes la tecla, como una tecla de volumen. Eliges cuánto espera antes de repetir y cada cuánto repite.</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>Ciclo.</strong> La tecla pasa por entre dos y ocho estados, cada uno con sus acciones, etiqueta, icono y color. Cada toque ejecuta el estado en el que está la tecla y pasa al siguiente. Los puntos de la tecla muestran en qué estado está.</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">Mantener pulsado espera medio segundo y el doble toque tiene que llegar en 260 milisegundos. Puedes cambiar los dos en cada tecla, en el mismo bloque.</p>
+    <p data-i18n="deck.behave.p3">El apagado automático funciona mientras siga abierto el panel que encendió el interruptor.</p>
 
     <h2 id="state" data-i18n="deck.h.state">Teclas que muestran un estado</h2>
     <p data-i18n="deck.state.p1">Una tecla puede seguir un estado en vivo y encenderse mientras está activo. Puede seguir:</p>

@@ -69,6 +69,19 @@ function _tileStyle(src) {
   return (DI && DI.normalizeTileStyle) ? DI.normalizeTileStyle(src) : null;
 }
 
+// A group's tab colours are keyed by each member's instance id, which a preset
+// does not keep (a copy gets a new id on install). They travel by base widget
+// id and are matched back to the new members when the group is built.
+function _rekeyTabs(style, fromIds, toIds) {
+  if (!style || !style.tabs || !style.tabs.items) return style;
+  const items = {};
+  fromIds.forEach((from, i) => {
+    const to = toIds[i];
+    if (to && !items[to] && Object.prototype.hasOwnProperty.call(style.tabs.items, from)) items[to] = style.tabs.items[from];
+  });
+  return Object.assign({}, style, { tabs: Object.assign({}, style.tabs, { items }) });
+}
+
 // ── Capture (layout → template data) ──────────────────────────────
 function captureWidget(layout, instanceId) {
   const g = _geomOf(layout, instanceId);
@@ -89,7 +102,7 @@ function captureGroup(layout, gid) {
   if (active < 0) active = 0;
   const data = { members, active, w: grp.w || 8, h: grp.h || 8 };
   if (grp.autoTabByMedia) data.autoTabByMedia = true;
-  if (grp.style) data.style = grp.style;
+  if (grp.style) data.style = _rekeyTabs(grp.style, grp.members || [], members);
   return data;
 }
 
@@ -114,7 +127,7 @@ function capturePage(layout, pageId, widgetIds) {
     if (active < 0) active = 0;
     const item = { type: 'group', x: grp.x || 0, y: grp.y || 0, w: grp.w || 8, h: grp.h || 8, members, active };
     if (grp.autoTabByMedia) item.autoTabByMedia = true;
-    if (grp.style) item.style = grp.style;
+    if (grp.style) item.style = _rekeyTabs(grp.style, grp.members || [], members);
     items.push(item);
   });
   (Array.isArray(layout.copies) ? layout.copies : []).forEach(c => {
@@ -323,9 +336,10 @@ function _materializeWidget(layout, widget, pageId, geom, style) {
 // Materialise a tab-group at `geom` on `pageId` from base member ids.
 function _materializeGroup(layout, data, pageId, geom) {
   const memberIds = [];
+  const placedBases = [];
   (data.members || []).forEach(base => {
     const id = _materializeWidget(layout, base, pageId, geom);
-    if (id) memberIds.push(id);
+    if (id) { memberIds.push(id); placedBases.push(base); }
   });
   if (!memberIds.length) return;
   if (memberIds.length === 1) return; // a lone member just stays standalone
@@ -334,7 +348,7 @@ function _materializeGroup(layout, data, pageId, geom) {
   let active = Number.isFinite(data.active) && data.active >= 0 && data.active < memberIds.length ? data.active : 0;
   layout.groups[gid] = { id: gid, members: memberIds, active: memberIds[active], x: geom.x, y: geom.y, w: geom.w, h: geom.h, page: pageId };
   if (data.autoTabByMedia) layout.groups[gid].autoTabByMedia = true;
-  const st = _tileStyle(data.style);
+  const st = _tileStyle(_rekeyTabs(data.style, placedBases, memberIds));
   if (st) layout.groups[gid].style = st;
 }
 

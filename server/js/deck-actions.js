@@ -6,7 +6,8 @@
 // param.kind: 'text' | 'path' | 'url' | 'color' | 'select' (select carries
 //             `options`) | 'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' |
 //             'sbAction' | 'sbCodeTrigger' | 'discordChannel' | 'discordSound' |
-//             'haEntity' | 'wlChannel' | 'lightDevice' | 'sound' (picker controls).
+//             'haEntity' | 'wlChannel' | 'lightDevice' | 'lightPart' | 'sound' (picker controls) |
+//             'hidden' (no control: another param's picker sets it).
 
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }, { name: 'args', kind: 'text', optional: true, maxLen: 500, labelKey: 'deck_param_app_args' }] },
@@ -38,6 +39,10 @@ const ACTION_CATALOG = [
   // a surface with no pager (the Virtual Deck window) falls through to the server
   // registry, which relays it to every dashboard like a global page shortcut.
   { type: 'dashboardPage', group: 'system', labelKey: 'deck_act_dashboardPage', params: [{ name: 'page', kind: 'dashboardPage', maxLen: 64 }] },
+  // A named on/off the Deck itself owns (the same map /state/set writes): keys
+  // bound to it light up on every screen, so one key can switch another, and
+  // keys sharing a name with different values work as a radio group.
+  { type: 'deckState', group: 'system', labelKey: 'deck_act_deckState', params: [{ name: 'name', kind: 'text', maxLen: 64, labelKey: 'deck_param_state_name' }, { name: 'mode', kind: 'select', options: ['toggle', 'set', 'clear'] }, { name: 'value', kind: 'text', optional: true, maxLen: 200, labelKey: 'deck_param_state_value' }] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  requires: 'media', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   // SDK-only absolute timeline seek. A separate hidden type keeps the Deck
@@ -238,7 +243,8 @@ const ACTION_CATALOG = [
   { type: 'lightColor',  group: 'lighting', labelKey: 'deck_act_lightColor',  params: [{ name: 'color', kind: 'color' }] },
   { type: 'lightAuto',   group: 'lighting', labelKey: 'deck_act_lightAuto',   params: [] },
   { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [{ name: 'style', kind: 'select', options: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'] }, { name: 'color', kind: 'color' }] },
-  { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off'] }, { name: 'color', kind: 'color' }] },
+  { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'] }, { name: 'color', kind: 'color' }] },
+  { type: 'lightPart',   group: 'lighting', labelKey: 'deck_act_lightPart',   params: [{ name: 'device', kind: 'hidden', maxLen: 160 }, { name: 'part', kind: 'lightPart' }, { name: 'color', kind: 'color' }] },
   // SignalRGB scene switcher — separate from the colour-lighting actions above
   // (it applies a named SignalRGB effect via its launcher, not a per-LED colour).
   // Shown only when SignalRGB is enabled in Settings → Lighting (gated in the editor).
@@ -295,6 +301,17 @@ function validateAction(raw) {
   return out;
 }
 
+// How a key was pressed when it ran a widget's handler: the trigger slot that
+// ran, and for a cycle key the state (1-based) whose action it was. Anything
+// else is dropped, so a handler only ever sees one of these shapes.
+const KEY_GESTURES = ['tap', 'tapOff', 'double', 'hold', 'press', 'release', 'repeat', 'cycle'];
+function validateGesture(raw) {
+  if (!raw || typeof raw !== 'object' || !KEY_GESTURES.includes(raw.type)) return null;
+  if (raw.type !== 'cycle') return { type: raw.type };
+  const state = Math.round(Number(raw.state));
+  return { type: 'cycle', state: Number.isFinite(state) ? Math.max(1, Math.min(8, state)) : 1 };
+}
+
 function clampDelay(value) {
   const n = Math.round(Number(value));
   if (!Number.isFinite(n)) return 0;
@@ -333,8 +350,8 @@ function compactTrigger(steps) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger, unquotePath };
+  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger, unquotePath };
+  module.exports = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath };
 }

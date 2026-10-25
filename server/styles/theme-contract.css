@@ -32,7 +32,7 @@
   .settings-upload, .settings-preview-card, .ai-provider-toggle label,
   .app-card, .app-search-wrap, .tab-card, .picker-item,
   .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
-  .wc-card, .wc-preview, .tile-style-seg, .tile-style-tabs,
+  .wc-card, .wc-preview, .tile-style-tabs,
   .deck-ed-side, .deck-ed-step, .deck-ed-preview-stage, .deck-mix-apps,
   .upd-notes code, .upd-hl-footer, .upd-status,
   .gc-stat, .perf-sheet-item, .perf-sheet-opt, .perf-sheet-app
@@ -87,7 +87,7 @@
   border-color: var(--color-danger);
 }
 
-:is(.settings-segment-btn.active, .ui-segmented button.active, .tile-style-seg button.active) {
+:is(.settings-segment-btn.active, .ui-segmented button.active) {
   color: var(--on-accent);
   background-color: var(--accent);
   border-color: var(--accent);

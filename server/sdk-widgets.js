@@ -74,9 +74,12 @@ const SDK_API_VERSION = 1;
 // REACT to one but never set one: writing into that shared map from a sandbox
 // would let one package overwrite another's name, and a package already has
 // `deck.states` for states of its own, which are declared and namespaced.
+// `lighting` is the user's lights by name and what each shows, with the parts of
+// a device that has a map (each fan, the pump, a strip): what a widget needs to
+// target `lightDevice` / `lightPart`. A pulled snapshot, no colours per LED.
 // `sensors` is every hardware sensor by name (an AIO's liquid, a VRM, each fan),
 // the catalog behind Settings → Sensor sources. Read only while granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -99,7 +102,7 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // of an ordered list that is connected, each id through the same check.
   audioDevice: Object.freeze(['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst']),
   mic: Object.freeze(['micMute']),
-  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
+  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),
   wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
   // Voicemeeter strips, buses and routing. `vmParam` is deliberately LEFT OUT,
@@ -740,6 +743,11 @@ function normalizeManifest(raw, folderId) {
   // on purpose — it is a different place on screen, so the permission dialog has
   // to be able to offer it, and the user to refuse it, on its own.
   const mini = raw.mini === true;
+  // A button of the package's own in the top bar, placed, hidden and restyled
+  // by the user like the built-in ones (an `sdk:<id>` entry in
+  // topbarClock.actions). Its face (glyph + short label) is plain text the host
+  // draws; a tap only posts a message to the package's frame.
+  const topbarButton = raw.topbarButton === true;
   const clipboard = raw.clipboard === true;
   const accent = raw.accent === true;
   // Asking to cover the dashboard. Normalized away for an ambient package: an
@@ -771,7 +779,7 @@ function normalizeManifest(raw, folderId) {
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
       // A package may ask to run headless: handlers, badges and structured Live
       // Activities are the capabilities that can meaningfully outlive a tile.
-      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || mini || islandDynamic || islandFull),
+      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || mini || topbarButton || islandDynamic || islandFull),
       // Legacy text projection + the separately-consented structured surfaces.
       // All remain host-rendered and never weaken the widget iframe sandbox.
       island,
@@ -787,6 +795,8 @@ function normalizeManifest(raw, folderId) {
       // island's block allowlist — never guest DOM, so the chrome never becomes a
       // surface that runs package code.
       mini,
+      // Its own button among the bar's buttons (see `topbarButton` above).
+      topbarButton,
       // The widget may ask to write to the system clipboard — but only through a
       // host-rendered confirmation the user taps for each copy (the widget never
       // copies on its own). Write-only, no read; enforced entirely host-side in

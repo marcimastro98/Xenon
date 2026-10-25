@@ -94,13 +94,14 @@ not need to do anything to support it.
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
-| `background` | no | `true` + declared `deck.handlers`, `badge`, and/or `island: { "dynamic": true }` or `island: { "full": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. |
+| `background` | no | `true` + declared `deck.handlers`, `badge`, `mini`, `topbarButton`, and/or `island: { "dynamic": true }` or `island: { "full": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. |
 | `storage` | no | `true` → your widget may keep a small persistent key/value store on this PC (its settings, chosen sources, last map view). Survives updates. See *Persistent storage*. |
 | `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
 | `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. `{ "full": true }` requests a third permission on top: activities that span the **whole top bar**. See *Dynamic Island*. |
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. `{ "action": true }` requests a separate permission on top: the chip becomes a **button** and tapping it tells your widget. Host-rendered, grant-gated — see *Persistent badge*. |
-| `mini` | no | `true` → your widget may draw a **mini widget in the top bar's button row**, where the user placed it (Settings → Dynamic Island → bar buttons). Same host-rendered block vocabulary as the Dynamic Island, in a smaller room. See *Mini slot*. |
+| `mini` | no | `true` → your widget may draw a **mini widget in the top bar's button row**, where the user placed it (Settings → Top bar → bar buttons). Same host-rendered block vocabulary as the Dynamic Island, in a smaller room. See *Mini slot*. |
+| `topbarButton` | no | `true` → your widget may add **one button of its own to the top bar**: a label, an optional short glyph and a tooltip, drawn by Xenon. The user places, hides, renames and recolours it like the built-in buttons. See *Bar button*. (v4.12) |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 | `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
@@ -311,7 +312,10 @@ than the manifest requested):
       // Optional — the nested-card surface at the user's panel opacity, and that
       // alpha as a number. null when unavailable; fall back to surfaceAlt.
       surfaceSoft: 'rgba(22, 25, 26, 0.92)', panelAlpha: 0.92
-    }
+    },
+    // Optional (v4.12.0): the colours the user picked for THIS tile's buttons
+    // in Widget style → Controls. null when the tile sets none. See below.
+    controls: null
   },
   // Which copy of the tile this frame is (v4.11.13): 'custom' for the first,
   // 'custom~k3x9' for a copy. Stable across reloads, so key per-copy settings
@@ -357,6 +361,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
 - `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
+- `lighting` — `{ ok, enabled, devices:[{ id, name, maker, mode, parts:[{ index, kind, leds, name? }] }] }`: **the user's lights by name** and what each one shows (`mode`, the same values `lightDevice` takes). `parts` lists, in map order, each fan, the pump, each strip or RAM stick of a device Xenon knows the layout of (`kind`: `fan`, `pump`, `block`, `strip`, `dram`, `zone`, `header` for a motherboard output the user has not set up yet, `pos` for a keyboard); `index` is what `lightPart` takes. Lights with no layout (a WLED strip, a Hue bulb) come with `parts: []`. No colours per LED. A **pull** stream: send a `refresh` for it when your widget opens and after you change something
 - `devStorage` — `{ ok, docker, ollama, vscode, vhdx, reclaimable }`: how much space developer tools hold and how much could be freed, **numbers only**. See *Developer storage* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`
@@ -1503,6 +1508,43 @@ Both are `null` on older hosts, or when the tile's tokens can't be read — alwa
 fall back to the solid `surfaceAlt`. Keep using the solid `surfaceAlt` for any
 surface you want to stay opaque no matter what the user sets.
 
+**Follow the user's button colours (optional, v4.12.0).** In Widget style →
+Controls the user can restyle a tile's own buttons, tabs, chips, the selected
+button and text fields. Native tiles change by themselves; your widget runs in
+its own document, so Xenon sends the same choice as `theme.controls`, on `init`
+and on every `theme` push:
+
+```js
+controls: {
+  variant: 'soft',                        // 'filled' | 'soft' | 'outline' | 'ghost' | null
+  bg: 'color-mix(in srgb, #ff5fa2 18%, transparent)',
+  text: 'rgb(255, 95, 162)', border: 'transparent', hover: '…',
+  activeBg: '#1b0b14', activeText: '#ffffff',       // the selected button
+  fieldBg: '…', fieldText: '…', fieldBorder: '…',   // inputs, selects, textareas
+  radius: 14, borderWidth: 1                        // px numbers
+}
+```
+
+Every key is optional: only what the user set is there, and `controls` itself is
+`null` when they set nothing, so keep your own look in that case. The colours are
+ready-to-use CSS values (hex, `rgb(…)` or `color-mix(…)`), never a `var(…)`. Put
+them on your root as variables and let your stylesheet fall back to your own:
+
+```js
+function applyControls(c) {
+  const root = document.documentElement.style;
+  const map = { bg: '--btn-bg', text: '--btn-text', border: '--btn-border', hover: '--btn-hover',
+    activeBg: '--btn-on-bg', activeText: '--btn-on-text',
+    fieldBg: '--field-bg', fieldText: '--field-text', fieldBorder: '--field-border' };
+  Object.values(map).concat(['--btn-radius', '--btn-bw']).forEach((v) => root.removeProperty(v));
+  if (!c) return;
+  Object.entries(map).forEach(([k, v]) => { if (c[k]) root.setProperty(v, c[k]); });
+  if (typeof c.radius === 'number') root.setProperty('--btn-radius', c.radius + 'px');
+  if (typeof c.borderWidth === 'number') root.setProperty('--btn-bw', c.borderWidth + 'px');
+}
+// button { background: var(--btn-bg, var(--my-button)); color: var(--btn-text, inherit); }
+```
+
 ### The white-tile trap: declare a `color-scheme`
 
 If your widget renders as a solid **white block** inside the dark dashboard while
@@ -1876,7 +1918,7 @@ the same gate Deck keys go through):
 | `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' \| 'set', value }`, `{ type: 'appVolume', app, mode, value }`, `{ type: 'appMute', app, mode }` — `app` is the `proc` field from the `audio` stream. Note `appVolume` with `mode:'set'` does **not** unmute: raise a muted app and send `appMute` too, or nothing comes out. |
 | `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. `{ type: 'audioDeviceToggle', deviceA, deviceB }` (v4.11.10) flips between two of them in one call: see *Moving the sound between two outputs* below. `{ type: 'audioDeviceFirst', device1, device2, device3? }` (v4.11.12) moves it to the first of a list that is connected right now: see *The first output that is connected* below. |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
-| `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off`; `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. Requires lighting configured in Settings → Illuminazione. |
+| `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }`, `{ type: 'lightPart', device, part, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off\|custom` (`custom` shows what the user set for each part and LED of that device in Settings → Lighting, a colour or an effect of its own; LEDs left unset, or a device without a map, follow Xenon like `follow`); `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. `lightPart` colours one part of a device (a fan, the pump, a strip: `part` is its `index` in the `lighting` stream) and leaves the rest of that device looking as it did; without `color` the part goes back to following Xenon. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
 | `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; `mixId` from the `wavelink` stream). Requires the user to enable Wave Link in Settings. |
 | `steam` | `{ type: 'launchSteamGame', gameId }` — start a game the user owns, by Steam AppID. `gameId` is digits only (it becomes `steam://rungameid/<id>`), so a widget names a number, never a command. Steam has to be installed for the protocol handler to exist; nothing happens otherwise. Not part of `url`: that category is http(s) links, and it stays that way. |
@@ -1895,7 +1937,7 @@ the same gate Deck keys go through):
 | `tasks` | `{ type: 'taskAdd', text }`, `{ type: 'taskToggle', id }`, `{ type: 'taskDelete', id }` — add / complete-toggle / delete a to-do in the same list the Tasks tile shows (pair with the `tasks` **stream** to read the list and each task's `id`). `text` is capped at 200 chars server-side; a new task is created with default (medium) priority. No external service required. |
 | `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
-The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma and the whole-system `lighting` category are write-only (no stream): fire the actions or show a static control. Since there's no lighting stream, the whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` targets a device id you already know.
+The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma is write-only (no stream): fire the actions or show a static control. The whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` and `lightPart` take device ids and part indexes from the `lighting` stream (a pull snapshot, requested like `network`).
 
 The `voicemeeter` **stream** does the same for Voicemeeter: `{ type, edition, strips: [{ index, mute, gain, routes: { A1: true, B1: false, … } }], buses: [{ index, label, mute, gain }] }`, sized to the edition that is running (Voicemeeter 3 strips / 2 buses, Banana 5 / 5, Potato 8 / 8). Target a bus by its **label**, never by its index: `B1` is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato, so an index stored in a widget would point at a different output on someone else's machine. The stream is polled from the mixer's own change flag and only while a dashboard is connected, so it costs nothing on a PC that has no Voicemeeter.
 
@@ -2276,7 +2318,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `lighting`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -2287,7 +2329,7 @@ the user granted, and every action is re-validated server-side.
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |
-| `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice` |
+| `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice`, `lightPart` |
 | `media` | `media`, `mediaSeek` |
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
@@ -2490,6 +2532,26 @@ window.parent.postMessage({ xenonSdk: 1, type: 'handler_ack', callId, ok: true }
 Handlers are granted per-id in the permission dialog (like hooks), args are
 re-coerced server-side against your declared params on every press, and
 dispatches are rate-limited (~4/s per handler).
+
+**How the key was pressed (v4.12).** A call that comes from a key press also
+carries `gesture`, so one handler can tell its keys apart:
+
+```text
+{ xenonSdk: 1, type: 'handler', handler: '<id>', args: { … }, callId: '…', gesture: { type: 'press' } }
+```
+
+| `gesture.type` | When |
+|---|---|
+| `tap` | A plain tap, the first run of a repeat key, or the tap that turns a switch on. |
+| `tapOff` | The tap that turns a switch off, or the switch turning itself off after its set time. |
+| `double`, `hold` | A double tap, or a press and hold. |
+| `press`, `release` | A momentary key: the finger goes down, then lifts. `release` always comes after its `press`. |
+| `repeat` | A repeat key still held: every run after the first. Repeats over the rate limit are dropped quietly. |
+| `cycle` | A cycle key. `gesture.state` is the state whose action ran, from 1 (its first face) to 8. |
+
+`gesture` is absent when the handler ran another way (an AI action, a macro
+step with no key behind it), so treat it as optional. A `release` has its own
+rate-limit lane, so a quick press and let-go always reaches you as a pair.
 
 **Know which frame you are.** When a package declares `background: true` and a
 tile is also on the dashboard, **both frames run your code at once**. `init`
@@ -2702,7 +2764,7 @@ over everything.
 
 #### The user owns every contribution
 
-Settings → **Dynamic Island** lists only currently installed packages that
+Settings → **Top bar** lists only currently installed packages that
 declare an island activity or badge. The user can disable any package's entire
 contribution without uninstalling it, can hide/reorder Xenon's built-in items,
 and can globally turn timed takeovers off. Treat the island as enhancement, not
@@ -2757,7 +2819,7 @@ Rules the host enforces:
     if (e.data && e.data.type === 'badge_action') refreshNow();
   });
   ```
-- **The user owns the slot.** Settings → Dynamic Island can hide the badge row
+- **The user owns the slot.** Settings → Top bar can hide the badge row
   globally or disable your package's island/badge contribution specifically.
   Treat the badge as a bonus glance, never as the only place your widget shows
   something.
@@ -2837,13 +2899,81 @@ thing is host-rendered, so the widget sandbox is untouched by any of it.
 **The user owns the place, and whether it is there at all.** They choose which
 side the slot sits on and its position among the buttons, they can hide the slot
 entirely, and they can switch your package's contribution off on its own in
-Settings → Dynamic Island. Design for it being absent: the mini slot is a glance,
+Settings → Top bar. Design for it being absent: the mini slot is a glance,
 never the only place your widget says something.
 
 **Outliving the tile — declare `background: true`.** Same reasoning as the badge:
 a readout the user deliberately parked in their top bar is worth having precisely
 when your tile is not on screen. Without it, your slot is dropped a few seconds
 after your last frame goes away.
+
+### 9e. Bar button — `topbarButton` (widget → host) (v4.12)
+
+A real button on the top bar, next to Lock and Search, that belongs to your
+package. Reach for it when your widget has one thing worth a single tap from
+anywhere (start a timer, toggle a scene, open your panel), and use the mini slot
+instead when what you have is a readout.
+
+**The top bar at a glance.** A widget can appear in four places there, and the
+user owns every one of them:
+
+| | where | shape | the user can |
+|---|---|---|---|
+| Island | centre, replacing the clock | text, meters, buttons | switch your package off |
+| Badge | inside the clock | one chip: glyph + value | hide badges, switch your package off |
+| Mini | among the buttons, in the mini slot | a small row of blocks | move, hide the slot, switch your package off |
+| **Button** | **among the buttons, as its own button** | **glyph + label** | **move it, pick its side, hide it, rename it, recolour it, give it another icon, switch your package off** |
+
+Declare it:
+
+```json
+{ "topbarButton": true, "background": true }
+```
+
+Set its face, and listen for taps:
+
+```js
+parent.postMessage({
+  xenonSdk: 1, type: 'topbarButton', op: 'set',
+  label: 'Focus',          // required, up to 24 characters
+  icon: '⏱',               // optional, up to 8 characters (an emoji or a symbol)
+  tooltip: 'Start a 25 minute focus session',   // optional, up to 48
+}, '*');
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'topbar_button_action') startFocus();
+});
+```
+
+`op: 'clear'` takes the button away. Updates are coalesced (at most one every
+half second), so you can send the latest label whenever it changes ("Focus" →
+"12:40").
+
+How it behaves, and why:
+
+- **Text only.** Control characters are turned into spaces and the strings are
+  cut to the limits above. Xenon builds the button itself, so your HTML, CSS and
+  handlers never reach the bar.
+- **No glyph → your manifest `icon`.** Without `icon`, the button shows the
+  package's own manifest icon (see *Widget icon*), or the first letter of the
+  label when there is none. An icon the user picks for the button wins over both.
+- **Where it lands.** A new button goes at the end of the left side. In Minimal
+  the left side is the left **side rail**, so your button lands in that rail; in
+  None it is in the rail too, with no bar above it. Once the user moves it in
+  Settings → Top bar → bar buttons, it stays where they put it.
+- **The user owns the rails.** They can switch a side rail off, move it up or
+  down the screen edge and have it slide away when idle. If they switch the left
+  rail off, a button there is not on screen. Design for it being absent: the bar
+  button is a shortcut, never the only way to reach something.
+- **The user's label wins.** If the user renames your button, your `label` keeps
+  updating the tooltip and the Settings list, but the button shows their word.
+- **4 packages at once.** A fifth `set` is silently ignored, like the other caps.
+- **Gone with your frame.** With no live frame, the button is removed after a few
+  seconds. Declare `background: true` so a button the user placed keeps working
+  with no tile on screen. Removing your package removes its button and the look
+  the user gave it.
+- **Switch per package.** Settings → Top bar → Apps and widgets turns your
+  package's island, badge, mini slot and button off together.
 
 ## Shipping an update (v4.11.11)
 
@@ -3143,14 +3273,72 @@ Scene-specific notes:
   design big, calm and dim; near-black backgrounds are kind to the always-on
   display). No scrolling; `overflow: hidden`.
 - **The host draws an exit ✕ over your top-right corner** (~20 px inset) and
-  closes on Escape — keep that corner clear. Pointer events otherwise reach
-  your page, so tappable controls are allowed.
+  closes on Escape — keep that corner clear.
+- **Taps reach your page, except the first one after an idle start.** When
+  the user opened the scene (topbar button, AI command), every tap reaches
+  your page, so tappable controls work. When the idle timer opened it, it is a
+  screensaver: the first tap or key press closes it and never reaches your
+  page. Show everything at a glance and treat controls as extras.
 - **The clock is yours**: use `Date` in-frame (no stream needed). Live data
   (media, `weather`, system, …) arrives over the granted streams exactly like a
   tile, including the initial replay on `hello`.
 - **Pause yourself when hidden**: gate your `requestAnimationFrame` loop on
   `document.hidden` — the scene may open right after long idle, and the mode
   is suppressed during games automatically.
+
+### What can be touched on an Ambient screen
+
+An Ambient screen is for looking at. On a canvas scene (the kind Xenon Maker
+builds) every element is read-only except these four, and each one only while
+its `controls` option is on:
+
+| Element | `controls` default | A tap does |
+|---|---|---|
+| `media` (music) | off | previous, play or pause, next |
+| `tasks` | off | ticks the task; with finished tasks shown, brings one back |
+| `notifications` | on | shows a hidden notification; the next tap clears it from this screen (the feed and the tile keep it) |
+| `volume` | on | down and up by the element's `step` (1 to 20, default 5); the value mutes and unmutes |
+
+`notifications` also takes `count` (1 to 6, default 3) and `body` (show the
+text, default on), and follows the user's "Hide content until tapped" setting.
+These controls work on a screensaver the idle timer opened too: a tap on one
+does its job and the scene stays, a tap anywhere else closes it. An SDK widget
+placed on a canvas scene, like an SDK scene, gets taps only when the scene was
+opened by hand.
+
+### Canvas scene options
+
+A canvas scene can be changed after it is installed: Settings → Ambient → My
+scenes → **Edit** opens it full screen to move, resize, add, layer and delete
+elements (built-in ones and installed widgets) and to change every option
+below. New scenes are made in Xenon Maker or imported as codes.
+
+All of these are optional and still `schema: 1`; a scene that leaves them out
+looks exactly as before, and an older Xenon ignores what it does not know.
+
+| Where | Field | Values |
+|---|---|---|
+| scene | `pages` | `{ count: 2-6, every: 5-3600 s (30), transition: "fade" \| "slide" \| "none" }`, a slideshow |
+| `bg` | `type` | adds `"wallpaper"`: the user's own dashboard picture or video, `color`/`grad` when they have none |
+| `bg` | `motion` | `"drift"` \| `"zoom"` \| `"pan"`, a slow move of the background |
+| any gradient | `stops`, `kind` | 2 to 5 `{ color, at: 0-100 }`; `kind: "radial"` |
+| element | `opacity`, `scale` | 0-100; 50-300 (% text size of the data elements) |
+| element | `page` | the page it shows on (all pages when left out) |
+| element | `anim` | `{ in, loop, speed: 0.25-4, delay: 0-10 s }`; `in`: `fade` `rise` `drop` `zoom` `pop` `slide-left` `slide-right`; `loop`: `float` `breathe` `pulse` `sway` `drift` `spin` `blink` |
+| element | `show` | `{ from, to }` minutes after midnight (wraps past midnight), `days`: 0 (Sunday) to 6 |
+| `clock` | `style`, `ampm`, `blink`, `weight`, `marks`, `align` | `digital` \| `stacked` \| `analog` |
+| `date` | `variant`, `uppercase`, `align` | adds `long` and `day` |
+| `weather` | `icon`, `cond`, `place`, `layout`, `align` | `layout`: `stack` \| `row` |
+| `media` | `artist`, `layout` | `row` \| `stack` |
+| `agenda` | `time` | show event times |
+| `system` | `style` | `text` \| `bars` \| `rings` |
+| `network` | `show`, `align` | `both` \| `down` \| `up` |
+| `text` | `valign`, `spacing`, `lineHeight`, `glow` | -10-50 (hundredths of an em), 80-250 %, 0-40 px |
+| `image` | `grayscale`, `focusX`, `focusY` | 0-100 |
+| `shape` | `kind`, `blur` | adds `pill` and `ring`; `blur` 0-80 px for soft glows |
+
+Entrances, loops and background motion never play under reduced motion, game
+mode, performance mode, a low-power GPU or while the scene is being edited.
 
 ## Versioning
 

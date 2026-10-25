@@ -134,19 +134,21 @@ test('normalizeTileDecor rejects non-image / non-local srcs (only data: and /upl
   assert.equal(ok.decor.bg.src, '/uploads/tileasset-1-ab.png');
 });
 
-test('normalizeTileDecor drops unknown frame/overlay presets and caps overlays at 4', () => {
+test('normalizeTileDecor drops unknown frame/overlay presets and caps overlays at 8', () => {
+  const nine = Array.from({ length: 9 }, () => ({ preset: 'dragon' }));
   const s = normalizeTileStyle({
     decor: {
       frame: { preset: '../etc' },   // not in the curated set
-      overlays: [{ preset: 'dragon' }, { preset: 'koi' }, { preset: 'wave' }, { preset: 'moon' }, { preset: 'dragon' }],
+      overlays: nine,
     },
   });
   assert.equal('frame' in s.decor, false);         // bad preset → frame dropped
-  assert.equal(s.decor.overlays.length, 4);        // 5th overlay dropped
+  assert.equal(s.decor.overlays.length, 8);        // 9th overlay dropped
 });
 
 test('normalizeTileDecor ignores the removed glow/anim effect keys entirely', () => {
-  // Effects were removed; any leftover glow/anim on an imported/persisted decor is dropped.
+  // The old effects ({color, strength} glow, a decor-wide anim) were removed; any
+  // leftover on an imported/persisted decor is dropped. Today's glow is {inner, outer}.
   assert.equal(normalizeTileStyle({ decor: { glow: { color: '#ff2200', strength: 1.5 } } }), null);
   assert.equal(normalizeTileStyle({ decor: { anim: 'breathe' } }), null);
   const s = normalizeTileStyle({ decor: { bg: { grad: { c1: '#1ed760', c2: '#0a0d12' } }, glow: { color: '#fff', strength: 1 }, anim: 'argb' } });

@@ -349,6 +349,18 @@ test('everything the dashboard pins to the bottom of the screen clears the dock'
     + 'or hide them in the stacked view');
 });
 
+test('a ticker strip under the dock is cleared too, not covered', () => {
+  // Reported on a phone with the stock ticker at the bottom: the dock sits on
+  // top of the strip, so a floater lifted by the dock height alone still
+  // landed on the dock by the strip's height.
+  const css = readFileSync(join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.is-phone body\.xe-has-ticker\.xe-ticker-bottom \{ --ph-bottom-lift: var\(--xe-ticker-h/);
+  const lifts = [...css.matchAll(/bottom:\s*calc\(\s*var\(--ph-dock-h[^;]*;/g)].map((m) => m[0]);
+  assert.ok(lifts.length >= 2);
+  for (const rule of lifts) assert.match(rule, /var\(--ph-bottom-lift/, rule);
+});
+
 test('the dock publishes its own height, measured rather than assumed', () => {
   const { shell, document, resizeTargets, fireResize, PhoneView } = mountPhone();
   const dock = shell.querySelector('.ph-dock');

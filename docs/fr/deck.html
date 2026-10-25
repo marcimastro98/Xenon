@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">Actions</a>
       <a href="#steps" data-i18n="deck.jump.steps">Touches multi-étapes</a>
+      <a href="#behave" data-i18n="deck.jump.behave">Comment une touche répond</a>
       <a href="#state" data-i18n="deck.jump.state">Touches affichant un état</a>
       <a href="#faders" data-i18n="deck.jump.faders">Curseurs</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">Profils et pages</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> Couper le son d'une piste ou régler son gain, l'envoyer vers un bus (boutons A1, A2, B1), couper le son d'un bus ou régler son gain, appuyer sur l'un de vos boutons macro ou régler n'importe quel paramètre nommé.</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> Réglez ou mettez en sourdine le volume d'une entrée, d'une sortie ou d'un mixage. Avec Wave Link 2, une touche peut également basculer la surveillance ; avec Wave Link 3, elle peut activer ou désactiver les effets et sélectionner le périphérique de sortie.</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> Activez ou désactivez un appareil, réglez une lumière, contrôlez un lecteur multimédia, un volet, un système de climatisation, un ventilateur, un aspirateur, une serrure ou une alarme, activez une scène, exécutez un script, appuyez sur un bouton ou appelez n'importe quel service.</li>
-      <li data-i18n-html="deck.act.light"><strong>Éclairage.</strong> Allumez ou éteignez vos lumières, réglez une couleur ou un effet, modifiez un seul appareil ou remettez-les en mode automatique. Les appareils Razer Chroma et les effets SignalRGB ont leurs propres touches.</li>
+      <li data-i18n-html="deck.act.light"><strong>Éclairage.</strong> Allumez ou éteignez vos lumières, réglez une couleur ou un effet, modifiez un seul appareil, colorez un seul ventilateur, ruban ou pompe, ou remettez-les en mode automatique. Les appareils Razer Chroma et les effets SignalRGB ont leurs propres touches.</li>
       <li data-i18n-html="deck.act.window"><strong>Windows.</strong> Déplacez la fenêtre que vous utilisez vers le moniteur suivant ou précédent, ancrez-la sur la moitié gauche ou droite, agrandissez-la, réduisez-la ou centrez-la.</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI et Claude Code.</strong> Envoyez un prompt à l'IA, démarrez une session vocale ou ouvrez le chat. Démarrez une requête Claude Code dans l'un de vos projets, ou arrêtez celle en cours d'exécution. La touche n'accorde aucune autorisation : lorsque Claude Code demande d'exécuter une commande, la requête s'affiche à l'écran pour que vous l'approuviez.</li>
       <li data-i18n-html="deck.act.more"><strong>Plus.</strong> Appelez ou envoyez des SMS via un téléphone appairé en Bluetooth, mettez fin à une session à distance ou bloquez l'accès à distance, et utilisez les clés ajoutées par la communauté widgets que vous avez installées, chacune étant d'abord autorisée par vous.</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">Touches multi-étapes</h2>
-    <p data-i18n="deck.steps.p1">Chaque touche dispose de trois gestes : tap, double tap et appui maintenu pendant une demi-seconde. Chaque geste peut avoir ses propres actions.</p>
+    <p data-i18n="deck.steps.p1">Chaque touche dispose de trois gestes : tap, double tap et appui maintenu. Chaque geste peut avoir ses propres actions.</p>
     <p data-i18n="deck.steps.p2">Un geste peut également exécuter plusieurs actions à la suite, avec une pause d’au plus 10 secondes avant chacune d’entre elles. Par exemple : couper le micro, attendre un instant, puis ouvrir une application.</p>
     <p data-i18n="deck.steps.p3">Chaque étape s'exécute même si une étape précédente échoue. Si une étape échoue, la touche clignote en rouge une fois que la dernière étape a été exécutée.</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">Comment une touche répond</h2>
+    <p data-i18n-html="deck.behave.p1">Dans l’éditeur de la touche, le bloc <strong>Comportement</strong> de <strong>Ce qu'il fait</strong> règle la façon dont la touche répond :</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>Bouton.</strong> Un tap exécute ses actions. Le double tap et l’appui maintenu peuvent en exécuter d’autres.</li>
+      <li data-i18n-html="deck.behave.switch"><strong>Interrupteur.</strong> Un tap l’allume, le suivant l’éteint, et chaque tap exécute ses propres actions. Un interrupteur peut s’éteindre tout seul après le nombre de secondes choisi.</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>Momentané.</strong> Des actions s’exécutent quand le doigt se pose et d’autres quand il se lève, comme un push-to-talk. La touche reste allumée tant que vous la maintenez.</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>Répéter.</strong> Les actions s’exécutent une fois, puis encore et encore tant que vous maintenez la touche, comme une touche de volume. Vous choisissez l’attente avant la répétition et son rythme.</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>Cycle.</strong> La touche passe par deux à huit états, chacun avec ses actions, son libellé, son icône et sa couleur. Chaque tap exécute l’état en cours, puis passe au suivant. Les points sur la touche indiquent l’état en cours.</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">L’appui maintenu attend une demi-seconde et le double tap doit arriver dans les 260 millisecondes. Les deux se règlent pour chaque touche, dans le même bloc.</p>
+    <p data-i18n="deck.behave.p3">L’extinction automatique ne fonctionne que tant que le dashboard qui a allumé l’interrupteur reste ouvert.</p>
 
     <h2 id="state" data-i18n="deck.h.state">Touches affichant un état</h2>
     <p data-i18n="deck.state.p1">Une touche peut suivre un état actif et s'allumer lorsqu'elle est enfoncée. Elle peut suivre :</p>

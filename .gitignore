@@ -133,5 +133,8 @@ packages/design-system
 # tracked, in tools/demo/.
 docs/demo/
 
+# Xenon Maker (docs/maker/) is unpacked from its own repo's release by pages.yml.
+docs/maker/
+
 # Playwright MCP screenshots and snapshots taken while checking UI work
 .playwright-mcp/

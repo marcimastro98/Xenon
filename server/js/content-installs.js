@@ -10,7 +10,7 @@
   const FONT_URL_RE = /^\/uploads\/[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i;
   // Kind list mirrors PRESET_KINDS in preset-share.js (and the catalog kind
   // lists in community-catalog.js + docs) — keep them in step.
-  const KINDS = Object.freeze(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds']);
+  const KINDS = Object.freeze(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds', 'topbar']);
   const MAX_INSTALLS = 64;
   const MAX_RESOURCE_IDS = 64;
 

@@ -1,38 +1,34 @@
-// Lighting page (pager page 2). Renders RGB controls — iCUE master/effects, the
-// ambient animation, and external providers (WLED, …) with on-demand discovery —
-// and talks to /api/lighting/*. Initialised lazily on first page enter (see main.js).
+// Lighting hub (Settings → Illuminazione). A card with the master switch and
+// brightness sits above four tabs: Dispositivi (one card per light: what it
+// shows and, for Corsair devices, its fans and LEDs one by one), Effetti (Xenon's
+// own colour and ambient animation), Reazioni (temperature, album, event
+// flashes) and Connessioni (lighting-connections.js). Every block is a Settings
+// card built by lighting-ui.js. Talks to /api/lighting/*.
 (function () {
   'use strict';
+  const UI = () => window.LightingUI;
   let mounted = false;
 
-  async function fetchStatus() {
-    try { return await (await fetch('/api/lighting/status')).json(); }
-    catch { return { available: false, reason: 'offline', providers: [] }; }
+  const TAB_KEY = 'xenon.lightingTab.v1';
+  const TABS = [
+    ['devices', 'lighting_tab_devices', 'Dispositivi'],
+    ['effects', 'lighting_tab_effects', 'Effetti'],
+    ['reactions', 'lighting_tab_reactions', 'Reazioni'],
+    ['connections', 'lighting_tab_connections', 'Connessioni'],
+  ];
+  // The open tab is a per-viewer convenience: storage may be blocked, so every
+  // access is guarded and the page works without it.
+  function readTab() {
+    try { const v = localStorage.getItem(TAB_KEY); return TABS.some(([id]) => id === v) ? v : 'devices'; }
+    catch { return 'devices'; }
   }
-
-  // Project the server status onto the persistable client `lighting` shape, so the
-  // settings mirror stays in sync with server-side changes (no clobber).
-  function lightingFromStatus(s) {
-    const devices = {};
-    (s.devices || []).forEach(d => { if (d.optedIn === false) devices[d.id] = false; });
-    return {
-      enabled: !!s.enabled,
-      brightness: typeof s.brightness === 'number' ? s.brightness : 1,
-      pauseDuringGame: !!s.pauseDuringGame,
-      effects: { ...(s.effects || {}) },
-      animation: s.animation ? { ...s.animation } : undefined,
-      manualColor: typeof s.manualColor === 'string' ? s.manualColor : '',
-      devices,
-    };
-  }
+  function saveTab(v) { try { localStorage.setItem(TAB_KEY, v); } catch { /* storage blocked */ } }
 
   // Does anything want an iCUE session right now? Mirrors shouldConnect() in
   // server/lighting.js: every effect drives the LEDs on its own, independent of
   // the master toggle, so gating the "not connected" hint on `enabled` alone hid
   // the failure from exactly the users relying on Album → LED or an event flash
-  // with the master off — lights dead, nothing on screen explaining why. Keep the
-  // two lists in step; listing an effect here that shouldConnect() ignores would
-  // report a broken connection the server never intended to open.
+  // with the master off. Keep the two lists in step.
   function wantsSession(status) {
     const e = status.effects || {};
     return !!status.enabled || !!e.temperature || !!e.musicAlbum
@@ -41,643 +37,243 @@
       || !!(e.reminder && e.reminder.enabled !== false);
   }
 
-  // POST a lighting command. Endpoints return either a full status or { status }.
-  // Mirror whichever we get into the client settings store.
-  async function post(path, body) {
-    try {
-      const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const data = await res.json().catch(() => null);
-      const status = (data && data.status && Array.isArray(data.status.providers)) ? data.status
-                   : (data && Array.isArray(data.providers)) ? data : null;
-      if (status && window.syncHubLighting) window.syncHubLighting(lightingFromStatus(status));
-      return data;
-    } catch (e) { console.error('lighting post failed', e); return null; }
-  }
-
   function render(host, status) {
     host.textContent = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'lighting-page';
+    const rerender = () => init(host);
+    const wrap = UI().el('div', 'lighting-page');
+    wrap.appendChild(masterCard(rerender, status));
 
-    // Master toggle — re-render afterwards so the rest reflects the new state.
-    wrap.appendChild(toggleRow('lighting_master', status.enabled, async (on) => {
-      await post('/api/lighting/effects', { enabled: on });
-      init(host);
-    }));
+    const tabBar = UI().el('div', 'settings-seg lighting-tabs');
+    tabBar.setAttribute('role', 'tablist');
+    const panels = {};
+    let current = readTab();
+    const select = (id) => {
+      current = id;
+      saveTab(id);
+      tabBar.querySelectorAll('.settings-seg-btn').forEach((b) => {
+        const on = b.dataset.tab === id;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', String(on));
+        b.tabIndex = on ? 0 : -1;
+      });
+      Object.entries(panels).forEach(([k, p]) => { p.hidden = k !== id; });
+    };
+    TABS.forEach(([id, key, fb]) => {
+      const b = UI().button('settings-seg-btn', key, fb, () => select(id));
+      b.dataset.tab = id;
+      b.setAttribute('role', 'tab');
+      tabBar.appendChild(b);
+    });
+    tabBar.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const ids = TABS.map(([id]) => id);
+      const at = ids.indexOf(current);
+      const next = ids[(at + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
+      select(next);
+      tabBar.querySelector(`[data-tab="${next}"]`).focus();
+    });
+    wrap.appendChild(tabBar);
 
-    // iCUE connection hint: something wants the LEDs but the SDK session isn't up.
-    if (wantsSession(status) && status.available && !status.connected) {
-      wrap.appendChild(hintP(status.reason || 'Connessione a iCUE non riuscita. Verifica che iCUE sia in esecuzione con l\'SDK abilitato.'));
-    }
-
-    // The SDK client component isn't on this PC. Since iCUE 5.48 stopped
-    // installing it, this is the ordinary case rather than a broken iCUE — so
-    // offer to fetch it instead of sending the user off to check iCUE settings
-    // that are almost certainly fine.
-    if (!status.available) {
-      wrap.appendChild(hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing'));
-      wrap.appendChild(sdkInstallRow(host));
-    }
-
-    const eff = status.effects || {};
-
-    // Brightness (live)
-    const bright = document.createElement('input');
-    bright.type = 'range'; bright.min = '0'; bright.max = '100';
-    bright.value = String(Math.round((status.brightness != null ? status.brightness : 1) * 100));
-    bright.addEventListener('change', () => post('/api/lighting/effects', { brightness: Number(bright.value) / 100 }));
-    wrap.appendChild(labeledRow('lighting_brightness', bright));
-
-    // Manual colour (override) + reset. Hex text input (the native colour picker
-    // is unreliable on the Xeneon Edge WebView).
-    const colorCtl = hexColorControl(status.manualColor || '#1ed760', (v) => post('/api/lighting/manual', { color: v }));
-    const clear = document.createElement('button');
-    clear.type = 'button'; clear.className = 'lighting-clear';
-    clear.setAttribute('data-i18n', 'lighting_manual_clear'); clear.textContent = 'Reset';
-    clear.addEventListener('click', () => post('/api/lighting/manual', { clear: true }));
-    const manualRow = labeledRow('lighting_manual', colorCtl);
-    manualRow.appendChild(clear);
-    wrap.appendChild(manualRow);
-
-    // Pause while gaming
-    wrap.appendChild(toggleRow('lighting_pause_game', status.pauseDuringGame !== false,
-      (on) => post('/api/lighting/effects', { pauseDuringGame: on })));
-
-    // Ambient animation
-    wrap.appendChild(sectionTitle('lighting_anim', 'Animazione'));
-    wrap.appendChild(animationSection(host, status));
-
-    // Reactive effects
-    wrap.appendChild(sectionTitle('settings_lighting_reactive', 'Effetti reattivi'));
-    const fxGrid = document.createElement('div');
-    fxGrid.className = 'lighting-fx-grid';
-    fxGrid.appendChild(toggleRow('lighting_effect_temperature', eff.temperature !== false, (on) => post('/api/lighting/effects', { effects: { temperature: on } }), null, true));
-    fxGrid.appendChild(toggleRow('lighting_effect_music', eff.musicAlbum !== false, (on) => post('/api/lighting/effects', { effects: { musicAlbum: on } }), null, true));
-    wrap.appendChild(fxGrid);
-
-    // Event flashes (enable + colour + style)
-    wrap.appendChild(sectionTitle('settings_lighting_events', 'Effetti evento'));
-    ['timer', 'notification', 'reminder'].forEach(type => wrap.appendChild(eventRow(type, eff[type])));
-
-    // iCUE devices — each with its own per-device mode control. Shown only with
-    // MORE THAN ONE device; with a single device the controls above already drive it.
-    if (Array.isArray(status.devices) && status.devices.length > 1) {
-      wrap.appendChild(sectionTitle('lighting_devices_icue', 'Dispositivi iCUE'));
-      const dl = document.createElement('div');
-      dl.className = 'lighting-devices';
-      status.devices.forEach(d => dl.appendChild(deviceModeControl(host, d, `${d.model} (${d.ledCount} LED)`)));
-      wrap.appendChild(dl);
-    }
-
-    // External systems (Govee / LIFX / WLED / Hue / Nanoleaf) — network-only
-    // providers, on-demand discovery, zero conflict with iCUE.
-    if (Array.isArray(status.providers) && status.providers.length) {
-      wrap.appendChild(sectionTitle('lighting_external_title', 'Sistemi esterni'));
-      wrap.appendChild(externalSection(host, status));
-    }
-
-    // SignalRGB — a separate "scene switcher", NOT a colour provider: it can't do
-    // album-follow or notification flashes (its launcher only applies a named
-    // effect). Enabling it here unlocks the "Apply SignalRGB effect" Deck action.
-    wrap.appendChild(sectionTitle('signalrgb_title', 'SignalRGB'));
-    wrap.appendChild(signalRgbSection());
+    const goConnections = () => select('connections');
+    panels.devices = devicesPanel(rerender, status, goConnections);
+    panels.effects = effectsPanel(rerender, status);
+    panels.reactions = reactionsPanel(rerender, status);
+    panels.connections = window.LightingConnections.build(rerender, status);
+    Object.values(panels).forEach((p) => {
+      p.classList.add('lighting-tabpanel');
+      p.setAttribute('role', 'tabpanel');
+      wrap.appendChild(p);
+    });
+    select(current);
 
     host.appendChild(wrap);
-    // Localise ONLY our freshly-injected subtree. Calling the global
-    // applyTranslations() here re-renders the whole settings modal while it is
-    // open (renderSettingsModal → syncSettingsControls → LightingPage.init →
-    // render → here), which would recurse forever and hammer the API.
-    localizeSubtree(host);
+    // Localise ONLY our freshly-injected subtree (see LightingUI.localizeSubtree).
+    UI().localizeSubtree(host);
   }
 
-  // Scoped i18n pass: mirror applyTranslations() but confined to `root` so it
-  // can never trigger a settings-modal re-render. `t` is a global from i18n.js.
-  function localizeSubtree(root) {
-    if (!root || typeof t !== 'function') return;
-    root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
-    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
-    root.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+  // Master switch + brightness: they apply to every tab, so they stay on top.
+  function masterCard(rerender, status) {
+    const card = UI().card();
+    card.body.appendChild(UI().toggleRow('lighting_master', status.enabled, async (on) => {
+      await UI().post('/api/lighting/effects', { enabled: on });
+      rerender();
+    }, 'lighting_master_hint'));
+    const bright = document.createElement('input');
+    bright.type = 'range'; bright.className = 'settings-range'; bright.min = '0'; bright.max = '100';
+    bright.value = String(Math.round((status.brightness != null ? status.brightness : 1) * 100));
+    bright.addEventListener('change', () => UI().post('/api/lighting/effects', { brightness: Number(bright.value) / 100 }));
+    card.body.appendChild(UI().labeledRow('lighting_brightness', bright));
+    return card;
   }
 
-  // --- ambient animation --------------------------------------------------------
+  function panel() { return UI().el('div', 'lighting-panel-body'); }
+
+  // --- Dispositivi ----------------------------------------------------------------
+  function devicesPanel(rerender, status, goConnections) {
+    const box = panel();
+    const problem = icueProblem(status);
+    if (problem) box.appendChild(problem);
+    const perLed = Array.isArray(status.devices) ? status.devices : [];
+    perLed.forEach(d => box.appendChild(window.LightingDevice.card(rerender, status, d, d.source === 'native' ? d.maker : 'iCUE')));
+    (status.providers || []).forEach((p) => {
+      (p.devices || []).filter(d => !(d.needsPairing && !d.paired) && d.optedIn !== false)
+        .forEach(d => box.appendChild(window.LightingDevice.card(rerender, status, { ...d, model: d.name || d.host }, p.name)));
+    });
+    if (!box.querySelector('.lighting-device')) {
+      const empty = UI().card();
+      empty.classList.add('lighting-empty');
+      empty.body.appendChild(UI().hintP('', 'lighting_devices_empty'));
+      empty.body.appendChild(UI().button('settings-btn primary', 'lighting_go_connections', 'Apri Connessioni', goConnections));
+      box.appendChild(empty);
+    }
+    return box;
+  }
+
+  // Why Corsair lights are missing, when they are: no SDK component, or a
+  // session that something wants but iCUE refused.
+  function icueProblem(status) {
+    const lines = [];
+    if (!status.available) {
+      lines.push(UI().hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing'));
+    } else if (wantsSession(status) && !status.connected) {
+      lines.push(UI().hintP('', 'lighting_icue_off_hint'));
+      // The bridge's own reason stays visible: it is what tells a real failure apart.
+      if (status.reason) lines.push(UI().hintP(String(status.reason)));
+    }
+    if (!lines.length) return null;
+    const card = UI().card();
+    card.classList.add('lighting-warn');
+    card.body.append(...lines);
+    return card;
+  }
+
+  // --- Effetti ----------------------------------------------------------------------
   const DYNAMIC_ANIM_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
 
-  function animationSection(host, status) {
-    const anim = status.animation || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
-    const box = document.createElement('div');
-    box.className = 'lighting-anim';
+  function effectsPanel(rerender, status) {
+    const box = panel();
+    const manual = UI().card('lighting_manual', 'Colore manuale');
+    manual.body.appendChild(UI().hintP('', 'lighting_manual_hint'));
+    const colorRow = UI().el('div', 'lighting-inline');
+    colorRow.append(
+      UI().hexColorControl(status.manualColor || '#1ed760', (v) => UI().post('/api/lighting/manual', { color: v })),
+      UI().button('settings-btn', 'lighting_manual_clear', 'Reset', () => UI().post('/api/lighting/manual', { clear: true })),
+    );
+    manual.body.appendChild(colorRow);
+    box.appendChild(manual);
 
-    box.appendChild(segmentedRow('lighting_anim', [
+    const anim = UI().card('lighting_anim', 'Animazione');
+    animationSection(rerender, status).forEach(n => anim.body.appendChild(n));
+    box.appendChild(anim);
+    return box;
+  }
+
+  function animationSection(rerender, status) {
+    const anim = status.animation || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
+    const out = [UI().segmented([
       ['none', 'lighting_anim_none', 'Nessuna'], ['solid', 'lighting_anim_solid', 'Fissa'],
       ['breathing', 'lighting_anim_breathing', 'Respiro'], ['cycle', 'lighting_anim_cycle', 'Arcobaleno'],
       ['wave', 'lighting_anim_wave', 'Onda'], ['aurora', 'lighting_anim_aurora', 'Aurora'],
       ['candle', 'lighting_anim_candle', 'Candela'], ['palette', 'lighting_anim_palette', 'Palette'],
     ], anim.style, async (val) => {
-      // The server swaps in the warm candle default colour when appropriate —
-      // same behaviour for the UI, the AI and per-device modes.
-      await post('/api/lighting/animation', { style: val });
-      init(host);
-    }));
-
-    // Colour picker for the styles with a colour of their own. "Fissa" reuses the
-    // manual colour above; cycle/wave paint the full spectrum; aurora owns its band.
+      // The server swaps in the warm candle default colour when appropriate.
+      await UI().post('/api/lighting/animation', { style: val });
+      rerender();
+    }, 4)];
+    // "Fissa" reuses the manual colour above; cycle/wave paint the full spectrum;
+    // aurora owns its band.
     if (anim.style === 'breathing' || anim.style === 'candle') {
-      box.appendChild(labeledRow('lighting_anim_color',
-        hexColorControl(anim.color, (v) => post('/api/lighting/animation', { color: v }))));
+      out.push(UI().labeledRow('lighting_anim_color',
+        UI().hexColorControl(anim.color, (v) => UI().post('/api/lighting/animation', { color: v }))));
     }
-    // Palette editor (2–5 colours) for the "Palette" style.
-    if (anim.style === 'palette') box.appendChild(paletteEditor(host, anim));
-    // Speed applies to every dynamic style.
+    if (anim.style === 'palette') out.push(paletteEditor(rerender, anim));
     if (DYNAMIC_ANIM_STYLES.includes(anim.style)) {
-      box.appendChild(labeledRow('lighting_anim_speed',
-        speedSlider(anim.speed, (v) => post('/api/lighting/animation', { speed: v }))));
+      out.push(UI().labeledRow('lighting_anim_speed',
+        UI().speedSlider(anim.speed, (v) => UI().post('/api/lighting/animation', { speed: v }))));
     }
-    return box;
+    return out;
   }
 
   // Palette editor: one swatch per colour, ✕ to drop (min 2), "+" to append (max 5).
-  function paletteEditor(host, anim) {
-    const pal = (Array.isArray(anim.palette) && anim.palette.length >= 2)
-      ? anim.palette.slice(0, 5) : ['#1ed760', '#0066ff'];
-    // Structural changes (add/remove) re-render; a colour edit only posts — the
-    // swatch already shows the new colour and a re-render would steal the focus
-    // from the input mid-edit.
-    const push = async (next) => { await post('/api/lighting/animation', { palette: next }); init(host); };
-    const row = document.createElement('div');
-    row.className = 'lighting-palette-row';
+  function paletteEditor(rerender, anim) {
+    const pal = (Array.isArray(anim.palette) && anim.palette.length >= 2) ? anim.palette.slice(0, 5) : ['#1ed760', '#0066ff'];
+    // Structural changes re-render; a colour edit only posts — a re-render would
+    // steal the focus from the input mid-edit.
+    const push = async (next) => { await UI().post('/api/lighting/animation', { palette: next }); rerender(); };
+    const row = UI().el('div', 'lighting-palette-row');
     pal.forEach((hex, i) => {
-      const cell = document.createElement('span');
-      cell.className = 'lighting-palette-cell';
-      cell.appendChild(hexColorControl(hex, (v) => {
-        pal[i] = v;   // keep the local copy current for later add/remove pushes
-        post('/api/lighting/animation', { palette: pal.slice() });
+      const cell = UI().el('span', 'lighting-palette-cell');
+      cell.appendChild(UI().hexColorControl(hex, (v) => {
+        pal[i] = v;
+        UI().post('/api/lighting/animation', { palette: pal.slice() });
       }));
       if (pal.length > 2) {
-        const rm = document.createElement('button');
-        rm.type = 'button'; rm.className = 'lighting-remove'; rm.textContent = '✕';
+        const rm = UI().button('settings-btn lighting-remove', '', '✕', () => push(pal.filter((_, j) => j !== i)));
         rm.setAttribute('data-i18n-title', 'lighting_palette_remove');
-        rm.addEventListener('click', () => push(pal.filter((_, j) => j !== i)));
         cell.appendChild(rm);
       }
       row.appendChild(cell);
     });
     if (pal.length < 5) {
-      const add = document.createElement('button');
-      add.type = 'button'; add.className = 'lighting-clear lighting-palette-add';
-      add.setAttribute('data-i18n', 'lighting_palette_add'); add.textContent = '+ Colore';
-      add.addEventListener('click', () => push(pal.concat(pal[pal.length - 1])));
-      row.appendChild(add);
+      row.appendChild(UI().button('settings-btn', 'lighting_palette_add', '+ Colore',
+        () => push(pal.concat(pal[pal.length - 1]))));
     }
-    return labeledRow('lighting_palette_colors', row);
+    return UI().labeledRow('lighting_palette_colors', row);
   }
 
-  // --- event flash (timer / notification / reminder): enable + colour + style +
-  // duration (0.5–10 s) ---
-  function eventRow(type, ev) {
+  // --- Reazioni ---------------------------------------------------------------------
+  function reactionsPanel(rerender, status) {
+    const box = panel();
+    const eff = status.effects || {};
+    const auto = UI().card('lighting_tab_reactions', 'Reazioni');
+    auto.body.append(
+      UI().toggleRow('lighting_effect_temperature', eff.temperature !== false,
+        (on) => UI().post('/api/lighting/effects', { effects: { temperature: on } }), 'lighting_effect_temperature_hint'),
+      UI().toggleRow('lighting_effect_music', eff.musicAlbum !== false,
+        (on) => UI().post('/api/lighting/effects', { effects: { musicAlbum: on } }), 'lighting_effect_music_hint'),
+      UI().toggleRow('lighting_pause_game', status.pauseDuringGame !== false,
+        (on) => UI().post('/api/lighting/effects', { pauseDuringGame: on })),
+    );
+    box.appendChild(auto);
+    const events = UI().card('settings_lighting_events', 'Effetti evento');
+    ['timer', 'notification', 'reminder'].forEach(type => events.body.appendChild(eventBlock(rerender, type, eff[type])));
+    box.appendChild(events);
+    return box;
+  }
+
+  // Event flash (timer / notification / reminder): a toggle, and while it is on
+  // its colour, style and duration (0.5–10 s).
+  function eventBlock(rerender, type, ev) {
     const cfg = (ev && typeof ev === 'object') ? ev : { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
-    const row = document.createElement('div');
-    row.className = 'lighting-event-row';
+    const send = (patch) => UI().post('/api/lighting/effects', { effects: { [type]: patch } });
+    const block = UI().el('div', 'lighting-event');
+    block.appendChild(UI().toggleRow('settings_lighting_event_' + type, cfg.enabled !== false, async (on) => {
+      await send({ enabled: on });
+      rerender();
+    }));
+    if (cfg.enabled === false) return block;
 
-    const toggle = document.createElement('label');
-    toggle.className = 'lighting-event-toggle';
-    const chk = document.createElement('input');
-    chk.type = 'checkbox'; chk.checked = cfg.enabled !== false;
-    chk.addEventListener('change', () => post('/api/lighting/effects', { effects: { [type]: { enabled: chk.checked } } }));
-    const lbl = document.createElement('span');
-    lbl.setAttribute('data-i18n', 'settings_lighting_event_' + type);
-    lbl.textContent = type;
-    toggle.append(chk, lbl);
+    const opts = UI().el('div', 'lighting-event-opts');
+    opts.appendChild(UI().labeledRow('lighting_show_color', UI().hexColorControl(cfg.color || '#ff0000', (v) => send({ color: v }))));
+    opts.appendChild(UI().segmentedRow('lighting_event_style', [
+      ['blink', 'lighting_style_blink', 'Blink'], ['pulse', 'lighting_style_pulse', 'Pulse'], ['solid', 'lighting_style_solid', 'Solid'],
+    ], cfg.style || 'blink', (val) => send({ style: val }), 3));
 
-    const controls = document.createElement('span');
-    controls.className = 'lighting-event-controls';
-    controls.appendChild(hexColorControl(cfg.color || '#ff0000', (v) => post('/api/lighting/effects', { effects: { [type]: { color: v } } })));
-
-    const seg = document.createElement('div');
-    seg.className = 'lighting-seg';
-    [['blink', 'lighting_style_blink', 'Blink'], ['pulse', 'lighting_style_pulse', 'Pulse'], ['solid', 'lighting_style_solid', 'Solid']]
-      .forEach(([val, key, fb]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'lighting-seg-btn' + ((cfg.style || 'blink') === val ? ' active' : '');
-        b.setAttribute('data-i18n', key); b.textContent = fb;
-        b.addEventListener('click', () => {
-          seg.querySelectorAll('.lighting-seg-btn').forEach(x => x.classList.remove('active'));
-          b.classList.add('active');
-          post('/api/lighting/effects', { effects: { [type]: { style: val } } });
-        });
-        seg.appendChild(b);
-      });
-    controls.appendChild(seg);
-
-    // Flash duration: 0.5–10 s, live seconds readout, persisted per event type.
-    const durRow = document.createElement('div');
-    durRow.className = 'lighting-event-duration';
-    const durLabel = document.createElement('span');
-    durLabel.setAttribute('data-i18n', 'lighting_event_duration');
-    durLabel.textContent = 'Durata';
     const dur = document.createElement('input');
-    dur.type = 'range'; dur.min = '500'; dur.max = '10000'; dur.step = '500';
+    dur.type = 'range'; dur.className = 'settings-range'; dur.min = '500'; dur.max = '10000'; dur.step = '500';
     dur.value = String(cfg.durationMs || 1800);
-    const durVal = document.createElement('span');
-    durVal.className = 'lighting-event-duration-val';
-    const fmtSecs = (ms) => (ms / 1000).toFixed(1).replace(/\.0$/, '') + 's';
+    const durRow = UI().labeledRow(null, dur);
+    const label = UI().el('span', 'settings-label-line');
+    const durVal = UI().el('span', 'settings-value');
+    const fmtSecs = (ms) => (ms / 1000).toFixed(1).replace(/\.0$/, '') + ' s';
     durVal.textContent = fmtSecs(Number(dur.value));
+    label.append(UI().el('span', '', 'lighting_event_duration', 'Durata'), durVal);
+    durRow.prepend(label);
     dur.addEventListener('input', () => { durVal.textContent = fmtSecs(Number(dur.value)); });
-    dur.addEventListener('change', () => post('/api/lighting/effects', { effects: { [type]: { durationMs: Number(dur.value) } } }));
-    durRow.append(durLabel, dur, durVal);
-
-    row.append(toggle, controls, durRow);
-    return row;
-  }
-
-  // --- external systems (Govee / LIFX / WLED / Hue / Nanoleaf) -------------------
-  function externalSection(host, status) {
-    const box = document.createElement('div');
-    box.className = 'lighting-external';
-
-    // On-demand network discovery — there is never a background scan.
-    const scanBtn = document.createElement('button');
-    scanBtn.type = 'button'; scanBtn.className = 'lighting-scan';
-    scanBtn.setAttribute('data-i18n', 'lighting_scan'); scanBtn.textContent = 'Cerca dispositivi sulla rete';
-    scanBtn.addEventListener('click', async () => {
-      scanBtn.disabled = true;
-      scanBtn.removeAttribute('data-i18n');
-      scanBtn.textContent = tr('lighting_scanning', 'Ricerca…');
-      await post('/api/lighting/scan', {});
-      init(host);
-    });
-    box.appendChild(scanBtn);
-
-    const providers = status.providers || [];
-    providers.filter(p => !p.advanced).forEach(p => box.appendChild(providerCard(host, p)));
-
-    // Power-user providers (OpenRGB) live in a collapsed group so the main list
-    // stays approachable; they are add-by-IP only (never auto-scanned).
-    const advanced = providers.filter(p => p.advanced);
-    if (advanced.length) {
-      const det = document.createElement('details');
-      det.className = 'lighting-advanced';
-      const sum = document.createElement('summary');
-      sum.setAttribute('data-i18n', 'lighting_advanced');
-      sum.textContent = 'Avanzate';
-      det.appendChild(sum);
-      advanced.forEach(p => det.appendChild(providerCard(host, p)));
-      box.appendChild(det);
-    }
-    return box;
-  }
-
-  function providerCard(host, p) {
-    const card = document.createElement('div');
-    card.className = 'lighting-provider';
-
-    const head = document.createElement('div');
-    head.className = 'lighting-provider-head';
-    const name = document.createElement('span');
-    name.className = 'lighting-provider-name';
-    name.textContent = p.name;
-    head.appendChild(name);
-    if (p.download) {
-      // Official setup/info page (e.g. Govee's "enable LAN Control" guide); the
-      // URL is resolved server-side from the catalogue, never taken from here.
-      const info = document.createElement('button');
-      info.type = 'button'; info.className = 'lighting-clear';
-      info.setAttribute('data-i18n', 'lighting_download'); info.textContent = 'Scarica';
-      info.addEventListener('click', () => post('/api/lighting/open-download', { provider: p.id }));
-      head.appendChild(info);
-    }
-    card.appendChild(head);
-
-    // Short per-provider hint (what it covers / how to enable it).
-    const descKey = 'lighting_desc_' + p.id;
-    if (tr(descKey, '')) card.appendChild(hintP('', descKey));
-
-    const devices = Array.isArray(p.devices) ? p.devices : [];
-    if (!devices.length) {
-      card.appendChild(hintP('Nessun dispositivo. Premi "Cerca" o aggiungi un IP manualmente.', 'lighting_no_devices'));
-    }
-    devices.forEach(d => card.appendChild(externalDeviceRow(host, p, d)));
-
-    card.appendChild(addIpRow(host, p));
-    return card;
-  }
-
-  // One configured external device: pairing flow when the provider needs it and
-  // the device has no token yet; otherwise the same per-device mode control the
-  // iCUE devices use (the bridge resolves modes by device id either way).
-  function externalDeviceRow(host, p, d) {
-    const label = d.host && d.name !== d.host ? `${d.name} — ${d.host}` : (d.name || d.host);
-
-    if (d.needsPairing && !d.paired) {
-      const box = document.createElement('div');
-      box.className = 'lighting-device-ctl';
-      const title = document.createElement('div');
-      title.className = 'lighting-device-name';
-      const nm = document.createElement('span');
-      nm.textContent = label;
-      const actions = document.createElement('span');
-      actions.className = 'lighting-device-actions';
-      const pairBtn = document.createElement('button');
-      pairBtn.type = 'button'; pairBtn.className = 'lighting-clear';
-      pairBtn.setAttribute('data-i18n', 'lighting_pair'); pairBtn.textContent = 'Associa';
-      actions.append(pairBtn, removeBtn(host, p.id, d.id));
-      title.append(nm, actions);
-      box.appendChild(title);
-      const hint = hintP('', 'lighting_pair_hint_' + p.id);
-      box.appendChild(hint);
-      pairBtn.addEventListener('click', async () => {
-        pairBtn.disabled = true;
-        const r = await post('/api/lighting/device', { provider: p.id, action: 'pair', host: d.host });
-        if (r && r.ok) { init(host); return; }
-        pairBtn.disabled = false;
-        // Link button not pressed (yet): tell the user to press it and retry.
-        hint.removeAttribute('data-i18n');
-        hint.textContent = tr('lighting_pair_retry', 'Premi il pulsante…') + ' ' + tr('lighting_pair_hint_' + p.id, '');
-      });
-      return box;
-    }
-
-    const box = deviceModeControl(host, d, label);
-    const title = box.querySelector('.lighting-device-name');
-    const actions = document.createElement('span');
-    actions.className = 'lighting-device-actions';
-    const optIn = document.createElement('input');
-    optIn.type = 'checkbox'; optIn.checked = d.optedIn !== false;
-    optIn.addEventListener('change', () =>
-      post('/api/lighting/device', { provider: p.id, action: 'optin', id: d.id, optedIn: optIn.checked }));
-    actions.append(optIn, removeBtn(host, p.id, d.id));
-    title.appendChild(actions);
-    return box;
-  }
-
-  function removeBtn(host, providerId, deviceId) {
-    const rm = document.createElement('button');
-    rm.type = 'button'; rm.className = 'lighting-remove'; rm.textContent = '✕';
-    rm.addEventListener('click', async () => {
-      await post('/api/lighting/device', { provider: providerId, action: 'remove', id: deviceId });
-      init(host);
-    });
-    return rm;
-  }
-
-  // Manual add by IP — or by entity id for Home Assistant (probe-validated
-  // server-side; rejected hosts mark the input).
-  function addIpRow(host, p) {
-    const row = document.createElement('div');
-    row.className = 'lighting-addip';
-    const input = document.createElement('input');
-    input.type = 'text'; input.className = 'lighting-hex';
-    input.placeholder = p.id === 'homeassistant' ? 'light.nome_luce' : '192.168.1.50';
-    input.spellcheck = false; input.maxLength = 64;
-    const btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'lighting-clear';
-    btn.setAttribute('data-i18n', 'lighting_add'); btn.textContent = 'Aggiungi';
-    btn.addEventListener('click', async () => {
-      const ip = input.value.trim();
-      if (!ip) return;
-      btn.disabled = true;
-      const r = await post('/api/lighting/device', { provider: p.id, action: 'add', host: ip });
-      btn.disabled = false;
-      if (r && r.ok) init(host);
-      else input.classList.add('invalid');
-    });
-    input.addEventListener('input', () => input.classList.remove('invalid'));
-    row.append(input, btn);
-    return row;
-  }
-
-  // t() with a fallback for keys that may not exist (t returns the key itself then).
-  function tr(key, fallback) {
-    if (typeof t !== 'function') return fallback;
-    const v = t(key);
-    return (v && v !== key) ? v : fallback;
-  }
-
-  // --- small builders -----------------------------------------------------------
-  function toggleRow(i18nKey, checked, onChange, literalLabel, compact) {
-    const row = document.createElement('label');
-    row.className = 'lighting-row' + (compact ? ' compact' : '');
-    const span = document.createElement('span');
-    if (i18nKey) span.setAttribute('data-i18n', i18nKey); else span.textContent = literalLabel || '';
-    const input = document.createElement('input');
-    input.type = 'checkbox'; input.checked = !!checked;
-    input.addEventListener('change', () => onChange(input.checked));
-    row.append(span, input);
-    return row;
-  }
-
-  // Segmented pill control — replaces dropdowns for small option sets. Native
-  // <select> popups render blank on the Xeneon Edge WebView, so we avoid them.
-  // options: [[value, i18nKey, fallback], …]. onSelect(value) fires on tap.
-  function segmentedRow(i18nKey, options, current, onSelect) {
-    const row = document.createElement('div');
-    row.className = 'lighting-row' + (i18nKey ? '' : ' lighting-row-nolabel');
-    let span = null;
-    if (i18nKey) { span = document.createElement('span'); span.setAttribute('data-i18n', i18nKey); }
-    const seg = document.createElement('div');
-    seg.className = 'lighting-seg';
-    options.forEach(([val, key, fb]) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'lighting-seg-btn' + (val === current ? ' active' : '');
-      b.setAttribute('data-i18n', key); b.textContent = fb;
-      b.addEventListener('click', () => {
-        seg.querySelectorAll('.lighting-seg-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        onSelect(val);
-      });
-      seg.appendChild(b);
-    });
-    if (span) row.append(span, seg); else row.appendChild(seg);
-    return row;
-  }
-
-  function speedSlider(value, onChange) {
-    const sp = document.createElement('input');
-    sp.type = 'range'; sp.min = '1'; sp.max = '100'; sp.value = String(value || 50);
-    sp.addEventListener('change', () => onChange(Number(sp.value)));
-    return sp;
-  }
-
-  // Per-device control: name + mode (Dashboard/Colore/Animazione/Temp/Album/Spento)
-  // and the mode's own colour/animation sub-controls. Posts to /api/lighting/device-mode.
-  function deviceModeControl(host, dev, name) {
-    const box = document.createElement('div');
-    box.className = 'lighting-device-ctl';
-    const title = document.createElement('div');
-    title.className = 'lighting-device-name';
-    title.textContent = name;
-    box.appendChild(title);
-
-    const mode = dev.mode || 'follow';
-    box.appendChild(segmentedRow(null, [
-      ['follow', 'lighting_mode_follow', 'Dashboard'],
-      ['color', 'lighting_mode_color', 'Colore'],
-      ['animation', 'lighting_mode_animation', 'Animaz.'],
-      ['temperature', 'lighting_mode_temperature', 'Temp'],
-      ['album', 'lighting_mode_album', 'Album'],
-      ['off', 'lighting_mode_off', 'Spento'],
-    ], mode, async (val) => { await post('/api/lighting/device-mode', { id: dev.id, mode: val }); init(host); }));
-
-    if (mode === 'color') {
-      box.appendChild(labeledRow('lighting_anim_color',
-        hexColorControl(dev.modeColor || '#1ed760', (v) => post('/api/lighting/device-mode', { id: dev.id, mode: 'color', color: v }))));
-    } else if (mode === 'animation') {
-      const a = dev.modeAnim || { style: 'cycle', color: '#1ed760', speed: 50 };
-      // No 'wave' here: per-device animations render uniform, so it would be an
-      // indistinguishable duplicate of 'cycle'. No 'palette' either (global-only).
-      box.appendChild(segmentedRow('lighting_anim', [
-        ['solid', 'lighting_anim_solid', 'Fissa'], ['breathing', 'lighting_anim_breathing', 'Respiro'], ['cycle', 'lighting_anim_cycle', 'Arcobaleno'],
-        ['aurora', 'lighting_anim_aurora', 'Aurora'], ['candle', 'lighting_anim_candle', 'Candela'],
-      ], a.style, async (val) => { await post('/api/lighting/device-mode', { id: dev.id, mode: 'animation', anim: { ...a, style: val } }); init(host); }));
-      if (a.style === 'solid' || a.style === 'breathing' || a.style === 'candle') {
-        box.appendChild(labeledRow('lighting_anim_color',
-          hexColorControl(a.color || '#1ed760', (v) => post('/api/lighting/device-mode', { id: dev.id, mode: 'animation', anim: { ...a, color: v } }))));
-      }
-      box.appendChild(labeledRow('lighting_anim_speed',
-        speedSlider(a.speed, (v) => post('/api/lighting/device-mode', { id: dev.id, mode: 'animation', anim: { ...a, speed: v } }))));
-    }
-    return box;
-  }
-
-  function infoRow(label) {
-    const row = document.createElement('div');
-    row.className = 'lighting-row compact';
-    const span = document.createElement('span');
-    span.textContent = label || '';
-    row.appendChild(span);
-    return row;
-  }
-
-  // NOTE: a plain <div>, not a <label> — wrapping a range/select in a <label>
-  // makes the slider hard to drag (the label hijacks pointer events) and can
-  // double-trigger the control on touch.
-  function labeledRow(i18nKey, control) {
-    const row = document.createElement('div');
-    row.className = 'lighting-row';
-    const span = document.createElement('span');
-    span.setAttribute('data-i18n', i18nKey);
-    row.append(span, control);
-    return row;
-  }
-
-  // Hex colour input + live swatch (mirrors Settings; the native colour picker is
-  // unreliable on the Xeneon Edge WebView — tapping the swatch opens the in-app
-  // ColorPicker instead). Accepts "#rrggbb" or "rrggbb".
-  function hexColorControl(initial, onValid) {
-    const box = document.createElement('span');
-    box.className = 'lighting-color-ctl';
-    const start = /^#?[0-9a-f]{6}$/i.test(String(initial || '')) ? ('#' + String(initial).replace(/^#/, '')) : '#1ed760';
-    const swatch = document.createElement('span');
-    swatch.className = 'lighting-color-swatch';
-    swatch.style.background = start;
-    const input = document.createElement('input');
-    input.type = 'text'; input.className = 'lighting-hex'; input.maxLength = 7;
-    input.spellcheck = false; input.placeholder = '#1ed760'; input.value = start;
-    const accept = (v) => {
-      input.value = v; input.classList.remove('invalid');
-      swatch.style.background = v;
-      onValid(v);
-    };
-    input.addEventListener('change', () => {
-      let v = input.value.trim();
-      if (/^[0-9a-f]{6}$/i.test(v)) v = '#' + v; // tolerate a missing leading #
-      if (/^#[0-9a-f]{6}$/i.test(v)) accept(v);
-      else input.classList.add('invalid');
-    });
-    if (window.ColorPicker) {
-      swatch.style.cursor = 'pointer';
-      swatch.title = t('color_custom');
-      swatch.addEventListener('click', () => window.ColorPicker.open({
-        anchor: swatch, value: input.value, onPick: accept,
-      }));
-    }
-    box.append(swatch, input);
-    return box;
-  }
-
-  function sectionTitle(i18nKey, fallback) {
-    const h = document.createElement('h3');
-    h.className = 'lighting-section-title';
-    h.setAttribute('data-i18n', i18nKey);
-    h.textContent = fallback;
-    return h;
-  }
-
-  function hintP(text, i18nKey) {
-    const p = document.createElement('p');
-    p.className = 'lighting-hint';
-    if (i18nKey) p.setAttribute('data-i18n', i18nKey);
-    p.textContent = text;
-    return p;
-  }
-
-  // One-tap fetch of the iCUE SDK component from Corsair's official release.
-  // Deliberately NOT automatic: it downloads native code the server then loads,
-  // so the user starts it. The server pins the version and verifies the archive's
-  // SHA-256 before anything is extracted (icue-sdk-update.ps1).
-  function sdkInstallRow(host) {
-    const row = document.createElement('div');
-    row.className = 'lighting-row lighting-sdk-install';
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'lighting-clear';
-    btn.setAttribute('data-i18n', 'lighting_sdk_install');
-    btn.textContent = 'Scarica componente';
-
-    const state = hintP('');
-    state.hidden = true;
-
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      state.hidden = false;
-      state.removeAttribute('data-i18n');       // live status replaces any translated text
-      state.textContent = tr('lighting_sdk_installing', 'Download in corso…');
-      let r = null;
-      try {
-        r = await (await fetch('/api/lighting/sdk-install', { method: 'POST' })).json();
-      } catch (e) {
-        r = { ok: false, error: e && e.message };
-      }
-      if (r && r.ok) {
-        state.textContent = tr('lighting_sdk_installed', 'Componente installato. Attivo alla prossima connessione a iCUE.');
-        init(host);                              // re-render: the controls are available now
-        return;
-      }
-      // Keep the real reason visible: a checksum mismatch or a blocked download
-      // is exactly what the user needs to see, not a generic failure.
-      state.textContent = tr('lighting_sdk_failed', 'Download non riuscito.') + (r && r.error ? ' ' + r.error : '');
-      btn.disabled = false;
-    });
-
-    row.appendChild(btn);
-    row.appendChild(state);
-    return row;
-  }
-
-  // SignalRGB card: an explanatory line plus — only when the launcher is present —
-  // an enable toggle. Status comes from its own endpoint (not the lighting status),
-  // and the toggle posts directly to /api/signalrgb/config (its response isn't a
-  // lighting status, so it must not go through post()). Async-added rows are
-  // localised on arrival via localizeSubtree.
-  function signalRgbSection() {
-    const box = document.createElement('div');
-    box.className = 'lighting-signalrgb';
-    box.appendChild(hintP('Applica una scena SignalRGB con un tasto del Deck. Non è un provider di colore: non segue l\'album né le notifiche.', 'signalrgb_hint'));
-    fetch('/api/signalrgb/status').then((r) => r.json()).then((st) => {
-      if (!st || !st.ok) return;
-      if (!st.installed) {
-        box.appendChild(hintP('SignalRGB non rilevato su questo PC.', 'signalrgb_not_installed'));
-      } else {
-        box.appendChild(toggleRow('signalrgb_enable', st.enabled, async (on) => {
-          try { await fetch('/api/signalrgb/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: on }) }); }
-          catch { /* offline — the toggle just reflects intent */ }
-        }));
-      }
-      localizeSubtree(box);
-    }).catch(() => {});
-    return box;
+    dur.addEventListener('change', () => send({ durationMs: Number(dur.value) }));
+    opts.appendChild(durRow);
+    block.appendChild(opts);
+    return block;
   }
 
   async function init(host) {
@@ -690,8 +286,8 @@
     }
     if (!mounts.length) return;
     mounted = true;
-    const status = await fetchStatus();
-    if (status && window.syncHubLighting) window.syncHubLighting(lightingFromStatus(status));
+    const status = await UI().fetchStatus();
+    if (status && window.syncHubLighting) window.syncHubLighting(UI().lightingFromStatus(status));
     mounts.forEach(m => render(m, status));
   }
 

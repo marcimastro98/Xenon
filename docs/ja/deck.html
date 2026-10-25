@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">アクション</a>
       <a href="#steps" data-i18n="deck.jump.steps">複数の手順のキー</a>
+      <a href="#behave" data-i18n="deck.jump.behave">キーの反応のしかた</a>
       <a href="#state" data-i18n="deck.jump.state">状態を示すキー</a>
       <a href="#faders" data-i18n="deck.jump.faders">フェーダー</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">プロファイルとページ</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter。</strong> ストリップのミュートやゲインの設定、バスへの送り（A1、A2、B1 のボタン）、バスのミュートやゲインの設定、自分のマクロボタンの操作、名前を指定した任意のパラメーターの設定。</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link。</strong> 入力、出力、ミックスの音量の設定やミュート。Wave Link 2 ではモニタリングの切り替えも、Wave Link 3 ではエフェクトのオンとオフや出力デバイスの選択も、キーでできます。</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant。</strong> デバイスの切り替え、照明の設定、メディアプレーヤー、カバー、空調、ファン、掃除機、ロック、アラームの操作、シーンの有効化、スクリプトの実行、ボタンの押下、任意のサービスの呼び出し。</li>
-      <li data-i18n-html="deck.act.light"><strong>ライティング。</strong> ライトのオンとオフ、色やエフェクトの設定、1台のデバイスの変更、自動制御に戻す操作。Razer Chroma のデバイスと SignalRGB のエフェクトには専用のキーがあります。</li>
+      <li data-i18n-html="deck.act.light"><strong>ライティング。</strong> ライトのオンとオフ、色やエフェクトの設定、1台のデバイスの変更、ファン1基・ストリップ1本・ポンプだけの色の変更、自動制御に戻す操作。Razer Chroma のデバイスと SignalRGB のエフェクトには専用のキーがあります。</li>
       <li data-i18n-html="deck.act.window"><strong>ウィンドウ。</strong> 直前まで使っていたウィンドウを次や前のモニターに移動、左半分や右半分にスナップ、最大化、最小化、中央に配置。</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI と Claude Code。</strong> AI にプロンプトを送る、音声セッションを始める、チャットを開く。自分のプロジェクトの1つで Claude Code のリクエストを始める、または実行中のものを止める。キーは権限を与えません。Claude Code がコマンドの実行を求めると、そのリクエストが画面に届き、あなたが承認します。</li>
       <li data-i18n-html="deck.act.more"><strong>その他。</strong> Bluetooth でペアリングしたスマートフォンでの電話とメッセージ、リモートセッションの終了やリモートアクセスのブロック。インストールしたコミュニティのウィジェットが追加するキーも使えますが、どれも先にあなたが許可したものだけです。</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">複数の手順のキー</h2>
-    <p data-i18n="deck.steps.p1">各キーには3つの操作があります。タップ、ダブルタップ、0.5秒の長押しです。操作ごとに別のアクションを設定できます。</p>
+    <p data-i18n="deck.steps.p1">各キーには3つの操作があります。タップ、ダブルタップ、長押しです。操作ごとに別のアクションを設定できます。</p>
     <p data-i18n="deck.steps.p2">1つの操作で複数のアクションを順に実行することもでき、各アクションの前に最大10秒の待ち時間を入れられます。たとえば、マイクをミュートし、少し待ってからアプリを開く、といった使い方です。</p>
     <p data-i18n="deck.steps.p3">前の手順が失敗しても、すべての手順が実行されます。どれかが失敗した場合は、最後の手順が終わったあとでキーが赤く点滅します。</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">キーの反応のしかた</h2>
+    <p data-i18n-html="deck.behave.p1">キーエディターの<strong>動作</strong>タブにある<strong>動作モード</strong>で、押したときのキーの反応を決めます。</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>ボタン。</strong>タップでアクションを実行します。ダブルタップと長押しには別のアクションを設定できます。</li>
+      <li data-i18n-html="deck.behave.switch"><strong>スイッチ。</strong>1回目のタップでオン、次のタップでオフになり、タップごとに別のアクションを実行します。指定した秒数のあとに自動でオフにすることもできます。</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>押している間。</strong>指を置いたときと離したときに、それぞれ別のアクションを実行します。プッシュトゥトークのような使い方です。押している間、キーは点灯します。</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>リピート。</strong>アクションを1回実行し、キーを押している間は繰り返し実行します。音量キーのような使い方です。繰り返し始めるまでの待ち時間と間隔を選べます。</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>サイクル。</strong>キーは2〜8個の状態を順に切り替え、状態ごとにアクション、ラベル、アイコン、色を持てます。タップすると今の状態のアクションを実行し、次の状態に進みます。キーの点で今の状態がわかります。</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">初期設定では、長押しは0.5秒、ダブルタップは260ミリ秒以内です。どちらもキーごとに同じ場所で変更できます。</p>
+    <p data-i18n="deck.behave.p3">自動オフは、スイッチをオンにしたダッシュボードが開いている間だけ働きます。</p>
 
     <h2 id="state" data-i18n="deck.h.state">状態を示すキー</h2>
     <p data-i18n="deck.state.p1">キーはリアルタイムの状態を追いかけ、オンの間は点灯できます。追いかけられる状態は次のとおりです:</p>

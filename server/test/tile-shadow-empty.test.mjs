@@ -63,7 +63,7 @@ test('a transparent tile is marked plain; a shadow the user set on it is marked,
   applyTileTokens(withShadow, { panelAlpha: 0, shadowStrength: 1 });
   assert.ok(withShadow.attrs.has('data-tile-plain'));
   assert.ok(withShadow.attrs.has('data-tile-shadow'), 'the user chose this shadow: it stays');
-  assert.equal(withShadow.props['--panel-drop'], 'DROP');
+  assert.ok(withShadow.props['--panel-drop'].startsWith('DROP, '), 'the theme drop plus the lift of the chosen strength');
 
   const opaque = fakeEl();
   applyTileTokens(opaque, { panelAlpha: 0.9 });
@@ -154,8 +154,8 @@ test('the slider still goes from 0 to 2, and a value set on it is kept', () => {
   assert.equal(clamp(undefined, 0, 2, 0), 0, 'nothing stored: off');
   assert.equal(clamp(1, 0, 2, 0), 1, 'someone who turns it on keeps it');
   assert.equal(clamp(1.6, 0, 2, 0), 1.6);
-  // The per-tile shadow control starts at a visible 1 when it is switched on.
-  assert.match(LAYOUT, /rangeRow\('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0\.05, 1\)/);
+  // The per-tile slider has the same range and starts from the dashboard's own value.
+  assert.match(read('../js/tile-style-editor.js'), /fx\('shadowStrength', tt\('tile_style_shadow', 'Panel shadow'\), 0, 2, 0\.05, num\(hs\.tileShadowStrength, 0\), pct\)/);
 });
 
 test('the Deck rule keys off the mark on a direct child of the grid item, and respects a chosen shadow', () => {

@@ -3,7 +3,7 @@
 // actions. ALL execution flows through here — validation/normalisation happens
 // at this boundary, and the OS side-effects are INJECTED so security decisions
 // live in one testable place. Reuses the shared catalog validator.
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction, validateGesture } = require('../js/deck-actions.js');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');
 
@@ -341,6 +341,21 @@ function createRegistry(deps) {
   // runnable on Windows and refused on POSIX by running the suite twice, on two
   // machines. Same option, same reason, as createDiskSpace's.
   const platform = d.platform || process.platform;
+  // set: the value (or 'on'); clear: removes it; toggle: a set name clears, an
+  // unset one takes the value. With a value, toggling a key in a radio group
+  // that holds another member's value selects this one instead of clearing.
+  function runDeckState(action) {
+    if (typeof d.setNamedState !== 'function') return { ok: false, error: 'unavailable' };
+    const value = action.value || 'on';
+    let next = value;
+    if (action.mode === 'clear') next = null;
+    else if (action.mode === 'toggle') {
+      const cur = typeof d.getNamedState === 'function' ? d.getNamedState(action.name) : null;
+      next = (cur != null && cur === value) ? null : value;
+    }
+    const err = d.setNamedState(action.name, next);
+    return err ? { ok: false, error: err } : { ok: true, state: next };
+  }
   async function run(rawAction) {
     const action = validateAction(rawAction);
     if (!action) return { ok: false, error: 'unknown_action' };
@@ -520,6 +535,7 @@ function createRegistry(deps) {
           const r = await d.mediaSeek(position);
           return r && r.ok === false ? { ok: false, error: r.error || 'seek_failed' } : { ok: true };
         }
+        case 'deckState': return runDeckState(action);
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume': {
           if (action.mode === 'set') {
@@ -835,7 +851,8 @@ function createRegistry(deps) {
         case 'lightColor':
         case 'lightAuto':
         case 'lightEffect':
-        case 'lightDevice': {
+        case 'lightDevice':
+        case 'lightPart': {
           // Whole-system RGB lighting control (master on/off, fixed colour,
           // ambient effect, per-device mode) — the same primitives the
           // Illuminazione settings drive, persisted the same way. One dep fronts
@@ -940,11 +957,14 @@ function createRegistry(deps) {
           // composed from the handler's declared params). The dep owns every
           // check — declaration, per-handler grant, rate gate, arg coercion —
           // and waits for the widget frame's ack (or times out honestly).
+          // The key's gesture (tap, press, release, a cycle state…) rides along
+          // outside the stored action, checked here like everything else.
           if (!d.sdkHandler || typeof d.sdkHandler !== 'function') return { ok: false, error: 'sdk_unavailable' };
           const ref = String(action.handler || '');
           const slash = ref.indexOf('/');
           if (slash <= 0 || slash === ref.length - 1) return { ok: false, error: 'bad_handler' };
-          const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args);
+          const gesture = validateGesture(rawAction && rawAction.gesture);
+          const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args, gesture);
           return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'handler_failed' };
         }
         default: return { ok: false, error: 'unsupported' };

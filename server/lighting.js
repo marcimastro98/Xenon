@@ -17,8 +17,13 @@ const path = require('path');
 const fs = require('fs');
 const fx = require('./lighting-effects');
 const external = require('./lighting-external'); // non-iCUE providers (WLED, …)
+const topology = require('./lighting-topology');  // which LEDs are which fan / pump / RAM stick
+const ledColors = require('./lighting-led-colors'); // per-LED colours of the 'custom' device mode
+const native = require('./lighting-native');      // motherboard RGB controllers Xenon drives itself over USB
+const keyLook = require('./lighting-key-look');   // what a Deck key set: wins over music/temperature until switched off
 
 const CSS_CONNECTED = 6; // CorsairSessionState::CSS_Connected (confirmed on hardware)
+const CDT_MOTHERBOARD = 0x200; // CorsairDeviceType::CDT_Motherboard
 
 // Resolve the SDK client DLL across installs. The redistributable client DLL is
 // not always shipped under the Corsair path; an env override and a bundled copy
@@ -119,10 +124,12 @@ let config = {
   manualColor: '',
   // Per-device override (master mode only). deviceId → { mode, color?, anim? }.
   // mode: follow (use the dashboard colour) | color | animation | temperature |
-  // album | off. Absent device = 'follow' (back-compatible).
+  // album | off | custom. Absent device = 'follow' (back-compatible). 'custom'
+  // is the lighting map: `leds` { luid: '#hex' | { style, color, speed } } holds
+  // what each LED shows, the rest follow Xenon (lighting-led-colors.js).
   deviceModes: {},
 };
-const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
 // Single source for the animation-style lists (keep the client mirrors in
 // lighting-page.js / settings.js aligned). Every style except none/solid loops →
 // drives the shared self-stopping ticker. Per-device excludes 'palette' (its
@@ -141,7 +148,11 @@ let eventAnim = null;                            // { style, color, startMs, dur
 let eventTimer = null;                           // setInterval handle, exists only during a flash
 let deckReaction = null;                         // { style, colorHex } transient Deck LED reaction (never persisted)
 let animTimer = null;                            // ambient-animation ticker; exists only while a dynamic animation paints
+// A native frame is painted in the background: when it fails, forget what was
+// sent so the next apply() paints that device again, and say why.
+native.setWriteErrorHook((id, e) => { lastError = e.message; lastWrite.delete(id); });
 let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
+let applyAgain = false;                          // a change arrived mid-apply: run once more when it ends
 let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
 let lastEnumerate = 0;                            // throttle for the apply()-driven re-enumerate when connected-but-empty
 let lastDeviceScan = 0;                           // last enumerate(), stamped at fire time AND on completion (success or not) — throttles the slow rescan below
@@ -356,7 +367,12 @@ async function enumerateOnce() {
       try {
         await sdkCall(fns.getLedPositions, 'CorsairGetLedPositions', d.id, d.ledCount, pos, pc);
       } catch (e) { lastError = e.message; pc[0] = 0; }
-      list.push({ id: d.id, model: d.model, type: d.type, ledCount: d.ledCount, ledIds: pos.slice(0, pc[0]).map(p => p.id) });
+      const leds = pos.slice(0, pc[0]);
+      const channels = await channelLayout(d.id, d.channelCount, leds.length);
+      list.push({
+        id: d.id, model: d.model, type: d.type, ledCount: d.ledCount, ledIds: leds.map(p => p.id),
+        segments: topology.buildSegments({ type: d.type, leds, channels }),
+      });
     }
     devices = list;
     // A complete enumeration (every device answered with real LED ids) clears the
@@ -373,6 +389,58 @@ async function enumerateOnce() {
     enumerating = false;
     enumeratePending = null;
   }
+}
+
+// --- Channel layout (which LEDs are which fan / pump / RAM stick) ------------
+// CDPI ids and the Int32-array shape ({ int* items; uint count; } in the value
+// union at offset 8) are from the official iCUE SDK v4 header; index = channel.
+// rc-tolerant like the battery read: a device that does not answer simply draws
+// as one block on the map. Cached per device + LED count, because the wiring
+// only changes on a hot-plug and the slow rescan would otherwise re-read it
+// every DEVICE_RESCAN_MS.
+const CDPI_CHANNEL_DEVICE_LED_COUNTS = 12;
+const CDPI_CHANNEL_DEVICE_TYPES = 13;
+const CT_STRING = 3;              // first non-scalar CorsairDataType
+const CT_INT32_ARRAY = 17;
+const MAX_CHANNELS = 8;
+const MAX_CHANNEL_DEVICES = 64;
+const channelCache = new Map();   // deviceId → { ledCount, channels }
+
+async function readInt32ArrayProperty(deviceId, propertyId, index) {
+  const buf = Buffer.alloc(CORSAIR_PROPERTY_BYTES);
+  const rc = await withSdkTimeout(new Promise((resolve, reject) =>
+    fns.readProperty.async(deviceId, propertyId, index, buf, (err, rc) => err ? reject(err) : resolve(rc))
+  ), 'CorsairReadDeviceProperty');
+  if (rc !== 0) return null;
+  const dataType = buf.readInt32LE(0);
+  try {
+    if (dataType !== CT_INT32_ARRAY) return null;
+    const count = buf.readUInt32LE(16);
+    if (count > MAX_CHANNEL_DEVICES) return null;
+    if (!count) return [];
+    return Array.from(koffi.decode(koffi.decode(buf, 8, 'void *'), 'int', count));
+  } finally {
+    // Every non-scalar payload is an SDK-side allocation (see getBatteryLevels).
+    if (dataType >= CT_STRING) { try { fns.freeProperty.async(buf, () => {}); } catch { /* best-effort */ } }
+  }
+}
+
+async function channelLayout(deviceId, channelCount, ledCount) {
+  if (!(channelCount > 0)) return null;
+  const hit = channelCache.get(deviceId);
+  if (hit && hit.ledCount === ledCount) return hit.channels;
+  let channels = [];
+  try {
+    for (let c = 0; c < Math.min(channelCount, MAX_CHANNELS); c++) {
+      const ledCounts = await readInt32ArrayProperty(deviceId, CDPI_CHANNEL_DEVICE_LED_COUNTS, c);
+      const types = await readInt32ArrayProperty(deviceId, CDPI_CHANNEL_DEVICE_TYPES, c);
+      if (!ledCounts || !types) { channels = null; break; }
+      channels.push({ ledCounts, types });
+    }
+  } catch { channels = null; }
+  // Only a complete read is cached; a timeout gets another try on the next scan.
+  if (channels) channelCache.set(deviceId, { ledCount, channels });
+  return channels;
 }
 
 // --- Device battery (CDPI_BatteryLevel) ------------------------------------
@@ -416,19 +484,16 @@ async function getBatteryLevels() {
 // Write a single uniform colour to a device (on-change only).
 // Async so the koffi FFI call runs on a worker thread and never blocks the Node event loop.
 async function writeDevice(deviceId, color) {
-  const dev = devices.find(d => d.id === deviceId);
-  if (!dev || !connected) return;
+  const dev = paintDevices().find(d => d.id === deviceId);
+  if (!dev || !sinkReady(dev)) return;
   const key = `${color.r},${color.g},${color.b}`;
   if (lastWrite.get(deviceId) === key) return; // unchanged → skip
   // A device whose layout never arrived has nothing to write to. Skipping keeps
   // it out of the on-change cache, so it repaints the moment a re-enumeration
   // fills in its LED ids.
   if (!dev.ledIds.length) return;
-  try {
-    const arr = dev.ledIds.map(id => ({ id, r: color.r, g: color.g, b: color.b, a: 255 }));
-    await sdkCall(fns.setLedColors, 'CorsairSetLedColors', deviceId, arr.length, arr);
-    lastWrite.set(deviceId, key); // cached only after the SDK confirmed the write
-  } catch (e) { noteSdkFailure(e); }
+  // Cached only after the device confirmed the write.
+  if (await pushLeds(dev, dev.ledIds.map(() => color))) lastWrite.set(deviceId, key);
 }
 
 // Paint a multi-stop gradient across the device's LEDs (album palette). Same
@@ -436,16 +501,11 @@ async function writeDevice(deviceId, color) {
 // when the palette actually changed (the cache key encodes every stop). Static —
 // no ticker, zero idle cost, exactly like the uniform path.
 async function writeDeviceGradient(dev, palette) {
-  if (!dev || !connected) return;
+  if (!dev || !sinkReady(dev)) return;
   const key = 'grad:' + palette.map(c => `${c.r},${c.g},${c.b}`).join('|');
   if (lastWrite.get(dev.id) === key) return; // unchanged → skip
   if (!dev.ledIds.length) return; // no layout yet — see writeDevice()
-  try {
-    const stops = fx.paletteGradient(palette, dev.ledIds.length);
-    const arr = dev.ledIds.map((id, i) => ({ id, r: stops[i].r, g: stops[i].g, b: stops[i].b, a: 255 }));
-    await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
-    lastWrite.set(dev.id, key);
-  } catch (e) { noteSdkFailure(e); }
+  if (await pushLeds(dev, fx.paletteGradient(palette, dev.ledIds.length))) lastWrite.set(dev.id, key);
 }
 
 // Paint the current spatial-animation frame (wave/palette) across the device's
@@ -454,15 +514,55 @@ async function writeDeviceGradient(dev, palette) {
 // frame) and checks it against lastWrite BEFORE building the per-LED array, so
 // unchanged frames cost zero allocations.
 async function writeDeviceAnimGradient(dev, stops, key) {
-  if (!dev || !connected || !stops || !stops.length) return;
+  if (!dev || !sinkReady(dev) || !stops || !stops.length) return;
+  const colors = dev.ledIds.map((_, i) => stops[Math.min(i, stops.length - 1)]);
+  if (await pushLeds(dev, colors)) lastWrite.set(dev.id, key);
+}
+
+// Paint the lighting map of a 'custom' device: each LED its own colour or effect,
+// the LEDs nobody touched follow Xenon (`follow`, the colour every other device
+// gets now). The on-change key is the frame itself, so a static map costs one
+// write and a looping effect writes only when a LED actually changed.
+async function writeDeviceCustom(dev, mode, follow) {
+  if (!dev || !sinkReady(dev) || !dev.ledIds.length) return;
+  const frame = ledColors.ledFrame(dev.ledIds, mode.leds, {
+    follow, temperature: config.effects.temperature ? layers.base : null, album: effectiveAlbum(),
+    brightness: config.brightness, nowMs: Date.now(),
+  });
+  const key = 'custom:' + frame.map(c => `${c.r},${c.g},${c.b}`).join('|');
+  if (lastWrite.get(dev.id) === key) return;
+  if (await pushLeds(dev, frame)) lastWrite.set(dev.id, key);
+}
+
+// Where a device's colours go: the iCUE SDK, or a controller Xenon drives itself.
+// colors[i] is the colour of dev.ledIds[i]. Returns true when the device took them.
+async function pushLeds(dev, colors) {
   try {
-    const arr = dev.ledIds.map((id, i) => {
-      const c = stops[Math.min(i, stops.length - 1)];
-      return { id, r: c.r, g: c.g, b: c.b, a: 255 };
-    });
-    await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
-    lastWrite.set(dev.id, key);
-  } catch (e) { noteSdkFailure(e); }
+    if (dev.source === 'native') {
+      native.write(dev, colors);   // handed over, never awaited (see lighting-native)
+    } else {
+      const arr = dev.ledIds.map((id, i) => ({ id, r: colors[i].r, g: colors[i].g, b: colors[i].b, a: 255 }));
+      await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
+    }
+    return true;
+  } catch (e) {
+    if (dev.source === 'native') lastError = e.message;
+    else noteSdkFailure(e);
+    return false;
+  }
+}
+
+function sinkReady(dev) { return dev.source === 'native' ? native.owns(dev.id) : connected; }
+
+// Every device this bridge paints per LED: the iCUE ones (while a session is up)
+// and the native controllers. With Xenon driving the motherboard itself, the
+// board iCUE reaches through a vendor plugin is left out, so the two never fight
+// over the same LEDs.
+function paintDevices() {
+  const nativeList = native.devices();
+  const icue = connected ? devices : [];
+  if (!nativeList.length) return icue;
+  return [...icue.filter(d => !(Number(d.type) & CDT_MOTHERBOARD)), ...nativeList];
 }
 
 // Release: hand control back to iCUE (alpha-0 transparent, confirmed in Task 1)
@@ -485,6 +585,8 @@ async function releaseAll() {
     }
   }
   try { external.release(); } catch { /* external is best-effort */ }
+  // Native controllers go back to the board's own effects (what it showed before).
+  try { await native.release(); } catch (e) { lastError = e.message; }
   lastWrite.clear();
   idleReleased = true;
 }
@@ -508,7 +610,12 @@ function disconnect() {
   }
 }
 
-function getDevices() { return devices.map(d => ({ id: d.id, model: d.model, type: d.type, ledCount: d.ledCount })); }
+function getDevices() {
+  return paintDevices().map(d => ({
+    id: d.id, model: d.model, type: d.type, ledCount: d.ledCount, segments: d.segments || [],
+    source: d.source || 'icue', ...(d.source === 'native' ? { maker: d.maker, outputs: d.outputs } : {}),
+  }));
+}
 function isConnected() { return connected; }
 function getLastError() { return lastError; }
 
@@ -543,6 +650,7 @@ function gamingPaused() {
 function wantsPaint() {
   if (gamingPaused()) return false;
   if (config.enabled) return true;                                    // fixed illumination
+  if (keyLook.isHeld()) return true;                                  // a Deck key set the lights
   if (config.effects.temperature && layers.base) return true;         // steady CPU-temp colour
   if (albumActive()) return true;                                     // steady album colour
   if (config.effects.volume && layers.overlay && (!overlayUntil || Date.now() <= overlayUntil)) return true; // volume flash window
@@ -555,7 +663,7 @@ function wantsPaint() {
 // a live sink — either an iCUE session or at least one external device. This lets
 // the bridge drive WLED/etc even with no iCUE installed.
 function active() {
-  return wantsPaint() && (connected || external.hasDevices());
+  return wantsPaint() && (connected || external.hasDevices() || native.hasDevices());
 }
 
 // Should we hold an iCUE session at all? True if the master OR ANY effect is on —
@@ -563,7 +671,7 @@ function active() {
 // (nothing to paint) apply() releases via alpha-0, so iCUE's own lighting shows.
 function shouldConnect() {
   const e = config.effects;
-  return config.enabled || !!deckReaction || !!e.temperature || !!e.musicAlbum
+  return config.enabled || !!deckReaction || keyLook.isHeld() || !!e.temperature || !!e.musicAlbum
     || (e.timer && e.timer.enabled !== false)
     || (e.notification && e.notification.enabled !== false)
     || (e.reminder && e.reminder.enabled !== false);
@@ -596,6 +704,7 @@ function anyDeviceAnimationDynamic() {
       const s = (m.anim && m.anim.style) || 'cycle';
       if (DYNAMIC_ANIM_STYLES.includes(s)) return true;
     }
+    if (m && m.mode === 'custom' && ledColors.hasDynamicLeds(m.leds)) return true;
   }
   return false;
 }
@@ -607,6 +716,9 @@ function colorForDevice(id, globalColor) {
   const m = config.deviceModes[id];
   if (!m || !m.mode || m.mode === 'follow') return globalColor;
   if (m.mode === 'off') return { r: 0, g: 0, b: 0 };
+  // A custom device without a map (an external provider) follows Xenon, like
+  // the LEDs of a map nobody painted.
+  if (m.mode === 'custom') return globalColor;
   if (m.mode === 'color') return fx.applyBrightness(fx.parseColorName(m.color || '') || accent, config.brightness);
   if (m.mode === 'temperature') return layers.base ? fx.applyBrightness(layers.base, config.brightness) : globalColor;
   if (m.mode === 'album') return layers.album ? fx.applyBrightness(layers.album, config.brightness) : globalColor;
@@ -646,7 +758,7 @@ function tickAnimation() {
 // available SDK, so it self-limits to zero cost whenever nothing needs the LEDs.
 function maybeReconnectForPaint() {
   if (connected || connecting) return;
-  if (!wantsPaint() || external.hasDevices() || !isAvailable()) return;
+  if (!wantsPaint() || external.hasDevices() || native.hasDevices() || !isAvailable()) return;
   if (Date.now() - lastConnectAttempt < CONNECT_RETRY_MS) return;
   lastConnectAttempt = Date.now();
   connect();
@@ -722,8 +834,10 @@ async function apply() {
   syncAnimationTicker(); // start/stop the ambient loop to match current state (cheap, idempotent)
   maybeReconnectForPaint(); // bring a sink up on demand when an effect wants paint but none is live yet
   maybeReenumerate();       // recover from a connected-but-empty device list (boot race)
-  if (applyInFlight) return;
+  // A change that lands mid-apply is not dropped: it runs right after.
+  if (applyInFlight) { applyAgain = true; return; }
   applyInFlight = true;
+  applyAgain = false;
   try {
     if (overlayUntil && Date.now() > overlayUntil) { layers.overlay = null; overlayUntil = 0; }
     if (!active()) {
@@ -749,17 +863,19 @@ async function apply() {
     // so the album colour shows while music plays and falls back to the fixed
     // colour when it stops. The ambient (animation / manual colour / accent) is
     // the master's steady "fixed illumination" and only exists when master is on.
-    const ambient = config.enabled ? (layers.animation || layers.override || accent) : null;
+    // What a Deck key set shows as is: no music or temperature colour on top.
+    const keyHeld = keyLook.isHeld();
+    const ambient = config.enabled || keyHeld ? (layers.animation || layers.override || accent) : null;
     // A Deck LED reaction overlays the reactive/ambient layers but stays below an
     // event flash. Like every other effect it is INDEPENDENT of the master toggle
     // (a per-key reaction is itself an explicit opt-in), so it fires even with the
     // master off. Transient — never persisted.
     const deckColor = deckReactionColor();
-    const albumCol = effectiveAlbum();
+    const albumCol = keyHeld ? null : effectiveAlbum();
     const picked = eventColor
       || deckColor
       || albumCol
-      || (config.effects.temperature ? layers.base : null)
+      || (config.effects.temperature && !keyHeld ? layers.base : null)
       || ambient
       || { r: 0, g: 0, b: 0 };
     const color = fx.applyBrightness(picked, config.brightness);
@@ -798,24 +914,27 @@ async function apply() {
     };
     const animOpts = { style: animCfg.style, color: animCfg.color, speed: animCfg.speed, palette: animCfg.palette, nowMs: animNow };
 
-    // iCUE devices (only when an iCUE session is connected).
-    if (connected) {
-      for (const dev of devices) {
-        if (config.devices[dev.id] === false) continue; // opt-out
-        if (wantsGradient(dev.id)) { await writeDeviceGradient(dev, gradientPal); continue; }
-        if (wantsAnimGradient(dev.id)) {
-          // Frame identity (quantized phase/shift + brightness) checked BEFORE
-          // building the per-LED array: unchanged frames cost zero allocations.
-          const frameKey = `anim:${animCfg.style}:${fx.animationFrameKey(animOpts, dev.ledIds.length)}:${Math.round(config.brightness * 64)}`;
-          if (lastWrite.get(dev.id) === frameKey) continue;
-          const stops = fx.animationGradientAt(animOpts, dev.ledIds.length);
-          if (stops) {
-            await writeDeviceAnimGradient(dev, stops.map(c => fx.applyBrightness(c, config.brightness)), frameKey);
-            continue;
-          }
+    // Per-LED devices: iCUE (while a session is up) and the native controllers.
+    for (const dev of paintDevices()) {
+      if (config.devices[dev.id] === false) continue; // opt-out
+      const dm = config.deviceModes[dev.id];
+      // An event flash or a Deck reaction takes the whole device, map or not.
+      const keyParts = !eventColor && !deckColor ? keyLook.partsOf(dev.id) : null;
+      if (keyParts) { await writeDeviceCustom(dev, { leds: { ...deviceLeds(dev, dm), ...keyParts } }, color); continue; }
+      if (dm && dm.mode === 'custom' && !eventColor && !deckColor) { await writeDeviceCustom(dev, dm, color); continue; }
+      if (wantsGradient(dev.id)) { await writeDeviceGradient(dev, gradientPal); continue; }
+      if (wantsAnimGradient(dev.id)) {
+        // Frame identity (quantized phase/shift + brightness) checked BEFORE
+        // building the per-LED array: unchanged frames cost zero allocations.
+        const frameKey = `anim:${animCfg.style}:${fx.animationFrameKey(animOpts, dev.ledIds.length)}:${Math.round(config.brightness * 64)}`;
+        if (lastWrite.get(dev.id) === frameKey) continue;
+        const stops = fx.animationGradientAt(animOpts, dev.ledIds.length);
+        if (stops) {
+          await writeDeviceAnimGradient(dev, stops.map(c => fx.applyBrightness(c, config.brightness)), frameKey);
+          continue;
         }
-        await writeDevice(dev.id, resolve(dev.id));
       }
+      await writeDevice(dev.id, resolve(dev.id));
     }
     // External providers (WLED/Hue/…): independent of iCUE, non-blocking fan-out.
     // With an album palette, per-LED-capable providers (WLED strips, Hue bulbs
@@ -824,6 +943,7 @@ async function apply() {
     external.writeWith(resolve, gradientPal ? (id) => (wantsGradient(id) ? gradientPal : null) : null);
   } finally {
     applyInFlight = false;
+    if (applyAgain) { applyAgain = false; apply(); }
   }
 }
 
@@ -970,10 +1090,76 @@ function setDeviceMode(id, patch) {
     if (becameCandle && cur.anim.color === GENERIC_DEFAULT_COLOR) cur.anim.color = CANDLE_DEFAULT_COLOR;
     if (patch.anim.speed != null && Number.isFinite(Number(patch.anim.speed))) cur.anim.speed = Math.max(1, Math.min(100, Number(patch.anim.speed)));
   }
+  if (patch.clearLeds === true) cur.leds = {};
+  if (patch.leds !== undefined) {
+    cur.leds = ledColors.mergeLedColors(cur.leds, patch.leds);
+    // Every LED handed back to Xenon: the device follows Xenon again, instead of
+    // sitting in "per part" with no part set.
+    if (cur.mode === 'custom' && !Object.keys(cur.leds).length) cur.mode = 'follow';
+  }
   config.deviceModes[String(id).slice(0, 160)] = cur;
   lastWrite.clear();
   apply();
   return true;
+}
+
+// The look a single-look device gives every LED, as a per-LED value: what the
+// other LEDs keep when one part gets its own. null = follows Xenon. Mirrors
+// wholeDeviceLook() in js/lighting-device.js.
+function wholeDeviceLook(m) {
+  const mode = (m && m.mode) || 'follow';
+  if (mode === 'color') return m.color || null;
+  if (mode === 'off') return '#000000';
+  if (mode === 'temperature' || mode === 'album') return { style: mode };
+  if (mode === 'animation' && m.anim) {
+    return m.anim.style === 'solid' ? m.anim.color : { style: m.anim.style, color: m.anim.color, speed: m.anim.speed };
+  }
+  return null;
+}
+
+// A device's own per-LED look, which a key's part colours go on top of: its
+// map, or the one look a single-look device gives every LED.
+function deviceLeds(dev, m) {
+  if (m && m.mode === 'custom') return m.leds || {};
+  const keep = wholeDeviceLook(m);
+  const leds = {};
+  if (keep) dev.ledIds.forEach((luid) => { leds[luid] = keep; });
+  return leds;
+}
+
+// One part of a device's map (a fan, the pump, a strip) gets its own look, or
+// gives it back (null): what the Deck and the AI do. `part` is the index in the
+// device's segments. It lasts until the lights are switched off from a key
+// (keyLook) and never touches the map saved in the Lighting page.
+function setPartLook(id, part, look) {
+  const dev = paintDevices().find(d => d.id === id);
+  const seg = dev && Array.isArray(dev.segments) ? dev.segments[part] : null;
+  if (!seg || !Array.isArray(seg.ledIds) || !seg.ledIds.length) return false;
+  const value = look === null ? null : ledColors.normalizeLedValue(look);
+  if (look !== null && !value) return false;
+  keyLook.setPart(id, seg.ledIds, value);
+  lastWrite.delete(id);
+  reconcileConnection();
+  apply();
+  return true;
+}
+
+// A key set a colour or an effect: show it as is until the lights go off.
+// wholeRig: the colour or effect is for every light, so parts an earlier key
+// coloured follow it again.
+function holdKeyLook(opts) {
+  keyLook.hold(opts);
+  lastWrite.clear();
+  reconcileConnection();
+  apply();
+}
+
+// The lights were switched off (or set back to automatic) from a key.
+function releaseKeyLook() {
+  if (!keyLook.release()) return;
+  lastWrite.clear();
+  reconcileConnection();
+  apply();
 }
 
 // Now-playing album colour feed (client pushes the same hue used for the theme,
@@ -1057,14 +1243,50 @@ function applyConfig(next) {
           speed: Number.isFinite(Number(v.anim.speed)) ? Math.max(1, Math.min(100, Number(v.anim.speed))) : 50,
         };
       }
+      if (v.leds !== undefined) e.leds = ledColors.normalizeLedColors(v.leds);
       dm[String(id).slice(0, 160)] = e;
     }
     config.deviceModes = dm;
   }
   if (next.providers && typeof next.providers === 'object') external.applyConfig(next.providers);
+  if (next.native && typeof next.native === 'object') configureNative(next.native);
   if (next.accent && typeof next.accent === 'object') accent = next.accent;
   reconcileConnection(); // (dis)connect to match master + any enabled effect
   apply();
+}
+
+// Switching native control on opens the controllers (a few hundred ms over USB,
+// more with a Gen2 scan): repaint once they are there.
+function configureNative(next) {
+  const enabled = typeof next.enabled === 'boolean' ? next.enabled : undefined;
+  lastWrite.clear();
+  native.configure({ enabled, layouts: next.layouts })
+    .catch((e) => { lastError = e.message; })
+    .then(() => { lastWrite.clear(); apply(); });
+}
+
+function setNativeEnabled(on) { configureNative({ enabled: !!on }); }
+
+// One output's layout from the guided setup (null = forget it and set it up again).
+function setNativeLayout(id, zone, layout) {
+  if (!native.setLayout(id, zone, layout)) return false;
+  lastWrite.clear();
+  apply();
+  return true;
+}
+
+// The guided setup lights part of one output; opts null ends the preview.
+async function setNativePreview(id, output, opts) {
+  if (opts === null) { native.clearPreview(); lastWrite.clear(); apply(); return true; }
+  return native.setPreview(id, output, opts);
+}
+
+async function scanNative() {
+  await native.stop();
+  await native.start();
+  lastWrite.clear();
+  apply();
+  return native.status();
 }
 
 function setEffectEnabled(effect, enabled) {
@@ -1104,6 +1326,7 @@ function getConfig() {
     manualColor: config.manualColor || '',
     deviceModes: JSON.parse(JSON.stringify(config.deviceModes)),
     providers: external.getConfig(),
+    native: { enabled: native.status().enabled, layouts: native.getLayouts() },
   };
 }
 
@@ -1114,6 +1337,7 @@ function deviceModeOf(id) {
     mode: (m && m.mode) || 'follow',
     modeColor: (m && m.color) || null,
     modeAnim: (m && m.anim) ? { ...m.anim } : null,
+    modeLeds: (m && m.leds) ? { ...m.leds } : {},
   };
 }
 
@@ -1131,6 +1355,7 @@ function getStatus() {
     brightness: config.brightness,
     pauseDuringGame: config.pauseDuringGame,
     providers,
+    native: native.status(),
     reason: lastError,
   };
 }
@@ -1141,6 +1366,7 @@ module.exports = {
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
+  setPartLook, holdKeyLook, releaseKeyLook, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative: native.stop,
   _fx: fx,
   _enumerationComplete: enumerationComplete, // pure predicate — unit-tested in lighting-enumeration.test.mjs
 };

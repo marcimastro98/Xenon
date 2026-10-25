@@ -65,7 +65,11 @@
   // charsets, size caps) at DETERMINISTIC paths (packs/<id>/<clip>.<ext>), so a
   // shared Deck profile that references a pack clip plays again on any machine
   // with the pack installed — the fix for playSound files being stripped.
-  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds'];
+  // 'topbar' shares a whole top bar: { look, style, clock:{align,items,actions,
+  // pageLabels}, rails, railsAutoHide } (js/topbar-share.js shapes and reads it).
+  // Settings only, no code and no files; import goes through normalizeSettings,
+  // which keeps Settings and Layout on the bar whatever the code says.
+  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds', 'topbar'];
   // A theme code carries the whole visual identity of the Aspetto tab — mode,
   // style/skin, colours, album-accent and surface (font travels separately as
   // fontData). Keep this in step with THEME_SETTING_KEYS in settings.js. Older
@@ -120,8 +124,6 @@
   // 6 is generous. Also keeps a crafted deeply-nested payload from recursing
   // the normalizer into a stack overflow — folders past the cap are emptied.
   const DECK_MAX_FOLDER_DEPTH = 6;
-  const DECK_TRIGGERS = ['tap', 'double', 'hold'];
-
   // The community catalog caps a share code at 4 MB (hub MAX_CODE, and
   // community-catalog.js MAX_CODE_BYTES). A pack is always shareable as a FILE
   // regardless, so this only gates the "publish to catalog" reach — the builder
@@ -384,7 +386,9 @@
         if (key.kind === 'action') {
           const rawTriggers = (key.triggers && typeof key.triggers === 'object') ? key.triggers : {};
           const clean = {};
-          for (const name of DECK_TRIGGERS) {
+          // Every slot a key can hold (DeckModel.KEY_TRIGGERS): press/release and
+          // the cycle states get the same filtering, and the same disclosure, as tap.
+          for (const name of M.KEY_TRIGGERS) {
             // runScript and typeText are LOCAL-only actions and must never travel
             // inside a shared preset: runScript launches an arbitrary script, and
             // typeText injects arbitrary keystrokes into whatever app is focused —
@@ -444,8 +448,8 @@
   // sdkHandler steps plus sdkState state/live bindings all carry "pkg/…" refs.
   // Used by the deck export to offer embedding those packages in the code.
   function profileSdkPackages(profile, deps) {
-    const A = deps && deps.actions;
-    if (!A) return [];
+    const M = deps && deps.model, A = deps && deps.actions;
+    if (!A || !M) return [];
     const out = new Set();
     const addRef = (ref) => {
       const s = String(ref || '');
@@ -454,7 +458,7 @@
     };
     eachProfileKey(profile, (key) => {
       if (key.kind === 'action' && key.triggers) {
-        for (const name of DECK_TRIGGERS) {
+        for (const name of M.KEY_TRIGGERS) {
           for (const step of A.triggerSteps(key.triggers[name])) {
             if (!step.action) continue;
             if (step.action.type === 'sdkMacro') addRef(step.action.macro);
@@ -479,8 +483,8 @@
   // Which action types a (sanitized) profile contains, as [{ type, count }]
   // sorted by count — shown to the user BEFORE an imported profile is added.
   function profileActionSummary(profile, deps) {
-    const A = deps && deps.actions;
-    if (!A) return [];
+    const M = deps && deps.model, A = deps && deps.actions;
+    if (!A || !M) return [];
     const counts = new Map();
     eachProfileKey(profile, (key) => {
       // Slider keys drive real registry actions too — disclose them under the
@@ -492,7 +496,7 @@
         return;
       }
       if (key.kind !== 'action' || !key.triggers) return;
-      for (const name of DECK_TRIGGERS) {
+      for (const name of M.KEY_TRIGGERS) {
         for (const step of A.triggerSteps(key.triggers[name])) {
           counts.set(step.action.type, (counts.get(step.action.type) || 0) + 1);
         }
@@ -817,6 +821,10 @@
       const s = HS();
       const out = {};
       for (const k of THEME_KEYS) if (k in s) out[k] = s[k];
+      // The bar's style travels with the theme when it was changed; never the
+      // buttons, the rails or where notifications go (TopbarLook.themePart).
+      const bar = window.TopbarLook ? TopbarLook.themePart(s.topbarLook) : null;
+      if (bar) out.topbarLook = bar;
       return out;
     }
     function layoutNow() {
@@ -1045,6 +1053,12 @@
         if (fps !== CustomBg.FPS_DEFAULT) data.fps = fps;
       }
       openShareDialog('bg', name, encodePreset('bg', name, data, { exportedAt: stamp(), appVersion: appVersion() }), null, data);
+    }
+    // Share the whole top bar: its look, style, buttons and rails.
+    function exportTopbar() {
+      const name = tr('preset_share_topbar_name', 'My top bar');
+      const data = TopbarShare.of(HS());
+      openShareDialog('topbar', name, encodePreset('topbar', name, data, { exportedAt: stamp(), appVersion: appVersion() }), null, data);
     }
     // Build & share a Deck icon pack: pick SVG/PNG files, name the pack, get a
     // share code. Every file is checked here with the same rules the install
@@ -1566,6 +1580,14 @@
         list.appendChild(bgRow.row);
       }
 
+      // The top bar: look, buttons and side rails. Off by default, so a package
+      // replaces the bar of whoever installs it only when its author means it to.
+      list.appendChild(groupLabel('▭ ' + tr('preset_kind_topbar', 'Top bar')));
+      const topbarRow = checkRow(tr('preset_kind_topbar', 'Top bar'),
+        tr('preset_bundle_topbar_meta', 'look, buttons and side rails'), false, false);
+      track(topbarRow.cb, 'topbar');
+      list.appendChild(topbarRow.row);
+
       // Installed SDK widgets and Ambient scenes — separate groups (same payload
       // shape); only the user's OWN packages are selectable, capped so a bundle
       // stays a practical share code.
@@ -1607,6 +1629,7 @@
         bg: [tr('preset_kind_bg', 'Animated background'), tr('preset_kind_bg', 'Animated background')],
         widget: [tr('preset_kind_widget', 'Widget'), tr('preset_bundle_widgets', 'Community widgets')],
         scene: [tr('preset_kind_ambient', 'Ambient scene'), tr('preset_bundle_scenes', 'Ambient scenes')],
+        topbar: [tr('preset_kind_topbar', 'Top bar'), tr('preset_kind_topbar', 'Top bar')],
       };
       function refreshSummary() {
         const counts = {};
@@ -1637,9 +1660,10 @@
           pageIds: pageRows.filter(picked).map(r => r.id),
           deckRefs: deckRows.filter(picked).map(r => ({ instanceId: r.instanceId, profileId: r.profileId })),
           bg: !!(bgRow && picked(bgRow)),
+          topbar: picked(topbarRow),
           widgetIds: widgetRows.filter(picked).map(r => r.id),
         };
-        if (!sel.theme && !sel.pageIds.length && !sel.deckRefs.length && !sel.bg && !sel.widgetIds.length) {
+        if (!sel.theme && !sel.pageIds.length && !sel.deckRefs.length && !sel.bg && !sel.topbar && !sel.widgetIds.length) {
           toast(tr('preset_bundle_empty', 'Pick at least one thing to include.'), '', 'error');
           return;
         }
@@ -1732,7 +1756,8 @@
         } catch { /* skip a widget that won't export */ }
       }
       if (widgets.length) data.widgets = widgets;
-      if (!data.theme && !data.pages && !data.decks && !data.bg && !data.widgets) return null;
+      if (sel.topbar && window.TopbarShare) data.topbar = TopbarShare.of(HS());
+      if (!data.theme && !data.pages && !data.decks && !data.bg && !data.topbar && !data.widgets) return null;
       const name = tr('preset_bundle_name', 'My Xenon package');
       return { name, code: encodePreset('bundle', name, data, { exportedAt: stamp(), appVersion: appVersion() }) };
     }
@@ -1920,11 +1945,12 @@
       if (!env) return false;
       if (env.kind === 'theme') return applyTheme(env.data, env.name);
       if (env.kind === 'page') return applyPage(env.data, env.name, env.gridCols);
-      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.decks || r.bg || r.widgets.installed)); }
+      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.decks || r.bg || r.topbar || r.widgets.installed)); }
       if (env.kind === 'bg') return applyBg(env.data);
       if (env.kind === 'ambient-layout') return applyAmbientLayout(env.data, env.name);
       if (env.kind === 'icons') return applyIcons(env.data);
       if (env.kind === 'sounds') return applySounds(env.data);
+      if (env.kind === 'topbar') return applyTopbar(env.data);
       // An ambient scene is the same validated /sdk/install payload as a widget.
       if (env.kind === 'widget' || env.kind === 'ambient') return applyWidget(env.data, null, { catalogStamp: true });
       return false;
@@ -2022,6 +2048,13 @@
         return true;
       } catch { return false; }
     }
+    // Put a shared top bar on this dashboard. TopbarShare.read keeps known fields
+    // only; applyTopbarSetup (settings.js) writes through normalizeSettings.
+    function applyTopbar(data) {
+      const share = window.TopbarShare ? TopbarShare.read(data) : null;
+      if (!share || typeof applyTopbarSetup !== 'function') return false;
+      try { applyTopbarSetup(share); return true; } catch { return false; }
+    }
     // Import a native canvas Ambient scene: install its bundled SDK widgets first
     // (same validated /sdk/install boundary, never auto-granted), then re-normalize
     // the scene through AmbientScene with a FRESH id + imported marker (so it can't
@@ -2050,6 +2083,7 @@
       if (!norm) return false;
       try {
         const list = Array.isArray(HS().ambientScenes) ? HS().ambientScenes.slice() : [];
+        if (!AS.sceneFits(norm, list)) return false;   // the review step already said why
         list.push(norm);
         hubSettings = normalizeSettings(Object.assign({}, HS(), {
           ambientScenes: list,
@@ -2069,7 +2103,7 @@
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols, tx) {
-      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0, ids: [], placed: [] } };
+      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, topbar: false, widgets: { installed: 0, failed: 0, ids: [], placed: [] } };
       const pageBinds = [];
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
@@ -2107,6 +2141,8 @@
       // Background AFTER the theme, so a bundle that ships both keeps its
       // explicit background (a theme snapshot can carry its own bgCustom).
       if (data.bg && typeof data.bg === 'object') out.bg = applyBg(data.bg, tx);
+      // The whole bar AFTER the theme too: the theme's bar style gives way to it.
+      if (data.topbar && typeof data.topbar === 'object') out.topbar = applyTopbar(data.topbar);
       if (Array.isArray(data.widgets)) {
         let firstScene = null;   // first ambient scene the bundle installs
         for (const w of data.widgets.slice(0, BUNDLE_MAX_WIDGETS)) {
@@ -2185,6 +2221,9 @@
       // theme must never wipe the user's current typeface.
       const uiFont = await writeEmbeddedFont(data.fontData, tx);
       if (uiFont) patch.uiFont = uiFont;
+      // A theme's bar style lands on the user's own bar: their buttons, rails
+      // and notification place are kept. A theme without one leaves the bar.
+      if (data.topbarLook && window.TopbarLook) patch.topbarLook = TopbarLook.withThemePart(HS().topbarLook, data.topbarLook);
       if (!Object.keys(patch).length) return false;
       try {
         // normalizeSettings rebuilds known keys only, coercing each field (hex,
@@ -2439,7 +2478,7 @@
       // prefill the portal's kind select; a non-listable kind (e.g.
       // ambient-layout) opens the portal without a kind so the user picks a
       // real one instead of it silently defaulting to "theme".
-      const CATALOG_PUBLISH_KINDS = ['theme', 'bg', 'page', 'deck', 'widget', 'ambient', 'bundle', 'icons', 'sounds'];
+      const CATALOG_PUBLISH_KINDS = ['theme', 'bg', 'page', 'deck', 'widget', 'ambient', 'bundle', 'icons', 'sounds', 'topbar'];
       pubBtn.addEventListener('click', async () => {
         await copy(code);
         const params = new URLSearchParams({ name: String(name || '').slice(0, 60) });
@@ -2899,6 +2938,10 @@
                 toast(tr('preset_redeem_wrong', 'This code doesn’t unlock this drop. Supporter codes open supporter drops only; limited or purchased drops need their own code.'), '', 'error');
               } else if (err === 'bad_code' || err === 'bad_entry' || err === 'bad_request') {
                 toast(tr('preset_redeem_bad', 'Wrong or unknown code.'), '', 'error');
+              } else if (err === 'rate_limited') {
+                // The hub answered, so "couldn't reach" would send the user hunting
+                // for a network problem that isn't there.
+                toast(tr('devclean_unlock_rate', 'Too many attempts. Try again in a few minutes.'), '', 'error');
               } else {
                 toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service — check your connection and try again.'), '', 'error');
               }
@@ -2982,6 +3025,7 @@
         // Icon / sound packs write files (validated server-side) → preview first.
         if (env.kind === 'icons') { close(); openIconsImport(env.name, env.data); return; }
         if (env.kind === 'sounds') { close(); openSoundsImport(env.name, env.data); return; }
+        if (env.kind === 'topbar') { close(); openTopbarImport(env.name, env.data); return; }
         // Defensive fallback: any future kind applies directly rather than silently
         // doing nothing.
         if (await applyPreset(env)) {
@@ -3246,6 +3290,7 @@
       if (pages.length) chipFor('▦ ' + pages.length + ' ' + tr('preset_bundle_pages', 'Pages'));
       if (deckProfiles.length) chipFor('🗝 ' + deckProfiles.length + ' ' + tr('preset_bundle_decks', 'Deck profiles'));
       if (d.bg && typeof d.bg === 'object' && typeof d.bg.code === 'string' && d.bg.code.trim()) chipFor('🌄 ' + tr('preset_kind_bg', 'Animated background'));
+      if (window.TopbarShare && TopbarShare.read(d.topbar)) chipFor('▭ ' + tr('preset_kind_topbar', 'Top bar'));
       if (tileCount) chipFor('🧩 ' + tileCount + ' ' + tr('preset_bundle_widgets', 'Community widgets'));
       if (sceneCount) chipFor('🌙 ' + sceneCount + ' ' + tr('preset_bundle_scenes', 'Ambient scenes'));
       if (!items.childNodes.length) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return; }
@@ -3332,7 +3377,7 @@
           try { await CustomWidget.getPackages(true); } catch { /* refresh best-effort */ }
           CustomWidget.requestGrants(res.widgets.ids);
         }
-        if (!res || (!res.theme && !res.pages && !res.decks && !res.bg && !res.widgets.installed && !res.widgets.failed)) {
+        if (!res || (!res.theme && !res.pages && !res.decks && !res.bg && !res.topbar && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
           return;
         }
@@ -3341,6 +3386,7 @@
         if (res.pages) parts.push(res.pages + ' ' + tr('preset_bundle_pages', 'Pages'));
         if (res.decks) parts.push(res.decks + ' ' + tr('preset_bundle_decks', 'Deck profiles'));
         if (res.bg) parts.push(tr('preset_kind_bg', 'Animated background'));
+        if (res.topbar) parts.push(tr('preset_kind_topbar', 'Top bar'));
         if (res.widgets.installed) parts.push(res.widgets.installed + ' ' + tr('preset_bundle_widgets', 'Community widgets'));
         toast(tr('preset_import_ok', 'Preset imported'), parts.join(' · ') || tr('preset_kind_bundle', 'Package'), 'success');
         if (res.decksAsPresets) {
@@ -3650,6 +3696,37 @@
       body.appendChild(previewApplyRow(close, (tx) => applyBg(d, tx), name || d.name, kindLabel, 'bg'));
     }
 
+    // Review step for an imported TOP BAR: the style, the look and how many
+    // buttons it shows, and a plain warning that it replaces the user's bar.
+    function openTopbarImport(name, data) {
+      const share = window.TopbarShare ? TopbarShare.read(data) : null;
+      if (!share) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const kindLabel = tr('preset_kind_topbar', 'Top bar');
+      body.appendChild(presetWhat(kindLabel, name));
+
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      const chipFor = (text) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = text; chips.appendChild(c); };
+      chipFor(tr('settings_topbar_' + share.style, share.style));
+      const preset = TopbarLook.presetOf(share.look);
+      chipFor(preset ? tr('tbl_preset_' + preset, preset) : tr('preset_topbar_own_look', 'Its own look'));
+      if (share.style !== 'none') {
+        const shown = share.clock.actions.filter((a) => !a.hidden).length;
+        if (shown) chipFor(shown + ' ' + tr('preset_topbar_buttons', 'buttons'));
+      }
+      const styled = Object.keys(share.look.buttons).length;
+      if (styled) chipFor(styled + ' ' + tr('preset_topbar_styled', 'with their own icon or label'));
+      body.appendChild(chips);
+
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc';
+      note.textContent = tr('preset_topbar_note', 'It replaces your top bar: its look, its buttons and the side rails. Settings and Layout always stay on it.');
+      body.appendChild(note);
+
+      body.appendChild(previewApplyRow(close, () => applyTopbar(data), name, kindLabel, 'topbar'));
+    }
+
     // Review step for an imported ICON PACK: pack name/author/version, icon
     // count, and an inert thumbnail grid of the first icons (data: URIs in
     // <img> — SVG inside an <img> never runs scripts by spec) before anything
@@ -3829,6 +3906,16 @@
         } catch { /* skip preview */ }
       }
 
+      // Said before the Import button, never after: the server would keep the
+      // settings without a scene past the store's limits.
+      const stored = Array.isArray(HS().ambientScenes) ? HS().ambientScenes : [];
+      if (!AS.sceneFits(scene, stored)) {
+        const full = document.createElement('p');
+        full.className = 'preset-modal-desc preset-ambient-full';
+        full.textContent = tr('preset_ambient_no_room', 'There is no room for this scene. Delete a scene you no longer use in Settings, Ambient, then import it again.');
+        body.appendChild(full);
+        return;
+      }
       body.appendChild(previewApplyRow(close, (tx) => applyAmbientLayout(d, name, tx), name || scene.name, kindLabel, 'ambient-layout'));
     }
 
@@ -3950,6 +4037,7 @@
         uiFont: clearLiveFont ? null : HS().uiFont,
         ambientMode: removedActiveScene ? Object.assign({}, HS().ambientMode, { sceneId: 'builtin' }) : HS().ambientMode,
         sdkWidgets: Object.assign({}, currentSdk, { assign, grants }),
+        ...(typeof withoutSdkTopbarButtons === 'function' ? withoutSdkTopbarButtons(HS(), widgetDeleteIds) : {}),
       }));
       if (typeof saveHubSettings === 'function') saveHubSettings();
 
@@ -4031,6 +4119,7 @@
       { kind: 'ambient', label: ['settings_share_ambient', 'Esporta scena Ambient'], desc: ['export_pick_ambient', 'Una scena della modalità Ambient.'], run: () => exportAmbient() },
       { kind: 'icons', label: ['settings_share_icons', 'Crea pacchetto icone'], desc: ['export_pick_icons', 'Raccogli icone Deck in un pacchetto.'], run: () => exportIcons() },
       { kind: 'sounds', label: ['settings_share_sounds', 'Crea pacchetto suoni'], desc: ['export_pick_sounds', 'Raccogli clip audio in un pacchetto.'], run: () => exportSounds() },
+      { kind: 'topbar', label: ['settings_share_topbar', 'Esporta barra superiore'], desc: ['export_pick_topbar', 'Aspetto, bottoni e barre laterali della barra.'], run: () => exportTopbar() },
       { kind: 'bundle', label: ['settings_share_bundle', 'Esporta pacchetto'], desc: ['export_pick_bundle', 'Tema, sfondo, pagine e widget insieme.'], run: () => exportBundle() },
     ];
 
@@ -4083,7 +4172,7 @@
     // receipt engine behind the Store's "Installed" tab (js/installed-manager.js)
     // — ONE removal path, so the two surfaces can never disagree about what a
     // download owns or reference-count it differently.
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, updateOwned, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset, peekLocked, buildModal, currentTheme, currentThemeImported };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportTopbar, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, updateOwned, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset, peekLocked, buildModal, currentTheme, currentThemeImported, themeImportPatch, sanitizeDeckProfile };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();

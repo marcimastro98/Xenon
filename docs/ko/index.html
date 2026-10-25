@@ -375,6 +375,13 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .unit figcaption { font-size: 16px; line-height: 1.45; color: var(--fg-2); }
 .unit figcaption b { display: block; color: var(--fg); font: 700 19px/1.3 var(--f-text); margin-bottom: 4px; }
 .scale-note { margin: 26px 0 0; font-size: 15.5px; color: var(--fg-3); }
+/* The Edge again, turned on its side. Not on the to-scale line: drawn at that
+   scale it would be a 6 cqw sliver, too narrow to read. */
+.vert { margin: 48px 0 0; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 28px; align-items: center; max-width: 640px; }
+.vert .dv { width: 160px; background: var(--well); padding: 5px; border-radius: 7px; box-shadow: inset 0 1px 0 var(--bezel-hi), 0 0 0 1px var(--well-rim), 0 24px 40px -26px rgba(0,0,0,.55); }
+.vert .dv img { display: block; width: 100%; height: auto; border-radius: 3px; }
+.vert figcaption { font-size: 16px; line-height: 1.45; color: var(--fg-2); }
+.vert figcaption b { display: block; color: var(--fg); font: 700 19px/1.3 var(--f-text); margin-bottom: 4px; }
 
 /* Widgets: three real captures at close to the size they were taken, each
    beside its family of widgets, named as the app's "+" picker names them and
@@ -639,6 +646,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
   .u-mon, .u-edge { grid-column: 1 / -1; }
   .u-ph .dv-stack { width: 42%; }
   .scale-note { display: none; }
+  .vert { margin-top: 32px; column-gap: 18px; }
+  .vert .dv { width: 116px; }
   .ctl-shots, .ctl-more { grid-template-columns: 1fr; }
   .shelf { grid-template-columns: 1fr; gap: 36px; }
   .ws-list { column-gap: 14px; }
@@ -795,7 +804,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <div class="w">
       <div class="sec-head">
         <h2 id="h-screens" data-i18n="screens.h2">Xeneon Edge, 모니터, 태블릿, 휴대폰</h2>
-        <p data-i18n="screens.p">하나의 대시보드가 화면 형태에 맞춰 배치를 바꿉니다. 넓은 화면에서는 24열 그리드, 태블릿에서는 2열, 휴대폰에서는 1열입니다.</p>
+        <p data-i18n="screens.p">하나의 대시보드가 화면 형태에 맞춰 배치를 바꿉니다. 넓은 화면에서는 24열 그리드, 세로 화면에서는 전용 배치, 태블릿에서는 2열, 휴대폰에서는 1열입니다.</p>
       </div>
       <div class="lineup-wrap">
         <div class="lineup">
@@ -810,6 +819,8 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
         </div>
       </div>
       <p class="scale-note" data-i18n="screens.scale">27인치 모니터, 14.5인치 Edge, 11인치 태블릿, 6.1인치 휴대폰을 실제 비율로 그렸습니다.</p>
+      <figure class="vert"><div class="dv"><img src="/images/home/edge-vertical.webp" width="540" height="1920" loading="lazy" decoding="async" alt="The dashboard on a Xeneon Edge mounted vertically" data-i18n-alt="screens.vert.alt"></div>
+        <figcaption><b data-i18n="screens.vert.t">세로 화면</b><span data-i18n="screens.vert.p">높이가 너비보다 긴 화면에서는 같은 타일이 위에서 아래로 화면을 채웁니다. 그곳에서 다시 배치해도 가로 배치는 그대로입니다.</span></figcaption></figure>
     </div>
   </section>
 
@@ -934,11 +945,11 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     <div class="w">
       <div class="sec-head">
         <h2 id="h-make" data-i18n="make.h2">만들기</h2>
-        <p data-i18n="make.p">테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯은 앱 안에서 또는 코드로 만들 수 있고, 누구나 Xenon에 붙여 넣을 수 있는 코드 하나로 공유됩니다.</p>
+        <p data-i18n="make.p">테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯은 앱 안에서, Xenon Maker에서 또는 코드로 만들 수 있고, 누구나 Xenon에 붙여 넣을 수 있는 코드 하나로 공유됩니다.</p>
       </div>
       <div class="make">
         <dl class="ways">
-          <div><dt data-i18n="make.app.t">앱에서, 코드 없이</dt><dd data-i18n-html="make.app.p">테마, 배경, 페이지, Deck 키, 간단한 위젯마다 앱 안에 편집기가 있습니다. <a href="/create/">만들기 가이드</a></dd></div>
+          <div><dt data-i18n="make.app.t">코드 없이</dt><dd data-i18n-html="make.app.p">이 사이트의 <a href="/maker/">Xenon Maker</a>에서 위젯, 테마, 배경, Ambient 장면, 페이지, Deck 프로필, 아이콘 팩, 사운드 팩, 패키지를 만들 수 있습니다. 테마, 배경, 페이지, Deck 키는 앱 안의 편집기로도 만들 수 있습니다. <a href="/create/">만들기 가이드</a></dd></div>
           <div><dt data-i18n="make.ai.t">Xenon AI로</dt><dd data-i18n="make.ai.p">신스웨이브 테마나 스트리밍용 페이지를 부탁하면 어시스턴트가 보는 앞에서 만들어 줍니다. 설정의 AI에서 켜기 전까지는 꺼져 있습니다.</dd></div>
           <div><dt data-i18n="make.code.t">코드로</dt><dd data-i18n-html="make.code.p">위젯은 매니페스트와 HTML 파일이 든 폴더입니다. 센서, 음악, 일정을 읽고 음악, 볼륨, 조명, OBS를 제어할 수 있으며, 권한은 설치하는 사람이 승인합니다. <a href="/create/#sdk">SDK 문서</a></dd></div>
           <div class="pub"><dt data-i18n="make.pub.t">카탈로그에</dt><dd data-i18n-html="make.pub.p">완성되면 보내 주세요. 모든 항목은 게시 전에 직접 검토되며, 여러분의 이름으로 올라갑니다. <a href="/submit/">카탈로그에 올리기</a></dd></div>
@@ -1315,7 +1326,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "Pause the themes",
     "themes.play": "Play the themes",
     "screens.h2": "Xeneon Edge, monitor, tablet, phone",
-    "screens.p": "One dashboard that rearranges itself for each shape: a 24-column grid on a wide screen, two columns on a tablet, one on a phone.",
+    "screens.p": "One dashboard that rearranges itself for each shape: a 24-column grid on a wide screen, a layout of its own on a vertical screen, two columns on a tablet, one on a phone.",
     "screens.mon.alt": "The dashboard on a 16:9 monitor",
     "screens.edge.alt": "The dashboard on a Xeneon Edge",
     "screens.tab.alt": "The dashboard on a tablet held sideways",
@@ -1329,6 +1340,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "Phone",
     "screens.ph.p": "Nothing to install on it. Files go both ways. <a href=\"/ko/phone.html\">Setup</a>",
     "screens.scale": "Drawn to scale: a 27-inch monitor, the 14.5-inch Edge, an 11-inch tablet and a 6.1-inch phone.",
+    "screens.vert.t": "Vertical screen",
+    "screens.vert.p": "On a screen taller than it is wide, the same tiles are arranged top to bottom to fill it. Rearrange them there and the landscape layout stays as it is.",
+    "screens.vert.alt": "The dashboard on a Xeneon Edge mounted vertically",
     "beta": "Beta",
     "widgets.h2": "Widgets",
     "widgets.p": "45 built in. Resize them and place them on a 24-column grid, across up to 8 pages.",
@@ -1401,9 +1415,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "by {a}",
     "cat.details": "Details",
     "make.h2": "Create",
-    "make.p": "Themes, animated backgrounds, pages, Deck profiles and widgets are made in the app or in code, and shared as a single code that anyone can paste into Xenon.",
-    "make.app.t": "In the app, without code",
-    "make.app.p": "Themes, backgrounds, pages, Deck keys and simple widgets each have an editor in the app. <a href=\"/create/\">The maker’s guide</a>",
+    "make.p": "Themes, animated backgrounds, pages, Deck profiles and widgets are made in the app, in Xenon Maker or in code, and shared as a single code that anyone can paste into Xenon.",
+    "make.app.t": "Without code",
+    "make.app.p": "<a href=\"/maker/\">Xenon Maker</a>, here on the site, makes widgets, themes, backgrounds, Ambient scenes, pages, Deck profiles, icon packs, sound packs and packages. Themes, backgrounds, pages and Deck keys also have an editor in the app. <a href=\"/create/\">The maker’s guide</a>",
     "make.ai.t": "With Xenon AI",
     "make.ai.p": "Ask for a synthwave theme or a page for streaming, and the assistant builds it while you watch. It stays off until you turn it on in Settings, AI.",
     "make.code.t": "In code",
@@ -1560,7 +1574,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "Mettre les thèmes en pause",
     "themes.play": "Écouter les thèmes",
     "screens.h2": "Xeneon Edge, moniteur, tablette, téléphone",
-    "screens.p": "Un dashboard qui se réorganise pour chaque format : une grille de 24 colonnes sur un écran large, deux colonnes sur une tablette et une seule sur un téléphone.",
+    "screens.p": "Un dashboard qui se réorganise pour chaque format : une grille de 24 colonnes sur un écran large, une disposition à part sur un écran vertical, deux colonnes sur une tablette et une seule sur un téléphone.",
     "screens.mon.alt": "Le dashboard sur un moniteur 16:9",
     "screens.edge.alt": "Le dashboard sur un Xeneon Edge",
     "screens.tab.alt": "Le dashboard sur une tablette tenue à l'horizontale",
@@ -1574,6 +1588,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "Téléphone",
     "screens.ph.p": "Rien à installer dessus. Les fichiers vont dans les deux sens. <a href=\"/ko/phone.html\">Installation<\/a>",
     "screens.scale": "Représentation à l'échelle : un moniteur de 27 pouces, le Xeneon Edge de 14,5 pouces, une tablette de 11 pouces et un téléphone de 6,1 pouces.",
+    "screens.vert.t": "Écran vertical",
+    "screens.vert.p": "Sur un écran plus haut que large, les mêmes tuiles sont disposées de haut en bas pour le remplir. Réorganisez-les là et la disposition en paysage reste telle quelle.",
+    "screens.vert.alt": "Le dashboard sur un Xeneon Edge monté à la verticale",
     "beta": "Beta",
     "widgets.h2": "Widgets",
     "widgets.p": "45 intégrés. Redimensionnez-les et placez-les sur une grille de 24 colonnes, répartis sur un maximum de 8 pages.",
@@ -1646,9 +1663,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "par {a}",
     "cat.details": "Détails",
     "make.h2": "Créer",
-    "make.p": "Les thèmes, les fonds animés, les pages, les profils Deck et les widgets sont créés dans l'application ou en code, et partagés sous forme d'un seul code que n'importe qui peut coller dans Xenon.",
-    "make.app.t": "Dans l’application, sans code",
-    "make.app.p": "Thèmes, arrière-plans, pages, touches du Deck et simples widgets disposent chacun d'un éditeur dans l'application. <a href=\"/create/\">Le guide du créateur<\/a>",
+    "make.p": "Les thèmes, les fonds animés, les pages, les profils Deck et les widgets sont créés dans l'application, dans Xenon Maker ou en code, et partagés sous forme d'un seul code que n'importe qui peut coller dans Xenon.",
+    "make.app.t": "Sans code",
+    "make.app.p": "<a href=\"/maker/\">Xenon Maker</a>, ici sur le site, crée des widgets, des thèmes, des fonds, des scènes Ambient, des pages, des profils Deck, des packs d’icônes et de sons et des packages complets. Les thèmes, fonds, pages et touches du Deck ont aussi un éditeur dans l’application. <a href=\"/create/\">Le guide du créateur<\/a>",
     "make.ai.t": "Avec l'IA Xenon",
     "make.ai.p": "Demandez un thème synthwave ou une page de streaming, et l'assistant le construit sous vos yeux. Il reste désactivé jusqu'à ce que vous l'activiez dans Paramètres, IA.",
     "make.code.t": "Dans le code",
@@ -1805,7 +1822,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "Metti in pausa i temi",
     "themes.play": "Riprendi i temi",
     "screens.h2": "Xeneon Edge, monitor, tablet, telefono",
-    "screens.p": "Una sola dashboard che si riorganizza per ogni forma: una griglia a 24 colonne su uno schermo largo, due colonne su un tablet, una su un telefono.",
+    "screens.p": "Una sola dashboard che si riorganizza per ogni forma: una griglia a 24 colonne su uno schermo largo, una disposizione tutta sua su uno schermo verticale, due colonne su un tablet, una su un telefono.",
     "screens.mon.alt": "La dashboard su un monitor 16:9",
     "screens.edge.alt": "La dashboard su uno Xeneon Edge",
     "screens.tab.alt": "La dashboard su un tablet in orizzontale",
@@ -1819,6 +1836,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "Telefono",
     "screens.ph.p": "Non ci si installa niente. I file vanno in entrambe le direzioni. <a href=\"/ko/phone.html\">Configurazione</a>",
     "screens.scale": "Disegnati in scala: un monitor da 27 pollici, l'Edge da 14,5, un tablet da 11 e un telefono da 6,1.",
+    "screens.vert.t": "Schermo verticale",
+    "screens.vert.p": "Su uno schermo più alto che largo, gli stessi riquadri si dispongono dall'alto in basso per riempirlo. Se li risistemi lì, la disposizione orizzontale resta com'è.",
+    "screens.vert.alt": "La dashboard su uno Xeneon Edge montato in verticale",
     "beta": "Beta",
     "widgets.h2": "Widget",
     "widgets.p": "45 inclusi. Li ridimensioni e li sposti su una griglia a 24 colonne, fino a 8 pagine.",
@@ -1891,9 +1911,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "di {a}",
     "cat.details": "Dettagli",
     "make.h2": "Crea",
-    "make.p": "Temi, sfondi animati, pagine, profili Deck e widget si fanno nell’app o con il codice, e si condividono come un solo codice che chiunque può incollare in Xenon.",
-    "make.app.t": "Nell’app, senza codice",
-    "make.app.p": "Temi, sfondi, pagine, tasti del Deck e widget semplici hanno ciascuno un editor nell’app. <a href=\"/create/\">La guida per creare</a>",
+    "make.p": "Temi, sfondi animati, pagine, profili Deck e widget si fanno nell’app, in Xenon Maker o con il codice, e si condividono come un solo codice che chiunque può incollare in Xenon.",
+    "make.app.t": "Senza codice",
+    "make.app.p": "<a href=\"/maker/\">Xenon Maker</a>, qui sul sito, crea widget, temi, sfondi, scene Ambient, pagine, profili Deck, pacchetti di icone e di suoni e pacchetti completi. Temi, sfondi, pagine e tasti del Deck hanno anche un editor nell’app. <a href=\"/create/\">La guida per creare</a>",
     "make.ai.t": "Con Xenon AI",
     "make.ai.p": "Chiedi un tema synthwave o una pagina per lo streaming, e l’assistente lo costruisce sotto i tuoi occhi. Resta spento finché non lo accendi in Impostazioni, AI.",
     "make.code.t": "Con il codice",
@@ -2050,7 +2070,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "Pausar los temas",
     "themes.play": "Reanudar los temas",
     "screens.h2": "Xeneon Edge, monitor, tablet, teléfono",
-    "screens.p": "Un solo panel que se reorganiza para cada forma: una cuadrícula de 24 columnas en una pantalla ancha, dos columnas en una tablet, una en un teléfono.",
+    "screens.p": "Un solo panel que se reorganiza para cada forma: una cuadrícula de 24 columnas en una pantalla ancha, una disposición propia en una pantalla vertical, dos columnas en una tablet, una en un teléfono.",
     "screens.mon.alt": "El panel en un monitor 16:9",
     "screens.edge.alt": "El panel en un Xeneon Edge",
     "screens.tab.alt": "El panel en una tablet en horizontal",
@@ -2064,6 +2084,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "Teléfono",
     "screens.ph.p": "No hay que instalar nada en él. Los archivos van en ambos sentidos. <a href=\"/ko/phone.html\">Configuración</a>",
     "screens.scale": "Dibujados a escala: un monitor de 27 pulgadas, el Edge de 14,5, una tablet de 11 y un teléfono de 6,1.",
+    "screens.vert.t": "Pantalla vertical",
+    "screens.vert.p": "En una pantalla más alta que ancha, los mismos paneles se colocan de arriba abajo para llenarla. Si los reorganizas ahí, la disposición horizontal se queda como está.",
+    "screens.vert.alt": "El panel en un Xeneon Edge montado en vertical",
     "beta": "Beta",
     "widgets.h2": "Widgets",
     "widgets.p": "45 incluidos. Cámbialos de tamaño y colócalos en una cuadrícula de 24 columnas, en hasta 8 páginas.",
@@ -2136,9 +2159,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "por {a}",
     "cat.details": "Detalles",
     "make.h2": "Crear",
-    "make.p": "Temas, fondos animados, páginas, perfiles de Deck y widgets se hacen en la app o con código, y se comparten como un solo código que cualquiera puede pegar en Xenon.",
-    "make.app.t": "En la app, sin código",
-    "make.app.p": "Temas, fondos, páginas, teclas del Deck y widgets sencillos tienen cada uno un editor en la app. <a href=\"/create/\">La guía para crear</a>",
+    "make.p": "Temas, fondos animados, páginas, perfiles de Deck y widgets se hacen en la app, en Xenon Maker o con código, y se comparten como un solo código que cualquiera puede pegar en Xenon.",
+    "make.app.t": "Sin código",
+    "make.app.p": "<a href=\"/maker/\">Xenon Maker</a>, aquí en la web, crea widgets, temas, fondos, escenas Ambient, páginas, perfiles de Deck, packs de iconos y de sonidos y paquetes completos. Temas, fondos, páginas y teclas del Deck también tienen un editor en la app. <a href=\"/create/\">La guía para crear</a>",
     "make.ai.t": "Con Xenon AI",
     "make.ai.p": "Pide un tema synthwave o una página para streaming, y el asistente lo construye mientras miras. Está apagado hasta que lo actives en Ajustes, IA.",
     "make.code.t": "Con código",
@@ -2295,7 +2318,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "テーマを一時停止",
     "themes.play": "テーマを再生",
     "screens.h2": "Xeneon Edge、モニター、タブレット、スマートフォン",
-    "screens.p": "ひとつのダッシュボードが、画面の形に合わせて配置を変えます。横長の画面では24列のグリッド、タブレットでは2列、スマートフォンでは1列になります。",
+    "screens.p": "ひとつのダッシュボードが、画面の形に合わせて配置を変えます。横長の画面では24列のグリッド、縦向きの画面では専用の配置、タブレットでは2列、スマートフォンでは1列になります。",
     "screens.mon.alt": "16:9のモニターに表示したダッシュボード",
     "screens.edge.alt": "Xeneon Edgeに表示したダッシュボード",
     "screens.tab.alt": "横向きのタブレットに表示したダッシュボード",
@@ -2309,6 +2332,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "スマートフォン",
     "screens.ph.p": "スマートフォンには何もインストールしません。ファイルは双方向に送れます。<a href=\"/ko/phone.html\">設定方法</a>",
     "screens.scale": "実際の比率で描いています。27インチのモニター、14.5インチのEdge、11インチのタブレット、6.1インチのスマートフォンです。",
+    "screens.vert.t": "縦向きの画面",
+    "screens.vert.p": "縦長の画面では、同じタイルが上から下へ画面いっぱいに並びます。そこで並べ替えても、横向きの配置はそのままです。",
+    "screens.vert.alt": "縦向きに設置したXeneon Edgeに表示したダッシュボード",
     "beta": "ベータ",
     "widgets.h2": "ウィジェット",
     "widgets.p": "45種類を内蔵しています。サイズを変えて24列のグリッドに配置でき、ページは最大8枚まで使えます。",
@@ -2381,9 +2407,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "作者: {a}",
     "cat.details": "詳細",
     "make.h2": "つくる",
-    "make.p": "テーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェットは、アプリの中かコードで作れます。作ったものは1つのコードとして共有でき、誰でもXenonに貼り付けられます。",
-    "make.app.t": "アプリの中で、コードなしで",
-    "make.app.p": "テーマ、背景、ページ、Deckのキー、シンプルなウィジェットには、それぞれアプリ内のエディターがあります。<a href=\"/create/\">作り方ガイド</a>",
+    "make.p": "テーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェットは、アプリの中、Xenon Maker、またはコードで作れます。作ったものは1つのコードとして共有でき、誰でもXenonに貼り付けられます。",
+    "make.app.t": "コードなしで",
+    "make.app.p": "このサイトの<a href=\"/maker/\">Xenon Maker</a>で、ウィジェット、テーマ、背景、Ambientシーン、ページ、Deckプロファイル、アイコンパック、サウンドパック、パッケージを作れます。テーマ、背景、ページ、Deckのキーはアプリ内のエディターでも作れます。<a href=\"/create/\">作り方ガイド</a>",
     "make.ai.t": "Xenon AIで",
     "make.ai.p": "シンセウェーブのテーマや配信用のページを頼むと、アシスタントが目の前で組み立てます。設定の「AI」でオンにするまでは動きません。",
     "make.code.t": "コードで",
@@ -2540,7 +2566,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "테마 일시정지",
     "themes.play": "테마 재생",
     "screens.h2": "Xeneon Edge, 모니터, 태블릿, 휴대폰",
-    "screens.p": "하나의 대시보드가 화면 형태에 맞춰 배치를 바꿉니다. 넓은 화면에서는 24열 그리드, 태블릿에서는 2열, 휴대폰에서는 1열입니다.",
+    "screens.p": "하나의 대시보드가 화면 형태에 맞춰 배치를 바꿉니다. 넓은 화면에서는 24열 그리드, 세로 화면에서는 전용 배치, 태블릿에서는 2열, 휴대폰에서는 1열입니다.",
     "screens.mon.alt": "16:9 모니터에 표시된 대시보드",
     "screens.edge.alt": "Xeneon Edge에 표시된 대시보드",
     "screens.tab.alt": "가로로 놓은 태블릿의 대시보드",
@@ -2554,6 +2580,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "휴대폰",
     "screens.ph.p": "휴대폰에는 아무것도 설치하지 않습니다. 파일은 양방향으로 주고받을 수 있습니다. <a href=\"/ko/phone.html\">설정 방법</a>",
     "screens.scale": "27인치 모니터, 14.5인치 Edge, 11인치 태블릿, 6.1인치 휴대폰을 실제 비율로 그렸습니다.",
+    "screens.vert.t": "세로 화면",
+    "screens.vert.p": "높이가 너비보다 긴 화면에서는 같은 타일이 위에서 아래로 화면을 채웁니다. 그곳에서 다시 배치해도 가로 배치는 그대로입니다.",
+    "screens.vert.alt": "세로로 설치한 Xeneon Edge의 대시보드",
     "beta": "베타",
     "widgets.h2": "위젯",
     "widgets.p": "45개가 기본으로 들어 있습니다. 크기를 바꿔 24열 그리드에 배치하고, 최대 8개 페이지에 나눠 둘 수 있습니다.",
@@ -2626,9 +2655,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "{a} 제작",
     "cat.details": "자세히",
     "make.h2": "만들기",
-    "make.p": "테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯은 앱 안에서 또는 코드로 만들 수 있고, 누구나 Xenon에 붙여 넣을 수 있는 코드 하나로 공유됩니다.",
-    "make.app.t": "앱에서, 코드 없이",
-    "make.app.p": "테마, 배경, 페이지, Deck 키, 간단한 위젯마다 앱 안에 편집기가 있습니다. <a href=\"/create/\">만들기 가이드</a>",
+    "make.p": "테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯은 앱 안에서, Xenon Maker에서 또는 코드로 만들 수 있고, 누구나 Xenon에 붙여 넣을 수 있는 코드 하나로 공유됩니다.",
+    "make.app.t": "코드 없이",
+    "make.app.p": "이 사이트의 <a href=\"/maker/\">Xenon Maker</a>에서 위젯, 테마, 배경, Ambient 장면, 페이지, Deck 프로필, 아이콘 팩, 사운드 팩, 패키지를 만들 수 있습니다. 테마, 배경, 페이지, Deck 키는 앱 안의 편집기로도 만들 수 있습니다. <a href=\"/create/\">만들기 가이드</a>",
     "make.ai.t": "Xenon AI로",
     "make.ai.p": "신스웨이브 테마나 스트리밍용 페이지를 부탁하면 어시스턴트가 보는 앞에서 만들어 줍니다. 설정의 AI에서 켜기 전까지는 꺼져 있습니다.",
     "make.code.t": "코드로",
@@ -2785,7 +2814,7 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "themes.pause": "暂停主题轮播",
     "themes.play": "继续主题轮播",
     "screens.h2": "Xeneon Edge、显示器、平板、手机",
-    "screens.p": "同一个仪表盘会按屏幕形状重新排列：宽屏上是 24 列网格，平板上是两列，手机上是一列。",
+    "screens.p": "同一个仪表盘会按屏幕形状重新排列：宽屏上是 24 列网格，竖屏上有专属排列，平板上是两列，手机上是一列。",
     "screens.mon.alt": "16:9 显示器上的仪表盘",
     "screens.edge.alt": "Xeneon Edge 上的仪表盘",
     "screens.tab.alt": "横放平板上的仪表盘",
@@ -2799,6 +2828,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "screens.ph.t": "手机",
     "screens.ph.p": "手机上无需安装任何东西。文件可以双向传输。<a href=\"/ko/phone.html\">设置方法</a>",
     "screens.scale": "按比例绘制：27 英寸显示器、14.5 英寸的 Edge、11 英寸平板和 6.1 英寸手机。",
+    "screens.vert.t": "竖屏",
+    "screens.vert.p": "在高大于宽的屏幕上，同一组磁贴从上到下排满整个屏幕。在竖屏上重新排列，横向布局保持不变。",
+    "screens.vert.alt": "竖向安装的 Xeneon Edge 上的仪表盘",
     "beta": "Beta",
     "widgets.h2": "小组件",
     "widgets.p": "内置 45 个。可以调整大小，放在 24 列网格上，至多 8 页。",
@@ -2871,9 +2903,9 @@ dl.pp dd { margin: 0; font-size: 17.5px; line-height: 1.55; }
     "cat.by": "作者：{a}",
     "cat.details": "详情",
     "make.h2": "创作",
-    "make.p": "主题、动态背景、页面、Deck 配置和小组件，都可以在应用里或用代码制作，并以一段代码分享，任何人都能粘贴到 Xenon 中。",
-    "make.app.t": "在应用里，无需代码",
-    "make.app.p": "主题、背景、页面、Deck 按键和简单小组件，在应用里各有编辑器。<a href=\"/create/\">创作指南</a>",
+    "make.p": "主题、动态背景、页面、Deck 配置和小组件，都可以在应用里、在 Xenon Maker 中或用代码制作，并以一段代码分享，任何人都能粘贴到 Xenon 中。",
+    "make.app.t": "无需代码",
+    "make.app.p": "在本站的 <a href=\"/maker/\">Xenon Maker</a> 中，可以制作小组件、主题、背景、Ambient 场景、页面、Deck 配置、图标包、音效包和完整套件。主题、背景、页面和 Deck 按键在应用里也有编辑器。<a href=\"/create/\">创作指南</a>",
     "make.ai.t": "用 Xenon AI",
     "make.ai.p": "让它做一个合成波主题或一个直播页面，助手会当着你的面搭好。在“设置 > AI”中开启之前，它不会运行。",
     "make.code.t": "用代码",

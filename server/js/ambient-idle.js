@@ -85,6 +85,9 @@
         // freeze block (Ticker.css) likewise excludes ambient-idle.
         const target = a.effect && a.effect.target;
         if (target && typeof target.closest === 'function' && target.closest('#xe-ticker')) continue;
+        // Likewise a canvas Ambient scene: its motion is what the screensaver
+        // shows while nobody touches it (AmbientCanvas.css gates it otherwise).
+        if (target && typeof target.closest === 'function' && target.closest('#ambient-canvas-overlay')) continue;
         try { a.pause(); frozenAnims.push(a); } catch { /* inert animation */ }
       }
     }

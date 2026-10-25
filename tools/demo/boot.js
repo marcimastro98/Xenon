@@ -32,6 +32,42 @@
     }
   } catch { /* fragment stays; worst case is a cosmetic letterbox */ }
 
+  // ── 1b. The Maker's preview ───────────────────────────────────────────────
+  // xenon-app.com/maker opens this demo in a frame with ?maker to show the
+  // widget being edited (demo/maker.js), only ever from a parent on this same
+  // origin. That visit must not touch the visitor's own demo, so the dashboard
+  // gets an in-memory localStorage: every script reads the global, so swapping
+  // it here, before any of them runs, isolates all its call sites at once. If
+  // the swap fails the channel stays off rather than writing to the real one.
+  try {
+    const fromMaker = /[?&]maker(?:[=&]|$)/.test(location.search)
+      && window.parent !== window && window.parent.location.origin === location.origin;
+    if (fromMaker) {
+      const real = window.localStorage;
+      const mem = new Map();
+      // The site's language and theme still apply, read once, never written back.
+      for (const k of ['xenon.site.lang', 'xenon.site.theme']) {
+        const v = real.getItem(k);
+        if (v !== null) mem.set(k, v);
+      }
+      // The Maker's own language, when it says one, wins for this visit.
+      const makerLang = new URLSearchParams(location.search).get('lang');
+      if (makerLang && /^[a-z]{2}$/.test(makerLang)) mem.set('xenon.site.lang', makerLang);
+      // A preview shows the creation at once: no boot splash (js/boot-splash.js).
+      mem.set('xeneonedge.bootLook.v1', '{"off":true}');
+      const store = {
+        getItem: (k) => (mem.has(String(k)) ? mem.get(String(k)) : null),
+        setItem: (k, v) => { mem.set(String(k), String(v)); },
+        removeItem: (k) => { mem.delete(String(k)); },
+        clear: () => { mem.clear(); },
+        key: (i) => [...mem.keys()][i] ?? null,
+        get length() { return mem.size; },
+      };
+      Object.defineProperty(window, 'localStorage', { value: store, configurable: true });
+      if (window.localStorage === store) window.__XENON_DEMO_MAKER__ = { packages: [] };
+    }
+  } catch { /* not from the Maker, or no swap: a normal demo visit */ }
+
   // ── 2. Seed the settings mirror ───────────────────────────────────────────
   const SETTINGS_KEY = 'xeneonedge.settings.v1';
   const SEED_KEY = 'xenon.demo.seed';
@@ -191,6 +227,14 @@
   ];
   const blockedPrefixes = ['/api/ai/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
 
+  // Reads the app makes on its own while it starts, under a blocked prefix.
+  // Answered quietly: the "runs on your PC" toast is for something the visitor
+  // pressed, never for opening the page.
+  const QUIET_READS = {
+    '/remote/status': () => ok({ ready: false, installed: false, blocked: false, connectedClients: [] }),
+    '/api/ai/memory': () => ok({ facts: [] }),
+  };
+
   let lastToastAt = 0;
   function refuse() {
     const now = Date.now();
@@ -231,6 +275,7 @@
     const method = ((init && init.method) || 'GET').toUpperCase();
     const q = url.searchParams;
 
+    if (method === 'GET' && Object.hasOwn(QUIET_READS, p)) return QUIET_READS[p]();
     if (BLOCKED.includes(p) || blockedPrefixes.some((pre) => p.startsWith(pre))) return refuse();
 
     switch (p) {
@@ -308,14 +353,15 @@
       case '/api/football/search': return ok({ results: [] });
       case '/api/gamemode/status': return ok({ gaming: false });
       case '/api/native/status': case '/api/native/install-status': return ok({ installed: false });
-      case '/remote/status': return ok({ ready: false, installed: false, blocked: false, connectedClients: [] });
       // Paired-device access, honestly off: the demo IS a browser tab on the
       // public site, so there is no PC to pair with and no LAN address to show.
       // Mocked rather than left to the Tier C default so the panel renders its
       // real off-state instead of an error nobody can act on.
       case '/api/remote-access/status':
         return ok({ enabled: false, port: 3030, addresses: [], devices: [], maxDevices: 16, pairing: null });
-      case '/sdk/widgets': return ok({ packages: [] });
+      // The Maker's preview lists the widget being edited (demo/maker.js).
+      case '/sdk/widgets':
+        return ok({ packages: window.__XENON_DEMO_MAKER__ ? window.__XENON_DEMO_MAKER__.packages.slice() : [] });
       // An empty Deck store is a real, valid store: the widget renders its own
       // "add a key" empty state rather than an error, and the editor works.
       // Inventing keys here would mean carrying deck.json's schema in this file.

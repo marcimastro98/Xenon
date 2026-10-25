@@ -29,10 +29,28 @@ const GRAD_DIRS = ['d', 'v', 'r'];                   // gradient direction: diag
 const LABEL_POSITIONS = ['bottom', 'top', 'hidden'];  // where the title sits on the cap
 const STYLE_SIZES = ['md', 'sm', 'lg'];               // label / icon size presets
 const KEY_ANIMS = ['none', 'breathe', 'shift'];       // ambient cap animation
+const STATE_ANIMS = ['none', 'pulse', 'breathe', 'blink'];   // motion only while a key is on
+// How a key answers a press (key.mode; 'button' is the default and never stored).
+// A switch is key.toggle, as it always was. 'momentary' runs press/release and is
+// on while held, 'repeat' runs tap again and again while held, 'cycle' steps
+// through up to CYCLE_MAX faces, each with its own action.
+const KEY_MODES = ['button', 'momentary', 'repeat', 'cycle'];
+const CYCLE_MAX = 8;                 // states of a cycle key, the base face included
+const AUTO_OFF_MAX_S = 3600;         // a switch turns itself off after at most an hour
+// Every trigger slot a key can hold: the three gestures, a switch's tap when on,
+// a momentary key's press and release, and a cycle key's states after the first.
+// One list, so the editor, the share sanitizer and its import review agree.
+const KEY_TRIGGERS = ['tap', 'tapOff', 'double', 'hold', 'press', 'release']
+  .concat(Array.from({ length: CYCLE_MAX - 1 }, (_, i) => 'cycle' + (i + 1)));
+// [min, max, default] in ms. Only values off the default are stored.
+const KEY_TIMING = { hold: [300, 2000, 500], double: [150, 600, 260] };
+const KEY_REPEAT = { delay: [100, 2000, 400], every: [50, 2000, 150] };
 // Deck-level presentation enums (whole-device look).
 const CAP_STYLES = ['lcd', 'flat', 'neon', 'glass', 'vivid'];  // key-cap material
 const KEY_SHAPES = ['rounded', 'square', 'circle'];   // cap corner shape
-const PLATE_STYLES = ['graphite', 'carbon', 'steel', 'midnight', 'none']; // chassis faceplate
+// 'theme' paints the body with the dashboard's own tile surface, so it follows theme changes.
+// 'glass': a clear body, light through it, no blur (a backdrop-filter is a per-frame GPU cost).
+const PLATE_STYLES = ['graphite', 'carbon', 'steel', 'midnight', 'glass', 'theme', 'none']; // chassis faceplate
 
 function clampInt(value, min, max, fallback) {
   const n = Math.round(Number(value));
@@ -128,6 +146,13 @@ function normalizeDeckLook(raw) {
     const value = normalizeDeckMediaStyle(raw.mediaStyle);
     if (value || raw.mediaStyle === null) { out.mediaStyle = value; seen = true; }
   }
+  // Deck-wide on/off cues for every key that follows a state: a lit ring while
+  // on, dimmed while off. Opt-in (absent = off), on top of each key's own look.
+  if (raw.litRing === true) { out.litRing = true; seen = true; }
+  if (raw.dimOff === true) { out.dimOff = true; seen = true; }
+  // Keys without a colour of their own, the key well and the music strip take the
+  // theme's accent, live (a CSS var, so a theme change repaints them).
+  if (raw.themeColors === true) { out.themeColors = true; seen = true; }
   return seen ? out : null;
 }
 
@@ -155,6 +180,68 @@ function normalizeSlider(raw) {
     if (!slider.source) return null;
   }
   return slider;
+}
+
+// Read a set of [min, max, default] timings; null when every one is the default.
+function normalizeTimings(raw, spec) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  for (const name of Object.keys(spec)) {
+    const [min, max, def] = spec[name];
+    const v = clampInt(raw[name], min, max, def);
+    if (v !== def) out[name] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+// One further face of a cycle key: only what differs from the base face.
+function normalizeCycleFace(raw) {
+  const face = {};
+  if (!raw || typeof raw !== 'object') return face;
+  const label = clampStr(raw.label, 40);
+  if (label) face.label = label;
+  const icon = normalizeStateIcon(raw.icon);
+  if (icon) face.icon = icon;
+  for (const f of ['color', 'color2', 'iconColor', 'labelColor']) {
+    const c = cleanHex(raw[f]);
+    if (c) face[f] = c;
+  }
+  return face;
+}
+
+// How an action key behaves when pressed (see KEY_MODES). Each piece is kept
+// only where it means something, so a plain button stores none of it.
+function normalizeKeyBehavior(raw, key) {
+  const mode = optionalEnum(raw.mode, KEY_MODES);
+  if (mode) key.mode = mode;
+  // Switch: each tap flips the key between on and off. The off tap runs
+  // triggers.tapOff when there is one (else tap again). With no bound state
+  // the key keeps its own on/off as a named Deck state (see keyStateBinding).
+  // A behaviour replaces it: a key is one or the other.
+  else if (raw.toggle === true) key.toggle = true;
+  const held = mode === 'momentary' || mode === 'repeat';
+  // Ask for a second tap before running, for keys that are costly to hit by
+  // mistake (shut down, end stream). A key that acts while held cannot wait.
+  if (raw.confirm === true && !held) key.confirm = true;
+  const timing = held ? null : normalizeTimings(raw.timing, KEY_TIMING);
+  if (timing) key.timing = timing;
+  // A switch that turns itself off: seconds after it was turned on.
+  if (key.toggle) {
+    const autoOff = clampInt(raw.autoOff, 0, AUTO_OFF_MAX_S, 0);
+    if (autoOff) key.autoOff = autoOff;
+  }
+  if (mode === 'repeat') {
+    const repeat = normalizeTimings(raw.repeat, KEY_REPEAT);
+    if (repeat) key.repeat = repeat;
+  }
+  if (mode === 'cycle') {
+    const faces = Array.isArray(raw.cycle) ? raw.cycle.slice(0, CYCLE_MAX - 1).map(normalizeCycleFace) : [];
+    key.cycle = faces.length ? faces : [{}];
+    // A cycle key's faces are its states; it follows no other state.
+    delete key.state;
+    delete key.stateStyle;
+    delete key.dimOff;
+  }
 }
 
 function normalizeKey(raw, cols, rows) {
@@ -244,8 +331,25 @@ function normalizeKey(raw, cols, rows) {
       if (ssLabel) ss.label = ssLabel;
       const ssColor = cleanHex(raw.stateStyle.color);
       if (ssColor) ss.color = ssColor;
+      // The rest of the lit face: its own icon and label colours, a second
+      // colour for a gradient, a glowing ring and a motion that plays only
+      // while on (a recording key that pulses), so on and off read at a glance.
+      const ssIconColor = cleanHex(raw.stateStyle.iconColor);
+      if (ssIconColor) ss.iconColor = ssIconColor;
+      const ssLabelColor = cleanHex(raw.stateStyle.labelColor);
+      if (ssLabelColor) ss.labelColor = ssLabelColor;
+      // A second colour alone fades from the key's own colour: the editor offers
+      // it on its own, and dropping it made the pick do nothing.
+      const ssColor2 = cleanHex(raw.stateStyle.color2);
+      if (ssColor2) ss.color2 = ssColor2;
+      if (raw.stateStyle.ring === true) ss.ring = true;
+      const ssAnim = optionalEnum(raw.stateStyle.anim, STATE_ANIMS);
+      if (ssAnim) ss.anim = ssAnim;
       if (Object.keys(ss).length) key.stateStyle = ss;
     }
+    // Dim the face while the key is off, so the lit one stands out in a row.
+    if (raw.dimOff === true) key.dimOff = true;
+    normalizeKeyBehavior(raw, key);
     // Optional live value shown ON the key face (a ticking timer countdown, an
     // SDK widget's published state text) — rendered via textContent, never markup.
     if (raw.live && typeof raw.live === 'object' && DECK_LIVE_SOURCES.includes(raw.live.source)) {
@@ -487,6 +591,9 @@ function effectiveDeckLook(config, profileId) {
     transparency: own('transparency') ? look.transparency : cfg.transparency,
     wellImage: own('wellImage') ? look.wellImage : cfg.wellImage,
     mediaStyle: own('mediaStyle') ? look.mediaStyle : cfg.mediaStyle,
+    litRing: look.litRing === true,
+    dimOff: look.dimOff === true,
+    themeColors: look.themeColors === true,
   };
 }
 
@@ -966,7 +1073,7 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning', 'outputDevice'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning', 'outputDevice', 'lightsOn'];
 
 // HA state strings that read as "on" for an entity binding without an explicit
 // value to match — covers switches/lights, covers, media, presence, locks,
@@ -1143,6 +1250,8 @@ function evaluateKeyState(state, snapshot) {
   switch (state.source) {
     case 'micMuted':      return !!snapshot.micMuted;
     case 'speakerMuted':  return !!snapshot.speakerMuted;
+    // The lighting system's master switch (Settings → Lighting, a Lights on/off key).
+    case 'lightsOn':      return !!snapshot.lightsOn;
     case 'obsRecording':  return !!snapshot.obsRecording;
     case 'obsStreaming':  return !!snapshot.obsStreaming;
     case 'obsScene':      return !!state.scene && state.scene === snapshot.obsScene;
@@ -1185,7 +1294,46 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+// The state a key's face follows: the one it is bound to, or for a switch with
+// none its own named Deck state, 'deck.<key id>' (what fire() sets and clears).
+function toggleStateName(key) {
+  const id = String((key && key.id) || '').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 58);
+  return id ? 'deck.' + id : '';
+}
+function keyStateBinding(key) {
+  if (!key || typeof key !== 'object' || key.mode === 'cycle') return null;
+  if (key.state && key.state.source) return key.state;
+  // A switch is on until tapped again, a momentary key while it is held.
+  const name = (key.toggle || key.mode === 'momentary') ? toggleStateName(key) : '';
+  return name ? { source: 'scriptState', name } : null;
+}
+
+// The hold and double-tap windows a key waits for, in ms.
+function keyTiming(key) {
+  const t = (key && key.timing) || {};
+  return { hold: t.hold || KEY_TIMING.hold[2], double: t.double || KEY_TIMING.double[2] };
+}
+// How soon a repeat key starts repeating, and how often, in ms.
+function keyRepeat(key) {
+  const r = (key && key.repeat) || {};
+  return { delay: r.delay || KEY_REPEAT.delay[2], every: r.every || KEY_REPEAT.every[2] };
+}
+// Which state a cycle key is in: 0 is its base face, 1.. its further faces. It is
+// kept as its own Deck state, valued by state number ('1' is the first state),
+// so every screen shows the same one and other keys can follow a state by value.
+function cycleIndexOf(key, snapshot) {
+  if (!key || !Array.isArray(key.cycle)) return 0;
+  const bag = snapshot && snapshot.scriptStates;
+  const v = bag ? bag[toggleStateName(key)] : undefined;
+  const n = parseInt(v, 10);
+  return (Number.isInteger(n) && n >= 1 && n <= key.cycle.length + 1) ? n - 1 : 0;
+}
+// The trigger a cycle key runs in a state: tap for the first, cycle1.. after it.
+function cycleTriggerName(index) {
+  return index > 0 ? 'cycle' + index : 'tap';
+}
+
+const DECK_MODEL_API = { toggleStateName, keyStateBinding, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

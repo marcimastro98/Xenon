@@ -264,8 +264,7 @@
     const el = group.loadingEl;
     if (!el) return;
     el.classList.remove('is-error', 'is-paused');
-    const spin = document.createElement('div');
-    spin.className = 'browser-spinner'; spin.setAttribute('aria-hidden', 'true');
+    const spin = XenonLoader.create({ bar: true });
     const txt = document.createElement('span');
     txt.className = 'browser-loading-text'; txt.textContent = t('browser_loading', 'Loading…');
     el.replaceChildren(spin, txt);

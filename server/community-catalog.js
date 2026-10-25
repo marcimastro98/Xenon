@@ -58,7 +58,7 @@ const CODE_INLINE_MAX = 8000;   // longer codes must ship as codes/<id>.txt
 // (xenon-supporter-hub src/catalog-admin.js), the issue-template dropdown and
 // the website gallery's KINDS (docs/catalog/index.html). 'ambient-layout' is
 // deliberately not catalog-listable.
-const CATALOG_KINDS = new Set(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'icons', 'sounds']);
+const CATALOG_KINDS = new Set(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'icons', 'sounds', 'topbar']);
 
 // Entry/code ids become URL path segments (codes/<id>.txt) and DOM anchors —
 // conservative charset, no traversal by construction.

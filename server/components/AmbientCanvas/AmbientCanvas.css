@@ -47,6 +47,9 @@ body.ambient-canvas-open { overflow: hidden; }
   position: absolute;
   transform-origin: center center;
   display: flex;
+  /* Read here, not only on the stage: a custom tile style sets --text on the
+     item, and an inherited colour is the stage's already-computed value. */
+  color: var(--text, #e8ecf4);
 }
 .ac-item > .grid-stack-item-content {
   position: relative;
@@ -63,7 +66,8 @@ body.ambient-canvas-open { overflow: hidden; }
    shape. Alpha defaults to 0, so an accent-only custom style stays transparent. */
 .ac-item[data-tile-style="custom"] > .grid-stack-item-content {
   background: rgba(var(--panel-rgb, 18, 21, 31), var(--panel-alpha, 0));
-  border-radius: calc(14px * var(--radius, 1));
+  /* --radius is a length (8px stock, 0 in Retro): scaled, never multiplied by one. */
+  border-radius: calc(var(--radius, 8px) * 1.75);
 }
 .ac-body {
   width: 100%;
@@ -81,21 +85,21 @@ body.ambient-canvas-open { overflow: hidden; }
 /* ── clock / date ─────────────────────────────────────────────────────────── */
 .ac-item-clock .ac-body { flex-direction: row; align-items: baseline; gap: 0.15em; }
 .ac-clock-time {
-  font-size: clamp(28px, 16cqmin, 40vmin);
+  font-size: calc(var(--ac-scale, 1) * clamp(28px, 16cqmin, 40vmin));
   font-weight: 200;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 .ac-clock-ampm {
-  font-size: clamp(10px, 4cqmin, 6vmin);
+  font-size: calc(var(--ac-scale, 1) * clamp(10px, 4cqmin, 6vmin));
   font-weight: 600;
   letter-spacing: 0.12em;
   color: var(--muted-text, #8b93a7);
 }
 .ac-clock-ampm:empty { display: none; }
 .ac-date-text {
-  font-size: clamp(12px, 9cqmin, 4vmin);
+  font-size: calc(var(--ac-scale, 1) * clamp(12px, 9cqmin, 4vmin));
   color: var(--muted-text, #8b93a7);
   text-transform: capitalize;
   letter-spacing: 0.06em;
@@ -107,9 +111,9 @@ body.ambient-canvas-open { overflow: hidden; }
 }
 
 /* ── weather ──────────────────────────────────────────────────────────────── */
-.ac-w-temp { font-size: clamp(24px, 26cqmin, 30vmin); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
-.ac-w-cond { font-size: clamp(11px, 8cqmin, 4vmin); color: var(--muted-text, #8b93a7); }
-.ac-w-place { font-size: clamp(10px, 6cqmin, 3vmin); color: var(--accent, #1ed760); letter-spacing: 0.04em; }
+.ac-w-temp { font-size: calc(var(--ac-scale, 1) * clamp(24px, 26cqmin, 30vmin)); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.ac-w-cond { font-size: calc(var(--ac-scale, 1) * clamp(11px, 8cqmin, 4vmin)); color: var(--muted-text, #8b93a7); }
+.ac-w-place { font-size: calc(var(--ac-scale, 1) * clamp(10px, 6cqmin, 3vmin)); color: var(--accent, #1ed760); letter-spacing: 0.04em; }
 
 /* ── media ────────────────────────────────────────────────────────────────── */
 .ac-item-media .ac-body { flex-direction: row; align-items: center; gap: 1em; padding: 0 4%; }
@@ -129,24 +133,24 @@ body.ambient-canvas-open { overflow: hidden; }
   color: var(--muted-text, #8b93a7);
 }
 .ac-m-meta { min-width: 0; display: flex; flex-direction: column; gap: 0.2em; text-align: left; }
-.ac-m-title { font-size: clamp(12px, 12cqmin, 4vmin); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ac-m-artist { font-size: clamp(10px, 9cqmin, 3vmin); color: var(--muted-text, #8b93a7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-m-title { font-size: calc(var(--ac-scale, 1) * clamp(12px, 12cqmin, 4vmin)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-m-artist { font-size: calc(var(--ac-scale, 1) * clamp(10px, 9cqmin, 3vmin)); color: var(--muted-text, #8b93a7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── list widgets (agenda / tasks) ────────────────────────────────────────── */
 .ac-list { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 0.5em; padding: 0 4%; overflow: hidden; }
 .ac-list-row { display: flex; align-items: baseline; gap: 0.6em; min-width: 0; }
-.ac-list-title { font-size: clamp(11px, 8cqmin, 2.6vmin); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ac-list-when { margin-left: auto; font-size: clamp(9px, 6cqmin, 2vmin); color: var(--muted-text, #8b93a7); white-space: nowrap; }
+.ac-list-title { font-size: calc(var(--ac-scale, 1) * clamp(11px, 8cqmin, 2.6vmin)); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-list-when { margin-left: auto; font-size: calc(var(--ac-scale, 1) * clamp(9px, 6cqmin, 2vmin)); color: var(--muted-text, #8b93a7); white-space: nowrap; }
 .ac-task-dot { flex: 0 0 auto; width: 0.55em; height: 0.55em; border-radius: 50%; border: 2px solid var(--accent, #1ed760); align-self: center; }
 .ac-task.done .ac-task-dot { background: var(--accent, #1ed760); }
 .ac-task.done .ac-list-title { text-decoration: line-through; color: var(--muted-text, #8b93a7); }
-.ac-empty-line { font-size: clamp(10px, 7cqmin, 2.2vmin); color: var(--muted-text, #8b93a7); text-align: center; }
+.ac-empty-line { font-size: calc(var(--ac-scale, 1) * clamp(10px, 7cqmin, 2.2vmin)); color: var(--muted-text, #8b93a7); text-align: center; }
 
 /* ── notes ────────────────────────────────────────────────────────────────── */
 .ac-notes-text {
   width: 100%; height: 100%;
   padding: 4%;
-  font-size: clamp(11px, 8cqmin, 2.6vmin);
+  font-size: calc(var(--ac-scale, 1) * clamp(11px, 8cqmin, 2.6vmin));
   line-height: 1.5;
   color: var(--text, #e8ecf4);
   white-space: pre-wrap;
@@ -157,14 +161,103 @@ body.ambient-canvas-open { overflow: hidden; }
 /* ── system / network stats ───────────────────────────────────────────────── */
 .ac-item-system .ac-body, .ac-item-network .ac-body { gap: 0.3em; }
 .ac-stat, .ac-net-row { display: flex; align-items: baseline; gap: 0.6em; width: 100%; justify-content: center; }
-.ac-stat-label, .ac-net-label { font-size: clamp(9px, 6cqmin, 2vmin); color: var(--muted-text, #8b93a7); letter-spacing: 0.1em; }
-.ac-stat-val, .ac-net-val { font-size: clamp(14px, 12cqmin, 4vmin); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ac-stat-label, .ac-net-label { font-size: calc(var(--ac-scale, 1) * clamp(9px, 6cqmin, 2vmin)); color: var(--muted-text, #8b93a7); letter-spacing: 0.1em; }
+.ac-stat-val, .ac-net-val { font-size: calc(var(--ac-scale, 1) * clamp(14px, 12cqmin, 4vmin)); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ── touch controls ───────────────────────────────────────────────────────────
+   The few things on a scene that can be touched (js/ambient-canvas.js touchBtn).
+   Plain buttons with the look of the element they sit in; a finger-sized hit
+   area even when the element is drawn small. */
+.ac-touch {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ac-touch:focus-visible { outline: 2px solid var(--accent, #1ed760); outline-offset: 2px; }
+.ac-touch:active { transform: scale(0.94); }
+
+.ac-m-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; margin-top: 0.35em; }
+.ac-m-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: clamp(40px, 22cqmin, 12vmin);
+  height: clamp(40px, 22cqmin, 12vmin);
+  border-radius: 50%;
+  color: var(--text, #e8ecf4);
+  background: rgba(255, 255, 255, 0.06);
+}
+.ac-m-btn svg { width: 46%; height: 46%; }
+.ac-m-play { background: rgba(var(--accent-rgb, 30, 215, 96), 0.22); color: var(--accent, #1ed760); }
+
+/* A narrow music element gives its room to the controls instead of the cover. */
+@container (max-width: 240px) {
+  .ac-item-media .ac-body:has(.ac-m-ctl) .ac-m-art { display: none; }
+  .ac-item-media .ac-m-ctl { gap: 0.25em; }
+}
+
+/* A touchable task row: the whole row is the button. */
+button.ac-list-row { width: 100%; min-height: 40px; text-align: left; border-radius: 8px; align-items: center; }
+button.ac-task:active .ac-task-dot { background: var(--accent, #1ed760); }
+
+/* ── notifications ────────────────────────────────────────────────────────── */
+.ac-notif-list { gap: 0.45em; }
+.ac-notif {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+button.ac-notif { min-height: 40px; border-radius: 8px; }
+.ac-notif-ico { flex: 0 0 auto; width: clamp(16px, 12cqmin, 4vmin); height: clamp(16px, 12cqmin, 4vmin); border-radius: 22%; object-fit: cover; }
+.ac-notif-ico.is-ph { display: grid; place-items: center; color: var(--muted-text, #8b93a7); }
+.ac-notif-ico.is-ph svg { width: 80%; height: 80%; }
+.ac-notif-txt { display: flex; flex-direction: column; gap: 0.1em; min-width: 0; flex: 1 1 auto; }
+.ac-notif-head { display: flex; align-items: baseline; gap: 0.6em; min-width: 0; }
+.ac-notif-app { font-size: calc(var(--ac-scale, 1) * clamp(9px, 6cqmin, 2vmin)); color: var(--muted-text, #8b93a7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-notif-age { margin-left: auto; font-size: calc(var(--ac-scale, 1) * clamp(9px, 6cqmin, 2vmin)); color: var(--muted-text, #8b93a7); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ac-notif-title { font-size: calc(var(--ac-scale, 1) * clamp(11px, 8cqmin, 2.6vmin)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-notif-body { font-size: calc(var(--ac-scale, 1) * clamp(10px, 7cqmin, 2.3vmin)); color: var(--muted-text, #8b93a7); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.ac-notif-body.is-masked { font-style: italic; }
+
+/* ── volume ───────────────────────────────────────────────────────────────── */
+.ac-item-volume .ac-body { gap: 0.6em; padding: 0 4%; }
+.ac-vol { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.5em; width: 100%; }
+.ac-vol-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: clamp(40px, 26cqmin, 12vmin);
+  height: clamp(40px, 26cqmin, 12vmin);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+.ac-vol-btn svg { width: 46%; height: 46%; }
+@container (max-width: 200px) { .ac-item-volume .ac-vol { gap: 0.25em; } .ac-item-volume .ac-vol-ico { display: none; } }
+.ac-vol-mid { display: flex; align-items: center; justify-content: center; gap: 0.35em; min-width: 0; min-height: 40px; padding: 0 0.4em; border-radius: 8px; }
+.ac-vol-ico { display: grid; place-items: center; width: clamp(16px, 14cqmin, 5vmin); height: clamp(16px, 14cqmin, 5vmin); color: var(--accent, #1ed760); }
+.ac-vol-ico svg { width: 100%; height: 100%; }
+.ac-vol-val { font-size: calc(var(--ac-scale, 1) * clamp(14px, 16cqmin, 5vmin)); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ac-vol-bar { width: 100%; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.ac-vol-fill { height: 100%; width: 0; background: var(--accent, #1ed760); transition: width 0.2s ease; }
+.ac-item-volume.is-muted .ac-vol-ico,
+.ac-item-volume.is-muted .ac-vol-val { color: var(--muted-text, #8b93a7); }
 
 /* ── free components (text / image / shape) ───────────────────────────────── */
 .ac-text { width: 100%; line-height: 1.15; overflow: hidden; overflow-wrap: anywhere; }
 .ac-image { width: 100%; height: 100%; background-position: center; background-repeat: no-repeat; }
 .ac-shape { width: 100%; height: 100%; }
 .ac-shape-line { height: 2px; align-self: center; }
+.ac-item > .grid-stack-item-content.ac-soft { overflow: visible; }
 
 /* ── embedded SDK widget ──────────────────────────────────────────────────── */
 .ac-sdk-frame { width: 100%; height: 100%; border: 0; display: block; }
@@ -173,7 +266,7 @@ body.ambient-canvas-open { overflow: hidden; }
   display: grid; place-items: center;
   padding: 6%;
   text-align: center;
-  font-size: clamp(10px, 7cqmin, 2vmin);
+  font-size: calc(var(--ac-scale, 1) * clamp(10px, 7cqmin, 2vmin));
   color: var(--muted-text, #8b93a7);
   background: rgba(255, 255, 255, 0.03);
   border: 1px dashed rgba(255, 255, 255, 0.12);
@@ -189,37 +282,262 @@ body.ambient-canvas-open { overflow: hidden; }
    window listeners, exactly like the SDK-scene overlay. */
 .ambient-canvas-overlay.dismiss-armed .ac-sdk-frame { pointer-events: none; }
 
-/* ── Settings → Ambient: the saved-scene manager ──────────────────────────────
-   Lists the canvas scenes the user installed via Import (js/settings.js
-   renderAmbientSceneManager) with a remove action. Scenes are authored as import
-   codes (the xenon-creator flow / the gallery), not composed in-app. */
-.settings-ambient-scenes { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+/* ── element options (js/ambient-scene.js props) ──────────────────────────────
+   Each switch is a data-* attribute the renderer sets only when it is not the
+   default, so an older scene draws exactly as before. */
+.ac-body[data-align="left"] { align-items: flex-start; text-align: left; }
+.ac-body[data-align="right"] { align-items: flex-end; text-align: right; }
+.ac-item-clock .ac-body:not([data-style])[data-align="left"],
+.ac-body[data-layout="row"][data-align="left"] { justify-content: flex-start; }
+.ac-item-clock .ac-body:not([data-style])[data-align="right"],
+.ac-body[data-layout="row"][data-align="right"] { justify-content: flex-end; }
+.ac-body[data-align] .ac-date-text { text-align: inherit; }
+.ac-body[data-align="left"] .ac-net-row { justify-content: flex-start; }
+.ac-body[data-align="right"] .ac-net-row { justify-content: flex-end; }
+.ac-body[data-align="center"] .ac-notes-text { text-align: center; }
+.ac-body[data-align="right"] .ac-notes-text { text-align: right; }
+
+/* clock: stacked digits, blinking colons, an analog face */
+.ac-item-clock .ac-body[data-style="stacked"] { flex-direction: column; align-items: center; gap: 0; }
+.ac-item-clock .ac-body[data-style="stacked"][data-align="left"] { align-items: flex-start; }
+.ac-item-clock .ac-body[data-style="stacked"][data-align="right"] { align-items: flex-end; }
+.ac-body[data-style="stacked"] .ac-clock-time { display: flex; flex-direction: column; align-items: inherit; line-height: 0.88; }
+.ac-body[data-style="stacked"] .ac-clock-sep { display: none; }
+.ac-body[data-blink] .ac-clock-sep { animation: ac-blink 2s ease-in-out infinite; }
+.ac-item-clock .ac-body[data-style="analog"] { padding: 4%; }
+.ac-analog { height: 100%; max-width: 100%; aspect-ratio: 1; overflow: visible; }
+.ac-analog-rim { fill: none; stroke: currentColor; stroke-opacity: 0.22; stroke-width: 1.5; }
+.ac-analog-mark { stroke: currentColor; stroke-opacity: 0.4; stroke-width: 1.2; stroke-linecap: round; }
+.ac-analog-mark.is-hour { stroke-opacity: 0.8; stroke-width: 2.2; }
+.ac-analog-h, .ac-analog-m, .ac-analog-s { stroke: currentColor; stroke-linecap: round; }
+.ac-analog-h { stroke-width: 4.2; }
+.ac-analog-m { stroke-width: 2.6; }
+.ac-analog-s { stroke: var(--accent, #1ed760); stroke-width: 1.2; }
+.ac-analog-hub { fill: var(--accent, #1ed760); }
+
+.ac-date-text.is-upper { text-transform: uppercase; }
+
+/* weather: an icon, a single row */
+.ac-w-head { display: flex; align-items: center; gap: 0.3em; }
+.ac-w-ico {
+  flex: 0 0 auto;
+  display: grid;
+  width: calc(var(--ac-scale, 1) * clamp(20px, 20cqmin, 24vmin));
+  aspect-ratio: 1;
+  color: var(--accent, #1ed760);
+}
+.ac-w-ico svg { width: 100%; height: 100%; }
+.ac-body[data-layout="row"] { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 0.7em; }
+
+/* media: cover above the title */
+.ac-item-media .ac-body[data-layout="stack"] { flex-direction: column; justify-content: center; gap: 0.5em; padding: 4%; }
+.ac-body[data-layout="stack"] .ac-m-art { width: auto; height: 52%; }
+.ac-body[data-layout="stack"] .ac-m-meta { align-items: center; text-align: center; max-width: 100%; }
+
+.ac-body[data-time="off"] .ac-list-when { display: none; }
+
+/* system: bars and rings */
+.ac-gauge-bar { flex: 1 1 auto; min-width: 2em; height: 0.4em; align-self: center; border-radius: 99px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.ac-gauge-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--accent, #1ed760); }
+.ac-item-system .ac-body[data-style="bars"] { padding: 0 6%; }
+.ac-body[data-style="bars"] .ac-stat { justify-content: flex-start; }
+.ac-body[data-style="bars"] .ac-stat-label { min-width: 2.6em; }
+.ac-body[data-style="bars"] .ac-stat-val { order: 2; min-width: 3.4em; text-align: right; }
+.ac-item-system .ac-body[data-style="rings"] { flex-direction: row; justify-content: space-evenly; align-items: center; }
+.ac-body[data-style="rings"] .ac-stat {
+  display: grid;
+  grid-template-areas: "ring" "label";
+  justify-items: center;
+  align-content: center;
+  gap: 0.25em;
+  width: auto;
+}
+.ac-body[data-style="rings"] .ac-gauge-ring,
+.ac-body[data-style="rings"] .ac-stat-val { grid-area: ring; }
+.ac-body[data-style="rings"] .ac-stat-val { align-self: center; font-size: calc(var(--ac-scale, 1) * clamp(10px, 8cqmin, 3.4vmin)); }
+.ac-body[data-style="rings"] .ac-stat-label { grid-area: label; }
+.ac-gauge-ring { width: min(26cqw, 64cqh); height: auto; }
+.ac-stat:only-child .ac-gauge-ring { width: min(80cqw, 72cqh); }
+.ac-gauge-track { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 8; }
+.ac-gauge-arc { fill: none; stroke: var(--accent, #1ed760); stroke-width: 8; stroke-linecap: round; }
+
+/* ── time windows and pages ───────────────────────────────────────────────────
+   An element out of its time window or on another page steps out of view. The
+   fade/slide is a one-off transition, never a loop. */
+.ac-item.ac-off { opacity: 0; visibility: hidden; pointer-events: none; }
+.ambient-canvas-stage[data-transition="fade"] > .ac-item { transition: opacity 0.6s ease, visibility 0.6s; }
+.ambient-canvas-stage[data-transition="slide"] > .ac-item { transition: opacity 0.5s ease, translate 0.5s ease, visibility 0.5s; }
+.ambient-canvas-stage[data-transition="slide"] > .ac-item.ac-off { translate: -6% 0; }
+
+/* ── entrance and loop animations ─────────────────────────────────────────────
+   Entrance on the content layer, the loop on the body inside it, the user's
+   opacity static on the content: keyframes give only the far end, so each one
+   ends on the element's own value instead of overriding it. Transform and
+   opacity only. */
+.ac-anim-in {
+  animation-duration: calc(0.9s / var(--ac-speed, 1));
+  animation-delay: var(--ac-delay, 0s);
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: backwards;
+}
+.ac-anim-in[data-ac-in="fade"] { animation-name: ac-in-fade; }
+.ac-anim-in[data-ac-in="rise"] { animation-name: ac-in-rise; }
+.ac-anim-in[data-ac-in="drop"] { animation-name: ac-in-drop; }
+.ac-anim-in[data-ac-in="zoom"] { animation-name: ac-in-zoom; }
+.ac-anim-in[data-ac-in="pop"] { animation-name: ac-in-pop; }
+.ac-anim-in[data-ac-in="slide-left"] { animation-name: ac-in-slide-left; }
+.ac-anim-in[data-ac-in="slide-right"] { animation-name: ac-in-slide-right; }
+@keyframes ac-in-fade { from { opacity: 0; } }
+@keyframes ac-in-rise { from { opacity: 0; transform: translateY(14%); } }
+@keyframes ac-in-drop { from { opacity: 0; transform: translateY(-14%); } }
+@keyframes ac-in-zoom { from { opacity: 0; transform: scale(0.85); } }
+@keyframes ac-in-pop { from { opacity: 0; transform: scale(0.6); } 70% { transform: scale(1.05); } }
+@keyframes ac-in-slide-left { from { opacity: 0; transform: translateX(-16%); } }
+@keyframes ac-in-slide-right { from { opacity: 0; transform: translateX(16%); } }
+
+.ac-body[data-ac-loop] {
+  animation-duration: calc(var(--ac-loop-s, 6s) / var(--ac-speed, 1));
+  animation-delay: calc(var(--ac-delay, 0s) + 0.9s / var(--ac-speed, 1));
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+.ac-body[data-ac-loop="float"] { animation-name: ac-loop-float; }
+.ac-body[data-ac-loop="breathe"] { animation-name: ac-loop-breathe; }
+.ac-body[data-ac-loop="pulse"] { animation-name: ac-loop-pulse; --ac-loop-s: 3s; }
+.ac-body[data-ac-loop="sway"] { animation-name: ac-loop-sway; --ac-loop-s: 7s; }
+.ac-body[data-ac-loop="drift"] { animation-name: ac-loop-drift; --ac-loop-s: 12s; }
+.ac-body[data-ac-loop="spin"] { animation-name: ac-loop-spin; --ac-loop-s: 24s; animation-timing-function: linear; }
+.ac-body[data-ac-loop="blink"] { animation-name: ac-blink; --ac-loop-s: 2s; }
+@keyframes ac-loop-float { 50% { transform: translateY(-4%); } }
+@keyframes ac-loop-breathe { 50% { transform: scale(1.04); opacity: 0.82; } }
+@keyframes ac-loop-pulse { 50% { opacity: 0.5; } }
+@keyframes ac-loop-sway { 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+@keyframes ac-loop-drift { 25% { transform: translateX(-3%); } 75% { transform: translateX(3%); } }
+@keyframes ac-loop-spin { to { transform: rotate(360deg); } }
+@keyframes ac-blink { 50% { opacity: 0.18; } }
+
+/* ── background: the dashboard wallpaper, slow motion ─────────────────────── */
+.ambient-canvas-stage > .ac-bg > .ac-bg-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ambient-canvas-stage > .ac-bg[data-motion] { inset: -6%; animation: 40s ease-in-out infinite alternate; }
+.ambient-canvas-stage > .ac-bg[data-motion="drift"] { animation-name: ac-bg-drift; }
+.ambient-canvas-stage > .ac-bg[data-motion="zoom"] { animation-name: ac-bg-zoom; }
+.ambient-canvas-stage > .ac-bg[data-motion="pan"] { animation-name: ac-bg-pan; }
+@keyframes ac-bg-drift { to { transform: translate(-4%, -3%); } }
+@keyframes ac-bg-zoom { to { transform: scale(1.08); } }
+@keyframes ac-bg-pan { from { transform: translateX(-4%); } to { transform: translateX(4%); } }
+
+/* Every loop above stops with the rest of the dashboard's motion: under a
+   frosted overlay, in a game, on a low-power GPU, in Performance mode, for
+   reduced motion, and while the scene is being edited. Not on ambient-idle:
+   the scene IS what is on screen while nobody touches it (ambient-idle.js
+   skips the overlay for the same reason). A running animation beats a static
+   declaration, so each gate is `animation: none`. */
+body.overlay-frozen .ac-body[data-ac-loop], body.game-mode .ac-body[data-ac-loop],
+body.low-power-gpu .ac-body[data-ac-loop], body.perf-mode .ac-body[data-ac-loop],
+body.overlay-frozen .ac-body[data-blink] .ac-clock-sep, body.game-mode .ac-body[data-blink] .ac-clock-sep,
+body.low-power-gpu .ac-body[data-blink] .ac-clock-sep, body.perf-mode .ac-body[data-blink] .ac-clock-sep,
+body.overlay-frozen .ambient-canvas-stage > .ac-bg[data-motion], body.game-mode .ambient-canvas-stage > .ac-bg[data-motion],
+body.low-power-gpu .ambient-canvas-stage > .ac-bg[data-motion], body.perf-mode .ambient-canvas-stage > .ac-bg[data-motion],
+.ambient-canvas-overlay.is-editing .ac-anim-in, .ambient-canvas-overlay.is-editing .ac-body[data-ac-loop],
+.ambient-canvas-overlay.is-editing .ac-body[data-blink] .ac-clock-sep,
+.ambient-canvas-overlay.is-editing .ambient-canvas-stage > .ac-bg[data-motion] { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ac-anim-in, .ac-body[data-ac-loop], .ac-body[data-blink] .ac-clock-sep,
+  .ambient-canvas-stage > .ac-bg[data-motion] { animation: none; }
+  .ambient-canvas-stage > .ac-item { transition: none; }
+}
+
+/* ── Settings → Ambient ───────────────────────────────────────────────────────
+   Three blocks, one question each: when the mode opens, which scene it shows
+   (with the Classic scene's own widgets right under the picker, since they only
+   apply to it), and the canvas scenes installed on this machine. A hairline
+   between blocks instead of a card per block: the group is already the card. */
+.settings-ambient-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 9px;
+}
+.settings-ambient-sec + .settings-ambient-sec { border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08)); }
+.settings-ambient-sec:last-child { padding-bottom: 0; }
+.settings-ambient-sec-title {
+  margin: 0 7px 4px;
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--text, #e8ecf4);
+}
+/* Label on the left, control on the right, like a toggle row's text column. */
+.settings-ambient-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 40px;
+  padding: 2px 7px;
+}
+.settings-ambient-row-label { font-size: 12.5px; font-weight: 850; color: var(--text, #e8ecf4); }
+.settings-ambient-row .cs-wrap { min-width: 150px; }
+.settings-ambient-row--wide .cs-wrap { flex: 1 1 auto; }
+.settings-ambient-sec > .settings-note { margin: 2px 7px 0; }
+.settings-ambient-sec > .settings-note[hidden] { display: none; }
+.settings-ambient-classic { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.settings-ambient-classic[hidden] { display: none; }
+.settings-ambient-classic > .settings-hint { margin: 0 7px; }
+/* Four short words: a row that keeps them together under their caption, not
+   four equal columns that spread them across the whole card. */
+.settings-ambient-classic-grid { display: flex; flex-wrap: wrap; gap: 2px 18px; }
+
+/* The installed canvas scenes, each with Edit and Delete. */
 .settings-ambient-scenes-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted-text, #8b93a7);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding-right: 7px;
 }
-.settings-ambient-scene-list { display: flex; flex-direction: column; gap: 6px; }
+.settings-ambient-scenes-head .settings-ambient-sec-title { margin-bottom: 0; }
+.settings-ambient-scenes-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.settings-ambient-scenes-acts a.settings-btn { display: inline-flex; align-items: center; text-decoration: none; }
+.settings-ambient-scene-list { display: flex; flex-direction: column; gap: 6px; padding: 0 7px; }
 .settings-ambient-scene-empty { margin: 2px 0; font-size: 12px; color: var(--muted-text, #8b93a7); }
 .settings-ambient-scene-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  background: var(--control-bg, rgba(255, 255, 255, 0.03));
 }
-.settings-ambient-scene-row.is-active { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); background: rgba(var(--accent-rgb, 30, 215, 96), 0.08); }
-.settings-ambient-scene-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
-.settings-ambient-scene-name { font-size: 13px; font-weight: 600; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.settings-ambient-scene-meta { font-size: 11px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-row.is-active { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); }
+.settings-ambient-scene-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+.settings-ambient-scene-name { font-size: 13px; font-weight: 750; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-ambient-scene-meta { font-size: 11.5px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-meta .is-active-label { color: var(--accent); font-weight: 750; }
 .settings-ambient-scene-acts { display: flex; gap: 6px; flex: 0 0 auto; }
-.settings-ambient-scene-acts .settings-btn { padding: 5px 10px; font-size: 12px; }
-.settings-ambient-scene-acts .settings-btn.danger { color: var(--color-danger); }
+/* Delete is a quiet action in a list that is touched often: red text on the
+   row's own surface, filled only on hover. The filled .danger button is for a
+   confirm step, and its text colour (on-danger) cannot be overridden per theme
+   without painting red on red. */
+.settings-ambient-scene-acts .settings-ambient-scene-del { color: var(--color-danger); }
+.settings-ambient-scene-acts .settings-ambient-scene-del:hover {
+  color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+}
+@media (max-width: 560px) {
+  .settings-ambient-classic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-ambient-scene-row { flex-wrap: wrap; }
+  .settings-ambient-scene-acts { width: 100%; }
+  .settings-ambient-scene-acts .settings-btn { flex: 1 1 0; min-height: 44px; }
+  .settings-ambient-scenes-acts { width: 100%; }
+  .settings-ambient-scenes-acts .settings-btn { flex: 1 1 auto; justify-content: center; }
+  .settings-ambient-scenes-head .settings-btn,
+  .settings-ambient-row .cs-trigger { min-height: 44px; }
+}
 
 /* Import-preview thumbnail (js/preset-share.js openAmbientLayoutImport): a true
    scaled render of the scene through the AmbientCanvas pipeline. */

@@ -50,3 +50,27 @@ test('collapsed shrinks the cutout to its centre at the tile top', () => {
   assert.equal(c.bottom, base.margin);
   assert.equal(N.edgePath(c, 1).split(' ').length, N.edgePath(g, 1).split(' ').length);
 });
+
+// A glass tile under the island takes the cutout on its surfaces, not on the
+// item (an ancestor clip-path is the backdrop root and the blur saw nothing).
+// The surfaces live in the content box, which starts `margin` inside the item,
+// so the same cutout has to come out shifted by exactly that much.
+test('surfaceClipPath is the item cutout moved into the content box', () => {
+  const nums = (p) => p.match(/-?\d+(\.\d+)?/g).map(Number);
+  const g = N.geometry(base);
+  const item = nums(N.clipPath(g));
+  const surface = nums(N.surfaceClipPath(g));
+  assert.equal(surface.length, item.length);
+  // The tile's top edge: item y = margin, surface y = 0.
+  assert.match(N.surfaceClipPath(g), / V 0 A /);
+  // The cutout's left wall and floor move by the gutter on both axes.
+  assert.ok(N.surfaceClipPath(g).includes(`V ${g.bottom - base.margin - g.cornerR} `));
+  assert.ok(N.surfaceClipPath(g).includes(` ${g.left - base.margin} ${base.margin - base.margin + g.shoulderL}`));
+});
+
+test('the item clip is unchanged by the surface variant', () => {
+  const g = N.geometry(base);
+  assert.equal(N.clipPath(g), N.clipPath(g, 0));
+  assert.match(N.clipPath(g), /^path\("M -48 -48 H /);
+  assert.equal(N.surfaceClipPath(null), '');
+});

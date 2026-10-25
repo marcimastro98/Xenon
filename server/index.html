@@ -43,6 +43,8 @@
 
 <!-- Global styles & design tokens -->
 <link rel="stylesheet" href="styles/global.css">
+<link rel="stylesheet" href="components/XenonLoader/XenonLoader.css">
+<link rel="stylesheet" href="components/BootSplash/BootSplash.css">
 
 <!-- Shared materials & base controls (load before components) -->
 <link rel="stylesheet" href="styles/materials.css">
@@ -51,6 +53,8 @@
 <!-- Component styles -->
 <link rel="stylesheet" href="components/Topbar/Topbar.css">
 <link rel="stylesheet" href="components/TopbarMinimal/TopbarMinimal.css">
+<link rel="stylesheet" href="components/Topbar/TopbarLookSettings.css">
+<link rel="stylesheet" href="components/Topbar/TopbarLayoutPanel.css">
 <link rel="stylesheet" href="components/MediaPanel/MediaPanel.css">
 <link rel="stylesheet" href="components/TopbarMedia/TopbarMedia.css">
 <link rel="stylesheet" href="components/CalendarView/CalendarView.css">
@@ -72,6 +76,7 @@
 <link rel="stylesheet" href="components/WeatherModal/WeatherModal.css">
 <link rel="stylesheet" href="components/LockScreen/LockScreen.css">
 <link rel="stylesheet" href="components/AmbientCanvas/AmbientCanvas.css">
+<link rel="stylesheet" href="components/AmbientCanvasEditor/AmbientCanvasEditor.css">
 <link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <link rel="stylesheet" href="components/AIPanel/AIPanel.css">
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
@@ -85,6 +90,7 @@
 <link rel="stylesheet" href="components/GuardianHistory/GuardianHistory.css">
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
 <link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
+<link rel="stylesheet" href="components/DashboardGrid/TileStyleDecor.css">
 <link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
 <link rel="stylesheet" href="components/PerformancePanel/PerformancePanel.css">
 <link rel="stylesheet" href="components/TwitchPanel/TwitchPanel.css">
@@ -139,7 +145,11 @@
 <link rel="stylesheet" href="styles/themes-retro.css">
 <!-- Comic Book skin (keyed off :root[data-style="comic"]) -->
 <link rel="stylesheet" href="styles/themes-comic.css">
+<!-- Top bar look (Settings → Top bar); after the skins so a chosen look wins -->
+<link rel="stylesheet" href="components/Topbar/TopbarLook.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
+<!-- One tile's own buttons and fields (style.controls); after the skins so it wins -->
+<link rel="stylesheet" href="styles/tile-controls.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
 <!-- Xeneon Edge hairline hardening — device-only, gated to the fractional-DPR bar -->
@@ -152,6 +162,20 @@
 <link rel="stylesheet" href="styles/edge-preview.css">
 </head>
 <body>
+<!-- The Xenon mark while the dashboard loads, in the user's theme colours
+     (js/boot-splash.js, right below, runs before the rest of the page). -->
+<div class="boot-splash" id="boot-splash" aria-hidden="true">
+  <!-- The same mark XenonLoader.create() builds (js/xenon-loader.js). -->
+  <span class="xloader xloader--lg boot-splash-loader">
+    <svg class="xloader-mark" viewBox="32 50 194 156" aria-hidden="true">
+      <path class="xloader-chev" d="M39 54H93L156 128L93 202H39L99 128Z"/>
+      <path class="xloader-up" d="M162 54H219L161.3 116.7L134 84.5Z"/>
+      <path class="xloader-down" d="M162 202H219L161.3 139.3L134 171.5Z"/>
+    </svg>
+    <span class="xloader-bar"></span>
+  </span>
+</div>
+<script src="js/boot-splash.js"></script>
 <!-- Tile silhouettes. One sprite for the whole dashboard: identical shapes share
      a <clipPath>, so twenty hexagon tiles cost one def. Written and swept by
      applyTileStyle() in js/dashboard-layout.js; empty until a tile asks. -->
@@ -687,7 +711,7 @@
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2">
       <div id="system-block" class="system-block">
-        <div class="system-tabs">
+        <div class="system-tabs" data-fit-levels="3">
           <div class="system-tabs-left">
             <button type="button" class="sys-tab active" data-systab="main" data-system-tab-order="0" onclick="setSystemTab('main')">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
@@ -1193,7 +1217,7 @@
             </div>
             <!-- Shown only when a wallpaper / static / code background sits opaquely
                  over the canvas, so editing this colour has no visible effect. -->
-            <span class="settings-note settings-bg-covered-note" id="settings-bg-covered-note" hidden data-i18n="settings_background_covered">Coperto da uno sfondo attivo — rimuovi lo sfondo per vedere questo colore.</span>
+            <span class="settings-note settings-bg-covered-note" id="settings-bg-covered-note" hidden data-i18n="settings_background_covered">Coperto da uno sfondo attivo. Rimuovi lo sfondo per vedere questo colore.</span>
           </label>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_panel_surface">Pannelli</span><span class="settings-hint" data-i18n="settings_panel_surface_hint">widget e finestre</span></span>
@@ -1296,6 +1320,10 @@
             <span class="settings-label-line"><span data-i18n="settings_bg_blur">Sfocatura sfondo</span><span class="settings-value" id="settings-bg-blur-value">0px</span></span>
             <input class="settings-range" id="settings-bg-blur" type="range" min="0" max="24" step="1" oninput="updateSettingsRange('bgBlur', this.value)">
             <span class="settings-note" id="settings-bg-blur-note" data-i18n="settings_bg_blur_note_empty">Visibile dopo aver caricato un'immagine, GIF o video.</span>
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-boot-splash" type="checkbox" onchange="updateBootSplash(this.checked)">
+            <span class="settings-label-line"><span data-i18n="settings_boot_splash">Logo all'avvio</span><span class="settings-hint" data-i18n="settings_boot_splash_hint">mostra la X di Xenon nei colori del tuo tema mentre la dashboard si carica, invece delle tile ancora vuote</span></span>
           </label>
           <label class="settings-toggle-row full">
             <input class="settings-check" id="settings-idle-anim-pause" type="checkbox" onchange="updateIdleAnimationPause(this.checked)">
@@ -1413,14 +1441,48 @@
               <span class="settings-label-line"><span data-i18n="topbar_btn_head">Bottoni della barra</span><span class="settings-hint" data-i18n="topbar_btn_hint">nascondi quelli che non usi, trascina per ordinarli e scegli su quale lato stanno; vale in Full e in Minimal</span></span>
               <div class="island-edit-list" id="topbar-actions-editor"></div>
             </div>
-          <label class="settings-toggle-row full" id="topbar-rails-personalize">
-            <input class="settings-check" id="settings-rails-autohide" type="checkbox" onchange="updateTopbarRailsAutoHide(this.checked)">
-            <span class="settings-label-line">
-              <span data-i18n="settings_topbar_autohide">Nascondi le barre laterali automaticamente</span>
-              <span class="settings-hint" data-i18n="settings_topbar_autohide_hint">si nascondono dopo 10 secondi senza tocchi; ricompaiono toccando il bordo dello schermo</span>
-            </span>
-          </label>
         </div>
+      </div>
+
+      <!-- The bar's look, in every style (js/topbar-look-settings.js builds the
+           controls; js/topbar-look.js owns the values). The bar at the top of the
+           screen is the preview. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="island" id="settings-topbar-look">
+        <div class="settings-group-head">
+          <span data-i18n="tbl_look_title">Aspetto della barra</span>
+          <span class="settings-hint" data-i18n="tbl_look_hint">vale per Completa e Minimal; la barra in alto cambia mentre scegli</span>
+        </div>
+        <div class="tbl-presets full" id="tbl-presets" role="group"></div>
+        <details class="tbl-custom full" id="tbl-custom">
+          <summary><span data-i18n="tbl_customize">Personalizza</span><span class="settings-hint" id="tbl-custom-state" data-i18n="tbl_preset_custom" hidden>personalizzato</span></summary>
+          <div class="tbl-custom-rows" id="tbl-custom-rows"></div>
+        </details>
+      </div>
+
+      <!-- The edge rails exist in Minimal and None only (settings.js hides this
+           group in Full through #topbar-rails-personalize). -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="island" id="topbar-rails-personalize">
+        <div class="settings-group-head">
+          <span data-i18n="tbl_rails_title">Barre laterali</span>
+          <span class="settings-hint" data-i18n="tbl_rails_hint">i bottoni ai lati dello schermo in Minimal e Nessuna</span>
+        </div>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-rails-autohide" type="checkbox" onchange="updateTopbarRailsAutoHide(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_topbar_autohide">Nascondi le barre laterali automaticamente</span>
+            <span class="settings-hint" data-i18n="settings_topbar_autohide_hint">si nascondono quando non le tocchi; ricompaiono toccando il bordo dello schermo</span>
+          </span>
+        </label>
+        <div class="tbl-custom-rows full" id="tbl-rail-rows"></div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="island" id="settings-topbar-notify">
+        <div class="settings-group-head">
+          <span data-i18n="tbl_toast_title">Notifiche</span>
+          <span class="settings-hint" data-i18n="tbl_toast_hint">dove compaiono gli avvisi sullo schermo</span>
+        </div>
+        <div class="tbl-custom-rows" id="tbl-notify-rows"></div>
+        <button class="settings-btn subtle tbl-toast-test" type="button" onclick="if(window.TopbarLookSettings)TopbarLookSettings.testToast()" data-i18n="tbl_toast_test">Mostra una prova</button>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="island">
@@ -1644,6 +1706,7 @@
             <button class="settings-clock-date-format settings-segment-btn" type="button" data-clock-date-format="short" onclick="updateClockDateFormat('short')" aria-pressed="false" data-i18n="settings_clock_date_short">Corto</button>
           </div>
         </div>
+        <div class="tbl-custom-rows full" id="tbl-clock-rows"></div>
         <!-- Size lives beside the format, in the section that already owns the
              top bar ("contenuti e stile della barra superiore"): someone who
              wants a bigger date is looking at the top bar, not at Aspetto, and a
@@ -2075,59 +2138,73 @@
           <span data-i18n="settings_ambient">Ambient / Screensaver</span>
           <span class="settings-hint" data-i18n="settings_ambient_hint">Scena a schermo intero</span>
         </div>
-        <label class="settings-toggle-row">
-          <input class="settings-check" id="settings-ambient-enabled" type="checkbox" onchange="updateAmbientSetting('enabled', this.checked)">
-          <span data-i18n="ambient_enable">Abilita la modalità Ambient</span>
-        </label>
-        <label class="settings-toggle-row">
-          <input class="settings-check" id="settings-ambient-startup" type="checkbox" onchange="updateAmbientSetting('openOnStartup', this.checked)">
-          <span data-i18n="ambient_startup">Apri all'avvio</span>
-        </label>
-        <span class="settings-note" data-i18n="ambient_startup_hint">La scena si apre appena parte Xenon e resta aperta finché non la chiudi tu. Diversa da "Avvia dopo inattività", che si chiude appena usi il PC.</span>
-        <div class="settings-ambient-row">
-          <label class="settings-toggle-row"><span data-i18n="ambient_idle_label">Avvia dopo inattività</span></label>
-          <select class="settings-select" id="settings-ambient-idle" data-custom-select data-cs-fixed onchange="updateAmbientSetting('idleMinutes', this.value)">
-            <option value="0" data-i18n="ambient_idle_off" selected>Mai</option>
-            <option value="1">1 min</option>
-            <option value="2">2 min</option>
-            <option value="5">5 min</option>
-            <option value="10">10 min</option>
-            <option value="15">15 min</option>
-            <option value="30">30 min</option>
-          </select>
-        </div>
-        <div class="settings-ambient-row">
-          <label class="settings-toggle-row"><span data-i18n="ambient_scene_label">Scena</span></label>
-          <select class="settings-select" id="settings-ambient-scene" data-custom-select data-cs-fixed onchange="updateAmbientSetting('sceneId', this.value)">
-            <option value="builtin" data-i18n="ambient_scene_builtin" selected>Classica (widget)</option>
-          </select>
+        <section class="settings-ambient-sec">
+          <h4 class="settings-ambient-sec-title" data-i18n="ambient_sec_when">Quando si apre</h4>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ambient-enabled" type="checkbox" onchange="updateAmbientSetting('enabled', this.checked)">
+            <span data-i18n="ambient_enable">Abilita la modalità Ambient</span>
+          </label>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ambient-startup" type="checkbox" onchange="updateAmbientSetting('openOnStartup', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="ambient_startup">Apri all'avvio</span>
+              <span class="settings-hint" data-i18n="ambient_startup_hint">La scena si apre appena parte Xenon e resta aperta finché non la chiudi tu. Diversa da "Avvia dopo inattività", che si chiude appena usi il PC.</span>
+            </span>
+          </label>
+          <div class="settings-ambient-row">
+            <span class="settings-ambient-row-label" data-i18n="ambient_idle_label">Avvia dopo inattività</span>
+            <select class="settings-select" id="settings-ambient-idle" data-custom-select data-cs-fixed onchange="updateAmbientSetting('idleMinutes', this.value)">
+              <option value="0" data-i18n="ambient_idle_off" selected>Mai</option>
+              <option value="1">1 min</option>
+              <option value="2">2 min</option>
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+        </section>
+        <section class="settings-ambient-sec">
+          <h4 class="settings-ambient-sec-title" data-i18n="ambient_scene_label">Scena</h4>
+          <div class="settings-ambient-row settings-ambient-row--wide">
+            <select class="settings-select" id="settings-ambient-scene" data-custom-select data-cs-fixed onchange="updateAmbientSetting('sceneId', this.value)">
+              <option value="builtin" data-i18n="ambient_scene_builtin" selected>Classica (widget)</option>
+            </select>
+          </div>
           <span class="settings-note" id="settings-ambient-scene-note" hidden></span>
-        </div>
-        <button type="button" class="settings-btn subtle" onclick="if(window.CommunityGallery)CommunityGallery.open('ambient')" data-i18n="ambient_get_scenes">Trova scene nella galleria…</button>
-        <div class="settings-ambient-scenes" id="settings-ambient-scenes">
+          <div class="settings-ambient-classic" id="settings-ambient-builtin-widgets">
+            <span class="settings-hint" data-i18n="ambient_classic_widgets">Cosa mostra la scena Classica</span>
+            <div class="settings-ambient-classic-grid">
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-lock-clock" type="checkbox" onchange="updateLockWidgetSetting('clock', this.checked)">
+                <span data-i18n="lock_widget_clock">Orologio</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-lock-weather" type="checkbox" onchange="updateLockWidgetSetting('weather', this.checked)">
+                <span data-i18n="lock_widget_weather">Meteo</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-lock-media" type="checkbox" onchange="updateLockWidgetSetting('media', this.checked)">
+                <span data-i18n="lock_widget_media">Musica</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-lock-calendar" type="checkbox" onchange="updateLockWidgetSetting('calendar', this.checked)">
+                <span data-i18n="lock_widget_calendar">Eventi</span>
+              </label>
+            </div>
+          </div>
+        </section>
+        <section class="settings-ambient-sec settings-ambient-scenes" id="settings-ambient-scenes">
           <div class="settings-ambient-scenes-head">
-            <span data-i18n="ambient_my_scenes">Le mie scene</span>
+            <h4 class="settings-ambient-sec-title" data-i18n="ambient_my_scenes">Le mie scene</h4>
+            <div class="settings-ambient-scenes-acts">
+              <a class="settings-btn subtle" href="https://xenon-app.com/maker/" target="_blank" rel="noopener noreferrer" data-i18n="ambient_create_maker">Crea in Xenon Maker</a>
+              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="ambient_import_code">Importa codice</button>
+              <button type="button" class="settings-btn subtle" onclick="if(window.CommunityGallery)CommunityGallery.open('ambient')" data-i18n="ambient_gallery">Galleria</button>
+            </div>
           </div>
           <div class="settings-ambient-scene-list" id="settings-ambient-scene-list"></div>
-        </div>
-        <div class="settings-toggle-grid" id="settings-ambient-builtin-widgets">
-          <label class="settings-toggle-row">
-            <input class="settings-check" id="settings-lock-clock" type="checkbox" onchange="updateLockWidgetSetting('clock', this.checked)">
-            <span data-i18n="lock_widget_clock">Orologio</span>
-          </label>
-          <label class="settings-toggle-row">
-            <input class="settings-check" id="settings-lock-weather" type="checkbox" onchange="updateLockWidgetSetting('weather', this.checked)">
-            <span data-i18n="lock_widget_weather">Meteo</span>
-          </label>
-          <label class="settings-toggle-row">
-            <input class="settings-check" id="settings-lock-media" type="checkbox" onchange="updateLockWidgetSetting('media', this.checked)">
-            <span data-i18n="lock_widget_media">Musica</span>
-          </label>
-          <label class="settings-toggle-row">
-            <input class="settings-check" id="settings-lock-calendar" type="checkbox" onchange="updateLockWidgetSetting('calendar', this.checked)">
-            <span data-i18n="lock_widget_calendar">Eventi</span>
-          </label>
-        </div>
+        </section>
       </div>
 
       <div class="settings-group settings-weather-group" data-settings-cat="weather">
@@ -2858,27 +2935,10 @@
         </div>
       </div>
 
-      <div class="settings-group" data-settings-cat="lighting" hidden>
-        <div class="settings-group-head">
-          <span data-i18n="settings_chroma_title">Razer Chroma</span>
-          <span class="settings-hint" data-i18n="settings_chroma_hint">Guida le luci Razer con gli effetti del dashboard, e dai il controllo diretto a Deck e widget</span>
-        </div>
-        <label class="settings-toggle-row">
-          <input class="settings-check" id="settings-chroma-enabled" type="checkbox" onchange="updateChromaEnabled(this.checked)">
-          <span class="settings-label-line">
-            <span data-i18n="settings_chroma_enable">Abilita Razer Chroma</span>
-            <span class="settings-hint" data-i18n="settings_chroma_enable_hint">Richiede Razer Synapse con Chroma in esecuzione</span>
-          </span>
-        </label>
-        <div class="settings-row full">
-          <button class="settings-btn" type="button" onclick="testChromaConnection(this)" data-i18n="settings_chroma_test">Verifica connessione</button>
-          <p class="settings-note" id="settings-chroma-status"></p>
-        </div>
-      </div>
-
-      <div class="settings-group" data-settings-cat="lighting" hidden>
-        <!-- The full lighting hub renders here (settings.js → LightingPage.init()).
-             All RGB controls live in Settings; there is no dashboard lighting page. -->
+      <div class="lighting-hub" data-settings-cat="lighting" hidden>
+        <!-- The full lighting hub renders here (settings.js → LightingPage.init()),
+             as its own stack of Settings cards. All RGB controls live in Settings;
+             there is no dashboard lighting page. -->
         <div id="settings-lighting-hub" data-lightf="mount"></div>
       </div>
 
@@ -3357,6 +3417,7 @@
               </span>
             </div>
             <div class="settings-howto-links">
+              <a class="settings-inline-link" href="https://xenon-app.com/maker/" target="_blank" rel="noopener noreferrer" data-i18n="settings_maker_link">Crea senza codice con Xenon Maker →</a>
               <a class="settings-inline-link" href="https://xenon-app.com/create/#sdk" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
               <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
             </div>
@@ -4197,6 +4258,7 @@
 <!-- Monotone-cubic path builder shared by the stat sparklines (utils.js) and the
      sensor-history charts (guardian-history.js). Must load before both. -->
 <script src="js/spark-path.js"></script>
+<script src="js/xenon-loader.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/toast-island.js"></script>
 <script src="js/toast.js"></script>
@@ -4206,6 +4268,7 @@
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/fit-row.js"></script>
 <script src="js/native-bridge.js"></script>
 <script src="js/icue-host.js"></script>
 <script src="js/edge-preview.js"></script>
@@ -4239,19 +4302,37 @@
 <script src="js/custom-bg.js"></script>
 <script src="js/slideshow-widget.js"></script>
 <script src="js/theme-palette.js"></script>
+<script src="js/topbar-look.js"></script>
+<script src="js/topbar-share.js"></script>
 <script src="js/content-installs.js"></script>
 <script src="js/fuzzy-find.js"></script>
 <script src="js/smart-home-order.js"></script>
 <script src="js/sensor-sources.js"></script>
 <script src="js/dashboard-portrait.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/settings-bar-preview.js"></script>
 <script src="js/settings-search.js"></script>
 <script src="js/performance.js"></script>
 <script src="js/tile-decor-presets.js"></script>
+<script src="js/tile-decor-schema.js"></script>
+<script src="js/tile-decor-layers.js"></script>
+<script src="js/tile-controls.js"></script>
 <script src="js/tile-shape-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
+<script src="js/tile-style-fields.js"></script>
+<script src="js/tile-style-decor-model.js"></script>
+<script src="js/tile-style-decor-frame.js"></script>
+<script src="js/tile-style-decor-overlays.js"></script>
+<script src="js/tile-style-decor-extras.js"></script>
+<script src="js/tile-style-decor-panes.js"></script>
+<script src="js/tile-style-controls-pane.js"></script>
+<script src="js/tile-style-tabs-pane.js"></script>
+<script src="js/tile-style-editor.js"></script>
 <script src="js/island-notch.js"></script>
 <script src="js/topbar-minimal.js"></script>
+<script src="js/topbar-look-settings.js"></script>
+<script src="js/topbar-button-options.js"></script>
+<script src="js/topbar-layout-panel.js"></script>
 <script src="js/topbar-fit.js"></script>
 <script src="js/media-viz.js"></script>
 <script src="js/topbar-media.js"></script>
@@ -4259,6 +4340,7 @@
 <script src="js/sdk-island.js"></script>
 <script src="js/sdk-badges.js"></script>
 <script src="js/sdk-mini.js"></script>
+<script src="js/sdk-topbar-button.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ambient-mode.js"></script>
 <script src="js/ai.js"></script>
@@ -4268,7 +4350,11 @@
 <script src="js/dashboard-instances.js"></script>
 <script src="js/tile-tab-memory.js"></script>
 <script src="js/ambient-scene.js"></script>
+<script src="js/ambient-canvas-parts.js"></script>
 <script src="js/ambient-canvas.js"></script>
+<script src="js/ambient-canvas-editor-fields.js"></script>
+<script src="js/ambient-canvas-editor-form.js"></script>
+<script src="js/ambient-canvas-editor.js"></script>
 <script src="js/dashboard-grid.js"></script>
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages.js"></script>
@@ -4286,7 +4372,13 @@
 <script src="js/deck-icons.js"></script>
 <script src="js/deck-actions.js"></script>
 <script src="js/deck.js"></script>
+<script src="js/deck-editor-behavior.js"></script>
 <script src="js/deck-editor.js"></script>
+<script src="js/lighting-ui.js"></script>
+<script src="js/lighting-map.js"></script>
+<script src="js/lighting-device.js"></script>
+<script src="js/lighting-setup.js"></script>
+<script src="js/lighting-connections.js"></script>
 <script src="js/lighting-page.js"></script>
 <script src="js/phone-view.js"></script>
 <script src="js/remote-access-guide.js"></script>

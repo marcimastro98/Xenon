@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">Azioni</a>
       <a href="#steps" data-i18n="deck.jump.steps">Tasti in più passaggi</a>
+      <a href="#behave" data-i18n="deck.jump.behave">Come risponde un tasto</a>
       <a href="#state" data-i18n="deck.jump.state">Tasti che mostrano uno stato</a>
       <a href="#faders" data-i18n="deck.jump.faders">Fader</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">Profili e pagine</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> Metti in muto una strip o regolane il gain, mandala a un bus (i pulsanti A1, A2, B1), metti in muto un bus o regolane il gain, premi uno dei tuoi pulsanti macro, o imposta qualsiasi parametro per nome.</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> Regola o metti in muto il volume di un ingresso, di un'uscita o di un mix. Con Wave Link 2 un tasto può anche cambiare il monitoraggio; con Wave Link 3 può attivare e disattivare gli effetti e scegliere il dispositivo di uscita.</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> Accendi o spegni un dispositivo, regola una luce, comanda un lettore multimediale, una tapparella, il clima, una ventola, un aspirapolvere, una serratura o un allarme, attiva una scena, esegui uno script, premi un pulsante o chiama qualsiasi servizio.</li>
-      <li data-i18n-html="deck.act.light"><strong>Illuminazione.</strong> Accendi o spegni le luci, imposta un colore o un effetto, cambia un singolo dispositivo o riportale in automatico. I dispositivi Razer Chroma e gli effetti SignalRGB hanno tasti propri.</li>
+      <li data-i18n-html="deck.act.light"><strong>Illuminazione.</strong> Accendi o spegni le luci, imposta un colore o un effetto, cambia un singolo dispositivo, colora una sola ventola, striscia o pompa, o riportale in automatico. I dispositivi Razer Chroma e gli effetti SignalRGB hanno tasti propri.</li>
       <li data-i18n-html="deck.act.window"><strong>Finestre.</strong> Sposta la finestra che stavi usando sul monitor successivo o precedente, agganciala alla metà sinistra o destra, ingrandiscila, riducila a icona o centrala.</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI e Claude Code.</strong> Manda un prompt all'AI, avvia una sessione vocale o apri la chat. Avvia una richiesta a Claude Code in uno dei tuoi progetti, o ferma quella in corso. Il tasto non concede permessi: quando Claude Code chiede di eseguire un comando, la richiesta arriva sullo schermo e sei tu ad approvarla.</li>
       <li data-i18n-html="deck.act.more"><strong>Altro.</strong> Chiama o manda SMS tramite un telefono abbinato via Bluetooth, chiudi una sessione remota o blocca l'accesso remoto, e usa i tasti aggiunti dai widget della community che hai installato, ognuno solo dopo che l'hai consentito.</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">Tasti in più passaggi</h2>
-    <p data-i18n="deck.steps.p1">Ogni tasto ha tre gesti: tocco, doppio tocco e pressione prolungata per mezzo secondo. Ogni gesto può avere le sue azioni.</p>
+    <p data-i18n="deck.steps.p1">Ogni tasto ha tre gesti: tocco, doppio tocco e pressione prolungata. Ogni gesto può avere le sue azioni.</p>
     <p data-i18n="deck.steps.p2">Un gesto può anche eseguire più azioni di fila, con una pausa fino a 10 secondi prima di ciascuna. Per esempio: metti in muto il microfono, aspetta un attimo, poi apri un'app.</p>
     <p data-i18n="deck.steps.p3">Ogni passaggio viene eseguito anche se uno precedente fallisce. Se un passaggio fallisce, il tasto lampeggia di rosso dopo l'ultimo passaggio.</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">Come risponde un tasto</h2>
+    <p data-i18n-html="deck.behave.p1">Nell'editor del tasto, il riquadro <strong>Comportamento</strong> in <strong>Cosa fa</strong> decide come il tasto risponde a una pressione:</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>Pulsante.</strong> Un tocco esegue le sue azioni. Doppio tocco e pressione prolungata possono eseguirne altre.</li>
+      <li data-i18n-html="deck.behave.switch"><strong>Interruttore.</strong> Un tocco lo accende, quello dopo lo spegne, e ogni tocco esegue le sue azioni. Un interruttore può spegnersi da solo dopo i secondi che scegli.</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>Momentaneo.</strong> Un gruppo di azioni parte quando il dito si appoggia e un altro quando si alza, come un push-to-talk. Il tasto resta acceso finché lo tieni premuto.</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>Ripeti.</strong> Le azioni partono una volta, poi ancora e ancora finché tieni premuto il tasto, come un tasto del volume. Scegli quanto aspetta prima di ripetere e ogni quanto ripete.</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>Ciclo.</strong> Il tasto passa per due fino a otto stati, ognuno con le sue azioni, etichetta, icona e colore. Ogni tocco esegue lo stato in cui si trova il tasto, poi passa al successivo. I puntini sul tasto mostrano in che stato è.</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">La pressione prolungata aspetta mezzo secondo e il doppio tocco deve arrivare entro 260 millisecondi. Puoi cambiarli entrambi per ogni tasto, nello stesso riquadro.</p>
+    <p data-i18n="deck.behave.p3">Lo spegnimento automatico funziona finché resta aperta la dashboard che ha acceso l'interruttore.</p>
 
     <h2 id="state" data-i18n="deck.h.state">Tasti che mostrano uno stato</h2>
     <p data-i18n="deck.state.p1">Un tasto può seguire uno stato in tempo reale e illuminarsi quando è attivo. Può seguire:</p>

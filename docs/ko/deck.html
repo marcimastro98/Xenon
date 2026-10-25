@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">액션</a>
       <a href="#steps" data-i18n="deck.jump.steps">여러 단계를 실행하는 키</a>
+      <a href="#behave" data-i18n="deck.jump.behave">키가 반응하는 방식</a>
       <a href="#state" data-i18n="deck.jump.state">상태를 보여 주는 키</a>
       <a href="#faders" data-i18n="deck.jump.faders">페이더</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">프로필과 페이지</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> 스트립을 음소거하거나 게인을 설정하고, 버스로 보내고(A1, A2, B1 버튼), 버스를 음소거하거나 게인을 설정하고, 매크로 버튼 하나를 누르거나, 이름이 있는 아무 파라미터나 설정합니다.</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> 입력, 출력, 믹스의 볼륨을 설정하거나 음소거합니다. Wave Link 2에서는 모니터링 전환도 할 수 있고, Wave Link 3에서는 효과 켜고 끄기와 출력 장치 선택도 할 수 있습니다.</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> 기기 켜고 끄기, 조명 설정, 미디어 플레이어, 커버, 공조, 팬, 청소기, 잠금장치, 경보 제어, 장면 활성화, 스크립트 실행, 버튼 누르기, 또는 아무 서비스 호출.</li>
-      <li data-i18n-html="deck.act.light"><strong>조명.</strong> 조명을 켜거나 끄고, 색이나 효과를 설정하고, 장치 하나를 바꾸거나, 자동 제어로 되돌립니다. Razer Chroma 장치와 SignalRGB 효과는 전용 키가 있습니다.</li>
+      <li data-i18n-html="deck.act.light"><strong>조명.</strong> 조명을 켜거나 끄고, 색이나 효과를 설정하고, 장치 하나를 바꾸거나, 팬 하나, 스트립 하나 또는 펌프만 색을 바꾸거나, 자동 제어로 되돌립니다. Razer Chroma 장치와 SignalRGB 효과는 전용 키가 있습니다.</li>
       <li data-i18n-html="deck.act.window"><strong>창.</strong> 사용하던 창을 다음 또는 이전 모니터로 옮기고, 왼쪽이나 오른쪽 절반에 맞추고, 최대화, 최소화하거나 가운데로 옮깁니다.</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI와 Claude Code.</strong> AI에 프롬프트를 보내고, 음성 세션을 시작하거나 채팅을 엽니다. 내 프로젝트 하나에서 Claude Code 요청을 시작하거나, 실행 중인 요청을 멈춥니다. 키가 권한을 주지는 않습니다. Claude Code가 명령 실행을 요청하면 그 요청이 화면에 나타나고, 승인은 사용자가 합니다.</li>
       <li data-i18n-html="deck.act.more"><strong>그 밖에.</strong> 블루투스로 페어링한 휴대폰으로 전화를 걸거나 문자를 보내고, 원격 세션을 끝내거나 원격 접속을 차단하고, 설치한 커뮤니티 위젯이 추가한 키를 씁니다. 이런 키는 하나하나 먼저 사용자가 허용해야 합니다.</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">여러 단계를 실행하는 키</h2>
-    <p data-i18n="deck.steps.p1">키마다 제스처가 세 가지 있습니다. 탭, 더블 탭, 0.5초 동안 길게 누르기입니다. 제스처마다 액션을 따로 정할 수 있습니다.</p>
+    <p data-i18n="deck.steps.p1">키마다 제스처가 세 가지 있습니다. 탭, 더블 탭, 길게 누르기입니다. 제스처마다 액션을 따로 정할 수 있습니다.</p>
     <p data-i18n="deck.steps.p2">제스처 하나로 여러 액션을 차례로 실행할 수도 있고, 각 액션 앞에 최대 10초까지 멈출 수 있습니다. 예를 들어 마이크를 음소거하고, 잠시 기다린 다음, 앱을 여는 식입니다.</p>
     <p data-i18n="deck.steps.p3">앞 단계가 실패해도 모든 단계가 실행됩니다. 어느 단계든 실패하면 마지막 단계가 실행된 뒤 키가 빨간색으로 깜박입니다.</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">키가 반응하는 방식</h2>
+    <p data-i18n-html="deck.behave.p1">키 편집기의 <strong>동작</strong> 탭에 있는 <strong>작동 방식</strong>에서 키를 눌렀을 때 어떻게 반응할지 정합니다.</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>버튼.</strong> 탭하면 액션을 실행합니다. 더블 탭과 길게 누르기에는 다른 액션을 정할 수 있습니다.</li>
+      <li data-i18n-html="deck.behave.switch"><strong>스위치.</strong> 한 번 탭하면 켜지고 다음 탭에 꺼지며, 탭마다 각자의 액션을 실행합니다. 정한 초가 지나면 저절로 꺼지게 할 수도 있습니다.</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>누르는 동안.</strong> 손가락을 댈 때와 뗄 때 각각 다른 액션을 실행합니다. 푸시 투 토크처럼 쓸 수 있습니다. 누르고 있는 동안 키에 불이 켜집니다.</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>반복.</strong> 액션을 한 번 실행한 뒤, 키를 누르고 있는 동안 계속 반복합니다. 볼륨 키처럼 쓸 수 있습니다. 반복이 시작되기 전 대기 시간과 반복 간격을 정할 수 있습니다.</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>순환.</strong> 키가 2~8개의 상태를 차례로 오가며, 상태마다 액션, 라벨, 아이콘, 색을 가질 수 있습니다. 탭하면 지금 상태의 액션을 실행하고 다음 상태로 넘어갑니다. 키의 점으로 지금 상태를 알 수 있습니다.</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">기본값은 길게 누르기 0.5초, 더블 탭 260밀리초 이내입니다. 둘 다 같은 곳에서 키마다 바꿀 수 있습니다.</p>
+    <p data-i18n="deck.behave.p3">저절로 꺼지는 기능은 스위치를 켠 대시보드가 열려 있는 동안에만 작동합니다.</p>
 
     <h2 id="state" data-i18n="deck.h.state">상태를 보여 주는 키</h2>
     <p data-i18n="deck.state.p1">키는 실시간 상태를 따라가며, 그 상태가 켜져 있는 동안 불이 들어올 수 있습니다. 따라갈 수 있는 상태는 다음과 같습니다.</p>

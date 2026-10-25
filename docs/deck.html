@@ -130,6 +130,7 @@
     <nav class="jump">
       <a href="#actions" data-i18n="deck.jump.actions">Actions</a>
       <a href="#steps" data-i18n="deck.jump.steps">Multi-step keys</a>
+      <a href="#behave" data-i18n="deck.jump.behave">How a key responds</a>
       <a href="#state" data-i18n="deck.jump.state">Keys that show a state</a>
       <a href="#faders" data-i18n="deck.jump.faders">Faders</a>
       <a href="#profiles" data-i18n="deck.jump.profiles">Profiles and pages</a>
@@ -157,16 +158,28 @@
       <li data-i18n-html="deck.act.vm"><strong>Voicemeeter.</strong> Mute a strip or set its gain, send it to a bus (the A1, A2, B1 buttons), mute a bus or set its gain, press one of your macro buttons, or set any named parameter.</li>
       <li data-i18n-html="deck.act.wl"><strong>Wave Link.</strong> Set or mute the volume of an input, an output or a mix. With Wave Link 2 a key can also switch monitoring; with Wave Link 3 it can turn effects on and off and pick the output device.</li>
       <li data-i18n-html="deck.act.ha"><strong>Home Assistant.</strong> Toggle a device, set a light, control a media player, cover, climate, fan, vacuum, lock or alarm, activate a scene, run a script, press a button, or call any service.</li>
-      <li data-i18n-html="deck.act.light"><strong>Lighting.</strong> Turn your lights on or off, set a colour or an effect, change one device, or hand them back to automatic. Razer Chroma devices and SignalRGB effects have their own keys.</li>
+      <li data-i18n-html="deck.act.light"><strong>Lighting.</strong> Turn your lights on or off, set a colour or an effect, change one device, colour a single fan, strip or pump, or hand them back to automatic. Razer Chroma devices and SignalRGB effects have their own keys.</li>
       <li data-i18n-html="deck.act.window"><strong>Windows.</strong> Move the window you were using to the next or previous monitor, snap it to the left or right half, maximize, minimize or center it.</li>
       <li data-i18n-html="deck.act.ai"><strong>Xenon AI and Claude Code.</strong> Send the AI a prompt, start a voice session or open the chat. Start a Claude Code request in one of your projects, or stop the one running. The key grants no permissions: when Claude Code asks to run a command, the request comes to the screen for you to approve.</li>
       <li data-i18n-html="deck.act.more"><strong>More.</strong> Call or text through a phone paired over Bluetooth, end a remote session or block remote access, and use keys added by community widgets you installed, each one allowed by you first.</li>
     </ul>
 
     <h2 id="steps" data-i18n="deck.h.steps">Multi-step keys</h2>
-    <p data-i18n="deck.steps.p1">Each key has three gestures: tap, double tap, and press and hold for half a second. Each gesture can have its own actions.</p>
+    <p data-i18n="deck.steps.p1">Each key has three gestures: tap, double tap, and press and hold. Each gesture can have its own actions.</p>
     <p data-i18n="deck.steps.p2">A gesture can also run several actions in a row, with a pause of up to 10 seconds before each one. For example: mute the mic, wait a moment, then open an app.</p>
     <p data-i18n="deck.steps.p3">Every step runs even if an earlier one fails. If any step fails, the key flashes red once the last step has run.</p>
+
+    <h2 id="behave" data-i18n="deck.h.behave">How a key responds</h2>
+    <p data-i18n-html="deck.behave.p1">In the key editor, the <strong>Behaviour</strong> card in <strong>What it does</strong> sets how a key answers a press:</p>
+    <ul>
+      <li data-i18n-html="deck.behave.button"><strong>Button.</strong> A tap runs its actions. Double tap and press and hold can run others.</li>
+      <li data-i18n-html="deck.behave.switch"><strong>Switch.</strong> One tap turns it on, the next turns it off, and each tap runs its own actions. A switch can turn itself off after a number of seconds you choose.</li>
+      <li data-i18n-html="deck.behave.momentary"><strong>Momentary.</strong> One set of actions runs when your finger goes down and another when it lifts, like push-to-talk. The key stays lit while you hold it.</li>
+      <li data-i18n-html="deck.behave.repeat"><strong>Repeat.</strong> The actions run once, then again and again for as long as you hold the key, like a volume key. You choose the wait before it repeats and how often it repeats.</li>
+      <li data-i18n-html="deck.behave.cycle"><strong>Cycle.</strong> The key steps through two to eight states, each with its own actions, label, icon and colour. Each tap runs the state the key is in, then moves to the next one. Dots on the key show which state it is in.</li>
+    </ul>
+    <p data-i18n="deck.behave.p2">Press and hold waits half a second and a double tap has to come within 260 milliseconds. Both can be changed for each key, in the same card.</p>
+    <p data-i18n="deck.behave.p3">A switch turns itself off only while the dashboard that turned it on stays open.</p>
 
     <h2 id="state" data-i18n="deck.h.state">Keys that show a state</h2>
     <p data-i18n="deck.state.p1">A key can follow a live state and light up while it is on. It can follow:</p>

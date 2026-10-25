@@ -55,6 +55,8 @@ gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 // other and a require cycle is how that ends badly.
 try { fpsMonitor.setForegroundPid(() => gameDetect.getForegroundPid()); } catch { /* platform without one */ }
 const lighting = require('./lighting');
+const { normalizeLedColors } = require('./lighting-led-colors');
+const { normalizeLayouts: normalizeLightingLayouts } = require('./lighting-layouts');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
@@ -74,6 +76,8 @@ const { createLinuxIndex } = require('./linux-index');         // the same surfa
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
+const AmbientScene = require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
+const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
@@ -1874,7 +1878,7 @@ const SDK_HANDLER_TIMEOUT_MS = 3000;
 const SDK_HANDLER_PENDING_MAX = 32;
 const _sdkHandlerPending = new Map();   // callId → { resolve, timer }
 
-function sdkHandlerDispatch(pkg, handler, args) {
+function sdkHandlerDispatch(pkg, handler, args, gesture) {
   // Nobody listening → fail fast; a broadcast to zero clients can never be
   // acked, so parking the call would only burn the timeout. This also keeps
   // the invariant simple: every _sdkHandlerPending entry has a live listener
@@ -1891,7 +1895,7 @@ function sdkHandlerDispatch(pkg, handler, args) {
     }, SDK_HANDLER_TIMEOUT_MS);
     timer.unref();
     _sdkHandlerPending.set(callId, { resolve, timer });
-    broadcastSSE('sdk_handler', { pkg, handler, args, callId });
+    broadcastSSE('sdk_handler', gesture ? { pkg, handler, args, callId, gesture } : { pkg, handler, args, callId });
   });
 }
 
@@ -6312,6 +6316,10 @@ function runUserScript(p, hidden) {
 // by assigning to the object — the registry closes over the same reference.
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  // The deckState action shares /state/set's map, so a key and a script can
+  // drive the same named state.
+  setNamedState: (name, value) => setScriptState(name, value),
+  getNamedState: (name) => (Object.hasOwn(_scriptStates.states, name) ? _scriptStates.states[name] : null),
   lockWorkstation: () => lockWorkstation().then(() => ({ ok: true }), (err) => ({ ok: false, error: String(err) })),
   pageTurn: (target) => routePageHotkey({ target }),
   // Apply a named SignalRGB scene (scene switcher, not a colour provider — see
@@ -6556,17 +6564,28 @@ const deckRegistryDeps = {
       switch (action.type) {
         case 'lightPower': {
           const on = action.state === 'on' ? true : action.state === 'off' ? false : !lighting.getStatus().enabled;
+          if (!on) lighting.releaseKeyLook();
           lighting.setEnabled(on);
           if (on) { try { await lighting.ensureConnected(); } catch {} }
           break;
         }
-        case 'lightColor':  if (lighting.setManualColor(action.color) === false) return { ok: false, error: 'bad_color' }; break;
-        case 'lightAuto':   lighting.clearManual(); break;
-        case 'lightEffect': if (lighting.setAnimation({ style: action.style, color: action.color }) === false) return { ok: false, error: 'bad_effect' }; break;
+        // What a key sets wins over the music and temperature colours until the
+        // lights are switched off (or set back to automatic) from a key.
+        case 'lightColor':  if (lighting.setManualColor(action.color) === false) return { ok: false, error: 'bad_color' }; lighting.holdKeyLook({ wholeRig: true }); break;
+        case 'lightAuto':   lighting.releaseKeyLook(); lighting.clearManual(); break;
+        case 'lightEffect': if (lighting.setAnimation({ style: action.style, color: action.color }) === false) return { ok: false, error: 'bad_effect' }; lighting.holdKeyLook({ wholeRig: true }); break;
         case 'lightDevice': {
           const patch = { mode: action.mode };
           if (action.color) patch.color = action.color;
           if (lighting.setDeviceMode(action.device, patch) === false) return { ok: false, error: 'bad_device' };
+          lighting.holdKeyLook();
+          break;
+        }
+        case 'lightPart': {
+          // One part of a device's map (a fan, the pump, a strip): a colour, or
+          // back to Xenon when no colour is given.
+          const look = typeof action.color === 'string' && action.color ? action.color : null;
+          if (lighting.setPartLook(String(action.device || ''), Number(action.part), look) === false) return { ok: false, error: 'bad_part' };
           break;
         }
         default: return { ok: false, error: 'bad_lighting' };
@@ -6623,18 +6642,20 @@ const deckRegistryDeps = {
   // declaration + per-handler grant, coerce the key's stored args against the
   // handler's declared params, then broadcast to the package's live frames and
   // wait for the first ack (or time out with an honest no_frame error). Rate
-  // gate shared with hooks: one dispatch per pkg/handler per 250ms.
-  sdkHandler: async (pkgId, handlerId, argsJson) => {
+  // gate shared with hooks: one dispatch per pkg/handler per 250ms. A release
+  // has its own lane, so a quick press-and-let-go still reaches the widget.
+  sdkHandler: async (pkgId, handlerId, argsJson, gesture) => {
     if (!sdkFeatureEnabled()) return { ok: false, error: 'sdk_disabled' };
     const scan = await sdkPackagesCached();
     const pkg = scan.packages.find(p => p.id === pkgId);
     const handler = pkg && pkg.deck && Array.isArray(pkg.deck.handlers) && pkg.deck.handlers.find(h => h.id === handlerId);
     if (!handler) return { ok: false, error: 'handler_unavailable' };
     if (!sdkGrantsFor(pkgId).handlers.includes(handlerId)) return { ok: false, error: 'not_granted' };
-    if (!sdkHookGateOk('handler:' + pkgId + '/' + handlerId)) return { ok: false, error: 'rate_limited' };
+    const lane = gesture && gesture.type === 'release' ? ':release' : '';
+    if (!sdkHookGateOk('handler:' + pkgId + '/' + handlerId + lane)) return { ok: false, error: 'rate_limited' };
     const args = sdkWidgets.validateHandlerArgs(handler, argsJson);
     if (args === null) return { ok: false, error: 'bad_args' };
-    return sdkHandlerDispatch(pkgId, handlerId, args);
+    return sdkHandlerDispatch(pkgId, handlerId, args, gesture);
   },
   // Claude Code: start a run from a Deck key, or stop the one going. Both go
   // through the SAME runner as the touchscreen panel, so the project id is
@@ -8505,6 +8526,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgDim: 0.48,
   bgBlur: 0,
   idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
+  bootSplash: true, // the Xenon mark while the dashboard loads (client-applied)
   hybridGpuAnimationPause: true, // freeze ambient FX + animated bg + Deck decor on a hybrid-GPU native session (client-applied)
   // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
   // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
@@ -8558,6 +8580,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Minimal-mode edge rails auto-hide after ~10s of no interaction, revealed again
   // by a touch at the screen edge. Default on; off keeps them always on screen.
   topbarRailsAutoHide: true,
+  // The bar's look in every style (js/topbar-look.js owns the rules).
+  topbarLook: TopbarLook.DEFAULTS,
   // Dynamic Island personalization (Settings → Dynamic Island). Visibility is
   // shared by Full + Minimal; order/anchor apply to the Minimal capsule. The
   // installed-package opt-outs and takeover gate are kept in the same object.
@@ -8821,6 +8845,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     manualColor: '',               // persisted manual fixed colour ('' = none)
     providers: Object.freeze({}),  // external (non-iCUE) providers → { providerId: { devices: [...] } }
     deviceModes: Object.freeze({}), // per-device override → { deviceId: { mode, color?, anim? } }
+    // Controllers Xenon drives itself over USB (opt-in) and what hangs on each of
+    // their outputs, told once in the guided setup → { deviceId: { h0: { parts } } }.
+    native: Object.freeze({ enabled: false, layouts: Object.freeze({}) }),
   }),
   calendarFeeds: [],
   // Stock-market (Borsa) widget + ticker. Watchlist/provider/refresh are
@@ -9016,20 +9043,13 @@ function normalizeAmbientMode(value) {
 // server round-trips a bounded copy so scenes survive a restart; the client
 // deep-normalizes through the shared AmbientScene module on hydrate (the
 // security edge — text→textContent, image-src allowlist, SDK grants), so here
-// we only cap the count and per-scene byte size against a hostile blob.
+// we only cap the count and sizes against a hostile blob. The caps are the
+// import's own (AmbientScene.fitScenes): a scene shared with its pictures
+// inlined is up to a share code's size, and used to vanish here on save.
 function sanitizeAmbientScenes(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  for (const scene of value) {
-    if (out.length >= 64) break;
-    if (!scene || typeof scene !== 'object') continue;
-    try {
-      const json = JSON.stringify(scene);
-      if (!json || json.length > 400000) continue;   // ~400KB/scene ceiling
-      out.push(JSON.parse(json));
-    } catch { /* unserializable → drop */ }
-  }
-  return out;
+  return AmbientScene.fitScenes(value).flatMap((scene) => {
+    try { return [JSON.parse(JSON.stringify(scene))]; } catch { return []; }   // unserializable → drop
+  });
 }
 
 function normalizeSettingsWeather(value) {
@@ -9256,7 +9276,13 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
       autoTabByMedia: g.autoTabByMedia === true,
     };
     const style = DashboardInstances.normalizeTileStyle(g.style);
-    if (style) out[id].style = style;
+    // Tab colours of a tab that left the group are dropped with it.
+    if (style && style.tabs && style.tabs.items) {
+      Object.keys(style.tabs.items).forEach(mid => { if (!members.includes(mid)) delete style.tabs.items[mid]; });
+      if (!Object.keys(style.tabs.items).length) delete style.tabs.items;
+      if (!Object.keys(style.tabs).length) delete style.tabs;
+    }
+    if (style && (style.mode === 'custom' || Object.keys(style).length > 1)) out[id].style = style;
   });
   return out;
 }
@@ -9867,8 +9893,10 @@ const TOPBAR_ACTION_DEFAULTS = [
 ];
 function normalizeTopbarActions(value) {
   const byId = new Map(TOPBAR_ACTION_DEFAULTS.map((entry) => [entry.id, entry]));
+  const sdkButtonRe = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
   const seen = new Set();
   const out = [];
+  let sdkCount = 0;
   const add = (def, raw) => {
     seen.add(def.id);
     out.push({
@@ -9880,8 +9908,17 @@ function normalizeTopbarActions(value) {
   if (Array.isArray(value)) {
     for (const it of value) {
       const id = it && typeof it === 'object' ? it.id : null;
+      if (seen.has(id)) continue;
+      // A widget's own bar button (Widget SDK `topbarButton`): kept where the
+      // user put it, never forced shown, at most 8 so a list cannot grow.
+      if (typeof id === 'string' && sdkButtonRe.test(id)) {
+        if (sdkCount >= 8) continue;
+        sdkCount++;
+        add({ id, side: 'left', hidden: false }, it);
+        continue;
+      }
       const def = byId.get(id);
-      if (!def || seen.has(id)) continue;
+      if (!def) continue;
       add(def, it);
     }
   }
@@ -10078,6 +10115,7 @@ function normalizeHubSettings(value) {
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: source.idleAnimationPause !== false,
+    bootSplash: source.bootSplash !== false,
     hybridGpuAnimationPause: source.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
@@ -10109,6 +10147,7 @@ function normalizeHubSettings(value) {
     topbarRails: normalizeTopbarRails(source.topbarRails),
     topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(source.topbarClock, source),
+    topbarLook: TopbarLook.normalize(source.topbarLook),
     // Sensor cadence (ms). Drives the system broadcast AND the caches under it:
     // broadcasting faster alone would only re-send readings up to 5s old.
     sensorRateMs: normalizeSensorRate(source.sensorRateMs),
@@ -10532,7 +10571,7 @@ function normalizeLightingProviders(value) {
   }
   return out;
 }
-const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off', 'custom'];
 // Per-device styles: no 'palette' (its colour list lives on the global animation)
 // and no 'wave' (per-device renders uniform = identical to 'cycle').
 const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle', 'aurora', 'candle'];
@@ -10551,6 +10590,7 @@ function normalizeLightingDeviceModes(value) {
         speed: clampNumber(v.anim.speed, 1, 100, 50),
       };
     }
+    if (v.leds !== undefined) e.leds = normalizeLedColors(v.leds);
     out[key] = e;
   }
   return out;
@@ -10593,7 +10633,12 @@ function normalizeLighting(value) {
     manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',
     providers: normalizeLightingProviders(v.providers),
     deviceModes: normalizeLightingDeviceModes(v.deviceModes),
+    native: normalizeLightingNative(v.native),
   };
+}
+function normalizeLightingNative(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true, layouts: normalizeLightingLayouts(v.layouts) };
 }
 
 // The store id this process has seen on disk. Held so that a write which
@@ -11087,13 +11132,14 @@ async function applyBackup(bundle) {
       // here once missed the stock/football/news keys and wiped them on import).
       const incoming = preserveSettingsSecrets({ ...d.settings }, prev);
       if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
-      // lighting.providers / deviceModes are bridge-owned (and the backup's copy
+      // lighting.providers / deviceModes / native are bridge-owned (and the backup's copy
       // is token-less by design) — refill from the live bridge exactly like
       // POST /settings, so an import can never wipe this machine's pairings.
       incoming.lighting = {
         ...(incoming.lighting && typeof incoming.lighting === 'object' ? incoming.lighting : {}),
         providers: lighting.getExternalConfig(),
         deviceModes: lighting.getConfig().deviceModes,
+        native: lighting.getConfig().native,
       };
       // Re-point the background reference at the file restored above, or keep it
       // only when its binary already exists here — never a broken background.
@@ -13386,12 +13432,13 @@ const CSRF_MUTATION_PATHS = new Set([
   // a drive-by must be able to do neither.
   '/api/community/ratings',
   '/api/community/rate',
-  // POST-only pack installs (the 'icons' / 'sounds' preset kinds). Belt-and-
-  // suspenders like /api/community/redeem: an Origin:null frame must not be
-  // able to write a pack folder behind the user's back — installs go through
-  // the import dialog.
+  // POST-only pack installs (the 'icons' / 'sounds' preset kinds) and the
+  // widget package install. Belt-and-suspenders like /api/community/redeem: an
+  // Origin:null frame must not be able to write a pack or widget folder behind
+  // the user's back — installs go through the import dialog.
   '/icon-pack',
   '/sound-pack',
+  '/sdk/install',
   // Downloads a native DLL from an external release and drops it where the
   // server will later load it as code. A drive-by page must not be able to start
   // that: the fetch is pinned and hash-checked, but the decision to run it is the
@@ -14975,9 +15022,15 @@ const handleRequest = async (req, res) => {
     try {
       const ls = lighting.getStatus();
       const out = [];
-      (ls.devices || []).forEach((dv) => out.push({ value: dv.id, label: dv.name || dv.id }));
+      (ls.devices || []).forEach((dv) => out.push({ value: dv.id, label: dv.name || dv.model || dv.id }));
       (ls.providers || []).forEach((p) => (p.devices || []).forEach((dv) => out.push({ value: dv.id, label: (p.name ? p.name + ' · ' : '') + (dv.name || dv.id) })));
-      json({ devices: out });
+      // The parts of each device with a map, for the "colour one part" picker;
+      // the editor names them the way the lighting map does.
+      const parts = (ls.devices || []).filter(dv => (dv.segments || []).length > 1).map(dv => ({
+        device: dv.id, label: dv.model || dv.id,
+        segments: dv.segments.map(sg => ({ kind: sg.kind, output: sg.output, piece: sg.piece, name: sg.name })),
+      }));
+      json({ devices: out, parts });
     } catch (e) { json({ devices: [] }); }
 
   } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
@@ -15134,6 +15187,55 @@ const handleRequest = async (req, res) => {
       }
       await _persistLighting();
       json({ ...result, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/native' && req.method === 'POST') {
+    // Native control of the motherboard's lighting on/off: { enabled }. Persisted.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.setNativeEnabled(body.enabled === true);
+      await _persistLighting();
+      json({ ok: true, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/native/layout' && req.method === 'POST') {
+    // What hangs on one output, from the guided setup:
+    // { device, output, layout: { empty } | { parts: [{ kind, count, name? }] } | null }.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const output = Number(body.output);
+      if (!Number.isInteger(output) || output < 0 || output > 15) { res.writeHead(400); res.end('Invalid output'); return; }
+      const layout = body.layout === null ? null : (body.layout && typeof body.layout === 'object' ? body.layout : undefined);
+      if (layout === undefined) { res.writeHead(400); res.end('Invalid layout'); return; }
+      const ok = lighting.setNativeLayout(String(body.device || '').slice(0, 160), 'h' + output, layout);
+      if (ok) await _persistLighting();
+      json({ ok, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/native/preview' && req.method === 'POST') {
+    // Guided setup: light part of one output so the user sees where each fan
+    // ends. { device, output, done: [counts], lit, whole } or { stop: true }.
+    // Transient (ends by itself after a few seconds), never persisted.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body.stop === true) { await lighting.setNativePreview('', 0, null); return json({ ok: true }); }
+      const count = (n) => Math.max(0, Math.min(256, Math.round(Number(n)) || 0));
+      const opts = {
+        done: (Array.isArray(body.done) ? body.done : []).slice(0, 32).map(count),
+        lit: count(body.lit),
+        whole: body.whole === true,
+      };
+      const ok = await lighting.setNativePreview(String(body.device || '').slice(0, 160), Number(body.output), opts);
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/native/scan' && req.method === 'POST') {
+    // Look for the controllers again (after plugging something in, or closing
+    // the vendor app that held them).
+    try {
+      await lighting.scanNative();
+      await _persistLighting();
+      json({ ok: true, status: lighting.getStatus() });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lighting/open-download' && req.method === 'POST') {
@@ -16315,7 +16417,7 @@ const handleRequest = async (req, res) => {
         console.warn('[settings] Save from a pre-24-column (stale) client: keeping stored layout/presets and prev-filling sections it omitted. That page needs a reload to edit the layout again.');
         incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes, ambientScenes: prev.ambientScenes, contentInstalls: prev.contentInstalls };
       }
-      // lighting.providers / deviceModes are bridge-owned (set only via
+      // lighting.providers / deviceModes / native are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
       // from the live bridge so a client save can't wipe external devices and
       // their pairing tokens from settings.json.
@@ -16323,6 +16425,7 @@ const handleRequest = async (req, res) => {
         ...(incoming.lighting && typeof incoming.lighting === 'object' ? incoming.lighting : {}),
         providers: lighting.getExternalConfig(),
         deviceModes: lighting.getConfig().deviceModes,
+        native: lighting.getConfig().native,
       };
       // The stocks watchlist is widget-owned (edited only via POST
       // /api/stocks/watchlist); the browser settings mirror can carry a stale
@@ -23083,6 +23186,8 @@ function _startListen(host) {
       // nothing today until the user toggled the switch off and on again.
       try { applyBindHost(); } catch { /* the listener stays where it is */ }
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
+      // Layouts a Gen2 controller fills in by itself are saved like the user's own.
+      lighting.setNativeChangeHook(() => { _persistLighting(); });
       try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
       // OpenRGB was removed from the product. Tear down anything a previous
       // version may have left so it never launches itself again: drop the
@@ -23541,6 +23646,9 @@ function _gracefulShutdown() {
   try { _remoteSockets.clear(); } catch {}
   // Release RGB bridge so iCUE reclaims device control immediately.
   try { lighting.releaseAll(); lighting.disconnect(); } catch {}
+  // Native controllers: hand the headers back to the board's own effects and
+  // close the USB handles before the process goes.
+  try { shutdownFlush = shutdownFlush.then(() => lighting.closeNative()).catch(() => {}); } catch {}
   // Stop the persistent PowerShell collector host (safe to kill: no SMTC handles).
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).

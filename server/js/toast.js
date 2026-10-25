@@ -127,11 +127,14 @@
   // TopbarMinimal.css). No-op in the full topbar (there's no pill to replace).
   // Style "none" keeps the rails but drops the capsule (body.topbar-noisland), so
   // there is nothing for the toast to grow out of — fall back to the normal stack.
+  // The same when the user chose a fixed place for notifications (Settings → Top
+  // bar → Notifications sets data-tb-toast-place, js/topbar-look.js).
   function isMinimalChrome() {
     const body = document.body;
     return body.classList.contains('topbar-minimal')
       && !body.classList.contains('topbar-noisland')
-      && !body.dataset.panel;
+      && !body.dataset.panel
+      && !document.documentElement.hasAttribute('data-tb-toast-place');
   }
   function syncIsland() {
     const body = document.body;

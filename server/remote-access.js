@@ -205,7 +205,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   // the import dialog makes it from a paired phone.
   '/api/community/supporter/forget',
   '/api/community/supporter/save',
-  '/api/community/rate', '/icon-pack', '/sound-pack', '/api/lighting/sdk-install',
+  '/api/community/rate', '/icon-pack', '/sound-pack', '/sdk/install', '/api/lighting/sdk-install',
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
   '/api/claude/unlink', '/api/claude/run', '/api/claude/run/stop', '/api/claude/attach',

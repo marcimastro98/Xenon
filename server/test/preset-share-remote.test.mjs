@@ -98,3 +98,14 @@ test('v1 offline lock path is unchanged by the v2 addition', async () => {
   assert.equal(await unlockPreset(locked, codes[1]), inner);
   assert.equal(await unlockPreset(locked, 'XN-WRON-GCOD-E222'), null);
 });
+
+// The hub answering "too many attempts" is not the hub being unreachable: the
+// import dialog must say "try again in a few minutes", not send the user off to
+// debug a network that works. Every other hub error keeps its own message.
+test('redeem: rate_limited gets its own message, before the offline fallback', () => {
+  const src = require('node:fs').readFileSync(require.resolve('../js/preset-share.js'), 'utf8');
+  const start = src.indexOf("fetch('/api/community/redeem'");
+  assert.ok(start > 0, 'redeem call found');
+  const chain = src.slice(start, src.indexOf('preset_redeem_offline', start));
+  assert.match(chain, /err === 'rate_limited'\)\s*\{[^}]*devclean_unlock_rate/);
+});

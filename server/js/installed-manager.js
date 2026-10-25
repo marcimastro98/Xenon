@@ -273,6 +273,7 @@
       for (const k of Object.keys(assign)) if (assign[k] === pkg.id) delete assign[k];
       const grants = Object.assign({}, cur.grants || {});
       delete grants[pkg.id];
+      if (typeof withoutSdkTopbarButtons === 'function') hubSettings = { ...hubSettings, ...withoutSdkTopbarButtons(hubSettings, [pkg.id]) };
       if (typeof updateSdkWidgets === 'function') updateSdkWidgets({ assign, grants });
       if (window.CustomWidget && CustomWidget.refreshPackages) CustomWidget.refreshPackages();
       return true;

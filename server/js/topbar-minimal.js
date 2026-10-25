@@ -20,15 +20,22 @@
   let els = null;   // reparented topbar elements, captured once
   let ui = null;    // built-once minimal chrome: { pill, left, right }
 
-  // Auto-hide: after AUTO_HIDE_MS with no rail interaction the two edge rails
+  // Auto-hide: after the delay in autoHideMs() with no rail interaction the two edge rails
   // tuck away (class is-auto-hidden), leaving the dashboard clean but keeping the
   // slim handle peeking so there's a visible arrow to reopen them; a tap on that
   // handle — or anywhere in the screen-edge strip — brings them back and restarts
-  // the countdown. Opt-out via Settings → Dynamic Island (topbarRailsAutoHide=false),
+  // the countdown. Opt-out via Settings → Top bar (topbarRailsAutoHide=false),
   // which keeps them always on screen. Transient visual state only — it never
   // touches the persisted per-rail collapsed choice (topbarRails).
-  const AUTO_HIDE_MS = 10000;
+  // Settings → Top bar → Side rails sets it (topbarLook.railDelay, seconds).
+  const AUTO_HIDE_DEFAULT_S = 10;
+  function autoHideMs() {
+    const look = typeof hubSettings !== 'undefined' && hubSettings ? hubSettings.topbarLook : null;
+    const s = look && Number.isFinite(look.railDelay) ? look.railDelay : AUTO_HIDE_DEFAULT_S;
+    return s * 1000;
+  }
   let autoHideTimer = null;
+  let railsHeld = false;   // Settings → Top bar is open: the rails stay out (js/settings-bar-preview.js)
   // Per side, because a touch only ever means ONE side. A rail that is tucked away
   // because it was collapsed and one tucked away by the idle timer are drawn
   // identically (the 22px handle), so a touch that woke BOTH of them slid open
@@ -136,9 +143,13 @@
   // Element for a chrome-button id, or null when that button is not in this
   // document (embed views, a future build, a phone). Looked up live: the button
   // may have been moved into the other container.
+  // A widget's own button (`sdk:<pkg>`, js/sdk-topbar-button.js) is found by
+  // its data-tb-id.
+  const SDK_ACTION_RE = /^sdk:[a-z0-9][a-z0-9-]{1,40}$/;
   function actionEl(id) {
     const sel = ACTION_SELECTORS[id];
-    return sel ? document.querySelector(sel) : null;
+    if (sel) return document.querySelector(sel);
+    return typeof id === 'string' && SDK_ACTION_RE.test(id) ? document.querySelector('[data-tb-id="' + id + '"]') : null;
   }
 
   // Read the configured button list. Absent settings mean "canonical order, all
@@ -260,6 +271,16 @@
       if (host && el.parentElement !== host) host.appendChild(el);
       el.style.order = String(index);
     });
+    // A widget button the user has not placed yet goes at the end of the left
+    // side; placing it in Settings saves it into the list above.
+    let next = items.length;
+    for (const el of document.querySelectorAll('.topbtn-sdk[data-tb-id]')) {
+      const id = el.getAttribute('data-tb-id');
+      if (items.some((it) => it && it.id === id)) continue;
+      el.classList.remove('topbar-item-hidden');
+      if (el.parentElement !== hosts.left) hosts.left.appendChild(el);
+      el.style.order = String(next++);
+    }
     // The page dots are the one thing sharing .top-actions that is NOT a button:
     // they are an island segment whose native home happens to be this container.
     // Ordering the buttons gives every one of them an `order`, and an unordered
@@ -267,7 +288,7 @@
     // the row the moment this feature shipped. In Full they belong last, exactly
     // where the markup puts them; in Minimal they live in the pill and the island
     // layout owns their order, so leave them alone there.
-    if (els.pagerDots && !active) els.pagerDots.style.order = String(items.length);
+    if (els.pagerDots && !active) els.pagerDots.style.order = String(next);
   }
 
   // ── Island morph ────────────────────────────────────────────────────────────
@@ -415,8 +436,8 @@
   // Start (or restart) the idle countdown. No-op when disabled/inactive.
   function armAutoHide() {
     clearAutoHideTimer();
-    if (!active || !autoHideEnabled()) return;
-    autoHideTimer = setTimeout(() => { autoHideTimer = null; setRailsHidden(true); }, AUTO_HIDE_MS);
+    if (!active || !autoHideEnabled() || railsHeld) return;
+    autoHideTimer = setTimeout(() => { autoHideTimer = null; setRailsHidden(true); }, autoHideMs());
   }
 
   // A rail was touched (or summoned): reveal THAT side and restart the countdown.
@@ -549,6 +570,7 @@
   function drawNotch(item, geo, line) {
     const N = window.IslandNotch;
     item.style.setProperty('--island-notch', N.clipPath(geo));
+    item.style.setProperty('--island-notch-surface', N.surfaceClipPath(geo));
     const d = N.edgePath(geo, line.width);
     const path = notchEdge(item);
     // CSS `d` animates together with the clip where supported; the attribute is
@@ -564,7 +586,7 @@
     if (st && st.leaving) clearTimeout(st.leaving);
     notchState.delete(item);
     item.classList.remove('island-clear');
-    ['--island-clear', '--island-inset', '--island-notch', '--island-notch-ms'].forEach(p => item.style.removeProperty(p));
+    ['--island-clear', '--island-inset', '--island-notch', '--island-notch-surface', '--island-notch-ms'].forEach(p => item.style.removeProperty(p));
     const svg = item.querySelector(':scope > .island-notch-edge');
     if (svg) svg.remove();
   }
@@ -834,5 +856,12 @@
     if (window.XenonToast && typeof window.XenonToast.refresh === 'function') window.XenonToast.refresh();
   }
 
-  window.TopbarMinimal = { apply, reflowIsland, followIsland, applyIslandLayout, morphIsland, homeBox };
+  // Keep the rails out while the user is styling them; let go and the idle
+  // countdown starts over.
+  function holdRails(hold) {
+    railsHeld = hold === true;
+    if (railsHeld) { clearAutoHideTimer(); setRailsHidden(false); } else armAutoHide();
+  }
+
+  window.TopbarMinimal = { apply, reflowIsland, followIsland, applyIslandLayout, morphIsland, homeBox, holdRails };
 })();

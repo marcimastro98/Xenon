@@ -333,6 +333,23 @@ function initCustomSelect(selectEl) {
     }
   });
 
+  // A <label> around the control makes the trigger its labelled control, and
+  // the browser re-sends every click on the label's other content (its caption,
+  // its padding, the rows of this very panel) to the trigger as a fresh click.
+  // So a tap "outside" on the field closed the list and the forwarded click
+  // opened it again, and picking an option did the same: it looked like the
+  // list never closed. Cancelling the label's activation for non-interactive
+  // content stops the forward; the click itself still bubbles and closes the
+  // panel. Capture phase, because option rows stop propagation.
+  const hostLabel = wrap.closest('label');
+  if (hostLabel && hostLabel.control === trigger) {
+    hostLabel.addEventListener('click', (e) => {
+      const tgt = e.target;
+      if (tgt && tgt.closest && tgt.closest('button, input, select, textarea, a[href]')) return;
+      e.preventDefault();
+    }, true);
+  }
+
   // Outside-click / Escape / scroll / resize closing is handled by one shared
   // set of global listeners (installed once) — no per-instance leak.
   _csArmGlobal();

@@ -112,6 +112,26 @@ function ambientStartupDecision(state) {
   return 'open';
 }
 
+// A screensaver the idle start put up closes when the PC is in use again. A tap
+// on one of the scene's own touch controls (play/pause, volume…) is PC input
+// too, and must not close the scene it was made on: for touchHoldMs after one,
+// that input is the touch, not the user coming back. After the hold the idle
+// counter has grown past the threshold again unless something else was used.
+// state: { idleStarted, open, sysIdleSec, dropped, sinceTouchMs, activeIdleSec, touchHoldMs }
+function ambientIdleCloses(state) {
+  const s = state || {};
+  if (!s.idleStarted || !s.open || s.sysIdleSec == null) return false;
+  if (Number.isFinite(s.sinceTouchMs) && s.sinceTouchMs >= 0 && s.sinceTouchMs < s.touchHoldMs) return false;
+  return s.sysIdleSec < s.activeIdleSec || !!s.dropped;
+}
+
+// The wake gesture over an idle-started scene closes it, except on a touch
+// control of a canvas scene ([data-ac-touch], js/ambient-canvas.js).
+function ambientTouchTarget(target) {
+  return !!(target && typeof target.closest === 'function'
+    && target.closest('#ambient-canvas-overlay [data-ac-touch]'));
+}
+
 if (typeof window !== 'undefined') (function () {
   const REARM_THROTTLE_MS = 1000;
   const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
@@ -137,6 +157,8 @@ if (typeof window !== 'undefined') (function () {
   let idleStarted = false; // the CURRENT open was the idle auto-start (screensaver), not a manual open
   let startupPending = false; // "Open at startup" is still waiting for a clear screen (see openOnStartup)
   const ACTIVE_IDLE_SEC = 30; // whole-PC idle below this = the user is active on SOME screen → dismiss
+  const TOUCH_HOLD_MS = (ACTIVE_IDLE_SEC + 5) * 1000;   // see ambientIdleCloses
+  let lastSceneTouchAt = 0;   // last tap on a canvas touch control while the scene was up
   const warnedFallback = new Set();   // fallback reasons already explained this session
 
   function cfg() {
@@ -350,6 +372,8 @@ if (typeof window !== 'undefined') (function () {
     }
   }
   function dismissOnInput(e) {
+    // A touch control does its job and the scene stays (the click reaches it).
+    if (ambientTouchTarget(e.target)) { lastSceneTouchAt = Date.now(); return; }
     lastLocalInputAt = Date.now();   // stopPropagation below skips onActivity
     disarmDismiss();
     // Swallow this first "wake" gesture so it only dismisses the screensaver.
@@ -460,7 +484,11 @@ if (typeof window !== 'undefined') (function () {
     // Two triggers: the absolute threshold, and ANY backwards jump in idleSec —
     // the counter only ever resets on real input, so a drop proves the user is
     // back even when probe hiccups made the sample skip the sub-30s window.
-    if (idleStarted && isOpen() && (sysIdleSec < ACTIVE_IDLE_SEC || sysIdleDropped)) { close(); return; }
+    if (ambientIdleCloses({
+      idleStarted, open: isOpen(), sysIdleSec, dropped: sysIdleDropped,
+      sinceTouchMs: lastSceneTouchAt ? Date.now() - lastSceneTouchAt : NaN,
+      activeIdleSec: ACTIVE_IDLE_SEC, touchHoldMs: TOUCH_HOLD_MS,
+    })) { close(); return; }
     // Auto-start only once the whole PC has been idle for the chosen time.
     // sysIdleSec is a SAMPLE taken on a cadence: right after a local dismiss
     // (touching the dashboard) it can still read minutes-stale "away" — and the
@@ -626,5 +654,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ambientIdleSuppressed,
     ambientStartupDecision,
     ambientGameCloses,
+    ambientIdleCloses,
+    ambientTouchTarget,
   };
 }

@@ -260,6 +260,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         applySystem(d);
+        if (window.BootSplash) window.BootSplash.ready('data');
         if (window.FansWidget) window.FansWidget.onSSE(d);
         if (window.PowerWidget) window.PowerWidget.onSSE(d);
         // Deck keys with a live 'sensor' badge (fan RPM / watts / temps).
@@ -803,6 +804,8 @@ document.addEventListener('keydown', e => {
       setDashboardLayoutEditMode(false);
       return;
     }
+    // The canvas scene editor handles its own Escape (deselect, close a panel).
+    if (window.AmbientCanvasEditor && AmbientCanvasEditor.isOpen()) return;
     if (window.AmbientMode && AmbientMode.isOpen()) {
       e.preventDefault();
       AmbientMode.close();

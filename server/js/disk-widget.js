@@ -837,7 +837,7 @@
     button.disabled = true;
     output.replaceChildren();
     const busy = el('div', 'diskw-modal-ai-busy');
-    busy.appendChild(el('div', 'diskw-spinner'));
+    busy.appendChild(XenonLoader.create({ size: 'sm' }));
     busy.appendChild(el('div', '', tr('disk_ai_working', 'Xenon sta collegando categorie, cartelle, app e possibili effetti…')));
     output.appendChild(busy);
     const controller = new AbortController();
@@ -1265,7 +1265,7 @@
 
     if (treeLoading) {
       const loading = el('div', 'diskw-map-loading');
-      loading.appendChild(el('div', 'diskw-spinner'));
+      loading.appendChild(XenonLoader.create({ size: 'sm' }));
       loading.appendChild(el('span', '', tr('disk_map_opening', 'Leggo file e sottocartelle…')));
       section.appendChild(loading);
       return section;
@@ -1934,7 +1934,7 @@
 
   function renderLoading() {
     const card = el('div', 'diskw-state-card');
-    card.appendChild(el('div', 'diskw-spinner'));
+    card.appendChild(XenonLoader.create({ bar: true }));
     card.appendChild(el('strong', '', loadingSlow
       ? tr('disk_loading_slow', 'Sto aggregando milioni di file…')
       : tr('disk_loading', 'Compongo la mappa live…')));

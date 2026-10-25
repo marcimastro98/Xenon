@@ -23,6 +23,8 @@
     snow:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15h9.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 5.4 7.5 3.8 3.8 0 0 0 7 15Z"/><path d="M8.6 18.4h.01M12.1 20h.01M15.6 18.4h.01"/></svg>',
     fog:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 10h16M6 14h13M4.5 18h14"/></svg>',
   };
+  // The Weather element of a canvas Ambient scene draws the same glyphs.
+  window.WeatherGlyphs = WEATHER_ICONS;
 
   function el(tag, className, parent) {
     const node = document.createElement(tag);

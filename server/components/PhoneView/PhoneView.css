@@ -544,7 +544,11 @@
    fallback is only for the frame before the first measurement.
    When you add something fixed to the bottom of the viewport, add it here —
    test/phone-dock-render.test.mjs scans the component CSS and fails if a
-   bottom-anchored floater is missing from this list. */
+   bottom-anchored floater is missing from this list.
+   A ticker strip at the bottom sits UNDER the dock (Ticker.css pads the shell
+   by its height), so everything lifted here climbs over it too. */
+.is-phone body { --ph-bottom-lift: 0px; }
+.is-phone body.xe-has-ticker.xe-ticker-bottom { --ph-bottom-lift: var(--xe-ticker-h, 34px); }
 .is-phone .discord-invite,
 .is-phone .gc-pill,
 .is-phone .event-toast,
@@ -552,7 +556,13 @@
 .is-phone .perf-banner,
 .is-phone .perf-toast,
 .is-phone .vpet {
-  bottom: calc(var(--ph-dock-h, 64px) + 12px);
+  bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 12px);
+}
+/* The "Customize bar" sheet rises from the bottom too; it stays under the top
+   bar's own height instead of its usual 82vh. */
+.is-phone .tbp {
+  bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 8px);
+  max-height: calc(100vh - var(--ph-dock-h, 64px) - var(--ph-bottom-lift, 0px) - 72px);
 }
 
 /* ── Things that do not belong on a phone ────────────────────────────────── */

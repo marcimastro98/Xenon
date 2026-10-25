@@ -351,12 +351,17 @@
   }
   // Lighting hub device list ({value:id, label:name}) for the lightDevice picker.
   // Falls back to [] (→ typed id field) when no lighting is configured/reachable.
-  function lightDevices() {
+  // Also carries the parts of each device with a map, for the lightPart picker.
+  function lightingLists() {
     if (!lightDevicesPromise) lightDevicesPromise = fetch('/api/lighting/devices').then((r) => r.json())
-      .then((d) => ((d && Array.isArray(d.devices)) ? d.devices : []))
-      .catch(() => []);
+      .then((d) => ({
+        devices: (d && Array.isArray(d.devices)) ? d.devices : [],
+        parts: (d && Array.isArray(d.parts)) ? d.parts : [],
+      }))
+      .catch(() => ({ devices: [], parts: [] }));
     return lightDevicesPromise;
   }
+  function lightDevices() { return lightingLists().then((l) => l.devices); }
   // Third-party widget SDK: installed packages (validated manifests) for the
   // macro picker and the "reflect a widget state" binding. Only fetched when the
   // SDK is enabled; the settings blob is the classic-script `hubSettings` (bare
@@ -467,7 +472,9 @@
 
   function close() {
     const m = document.getElementById('deck-editor-backdrop');
-    if (m) m.remove();
+    if (!m) return;
+    if (m.stopFitRows) m.stopFitRows();
+    m.remove();
   }
 
   // Upgrade every native <select> in `root` to the shared custom dropdown so the
@@ -492,6 +499,43 @@
     span.textContent = t(labelKey);
     wrap.appendChild(span);
     return wrap;
+  }
+
+  // A field that holds buttons is a <div>, not field()'s <label>: a label
+  // forwards a click on its text to its first button.
+  function section(labelKey) {
+    const wrap = document.createElement('div');
+    wrap.className = 'deck-ed-field';
+    const span = document.createElement('span');
+    span.className = 'deck-ed-label';
+    span.setAttribute('data-i18n', labelKey);
+    span.textContent = t(labelKey);
+    wrap.appendChild(span);
+    return wrap;
+  }
+
+  // One on/off row: the text, then a switch. onChange(on) after each flip.
+  function switchRow(labelKey, value, onChange) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'deck-ed-switchrow'; b.setAttribute('role', 'switch');
+    const txt = document.createElement('span'); txt.className = 'deck-ed-switchtxt';
+    txt.setAttribute('data-i18n', labelKey); txt.textContent = t(labelKey);
+    const knob = document.createElement('span'); knob.className = 'deck-ed-switch'; knob.setAttribute('aria-hidden', 'true');
+    b.appendChild(txt); b.appendChild(knob);
+    let on = !!value;
+    const paint = () => b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.addEventListener('click', () => { on = !on; paint(); if (onChange) onChange(on); });
+    paint();
+    return { el: b, get: () => on };
+  }
+
+  // A labelled sub-row inside a section.
+  function subRow(labelKey, child) {
+    const w = document.createElement('div'); w.className = 'deck-ed-subfield';
+    const l = document.createElement('span'); l.className = 'deck-ed-label';
+    l.setAttribute('data-i18n', labelKey); l.textContent = t(labelKey);
+    w.appendChild(l); w.appendChild(child);
+    return w;
   }
 
   function input(type, value) {
@@ -768,10 +812,12 @@
       custom.style.display = mode === 'emoji' ? '' : 'none';
       iconPanel.style.display = mode === 'builtin' ? '' : 'none';
       imgPanel.style.display = mode === 'image' ? '' : 'none';
-      fitField.style.display = mode === 'image' ? '' : 'none';
-      colField.style.display = mode === 'builtin' ? '' : 'none';
+      // A glyph-only picker (the lit face) has no fit, colour or size of its own:
+      // its colour is the lit face's, set beside it.
+      fitField.style.display = mode === 'image' && !glyphOnly ? '' : 'none';
+      colField.style.display = mode === 'builtin' && !glyphOnly ? '' : 'none';
       // Size preset only affects glyph icons (emoji/vector); an image is sized by Fit.
-      sizeField.style.display = mode === 'image' ? 'none' : '';
+      sizeField.style.display = mode === 'image' || glyphOnly ? 'none' : '';
       if (document.activeElement !== custom) custom.value = emojiVal;
       syncSelected();
       if (imageVal) { preview.src = imageVal; preview.style.display = ''; }
@@ -850,8 +896,12 @@
     const paneAction = document.createElement('div'); paneAction.className = 'deck-ed-pane';
     const paneLook = document.createElement('div'); paneLook.className = 'deck-ed-pane';
     const paneFx = document.createElement('div'); paneFx.className = 'deck-ed-pane';
+    // State: what lights the key (a switch, or a state it follows) and the live
+    // value it shows. How it looks while lit is in Look, under its On face.
+    const paneState = document.createElement('div'); paneState.className = 'deck-ed-pane';
     const TAB_DEFS = [
       { id: 'actions', labelKey: 'deck_tab_actions', pane: paneAction },
+      { id: 'state', labelKey: 'deck_tab_state', pane: paneState },
       { id: 'look', labelKey: 'deck_tab_look', pane: paneLook },
       { id: 'fx', labelKey: 'deck_tab_fx', pane: paneFx },
     ];
@@ -860,12 +910,14 @@
     let activeTab = (opts && opts.tab) || (existing ? 'look' : 'actions');
     if (!TAB_DEFS.some((d) => d.id === activeTab)) activeTab = 'actions';
     const tabBtns = {};
+    let titleSync = () => {};   // set once the faces exist; see inTitle below
     function showTab(id) {
       activeTab = id;
       TAB_DEFS.forEach((d) => {
         tabBtns[d.id].classList.toggle('active', d.id === id);
         d.pane.style.display = d.id === id ? '' : 'none';
       });
+      titleSync();
     }
     TAB_DEFS.forEach((d) => {
       const b = document.createElement('button');
@@ -909,7 +961,7 @@
         chip.appendChild(document.createTextNode(ps.name));
         chip.addEventListener('click', () => {
           const k = Object.assign({}, ps.key); delete k.id;   // fresh id assigned on save
-          open(Object.assign({}, opts, { key: k, tab: activeTab }));  // reload from the preset, same tab
+          open(Object.assign({}, opts, { key: k, tab: activeTab, face: lookFace }));  // reload from the preset, same tab
         });
         const del = document.createElement('span');
         del.className = 'deck-ed-preset-del'; del.setAttribute('role', 'button');
@@ -928,10 +980,17 @@
 
     const fTitle = field('deck_edit_name');
     const inTitle = input('text', existing ? existing.title : '');
+    // One Title field for every face. On Look with the On face or a later cycle
+    // state picked, it edits that face's title: a screen never shows two Title
+    // boxes, and the one you type in is the face the preview changes.
+    let baseTitle = inTitle.value;
+    const titleCaption = fTitle.querySelector('.deck-ed-label');
+    titleCaption.removeAttribute('data-i18n');
     fTitle.appendChild(inTitle);
     edMain.appendChild(fTitle);
     edMain.appendChild(tabBar);
     edMain.appendChild(paneAction);
+    edMain.appendChild(paneState);
     edMain.appendChild(paneLook);
     edMain.appendChild(paneFx);
     modal.appendChild(edBody);
@@ -939,11 +998,82 @@
     // The picker pings back on any change so the auto-tint button below can
     // appear as soon as an image icon is uploaded (syncBgImg is hoisted).
     const iconPicker = buildIconPicker(existing, () => syncBgImg(), { getAppTarget: currentLaunchTarget });
+    // Look edits one face at a time: Off (the key as it normally is) or On (only
+    // what changes while it is lit). One set of cards in one place, instead of a
+    // second tab of colours that read as the same settings twice. Tapping a face
+    // in the preview picks it too.
+    // How the key answers a press (button, switch, momentary, repeat, cycle).
+    // Built first: the faces and the gestures below both depend on it.
+    const behaviorUi = { t, section, subRow, input, swatchRow, buildIconPicker };
+    const behavior = window.DeckEditorBehavior.buildCard(behaviorUi, existing, () => syncBehavior());
+    const cycleStateName = (i) => t('deck_cycle_state').replace('{n}', String(i + 1));
+    // A cycle key's further faces (c1.. in Look), built the first time one is opened.
+    const cycleFacePanels = [];
+    function cycleFacePanel(i) {
+      if (!cycleFacePanels[i]) {
+        cycleFacePanels[i] = window.DeckEditorBehavior.buildCycleFace(behaviorUi, existing && Array.isArray(existing.cycle) ? existing.cycle[i] : null);
+        paneLook.appendChild(cycleFacePanels[i].el);
+      }
+      return cycleFacePanels[i];
+    }
+    function readCycleFace(i) {
+      if (cycleFacePanels[i]) return cycleFacePanels[i].read();
+      return (existing && Array.isArray(existing.cycle) && existing.cycle[i]) || {};
+    }
+    let lookFace = (opts && (opts.face === 'on' || /^c\d$/.test(opts.face || ''))) ? opts.face : 'off';
+    const faceSeg = document.createElement('div'); faceSeg.className = 'deck-ed-seg deck-ed-seg-text deck-ed-faceseg';
+    const faceBtns = {};
+    // The faces a key has: Off and On, or one per state for a cycle key.
+    function faceList() {
+      if (behavior.mode() !== 'cycle') return [['off', 'deck_preview_off'], ['on', 'deck_preview_on']];
+      const out = [];
+      for (let i = 0; i < behavior.cycleCount(); i++) out.push([i ? 'c' + i : 'off', '']);
+      return out;
+    }
+    function paintFaceSeg() {
+      faceSeg.replaceChildren();
+      Object.keys(faceBtns).forEach((k) => { delete faceBtns[k]; });
+      faceList().forEach(([f, lk], i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+        if (lk) { b.setAttribute('data-i18n', lk); b.textContent = t(lk); } else b.textContent = cycleStateName(i);
+        b.addEventListener('click', () => setFace(f));
+        faceSeg.appendChild(b); faceBtns[f] = b;
+      });
+      setFace(faceBtns[lookFace] ? lookFace : 'off');
+    }
+    paneLook.appendChild(faceSeg);
+    // An On face nobody will ever see: say so, and point at where that is set.
+    const faceNever = document.createElement('div'); faceNever.className = 'deck-ed-statesum is-idle deck-ed-on-face';
+    const faceNeverTxt = document.createElement('div');
+    faceNeverTxt.setAttribute('data-i18n', 'deck_look_never_on'); faceNeverTxt.textContent = t('deck_look_never_on');
+    const faceNeverBtn = document.createElement('button'); faceNeverBtn.type = 'button'; faceNeverBtn.className = 'deck-ed-btn deck-ed-facego';
+    faceNeverBtn.setAttribute('data-i18n', 'deck_look_go_state'); faceNeverBtn.textContent = t('deck_look_go_state');
+    faceNeverBtn.addEventListener('click', () => showTab('state'));
+    // The common case in one tap: a key the user wants to read OFF / ON is a
+    // switch. Flipping the State switch row keeps both places in step.
+    const faceSwitchBtn = document.createElement('button'); faceSwitchBtn.type = 'button'; faceSwitchBtn.className = 'deck-ed-btn deck-ed-facego';
+    faceSwitchBtn.setAttribute('data-i18n', 'deck_look_make_switch'); faceSwitchBtn.textContent = t('deck_look_make_switch');
+    faceSwitchBtn.addEventListener('click', () => { behavior.setMode('switch'); schedulePreview(); });
+    const faceNeverBtns = document.createElement('div'); faceNeverBtns.className = 'deck-ed-facebtns';
+    faceNeverBtns.appendChild(faceSwitchBtn); faceNeverBtns.appendChild(faceNeverBtn);
+    faceNever.appendChild(faceNeverTxt); faceNever.appendChild(faceNeverBtns);
+    paneLook.appendChild(faceNever);
+    function setFace(f) {
+      lookFace = f;
+      const cycleAt = /^c\d$/.test(f) ? Number(f.slice(1)) : 0;
+      if (cycleAt) cycleFacePanel(cycleAt - 1);
+      paneLook.dataset.face = cycleAt ? 'cycle' : f;
+      Object.keys(faceBtns).forEach((k) => faceBtns[k].classList.toggle('active', k === f));
+      cycleFacePanels.forEach((p, i) => { if (p) p.el.style.display = cycleAt === i + 1 ? '' : 'none'; });
+      titleSync();
+    }
+    paintFaceSeg();
+    iconPicker.element.classList.add('deck-ed-off-face');
     paneLook.appendChild(iconPicker.element);
 
     // ── Cap background: a solid accent OR a two-colour gradient, plus an
     // optional backdrop picture that sits UNDER the icon/label. ──
-    const fColor = field('deck_edit_color');
+    const fColor = field('deck_edit_color'); fColor.classList.add('deck-ed-off-face');
     let colorTouched = !!(existing && existing.bg);
     let bgColor = (existing && existing.bg) || '';
     let gradC1 = (existing && existing.bg2 && existing.bg) || '';
@@ -1032,7 +1162,7 @@
     let bgImgVal = (existing && existing.bgImage && existing.bgImage.value) || '';
     let bgImgDim = (existing && existing.bgImage && Number.isFinite(existing.bgImage.dim)) ? existing.bgImage.dim : 35;
     let bgImgBlur = (existing && existing.bgImage && Number.isFinite(existing.bgImage.blur)) ? existing.bgImage.blur : 0;
-    const fBgImg = field('deck_edit_bgimage');
+    const fBgImg = field('deck_edit_bgimage'); fBgImg.classList.add('deck-ed-off-face');
     const bgImgRow = document.createElement('div'); bgImgRow.className = 'deck-ed-imgpick';
     const bgImgFile = document.createElement('input'); bgImgFile.type = 'file'; bgImgFile.accept = 'image/*'; bgImgFile.className = 'deck-ed-file';
     const bgImgBtn = document.createElement('button'); bgImgBtn.type = 'button'; bgImgBtn.className = 'deck-ed-btn';
@@ -1175,14 +1305,13 @@
     }
     selLive.addEventListener('change', syncLive);
     syncLive();
-    paneLook.appendChild(fLive);
 
     // ── Label styling: position, size, weight, colour. ──
     let labelPosVal = (existing && ['top', 'hidden'].includes(existing.labelPos)) ? existing.labelPos : 'bottom';
     let labelSizeVal = (existing && ['sm', 'lg'].includes(existing.labelSize)) ? existing.labelSize : 'md';
     let labelBoldVal = !!(existing && existing.labelBold);
     let labelColorVal = (existing && existing.labelColor) || '';
-    const fLabel = field('deck_edit_label');
+    const fLabel = field('deck_edit_label'); fLabel.classList.add('deck-ed-off-face');
     const posSeg = document.createElement('div'); posSeg.className = 'deck-ed-seg deck-ed-seg-text';
     [['bottom', 'deck_label_pos_bottom'], ['top', 'deck_label_pos_top'], ['hidden', 'deck_label_pos_hidden']].forEach(([v, lk]) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
@@ -1217,7 +1346,8 @@
     const lcWrap = document.createElement('div'); lcWrap.className = 'deck-ed-subfield';
     lcWrap.appendChild(labelColorRow.el);
     fLabel.appendChild(lcWrap);
-    paneFx.appendChild(fLabel);
+    // The label is part of how the key looks: it sits right under the icon.
+    paneLook.insertBefore(fLabel, fColor);
 
     // Tap feedback: the effect the cap plays/holds when the key fires. Applies to any
     // key (action or folder); validated by normalizeKey on save.
@@ -1265,40 +1395,108 @@
     selAnim.value = (existing && KEY_ANIMS.includes(existing.anim)) ? existing.anim : 'none';
     fAnim.appendChild(selAnim); paneFx.appendChild(fAnim);
 
-    // ── Alternate face while the bound state is ON (toggle keys): optional
-    // emoji, label and accent that replace the base face when .is-on. Only
-    // meaningful for stateful action keys; collectKey stores it as stateStyle
-    // and normalizeKey re-validates every field. ──
-    // The icon here is a full icon, the same as the base face's: a built-in
-    // vector, an uploaded picture or an emoji. It used to be a text box capped at
-    // eight characters, which made "a key can carry two faces" mean two EMOJI in
-    // practice — the question it kept being offered as the answer to was "assign
-    // two icons to a single button and toggle between them", and it could not.
-    // Stored values were bare strings; normalizeStateIcon reads those as the emoji
-    // they always were, so nothing saved before this changes.
-    const ssExisting = { icon: (existing && existing.stateStyle && existing.stateStyle.icon) || null };
+    // ── The lit face: what changes while the key is on, in four cards that
+    // mirror the Look tab (label, icon, background, then light and motion).
+    // Every field left empty keeps the off face, so OFF as the title and ON here
+    // is the whole job. Only meaningful for stateful action keys; collectKey
+    // stores it as stateStyle and normalizeKey re-validates every field.
+    // The icon is a full icon, like the base face's: a built-in vector, an
+    // uploaded picture or an emoji. Stored values used to be bare strings;
+    // normalizeStateIcon reads those as the emoji they always were.
+    const ssEx = (existing && existing.stateStyle) || {};
+    const ssExisting = { icon: ssEx.icon || null };
     if (typeof ssExisting.icon === 'string') ssExisting.icon = { type: 'emoji', value: ssExisting.icon };
-    let ssLabelVal = (existing && existing.stateStyle && existing.stateStyle.label) || '';
-    let ssColorVal = (existing && existing.stateStyle && existing.stateStyle.color) || '';
-    const fStateStyle = field('deck_edit_statestyle');
+    let ssLabelVal = ssEx.label || '';
+    let ssColorVal = ssEx.color || '';
+    let ssColor2Val = ssEx.color2 || '';
+    let ssIconColorVal = ssEx.iconColor || '';
+    let ssLabelColorVal = ssEx.labelColor || '';
+    // A new key starts with the ring on, so its lit face differs from the
+    // normal one at a glance before anything else is picked.
+    let ssRingVal = existing ? ssEx.ring === true : true;
+    let dimOffVal = !!(existing && existing.dimOff);
+
     const ssHint = document.createElement('div'); ssHint.className = 'deck-ed-hint';
-    ssHint.setAttribute('data-i18n', 'deck_statestyle_hint'); ssHint.textContent = t('deck_statestyle_hint');
-    fStateStyle.appendChild(ssHint);
+    ssHint.setAttribute('data-i18n', 'deck_ss_hint'); ssHint.textContent = t('deck_ss_hint');
+
+    const fSsLabel = section('deck_ss_sec_label');
+    // The On title is typed in the Title field at the top (titleSync).
+    const faceTitleName = (f) => (f === 'on' ? t('deck_preview_on') : cycleStateName(Number(f.slice(1))));
+    titleSync = () => {
+      const f = activeTab === 'look' && lookFace !== 'off' ? lookFace : '';
+      titleCaption.textContent = f ? t('deck_edit_name') + ' · ' + faceTitleName(f) : t('deck_edit_name');
+      inTitle.value = !f ? baseTitle : (f === 'on' ? ssLabelVal : cycleFacePanel(Number(f.slice(1)) - 1).label());
+      // Empty means the same title as Off: show it, greyed.
+      inTitle.placeholder = f ? (baseTitle.trim() || t('deck_ph_statestyle_label')) : '';
+      inTitle.maxLength = f ? 40 : 524288;
+      inTitle.dataset.face = f || 'off';
+    };
+    inTitle.addEventListener('input', () => {
+      const f = inTitle.dataset.face;
+      if (f === 'on') ssLabelVal = inTitle.value.trim();
+      else if (f && f !== 'off') cycleFacePanel(Number(f.slice(1)) - 1).setLabel(inTitle.value.trim());
+      else baseTitle = inTitle.value;
+    });
+    titleSync();
+    fSsLabel.appendChild(subRow('deck_ss_labelcolor', swatchRow(() => ssLabelColorVal, (v) => { ssLabelColorVal = v; }).el));
+
+    const fSsIcon = section('deck_ss_sec_icon');
     const ssIconPicker = buildIconPicker(ssExisting, null, { glyphOnly: true });
-    ssIconPicker.element.classList.add('deck-ed-subfield');
-    fStateStyle.appendChild(ssIconPicker.element);
-    const ssRow = document.createElement('div'); ssRow.className = 'deck-ed-subfield';
-    const ssLabelIn = input('text', ssLabelVal);
-    ssLabelIn.placeholder = t('deck_ph_statestyle_label');
-    ssLabelIn.maxLength = 40;
-    ssLabelIn.addEventListener('input', () => { ssLabelVal = ssLabelIn.value.trim(); });
-    ssRow.appendChild(ssLabelIn);
-    fStateStyle.appendChild(ssRow);
-    const ssColorRow = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
-    const ssColorWrap = document.createElement('div'); ssColorWrap.className = 'deck-ed-subfield';
-    ssColorWrap.appendChild(ssColorRow.el);
-    fStateStyle.appendChild(ssColorWrap);
-    paneFx.appendChild(fStateStyle);
+    fSsIcon.appendChild(ssIconPicker.element);
+    const ssIconColorRow = subRow('deck_ss_iconcolor', swatchRow(() => ssIconColorVal, (v) => { ssIconColorVal = v; }).el);
+    fSsIcon.appendChild(ssIconColorRow);
+    // A colour only tints a built-in vector icon (emoji and pictures keep their
+    // own colours), the same rule the Look tab's icon colour follows.
+    function syncSsIconColor() {
+      const lit = ssIconPicker.read();
+      const type = (lit && lit.value) ? lit.type : iconPicker.read().type;
+      ssIconColorRow.style.display = type === 'builtin' ? '' : 'none';
+    }
+
+    // Background: Colour or Gradient, the same choice as the Look tab's. A
+    // gradient's first colour may stay empty: it then fades from the key's own.
+    const fSsBg = section('deck_ss_sec_bg');
+    let ssBgMode = ssColor2Val ? 'grad' : 'solid';
+    const ssModeSeg = document.createElement('div'); ssModeSeg.className = 'deck-ed-seg deck-ed-seg-text';
+    const ssModeBtns = {};
+    [['solid', 'deck_bg_solid'], ['grad', 'deck_bg_gradient']].forEach(([m, lk]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+      b.setAttribute('data-i18n', lk); b.textContent = t(lk);
+      b.addEventListener('click', () => { ssBgMode = m; syncSsBg(); });
+      ssModeSeg.appendChild(b); ssModeBtns[m] = b;
+    });
+    fSsBg.appendChild(ssModeSeg);
+    const ssSolidRow = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
+    fSsBg.appendChild(ssSolidRow.el);
+    const ssGradWrap = document.createElement('div');
+    const ssC1Row = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
+    const ssC2Row = swatchRow(() => ssColor2Val, (v) => { ssColor2Val = v; });
+    ssGradWrap.appendChild(subRow('deck_grad_c1', ssC1Row.el));
+    ssGradWrap.appendChild(subRow('deck_grad_c2', ssC2Row.el));
+    fSsBg.appendChild(ssGradWrap);
+    function syncSsBg() {
+      Object.keys(ssModeBtns).forEach((m) => ssModeBtns[m].classList.toggle('active', m === ssBgMode));
+      ssSolidRow.el.style.display = ssBgMode === 'solid' ? '' : 'none';
+      ssGradWrap.style.display = ssBgMode === 'grad' ? '' : 'none';
+      ssSolidRow.refresh(); ssC1Row.refresh(); ssC2Row.refresh();
+    }
+    syncSsBg();
+
+    const fSsFx = section('deck_ss_sec_fx');
+    const ssSwitches = document.createElement('div'); ssSwitches.className = 'deck-ed-switches';
+    ssSwitches.appendChild(switchRow('deck_ss_ring', ssRingVal, (on) => { ssRingVal = on; }).el);
+    ssSwitches.appendChild(switchRow('deck_dim_off', dimOffVal, (on) => { dimOffVal = on; }).el);
+    fSsFx.appendChild(ssSwitches);
+    const selSsAnim = document.createElement('select'); selSsAnim.className = 'deck-ed-input';
+    DM.STATE_ANIMS.forEach((v) => {
+      const o = document.createElement('option'); o.value = v;
+      o.setAttribute('data-i18n', 'deck_ss_anim_' + v); o.textContent = t('deck_ss_anim_' + v);
+      selSsAnim.appendChild(o);
+    });
+    selSsAnim.value = DM.STATE_ANIMS.includes(ssEx.anim) ? ssEx.anim : 'none';
+    fSsFx.appendChild(subRow('deck_ss_anim', selSsAnim));
+    // The On face's cards (Look) and the On-only light and motion (Effects).
+    const litSections = [ssHint, fSsLabel, fSsIcon, fSsBg];
 
     // ── Style tools: copy this key's look, paste a copied look, or repaint the
     // whole page with it. The clipboard survives across editors (session-only). ──
@@ -1324,7 +1522,7 @@
       const k = collectKey(false);
       (DM.KEY_STYLE_FIELDS || []).forEach((f) => { delete k[f]; });
       Object.assign(k, styleClipboard);
-      open(Object.assign({}, opts, { key: k, tab: activeTab }));
+      open(Object.assign({}, opts, { key: k, tab: activeTab, face: lookFace }));
     });
     const btnPageStyle = document.createElement('button'); btnPageStyle.type = 'button'; btnPageStyle.className = 'deck-ed-btn';
     btnPageStyle.setAttribute('data-i18n', 'deck_style_page'); btnPageStyle.textContent = t('deck_style_page');
@@ -1341,16 +1539,17 @@
 
     // Trigger data (no DOM yet). Defined early so the per-key "dynamic state"
     // field below can pre-suggest a source from the tap action.
-    const TRIGGERS = ['tap', 'double', 'hold'];
+    const TRIGGERS = DM.KEY_TRIGGERS;
     const rawTriggers = (existing && existing.triggers) || {};
     // Each trigger is a list of step descriptors {type, params, delayMs}.
     const stepsOf = (name) => DA.triggerSteps(rawTriggers[name]).map((s) => {
       const params = Object.assign({}, s.action); delete params.type;
       return { type: s.action.type, params, delayMs: s.delayMs };
     });
-    const trig = { tap: stepsOf('tap'), double: stepsOf('double'), hold: stepsOf('hold') };
-    // Open on the first trigger that has any step so an existing double/hold key doesn't look empty.
-    let activeTrig = trig.tap.length ? 'tap' : trig.double.length ? 'double' : trig.hold.length ? 'hold' : 'tap';
+    const trig = {};
+    TRIGGERS.forEach((tr) => { trig[tr] = stepsOf(tr); });
+    // Open on the first gesture that has any step so an existing double/hold key doesn't look empty.
+    let activeTrig = behavior.triggers().find((tr) => trig[tr].length) || behavior.triggers()[0];
 
     // First open-app / open-Store-app target across the key's triggers, if any —
     // feeds the icon picker's "use the app's own icon" shortcut. Hoisted so the
@@ -1410,6 +1609,9 @@
       // Timer keys light while their timer is counting down.
       const tmr = find((s) => (s.type === 'timerStart' || s.type === 'timerToggle') && s.params && s.params.label);
       if (tmr) return { source: 'timerRunning', name: tmr.params.label };
+      // Lights on/off keys follow the lights themselves, not their own taps. A
+      // key that only turns them off would be lit exactly when it does nothing.
+      if (find((s) => s.type === 'lightPower' && (!s.params || s.params.state !== 'off'))) return { source: 'lightsOn' };
       return null;
     }
 
@@ -1441,6 +1643,65 @@
     // The key's effective state binding: an explicit global binding wins, else the
     // action-derived one. Used by the LED "follows state" default and on save.
     function effectiveKeyState() { return manualSbState() || manualSdkState() || manualScriptState() || detectKeyState(); }
+
+    // What lights this key, in words, at the top of the On tab: the part that
+    // used to be guesswork (a lit colour set, and no state that ever lights it).
+    const stateSum = document.createElement('div'); stateSum.className = 'deck-ed-statesum';
+    paneState.appendChild(stateSum);
+    const STATE_SOURCE_ACTION = {
+      micMuted: 'micMute', speakerMuted: 'volume', outputDevice: 'audioDevice', obsRecording: 'obsRecord',
+      obsStreaming: 'obsStream', obsScene: 'obsScene', obsInputMuted: 'obsMute', remoteActive: 'remoteBlock',
+      discordMuted: 'discordMute', discordDeafened: 'discordDeafen', spotifyPlaying: 'spotifyPlay',
+      mediaPlaying: 'media', haEntity: 'haToggle', timerRunning: 'timerStart', lightsOn: 'lightPower',
+    };
+    const STATE_SOURCE_FIELD = { sbGlobal: 'deck_edit_sbglobal', sdkState: 'deck_edit_sdkstate', scriptState: 'deck_edit_scriptstate' };
+    function stateSourceText(st) {
+      const spec = DA.actionSpec(STATE_SOURCE_ACTION[st.source]);
+      const base = STATE_SOURCE_FIELD[st.source] ? t(STATE_SOURCE_FIELD[st.source]) : (spec ? t(spec.labelKey) : '');
+      const detail = st.name || st.entity || st.scene || st.input || '';
+      return [base, detail].filter(Boolean).join(': ');
+    }
+    function updateStateSummary() {
+      const st = effectiveKeyState();
+      let text = t('deck_state_sum_none');
+      const mode = behavior.mode();
+      // A switch, a held momentary key and a cycle key light themselves.
+      const ownSum = { switch: 'deck_state_sum_switch', momentary: 'deck_state_sum_momentary', cycle: 'deck_state_sum_cycle' }[mode];
+      if (mode === 'cycle') text = t(ownSum);
+      else if (st) text = t('deck_state_sum_follows') + ' ' + stateSourceText(st);
+      else if (ownSum) text = t(ownSum);
+      stateSum.textContent = text;
+      stateSum.classList.toggle('is-idle', !st && !ownSum);
+      faceNever.style.display = (!st && !ownSum) ? '' : 'none';
+    }
+    // A switch: each tap turns the key on or off, the off tap with its own action.
+    let toggleVal = behavior.mode() === 'switch';
+    // The behaviour decides which gestures there are, which faces Look edits,
+    // and what State and the confirm tap still offer.
+    function syncBehavior() {
+      toggleVal = behavior.mode() === 'switch';
+      const shown = behavior.triggers();
+      TRIGGERS.forEach((tr) => { trigBtns[tr].style.display = shown.includes(tr) ? '' : 'none'; });
+      // In the behaviour's own order, so a cycle key's states sit side by side.
+      const seg = trigBtns[shown[0]].parentNode;
+      if (seg) shown.forEach((tr) => seg.appendChild(trigBtns[tr]));
+      paintTrigNames();
+      if (!shown.includes(activeTrig)) { activeTrig = shown[0]; renderSteps(); markActive(); }
+      paintFaceSeg();
+      syncKind();
+      refreshLedDurDefault();
+      updateStateSummary();
+    }
+    // A cycle key's gestures are its states: Tap reads State 1, cycle1 State 2...
+    function paintTrigNames() {
+      const cycle = behavior.mode() === 'cycle';
+      TRIGGERS.forEach((tr) => {
+        const nm = trigBtns[tr].querySelector('.deck-ed-trigname');
+        const m = /^cycle(\d)$/.exec(tr);
+        if (m || (cycle && tr === 'tap')) { nm.removeAttribute('data-i18n'); nm.textContent = cycleStateName(m ? Number(m[1]) : 0); }
+        else { nm.setAttribute('data-i18n', 'deck_trigger_' + tr); nm.textContent = t('deck_trigger_' + tr); }
+      });
+    }
 
     const fKind = field('deck_edit_kind');
     const selKind = document.createElement('select');
@@ -1522,7 +1783,7 @@
     trigLbl.setAttribute('data-i18n', 'deck_triggers');
     trigLbl.textContent = t('deck_triggers');
     fTrig.appendChild(trigLbl);
-    const segTrig = document.createElement('div'); segTrig.className = 'deck-ed-seg';
+    const segTrig = document.createElement('div'); segTrig.className = 'deck-ed-seg deck-ed-trigseg';
     const trigBtns = {};
     TRIGGERS.forEach((tr) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-trigbtn';
@@ -1533,12 +1794,21 @@
       b.addEventListener('click', () => { activeTrig = tr; renderSteps(); markActive(); });
       segTrig.appendChild(b); trigBtns[tr] = b;
     });
-    fTrig.appendChild(segTrig); paneAction.appendChild(fTrig);
+    fTrig.appendChild(segTrig);
+    paneAction.appendChild(behavior.el);
+    paneAction.appendChild(fTrig);
 
     const fAction = field('deck_edit_action');
     const stepsHost = document.createElement('div');
     stepsHost.className = 'deck-ed-steps';
     fAction.appendChild(stepsHost); paneAction.appendChild(fAction);
+
+    // Confirm: the first tap only arms the key ("Tap again"), for keys that are
+    // costly to hit by mistake.
+    let confirmVal = !!(existing && existing.confirm);
+    const fConfirm = section('deck_confirm_title');
+    fConfirm.appendChild(switchRow('deck_confirm_label', confirmVal, (on) => { confirmVal = on; }).el);
+    paneAction.appendChild(fConfirm);
 
     // ── LED reaction: an optional lighting consequence attached to THIS key. ──
     const existingLight = existing && existing.light;
@@ -1583,7 +1853,7 @@
     // duration by hand, or when editing a reaction that already has a saved choice.
     function refreshLedDurDefault() {
       if (existingLight || durTouched) return;
-      selLightDur.value = effectiveKeyState() ? 'state' : 'press';
+      selLightDur.value = (effectiveKeyState() || toggleVal) ? 'state' : 'press';
     }
     fLightDur.appendChild(selLightDur); fLight.appendChild(fLightDur);
 
@@ -1602,7 +1872,7 @@
     }
     selLightMode.addEventListener('change', syncLight);
     syncLight();
-    paneAction.appendChild(fLight);
+    paneFx.appendChild(fLight);
 
     // ── Reflect a Streamer.bot global (phase 2 "stateful key"): the key shows as ON
     // while a chosen global is truthy (or equals a given value). Optional; the tap
@@ -1646,7 +1916,7 @@
     }
     syncSbState();
     // Visibility (SB configured AND kind=action) is owned by syncKind() below.
-    paneAction.appendChild(fSbState);
+    paneState.appendChild(fSbState);
 
     // ── Reflect a WIDGET state (SDK packages): same idea as the Streamer.bot
     // binding, fed by states installed widget packages publish over the bridge.
@@ -1688,7 +1958,7 @@
     }).catch(() => {});
     syncSdkState();
     // Visibility (states available AND kind=action) is owned by syncKind() below.
-    paneAction.appendChild(fSdkState);
+    paneState.appendChild(fSdkState);
 
     // ── Reflect a SCRIPT state: no service to configure — any local script can
     // POST /state/set, so the field is always offered on action keys. The name is
@@ -1726,7 +1996,10 @@
     }
     syncScriptState();
     // Visibility (kind=action) is owned by syncKind() below.
-    paneAction.appendChild(fScriptState);
+    paneState.appendChild(fScriptState);
+    paneState.appendChild(fLive);
+    litSections.forEach((n) => { n.classList.add('deck-ed-on-face'); paneLook.appendChild(n); });
+    paneFx.appendChild(fSsFx);
 
     // Action picker categories (in display order); each maps an ACTION_CATALOG
     // `group` to a localized header. The `lighting` group carries the visible
@@ -2468,6 +2741,33 @@
       return wrap;
     }
 
+    // A param control for the lightPart kind: one dropdown of every part of every
+    // device with a lighting map (Fan 3, Pump, Strip 1…), named as the map names
+    // them. Writes two params: the device id and the part's index in its map.
+    function lightPartPickControl(step) {
+      const wrap = document.createElement('div');
+      const note = document.createElement('p'); note.className = 'deck-ed-hint';
+      note.setAttribute('data-i18n', 'deck_part_none'); note.textContent = t('deck_part_none');
+      wrap.appendChild(note);
+      lightingLists().then(({ parts }) => {
+        const names = (segs) => (window.LightingMap && window.LightingMap.partLabels
+          ? window.LightingMap.partLabels(segs) : segs.map((s, i) => s.name || String(i + 1)));
+        const items = [];
+        parts.forEach((d) => names(d.segments).forEach((label, i) => items.push({ device: d.device, part: i, label: `${d.label} · ${label}` })));
+        if (!items.length) return;   // nothing with parts → the note stays
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        items.forEach((it, k) => { const o = document.createElement('option'); o.value = String(k); o.textContent = it.label; sel.appendChild(o); });
+        const at = items.findIndex((it) => it.device === step.params.device && it.part === Number(step.params.part));
+        const pick = (k) => { step.params.device = items[k].device; step.params.part = items[k].part; };
+        sel.value = String(at >= 0 ? at : 0);
+        pick(Number(sel.value));
+        sel.addEventListener('change', () => pick(Number(sel.value)));
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the audioApp kind. The text field is the source of truth
     // (the user can type ANY process name, e.g. "spotify" or "discord", even for an
     // app that isn't currently playing). A quick-pick dropdown of the apps that ARE
@@ -2691,6 +2991,8 @@
         // claudeAsk's `prompt` is a request to Claude, the ai action's is a
         // prompt. Renaming the param would orphan every stored key, so the spec
         // may override the derived label key instead.
+        // Set by another param's control (lightPart's picker fills `device`).
+        if (p.kind === 'hidden') return;
         const f = field(p.labelKey || ('deck_param_' + p.name));
         if (step.type === 'hotkey' && p.name === 'keys') {
           if (step.params[p.name] == null) step.params[p.name] = '';
@@ -2819,6 +3121,11 @@
           host.appendChild(f);
           return;
         }
+        if (p.kind === 'lightPart') {
+          f.appendChild(lightPartPickControl(step));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'sound') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(soundPickControl(step, p.name));
@@ -2826,13 +3133,11 @@
           return;
         }
         if (p.kind === 'color') {
-          // Native colour picker; stored as "#rrggbb" (validated server-side).
-          const cur = /^#[0-9a-fA-F]{6}$/.test(step.params[p.name] || '') ? step.params[p.name] : '#7c5cff';
-          const ctrl = input('color', cur);
-          step.params[p.name] = ctrl.value;
-          const write = () => { step.params[p.name] = ctrl.value; };
-          ctrl.addEventListener('change', write); ctrl.addEventListener('input', write);
-          f.appendChild(ctrl); host.appendChild(f);
+          // The same swatch row as the key's own colours (one tap), with the
+          // app's picker behind the last swatch; stored as "#rrggbb" (validated server-side).
+          if (!/^#[0-9a-fA-F]{6}$/.test(step.params[p.name] || '')) step.params[p.name] = '#7c5cff';
+          f.appendChild(swatchRow(() => step.params[p.name], (v) => { step.params[p.name] = v; }, { allowNone: false }).el);
+          host.appendChild(f);
           return;
         }
         let ctrl;
@@ -2907,6 +3212,7 @@
     renderSteps();
     markActive();
     updateTrigLabels();
+    syncBehavior();
     // Re-check OBS availability now (it may have just been configured in Settings);
     // if it changed, rebuild the action lists so OBS actions appear/disappear.
     refreshCapabilities().then((changed) => { if (changed) renderSteps(); fillSliderTargets(); });
@@ -2921,14 +3227,26 @@
       // The Streamer.bot state binding is action-only too: collectKey/normalizeKey
       // only persist `state` on action keys, so showing it on a folder would
       // silently discard the user's choice on save.
-      fSbState.style.display = (isAction && streamerbotConfigured !== false) ? '' : 'none';
+      // A cycle key's states are its own: it follows nothing, and is never "on".
+      const mode = behavior.mode();
+      const follows = isAction && mode !== 'cycle';
+      behavior.el.style.display = isAction ? '' : 'none';
+      fSbState.style.display = (follows && streamerbotConfigured !== false) ? '' : 'none';
       // Widget-state binding: only once the package scan found published states
       // (or the key already carries one) — hidden noise-free for everyone else.
-      fSdkState.style.display = (isAction && sdkStatesAvail) ? '' : 'none';
+      fSdkState.style.display = (follows && sdkStatesAvail) ? '' : 'none';
       // Script-state binding: always available (it needs no configured service).
-      fScriptState.style.display = isAction ? '' : 'none';
+      fScriptState.style.display = follows ? '' : 'none';
       // Alternate ON face: stateful action keys only (state is action-only too).
-      fStateStyle.style.display = isAction ? '' : 'none';
+      // Only an action key can light up: the others have one face.
+      litSections.forEach((n) => { n.style.display = isAction ? '' : 'none'; });
+      fSsFx.style.display = follows ? '' : 'none';
+      faceSeg.style.display = isAction ? '' : 'none';
+      if (!isAction) setFace('off');
+      // A key that acts while held cannot wait for a second tap.
+      fConfirm.style.display = (isAction && mode !== 'momentary' && mode !== 'repeat') ? '' : 'none';
+      tabBtns.state.style.display = isAction ? '' : 'none';
+      if (!isAction && activeTab === 'state') showTab('actions');
       // Live value badge: action keys only (normalizeKey drops it on folders).
       fLive.style.display = isAction ? '' : 'none';
     }
@@ -2960,7 +3278,7 @@
       const key = {
         id: forPreset ? undefined : ((existing && existing.id) || DM.newKeyId()),
         kind,
-        title: inTitle.value,
+        title: baseTitle,
         // The icon picker yields {type:'emoji'|'builtin'|'image', value[, fit]}.
         icon: iconPicker.read(),
         bg: colorTouched ? bgColor : '',
@@ -2988,7 +3306,9 @@
       if (pressColorTouched && pressColor) key.pressColor = pressColor;
       if (kind === 'action') {
         key.triggers = {};
+        const shownTriggers = behavior.triggers();
         TRIGGERS.forEach((tr) => {
+          if (!shownTriggers.includes(tr)) return;   // only the gestures this behaviour runs
           const steps = trig[tr].map((s) => ({ action: Object.assign({ type: s.type }, s.params), delayMs: s.delayMs }));
           const v = DA.compactTrigger(steps);
           if (v) key.triggers[tr] = v;
@@ -3006,6 +3326,15 @@
         if (ssIcon && ssIcon.value) ss.icon = ssIcon;
         if (ssLabelVal) ss.label = ssLabelVal;
         if (ssColorVal) ss.color = ssColorVal;
+        if (ssColor2Val && ssBgMode === 'grad') ss.color2 = ssColor2Val;
+        if (ssIconColorVal) ss.iconColor = ssIconColorVal;
+        if (ssLabelColorVal) ss.labelColor = ssLabelColorVal;
+        if (ssRingVal) ss.ring = true;
+        if (selSsAnim.value !== 'none') ss.anim = selSsAnim.value;
+        behavior.collect(key);
+        if (key.mode === 'cycle') key.cycle = Array.from({ length: behavior.cycleCount() - 1 }, (_, i) => readCycleFace(i));
+        if (confirmVal) key.confirm = true;
+        if (dimOffVal) key.dimOff = true;
         if (Object.keys(ss).length) key.stateStyle = ss;
         // Live value badge (timer countdown / SDK state text) on the face.
         if (liveSource) {
@@ -3054,7 +3383,7 @@
     // preset strip so it shows up immediately (the modal stays open).
     btnSavePreset.addEventListener('click', () => {
       if (window.Deck && typeof window.Deck.saveKeyPreset === 'function') {
-        window.Deck.saveKeyPreset(collectKey(true), inTitle.value);
+        window.Deck.saveKeyPreset(collectKey(true), baseTitle);
       }
       fillKeyPresets();
     });
@@ -3080,8 +3409,41 @@
     function updatePreview() {
       if (!window.Deck || typeof window.Deck.renderKeyPreview !== 'function') { previewPanel.style.display = 'none'; return; }
       let node = null;
-      try { node = window.Deck.renderKeyPreview(collectKey(true), opts && opts.look); } catch { node = null; }
+      const look = opts && opts.look;
+      try {
+        const raw = collectKey(true);
+        updateStateSummary();
+        syncSsIconColor();
+        if (raw.kind === 'action' && raw.mode === 'cycle') {
+          // The first state and the one being edited (else the second).
+          const at = /^c\d$/.test(lookFace) ? Number(lookFace.slice(1)) : 1;
+          node = document.createElement('div'); node.className = 'deck-ed-preview-pair';
+          node.appendChild(previewFig(raw, look, 'off', cycleStateName(0), '', { cycle: 0 }));
+          node.appendChild(previewFig(raw, look, 'c' + at, cycleStateName(at), '', { cycle: at }));
+        } else if (raw.kind === 'action' && (raw.toggle || raw.mode === 'momentary' || raw.state || raw.stateStyle)) {
+          node = document.createElement('div'); node.className = 'deck-ed-preview-pair';
+          node.appendChild(previewFig(raw, look, 'off', t('deck_preview_off'), 'deck_preview_off', { on: false }));
+          node.appendChild(previewFig(raw, look, 'on', t('deck_preview_on'), 'deck_preview_on', { on: true }));
+        } else {
+          node = window.Deck.renderKeyPreview(raw, look);
+        }
+      } catch { node = null; }
       if (node) previewCap.replaceChildren(node);
+    }
+    // One face in the preview; tapping it opens that face in Look.
+    function previewFig(raw, look, face, text, lk, renderOpts) {
+      const fig = document.createElement('div'); fig.className = 'deck-ed-preview-fig is-pickable';
+      fig.classList.toggle('is-face', activeTab === 'look' && face === lookFace);
+      fig.tabIndex = 0; fig.setAttribute('role', 'button'); fig.setAttribute('aria-label', text);
+      const pick = () => { setFace(face); showTab('look'); schedulePreview(); };
+      fig.addEventListener('click', pick);
+      fig.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      fig.appendChild(window.Deck.renderKeyPreview(raw, look, renderOpts));
+      const tag = document.createElement('span'); tag.className = 'deck-ed-preview-tag';
+      if (lk) tag.setAttribute('data-i18n', lk);
+      tag.textContent = text;
+      fig.appendChild(tag);
+      return fig;
     }
     function schedulePreview() {
       if (previewRaf) return;
@@ -3104,6 +3466,9 @@
     edSide.insertBefore(previewPanel, edSide.firstChild);
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
+    // Word segments never break into a lopsided pile in a narrow modal or a
+    // long language: they step to an even grid instead (DeckPanel.css).
+    if (window.FitRow) backdrop.stopFitRows = window.FitRow.watchWithin(modal, '.deck-ed-seg-text', 1);
     if (typeof applyTranslations === 'function') applyTranslations();
     enhanceSelects(modal);
     updatePreview();

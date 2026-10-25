@@ -1553,24 +1553,11 @@ button.diskw-crumb:hover {
   background: var(--danger-bg);
 }
 
-.diskw-spinner {
-  width: 31px;
-  height: 31px;
-  border: 2px solid color-mix(in srgb, var(--accent), transparent 80%);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: diskw-spin 0.9s linear infinite;
-  will-change: transform;
-}
-
+/* The clean button's orbit ring; loading states use the Xenon loader. */
 @keyframes diskw-spin {
   to { transform: rotate(360deg); }
 }
 
-body.overlay-frozen .diskw-spinner,
-body.ambient-idle .diskw-spinner,
-body.game-mode .diskw-spinner,
-body.low-power-gpu .diskw-spinner,
 body.overlay-frozen .diskw-clean-orbit::before,
 body.ambient-idle .diskw-clean-orbit::before,
 body.game-mode .diskw-clean-orbit::before,
@@ -2223,7 +2210,6 @@ body.diskw-advisor-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diskw-spinner,
   .diskw-clean-orbit::before,
   .diskw-clean-track > span {
     animation: none;

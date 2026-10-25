@@ -238,7 +238,7 @@
 }
 /* The deck-in-tab chassis mount (DeckPanel.css) uses graphite literals —
    repaint it in the CRT navy so the mounted console matches the skin. */
-:root[data-style="retro"] .panel.tabgroup.deck-tab-active {
+:root[data-style="retro"] .panel.tabgroup.deck-tab-active:not([data-deck-themeplate]) {
   background: linear-gradient(180deg, #14152e, #0c0d22);
   border-color: rgba(var(--accent-rgb), 0.45);
   box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);

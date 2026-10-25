@@ -1,0 +1,332 @@
+/* Canvas Ambient editor (js/ambient-canvas-editor.js): toolbar, selection box,
+   options panel and add menu drawn over the scene while it is edited. The scene
+   underneath is the real renderer (components/AmbientCanvas). */
+
+.ambient-canvas-overlay.is-editing { animation: none; }
+.ambient-canvas-overlay.is-editing .ambient-canvas-exit { display: none; }
+.ambient-canvas-overlay.is-editing .ambient-canvas-stage { touch-action: none; }
+.ambient-canvas-overlay.is-editing .ac-item:not(.ac-off) { cursor: grab; }
+.ambient-canvas-overlay.is-editing .ac-item * { pointer-events: none; }
+
+.ace-layer, .ace-bar, .ace-panel, .ace-add {
+  --ace-bg: rgba(14, 16, 20, 0.92);
+  --ace-line: rgba(255, 255, 255, 0.1);
+  --ace-soft: rgba(255, 255, 255, 0.06);
+  --ace-text: #eef1f6;
+  --ace-dim: rgba(238, 241, 246, 0.62);
+  color: var(--ace-text);
+  font-family: var(--ui-font, Inter, system-ui, sans-serif);
+  font-size: 13px;
+}
+.ace-bar [hidden], .ace-panel[hidden], .ace-add[hidden], .ace-sel[hidden] { display: none !important; }
+
+/* Selection: a box over the element, corner handles to resize it. The box lets
+   taps through so an element under it can still be picked. */
+.ace-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.ace-sel {
+  position: absolute;
+  outline: 2px solid rgb(var(--accent-rgb, 30, 215, 96));
+  outline-offset: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.ace-handle {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px;
+  pointer-events: auto;
+  touch-action: none;
+}
+.ace-handle::after {
+  content: "";
+  position: absolute;
+  inset: 15px;
+  border-radius: 3px;
+  background: #fff;
+  border: 2px solid rgb(var(--accent-rgb, 30, 215, 96));
+}
+.ace-handle-nw { left: 0; top: 0; cursor: nwse-resize; }
+.ace-handle-ne { right: 0; top: 0; cursor: nesw-resize; }
+.ace-handle-sw { left: 0; bottom: 0; cursor: nesw-resize; }
+.ace-handle-se { right: 0; bottom: 0; cursor: nwse-resize; }
+
+/* Toolbar: one row at the bottom (the top when the element is down there). */
+.ace-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 8;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+  padding: 6px;
+  border: 1px solid var(--ace-line);
+  border-radius: 14px;
+  background: var(--ace-bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+}
+.ace-bar.is-top { bottom: auto; top: 12px; }
+.ace-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--ace-line);
+  border-radius: 10px;
+  background: var(--ace-soft);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ace-btn svg { width: 18px; height: 18px; flex: none; }
+.ace-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.11); }
+.ace-btn:focus-visible, .ace-seg-btn:focus-visible, .ace-switch:focus-visible, .ace-day:focus-visible,
+.ace-add-item:focus-visible { outline: 2px solid rgb(var(--accent-rgb, 30, 215, 96)); outline-offset: 2px; }
+.ace-btn:disabled { opacity: 0.4; cursor: default; }
+.ace-btn-icon { padding: 0; }
+.ace-btn-save {
+  border-color: transparent;
+  background: rgb(var(--accent-rgb, 30, 215, 96));
+  color: #0b0d10;
+}
+.ace-btn-save:hover:not(:disabled) { background: rgb(var(--accent-rgb, 30, 215, 96)); filter: brightness(1.08); }
+.ace-btn-save { min-width: 72px; }
+.ace-btn.is-danger { border-color: rgba(255, 90, 90, 0.45); background: rgba(255, 90, 90, 0.16); }
+.ace-btn-quiet { min-height: 36px; background: transparent; }
+.ace-pager { display: flex; align-items: center; gap: 2px; }
+.ace-page-label { min-width: 84px; text-align: center; color: var(--ace-dim); font-variant-numeric: tabular-nums; }
+.ace-status { color: #ff9a9a; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ace-status:empty { display: none; }
+/* Narrow toolbars keep the icons and drop the words (Cancel keeps its text: it
+   is the one that changes meaning). */
+@media (max-width: 760px) {
+  .ace-btn-label { display: none; }
+  .ace-btn.is-danger .ace-btn-label { display: inline; }
+  .ace-btn { padding: 0 10px; }
+  .ace-page-label { min-width: 0; font-size: 12px; }
+}
+
+/* Options panel: a side sheet on the side away from the selected element. */
+.ace-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 80px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100% - 24px));
+  border: 1px solid var(--ace-line);
+  border-radius: 16px;
+  background: var(--ace-bg);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+.ace-panel.is-left { right: auto; left: 12px; }
+.ace-panel:has(~ .ace-bar.is-top) { top: 80px; bottom: 12px; }
+.ace-panel-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px 14px; }
+.ace-panel-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ace-acts { display: flex; gap: 6px; padding: 4px 14px 8px; }
+.ace-acts[hidden] { display: none; }
+.ace-form {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 14px 14px;
+  scrollbar-width: thin;
+}
+.ace-sec { padding: 10px 0 4px; border-top: 1px solid var(--ace-line); }
+.ace-sec:first-child { border-top: 0; }
+.ace-sec-title { margin: 0 0 6px; font-size: 12px; font-weight: 800; color: var(--ace-dim); }
+.ace-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.ace-pair { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+.ace-pair .ace-num { width: 64px; }
+.ace-field.is-wide { grid-template-columns: 1fr; gap: 6px; padding: 4px 0; }
+.ace-field-label { color: var(--ace-text); overflow-wrap: anywhere; }
+.ace-select, .ace-num, .ace-line, .ace-textarea, .ace-time {
+  min-height: 36px;
+  border: 1px solid var(--ace-line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font: inherit;
+  padding: 0 8px;
+  color-scheme: dark;
+}
+.ace-select { max-width: 170px; }
+.ace-num { width: 72px; }
+.ace-line { width: 170px; }
+.ace-textarea { width: 100%; box-sizing: border-box; padding: 8px; resize: vertical; }
+.ace-seg { display: inline-flex; padding: 2px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--ace-line); }
+.ace-seg-btn {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ace-dim);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ace-seg-btn[aria-checked="true"] { background: rgba(255, 255, 255, 0.14); color: var(--ace-text); }
+.ace-switch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border: 1px solid var(--ace-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+.ace-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: translate 0.15s ease;
+}
+.ace-switch[aria-checked="true"] { background: rgb(var(--accent-rgb, 30, 215, 96)); border-color: transparent; }
+.ace-switch[aria-checked="true"]::after { translate: 18px 0; }
+.ace-range { display: flex; align-items: center; gap: 8px; }
+.ace-range input { width: 130px; accent-color: rgb(var(--accent-rgb, 30, 215, 96)); }
+.ace-range-val { min-width: 44px; text-align: right; color: var(--ace-dim); font-variant-numeric: tabular-nums; }
+.ace-color {
+  width: 44px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--ace-line);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.ace-stops { display: grid; gap: 4px; }
+.ace-stop { display: flex; align-items: center; gap: 8px; }
+.ace-stop .ace-range { flex: 1; }
+.ace-stop .ace-range input { width: auto; flex: 1; }
+.ace-icon-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--ace-line);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.ace-picture { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ace-picture-thumb {
+  width: 64px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid var(--ace-line);
+  background: rgba(255, 255, 255, 0.05) center / cover no-repeat;
+}
+.ace-picture-note { color: var(--ace-dim); font-size: 12px; flex-basis: 100%; }
+.ace-picture-note:empty { display: none; }
+.ace-hours { display: flex; align-items: center; gap: 8px; }
+.ace-hours-note { color: var(--ace-dim); }
+.ace-hours-dash { width: 8px; height: 2px; border-radius: 1px; background: var(--ace-dim); }
+.ace-time { width: 96px; }
+.ace-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ace-day {
+  min-height: 40px;
+  border: 1px solid var(--ace-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ace-dim);
+  font: inherit;
+  font-size: 12px;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.ace-day[aria-pressed="true"] { background: rgba(var(--accent-rgb, 30, 215, 96), 0.22); color: var(--ace-text); border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); }
+
+/* Add menu: a sheet above the toolbar. */
+.ace-add {
+  position: absolute;
+  left: 50%;
+  bottom: 80px;
+  z-index: 9;
+  translate: -50% 0;
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100% - 104px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--ace-line);
+  border-radius: 16px;
+  background: var(--ace-bg);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  box-sizing: border-box;
+}
+.ace-add:has(~ .ace-bar.is-top) { bottom: auto; top: 80px; }
+.ace-add .ace-sec-title { margin-top: 12px; }
+.ace-add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 6px; }
+.ace-add-item {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--ace-line);
+  border-radius: 10px;
+  background: var(--ace-soft);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ace-add-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.11); }
+.ace-add-item:disabled { opacity: 0.4; cursor: default; }
+.ace-add-note { margin: 0 0 8px; color: var(--ace-dim); }
+
+/* Phones and narrow screens: the panel becomes a bottom sheet, the toolbar
+   stays on top so the two never overlap. */
+@media (max-width: 600px) {
+  .ace-bar, .ace-bar.is-top { top: 8px; bottom: auto; }
+  .ace-panel, .ace-panel.is-left,
+  .ace-panel:has(~ .ace-bar.is-top) {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 55%;
+  }
+  .ace-add, .ace-add:has(~ .ace-bar.is-top) { top: 70px; bottom: auto; max-height: calc(100% - 86px); }
+  .ace-range input { width: 110px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ace-switch::after { transition: none; }
+}

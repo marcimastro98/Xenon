@@ -795,7 +795,7 @@ test('profile looks are independent and inherit only missing fields', () => {
     activeProfile: 'comic',
   });
   assert.deepEqual(dm.effectiveDeckLook(cfg, 'comic'), {
-    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', transparency: 0, wellImage: null, mediaStyle: null,
+    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', transparency: 0, wellImage: null, mediaStyle: null, litRing: false, dimOff: false, themeColors: false,
   });
   assert.equal(dm.effectiveDeckLook(cfg, 'plain').capStyle, 'neon');
   assert.equal(dm.effectiveDeckLook(cfg, 'plain').wellImage.src, png);
