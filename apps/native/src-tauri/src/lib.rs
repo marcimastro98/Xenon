@@ -1,6 +1,7 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod crash_log;
+mod embed_nav;
 #[cfg(windows)]
 mod cursor_guard;
 #[cfg(windows)]
@@ -2023,14 +2024,8 @@ pub fn run() {
                     if matches!(scheme, "http" | "https") && loopback {
                         return true;
                     }
-                    // Allow embedded YouTube players to navigate inside the webview.
-                    if scheme == "https"
-                        && matches!(
-                            url.host_str(),
-                            Some("www.youtube-nocookie.com") | Some("www.youtube.com")
-                        )
-                        && url.path().starts_with("/embed/")
-                    {
+                    // The YouTube player in a tile navigates inside its own iframe.
+                    if embed_nav::is_youtube_embed(url) {
                         return true;
                     }
                     // Anything else (external http/https, mailto, tel, …) is handed
