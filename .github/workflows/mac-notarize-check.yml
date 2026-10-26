@@ -115,6 +115,7 @@ jobs:
           printf '%s' "$IN_APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/d.p12"
           echo "p12 bytes: $(wc -c < "$RUNNER_TEMP/d.p12"), password length: ${#IN_APPLE_CERTIFICATE_PASSWORD}"
           /usr/bin/openssl version
+          echo "pw sha: $(printf '%s' "$IN_APPLE_CERTIFICATE_PASSWORD" | shasum -a 256 | cut -c1-12) p12 sha: $(shasum -a 256 "$RUNNER_TEMP/d.p12" | cut -c1-12)"
           PW="$IN_APPLE_CERTIFICATE_PASSWORD" /usr/bin/openssl pkcs12 -in "$RUNNER_TEMP/d.p12" -passin env:PW -nokeys -noout 2>&1 | head -3 || true
           KC="$RUNNER_TEMP/diag.keychain-db"
           security create-keychain -p x "$KC"
