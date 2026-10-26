@@ -105,6 +105,23 @@ jobs:
       # exporting them is what would send Tauri back down its own import path.
       # Only APPLE_SIGNING_IDENTITY continues, naming an identity that now
       # resolves from the default search list.
+      # TEMPORARY: why does the .p12 not import? Prints sizes and the verdict of
+      # the system openssl; no secret value is echoed.
+      - name: Diagnose the signing certificate
+        env:
+          IN_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          IN_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          printf '%s' "$IN_APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/d.p12"
+          echo "p12 bytes: $(wc -c < "$RUNNER_TEMP/d.p12"), password length: ${#IN_APPLE_CERTIFICATE_PASSWORD}"
+          /usr/bin/openssl version
+          PW="$IN_APPLE_CERTIFICATE_PASSWORD" /usr/bin/openssl pkcs12 -in "$RUNNER_TEMP/d.p12" -passin env:PW -nokeys -noout 2>&1 | head -3 || true
+          KC="$RUNNER_TEMP/diag.keychain-db"
+          security create-keychain -p x "$KC"
+          security unlock-keychain -p x "$KC"
+          security import "$RUNNER_TEMP/d.p12" -k "$KC" -P "$IN_APPLE_CERTIFICATE_PASSWORD" -f pkcs12 2>&1 | head -3 || true
+          rm -f "$RUNNER_TEMP/d.p12"
+
       - name: Import the macOS signing certificate into a trusted keychain
         env:
           IN_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
