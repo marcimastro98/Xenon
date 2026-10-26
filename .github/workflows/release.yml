@@ -193,7 +193,9 @@ jobs:
           node-version: '20'
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
       - name: Install dependencies
         run: npm ci
@@ -397,8 +399,9 @@ jobs:
       # Both arches, so one universal binary covers Apple Silicon and Intel and
       # the updater can point BOTH darwin keys at the same payload.
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install dependencies
@@ -427,11 +430,12 @@ jobs:
       # (2046) and must not be rotated casually — a new one resets every user's
       # permissions once.
       #
-      # Notarization is what still needs the paid Apple Developer membership,
-      # and it stays off: APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID are unset,
-      # so `spctl` keeps rejecting the app and the user confirms it on first
-      # open exactly as before. A self-signed certificate does not change that
-      # and is not meant to.
+      # Notarization is what needs the paid Apple Developer membership. With the
+      # Developer ID certificate in APPLE_CERTIFICATE and APPLE_ID / APPLE_PASSWORD
+      # (an app-specific password) / APPLE_TEAM_ID set, Tauri sends the app to Apple
+      # and staples the ticket, and macOS opens it without the "cannot be opened"
+      # warning. A self-signed certificate (the setup before October 2026) keeps
+      # permissions stable but cannot be notarized.
       #
       # Each variable is exported ONLY when its secret actually exists, because
       # Tauri treats an empty APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY as
@@ -499,8 +503,14 @@ jobs:
           # runner; the user domain is the fallback where sudo is unavailable.
           security find-certificate -c "$IN_APPLE_SIGNING_IDENTITY" -p "$KEYCHAIN" > "$CER"
           [ -s "$CER" ] || { echo "::error::the certificate is not in the keychain after import"; exit 1; }
-          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$CER" \
-            || security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$CER"
+          # A Developer ID certificate chains to Apple's own root, which macOS
+          # already trusts: pinning it as a root of its own would only blur that.
+          case "$IN_APPLE_SIGNING_IDENTITY" in
+            "Developer ID Application:"*) echo "Developer ID certificate: trusted through Apple's chain" ;;
+            *)
+              sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$CER" \
+                || security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$CER" ;;
+          esac
 
           # Prepend, never replace: dropping the login keychain from the search
           # list would take the Tauri updater's own signing key with it. The
@@ -519,8 +529,9 @@ jobs:
             || { echo "::error::the certificate imported but '$IN_APPLE_SIGNING_IDENTITY' does not resolve"; exit 1; }
           printf 'APPLE_SIGNING_IDENTITY=%s\n' "$IN_APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
 
-      # Notarization is separate and still absent: it needs the paid Apple
-      # Developer membership. Values are written with the heredoc form so a
+      # Notarization is separate from signing: it needs the paid Apple Developer
+      # membership and its own three secrets. Values are written with the heredoc
+      # form so a
       # secret containing newlines cannot inject variables into the file.
       - name: Enable notarization when its secrets exist
         env:
@@ -766,7 +777,9 @@ jobs:
           node-version: '20'
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
       # The dependency set Tauri documents for Ubuntu. libwebkit2gtk-4.1 is the
       # v2 one (v1 used 4.0); libayatana-appindicator3 is what the tray links
