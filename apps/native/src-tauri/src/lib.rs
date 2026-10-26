@@ -2023,6 +2023,16 @@ pub fn run() {
                     if matches!(scheme, "http" | "https") && loopback {
                         return true;
                     }
+                    // Allow embedded YouTube players to navigate inside the webview.
+                    if scheme == "https"
+                        && matches!(
+                            url.host_str(),
+                            Some("www.youtube-nocookie.com") | Some("www.youtube.com")
+                        )
+                        && url.path().starts_with("/embed/")
+                    {
+                        return true;
+                    }
                     // Anything else (external http/https, mailto, tel, …) is handed
                     // to the default browser and the in-webview navigation cancelled.
                     use tauri_plugin_opener::OpenerExt;
