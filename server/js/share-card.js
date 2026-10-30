@@ -252,11 +252,12 @@ if (typeof window !== 'undefined') (function () {
   }
 
   // ── Assets the card needs before it can be drawn ─────────────────────────
-  const BRAND_FONT_PROBES = ['800 46px Inter', '700 30px Inter', '600 22px Inter', '500 26px Inter'];
+  const BRAND_FONT_PROBES = ['800 46px "Sofia Sans"', '700 30px "Sofia Sans"', '600 22px "Sofia Sans"', '500 26px "Sofia Sans"'];
   let brandFontPromise = null;
-  // BRAND.md: "never a system font as the wordmark." Inter arrives from Google
-  // Fonts, and ctx.font on a weight that has not loaded degrades SILENTLY to
-  // Segoe UI — a brand violation invisible to whoever shipped it. When the load
+  // BRAND.md: "never a system font as the wordmark." Sofia Sans is self-hosted
+  // (styles/fonts.css) but loads lazily, and ctx.font on a weight that has not
+  // loaded degrades SILENTLY to Segoe UI — a brand violation invisible to
+  // whoever shipped it. When the load
   // fails the card draws the logo mark alone and omits the wordmark text: the
   // mark is the offline-safe wordmark, which matters for a product whose whole
   // promise is that it runs without the internet.
@@ -267,7 +268,7 @@ if (typeof window !== 'undefined') (function () {
       try {
         await Promise.all(BRAND_FONT_PROBES.map((f) => document.fonts.load(f)));
         await document.fonts.ready;
-        return document.fonts.check('800 46px Inter');
+        return document.fonts.check('800 46px "Sofia Sans"');
       } catch { return false; }
     })();
     return brandFontPromise;
@@ -412,7 +413,7 @@ if (typeof window !== 'undefined') (function () {
     const size = cardSize(opts.format);
     const L = LAYOUTS[opts.format] || LAYOUTS.post;
     const colors = opts.colors;
-    const family = opts.fontOk ? 'Inter, sans-serif' : '"Segoe UI", system-ui, sans-serif';
+    const family = opts.fontOk ? '"Sofia Sans", sans-serif' : '"Segoe UI", system-ui, sans-serif';
     const font = (weight, px) => weight + ' ' + px + 'px ' + family;
 
     canvas.width = size.w;
@@ -744,7 +745,7 @@ if (typeof window !== 'undefined') (function () {
   }
 
   const CAPTURE_REASON_KEYS = {
-    icue: ['sharecard_capture_icue', 'Inside iCUE the dashboard can’t be captured — this card is drawn instead. Open Xenon in the app or a browser for a real screenshot.'],
+    icue: ['sharecard_capture_icue', 'Inside iCUE the dashboard can’t be captured: this card is drawn instead. Open Xenon in the app or a browser for a real screenshot.'],
     edgepreview: ['sharecard_capture_edgepreview', 'Turn off Edge preview to capture the real dashboard.'],
     game: ['sharecard_capture_game', 'A game is running full screen, so this card is drawn instead.'],
     ambiguous: ['sharecard_capture_ambiguous', 'Xenon can’t tell which of your displays holds the dashboard, so it drew the card instead.'],
@@ -1022,14 +1023,15 @@ if (typeof window !== 'undefined') (function () {
     const dl = el('button', 'settings-btn primary', t('sharecard_download', 'Download PNG'));
     dl.type = 'button';
     dl.addEventListener('click', () => {
-      canvas.toBlob((blob) => {
-        if (!blob) { toastMsg('Xenon', t('sharecard_shot_fail', 'Screenshot not available'), '', 'error'); return; }
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'xenon-' + (kind || 'setup') + '-card.png';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      }, 'image/png');
+      // "Save as" where the browser has one (js/save-file.js), else a download.
+      const S = window.XenonSaveFile;
+      const make = () => new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('no_image'))), 'image/png');
+      });
+      S.save({ name: 'xenon-' + (kind || 'setup') + '-card.png', types: [S.PNG_TYPE], make })
+        .catch((e) => toastMsg('Xenon', e && e.message === 'no_image'
+          ? t('sharecard_shot_fail', 'Screenshot not available')
+          : t('save_file_failed', 'Could not save the file'), '', 'error'));
     });
     row.appendChild(dl);
 
@@ -1045,7 +1047,7 @@ if (typeof window !== 'undefined') (function () {
             await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
             toastMsg('Xenon', t('sharecard_copied_image', 'Image copied'), '', 'success');
           } catch {
-            toastMsg('Xenon', t('sharecard_copy_image_fail', 'Couldn’t copy the image — download it instead.'), '', 'error');
+            toastMsg('Xenon', t('sharecard_copy_image_fail', 'Couldn’t copy the image: download it instead.'), '', 'error');
           }
         }, 'image/png');
       });

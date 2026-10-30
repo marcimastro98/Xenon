@@ -1,0 +1,115 @@
+/* The Store's Sparks tab (js/sparks-store.js): the packs big enough to want,
+   and what Sparks are for, in the Store's own glass cards. */
+.sparks-shop { display: flex; flex-direction: column; gap: 22px; max-width: 1180px; }
+
+.sparks-hero {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 14px 18px;
+  padding: 18px 20px; border-radius: 16px;
+  background: rgba(var(--accent-rgb), 0.07);
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+}
+.sparks-hero-mark { flex: none; display: inline-flex; width: 56px; height: 56px; }
+.sparks-hero-mark .xspark { width: 100%; height: 100%; }
+.sparks-hero-words { flex: 1 1 260px; min-width: 0; }
+.sparks-hero-title { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--text, #e7e9ee); }
+.sparks-hero-sub { margin: 4px 0 0; font-size: 0.9rem; line-height: 1.45; color: var(--muted-text); }
+.sparks-hero-balance {
+  display: inline-flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 0.9rem; color: var(--muted-text);
+}
+.sparks-hero-balance .xspark { width: 20px; height: 20px; }
+.sparks-hero-balance b { font-size: 1.5rem; font-weight: 700; color: var(--text, #e7e9ee); font-variant-numeric: tabular-nums; }
+
+.sparks-block { display: flex; flex-direction: column; gap: 12px; }
+.sparks-block-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.sparks-block-title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text, #e7e9ee); }
+.sparks-block-hint { font-size: 0.82rem; color: var(--muted-text); }
+.sparks-note { margin: 0; font-size: 0.82rem; line-height: 1.45; color: var(--muted-text); }
+.sparks-status.is-warn { color: var(--warn, #ffb454); }
+
+/* The three packs as cards: the heap on top, the amount large, price and reach under it. */
+.sparks-packs .xai-pack-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+.sparks-shop .sparks-pack {
+  flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 12px;
+  min-height: 150px; padding: 16px 18px; border-radius: 14px;
+  font-weight: 500;
+}
+.sparks-shop .sparks-pack:hover { background: rgba(var(--accent-rgb), 0.10); border-color: rgba(var(--accent-rgb), 0.40); }
+.sparks-shop .sparks-pack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sparks-shop .sparks-pack .xai-pack-sparks { width: 52px; height: 46px; }
+.sparks-shop .sparks-pack .xai-pack-sparks .xspark:nth-child(1) { left: 0; top: 8px; width: 36px; height: 36px; }
+.sparks-shop .sparks-pack .xai-pack-sparks .xspark:nth-child(2) { left: 29px; top: 0; width: 22px; height: 22px; }
+.sparks-shop .sparks-pack .xai-pack-sparks .xspark:nth-child(3) { left: 32px; top: 25px; width: 19px; height: 19px; }
+.sparks-shop .sparks-pack .xai-pack-words { gap: 6px; }
+.sparks-shop .sparks-pack .xai-pack-line:first-child { align-items: baseline; }
+.sparks-shop .sparks-pack .xai-pack-line:first-child b { font-size: 1.3rem; font-weight: 700; }
+.sparks-shop .sparks-pack .xai-pack-line + .xai-pack-line { font-size: 0.84rem; }
+
+/* What Sparks do: one card per use, the button at the bottom of each. */
+.sparks-uses { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.sparks-use {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 18px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+}
+.sparks-use-art { display: inline-flex; width: 40px; height: 40px; color: rgb(var(--accent-rgb)); }
+.sparks-use-art .cgal-ic, .sparks-use-art svg { width: 100%; height: 100%; }
+.sparks-bit { display: inline-flex; width: 40px; height: 40px; }
+.sparks-bit svg { width: 100%; height: 100%; }
+.sparks-use-title { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text, #e7e9ee); }
+.sparks-use-text { margin: 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted-text); }
+.sparks-use-value { margin: 0; font-size: 0.84rem; font-weight: 600; color: var(--text, #e7e9ee); }
+.sparks-use-btn { margin-top: auto; align-self: flex-start; min-height: 44px; }
+
+.sparks-items { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; scroll-margin-top: 12px; }
+
+/* Each pack's widgets with every model, a quiet table under the price. */
+.sparks-pack-models {
+  list-style: none; margin: 0; padding: 10px 0 0; width: 100%;
+  display: grid; gap: 4px;
+  border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+  font-size: 0.8rem; color: var(--muted-text);
+}
+.sparks-pack-models li { display: flex; justify-content: space-between; gap: 12px; }
+.sparks-pack-models b { font-weight: 600; color: var(--text, #e7e9ee); font-variant-numeric: tabular-nums; }
+/* The most Sparks per dollar: its border in the accent and one plain word on top. */
+.sparks-shop .sparks-pack.is-best { border-color: rgba(var(--accent-rgb), 0.55); background: rgba(var(--accent-rgb), 0.08); }
+/* Top right, out of the flow: the three cards keep the same rows side by side. */
+.sparks-shop .sparks-pack { position: relative; }
+.sparks-pack-best { position: absolute; top: 14px; right: 16px; font-size: 0.78rem; font-weight: 700; color: rgb(var(--accent-rgb)); }
+
+/* The membership: Sparks every month, with the one filled button of the tab. */
+/* The supporter plan: price on the left, what a month brings, one action.
+   Shared with the Store's Supporters shelf, which gives it its gold tone. */
+.sparks-plan {
+  display: grid; grid-template-columns: minmax(170px, auto) minmax(0, 1fr) auto; align-items: center; gap: 14px 28px;
+  padding: 18px 20px; border-radius: 16px;
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.40);
+}
+.sparks-plan.is-mine { grid-template-columns: minmax(170px, auto) minmax(0, 1fr); background: rgba(255, 255, 255, 0.04); border-color: var(--glass-border, rgba(255, 255, 255, 0.14)); }
+.sparks-plan-name { margin: 0; font-size: 0.86rem; font-weight: 700; color: var(--muted-text); }
+.sparks-plan-price { margin: 2px 0 0; font-size: 1.4rem; font-weight: 800; line-height: 1.2; color: var(--text, #e7e9ee); }
+.sparks-plan.is-mine .sparks-plan-price { font-size: 1.05rem; }
+.sparks-plan-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.sparks-plan-facts li { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; line-height: 1.4; color: var(--text, #e7e9ee); }
+.sparks-plan-facts .xspark, .sparks-plan-facts svg { flex: none; width: 18px; height: 18px; }
+.sparks-plan-facts svg { color: var(--muted-text); }
+.sparks-plan-btn { min-height: 48px; padding: 12px 22px; font-size: 0.95rem; white-space: nowrap; justify-content: center; }
+.cgal-feat-block.is-sup .sparks-plan { margin: 0 0 16px; background: rgba(255, 180, 84, 0.06); border-color: rgba(255, 180, 84, 0.34); }
+.cgal-feat-block.is-sup .sparks-plan-facts svg { color: var(--warn, #ffb454); }
+.cgal-feat-block.is-sup .sparks-plan-btn { color: #12100a; background: var(--warn, #ffb454); border-color: transparent; font-weight: 700; }
+.cgal-feat-block.is-sup .sparks-plan-btn:hover { filter: brightness(1.06); }
+@media (max-width: 860px) {
+  .sparks-plan { grid-template-columns: 1fr; gap: 12px; }
+  .sparks-plan-btn { width: 100%; white-space: normal; }
+}
+
+@media (max-width: 520px) {
+  .sparks-shop { gap: 18px; }
+  .sparks-hero { padding: 14px; }
+  .sparks-hero-mark { width: 44px; height: 44px; }
+  .sparks-shop .sparks-pack { min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .sparks-use-btn { align-self: stretch; flex: 1 1 100%; }
+}

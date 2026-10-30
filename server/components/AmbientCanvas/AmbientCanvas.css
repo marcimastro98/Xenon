@@ -19,7 +19,7 @@ body.ambient-canvas-open { overflow: hidden; }
   inset: 0;
   overflow: hidden;
   color: var(--text, #e8ecf4);
-  font-family: var(--ui-font, Inter, system-ui, sans-serif);
+  font-family: var(--ui-font, 'Sofia Sans', Inter, system-ui, sans-serif);
 }
 
 /* Dedicated backdrop layer so dim/blur never touch the components above it. */
@@ -480,6 +480,7 @@ body.low-power-gpu .ambient-canvas-stage > .ac-bg[data-motion], body.perf-mode .
 .settings-ambient-row .cs-wrap { min-width: 150px; }
 .settings-ambient-row--wide .cs-wrap { flex: 1 1 auto; }
 .settings-ambient-sec > .settings-note { margin: 2px 7px 0; }
+.settings-ambient-sec > .settings-hint { margin: -4px 7px 2px; }
 .settings-ambient-sec > .settings-note[hidden] { display: none; }
 .settings-ambient-classic { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .settings-ambient-classic[hidden] { display: none; }

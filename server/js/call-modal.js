@@ -288,10 +288,11 @@
   // A dashboard that opens mid-ring must show the card. The SSE seed covers the
   // normal path; this covers a surface that loads without one (and costs one
   // request, only when the feature is on).
+  // Not spent while calls look off: a surface whose settings arrive after it
+  // loaded (the on-screen alerts window) asks again once they have.
   async function seed() {
-    if (seeded) return;
+    if (seeded || callsCfg().enabled !== true) return;
     seeded = true;
-    if (callsCfg().enabled !== true) return;
     try {
       const d = await api('/api/calls');
       if (d && Array.isArray(d.calls) && d.calls.length) onCalls({ calls: d.calls });

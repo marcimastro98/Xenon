@@ -211,7 +211,7 @@
         set('.ac-w-temp', tstr);
         set('.ac-w-cond', cond);
         set('.ac-w-place', place);
-        if (ico) ico.innerHTML = glyph;   // static, trusted SVG (greeting.js WeatherGlyphs)
+        if (ico) ico.innerHTML = glyph;   // static, trusted SVG (js/weather-glyphs.js)
         return sig;
       },
     },
@@ -384,7 +384,12 @@
       },
       update(item) {
         const d = (typeof lastNetworkData !== 'undefined') ? lastNetworkData : null;
-        const fmt = (bps) => (typeof formatBandwidth === 'function' && Number.isFinite(bps)) ? formatBandwidth(bps) : '--';
+        // formatBandwidth (utils.js) gives { value, unit }, as on the System tile.
+        const fmt = (bps) => {
+          if (typeof formatBandwidth !== 'function' || !Number.isFinite(bps)) return '--';
+          const b = formatBandwidth(bps);
+          return b.value + ' ' + b.unit;
+        };
         const dn = d ? fmt(d.downloadBps) : '--';
         const up = d ? fmt(d.uploadBps) : '--';
         const sig = dn + '|' + up;
@@ -416,7 +421,7 @@
         else if (snap.items === null || snap.state === 'starting' || snap.state === 'off') state = tt('wn_loading', 'Connecting…');
         const touch = !!p.controls;
         const rows = state ? [] : snap.items.filter(n => n && !clearedNotifs.has(n.id)).slice(0, p.count || 3);
-        if (!state && !rows.length) state = tt('wn_empty', 'No notifications — all caught up');
+        if (!state && !rows.length) state = tt('wn_empty', 'No notifications: all caught up');
         const masked = (n) => !!(snap && snap.hide) && !(NW.isRevealed && NW.isRevealed(n.id));
         const sig = state + '§' + touch + '§' + rows.map(n => n.id + (masked(n) ? 'm' : '') + notifAge(n.at)).join('§');
         if (sig === item.sig) return sig;

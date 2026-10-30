@@ -47,7 +47,7 @@
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page). Adding the widget
   // makes it live (seed + SSE) on the next layout pass; removing it parks it back.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="discord"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="discord"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
 
   let connected = null;      // null = unknown, from /stream/discord/status
   let username = '';
@@ -115,9 +115,7 @@
 
   // Open Settings → Streaming (from the widget's "not linked" notice).
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // POST an allowlisted Deck action and flash the button. Refreshes the voice
@@ -322,12 +320,11 @@
   // from under the pointer that is about to click it.
   function toggleFav(id) {
     const key = String(id);
-    if (typeof hubSettings !== 'object' || !hubSettings) return;
-    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
+    if (typeof saveTileSetting !== 'function') return;
     const cur = favIds();
     const next = cur.includes(key) ? cur.filter((x) => x !== key) : cur.concat([key]);
-    hubSettings = normalizeSettings({ ...hubSettings, discordFavChannels: next });
-    saveHubSettings({ server: true });
+    // Also from a widget on the screen, where the settings are read-only (utils.js).
+    saveTileSetting({ discordFavChannels: next }).then((ok) => { if (!ok) renderWidgets(); });
     renderWidgets();
   }
 
@@ -368,10 +365,8 @@
   function isCollapsed(guildId) { return !!guildId && collapsedIds().includes(String(guildId)); }
 
   function saveCollapsed(next) {
-    if (typeof hubSettings !== 'object' || !hubSettings) return;
-    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
-    hubSettings = normalizeSettings({ ...hubSettings, discordCollapsedGuilds: next });
-    saveHubSettings({ server: true });
+    if (typeof saveTileSetting !== 'function') return;
+    saveTileSetting({ discordCollapsedGuilds: next }).then((ok) => { if (!ok) renderWidgets(); });
     renderWidgets();
   }
 

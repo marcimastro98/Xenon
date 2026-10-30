@@ -25,10 +25,12 @@
   // The dashboard's own wallpaper on this PC ({ src, video }), or null.
   function wallpaper() {
     const media = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.backgroundMedia : null;
-    if (!media || typeof media.url !== 'string' || typeof getBackgroundSource !== 'function') return null;
-    const src = getBackgroundSource(media);
+    // ThemeTokens, not settings.js: the desktop scene page (scene.html) has no settings code.
+    const tokens = window.ThemeTokens;
+    if (!media || !tokens || typeof tokens.backgroundSource !== 'function') return null;
+    const src = tokens.backgroundSource(media);
     if (!src) return null;
-    return { src, video: typeof isVideoBackground === 'function' && isVideoBackground(media) };
+    return { src, video: /^video\//.test(String(media.type || '')) };
   }
   function fallbackCss(bg) {
     if (bg.grad && bg.type !== 'color') return gradientCss(bg.grad);

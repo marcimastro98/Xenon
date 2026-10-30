@@ -101,7 +101,7 @@
           p(2, 'Aggiornamento: sono {min} minuti che il tuo corpo va avanti per abitudine.'),
           p(2, 'Il frigo è a 10 metri. Ce la puoi fare. Credo in te. Più o meno.'),
           p(3, '{min} minuti in riserva. A questo punto sopravvivi per pura fotosintesi.'),
-          p(3, 'Il tuo livello di energia è così basso che Windows ti proporrebbe la modalità risparmio.'),
+          p(3, 'Il tuo livello di energia è così basso che il PC ti proporrebbe la modalità risparmio.'),
         ],
       },
       stamina: {
@@ -185,7 +185,7 @@
     },
     generic: {
       gameover: [
-        p(1, '{vital} K.O. — ma si può ancora rimediare.'),
+        p(1, '{vital} K.O., ma si può ancora rimediare.'),
         p(1, 'Barra a zero. Ricarichiamola e non è successo niente.'),
         p(2, '{vital}: caduto in battaglia dopo {min} minuti di puro menefreghismo.'),
         p(2, 'GAME OVER su {vital}. Vuoi continuare? Costa un gesto di autocura.'),
@@ -221,7 +221,7 @@
         p(1, 'Fatto io: finestre minimizzate. Niente panico, sono nella barra. Ora però {vital}.'),
         p(2, 'Fatto. Ho minimizzato tutto io, sì. Ora che ho la tua attenzione: {vital}, subito.'),
         p(2, 'Sono stato io a spazzare via le finestre. Le riapri dalla barra; {vital}, invece, lo ricarichi tu.'),
-        p(3, 'Le tue finestre riposano — cortesia mia. Tu muoviti: {vital} non si ricarica da solo.'),
+        p(3, 'Le tue finestre riposano: cortesia mia. Tu muoviti: {vital} non si ricarica da solo.'),
         p(3, 'Sì, sono stato io. Sul serio: {vital} adesso, o la prossima volta faccio di peggio.'),
       ],
       lockwarn: [
@@ -233,9 +233,9 @@
         p(3, 'Blocco in arrivo tra 60 secondi, e lo attivo io. Consideralo una pausa sindacale obbligatoria.'),
       ],
       locked: [
-        p(1, 'Bloccato. Sono stato io. Rientri col login — nel frattempo occupati di {vital}.'),
+        p(1, 'Bloccato. Sono stato io. Rientri col login: nel frattempo occupati di {vital}.'),
         p(2, 'PC bloccato, cortesia di Bit. Ci risentiamo dopo che avrai sistemato {vital}.'),
-        p(2, 'L\'ho fatto io: schermata di blocco. Non è Windows impazzito, sono io. Ora {vital}.'),
+        p(2, 'L\'ho fatto io: schermata di blocco. Non è il PC impazzito, sono io. Ora {vital}.'),
         p(3, 'Sì, ti ho bloccato io. Il login lo sai; la scusa per {vital} a zero, invece, no.'),
         p(3, 'Blocco attivato da me. Riprendi quando ti sarai preso cura di {vital}. Aspetto.'),
       ],
@@ -248,14 +248,14 @@
       ],
       return: [
         p(1, 'Bentornato! Ho congelato le barre mentre non c\'eri: ti hanno aspettato.'),
-        p(1, 'Eccoti. {min} minuti via — i parametri sono rimasti fermi, ordini miei.'),
+        p(1, 'Eccoti. {min} minuti via: i parametri sono rimasti fermi, ordini miei.'),
         p(2, 'Di ritorno dopo {min} minuti. Ti ho tenuto le barre in fresco. Prego, comunque.'),
         p(2, '{min} minuti sparito. Ho fatto la guardia alla dashboard: non è successo niente. Emozionante.'),
         p(3, 'Sparisci per {min} minuti e io, il pixel, tengo il forte. Chi è il responsabile qui, dei due?'),
       ],
       night: [
         p(1, 'È tardi. Io sono in modalità riposo; tu prova la versione umana.'),
-        p(2, 'Sono passate le 23. Persino io ho uno screensaver — tu che scusa hai?'),
+        p(2, 'Sono passate le 23. Persino io ho uno screensaver: tu che scusa hai?'),
         p(2, 'Ancora turno di notte? Va bene. Domani ti tormento il doppio.'),
         p(3, 'È notte fonda e tu sei QUI. Io sono un demone del senso di colpa e persino io stacco.'),
       ],
@@ -266,7 +266,7 @@
         p(3, '{min} giorni di fila. Direi che ti ho addestrato bene, ma poi ti monti la testa.'),
       ],
       stinger: [
-        p(1, '— Bit'),
+        p(1, '~ Bit'),
         p(2, 'Questo messaggio si autodistruggerà. Tu invece resti così.'),
         p(2, 'Non costringermi a chiamare tua madre.'),
         p(3, 'Io sono pixel e lo so. Tu che scusa hai?'),
@@ -326,7 +326,7 @@
           p(2, 'Update: your body has been running on habit for {min} minutes.'),
           p(2, 'The fridge is ten meters away. You can do this. I believe in you. Ish.'),
           p(3, '{min} minutes on reserve. At this point you survive on photosynthesis.'),
-          p(3, 'Your energy is so low, Windows would suggest power-saving mode for you.'),
+          p(3, 'Your energy is so low, your computer would suggest power-saving mode for you.'),
         ],
       },
       stamina: {
@@ -384,7 +384,7 @@
       posture: {
         low: [
           p(1, 'Posture check: back straight, shoulders down. Done? Good.'),
-          p(1, 'Screen at eye level — not eyes at screen level.'),
+          p(1, 'Screen at eye level: not eyes at screen level.'),
           p(2, 'You\'re leaning into the screen like a plant leans into light. But worse.'),
           p(2, 'Posture at 25%: half person, half question mark.'),
           p(3, 'Your spine is drafting a formal complaint.'),
@@ -402,7 +402,7 @@
         nag: [
           p(1, 'Quick check: how are you sitting right now?'),
           p(2, '{min} minutes shaped like a C. The alphabet has 25 other letters, try some.'),
-          p(2, 'Straighten up. Not for me — for 2050 you.'),
+          p(2, 'Straighten up. Not for me: for 2050 you.'),
           p(3, 'Keep this up and at 80 you\'ll only ever see floors. Nice ones. But floors.'),
           p(3, 'Your posture makes the Hunchback of Notre-Dame look like a pilates instructor.'),
         ],
@@ -410,7 +410,7 @@
     },
     generic: {
       gameover: [
-        p(1, '{vital} K.O. — still fixable, though.'),
+        p(1, '{vital} K.O.: still fixable, though.'),
         p(1, 'Bar at zero. Refill it and this never happened.'),
         p(2, '{vital}: fell in battle after {min} minutes of pure neglect.'),
         p(2, 'GAME OVER on {vital}. Continue? It costs one act of self-care.'),
@@ -427,7 +427,7 @@
         p(3, 'Congrats: you\'ve platinumed self-neglect. No trophy, just neck pain.'),
       ],
       welcomeback: [
-        p(1, 'Welcome back! Some bars dropped hard while you played — give them a look.'),
+        p(1, 'Welcome back! Some bars dropped hard while you played: give them a look.'),
         p(2, 'Good game? Your {vital}, meanwhile, has passed away. GG.'),
         p(2, 'GG WP. Now look at your bars: they speak very poorly of you.'),
         p(3, 'You were racking up points. Your {vital} was writing its will.'),
@@ -440,13 +440,13 @@
         p(2, 'Countdown: 30 seconds, then I tidy your desktop for you. Move it, {vital}.'),
         p(3, 'We\'re going hard: in half a minute I minimize everything, and I swear I\'ll enjoy it.'),
         p(3, 'You have 30 seconds for {vital}. Then I hide your windows myself, one by one.'),
-        p(3, '30 seconds and only my face is left on the desktop. That\'ll have been me — remember it.'),
+        p(3, '30 seconds and only my face is left on the desktop. That\'ll have been me: remember it.'),
       ],
       minimized: [
-        p(1, 'That was me: windows minimized. Relax, they\'re in the taskbar. Now — {vital}.'),
+        p(1, 'That was me: windows minimized. Relax, they\'re in the taskbar. Now: {vital}.'),
         p(2, 'Done. I minimized everything, yes. Now that I have your attention: {vital}, now.'),
         p(2, 'I swept your windows away. Reopen them from the taskbar; {vital}, though, you refill.'),
-        p(3, 'Your windows are resting — my treat. You, however, move: {vital} won\'t refill itself.'),
+        p(3, 'Your windows are resting: my treat. You, however, move: {vital} won\'t refill itself.'),
         p(3, 'Yep, that was me. Seriously: {vital} now, or next time I do worse.'),
       ],
       lockwarn: [
@@ -458,9 +458,9 @@
         p(3, 'Lock incoming in 60 seconds, and I\'m the one flipping it. Consider it a mandatory union break.'),
       ],
       locked: [
-        p(1, 'Locked. That was me. Log back in — meanwhile, deal with {vital}.'),
+        p(1, 'Locked. That was me. Log back in: meanwhile, deal with {vital}.'),
         p(2, 'PC locked, courtesy of Bit. Talk again once you\'ve sorted {vital}.'),
-        p(2, 'I did it: lock screen. It\'s not Windows glitching, it\'s me. Now {vital}.'),
+        p(2, 'I did it: lock screen. It\'s not your computer glitching, it\'s me. Now {vital}.'),
         p(3, 'Yes, I locked you out. You know the login; the excuse for {vital} at zero, not so much.'),
         p(3, 'Lock triggered by me. Come back when you\'ve taken care of {vital}. I\'ll wait.'),
       ],
@@ -473,14 +473,14 @@
       ],
       return: [
         p(1, 'Welcome back! I froze your bars while you were gone: they waited for you.'),
-        p(1, 'There you are. {min} minutes away — the meters held still, on my orders.'),
+        p(1, 'There you are. {min} minutes away: the meters held still, on my orders.'),
         p(2, 'Back after {min} minutes. I kept your bars on ice. You\'re welcome, by the way.'),
         p(2, '{min} minutes off the grid. I guarded the dashboard: nothing happened. Riveting.'),
         p(3, 'You vanish for {min} minutes and I, the pixel, hold the fort. Which of us is the responsible one?'),
       ],
       night: [
         p(1, 'It\'s late. I\'m in rest mode; you should try the human version.'),
-        p(2, 'It\'s past 11 PM. Even I get a screensaver — what\'s your excuse?'),
+        p(2, 'It\'s past 11 PM. Even I get a screensaver: what\'s your excuse?'),
         p(2, 'Night shift again? Fine. Tomorrow I nag you twice as hard.'),
         p(3, 'It\'s the middle of the night and you\'re HERE. I\'m a guilt daemon and even I clock out.'),
       ],
@@ -491,7 +491,7 @@
         p(3, '{min} days straight. I\'d say I trained you well, but you\'d get cocky.'),
       ],
       stinger: [
-        p(1, '— Bit'),
+        p(1, '~ Bit'),
         p(2, 'This message will self-destruct. You, however, will stay like this.'),
         p(2, 'Don\'t make me call your mother.'),
         p(3, 'I\'m made of pixels and I know it. What\'s your excuse?'),
@@ -553,7 +553,7 @@
           p(2, "업데이트: 네 몸은 {min}분째 관성으로만 돌아가고 있어."),
           p(2, "냉장고는 10미터 앞이야. 넌 할 수 있어. 믿어. 조금은."),
           p(3, "{min}분째 예비연료 주행. 이쯤 되면 광합성으로 사는 거야."),
-          p(3, "에너지가 너무 낮아서 윈도우가 절전 모드 추천할 지경이야."),
+          p(3, "에너지가 너무 낮아서 컴퓨터가 절전 모드 추천할 지경이야."),
         ],
       },
       stamina: {
@@ -637,7 +637,7 @@
     },
     generic: {
       gameover: [
-        p(1, "{vital} K.O. — 그래도 아직 살릴 수 있어."),
+        p(1, "{vital} K.O.: 그래도 아직 살릴 수 있어."),
         p(1, "바 제로. 다시 채우면 이 일은 없던 걸로."),
         p(2, "{vital}: {min}분간의 순수 방치 끝에 전사했습니다."),
         p(2, "{vital} 게임 오버. 계속하시겠습니까? 자기관리 한 번이면 됩니다."),
@@ -667,13 +667,13 @@
         p(2, "카운트다운 30초, 그다음엔 내가 네 바탕화면 정리해줄게. 서둘러, {vital}."),
         p(3, "제대로 간다: 30초 뒤 내가 전부 최소화하고, 맹세컨대 아주 즐길 거야."),
         p(3, "{vital} 챙길 시간 30초 줄게. 그다음엔 내가 직접 창을 하나씩 숨긴다."),
-        p(3, "30초 뒤 바탕화면엔 내 얼굴만 남아. 그게 다 내가 한 거야 — 기억해둬."),
+        p(3, "30초 뒤 바탕화면엔 내 얼굴만 남아. 그게 다 내가 한 거야: 기억해둬."),
       ],
       minimized: [
-        p(1, "방금 그거 나야: 창들 최소화했어. 진정해, 작업표시줄에 다 있어. 자 이제 — {vital}."),
+        p(1, "방금 그거 나야: 창들 최소화했어. 진정해, 작업표시줄에 다 있어. 자 이제: {vital}."),
         p(2, "완료. 응, 내가 전부 최소화했어. 이제 네 관심 얻었으니: {vital}, 지금."),
         p(2, "네 창들 싹 치웠어. 작업표시줄에서 다시 열면 돼. 근데 {vital}은 네가 채워."),
-        p(3, "네 창들은 지금 쉬는 중이야 — 내가 쏜 거지. 근데 너는 움직여: {vital}은 알아서 안 차."),
+        p(3, "네 창들은 지금 쉬는 중이야, 내가 쏜 거지. 근데 너는 움직여: {vital}은 알아서 안 차."),
         p(3, "응, 그거 내가 한 거 맞아. 진지하게: {vital} 지금 챙겨, 안 그럼 다음엔 더 심하게 간다."),
       ],
       lockwarn: [
@@ -685,9 +685,9 @@
         p(3, "60초 뒤 잠금 들어가고, 그 스위치는 내가 올려. 강제 노조 휴식이라고 생각해."),
       ],
       locked: [
-        p(1, "잠갔어. 내가 한 거야. 다시 로그인해 — 그동안 {vital} 좀 챙기고."),
+        p(1, "잠갔어. 내가 한 거야. 다시 로그인해: 그동안 {vital} 좀 챙기고."),
         p(2, "PC 잠금, Bit 제공. {vital} 정리하고 나면 다시 얘기하자."),
-        p(2, "내가 했어: 잠금 화면. 윈도우 오류 아니고 나야. 이제 {vital}."),
+        p(2, "내가 했어: 잠금 화면. 컴퓨터 오류 아니고 나야. 이제 {vital}."),
         p(3, "응, 내가 널 쫓아냈어. 로그인 방법은 알겠지, 근데 {vital} 제로에 대한 변명은 글쎄."),
         p(3, "잠금은 내가 발동했어. {vital} 챙기고 돌아와. 기다릴게."),
       ],
@@ -700,14 +700,14 @@
       ],
       return: [
         p(1, "어서 와! 없는 동안 바는 내가 얼려뒀어: 널 기다리고 있었지."),
-        p(1, "왔네. {min}분 자리 비움 — 게이지는 그대로 멈춰 있었어, 내 명령으로."),
+        p(1, "왔네. {min}분 자리 비움: 게이지는 그대로 멈춰 있었어, 내 명령으로."),
         p(2, "{min}분 만에 복귀. 바는 내가 얼음에 재워뒀어. 참고로, 천만에."),
         p(2, "{min}분 동안 행방불명. 대시보드는 내가 지켰어: 아무 일도 없었지. 아주 스릴 넘쳤다."),
         p(3, "{min}분 사라진 사이 픽셀인 내가 요새를 지켰다. 우리 둘 중 책임감 있는 쪽이 누구지?"),
       ],
       night: [
         p(1, "늦었어. 난 휴식 모드야; 너도 인간 버전으로 해봐."),
-        p(2, "밤 11시가 넘었어. 나도 화면보호기가 있는데 — 넌 무슨 핑계야?"),
+        p(2, "밤 11시가 넘었어. 나도 화면보호기가 있는데, 넌 무슨 핑계야?"),
         p(2, "또 야간 근무야? 좋아. 내일 두 배로 잔소리해줄게."),
         p(3, "한밤중인데 네가 여기 있네. 난 죄책감 데몬인데, 나도 퇴근은 해."),
       ],
@@ -718,7 +718,7 @@
         p(3, "{min}일 연속. 내가 잘 가르쳤다고 하고 싶지만, 넌 금방 우쭐대겠지."),
       ],
       stinger: [
-        p(1, "— Bit"),
+        p(1, "~ Bit"),
         p(2, "이 메시지는 곧 자폭합니다. 너는 그대로 남지만."),
         p(2, "네 엄마한테 전화하게 만들지 마."),
         p(3, "난 픽셀로 만들어졌고 그걸 알아. 넌 무슨 핑계 있어?"),
@@ -778,7 +778,7 @@
           p(2, "続報。君の体、{min}分ずっと惰性だけで動いてます。"),
           p(2, "冷蔵庫まで10メートル。君ならできる。信じてる。たぶん。"),
           p(3, "予備電源で{min}分。もう光合成で生きてるレベルだね。"),
-          p(3, "君のエネルギー低すぎて、Windowsが君に節電モードを勧めてくるよ。"),
+          p(3, "君のエネルギー低すぎて、パソコンが君に節電モードを勧めてくるよ。"),
         ],
       },
       stamina: {
@@ -912,7 +912,7 @@
       locked: [
         p(1, "ロックした。今のはぼく。ログインし直して、ついでに{vital}をどうにかして。"),
         p(2, "PCロック、ビットからの贈り物です。{vital}を片付けたらまた話そう。"),
-        p(2, "ぼくがやった、ロック画面。Windowsの不具合じゃない、ぼくだよ。さあ{vital}。"),
+        p(2, "ぼくがやった、ロック画面。パソコンの不具合じゃない、ぼくだよ。さあ{vital}。"),
         p(3, "そう、ぼくが締め出した。ログインの仕方は知ってるよね。{vital}ゼロの言い訳の方は知らないだろうけど。"),
         p(3, "ロック発動、犯人はぼく。{vital}をケアしたら戻っておいで。待ってるよ。"),
       ],
@@ -925,14 +925,14 @@
       ],
       return: [
         p(1, "おかえり！いない間、バーは凍らせておいたよ：君を待ってたんだ。"),
-        p(1, "戻ったね。{min}分の不在 — メーターは止めておいた、ぼくの命令でね。"),
+        p(1, "戻ったね。{min}分の不在：メーターは止めておいた、ぼくの命令でね。"),
         p(2, "{min}分ぶりの帰還。バーは氷漬けにしておいたよ。どういたしまして。"),
         p(2, "{min}分も行方不明。ダッシュボードはぼくが見張ってた：何も起きなかったよ。実にスリリングだった。"),
         p(3, "{min}分消えてる間、ピクセルのぼくが砦を守ってたんだ。責任感があるのはどっちだろうね？"),
       ],
       night: [
         p(1, "もう遅いよ。ぼくは休憩モード；君も人間版を試してみたら。"),
-        p(2, "23時過ぎだよ。ぼくにだってスクリーンセーバーがあるのに — 君の言い訳は？"),
+        p(2, "23時過ぎだよ。ぼくにだってスクリーンセーバーがあるのに、君の言い訳は？"),
         p(2, "また夜勤？いいよ。明日は倍うるさくするから。"),
         p(3, "真夜中なのに君はここにいる。ぼくは罪悪感のデーモンだけど、それでも退勤はするよ。"),
       ],
@@ -943,7 +943,7 @@
         p(3, "{min}日連続。よく仕込んだと言いたいけど、君は調子に乗るからね。"),
       ],
       stinger: [
-        p(1, "— ビット"),
+        p(1, "～ビット"),
         p(2, "このメッセージは自動消滅します。君は、そのままだけどね。"),
         p(2, "君のお母さんに電話させないでよ。"),
         p(3, "ぼくはピクセルでできてる、自覚もある。君の言い訳は何？"),
@@ -1003,7 +1003,7 @@
           p(2, "进度:你的身体已经靠惯性运行{min}分钟了。"),
           p(2, "冰箱就在十米外。你能行的。我信你。大概吧。"),
           p(3, "靠储备撑了{min}分钟。你这是打算靠光合作用活着了。"),
-          p(3, "你能量低到,Windows 都想替你开省电模式。"),
+          p(3, "你能量低到,电脑都想替你开省电模式。"),
         ],
       },
       stamina: {
@@ -1011,7 +1011,7 @@
           p(1, "去溜达两步?腿也是能干这个的,你知道的。"),
           p(1, "偶尔伸个懒腰:身体谢谢你,腰更是谢天谢地。"),
           p(2, "你坐太久了,椅子都准备申请你的所有权了。"),
-          p(2, "活动量25%。雕像都比你动得多——多亏了鸽子。"),
+          p(2, "活动量25%。雕像都比你动得多：多亏了鸽子。"),
           p(3, "你在坐垫上压出的那个印,现在算考古遗址了。"),
         ],
         zero: [
@@ -1022,7 +1022,7 @@
           p(2, "你的腿发来最后一条消息:\"我们还记得你\"。"),
           p(3, "零活动量。你最爱那游戏里的NPC都比你生活规律。"),
           p(3, "到这份上,你不是在用椅子了,你是住在椅子里。"),
-          p(3, "站起来。连树懒都会站。连——树——懒——都——会。"),
+          p(3, "站起来。连树懒都会站。连（树）懒（都）会。"),
         ],
         nag: [
           p(1, "走到窗边也算数。勉强算,但算。"),
@@ -1055,13 +1055,13 @@
           p(2, "{min}分钟没让眼睛休息:你的视野正在缓冲。"),
           p(2, "如果这条消息看着糊,那正好证明了我的观点。"),
           p(3, "你盯太久了,烧屏比你显示器还严重。它还是块LCD呢。"),
-          p(3, "鼹鼠现在都看得比你清楚。鼹——鼠。{min}分钟了。"),
+          p(3, "鼹鼠现在都看得比你清楚。鼹：鼠。{min}分钟了。"),
         ],
       },
       posture: {
         low: [
           p(1, "查一下姿势:背挺直,肩放松。做到了?很好。"),
-          p(1, "把屏幕抬到眼睛高度——而不是把眼睛降到屏幕高度。"),
+          p(1, "把屏幕抬到眼睛高度：而不是把眼睛降到屏幕高度。"),
           p(2, "你正朝屏幕探过去,像植物朝着光。但更难看。"),
           p(2, "姿势25%:半个人,半个问号。"),
           p(3, "你的脊椎正在起草一份正式投诉。"),
@@ -1079,7 +1079,7 @@
         nag: [
           p(1, "快速检查:你现在到底是怎么坐的?"),
           p(2, "呈C型{min}分钟了。字母表还有25个别的,挑几个试试。"),
-          p(2, "坐直点。不是为我——为2050年的你。"),
+          p(2, "坐直点。不是为我：为2050年的你。"),
           p(3, "再这么下去,80岁时你就只能看地板了。挺好看的地板。但也就地板了。"),
           p(3, "你这姿势,让钟楼怪人看着都像个普拉提教练。"),
         ],
@@ -1087,7 +1087,7 @@
     },
     generic: {
       gameover: [
-        p(1, "{vital} 被KO了——不过还能救。"),
+        p(1, "{vital} 被KO了，不过还能救。"),
         p(1, "这条已经归零。补满它,就当没发生过。"),
         p(2, "{vital}:在被你纯粹摆烂{min}分钟后阵亡。"),
         p(2, "{vital} GAME OVER。要续命吗?代价是一次自我照顾。"),
@@ -1117,13 +1117,13 @@
         p(2, "倒计时:30秒,然后我帮你把桌面收拾干净。快点,{vital}。"),
         p(3, "咱来硬的:半分钟后我把一切最小化,而且我发誓我会很享受。"),
         p(3, "你有30秒处理 {vital}。然后我亲自把你的窗口一个一个收起来。"),
-        p(3, "30秒后桌面上就只剩我一张脸了。那会是我干的——记住了。"),
+        p(3, "30秒后桌面上就只剩我一张脸了。那会是我干的：记住了。"),
       ],
       minimized: [
-        p(1, "刚才是我干的:窗口全最小化了。别慌,都在任务栏里。现在——{vital}。"),
+        p(1, "刚才是我干的:窗口全最小化了。别慌,都在任务栏里。现在：{vital}。"),
         p(2, "搞定。没错,我把一切都最小化了。现在总算引起你注意了:{vital},马上。"),
         p(2, "我把你的窗口都扫走了。从任务栏点开就行;不过 {vital},得你自己补。"),
-        p(3, "你的窗口在休息——我请客。而你,给我动起来:{vital} 不会自己补满。"),
+        p(3, "你的窗口在休息：我请客。而你,给我动起来:{vital} 不会自己补满。"),
         p(3, "对,就是我干的。说真的:马上 {vital},不然下次我玩更狠的。"),
       ],
       lockwarn: [
@@ -1135,9 +1135,9 @@
         p(3, "60秒后锁屏,而且是我亲手翻的闸。就当是强制工会休息。"),
       ],
       locked: [
-        p(1, "锁了。是我干的。重新登录就行——顺便把 {vital} 解决了。"),
+        p(1, "锁了。是我干的。重新登录就行：顺便把 {vital} 解决了。"),
         p(2, "电脑已锁,Bit 敬上。等你把 {vital} 搞定了咱再聊。"),
-        p(2, "我干的:锁屏。不是Windows抽风,是我。现在,{vital}。"),
+        p(2, "我干的:锁屏。不是电脑抽风,是我。现在,{vital}。"),
         p(3, "对,我把你锁在外面了。密码你知道;{vital} 归零的借口,你可就说不清了。"),
         p(3, "锁屏是我触发的。等你照顾好 {vital} 再回来。我等着。"),
       ],
@@ -1150,14 +1150,14 @@
       ],
       return: [
         p(1, "欢迎回来!你不在的时候我把条都冻住了:它们一直在等你。"),
-        p(1, "你回来了。离开{min}分钟——指标都停着没动,我下的命令。"),
+        p(1, "你回来了。离开{min}分钟：指标都停着没动,我下的命令。"),
         p(2, "{min}分钟后归队。条我给你冰镇着呢。顺便说一句,不客气。"),
         p(2, "失联{min}分钟。仪表盘我守着:什么都没发生。真是惊心动魄。"),
         p(3, "你消失{min}分钟,我一个像素替你守住了阵地。咱俩谁更有责任心?"),
       ],
       night: [
         p(1, "很晚了。我进入休息模式了;你也试试人类版的。"),
-        p(2, "都过晚上11点了。连我都有屏保——你的借口呢?"),
+        p(2, "都过晚上11点了。连我都有屏保：你的借口呢?"),
         p(2, "又上夜班?行。明天我加倍唠叨你。"),
         p(3, "大半夜的你居然还在这。我是个负罪感守护程序,连我都下班。"),
       ],
@@ -1168,7 +1168,7 @@
         p(3, "连续{min}天。我想说是我调教得好,但你肯定会飘。"),
       ],
       stinger: [
-        p(1, "——Bit"),
+        p(1, "～Bit"),
         p(2, "本条消息将自动销毁。而你,还会维持现状。"),
         p(2, "别逼我给你妈打电话。"),
         p(3, "我是像素做的,我认。你又有什么借口?"),
@@ -1228,7 +1228,7 @@
           p(2, "Aviso: llevas {min} minutos tirando solo de costumbre."),
           p(2, "La nevera está a diez metros. Tú puedes. Confío en ti. Más o menos."),
           p(3, "{min} minutos en reserva. A este paso sobrevives por fotosíntesis."),
-          p(3, "Tu energía está tan baja que Windows te propondría el modo ahorro."),
+          p(3, "Tu energía está tan baja que el ordenador te propondría el modo ahorro."),
         ],
       },
       stamina: {
@@ -1312,7 +1312,7 @@
     },
     generic: {
       gameover: [
-        p(1, "{vital} K.O. — aunque todavía tiene arreglo."),
+        p(1, "{vital} K.O.: aunque todavía tiene arreglo."),
         p(1, "Barra a cero. La recargas y aquí no ha pasado nada."),
         p(2, "{vital}: caído en combate tras {min} minutos de puro pasotismo."),
         p(2, "GAME OVER en {vital}. ¿Continuar? Cuesta un gesto de autocuidado."),
@@ -1348,7 +1348,7 @@
         p(1, "Lo he hecho yo: ventanas minimizadas. Sin pánico, están en la barra de tareas. Ahora, {vital}."),
         p(2, "Hecho. He minimizado todo yo, sí. Ahora que tengo tu atención: {vital}, ya."),
         p(2, "He sido yo quien barrió las ventanas. Las reabres desde la barra; {vital}, en cambio, lo recargas tú."),
-        p(3, "Tus ventanas descansan — cortesía mía. Tú muévete: {vital} no se recarga solo."),
+        p(3, "Tus ventanas descansan: cortesía mía. Tú muévete: {vital} no se recarga solo."),
         p(3, "Sí, he sido yo. En serio: {vital} ahora, o la próxima vez hago algo peor."),
       ],
       lockwarn: [
@@ -1360,9 +1360,9 @@
         p(3, "Bloqueo en camino en 60 segundos, y lo activo yo. Considéralo pausa sindical obligatoria."),
       ],
       locked: [
-        p(1, "Bloqueado. He sido yo. Vuelve con el login — mientras, ocúpate de {vital}."),
+        p(1, "Bloqueado. He sido yo. Vuelve con el login, mientras, ocúpate de {vital}."),
         p(2, "PC bloqueado, cortesía de Bit. Nos vemos cuando hayas arreglado {vital}."),
-        p(2, "Lo he hecho yo: pantalla de bloqueo. No es Windows volviéndose loco, soy yo. Ahora {vital}."),
+        p(2, "Lo he hecho yo: pantalla de bloqueo. No es el ordenador volviéndose loco, soy yo. Ahora {vital}."),
         p(3, "Sí, te he bloqueado yo. El login te lo sabes; la excusa para {vital} a cero, no tanto."),
         p(3, "Bloqueo activado por mí. Vuelve cuando te hayas ocupado de {vital}. Espero."),
       ],
@@ -1375,14 +1375,14 @@
       ],
       return: [
         p(1, "¡Bienvenido de vuelta! Congelé tus barras mientras no estabas: te esperaron."),
-        p(1, "Ahí estás. {min} minutos fuera — los medidores se quedaron quietos, órdenes mías."),
+        p(1, "Ahí estás. {min} minutos fuera: los medidores se quedaron quietos, órdenes mías."),
         p(2, "De vuelta tras {min} minutos. Te guardé las barras en hielo. De nada, por cierto."),
         p(2, "{min} minutos desaparecido. Vigilé el panel: no pasó nada. Emocionante."),
         p(3, "Te esfumas {min} minutos y yo, el píxel, defiendo el fuerte. ¿Quién de los dos es el responsable?"),
       ],
       night: [
         p(1, "Es tarde. Yo estoy en modo descanso; prueba tú la versión humana."),
-        p(2, "Son más de las 23. Hasta yo tengo salvapantallas — ¿cuál es tu excusa?"),
+        p(2, "Son más de las 23. Hasta yo tengo salvapantallas: ¿cuál es tu excusa?"),
         p(2, "¿Otra vez turno de noche? Vale. Mañana te doy la lata el doble."),
         p(3, "Es plena noche y tú estás AQUÍ. Soy un demonio de la culpa y hasta yo ficho la salida."),
       ],
@@ -1393,7 +1393,7 @@
         p(3, "{min} días seguidos. Diría que te he entrenado bien, pero se te subiría a la cabeza."),
       ],
       stinger: [
-        p(1, "— Bit"),
+        p(1, "~ Bit"),
         p(2, "Este mensaje se autodestruirá. Tú, en cambio, te quedas así."),
         p(2, "No me obligues a llamar a tu madre."),
         p(3, "Soy de píxeles y lo sé. ¿Tú qué excusa tienes?"),
@@ -1453,7 +1453,7 @@
             p(2, "Info : ça fait {min} minutes que ton corps avance par habitude."),
             p(2, "Le frigo est à dix mètres. Tu peux le faire. Je crois en toi. À peu près."),
             p(3, "{min} minutes sur la réserve. À ce stade, tu survis par photosynthèse."),
-            p(3, "Ton niveau d'énergie est si bas que Windows te proposerait le mode économie."),
+            p(3, "Ton niveau d'énergie est si bas que l'ordi te proposerait le mode économie."),
           ],
         },
         stamina: {
@@ -1537,7 +1537,7 @@
       },
       generic: {
         gameover: [
-          p(1, "{vital} K.O. — mais c'est encore rattrapable."),
+          p(1, "{vital} K.O., mais c'est encore rattrapable."),
           p(1, "Barre à zéro. On la recharge et il ne s'est rien passé."),
           p(2, "{vital} : tombé au combat après {min} minutes de je-m'en-foutisme pur."),
           p(2, "GAME OVER sur {vital}. Tu continues ? Ça coûte un geste d'autosoin."),
@@ -1573,7 +1573,7 @@
           p(1, "C'est moi qui l'ai fait : fenêtres minimisées. Pas de panique, elles sont dans la barre des tâches. Maintenant : {vital}."),
           p(2, "Voilà. J'ai tout minimisé moi-même, oui. Maintenant que j'ai ton attention : {vital}, tout de suite."),
           p(2, "C'est moi qui ai balayé tes fenêtres. Tu les rouvres depuis la barre des tâches ; {vital}, par contre, tu le recharges toi."),
-          p(3, "Tes fenêtres se reposent — cadeau de ma part. Toi, par contre, bouge : {vital} ne se recharge pas tout seul."),
+          p(3, "Tes fenêtres se reposent: cadeau de ma part. Toi, par contre, bouge : {vital} ne se recharge pas tout seul."),
           p(3, "Ouais, c'est moi qui l'ai fait. Sérieux : {vital} maintenant, ou la prochaine fois je fais pire."),
         ],
         lockwarn: [
@@ -1585,9 +1585,9 @@
           p(3, "Verrouillage dans 60 secondes, et c'est moi qui l'enclenche. Considère ça comme une pause syndicale obligatoire."),
         ],
         locked: [
-          p(1, "Verrouillé. C'est moi qui l'ai fait. Tu te reconnectes avec ton mot de passe — en attendant, occupe-toi de {vital}."),
+          p(1, "Verrouillé. C'est moi qui l'ai fait. Tu te reconnectes avec ton mot de passe, en attendant, occupe-toi de {vital}."),
           p(2, "PC verrouillé, gracieuseté de Bit. On se reparle une fois {vital} réglé."),
-          p(2, "C'est moi qui l'ai fait : écran de verrouillage. C'est pas Windows qui bugue, c'est moi. Maintenant {vital}."),
+          p(2, "C'est moi qui l'ai fait : écran de verrouillage. C'est pas l'ordi qui bugue, c'est moi. Maintenant {vital}."),
           p(3, "Oui, c'est moi qui t'ai verrouillé dehors. Le mot de passe tu le connais ; l'excuse pour {vital} à zéro, par contre, non."),
           p(3, "Verrouillage déclenché par moi. Reviens quand tu auras pris soin de {vital}. J'attends."),
         ],
@@ -1600,14 +1600,14 @@
         ],
         return: [
           p(1, "Te revoilà ! J'ai gelé tes barres pendant ton absence : elles t'ont attendu."),
-          p(1, "Ah, te voilà. {min} minutes d'absence — les jauges n'ont pas bougé, sur mes ordres."),
+          p(1, "Ah, te voilà. {min} minutes d'absence: les jauges n'ont pas bougé, sur mes ordres."),
           p(2, "De retour après {min} minutes. J'ai gardé tes barres au frais. De rien, au passage."),
           p(2, "{min} minutes porté disparu. J'ai monté la garde sur le tableau de bord : rien à signaler. Palpitant."),
           p(3, "Tu disparais {min} minutes et moi, le pixel, je tiens le fort. Lequel de nous deux est le responsable ?"),
         ],
         night: [
           p(1, "Il est tard. Je suis en mode repos ; essaie donc la version humaine."),
-          p(2, "Il est plus de 23 h. Même moi j'ai un économiseur d'écran — c'est quoi ton excuse ?"),
+          p(2, "Il est plus de 23 h. Même moi j'ai un économiseur d'écran: c'est quoi ton excuse ?"),
           p(2, "Encore de nuit ? Très bien. Demain je te harcèle deux fois plus."),
           p(3, "On est au beau milieu de la nuit et tu es LÀ. Je suis un démon de culpabilité et même moi je débraye."),
         ],
@@ -1618,7 +1618,7 @@
           p(3, "{min} jours d'affilée. Je dirais bien que je t'ai bien dressé, mais tu prendrais la grosse tête."),
         ],
         stinger: [
-          p(1, "— Bit"),
+          p(1, "~ Bit"),
           p(2, "Ce message va s'autodétruire. Toi, par contre, tu restes comme ça."),
           p(2, "Ne m'oblige pas à appeler ta mère."),
           p(3, "Je suis fait de pixels et je l'assume. Toi, c'est quoi ton excuse ?"),
@@ -1678,7 +1678,7 @@
             p(2, "Update: Dein Körper läuft seit {min} Minuten nur noch aus Gewohnheit."),
             p(2, "Der Kühlschrank ist zehn Meter weg. Du schaffst das. Ich glaub an dich. So halb."),
             p(3, "{min} Minuten auf Reserve. Du überlebst inzwischen per Photosynthese."),
-            p(3, "Deine Energie ist so niedrig, Windows würde dir Energiesparmodus vorschlagen."),
+            p(3, "Deine Energie ist so niedrig, dein Computer würde dir Energiesparmodus vorschlagen."),
           ],
         },
         stamina: {
@@ -1762,7 +1762,7 @@
       },
       generic: {
         gameover: [
-          p(1, "{vital} K.O. — noch zu retten, aber."),
+          p(1, "{vital} K.O.: noch zu retten, aber."),
           p(1, "Balken auf null. Füll ihn auf und das hier ist nie passiert."),
           p(2, "{vital}: gefallen im Kampf nach {min} Minuten purer Vernachlässigung."),
           p(2, "GAME OVER bei {vital}. Continue? Kostet einen Akt der Selbstfürsorge."),
@@ -1779,7 +1779,7 @@
           p(3, "Glückwunsch: Du hast Selbstvernachlässigung platiniert. Keine Trophäe, nur Nackenschmerzen."),
         ],
         welcomeback: [
-          p(1, "Willkommen zurück! Ein paar Balken sind hart abgesackt, während du gezockt hast — schau mal drauf."),
+          p(1, "Willkommen zurück! Ein paar Balken sind hart abgesackt, während du gezockt hast: schau mal drauf."),
           p(2, "Gutes Spiel? Dein {vital} ist derweil verstorben. GG."),
           p(2, "GG WP. Jetzt schau auf deine Balken: Die reden ganz schlecht über dich."),
           p(3, "Du hast Punkte gesammelt. Dein {vital} hat sein Testament geschrieben."),
@@ -1792,13 +1792,13 @@
           p(2, "Countdown: 30 Sekunden, dann räume ich dir den Desktop auf. Beweg dich, {vital}."),
           p(3, "Wir werden hart: In einer halben Minute minimiere ich alles, und ich schwöre, ich genieße es."),
           p(3, "Du hast 30 Sekunden für {vital}. Dann verstecke ich deine Fenster selbst, eins nach dem anderen."),
-          p(3, "30 Sekunden und nur noch mein Gesicht bleibt auf dem Desktop. Das war dann ich — merk's dir."),
+          p(3, "30 Sekunden und nur noch mein Gesicht bleibt auf dem Desktop. Das war dann ich: merk's dir."),
         ],
         minimized: [
-          p(1, "Das war ich: Fenster minimiert. Ganz ruhig, sie sind in der Taskleiste. Und jetzt — {vital}."),
+          p(1, "Das war ich: Fenster minimiert. Ganz ruhig, sie sind in der Taskleiste. Und jetzt: {vital}."),
           p(2, "Erledigt. Ich hab alles minimiert, ja. Jetzt, wo ich deine Aufmerksamkeit habe: {vital}, sofort."),
           p(2, "Ich hab deine Fenster weggewischt. Öffne sie aus der Taskleiste; {vital} füllst aber du auf."),
-          p(3, "Deine Fenster ruhen sich aus — geht auf mich. Du dagegen: beweg dich, {vital} füllt sich nicht von selbst."),
+          p(3, "Deine Fenster ruhen sich aus: geht auf mich. Du dagegen: beweg dich, {vital} füllt sich nicht von selbst."),
           p(3, "Jep, das war ich. Ernsthaft: {vital} jetzt, sonst mach ich's nächstes Mal schlimmer."),
         ],
         lockwarn: [
@@ -1810,9 +1810,9 @@
           p(3, "Sperre in 60 Sekunden, und ich bin der, der den Schalter umlegt. Betrachte es als tariflich vorgeschriebene Pause."),
         ],
         locked: [
-          p(1, "Gesperrt. Das war ich. Meld dich wieder an — und kümmer dich derweil um {vital}."),
+          p(1, "Gesperrt. Das war ich. Meld dich wieder an, und kümmer dich derweil um {vital}."),
           p(2, "PC gesperrt, mit freundlichen Grüßen von Bit. Wir reden wieder, wenn du {vital} geregelt hast."),
-          p(2, "Ich war's: Sperrbildschirm. Das ist kein Windows-Bug, das bin ich. Jetzt {vital}."),
+          p(2, "Ich war's: Sperrbildschirm. Das ist kein Computer-Bug, das bin ich. Jetzt {vital}."),
           p(3, "Ja, ich hab dich ausgesperrt. Das Login kennst du; die Ausrede für {vital} auf null eher weniger."),
           p(3, "Sperre von mir ausgelöst. Komm zurück, wenn du dich um {vital} gekümmert hast. Ich warte."),
         ],
@@ -1825,14 +1825,14 @@
         ],
         return: [
           p(1, "Willkommen zurück! Ich habe deine Balken eingefroren, während du weg warst: Sie haben auf dich gewartet."),
-          p(1, "Da bist du ja. {min} Minuten weg — die Anzeigen standen still, auf meinen Befehl."),
+          p(1, "Da bist du ja. {min} Minuten weg, die Anzeigen standen still, auf meinen Befehl."),
           p(2, "Zurück nach {min} Minuten. Ich habe deine Balken auf Eis gelegt. Gern geschehen, übrigens."),
           p(2, "{min} Minuten verschollen. Ich habe das Dashboard bewacht: Es ist nichts passiert. Atemberaubend."),
           p(3, "Du verschwindest {min} Minuten und ich, der Pixel, halte die Stellung. Wer von uns beiden ist hier der Verantwortungsbewusste?"),
         ],
         night: [
           p(1, "Es ist spät. Ich bin im Ruhemodus; probier du die menschliche Variante."),
-          p(2, "Es ist nach 23 Uhr. Sogar ich habe einen Bildschirmschoner — was ist deine Ausrede?"),
+          p(2, "Es ist nach 23 Uhr. Sogar ich habe einen Bildschirmschoner: was ist deine Ausrede?"),
           p(2, "Schon wieder Nachtschicht? Na gut. Morgen nerve ich doppelt."),
           p(3, "Es ist mitten in der Nacht und du bist HIER. Ich bin ein Schuldgefühl-Dämon und selbst ich mache Feierabend."),
         ],
@@ -1843,7 +1843,7 @@
           p(3, "{min} Tage in Folge. Ich würde ja sagen, ich habe dich gut erzogen, aber das stiege dir zu Kopf."),
         ],
         stinger: [
-          p(1, "— Bit"),
+          p(1, "~ Bit"),
           p(2, "Diese Nachricht zerstört sich selbst. Du dagegen bleibst so."),
           p(2, "Zwing mich nicht, deine Mutter anzurufen."),
           p(3, "Ich bestehe aus Pixeln und weiß es. Was ist deine Ausrede?"),
@@ -1903,7 +1903,7 @@
             p(2, "Atualização: o teu corpo anda há {min} minutos só por hábito."),
             p(2, "O frigorífico está a dez metros. Tu consegues. Acredito em ti. Mais ou menos."),
             p(3, "{min} minutos na reserva. A este ponto sobrevives por fotossíntese."),
-            p(3, "A tua energia está tão baixa que o Windows sugeria-te o modo poupança."),
+            p(3, "A tua energia está tão baixa que o computador sugeria-te o modo poupança."),
           ],
         },
         stamina: {
@@ -1987,7 +1987,7 @@
       },
       generic: {
         gameover: [
-          p(1, "{vital} K.O. — mas ainda dá para resolver."),
+          p(1, "{vital} K.O., mas ainda dá para resolver."),
           p(1, "Barra a zero. Recarrega-a e não aconteceu nada."),
           p(2, "{vital}: tombou em combate após {min} minutos de puro desleixo."),
           p(2, "GAME OVER em {vital}. Continuar? Custa um gesto de autocuidado."),
@@ -2023,7 +2023,7 @@
           p(1, "Fui eu: janelas minimizadas. Sem pânico, estão na barra de tarefas. Agora, o {vital}."),
           p(2, "Feito. Minimizei tudo eu, sim. Agora que tenho a tua atenção: {vital}, já."),
           p(2, "Fui eu que varri as tuas janelas. Reabre-las pela barra de tarefas; o {vital}, esse, recarrega-lo tu."),
-          p(3, "As tuas janelas estão a descansar — cortesia minha. Tu é que te mexes: o {vital} não se recarrega sozinho."),
+          p(3, "As tuas janelas estão a descansar: cortesia minha. Tu é que te mexes: o {vital} não se recarrega sozinho."),
           p(3, "Sim, fui eu. A sério: {vital} agora, ou da próxima faço pior."),
         ],
         lockwarn: [
@@ -2035,9 +2035,9 @@
           p(3, "Bloqueio a chegar em 60 segundos, e sou eu que o ativo. Considera-o uma pausa sindical obrigatória."),
         ],
         locked: [
-          p(1, "Bloqueado. Fui eu. Voltas com o login — entretanto, trata do {vital}."),
+          p(1, "Bloqueado. Fui eu. Voltas com o login: entretanto, trata do {vital}."),
           p(2, "PC bloqueado, cortesia do Bit. Falamos depois de teres resolvido o {vital}."),
-          p(2, "Fui eu: ecrã de bloqueio. Não é o Windows a pirar, sou eu. Agora, o {vital}."),
+          p(2, "Fui eu: ecrã de bloqueio. Não é o computador a pirar, sou eu. Agora, o {vital}."),
           p(3, "Sim, bloqueei-te eu. O login já sabes; a desculpa para o {vital} a zero, essa não."),
           p(3, "Bloqueio ativado por mim. Volta quando tiveres cuidado do {vital}. Eu espero."),
         ],
@@ -2050,14 +2050,14 @@
         ],
         return: [
           p(1, "Bem-vindo de volta! Congelei as tuas barras enquanto estiveste fora: ficaram à tua espera."),
-          p(1, "Cá estás tu. {min} minutos fora — os medidores ficaram parados, ordens minhas."),
+          p(1, "Cá estás tu. {min} minutos fora: os medidores ficaram parados, ordens minhas."),
           p(2, "De volta após {min} minutos. Guardei-te as barras no gelo. De nada, já agora."),
           p(2, "{min} minutos desaparecido. Fiquei de guarda ao painel: não aconteceu nada. Emocionante."),
           p(3, "Desapareces {min} minutos e eu, o píxel, seguro o forte. Qual de nós os dois é o responsável?"),
         ],
         night: [
           p(1, "É tarde. Eu estou em modo descanso; experimenta tu a versão humana."),
-          p(2, "Já passa das 23h. Até eu tenho protetor de ecrã — qual é a tua desculpa?"),
+          p(2, "Já passa das 23h. Até eu tenho protetor de ecrã: qual é a tua desculpa?"),
           p(2, "Outra vez turno da noite? Está bem. Amanhã chateio-te a dobrar."),
           p(3, "É noite cerrada e tu estás AQUI. Sou um demónio da culpa e até eu pico o ponto de saída."),
         ],
@@ -2068,7 +2068,7 @@
           p(3, "{min} dias seguidos. Diria que te treinei bem, mas ias ficar convencido."),
         ],
         stinger: [
-          p(1, "— Bit"),
+          p(1, "~ Bit"),
           p(2, "Esta mensagem vai autodestruir-se. Tu, esse, ficas assim."),
           p(2, "Não me obrigues a ligar à tua mãe."),
           p(3, "Sou feito de pixels e tenho noção disso. E tu, que desculpa tens?"),
@@ -2082,16 +2082,16 @@
       hydration: {
         low: [
           p(1, "Глоток воды бы не помешал, а?"),
-          p(1, "Бутылка воды смотрит на тебя. Ты на неё — нет."),
+          p(1, "Бутылка воды смотрит на тебя. Ты на неё: нет."),
           p(2, "Гидратация 25%. Кактус на подоконнике держится бодрее тебя."),
           p(2, "Ты высыхаешь прямо в прямом эфире. Завораживает. Но нет."),
           p(3, "Всё ещё без воды? Суккуленты записывают за тобой лайфхаки."),
         ],
         zero: [
-          p(1, "Вода на нуле. Попей — и сделаем вид, что ничего не было."),
+          p(1, "Вода на нуле. Попей: и сделаем вид, что ничего не было."),
           p(1, "Дружеское напоминание: люди работают на воде."),
           p(2, "Гидратация: 0%. Ты официально сублимированный."),
-          p(2, "Человек на 70% из воды. Ты — на 70% из кофе и упрямства."),
+          p(2, "Человек на 70% из воды. Ты: на 70% из кофе и упрямства."),
           p(2, "Будь ты растением, тебя бы уже пора было в компост."),
           p(3, "НОЛЬ ВОДЫ уже {min} минут. Изюм и то сочнее тебя."),
           p(3, "Пей. Это не совет, это угроза. Ласковая. Но угроза."),
@@ -2099,7 +2099,7 @@
         ],
         nag: [
           p(1, "Снова я: про воду. Снова ты: ничего. Ещё разок?"),
-          p(2, "Прошло уже {min} минут. Твоя гидратация — воспоминание, как дискеты."),
+          p(2, "Прошло уже {min} минут. Твоя гидратация: воспоминание, как дискеты."),
           p(2, "Ждёшь, пока вода сама доиспарится до тебя?"),
           p(3, "{min} минут насухую. В пустыне ты бы уже продал ПК за бутылочку."),
           p(3, "Новый план: я пишу, ты игноришь, а в итоге побеждаю я. Я всегда побеждаю."),
@@ -2121,22 +2121,22 @@
           p(2, "{min} минут на нуле. Даже заставка энергичнее тебя."),
           p(3, "НОЛЬ ЭНЕРГИИ. Ты ноутбук на 2% без зарядки, который бубнит «да норм»."),
           p(3, "Съешь что-нибудь. Твой мозг компилирует на скорости 0.5x."),
-          p(3, "Уважаю упрямство. Твой метаболизм — нет."),
+          p(3, "Уважаю упрямство. Твой метаболизм: нет."),
         ],
         nag: [
           p(1, "Всё ещё тут, всё ещё напоминаю, что еда существует."),
           p(2, "Апдейт: твоё тело уже {min} минут едет на голой привычке."),
           p(2, "Холодильник в десяти метрах. Ты справишься. Я в тебя верю. Вроде."),
           p(3, "{min} минут на резерве. На этом этапе ты выживаешь за счёт фотосинтеза."),
-          p(3, "Энергия так низко, что Windows предложила бы тебе режим энергосбережения."),
+          p(3, "Энергия так низко, что компьютер предложил бы тебе режим энергосбережения."),
         ],
       },
       stamina: {
         low: [
           p(1, "Пройтись бы? Ноги, между прочим, и для этого."),
-          p(1, "Разомнись хоть иногда: тело скажет спасибо, спина — СПАСИБО."),
+          p(1, "Разомнись хоть иногда: тело скажет спасибо, спина, СПАСИБО."),
           p(2, "Ты сидишь так долго, что стул подаёт на право собственности."),
-          p(2, "Движение 25%. Статуи и те подвижнее — спасибо голубям."),
+          p(2, "Движение 25%. Статуи и те подвижнее: спасибо голубям."),
           p(3, "Твой отпечаток на подушке стула уже объект археологии."),
         ],
         zero: [
@@ -2152,7 +2152,7 @@
         nag: [
           p(1, "Прогулка до окна тоже считается. Еле-еле, но считается."),
           p(2, "{min} минут без движения. Твои умные часы объявили тебя в розыск."),
-          p(2, "Встать — жжёт калории. Игнорить меня, увы для тебя, нет."),
+          p(2, "Встать: жжёт калории. Игнорить меня, увы для тебя, нет."),
           p(3, "Неподвижен {min} минут: мох уже подумывает считать тебя поверхностью."),
           p(3, "Ты двигаешься так мало, что Google Maps отметил тебя как достопримечательность."),
         ],
@@ -2166,8 +2166,8 @@
           p(3, "Моргай хоть иногда. Это не платный DLC."),
         ],
         zero: [
-          p(1, "Перерыв для глаз: 20 секунд горизонта — и ты снова человек."),
-          p(1, "Экран останется на месте. А вот твоё зрение — как пойдёт."),
+          p(1, "Перерыв для глаз: 20 секунд горизонта, и ты снова человек."),
+          p(1, "Экран останется на месте. А вот твоё зрение: как пойдёт."),
           p(2, "Фокус: 0%. Твои глаза сейчас фокусируются как картошка."),
           p(2, "Пялишься в экран {min} минут. Экран, к слову, тебе не отвечает взаимностью."),
           p(2, "Мутный взгляд, потерянная строка, случайный скролл: полное комбо."),
@@ -2178,7 +2178,7 @@
         nag: [
           p(1, "Снова я. Снова про твои глаза. Снова проигнорирован."),
           p(2, "{min} минут без перерыва для глаз: твоё зрение буферизуется."),
-          p(2, "Если это сообщение кажется размытым — это ровно моя мысль."),
+          p(2, "Если это сообщение кажется размытым: это ровно моя мысль."),
           p(3, "Ты пялился так долго, что у тебя выгорание сильнее, чем у монитора. А он вообще-то IPS."),
           p(3, "Кроты видят лучше тебя прямо сейчас. КРОТЫ. {min} минут."),
         ],
@@ -2186,7 +2186,7 @@
       posture: {
         low: [
           p(1, "Проверка осанки: спина прямо, плечи вниз. Сделал? Молодец."),
-          p(1, "Экран на уровне глаз — а не глаза на уровне экрана."),
+          p(1, "Экран на уровне глаз: а не глаза на уровне экрана."),
           p(2, "Ты тянешься к экрану, как растение к свету. Только хуже."),
           p(2, "Осанка 25%: наполовину человек, наполовину знак вопроса."),
           p(3, "Твой позвоночник составляет официальную жалобу."),
@@ -2199,12 +2199,12 @@
           p(2, "Звонил Квазимодо. Говорит, ты перегибаешь."),
           p(3, "НОЛЬ ОСАНКИ. Твой будущий мануальщик благодарит тебя за дом на море."),
           p(3, "Ты так скрючен, что монитор смотрит на тебя сверху вниз. Буквально."),
-          p(3, "Твоя спина сейчас — практически QR-код. И сканировать его никто не хочет."),
+          p(3, "Твоя спина сейчас: практически QR-код. И сканировать его никто не хочет."),
         ],
         nag: [
           p(1, "Быстрая проверка: как ты сидишь прямо сейчас?"),
           p(2, "{min} минут в форме буквы «С». В алфавите ещё 32 буквы, попробуй."),
-          p(2, "Выпрямись. Не ради меня — ради себя из 2050-го."),
+          p(2, "Выпрямись. Не ради меня: ради себя из 2050-го."),
           p(3, "Продолжай так, и в 80 будешь видеть только полы. Красивые. Но только полы."),
           p(3, "Рядом с твоей осанкой Горбун из Нотр-Дама выглядит как инструктор по пилатесу."),
         ],
@@ -2212,8 +2212,8 @@
     },
     generic: {
       gameover: [
-        p(1, "{vital} — К.О. Но всё ещё поправимо."),
-        p(1, "Полоска на нуле. Пополни её — и ничего не было."),
+        p(1, "{vital}: К.О. Но всё ещё поправимо."),
+        p(1, "Полоска на нуле. Пополни её: и ничего не было."),
         p(2, "{vital}: пал в бою после {min} минут чистого забивания."),
         p(2, "GAME OVER по {vital}. Продолжить? Стоит одного акта заботы о себе."),
         p(2, "Жизни по {vital} кончились. А continue тут не купишь."),
@@ -2229,71 +2229,71 @@
         p(3, "Поздравляю: ты выбил платину по запусканию себя. Ни трофея, только шея болит."),
       ],
       welcomeback: [
-        p(1, "С возвращением! Пока ты играл, пара полосок здорово просела — глянь на них."),
+        p(1, "С возвращением! Пока ты играл, пара полосок здорово просела: глянь на них."),
         p(2, "Хорошая катка? Твой {vital} тем временем скончался. GG."),
         p(2, "GG WP. А теперь глянь на полоски: они говорят о тебе очень плохо."),
         p(3, "Ты набивал очки. Твой {vital} писал завещание."),
-        p(3, "Самый жестокий килл за сессию — по собственному {vital}. Даже без ассиста: соло."),
+        p(3, "Самый жестокий килл за сессию: по собственному {vital}. Даже без ассиста: соло."),
       ],
       minwarn: [
-        p(1, "Перехожу на решительные меры: через 30 секунд я сам сверну все твои окна. Займись {vital} — и не придётся."),
+        p(1, "Перехожу на решительные меры: через 30 секунд я сам сверну все твои окна. Займись {vital}: и не придётся."),
         p(2, "Последнее предупреждение: займись {vital} за 30 секунд, или я сам сверну ВСЁ. Не угроза. Ладно, угроза."),
         p(2, "Через 30 секунд я сам заставлю твои окна исчезнуть. Мои условия ты знаешь: {vital}."),
         p(2, "Обратный отсчёт: 30 секунд, потом рабочий стол я приберу сам. Шевелись, {vital}."),
         p(3, "Переходим к жёсткому: через полминуты я сам сворачиваю всё, и клянусь, мне это в кайф."),
         p(3, "У тебя 30 секунд на {vital}. Потом твои окна я прячу сам, по одному."),
-        p(3, "30 секунд — и на столе останется только моя физиономия. Это буду я, запомни."),
+        p(3, "30 секунд: и на столе останется только моя физиономия. Это буду я, запомни."),
       ],
       minimized: [
-        p(1, "Это сделал я: окна свёрнуты. Без паники, они в панели задач. А теперь — {vital}."),
+        p(1, "Это сделал я: окна свёрнуты. Без паники, они в панели задач. А теперь: {vital}."),
         p(2, "Готово. Да, всё свернул я. Теперь, когда я завладел твоим вниманием: {vital}, живо."),
         p(2, "Это я смёл твои окна. Открой их снова из панели задач; а вот {vital} пополняешь ты."),
-        p(3, "Твои окна отдыхают — с моего барского плеча. А ты шевелись: {vital} сам не пополнится."),
+        p(3, "Твои окна отдыхают: с моего барского плеча. А ты шевелись: {vital} сам не пополнится."),
         p(3, "Ага, это был я. Серьёзно: {vital} сейчас, или в следующий раз сделаю хуже."),
       ],
       lockwarn: [
-        p(1, "Серьёзная мера: через 60 секунд я сам заблокирую ПК. Займись {vital} — и я передумаю."),
-        p(2, "60 секунд — и ПК я блокирую сам. Часики тикают. Тик. Так."),
+        p(1, "Серьёзная мера: через 60 секунд я сам заблокирую ПК. Займись {vital}: и я передумаю."),
+        p(2, "60 секунд: и ПК я блокирую сам. Часики тикают. Тик. Так."),
         p(2, "Отсчёт: 60 секунд на {vital}, или я сам отправлю эту сессию на принудительный перерыв."),
         p(2, "Честное предупреждение: через минуту я сам жму блокировку экрана. Мяч на твоей стороне: {vital}."),
         p(3, "60 секунд. Потом CTRL+ALT+DEL я сделаю по-своему."),
         p(3, "Блокировка через 60 секунд, и щёлкаю её я. Считай это обязательным профсоюзным перерывом."),
       ],
       locked: [
-        p(1, "Заблокировано. Это сделал я. Войди снова — а пока займись {vital}."),
+        p(1, "Заблокировано. Это сделал я. Войди снова: а пока займись {vital}."),
         p(2, "ПК заблокирован, любезность от Bit. Поговорим, когда разберёшься с {vital}."),
-        p(2, "Это я: экран блокировки. Не Windows глючит, это я. Теперь {vital}."),
-        p(3, "Да, это я тебя заблокировал. Логин ты знаешь; а вот оправдание за {vital} на нуле — не очень."),
+        p(2, "Это я: экран блокировки. Не компьютер глючит, это я. Теперь {vital}."),
+        p(3, "Да, это я тебя заблокировал. Логин ты знаешь; а вот оправдание за {vital} на нуле: не очень."),
         p(3, "Блокировку включил я. Возвращайся, когда позаботишься о {vital}. Я подожду."),
       ],
       praise: [
         p(1, "Отличная работа. Полоски тебе благодарны."),
-        p(1, "+25! Продолжай так — и я останусь без работы. Хорошо бы."),
+        p(1, "+25! Продолжай так: и я останусь без работы. Хорошо бы."),
         p(2, "Смотрите-ка, кто-то заботится о себе. Я... горжусь? Какое странное чувство."),
         p(2, "Пополнено! Неплохо для того, кто десять минут назад был ископаемым."),
         p(3, "Ого, спонтанная забота о себе. Отмечу этот день в календаре."),
       ],
       return: [
         p(1, "С возвращением! Пока тебя не было, я заморозил полоски: они тебя ждали."),
-        p(1, "Вот и ты. {min} минут отсутствия — датчики стояли на месте, по моему приказу."),
+        p(1, "Вот и ты. {min} минут отсутствия: датчики стояли на месте, по моему приказу."),
         p(2, "Вернулся через {min} минут. Полоски я держал во льду. Не за что, кстати."),
         p(2, "{min} минут без вести. Я охранял панель: ничего не случилось. Захватывающе."),
         p(3, "Ты исчезаешь на {min} минут, а я, пиксель, держу оборону. Кто из нас двоих тут ответственный?"),
       ],
       night: [
-        p(1, "Уже поздно. Я в режиме отдыха; попробуй и ты — человеческую версию."),
-        p(2, "Уже за 23:00. Даже у меня есть заставка — а у тебя какое оправдание?"),
+        p(1, "Уже поздно. Я в режиме отдыха; попробуй и ты: человеческую версию."),
+        p(2, "Уже за 23:00. Даже у меня есть заставка: а у тебя какое оправдание?"),
         p(2, "Опять ночная смена? Ладно. Завтра буду ворчать вдвое больше."),
         p(3, "Глубокая ночь, а ты ЗДЕСЬ. Я демон чувства вины, и даже я ухожу с работы."),
       ],
       streak: [
         p(1, "{min} дней заботы о себе подряд. Тихо горжусь тобой."),
-        p(2, "Серия из {min} дней! Продолжай — и мне придётся искать новое хобби."),
+        p(2, "Серия из {min} дней! Продолжай: и мне придётся искать новое хобби."),
         p(2, "День {min}, как ты действительно о себе заботишься. Кто ты и куда дел пользователя?"),
         p(3, "{min} дней подряд. Сказал бы, что хорошо тебя выдрессировал, но ты зазнаешься."),
       ],
       stinger: [
-        p(1, "— Bit"),
+        p(1, "~ Bit"),
         p(2, "Это сообщение самоуничтожится. А ты вот останешься таким."),
         p(2, "Не заставляй меня звонить твоей маме."),
         p(3, "Я из пикселей и в курсе. А у тебя какая отмазка?"),
@@ -2353,7 +2353,7 @@
           p(2, "Update: je lichaam draait al {min} minuten op gewoonte."),
           p(2, "De koelkast is tien meter verderop. Je kunt dit. Ik geloof in je. Min of meer."),
           p(3, "{min} minuten op reserve. Op dit punt overleef je op fotosynthese."),
-          p(3, "Je energie is zo laag dat Windows je de spaarstand zou aanraden."),
+          p(3, "Je energie is zo laag dat je computer je de spaarstand zou aanraden."),
         ],
       },
       stamina: {
@@ -2411,7 +2411,7 @@
       posture: {
         low: [
           p(1, "Houdingscheck: rug recht, schouders laag. Klaar? Mooi."),
-          p(1, "Scherm op ooghoogte — niet ogen op schermhoogte."),
+          p(1, "Scherm op ooghoogte: niet ogen op schermhoogte."),
           p(2, "Je hangt naar het scherm zoals een plant naar het licht. Maar dan erger."),
           p(2, "Houding op 25%: half mens, half vraagteken."),
           p(3, "Je ruggengraat stelt een officiële klacht op."),
@@ -2429,7 +2429,7 @@
         nag: [
           p(1, "Snelle check: hoe zit je er nu bij?"),
           p(2, "{min} minuten in de vorm van een C. Het alfabet heeft nog 25 andere letters, probeer er eens een paar."),
-          p(2, "Rechtop. Niet voor mij — voor de jij van 2050."),
+          p(2, "Rechtop. Niet voor mij: voor de jij van 2050."),
           p(3, "Ga zo door en op je 80e zie je alleen nog vloeren. Mooie vloeren. Maar vloeren."),
           p(3, "Jouw houding laat de klokkenluider van de Notre-Dame op een pilates-instructeur lijken."),
         ],
@@ -2437,7 +2437,7 @@
     },
     generic: {
       gameover: [
-        p(1, "{vital} K.O. — maar het is nog te fixen."),
+        p(1, "{vital} K.O., maar het is nog te fixen."),
         p(1, "Balk op nul. Vul hem bij en dit is nooit gebeurd."),
         p(2, "{vital}: gesneuveld na {min} minuten pure verwaarlozing."),
         p(2, "GAME OVER op {vital}. Doorgaan? Kost één daad van zelfzorg."),
@@ -2454,7 +2454,7 @@
         p(3, "Gefeliciteerd: je hebt zelfverwaarlozing geplatineerd. Geen trofee, alleen nekpijn."),
       ],
       welcomeback: [
-        p(1, "Welkom terug! Een paar balken zijn flink gezakt tijdens het gamen — kijk er even naar."),
+        p(1, "Welkom terug! Een paar balken zijn flink gezakt tijdens het gamen: kijk er even naar."),
         p(2, "Goede potjes? Je {vital} is intussen overleden. GG."),
         p(2, "GG WP. Kijk nu naar je balken: ze spreken schande van je."),
         p(3, "Jij scoorde punten. Je {vital} schreef zijn testament."),
@@ -2467,13 +2467,13 @@
         p(2, "Aftellen: 30 seconden, daarna ruim ik je bureaublad zelf op. Schiet op, {vital}."),
         p(3, "We gaan hard: over een halve minuut minimaliseer ik alles, en ik zweer dat ik ervan ga genieten."),
         p(3, "Je hebt 30 seconden voor {vital}. Daarna verstop ik je vensters zelf, één voor één."),
-        p(3, "30 seconden en alleen mijn gezicht blijft op het bureaublad over. Dat was ik dan — onthoud het."),
+        p(3, "30 seconden en alleen mijn gezicht blijft op het bureaublad over. Dat was ik dan: onthoud het."),
       ],
       minimized: [
-        p(1, "Dat was ik: vensters geminimaliseerd. Rustig, ze staan in de taakbalk. Nu — {vital}."),
+        p(1, "Dat was ik: vensters geminimaliseerd. Rustig, ze staan in de taakbalk. Nu: {vital}."),
         p(2, "Klaar. Ik heb alles geminimaliseerd, ja. Nu ik je aandacht heb: {vital}, nu."),
         p(2, "Ik heb je vensters weggeveegd. Terughalen doe je via de taakbalk; {vital} vul je zelf bij."),
-        p(3, "Je vensters rusten even — van mij mag het. Jij daarentegen: bewegen, {vital} vult zichzelf niet bij."),
+        p(3, "Je vensters rusten even: van mij mag het. Jij daarentegen: bewegen, {vital} vult zichzelf niet bij."),
         p(3, "Ja, dat was ik. Serieus: {vital} nu, of de volgende keer doe ik iets ergers."),
       ],
       lockwarn: [
@@ -2485,9 +2485,9 @@
         p(3, "Vergrendeling over 60 seconden, en ik ben degene die hem omzet. Beschouw het als een verplichte vakbondspauze."),
       ],
       locked: [
-        p(1, "Vergrendeld. Dat was ik. Log maar weer in — en regel intussen {vital}."),
+        p(1, "Vergrendeld. Dat was ik. Log maar weer in, en regel intussen {vital}."),
         p(2, "Pc vergrendeld, met de groeten van Bit. We spreken elkaar zodra {vital} geregeld is."),
-        p(2, "Ik was het: vergrendelscherm. Het is geen Windows-storing, ik ben het. Nu {vital}."),
+        p(2, "Ik was het: vergrendelscherm. Het is geen computerstoring, ik ben het. Nu {vital}."),
         p(3, "Ja, ik heb je buitengesloten. Het wachtwoord ken je; een excuus voor {vital} op nul niet."),
         p(3, "Vergrendeling door mij geactiveerd. Kom terug als je voor {vital} hebt gezorgd. Ik wacht."),
       ],
@@ -2500,14 +2500,14 @@
       ],
       return: [
         p(1, "Welkom terug! Ik heb je balken bevroren terwijl je weg was: ze hebben op je gewacht."),
-        p(1, "Daar ben je. {min} minuten weg — de meters stonden stil, op mijn bevel."),
+        p(1, "Daar ben je. {min} minuten weg: de meters stonden stil, op mijn bevel."),
         p(2, "Terug na {min} minuten. Ik heb je balken koel gehouden. Graag gedaan, trouwens."),
         p(2, "{min} minuten spoorloos. Ik heb het dashboard bewaakt: er is niets gebeurd. Bloedstollend."),
         p(3, "Jij verdwijnt {min} minuten en ik, de pixel, houd het fort. Wie van ons tweeën is hier de verantwoordelijke?"),
       ],
       night: [
         p(1, "Het is laat. Ik sta in rustmodus; probeer jij de menselijke versie."),
-        p(2, "Het is na 23:00. Zelfs ik heb een schermbeveiliging — wat is jouw excuus?"),
+        p(2, "Het is na 23:00. Zelfs ik heb een schermbeveiliging: wat is jouw excuus?"),
         p(2, "Alweer nachtdienst? Prima. Morgen zeur ik dubbel zo hard."),
         p(3, "Het is midden in de nacht en jij bent HIER. Ik ben een schuldgevoel-daemon en zelfs ik klok uit."),
       ],
@@ -2518,7 +2518,7 @@
         p(3, "{min} dagen op rij. Ik zou zeggen dat ik je goed getraind heb, maar dan ga je naast je schoenen lopen."),
       ],
       stinger: [
-        p(1, "— Bit"),
+        p(1, "~ Bit"),
         p(2, "Dit bericht vernietigt zichzelf. Jij daarentegen blijft zo."),
         p(2, "Dwing me niet je moeder te bellen."),
         p(3, "Ik besta uit pixels en ik weet het. Wat is jouw excuus?"),
@@ -2665,16 +2665,35 @@
     return dirty ? { patch, awayCreditAt: freezeStart } : { patch: {}, awayCreditAt: freezeStart };
   }
 
+  // Natural breaks (as in Stretchly): time away from the PC is a real break,
+  // so the meters a break refills (moving, resting the eyes) come back full on
+  // return instead of asking for the break the user just took. Applied to the
+  // stamps only, never to Bit's episodes, so it reads like a refill.
+  const NATURAL_BREAK_IDS = Object.freeze(['stamina', 'focus']);
+  function naturalBreak(last, returnAt) {
+    const at = Number(returnAt) || 0;
+    const src = last && typeof last === 'object' ? last : {};
+    const patch = {};
+    if (at <= 0) return patch;
+    NATURAL_BREAK_IDS.forEach((id) => {
+      const ts = Number(src[id]) || 0;
+      if (ts > 0 && ts < at) patch[id] = at;
+    });
+    return patch;
+  }
+
   // ── night mode ──────────────────────────────────────────────────────────────
-  // Quiet hours: Bit sleeps and never escalates past `decay`. Fixed window —
-  // the always-on Xeneon Edge glows all night, but nobody needs a hydration
-  // roast at 3 AM. Toggleable via pet.nightQuiet.
-  const NIGHT_FROM = 23; // inclusive
-  const NIGHT_TO = 7;    // exclusive
-  function isNight(hour) {
+  // Quiet hours: Bit sleeps and never escalates past `decay`. An always-on
+  // screen glows all night, but nobody needs a hydration roast at 3 AM.
+  // Toggleable via pet.nightQuiet; the window is pet.quietFrom/quietTo (local
+  // hours, `from` inclusive, `to` exclusive, wrapping past midnight). An empty
+  // window (from === to) is never night.
+  const NIGHT_FROM = 23;
+  const NIGHT_TO = 7;
+  function isNight(hour, from = NIGHT_FROM, to = NIGHT_TO) {
     const h = Number(hour);
-    if (!Number.isFinite(h)) return false;
-    return h >= NIGHT_FROM || h < NIGHT_TO;
+    if (!Number.isFinite(h) || from === to) return false;
+    return from < to ? h >= from && h < to : h >= from || h < to;
   }
 
   // ── durable pet-state merge (server POST /settings) ────────────────────────
@@ -2738,7 +2757,7 @@
 
   return {
     BANK, TONES, STAGE_AT, REPEAT_MS, langOf, toneTier, pick, stagesFor, repeatDelay, fill,
-    AWAY_AFTER_MS, AWAY_EPS_MS, awayCredit, isNight, NIGHT_FROM, NIGHT_TO,
+    AWAY_AFTER_MS, AWAY_EPS_MS, awayCredit, NATURAL_BREAK_IDS, naturalBreak, isNight, NIGHT_FROM, NIGHT_TO,
     mergePetBookkeeping, mergeVitalsMem,
   };
 });

@@ -159,7 +159,7 @@ function aiStartLiveSession() {
     // an 'error'/'closed' handler would already have set _liveActiveClient=false.
     if (!_liveActiveClient) return;
     const neverReady = !_liveGotReady;
-    _liveToast(neverReady ? 'Connessione Voce Live non riuscita — passo alla voce a turni.' : 'Sessione Voce Live chiusa.');
+    _liveToast(neverReady ? 'Connessione Voce Live non riuscita: passo alla voce a turni.' : 'Sessione Voce Live chiusa.');
     _liveStop(true);
     if (neverReady && typeof startVoiceSessionTurnBased === 'function') startVoiceSessionTurnBased();
   };

@@ -334,7 +334,6 @@
 :root[data-style="comic"] :is(
   .qbtn-settings, .qbtn-tabs, .qbtn-focus, .qbtn-apps, .qbtn-layout,
   .tab-icon, .tab-current, .settings-preview-kicker, .settings-slider-value,
-  .settings-ai-steps li a, .settings-ai-steps li::before,
   .calendar-kicker, .day-cell.today, .upcoming-when,
   .day-modal-kicker, .event-time, .stat-head-temp,
   .notes-status.saved, .streaming-url, .streaming-setup-link,
@@ -367,8 +366,7 @@
 ) { color: var(--text); }
 :root[data-style="comic"] :is(
   .sh-set-desc, .sh-set-help, .sh-set-hint, .sh-set-status,
-  .sh-set-check-type, .sh-set-group, .sh-set-check-id,
-  .settings-ai-privacy, .settings-ai-caps-label
+  .sh-set-check-type, .sh-set-group, .sh-set-check-id
 ) { color: var(--comic-muted); }
 :root[data-style="comic"] :is(
   .settings-hint.settings-superseded-note,

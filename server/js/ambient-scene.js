@@ -210,6 +210,20 @@
 
   const ALIGNS = ['left', 'center', 'right'];
   const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+  // The fixed choices of each element's props, in one table so what accepts
+  // them (normalizeProps) and what describes them (the AI's format reference)
+  // read the same lists. The first entry is not the default; each pick names it.
+  const PROP_CHOICES = Object.freeze({
+    clock: { format: ['auto', '24', '12'], style: ['digital', 'stacked', 'analog'] },
+    date: { variant: ['full', 'long', 'weekday', 'day', 'short', 'numeric'] },
+    weather: { layout: ['stack', 'row'] },
+    media: { layout: ['row', 'stack'] },
+    system: { metric: ['cpu', 'gpu', 'ram', 'net', 'all'], style: ['text', 'bars', 'rings'] },
+    network: { show: ['both', 'down', 'up'] },
+    text: { valign: ['top', 'center', 'bottom'] },
+    image: { fit: ['cover', 'contain', 'fill'] },
+    shape: { kind: ['rect', 'ellipse', 'pill', 'ring', 'line'] },
+  });
 
   // Per-type props. Every type returns a fully-formed, bounded object so the
   // renderer never has to guard for missing keys. Free text is stored verbatim
@@ -220,9 +234,9 @@
     switch (type) {
       case 'clock':
         return {
-          format: pick(p.format, ['auto', '24', '12'], 'auto'),
+          format: pick(p.format, PROP_CHOICES.clock.format, 'auto'),
           seconds: bool(p.seconds, false),
-          style: pick(p.style, ['digital', 'stacked', 'analog'], 'digital'),
+          style: pick(p.style, PROP_CHOICES.clock.style, 'digital'),
           ampm: bool(p.ampm, true),
           blink: bool(p.blink, false),
           weight: pick(round(p.weight, 100, 900, 200), WEIGHTS, 200),
@@ -231,7 +245,7 @@
         };
       case 'date':
         return {
-          variant: pick(p.variant, ['full', 'long', 'weekday', 'day', 'short', 'numeric'], 'full'),
+          variant: pick(p.variant, PROP_CHOICES.date.variant, 'full'),
           uppercase: bool(p.uppercase, false),
           align: align('center'),
         };
@@ -240,14 +254,14 @@
         return {
           detail: bool(p.detail, true), art: bool(p.art, true),
           icon: bool(p.icon, false), cond: bool(p.cond, true), place: bool(p.place, true),
-          layout: pick(p.layout, ['stack', 'row'], 'stack'),
+          layout: pick(p.layout, PROP_CHOICES.weather.layout, 'stack'),
           align: align('center'),
         };
       case 'media':
         return {
           art: bool(p.art, true), controls: bool(p.controls, false),
           artist: bool(p.artist, true),
-          layout: pick(p.layout, ['row', 'stack'], 'row'),
+          layout: pick(p.layout, PROP_CHOICES.media.layout, 'row'),
         };
       case 'agenda':
         return { count: round(p.count, 1, 6, 3), time: bool(p.time, true) };
@@ -261,11 +275,11 @@
         return { align: align('left') };
       case 'system':
         return {
-          metric: pick(p.metric, ['cpu', 'gpu', 'ram', 'net', 'all'], 'all'),
-          style: pick(p.style, ['text', 'bars', 'rings'], 'text'),
+          metric: pick(p.metric, PROP_CHOICES.system.metric, 'all'),
+          style: pick(p.style, PROP_CHOICES.system.style, 'text'),
         };
       case 'network':
-        return { show: pick(p.show, ['both', 'down', 'up'], 'both'), align: align('center') };
+        return { show: pick(p.show, PROP_CHOICES.network.show, 'both'), align: align('center') };
       case 'text':
         return {
           text: str(p.text, MAX_TEXT),
@@ -279,12 +293,12 @@
           spacing: round(p.spacing, -10, 50, 0),
           lineHeight: round(p.lineHeight, 80, 250, 115),
           glow: round(p.glow, 0, 40, 0),
-          valign: pick(p.valign, ['top', 'center', 'bottom'], 'center'),
+          valign: pick(p.valign, PROP_CHOICES.text.valign, 'center'),
         };
       case 'image':
         return {
           url: imageSrc(p.url),
-          fit: pick(p.fit, ['cover', 'contain', 'fill'], 'cover'),
+          fit: pick(p.fit, PROP_CHOICES.image.fit, 'cover'),
           radius: round(p.radius, 0, 50, 0),
           grayscale: bool(p.grayscale, false),
           focusX: round(p.focusX, 0, 100, 50),
@@ -292,7 +306,7 @@
         };
       case 'shape':
         return {
-          kind: pick(p.kind, ['rect', 'ellipse', 'pill', 'ring', 'line'], 'rect'),
+          kind: pick(p.kind, PROP_CHOICES.shape.kind, 'rect'),
           color: hex(p.color, '#1b2030'),
           grad: grad(p.grad) || null,
           radius: round(p.radius, 0, 50, 12),
@@ -441,7 +455,7 @@
     sceneFits, fitScenes,
     SCENE_ID_RE, COMPONENT_TYPES, TOUCH_TYPES,
     ANIM_IN, ANIM_LOOP, BG_MOTIONS, MAX_PAGES, MAX_STOPS,
-    normalizeScene, normalizeScenes, normalizeComponent, normalizeBg, normalizeProps,
+    normalizeScene, normalizeScenes, normalizeComponent, normalizeBg, normalizeProps, PROP_CHOICES,
     gradientCss, visibleAt, pageAt, onPage,
     isCanvasRef, canvasRef, canvasIdOf, genId,
   };

@@ -25,6 +25,47 @@ function _csArmGlobal() {
   }, { passive: true, capture: true });
 }
 
+// Search text compared without case or accents, so "registra" finds "Registrà"
+// and "ecran" finds "Écran".
+function _csFold(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+// Every word typed must appear somewhere in the option's text, its extra
+// keywords or its group's name, in any order: "obs scena" and "scena obs" both
+// find "OBS: change scene".
+function _csMatches(parts, needle) {
+  const words = _csFold(needle).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = _csFold(parts.filter(Boolean).join(' '));
+  return words.every((w) => hay.includes(w));
+}
+
+// The label as text nodes with each typed word marked where it appears in it.
+// Built from text nodes only (never markup), so a label can never inject HTML.
+function _csHighlight(label, needle) {
+  const frag = document.createDocumentFragment();
+  const words = _csFold(needle).split(/\s+/).filter(Boolean);
+  const folded = _csFold(label);
+  // Folding can change the length (ligatures); then plain text, unmarked.
+  if (!words.length || folded.length !== label.length) { frag.appendChild(document.createTextNode(label)); return frag; }
+  const marks = new Array(label.length).fill(false);
+  words.forEach((w) => {
+    const at = folded.indexOf(w);
+    if (at >= 0) for (let i = at; i < at + w.length; i++) marks[i] = true;
+  });
+  let i = 0;
+  while (i < label.length) {
+    let j = i;
+    while (j < label.length && marks[j] === marks[i]) j++;
+    const piece = label.slice(i, j);
+    if (marks[i]) { const m = document.createElement('mark'); m.className = 'cs-hit'; m.textContent = piece; frag.appendChild(m); }
+    else frag.appendChild(document.createTextNode(piece));
+    i = j;
+  }
+  return frag;
+}
+
 /**
  * Replaces a native <select> with a styled custom dropdown.
  * The original <select> stays hidden in the DOM — all existing
@@ -34,6 +75,16 @@ function _csArmGlobal() {
  * `position: fixed` (anchored to the trigger, clamped to the viewport, flips
  * up when there's no room) — needed when the select lives inside a scrollable
  * container that would otherwise clip an absolutely-positioned panel.
+ *
+ * Long lists (opt-in, all on the <select> unless noted):
+ * - `data-cs-search` (+ `data-cs-search-placeholder`, `data-cs-empty`): a
+ *   search box; arrow keys move through the results, Enter picks one.
+ * - `data-cs-collapsible`: each <optgroup> opens and closes; the one holding
+ *   the choice starts open. On an <optgroup>: `data-cs-key` (stable id),
+ *   `data-cs-icon`, `data-cs-open` (starts open), `data-cs-search-skip`
+ *   (left out of search results, for groups that repeat other options).
+ * - On an <option>: `data-cs-icon` (trusted SVG), `data-cs-keywords` (extra
+ *   words the search matches), `data-cs-note` (second line in the list).
  *
  * @param {HTMLSelectElement} selectEl
  */
@@ -77,39 +128,113 @@ function initCustomSelect(selectEl) {
 
   // ── Helpers ────────────────────────────────────────────────
 
-  function currentLabel() {
-    const opt = Array.from(selectEl.options).find(o => o.value === selectEl.value);
-    return opt ? opt.textContent.trim() : '';
+  function selectedOption() {
+    return Array.from(selectEl.options).find(o => o.value === selectEl.value) || null;
   }
 
+  // The trigger shows the chosen option's icon too, when it has one, so a long
+  // list of look-alike names (the Deck's actions) reads at a glance when closed.
+  let triggerIco = null;
   function syncLabel() {
-    labelEl.textContent = currentLabel();
+    const opt = selectedOption();
+    labelEl.textContent = opt ? opt.textContent.trim() : '';
+    const icon = opt && opt.dataset ? opt.dataset.csIcon : '';
+    if (icon) {
+      if (!triggerIco) {
+        triggerIco = document.createElement('span');
+        triggerIco.className = 'cs-trigger-ico';
+        trigger.insertBefore(triggerIco, labelEl);
+      }
+      triggerIco.innerHTML = icon;
+      triggerIco.hidden = false;
+    } else if (triggerIco) {
+      triggerIco.hidden = true;
+    }
   }
 
   const hasSearch = selectEl.hasAttribute('data-cs-search');
+  // Opt-in (data-cs-collapsible): each <optgroup> is a header that opens and
+  // closes its options, so a long categorised list starts as a short list of
+  // categories. Searching shows every match whatever is open.
+  const collapsible = selectEl.hasAttribute('data-cs-collapsible');
+  let openGroups = null;
+  const groupKey = (g) => g.getAttribute('data-cs-key') || g.label || '';
+  function initOpenGroups() {
+    openGroups = new Set();
+    Array.from(selectEl.children).forEach((g) => {
+      if (g.tagName !== 'OPTGROUP') return;
+      const holdsChoice = selectEl.value !== '' && Array.from(g.children).some((o) => o.value === selectEl.value);
+      if (holdsChoice || g.hasAttribute('data-cs-open')) openGroups.add(groupKey(g));
+    });
+  }
+
+  const enabledRows = () => Array.from(panel.querySelectorAll('.cs-option:not(.cs-option-disabled)'));
+  function setActive(li) {
+    panel.querySelectorAll('.cs-option.cs-active').forEach((n) => n.classList.remove('cs-active'));
+    if (!li) return;
+    li.classList.add('cs-active');
+    revealRows(li, li);
+  }
+  function moveActive(step) {
+    const rows = enabledRows();
+    if (!rows.length) return;
+    const at = rows.findIndex((n) => n.classList.contains('cs-active'));
+    const next = at < 0 ? (step > 0 ? 0 : rows.length - 1) : Math.max(0, Math.min(rows.length - 1, at + step));
+    setActive(rows[next]);
+  }
+
+  // Scrolls the panel (never the page) so rows first..last are in view, the
+  // first one winning when both cannot fit; the sticky search row is not "view".
+  function revealRows(first, last) {
+    if (panel.scrollHeight <= panel.clientHeight) return;
+    const sticky = panel.querySelector('.cs-search-wrap');
+    const stickyH = sticky ? sticky.offsetHeight : 0;
+    let top = panel.scrollTop;
+    const bottom = last.offsetTop + last.offsetHeight + 6 - panel.clientHeight;
+    if (bottom > top) top = bottom;
+    if (first.offsetTop - stickyH < top) top = first.offsetTop - stickyH;
+    panel.scrollTop = Math.max(0, top);
+  }
 
   function renderOptions(filterText = '') {
     panel.textContent = '';
-    const needle = filterText.trim().toLowerCase();
-    const matches = (opt) => !needle || opt.textContent.toLowerCase().includes(needle);
+    const needle = filterText.trim();
+    const searching = needle !== '';
+    if (collapsible && !openGroups) initOpenGroups();
 
     // Opt-in in-panel search box (data-cs-search) for long lists (e.g. SignalRGB
     // effects). It's a sticky, non-option row that filters the list live; typing
     // re-renders and restores focus + caret so it stays usable across keystrokes.
+    // Arrow keys move through the results and Enter picks one, so a name can be
+    // typed and chosen without the mouse.
     if (hasSearch) {
       const searchLi = document.createElement('li');
       searchLi.className = 'cs-search-wrap';
       searchLi.setAttribute('role', 'presentation');
       searchLi.addEventListener('click', e => e.stopPropagation());
       const inp = document.createElement('input');
-      inp.type = 'text';
+      inp.type = 'search';
       inp.className = 'cs-search-input';
       inp.placeholder = selectEl.getAttribute('data-cs-search-placeholder') || '…';
+      inp.setAttribute('aria-label', inp.placeholder);
+      inp.autocomplete = 'off';
+      inp.spellcheck = false;
       inp.value = filterText;
       inp.addEventListener('input', () => {
         renderOptions(inp.value);
+        positionPanel(true);
         const next = panel.querySelector('.cs-search-input');
         if (next) { next.focus(); next.setSelectionRange(next.value.length, next.value.length); }
+      });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          moveActive(e.key === 'ArrowDown' ? 1 : -1);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const li = panel.querySelector('.cs-option.cs-active');
+          if (li) li.click();
+        }
       });
       searchLi.appendChild(inp);
       panel.appendChild(searchLi);
@@ -117,8 +242,10 @@ function initCustomSelect(selectEl) {
 
     // One <option> → one row. A row may carry an icon via the option's
     // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
+    // `data-cs-keywords` adds words the search also looks at (another language,
+    // a synonym) without showing them.
+    const rowMatches = (opt, groupLabel) => _csMatches([opt.textContent, opt.dataset && opt.dataset.csKeywords, groupLabel], needle);
     const addOption = (opt) => {
-      if (!matches(opt)) return;
       const li = document.createElement('li');
       // A disabled <option> renders as a non-selectable hint row (e.g. "configure
       // this service in Settings"): greyed, not clickable, skipped by keyboard nav.
@@ -136,7 +263,8 @@ function initCustomSelect(selectEl) {
       }
       const txt = document.createElement('span');
       txt.className = 'cs-option-label';
-      txt.textContent = opt.textContent.trim();
+      if (searching) txt.appendChild(_csHighlight(opt.textContent.trim(), needle));
+      else txt.textContent = opt.textContent.trim();
       // Opt-in second line (`data-cs-note`) for options whose name alone doesn't
       // say what they do. It belongs in the open list and NOT in the trigger,
       // which keeps showing the short label — a sentence there stretches the
@@ -158,23 +286,114 @@ function initCustomSelect(selectEl) {
       });
       panel.appendChild(li);
     };
-    // Render <optgroup> as a non-selectable category header followed by its
-    // options; bare <option>s (e.g. a leading "None") render directly.
+
+    // A collapsible group's header: icon, name, how many it holds, a chevron.
+    // A button in the list, so it is reachable by keyboard as well as by touch.
+    const addToggleHeader = (node, count, isOpen) => {
+      const head = document.createElement('li');
+      head.className = 'cs-group cs-group-toggle' + (isOpen ? ' cs-group-open' : '');
+      head.setAttribute('role', 'presentation');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cs-group-btn';
+      btn.setAttribute('aria-expanded', String(isOpen));
+      if (node.dataset && node.dataset.csIcon) {
+        const ic = document.createElement('span');
+        ic.className = 'cs-group-ico';
+        ic.innerHTML = node.dataset.csIcon;
+        btn.appendChild(ic);
+      }
+      const name = document.createElement('span');
+      name.className = 'cs-group-name';
+      name.textContent = node.label || '';
+      btn.appendChild(name);
+      if (count > 0) {
+        const n = document.createElement('span');
+        n.className = 'cs-group-count';
+        n.textContent = String(count);
+        btn.appendChild(n);
+      }
+      const chev = document.createElement('span');
+      chev.className = 'cs-group-chev';
+      chev.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,3.5 10.5,8 6,12.5"/></svg>';
+      btn.appendChild(chev);
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = groupKey(node);
+        const opening = !openGroups.has(key);
+        if (opening) openGroups.add(key); else openGroups.delete(key);
+        const keep = panel.scrollTop;
+        renderOptions('');
+        positionPanel(true);
+        panel.scrollTop = keep;
+        const again = Array.from(panel.querySelectorAll('.cs-group-toggle')).find((h) => h.dataset.key === key);
+        if (!again) return;
+        if (opening) {
+          let last = again;
+          while (last.nextElementSibling && last.nextElementSibling.classList.contains('cs-option')) last = last.nextElementSibling;
+          revealRows(again, last);
+        }
+        const b = again.querySelector('.cs-group-btn');
+        if (b) b.focus({ preventScroll: true });
+      });
+      head.dataset.key = groupKey(node);
+      head.appendChild(btn);
+      panel.appendChild(head);
+    };
+
+    // Render <optgroup> as a category header followed by its options; bare
+    // <option>s (e.g. a leading "None") render directly.
+    let shown = 0;
     Array.from(selectEl.children).forEach(node => {
       if (node.tagName === 'OPTGROUP') {
+        // A group that repeats options found elsewhere (e.g. "Recently used")
+        // would list every match twice while searching.
+        if (searching && node.hasAttribute('data-cs-search-skip')) return;
         const opts = Array.from(node.children).filter(o => o.tagName === 'OPTION');
+        const hits = opts.filter((o) => rowMatches(o, node.label));
         // With a filter active, drop a group header whose options all filtered out.
-        if (!opts.some(matches)) return;
+        if (!hits.length) return;
+        shown += hits.filter((o) => !o.disabled).length;
+        if (collapsible && !searching) {
+          const isOpen = openGroups.has(groupKey(node));
+          addToggleHeader(node, opts.filter((o) => !o.disabled).length, isOpen);
+          if (isOpen) opts.forEach(addOption);
+          return;
+        }
         const head = document.createElement('li');
-        head.className = 'cs-group';
+        // In a collapsible list the search results keep the same headers, just fixed open.
+        head.className = collapsible ? 'cs-group cs-group-static' : 'cs-group';
         head.setAttribute('role', 'presentation');
-        head.textContent = node.label || '';
+        if (collapsible && node.dataset && node.dataset.csIcon) {
+          const ic = document.createElement('span');
+          ic.className = 'cs-group-ico';
+          ic.innerHTML = node.dataset.csIcon;
+          head.appendChild(ic);
+        }
+        if (collapsible) {
+          const name = document.createElement('span');
+          name.className = 'cs-group-name';
+          name.textContent = node.label || '';
+          head.appendChild(name);
+        } else {
+          head.appendChild(document.createTextNode(node.label || ''));
+        }
         panel.appendChild(head);
-        opts.forEach(addOption);
-      } else if (node.tagName === 'OPTION') {
+        hits.forEach(addOption);
+      } else if (node.tagName === 'OPTION' && rowMatches(node, '')) {
+        if (!node.disabled) shown++;
         addOption(node);
       }
     });
+    if (searching && shown === 0 && selectEl.getAttribute('data-cs-empty')) {
+      const empty = document.createElement('li');
+      empty.className = 'cs-empty';
+      empty.setAttribute('role', 'presentation');
+      empty.textContent = selectEl.getAttribute('data-cs-empty');
+      panel.appendChild(empty);
+    }
+    // While searching the first result is the one Enter picks.
+    if (searching) setActive(enabledRows()[0] || null);
   }
 
   // ── Open / close ───────────────────────────────────────────
@@ -211,7 +430,16 @@ function initCustomSelect(selectEl) {
     };
   }
 
-  function positionPanel() {
+  // Which side the panel opened on. Re-positioning while it is open (a group
+  // opened, a search narrowed the list) keeps that side, so the list grows or
+  // shrinks in place instead of jumping across the trigger.
+  let openedBelow = true;
+  // While the panel stays open (typing a search, opening a group) it keeps at
+  // least the height it opened with, so the search box never jumps under the
+  // finger as the results shrink.
+  let openedH = 0;
+
+  function positionPanel(keepSide = false) {
     if (!useFixed) return;
     const r = trigger.getBoundingClientRect();
     const b = bounds();
@@ -225,8 +453,12 @@ function initCustomSelect(selectEl) {
     panel.style.margin = '0';
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
-    panel.style.minWidth = r.width + 'px';
+    // A categorised list gets room for its names whatever the trigger's width,
+    // and no fixed panel is ever wider than the box it must stay inside.
+    panel.style.minWidth = (collapsible ? Math.max(r.width, Math.min(340, b.width - 2 * m)) : r.width) + 'px';
+    panel.style.maxWidth = (b.width - 2 * m) + 'px';
     panel.style.maxHeight = 'none';                 // measure the natural height first
+    panel.style.minHeight = '';
     // A scaled ancestor (the Edge preview stage) means the panel's LAYOUT pixels
     // and its ON-SCREEN pixels are different units, and every number here mixes
     // the two: the trigger rect and the bounds are on-screen, scrollHeight is
@@ -239,11 +471,21 @@ function initCustomSelect(selectEl) {
     const spaceBelow = (b.top + b.height) - r.bottom - gap - edge;
     const spaceAbove = r.top - b.top - gap - edge;
     // Drop below unless it doesn't fit and there's more room above.
-    const placeBelow = natural <= spaceBelow || spaceBelow >= spaceAbove;
+    // A collapsible list grows when a group opens, so it takes the roomier side
+    // from the start rather than the side its closed categories fit on.
+    let placeBelow = collapsible
+      ? spaceBelow >= spaceAbove || spaceBelow >= 480
+      : natural <= spaceBelow || spaceBelow >= spaceAbove;
+    if (keepSide) placeBelow = openedBelow;
+    openedBelow = placeBelow;
     // Cap the height to the room between the breathing margins so the panel can
     // never spill past (or butt against) the top/bottom edge. The list scrolls
     // when it's taller than the room available.
-    const h = Math.min(natural, b.height - 2 * edge);
+    const room = collapsible ? Math.max(placeBelow ? spaceBelow : spaceAbove, 160) : b.height - 2 * edge;
+    let h = Math.min(natural, room, b.height - 2 * edge);
+    if (keepSide && collapsible) h = Math.max(h, Math.min(openedH, room, b.height - 2 * edge));
+    openedH = keepSide ? Math.max(openedH, h) : h;
+    panel.style.minHeight = collapsible ? (h / scale) + 'px' : '';
     panel.style.maxHeight = (h / scale) + 'px';     // back into layout pixels
     const wantLeft = Math.max(b.left, Math.min(r.left, b.left + b.width - m - panel.offsetWidth * scale));
     // Anchor to the trigger, then clamp so the whole panel stays within the
@@ -279,9 +521,14 @@ function initCustomSelect(selectEl) {
     panel.hidden = false;
     trigger.setAttribute('aria-expanded', 'true');
     positionPanel();
-    if (hasSearch) {
+    // The current choice in view, and the start point for the arrow keys.
+    const chosen = panel.querySelector('.cs-option.cs-selected');
+    if (chosen) setActive(chosen);
+    // Straight into the search box, except after a finger tap: there the focus
+    // would raise the on-screen keyboard over the list being looked at.
+    if (hasSearch && lastPointer !== 'touch') {
       const inp = panel.querySelector('.cs-search-input');
-      if (inp) setTimeout(() => { try { inp.focus(); } catch { /* detached */ } }, 30);
+      if (inp) setTimeout(() => { try { inp.focus({ preventScroll: true }); } catch { /* detached */ } }, 30);
     }
   }
 
@@ -294,6 +541,9 @@ function initCustomSelect(selectEl) {
   wrap._csClose = close;
 
   // ── Events ─────────────────────────────────────────────────
+
+  let lastPointer = '';
+  trigger.addEventListener('pointerdown', (e) => { lastPointer = e.pointerType || ''; }, { passive: true });
 
   trigger.addEventListener('click', e => {
     e.stopPropagation();
@@ -317,6 +567,7 @@ function initCustomSelect(selectEl) {
   });
 
   trigger.addEventListener('keydown', e => {
+    lastPointer = '';   // opened from the keyboard: the search box takes the focus
     const opts = Array.from(selectEl.options).filter(o => !o.disabled);   // skip hint rows
     const idx = opts.findIndex(o => o.value === selectEl.value);
     if (e.key === 'Enter' || e.key === ' ') {

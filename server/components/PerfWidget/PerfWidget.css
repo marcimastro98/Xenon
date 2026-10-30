@@ -1,0 +1,106 @@
+/* Game performance tile (js/perf-widget.js): the frame rate large, the lows and
+   frame time beside it, the newest frame times as a line, CPU/GPU at the foot.
+   Without a game the numbers dim and one line says why. */
+
+.perf-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; container-type: size; }
+.perfw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; min-width: 0; gap: 10px; }
+
+.perfw-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 2px 2px 0; }
+.perfw-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
+.perfw-game { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--dim-text); }
+/* Recording a benchmark: the line takes the head alone, in full-strength text,
+   so it fits and is seen on the smallest tile too. */
+.perfw-wrap.is-bench .perfw-title { display: none; }
+.perfw-wrap.is-bench .perfw-game { color: var(--text); }
+
+.perfw-main { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.perfw-fps { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
+.perfw-fps b { font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; color: var(--text, #f0f3f1); }
+.perfw-unit { font-size: 12px; font-weight: 700; color: var(--dim-text); }
+
+.perfw-lows { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.perfw-hw { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.perfw-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.perfw-stat[hidden] { display: none; }
+/* Parts the user turned off (Settings, Performance; js/perf-hud.js). The stats
+   that stay take the row between them instead of leaving a gap. */
+.perfw-wrap.hud-no-low1 .perfw-stat.is-low1,
+.perfw-wrap.hud-no-low01 .perfw-stat.is-low01,
+.perfw-wrap.hud-no-frame .perfw-stat.is-frame,
+.perfw-wrap.hud-no-graph .perfw-graph,
+.perfw-wrap.hud-no-hw .perfw-hw { display: none; }
+/* Without the graph the CPU/GPU row keeps its place at the bottom, as with it. */
+.perfw-wrap.hud-no-graph .perfw-hw { margin-top: auto; }
+.perfw-wrap.hud-no-low1.hud-no-low01.hud-no-frame .perfw-lows { display: none; }
+.perfw-wrap.hud-no-low1 .perfw-lows,
+.perfw-wrap.hud-no-low01 .perfw-lows,
+.perfw-wrap.hud-no-frame .perfw-lows { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.perfw-stat-label { font-size: 11px; color: var(--dim-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfw-stat-val { font-size: 15px; font-weight: 700; color: var(--text, #f0f3f1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.perfw-graph { flex: 1 1 auto; width: 100%; min-height: 28px; display: block; overflow: visible; }
+.perfw-graph path { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+
+.perfw-state { display: none; font-size: 13px; color: var(--dim-text); text-align: center; }
+/* Without a game there is nothing to read: the title and one line, no dashes. */
+.perfw-wrap.is-idle .perfw-main,
+.perfw-wrap.is-idle .perfw-graph { display: none; }
+.perfw-wrap.is-idle .perfw-state { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+/* Between games: the last one's numbers and one sentence comparing it with the
+   time before. No graph and no live CPU/GPU, which would describe now, not it. */
+.perfw-wrap.is-last .perfw-graph,
+.perfw-wrap.is-last .perfw-hw { display: none; }
+.perfw-wrap.is-last .perfw-state { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-align: left; padding: 0 2px; overflow: hidden; }
+
+/* While the game stutters: why, under the graph. Two lines at most, so a
+   longer language says the whole thing instead of losing its end to an ellipsis. */
+.perfw-wrap.is-why .perfw-state { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; flex: 0 0 auto; line-height: 1.3; text-align: left; padding: 0 2px; color: var(--text, #f0f3f1); overflow: hidden; }
+
+/* A narrow tile stacks the lows under the frame rate; a short one drops the
+   CPU/GPU row first, then the graph, then the lows, so the frame rate always fits. */
+@container (max-width: 300px) {
+  .perfw-main { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .perfw-lows { width: 100%; }
+}
+@container (max-height: 190px) {
+  .perfw-hw { display: none; }
+  /* With the graph turned off, its room keeps the CPU/GPU row instead. */
+  .perfw-wrap.hud-no-graph:not(.hud-no-hw):not(.is-last):not(.is-why):not(.is-idle) .perfw-hw { display: grid; }
+}
+@container (max-height: 160px) {
+  /* The numbers already say it; a cut sentence would not. */
+  .perfw-wrap.is-last .perfw-state { display: none; }
+  /* While it stutters, the cause says more than the graph of it. */
+  .perfw-wrap.is-why .perfw-graph { display: none; }
+}
+/* A narrow tile is taller by the stacked lows: the why line takes the graph's
+   place sooner (and the CPU/GPU row's, for a line that wraps to two), and leaves
+   when even that does not fit (the toast still says it). */
+@container (max-width: 300px) and (max-height: 220px) {
+  .perfw-wrap.is-why .perfw-graph,
+  .perfw-wrap.is-why .perfw-hw { display: none; }
+}
+/* Stacked lows push the CPU/GPU row out sooner (taller labels in Japanese). */
+@container (max-width: 300px) and (max-height: 205px) {
+  .perfw-hw { display: none; }
+}
+/* Stacked lows leave no room for the graph, or for the CPU/GPU row standing in for it. */
+@container (max-width: 300px) and (max-height: 172px) {
+  .perfw-wrap.hud-no-graph:not(.hud-no-hw):not(.is-last):not(.is-why):not(.is-idle) .perfw-hw { display: none; }
+}
+@container (max-width: 300px) and (max-height: 160px) {
+  .perfw-graph { display: none; }
+}
+@container (max-width: 300px) and (max-height: 140px) {
+  .perfw-wrap.is-why .perfw-state { display: none; }
+  /* Stacked, the lows do not fit under the frame rate either. */
+  .perfw-lows { display: none; }
+}
+@container (max-height: 130px) {
+  .perfw-graph { display: none; }
+  .perfw-wrap.hud-no-graph:not(.hud-no-hw):not(.is-last):not(.is-why):not(.is-idle) .perfw-hw { display: none; }
+}
+@container (max-height: 100px) {
+  .perfw-lows { display: none; }
+  .perfw-wrap.is-why .perfw-state { display: none; }
+}

@@ -19,7 +19,7 @@
   // (no innerHTML anywhere — nothing here is ever interpolated from user input).
   const TYPES = {
     info:     { rgb: 'var(--accent-rgb)', icon: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 11v5' }], ['path', { d: 'M12 8h.01' }]] },
-    success:  { rgb: '76,175,120',        icon: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8 12.5l2.6 2.6L16 9' }]] },
+    success:  { rgb: '76,175,120',        icon: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8 12.5l2.6 2.6L16 9', class: 'xtoast-tick', pathLength: 1 }]] },
     warning:  { rgb: '240,180,70',        icon: [['path', { d: 'M12 3.2 21 19H3z' }], ['path', { d: 'M12 10v4' }], ['path', { d: 'M12 17h.01' }]] },
     error:    { rgb: '233,84,84',         icon: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M15 9l-6 6' }], ['path', { d: 'M9 9l6 6' }]] },
     reminder: { rgb: 'var(--accent-rgb)', icon: [['path', { d: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9' }], ['path', { d: 'M13.7 21a2 2 0 0 1-3.4 0' }]] },
@@ -270,12 +270,14 @@
     const from = new Map(cards.map(c => [c, c.offsetTop]));
     mutate();
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // The same spring the cards arrive on (Toast.css --xt-settle).
+    const easing = getComputedStyle(container).getPropertyValue('--xt-settle').trim() || 'cubic-bezier(0.22, 1, 0.36, 1)';
     cards.forEach((c) => {
       if (!c.isConnected || c.classList.contains('xtoast-leaving') || typeof c.animate !== 'function') return;
       const d = from.get(c) - c.offsetTop;
       if (!d) return;
       c.animate([{ translate: '0 ' + d + 'px' }, { translate: '0 0' }],
-        { duration: 380, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', composite: 'add' });
+        { duration: 480, easing, composite: 'add' });
     });
   }
 
@@ -290,6 +292,9 @@
   }
 
   function show(opts) {
+    // A layer window shows no toasts (LayerHost.css hides them) and must not
+    // play their sound: the main dashboard already shows the same one.
+    if (typeof isLayerPage === 'function' && isLayerPage()) return 0;
     const o = opts || {};
     const type = TYPES[o.type] ? o.type : 'info';
     const cfg = TYPES[type];

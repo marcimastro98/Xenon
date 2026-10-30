@@ -15,7 +15,7 @@
   --ace-text: #eef1f6;
   --ace-dim: rgba(238, 241, 246, 0.62);
   color: var(--ace-text);
-  font-family: var(--ui-font, Inter, system-ui, sans-serif);
+  font-family: var(--ui-font, 'Sofia Sans', Inter, system-ui, sans-serif);
   font-size: 13px;
 }
 .ace-bar [hidden], .ace-panel[hidden], .ace-add[hidden], .ace-sel[hidden] { display: none !important; }

@@ -13,7 +13,7 @@
   let seeded = false, seedInflight = false;
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="battery"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="battery"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   function bandClass(pct) {

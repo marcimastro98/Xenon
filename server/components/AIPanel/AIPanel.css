@@ -127,39 +127,10 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
   flex-shrink: 0;
 }
 
-.ai-avatar {
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  position: relative;
-  flex-shrink: 0;
-  background: conic-gradient(from var(--ai-angle), var(--accent), var(--xn-cyan), var(--xn-violet), var(--accent));
-  animation: xn-spin 6s linear infinite;
-  will-change: transform;
-}
-.ai-avatar::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 50%;
-  background: var(--xn-ink);
-}
-.ai-avatar svg {
-  width: 16px; height: 16px;
-  position: relative;
-  z-index: 1;
-  fill: none;
-  color: var(--accent);
-  stroke: currentColor;
-}
-
 .ai-header-title {
   flex: 1;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: .14em;
-  text-transform: uppercase;
   color: rgba(255,255,255,.78);
 }
 
@@ -213,6 +184,10 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
   scrollbar-color: rgba(255,255,255,.10) transparent;
   min-height: 0;
 }
+/* With nothing to answer, media.js hides the log and the composer behind the
+   tile's own card; their display:flex would otherwise win over [hidden]. */
+.ai-chat[hidden],
+.ai-input-row[hidden] { display: none; }
 .ai-chat::-webkit-scrollbar { width: 3px; }
 .ai-chat::-webkit-scrollbar-track { background: transparent; }
 .ai-chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 2px; }
@@ -223,18 +198,11 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
   animation: xn-msg-in .22s ease;
 }
 .ai-msg-user      { align-self: flex-end; max-width: 80%; }
-.ai-msg-assistant { align-self: flex-start; max-width: 94%; position: relative; padding-left: 16px; }
+.ai-msg-assistant { align-self: flex-start; max-width: 94%; gap: 10px; }
 
-/* soft accent marker beside Xenon's words */
-.ai-msg-assistant::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 4px; bottom: 4px;
-  width: 2px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, var(--accent), transparent);
-  opacity: .55;
-}
+/* Bit beside its words: a still pose in the mood of the reply (ai-bit-chat.js). */
+.ai-msg-bit { flex: none; width: 18px; margin-top: 3px; }
+.ai-msg-bit svg { display: block; width: 18px; height: auto; }
 
 .ai-msg-bubble {
   font-size: 14px;
@@ -324,6 +292,40 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
 .ai-thinking-dots span:nth-child(2) { animation-delay: .18s; }
 .ai-thinking-dots span:nth-child(3) { animation-delay: .36s; }
 
+/* A long turn: what it is doing and for how long (ai-turn-wait.js). */
+.ai-wait { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 2px 0; flex: 1 1 auto; }
+.ai-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.ai-step {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  font-size: 13px; letter-spacing: 0; color: var(--muted-text);
+  animation: ai-wait-in .32s cubic-bezier(.22, 1, .36, 1);
+}
+.ai-step.is-current { color: var(--text); }
+.ai-step-icon { width: 14px; height: 14px; flex: none; }
+.ai-step-icon svg { display: block; width: 14px; height: 14px; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ai-step.is-done .ai-step-icon svg { stroke: var(--color-success); }
+.ai-step-track { stroke: var(--line); }
+.ai-step-arc { stroke: var(--accent); transform-origin: 7px 7px; animation: ai-step-spin .9s linear infinite; }
+.ai-step-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-step-time { margin-left: auto; flex: none; font-size: 12px; color: var(--muted-text); font-variant-numeric: tabular-nums; }
+.ai-wait-hint { font-size: 11px; line-height: 1.35; opacity: .85; }
+@keyframes ai-wait-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes ai-step-spin { to { transform: rotate(360deg); } }
+/* An infinite loop joins the dashboard freezes (invariants-rendering-gpu). */
+body.overlay-frozen .ai-step-arc, body.ambient-idle .ai-step-arc,
+body.game-mode .ai-step-arc, body.low-power-gpu .ai-step-arc { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-step, .ai-step-arc { animation: none; }
+}
+
+/* A quiet line under a reply ("Stopped"). */
+.ai-note {
+  align-self: flex-start;
+  margin: -8px 0 0 28px;
+  font-size: 12.5px;
+  color: var(--muted-text);
+}
+
 /* ══════════════════════════════════════════════════════════════════
    5 · INPUT  (emerges quietly, recedes visually)
    ══════════════════════════════════════════════════════════════════ */
@@ -368,7 +370,7 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
 
 .ai-send-btn,
 .ai-attach-btn,
-.ai-screen-btn,
+.ai-talk-btn,
 .ai-dictate-btn {
   width: 42px; height: 42px;
   border-radius: 50%;
@@ -381,17 +383,22 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
   transition: background .18s, color .18s, border-color .18s, transform .12s;
 }
 .ai-send-btn:hover,
-.ai-attach-btn:hover, .ai-screen-btn:hover,
+.ai-attach-btn:hover, .ai-talk-btn:hover,
 .ai-dictate-btn:hover {
   background: rgba(255,255,255,.09);
   color: rgba(255,255,255,.92);
 }
 .ai-send-btn:active,
-.ai-attach-btn:active, .ai-screen-btn:active,
+.ai-attach-btn:active, .ai-talk-btn:active,
 .ai-dictate-btn:active { transform: scale(.94); }
 
-.ai-send-btn svg, .ai-dictate-btn svg { width: 17px; height: 17px; fill: currentColor; }
-.ai-attach-btn svg, .ai-screen-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.ai-send-btn svg { width: 17px; height: 17px; fill: currentColor; }
+.ai-dictate-btn svg { width: 19px; height: 19px; fill: none; }
+/* While a reply is on its way, send is a square stop (ai.js aiSendOrStop). */
+.ai-send-btn .ai-stop-icon { display: none; }
+body.ai-turn-running .ai-send-btn .ai-send-icon { display: none; }
+body.ai-turn-running .ai-send-btn .ai-stop-icon { display: block; width: 15px; height: 15px; }
+.ai-attach-btn svg, .ai-talk-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
 
 /* Inline dictation: recording pulses in the accent; the brief transcription
    round-trip dims the button and blocks re-entry. */
@@ -404,18 +411,68 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
 }
 .ai-dictate-btn.busy { opacity: .55; pointer-events: none; }
 
-.ai-send-btn {
-  background: rgba(var(--accent-rgb), .16);
-  border-color: rgba(var(--accent-rgb), .30);
-  color: var(--accent);
+/* One main button, in Bit's green (the main action of the brand): it dictates
+   while the field is empty, sends once there is a draft, and is the square stop
+   while a reply is on its way (js/bit-composer.js). A copy's composer has no
+   dictation, so its send stays. */
+.ai-send-btn,
+.ai-dictate-btn {
+  background: var(--bit-action, #6ee787);
+  border-color: transparent;
+  color: var(--bit-action-ink, #0b2412);
 }
-.ai-send-btn:hover { background: rgba(var(--accent-rgb), .26); }
+.ai-send-btn:hover,
+.ai-dictate-btn:hover { background: var(--bit-action, #6ee787); color: var(--bit-action-ink, #0b2412); filter: brightness(1.08); }
+.ai-input-row:has(.ai-dictate-btn):not(.has-draft) .ai-send-btn,
+.ai-input-row.has-draft .ai-dictate-btn,
+body.ai-turn-running .ai-input-row .ai-dictate-btn { display: none; }
+/* The stop must beat the "no draft hides send" rule above: the field is empty
+   while a reply is on its way, so the selector carries the same :has(). */
+body.ai-turn-running .ai-input-row .ai-send-btn,
+body.ai-turn-running .ai-input-row:has(.ai-dictate-btn):not(.has-draft) .ai-send-btn {
+  display: grid;
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.18);
+  color: rgba(255,255,255,.92);
+}
 
-.ai-screen-btn.active {
+/* The screen goes with every message: the attach button says so. */
+.ai-attach-btn.active {
   background: rgba(var(--accent-rgb), .20);
   border-color: rgba(var(--accent-rgb), .46);
   color: var(--accent);
 }
+
+/* The attach menu: a file, or the screen with every message. */
+.ai-attach-menu {
+  position: absolute;
+  left: 12px;
+  bottom: calc(100% - 4px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.ai-attach-item {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-attach-item:hover, .ai-attach-item:focus-visible { background: var(--hover-bg); outline: none; }
+.ai-attach-item[aria-checked="true"] { color: var(--accent); }
 
 /* ── Pending attachment preview strip ────────────────────────────── */
 .ai-attach-preview {
@@ -560,136 +617,105 @@ body.ai-voice-mode .ai-voice-view {
   scroll-behavior: smooth;
 }
 
-/* ── The presence — Xenon Resonance Orb ──────────────────────────────
-   A volumetric sphere of living light. There are NO hard edges: the orb's
-   rim melts into its own glow through a radial mask, so it floats in the
-   black rather than sitting on a visible disc. Light is built from four
-   drifting colour blobs (a Gemini-style fluid mesh) over a deep base, with
-   a bright beating core. Three behaviours — listen / think / speak — read
-   through the aura, the radiating waves and the processing ring. */
+/* ── The presence: Bit ───────────────────────────────────────────────
+   Bit (shared engine, mounted by ai-bit-chat.js) listens, thinks and talks.
+   Its mood colour (--bit-rgb, set with the mood) tints the halo and the
+   bars under it. Tapping Bit listens again. Only transform and opacity
+   animate, and both stop with reduced motion and the low-GPU choices. */
+.ai-voice-view { --bit-rgb: 255, 215, 94; }
 .ai-presence {
   position: relative;
-  width: 264px; height: 264px;
-  display: grid;
-  place-items: center;
-  will-change: transform;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 18px;
+  cursor: pointer;
 }
-
-/* ══════════════════════════════════════════════════════════════════
-   Voice presence — circular AUDIO EQUALISER (replaces the orb).
-   A ring of luminous radial bars around a soft breathing core, with
-   expanding ripples. A staggered per-bar delay makes a wave travel
-   around the ring (hypnotic, never stutters). The glowing border
-   (.ai-siri-ring) is kept. Coherent across the body.voice-* states:
-     listening → gentle calm wave
-     thinking  → a tight bright pulse races around the ring (scanning)
-     speaking  → big energetic wave + outward ripples
-   GPU-friendly: only transform / opacity animate.
-   ══════════════════════════════════════════════════════════════════ */
 .ai-voice-aura {
   position: absolute;
-  width: 240px; height: 240px;
+  inset: 0;
+  margin: auto;
+  width: 280px; height: 280px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%,
-    rgba(var(--accent-rgb), .32) 0%,
-    rgba(var(--accent-rgb), .12) 32%,
-    transparent 66%);
-  filter: blur(18px);
-  animation: vx-breathe 4.6s ease-in-out infinite;
-  will-change: transform, opacity;
+  background: radial-gradient(circle, rgba(var(--bit-rgb), .16) 0%, rgba(var(--bit-rgb), 0) 68%);
+  animation: vx-breathe 3.2s ease-in-out infinite;
+  pointer-events: none;
 }
-.ai-voice-core {
-  position: absolute;
-  width: 100px; height: 100px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  /* Soft formless glow — fades fully out, so there is no hard "ball" edge. */
-  background: radial-gradient(circle,
-    rgba(var(--accent-rgb), .45) 0%,
-    rgba(var(--accent-rgb), .16) 36%,
-    transparent 70%);
-  animation: vx-core 3.2s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-.ai-voice-core svg {
-  width: 42px; height: 42px;
-  fill: rgb(var(--accent-rgb));
-  filter: drop-shadow(0 0 7px rgba(var(--accent-rgb), .9)) drop-shadow(0 0 2px rgba(255,255,255,.5));
-  animation: vx-spark 7s linear infinite;
-  will-change: transform;
-}
-@keyframes vx-spark { to { transform: rotate(360deg); } }
-
-/* Keep every voice layer perfectly concentric (inset:0 + margin:auto centres a
-   fixed-size absolute element without a transform, leaving transforms free for
-   the animations). */
-.ai-voice-aura,
-.ai-eq,
-.ai-voice-core,
-.ai-voice-ripple { inset: 0; margin: auto; }
-.ai-voice-ripple {
-  position: absolute;
-  width: 116px; height: 116px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(var(--accent-rgb), .5);
+.ai-voice-bit { position: relative; width: 132px; }
+.ai-voice-bit .xbit { display: block; width: 100%; height: auto; }
+.ai-voice-bars {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 26px;
   opacity: 0;
-  animation: vx-ripple 3.6s ease-out infinite;
-  will-change: transform, opacity;
+  transition: opacity .3s ease;
 }
-.ai-voice-ripple.r2 { animation-delay: 1.8s; }
-.ai-eq {
-  position: absolute;
-  width: 200px; height: 200px;
-  animation: vx-spin 44s linear infinite;
-  will-change: transform;
-}
-.ai-eq-bar {
-  position: absolute;
-  left: 50%; top: 50%;
-  width: 3.5px; height: 26px;
-  margin-left: -1.75px;
-  border-radius: 3px;
-  background: linear-gradient(to top, rgba(var(--accent-rgb), .12), rgb(var(--accent-rgb)));
+.ai-voice-bars span {
+  width: 6px;
+  height: 100%;
+  background: rgb(var(--bit-rgb));
   transform-origin: 50% 100%;
-  transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(.4);
-  filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), .6));
-  animation: vx-bar 1.7s ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.065s);
-  will-change: transform, opacity;
+  transform: scaleY(.25);
+  animation: vx-bar .9s ease-in-out infinite;
 }
+.ai-voice-bars span:nth-child(1) { animation-delay: -.1s; }
+.ai-voice-bars span:nth-child(2) { animation-delay: -.5s; }
+.ai-voice-bars span:nth-child(3) { animation-delay: -.3s; }
+.ai-voice-bars span:nth-child(4) { animation-delay: -.7s; }
+.ai-voice-bars span:nth-child(5) { animation-delay: -.2s; }
+.ai-voice-bars span:nth-child(6) { animation-delay: -.6s; }
+.ai-voice-bars span:nth-child(7) { animation-delay: -.4s; }
+/* The bars are a voice: there while someone speaks, gone while Bit thinks. */
+body.voice-listening .ai-voice-bars,
+body.voice-speaking .ai-voice-bars { opacity: 1; }
+body.voice-listening .ai-voice-bars span { animation-duration: 1.6s; }
 
-@keyframes vx-bar {
-  0%, 100% { transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(.35); opacity: .5; }
-  50%      { transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(1);   opacity: 1; }
-}
-@keyframes vx-spin { to { transform: rotate(360deg); } }
-@keyframes vx-core { 0%, 100% { transform: scale(.9); opacity: .85; } 50% { transform: scale(1.14); opacity: 1; } }
-@keyframes vx-breathe { 0%, 100% { transform: scale(.9); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
-@keyframes vx-ripple { 0% { transform: scale(.55); opacity: .65; } 100% { transform: scale(2); opacity: 0; } }
-
-/* State: listening — gentle, calm wave */
-body.voice-listening .ai-eq-bar { animation-duration: 2s; }
-body.voice-listening .ai-eq { animation-duration: 64s; }
-body.voice-listening .ai-voice-core { animation-duration: 3.8s; }
-
-/* State: thinking — a tight bright pulse races around the ring */
-body.voice-thinking .ai-eq-bar { animation-duration: .7s; animation-delay: calc(var(--i) * -0.04s); }
-body.voice-thinking .ai-eq { animation-duration: 7s; }
-body.voice-thinking .ai-voice-core { animation-duration: 1.1s; }
-body.voice-thinking .ai-voice-core svg { animation-duration: 2.6s; }
-body.voice-thinking .ai-voice-ripple { animation: none; opacity: 0; }
-
-/* State: speaking — big energetic wave + outward ripples */
-body.voice-speaking .ai-eq-bar { animation-duration: .9s; }
-body.voice-speaking .ai-voice-core { animation-duration: 1.2s; }
-body.voice-speaking .ai-voice-core svg { animation-duration: 4s; filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 1)) drop-shadow(0 0 3px rgba(255,255,255,.7)); }
-body.voice-speaking .ai-voice-ripple { animation-duration: 1.9s; }
-body.voice-speaking .ai-voice-aura { animation-duration: 1.7s; }
+@keyframes vx-bar { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+@keyframes vx-breathe { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-voice-aura, .ai-voice-core, .ai-voice-core svg, .ai-voice-ripple, .ai-eq, .ai-eq-bar { animation: none !important; }
-  .ai-eq-bar { transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(.7); }
+  .ai-voice-aura, .ai-voice-bars span { animation: none; }
+  .ai-voice-bars span { transform: scaleY(.6); }
+}
+body.low-power-gpu .ai-voice-aura, body.low-power-gpu .ai-voice-bars span,
+body.perf-mode .ai-voice-aura, body.perf-mode .ai-voice-bars span { animation: none; }
+body.low-power-gpu .ai-voice-bars span, body.perf-mode .ai-voice-bars span { transform: scaleY(.6); }
+
+.ai-voice-stage { display: contents; }
+.ai-voice-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* A wide, short screen (the Xeneon Edge, a bar display): Bit on the left,
+   the words beside it, the hint along the bottom. */
+@media (min-aspect-ratio: 2/1) and (min-width: 700px) {
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-view {
+    display: grid;
+    grid-template-columns: minmax(200px, 34%) minmax(0, 1fr);
+    align-items: center;
+    align-content: center;
+    gap: 0 24px;
+    position: relative;
+    padding: 16px 64px 44px 16px;
+    text-align: left;
+  }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-words { align-items: flex-start; }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-user,
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-reply { width: 100%; max-width: 900px; text-align: left; }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-hint {
+    position: absolute;
+    left: 0; right: 0; bottom: 16px;
+    text-align: center;
+  }
 }
 
 /* ── Language emerging — large, light, expressive typography ──────── */
@@ -803,35 +829,65 @@ body.ai-voice-mode.ai-voice-ambient.voice-speaking .ai-overlay::after {
   50%      { opacity: .95; }
 }
 
-/* The orb steps aside; captions anchor to the bottom, near the edge glow. */
-body.ai-voice-mode.ai-voice-ambient .ai-presence { display: none; }
+/* One glass card at the bottom: a small Bit, what was heard and the reply,
+   and the state on the right. It reads over any widget behind it. */
+/* The view still covers the screen (a tap anywhere stops); only the stage
+   inside it is drawn. */
 body.ai-voice-mode.ai-voice-ambient .ai-voice-view {
   justify-content: flex-end;
-  gap: 10px;
-  padding: 30px 30px 42px;
+  align-items: center;
+  gap: 0;
+  padding: 16px 16px 22px;
 }
-
-/* Legible glass strip behind each live caption so it reads over any widget. */
-body.ai-voice-mode.ai-voice-ambient .ai-voice-user:not(:empty),
-body.ai-voice-mode.ai-voice-ambient .ai-voice-reply:not(:empty),
-body.ai-voice-mode.ai-voice-ambient .ai-voice-hint:not(:empty) {
-  padding: 9px 18px;
-  border-radius: 15px;
-  background: rgba(10, 12, 18, .58);
-  border: 1px solid rgba(255, 255, 255, .09);
-  backdrop-filter: blur(16px) saturate(1.25);
-  -webkit-backdrop-filter: blur(16px) saturate(1.25);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, .4);
+body.ai-voice-mode.ai-voice-ambient .ai-voice-stage {
+  display: flex;
+  width: min(780px, 100%);
+  max-height: 46vh;
+  box-sizing: border-box;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 12px 20px 12px 12px;
+  text-align: left;
+  border-radius: 16px;
+  background: rgba(10, 12, 13, .9);
+  border: 1px solid rgba(255, 255, 255, .14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
-/* Reply drops from hero size to a readable caption in ambient mode. */
-body.ai-voice-mode.ai-voice-ambient .ai-voice-user  { width: auto; color: rgba(255, 255, 255, .72); }
+body.ai-voice-mode.ai-voice-ambient .ai-presence { gap: 0; padding: 0; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-bit { width: 36px; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-aura,
+body.ai-voice-mode.ai-voice-ambient .ai-voice-bars { display: none; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-words { flex: 1 1 auto; align-items: flex-start; gap: 4px; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-user {
+  width: 100%;
+  font-size: 14px;
+  color: rgba(255, 255, 255, .6);
+  text-align: left;
+}
 body.ai-voice-mode.ai-voice-ambient .ai-voice-reply {
-  width: auto;
-  font-size: clamp(16px, 1.7vw, 21px);
-  max-height: 34vh;
+  width: 100%;
+  font-size: 20px;
+  font-weight: 500;
+  text-align: left;
+  max-height: 30vh;
 }
-body.ai-voice-mode.ai-voice-ambient .ai-voice-reply.ai-voice-reply-long { max-height: 30vh; }
-/* The header floats over the dashboard now — keep its text/controls legible. */
+body.ai-voice-mode.ai-voice-ambient .ai-voice-reply.ai-voice-reply-long { font-size: 15px; }
+body.ai-voice-mode.ai-voice-ambient .ai-voice-hint {
+  flex: none;
+  max-width: 34%;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, .66);
+  text-align: right;
+}
+@media (max-width: 520px) {
+  body.ai-voice-mode.ai-voice-ambient .ai-voice-stage { flex-wrap: wrap; }
+  body.ai-voice-mode.ai-voice-ambient .ai-voice-words { flex-basis: calc(100% - 56px); }
+  body.ai-voice-mode.ai-voice-ambient .ai-voice-hint { max-width: none; width: 100%; text-align: left; }
+}
 body.ai-voice-mode.ai-voice-ambient .ai-header { text-shadow: 0 1px 8px rgba(0, 0, 0, .6); }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -905,6 +961,7 @@ body.ai-voice-mode.ai-voice-ambient .ai-header { text-shadow: 0 1px 8px rgba(0, 
 .ai-monitor-res { font-size: .8rem; font-weight: 500; color: rgba(255,255,255,.55); font-variant-numeric: tabular-nums; }
 
 /* While the picker is open, hide the presence so nothing shows through */
+body.ai-picker-open .ai-voice-stage,
 body.ai-picker-open .ai-presence,
 body.ai-picker-open .ai-voice-user,
 body.ai-picker-open .ai-voice-reply,
@@ -1028,27 +1085,61 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 
 /* ── Reduced-motion: honour the system preference ────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .ai-siri-ring, .ai-avatar, .ai-panel::before,
+  .ai-siri-ring, .ai-panel::before,
   .ai-presence, .ai-dictate-btn.active, .ai-voice-hint,
   body.ai-voice-mode.ai-voice-ambient .ai-overlay::after { animation: none !important; }
   /* The edge glow stays lit (static) so ambient mode still signals it's active. */
   body.ai-voice-mode.ai-voice-ambient .ai-overlay::after { opacity: .8; }
 }
 
-/* ── Undo affordance under a state-changing AI reply ─────────────────────────── */
-.ai-undo-row { display: flex; justify-content: flex-start; margin: 2px 0 6px; }
-.ai-undo-btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px; border-radius: 999px; cursor: pointer;
-  font-size: 12px; font-weight: 650; line-height: 1;
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.10);
-  border: 1px solid rgba(var(--accent-rgb), 0.34);
-  transition: background .15s ease, border-color .15s ease, opacity .15s ease;
+/* ── What to ask next, and answers to a question: quiet rows, one tap sends one.
+   No boxes: a row of bordered buttons under every reply read as noise. ──── */
+.ai-choices { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin: -4px 0 8px 28px; }
+.ai-choice {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 44px; max-width: 100%; padding: 0 8px; margin-left: -8px; cursor: pointer;
+  border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13.5px; line-height: 1.35; text-align: left;
+  color: var(--muted-text);
+  overflow-wrap: anywhere;
+  transition: background .15s ease, color .15s ease;
 }
-.ai-undo-btn:hover { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.5); }
+.ai-choice::before {
+  content: ""; flex: none; width: 16px; height: 16px; opacity: .7;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 10 5 5-5 5M4 4v7a4 4 0 0 0 4 4h12'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 10 5 5-5 5M4 4v7a4 4 0 0 0 4 4h12'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.ai-choice:hover { background: var(--hover-bg, rgba(255,255,255,.06)); color: var(--text); }
+.ai-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── The way to more Scintille, under a reply that ran them low or out (BitChat.buyRow) ── */
+.ai-buy { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; }
+.ai-buy-line { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted-text); }
+.ai-buy-pack {
+  border-radius: 12px; font-size: 13px; line-height: 1.35;
+  color: rgba(255,255,255,.94);
+  background: rgba(var(--accent-rgb), .10);
+  border: 1px solid rgba(var(--accent-rgb), .30);
+  transition: background .15s ease, border-color .15s ease;
+}
+.ai-buy-pack:hover { background: rgba(var(--accent-rgb), .18); border-color: rgba(var(--accent-rgb), .5); }
+.ai-buy-pack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-buy-go { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 44px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* ── "Annulla" and "Riprova ora": underlined words under a reply, no box. ──── */
+.ai-undo-row { display: flex; justify-content: flex-start; margin: -6px 0 4px 28px; }
+.ai-undo-btn,
+.ai-retry-btn {
+  min-height: 36px; padding: 0 4px; margin-left: -4px; cursor: pointer;
+  border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 13px; line-height: 1;
+  color: var(--muted-text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.ai-retry-btn { color: var(--text); }
+.ai-undo-btn:hover, .ai-retry-btn:hover { color: var(--text); }
+.ai-undo-btn:focus-visible, .ai-retry-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ai-undo-btn:disabled { cursor: default; }
-.ai-undo-btn.ai-undo-done {
-  color: var(--muted-text); background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.12); opacity: 0.8;
-}
+.ai-undo-btn.ai-undo-done { text-decoration: none; opacity: .8; cursor: default; }
+@media (pointer: coarse) { .ai-undo-btn, .ai-retry-btn { min-height: 44px; } }

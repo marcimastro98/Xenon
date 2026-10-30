@@ -175,6 +175,9 @@
   box-shadow: 0 2px 22px rgba(var(--accent-rgb), 0.7);
 }
 .topbtn.topbtn-xenon svg { fill: currentColor; stroke: none; filter: none; }
+/* Bit is the icon itself, in the button's ink with its face cut out, a
+   touch larger than the line icons because a pixel glyph reads smaller. */
+.topbtn.topbtn-xenon svg.topbtn-bit { width: 19px; height: 19px; }
 .topbtn.topbtn-xenon span,
 .topbtn.topbtn-xenon svg { position: relative; z-index: 1; }
 /* slow diagonal light sweep across the pill */
@@ -214,9 +217,10 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 .topbar.topbar-squeezed .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
 .topbar.topbar-squeezed .topbtn { padding: 0; width: 36px; justify-content: center; }
 
-/* Narrow widths: collapse labels to icons so nothing wraps */
+/* Narrow widths: collapse labels to icons so nothing wraps. The dots stay:
+   they are the only sign that something is waiting behind the icon. */
 @media (max-width: 1180px) {
-  .topbtn span { display: none; }
+  .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
   .topbtn { padding: 0; width: 36px; justify-content: center; }
 }
 

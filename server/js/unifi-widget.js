@@ -379,7 +379,7 @@
     const anyCams = !!((s.unifi && s.unifi.cameras && s.unifi.cameras.length) || (s.ha && s.ha.cameras && s.ha.cameras.length));
     const err = (s.unifi && s.unifi.error) || (s.ha && s.ha.error);
     if (!anyCams) { renderEmpty(tile, err ? t('unifi_error', 'Couldn’t reach your cameras') : t('unifi_no_cameras', 'No cameras found')); return; }
-    renderEmpty(tile, t('unifi_none_selected', 'No cameras selected — pick some in Settings → Cameras'));
+    renderEmpty(tile, t('unifi_none_selected', 'No cameras selected: pick some in Settings → Cameras'));
   }
 
   function renderSetup(tile) {
@@ -990,9 +990,7 @@
 
   function openHaSettings() {
     try {
-      const overlay = document.getElementById('settings-overlay');
-      if (overlay && overlay.hidden && typeof toggleSettings === 'function') toggleSettings();
-      if (typeof settingsSetCategory === 'function') settingsSetCategory('smarthome');
+      openSettingsCategory('smarthome');
     } catch (e) { /* ignore */ }
   }
 
@@ -1073,9 +1071,7 @@
   // Open the Settings modal on the Cameras category (settings.js globals).
   function openUnifiSettings() {
     try {
-      const overlay = document.getElementById('settings-overlay');
-      if (overlay && overlay.hidden && typeof toggleSettings === 'function') toggleSettings();
-      if (typeof settingsSetCategory === 'function') settingsSetCategory('unifi');
+      openSettingsCategory('unifi');
     } catch (e) { /* ignore */ }
   }
 

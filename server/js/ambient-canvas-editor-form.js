@@ -140,16 +140,23 @@
 
   // A picture from this PC, shrunk and stored inside the scene (a data: image),
   // so the scene can still be shared and no upload clean-up can remove it.
+  // A moving picture keeps moving (anim-picture.js): a canvas would keep only
+  // its first frame. Resolves to { url } or { why } (the i18n key to show).
   const PICTURE_EDGES = [1600, 1200, 900];
   const PICTURE_MAX_CHARS = 1400000;   // under the tile image cap (TILE_BG_MAX_CHARS)
+  const PICTURE_REFUSALS = { room: 'picture_too_big', frames: 'picture_frames', broken: 'ace_picture_failed' };
   async function pictureData(file) {
+    const moving = typeof AnimPicture !== 'undefined'
+      ? await AnimPicture.fitAnimatedPicture(file, { maxChars: PICTURE_MAX_CHARS, maxSide: PICTURE_EDGES[0] })
+      : null;
+    if (moving) return moving.dataUrl ? { url: moving.dataUrl } : { why: PICTURE_REFUSALS[moving.refused] };
     for (const edge of PICTURE_EDGES) {
       const cv = typeof rasterToCanvas === 'function' ? await rasterToCanvas(file, edge) : null;
-      if (!cv) return '';
+      if (!cv) return { why: 'ace_picture_failed' };
       const url = cv.toDataURL('image/webp', 0.85);
-      if (url.length <= PICTURE_MAX_CHARS) return url;
+      if (url.length <= PICTURE_MAX_CHARS) return { url };
     }
-    return '';
+    return { why: 'picture_too_big' };
   }
   function picturePicker(value, onSet) {
     const box = el('div', 'ace-picture');
@@ -168,9 +175,9 @@
       input.value = '';
       if (!file) return;
       note.textContent = tt('ace_picture_working');
-      const url = await pictureData(file).catch(() => '');
-      note.textContent = url ? '' : tt('ace_picture_failed');
-      if (url) onSet(url, true);
+      const got = await pictureData(file).catch(() => ({ why: 'ace_picture_failed' }));
+      note.textContent = got.url ? '' : tt(got.why);
+      if (got.url) onSet(got.url, true);
     });
     box.append(input, pick, note);
     return box;

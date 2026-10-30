@@ -1997,6 +1997,15 @@ body.low-power-gpu .deck-key.is-on .deck-key-onfx { animation: none; }
   padding: 6px; border-radius: 8px; background: rgba(255, 255, 255, .04);
   color: var(--text, #e7e9ee); text-transform: uppercase; font-size: 13px;
 }
+/* Keyboard shortcut card: one button that records the combination. */
+.deck-ed-shortcut-rec { min-height: 44px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.deck-ed-shortcut-rec.is-recording {
+  background: rgba(var(--accent-rgb, 43, 108, 255), .14);
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .6);
+}
+.deck-ed-shortcut-rec:focus-visible { outline: 2px solid var(--accent, #2b6cff); outline-offset: 2px; }
+.deck-ed-hotkey-clear[hidden] { display: none; }
+.deck-ed-shortcut-state.is-bad { color: var(--color-danger); opacity: 1; }
 .deck-ed-hotkey-preview.is-empty { color: var(--text-dim, #8b91a1); font-weight: 500; text-transform: none; letter-spacing: 0; }
 
 /* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */

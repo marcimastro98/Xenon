@@ -189,12 +189,10 @@
   // ── Tile ─────────────────────────────────────────────────────────────────────
   // Only tiles actually placed on a dashboard page count (a hidden/never-added
   // widget sits in the pool outside any .pager-page — mirrors the Discord widget).
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="smarthome"]')).filter((s) => s.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="smarthome"]')).filter((s) => s.closest('.pager-page, .layer-slot')); }
 
   function openSmartHomeSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('smarthome');
+    openSettingsCategory('smarthome');
   }
 
   // A guided empty state (not configured / offline / nothing picked).
@@ -1203,7 +1201,7 @@
         key: 'energyEntities',
         filter: isEnergySource,
         title: t('power_sources_pick', 'Power & energy sensors to show'),
-        hint: t('power_sources_hint', 'Smart plugs, solar production, home meter, UPS — shown in the Energy widget.'),
+        hint: t('power_sources_hint', 'Smart plugs, solar production, home meter, UPS: shown in the Energy widget.'),
         empty: t('power_sources_none', 'No power or energy sensors found in Home Assistant.'),
       });
     } else {

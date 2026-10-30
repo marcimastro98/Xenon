@@ -19,9 +19,15 @@
 // goes through the confirmation sheet + allowlisted runner. Nothing here depends
 // on AI. See docs/superpowers/specs/performance-mode.md.
 //
-// Relies on globals from settings.js (shared <script> lexical scope): hubSettings,
-// normalizePerformance, normalizeSettings, saveHubSettings, SERVER, t,
-// setSettingsStatus, syncPerformanceControls.
+// Relies on globals (shared <script> lexical scope): hubSettings, normalizeSettings,
+// saveHubSettings, setSettingsStatus, syncPerformanceControls (settings.js),
+// normalizePerformance (perf-settings.js), SERVER, t.
+//
+// "Widgets only" has no dashboard: its hidden driver page runs this same file
+// (js/driver-perf.js) and sets window.PerfModeSurface, which takes over what
+// the dashboard draws itself. The suggestion and the result become cards in the
+// on-screen alerts window, and Optimize applies the safe tweaks without the
+// sheet (closing apps is a choice only the sheet offers).
 // ─────────────────────────────────────────────────────────────────────────
 
 (function () {
@@ -30,6 +36,7 @@
   let _suppressBanner = false; // "don't ask again" for this page session
   let _snoozedActivities = new Set(); // activities snoozed via "Ignore" until a settings change
   let _lastActivity = 'other'; // last foreground activity we reacted to (transition tracking)
+  let _reevaluate = true;      // weigh the next activity even if it did not change (load, refresh())
   let _lastActivityProcess = ''; // bare process name of the last non-'other' activity (priority target)
   let _lastServerActivity = 'other'; // last raw status payload, so onObs can re-classify
   let _lastProcess = '';
@@ -84,6 +91,12 @@
 
   const tr = (key, fallback) => (typeof t === 'function' && t(key)) || fallback;
 
+  // The page that shows this mode when it is not a dashboard (driver-perf.js).
+  const surface = () => window.PerfModeSurface || null;
+  // Periodic checks run on the surface someone looks at. The driver page is
+  // hidden by design and is the only owner while there is no dashboard.
+  const nobodyLooking = () => !surface() && document.hidden;
+
   function currentPerf() {
     return normalizePerformance(hubSettings.performance);
   }
@@ -132,6 +145,7 @@
     return 'other';
   }
 
+  let _stateSig = '';
   // Reflect the persisted "active" state onto the DOM. Safe to call repeatedly.
   function applyState() {
     const p = currentPerf();
@@ -145,6 +159,16 @@
     _syncStaleWatch();
     _syncIdleWatch();
     _syncSystemButtons(p);
+    // The top bar marker (js/perf-marker.js) and the Settings lines that a
+    // session changes listen for this. applyState runs on every settings apply,
+    // so it is told only when something they show has changed.
+    const sig = [!!p.active, document.body.classList.contains('perf-mode'), p.barAlways].join('|');
+    if (sig === _stateSig) return;
+    _stateSig = sig;
+    // Guarded: the widgets-only driver page and the tests run this without one.
+    if (typeof CustomEvent === 'function' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('xenon:perf-change', { detail: { active: !!p.active } }));
+    }
   }
 
   // The System tile's button is "Migliora" while nothing runs and "Ripristina"
@@ -194,7 +218,7 @@
     if (!p.useAi || !hubSettings) return false;
     const provider = hubSettings.aiProvider;
     if (provider === 'ollama') return true;
-    if (provider === 'claudecode' || provider === 'codex') return true;
+    if (provider === 'claudecode' || provider === 'codex' || provider === 'xenon') return true;
     if (provider === 'openai') return !!hubSettings.openaiApiKeySet;
     if (provider === 'anthropic') return !!hubSettings.anthropicApiKeySet;
     return geminiKeyReady(hubSettings);
@@ -286,7 +310,7 @@
           activity,
           apps: appNames,
           opts: p.opts,
-          provider: ['ollama', 'openai', 'anthropic', 'claudecode', 'codex'].includes(hubSettings.aiProvider) ? hubSettings.aiProvider : 'gemini',
+          provider: ['ollama', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'].includes(hubSettings.aiProvider) ? hubSettings.aiProvider : 'gemini',
           key: String(hubSettings.geminiApiKey || ''),
           model: hubSettings.ollamaModel,
           ollamaUrl: hubSettings.ollamaUrl,
@@ -360,15 +384,11 @@
     }
     // Tell the user what it was worth: freed RAM (measured), and for auto
     // sessions which activity triggered them.
-    let text = tr(ok ? 'perf_status_optimized' : 'perf_status_failed', ok ? 'Performance optimized' : 'Optimization failed');
-    if (ok && by === 'auto' && meta && meta.activity) {
-      const label = tr('settings_perf_act_' + meta.activity, meta.activity);
-      text = tr('perf_auto_on', 'Auto-optimized for {a}').replace('{a}', label);
-    }
-    if (ok && freedMB >= 100) {
-      text += ' · ' + tr('perf_freed_ram', '~{x} of RAM freed').replace('{x}', _fmtMB(freedMB));
-    }
-    _perfToastText(text, ok ? 'ok' : 'error');
+    _perfNote({
+      key: !ok ? 'perf_status_failed' : (by === 'auto' && meta && meta.activity ? 'perf_auto_on' : 'perf_status_optimized'),
+      activity: ok && by === 'auto' && meta && meta.activity ? String(meta.activity) : '',
+      freed: ok && freedMB >= 100 ? _fmtMB(freedMB) : '',
+    }, ok ? 'ok' : 'error');
   }
 
   // meta: { auto: true } when an ended auto session restores itself.
@@ -388,7 +408,7 @@
     applyState();
     if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
     if (typeof setSettingsStatus === 'function') setSettingsStatus('perf_status_restored', 'ok');
-    _perfToast(meta && meta.auto ? 'perf_auto_off' : 'perf_status_restored', 'ok');
+    _perfNote({ key: meta && meta.auto ? 'perf_auto_off' : 'perf_status_restored' }, 'ok');
   }
 
   // ── Auto mode: apply on activity start, restore when it ends ──────
@@ -507,7 +527,7 @@
     if (want && !_stalePoll) {
       // Gated on the tab being visible, like every other periodic client work:
       // with nobody looking, a session ending a few minutes later costs nothing.
-      const tick = () => { if (!document.hidden) _checkStale(false); };
+      const tick = () => { if (!nobodyLooking()) _checkStale(false); };
       setTimeout(tick, STALE_FIRST_MS);
       _stalePoll = setInterval(tick, STALE_POLL_MS);
     } else if (!want && _stalePoll) {
@@ -547,7 +567,7 @@
     if (!_idleSince) { _idleSince = now; return; }
     // A surface nobody is looking at leaves this to the one that is: restore()
     // relaunches closed apps, and two surfaces doing it at once would do it twice.
-    if (document.hidden) return;
+    if (nobodyLooking()) return;
     if (now - _idleSince < IDLE_END_MS) return;
     _idleSince = 0;
     await restore({ auto: true });   // toasts, so it is never a silent change
@@ -747,6 +767,17 @@
   // tags the session 'auto' (and it auto-restores when the activity ends).
   async function optimize(meta) {
     _sheetMeta = (meta && meta.by === 'auto') ? { by: 'auto', activity: meta.activity || 'other' } : { by: 'manual' };
+    // No dashboard, no sheet: the safe, reversible tweaks the user saved.
+    if (surface()) {
+      const p = currentPerf();
+      if (p.active) return;
+      await applyOptimizations({
+        pauseAnimations: p.opts.pauseAnimations,
+        powerPlan: p.opts.powerPlan,
+        priorityBoost: p.opts.priorityBoost && !!_lastActivityProcess,
+      }, [], _sheetMeta);
+      return;
+    }
     // Loading state on the System-panel button while we fetch apps + ask the AI
     // (which can take a moment) — so the click gives immediate feedback.
     const trigger = document.getElementById('sys-optimize-btn');
@@ -840,14 +871,9 @@
     // together instead of one at a time.
     const actions = document.createElement('span');
     actions.className = 'perf-banner-actions';
-    actions.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => { hideBanner(); optimize(); }));
-    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), () => { _snoozedActivities.add(_lastActivity); hideBanner(); }));
-    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => {
-      _suppressBanner = true;
-      persist({ autoSuggest: false });
-      if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
-      hideBanner();
-    }));
+    actions.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => answer('optimize')));
+    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), () => answer('ignore')));
+    actions.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => answer('never')));
     el.appendChild(actions);
 
     document.body.appendChild(el);
@@ -858,7 +884,25 @@
     return tr(PERF_BANNER_KEYS[activity] || 'perf_banner_msg', 'Optimize performance?');
   }
 
+  // The answer to a suggestion: the banner's buttons, the card's on the alerts
+  // window (driver-perf.js), and Bit when it runs there. 'restore' ends a session.
+  function answer(choice) {
+    if (choice === 'optimize') { hideBanner(); return optimize(); }
+    if (choice === 'restore') { hideBanner(); return currentPerf().active ? restore() : undefined; }
+    if (choice === 'ignore') { _snoozedActivities.add(_lastActivity); hideBanner(); return undefined; }
+    if (choice === 'never') {
+      _suppressBanner = true;
+      persist({ autoSuggest: false });
+      if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
+      hideBanner();
+    }
+    return undefined;
+  }
+
+  let _suggesting = false;
   function showBanner(activity) {
+    const s = surface();
+    if (s) { _suggesting = true; s.suggest(activity); return; }
     if (!_bannerEl) _bannerEl = buildBanner();
     const msg = _bannerEl.querySelector('.perf-banner-msg');
     if (msg) msg.textContent = _bannerMessageFor(activity);
@@ -867,15 +911,21 @@
   }
 
   function hideBanner() {
+    const s = surface();
+    if (s) { if (_suggesting) { _suggesting = false; s.hide(); } return; }
     if (!_bannerEl) return;
     _bannerEl.classList.remove('visible');
     setTimeout(() => { if (_bannerEl) _bannerEl.hidden = true; }, 350);
   }
 
   // Brief completion toast (visible anywhere, not just in the Settings modal) so
-  // the user clearly sees that an optimize/restore finished.
-  function _perfToast(messageKey, kind) {
-    _perfToastText(tr(messageKey, ''), kind);
+  // the user clearly sees that an optimize/restore finished. `note` is
+  // { key, activity, freed }; the alerts window words it the same way
+  // (AlertToasts.perfNoteText).
+  function _perfNote(note, kind) {
+    const s = surface();
+    if (s) { s.toast(note, kind); return; }
+    _perfToastText(window.AlertToasts ? window.AlertToasts.perfNoteText(note, { t: tr }) : tr(note.key, ''), kind);
   }
 
   function _perfToastText(text, kind) {
@@ -901,10 +951,14 @@
   function activity() { return _lastActivity; }
 
   function _react(a) {
-    if (a === _lastActivity) return;
+    const changed = a !== _lastActivity;
+    if (!changed && !_reevaluate) return;
+    _reevaluate = false;
     _lastActivity = a;
-    for (let i = 0; i < _activityListeners.length; i++) {
-      try { _activityListeners[i](a); } catch (e) { /* a listener must never break detection */ }
+    if (changed) {
+      for (let i = 0; i < _activityListeners.length; i++) {
+        try { _activityListeners[i](a); } catch (e) { /* a listener must never break detection */ }
+      }
     }
     const p = currentPerf();
     const suggestible = a !== 'other' && p.autoActivities && p.autoActivities[a];
@@ -967,10 +1021,14 @@
   // state, reset the activity tracker so the auto-suggest is re-evaluated on the
   // next status tick — e.g. the user just enabled "coding" while already in VS
   // Code, which otherwise wouldn't re-trigger (same activity, no transition).
-  function refresh() { applyState(); _lastActivity = 'other'; _snoozedActivities.clear(); }
+  // A settings change starts the suggestion over: a suggestion still showing goes
+  // (the next status tick asks again if it still applies), or it outlived the
+  // activity. That tick is always weighed, even when it reads 'other': otherwise
+  // an automatic session running across the change never scheduled its restore.
+  function refresh() { applyState(); hideBanner(); _lastActivity = 'other'; _reevaluate = true; _snoozedActivities.clear(); }
   function init() { applyState(); }
 
-  window.PerfMode = { init, refresh, optimize, restore, onStatus, onActivity, onActivityChange, activity, onGaming, onObs, applyState, defaultApps, effectiveApps };
+  window.PerfMode = { init, refresh, optimize, restore, answer, onStatus, onActivity, onActivityChange, activity, onGaming, onObs, applyState, defaultApps, effectiveApps };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });

@@ -16,6 +16,27 @@
 /* Make the shell an explicit layer so the FX can sit behind it. */
 .shell { position: relative; z-index: 1; }
 
+/* A switched-off ambient layer is opacity 0, and Chromium still rasterizes an
+   opacity-0 layer it might fade in: the aurora blobs and the grid planes are
+   several screens wide, so an off aurora + grid kept ~80 MB of tiles alive (on an
+   iGPU that is system RAM; measured 27 Oct 2026, GPU process ~690 → ~570 MB).
+   `visibility: hidden` lets it drop them. The visibility step waits for the
+   0.45s fade-out and is immediate on the way in, so both fades look the same. */
+#bg-aurora,
+#bg-grid,
+#bg-static,
+#custom-bg-layer {
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
+body.aurora-on #bg-aurora,
+body.grid-on #bg-grid,
+body[data-bg-static] #bg-static,
+body.custom-bg-on #custom-bg-layer {
+  visibility: visible;
+  transition: opacity 0.45s ease, visibility 0s;
+}
+
 /* ── Aurora ──────────────────────────────────────────────── */
 #bg-aurora {
   position: fixed;
@@ -200,7 +221,11 @@ body.fx-motion-lite .grid-plane { animation: none !important; }
    GPU-intensive app is presenting, so the dashboard stops competing for the
    compositor. Re-enabled automatically when the game exits. ──────────── */
 body.game-mode #bg-aurora,
-body.game-mode #bg-grid { opacity: 0; }
+body.game-mode #bg-grid {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
 body.game-mode .aurora-blob,
 body.game-mode .grid-plane { animation-play-state: paused; }
 
@@ -268,7 +293,11 @@ body.ambient-idle .grid-plane { animation-play-state: paused; }
    decorative loops (the real GPU cost) finish one 10ms pass and stop. ──── */
 body.perf-mode #bg-aurora,
 body.perf-mode #bg-grid,
-body.perf-mode #custom-bg-layer { opacity: 0; }
+body.perf-mode #custom-bg-layer {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
 body.perf-mode *,
 body.perf-mode *::before,
 body.perf-mode *::after {

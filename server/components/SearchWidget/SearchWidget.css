@@ -42,6 +42,7 @@
 .searchw-live .spot-bar .spot-input { font-size: 15.5px; }
 .searchw-live .spot-ai-toggle { width: 32px; height: 32px; }
 .searchw-live .spot-ai-toggle svg { width: 17px; height: 17px; }
+.searchw-live .spot-ai-toggle.has-bit svg { width: 20px; height: 20px; }
 .searchw-live .spot-filter-toggle { width: 32px; height: 32px; }
 .searchw-live .spot-filter-toggle svg { width: 15px; height: 15px; }
 

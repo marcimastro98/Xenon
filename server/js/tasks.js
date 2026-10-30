@@ -221,7 +221,10 @@ function onTaskInput(e) {
  */
 function syncTasksWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.tasks ? layout.widgets.tasks.visible : false;
+  // No dashboard layout (a light layer page): that page places the tabs itself
+  // (layer-lite-tiles.js), and loadTasks() must not move them back.
+  if (!layout) return;
+  const visible = layout.widgets.tasks ? layout.widgets.tasks.visible : false;
 
   const calPane = document.getElementById('cal-pane-tasks');
   const standalone = document.querySelector('[data-dashboard-widget="tasks"]:not([data-dashboard-instance])');
@@ -247,7 +250,8 @@ function syncTasksWidgetPlacement() {
 // standalone notes panel and the tab button hides.
 function syncNotesWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.notes ? layout.widgets.notes.visible : false;
+  if (!layout) return;   // see syncTasksWidgetPlacement
+  const visible = layout.widgets.notes ? layout.widgets.notes.visible : false;
 
   const calPane = document.getElementById('cal-pane-notes');
   const standalone = document.querySelector('[data-dashboard-widget="notes"]:not([data-dashboard-instance])');
@@ -282,7 +286,8 @@ function firstInHubAgendaTab() {
 // centrally by applyDashboardCalendarTabs.
 function syncCalendarWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.calendar ? layout.widgets.calendar.visible : false;
+  if (!layout) return;   // see syncTasksWidgetPlacement
+  const visible = layout.widgets.calendar ? layout.widgets.calendar.visible : false;
 
   const calPane = document.getElementById('cal-pane-calendar');
   const standalone = document.querySelector('[data-dashboard-widget="calendar"]:not([data-dashboard-instance])');
@@ -303,7 +308,8 @@ function syncCalendarWidgetPlacement() {
 // syncCalendarWidgetPlacement for the timer widget.
 function syncTimerWidgetPlacement() {
   const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  const visible = layout && layout.widgets.timer ? layout.widgets.timer.visible : false;
+  if (!layout) return;   // see syncTasksWidgetPlacement
+  const visible = layout.widgets.timer ? layout.widgets.timer.visible : false;
 
   const calPane = document.getElementById('cal-pane-timer');
   const standalone = document.querySelector('[data-dashboard-widget="timer"]:not([data-dashboard-instance])');

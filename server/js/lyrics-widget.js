@@ -34,12 +34,12 @@
   let codeDraft = '';
   let unlocking = false;
   let unlockError = '';
-  // The one-week trial (feature-unlock.js). trialEndsAt is set only while one
-  // runs; trialUsed only once the server has said this install spent it.
+  // A trial (feature-unlock.js): the supporter-pass trial, or an old local one
+  // still running. trialEndsAt is set only while one runs; trialAvailable when
+  // this install never tried the pass; trialUsed once a trial here is over.
   let trialEndsAt = null;
   let trialAvailable = false;
   let trialUsed = false;
-  let startingTrial = false;
   let trialTimer = null;
   const coverOf = new WeakMap();   // panel → the cover it shows
   const instances = new Map();   // mount → { view, unsubscribe, offsetRow, offsetVal, minus, plus }
@@ -79,6 +79,7 @@
     limit: ['devclean_unlock_limit', 'Il pass è già usato su tre dispositivi.'],
     rate_limited: ['devclean_unlock_rate', 'Troppi tentativi. Riprova tra qualche minuto.'],
     bad_entry: ['devclean_unlock_unavailable', 'Lo sblocco non è ancora attivo sul server dei sostenitori. Riprova più tardi.'],
+    trial_used: ['trial_err_used', 'Questo PC ha già usato la sua prova gratuita.'],
   };
 
   async function loadState() {
@@ -96,8 +97,8 @@
     const ok = !!(out && out.ok);
     unlocked = ok && !!out.unlocked;
     trialEndsAt = ok && Number.isFinite(out.trialEndsAt) ? out.trialEndsAt : null;
-    trialAvailable = ok && out.trialAvailable === true;
-    trialUsed = ok && out.trialAvailable === false && !out.owned && !out.unlocked;
+    trialAvailable = ok && out.passTrialAvailable === true;
+    trialUsed = ok && out.trialEnded === true;
     scheduleTrialEnd();
   }
 
@@ -111,16 +112,10 @@
     trialTimer = setTimeout(() => { trialTimer = null; void loadState(); }, wait);
   }
 
-  async function startTrial() {
-    startingTrial = true;
-    unlockError = '';
-    renderAll();
-    const out = await api('/api/features/lyrics/trial', {});
-    startingTrial = false;
-    if (out && out.ok) { applyStatus(out); renderWidgets(); return; }
-    if (out && out.error === 'trial_used') { trialAvailable = false; trialUsed = true; }
-    else unlockError = tr('lyrics_trial_error', 'Non riesco ad avviare la prova adesso. Riprova tra poco.');
-    renderAll();
+  // The pass trial starts on the hub's page (email + code); the code then goes
+  // in "Ho già un codice" here or in any Store unlock.
+  function startTrial() {
+    if (window.TrialPass) window.TrialPass.openTry();
   }
 
   async function unlock() {
@@ -131,9 +126,12 @@
     unlocking = false;
     if (out && out.ok) {
       unlocked = true;
-      trialEndsAt = null;
+      // A trial code opens the tile until the trial's end, and nothing is owned.
+      trialEndsAt = out.passTrial && Number.isFinite(out.trialEndsAt) ? out.trialEndsAt : null;
+      trialAvailable = false;
       scheduleTrialEnd();
       renderWidgets();
+      if (out.passTrial && window.TrialPass) window.TrialPass.refresh();
       return;
     }
     const err = out && out.error;
@@ -198,16 +196,15 @@
     box.appendChild(perks);
 
     const actions = el('div', 'lyw-actions');
-    const busy = unlocking || startingTrial;
+    const busy = unlocking;
     if (codeSaved) {
       actions.appendChild(btn('lyw-btn is-big', unlocking ? tr('devclean_unlocking', 'Sblocco…')
         : tr('devclean_unlock', 'Sblocca con il pass'), unlock, busy));
     } else {
       // A week of the real thing is the best pitch this widget has, so the
-      // trial leads while it is still available and joining sits beside it.
+      // pass trial leads while this install never had it, joining beside it.
       if (trialAvailable) {
-        actions.appendChild(btn('lyw-btn is-big', startingTrial ? tr('devclean_loading', 'Carico…')
-          : tr('lyrics_trial_start', 'Prova gratis per 7 giorni'), startTrial, busy));
+        actions.appendChild(btn('lyw-btn is-big', tr('lyrics_trial_start', 'Prova gratis per 7 giorni'), startTrial, busy));
       }
       const join = el('a', trialAvailable ? 'lyw-btn is-accent' : 'lyw-btn is-big', tr('devclean_join', 'Diventa sostenitore'));
       join.href = supportHref('lyrics');
@@ -228,7 +225,7 @@
 
   function pitchNote() {
     if (codeSaved) return tr('devclean_code_saved', 'Su questo PC c’è già un codice sostenitore: sblocca con un tocco.');
-    if (trialAvailable) return tr('lyrics_trial_note', 'Una settimana con tutte le funzioni, senza codice. Poi decidi tu.');
+    if (trialAvailable) return tr('lyrics_pass_trial_note', 'Una settimana del pass sostenitore, Lyrics compreso: il codice arriva per email. Poi decidi tu.');
     if (trialUsed) return tr('lyrics_trial_ended', 'La settimana di prova è finita. Diventa sostenitore per tenere il widget.');
     return tr('devclean_code_missing', 'Il codice ti arriva per email subito dopo aver sostenuto Xenon.');
   }
@@ -307,6 +304,7 @@
     same: 'lyrics_tr_same',
     cap: 'lyrics_tr_cap',
     no_ai: 'lyrics_tr_no_ai',
+    no_credits: 'lyrics_tr_no_credits',
     failed: 'lyrics_tr_failed',
     too_long: 'lyrics_tr_too_long',
   };

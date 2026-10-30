@@ -310,15 +310,16 @@
 
 .browser-unavailable-install {
   padding: 7px 16px;
-  border: 1px solid rgba(110, 231, 135, 0.45);
+  /* Neutral: green is Bit saying all is well, not a button. */
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
-  background: rgba(110, 231, 135, 0.12);
-  color: #6ee787;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ededed;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
-.browser-unavailable-install:hover:not(:disabled) { background: rgba(110, 231, 135, 0.2); }
+.browser-unavailable-install:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
 .browser-unavailable-install:disabled { opacity: 0.6; cursor: default; }
 
 /* Expanded: the wrap is portaled to <body> and pinned to fill the viewport. Use

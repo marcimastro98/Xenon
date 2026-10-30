@@ -21,9 +21,9 @@
   // A small curated swatch row for one-tap colours; the picker covers the rest.
   const SWATCHES = ['#ff2b3b', '#ff7a1a', '#ffd23f', '#1ed760', '#19d3da', '#2b6cff', '#7c5cff', '#ffffff'];
 
-  // Only tiles actually placed on a dashboard page (a hidden/never-added widget
-  // sits in #widget-pool, outside any .pager-page).
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="lighting"]')).filter(x => x.closest('.pager-page')); }
+  // Only tiles actually placed on a dashboard page or a layer slot (a hidden or
+  // never-added widget sits in #widget-pool, outside both).
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="lighting"]')).filter(x => x.closest('.pager-page, .layer-slot')); }
 
   const st = { available: null, connected: false, enabled: false, manualColor: '', animation: { style: 'none', color: '#1ed760', palette: [] }, devices: [] };
   let seeded = false;
@@ -265,7 +265,7 @@
     if (d.animation && typeof d.animation === 'object') st.animation = { style: d.animation.style || 'none', color: d.animation.color || '#1ed760', palette: Array.isArray(d.animation.palette) ? d.animation.palette : [] };
     if (Array.isArray(d.devices) || Array.isArray(d.providers)) {
       const out = [];
-      (d.devices || []).forEach(dv => out.push({ id: dv.id, name: dv.name || dv.id, mode: dv.mode || 'follow', modeColor: dv.modeColor || '' }));
+      (d.devices || []).forEach(dv => out.push({ id: dv.id, name: dv.name || dv.model || dv.id, mode: dv.mode || 'follow', modeColor: dv.modeColor || '' }));
       (d.providers || []).forEach(p => (p.devices || []).forEach(dv => out.push({ id: dv.id, name: (p.name ? p.name + ' · ' : '') + (dv.name || dv.id), mode: dv.mode || 'follow', modeColor: dv.modeColor || '' })));
       st.devices = out;
     }

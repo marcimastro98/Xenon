@@ -63,7 +63,7 @@
   const GRIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="stocks"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="stocks"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -377,7 +377,7 @@
       return;
     }
     if (!searchResults.length) {
-      const info = el('div', 'sw-result sw-result--info', t('stocks_no_results', 'No match — add as symbol'));
+      const info = el('div', 'sw-result sw-result--info', t('stocks_no_results', 'No match: add as symbol'));
       info.classList.add('is-tappable');
       info.addEventListener('click', () => addRawSymbol(q));
       host.appendChild(info);
@@ -629,7 +629,7 @@
     if (quotes === null && !watchlist.length) {
       list.appendChild(el('div', 'sw-state', t('stocks_loading', 'Loading…')));
     } else if (!rows.length) {
-      list.appendChild(el('div', 'sw-state', t('stocks_empty', 'No stocks yet — search a company above')));
+      list.appendChild(el('div', 'sw-state', t('stocks_empty', 'No stocks yet: search a company above')));
     } else {
       rows.forEach(q => list.appendChild(row(q)));
       if (reorderable()) initListDrag(list);

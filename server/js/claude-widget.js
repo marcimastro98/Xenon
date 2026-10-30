@@ -39,7 +39,7 @@
   // The one line that installs the Claude Code mod (integrations/claude-code/).
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="claude"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="claude"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   // A page the pager has parked (.is-parked → content-visibility: hidden,

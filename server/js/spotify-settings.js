@@ -52,10 +52,10 @@
       // app, or the app is in Development Mode and the account isn't added under
       // Users). Same signal as the Liked-Songs "reconnect" hint — guide the fix.
       if (!st.login) {
-        card.appendChild(el('p', 'settings-note streaming-warn', t('spotify_no_user_hint', 'Linked, but Spotify hasn\'t confirmed the account. If this doesn\'t fill in shortly, make sure you approved with the same Spotify account that created the app — and, if the app is in Development Mode, add that account under "Users and Access" in the Spotify Developer Dashboard.')));
+        card.appendChild(el('p', 'settings-note streaming-warn', t('spotify_no_user_hint', 'Linked, but Spotify hasn\'t confirmed the account. If this doesn\'t fill in shortly, make sure you approved with the same Spotify account that created the app, and, if the app is in Development Mode, add that account under "Users and Access" in the Spotify Developer Dashboard.')));
       }
       if (!st.configured) {
-        card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
+        card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found: re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm());
       }
       // Only where the app can start minimized (not the Linux client).
@@ -194,13 +194,13 @@
       // Never the bare sentence: the code and the server's own words, when any.
       const code = (r && r.error) || (r ? '' : 'no_server');
       const detail = r && typeof r.detail === 'string' ? r.detail : '';
-      setNote(card, t('streaming_error', 'Could not start login. Try again.') + (code ? ' (' + code + ')' : '') + (detail ? ' — “' + detail + '”' : ''));
+      setNote(card, t('streaming_error', 'Could not start login. Try again.') + (code ? ' (' + code + ')' : '') + (detail ? ' “' + detail + '”' : ''));
       return;
     }
     window.open(r.authUrl, '_blank', 'noopener');
     card.querySelectorAll('.streaming-login, .streaming-err').forEach(n => n.remove());
     const wait = el('div', 'streaming-login');
-    wait.appendChild(el('p', 'settings-note', t('streaming_spotify_authorize', 'A Spotify tab opened — approve access there, then return here.')));
+    wait.appendChild(el('p', 'settings-note', t('streaming_spotify_authorize', 'A Spotify tab opened: approve access there, then return here.')));
     wait.appendChild(el('p', 'streaming-poll', t('streaming_waiting', 'Waiting for authorisation…')));
     card.appendChild(wait);
     poll(0);

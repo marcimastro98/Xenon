@@ -18,11 +18,11 @@
 //   * Never to somebody who already supports the project. If a supporter pass is
 //     saved on this machine, this never appears at all.
 //   * Never over a voice session, the lock screen, a game or an Ambient scene.
-//     Those are the moments Xenon is being USED for something, and a card that
-//     interrupts them earns the opposite of goodwill. It waits for the next day
-//     instead — the gate simply does not pass today.
-//   * No modal, no sound, no autoplay, nothing blocked. It is the same card the
-//     Discord invite uses, in the same corner, dismissed the same way.
+//     It is a letter in Bit's mail (js/bit-mail.js), filed without a sound or a
+//     window; Bit's one note a day says it arrived, and that note waits while
+//     Xenon is being USED for something (bit-mail-core.js quiet()).
+//   * No modal, no corner card, nothing blocked. busyRightNow() stays exported
+//     for the December appeal, which is still a corner card.
 //
 // The wording leads with the monthly option on purpose. The existing framing is
 // "buy me a coffee", which is a one-off by its nature; recurring support is what
@@ -31,7 +31,7 @@
 // It also carries a third button, "I already support Xenon", which is not
 // politeness: the supporter check below can only see a pass that was REDEEMED in
 // the app, so a supporter who never claimed their perks would otherwise be asked
-// for money they already give. That button silences the card for good and sends
+// for money they already give. That button silences the ask for good and sends
 // them to the place where they can finally claim what they paid for.
 (function () {
   const BMC = 'https://www.buymeacoffee.com/marcimastro98';
@@ -47,10 +47,6 @@
 
   const DAYS_SINCE_FIRST_RUN = 30;
   const DISTINCT_DAYS_USED = 10;
-  // Long enough that the dashboard has finished painting and the person has
-  // looked at it. The Discord card uses 1400ms; this one is deliberately later,
-  // so the two can never arrive together on the one boot where both are due.
-  const SHOW_AFTER_MS = 4200;
 
   const CARDS = () => (window.XenonStartupCards || null);
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -110,102 +106,57 @@
     } catch { return true; }
   }
 
-  function showCard() {
-    if (document.getElementById('support-ask')) return;
-    const card = document.createElement('div');
-    card.className = 'discord-invite support-ask';   // same shell, same corner, same motion
-    card.id = 'support-ask';
-    card.setAttribute('role', 'complementary');
-    card.setAttribute('aria-label', t('support_ask_title', 'Xenon is free, and stays free'));
-
-    const head = document.createElement('div');
-    head.className = 'discord-invite-head';
-    const logo = document.createElement('div');
-    logo.className = 'discord-invite-logo support-ask-logo';
-    logo.innerHTML = HEART;                // static, trusted markup
-    const title = document.createElement('div');
-    title.className = 'discord-invite-title';
-    title.textContent = t('support_ask_title', 'Xenon is free, and stays free');
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'discord-invite-close';
-    close.setAttribute('aria-label', t('close', 'Close'));
-    close.innerHTML = CLOSE;               // static, trusted markup
-    // Even the × is final here. This card is a once-per-install event, so a
-    // "maybe next launch" would turn one ask into an indefinite series.
-    close.addEventListener('click', () => { remember(); hide(); });
-    head.append(logo, title, close);
-
-    const text = document.createElement('p');
-    text.className = 'discord-invite-text';
-    text.textContent = t('support_ask_text',
-      'One person writes it, in their spare time. No ads, no investors, no paid version. If it has become useful to you: $5 a month or $50 for the year, or $25 once for five months of drops. Each one unlocks supporter-only themes and widgets, the Discord role and your name on the site. A year of support also gets you a theme built to order.');
+  // The ask is a letter in Bit's mail (js/bit-mail.js), filed once. Opening it
+  // draws the card's contents here; `ctx` is the mail's { close, remove }.
+  function drawLetter(_letter, node, ctx) {
+    node.appendChild(el('p', 'bitmail-letter-line', t('support_letter_text', 'One person writes it, in their spare time. If it is useful to you, you can support it and get:')));
 
     const perks = document.createElement('ul');
-    perks.className = 'support-ask-perks';
+    perks.className = 'bitmail-perks';
     [
       ['themes', 'support_perk_themes', 'Exclusive themes and widgets'],
+      ['sparks', 'support_perk_sparks', '300 Sparks a month, Xenon\'s credits'],
       ['discord', 'support_perk_discord', 'A supporter role on Discord'],
       ['name', 'support_perk_name', 'Your name on the site'],
     ].forEach(([icon, key, fb]) => {
       const li = document.createElement('li');
-      const ic = document.createElement('span');
-      ic.className = 'support-perk-icon';
-      ic.innerHTML = PERK_ICONS[icon];     // static, trusted markup
-      const tx = document.createElement('span');
-      tx.textContent = t(key, fb);
-      li.append(ic, tx);
+      const ic = el('span', 'bitmail-perk-icon');
+      // The Scintilla is Bit's own sprite (js/xenon-credits.js), never a stand-in glyph.
+      if (icon === 'sparks' && window.XenonCredits) ic.appendChild(window.XenonCredits.offerMark());
+      else ic.innerHTML = PERK_ICONS[icon] || '';   // static, trusted markup
+      li.append(ic, el('span', '', t(key, fb)));
       perks.appendChild(li);
     });
 
-    const actions = document.createElement('div');
-    actions.className = 'discord-invite-actions support-ask-actions';
-
-    const monthly = document.createElement('button');
+    const actions = el('div', 'bitmail-actions');
+    const monthly = el('button', 'bitmail-btn is-main', t('support_letter_monthly', 'Support with 5 USD a month'));
     monthly.type = 'button';
-    monthly.className = 'discord-invite-join support-ask-monthly';
-    // The heart rides on its own disc inside the button — a red heart drawn
-    // straight onto the pink is the same brightness as the pink and simply is
-    // not visible. SupportAsk.css owns the disc.
-    const monthlyHeart = document.createElement('span');
-    monthlyHeart.className = 'support-ask-heart';
-    monthlyHeart.innerHTML = HEART;        // static, trusted markup
-    const monthlyLabel = document.createElement('span');
-    monthlyLabel.textContent = t('support_ask_monthly', 'Support monthly');
-    monthly.append(monthlyHeart, monthlyLabel);
-    monthly.addEventListener('click', () => { open(supportLink('monthly')); remember(); hide(); });
-
-    const once = document.createElement('button');
+    monthly.addEventListener('click', () => { open(supportLink('monthly')); ctx.close(); });
+    const once = el('button', 'bitmail-btn', t('support_letter_once', 'Just once: 5 or 25 USD'));
     once.type = 'button';
-    once.className = 'discord-invite-dismiss support-ask-once';
-    once.textContent = t('support_ask_once', 'Just once: $5 or $25');
-    once.addEventListener('click', () => { open(supportLink('once')); remember(); hide(); });
+    once.addEventListener('click', () => { open(supportLink('once')); ctx.close(); });
+    actions.append(monthly, once);
 
-    // Third row, quieter: for the supporter this card should never have reached.
-    const already = document.createElement('button');
+    // Quieter: for the supporter this letter should never have reached.
+    const already = el('button', 'bitmail-link', t('support_ask_already', 'I already support Xenon'));
     already.type = 'button';
-    already.className = 'support-ask-already';
-    already.textContent = t('support_ask_already', 'I already support Xenon');
     already.addEventListener('click', () => {
       remember();
       // The thank-you promises they will not be asked again, so the December
       // appeal (js/support-appeal.js) is silenced for good as well.
       silenceAppeal();
-      hide();
+      ctx.remove();
       thankSupporter();
     });
 
-    actions.append(monthly, once);
-    card.append(head, text, perks, actions, already);
-    document.body.appendChild(card);
-    requestAnimationFrame(() => card.classList.add('is-in'));
+    node.append(perks, actions, already);
   }
 
-  function hide() {
-    const card = document.getElementById('support-ask');
-    if (!card) return;
-    card.classList.remove('is-in');
-    setTimeout(() => { card.remove(); }, 320);
+  function el(tag, className, text) {
+    const n = document.createElement(tag);
+    if (className) n.className = className;
+    if (text != null) n.textContent = text;
+    return n;
   }
 
   function remember() {
@@ -248,6 +199,7 @@
   // The December appeal is this card's yearly sibling and borrows its parts
   // rather than keeping a second copy of each.
   window.XenonSupportAsk = { HEART, CLOSE, daysSince, busyRightNow, alreadySupporter, thankSupporter };
+  if (window.BitMail) window.BitMail.register('support', drawLetter);
 
   async function maybeShow() {
     const c = CARDS();
@@ -262,15 +214,19 @@
     if (daysSince(use.firstRunDay) < DAYS_SINCE_FIRST_RUN) return;
     if (use.usageDays < DISTINCT_DAYS_USED) return;
     if (await alreadySupporter()) return;
+    if (!window.BitMail) return;
 
-    setTimeout(() => {
-      // Re-checked at the last moment: the wait is long enough for a voice
-      // session or the lock screen to have started since. Not shown today is not
-      // "shown tomorrow with a grudge" — the gate simply passes again next time.
-      if (busyRightNow()) return;
-      if (c.supportAskDismissed()) return;
-      showCard();
-    }, SHOW_AFTER_MS);
+    // Filed once, and remembered the moment it is filed: the letter waits in the
+    // box until it is read, so "once" no longer depends on catching a good
+    // moment. Bit's one note a day says it arrived, and only when nothing is
+    // going on (bit-mail-core.js quiet()).
+    window.BitMail.post({
+      id: 'support:ask',
+      kind: 'support',
+      title: t('support_ask_title', 'Xenon is free, and stays free'),
+      note: t('support_ask_title', 'Xenon is free, and stays free'),
+    });
+    remember();
   }
 
   function init() {

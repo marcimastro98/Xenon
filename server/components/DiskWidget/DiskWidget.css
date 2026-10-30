@@ -841,47 +841,6 @@ button.diskw-crumb:hover {
   min-width: 0;
 }
 
-.diskw-clean-orbit {
-  position: relative;
-  display: grid;
-  flex: 0 0 auto;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent), transparent 88%);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 64%),
-    0 0 32px color-mix(in srgb, var(--accent), transparent 80%);
-  color: var(--accent);
-  font-size: 20px;
-  place-items: center;
-}
-
-.diskw-clean-orbit::before {
-  position: absolute;
-  inset: -4px;
-  border: 2px solid transparent;
-  border-top-color: var(--accent);
-  border-right-color: color-mix(in srgb, var(--accent), transparent 52%);
-  border-radius: inherit;
-  animation: diskw-spin 0.9s linear infinite;
-  content: "";
-  will-change: transform;
-}
-
-.diskw-clean-loader.is-permanent .diskw-clean-orbit {
-  background: color-mix(in srgb, var(--color-danger), transparent 88%);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-danger), transparent 64%),
-    0 0 32px color-mix(in srgb, var(--color-danger), transparent 80%);
-  color: var(--color-danger);
-}
-
-.diskw-clean-loader.is-permanent .diskw-clean-orbit::before {
-  border-top-color: var(--color-danger);
-  border-right-color: color-mix(in srgb, var(--color-danger), transparent 52%);
-}
-
 .diskw-clean-loader-copy {
   min-width: 0;
 }
@@ -1553,15 +1512,6 @@ button.diskw-crumb:hover {
   background: var(--danger-bg);
 }
 
-/* The clean button's orbit ring; loading states use the Xenon loader. */
-@keyframes diskw-spin {
-  to { transform: rotate(360deg); }
-}
-
-body.overlay-frozen .diskw-clean-orbit::before,
-body.ambient-idle .diskw-clean-orbit::before,
-body.game-mode .diskw-clean-orbit::before,
-body.low-power-gpu .diskw-clean-orbit::before,
 body.overlay-frozen .diskw-clean-track > span,
 body.ambient-idle .diskw-clean-track > span,
 body.game-mode .diskw-clean-track > span,
@@ -2210,7 +2160,6 @@ body.diskw-advisor-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diskw-clean-orbit::before,
   .diskw-clean-track > span {
     animation: none;
   }

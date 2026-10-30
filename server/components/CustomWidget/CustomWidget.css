@@ -269,6 +269,10 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.55); padding: 18px;
 }
+/* A coding assistant asking to pair is waiting on this tap, like Claude's own
+   approval (.cw-overlay), so it sits at the same level: above the first-run
+   screen question, which would otherwise hide it on a fresh install. */
+.cw-perm-backdrop.cw-perm-backdrop--pair { z-index: 9000; }
 .cw-perm {
   width: min(440px, 94vw); max-height: 86vh; overflow-y: auto;
   border-radius: 16px; padding: 18px 18px 16px;

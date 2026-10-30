@@ -473,6 +473,7 @@
   function close() {
     const m = document.getElementById('deck-editor-backdrop');
     if (!m) return;
+    if (m.stopShortcut) m.stopShortcut();
     if (m.stopFitRows) m.stopFitRows();
     m.remove();
   }
@@ -571,14 +572,20 @@
     return fileToDataUrl(file);
   }
 
-  // Read an uploaded picture for a key. Animated GIFs are kept as-is when they
-  // fit the stored-icon budget (the canvas downscale would re-encode to a static
-  // PNG and kill the animation); everything else is downscaled as usual. The cap
-  // is deliberately modest: a GIF is stored full-resolution as a base64 data URL
-  // that is cloned per key by "apply to page", and the deck config has an 8 MB
+  // Read an uploaded picture for a key. A moving picture (GIF, animated WebP,
+  // APNG) stays moving: kept as-is when it fits the stored-icon budget, else
+  // made into a smaller GIF (anim-picture.js), because the canvas downscale
+  // keeps only the first frame. Only when even that fails does it become a
+  // still, and the toast says so. The cap is deliberately modest: the data URL
+  // is cloned per key by "apply to page", and the deck config has an 8 MB
   // server accept limit — a larger cap made it easy to blow past it.
-  function readKeyImage(file, maxEdge) {
-    if (file && file.type === 'image/gif' && file.size <= 512 * 1024) return fileToDataUrl(file);
+  const KEY_ANIM_MAX_CHARS = Math.ceil((512 * 1024) / 3) * 4 + 22;
+  async function readKeyImage(file, maxEdge) {
+    const moving = file && typeof AnimPicture !== 'undefined'
+      ? await AnimPicture.fitAnimatedPicture(file, { maxChars: KEY_ANIM_MAX_CHARS, maxSide: maxEdge }).catch(() => null)
+      : null;
+    if (moving && moving.dataUrl) return moving.dataUrl;
+    if (moving && window.XenonToast) window.XenonToast.show({ type: 'info', kicker: 'Deck', message: t('picture_kept_still') });
     return downscaleImage(file, maxEdge);
   }
 
@@ -1252,6 +1259,13 @@
       o.setAttribute('data-i18n', 'deck_live_sensor_' + m); o.textContent = t('deck_live_sensor_' + m);
       selLive.appendChild(o);
     });
+    // How full a Vitals meter is, or whichever is emptiest (value carries the meter).
+    const VITALS_METERS = (window.DeckModel && window.DeckModel.DECK_VITALS_METERS) || [];
+    VITALS_METERS.forEach((m) => {
+      const o = document.createElement('option'); o.value = 'vitals:' + m;
+      o.textContent = t('deck_live_vitals', 'Vitals') + ' · ' + (m === 'lowest' ? t('deck_live_vitals_lowest', 'lowest') : t('vitals_' + m, m));
+      selLive.appendChild(o);
+    });
     // An existing sdkState/battery binding gets its option SYNCHRONOUSLY: the
     // async population below lands after the initial syncLive() call, which
     // would otherwise read the still-empty select and silently drop the binding
@@ -1287,6 +1301,7 @@
       if (devs.length) enhanceSelects(fLive);
     }).catch(() => {});
     if (liveSource === 'timer') selLive.value = 'timer';
+    if (liveSource === 'vitals') selLive.value = 'vitals:' + (VITALS_METERS.includes(liveName) ? liveName : 'lowest');
     if (liveSource === 'sensor' && liveName && !liveName.startsWith('battery:')) selLive.value = 'sensor:' + liveName;
     fLive.appendChild(selLive);
     const liveNameWrap = document.createElement('div'); liveNameWrap.className = 'deck-ed-subfield';
@@ -1297,8 +1312,9 @@
     fLive.appendChild(liveNameWrap);
     function syncLive() {
       const v = selLive.value;
-      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : (v.startsWith('sensor:') ? 'sensor' : ''));
+      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : (v.startsWith('sensor:') ? 'sensor' : (v.startsWith('vitals:') ? 'vitals' : '')));
       if (liveSource === 'sdkState') liveName = v.slice(4);
+      else if (liveSource === 'vitals') liveName = v.slice('vitals:'.length);
       else if (liveSource === 'sensor') liveName = v.slice('sensor:'.length);
       else if (liveSource === 'timer') liveName = liveNameIn.value.trim();
       liveNameWrap.style.display = liveSource === 'timer' ? '' : 'none';
@@ -1612,6 +1628,14 @@
       // Lights on/off keys follow the lights themselves, not their own taps. A
       // key that only turns them off would be lit exactly when it does nothing.
       if (find((s) => s.type === 'lightPower' && (!s.params || s.params.state !== 'off'))) return { source: 'lightsOn' };
+      // A benchmark key lights while it records; one that only shows the file never does.
+      if (find((s) => s.type === 'benchmark' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'benchmarkRunning' };
+      if (find((s) => s.type === 'record' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'recordingOn' };
+      if (find((s) => s.type === 'timelapse' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'timelapseOn' };
+      // A steps key lights while the steps recorder runs; open and show never do.
+      if (find((s) => s.type === 'steps' && (!s.params || !['open', 'reveal'].includes(s.params.mode)))) return { source: 'stepsOn' };
+      // A replay key lights while the replay keeps the last seconds (a save does something).
+      if (find((s) => s.type === 'replay' && (!s.params || s.params.mode !== 'reveal'))) return { source: 'replayOn' };
       return null;
     }
 
@@ -1652,7 +1676,7 @@
       micMuted: 'micMute', speakerMuted: 'volume', outputDevice: 'audioDevice', obsRecording: 'obsRecord',
       obsStreaming: 'obsStream', obsScene: 'obsScene', obsInputMuted: 'obsMute', remoteActive: 'remoteBlock',
       discordMuted: 'discordMute', discordDeafened: 'discordDeafen', spotifyPlaying: 'spotifyPlay',
-      mediaPlaying: 'media', haEntity: 'haToggle', timerRunning: 'timerStart', lightsOn: 'lightPower',
+      mediaPlaying: 'media', haEntity: 'haToggle', timerRunning: 'timerStart', lightsOn: 'lightPower', benchmarkRunning: 'benchmark', recordingOn: 'record', timelapseOn: 'timelapse', stepsOn: 'steps', replayOn: 'replay',
     };
     const STATE_SOURCE_FIELD = { sbGlobal: 'deck_edit_sbglobal', sdkState: 'deck_edit_sdkstate', scriptState: 'deck_edit_scriptstate' };
     function stateSourceText(st) {
@@ -1809,6 +1833,10 @@
     const fConfirm = section('deck_confirm_title');
     fConfirm.appendChild(switchRow('deck_confirm_label', confirmVal, (on) => { confirmVal = on; }).el);
     paneAction.appendChild(fConfirm);
+
+    // A keyboard shortcut that runs this key's tap from anywhere on the PC.
+    const shortcut = window.DeckEditorShortcut.buildCard({ t, section }, existing);
+    paneAction.appendChild(shortcut.el);
 
     // ── LED reaction: an optional lighting consequence attached to THIS key. ──
     const existingLight = existing && existing.light;
@@ -2010,6 +2038,7 @@
       { group: 'media', labelKey: 'deck_cat_media' },
       { group: 'soundboard', labelKey: 'deck_cat_soundboard' },
       { group: 'timer', labelKey: 'deck_cat_timer' },
+      { group: 'vitals', labelKey: 'deck_cat_vitals' },
       { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
       { group: 'stream', labelKey: 'deck_cat_stream' },
@@ -2022,6 +2051,8 @@
       { group: 'voicemeeter', labelKey: 'deck_cat_voicemeeter' },
       { group: 'lighting', labelKey: 'deck_cat_lighting' },
       { group: 'window', labelKey: 'deck_cat_window' },
+      { group: 'perf', labelKey: 'deck_cat_perf' },
+      { group: 'capture', labelKey: 'deck_cat_capture' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'sdk', labelKey: 'deck_cat_sdk' },
       { group: 'ai', labelKey: 'deck_cat_ai' },
@@ -2047,7 +2078,32 @@
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
       playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
+      benchmark: _ai('<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-6"/>'),
+      powerMode: _ai('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
+      dnd: _ai('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
+      stutterWhy: _ai('<path d="M2 16h4l2-9 2.5 9H14"/><path d="M16.5 8.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.1.9-1.1 1.8M19 16.5h.01"/>'),
+      record: _ai('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/>'),
+      timelapse: _ai('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/><path d="M5 5.5l1.5 1.5"/>'),
+      replay: _ai('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>'),
+      captureMarker: _ai('<path d="M6 3h12v18l-6-4-6 4z"/>'),
+      markClips: _ai('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/>'),
+      screenshot: _ai('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/>'),
+      screenText: _ai('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 9h8M8 12h8M8 15h5"/>'),
+      screenPin: _ai('<rect x="3" y="7" width="14" height="13" rx="2"/><path d="M15 3l6 6M18 6l-3.5 3.5M12.5 7.5l4 4"/>'),
+      screenCover: _ai('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor"/>'),
+      screenColor: _ai('<path d="M14.5 4.5l5 5M17 2.5a2.1 2.1 0 0 1 3 3L18 7.5l-3-3z"/><path d="M15 6.5L5.5 16l-1 3.5 3.5-1L17.5 9"/>'),
+      screenMeasure: _ai('<rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10 8v4.5M13.5 8v3M17 8v4.5"/>'),
+      steps: _ai('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/><path d="M15 12l2 2 2-2"/>'),
+      screenDraw: _ai('<path d="M3 17c3-4 5-4 6.5-1.5S13 19 15.5 15"/><path d="M14.5 7.5l3-3 2 2-3 3z"/><path d="M14.5 7.5L11 11l-.5 2.5 2.5-.5 3.5-3.5"/>'),
+      xenonMenu: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M12.5 9h5M12.5 12h5M12.5 15h3"/>'),
+      gameCompanion: _ai('<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="15.5" cy="11.5" r="1" fill="currentColor"/><circle cx="17.5" cy="13.5" r="1" fill="currentColor"/>'),
+      exportCapture: _ai('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 7v7M9 11l3 3 3-3"/>'),
+      sendCapture: _ai('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 15V8M9 11l3-3 3 3M11 19h2"/>'),
+      copyCapture: _ai('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13l3 3 3-3"/>'),
+      bugReport: _ai('<rect x="7" y="8" width="10" height="12" rx="5"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M12 12v8M3 12h4M17 12h4M4 7l3 2.5M20 7l-3 2.5M4 19l3-2.5M20 19l-3-2.5"/>'),
+      gallery: _ai('<rect x="3" y="5" width="14" height="12" rx="2"/><path d="M7 21h12a2 2 0 0 0 2-2V9"/><path d="M3 14l3.5-3.5a1.5 1.5 0 0 1 2 0L13 15"/><circle cx="12.5" cy="9" r="1.3"/>'),
       timerStart: _ai('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
+      vitalsRefill: _ai('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>'),
       timerToggle: _ai('<circle cx="12" cy="13" r="8"/><path d="M10 10v6M14 10v6M9 2h6"/>'),
       timerCancel: _ai('<circle cx="12" cy="13" r="8"/><path d="M9.5 10.5l5 5M14.5 10.5l-5 5M9 2h6"/>'),
       micMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
@@ -2074,7 +2130,8 @@
       remoteDisconnect: _ai('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M8 8l8 6M16 8l-8 6"/>'),
       remoteBlock: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'),
       remoteScreenCycle: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/>'),
-      ai: _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
+      // Bit, the AI the key talks to (the sparkle only if the engine is missing).
+      ai: (window.BitApp && BitApp.icon('idle')) || _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
       discordMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
       discordDeafen: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/>'),
       discordPtt: _ai('<rect x="8" y="2" width="8" height="13" rx="4"/><path d="M12 15v5M8 20h8"/>'),
@@ -2114,7 +2171,56 @@
       lightAuto: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/><circle cx="12" cy="12" r="2.5"/>'),
       lightEffect: _ai('<path d="m12 3 2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
       lightDevice: _ai('<rect x="4" y="4" width="16" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M8 9h.01M11 9h.01M14 9h.01"/>'),
+      lightPart: _ai('<rect x="2" y="9" width="20" height="6" rx="3"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/><path d="M10 5h4M10 19h4"/>'),
+      phoneCall: _ai('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'),
+      phoneMessage: _ai('<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M9 8h6M9 11.5h4M11 18h2"/>'),
+      deckState: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="3" fill="currentColor"/>'),
+      soundStopAll: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><rect x="15" y="9" width="6" height="6" rx="1"/>'),
+      stopwatchStart: _ai('<circle cx="12" cy="14" r="7"/><path d="M12 14V10M10 2h4M12 2v3M18.5 6.5l1.5-1.5"/>'),
+      audioDevice: _ai('<rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="14" r="3.5"/><path d="M12 7h.01"/>'),
+      audioDeviceFirst: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/><path d="m10 11 1.5 1.5L14.5 9"/>'),
+      audioDeviceToggle: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/><path d="M10 15h4M12 13l2 2-2 2"/>'),
+      sbSendMessage: _ai('<path d="M4 5h16v11H8l-4 3z"/><path d="m10 8 4 2.5-4 2.5z" fill="currentColor"/>'),
+      sbCodeTrigger: _ai('<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>'),
+      spotifyPlayUri: _ai('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+      haLight: _ai('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>'),
+      haMedia: _ai('<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/><path d="m10 8 5 2.5-5 2.5z" fill="currentColor"/>'),
+      haCover: _ai('<path d="M3 3h18M5 3v18M19 3v18"/><path d="M5 7h14M5 11h14M5 15h14"/>'),
+      haClimate: _ai('<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 11v6"/>'),
+      haFan: _ai('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-7 4-7s3 4-2 7M14 12c4 0 7 1 7 4s-4 3-7-2M12 14c0 4-1 7-4 7s-3-4 2-7M10 12c-4 0-7-1-7-4s4-3 7 2"/>'),
+      haVacuum: _ai('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3"/>'),
+      haLock: _ai('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><path d="M12 15v2"/>'),
+      haAlarm: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5M12 16h.01"/>'),
+      haScript: _ai('<path d="M6 3h9l4 4v14H6z"/><path d="m10 11 5 3-5 3z" fill="currentColor"/>'),
+      haButton: _ai('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/>'),
+      wlMixVolume: _ai('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
+      wlMixMute: _ai('<path d="M4 6h16M4 12h16M4 18h16"/><path d="M3 3l18 18"/>'),
+      wlEffect: _ai('<path d="M15 4V2M15 10V8M11 6h-2M21 6h-2M18 3l1-1M18 9l1 1"/><path d="M3 21 14 10"/>'),
+      wlOutputDevice: _ai('<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="15" width="5" height="6" rx="1.5"/><rect x="17" y="15" width="5" height="6" rx="1.5"/>'),
+      vmStripMute: _ai('<path d="M8 3v18M16 3v18"/><rect x="5" y="8" width="6" height="4" rx="1"/><path d="m14 14 6 6M20 14l-6 6"/>'),
+      vmStripGain: _ai('<path d="M12 3v18"/><rect x="8" y="9" width="8" height="5" rx="1"/><path d="M5 6h2M5 18h2M17 6h2M17 18h2"/>'),
+      vmStripBus: _ai('<circle cx="5" cy="12" r="2"/><path d="M7 12h4M11 12l4-6h4M11 12l4 6h4"/>'),
+      vmBusMute: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10v4M11 10v4"/><path d="m15 9 4 6M19 9l-4 6"/>'),
+      vmBusGain: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 14l3-3 3 2 4-4"/>'),
+      vmMacro: _ai('<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><path d="M17 14v6M14 17h6"/>'),
+      vmParam: _ai('<path d="M4 7h7M15 7h5M4 17h3M11 17h9"/><circle cx="13" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'),
+      layersEdit: _ai('<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>'),
+      layersToggle: _ai('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+      layerPage: _ai('<rect x="7" y="3" width="13" height="13" rx="2"/><path d="M4 7v11a2 2 0 0 0 2 2h11"/>'),
+      usageMode: _ai('<rect x="2" y="4" width="13" height="10" rx="1.5"/><path d="M6 18h5"/><rect x="17" y="8" width="5" height="12" rx="1"/>'),
+      desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };
+    // One icon per category header, from an action that stands for the group.
+    const CATEGORY_ICONS = {
+      system: ACTION_ICONS.openApp, media: ACTION_ICONS.media, soundboard: ACTION_ICONS.playSound,
+      timer: ACTION_ICONS.timerStart, vitals: ACTION_ICONS.vitalsRefill, audio: ACTION_ICONS.volume, obs: ACTION_ICONS.obsScene,
+      stream: ACTION_ICONS.ytBroadcast, streamerbot: ACTION_ICONS.sbDoAction, discord: ACTION_ICONS.discordDeafen,
+      spotify: ACTION_ICONS.spotifyPlay, homeassistant: ACTION_ICONS.haToggle, chroma: ACTION_ICONS.chromaColor,
+      wavelink: ACTION_ICONS.wlInputVolume, voicemeeter: ACTION_ICONS.vmStripGain, lighting: ACTION_ICONS.lightColor,
+      window: ACTION_ICONS.windowMove, perf: ACTION_ICONS.benchmark, capture: ACTION_ICONS.screenshot,
+      remote: ACTION_ICONS.remoteScreenCycle, sdk: ACTION_ICONS.sdkMacro, ai: ACTION_ICONS.ai, claude: ACTION_ICONS.claudeAsk,
+    };
+    const RECENT_ICON = _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
 
     // A service category whose provider isn't configured/connected stays visible
     // as a single disabled "hint" row pointing to its setup, instead of vanishing
@@ -2185,17 +2291,72 @@
       return true;
     }
 
+    // The last few actions picked in any key's editor, newest first, for the
+    // "Recently used" group. Browser storage can be missing or full: then the
+    // group just isn't there.
+    const RECENT_ACTIONS_KEY = 'xenonDeckRecentActions';
+    const RECENT_ACTIONS_MAX = 5;
+    function recentActions() {
+      try {
+        const list = JSON.parse(localStorage.getItem(RECENT_ACTIONS_KEY) || '[]');
+        return Array.isArray(list) ? list.filter((v) => typeof v === 'string').slice(0, RECENT_ACTIONS_MAX) : [];
+      } catch { return []; }
+    }
+    function rememberRecentAction(type) {
+      if (!type) return;
+      try {
+        const list = [type, ...recentActions().filter((v) => v !== type)].slice(0, RECENT_ACTIONS_MAX);
+        localStorage.setItem(RECENT_ACTIONS_KEY, JSON.stringify(list));
+      } catch { /* storage unavailable: nothing to remember */ }
+    }
+
+    // English names searched too, so "volume" or "screenshot" finds the action
+    // whatever language the dashboard is in.
+    function englishLabel(key) {
+      try { return (typeof i18n !== 'undefined' && i18n.en && i18n.en[key]) || ''; } catch { return ''; }
+    }
+
+    function actionOption(a) {
+      const o = document.createElement('option');
+      o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
+      o.dataset.csIcon = ACTION_ICONS[a.type] || CATEGORY_ICONS[a.group] || ACTION_ICONS.hotkey;
+      return o;
+    }
+
     function actionSelect(value) {
       const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      // A long list of actions: categories that open and close, a search box
+      // (any language, accents ignored, category names too) and arrow keys + Enter.
+      sel.setAttribute('data-cs-search', '');
+      sel.setAttribute('data-cs-collapsible', '');
+      sel.setAttribute('data-cs-search-placeholder', t('deck_action_search'));
+      sel.setAttribute('data-cs-empty', t('deck_action_none_found'));
       const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_edit_none'); none.textContent = t('deck_edit_none'); sel.appendChild(none);
-      // Group the actions into labelled categories with a per-action icon, mirroring
-      // the dashboard "+" palette. Categories render as <optgroup>s; the custom
-      // select turns those into headers and shows each option's data-cs-icon.
+
+      const recent = recentActions()
+        .map((type) => DA.ACTION_CATALOG.find((a) => a.type === type))
+        .filter((a) => a && actionGateOk(a));
+      if (recent.length) {
+        const og = document.createElement('optgroup'); og.label = t('deck_cat_recent');
+        og.setAttribute('data-cs-key', '__recent__');
+        og.setAttribute('data-cs-open', '');          // the shortcut is only useful open
+        og.setAttribute('data-cs-search-skip', '');   // its actions are found in their own group
+        og.dataset.csIcon = RECENT_ICON;
+        recent.forEach((a) => og.appendChild(actionOption(a)));
+        sel.appendChild(og);
+      }
+
+      // Groups with something to pick come first; a service that still needs
+      // setting up keeps its place at the end with a hint saying where.
+      const ready = [];
+      const locked = [];
       ACTION_CATEGORIES.forEach((cat) => {
         const all = DA.ACTION_CATALOG.filter((a) => a.group === cat.group && !a.hidden);
         if (!all.length) return;
         const acts = all.filter(actionGateOk);
         const og = document.createElement('optgroup'); og.label = t(cat.labelKey);
+        og.setAttribute('data-cs-key', cat.group);
+        if (CATEGORY_ICONS[cat.group]) og.dataset.csIcon = CATEGORY_ICONS[cat.group];
         if (!acts.length) {
           // Locked service category → one disabled hint row instead of hiding it.
           const hintKey = LOCKED_HINTS[cat.group];
@@ -2208,17 +2369,18 @@
           o.setAttribute('data-i18n', hintKey); o.textContent = t(hintKey);
           o.dataset.csIcon = LOCK_ICON;
           og.appendChild(o);
-          sel.appendChild(og);
+          locked.push(og);
           return;
         }
+        const catEn = englishLabel(cat.labelKey);
         acts.forEach((a) => {
-          const o = document.createElement('option');
-          o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
-          if (ACTION_ICONS[a.type]) o.dataset.csIcon = ACTION_ICONS[a.type];
+          const o = actionOption(a);
+          o.dataset.csKeywords = [englishLabel(a.labelKey), a.type, catEn].join(' ');
           og.appendChild(o);
         });
-        sel.appendChild(og);
+        ready.push(og);
       });
+      ready.concat(locked).forEach((og) => sel.appendChild(og));
       sel.value = value || '';
       // A key may carry an action that isn't in the picker — a hidden/internal one
       // (e.g. `lighting`, which Genesis can configure), or a service action whose
@@ -2231,10 +2393,11 @@
         o.value = value;
         if (spec && spec.labelKey) { o.setAttribute('data-i18n', spec.labelKey); o.textContent = t(spec.labelKey); }
         else { o.textContent = value; }
-        if (ACTION_ICONS[value]) o.dataset.csIcon = ACTION_ICONS[value];
+        o.dataset.csIcon = ACTION_ICONS[value] || (spec && CATEGORY_ICONS[spec.group]) || ACTION_ICONS.hotkey;
         sel.appendChild(o);
         sel.value = value;
       }
+      sel.addEventListener('change', () => rememberRecentAction(sel.value));
       return sel;
     }
 
@@ -3143,7 +3306,8 @@
         let ctrl;
         if (p.kind === 'select') {
           ctrl = document.createElement('select'); ctrl.className = 'deck-ed-input';
-          p.options.forEach((o) => { const opt = document.createElement('option'); opt.value = o; opt.setAttribute('data-i18n', 'deck_opt_' + o); opt.textContent = t('deck_opt_' + o); ctrl.appendChild(opt); });
+          // A param may name its own option words (optionKeys); otherwise the shared deck_opt_*.
+          p.options.forEach((o) => { const key = (p.optionKeys && p.optionKeys[o]) || ('deck_opt_' + o); const opt = document.createElement('option'); opt.value = o; opt.setAttribute('data-i18n', key); opt.textContent = t(key); ctrl.appendChild(opt); });
           ctrl.value = (step.params[p.name] != null && p.options.includes(step.params[p.name])) ? step.params[p.name] : p.options[0];
         } else {
           ctrl = input('text', step.params[p.name] || '');
@@ -3245,6 +3409,8 @@
       if (!isAction) setFace('off');
       // A key that acts while held cannot wait for a second tap.
       fConfirm.style.display = (isAction && mode !== 'momentary' && mode !== 'repeat') ? '' : 'none';
+      // A shortcut runs the tap (or a momentary key's press): action keys only.
+      shortcut.el.style.display = isAction ? '' : 'none';
       tabBtns.state.style.display = isAction ? '' : 'none';
       if (!isAction && activeTab === 'state') showTab('actions');
       // Live value badge: action keys only (normalizeKey drops it on folders).
@@ -3334,6 +3500,7 @@
         behavior.collect(key);
         if (key.mode === 'cycle') key.cycle = Array.from({ length: behavior.cycleCount() - 1 }, (_, i) => readCycleFace(i));
         if (confirmVal) key.confirm = true;
+        shortcut.collect(key);
         if (dimOffVal) key.dimOff = true;
         if (Object.keys(ss).length) key.stateStyle = ss;
         // Live value badge (timer countdown / SDK state text) on the face.
@@ -3468,6 +3635,7 @@
     document.body.appendChild(backdrop);
     // Word segments never break into a lopsided pile in a narrow modal or a
     // long language: they step to an even grid instead (DeckPanel.css).
+    backdrop.stopShortcut = shortcut.dispose;
     if (window.FitRow) backdrop.stopFitRows = window.FitRow.watchWithin(modal, '.deck-ed-seg-text', 1);
     if (typeof applyTranslations === 'function') applyTranslations();
     enhanceSelects(modal);

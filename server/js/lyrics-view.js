@@ -307,7 +307,7 @@
     follow.addEventListener('click', () => setFollowing(true));
     statusBtn.addEventListener('click', () => {
       if (!snap) return;
-      if (snap.state === 'off') { if (typeof openSettings === 'function') openSettings('appearance'); }
+      if (snap.state === 'off') { if (typeof openSettingsCategory === 'function') openSettingsCategory('appearance'); }
       else window.LyricsCore.retry();
     });
 

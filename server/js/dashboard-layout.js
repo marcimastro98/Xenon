@@ -86,6 +86,9 @@ function wireSystemCloneTabs(clone) {
 function stripMediaClone(clone) {
   const picker = clone.querySelector('#media-source-picker');
   if (picker) picker.remove();
+  // The wave's canvas is one, and moves to the Media tile in view (media-viz.js);
+  // a cloned one would be a blank, possibly promoted, layer.
+  clone.querySelectorAll('.media-viz').forEach(el => el.remove());
 }
 // A Mic clone drops the per-app mixer (singleton, wired by id).
 function stripMicClone(clone) {
@@ -959,24 +962,7 @@ function safeTileImageSrc(v) {
 }
 // A normalized {c1,c2,angle} gradient → a CSS linear-gradient(), or '' if absent.
 // Colours come pre-validated (#rrggbb) from normalizeTileDecor.
-function tileGradCss(grad) {
-  if (!grad || !grad.c1 || !grad.c2) return '';
-  const ang = (typeof grad.angle === 'number') ? grad.angle : 135;
-  return `linear-gradient(${ang}deg, ${grad.c1}, ${grad.c2})`;
-}
-// Paint a "gradient over optional image" background on a layer element, the
-// image honouring a fit mode ('cover' | 'contain' | 'tile') while a present
-// gradient always covers. Shared by the tile decor bg layer and the Deck well
-// background (deck.js) so the two composition rules can't drift.
-function paintDecorBgLayer(node, grad, src, fit) {
-  const img = cssUrl(src);
-  node.style.backgroundImage = [grad, img].filter(Boolean).join(', ');   // gradient over image
-  const rep = fit === 'tile' ? 'repeat' : 'no-repeat';
-  node.style.backgroundRepeat = grad && img ? `no-repeat, ${rep}` : rep;
-  const sz = fit === 'tile' ? 'auto' : fit;
-  node.style.backgroundSize = grad && img ? `cover, ${sz}` : (grad ? 'cover' : sz);
-  node.style.backgroundPosition = 'center';
-}
+// tileGradCss() and paintDecorBgLayer() live in js/decor-bg.js (shared with deck.js).
 // Curated preset ids resolve through the manifest (tile-decor-presets.js, loaded
 // before this file) so the /assets/decor URL scheme lives in one place.
 function tileFrameSrc(frame) {
@@ -1653,6 +1639,11 @@ function setTileStyle(id, style) {
 // original file — the /tile-asset endpoint enforces the hard size cap.
 async function _tileDownscaleImage(file, maxEdge) {
   if (!file || file.type === 'image/gif') return file;
+  // An animated WebP or APNG is sent as it is too: the canvas keeps one frame.
+  if (typeof GifRead !== 'undefined') {
+    const head = new Uint8Array(await file.slice(0, 65536).arrayBuffer().catch(() => new ArrayBuffer(0)));
+    if (GifRead.animatedKind(head)) return file;
+  }
   const cv = await rasterToCanvas(file, maxEdge);
   if (!cv) return file;
   const type = file.type === 'image/png' || file.type === 'image/webp' ? file.type : 'image/jpeg';
@@ -1966,6 +1957,9 @@ function swapDashboardCalendarTabs() {
 }
 
 function applyDashboardLayout() {
+  // A layer surface shows tiles the dashboard may have hidden: make them visible
+  // in memory first, so hub-embedded ones extract like they do on a page.
+  if (window.LayerHost && window.LayerHost.active) window.LayerHost.forceVisible();
   const layout = getDashboardLayout();
   // Self-heal corrupted layouts where two tiles overlap the same grid cell (e.g.
   // a duplicated Media+Chat tab-group stacked on the seeded one — its hidden
@@ -2046,6 +2040,7 @@ function applyDashboardLayout() {
   step('transferRender', () => { if (window.TransferWidget && typeof window.TransferWidget.renderWidgets === 'function') window.TransferWidget.renderWidgets(); });
   step('phoneRender', () => { if (window.PhoneWidget && typeof window.PhoneWidget.renderWidgets === 'function') window.PhoneWidget.renderWidgets(); });
   step('powerRender', () => { if (window.PowerWidget && typeof window.PowerWidget.renderWidgets === 'function') window.PowerWidget.renderWidgets(); });
+  step('perfRender', () => { if (window.PerfWidget) window.PerfWidget.renderWidgets(); });
   step('batteryRender', () => { if (window.BatteryWidget && typeof window.BatteryWidget.renderWidgets === 'function') window.BatteryWidget.renderWidgets(); });
   step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });
   step('slideshowRender', () => { if (window.SlideshowWidget && typeof window.SlideshowWidget.renderWidgets === 'function') window.SlideshowWidget.renderWidgets(); });
@@ -2090,6 +2085,11 @@ function applyDashboardLayout() {
     requestAnimationFrame(() => { fit(); requestAnimationFrame(fit); });
     setTimeout(fit, 220); // catch late layout (fonts/topbar settling)
   }
+  // The glow's screens or the accent may have changed with the settings.
+  if (window.AiEdgeGlow) step('aiEdgeGlow', () => window.AiEdgeGlow.refresh());
+  // Last: every step above put tiles back into the page grids.
+  if (window.LayerHost && window.LayerHost.active) step('layerHost', () => window.LayerHost.place());
+  else if (window.LayersShell) step('layersShell', () => window.LayersShell.sync());
 }
 
 // Wrap layout mutations in a View Transition so panels fade/slide smoothly.

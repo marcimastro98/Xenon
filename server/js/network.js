@@ -120,6 +120,7 @@ function applyNetworkInto(root, data) {
 }
 
 function applyNetwork(data) {
+  lastNetworkData = data;
   if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
     window.DashboardGrid.forEachInstance('system', root => applyNetworkInto(root, data));
   }

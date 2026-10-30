@@ -3,7 +3,7 @@
 // ── Timer module ──────────────────────────────────────────────────
 // Countdown timers: create, pause, resume, reset, delete.
 // Server stores state; client renders and ticks locally for smooth display.
-// AI can create/list/delete timers via function calling (start_timer, list_timers,
+// AI can create/list/control/delete timers via function calling (start_timer, list_timers, control_timer,
 // delete_timer → triggers 'refresh_timers' clientAction).
 
 let _timerState = [];          // local mirror of server timer list
@@ -343,20 +343,14 @@ function _patchTimer(id, action) {
 // the clock keeps running, and marking it done would stop the thing the person
 // asked to keep going.
 function onTimerChime(id, label, every) {
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;   // the main dashboard chimes; a second chime would double it
   fetch('/api/chime', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind: 'wake' }),
   }).catch(() => {});
-  if (!window.XenonToast) return;
-  const msg = ((typeof t === 'function' ? t('timer_chime_alert') : '') || 'every {n}')
-    .replace('{n}', _formatTime(Number(every) || 0, true));
-  window.XenonToast.show({
-    type: 'timer',
-    kicker: (typeof t === 'function' ? t('timer_title') : '') || 'Timer',
-    title: label || 'Stopwatch',
-    message: msg,
-  });
+  if (!window.XenonToast || !window.AlertToasts) return;
+  window.XenonToast.show(window.AlertToasts.timerChime(label, every, { t }));
 }
 
 function onTimerUpdate(timers) {
@@ -369,6 +363,7 @@ function onTimerDone(id, label) {
   const t = _timerState.find(t => t.id === id);
   if (t) t.status = 'done';
   renderTimers();
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;   // the tile updates here; the chime and toast come from the main dashboard
   // Play chime
   fetch('/api/chime', {
     method: 'POST',
@@ -380,15 +375,7 @@ function onTimerDone(id, label) {
 }
 
 function _showTimerDoneToast(label) {
-  const msg = (typeof t === 'function' ? t('timer_done_alert') : null) || "Time's up!";
-  if (window.XenonToast) {
-    window.XenonToast.show({
-      type: 'timer',
-      kicker: (typeof t === 'function' ? t('timer_title') : '') || 'Timer',
-      title: label || 'Timer',
-      message: msg,
-    });
-  }
+  if (window.XenonToast && window.AlertToasts) window.XenonToast.show(window.AlertToasts.timerDone(label, { t }));
 }
 
 // Enter key in duration input

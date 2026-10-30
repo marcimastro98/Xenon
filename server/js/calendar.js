@@ -723,76 +723,23 @@ async function deleteCalendarEvent(id) {
   renderUpcoming();
 }
 
-function showReminder(event) {
+// The server decides when a reminder rings, once for every surface (SSE
+// calendar_reminder, server/calendar-reminders.js), and flashes the lights;
+// this surface shows it, rings, and keeps its own copy of the event in step.
+function showReminder(d) {
   const fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short' }));
-  const meta = fmt.format(new Date(event.startsAt));
-  if (window.XenonToast) {
-    window.XenonToast.show({
-      type: 'reminder',
-      kicker: t('reminder'),
-      title: event.title || t('ph_title'),
-      message: meta,
-    });
-  }
+  const toast = window.AlertToasts ? window.AlertToasts.reminder(d, { t }, date => fmt.format(date)) : null;
+  if (!toast) return;
+  const own = calendarEvents.find(event => event.id === d.id);
+  if (own) own.notifiedAt = new Date().toISOString();
+  if (window.XenonToast) window.XenonToast.show(toast);
   playReminderSound();
-  if (window.lightingNotify) window.lightingNotify('reminder');
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
-      new Notification(t('desktop_title'), { body: `${event.title || t('ph_title')} - ${meta}`, silent: false, requireInteraction: true });
+      new Notification(t('desktop_title'), { body: toast.message ? `${toast.title} - ${toast.message}` : toast.title, silent: false, requireInteraction: true });
     } catch { }
   }
 }
 
-async function checkReminders() {
-  const now = Date.now();
-  let changed = false;
-
-  if (calendarLoaded && calendarEvents.length) {
-    calendarEvents.forEach(event => {
-      if (!event.reminderAt || event.notifiedAt) return;
-      const reminderTime = Date.parse(event.reminderAt);
-      if (Number.isFinite(reminderTime) && reminderTime <= now) {
-        event.notifiedAt = new Date().toISOString();
-        changed = true;
-        showReminder(event);
-      }
-    });
-    if (changed) await persistCalendarEvents().catch(() => {});
-  }
-
-  // External events: feed reminders are opt-out per feed. Fire 10 min before
-  // start; de-dupe via localStorage since we cannot write back to the feed.
-  if (externalEvents.length) {
-    const fired = _loadExtFired();
-    // Only feeds with reminders enabled qualify. If none qualify the set is
-    // empty and every external event is skipped (no reminders), which is the
-    // intended behaviour when the user turns reminders off everywhere.
-    const allowed = new Set(externalFeedsStatus.filter(f => f.reminders !== false).map(f => f.id));
-    let firedNew = false;
-    externalEvents.forEach(event => {
-      if (!allowed.has(event.source)) return;
-      const startMs = Date.parse(event.startsAt);
-      if (!Number.isFinite(startMs)) return;
-      const remindMs = startMs - 10 * 60000;
-      if (remindMs <= now && startMs >= now && !fired[event.id]) {
-        fired[event.id] = now;
-        firedNew = true;
-        showReminder(event);
-      }
-    });
-    if (firedNew) _saveExtFired(fired); // avoid rewriting localStorage every tick
-  }
-}
-
-function _loadExtFired() {
-  try { return JSON.parse(localStorage.getItem('xeneonedge.extReminders.notified') || '{}'); }
-  catch { return {}; }
-}
-
-function _saveExtFired(map) {
-  // Keep the store small: drop entries older than 2 days.
-  const cutoff = Date.now() - 2 * 86400000;
-  const pruned = {};
-  for (const [k, v] of Object.entries(map)) if (v >= cutoff) pruned[k] = v;
-  try { localStorage.setItem('xeneonedge.extReminders.notified', JSON.stringify(pruned)); } catch {}
-}
+// Feed reminders used to be remembered here; the server keeps them now.
+try { localStorage.removeItem('xeneonedge.extReminders.notified'); } catch { }

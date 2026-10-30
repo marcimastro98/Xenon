@@ -1,0 +1,12 @@
+/* The desktop scene page (scene.html): the Ambient scene as the animated
+   wallpaper or the screensaver. Nothing on it is a control. The wallpaper
+   sits under the desktop icons; on the screensaver any input ends it, so a
+   tap must never also press a lock-screen button (play/pause, weather). */
+[data-desktop-scene] .lockscreen-exit { display: none !important; }
+
+[data-desktop-scene] .lockscreen-overlay *,
+[data-desktop-scene] .ambient-canvas-overlay * { pointer-events: none !important; }
+
+/* The screensaver hides the pointer, as every screensaver does. */
+html[data-scene="saver"],
+html[data-scene="saver"] * { cursor: none !important; }

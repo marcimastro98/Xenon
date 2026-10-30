@@ -80,7 +80,7 @@
   }
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="fans"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="fans"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   // Colour band by how hard the fan is working — the scale users already read on
@@ -151,7 +151,7 @@
     // the row would need flex-wrap, which drops the RPM onto its own line.
     const body = row.querySelector('.fanw-body');
     if (body && !body.querySelector('.fanw-rename-hint')) {
-      body.appendChild(el('div', 'fanw-rename-hint', t('fans_rename_hint', 'Name it “pump” if it drives the AIO pump — it is then read on a pump’s speed range.')));
+      body.appendChild(el('div', 'fanw-rename-hint', t('fans_rename_hint', 'Name it “pump” if it drives the AIO pump: it is then read on a pump’s speed range.')));
     }
     input.focus();
     input.select();
@@ -286,7 +286,7 @@
           el('span', 'fanw-silent-label', t('fans_silent', 'No signal')),
           el('span', 'fanw-silent-names', names),
         );
-        line.title = t('fans_silent_why', 'The board lists every fan header it has, connected or not — these report nothing: an empty socket, or a fan that is stopped.');
+        line.title = t('fans_silent_why', 'The board lists every fan header it has, connected or not. These report nothing: an empty socket, or a fan that is stopped.');
         wrap.appendChild(line);
       }
 

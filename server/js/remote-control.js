@@ -257,7 +257,7 @@
         screenSelect.disabled = false;
         screenStatus.hidden = false;
         screenStatus.className = 'remote-status error';
-        screenStatus.textContent = 'Cambio schermo non riuscito — riprova.';
+        screenStatus.textContent = 'Cambio schermo non riuscito: riprova.';
       });
     });
 
@@ -291,7 +291,7 @@
       if (btn) btn.disabled = false;
       actionStatus.hidden = false;
       actionStatus.className = 'remote-status error';
-      actionStatus.textContent = 'Errore di rete — riprova.';
+      actionStatus.textContent = 'Errore di rete: riprova.';
     };
 
     // Disconnetti ora
@@ -383,7 +383,7 @@
         }
       }).catch(() => {
         reconfigStatus.className = 'remote-status error';
-        reconfigStatus.textContent = 'Errore di rete — verifica che Sunshine sia in esecuzione.';
+        reconfigStatus.textContent = 'Errore di rete: verifica che Sunshine sia in esecuzione.';
         reconfigBtn.disabled = false;
       });
     });
@@ -567,7 +567,7 @@
       const hint = document.createElement('div');
       hint.className = 'remote-hint';
       hint.setAttribute('data-i18n', 'remote.step1_hint');
-      hint.textContent = 'Potrebbe comparire una richiesta di autorizzazione — confermala per procedere.';
+      hint.textContent = 'Potrebbe comparire una richiesta di autorizzazione: confermala per procedere.';
       body.appendChild(hint);
     }
 
@@ -613,14 +613,14 @@
           const secs = Math.round((Date.now() - startedAt) / 1000);
           statusEl.textContent = secs < 20
             ? 'Installazione in corso…'
-            : `Installazione in corso… (${secs}s — può richiedere qualche minuto)`;
+            : `Installazione in corso… (${secs}s: può richiedere qualche minuto)`;
         };
         tick();
         const ticker = setInterval(tick, 5000);
         const fail = () => {
           clearInterval(ticker);
           btn.disabled = false;
-          statusEl.textContent = 'Errore — riprova';
+          statusEl.textContent = 'Errore: riprova';
         };
         // /remote/install replies {ok:false} (HTTP 500) when the post-install
         // verify fails — a resolved promise is NOT success by itself.
@@ -651,7 +651,7 @@
       ok.textContent = 'Tailscale connesso';
       if (ts.ip) {
         ok.textContent = '';
-        const connText = document.createTextNode('Tailscale connesso — ');
+        const connText = document.createTextNode('Tailscale connesso: ');
         const ipSpan = document.createElement('strong');
         ipSpan.textContent = ts.ip; // dynamic data → textContent
         ok.appendChild(connText);
@@ -1015,7 +1015,7 @@
         }
         if (attempts >= POLL_MAX_ATTEMPTS) {
           statusEl.className = 'remote-status error';
-          statusEl.textContent = 'Timeout — verifica di aver completato il login nel browser.';
+          statusEl.textContent = 'Timeout: verifica di aver completato il login nel browser.';
           if (btn) btn.disabled = false;
           return;
         }
@@ -1023,7 +1023,7 @@
         _pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
       }).catch(() => {
         statusEl.className = 'remote-status error';
-        statusEl.textContent = 'Errore di connessione — riprova.';
+        statusEl.textContent = 'Errore di connessione: riprova.';
         if (btn) btn.disabled = false;
       });
     }
@@ -1046,7 +1046,7 @@
       renderAll();
     } catch {
       statusEl.className = 'remote-status error';
-      statusEl.textContent = 'Errore — verifica che Sunshine sia in esecuzione.';
+      statusEl.textContent = 'Errore: verifica che Sunshine sia in esecuzione.';
       if (btn) btn.disabled = false;
     }
   }
@@ -1063,7 +1063,7 @@
         } else if (res.status) {
           statusEl.textContent = 'Sunshine ha rifiutato la richiesta (HTTP ' + res.status + '). Verifica che Sunshine sia in esecuzione.';
         } else {
-          statusEl.textContent = 'PIN errato o scaduto — riprova da Moonlight.';
+          statusEl.textContent = 'PIN errato o scaduto: riprova da Moonlight.';
         }
         if (btn) btn.disabled = false;
         return;
@@ -1075,7 +1075,7 @@
       renderAll();
     } catch {
       statusEl.className = 'remote-status error';
-      statusEl.textContent = 'Errore di rete — riprova.';
+      statusEl.textContent = 'Errore di rete: riprova.';
       if (btn) btn.disabled = false;
     }
   }
@@ -1145,7 +1145,7 @@
     // Only tiles actually placed on a dashboard page — a hidden / never-added
     // widget sits in the #widget-pool (outside any .pager-page) and must not
     // trigger the /remote/screens probe.
-    const tiles = Array.from(document.querySelectorAll('[data-dashboard-widget="remote"]')).filter(el => el.closest('.pager-page'));
+    const tiles = Array.from(document.querySelectorAll('[data-dashboard-widget="remote"]')).filter(el => el.closest('.pager-page, .layer-slot'));
     if (!tiles.length) return;
     const configured = !!(
       _status &&
@@ -1179,7 +1179,7 @@
     notice.className = 'remote-widget-disabled';
     const msg = document.createElement('span');
     msg.setAttribute('data-i18n', 'remote.widget_disabled');
-    msg.textContent = 'Controllo remoto non attivo — abilitalo in Impostazioni';
+    msg.textContent = 'Controllo remoto non attivo: abilitalo in Impostazioni';
     notice.appendChild(msg);
     host.appendChild(notice);
     localizeSubtree(host);

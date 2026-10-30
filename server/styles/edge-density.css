@@ -36,7 +36,7 @@
   .lang-toggle,     /* language pill                */
   .ai-send-btn,
   .ai-attach-btn,
-  .ai-screen-btn {  /* round chat-composer buttons  */
+  .ai-talk-btn {    /* round chat-composer buttons  */
     border-width: 1.5px;
   }
 

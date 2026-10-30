@@ -10,7 +10,7 @@
   const WIDGET_CATEGORIES = [
     { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'lyrics', 'chat', 'chatgpt', 'browser', 'slideshow'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'perf', 'screen', 'fans', 'power', 'battery', 'disk', 'devclean', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude', 'openaicodex'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
   ];
   // Built-in widgets that open only with a supporter pass. The panel says so up
@@ -67,6 +67,8 @@
     devclean: I('<path d="M14.5 3.5 20.5 9.5"/><path d="m17.5 6.5-7 7"/><path d="M10.5 13.5 6 18l-2.5-.5L3 15l4.5-4.5"/><path d="M14 20h7"/>'),
     transfer: I('<path d="M7 20V8"/><path d="m3 12 4-4 4 4"/><path d="M17 4v12"/><path d="m13 12 4 4 4-4"/>'),
     phone: I('<path d="M6.5 3h3l1.5 4-2 1.4a12 12 0 0 0 5.6 5.6l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3Z"/>'),
+    perf: I('<path d="M3 17h3l2.5-6 3.5 9 3-11 2.5 8H21"/>'),
+    screen: I('<path d="M3 5h18v11H3zM8 20h8M12 16v4"/>'),
     battery: I('<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10v4M5.5 10.5v3M9 10.5v3"/>'),
     custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };

@@ -43,7 +43,7 @@ html.edge-preview body {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(16, 18, 24, 0.82);
   color: #eef1f6;
-  font: 600 12px/1 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font: 600 12px/1 'Sofia Sans', 'Inter', 'Segoe UI', system-ui, sans-serif;
   cursor: pointer;
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);

@@ -310,7 +310,7 @@
     {
       if (done === rows.length) toast(t('installed_content_removed', 'Contenuti rimossi'), '', 'success');
       // Report the shortfall honestly rather than claiming a clean sweep.
-      else toast(t('installed_remove_all_partial', 'Rimossi {n} di {total} — riprova per i restanti.').replace('{n}', String(done)).replace('{total}', String(rows.length)), '', 'error');
+      else toast(t('installed_remove_all_partial', 'Rimossi {n} di {total}: riprova per i restanti.').replace('{n}', String(done)).replace('{total}', String(rows.length)), '', 'error');
     }
     repaint();
   }
@@ -630,7 +630,7 @@
         const ok = (typeof settingsPrompt === 'function') ? await settingsPrompt({
           type: 'confirm',
           title: t('settings_sdk_claim', 'L\'ho creato io'),
-          message: t('settings_sdk_claim_confirm', 'Confermi di aver creato tu questo widget? Solo le tue creazioni originali si possono condividere — non marcare come tuo qualcosa installato da altri.'),
+          message: t('settings_sdk_claim_confirm', 'Confermi di aver creato tu questo widget? Solo le tue creazioni originali si possono condividere: non marcare come tuo qualcosa installato da altri.'),
           okLabel: t('settings_sdk_claim_ok', 'Sì, è mio'),
         }) : window.confirm(t('settings_sdk_claim_confirm', 'Confermi di aver creato tu questo widget?'));
         if (!ok) return;
@@ -698,7 +698,7 @@
       if (rejEmpty) frag.appendChild(rejEmpty);
       const empty = el('div', 'inst-empty');
       empty.appendChild(el('p', 'inst-empty-title', t('installed_empty_title', 'Non hai ancora installato nulla')));
-      empty.appendChild(el('p', 'cgal-status', t('installed_empty_desc', 'Temi, sfondi, widget, scene e pacchetti che installi dallo Store compaiono qui — con tutto ciò che hanno aggiunto.')));
+      empty.appendChild(el('p', 'cgal-status', t('installed_empty_desc', 'Temi, sfondi, widget, scene e pacchetti che installi dallo Store compaiono qui, con tutto ciò che hanno aggiunto.')));
       const cta = el('button', 'cgal-btn cgal-btn--primary', t('installed_empty_cta', 'Sfoglia lo Store'));
       cta.type = 'button';
       cta.addEventListener('click', () => { if (window.CommunityGallery) window.CommunityGallery.open(); });
@@ -763,7 +763,7 @@
         if (done === updatable.length) toast(t('installed_update_all_done', 'Tutto aggiornato'), '', 'success');
         // Report the shortfall honestly rather than claiming a clean sweep —
         // same rule the remove-all path follows.
-        else toast(t('installed_update_all_partial', 'Aggiornati {n} di {total} — riprova per i restanti.')
+        else toast(t('installed_update_all_partial', 'Aggiornati {n} di {total}: riprova per i restanti.')
           .replace('{n}', String(done)).replace('{total}', String(updatable.length)), '', 'error');
         repaint();
       });

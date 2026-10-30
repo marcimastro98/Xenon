@@ -59,7 +59,7 @@
 
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="transfer"]'))
-      .filter((n) => n.closest('.pager-page'));
+      .filter((n) => n.closest('.pager-page, .layer-slot'));
   }
   const isRemote = () => !!(typeof window !== 'undefined' && window.__xenonRemote);
   const onPhone = () => !!(window.PhoneView && window.PhoneView.isActive());
@@ -895,7 +895,73 @@
     group.append(toggleRow('autoDeliver', t('xfer_settings_deliver', 'Copia i file in quella cartella'),
       t('xfer_settings_deliver_hint', 'Da spento i file restano solo nell’elenco di Xenon, e li apri o li salvi da lì.')));
     if (cfg.autoDeliver === false) return group;
+    group.append(cfg.canPick === true ? pickedFolderField() : typedFolderField());
+    return group;
+  }
 
+  function folderError(code) {
+    return {
+      not_found: t('xfer_folder_not_found', 'Questa cartella non esiste.'),
+      not_absolute: t('xfer_folder_not_absolute', 'Serve il percorso completo.'),
+      not_a_dir: t('xfer_folder_not_a_dir', 'Questo non è una cartella.'),
+      inside_data: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
+      inside_app: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
+      symlink: t('xfer_folder_symlink', 'Questo è un collegamento. Indica la cartella vera.'),
+      picking: t('settings_folder_busy', 'A folder window is already open'),
+    }[code] || t('xfer_folder_failed', 'Non ho potuto usarla.');
+  }
+
+  function folderHint() {
+    return el('p', 'ra-toggle-hint', t('xfer_settings_folder_hint',
+      'I file arrivano qui con il loro nome. Se un nome esiste già, Xenon aggiunge un numero e non sostituisce mai niente.'));
+  }
+
+  // Where the capture engine runs (Windows), the folder comes from the
+  // system's own folder dialog, the same one Settings → Recording uses: no
+  // path to type, and the server checks the answer like a typed one.
+  function pickedFolderField() {
+    const field = el('div', 'xfer-set-field');
+    const shown = el('div', 'xfer-set-path', cfg.inboxDir || '');
+    const status = el('div', 'xfer-set-status');
+    const pick = el('button', 'ra-btn primary small', t('settings_capture_pick', 'Cambia'));
+    pick.type = 'button';
+    const reset = el('button', 'ra-btn ghost small', t('xfer_settings_folder_default', 'Torna a Download'));
+    reset.type = 'button';
+    const sync = () => {
+      shown.textContent = cfg.inboxDir || '';
+      reset.hidden = !cfg.inboxDir || cfg.inboxDir === cfg.inboxDefault;
+    };
+    sync();
+
+    pick.addEventListener('click', async () => {
+      pick.disabled = true;
+      status.textContent = '';
+      status.className = 'xfer-set-status';
+      const out = await api(server() + '/api/transfer/settings/pick', { method: 'POST' });
+      pick.disabled = false;
+      if (out && out.ok && out.cancelled) return;
+      if (out && out.ok) {
+        cfg = { ...cfg, ...out };
+        sync();
+        status.textContent = t('settings_saved', 'Salvato');
+        status.className = 'xfer-set-status is-ok';
+        return;
+      }
+      status.className = 'xfer-set-status is-bad';
+      status.textContent = folderError(out && out.error);
+    });
+    reset.addEventListener('click', async () => {
+      const res = await saveSettings({ inboxDir: '' });
+      if (res.ok) { status.textContent = ''; status.className = 'xfer-set-status'; sync(); }
+    });
+
+    const actions = el('div', 'xfer-set-actions');
+    actions.append(pick, reset);
+    field.append(shown, actions, status, folderHint());
+    return field;
+  }
+
+  function typedFolderField() {
     const field = el('div', 'xfer-set-field');
     // A text field rather than a native directory picker: a browser's folder
     // picker returns a file list, not a path, and Xenon needs the path. The
@@ -931,14 +997,7 @@
         status.className = 'xfer-set-status is-ok';
       } else {
         status.className = 'xfer-set-status is-bad';
-        status.textContent = {
-          not_found: t('xfer_folder_not_found', 'Questa cartella non esiste.'),
-          not_absolute: t('xfer_folder_not_absolute', 'Serve il percorso completo.'),
-          not_a_dir: t('xfer_folder_not_a_dir', 'Questo non è una cartella.'),
-          inside_data: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
-          inside_app: t('xfer_folder_inside', 'Questa cartella è di Xenon. Scegline un’altra.'),
-          symlink: t('xfer_folder_symlink', 'Questo è un collegamento. Indica la cartella vera.'),
-        }[res.error] || t('xfer_folder_failed', 'Non ho potuto usarla.');
+        status.textContent = folderError(res.error);
       }
       sync();
     });
@@ -949,10 +1008,8 @@
 
     const actions = el('div', 'xfer-set-actions');
     actions.append(apply, reset);
-    field.append(edit, actions, status, el('p', 'ra-toggle-hint', t('xfer_settings_folder_hint',
-      'I file arrivano qui con il loro nome. Se un nome esiste già, Xenon aggiunge un numero e non sostituisce mai niente.')));
-    group.append(field);
-    return group;
+    field.append(edit, actions, status, folderHint());
+    return field;
   }
 
   // The same switch the device list above uses, down to the knob: two controls

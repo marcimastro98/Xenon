@@ -20,6 +20,87 @@
    Inter is SIL Open Font License 1.1 — see LICENSE.txt beside the .woff2 files.
    ───────────────────────────────────────────────────────────────────────────── */
 
+/* Sofia Sans, self-hosted: the brand typeface (packages/core/src/brand-tokens.js),
+   the same letters as the site and Xenon Maker. The dashboard was metric-tuned
+   for Inter, so each face is scaled to Inter's average text width (Sofia Sans is
+   about 10% narrower at the same size) and given Inter's exact line box: the
+   overrides are Inter's ascent 0.9688 and descent 0.2412 divided by the 110%
+   scale, because the browser applies size-adjust to them too. Measured in
+   Chromium: a 100px line is 121px with both faces, and a 16px sentence is 2%
+   narrower, so nothing that fitted before starts to wrap. Inter stays loaded
+   below as the per-glyph fallback (Vietnamese) and as a tile font choice.
+   SIL OFL 1.1, see LICENSE.txt beside the .woff2 files. */
+
+/* cyrillic-ext */
+@font-face {
+  font-family: "Sofia Sans";
+  font-style: normal;
+  font-weight: 1 1000;
+  font-display: swap;
+  src: url("../assets/fonts/sofia-sans-cyrillic-ext.woff2") format("woff2");
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+  size-adjust: 110%;
+  ascent-override: 88.07%;
+  descent-override: 21.93%;
+  line-gap-override: 0%;
+}
+
+/* cyrillic */
+@font-face {
+  font-family: "Sofia Sans";
+  font-style: normal;
+  font-weight: 1 1000;
+  font-display: swap;
+  src: url("../assets/fonts/sofia-sans-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+  size-adjust: 110%;
+  ascent-override: 88.07%;
+  descent-override: 21.93%;
+  line-gap-override: 0%;
+}
+
+/* greek */
+@font-face {
+  font-family: "Sofia Sans";
+  font-style: normal;
+  font-weight: 1 1000;
+  font-display: swap;
+  src: url("../assets/fonts/sofia-sans-greek.woff2") format("woff2");
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+  size-adjust: 110%;
+  ascent-override: 88.07%;
+  descent-override: 21.93%;
+  line-gap-override: 0%;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: "Sofia Sans";
+  font-style: normal;
+  font-weight: 1 1000;
+  font-display: swap;
+  src: url("../assets/fonts/sofia-sans-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  size-adjust: 110%;
+  ascent-override: 88.07%;
+  descent-override: 21.93%;
+  line-gap-override: 0%;
+}
+
+/* latin */
+@font-face {
+  font-family: "Sofia Sans";
+  font-style: normal;
+  font-weight: 1 1000;
+  font-display: swap;
+  src: url("../assets/fonts/sofia-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  size-adjust: 110%;
+  ascent-override: 88.07%;
+  descent-override: 21.93%;
+  line-gap-override: 0%;
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: "Inter";
@@ -87,5 +168,34 @@
   font-weight: 100 900;
   font-display: swap;
   src: url("../assets/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Pixelify Sans, self-hosted: the greeting splash (js/greeting.js) sets Bit's
+   words in it. One variable file per subset, like Inter above; Japanese, Korean
+   and Chinese are not in the face and fall back to the dashboard font. SIL OFL
+   1.1, see assets/fonts/LICENSE.txt. */
+@font-face {
+  font-family: "Pixelify Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(../assets/fonts/pixelify-sans-cyrillic.woff2) format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Pixelify Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(../assets/fonts/pixelify-sans-latin-ext.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Pixelify Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(../assets/fonts/pixelify-sans-latin.woff2) format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }

@@ -322,7 +322,7 @@
       ui.src = '';
     }
     function tiles() {
-      return Array.from(document.querySelectorAll('[data-dashboard-widget="slideshow"]')).filter(n => n.closest('.pager-page'));
+      return Array.from(document.querySelectorAll('[data-dashboard-widget="slideshow"]')).filter(n => n.closest('.pager-page, .layer-slot'));
     }
     // A tile with no layout box (display:none page, unselected tab group) must not
     // advance — same visibility test the Spotify/Cameras tiles use.
@@ -364,7 +364,7 @@
       const emptyText = el('div', 'sl-empty-text', t('slideshow_empty', 'No images yet'));
       const emptyBtn = el('button', 'sl-empty-btn', t('slideshow_empty_add', 'Add images'));
       emptyBtn.type = 'button';
-      emptyBtn.addEventListener('click', (e) => { e.stopPropagation(); openSlideshowSettings(); });
+      emptyBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettingsCategory('slideshow'); });
       empty.append(emptyText, emptyBtn);
       const prev = el('button', 'sl-nav sl-prev'); prev.type = 'button';
       prev.setAttribute('aria-label', t('slideshow_prev', 'Previous'));

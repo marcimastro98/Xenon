@@ -335,16 +335,20 @@ function parseSunTime(str) {
   return null;
 }
 
-function isWeatherNight(sunrise, sunset) {
+// `atMin`: minutes since midnight of the moment asked about (an hour of the
+// forecast); without it, now.
+const WEATHER_DAY_NOON_MIN = 12 * 60;
+
+function isWeatherNight(sunrise, sunset, atMin) {
   const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const nowMin = Number.isFinite(atMin) ? atMin : now.getHours() * 60 + now.getMinutes();
   const riseMin = parseSunTime(sunrise);
   const setMin = parseSunTime(sunset);
   if (riseMin != null && setMin != null) return nowMin < riseMin || nowMin >= setMin;
-  return now.getHours() < 6 || now.getHours() >= 20;
+  return nowMin < 6 * 60 || nowMin >= 20 * 60;
 }
 
-function weatherCodeState(code, sunrise, sunset) {
+function weatherCodeState(code, sunrise, sunset, atMin) {
   const numeric = Number(code);
   if (!Number.isFinite(numeric)) return '';
   if (WEATHER_STORM_CODES.has(numeric)) return 'state-storm';
@@ -352,17 +356,17 @@ function weatherCodeState(code, sunrise, sunset) {
   if (WEATHER_RAIN_CODES.has(numeric)) return 'state-rain';
   if (WEATHER_FOG_CODES.has(numeric)) return 'state-fog';
   if (WEATHER_CLOUD_CODES.has(numeric)) return 'state-cloud';
-  if (WEATHER_CLEAR_CODES.has(numeric)) return isWeatherNight(sunrise, sunset) ? 'state-moon' : 'state-sun';
+  if (WEATHER_CLEAR_CODES.has(numeric)) return isWeatherNight(sunrise, sunset, atMin) ? 'state-moon' : 'state-sun';
   return '';
 }
 
-function classifyWeatherState(source) {
+function classifyWeatherState(source, atMin) {
   const sunrise = source && typeof source === 'object' ? source.sunrise : null;
   const sunset = source && typeof source === 'object' ? source.sunset : null;
-  const byCode = source && typeof source === 'object' ? weatherCodeState(source.code ?? source.weatherCode, sunrise, sunset) : '';
+  const byCode = source && typeof source === 'object' ? weatherCodeState(source.code ?? source.weatherCode, sunrise, sunset, atMin) : '';
   if (byCode) return byCode;
   const text = String(source && typeof source === 'object' ? source.condition : source || '').toLowerCase();
-  const night = isWeatherNight(sunrise, sunset);
+  const night = isWeatherNight(sunrise, sunset, atMin);
   if (/thunder|storm|temporale|temporali/.test(text)) return 'state-storm';
   if (/snow|sleet|neve/.test(text)) return 'state-snow';
   if (/rain|drizzle|shower|piogg|rovesc/.test(text)) return 'state-rain';
@@ -644,7 +648,7 @@ function buildWeatherTileForecast(data) {
   days.forEach((day, i) => {
     const row = document.createElement('div');
     row.className = 'weather-fc-row';
-    const state = classifyWeatherState(day);
+    const state = classifyWeatherState(day, WEATHER_DAY_NOON_MIN);
     row.dataset.weather = weatherStateIcon(state);
 
     const name = document.createElement('span');
@@ -785,7 +789,10 @@ function createWeatherMetric(label, value, sub, metric, level) {
 function createWeatherHour(hour) {
   const card = document.createElement('div');
   card.className = 'weather-hour';
-  const state = classifyWeatherState(hour);
+  // A clear 22:00 is a moon whatever the time now; the hours carry no sun times
+  // of their own, today's are close enough for tonight and early tomorrow.
+  const sun = (typeof weatherData !== 'undefined' && weatherData) || {};
+  const state = classifyWeatherState({ ...hour, sunrise: hour.sunrise ?? sun.sunrise, sunset: hour.sunset ?? sun.sunset }, parseSunTime(hour.time) ?? undefined);
   card.dataset.weather = weatherStateIcon(state);
   const time = document.createElement('div');
   time.className = 'weather-hour-time';
@@ -811,7 +818,7 @@ function createWeatherHour(hour) {
 function createWeatherDay(day) {
   const card = document.createElement('div');
   card.className = 'weather-day';
-  const state = classifyWeatherState(day);
+  const state = classifyWeatherState(day, WEATHER_DAY_NOON_MIN);   // a day is its daytime, never a moon
   card.dataset.weather = weatherStateIcon(state);
   const top = document.createElement('div');
   top.className = 'weather-day-top';
@@ -912,9 +919,11 @@ async function fetchWeather() {
   fetchingWeather = true;
   try {
     const params = new URLSearchParams({ lang });
+    // The light pages (layer-lite.html, scene.html) carry no settings.js: the
+    // server already normalized the block they read, so its city still counts.
     const weatherSettings = typeof normalizeWeatherSettings === 'function'
       ? normalizeWeatherSettings(hubSettings && hubSettings.weather)
-      : { mode: 'auto', city: '' };
+      : ((hubSettings && hubSettings.weather) || {});
     if (weatherSettings.mode === 'manual' && weatherSettings.city) {
       params.set('mode', 'manual');
       params.set('city', weatherSettings.city);

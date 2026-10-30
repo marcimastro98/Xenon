@@ -379,22 +379,18 @@
   border-color: var(--accent);
   background: var(--input-bg);
 }
-[data-chatf="pane"] :is(.ai-attach-btn, .ai-screen-btn, .ai-dictate-btn) {
+[data-chatf="pane"] .ai-attach-btn {
   color: var(--muted-text);
-  background: var(--control-bg);
-  border-color: var(--line);
+  background: transparent;
+  border-color: transparent;
 }
-[data-chatf="pane"] :is(.ai-attach-btn, .ai-screen-btn, .ai-dictate-btn):hover {
+[data-chatf="pane"] .ai-attach-btn:hover {
   color: var(--text);
   background: var(--hover-bg);
 }
-/* Send button keeps its accent identity; only its base fill follows the palette. */
-[data-chatf="pane"] .ai-send-btn {
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), .16);
-  border-color: rgba(var(--accent-rgb), .30);
-}
-[data-chatf="pane"] .ai-send-btn:hover { background: rgba(var(--accent-rgb), .26); }
+/* The main button (dictate / send) is Bit's green on every theme: colour means
+   Bit, and its dark ink reads on light and dark palettes alike. The stop square
+   follows the palette (AIPanel.css). */
 
 /* Per-message copy button */
 [data-chatf="pane"] .ai-msg-copy { color: var(--muted-text); }

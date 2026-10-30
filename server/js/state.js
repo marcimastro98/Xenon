@@ -77,6 +77,8 @@ let gpuMetric = 'load';
 // Last /system payload, kept so the GPU toggle can re-render immediately without
 // waiting for the next SSE tick.
 let lastSystemData = null;
+// Last /network reading, for the Network element of a canvas Ambient scene.
+let lastNetworkData = null;
 
 // ── Network panel state ───────────────────────────────────────
 let currentSysTab = 'main';

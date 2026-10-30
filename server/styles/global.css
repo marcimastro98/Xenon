@@ -174,8 +174,9 @@ body {
   background: var(--bg);
   color: var(--text);
   /* --user-font-family is set by applyUiFont() when a custom typeface is uploaded;
-     when unset it falls back to Inter, so the default look is unchanged. */
-  font-family: var(--user-font-family, 'Inter'), 'Inter', 'Segoe UI', system-ui, sans-serif;
+     when unset it is the brand face, Sofia Sans, sized to Inter's metrics in
+     fonts.css. Inter stays next for the glyphs Sofia Sans lacks (Vietnamese). */
+  font-family: var(--user-font-family, 'Sofia Sans'), 'Sofia Sans', 'Inter', 'Segoe UI', system-ui, sans-serif;
   user-select: none;
   -webkit-font-smoothing: antialiased;
 }

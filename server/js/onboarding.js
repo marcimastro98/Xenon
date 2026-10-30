@@ -1,9 +1,9 @@
 // First-run guided tour. A lightweight coachmark walkthrough that spotlights the
-// real topbar/dashboard controls one at a time, so a new user discovers the v3.0
-// features (Xenon AI, layout editor, multi-page pager, Deck, Settings) without
+// real topbar/dashboard controls one at a time, so a new user discovers Bit, the
+// chat, search, the layout editor, pages and Settings (with the Store) without
 // reading a manual. Shown ONCE — the finished/skipped version is persisted in
 // settings (server-backed, so a WebView storage wipe can't make it reappear) —
-// and can be replayed any time from Settings → Aspetto.
+// and can be replayed any time from Settings → General.
 (function () {
   'use strict';
 
@@ -11,17 +11,20 @@
   // auto-start only fires when the user's saved seenVersion is BELOW this.
   const ONBOARDING_VERSION = 1;
 
-  // Each step spotlights one element (or a centered card when `target` is null).
-  // Targeted steps are skipped automatically when their element isn't on screen,
-  // so a hidden topbar or a single-page layout never leaves a dangling step.
+  // Each step spotlights the first of its `targets` that is on screen (or shows a
+  // centered card when it has none). A step whose targets are all hidden is
+  // skipped, so a hidden button, a collapsed rail or a single-page layout never
+  // leaves a spotlight on empty space. `path` names the Settings category a body
+  // points to; it is filled from the live labels so the text can't drift.
   const STEPS = [
-    { target: null, titleKey: 'onb_welcome_title', bodyKey: 'onb_welcome_body' },
-    { target: '.topbtn-xenon', titleKey: 'onb_ai_title', bodyKey: 'onb_ai_body' },
-    { target: '#media-panel', titleKey: 'onb_chat_title', bodyKey: 'onb_chat_body' },
-    { target: '#layout-edit-toggle', titleKey: 'onb_layout_title', bodyKey: 'onb_layout_body' },
-    { target: '.qbtn-apps', titleKey: 'onb_pager_title', bodyKey: 'onb_pager_body' },
-    { target: '.qbtn-settings', titleKey: 'onb_settings_title', bodyKey: 'onb_settings_body' },
-    { target: null, titleKey: 'onb_done_title', bodyKey: 'onb_done_body' },
+    { targets: null, titleKey: 'onb_welcome_title', bodyKey: 'onb_welcome_body' },
+    { targets: ['.topbtn-xenon'], titleKey: 'onb_ai_title', bodyKey: 'onb_ai_body', path: 'settings_cat_bit' },
+    { targets: ['.chat-panel', '#media-panel'], titleKey: 'onb_chat_title', bodyKey: 'onb_chat_body' },
+    { targets: ['.qbtn-search'], titleKey: 'onb_search_title', bodyKey: 'onb_search_body' },
+    { targets: ['#layout-edit-toggle'], titleKey: 'onb_layout_title', bodyKey: 'onb_layout_body' },
+    { targets: ['#pager-dots', '.ph-dock.has-pages .ph-pages'], titleKey: 'onb_pager_title', bodyKey: 'onb_pager_body' },
+    { targets: ['.qbtn-settings'], titleKey: 'onb_settings_title', bodyKey: 'onb_settings_body' },
+    { targets: null, titleKey: 'onb_done_title', bodyKey: 'onb_done_body', path: 'settings_cat_general' },
   ];
 
   let overlay = null;     // root .onb-overlay (portaled to body)
@@ -31,6 +34,7 @@
   let index = 0;
   let active = false;
   let onResize = null;
+  let onRailMoved = null;
 
   // Translate via the global t() with a literal fallback (t returns the key when
   // it has no translation, so we never render a raw key to the user).
@@ -47,8 +51,51 @@
     return (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
   }
 
+  // A button tucked into a rail the user collapsed is off screen on purpose; an
+  // auto-hidden rail is not, because the tour holds the rails out while it runs.
+  // A tile on another dashboard page sits beside the viewport, so it is not
+  // shown; a rail is, even while it is still sliding in.
+  function isShown(el) {
+    if (el.closest('.edge-rail.is-collapsed')) return false;
+    const r = el.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0)) return false;
+    return !!el.closest('.edge-rail') || (r.right > 0 && r.left / zoom() < window.innerWidth);
+  }
+
+  // The element a step spotlights, or null. A tile that is a tab of a group is
+  // spotlit as the whole group, tabs included, which is what the user sees. On a
+  // phone the topbar buttons are hidden and the thumb dock stands in for them.
+  function targetOf(step) {
+    if (!step.targets) return null;
+    for (const sel of step.targets) {
+      const el = document.querySelector(sel);
+      if (el && isShown(el)) return el.closest('.tabgroup') || el;
+      const stand = document.querySelector('.ph-dock [data-ph-for="' + sel + '"]');
+      if (stand && isShown(stand)) return stand;
+    }
+    return null;
+  }
+
   function resolveSteps() {
-    return STEPS.filter(s => !s.target || document.querySelector(s.target));
+    return STEPS.filter(s => !s.targets || targetOf(s));
+  }
+
+  function bodyText(step) {
+    const text = tr(step.bodyKey, '');
+    if (!step.path) return text;
+    return text.replace('{path}', tr('ui_settings', 'Settings') + ' → ' + tr(step.path, ''));
+  }
+
+  // The minimal top bar keeps the Bit, Search, Layout and Settings buttons in
+  // side rails that slide off when idle or stay closed by choice. Keep them out
+  // and open for the whole tour; letting go restores both as they were.
+  function holdRails(hold) {
+    const tm = window.TopbarMinimal;
+    if (!tm) return;
+    try {
+      if (typeof tm.holdRails === 'function') tm.holdRails(hold);
+      if (typeof tm.peekRails === 'function') tm.peekRails(hold);
+    } catch { /* the tour must never break the bar */ }
   }
 
   function build() {
@@ -71,6 +118,9 @@
     document.addEventListener('keydown', onKey, true);
     onResize = () => position();
     window.addEventListener('resize', onResize);
+    // A rail sliding back in moves the button under the spotlight: follow it.
+    onRailMoved = (e) => { if (e.target.classList && e.target.classList.contains('edge-rail')) position(); };
+    document.addEventListener('transitionend', onRailMoved);
 
     document.body.appendChild(overlay);
   }
@@ -101,7 +151,7 @@
 
     const body = document.createElement('p');
     body.className = 'onb-body';
-    body.textContent = tr(step.bodyKey, '');
+    body.textContent = bodyText(step);
 
     const actions = document.createElement('div');
     actions.className = 'onb-actions';
@@ -147,11 +197,11 @@
     // clamp works in and pushing a button off the right edge. Driving width from
     // window.innerWidth (layout px, like the Deck menu does) makes it impossible to
     // overflow: cw is guaranteed ≤ vw − 2·margin, so the clamp always fits it.
-    const wantW = step.target ? 340 : 380;
+    const wantW = step.targets ? 340 : 380;
     card.style.maxWidth = 'none';
     card.style.width = Math.max(160, Math.min(wantW, vw - margin * 2)) + 'px';
 
-    if (!step.target) {
+    if (!step.targets) {
       spot.style.opacity = '0';
       spot.style.width = spot.style.height = '0px';
       card.classList.add('onb-card-center');
@@ -161,8 +211,11 @@
     }
 
     overlay.classList.remove('onb-dim'); // spotlight box-shadow does the dimming
-    const el = document.querySelector(step.target);
+    const el = targetOf(step);
     if (!el) { spot.style.opacity = '0'; card.classList.add('onb-card-center'); overlay.classList.add('onb-dim'); return; }
+    // On a phone the dashboard scrolls, and the tile may sit below the fold.
+    const seen = el.getBoundingClientRect();
+    if (seen.top < 0 || seen.bottom / z > vh) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const r = el.getBoundingClientRect();
     const pad = 8;
     const left = r.left / z - pad, top = r.top / z - pad;
@@ -179,16 +232,21 @@
     const cw = card.offsetWidth || 320, ch = card.offsetHeight || 160;
     const spotBottom = top + h, spotCenterX = left + w / 2;
 
-    // Vertical: prefer below the target, else above; if it fits neither (a big
-    // tile on the short Xeneon Edge), centre it. ALWAYS hard-clamp inside the
-    // viewport last, so the action buttons can never be cut off at the edge.
+    // Prefer below the target, else above, else beside it (a tall tile); if it
+    // fits nowhere (a big tile on the short Xeneon Edge), centre it. ALWAYS
+    // hard-clamp inside the viewport last, so the action buttons can never be
+    // cut off at the edge.
     let cTop;
+    let cLeft = spotCenterX - cw / 2;                 // centre under the target
     if (spotBottom + 12 + ch <= vh - margin) cTop = spotBottom + 12;
     else if (top - 12 - ch >= margin) cTop = top - ch - 12;
-    else cTop = (vh - ch) / 2;
+    else {
+      cTop = top + h / 2 - ch / 2;
+      if (left + w + 12 + cw <= vw - margin) cLeft = left + w + 12;
+      else if (left - 12 - cw >= margin) cLeft = left - cw - 12;
+      else cTop = (vh - ch) / 2;
+    }
     cTop = Math.max(margin, Math.min(cTop, vh - ch - margin));
-
-    let cLeft = spotCenterX - cw / 2;                 // centre under the target
     cLeft = Math.max(margin, Math.min(cLeft, vw - cw - margin));
     card.style.left = Math.round(cLeft) + 'px';
     card.style.top = Math.round(cTop) + 'px';
@@ -216,7 +274,9 @@
     active = false;
     document.removeEventListener('keydown', onKey, true);
     if (onResize) window.removeEventListener('resize', onResize);
-    onResize = null;
+    if (onRailMoved) document.removeEventListener('transitionend', onRailMoved);
+    onResize = onRailMoved = null;
+    holdRails(false);
     if (overlay) { overlay.remove(); overlay = null; }
     spot = card = null;
   }
@@ -237,8 +297,9 @@
 
   function start() {
     if (active) return;
+    holdRails(true);
     steps = resolveSteps();
-    if (!steps.length) return;
+    if (!steps.length) { holdRails(false); return; }
     index = 0;
     active = true;
     build();
@@ -251,6 +312,7 @@
   // standalone browser tab — seenVersion is server-backed, so dismissing it in one
   // surface stops it auto-starting in the other.
   function maybeStart() {
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;   // the tour runs on the main dashboard
     const seen = (typeof window.getOnboardingSeen === 'function') ? window.getOnboardingSeen() : 0;
     if (seen >= ONBOARDING_VERSION) return;
     const greetingUp = () => !!document.querySelector('.greeting-splash');

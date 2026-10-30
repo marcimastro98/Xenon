@@ -303,9 +303,13 @@
   // be invisible here: the topbar copy is hidden on a phone, so whatever it was
   // telling the user was being told to nobody. It is MIRRORED rather than moved,
   // so the code that owns it keeps writing to exactly one element.
+  //
+  // Bit's fallback is its pixel outline (eyes and mouth cut out), the same one
+  // the static topbar button wears, never a sparkle: the button is Bit.
+  const BIT_ICON = 'M12 0h2v4h4v2h2v12h-2v4h-4v-2h-4v2h-4v-4h-2v-12h2v-2h6z M8 8v4h2v-4z M14 8v4h2v-4z M10 14v2h4v-2z';
   const DOCK_BUTTONS = [
     { sel: '.qbtn-search', glyph: '⌕', key: 'ph_search' },
-    { sel: '.topbtn-xenon', glyph: '✦', key: 'ph_ai' },
+    { sel: '.topbtn-xenon', icon: BIT_ICON, key: 'ph_ai' },
     { sel: '.qbtn-apps', glyph: '▦', key: 'ph_apps' },
     { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings', dot: 'settings-update-dot' },
   ];
@@ -469,6 +473,9 @@
       b.setAttribute('aria-label', name);
       if (spec.dot) mirrorDot(b, spec.dot);
       if (spec.id) b.dataset.phAction = spec.id;
+      // Names the topbar button this one stands in for, so the first-run tour
+      // (js/onboarding.js) can point here when that button is hidden.
+      if (spec.sel) b.dataset.phFor = spec.sel;
       b.addEventListener('click', () => {
         if (spec.run) { try { spec.run(); } catch (e) { console.warn('[phone-view] dock action failed', spec.id, e); } return; }
         const real = document.querySelector(spec.sel);

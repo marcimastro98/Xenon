@@ -53,9 +53,13 @@
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('surface-picker', false);
   }
 
-  function finish(patch) {
+  // `phone`: the answer was "my phone", which is recorded as 'both' (see
+  // choosePhone) but leads into the pairing guide, so nothing else may open on
+  // top of it. Settings chains the next first-run question on this event.
+  function finish(patch, phone) {
     if (typeof window.setSurfaceChoice === 'function') window.setSurfaceChoice({ ...patch, asked: true });
     close();
+    window.dispatchEvent(new CustomEvent('surface-picker-done', { detail: { phone: phone === true } }));
   }
 
   function chooseScreen() {
@@ -85,7 +89,7 @@
     // has its own panel, and flipping it as a side effect of a wizard is what
     // the paired-device rules forbid. So we land them on it, one tap away, with
     // the step-by-step guide open on the switch itself.
-    finish({ kind: 'both', monitor: '', label: '' });
+    finish({ kind: 'both', monitor: '', label: '' }, true);
     if (window.RemoteAccessGuide && typeof window.RemoteAccessGuide.open === 'function') {
       window.RemoteAccessGuide.open();
     }
@@ -242,7 +246,7 @@
 
     const sub = document.createElement('p');
     sub.className = 'sp-sub';
-    sub.textContent = tr('surface_sub', 'Xenon lives on a screen you can leave on. Pick one now — Settings → Screen changes it whenever you like.');
+    sub.textContent = tr('surface_sub', 'Xenon lives on a screen you can leave on. Pick one now: Settings → Screen changes it whenever you like.');
     box.appendChild(sub);
 
     const cards = document.createElement('div');
