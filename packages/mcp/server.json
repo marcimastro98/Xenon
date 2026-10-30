@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.marcimastro98/xenon-widgets",
+  "description": "Build widgets for the Xenon dashboard: SDK reference, install, runtime errors, tile screenshots.",
+  "repository": {
+    "url": "https://github.com/marcimastro98/Xenon",
+    "source": "github",
+    "subfolder": "packages/mcp"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "xenon-mcp",
+      "version": "1.0.0",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "xenon-mcp",
+  "version": "1.0.0",
+  "description": "Build widgets for the Xenon dashboard from Claude Code, Codex or any MCP client: read the SDK, install, see errors and a picture of the tile.",
+  "mcpName": "io.github.marcimastro98/xenon-widgets",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Marcello Mastroeni (https://github.com/marcimastro98)",
+  "homepage": "https://xenon-app.com/create/#mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcimastro98/Xenon.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": "https://github.com/marcimastro98/Xenon/issues",
+  "keywords": ["mcp", "model-context-protocol", "xenon", "widgets", "dashboard", "claude-code", "codex"],
+  "type": "commonjs",
+  "bin": {
+    "xenon-mcp": "bin/xenon-mcp.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "prepack": "node -e \"require('fs').copyFileSync('../../LICENSE','LICENSE')\"",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}
