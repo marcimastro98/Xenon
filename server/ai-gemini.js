@@ -152,7 +152,7 @@ function _httpError(status, bodyText) {
   try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
   let err;
   if (status === 400 || status === 401 || status === 403) {
-    err = new Error('Gemini: the API key is invalid or has no access. Check it in Settings → Xenon AI.');
+    err = new Error('Gemini: the API key is invalid or has no access. Check it in Settings → Bit assistant.');
     err.code = 'bad_key';
   } else if (status === 429) {
     err = new Error('Gemini: too many requests (rate limit).');

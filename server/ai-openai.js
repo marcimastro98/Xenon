@@ -84,13 +84,13 @@ function _httpError(status, bodyText) {
   try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
   let err;
   if (status === 401) {
-    err = new Error('ChatGPT (OpenAI): the API key is invalid or expired. Check it in Settings → Xenon AI.');
+    err = new Error('ChatGPT (OpenAI): the API key is invalid or expired. Check it in Settings → Bit assistant.');
     err.code = 'bad_key';
   } else if (status === 429) {
     err = new Error('ChatGPT (OpenAI): quota exceeded or too many requests (rate limit). Check your OpenAI account credit.');
     err.code = 'rate_limited';
   } else if (status === 404) {
-    err = new Error('ChatGPT (OpenAI): the requested model is not available for your key. Pick another in Settings → Xenon AI.' + (detail ? ' (' + detail + ')' : ''));
+    err = new Error('ChatGPT (OpenAI): the requested model is not available for your key. Pick another in Settings → Bit assistant.' + (detail ? ' (' + detail + ')' : ''));
     err.code = 'model_missing';
   } else {
     err = new Error('ChatGPT (OpenAI): HTTP error ' + status + (detail ? ' — ' + detail : ''));
@@ -185,12 +185,19 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
 
 // One-shot completion (no tools) → plain text. Used by summarize / JSON helpers.
 // `onUsage(totalTokens, { input, output })`, when given, hears what the call cost.
-async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage }) {
+// `image` ({ mimeType, data } base64), when given, rides with the text.
+async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage, image }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
   const messages = [];
   if (systemText) messages.push({ role: 'system', content: systemText });
-  messages.push({ role: 'user', content: String(userText || '') });
+  const text = String(userText || '');
+  messages.push({
+    role: 'user',
+    content: image
+      ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.data}` } }]
+      : text,
+  });
   const body = { model: sanitizeModel(model), messages };
   if (maxTokens) body.max_tokens = maxTokens;
   const resp = await _post('/chat/completions', key, body, 60000);
