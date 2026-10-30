@@ -26,6 +26,7 @@ const state = {
   onChange: null,    // persists layouts the controller filled in by itself (Gen2)
   onWriteError: null, // (deviceId, error): a frame painted in the background failed
   cache: null,       // devices() result; apply() asks for it on every frame
+  halted: false,     // the PC is going off or to sleep: the headers stay with the board
 };
 
 function setChangeHook(fn) { state.onChange = typeof fn === 'function' ? fn : null; }
@@ -155,6 +156,7 @@ function zoneColorsFor(entry, ledIds, colors) {
 // Never waits for the USB link (see Fusion2Controller.paint): a slow controller
 // must not hold up the other devices painted in the same frame.
 function write(dev, colors) {
+  if (state.halted) return;
   const entry = state.controllers.find(c => c.id === dev.id);
   if (!entry) return;
   entry.ctl.paint(framesFor(entry, dev.ledIds, colors), zoneColorsFor(entry, dev.ledIds, colors),
@@ -175,6 +177,7 @@ function previewFrame({ done = [], lit = 0, whole = false }) {
 }
 
 async function setPreview(id, output, opts) {
+  if (state.halted) return false;
   const entry = state.controllers.find(c => c.id === id);
   if (!entry || !Number.isInteger(output) || output < 0 || output >= entry.ctl.headers) return false;
   if (state.preview) clearTimeout(state.preview.timer);
@@ -202,6 +205,22 @@ async function release() {
   await Promise.all(state.controllers.map(c => c.ctl.release().catch(() => {})));
 }
 
+// Before the PC goes off or to sleep: the headers go back to the board's own
+// effects and nothing paints them until resume(). The board knows what to show
+// on standby power; a frame of ours left behind does not.
+async function powerDown() {
+  state.halted = true;
+  await release();
+}
+
+// Awake again (or the shutdown was cancelled). The controller may have lost what
+// it was told while asleep, so the next frame sets it up from scratch.
+function resume() {
+  if (!state.halted) return;
+  state.halted = false;
+  state.controllers.forEach(c => c.ctl.forget());
+}
+
 function setLayout(id, zone, layout) {
   const dev = { ...(state.layouts[id] || {}) };
   if (layout === null) delete dev[zone];
@@ -226,6 +245,6 @@ function status() {
 }
 
 module.exports = {
-  configure, start, stop, devices, hasDevices, owns, write, release, setPreview, clearPreview,
+  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, setPreview, clearPreview,
   setLayout, getLayouts, status, setChangeHook, setWriteErrorHook, _previewFrame: previewFrame, _framesFor: framesFor, _zoneColorsFor: zoneColorsFor,
 };

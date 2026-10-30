@@ -25,23 +25,35 @@ const { Readable } = require('stream');
 const { UPDATE_PUBKEY_PEM, SELF_UPDATE_REPO, parseSumsEntry } = require('./self-update');
 
 const HELPER_ASSET = 'xenon-helper.exe';
+const CAPTURE_ASSET = 'xenon-capture.exe';
+// One universal (Apple silicon + Intel) binary; installed as `capture/xenon-capture`.
+const CAPTURE_ASSET_MAC = 'xenon-capture-macos';
+// x86-64 Linux; installed as `capture/xenon-capture`.
+const CAPTURE_ASSET_LINUX = 'xenon-capture-linux-x64';
 const SUMS_ASSET = 'SHA256SUMS';
 const SIG_ASSET = 'SHA256SUMS.sig';
 
 const normVer = (s) => String(s || '').trim().replace(/^v/i, '');
 
 // opts (deps injectable for tests): helperExe (abs path), helperDir, appVersion,
-// repo, fetchImpl, fsImpl, publicKeyPem, now.
+// repo, fetchImpl, fsImpl, publicKeyPem, now, platform. `asset` names another binary the
+// same release ships and the same signed SHA256SUMS covers (CAPTURE_ASSET, the
+// capture engine): the trust chain is the same, only the file differs.
 function createHelperUpdate(opts) {
   const o = opts || {};
   const helperExe = o.helperExe;
   const helperDir = o.helperDir || path.dirname(helperExe);
+  const asset = o.asset || HELPER_ASSET;
+  // Leftovers are named after the file on disk, which on macOS is not the asset's name.
+  const local = path.basename(helperExe);
+  const stem = local.replace(/\.exe$/i, '');
   const appVersion = normVer(o.appVersion);
   const repo = o.repo || SELF_UPDATE_REPO;
   const fetchImpl = o.fetchImpl || globalThis.fetch;
   const f = o.fsImpl || fs;
   const publicKeyPem = o.publicKeyPem || UPDATE_PUBKEY_PEM;
   const now = o.now || Date.now;
+  const platform = o.platform || process.platform;
 
   async function _json(url) {
     const res = await fetchImpl(url, {
@@ -82,7 +94,7 @@ function createHelperUpdate(opts) {
   function _cleanupLeftovers() {
     try {
       for (const n of f.readdirSync(helperDir)) {
-        if (/^xenon-helper(\.exe)?\.old-/.test(n) || n === 'xenon-helper.exe.download') {
+        if (n.startsWith(stem + '.exe.old-') || n.startsWith(stem + '.old-') || n === local + '.download') {
           try { f.rmSync(path.join(helperDir, n), { force: true }); } catch { /* ignore */ }
         }
       }
@@ -131,7 +143,7 @@ function createHelperUpdate(opts) {
 
       const sumsUrl = _assetUrl(rel, SUMS_ASSET);
       const sigUrl = _assetUrl(rel, SIG_ASSET);
-      const exeUrl = _assetUrl(rel, HELPER_ASSET);
+      const exeUrl = _assetUrl(rel, asset);
       if (!sumsUrl || !sigUrl || !exeUrl) return 'not-ready'; // CI still attaching assets
 
       const [sums, sigB64] = await Promise.all([_text(sumsUrl), _text(sigUrl)]);
@@ -144,7 +156,7 @@ function createHelperUpdate(opts) {
       } catch { sigOk = false; }
       if (!sigOk) return 'signature-invalid';
 
-      const expected = parseSumsEntry(sums, HELPER_ASSET);
+      const expected = parseSumsEntry(sums, asset);
       if (!expected) return 'not-ready'; // this release's signed sums don't cover the helper yet
 
       // Already the exact signed helper? Nothing to download.
@@ -186,6 +198,8 @@ function createHelperUpdate(opts) {
       // `no-helper` early return, because it is an updater and never an installer,
       // so the exe stays missing until someone re-runs the setup by hand. Observed
       // in the wild, with only a `xenon-helper.exe.old-<ts>` orphan left behind.
+      // A download is not executable on macOS and Linux until it is made so.
+      if (platform !== 'win32') f.chmodSync(dl, 0o755);
       const aside = helperExe + '.old-' + now();
       let moved = false;
       try { f.renameSync(helperExe, aside); moved = true; }
@@ -210,4 +224,4 @@ function createHelperUpdate(opts) {
   return { refresh, install };
 }
 
-module.exports = { createHelperUpdate, HELPER_ASSET };
+module.exports = { createHelperUpdate, HELPER_ASSET, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX };

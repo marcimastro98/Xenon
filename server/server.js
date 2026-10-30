@@ -35,6 +35,216 @@ const nativeCollectors =
 // render. See runPowerShellScript / runPowerShellCommand.
 const POWERSHELL_SUPPORTED = process.platform === 'win32';
 const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
+// Single-screen capabilities (js/capability-catalog.js): one declaration, run
+// through deckRegistry, offered to the Deck editor and Xenon AI from there.
+const capabilities = require('./capabilities');
+const layersHost = require('./layers-host').createLayersHost();
+// Edit mode of the layer windows (layers-edit.js): runtime only, told to every
+// open window over SSE `layers-edit`.
+const DeckShortcuts = require('./js/deck-shortcuts.js');
+const { createDeckShortcutRunner } = require('./deck-shortcut-runner');
+const { createDeckSoundPlayer } = require('./deck-sound-player');
+const LayerPages = require('./layer-pages');
+const { createPerfStream } = require('./perf-stream');
+const { createStutterWatch } = require('./stutter-why');
+const { createExclusiveHint } = require('./exclusive-hint');
+const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
+const calendarReminders = require('./calendar-reminders');
+const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
+const { createCaptureHost } = require('./capture-host');
+const { createCaptures, VIDEO_KINDS, KINDS: CAPTURE_KINDS } = require('./captures');
+const { createCaptureGallery } = require('./capture-gallery');
+const { createCaptureSend } = require('./capture-send');
+const { createCaptureCopy } = require('./capture-copy');
+const NotesAi = require('./notes-ai');
+const AgendaAi = require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
+const TimerActions = require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
+const PageTarget = require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
+const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
+const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
+const SettingsAi = require('./settings-ai'); // change_setting: the allowlisted Settings switches
+const TileSettings = require('./tile-settings'); // POST /settings/tile: a tile's own choices from a layer page
+const CaptureCovers = require('./capture-covers');
+const { createCaptureTranscripts } = require('./capture-transcripts');
+const { createCaptureExport } = require('./capture-export');
+const TranscriptFormat = require('./transcript-format');
+const { createRecorder } = require('./recorder');
+const { createCaptureMarkers } = require('./capture-markers');
+const { createAutoClips } = require('./capture-autoclips');
+const { createStepsRecorder } = require('./steps-recorder');
+const { createCaptureLast } = require('./capture-last.js');
+const StepsDoc = require('./steps-doc');
+const { createReplay, estimateBitrate, ringByteRate } = require('./replay');
+const { createBugReport } = require('./bug-report');
+const { writeZip } = require('./zip-writer');
+const CaptureSettings = require('./capture-settings');
+const { createCaptureFolder } = require('./capture-folder');
+const { resolveUserFolder, replayRingDir } = require('./user-folders');
+// The capture engine (apps/capture), started on the first screenshot and gone
+// after a minute without one. Windows only for now; elsewhere it is absent and
+// the capture keys and AI functions are hidden.
+const CAPTURE_EXE = path.join(__dirname, 'capture', process.platform === 'win32' ? 'xenon-capture.exe' : 'xenon-capture');
+const _captureHost = createCaptureHost({ exe: CAPTURE_EXE, log: (m) => console.warn(m) });
+const layersEdit = require('./layers-edit').createLayersEdit({
+  broadcast: (on) => broadcastSSE('layers-edit', { on }),
+  // Editing showed the surfaces the user had hidden: hide them again, unless
+  // the user chose what to show meanwhile.
+  onEnd: (hidden) => {
+    updateLayersSetting((cur) => {
+      const now = LayersModel.normalize(cur);
+      if (now.hidden.length) return { error: 'unchanged' };
+      return { layers: { ...now, hidden } };
+    }).catch(() => { /* the widgets stay shown: still usable */ });
+  },
+});
+// Drawing on the screen through the shell where the engine has no sheet (macOS,
+// Linux): open or not, told to the pages over SSE `screen_draw`.
+const drawShell = require('./screen-draw-shell').createScreenDrawShell({
+  host: layersHost, broadcast: (state) => broadcastSSE('screen_draw', state),
+});
+// The Xenon menu over the main screen (screen-menu.js, plan §20): open or not,
+// told over SSE `screen_menu`; with no shell to draw it, the dashboards open
+// the same menu as a panel (SSE `xenon_menu_panel`).
+const screenMenu = require('./screen-menu').createScreenMenu({
+  host: layersHost,
+  broadcast: (state) => broadcastSSE('screen_menu', state),
+  panel: (state) => broadcastSSE('xenon_menu_panel', state),
+});
+const XenonMenu = require('./xenon-menu');
+// Tiles that make no sense alone on the desktop: the bare custom shell (a Store
+// widget is placed by its package instead) and the second-screen mirror.
+const LAYER_TILE_EXCLUDED = new Set(['custom', 'secondscreen', 'screen']);
+async function _layerCatalog() {
+  return {
+    tiles: DASHBOARD_WIDGET_IDS.filter(id => !LAYER_TILE_EXCLUDED.has(id)),
+    packages: ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
+      .map(p => ({ id: p.id, name: p.name })),
+  };
+}
+const capabilityRunner = capabilities.createCapabilities({
+  fps: fpsMonitor,
+  // The PC's battery and the system power mode (power/index.js picks the OS backend).
+  power: require('./power'),
+  layersHost,
+  layersEdit,
+  drawShell,
+  // Open windows, for attaching a widget to an app (capabilities/layer-anchor.js).
+  windows: () => runWindowsTool(['list'], 8000),
+  menu: screenMenu,
+  settings: {
+    setAiEdgeGlow: (mode) => updateAiEdgeGlowSetting(mode),
+    setUsageMode: (mode) => updateUsageModeSetting(mode),
+    setScreenAlerts: (on) => updateScreenAlertsSetting(on),
+    setDesktopScene: (patch) => updateDesktopSceneSetting(patch),
+  },
+  layers: {
+    get: () => _serverHubSettings && _serverHubSettings.layers,
+    update: (edit) => updateLayersSetting(edit),
+    catalog: () => _layerCatalog(),
+  },
+  // The log of games played (game-sessions.js) and its on/off setting.
+  sessions: {
+    store: () => _gameSessions,
+    enabled: () => gameSessionsEnabled(),
+    setEnabled: (on) => updateGameSessionsSetting(on),
+  },
+  // Notifications and Do not disturb (capabilities/notifications.js).
+  notifications: {
+    get: () => normalizeNotifications(_serverHubSettings && _serverHubSettings.notifications),
+    set: (change) => updateNotificationsSetting(change),
+  },
+  // What the Game performance tile shows (capabilities/perf-hud.js).
+  perfHud: {
+    get: () => PerfHud.normalizePerfHud(_serverHubSettings && _serverHubSettings.perfHud),
+    set: (change) => updatePerfHudSetting(change),
+  },
+  // "Why does it stutter?" (capabilities/stutter-why.js): the answer goes to the
+  // screens as ids and numbers; each client words it in its language.
+  stutter: {
+    explain: () => _stutterWatch.explain(),
+    onAnswer: (shown) => broadcastSSE('stutter_why', shown),
+  },
+  // Frame-time benchmarks (benchmark.js): the path stays here, the caller gets a name.
+  bench: {
+    store: () => _benchmark,
+    reveal: (file) => revealInFileManager(file),
+  },
+  // Screenshots and recordings (captures.js keeps the paths; callers get an id and a name).
+  capture: {
+    host: _captureHost,
+    store: () => _captures,
+    covers: () => _captureCovers,
+    transcripts: () => _transcripts,
+    exports: () => _captureExport,
+    send: (id) => sendCaptureToPhone(id),
+    copyTo: (id, to) => _captureCopy.copy(id, to),
+    recorder: () => _recorder,
+    steps: () => _stepsRecorder,
+    replay: () => _replay,
+    markers: () => _captureMarkers,
+    clips: (id, which) => makeMarkClips(id, which),
+    onMarker: (m) => broadcastSSE('capture_marker', m),
+    bugReport: () => _bugReport,
+    game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+    mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+    reveal: (file) => revealInFileManager(file),
+    onSaved: (e) => broadcastSSE('capture', {
+      kind: e.kind, id: e.id, name: e.name, game: e.game, copied: e.copied === true,
+      ...(e.folderMissing === true ? { folderMissing: true } : {}),
+      // A copy with private data painted over (capabilities/screen-cover.js): how many.
+      ...(Number.isInteger(e.covered) && e.covered > 0 ? { covered: e.covered } : {}),
+      // The toast's "Pin": only where the shell can draw it on the screen.
+      ...(e.kind === 'screenshot' && layersHost.available() ? { pinnable: true } : {}),
+    }),
+    onNothingCovered: () => broadcastSSE('capture', { kind: 'cover', covered: 0 }),
+    // The line over the area picker, in the language the dashboard shows.
+    hint: () => LayerI18n.text('shot_pick_hint', _serverHubSettings && _serverHubSettings.language),
+    // Text from the screen (capabilities/screen-text.js): its own picker line,
+    // and a toast that says how much was copied, never the text.
+    textHint: () => LayerI18n.text('text_pick_hint', _serverHubSettings && _serverHubSettings.language),
+    onText: (r) => broadcastSSE('capture', { kind: 'text', lines: r.lines, copied: r.copied === true }),
+    // The colour picker and the ruler (capabilities/screen-inspect.js): the
+    // toast shows the colour or the size that was copied (not screen content).
+    inspectHint: (mode) => LayerI18n.text(mode === 'colour' ? 'color_pick_hint' : 'measure_pick_hint', _serverHubSettings && _serverHubSettings.language),
+    onInspect: (r) => broadcastSSE('capture', { kind: r.mode === 'colour' ? 'color' : 'size', text: r.text, copied: r.copied === true }),
+    // Drawing on the screen (capabilities/screen-draw.js): the line under its bar.
+    drawHint: () => LayerI18n.text('draw_hint', _serverHubSettings && _serverHubSettings.language),
+    // Recording options (capabilities/record-options.js).
+    options: () => captureOptions(),
+    setOptions: (change, folders) => updateCaptureSettings(change, folders),
+    pickFolder: (kind) => chooseCaptureFolder(kind),
+    // Where a screenshot goes: the folder the user chose, or Pictures/Xenon.
+    shotFolder: () => _captureFolder.resolve(captureOptions().shotFolder),
+    // The gallery on the dashboards (main.js `gallery_open`; a phone ignores it).
+    openGallery: (o) => broadcastSSE('gallery_open', o),
+  },
+  // Bit's Game Companion card (capabilities/game-companion.js): the dashboards
+  // and, with "widgets only", the on-screen alerts window open it (SSE).
+  companion: {
+    enabled: () => {
+      const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+      return !!(f && f.enabled === true && f.gameCompanion === true);
+    },
+    // The session log knows when the game started; without it, the game alone.
+    current: () => _gameSessions.current()
+      || (gameDetect.isGameRunning() ? { game: gameDetect.getGameProcess() } : null),
+    open: (o) => {
+      const hs = _serverHubSettings || {};
+      if (UsageMode.widgetsOnly(hs.usageMode) && hs.notifications && hs.notifications.onScreen === false) return false;
+      broadcastSSE('game_companion', o);
+      return true;
+    },
+  },
+  // Global shortcuts need the Helper (Windows/macOS) or GNOME's keybindings (Linux).
+  shortcutsAvailable: () => process.platform === 'linux' || fs.existsSync(HELPER_EXE),
+  deck: {
+    update: (edit) => updateDeckConfigs(edit),
+    status: () => _deckShortcutStatus(),
+    takenByOthers: () => (_hotkey.bindings || []).filter((b) => !b.keyId)
+      .map((b) => DeckShortcuts.normalizeShortcut(b.combo) || String(b.combo || '').toLowerCase()),
+    heldBy: (combo, except) => _comboHeldBy(combo, except),
+  },
+});
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
@@ -55,11 +265,13 @@ gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 // other and a require cycle is how that ends badly.
 try { fpsMonitor.setForegroundPid(() => gameDetect.getForegroundPid()); } catch { /* platform without one */ }
 const lighting = require('./lighting');
+const { createSessionWatch } = require('./session-watch');
 const { normalizeLedColors } = require('./lighting-led-colors');
 const { normalizeLayouts: normalizeLightingLayouts } = require('./lighting-layouts');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
+const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
 const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
 const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
@@ -67,6 +279,8 @@ const { createFileSearch } = require('./filesearch');           // local file se
 const { createDiskSpace } = require('./diskspace');
 const { createDevClean } = require('./devclean');
 const { createFeatureUnlock } = require('./feature-unlock');
+const { createTrialPass } = require('./trial-pass');
+const { createTrialVault } = require('./trial-vault');
 const { listPosixApps } = require('./installed-apps');               // macOS/Linux apps for the search's Applications tier
 const { createMdfindRunner } = require('./mdfind');                 // macOS catalog (Spotlight) for search             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
@@ -78,11 +292,22 @@ const contentInstalls = require('./js/content-installs'); // validated import re
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 const AmbientScene = require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
 const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one set of rules (shared with the client + tests)
+const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
+const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
+const LayerPage = require('./layer-page.js'); // the light layer page plus its tiles' files
+const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
+const PerfHud = require('./js/perf-hud.js'); // what the Game performance tile shows (shared with the client)
+const ScreenSceneModel = require('./js/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
+const aiXenon = require('./ai-xenon-credits');
+const aiCreationLabels = require('./ai-creation-labels');
+const aiTurns = require('./ai-turns');
+const aiMyWidgets = require('./ai-my-widgets');
+const { externalizeInlineScripts } = require('./ai-widget-scripts');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
 const aiModels = require('./ai-models');
@@ -142,8 +367,16 @@ const communityCatalog = require('./community-catalog');
 const communityMessages = require('./community-messages');
 const communityInstalls = require('./community-installs');
 const supporterRedeem = require('./supporter-redeem');
+const sparksWallet = require('./sparks-wallet');
 const widgetAutoUpdateLib = require('./widget-auto-update');   // Store widgets that update themselves (see its header)
 const presetCodec = require('./js/preset-share');   // decodePreset/peekLocked, shared with the client; the auto-updater reads a catalog code with them
+const aiPresets = require('./ai-presets');          // the assistant's create_preset / preset_reference tools
+const aiPictures = require('./ai-attached-pictures');  // pictures attached in the chat, placed inside creations
+const aiSurface = require('./ai-surface');  // Bit on the main screen with no dashboard (widgets only)
+const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
+const screenAlertsPage = require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
+const scenePage = require('./scene-page');  // the desktop scene: wallpaper and screensaver
+const { addConsiderations } = require('./ai-preset-critique');  // hub design advice joins the critique (Xenon credits)
 const versionPing = require('./version-ping');
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
@@ -160,7 +393,7 @@ const remoteHttpsSetupLib = require('./remote-https-setup');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
-const { createHelperUpdate } = require('./helper-update');
+const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');
 const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
@@ -172,6 +405,9 @@ const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
 const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator, cleanCap: cleanLyricsTranslateCap } = require('./lyrics-translator');
+const { createSdkAi, cleanDailyCap: cleanSdkAiDailyCap } = require('./sdk-ai');
+const { createMcpDev } = require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
+const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
 const lyricsPrices = require('./lyrics-translate-price');
 
 // App version — read once from package.json so the in-app indicator always
@@ -447,9 +683,9 @@ function providerModelFor(provider, role, settings) {
 
 // One answer through the user's Claude Code / Codex subscription (ai-cli.js),
 // for the features a person starts themselves: a search, a button, the fold of
-// their own conversation. Automatic background ones never come here; the one
-// exception, lyrics translation, is a supporter's explicit opt-in with a
-// monthly cap, on the plan's small model (completeLyricsTranslation).
+// their own conversation. Automatic background ones never come here; the two
+// exceptions, lyrics translation and a widget granted `ai`, are each the user's
+// explicit opt-in under a cap, on the plan's small model (completeWithUserAi).
 async function cliOneShot(provider, systemText, userText, settings) {
   const s = settings || (await readHubSettings().catch(() => null)) || {};
   const model = provider === 'claudecode' ? s.claudeCodeModel : s.codexModel;
@@ -476,25 +712,27 @@ function buildCoreAiFunctions() {
         { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
         { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
-        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer) — turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
+        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer): turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
           app: { type: 'STRING', description: 'The application name or process, e.g. "Spotify", "chrome", "Discord"' },
           action: { type: 'STRING', description: 'One of: volume_up, volume_down, mute, unmute, toggle_mute' },
         }, required: ['app', 'action'] } },
         // ── System ──
-        { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'lock_pc', description: 'Lock the computer: its normal lock screen, the user logs back in', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats, plus fan speeds (fans[]) and power draw in watts (power.cpu/gpu/psu/total)', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset — Corsair via iCUE and Bluetooth devices). Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset: Corsair via iCUE and Bluetooth devices). Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_energy_status', description: 'Get the full energy picture: the PC\'s power draw in watts (CPU/GPU/PSU) plus the user\'s Home Assistant power/energy readings (solar production, smart plugs, home meter, UPS). Use for "how much power is the PC using", "quanto sta producendo il fotovoltaico", "consumo di casa".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
         // ── Stock market (Borsa) ──
         { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
         { name: 'get_stock_watchlist', description: 'Get the current prices and day changes for every stock in the user\'s watchlist (their saved favorites). Use for "how are my stocks", "read my watchlist", "any big movers today".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'add_stock_favorite', description: 'Add a stock/index/crypto symbol to the user\'s watchlist so it shows in the Borsa widget and ticker. Use for "add Tesla to my stocks", "watch ENI.MI".', parameters: { type: 'OBJECT', properties: { symbol: { type: 'STRING', description: 'The ticker symbol to add (e.g. "TSLA", "ENI.MI", "BTC-EUR").' } }, required: ['symbol'] } },
+        { name: 'edit_favorites', description: 'Add, remove or list the user\'s favourites: "stocks" (the Stocks watchlist), "teams" (teams and competitions in the Football tile) or "news" (sources and topics in the News tile). Add by name as the user says it ("Tesla", "Juventus", "Serie A", "ANSA"); for news, words that are not a source become a topic, and an https feed address is added as it is. Remove by words from the name. Replies: added/already/removed, or not_found (with the current items), ambiguous (with the matches: ask which), full.', parameters: { type: 'OBJECT', properties: { list: { type: 'STRING', enum: ['stocks', 'teams', 'news'] }, action: { type: 'STRING', enum: ['add', 'remove', 'list'], description: 'Default add.' }, name: { type: 'STRING', description: 'The stock, team, competition, news source or topic, as the user named it.' } }, required: ['list'] } },
+        { name: 'change_setting', description: 'Change one of these Settings switches, or call with no setting to read them all: ' + SettingsAi.NAMES.map((n) => n + ' (' + SettingsAi.PREFS[n].values.join('/') + ': ' + SettingsAi.PREFS[n].about + ')').join('; ') + '. Clock format, temperature unit, language and weather city are configure_preferences; theme and look are change_theme and customize_appearance. Replies with before/now, or unknown_setting / bad_value with the allowed list.', parameters: { type: 'OBJECT', properties: { setting: { type: 'STRING', enum: SettingsAi.NAMES.slice() }, value: { type: 'STRING', description: 'One of the values listed for that setting.' } } } },
         // ── Football (Calcio) ──
-        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams — the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
+        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams: the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
         { name: 'get_league_standings', description: 'Get the current league table / standings for a football competition. Give a competition name ("Serie A", "Premier League", "Champions League", "World Cup") or a team the user follows (its league is used). Use for "Serie A table", "Champions League standings", "where is Napoli in the table".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'A competition name (e.g. "Serie A", "Champions League") or a followed team name (e.g. "Napoli" → Serie A).' } }, required: ['team'] } },
         // ── News ──
-        { name: 'get_news_headlines', description: 'Get the latest news headlines — either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
+        { name: 'get_news_headlines', description: 'Get the latest news headlines: either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
         // ── Web search ──
         { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
@@ -503,7 +741,8 @@ function buildCoreAiFunctions() {
         { name: 'capture_screen', description: 'Capture a fresh screenshot of the user\'s screen so you can see what is currently displayed. Use it whenever the user asks about what is on their screen, asks you to read/look at/check something visual, or references on-screen content. The capture is always live (current moment). On multi-monitor setups, pass the 1-based monitor number; if the user did not say which monitor and there are several, omit it to receive the monitor list and then ask which one to focus on.', parameters: { type: 'OBJECT', properties: { monitor: { type: 'NUMBER', description: '1-based monitor index to capture (e.g. 1, 2). Omit on single-monitor setups or to list monitors first.' } } } },
         // ── Notes ──
         { name: 'read_notes', description: 'Read the current notes/scratchpad content', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'write_notes', description: 'Replace the notes content with new text', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
+        { name: 'write_notes', description: 'Replace the whole text of the note open in the notes widget. To add a note, add to one or change another, use edit_note instead.', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
+        { name: 'edit_note', description: 'Work on one note of the notes widget, which holds several (read_notes lists their titles: a title is the first line). action: "new" (default, a new note with text: "write a note: buy milk", "prendi nota"), "append" (text on a new line at the end: "add eggs to the shopping note"), "replace" (the whole text), "pin", "unpin", "open" (show it in the widget) or "delete" (confirm first unless the user was explicit). note: words from the title of the note to work on; leave it out for the note open in the widget. Errors: "not_found" (comes with the titles), "empty_text", "too_many_notes".', parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', description: 'new, append, replace, pin, unpin, open or delete' }, note: { type: 'STRING', description: 'words from the note title; empty = the open note' }, text: { type: 'STRING', description: 'the text for new, append or replace' } } } },
         // ── Tasks ──
         { name: 'list_tasks', description: 'List all tasks in the task list', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'create_task', description: 'Create a new task in the task list', parameters: { type: 'OBJECT', properties: {
@@ -514,6 +753,14 @@ function buildCoreAiFunctions() {
           id: { type: 'STRING', description: 'Task id to delete' },
         }, required: ['id'] } },
         { name: 'clear_all_tasks', description: 'Delete ALL tasks at once. Use only when the user explicitly asks to clear or delete all tasks.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'edit_task', description: 'Change a task that already exists: its text, priority or how often it repeats. Name it by words from its text (or its id from list_tasks); only the fields given change. When the words fit several tasks the reply lists them to ask which.', parameters: { type: 'OBJECT', properties: {
+          task: { type: 'STRING', description: 'Words from the task as the user says them, e.g. "dentist"' },
+          id: { type: 'STRING', description: 'Task id from list_tasks, instead of words' },
+          text: { type: 'STRING', description: 'New text' },
+          priority: { type: 'STRING', description: 'high, medium or low' },
+          repeat: { type: 'STRING', description: 'never, daily, weekly or custom (every N days)' },
+          every_days: { type: 'NUMBER', description: 'With repeat custom: every how many days' },
+        } } },
         { name: 'complete_task', description: 'Mark a task as completed or uncompleted. Use list_tasks first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Task id to mark' },
           completed: { type: 'BOOLEAN', description: 'true to mark done, false to unmark (default true)' },
@@ -529,12 +776,27 @@ function buildCoreAiFunctions() {
         { name: 'delete_calendar_event', description: 'Delete a calendar event by its id. Use list_calendar_events first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Event id to delete' },
         }, required: ['id'] } },
+        { name: 'edit_calendar_event', description: 'Change a calendar event that already exists: move it, rename it, change its notes, end or reminder. Name it by words from its title (or its id from list_calendar_events); only the fields given change. When the words fit several events the reply lists them to ask which.', parameters: { type: 'OBJECT', properties: {
+          event: { type: 'STRING', description: 'Words from the title as the user says them, e.g. "dentist"' },
+          id: { type: 'STRING', description: 'Event id from list_calendar_events, instead of words' },
+          title: { type: 'STRING', description: 'New title' },
+          starts_at: { type: 'STRING', description: 'New start in ISO 8601, e.g. 2026-05-25T14:00:00' },
+          ends_at: { type: 'STRING', description: 'New end in ISO 8601, or "none" for no end' },
+          reminder_at: { type: 'STRING', description: 'New reminder in ISO 8601, or "none" to remove it' },
+          notes: { type: 'STRING', description: 'New notes (empty text clears them)' },
+        } } },
         { name: 'clear_all_calendar_events', description: 'Delete ALL calendar events at once. Use only when the user explicitly asks to clear or delete all events.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'play_in_tile', description: 'Play a Twitch channel or a YouTube video, or open a web page, in the tile that shows it (Twitch, YouTube, Browser), on whichever screen of this PC has that tile. Give the channel, link or address the user named in `target`; when they only describe it ("a Minecraft stream", "lofi music") give the words in `search` and the first match plays. The reply says what is playing, or that no open screen has that tile (then offer to add it with place_widget).', parameters: { type: 'OBJECT', properties: {
+          tile: { type: 'STRING', enum: ['twitch', 'youtube', 'browser'], description: 'Which tile' },
+          target: { type: 'STRING', description: 'Twitch channel name or link, YouTube video link or id, or the web address for the Browser tile' },
+          search: { type: 'STRING', description: 'Words to look for on Twitch (a live channel) or YouTube (a video) when the user named no exact channel or video' },
+        }, required: ['tile'] } },
         // ── Dashboard UI ──
         { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'start_ambient_mode', description: 'Open the Ambient/screensaver mode (fullscreen scene with clock, media, weather — the old focus lock screen)', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'open_sparks_shop', description: "Open the Store's Sparks tab: where Sparks (Xenon's credits) are bought, with what they are for. Use when the user wants to buy or top up Sparks, or asks where to get them.", parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'start_ambient_mode', description: 'Open the Ambient/screensaver mode (fullscreen scene with clock, media, weather: the old focus lock screen)', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'stop_ambient_mode', description: 'Close the Ambient/screensaver mode if it is showing', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
         { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
@@ -542,10 +804,16 @@ function buildCoreAiFunctions() {
         { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
         // ── Timers ──
-        { name: 'start_timer', description: 'Start a new countdown timer. Use for user requests like "set a timer for 5 minutes", "remind me in 30 seconds", etc.', parameters: { type: 'OBJECT', properties: {
+        { name: 'start_timer', description: 'Start a new countdown timer ("set a timer for 5 minutes", "remind me in 30 seconds") or a stopwatch that counts up ("start a stopwatch", with kind stopwatch and no duration).', parameters: { type: 'OBJECT', properties: {
           label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
-          duration_secs: { type: 'NUMBER', description: 'Duration in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour)' },
-        }, required: ['duration_secs'] } },
+          kind: { type: 'STRING', description: 'countdown (default) or stopwatch' },
+          duration_secs: { type: 'NUMBER', description: 'Countdown length in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour). Not for a stopwatch.' },
+          chime_every_secs: { type: 'NUMBER', description: 'Stopwatch only: sound a chime every N seconds (e.g. 60). Leave out for none.' },
+        } } },
+        { name: 'control_timer', description: 'Pause, resume, restart or stop a timer or stopwatch already on the Timers tile. "stop" puts it back to its start and holds it there; to remove it use delete_timer. With no timer named it acts on the only one there is, or the newest one that is running (pause) or paused (resume); when that is unclear the reply lists the labels to ask about.', parameters: { type: 'OBJECT', properties: {
+          action: { type: 'STRING', description: 'pause, resume, reset (from the start, counting) or stop' },
+          timer: { type: 'STRING', description: 'Its label as the user says it, or its id from list_timers. Leave out when there is one timer.' },
+        }, required: ['action'] } },
         { name: 'list_timers', description: 'List all active timers and stopwatches: a countdown reports remaining_secs, a stopwatch reports elapsed_secs', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Timer id to delete' },
@@ -558,10 +826,10 @@ function buildCoreAiFunctions() {
           target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
         }, required: ['target'] } },
         // ── Local file search ──
-        { name: 'search_files', description: 'Search files on the user\'s PC by name and (where Windows indexed it) content — all local, nothing leaves the machine. The query understands natural filters in EN/IT: kind ("photos"/"foto", "documents"), extensions ("pdf", "excel"), dates ("last month", "dicembre 2024", "ieri"), sizes ("more than 100 mb", "grandi"). Use for "find my rental contract", "cerca le foto di dicembre", "il pdf della fattura". Returns top results each with an id — to open one, call open_search_result with that id.', parameters: { type: 'OBJECT', properties: {
+        { name: 'search_files', description: 'Search files on the user\'s PC by name and (where Windows indexed it) content: all local, nothing leaves the machine. The query understands natural filters in EN/IT: kind ("photos"/"foto", "documents"), extensions ("pdf", "excel"), dates ("last month", "dicembre 2024", "ieri"), sizes ("more than 100 mb", "grandi"). Use for "find my rental contract", "cerca le foto di dicembre", "il pdf della fattura". Returns top results each with an id: to open one, call open_search_result with that id.', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'The search phrase, in the user\'s own words (e.g. "contratto affitto pdf", "foto di dicembre")' },
         }, required: ['query'] } },
-        { name: 'open_search_result', description: 'Open one result returned by search_files, by its id (default app for files, Explorer for folders). Executable/script files are refused for safety — pass reveal:true to show the file selected in its folder instead, which runs nothing.', parameters: { type: 'OBJECT', properties: {
+        { name: 'open_search_result', description: 'Open one result returned by search_files, by its id (default app for files, Explorer for folders). Executable/script files are refused for safety: pass reveal:true to show the file selected in its folder instead, which runs nothing.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'The result id from search_files' },
           reveal: { type: 'BOOLEAN', description: 'true to reveal the file in Explorer instead of opening it' },
         }, required: ['id'] } },
@@ -572,11 +840,11 @@ function buildCoreAiFunctions() {
           name: { type: 'STRING', description: 'The contact to call, as the user said it. Resolved against the phonebook.' },
           number: { type: 'STRING', description: 'A literal number, only when the user dictated one rather than a name.' },
         }, required: [] } },
-        { name: 'phone_message', description: 'Send a text message through the paired phone. Use for "manda un messaggio a Marco", "text mum that I am late". The recipient MUST be a contact in the phonebook — a raw number is refused, because a text cannot be recalled and a wrong number reaches a stranger permanently. Read the message back to the user in your reply so they can see what was sent.', parameters: { type: 'OBJECT', properties: {
+        { name: 'phone_message', description: 'Send a text message through the paired phone. Use for "manda un messaggio a Marco", "text mum that I am late". The recipient MUST be a contact in the phonebook: a raw number is refused, because a text cannot be recalled and a wrong number reaches a stranger permanently. Read the message back to the user in your reply so they can see what was sent.', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'The contact to write to. Must match somebody in the phonebook.' },
           text: { type: 'STRING', description: 'The message, in the user\'s own words.' },
         }, required: ['name', 'text'] } },
-        { name: 'disk_insights', description: 'Read a live, local disk-space analysis: volume capacity/free space, indexed usage, safe-to-clean categories (temp, browser/package caches, build output, old installers, Recycle Bin), the biggest folders/files, verified duplicate waste, and Xenon\'s risk-ranked cleanup plan with a why/effect/action explanation. READ-ONLY: you can explain and recommend, but deletion happens only when the user taps the confirmation in the disk widget — you have no delete capability. Use for "what is eating my disk", "cosa occupa spazio", "posso liberare spazio?".', parameters: { type: 'OBJECT', properties: {
+        { name: 'disk_insights', description: 'Read a live, local disk-space analysis: volume capacity/free space, indexed usage, safe-to-clean categories (temp, browser/package caches, build output, old installers, Recycle Bin), the biggest folders/files, verified duplicate waste, and Xenon\'s risk-ranked cleanup plan with a why/effect/action explanation. READ-ONLY: you can explain and recommend, but deletion happens only when the user taps the confirmation in the disk widget, you have no delete capability. Use for "what is eating my disk", "cosa occupa spazio", "posso liberare spazio?".', parameters: { type: 'OBJECT', properties: {
           rootIndex: { type: 'INTEGER', description: 'Optional index of the configured disk/folder root to analyze. Omit for the first root.' },
         } } },
         // ── RGB Lighting (Corsair / iCUE bridge) ──
@@ -600,14 +868,15 @@ function buildCoreAiFunctions() {
           speed: { type: 'NUMBER', description: 'Optional speed 1-100 (higher = faster)' },
           palette: { type: 'STRING', description: 'Optional comma-separated 2-5 colours for the palette style, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"' },
         } } },
-        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
+        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE and the board, which show their own lighting; pass dark:true when the user wants the lights switched OFF.', parameters: { type: 'OBJECT', properties: {
           enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
+          dark: { type: 'BOOLEAN', description: 'with enabled:false, every light goes dark (black) instead of going back to iCUE/the board. Use it for "switch the lights off".' },
         }, required: ['enabled'] } },
         { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature, fan speed, power draw).', parameters: { type: 'OBJECT', properties: {
           sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp, gpuTemp, cpu, gpu, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts' },
         }, required: ['sensor'] } },
-        { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
-          page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
+        { name: 'go_to_page', description: 'Show a page of the dashboard: by the name the user gave it, by its number, or the next/previous one.', parameters: { type: 'OBJECT', properties: {
+          page: { type: 'STRING', description: 'The page as the user names it: its name (e.g. "Streaming"), its number ("2"), "next" or "prev". When no page has that name the reply lists the real names.' },
         }, required: ['page'] } },
         { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
@@ -632,7 +901,7 @@ function buildCoreAiFunctions() {
           info_color: { type: 'STRING', description: 'Optional informational state colour as #RRGGBB' },
           contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
         } } },
-        { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset — every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato").', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset: every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato"). Prefer create_preset kind "theme" when the theme needs its own light AND dark palettes, or when the user wants a code to share or to review before applying.', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short theme name for the gallery card (e.g. "Cyberpunk Viola")' },
           skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           base_appearance: { type: 'STRING', description: 'Base mode: "light" or "dark"' },
@@ -657,7 +926,7 @@ function buildCoreAiFunctions() {
           border_strength: { type: 'NUMBER', description: 'Panel border strength 0–2 (1 = default)' },
           shadow_strength: { type: 'NUMBER', description: 'Tile drop shadow strength 0–2 (0 = default, no shadow)' },
         } } },
-        { name: 'create_animated_background', description: 'Write and apply a custom ANIMATED BACKGROUND for the dashboard from the user\'s description. YOU author the code: define a JavaScript function draw(ctx, t, w, h) that paints ONE frame — ctx is a canvas 2D context, t is elapsed seconds (float), w and h are the pixel size. It is called ~60×/second on a full-screen canvas behind the dashboard. Keep it self-contained (declare any particles/state with const or let ABOVE the draw function so it persists across frames), efficient, and tasteful behind a UI (avoid a pure-white fill or harsh strobing). The code runs in an isolated sandbox with NO network, DOM, storage or dashboard access, so use only the canvas 2D API, Math and Date. Use for requests like "crea uno sfondo animato con particelle blu", "make me a drifting starfield background", "sfondo tipo nebulosa viola". Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_animated_background', description: 'Write and apply a custom ANIMATED BACKGROUND for the dashboard from the user\'s description. YOU author the code: define a JavaScript function draw(ctx, t, w, h) that paints ONE frame, ctx is a canvas 2D context, t is elapsed seconds (float), w and h are the pixel size. It is called ~60×/second on a full-screen canvas behind the dashboard. Keep it self-contained (declare any particles/state with const or let ABOVE the draw function so it persists across frames), efficient, and tasteful behind a UI (avoid a pure-white fill or harsh strobing). The code runs in an isolated sandbox with NO network, DOM, storage or dashboard access, so use only the canvas 2D API, Math and Date. Use for requests like "crea uno sfondo animato con particelle blu", "make me a drifting starfield background", "sfondo tipo nebulosa viola". Applies live and persists.', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short name for this background (e.g. "Nebulosa viola")' },
           code: { type: 'STRING', description: 'The full JavaScript source defining function draw(ctx, t, w, h). May declare helper state/constants above draw. No imports, no network, no DOM.' },
         }, required: ['code'] } },
@@ -666,22 +935,26 @@ function buildCoreAiFunctions() {
           temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
           language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, zh, es, fr, de, pt, ru, or nl' },
           weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
-          weather_city: { type: 'STRING', description: 'City name — sets weather_mode to manual automatically' },
+          weather_city: { type: 'STRING', description: 'City name: sets weather_mode to manual automatically' },
           lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
             clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
           } },
+        } } },
+        { name: 'set_creation_model', description: 'Sparks (Bit credits) only: change which model makes creations (widgets, themes, backgrounds, scenes, Decks) and how much it reasons before creating. Pass only what the user asked to change. Saved in Settings → Bit assistant, and a creation asked in the same message already uses it. Use for "usa Opus", "use Sonnet", "ragiona di più", "think less", "fallo più curato". Per widget at the Normal level: Haiku about 3 Sparks, Sonnet about 50, Opus about 150; Thorough costs about twice Normal, Light stays close to Normal.', parameters: { type: 'OBJECT', properties: {
+          model: { type: 'STRING', description: 'haiku (fast, simplest), sonnet (balanced) or opus (most accurate)' },
+          effort: { type: 'STRING', description: 'low (Light: little reasoning, for simple requests), medium (Normal, recommended) or high (Thorough: more polished, about twice the credits and time)' },
         } } },
         { name: 'set_media_source', description: 'Choose which media app the Now Playing tile follows when several are playing: pass the app/source name (e.g. "Spotify", "YouTube") or "auto" to follow whatever is active. Use when the user says "show Spotify", "segui YouTube", "torna automatico".', parameters: { type: 'OBJECT', properties: {
           source: { type: 'STRING', description: 'Media source name (e.g. "Spotify", "YouTube") or "auto"' },
         }, required: ['source'] } },
         { name: 'list_audio_devices', description: 'List the available speaker/output and microphone/input devices (and which are current). Use before set_audio_device when you do not know the exact device names, or to answer "what speakers/mics do I have?".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back — then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
+        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back, then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
           kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
           name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
         }, required: ['kind', 'name'] } },
         // ── Deck composer + creator ecosystem (v4.4) ──
         { name: 'deck_action_catalog', description: 'Read-only: the FULL Deck action catalog (every action type + its params/options), the live-state sources, live-value sources and slider targets. Call this BEFORE configure_deck when you are unsure of an exact action type or its parameters.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'configure_deck', description: 'Create or extend a Deck (stream-deck) profile with FULL power: any action type from deck_action_catalog (typed actions with their exact params, e.g. {type:"obsScene",scene:"Live"} or {type:"typeText",text:"brb"}), per-key tap/double/hold, live state bindings, live value badges, touch sliders and Smart-Profiles auto-switch rules. Prefer this over genesis_setup_deck when the user asks for anything beyond its basic action list. Every action is re-validated by the app before it is stored or runs.', parameters: { type: 'OBJECT', properties: {
+        { name: 'configure_deck', description: 'Create or extend a Deck (stream-deck) profile with FULL power: any action type from deck_action_catalog (typed actions with their exact params, e.g. {type:"obsScene",scene:"Live"} or {type:"typeText",text:"brb"}), per-key tap/double/hold, live state bindings, live value badges, touch sliders and Smart-Profiles auto-switch rules. Prefer this over genesis_setup_deck when the user asks for anything beyond its basic action list. Every action is re-validated by the app before it is stored or runs. Prefer create_preset kind "deck" for a bigger profile with folders, a styled look, or a code to share.', parameters: { type: 'OBJECT', properties: {
           profileName: { type: 'STRING', description: 'Short profile name in the user\'s language, e.g. "Streaming Pro"' },
           cols: { type: 'NUMBER', description: 'Grid columns (1-8)' },
           rows: { type: 'NUMBER', description: 'Grid rows (1-8)' },
@@ -693,37 +966,54 @@ function buildCoreAiFunctions() {
             actions: { type: 'ARRAY', description: 'Tap: typed action objects, e.g. [{"type":"micMute","mode":"toggle"}]. Each may carry delayMs.', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
             double: { type: 'ARRAY', description: 'Optional double-tap actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
             hold: { type: 'ARRAY', description: 'Optional press-and-hold actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
-            state: { type: 'OBJECT', description: 'Optional live-state binding, e.g. {"source":"discordMuted"} or {"source":"haEntity","entity":"light.desk"} — the key lights while ON', properties: { source: { type: 'STRING' } } },
-            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown, or {"source":"sensor","name":"cpuWatts"} for a hardware reading (cpu, gpu, cpuTemp, gpuTemp, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts, battery:<device name>)', properties: { source: { type: 'STRING' } } },
+            state: { type: 'OBJECT', description: 'Optional live-state binding, e.g. {"source":"discordMuted"} or {"source":"haEntity","entity":"light.desk"}: the key lights while ON', properties: { source: { type: 'STRING' } } },
+            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown, or {"source":"sensor","name":"cpuWatts"} for a hardware reading (cpu, gpu, cpuTemp, gpuTemp, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts, battery:<device name>), or {"source":"vitals","name":"hydration"} for how full a Vitals meter is (hydration, energy, stamina, focus, posture, or lowest = the emptiest one)', properties: { source: { type: 'STRING' } } },
             stateStyle: { type: 'OBJECT', description: 'Optional alternate face while the state is ON: {"icon":"🔴","label":"LIVE","color":"#ff3355"}', properties: { icon: { type: 'STRING' }, label: { type: 'STRING' }, color: { type: 'STRING' } } },
             slider: { type: 'OBJECT', description: 'kind:"slider" only. target: volume|appVolume|spotifyVolume|obsInput|haLight|discordInput|discordOutput (+ app/entity/source when the target needs one); orient: "v"|"h"', properties: { target: { type: 'STRING' }, app: { type: 'STRING' }, entity: { type: 'STRING' }, source: { type: 'STRING' }, orient: { type: 'STRING' } } },
           }, required: ['title'] } },
           autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
         } } },
-        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup — the sandbox has NO direct network). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear) — use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key); "shape" to give the widget\'s OWN tile a silhouette instead of a rectangle ({"preset":"hexagon"} — also squircle, circle, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob — or your own closed SVG path in a 0-to-1 square, {"path":"M .5 0 L 1 .5 L .5 1 L 0 .5 Z"}), which needs no permission and sends the widget {type:"shape",safe:{t,r,b,l}} so it can keep its content clear of the cut edges. Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message — it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup: the sandbox has NO direct network). Put the JavaScript in .js files and attach events with addEventListener: the sandbox CSP allows script files only, so inline on* attributes never run. Set manifest "size" to the shape you designed for (small, medium, wide, tall or large): the widget is put on the current page in that shape, and most tiles on the 2560x720 panel are wide and short (about 750x220 px), so lay out in a row when the tile is much wider than tall. Fill the tile: html, body and the root at height 100% with container-type: size on the root and type sized in cqmin, so the content covers most of the box with no empty band and nothing sunk to one edge. files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear), use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "ai":true to ask one plain question at a time to the AI the user set for Bit, the same one you run on (type:"ai" with prompt, optional system, maxTokens, json; the answer comes back in ai_result as text, render it with textContent): no tools, no history, a daily number per widget the user sets, so ask on a tap or a new item, never on a timer; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key); "shape" to give the widget\'s OWN tile a silhouette instead of a rectangle ({"preset":"hexagon"}, also squircle, circle, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob, or your own closed SVG path in a 0-to-1 square, {"path":"M .5 0 L 1 .5 L .5 1 L 0 .5 Z"}), which needs no permission and sends the widget {type:"shape",safe:{t,r,b,l}} so it can keep its content clear of the cut edges. Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message: it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything. Use create_preset (kind "widget" or "ambient") only when the user wants a share code or a package; this tool is the direct install. To CHANGE a widget the user already has (made by you or by them, even days ago), call my_widgets to find it and read its files, then call this tool with its id and ONLY the files you change: the files you leave out stay as they are, and "remove" drops the ones the new version no longer uses. Raise the manifest "version". A widget from the Store or a share code belongs to someone else and cannot be changed: make a new one with a new id instead. For a brand-new widget pick an id that my_widgets does not list.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
           files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
             path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
             content: { type: 'STRING', description: 'The file\'s full text content' },
           }, required: ['path', 'content'] } },
+          remove: { type: 'ARRAY', description: 'When changing an existing widget: paths of its files to delete', items: { type: 'STRING' } },
         }, required: ['id', 'files'] } },
+        { name: 'my_widgets', description: 'Read-only: the widgets the user owns (made with you or by them), so you can change one later. No id → the list (id, name, version, size, description). With an id → that widget\'s files in full (text), and its images/fonts by name only. Widgets from the Store or share codes are not listed and cannot be read.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'The widget id to read; leave out for the list' },
+        } } },
+        { name: 'preset_reference', description: 'Read-only: the exact rules of one Xenon share code kind for create_preset (every field, its allowed values and ranges, read from the code of the app itself) plus a minimal valid example. Call it BEFORE create_preset for any kind you have not built in this conversation. No kind → the list of kinds.', parameters: { type: 'OBJECT', properties: {
+          kind: { type: 'STRING', description: 'One of: theme, bg, page, deck, topbar, icons, widget, ambient, ambient-layout, bundle' },
+        } } },
+        { name: 'create_preset', description: 'Create ANY Xenon creation as a share code and open it in the import window, where the user reviews and confirms it (nothing is applied or installed by this call). Kinds: theme (whole look, also light+dark pairs), bg (animated background), page (a dashboard page of tiles), deck (a Deck profile with folders), topbar (the whole top bar), icons (an SVG icon pack), widget / ambient (SDK packages from files you write), ambient-layout (a native Ambient scene), bundle (a package of several parts). Sound packs cannot be generated (audio files). The data is dry-run through the same rules the import uses first: "report" lists what the import would drop or change, so fix and call again when it matters. "critique" is a measured design check of the result (contrast ratios, overlapping or off-grid tiles, unreadable or empty elements, keys that do nothing, and for widgets the rules of the Store review: unused permissions, hidden or dynamic code, loops that keep running while hidden): fix every "fix" item and call create_preset again BEFORE telling the user about the creation; "consider" items are judgement calls. Call preset_reference first for the exact shape. To see the result on screen, ask the user to import it and use capture_screen when they ask you to look.', parameters: { type: 'OBJECT', properties: {
+          kind: { type: 'STRING', description: 'One of: theme, bg, page, deck, topbar, icons, widget, ambient, ambient-layout, bundle' },
+          name: { type: 'STRING', description: 'The name of the creation, 60 characters at most' },
+          data: { type: 'STRING', description: 'The data of the creation: a JSON object serialized to a string, shaped as preset_reference describes for this kind' },
+        }, required: ['kind', 'name', 'data'] } },
         { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles, icon packs, sound packs) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'Free-text search (name, author, tags)' },
           kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle|icons|sounds' },
         } } },
-        { name: 'marketplace_install', description: 'Start installing a community catalog entry by its id (from marketplace_search). This OPENS THE IMPORT REVIEW DIALOG — the user always confirms there; nothing is applied silently. Locked (supporter) entries cannot be installed this way.', parameters: { type: 'OBJECT', properties: {
+        { name: 'marketplace_install', description: 'Start installing a community catalog entry by its id (from marketplace_search). This OPENS THE IMPORT REVIEW DIALOG: the user always confirms there; nothing is applied silently. Locked (supporter) entries cannot be installed this way.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'The catalog entry id' },
         }, required: ['id'] } },
         { name: 'open_virtual_deck', description: 'Open the Deck as its own always-on-top window on the user\'s main monitor (Virtual Deck). Use for "apri il deck sul PC", "voglio i tasti sullo schermo principale".', parameters: { type: 'OBJECT', properties: {
           instance: { type: 'STRING', description: 'Optional deck instance id (default: the primary deck)' },
         } } },
         // ── App knowledge (grounding, read-only) ──
-        { name: 'xenon_knowledge', description: 'Read-only: your OWN documentation about Xenon itself. Call this BEFORE answering any question about how Xenon works, its setup, features, requirements, or troubleshooting — e.g. why sensors/fans read empty, how updates or the marketplace work, what supporter codes are, how to publish content, privacy, integrations setup. Pass the user\'s question (or a topic id) as query; call with no query to list all topic ids. Base your answer on the returned card and answer in the user\'s language.', parameters: { type: 'OBJECT', properties: {
+        { name: 'xenon_knowledge', description: 'Read-only: your OWN documentation about Xenon itself. Call this BEFORE answering any question about how Xenon works, its setup, features, requirements, or troubleshooting, e.g. why sensors/fans read empty, how updates or the marketplace work, what supporter codes are, how to publish content, privacy, integrations setup. Pass the user\'s question (or a topic id) as query; call with no query to list all topic ids. Base your answer on the returned card and answer in the user\'s language.', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'The user\'s question in a few words, or a topic id (e.g. "sensors", "marketplace", "troubleshooting"). Omit to list all topics.' },
         } } },
-        { name: 'sdk_reference', description: 'Read-only: the Widget SDK reference — the EXACT data streams and action categories a widget may request (from the code, always current) plus the full SDK docs by section (bridge protocol, manifest fields, storage, secrets, fetch proxy, ambient scenes…). Call this BEFORE create_widget to ground the manifest and the postMessage protocol, and when the user asks how to develop a widget. No section → enums + section list; then call again with a section id for its full text.', parameters: { type: 'OBJECT', properties: {
+        { name: 'sdk_reference', description: 'Read-only: the Widget SDK reference, the EXACT data streams and action categories a widget may request (from the code, always current) plus the full SDK docs by section (bridge protocol, manifest fields, storage, secrets, fetch proxy, ambient scenes…). Call this BEFORE create_widget to ground the manifest and the postMessage protocol, and when the user asks how to develop a widget. No section → enums + section list; then call again with a section id for its full text.', parameters: { type: 'OBJECT', properties: {
           section: { type: 'STRING', description: 'Optional docs section id or title fragment, e.g. "manifest-json", "data", "persistent-storage", "secrets".' },
         } } },
+        // ── Single-screen capabilities (js/capability-catalog.js), only those
+        //    this machine can actually do ──
+        ...capabilities.aiFunctions(capabilityRunner.probes()),
+        // ── Vitals and Bit the pet (vitals-ai-tools.js) ──
+        ...vitalsAiTools.FUNCTIONS,
   ];
 }
 
@@ -783,6 +1073,18 @@ const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
 let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
 const IDLE_SCRIPT = path.join(__dirname, 'idle.ps1');
 const VITALS_NAG_SCRIPT = path.join(__dirname, 'vitals-nag.ps1');
+// How Bit's PC-side actions happen on this OS (vitals-nag.js): the Windows popup
+// script, the Xenon app's alerts window (SSE `vitals_nag`) or a system banner.
+const vitalsNag = require('./vitals-nag').createVitalsNag({
+  collectors: nativeCollectors,
+  spawnScript: process.platform === 'win32' ? (args) => {
+    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', VITALS_NAG_SCRIPT, ...args], { windowsHide: true });
+    child.on('error', () => {});
+    child.unref();
+  } : null,
+  host: layersHost,
+  broadcast: (popup) => broadcastSSE('vitals_nag', popup),
+});
 // All runtime user data (settings, notes, calendar, tasks, timers, deck, uploads,
 // streaming config/tokens) lives in a single DATA_DIR instead of being scattered
 // loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
@@ -802,10 +1104,26 @@ const lyricsCache = createLyricsCache({ dataDir: DATA_DIR });
 const lyricsOffsets = createLyricsOffsets({ dataDir: DATA_DIR });
 const lyricsTranslator = createLyricsTranslator({
   dataDir: DATA_DIR,
-  complete: (req) => completeLyricsTranslation(req),
+  complete: (req) => completeWithUserAi({ ...req, json: true, temperature: 0.2 }),
   // The provider's own message (no lyrics, no key): enough to tell a bad key from a bad reply.
   onError: (e) => console.warn('[lyrics] translation failed:', String((e && e.message) || e).slice(0, 200)),
 });
+// Widget SDK `ai`: a granted widget's questions to the same AI, under the
+// user's daily number per widget. Never logs a question or an answer.
+const sdkAi = createSdkAi({
+  dataDir: DATA_DIR,
+  complete: (req) => completeWithUserAi(req),
+  blocker: () => userAiBlocker(),
+  onError: (e) => console.warn('[sdk-ai] question failed:', String((e && e.message) || e).slice(0, 200)),
+});
+// Claude Code / Codex building widgets through the xenon-mcp bridge
+// (packages/mcp): the paired tools and the questions to the open dashboard.
+const mcpDev = createMcpDev({
+  file: path.join(DATA_DIR, 'mcp-clients.json'),
+  broadcast: (event, data) => broadcastSSE(event, data),
+});
+// The bridge as this install ships it, for Settings' one-click connect.
+const MCP_BRIDGE_PATH = path.join(__dirname, '..', 'packages', 'mcp', 'bin', 'xenon-mcp.js');
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
@@ -984,7 +1302,107 @@ function _hotkeyBindings() {
     if (out.length >= MAX_HOTKEY_BINDINGS) return;
     out.push({ slot: 'page-' + i, combo: String(b.combo || ''), target: String(b.target || '') });
   });
-  return out.filter((b) => b.combo);
+  // The Deck keys' shortcuts come last: they never push a search or page
+  // shortcut out of the table, and one on the same combo is refused.
+  const base = out.filter((b) => b.combo);
+  const table = base.concat(DeckShortcuts.planBindings(base, _deckShortcuts.list, MAX_HOTKEY_BINDINGS).bindings);
+  // The overlay's ready-made shortcut goes last, so a combo the user chose
+  // always wins over it, and only while a widget is in the overlay.
+  const overlay = _overlayHotkey();
+  if (overlay && table.length < MAX_HOTKEY_BINDINGS && !table.some((b) => b.combo === overlay)) {
+    table.push({ slot: 'overlay', combo: overlay });
+  }
+  // Instant Replay's save shortcut, by the same rule: only while the replay is on.
+  const replay = _replayHotkey();
+  if (replay && table.length < MAX_HOTKEY_BINDINGS && !table.some((b) => b.combo === replay)) {
+    table.push({ slot: 'replay', combo: replay });
+  }
+  // The Xenon menu's, by the same rule: only while a shell can draw the menu.
+  const menu = _menuHotkey();
+  if (menu && table.length < MAX_HOTKEY_BINDINGS && !table.some((b) => b.combo === menu)) {
+    table.push({ slot: 'menu', combo: menu });
+  }
+  return table;
+}
+
+// Who already uses `combo` among the shortcuts the user set (search, pages,
+// Deck keys, the replay, the overlay, the menu), `except` the one being set;
+// '' when nobody. Set ones count even while not held, so turning the replay or
+// the overlay back on never finds its combo taken.
+function _comboHeldBy(combo, except) {
+  const want = DeckShortcuts.normalizeShortcut(combo);
+  if (!want) return '';
+  const same = (c) => DeckShortcuts.normalizeShortcut(c) === want;
+  const hs = _serverHubSettings || {};
+  const search = hs.searchSettings || {};
+  if (search.hotkeyEnabled === true && same(search.hotkeyCombo || 'alt+space')) return 'search';
+  if ((Array.isArray(hs.pageHotkeys) ? hs.pageHotkeys : []).some((b) => b && same(b.combo))) return 'page';
+  const key = _deckShortcuts.list.find((k) => same(k.combo));
+  if (key) return key.title || 'deck';
+  const layers = LayersModel.normalize(hs.layers);
+  if (except !== 'overlay' && layers.overlayKey !== 'off' && same(layers.overlayKey)) return 'overlay';
+  if (except !== 'menu' && layers.menuKey !== 'off' && same(layers.menuKey)) return 'menu';
+  const o = captureOptions();
+  if (except !== 'replay' && o.replayKey !== 'off' && same(o.replayKey)) return 'replay';
+  return '';
+}
+
+// The Xenon menu's combo, or '' while no native shell can draw the menu over
+// the screen (screen-menu.js) or the user turned the shortcut off.
+function _menuHotkey() {
+  const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+  if (layers.menuKey === 'off' || !screenMenu.available()) return '';
+  return DeckShortcuts.normalizeShortcut(layers.menuKey);
+}
+
+// The replay save shortcut's combo, or '' while the replay is off, the engine
+// is missing or the user turned the shortcut off: the combo stays free for
+// other apps whenever pressing it could not save anything.
+function _replayHotkey() {
+  const o = captureOptions();
+  if (!o.replay || o.replayKey === 'off' || !_captureHost.has('replay')) return '';
+  return DeckShortcuts.normalizeShortcut(o.replayKey);
+}
+
+// A press of the replay shortcut. A failure (no game in front, still starting,
+// disk full) is said on screen like a Deck key's shortcut, never swallowed.
+function _pressReplayHotkey() {
+  capabilityRunner.run({ type: 'replay', mode: 'save' })
+    .then((r) => { if (!r || !r.ok) broadcastSSE('deck_shortcut_failed', { title: 'Instant Replay', error: (r && r.error) || 'failed' }); })
+    .catch(() => broadcastSSE('deck_shortcut_failed', { title: 'Instant Replay', error: 'failed' }));
+}
+
+// The overlay shortcut's combo, or '' when there is nothing in the overlay to
+// show or hide, or the user turned it off.
+function _overlayHotkey() {
+  const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+  if (!layers.enabled || layers.overlayKey === 'off' || !layers.widgets.some((w) => w.surface === 'overlay')) return '';
+  return DeckShortcuts.normalizeShortcut(layers.overlayKey);
+}
+
+// The shortcuts on Deck keys (js/deck-shortcuts.js), refreshed on every Deck
+// write and at boot. The helper is restarted only when a combo or its key moved.
+let _deckShortcuts = { list: [], duplicates: [] };
+function _refreshDeckShortcuts(configs) {
+  const next = DeckShortcuts.collectShortcuts(configs);
+  const sig = (s) => s.list.map((x) => x.keyId + '=' + x.combo).join('|');
+  const changed = sig(next) !== sig(_deckShortcuts);
+  _deckShortcuts = next;
+  if (changed && _serverHubSettings) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
+}
+
+// Why each Deck shortcut is or is not held, for the key editor: the helper's
+// own verdict when it got one, else the reason it never reached the helper.
+function _deckShortcutStatus() {
+  const table = _hotkey.bindings || [];
+  const refused = DeckShortcuts.planBindings(table.filter((b) => !b.keyId), _deckShortcuts.list, MAX_HOTKEY_BINDINGS).refused;
+  const out = _deckShortcuts.list.map((s) => {
+    const bound = table.find((b) => b.keyId === s.keyId);
+    const state = bound ? ((_hotkey.slots || {})[bound.slot] || _hotkey.state || 'off') : (refused[s.keyId] || 'off');
+    return { keyId: s.keyId, combo: s.combo, title: s.title, state };
+  });
+  for (const d of _deckShortcuts.duplicates) out.push({ keyId: d.keyId, combo: d.combo, title: d.title, state: 'duplicate' });
+  return out;
 }
 
 // A page shortcut fires on the PC running the server, and every dashboard
@@ -1001,6 +1419,10 @@ function routeHotkeyIndex(index) {
   const binding = _hotkey.bindings[index];
   if (!binding) return;
   if (binding.slot === 'spotlight') routeSpotlightHotkey();
+  else if (binding.slot === 'overlay') capabilityRunner.run({ type: 'layersToggle', mode: 'toggle', surface: 'overlay' }).catch(() => {});
+  else if (binding.slot === 'replay') _pressReplayHotkey();
+  else if (binding.slot === 'menu') screenMenu.toggle();
+  else if (binding.keyId) deckShortcutRunner.press(binding.keyId, binding.combo).catch(() => {});
   else routePageHotkey(binding);
 }
 const _spotlightPopupPids = new Set();
@@ -1120,10 +1542,12 @@ function refreshLinuxHotkey(want, combo, pages) {
     _hotkey.combo = '';
     _linuxHotkey.unregister().catch(() => { /* nothing registered */ });
   }
-  const wanted = pages.map((b, i) => ({
+  const wanted = pages.map((b) => ({
     slot: b.slot,
     combo: b.combo,
-    name: 'Xenon page ' + (i + 1),
+    // The name the desktop's keyboard settings list it under.
+    name: b.slot === 'overlay' ? 'Xenon overlay' : b.slot === 'replay' ? 'Xenon replay' : b.slot === 'menu' ? 'Xenon menu'
+      : (b.keyId ? 'Xenon shortcut ' : 'Xenon page ') + (Number(b.slot.split('-')[1]) + 1),
     // The index is the binding's position in the WHOLE table, not among the
     // pages, so the press routes through the same _hotkey.bindings the helper
     // path uses and there is one router rather than two.
@@ -1383,7 +1807,20 @@ const diskSpace = createDiskSpace({
 // storage, WSL/Docker virtual disks. Every route checks featureUnlock first.
 // Editor folders go through the Disk widget's guarded Recycle-Bin delete; the
 // .vhdx compaction is compact-vhdx.ps1, which raises its own UAC prompt.
-const featureUnlock = createFeatureUnlock({ dataDir: DATA_DIR });
+// The 7-day pass trial (trial-pass.js): the hub's word on it, kept in DATA_DIR.
+// supporter-redeem uses it for an empty-code redeem and remembers an accepted XT.
+const trialPass = createTrialPass({ dataDir: DATA_DIR, onCheck: () => { trialVault.sync().catch(() => {}); } });
+supporterRedeem.useTrialPass(trialPass);
+// Widgets and scenes opened with the trial: ciphertext on disk, packages in
+// memory, served only while the trial runs (trial-vault.js).
+const trialVault = createTrialVault({
+  dataDir: DATA_DIR,
+  trialPass,
+  redeem: (opts) => supporterRedeem.redeem({ ...opts, dataDir: DATA_DIR }),
+  installPayload: (payload, catalogVersion) => installWidgetPayload(payload, 'import', catalogVersion),
+  onChange: () => { refreshSdkScan().catch(() => {}); },
+});
+const featureUnlock = createFeatureUnlock({ dataDir: DATA_DIR, trialPass });
 const devClean = createDevClean({
   run: execFilePromise,
   getSettings: () => readHubSettings(),
@@ -1542,7 +1979,11 @@ async function sdkPackagesCached() {
 }
 async function refreshSdkScan() {
   const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
-  _sdkScanCache = { at: Date.now(), packages: scan.packages, invalid: scan.invalid, skipped: scan.skipped || 0 };
+  // Trial packages join the list while the trial runs; an installed copy wins.
+  const onDisk = new Set(scan.packages.map((p) => p.id));
+  const trial = (await trialVault.packages().catch(() => []))
+    .filter((m) => !onDisk.has(m.id)).map((m) => ({ ...m, trial: true }));
+  _sdkScanCache = { at: Date.now(), packages: scan.packages.concat(trial), invalid: scan.invalid, skipped: scan.skipped || 0 };
   return _sdkScanCache;
 }
 
@@ -1583,6 +2024,7 @@ const _widgetOrigins = (() => {   // one small read at startup, never on a reque
 // widget. A developer claims their own folder via POST /sdk/claim → 'local'.
 function widgetOriginOf(id) {
   const rec = _widgetOrigins[id];
+  if (!rec && trialVault.has(id)) return 'trial';   // never exportable, claimable or auto-updated
   return rec ? rec.origin : 'unknown';
 }
 // The catalog-entry version this package was last installed from ('' when it
@@ -1696,6 +2138,8 @@ function sdkGrantsFor(pkgId) {
     handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
     storage: !!(g && g.storage === true),
     secrets: !!(g && g.secrets === true),
+    // Questions to the AI set for Bit (POST /sdk/ai).
+    ai: !!(g && g.ai === true),
     // Raw addresses the user typed into the manifest's userHosts slots. Passed
     // to sdkWidgets.resolveUserHosts, which is what validates them — never read
     // as an allowlist directly.
@@ -2029,12 +2473,78 @@ async function installWidgetPayload(payload, origin, catalogVersion) {
       return scan.packages.some((p) => p.id === v.id && p.version === v.manifest.version);
     });
     if (!swapped.ok) return { ok: false, error: 'install_failed' };
-    await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(existed ? widgetOriginOf(v.id) : null, origin), catalogVersion);
+    // A trial package counts as someone else's: installing its id is never "own work".
+    const prev = existed ? widgetOriginOf(v.id) : (trialVault.has(v.id) ? 'import' : null);
+    await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(prev, origin), catalogVersion);
     await refreshSdkScan();
     return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts };
   } catch {
     return { ok: false, error: 'install_failed' };
   }
+}
+
+// ── Widget authors' MCP: what its ops may touch (mcp-dev-tools.js) ─────────
+// The same code Bit's create_widget runs: one writer, one validator, the share-
+// code dry run for the Store's rules. Nothing here grants a permission.
+function mcpDevDeps() {
+  return {
+    appVersion: APP_VERSION,
+    sdkApiVersion: sdkWidgets.SDK_API_VERSION,
+    sdkEnabled: () => sdkFeatureEnabled(),
+    dashboardOpen: () => sseClients.size > 0,
+    getSdkReference: (section) => require('./ai-knowledge.js').getSdkReference(section),
+    validateWidgetPayload: (payload) => sdkWidgets.validateWidgetPayload(payload),
+    critiqueWidget: (id, files) => aiPresets.critiqueWidget(id, files, aiPresetDeps()),
+    scanWidgetSource: (files) => SdkDiagnostics.scanWidgetSource(files),
+    isInstalled: async (id) => trialVault.has(id) || !!(await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id)),
+    isOwn: (id) => widgetExportable(id),
+    install: (payload) => installWidgetPayload(payload, 'creator'),
+    place: async (id) => !!(await mcpDev.ask('place', { id }, 4000)),
+    ask: (kind, args) => mcpDev.ask(kind, args),
+    captureRect: (where) => mcpDevCapture(where),
+    listOwn: async () => aiMyWidgets.listOwn((await refreshSdkScan()).packages, widgetExportable),
+    readPayload: (id) => sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id),
+  };
+}
+
+// A picture of the screen where the tile is, and only that box.
+async function mcpDevCapture(where) {
+  const rect = mcpDevTools.screenRect(process.platform, where);
+  if (!rect) return { ok: false, error: 'not_on_screen' };
+  try {
+    const data = await captureScreenshot(rect, { maxWidth: 1600 });
+    return { ok: true, data, width: rect.width, height: rect.height };
+  } catch {
+    return { ok: false, error: 'capture_failed' };
+  }
+}
+
+// /api/mcp/dev/*: the bridge pairs and calls; the dashboard answers pairings
+// and questions; Settings lists, revokes and connects. All loopback-only.
+async function handleMcpDevRoute(req, res, reqPath, json) {
+  const sub = reqPath.slice('/api/mcp/dev/'.length);
+  const body = async (max = 16 * 1024) => JSON.parse((await readBody(req, max)) || '{}');
+  if (req.method === 'GET' && sub === 'clients') { json({ ok: true, clients: await mcpDev.listClients() }); return; }
+  if (req.method === 'GET' && sub === 'pairs') { json({ ok: true, pairs: mcpDev.pendingPairs() }); return; }
+  if (req.method !== 'POST') { res.writeHead(405); res.end(); return; }
+  if (sub === 'pair') { json(mcpDev.startPair((await body()).name)); return; }
+  if (sub === 'pair/poll') { json(mcpDev.pollPair((await body()).pairId)); return; }
+  if (sub === 'pair/answer') { const b = await body(); json(await mcpDev.answerPair(b.id, b.allow === true)); return; }
+  if (sub === 'report') { const b = await body(64 * 1024); json({ ok: true, accepted: mcpDev.report(b.reqId, b.data) }); return; }
+  if (sub === 'revoke') { json({ ok: await mcpDev.revoke((await body()).id) }); return; }
+  if (sub === 'connect') {
+    json(await aiCli.addMcpServer(String((await body()).provider || ''), [process.execPath, MCP_BRIDGE_PATH]));
+    return;
+  }
+  if (sub === 'call') {
+    const client = await mcpDev.authenticate(req.headers['x-xenon-mcp-token']);
+    if (!client) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'not_paired' })); return; }
+    // A whole widget package rides in the body: 40 files, 3 MB, as base64.
+    const b = await body(6 * 1024 * 1024);
+    json(await mcpDevTools.runOp(String(b.op || ''), b.args, mcpDevDeps()));
+    return;
+  }
+  res.writeHead(404); res.end();
 }
 
 // One-time migration: earlier versions stored runtime data loose in server/.
@@ -2620,7 +3130,11 @@ async function runCollector(scriptPath, args = [], timeout = 8000) {
 // Wireless peripheral battery (Corsair via the iCUE bridge + Bluetooth via the
 // battery.ps1 PnP collector). TTL-cached inside the monitor; consumed by
 // GET /api/battery, the SSE 'battery' tick and the get_battery_status AI tool.
-const batteryMonitor = createBatteryMonitor({ runScript: runPowerShellScript, lighting });
+const batteryMonitor = createBatteryMonitor({
+  runScript: runPowerShellScript,
+  lighting,
+  systemBattery: async () => { const r = await require('./power').read(); return r && r.battery; },
+});
 
 // ── Persistent SMTC media host ────────────────────────────────────────────────
 // media.ps1 used to be spawned one-shot for EVERY media poll (the SSE stream
@@ -2887,15 +3401,24 @@ function cpuSnapshot() {
 
 let lastCpu = cpuSnapshot();
 let cachedCpuUsage = 0;
+// The busiest logical core over the same 1.5 s: a game held back by one thread
+// shows a pegged core while the total stays low ("why does it stutter?").
+let cachedCpuMaxCore = 0;
 // Continuous CPU sampler — avoids 0% sampling artifacts when /system is polled less often than CPU times update.
 setInterval(() => {
   const now = cpuSnapshot();
-  let idle = 0, total = 0;
+  let idle = 0, total = 0, maxCore = 0;
   now.forEach((cpu, i) => {
-    idle  += cpu.idle  - lastCpu[i].idle;
-    total += cpu.total - lastCpu[i].total;
+    const prev = lastCpu[i];
+    if (!prev) return;
+    const di = cpu.idle - prev.idle;
+    const dt = cpu.total - prev.total;
+    idle  += di;
+    total += dt;
+    if (dt > 0) maxCore = Math.max(maxCore, 100 - (di / dt) * 100);
   });
   lastCpu = now;
+  cachedCpuMaxCore = Math.max(0, Math.min(100, Math.round(maxCore)));
   if (total > 0) {
     const pct = Math.max(0, Math.min(100, Math.round(100 - (idle / total * 100))));
     cachedCpuUsage = pct;
@@ -2988,7 +3511,10 @@ setInterval(_sweepStaleStt, 60000).unref();
 
 const STT_SPEECH_MIN         = 420;
 const STT_START_SILENCE_GRACE_MS       = 3200;
-const STT_AFTER_SPEECH_SILENCE_GRACE_MS = 2500;
+// After real speech, ffmpeg needs 0.55 s of quiet to report silence_start and
+// this grace runs on top: about 1.5 s from the last word to the answer, long
+// enough for a breath between clauses, short enough to feel like a reply.
+const STT_AFTER_SPEECH_SILENCE_GRACE_MS = 1000;
 
 function _pcmRms(pcm) {
   if (!pcm || pcm.length < 2) return 0;
@@ -5229,42 +5755,50 @@ function lyricsTexts(entry) {
   return null;
 }
 
-// Each cloud provider translates on its small low-cost family, whatever model
-// the user picked for the assistant: a song a day on Opus would be real money.
-const LYRICS_TRANSLATE_FAMILY = Object.freeze({ gemini: 'auto:flash-lite', openai: 'auto:mini', anthropic: 'auto:haiku' });
+// The small helpers (a song's translation, a widget's question) run on each
+// provider's small low-cost family, whatever model the user picked for the
+// assistant: a song a day on Opus would be real money. Bit on Sparks runs them
+// on Haiku (ai-xenon-credits.js oneShot).
+const SMALL_TASK_FAMILY = Object.freeze({ gemini: 'auto:flash-lite', openai: 'auto:mini', anthropic: 'auto:haiku' });
 
-async function lyricsTranslationModel(provider, settings) {
+async function smallTaskModel(provider, settings) {
   if (aiCli.isCliProvider(provider)) return aiCli.lightModel(provider);
-  const family = LYRICS_TRANSLATE_FAMILY[provider];
+  if (provider === 'xenon') return aiXenon.HELPER_MODEL_ID;
+  const family = SMALL_TASK_FAMILY[provider];
   if (!family) return '';
   const apiKey = provider === 'gemini' ? await geminiKeyFor('')
     : provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey;
   return aiModels.resolve(provider, 'chat', family, apiKey);
 }
 
-// One request to the user's configured Xenon AI provider →
-// { text, tokens, input, output } (the last two split for the cost estimate).
-// Claude Code and Codex run on the user's plan: nothing to pay per song, but
-// each song counts toward the plan's limits, which the widget says before the
-// switch is turned on. They run on the plan's small model at low effort.
-async function completeLyricsTranslation({ system, user, maxTokens }) {
+// One request to the AI the user set for Bit (Sparks, their own key, Ollama or
+// their plan) → { text, tokens, input, output } (the last two split for the
+// cost estimate). Claude Code and Codex run on the user's plan: nothing to pay
+// per request, but each counts toward the plan's limits, which Lyrics says
+// before its switch is on. They run on the plan's small model at low effort.
+// `json` asks Gemini for a JSON reply; the other providers follow the prompt.
+// `image` ({ mimeType, data } base64) is a picture the request is about; check
+// userAiVisionBlocker() first, since a plan run through its program sees none.
+async function completeWithUserAi({ system, user, maxTokens, json = false, temperature, image = null }) {
   const settings = await readHubSettings().catch(() => null) || {};
   const provider = aiLocal.sanitizeProvider(settings.aiProvider);
   let tokens = 0;
   let split = null;
   const onUsage = (n, parts) => { tokens = n; split = parts || null; };
+  const parts = image ? [{ text: user }, { inlineData: image }] : [{ text: user }];
   let text = '';
   if (provider === 'ollama') {
     const result = await aiLocal.localChat({
       baseUrl: aiLocal.sanitizeOllamaUrl(settings.ollamaUrl),
       model: aiLocal.resolveModel(aiLocal.sanitizeModel(settings.ollamaModel), settings.hardwareScan),
-      geminiTools: [], history: [{ role: 'user', parts: [{ text: user }] }], systemText: system,
+      geminiTools: [], history: [{ role: 'user', parts }], systemText: system,
       executeTool: async () => ({ fnResult: {}, clientActions: [] }),
     });
     text = result && result.text;
   } else if (aiCli.isCliProvider(provider)) {
+    if (image) { const e = new Error('this AI cannot see pictures'); e.code = 'no_vision'; throw e; }
     text = await aiCli.oneShot({
-      provider, model: await lyricsTranslationModel(provider, settings), effort: 'low',
+      provider, model: await smallTaskModel(provider, settings), effort: 'low',
       // Total only: a plan's tokens have no price, and Codex's large fixed
       // instructions would skew the per-song figure a paid provider is priced on.
       systemText: system, userText: user, onUsage: (n) => { tokens = n; },
@@ -5273,36 +5807,72 @@ async function completeLyricsTranslation({ system, user, maxTokens }) {
     const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
     text = await mod.oneShot({
       apiKey: provider === 'openai' ? settings.openaiApiKey : settings.anthropicApiKey,
-      model: await lyricsTranslationModel(provider, settings), systemText: system, userText: user, maxTokens, onUsage,
+      model: await smallTaskModel(provider, settings), systemText: system, userText: user, maxTokens, onUsage, image,
     });
+  } else if (provider === 'xenon') {
+    text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: system, userText: user, maxTokens, onUsage, image });
   } else if (provider === 'gemini') {
     const apiKey = await geminiKeyFor('');
-    const opts = { model: await lyricsTranslationModel(provider, settings), temperature: 0.2, json: true, onUsage };
+    const opts = { model: await smallTaskModel(provider, settings), temperature, json, onUsage };
     // Measured: 3.x Flash-Lite rejects a zero thinking budget and wants a level;
     // the Flash fallback rejects the "minimal" level and takes the budget. A
     // rejected request is a 400 that is not billed, so one retry costs nothing.
     try {
-      text = await _geminiOneShot(apiKey, [{ text: user }], system, maxTokens, { ...opts, thinkingLevel: 'minimal' });
+      text = await _geminiOneShot(apiKey, parts, system, maxTokens, { ...opts, thinkingLevel: 'minimal' });
     } catch (e) {
       if (!/invalid argument|thinking/i.test(String(e && e.message))) throw e;
-      text = await _geminiOneShot(apiKey, [{ text: user }], system, maxTokens, opts);
+      text = await _geminiOneShot(apiKey, parts, system, maxTokens, opts);
     }
   } else {
     throw new Error('provider not supported');
   }
-  return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output };
+  const sparks = split && Number.isFinite(split.credits) ? split.credits : null;
+  return { text: String(text || ''), tokens, input: split && split.input, output: split && split.output, sparks };
 }
 
-// Why translation cannot run right now, or '' when it can. Checked before any
-// request is made, so a missing key never costs a round trip.
-async function lyricsTranslateBlocker() {
-  if (_serverHubSettings.lyricsTranslate !== true) return 'off';
+// What one Game Companion look costs on Sparks, for the line under "Analyze
+// screen": the hub's charge for the last look, or a measured typical one until
+// then (30 Oct 2026: one 1920px screenshot on Haiku was charged 0.3; the price
+// table alone said 0.05, it misses what the hub adds). Display only.
+const COMPANION_TYPICAL_SPARKS = 0.3;
+let _companionLastSparks = null;
+function companionLookSparks() {
+  return Number.isFinite(_companionLastSparks) ? _companionLastSparks : COMPANION_TYPICAL_SPARKS;
+}
+
+// 'no_ai' when the AI set for Bit cannot answer (no key, no Sparks code), or ''.
+// Checked before any request is made, so a missing key never costs a round trip.
+// A Sparks code is the pass OR a Sparks-only buyer's wallet code.
+async function userAiBlocker() {
   const settings = await readHubSettings().catch(() => null) || {};
   const provider = aiLocal.sanitizeProvider(settings.aiProvider);
   if (provider === 'openai' && !settings.openaiApiKey) return 'no_ai';
   if (provider === 'anthropic' && !settings.anthropicApiKey) return 'no_ai';
+  if (provider === 'xenon' && !(await aiXenon.hasCode(DATA_DIR))) return 'no_ai';
   if (provider === 'gemini' && !(await geminiKeyFor(''))) return 'no_ai';
   return '';
+}
+
+// userAiBlocker(), then 'no_vision' when that AI cannot look at a picture: a
+// plan run through its own program, or an Ollama model without eyes.
+async function userAiVisionBlocker() {
+  const blocked = await userAiBlocker();
+  if (blocked) return blocked;
+  const settings = await readHubSettings().catch(() => null) || {};
+  const provider = aiLocal.sanitizeProvider(settings.aiProvider);
+  if (aiCli.isCliProvider(provider)) return 'no_vision';
+  if (provider === 'ollama') {
+    const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings.ollamaModel), settings.hardwareScan);
+    const sees = await aiLocal.supportsVisionLive(aiLocal.sanitizeOllamaUrl(settings.ollamaUrl), model).catch(() => false);
+    if (!sees) return 'no_vision';
+  }
+  return '';
+}
+
+// Why translation cannot run right now, or '' when it can.
+async function lyricsTranslateBlocker() {
+  if (_serverHubSettings.lyricsTranslate !== true) return 'off';
+  return userAiBlocker();
 }
 
 function parseCsvLine(line) {
@@ -6429,6 +6999,9 @@ const deckRegistryDeps = {
     cachedSpeakerName = match.name || cachedSpeakerName;
     return { ok: true };
   },
+  // A Vitals meter marked done from a Deck key or a granted SDK widget: the
+  // same locked write as a tap on the bar or telling Bit (vitals-ai-tools.js).
+  vitalsRefill: (vital) => vitalsAiTools.run('refill_vital', { vital }, { read: () => _serverHubSettings, update: updateVitalsSettings }),
   // Task-list mutations (the `tasks` action category). All go through writeTasks,
   // which normalises (assigns id/createdAt, caps text to 200, drops empties) and
   // broadcasts the updated `tasks` stream — so the Tasks tile and every granted
@@ -6562,11 +7135,14 @@ const deckRegistryDeps = {
   lightingControl: async (action) => {
     try {
       switch (action.type) {
+        // Off means dark: every light, the map and the music colour included,
+        // until a key or Settings switches them back on.
         case 'lightPower': {
-          const on = action.state === 'on' ? true : action.state === 'off' ? false : !lighting.getStatus().enabled;
-          if (!on) lighting.releaseKeyLook();
+          const lit = lighting.getStatus().enabled && !lighting.isLightsOut();
+          const on = action.state === 'on' ? true : action.state === 'off' ? false : !lit;
+          lighting.setLightsOut(!on);
           lighting.setEnabled(on);
-          if (on) { try { await lighting.ensureConnected(); } catch {} }
+          try { await lighting.ensureConnected(); } catch {}
           break;
         }
         // What a key sets wins over the music and temperature colours until the
@@ -6682,9 +7258,136 @@ const deckRegistryDeps = {
   // number normalisation and the same refusal reasons.
   phoneDial: (number) => phone.dial(number),
   phoneSend: (number, text) => phone.sendMessage(number, text),
+  runCapability: (action) => capabilityRunner.run(action),
   // remote: injected below once remoteControl is created (see createRemoteControl call)
 };
 const deckRegistry = createRegistry(deckRegistryDeps);
+
+// A Deck key's keyboard shortcut runs its tap here, dashboard or not.
+// go_to_page: a page name that matches none is told back to Bit with the real
+// names, before the dashboard is asked to move (js/page-target.js).
+function goToPageMiss(args) {
+  const pages = normalizeDashboardPages(_serverHubSettings.dashboardLayout && _serverHubSettings.dashboardLayout.pages);
+  return PageTarget.pageTargetMiss(args && args.page, pages.map(p => ({ id: p.id, label: p.name || p.id })));
+}
+
+// play_in_tile (tile-play.js): find what the user meant, then hand it to the
+// one surface that has the tile. Searches need the account connected in the
+// tile; an exact channel or video plays without one.
+const tilePlay = TilePlay.createTilePlay({ broadcast: (event, data) => broadcastSSE(event, data) });
+
+// edit_favorites: the search runs first (network), the list is changed under the
+// settings lock, then the tile's data is refreshed as its own add box does.
+const FAVORITE_REFRESH = { stocks: () => refreshStocks(), teams: () => refreshFootball(), news: () => refreshNews() };
+async function editFavorites(args) {
+  const plan = await FavoritesAi.planFavorite(args, {
+    stocks: (q) => stocks.searchSymbols(q),
+    teams: (q) => football.searchTeams(q, _footballOpts()),
+  });
+  if (plan.error) return { ok: false, ...plan };
+  let result = null;
+  await withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const out = FavoritesAi.applyFavorite(cur, plan);
+    result = out.result;
+    if (out.patch) _serverHubSettings = await writeHubSettings({ ...cur, ...out.patch });
+  });
+  if (result && (result.added || result.removed)) FAVORITE_REFRESH[plan.kind]().catch(() => {});
+  return result;
+}
+// change_setting: one allowlisted field under the lock; nothing written when it
+// already has that value. The rev bump makes open dashboards reload the settings.
+async function changeSetting(args) {
+  const plan = SettingsAi.plan(args);
+  if (plan.error) return { ok: false, ...plan };
+  if (plan.read) return { ok: true, settings: SettingsAi.current(_serverHubSettings) };
+  let before = null;
+  await withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const out = SettingsAi.apply(normalizeHubSettings(cur), plan);
+    before = out.before;
+    if (!out.patch) return;
+    const written = await writeHubSettings({ ...cur, ...out.patch, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = written;
+    broadcastSSE('settings', { rev: written.rev });
+  });
+  if (plan.name === 'visualizer') refreshAudioLevelsWatch();
+  const now = SettingsAi.current(_serverHubSettings)[plan.name];
+  return { ok: true, setting: plan.name, before, now, ...(before === now ? { unchanged: true } : {}) };
+}
+// POST /settings/tile: the fields a tile keeps in the settings, saved from a
+// layer page (which never writes the whole blob). Same lock, rev bump and
+// broadcast as change_setting; the notifications reader follows its switch.
+async function saveTileSettings(body) {
+  const plan = TileSettings.plan(body);
+  if (plan.error) return { ok: false, ...plan };
+  let rev = null;
+  await withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const written = await writeHubSettings({ ...cur, ...TileSettings.apply(cur, plan.patch), rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = written;
+    rev = written.rev;
+    broadcastSSE('settings', { rev });
+  });
+  if (plan.patch.windowsNotifications) { refreshWinNotifWatch(); winNotif.applyExclusions(); }
+  return { ok: true, rev };
+}
+async function tilePlaySearch(tile, q) {
+  if (tile === 'twitch') {
+    const r = await streamTwitch.searchChannels(q, { language: _serverHubSettings && _serverHubSettings.language });
+    const ch = r && r.ok && Array.isArray(r.channels) ? r.channels.find((c) => c && c.live !== false) || r.channels[0] : null;
+    return ch ? { value: ch.login, title: ch.name || ch.login } : { error: (r && r.error) || 'no_match' };
+  }
+  const r = await streamYouTube.searchVideos(q);
+  const v = r && r.ok && Array.isArray(r.videos) ? r.videos.find((x) => x && x.embeddable !== false) : null;
+  return v ? { value: v.id, title: v.title } : { error: (r && r.error) || 'no_match' };
+}
+async function playInTile(args) {
+  const want = TilePlay.parseTilePlay(args);
+  if (want.error) return { ok: false, ...want };
+  let title = '';
+  if (want.search) {
+    const hit = await tilePlaySearch(want.tile, want.search);
+    if (hit.error) return { ok: false, error: hit.error, search: want.search };
+    want.value = hit.value;
+    title = hit.title || '';
+  }
+  const claimed = await tilePlay.offer(want.tile, want.value);
+  if (!claimed) return { ok: false, error: 'no_tile', tile: want.tile, hint: 'No open dashboard or screen widget shows this tile. Offer to add it (place_widget).' };
+  return { ok: true, tile: want.tile, playing: want.value, ...(title ? { title } : {}) };
+}
+
+const deckShortcutRunner = createDeckShortcutRunner({
+  readConfigs: async () => (await readDeckStore()).configs,
+  steps: require('./js/deck-actions.js').triggerSteps,
+  run: (action) => deckRegistry.run(action),
+  broadcast: (event, data) => broadcastSSE(event, data),
+  // With no dashboard the PC plays the key's clip itself (deck-sound-player.js).
+  soundPlayer: createDeckSoundPlayer({
+    platform: process.platform,
+    resolveFile: resolveDeckSoundFile,
+    ffplay: findFfplay,
+    spawn,
+  }),
+  serverFirst: () => UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode),
+});
+
+// A soundboard clip the PC may play: the same two shapes /deck/sound accepts (a
+// pack-relative ref, or the user's own absolute path), an audio extension, a file.
+async function resolveDeckSoundFile(raw) {
+  if (!raw) return null;
+  const abs = soundPackStore.resolve(raw) || (path.isAbsolute(raw) ? path.resolve(raw) : null);
+  if (!abs || !DECK_SOUND_EXTS.has(path.extname(abs).toLowerCase())) return null;
+  try { return (await fs.promises.stat(abs)).isFile() ? abs : null; } catch { return null; }
+}
+
+// ffplay ships next to ffmpeg in the usual builds (winget, Homebrew, distros).
+async function findFfplay() {
+  const ff = getFfmpegPath();
+  if (!path.isAbsolute(ff)) return process.platform === 'win32' ? 'ffplay.exe' : 'ffplay';
+  const candidate = path.join(path.dirname(ff), path.basename(ff).replace(/ffmpeg/i, 'ffplay'));
+  try { await fs.promises.access(candidate); return candidate; } catch { return ''; }
+}
 
 // Performance Mode runner: guided, reversible app management. Side-effects are
 // injected so the allowlist/validation stays the only execution path. The
@@ -7213,7 +7916,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     // local Edge neural TTS; ChatGPT uses OpenAI TTS (its server-only key comes
     // from settings); Gemini uses Gemini TTS with the request's key.
     // Claude Code / Codex bring no speech of their own either, so they share it.
-    const useLocal = provider === 'ollama' || provider === 'anthropic' || aiCli.isCliProvider(provider);
+    const useLocal = provider === 'ollama' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider);
     const useOpenai = provider === 'openai';
     let openaiKey = '';
     if (useOpenai) { const s = await readHubSettings().catch(() => null); openaiKey = String((s && s.openaiApiKey) || '').trim(); }
@@ -7230,7 +7933,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
       try {
         return await _geminiTtsToWav(t, key, 'Charon');
       } catch (e) {
-        process.stdout.write(`[TTS] Gemini failed (${e.message}) — falling back to the local voice\n`);
+        process.stdout.write(`[TTS] Gemini failed (${e.message}): falling back to the local voice\n`);
         if (/not found|not supported|NOT_FOUND|404/i.test(String(e.message || ''))) {
           aiModels.markMissing('gemini', AI_MODELS.tts);
         }
@@ -7317,6 +8020,18 @@ async function _flushLightingPersist() {
   try { await withHubSettingsLock(async () => { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }); }
   catch (e) { console.error('Lighting persist failed:', e.message); }
 }
+// Windows shutdown / restart / sleep: hand the lights Xenon drives itself back
+// to their hardware first (session-watch.js says why node cannot see these on
+// its own). Runs only while native lighting is on, the one thing that would
+// otherwise stay lit on standby power; iCUE takes its devices back by itself.
+const _sessionWatch = createSessionWatch({
+  onEvent: (ev) => (ev === 'resume' ? lighting.powerUp() : lighting.powerDown()),
+});
+function _syncSessionWatch() {
+  let on = false;
+  try { on = lighting.getConfig().native.enabled === true; } catch { /* stays off */ }
+  if (on) _sessionWatch.start(); else _sessionWatch.stop();
+}
 async function _persistLighting() {
   if (_lightingPersistTimer) return;   // a flush is already scheduled — it reads the latest config
   _lightingPersistTimer = setTimeout(() => { _flushLightingPersist(); }, LIGHTING_PERSIST_DEBOUNCE_MS);
@@ -7356,11 +8071,44 @@ function issuePcAction(command, purpose) {
   return nonce;
 }
 
+// What the create_preset dry run needs from this file: the real settings
+// normalizer, the built-in tile ids with their default sizes, the SDK switch.
+function aiPresetDeps() {
+  const tiles = DEFAULT_DASHBOARD_LAYOUT.widgets;
+  return {
+    normalizeSettings: normalizeHubSettings,
+    dashboardWidgets: DASHBOARD_WIDGET_IDS.map((id) => ({ id, w: tiles[id] ? tiles[id].w : 8, h: tiles[id] ? tiles[id].h : 6 })),
+    sdkEnabled: sdkFeatureEnabled(),
+    appVersion: APP_VERSION,
+  };
+}
+
+// The user stopped the turn (ai-turns.js): answered as a reply with no text,
+// carrying what its tools already made. False for any other error.
+function aiStoppedReply(e, json, extra) {
+  if (!e || (e.code !== 'turn_stopped' && e.code !== 'cli_cancelled')) return false;
+  json({ stopped: true, text: '', clientActions: aiTurns.madeSoFar(), ...extra });
+  return true;
+}
+
+// Every tool the assistant runs, marked on the turn the chat is waiting for.
 async function executeAiTool(fnName, fnArgs, deps) {
+  aiTurns.checkpoint(); // the user pressed stop: nothing more runs
+  aiTurns.toolStart(fnName);
+  try {
+    const out = await runAiTool(fnName, fnArgs, deps);
+    aiTurns.record(out && out.clientActions);
+    return out;
+  } finally {
+    aiTurns.toolEnd(fnName);
+  }
+}
+
+async function runAiTool(fnName, fnArgs, deps) {
   const {
     apiKey, uiLang, latestUserText,
     latestLooksLikeClothingWeather, latestExplicitlyWantsScreen,
-    provider,
+    provider, pictures = [], surface = '',
   } = deps;
   const clientActions = [];
   let pendingScreenImage = null;
@@ -7368,9 +8116,20 @@ async function executeAiTool(fnName, fnArgs, deps) {
 
   // show_lock_screen is the pre-v4.4 name for start_ambient_mode — kept as an
   // alias so old AI memories/prompts keep working.
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
+    const refused = aiSurface.clientActionRefusal(fnName, surface);
+    if (refused) return { fnResult: refused, clientActions, pendingScreenImage };
+    const miss = fnName === 'go_to_page' ? goToPageMiss(fnArgs) : null;
+    if (miss) return { fnResult: miss, clientActions, pendingScreenImage };
+    // No dashboard: the driver page's Performance Mode does it (js/driver-perf.js)
+    // and its card on the screen says how it went.
+    const perfChoice = aiSurface.screenPerfChoice(fnName, surface);
+    if (perfChoice) {
+      broadcastSSE('perf_screen', perfScreen.screenEvent({ kind: 'answer', choice: perfChoice }));
+      return { fnResult: { ok: true }, clientActions, pendingScreenImage };
+    }
     clientActions.push({ action: fnName, args: fnArgs });
     fnResult = { ok: true };
     return { fnResult, clientActions, pendingScreenImage };
@@ -7385,17 +8144,101 @@ async function executeAiTool(fnName, fnArgs, deps) {
       if (!sdkFeatureEnabled()) {
         fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Settings → Widget e condivisione first.' };
       } else {
-        const files = Array.isArray(fnArgs.files) ? fnArgs.files.slice(0, 40) : [];
-        const payload = {
-          id: String(fnArgs.id || ''),
-          files: files.map(f => ({ path: String(f && f.path || ''), data: Buffer.from(String(f && f.content || ''), 'utf8').toString('base64') })),
-        };
-        // 'creator': an AI-authored widget is the user's own build, so it stays
-        // exportable/shareable — unlike packages that arrive via import.
-        const r = await installWidgetPayload(payload, 'creator');
+        // A file whose content is "attached:N" becomes that attached picture.
+        const placed = aiPictures.resolvePictures(Array.isArray(fnArgs.files) ? fnArgs.files.slice(0, 40) : [], pictures);
+        const problem = aiPictures.pictureProblem(placed);
+        // An inline <script> never runs in the sandbox: it moves to a file first.
+        const files = externalizeInlineScripts(problem ? [] : placed.value).files;
+        const id = String(fnArgs.id || '');
+        const changed = files.map(f => ({ path: String(f && f.path || ''), data: f && typeof f.data === 'string' ? f.data : Buffer.from(String(f && f.content || ''), 'utf8').toString('base64') }));
+        // An id already installed is an edit, and only of the user's own work:
+        // a Store or shared widget is never overwritten by the assistant.
+        const current = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
+        const editing = !!current || trialVault.has(id);
+        let r;
+        let all = changed;
+        if (problem) {
+          r = problem;
+        } else if (editing && !widgetExportable(id)) {
+          r = { ok: false, error: 'not_yours' };
+        } else {
+          if (current) all = aiMyWidgets.mergeEdit(current, changed, fnArgs.remove);
+          // 'creator': an AI-authored widget is the user's own build, so it stays
+          // exportable/shareable — unlike packages that arrive via import.
+          r = await installWidgetPayload({ id, files: all }, 'creator');
+        }
+        if (r.ok) clientActions.push({ action: 'place_created_widget', args: { id: r.id } });
         fnResult = r.ok
-          ? { ok: true, id: r.id, name: r.name, note: 'Installed. Tell the user to add it from the + panel in Layout mode (it is listed by name, and under the Installed filter); its permissions are approved there, never automatically.' }
-          : { ok: false, error: r.error };
+          ? { ok: true, id: r.id, name: r.name, note: (editing ? 'Updated: the files you sent replaced theirs, the rest stayed. ' : 'Installed and put on the page the user is looking at, in the shape its manifest "size" names. ') + 'A widget already on a tile only refreshes that tile. If it needs permissions, the user approves them in the window that opens, never automatically. If critique lists fix items, correct them and call create_widget again with the same id (only the files you fix) before telling the user.' }
+          : r.error === 'not_yours'
+            ? { ok: false, error: 'not_yours', hint: 'This id is a widget from the Store or a share code, which belongs to someone else. Make a new widget with a different id.' }
+            : problem || { ok: false, error: r.error };
+        // The same checks a create_preset widget gets, on the whole package as installed.
+        const whole = r.ok ? aiMyWidgets.readOwn({ id, files: all }) : null;
+        const checked = r.ok ? aiPresets.critiqueWidget(r.id, whole && whole.ok ? whole.files : files, aiPresetDeps()) : null;
+        if (checked) {
+          fnResult.critique = provider === 'xenon'
+            ? addConsiderations(checked.critique, await aiXenon.designAdvice(DATA_DIR, checked.code))
+            : checked.critique;
+        }
+      }
+    } else if (fnName === 'my_widgets') {
+      // Read-only: the user's own widgets, and one's files to change it later.
+      const id = String(fnArgs.id || '');
+      if (!id) {
+        fnResult = { ok: true, widgets: aiMyWidgets.listOwn((await refreshSdkScan()).packages, widgetExportable) };
+      } else if (!widgetExportable(id)) {
+        fnResult = { ok: false, error: 'not_yours_or_missing', hint: 'Only widgets the user made can be read. Call my_widgets with no id for the list.' };
+      } else {
+        const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
+        fnResult = payload ? aiMyWidgets.readOwn(payload) : { ok: false, error: 'not_found' };
+      }
+    } else if (fnName === 'preset_reference') {
+      // Read-only grounding for create_preset, built from the import's own code.
+      fnResult = aiPresets.runPresetReference(fnArgs, aiPresetDeps());
+    } else if (fnName === 'create_preset') {
+      // Builds a share code and dry-runs it through the import's normalizers.
+      // It never applies anything: on success the client opens the normal
+      // import review window with the code, exactly as marketplace_install does.
+      const out = aiPresets.runCreatePreset(fnArgs, aiPresetDeps(), pictures);
+      clientActions.push(...out.clientActions);
+      fnResult = out.fnResult;
+      // On Xenon credits the hub's design check (what reads as generated) joins
+      // the critique, so the assistant can fix it before the user looks.
+      if (provider === 'xenon' && out.code) {
+        fnResult.critique = addConsiderations(fnResult.critique, await aiXenon.designAdvice(DATA_DIR, out.code));
+      }
+    } else if (capabilities.aiAction(fnName, fnArgs)) {
+      // A catalog capability: the call becomes its Deck action and runs through
+      // the same allowlisted registry as a key press.
+      fnResult = await deckRegistry.run(capabilities.aiAction(fnName, fnArgs));
+      // The text read off the screen reaches the AI only: screen-text.js keeps
+      // it out of the action's result, which a paired phone can receive.
+      // "picking": a picker is already open, so any text kept is an older read's.
+      if (fnName === 'read_screen_text' && fnResult && fnResult.ok === true && !fnResult.cancelled && !fnResult.picking) {
+        const read = require('./capabilities/screen-text.js').takeText();
+        if (read) fnResult = { ...fnResult, text: read.text, ...(read.cut ? { cut: true } : {}) };
+      }
+      // The steps recorder's sentences, likewise (capabilities/steps.js).
+      if (fnName === 'record_steps' && fnResult && fnResult.ok === true && fnResult.saved === true) {
+        const steps = require('./capabilities/steps.js').takeSteps();
+        if (steps) fnResult = { ...fnResult, steps };
+      }
+      // A recording's words, likewise: the action's result carries counts and
+      // chapters, the lines with their times reach this turn only.
+      if (fnName === 'transcribe_recording' && fnResult && fnResult.ok === true && !fnResult.working) {
+        const t = await _transcripts.read(String(fnResult.id || ''));
+        if (t) {
+          const said = TranscriptFormat.aiText(t.lines);
+          fnResult = { ...fnResult, text: said.text, ...(said.cut ? { cut: true } : {}) };
+        }
+      }
+      // A copy for sharing: the key answers at once, Bit's turn waits for the
+      // copy so it can say how big it came out.
+      if (fnName === 'export_capture' && fnResult && fnResult.ok === true && fnResult.working) {
+        const end = await require('./capabilities/export.js').waitFor(fnResult.id);
+        if (end && end.ok === false) fnResult = end;
+        else if (end && end.ok) fnResult = { ok: true, id: fnResult.id, name: fnResult.name, kind: fnResult.kind, ...end };
       }
     } else if (fnName === 'deck_action_catalog') {
       // Read-only grounding for configure_deck: the full typed-action catalog
@@ -7404,7 +8247,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         .filter(a => !a.hidden)
         .map(a => ({ type: a.type, params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
       const dm = require('./js/deck-model.js');
-      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, sliderTargets: dm.SLIDER_TARGETS };
+      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, vitalsMeters: dm.DECK_VITALS_METERS, sliderTargets: dm.SLIDER_TARGETS };
     } else if (fnName === 'xenon_knowledge') {
       // Read-only grounding about Xenon itself (setup, features, troubleshooting)
       // so app questions get answered from curated facts, not guesses.
@@ -7436,14 +8279,14 @@ async function executeAiTool(fnName, fnArgs, deps) {
       if (!entry) {
         fnResult = { ok: false, error: 'not_found' };
       } else if (entry.locked) {
-        fnResult = { ok: false, error: 'locked', hint: 'This entry is protected with access codes — the user needs one (usually a supporter perk) and can import it from the community gallery.' };
+        fnResult = { ok: false, error: 'locked', hint: 'This entry is protected with access codes: the user needs one (usually a supporter perk) and can import it from the community gallery.' };
       } else {
         const code = entry.code ? { ok: true, code: entry.code } : await communityCatalog.fetchCode(entry.id);
         if (!code.ok) {
           fnResult = { ok: false, error: 'code_unreachable' };
         } else {
           clientActions.push({ action: 'marketplace_open_import', args: { code: code.code } });
-          fnResult = { ok: true, note: 'The import review dialog is now open — the user confirms what gets applied/installed there.' };
+          fnResult = { ok: true, note: 'The import review dialog is now open: the user confirms what gets applied/installed there.' };
         }
       }
     } else if (fnName === 'open_virtual_deck') {
@@ -7498,6 +8341,8 @@ async function executeAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'lock_pc') {
       await lockWorkstation();
       fnResult = { ok: true };
+    } else if (vitalsAiTools.NAMES.includes(fnName)) {
+      fnResult = await vitalsAiTools.run(fnName, fnArgs, { read: () => _serverHubSettings, update: updateVitalsSettings });
     } else if (fnName === 'capture_screen') {
       if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
         const weatherForAdvice = await getWeather(uiLang, null).catch(e => ({ error: e.message }));
@@ -7599,11 +8444,12 @@ async function executeAiTool(fnName, fnArgs, deps) {
       } else {
         lighting.setAnimation(patch);
         await _persistLighting();
-        fnResult = { ok: true, animation: lighting.getConfig().animation, hint: lighting.getConfig().enabled ? undefined : 'lighting master is OFF — call set_lighting_bridge to make the animation visible' };
+        fnResult = { ok: true, animation: lighting.getConfig().animation, hint: lighting.getConfig().enabled ? undefined : 'lighting master is OFF: call set_lighting_bridge to make the animation visible' };
       }
     } else if (fnName === 'set_lighting_bridge') {
+      lighting.setLightsOut(!fnArgs.enabled && fnArgs.dark === true);
       lighting.setEnabled(!!fnArgs.enabled);
-      if (fnArgs.enabled) { try { await lighting.ensureConnected(); } catch {} }
+      if (fnArgs.enabled || fnArgs.dark === true) { try { await lighting.ensureConnected(); } catch {} }
       await _persistLighting();
       fnResult = { ok: true, enabled: !!fnArgs.enabled, status: lighting.getStatus() };
     } else if (fnName === 'show_sensor') {
@@ -7646,7 +8492,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       const quotes = await stocks.fetchQuotes(syms, _stocksProviderOpts());
       fnResult = quotes.length
         ? { quotes: quotes.map(q => ({ symbol: q.symbol, name: q.name, price: q.price, changePct: Number(q.changePct.toFixed(2)), currency: q.currency })) }
-        : { error: 'no data for those symbols — check the ticker (Borsa Italiana needs .MI, e.g. ENI.MI)' };
+        : { error: 'no data for those symbols: check the ticker (Borsa Italiana needs .MI, e.g. ENI.MI)' };
     } else if (fnName === 'get_stock_watchlist') {
       const fresh = await refreshStocks();
       fnResult = { quotes: (fresh.quotes || []).map(q => ({ symbol: q.symbol, name: q.name, price: q.price, changePct: Number(q.changePct.toFixed(2)), currency: q.currency })) };
@@ -7663,6 +8509,33 @@ async function executeAiTool(fnName, fnArgs, deps) {
         });
         refreshStocks().catch(() => {});
         fnResult = { ok: true, symbol: sym };
+      }
+    } else if (fnName === 'edit_favorites') {
+      fnResult = await editFavorites(fnArgs);
+    } else if (fnName === 'change_setting') {
+      fnResult = await changeSetting(fnArgs);
+    } else if (fnName === 'set_creation_model') {
+      // The credits turn reads these again at its hand-over (creation: in the
+      // xenon branch below), so a change made earlier in the same turn applies.
+      const model = fnArgs.model == null || fnArgs.model === '' ? null : String(fnArgs.model).toLowerCase();
+      const effort = fnArgs.effort == null || fnArgs.effort === '' ? null : String(fnArgs.effort).toLowerCase();
+      if (provider !== 'xenon') {
+        fnResult = { ok: false, error: 'not_on_credits', hint: 'The creation model and reasoning level belong to Sparks, Bit credits. Tell the user they apply when Sparks is the provider in Settings → Bit assistant.' };
+      } else if ((!model && !effort) || (model && !aiXenon.MODELS.includes(model)) || (effort && !aiXenon.EFFORTS.includes(effort))) {
+        fnResult = { ok: false, error: 'bad_args', hint: 'model: haiku, sonnet or opus; effort: low, medium or high.' };
+      } else {
+        const saved = await withHubSettingsLock(async () => {
+          const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+          const next = { ...cur, ...(model ? { xenonModel: model } : {}), ...(effort ? { xenonEffort: effort } : {}), rev: nextSettingsRev(cur.rev) };
+          _serverHubSettings = await writeHubSettings(next);
+          return _serverHubSettings;
+        });
+        broadcastSSE('settings', { rev: saved.rev });
+        fnResult = {
+          ok: true, model: saved.xenonModel, effort: saved.xenonEffort,
+          names: await aiCreationLabels.namesFor(uiLang),
+          hint: 'Call the model and the level by these names, the ones Settings shows the user, never by the English ids.',
+        };
       }
     } else if (fnName === 'get_football_scores') {
       const fresh = await refreshFootball();
@@ -7689,7 +8562,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       let leagueId = fav ? (fav.type === 'league' ? fav.id : fav.leagueId) : '';
       let season = fav ? fav.season : '';
       if (!leagueId && wanted) { const L = football.searchLeagues(wanted)[0]; if (L) leagueId = L.id; }
-      if (!leagueId) { fnResult = { error: 'no league found — name a competition (e.g. "Serie A", "Champions League") or a team you follow' }; }
+      if (!leagueId) { fnResult = { error: 'no league found: name a competition (e.g. "Serie A", "Champions League") or a team you follow' }; }
       else {
         const table = await football.fetchStandings(leagueId, season, _footballOpts());
         fnResult = table
@@ -7716,20 +8589,30 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // searches key-free via DuckDuckGo. Use an explicit non-Gemini allowlist:
       // the Gemini main tool loop calls executeAiTool WITHOUT a `provider` dep, so
       // `provider` is undefined there and must fall to the grounded branch.
-      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic' || aiCli.isCliProvider(provider))
+      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider))
         ? await aiLocal.localWebSearch(fnArgs.query)
         : await _geminiWebSearch(fnArgs.query, apiKey);
       fnResult = searchRes.error
-        ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
-        : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources, note: 'Search results may be in another language — answer in the user\'s language.' };
+        ? { error: searchRes.error, note: 'web search unavailable: answer from your own knowledge and say it may not be up to date' }
+        : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources, note: 'Search results may be in another language: answer in the user\'s language.' };
     } else if (fnName === 'read_notes') {
       const state = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
-      fnResult = { notes: notesToText(state) };
+      fnResult = { notes: notesToText(state), list: NotesAi.listNotes(normalizeNotesState(state)) };
+    } else if (fnName === 'edit_note') {
+      const prevState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
+      const { next, result } = NotesAi.planNoteAction(normalizeNotesState(prevState), fnArgs,
+        { newId: _noteId, now: Date.now(), bodyMax: NOTE_BODY_MAX, notesMax: NOTES_MAX });
+      if (next) {
+        await writeNotes(next);
+        clientActions.push({ action: 'refresh_notes', args: {} });
+        aiActionLog.record({ name: 'edit_note', label: 'Note aggiornate', undo: { kind: 'restore_notes', prev: prevState } });
+      }
+      fnResult = result;
     } else if (fnName === 'write_notes') {
       const safe = String(fnArgs.content || '').slice(0, NOTE_BODY_MAX);
       // Guard: never silently erase the notes with an empty string.
       // The model must use clear_all_tasks-style explicit intent for destructive ops.
-      if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
+      if (safe.trim() === '') { fnResult = { error: 'content is empty: to clear notes, send a single space or ask the user to confirm' }; }
       else {
         const prevState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
         // Write into the active note (preserving the user's other notes); create
@@ -7787,6 +8670,15 @@ async function executeAiTool(fnName, fnArgs, deps) {
       clientActions.push({ action: 'refresh_tasks', args: {} });
       aiActionLog.record({ name: 'clear_all_tasks', label: 'Tutti i task cancellati', undo: { kind: 'restore_tasks', prev: prevTasks } });
       fnResult = { ok: true, deleted: 'all' };
+    } else if (fnName === 'edit_task') {
+      const tasks = await readTasks();
+      const { next, result } = AgendaAi.editTask(tasks, fnArgs);
+      if (next) {
+        await writeTasks(next);
+        clientActions.push({ action: 'refresh_tasks', args: {} });
+        aiActionLog.record({ name: 'edit_task', label: `Task modificato: "${result.task.text}"`, undo: { kind: 'restore_tasks', prev: tasks } });
+      }
+      fnResult = result;
     } else if (fnName === 'complete_task') {
       const taskId = String(fnArgs.id || '').trim();
       const makeCompleted = fnArgs.completed !== false; // defaults to true
@@ -7832,6 +8724,17 @@ async function executeAiTool(fnName, fnArgs, deps) {
         clientActions.push({ action: 'refresh_calendar', args: {} });
         fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
       }
+    } else if (fnName === 'play_in_tile') {
+      fnResult = await playInTile(fnArgs);
+    } else if (fnName === 'edit_calendar_event') {
+      const events = await readEvents();
+      const { next, result } = AgendaAi.editEvent(events, fnArgs);
+      if (next) {
+        await writeEvents(next);
+        clientActions.push({ action: 'refresh_calendar', args: {} });
+        aiActionLog.record({ name: 'edit_calendar_event', label: `Evento modificato: "${result.event.title}"`, undo: { kind: 'restore_events', prev: events } });
+      }
+      fnResult = result;
     } else if (fnName === 'delete_calendar_event') {
       const evId = String(fnArgs.id || '').trim();
       if (!evId) { fnResult = { error: 'missing id' }; }
@@ -7959,10 +8862,18 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // path to a deletion, and even that goes to the Recycle Bin.
       fnResult = await diskSpace.insights(fnArgs.rootIndex);
     } else if (fnName === 'start_timer') {
+      const stopwatch = fnArgs.kind === 'stopwatch';
       const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
-      const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
+      const timerLabel = String(fnArgs.label || (stopwatch ? 'Stopwatch' : 'Timer')).trim().slice(0, 40);
       if (_timers.length >= TIMERS_MAX) {
         fnResult = { error: 'Too many timers active' };
+      } else if (stopwatch) {
+        const newTimer = _normalizeTimer({ label: timerLabel, kind: 'stopwatch', intervalSecs: Number(fnArgs.chime_every_secs) || 0, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
+        _timers.push(newTimer);
+        await _saveTimers();
+        clientActions.push({ action: 'refresh_timers', args: {} });
+        broadcastSSE('timer_update', { timers: _timers });
+        fnResult = { ok: true, id: newTimer.id, label: timerLabel, kind: 'stopwatch', ...(newTimer.intervalSecs ? { chimes_every_secs: newTimer.intervalSecs } : {}) };
       } else {
         const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
         _timers.push(newTimer);
@@ -7972,6 +8883,23 @@ async function executeAiTool(fnName, fnArgs, deps) {
         const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
         const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
         fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
+      }
+    } else if (fnName === 'control_timer') {
+      const action = String(fnArgs.action || '').trim().toLowerCase();
+      const found = TimerActions.ACTIONS.includes(action) ? TimerActions.findTimer(_timers, fnArgs.timer, action) : null;
+      const next = found && TimerActions.applyTimerAction(found, action, Date.now());
+      if (!TimerActions.ACTIONS.includes(action)) {
+        fnResult = { ok: false, error: 'bad_action', actions: TimerActions.ACTIONS };
+      } else if (!found) {
+        fnResult = { ok: false, error: _timers.length ? 'which_timer' : 'no_timers', timers: _timers.map(t => ({ label: t.label, status: t.status })) };
+      } else if (!next) {
+        fnResult = { ok: true, label: found.label, status: found.status, unchanged: true };
+      } else {
+        _timers = _timers.map(t => (t.id === next.id ? next : t));
+        await _saveTimers();
+        clientActions.push({ action: 'refresh_timers', args: {} });
+        broadcastSSE('timer_update', { timers: _timers });
+        fnResult = { ok: true, label: next.label, status: next.status };
       }
     } else if (fnName === 'list_timers') {
       fnResult = {
@@ -8193,7 +9121,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         else {
           const nonce = issuePcAction(command, purpose);
           clientActions.push({ action: 'confirm_pc_command', args: { nonce, command, description: purpose } });
-          fnResult = { status: 'pending_confirmation', message: 'The command has NOT run yet — a confirmation card is shown to the user and it will run only if they approve. Do NOT claim it executed; tell the user to confirm on the card.' };
+          fnResult = { status: 'pending_confirmation', message: 'The command has NOT run yet: a confirmation card is shown to the user and it will run only if they approve. Do NOT claim it executed; tell the user to confirm on the card.' };
         }
       }
     } else {
@@ -8206,20 +9134,40 @@ async function executeAiTool(fnName, fnArgs, deps) {
   return { fnResult, clientActions, pendingScreenImage };
 }
 
+// Notes as [Hz, start s, decay?]. wake/close are the timer chimes; the others are
+// the toast cues of js/audio-feedback.js NOTIFY_CUES, one cycle of its
+// RING_PATTERN and the calendar alarm of playReminderSound, played here for the
+// on-screen alerts window, which never gets the click a page needs before it may
+// play audio.
+const REMINDER_BURST = [880, 660, 990, 740];
+const REMINDER_NOTES = [0, 0.9, 1.8, 2.7].flatMap(at => REMINDER_BURST.map((hz, i) => [hz, Math.round((at + i * 0.16) * 100) / 100, 20]));
+const CHIME_NOTES = Object.freeze({
+  wake: [[784, 0], [1046, 0.13]],
+  close: [[660, 0], [440, 0.13]],
+  notification: [[660, 0], [880, 0.10]],
+  update: [[523, 0], [784, 0.10]],
+  warning: [[740, 0], [555, 0.11]],
+  error: [[300, 0], [200, 0.12]],
+  ring: [[660, 0], [880, 0.18]],
+  reminder: REMINDER_NOTES,
+});
+const chimeKind = (kind) => (Object.hasOwn(CHIME_NOTES, kind) ? kind : 'wake');
+
 // Build a short two-note chime WAV in memory (sine + decay envelope).
 let _chimeCache = {};
 function _buildChimeWav(kind) {
-  const rate = 24000, dur = 0.6;
-  const notes = kind === 'close' ? [[660, 0], [440, 0.13]] : [[784, 0], [1046, 0.13]];
+  const rate = 24000;
+  const notes = CHIME_NOTES[chimeKind(kind)];
+  const dur = Math.max(0.6, Math.max(...notes.map(n => n[1])) + 0.3);
   const total = Math.floor(rate * dur);
   const buf = Buffer.alloc(total * 2);
   for (let i = 0; i < total; i++) {
     const t = i / rate;
     let s = 0;
-    for (const [freq, start] of notes) {
+    for (const [freq, start, decay = 4] of notes) {
       if (t >= start) {
         const lt = t - start;
-        const env = Math.exp(-lt * 4) * (1 - Math.exp(-lt * 80));
+        const env = Math.exp(-lt * decay) * (1 - Math.exp(-lt * 80));
         s += Math.sin(2 * Math.PI * freq * lt) * env;
       }
     }
@@ -8229,8 +9177,21 @@ function _buildChimeWav(kind) {
   return pcmToWav(buf, rate, 1, 16);
 }
 
+// Every surface that sees a timer end asks for the chime (the dashboard, the
+// on-screen alerts window, a second dashboard): requests for the same sound
+// this close together are one event, so it plays once.
+const CHIME_COALESCE_MS = 1500;
+const _lastChimeAt = {};
+function chimeRequested(kind, now = Date.now()) {
+  const k = chimeKind(kind);
+  if (now - (_lastChimeAt[k] || 0) < CHIME_COALESCE_MS) return false;
+  _lastChimeAt[k] = now;
+  playChimeOnServer(k);
+  return true;
+}
+
 function playChimeOnServer(kind) {
-  const k = kind === 'close' ? 'close' : 'wake';
+  const k = chimeKind(kind);
   if (!_chimeCache[k]) {
     try { _chimeCache[k] = _buildChimeWav(k); } catch { return; }
   }
@@ -8332,7 +9293,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 const DashboardInstances = require('./js/dashboard-instances.js');
 const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'perf', 'screen', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -8405,6 +9366,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    perf:     Object.freeze({ x: 8, y: 74, w: 8, h: 10, visible: false, page: 'dashboard' }),
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     devclean: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
@@ -8413,6 +9375,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     // Tall rather than wide: it is a list of people, and the keypad wants the
     // height. Hidden until the user adds it, like every opt-in widget.
     phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
+    // The Xenon menu on the main screen, from the dashboard (js/screen-tile.js).
+    screen:   Object.freeze({ x: 16, y: 76, w: 8, h: 12, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -8544,7 +9508,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   uiFont: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   // Ambient / Screensaver mode (client mirror in js/settings.js — keep in step).
-  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', openOnStartup: false }),
+  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', wallpaper: false, saverMinutes: 0, openOnStartup: false }),
   // Native canvas Ambient scenes (client-owned, like customThemes).
   ambientScenes: Object.freeze([]),
   contentInstalls: Object.freeze([]),
@@ -8566,6 +9530,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lyricsTranslate: false,
   lyricsReading: true,
   lyricsTranslateCap: 200,
+  // How many questions a widget granted `ai` may ask the AI set for Bit each
+  // day (sdk-ai.js): each one can cost Sparks, an API key's money or plan quota.
+  sdkAiDailyCap: 50,
   // Spotify tile: when it starts the closed desktop app, start it minimized
   // (Windows and macOS; the Linux client cannot, see spotify-launch.js).
   spotifyStartMinimized: false,
@@ -8582,6 +9549,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   topbarRailsAutoHide: true,
   // The bar's look in every style (js/topbar-look.js owns the rules).
   topbarLook: TopbarLook.DEFAULTS,
+  // Widgets outside the dashboard (js/layers-model.js owns the rules).
+  layers: LayersModel.DEFAULTS,
   // Dynamic Island personalization (Settings → Dynamic Island). Visibility is
   // shared by Full + Minimal; order/anchor apply to the Minimal capsule. The
   // installed-package opt-outs and takeover gate are kept in the same object.
@@ -8737,7 +9706,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
-  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'claudecode' | 'codex' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
   // ChatGPT (OpenAI) + Claude (Anthropic): server-mediated cloud providers. Keys
@@ -8749,6 +9718,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   openaiTtsModel: 'auto',
   anthropicApiKey: '',
   anthropicModel: 'auto',
+  // Xenon credits (ai-xenon-credits.js): a tier, never a model id; the hub maps it.
+  xenonModel: 'sonnet',
+  xenonEffort: 'medium',
   // Claude Code / Codex (ai-cli.js): 'default' lets the program choose.
   claudeCodeModel: 'default',
   codexModel: 'default',
@@ -8777,12 +9749,23 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Voice chat presentation: false = full opaque "room" (default); true = ambient
   // (dashboard stays visible, only the screen edge glows, captions in a glass strip).
   aiVoiceAmbient: false,
+  // Which screens light their edges during a voice chat (native app): auto = the
+  // screens without the dashboard; 'off' turns it off.
+  aiEdgeGlow: 'auto',
+  // How this PC uses Xenon (native app): 'dashboard', 'widgets' (no dashboard
+  // window, only widgets on the screen and the menu), 'both'. '' = not asked
+  // yet, which behaves like today's dashboard (js/usage-mode.js).
+  usageMode: '',
   // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
   aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
   // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
   // default; independent of the AI Guardian feature (which also consumes it).
   // When on, collection runs even without any AI; the data never leaves the PC.
   sensorHistory: Object.freeze({ enabled: false }),
+  // Game sessions (Settings → Performance → Partite giocate): average FPS and
+  // lows of each game played, kept on this PC to compare. ON by default: it
+  // costs a counter per frame only while a game runs, and stores ~100 lines.
+  gameSessions: Object.freeze({ enabled: true }),
   // Proactive moments (Settings → Performance → Momenti proattivi). Deterministic,
   // bounded, individually toggleable: sustained-thermal alerts, game-session
   // recaps, and the morning-agenda briefing inside the greeting splash.
@@ -8806,7 +9789,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // screen is not the same as wanting that screen to take itself over on every
   // incoming call.
   phone: Object.freeze({ enabled: false, ring: true, hide: true }),
-  // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the mic is
+  // Local "Hey Bit" wake word. OFF by default (privacy) — when on, the mic is
   // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
   // leaves the PC.
   wakeWord: Object.freeze({ enabled: false }),
@@ -8893,6 +9876,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // paired phone. A path that only this machine needs must not travel — the
   // geminiApiKey lesson, applied before the fact rather than after. The only
   // writer is POST /api/transfer/settings, which is loopback-only.
+  // Recording options (capture-settings.js). Server-owned like fileTransfer:
+  // `folder` is a folder on this PC; the writers are /capture/settings and the
+  // recordingOptions capability, through updateCaptureSettings.
+  capture: CaptureSettings.DEFAULTS,
   fileTransfer: Object.freeze({
     enabled: true,
     inboxDir: '',        // '' = resolved from the OS on first read (Downloads/Xenon)
@@ -8982,13 +9969,22 @@ function sanitizeSettingsBackgroundMedia(value) {
   const name = String(value.name || '').trim().slice(0, 120);
   const type = String(value.type || '').trim().slice(0, 60);
   const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
+  let out;
   if (url.startsWith('data:')) {
     if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
-    return { url, name: name || 'svg', type: 'image/svg+xml', version };
+    out = { url, name: name || 'svg', type: 'image/svg+xml', version };
+  } else {
+    if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
+    if (!/^(image|video)\//.test(type)) return null;
+    out = { url, name: name || url.split('/').pop(), type, version };
   }
-  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
-  if (!/^(image|video)\//.test(type)) return null;
-  return { url, name: name || url.split('/').pop(), type, version };
+  // Redistribution marker (mirrors bgCustom): a wallpaper installed from a
+  // package is never offered back in an export, and its receipt can remove it.
+  if (value.imported === true) out.imported = true;
+  if (out.imported && contentInstalls.INSTALL_ID_RE.test(String(value.installId || ''))) {
+    out.installId = String(value.installId);
+  }
+  return out;
 }
 
 // The custom UI font reference mirrors backgroundMedia: only a server-generated
@@ -9029,10 +10025,15 @@ function normalizeAmbientMode(value) {
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
   const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || AMBIENT_CANVAS_REF_RE.test(raw))
     ? raw : defaults.sceneId;
+  // The scene behind the desktop icons and the screensaver of the screens
+  // without the dashboard (js/screen-scene-model.js). Both off by default.
+  const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.has(idle) ? idle : defaults.idleMinutes,
     sceneId,
+    wallpaper: source.wallpaper === true,
+    saverMinutes: saverMinutes(source.saverMinutes),
     // Mirror of js/settings.js — dropped here, the toggle would snap back off
     // on the next hydrate.
     openOnStartup: source.openOnStartup === true,
@@ -9445,6 +10446,16 @@ function normalizeSensorHistory(value) {
   return { enabled: v.enabled === true };
 }
 
+// Default ON: only an explicit false turns the game-session log off.
+function normalizeGameSessionsSetting(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled !== false };
+}
+
+function gameSessionsEnabled() {
+  return !(_serverHubSettings && _serverHubSettings.gameSessions && _serverHubSettings.gameSessions.enabled === false);
+}
+
 function normalizeProactive(value) {
   const v = value && typeof value === 'object' ? value : {};
   return {
@@ -9466,7 +10477,9 @@ function normalizeNotifications(value) {
   // 'always' holds them back the whole time, 'off' never does. Errors, warnings,
   // reminders and finished timers are never held back on any setting.
   const quiet = (v.quiet === 'off' || v.quiet === 'always') ? v.quiet : 'auto';
-  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet };
+  // `onScreen`: in "Solo widget" (no dashboard window) the same pop-ups show in
+  // a small click-through window on the main screen (/screen-alerts).
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet, onScreen: v.onScreen !== false };
 }
 
 // Vitals — game-style self-care meters. Known-key rebuild, identical to the
@@ -9479,6 +10492,7 @@ const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina
 // client VITALS_PET_DEFAULT_THR / core.STAGE_AT; user-tunable in Settings → Bit).
 const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
 const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
+function vitalsHour(h) { return Number.isInteger(h) && h >= 0 && h <= 23; }
 function normalizeVitals(value) {
   const v = value && typeof value === 'object' ? value : {};
   const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
@@ -9522,6 +10536,11 @@ function normalizeVitals(value) {
     position: ['floating', 'topbar', 'both'].includes(petSrc.position) ? petSrc.position : 'floating',
     aiRoasts: petSrc.aiRoasts === true,
     nightQuiet: petSrc.nightQuiet !== false,
+    // The quiet window, whole local hours: from (inclusive) to (exclusive),
+    // wrapping past midnight when from > to; from === to means no quiet hours.
+    // Anything but an hour 0-23 reads as the default (null is not midnight).
+    quietFrom: vitalsHour(petSrc.quietFrom) ? petSrc.quietFrom : 23,
+    quietTo: vitalsHour(petSrc.quietTo) ? petSrc.quietTo : 7,
     thresholds,
   };
   // Bit's durable bookkeeping (state.pet): truce (snooze/mute-today) and the
@@ -9567,6 +10586,7 @@ function normalizeVitals(value) {
     // Freeze the meters while the user is away from the PC (no real input for
     // 5+ min, via the server idle probe) and resume exactly where they were.
     awayPause: v.awayPause !== false,
+    naturalBreaks: v.naturalBreaks !== false,
     pet,
     items,
     state: {
@@ -9678,7 +10698,7 @@ function normalizePhone(value) {
   };
 }
 
-// Local "Hey Xenon" wake word — strict opt-in (privacy: enabling means the
+// Local "Hey Bit" wake word — strict opt-in (privacy: enabling means the
 // server keeps the microphone open while a dashboard is on screen).
 function normalizeWakeWord(value) {
   const v = value && typeof value === 'object' ? value : {};
@@ -9827,7 +10847,7 @@ function normalizeCodexWidget(value) {
 // flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex'];
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex', 'perf'];
 function normalizeTopbarClock(value, legacyRoot) {
   const v = value && typeof value === 'object' ? value : {};
   const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
@@ -9885,6 +10905,7 @@ const TOPBAR_ACTION_DEFAULTS = [
   { id: 'ambient', side: 'left', hidden: false },
   { id: 'xenon', side: 'left', hidden: false },
   { id: 'search', side: 'left', hidden: false },
+  { id: 'mail', side: 'left', hidden: false },
   { id: 'mini', side: 'left', hidden: false },
   { id: 'layout', side: 'right', hidden: false },
   { id: 'settings', side: 'right', hidden: false },
@@ -10140,6 +11161,7 @@ function normalizeHubSettings(value) {
     lyricsTranslate: source.lyricsTranslate === true,
     lyricsReading: source.lyricsReading !== false,
     lyricsTranslateCap: cleanLyricsTranslateCap(source.lyricsTranslateCap),
+    sdkAiDailyCap: cleanSdkAiDailyCap(source.sdkAiDailyCap),
     spotifyStartMinimized: source.spotifyStartMinimized === true,
     lyricsStage: source.lyricsStage === true,
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
@@ -10148,6 +11170,7 @@ function normalizeHubSettings(value) {
     topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(source.topbarClock, source),
     topbarLook: TopbarLook.normalize(source.topbarLook),
+    layers: LayersModel.normalize(source.layers),
     // Sensor cadence (ms). Drives the system broadcast AND the caches under it:
     // broadcasting faster alone would only re-send readings up to 5s old.
     sensorRateMs: normalizeSensorRate(source.sensorRateMs),
@@ -10243,6 +11266,8 @@ function normalizeHubSettings(value) {
     openaiTtsModel: aiOpenai.sanitizeSpeechModel(source.openaiTtsModel, 'tts'),
     anthropicApiKey: String(source.anthropicApiKey || '').trim().slice(0, 200),
     anthropicModel: aiAnthropic.sanitizeModel(source.anthropicModel),
+    xenonModel: aiXenon.sanitizeModel(source.xenonModel),
+    xenonEffort: aiXenon.sanitizeEffort(source.xenonEffort),
     claudeCodeModel: aiCli.sanitizeModel(source.claudeCodeModel),
     codexModel: aiCli.sanitizeModel(source.codexModel),
     // Gemini, one per role. Same sanitizer for all four: `auto`/`auto:<family>`
@@ -10259,9 +11284,13 @@ function normalizeHubSettings(value) {
     aiProReasoning: source.aiProReasoning === true, // advanced reasoning — OFF unless explicitly enabled
     aiLiveVoice: source.aiLiveVoice === true, // Voce Live realtime — OFF unless explicitly enabled
     aiVoiceAmbient: source.aiVoiceAmbient === true, // ambient voice presentation — OFF (full room) unless enabled
+    aiEdgeGlow: ['auto', 'main', 'second', 'all', 'off'].includes(source.aiEdgeGlow) ? source.aiEdgeGlow : 'auto',
+    usageMode: UsageMode.normalize(source.usageMode),
 
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
+    gameSessions: normalizeGameSessionsSetting(source.gameSessions),
+    perfHud: PerfHud.normalizePerfHud(source.perfHud),
     // User fan names for the Fans widget ("mb|Fan #3" → "Radiatore alto").
     // Client-owned but flat enough to validate explicitly at this boundary.
     fanLabels: normalizeServerFanLabels(source.fanLabels),
@@ -10318,11 +11347,13 @@ function normalizeHubSettings(value) {
       https: source.remoteAccess && source.remoteAccess.https === true,
     },
     fileTransfer: normalizeFileTransfer(source.fileTransfer),
+    capture: CaptureSettings.normalizeCaptureSettings(source.capture),
     surfaceChoice: normalizeSurfaceChoice(surfaceChoiceFrom(source)),
     // Client-managed settings (the client owns their full schema and re-validates
     // on load): round-trip them so they survive a server restart instead of being
     // stripped. A bounded passthrough keeps settings.json safe.
     gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
+    bgGuard: typeof source.bgGuard === 'boolean' ? source.bgGuard : true,
     // Safe mode: temporarily disables third-party widgets and custom theming
     // (nothing is uninstalled). Client-enforced; persisted so it survives restarts.
     safeMode: source.safeMode === true,
@@ -10765,10 +11796,249 @@ async function getSlideshowDir() {
 // result. fn runs after the previous settles (fulfilled OR rejected), and a
 // rejected run never poisons the chain.
 let _hubSettingsWriteChain = Promise.resolve();
+// Bit's Vitals tools write like a tap on the bar: one locked read-modify-write,
+// a new rev, and every surface told to read the settings again.
+async function updateVitalsSettings(change) {
+  const saved = await withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const next = change(cur);
+    if (!next) return cur;
+    _serverHubSettings = await writeHubSettings({ ...next, rev: nextSettingsRev(cur.rev) });
+    return _serverHubSettings;
+  });
+  if (saved !== null) broadcastSSE('settings', { rev: saved.rev });
+  return saved;
+}
+
 function withHubSettingsLock(fn) {
   const run = _hubSettingsWriteChain.then(fn, fn);
   _hubSettingsWriteChain = run.then(() => {}, () => {});
   return run;
+}
+
+// One read-modify-write of hubSettings.layers for the capability runner (AI,
+// Deck keys): the edit sees the committed value, and nothing is written when it
+// returns { error }. Open surfaces re-hydrate from the settings broadcast.
+async function updateLayersSetting(edit) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const res = edit(cur.layers);
+    if (!res || res.error || !res.layers) return res || { error: 'failed' };
+    const keys = _overlayHotkey() + '|' + _menuHotkey();
+    const saved = await writeHubSettings({ ...cur, layers: res.layers, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    layersEdit.touch();
+    // The first overlay widget arms the overlay shortcut, the last one frees it;
+    // a new menu shortcut takes the place of the old one.
+    if (_overlayHotkey() + '|' + _menuHotkey() !== keys) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
+    return { ...res, layers: saved.layers };
+  });
+}
+
+// The Xenon AI edge-glow screens, set by voice (capabilities/ai-glow.js): the
+// main dashboard re-hydrates from the broadcast and re-sends the glow.
+async function updateGameSessionsSetting(on) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const saved = await writeHubSettings({ ...cur, gameSessions: { enabled: !!on }, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    return saved.gameSessions.enabled;
+  });
+}
+
+// What the Game performance tile shows (js/perf-hud.js), from the AI or a Deck
+// key. Returns the saved parts.
+async function updatePerfHudSetting(change) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const perfHud = PerfHud.applyPerfHudChange(cur.perfHud, change);
+    const saved = await writeHubSettings({ ...cur, perfHud, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    return saved.perfHud;
+  });
+}
+
+// The recording options (capture-settings.js): `change` from the Settings pane
+// or the AI; `folder` is only ever a path the folder dialog returned and the
+// checks passed, or '' for the default. Returns the saved options.
+// `folders`: { folder, shotFolder, benchFolder }, each a checked path or '' for
+// the default; a key left out keeps its folder.
+async function updateCaptureSettings(change, folders = {}) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const { next } = CaptureSettings.applyCaptureChange(cur.capture, change);
+    for (const key of CaptureSettings.FOLDER_KEYS) {
+      if (folders && typeof folders[key] === 'string') next[key] = folders[key];
+    }
+    const replayKey = _replayHotkey();
+    const saved = await writeHubSettings({ ...cur, capture: next, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    // Instant Replay follows its switch, length and look right away.
+    try { _replay.sync(); } catch { /* before startup: the first status tick syncs it */ }
+    // Turning the replay on arms its save shortcut, off frees it.
+    if (_replayHotkey() !== replayKey) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
+    return saved.capture;
+  });
+}
+
+// For the length row in Settings: bytes per second the replay ring takes with
+// these options (the engine's own formula on the main screen, or the real
+// rate while it runs) and the free space where the ring lives.
+async function replayDiskInfo(o) {
+  const out = {};
+  try {
+    const s = _replay.status();
+    let bitrate = s.on ? s.bitrate : 0;
+    if (!bitrate && _captureHost.available()) {
+      const r = await _captureHost.request('monitors', {}, { timeoutMs: 5000 });
+      const list = (r && Array.isArray(r.monitors)) ? r.monitors : [];
+      const main = list.find((m) => m && m.primary) || list[0];
+      if (main) bitrate = estimateBitrate(main, o);
+    }
+    if (bitrate > 0) out.replayBytesPerSecond = ringByteRate(bitrate, { sound: o.replayAudio !== 'silent' });
+  } catch { /* no estimate: the row shows the length alone */ }
+  try {
+    if (typeof fs.promises.statfs === 'function') {
+      const st = await fs.promises.statfs(os.tmpdir());
+      out.replayFreeBytes = Number(st.bavail) * Number(st.bsize);
+    }
+  } catch { /* unknown */ }
+  return out;
+}
+
+function captureOptions() {
+  return CaptureSettings.normalizeCaptureSettings(_serverHubSettings && _serverHubSettings.capture);
+}
+
+// What the Xenon menu shows (xenon-menu.js): read from the settings and the
+// runtime state, never a path, a window title or a file name.
+async function _xenonMenuState() {
+  const hs = _serverHubSettings || {};
+  const catalog = await _layerCatalog();
+  const last = await _captures.last(null).catch(() => null);
+  const slots = _hotkey.slots || {};
+  const held = (slot) => slots[slot] || (_hotkey.bindings.some((b) => b.slot === slot) ? (_hotkey.state || 'off') : 'off');
+  const deckState = new Map(_deckShortcutStatus().map((x) => [x.keyId, x.state]));
+  return XenonMenu.compose({
+    probes: capabilityRunner.probes(),
+    layers: hs.layers,
+    tiles: catalog.tiles,
+    packages: catalog.packages,
+    capture: captureOptions(),
+    replay: _captureHost.has('replay') ? _replay.status() : null,
+    last: last ? { createdAt: last.createdAt, seconds: last.seconds || 0 } : null,
+    now: Date.now(),
+    keys: { menu: _menuHotkey(), overlay: _overlayHotkey(), replay: _replayHotkey() },
+    keyStates: { menu: held('menu'), overlay: held('overlay'), replay: held('replay') },
+    deck: _deckShortcuts.list.map((x) => ({ keyId: x.keyId, combo: x.combo, title: x.title, does: x.does, state: deckState.get(x.keyId) || 'off' })),
+    usageMode: UsageMode.normalize(hs.usageMode) || '',
+    scene: ScreenSceneModel.settingsOf(hs),
+    alertsOn: !(hs.notifications && hs.notifications.onScreen === false),
+    power: await require('./power').read().catch(() => null),
+  });
+}
+
+// "Ask Bit" from the menu over the screen: the same wake as "Hey Xenon", which
+// the dashboards answer, or the alerts window in "widgets only" (screen-bit.js).
+function _menuWakeBit() {
+  screenMenu.close();
+  broadcastSSE('wake', { at: Date.now() });
+}
+
+async function updateAiEdgeGlowSetting(mode) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const saved = await writeHubSettings({ ...cur, aiEdgeGlow: mode, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    return saved.aiEdgeGlow;
+  });
+}
+
+// The animated wallpaper and the PC screensaver, by voice or a Deck key
+// (capabilities/desktop-scene.js). A toggle is decided inside the lock, so two
+// quick presses never read the same value.
+async function updateDesktopSceneSetting(patch) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const ambient = normalizeAmbientMode(cur.ambientMode);
+    if (patch.wallpaper === 'toggle') ambient.wallpaper = !ambient.wallpaper;
+    else if (patch.wallpaper === 'on' || patch.wallpaper === 'off') ambient.wallpaper = patch.wallpaper === 'on';
+    if (patch.saverMinutes != null) ambient.saverMinutes = patch.saverMinutes;
+    const saved = await writeHubSettings({ ...cur, ambientMode: normalizeAmbientMode(ambient), rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    return saved.ambientMode;
+  });
+}
+
+// The usage mode, set by voice or a Deck key (capabilities/usage-mode.js). The
+// shell's main window picks it up on its next load (route `/`).
+// "Avvisi sullo schermo" (js/screen-alerts.js): the rest of `notifications` stays.
+async function updateScreenAlertsSetting(on) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const notifications = { ...(cur.notifications || {}), onScreen: on === true };
+    const saved = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    // In "widgets only" the alerts window is who answers the wake word.
+    refreshWakeWordWatch();
+    return saved.notifications.onScreen;
+  });
+}
+
+// The notification switches from Bit or the Do not disturb key. Nothing that
+// changes nothing is written (no rev bump); the master switch starts or stops
+// the Discord and Windows watchers the way POST /settings does.
+async function updateNotificationsSetting(change) {
+  let masterChanged = false;
+  const saved = await withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const before = normalizeNotifications(cur.notifications);
+    const notifications = normalizeNotifications({ ...before, ...change });
+    if (Object.keys(notifications).every((k) => notifications[k] === before[k])) return before;
+    masterChanged = notifications.enabled !== before.enabled;
+    const written = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = written;
+    broadcastSSE('settings', { rev: written.rev });
+    return written.notifications;
+  });
+  if (masterChanged) {
+    if (!discordNotifWanted()) discordNotifs = [];
+    if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+    refreshDiscordWatch().catch(() => {});
+    refreshWinNotifWatch();
+  }
+  return saved;
+}
+
+// Performance Mode's own block, saved by the "widgets only" driver page
+// (js/driver-perf.js), which has no POST /settings of its own. Already
+// normalized (perf-screen.js stateFrom); the rest of the settings stay.
+async function updatePerformanceSetting(performance) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const saved = await writeHubSettings({ ...cur, performance, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    return saved;
+  });
+}
+
+async function updateUsageModeSetting(mode) {
+  return withHubSettingsLock(async () => {
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const saved = await writeHubSettings({ ...cur, usageMode: mode, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+    refreshWakeWordWatch();
+    return saved.usageMode;
+  });
 }
 
 // The Deck widget's keys live in the browser's localStorage, which the Xeneon
@@ -10807,7 +12077,38 @@ async function writeDeckStore(store) {
   const safe = normalizeDeckStore(store);
   safe.savedAt = Date.now();
   await writeFileAtomic(DECK_FILE, JSON.stringify(safe));
+  _refreshDeckShortcuts(safe.configs);
   return safe;
+}
+
+// Deck read-modify-writes run one at a time: POST /deck-config and the AI's key
+// edits (capabilities/deck-shortcut.js) would otherwise both read rev N and the
+// second write would drop the first one's change.
+let _deckWriteChain = Promise.resolve();
+function withDeckWrite(fn) {
+  const run = _deckWriteChain.then(fn, fn);
+  _deckWriteChain = run.catch(() => {});
+  return run;
+}
+
+// A server-side Deck edit: edit(configs) works on a copy and returns
+// { changed: [instanceId], result }; only the changed instances are written, as
+// the same 'set' ops a dashboard sends, and every dashboard re-syncs.
+function updateDeckConfigs(edit) {
+  return withDeckWrite(async () => {
+    const current = await readDeckStore();
+    const configs = JSON.parse(JSON.stringify(current.configs));
+    const out = edit(configs) || {};
+    const changed = Array.isArray(out.changed) ? out.changed : [];
+    const ops = changed.filter((id) => configs[id]).map((id) => ({ t: 'set', id, config: configs[id] }));
+    if (!ops.length) return out.result;
+    const applied = deckStore.applyDeckOps(current, ops);
+    if (!applied.changed) return out.result;
+    applied.store.rev = current.rev + 1;
+    const saved = await writeDeckStore(applied.store);
+    broadcastSSE('deck', { rev: saved.rev });
+    return out.result;
+  });
 }
 
 // ── Settings secrets — one composed helper per direction ─────────────────────
@@ -10818,10 +12119,10 @@ async function writeDeckStore(store) {
 // news keys were once wiped on import precisely because one hand-built chain
 // missed them.
 function redactSettingsSecrets(settings) {
-  return redactTransferPaths(redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings))))))))));
+  return CaptureSettings.redactCaptureFolder(redactTransferPaths(redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))))))));
 }
 function preserveSettingsSecrets(incoming, prev) {
-  return preserveTransferPaths(preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev), prev);
+  return CaptureSettings.preserveCaptureFolder(preserveTransferPaths(preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev), prev), prev);
 }
 
 // The transfer inbox is a folder on THIS PC. It is not a secret, but it is a
@@ -11020,6 +12321,7 @@ async function buildBackup() {
       notesData: notesState,
       aiMemory: aiMemory.list(),
       guardian: await guardian.exportStore().catch(() => null),
+      gameSessions: _gameSessions.exportData(),
       background: await _buildBackupBackground(settings),
       font: await _buildBackupFont(settings),
     },
@@ -11030,17 +12332,25 @@ async function buildBackup() {
 // Targets the user's Downloads folder (the natural place for an export); falls
 // back to the home dir, then DATA_DIR, if Downloads doesn't exist. The filename
 // carries date + time so repeated exports never overwrite one another.
-async function saveBackupToDisk() {
+// `chosen`: a folder the dialog returned and the checks passed; '' = Downloads.
+// Backup file names carry the user's own date and time, not UTC: a backup made
+// at 00:40 on the 27th must not be named after the 26th.
+function localBackupStamp(d, withTime = false) {
+  const p = (n) => String(n).padStart(2, '0');
+  const day = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return withTime ? `${day}-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}` : day;
+}
+
+async function saveBackupToDisk(chosen = '') {
   const bundle = await buildBackup();
-  const now = new Date();
-  const stamp = now.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const stamp = localBackupStamp(new Date(), true);
   const fileName = `xenon-backup-${stamp}.json`;
 
   const home = os.homedir();
-  const candidates = [path.join(home, 'Downloads'), home, DATA_DIR];
+  const candidates = [chosen, path.join(home, 'Downloads'), home, DATA_DIR].filter(Boolean);
   let dir = DATA_DIR;
   for (const c of candidates) {
-    try { if (fs.existsSync(c) && fs.statSync(c).isDirectory()) { dir = c; break; } }
+    try { if ((await fs.promises.stat(c)).isDirectory()) { dir = c; break; } }
     catch { /* try the next candidate */ }
   }
 
@@ -11177,7 +12487,7 @@ async function applyBackup(bundle) {
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       // Same post-save hooks as POST /settings; none of them may fail the import.
-      try { lighting.applyConfig(settings.lighting); }
+      try { lighting.applyConfig(settings.lighting); _syncSessionWatch(); }
       catch (e) { console.error('Backup lighting apply failed:', e.message); }
       // An import carries fileTransfer too, and the caps are held in the module,
       // not read per request — without this they stay at the pre-import values.
@@ -11217,6 +12527,7 @@ async function applyBackup(bundle) {
   }
   if (Array.isArray(d.aiMemory)) await apply('aiMemory', () => aiMemory.importFacts(d.aiMemory));
   if (d.guardian && typeof d.guardian === 'object') await apply('guardian', () => guardian.importStore(d.guardian));
+  if (Array.isArray(d.gameSessions)) await apply('gameSessions', () => _gameSessions.importData(d.gameSessions));
 
   // _serverHubSettings is the maintained in-memory mirror (just updated when the
   // settings section applied) — no need to re-read the file from disk.
@@ -11288,18 +12599,24 @@ if (AUTO_UPDATE_ASSUME_IDLE) console.warn('[auto-update] TEST OVERRIDE: the PC i
 
 async function autoUpdateIdleSeconds() {
   if (AUTO_UPDATE_ASSUME_IDLE) return 24 * 3600;
-  if (POWERSHELL_SUPPORTED) {
-    // A sample the idle probe took in the last minute is as good as a new one.
-    if (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000 && typeof _idleProbe.sec === 'number') return _idleProbe.sec;
-    try {
+  // A sample the idle probe took in the last minute is as good as a new one.
+  if (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000 && typeof _idleProbe.sec === 'number') return _idleProbe.sec;
+  return readIdleSeconds();
+}
+
+// Seconds since the last keyboard or mouse input on this PC, or null when it
+// cannot be read: idle.ps1 on Windows, the collector seam elsewhere.
+async function readIdleSeconds() {
+  try {
+    if (POWERSHELL_SUPPORTED) {
       const r = await runCollector(IDLE_SCRIPT, [], 5000);
-      if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) return Math.max(0, Number(r.idleSec));
-    } catch { /* unknown */ }
-    return null;
-  }
-  if (nativeCollectors && typeof nativeCollectors.idleSeconds === 'function') {
-    try { return await nativeCollectors.idleSeconds(); } catch { return null; }
-  }
+      return r && r.ok === true && Number.isFinite(Number(r.idleSec)) ? Math.max(0, Number(r.idleSec)) : null;
+    }
+    if (nativeCollectors && typeof nativeCollectors.idleSeconds === 'function') {
+      const sec = await nativeCollectors.idleSeconds();
+      return Number.isFinite(sec) ? Math.max(0, sec) : null;
+    }
+  } catch { /* unknown */ }
   return null;
 }
 
@@ -11352,7 +12669,8 @@ const widgetAutoUpdater = widgetAutoUpdateLib.createWidgetAutoUpdater({
   fetchCatalog: () => communityCatalog.fetchVisibleCatalog(false),
   fetchCode: (id) => communityCatalog.fetchCode(id),
   // The supporter pass already saved on this PC, never a typed one.
-  redeem: (entryId, kv) => supporterRedeem.redeem({ entryId, code: '', kv, dataDir: DATA_DIR }),
+  // Never through the trial: what this installs stays on disk for good.
+  redeem: (entryId, kv) => supporterRedeem.redeem({ entryId, code: '', kv, dataDir: DATA_DIR, allowTrial: false }),
   // Tried first for a locked widget: an install the hub already knows as an owner
   // needs no pass, which is what lets a purchased (XL) widget update by itself.
   update: (entryId, opts) => supporterRedeem.update({ entryId, have: opts && opts.have, kv: opts && opts.kv, dataDir: DATA_DIR }),
@@ -11976,7 +13294,7 @@ setInterval(async () => {
   }
 }, SENSORS_STREAM_POLL_MS).unref();
 
-// ── Local "Hey Xenon" wake word ─────────────────────────────────────────────
+// ── Local "Hey Bit" wake word ─────────────────────────────────────────────
 // Same lifecycle discipline as the notification mirror: the ffmpeg capture
 // child runs only while the toggle is on, whisper.cpp is installed AND a
 // dashboard is open. wakeword.js owns the child, the VAD and the matcher; the
@@ -11997,6 +13315,13 @@ function _whisperReady() {
 }
 function wakeWordWanted() {
   const w = _serverHubSettings && _serverHubSettings.wakeWord;
+  // "Widgets only" has no dashboard: the on-screen alerts window answers it
+  // (js/screen-bit.js). With that window turned off nobody would, so the mic
+  // stays closed.
+  if (UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode)) {
+    const n = _serverHubSettings.notifications;
+    if (n && n.onScreen === false) return false;
+  }
   return !!(w && w.enabled) && _whisperReady();
 }
 // Single source of truth for the STT/wake microphone input argv — the wake
@@ -12171,11 +13496,36 @@ async function readEvents() {
   }
 }
 
-async function writeEvents(events) {
-  const safe = normalizeEvents(events);
+// Every events write runs in one queue, so the reminder check (which marks
+// `notifiedAt`) and a save never interleave, and a save from a copy older than
+// the mark keeps it (calendar-reminders.js keepNotified).
+let _eventsWriteChain = Promise.resolve();
+function withEventsWrite(fn) {
+  const run = _eventsWriteChain.then(fn, fn);
+  _eventsWriteChain = run.catch(() => {});
+  return run;
+}
+
+async function _saveEvents(safe) {
   await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe, null, 2));
   broadcastSSE('agenda', { events: safe });   // live-sync the SDK `agenda` stream (no-op with no listeners)
   return safe;
+}
+
+function writeEvents(events) {
+  return withEventsWrite(async () => {
+    const prev = await readEvents().catch(() => []);
+    return _saveEvents(calendarReminders.keepNotified(normalizeEvents(events), prev));
+  });
+}
+
+function markEventReminders(now) {
+  return withEventsWrite(async () => {
+    const events = await readEvents();
+    const due = calendarReminders.markDueEvents(events, now);
+    if (due.length) await _saveEvents(events);
+    return due;
+  });
 }
 
 const TASK_PRIORITIES = Object.freeze(['high', 'medium', 'low']);
@@ -12512,6 +13862,18 @@ setInterval(() => {
   refreshExternalFeeds().catch(() => {});
 }, EXTERNAL_FEEDS_INTERVAL_MS).unref();
 
+// Calendar reminders are decided here, once for every surface (see the module).
+const _calendarReminders = calendarReminders.createCalendarReminders({
+  markLocal: markEventReminders,
+  feedCache: () => _externalFeedCache,
+  firedFile: path.join(DATA_DIR, 'calendar-reminders.json'),
+  writeFileAtomic,
+  hasListeners: () => sseClients.size > 0,
+  broadcast: broadcastSSE,
+  onRing: () => lighting.onEvent('reminder'),
+});
+_calendarReminders.start();
+
 // ── Server-Sent Events infrastructure ────────────────────────────────────────
 // Clients connect to GET /sse and receive named events instead of polling.
 // Each event carries the same JSON payload the old poll endpoints returned,
@@ -12528,8 +13890,10 @@ const sseClients = new Set();
 // isn't torn down and rebuilt on every refresh.
 let _fpsPauseTimer = null;
 const FPS_PAUSE_GRACE_MS = 45000;
+// A recording with automatic markers reads the frames too (holdFpsForMarkers).
+let _fpsHeldByCapture = false;
 function _syncFpsMonitor() {
-  if (sseClients.size > 0) {
+  if (sseClients.size > 0 || _fpsHeldByCapture) {
     if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; }
     try { fpsMonitor.resumeFpsMonitor(); } catch { /* PresentMon absent → no-op */ }
   } else if (!_fpsPauseTimer) {
@@ -13321,6 +14685,12 @@ function isJsonpAllowed(pathname) {
 // sends no Origin, so the loopback/Origin checks below can't catch it. They are
 // guarded by the Sec-Fetch-Site check in the request handler.
 const CSRF_MUTATION_PATHS = new Set([
+  // A tile's own choices saved from a widget on the screen (tile-settings.js).
+  '/settings/tile',
+  // Performance Mode with no dashboard (perf-screen.js): a page on another site
+  // must not start an optimize session, nor rewrite the saved power plan GUID.
+  '/api/performance/screen',
+  '/api/performance/state',
   // Postpones the automatic update by an hour. It can only delay, never start
   // an install, but a page on another site has no business holding updates
   // back for the user either.
@@ -13375,6 +14745,9 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/community/installed',
   '/api/community/installs',
   '/api/community/poll',
+  // POST-only: stops a chat turn. Harmless, but a page on another site has no
+  // business cutting the AI answers of the user short.
+  '/api/ai/turn/stop',
   // A read, but a cache miss asks the supporter hub for its count.
   '/api/community/support-goal',
   // POST-only, but it triggers an outbound request to the supporter hub AND a
@@ -13395,6 +14768,17 @@ const CSRF_MUTATION_PATHS = new Set([
   // where the import dialog needs it.
   '/api/community/supporter/forget',
   '/api/community/supporter/save',
+  // Buying with Sparks spends them and reaches the hub; the Sparks code save and
+  // forget are the pass save and forget above. All POST-only. The matching read
+  // (/api/community/sparks, booleans) is not listed, so a paired phone can show it.
+  '/api/community/buy',
+  '/api/community/sparks/save',
+  '/api/community/sparks/forget',
+  // The pass trial: /check reaches the hub, /tried writes what the trial took off.
+  // POST-only; the matching read (/api/community/trial) is not listed, so a paired
+  // phone can show the state of the trial.
+  '/api/community/trial/check',
+  '/api/community/trial/tried',
   // Automatic limited stock is a read, but a cache miss reaches the Hub.
   '/api/community/limited-status',
   // A YouTube search is 100 of the account's 10,000 daily quota units, so the
@@ -13507,6 +14891,13 @@ const CSRF_MUTATION_PATHS = new Set([
   // /search/ai spends the user's AI quota on an outbound provider call —
   // never reachable from a drive-by or an Origin:null sandboxed iframe.
   '/search/ai',
+  // A question from a widget to the AI set for Bit spends Sparks, the money of
+  // a key or plan quota, so the same: POST-only, listed so a navigation is refused.
+  '/sdk/ai',
+  // Widget authors' MCP (mcp-dev.js): pairing hands out a token and the calls
+  // install widgets, so POST-only and never a navigation. Loopback only besides.
+  '/api/mcp/dev/pair', '/api/mcp/dev/pair/poll', '/api/mcp/dev/pair/answer', '/api/mcp/dev/call',
+  '/api/mcp/dev/report', '/api/mcp/dev/revoke', '/api/mcp/dev/connect',
   // Disk space: /scan spawns a full-drive walk (minutes of I/O), /clean moves
   // files to the Recycle Bin and /api/disk/advisor spends AI quota while
   // sharing the explicitly selected snapshot with the configured provider —
@@ -13537,6 +14928,19 @@ const CSRF_MUTATION_PATHS = new Set([
   // Suppresses the Edge fallback after the native kiosk opened the Spotlight
   // window — a drive-by must not be able to swallow the user's hotkey.
   '/spotlight/claimed',
+  // Takes the sound/AI/mixer step of a Deck shortcut for this dashboard; a drive-by
+  // must not be able to swallow the step (deck-shortcut-runner.js).
+  '/deck/shortcut-claim',
+  // A Deck key's AI/mixer step, handed from a window that cannot run it.
+  '/deck/client-step',
+  '/tiles/play-claim',
+  // The native shell says whether it draws widget layers and which monitors it
+  // sees; a drive-by must not be able to switch the placement tools of the AI on.
+  '/layers/host',
+  // The virtual desktop the shell shows; a drive-by must not flip the widget pages.
+  '/layers/desk',
+  // Opens, closes the Xenon menu over the screen or wakes Bit (screen-menu.js).
+  '/screen-menu',
   // Desktop capture. Both are GETs, but each spawns ffmpeg, photographs the
   // screen and writes a temp file — squarely the "GET that mutates" shape this
   // list exists for, and the returned image is the user's whole desktop. The
@@ -13586,6 +14990,26 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/transfer/delete',
   '/api/transfer/undo',
   '/api/transfer/settings',
+  '/api/transfer/settings/pick',
+  // Recording options: /pick opens a dialog on the PC, the POST names the
+  // folder recordings land in and how many old ones may be deleted.
+  '/capture/settings',
+  '/capture/settings/pick',
+  // The gallery: deleting, trimming, copying a capture, showing it in its folder.
+  '/captures/delete',
+  '/captures/reveal',
+  '/captures/copy',
+  '/captures/send',
+  '/captures/trim',
+  '/captures/clips',
+  // The editor: private spots read off a screenshot, an edited copy saved.
+  '/captures/spots',
+  '/captures/save',
+  // Writing down what is said in a video (whisper, on this PC).
+  '/captures/transcribe',
+  // A vertical, smaller or GIF copy of a video, and stopping one.
+  '/captures/export',
+  '/captures/export-cancel',
 ]);
 
 function isAllowedRequest(req) {
@@ -14240,7 +15664,7 @@ async function _initSttDevice() {
       if (await _ffmpegKnowsFormat(ffmpeg, 'pulse')) _sttLinuxFormat = 'pulse';
       else if (await _ffmpegKnowsFormat(ffmpeg, 'alsa')) _sttLinuxFormat = 'alsa';
       if (_sttLinuxFormat) process.stdout.write(`[STT] ${_sttLinuxFormat} input "default"\n`);
-      else process.stdout.write('[STT] ffmpeg knows neither pulse nor alsa — voice input is unavailable\n');
+      else process.stdout.write('[STT] ffmpeg knows neither pulse nor alsa: voice input is unavailable\n');
     } catch (e) {
       process.stdout.write('[STT] Device init error: ' + e.message + '\n');
     }
@@ -14266,7 +15690,7 @@ async function _initSttDevice() {
 
   if (wasapiOk) {
     _sttUseWasapi = true;
-    process.stdout.write('[STT] WASAPI available — fast init\n');
+    process.stdout.write('[STT] WASAPI available: fast init\n');
   } else {
     // WASAPI not supported — enumerate DirectShow devices as fallback
     try {
@@ -14315,7 +15739,7 @@ function _maybeRebindSttDevice() {
     _sttRebindTimer = null;
     if (_sttPending.size > 0) { _maybeRebindSttDevice(); return; } // try again after the current capture
     if (!cachedMicLabel || cachedMicLabel === _boundMicLabel) return;
-    process.stdout.write(`[STT] Default mic changed to "${cachedMicLabel}" — rebinding capture device\n`);
+    process.stdout.write(`[STT] Default mic changed to "${cachedMicLabel}": rebinding capture device\n`);
     try {
       await _initSttDevice();
       // The wake listener pins the device at spawn time — bounce it so it
@@ -14352,7 +15776,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   const mixExample = safeLang === 'it'
     ? 'e.g. "apri Steam" not "apristim"; "apri Spotify" not "aprispot"'
     : 'e.g. "open Steam" not "opensteam"; "open Spotify" not "openspotify"';
-  const sttPrompt = `Transcribe this audio exactly as spoken in ${langName}. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix ${langName} commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (${mixExample}). The recording may begin with a short notification chime or activation tone — ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.`;
+  const sttPrompt = `Transcribe this audio exactly as spoken in ${langName}. Output only the transcribed text, nothing else: no explanations, no punctuation beyond what was said. The user may mix ${langName} commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (${mixExample}). The recording may begin with a short notification chime or activation tone: ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.`;
   const payload = JSON.stringify({
     contents: [{ parts: [
       { text: sttPrompt },
@@ -14501,7 +15925,7 @@ function _perfPlanPrompt(activity, appNames, opts, lang, stats) {
     'the writing app while writing, the streaming software while streaming, the conferencing app during a meeting),',
     'browsers, or anything you are unsure about. It is fine to choose none.',
     `Respond with ONLY a JSON object (no markdown, no prose) of the form:`,
-    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why — cite the measured RAM when relevant>","closeApps":["<exact app name from the list>"]}`,
+    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why: cite the measured RAM when relevant>","closeApps":["<exact app name from the list>"]}`,
   ].join(' ');
 }
 
@@ -14577,6 +16001,10 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
       const provModel = providerModelFor(provider, 'chat', settings);
       if (!provKey) return null;
       const text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500 });
+      return _normalizePerfPlan(text, names);
+    }
+    if (provider === 'xenon') {
+      const text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500 });
       return _normalizePerfPlan(text, names);
     }
     if (aiCli.isCliProvider(provider)) {
@@ -14706,6 +16134,31 @@ const handleRequest = async (req, res) => {
   }
 
   if (reqPath === '/' && req.method === 'GET') {
+    // A layer window on THIS machine whose surface holds Store widgets and tiles
+    // the light page can carry gets that page (~130 MB less per window), with
+    // those tiles' files added; any other built-in tile needs the whole
+    // dashboard. js/layers-model.js owns the rule, and the page reloads by the
+    // same one when the user adds or removes a tile there.
+    const query = new URL(req.url, 'http://127.0.0.1').searchParams;
+    // "Widgets only" (js/usage-mode.js): the app's own window (`shell=main`, set
+    // by the splash) gets the small driver page instead of the dashboard, and the
+    // shell hides the window when it sees that URL load. `full=1` is the tray's
+    // "Show Xenon": the user asked for the dashboard this once.
+    if (!isRemote && query.get('shell') === 'main' && query.get('full') !== '1'
+        && UsageMode.widgetsOnly(_serverHubSettings.usageMode)) {
+      res.writeHead(302, { Location: '/shell-driver', 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    const layerKey = query.get('layer');
+    if (!isRemote && LayersModel.isSurfaceKey(layerKey) && !LayersModel.needsDashboard(_serverHubSettings.layers, layerKey)) {
+      const lite = await fs.promises.readFile(path.join(__dirname, 'layer-lite.html'), 'utf8');
+      const tiles = LayersModel.liteTilesFor(_serverHubSettings.layers, layerKey);
+      const dashboard = LayerPage.needsDashboardHtml(tiles) ? await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8') : '';
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(LayerPage.compose(lite, tiles, dashboard));
+      return;
+    }
     let html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
     // A paired device is told so SYNCHRONOUSLY, in the document itself, before
     // any script runs — a flag arriving later over /status would be too late for
@@ -14800,12 +16253,81 @@ const handleRequest = async (req, res) => {
       ],
     }));
 
+  } else if (reqPath === '/shell-driver' && req.method === 'GET') {
+    // The hidden page of "widgets only" (js/shell-driver.js). Denied to a paired
+    // device in remote-access.js; loopback only, like '/'.
+    const html = await fs.promises.readFile(path.join(__dirname, 'shell-driver.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
+  } else if (reqPath === '/sdk-service' && req.method === 'GET') {
+    // "Widgets only": the hidden page that runs the Store widgets' background
+    // frames (js/sdk-service.js), held by the driver page. Denied to a paired
+    // device in remote-access.js; loopback only, like '/'.
+    const html = await fs.promises.readFile(path.join(__dirname, 'sdk-service.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
+  } else if (reqPath === '/screen-alerts' && req.method === 'GET') {
+    // "Widgets only": the small click-through window that shows the dashboard's
+    // pop-ups on the main screen (js/screen-alerts.js). Denied to a paired device
+    // in remote-access.js; loopback only, like '/'. Bit's voice panel comes
+    // from index.html (screen-alerts-page.js).
+    const [page, dashboard] = await Promise.all([
+      fs.promises.readFile(path.join(__dirname, 'screen-alerts.html'), 'utf8'),
+      fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8').catch(() => ''),
+    ]);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(screenAlertsPage.compose(page, dashboard));
+
+  } else if (reqPath === '/scene' && req.method === 'GET') {
+    // The desktop scene (js/screen-scene.js): the Ambient scene as the animated
+    // wallpaper or the screensaver, one shell window per screen. Denied to a
+    // paired device in remote-access.js; the overlays come from index.html
+    // (scene-page.js). The key is read by the page, never by this route.
+    const [page, dashboard] = await Promise.all([
+      fs.promises.readFile(path.join(__dirname, 'scene.html'), 'utf8'),
+      fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8').catch(() => ''),
+    ]);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(scenePage.compose(page, dashboard));
+
+  } else if (reqPath === '/draw' && req.method === 'GET') {
+    // The drawing sheet on macOS and Linux (js/screen-draw-page.js), shown by
+    // the shell while drawing is on (screen-draw-shell.js). Denied to a paired
+    // device in remote-access.js.
+    const html = await fs.promises.readFile(path.join(__dirname, 'draw.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
+  } else if (reqPath === '/menu' && req.method === 'GET') {
+    // The Xenon menu over the main screen (js/screen-menu-page.js), shown by the
+    // shell while it is open (screen-menu.js). Denied to a paired device in
+    // remote-access.js.
+    const html = await fs.promises.readFile(path.join(__dirname, 'menu.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
   } else if (reqPath === '/deck-popup' && req.method === 'GET') {
     // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
     // no-store so the popup never boots from a stale entry document.
     const html = await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
+
+  } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {
+    // The light layer page's strings: the saved language and the browser's, plus
+    // English. no-store, so a window reloaded after a language change gets it.
+    try {
+      const langs = LayerI18n.wantedLanguages(_serverHubSettings.language, req.headers['accept-language']);
+      const js = await LayerI18n.scriptFor(langs);
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(js);
+    } catch (e) {
+      console.error('[layer-i18n]', e && e.message);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('layer strings unavailable');
+    }
 
   } else if (reqPath === '/spotlight' && req.method === 'GET') {
     // Spotlight popup document (main-PC window, opened by the global hotkey).
@@ -14879,6 +16401,16 @@ const handleRequest = async (req, res) => {
     } catch {
       json({ ok: false, platform: process.platform, sensorAccess: cpuTempCache.sensorAccess, sensors: [] });
     }
+
+  } else if (reqPath === '/perf' && req.method === 'GET') {
+    // Read-only seed for the Game performance tile (SSE 'perf' pushes the rest).
+    json(_perfStream.snapshot());
+
+  } else if (reqPath === '/perf/sessions' && req.method === 'GET') {
+    // Read-only: the games played and how they ran, for an SDK widget granted
+    // `gameSessions` (js/custom-widget.js loader). Names and numbers, no paths.
+    const limit = Number(urlObj.searchParams.get('limit')) || 20;
+    json(widgetGameSessions(_gameSessions, { enabled: gameSessionsEnabled(), limit }));
 
   } else if (reqPath === '/api/battery' && req.method === 'GET') {
     // Read-only seed for the battery widget / deck editor (SSE 'battery'
@@ -14974,6 +16506,36 @@ const handleRequest = async (req, res) => {
       json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['set', value], 8000));
     } catch (e) { json({ ok: false, error: e.message }); }
 
+  } else if (reqPath === '/api/performance/screen' && req.method === 'POST') {
+    // "Widgets only": the hidden driver page runs Performance Mode and the
+    // on-screen alerts window shows it; they talk through here (perf-screen.js).
+    // This PC only (remote-access.js), and CSRF-guarded.
+    let ev = null;
+    try { ev = perfScreen.screenEvent(JSON.parse(await readBody(req) || '{}')); } catch (e) { ev = null; }
+    if (!ev) { res.writeHead(400); res.end('Invalid event'); return; }
+    broadcastSSE('perf_screen', ev);
+    json({ ok: true });
+
+  } else if (reqPath === '/settings/tile' && req.method === 'POST') {
+    let body = null;
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch (e) { body = null; }
+    try {
+      const out = await saveTileSettings(body);
+      if (!out.ok) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); return; }
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/performance/state' && req.method === 'POST') {
+    // The driver page's save of the `performance` block (an optimize session
+    // started or ended with no dashboard). Nothing else in the settings moves.
+    let perf = null;
+    try { perf = perfScreen.stateFrom(JSON.parse(await readBody(req) || '{}')); } catch (e) { perf = null; }
+    if (!perf) { res.writeHead(400); res.end('Invalid performance settings'); return; }
+    try {
+      const saved = await updatePerformanceSetting(perf);
+      json({ ok: true, rev: saved.rev });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
     // AI planner for Performance Mode: returns { explanation, closeApps } curated
     // for the current activity, or { ok:false } so the client falls back to the
@@ -15039,6 +16601,7 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       lighting.applyConfig(body);
+      _syncSessionWatch();
       // Enabling connects asynchronously — wait briefly so the response carries
       // the connected state and the freshly-enumerated device list.
       if (body && body.enabled === true) { try { await lighting.ensureConnected(); } catch {} }
@@ -15093,35 +16656,24 @@ const handleRequest = async (req, res) => {
       const now = Date.now();
       const idleFresh = _idleProbe.at > 0 && (now - _idleProbe.at) < 60000 && typeof _idleProbe.sec === 'number';
       const presentNow = idleFresh && _idleProbe.sec < 240;
-      const text = String(body && body.text || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 200);
-      const mood = ['angry', 'ghost', 'worried'].includes(body && body.mood) ? body.mood : 'angry';
-      // Consolas (the popup's default) has no CJK glyphs, so Korean/Japanese/
-      // Chinese would render as tofu boxes. Pick a script-capable Windows-bundled
-      // font for those; everyone else keeps the crisp mono look. The .ps1 falls
-      // back to Consolas if the named font can't be created.
-      const NAG_FONTS = { ko: 'Malgun Gothic', ja: 'Yu Gothic UI', zh: 'Microsoft YaHei' };
-      const langCode = String(body && body.lang || '').toLowerCase().replace('_', '-').slice(0, 2);
-      const nagFont = NAG_FONTS[langCode] || 'Consolas';
-      const spawnNag = (extra) => {
-        const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', VITALS_NAG_SCRIPT,
-          '-Text', text, '-Mood', mood, '-Duration', '9', '-Font', nagFont, ...extra];
-        const child = spawn('powershell.exe', args, { windowsHide: true });
-        child.on('error', () => {});
-        child.unref();
-      };
+      const text = body && typeof body.text === 'string' ? body.text : '';
+      const lang = body && typeof body.lang === 'string' ? body.lang : '';
+      const mood = body && typeof body.mood === 'string' ? body.mood : '';
       if (action === 'overlay') {
         if (pet.monitors !== true) { json({ ok: false, error: 'not_enabled' }); return; }
         if (now - _vitalsNagLast.overlay < 40000) { json({ ok: false, error: 'cooldown' }); return; }
-        _vitalsNagLast.overlay = now;
-        spawnNag(body && body.all === true ? ['-AllScreens'] : []);
-        json({ ok: true });
+        const shown = await vitalsNag.popup({ text, mood, lang, all: body && body.all === true });
+        if (shown.ok) _vitalsNagLast.overlay = now;
+        json(shown);
       } else if (action === 'minimize') {
         if (pet.minimize !== true) { json({ ok: false, error: 'not_enabled' }); return; }
         if (!presentNow) { json({ ok: false, error: 'away' }); return; }
         if (now - _vitalsNagLast.minimize < 4 * 60000) { json({ ok: false, error: 'cooldown' }); return; }
-        _vitalsNagLast.minimize = now;
-        spawnNag(['-Minimize']);
-        json({ ok: true });
+        // An honest answer: where nothing can hide the windows, Bit must not
+        // say it did (vitals-pet.js reads `ok`).
+        const hidden = await vitalsNag.hide({ text, lang });
+        if (hidden.ok) _vitalsNagLast.minimize = now;
+        json(hidden);
       } else if (action === 'lock') {
         if (pet.lock !== true) { json({ ok: false, error: 'not_enabled' }); return; }
         if (!presentNow) { json({ ok: false, error: 'away' }); return; }
@@ -15129,16 +16681,26 @@ const handleRequest = async (req, res) => {
         _vitalsNagLast.lock = now;
         // Make the attribution unmissable on the PC itself: flash Bit's "I'm
         // locking this" popup on every monitor FIRST, then lock a few seconds
-        // later — otherwise the Windows lock screen swallows the message and the
+        // later — otherwise the lock screen swallows the message and the
         // user never learns it was Bit. Falls back to an immediate lock if the
         // client sent no text (older dashboards).
-        if (text) spawnNag(['-AllScreens']);
+        if (text) await vitalsNag.popup({ text, mood, lang, all: true });
         setTimeout(() => { lockWorkstation().catch(() => {}); }, text ? 3500 : 0);
         json({ ok: true });
       } else {
         json({ ok: false, error: 'unknown_action' });
       }
     } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/vitals/caps' && req.method === 'GET') {
+    // Which of Bit's PC-side steps work on this PC (vitals-nag.js): Settings
+    // hides the ones that cannot, with the reason, instead of offering them.
+    try { json({ ok: true, ...(await vitalsNag.capabilities()) }); } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/vitals/popup' && req.method === 'GET') {
+    // The popup Bit is showing now, for the app's alerts window that opened
+    // just to show it and missed the SSE push (js/screen-alerts.js).
+    json({ ok: true, popup: vitalsNag.current() });
 
   } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
     // Ambient animation (none|solid|breathing|cycle). Persisted so it survives a
@@ -15194,6 +16756,7 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       lighting.setNativeEnabled(body.enabled === true);
+      _syncSessionWatch();
       await _persistLighting();
       json({ ok: true, status: lighting.getStatus() });
     } catch (e) { err500(e.message); }
@@ -15274,6 +16837,16 @@ const handleRequest = async (req, res) => {
     try { json(await guardian.getHistory()); }
     catch (e) { json({ enabled: false, hours: [], days: [], error: e.message }); }
 
+  } else if (reqPath === '/api/ai/turn/stop' && req.method === 'POST') {
+    // The chat's stop button. Only stops: the turn ends at its next tool or
+    // round (ai-turns.js), and whoever holds the random id is the chat that sent it.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json({ ok: aiTurns.stop(body.id) });
+    } catch { json({ ok: false }); }
+  } else if (reqPath === '/api/ai/turn' && req.method === 'GET') {
+    // How far a running AI turn has got, or its answer once sent (ai-turns.js).
+    json(aiTurns.status(urlObj.searchParams.get('id')));
   } else if (reqPath === '/api/ai/memory' && req.method === 'GET') {
     // Persistent AI memory — list what Xenon remembers about the user (for the
     // Settings → Funzioni AI viewer). Local data; loopback-guarded like all routes.
@@ -15849,7 +17422,7 @@ const handleRequest = async (req, res) => {
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
       const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable() } });
+      json({ catalog: ACTION_CATALOG, platform: process.platform, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable(), ...capabilityRunner.probes() } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
@@ -16330,7 +17903,7 @@ const handleRequest = async (req, res) => {
     // uploaded binaries). Served as a download.
     try {
       const bundle = await buildBackup();
-      const name = 'xenon-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      const name = 'xenon-backup-' + localBackupStamp(new Date()) + '.json';
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': `attachment; filename="${name}"`,
@@ -16351,8 +17924,20 @@ const handleRequest = async (req, res) => {
     // download manager, so a blob/anchor download silently does nothing there.
     // Since the server runs on the same PC, write the backup straight to the
     // user's Downloads folder and report the path back for a confirmation toast.
-    try { json(await saveBackupToDisk()); }
-    catch (e) { err500(e.message); }
+    // `pick: true` asks where first, with the system folder dialog, on the PC
+    // only: from a paired device nobody is in front of that dialog. No dialog
+    // (no capture engine, it failed) → Downloads.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      let dir = '';
+      if (body && body.pick === true && !isRemote && _captureHost.has('pick_folder')) {
+        const r = await chooseBackupFolder();
+        if (r.ok && r.cancelled) { json({ ok: true, cancelled: true }); return; }
+        if (!r.ok && r.error === 'picking') { json(r); return; }
+        if (r.ok) dir = r.path;
+      }
+      json(await saveBackupToDisk(dir));
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
     // Redact ALL server-only secrets (remote-control creds, Home Assistant token,
@@ -16498,6 +18083,19 @@ const handleRequest = async (req, res) => {
       if (prev && prev.fileTransfer && typeof prev.fileTransfer === 'object') {
         incoming.fileTransfer = prev.fileTransfer;
       }
+      // The recording options, for the same reason: `folder` is a path on this
+      // PC that never reaches a browser. Writers: /capture/settings and the
+      // recordingOptions capability (updateCaptureSettings).
+      if (prev && prev.capture && typeof prev.capture === 'object') {
+        incoming.capture = prev.capture;
+      }
+      // The widgets on the screen are server-owned too: every edit is a
+      // capability (updateLayersSetting) and the browser only carries a mirror,
+      // so a dashboard saving an older mirror would undo a widget the AI placed
+      // or the page a game just switched to. Backup import has its own route.
+      if (prev && prev.layers && typeof prev.layers === 'object') {
+        incoming.layers = prev.layers;
+      }
       // The layout-version migration reads the INCOMING body, and it is the only
       // check in normalizeHubSettings whose failure mode is losing the single
       // largest thing the user built. It is described as a one-time upgrade step,
@@ -16631,7 +18229,7 @@ const handleRequest = async (req, res) => {
       // The save itself succeeded; a lighting apply failure must not fail the
       // request, but it must be visible (log + flag) instead of a silent no-op.
       let lightingApplied = true;
-      try { lighting.applyConfig(settings.lighting); }
+      try { lighting.applyConfig(settings.lighting); _syncSessionWatch(); }
       catch (e) { lightingApplied = false; console.error('Lighting apply failed:', e.message); }
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
@@ -16797,9 +18395,21 @@ const handleRequest = async (req, res) => {
     // pass this machine already redeemed with" (supporter-redeem.js).
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      json(await supporterRedeem.redeem({
+      const r = await supporterRedeem.redeem({
         entryId: body.entryId, code: body.code, kv: body.kv, dataDir: DATA_DIR,
-      }));
+      });
+      // Opened with the pass trial: the key stays here. This server decrypts the
+      // drop (body.enc, the public locked file), keeps its widgets in the vault
+      // and answers with the inner code, packages replaced by vault markers.
+      if (r && r.ok && r.trial === true) {
+        const { cek, trial, ...answer } = r;
+        const opened = await trialVault.open({
+          entryId: body.entryId, kv: body.kv, enc: body.enc, cek, catalogVersion: body.catalogVersion,
+        });
+        json(opened.ok ? { ...answer, inner: opened.inner } : { ok: false, error: opened.error });
+        return;
+      }
+      json(r);
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/update' && req.method === 'POST') {
@@ -16832,12 +18442,61 @@ const handleRequest = async (req, res) => {
     // remote door. Splitting the write off keeps the read reachable.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      json(await supporterRedeem.saveTypedCode(DATA_DIR, body.code));
+      const saved = await supporterRedeem.saveTypedCode(DATA_DIR, body.code);
+      // A Sparks code already here moves onto the new pass (sparks-wallet.js).
+      if (saved && saved.ok) await sparksWallet.mergeIfBoth(DATA_DIR);
+      json(saved);
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/supporter/forget' && req.method === 'POST') {
     // The reset path for that memory. In CSRF_MUTATION_PATHS.
     try { json(await supporterRedeem.forgetCode(DATA_DIR)); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/buy' && req.method === 'POST') {
+    // A drop bought with Sparks (sparks-wallet.js): this server picks the code
+    // that pays (the pass, else the Sparks code), attaches the install id and asks
+    // the hub, which charges once per owner and answers with the content key, as
+    // a redeem does. An empty code means "with what this PC remembers".
+    // In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await sparksWallet.buy({ entryId: body.entryId, code: body.code, kv: body.kv, dataDir: DATA_DIR }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/sparks' && req.method === 'GET') {
+    // Can this PC pay with Sparks, and with a pass or a Sparks code. Booleans
+    // only, never a code: readable from a paired phone like /api/community/supporter.
+    try { json(await sparksWallet.walletStatus(DATA_DIR)); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/sparks/save' && req.method === 'POST') {
+    // The XC Sparks code typed in Settings or the Store. Shape only, like the
+    // pass save; with a pass already here it is moved onto it. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await sparksWallet.saveTypedWalletCode(DATA_DIR, body.code));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/sparks/forget' && req.method === 'POST') {
+    // The reset path for the Sparks code. PC only (REMOTE_ADMIN). In CSRF_MUTATION_PATHS.
+    try { json(await sparksWallet.forgetWalletCode(DATA_DIR)); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/trial' && req.method === 'GET') {
+    // The pass trial's state for this install, from the hub's last answer. Never
+    // the code. A pure read: no hub call (that is /check).
+    try { json(await trialPass.status()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/trial/check' && req.method === 'POST') {
+    // A dashboard opening: the hub's latest word, asked at most every 10 minutes.
+    // A conversion lands here too (the supporter code is saved). In CSRF_MUTATION_PATHS.
+    try { json(await trialPass.refresh()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/trial/tried' && req.method === 'POST') {
+    // What the dashboard took off when the trial ended, so a conversion can put it
+    // back. Validated in trial-pass.js. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await trialPass.setTried(body && body.tried, { end: !!(body && body.end === true) }));
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
     // Live stock for automatic limited drops. The local proxy pins the Hub
@@ -17997,44 +19656,47 @@ const handleRequest = async (req, res) => {
         return;
       }
       const body = JSON.parse(raw);
-      const current = await readDeckStore();
+      // One Deck write at a time (withDeckWrite): the AI edits keys too.
+      await withDeckWrite(async () => {
+        const current = await readDeckStore();
 
-      // Current protocol: the client sends only the changes it actually made, as
-      // precise ops ({ ops: [...] }). The server owns the store and assigns every
-      // revision, so two clients' uncoordinated local counters can never fight —
-      // a stale open dashboard simply has no ops to send and can't overwrite or
-      // delete decks it never touched (the "edit reverted / second deck wiped
-      // after a reboot" loss).
-      if (Array.isArray(body.ops)) {
-        const applied = deckStore.applyDeckOps(current, body.ops);
+        // Current protocol: the client sends only the changes it actually made, as
+        // precise ops ({ ops: [...] }). The server owns the store and assigns every
+        // revision, so two clients' uncoordinated local counters can never fight —
+        // a stale open dashboard simply has no ops to send and can't overwrite or
+        // delete decks it never touched (the "edit reverted / second deck wiped
+        // after a reboot" loss).
+        if (Array.isArray(body.ops)) {
+          const applied = deckStore.applyDeckOps(current, body.ops);
+          if (!applied.changed) {
+            json({ ok: true, rev: current.rev, savedAt: current.savedAt });
+            return;
+          }
+          applied.store.rev = current.rev + 1;
+          const saved = await writeDeckStore(applied.store);
+          // Nudge every other open dashboard to re-sync its decks right away.
+          broadcastSSE('deck', { rev: saved.rev });
+          json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
+          return;
+        }
+
+        // LEGACY whole-blob push (a client still running the previous deck.js, or an
+        // old queued beacon). Made strictly ADDITIVE: it can RESTORE an instance the
+        // server is missing entirely, but it never overwrites one the server already
+        // has. The server is authoritative — its decks got there via precise ops from
+        // up-to-date clients — so a stale dashboard can no longer revert a key edit by
+        // racing its beacon after a reboot (the reported "my button reverted" loss).
+        const incoming = normalizeDeckStore(body);
+        const applied = deckStore.applyLegacyBlob(current, incoming);
         if (!applied.changed) {
           json({ ok: true, rev: current.rev, savedAt: current.savedAt });
           return;
         }
-        applied.store.rev = current.rev + 1;
+        applied.store.rev = current.rev + 1;   // revs are server-assigned — never adopt a client counter
         const saved = await writeDeckStore(applied.store);
-        // Nudge every other open dashboard to re-sync its decks right away.
         broadcastSSE('deck', { rev: saved.rev });
         json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
-        return;
-      }
-
-      // LEGACY whole-blob push (a client still running the previous deck.js, or an
-      // old queued beacon). Made strictly ADDITIVE: it can RESTORE an instance the
-      // server is missing entirely, but it never overwrites one the server already
-      // has. The server is authoritative — its decks got there via precise ops from
-      // up-to-date clients — so a stale dashboard can no longer revert a key edit by
-      // racing its beacon after a reboot (the reported "my button reverted" loss).
-      const incoming = normalizeDeckStore(body);
-      const applied = deckStore.applyLegacyBlob(current, incoming);
-      if (!applied.changed) {
-        json({ ok: true, rev: current.rev, savedAt: current.savedAt });
-        return;
-      }
-      applied.store.rev = current.rev + 1;   // revs are server-assigned — never adopt a client counter
-      const saved = await writeDeckStore(applied.store);
-      broadcastSSE('deck', { rev: saved.rev });
-      json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/events' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
@@ -18114,31 +19776,7 @@ const handleRequest = async (req, res) => {
       const action = String(body.action || '').trim();
       const idx = _timers.findIndex(t => t.id === tid);
       if (idx < 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
-      const t = { ..._timers[idx] };
-      if (action === 'pause' && t.status === 'running') {
-        t.pausedElapsed += (Date.now() - t.startedAt) / 1000;
-        t.status = 'paused';
-      } else if (action === 'resume' && t.status === 'paused') {
-        t.startedAt = Date.now();
-        t.status = 'running';
-      } else if (action === 'reset') {
-        t.startedAt = Date.now();
-        t.pausedElapsed = 0;
-        // The chimes already sounded belong to the run that just ended.
-        t.chimes = 0;
-        t.status = 'running';
-      } else if (action === 'stop') {
-        t.chimes = 0;
-        // Back to its full time and HELD there. The difference from `reset` is
-        // one word — `paused` instead of `running` — and it is the whole point:
-        // until now the only way to keep a timer for later was to leave it
-        // paused part-way through, so a 20-minute timer you had used once sat
-        // there reading 7:41 forever. `reset` cannot double as this, because a
-        // timer that starts counting the moment you put it away is not put away.
-        t.startedAt = Date.now();
-        t.pausedElapsed = 0;
-        t.status = 'paused';
-      }
+      const t = TimerActions.applyTimerAction(_timers[idx], action, Date.now()) || { ..._timers[idx] };
       _timers[idx] = t;
       await _saveTimers();
       broadcastSSE('timer_update', { timers: _timers });
@@ -18157,19 +19795,30 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/lock' && req.method === 'POST') {
     lockWorkstation().then(() => json({ ok: true }), e => err500(e.message));
 
+  } else if (reqPath === '/api/companion/cost' && req.method === 'GET') {
+    // Read-only: what a Game Companion look costs, in Sparks, when Bit runs on
+    // Sparks; null on any other AI (the user's own key or plan, nothing to show).
+    try {
+      const settings = await readHubSettings().catch(() => null) || {};
+      const onSparks = aiLocal.sanitizeProvider(settings.aiProvider) === 'xenon';
+      json({ ok: true, sparks: onSparks ? companionLookSparks() : null });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
     // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
-    // screen and ask Gemini for a short in-game insight. Each call costs one
-    // vision request, so the client only calls it on demand (overlay opened
-    // or manual refresh) — never on a background timer while hidden.
+    // screen and ask the AI set for Bit (Sparks, the user's key, a seeing
+    // Ollama model) for a short in-game insight. Each call costs one vision
+    // request, so the client only calls it on demand (overlay opened or manual
+    // refresh) — never on a background timer while hidden.
+    const companionFail = (status, error) => {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error }));
+    };
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      const apiKey = await geminiKeyFor(body.key);
-      if (!apiKey) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'missing_key' })); return;
-      }
-      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+      const blocked = await userAiVisionBlocker();
+      if (blocked) { companionFail(400, blocked); return; }
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch' };
       const langName = LANG_NAMES[String(body.lang || '').toLowerCase().slice(0, 2)] || 'English';
       const question = String(body.question || '').trim().slice(0, 300);
       let fgProc = '';
@@ -18177,24 +19826,33 @@ const handleRequest = async (req, res) => {
       const screens = await listScreens();
       const primary = screens.find(s => s.primary) || screens[0];
       const shot = await captureScreenshot(primary);
-      const sysText = 'You are Xenon\'s Game Companion, shown on a small secondary touchscreen next to the user\'s main monitor while they play. You receive a live screenshot of their game.';
+      const sysText = 'You are Xenon\'s Game Companion, shown to the user while they play (on a second screen, or as a card over the game). You receive a live screenshot of their game.';
       const task = question
         ? `The user asks: «${question}». Answer their question, grounded in what you see on screen. Reply in ${langName}: short plain sentences, no markdown, no preamble.`
         : `Identify the game and the current in-game situation, then give ONE concrete, immediately useful tip (strategy, mechanic, objective, build…). Reply in ${langName}: 2-3 short plain sentences, no markdown, no preamble. If the screen is clearly not a game, briefly say what you see instead.`;
-      const userParts = [
-        { text: `Live screenshot of the user's primary monitor${fgProc ? ` (foreground process: "${fgProc}")` : ''}. ${task}` },
-        { inlineData: { mimeType: 'image/jpeg', data: shot } },
-      ];
-      const text = await _geminiOneShot(apiKey, userParts, sysText, 512);
+      const { text, sparks } = await completeWithUserAi({
+        system: sysText,
+        user: `Live screenshot of the user's primary monitor${fgProc ? ` (foreground process: "${fgProc}")` : ''}. ${task}`,
+        image: { mimeType: 'image/jpeg', data: shot },
+        maxTokens: 512,
+      });
+      if (!text) throw new Error('empty companion answer');
+      if (Number.isFinite(sparks)) _companionLastSparks = sparks;
       let fps = null;
       try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
-      json({ text, process: fgProc, fps });
-    } catch (e) { err500(e.message); }
+      json({ text, process: fgProc, fps, ...(Number.isFinite(sparks) ? { sparks } : {}) });
+    } catch (e) {
+      // Out of Sparks is the user's to fix, so it is named; the rest is logged.
+      if (e && e.code === 'no_credits') { companionFail(402, 'no_credits'); return; }
+      if (e && e.code === 'no_vision') { companionFail(400, 'no_vision'); return; }
+      err500(e.message);
+    }
 
   } else if (reqPath === '/api/ai' && req.method === 'POST') {
     try {
       const aiRaw = await readBodyBuffer(req, 10 * 1024 * 1024); // 10 MB — accommodate base64 images
       const aiBody = JSON.parse(aiRaw.toString('utf8') || '{}');
+      aiTurns.begin(aiBody.turnId, res);
       const apiKey = await geminiKeyFor(aiBody.key);
       const messages = Array.isArray(aiBody.messages) ? aiBody.messages.slice(0, 50) : [];
       const isVoice = aiBody.voice === true;
@@ -18241,9 +19899,16 @@ const handleRequest = async (req, res) => {
         .map(p => ({ mimeType: p.mimeType, data: p.data.slice(0, 12 * 1024 * 1024) }));
       const hasAudio = safeAudioParts.length > 0;
 
+      // The same pictures fitted to go inside a creation (ai-attached-pictures.js),
+      // with a line telling the model how to name them.
+      const _aiPictures = aiPictures.picturesFrom(aiBody.pictures);
+      const _aiSurface = aiSurface.surfaceOf(aiBody);
+      const picturesNote = aiPictures.picturesNote(_aiPictures);
+
       // Inject images + audio into the last user message (current turn only — not stored in history)
       let currentMessages = messages.slice();
       const extraParts = [
+        ...(picturesNote ? [{ text: picturesNote }] : []),
         ...safeImageParts.map(p => ({ inlineData: p })),
         ...safeAudioParts.map(p => ({ inlineData: p })),
       ];
@@ -18286,94 +19951,8 @@ const handleRequest = async (req, res) => {
       // AI. Each flag unlocks its tools + prompt context for this turn only, so
       // disabled features cost zero extra tokens.
       const _features = (aiBody.features && typeof aiBody.features === 'object') ? aiBody.features : {};
-      // STREAMING — OBS / Twitch / YouTube / Streamer.bot control. Exposed ONLY
-      // when the matching integration is configured/connected (mirrors the deck
-      // action-catalog gating), so non-streamers pay zero extra tokens. Every tool
-      // routes through the same allowlisted deckRegistry that Deck keys use.
-      let _streamingText = '';
-      {
-        const _s = (await readHubSettings().catch(() => null)) || {};
-        const _tw = await streamTwitch.status().catch(() => ({ connected: false }));
-        const _yt = await streamYouTube.status().catch(() => ({ connected: false }));
-        const _enabled = [];
-        if (_s.obsHost || obsLocalWanted) {
-          AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
-            action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
-            scene: { type: 'STRING', description: 'Scene name — required only for switch_scene' },
-          }, required: ['action'] } });
-          _enabled.push('OBS (recording, streaming, scene switching)');
-        }
-        if (_tw.connected) {
-          AI_FUNCTIONS.push({ name: 'twitch_action', description: 'Control your Twitch channel: create a clip, set the stream title or game/category, send a chat message, drop a stream marker, shout out a channel, change chat mode, or run an ad.', parameters: { type: 'OBJECT', properties: {
-            action: { type: 'STRING', description: 'One of: create_clip, set_title, set_game, send_chat, marker, shoutout, chat_mode, run_ad' },
-            value: { type: 'STRING', description: 'The parameter: new title (set_title), game/category (set_game), message (send_chat), marker note (marker), channel login (shoutout), chat mode emoteonly|followers|subscribers|slow|off (chat_mode), or ad length in seconds (run_ad). Omit for create_clip.' },
-          }, required: ['action'] } });
-          _enabled.push('Twitch (clip, title, game, chat, marker, shoutout, chat mode, ad)');
-        }
-        if (_yt.connected) {
-          AI_FUNCTIONS.push({ name: 'youtube_broadcast', description: 'Start, stop, or toggle your YouTube live broadcast.', parameters: { type: 'OBJECT', properties: {
-            mode: { type: 'STRING', description: 'One of: start, stop, toggle' },
-          }, required: ['mode'] } });
-          _enabled.push('YouTube (start/stop broadcast)');
-        }
-        if (_s.streamerbotHost) {
-          AI_FUNCTIONS.push({ name: 'streamerbot_action', description: 'Trigger a Streamer.bot action by its exact name.', parameters: { type: 'OBJECT', properties: {
-            action: { type: 'STRING', description: 'Exact Streamer.bot action name to run' },
-          }, required: ['action'] } });
-          _enabled.push('Streamer.bot (run actions)');
-        }
-        if (_enabled.length) {
-          _streamingText = ' STREAMING CONTROL is available for: ' + _enabled.join('; ') + '.'
-            + ' Use these tools when the user asks to control their stream (e.g. "start recording", "go live", "switch to my Gioco scene", "set the title to…", "clip that"). "Go live" on Twitch means start the OBS stream (obs_control start_streaming).'
-            + ' If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected and point them to Settings → Streaming.';
-        }
-      }
-      // SMART DEVICE & MEDIA CONTROL — Spotify / Home Assistant / Discord voice.
-      // Each tool is declared ONLY when its integration is connected/configured
-      // (mirrors the streaming gate), so users without it pay zero extra tokens.
-      // Every control routes through the same allowlisted deckRegistry the Deck +
-      // widgets use; reads (now-playing, entity list, voice state) call the
-      // provider instance directly, exactly like the existing data endpoints.
-      let _integrationsText = '';
-      {
-        const _sp = await streamSpotify.status().catch(() => ({ connected: false }));
-        const _dc = await discordRpc.status().catch(() => ({ connected: false }));
-        const _s2 = (await readHubSettings().catch(() => null)) || {};
-        const _haCfg = (_s2.homeAssistant && typeof _s2.homeAssistant === 'object') ? _s2.homeAssistant : {};
-        const _haOn = !!(_haCfg.url && _haCfg.token);
-        const _bits = [];
-        if (_sp.connected) {
-          AI_FUNCTIONS.push({ name: 'spotify_control', description: 'Control Spotify in full: play/pause, next/previous track, PLAY A SPECIFIC SONG, artist, album or playlist by NAME (searches Spotify and starts it), add a song to the queue, shuffle on/off, repeat, save/like the current track, set the device volume, seek, switch the playback device, and read what is currently playing. Playback control needs Spotify Premium (a "premium_required" error means the account is not Premium).', parameters: { type: 'OBJECT', properties: {
-            action: { type: 'STRING', description: 'One of: play, pause, next, previous, play_song, queue_song, play_playlist, shuffle_on, shuffle_off, repeat, like, unlike, volume, seek, device, status. Use "status" to read the current track, playback state and available devices before answering "what\'s playing?" or when you need the device list.' },
-            query: { type: 'STRING', description: 'The song/artist/album name for play_song and queue_song, the playlist name for play_playlist, or the device name for device. Omit otherwise.' },
-            value: { type: 'STRING', description: 'The numeric/enum parameter: repeat mode (off|context|track — omit to cycle); volume 0-100; seek position in SECONDS. Omit otherwise.' },
-          }, required: ['action'] } });
-          _bits.push('Spotify (play/pause, next/prev, play or queue any song by name, playlists, shuffle, repeat, like, volume, seek, switch device)');
-        }
-        if (_haOn) {
-          AI_FUNCTIONS.push({ name: 'home_assistant', description: 'Control the user\'s smart home through Home Assistant: list every device/entity with its current state, turn a device on/off/toggle, activate a scene, and control ANY device in fine detail (light brightness & colour, thermostat temperature, fan speed, cover position, media players, switches…) via a Home Assistant service call. When you do not already know the exact entity_id, call action "list" FIRST and match by the friendly name/area.', parameters: { type: 'OBJECT', properties: {
-            action: { type: 'STRING', description: 'One of: list, turn_on, turn_off, toggle, scene, service. "list" returns all entities (id, friendly name, domain, area, state). "service" performs a detailed call (see service/data).' },
-            entity_id: { type: 'STRING', description: 'The Home Assistant entity id, e.g. "light.living_room" or "climate.bedroom". Required for every action except list.' },
-            service: { type: 'STRING', description: 'For action "service": the "<domain>.<service>" to call, e.g. "light.turn_on", "climate.set_temperature", "cover.set_cover_position", "fan.set_percentage".' },
-            data: { type: 'STRING', description: 'For action "service": the service parameters as a JSON object string, e.g. {"brightness_pct":40,"color_name":"red"} or {"temperature":21}. Omit when the service takes no extra data.' },
-          }, required: ['action'] } });
-          _bits.push('Home Assistant (list devices, on/off/toggle, scenes, and detailed control: brightness, colour, temperature, fan speed, covers, media players)');
-        }
-        if (_dc.connected) {
-          AI_FUNCTIONS.push({ name: 'discord_voice', description: 'Control the user\'s Discord voice settings via the desktop app: mute/unmute the microphone, deafen/undeafen, switch between push-to-talk and voice-activity, JOIN a voice channel by name, leave the current channel, nudge the input (mic) or output (speaker) volume up/down, toggle an audio-processing feature, and read the current voice state plus the list of available voice channels.', parameters: { type: 'OBJECT', properties: {
-            action: { type: 'STRING', description: 'One of: mute, unmute, deafen, undeafen, ptt, vad, join, leave, input_volume, output_volume, audio_toggle, status. Use "status" to read the current mute/deafen state and the joinable channels before a join.' },
-            channel: { type: 'STRING', description: 'The voice channel name to join (for action join). Matched case-insensitively against the user\'s channels.' },
-            mode: { type: 'STRING', description: 'up or down — for input_volume / output_volume.' },
-            feature: { type: 'STRING', description: 'For audio_toggle: noise_suppression | echo_cancellation | automatic_gain_control | qos.' },
-          }, required: ['action'] } });
-          _bits.push('Discord voice (mute/deafen, push-to-talk, join/leave a channel by name, input/output volume, audio features)');
-        }
-        if (_bits.length) {
-          _integrationsText = ' SMART DEVICE & MEDIA CONTROL is available for: ' + _bits.join('; ') + '.'
-            + ' Use these tools whenever the user asks to control the matching thing — e.g. "metti <canzone> su Spotify"/"play <song>" → spotify_control play_song; "accendi la luce del salotto"/"turn on the living room light" → home_assistant (list first if you don\'t know the entity, then turn_on); "abbassa le luci al 30%" → home_assistant service light.turn_on with {"brightness_pct":30}; "mettimi in muto su Discord" → discord_voice mute; "entra nel canale Gaming" → discord_voice join.'
-            + ' For Home Assistant, ALWAYS call action "list" first when you are unsure of the exact entity_id, then act on the matched id. If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected (Settings → Spotify / Casa / Discord) rather than pretending it worked.';
-        }
-      }
+      // Integrations the user connected: their tools and the line that names them.
+      const { streamingText: _streamingText, integrationsText: _integrationsText } = await addIntegrationAiFunctions(AI_FUNCTIONS);
       // GENESIS — AI-composed dashboard pages. The page/widget map is client-
       // owned (like deck profiles), so the client sends a snapshot per turn.
       let _genesisText = '';
@@ -18392,7 +19971,7 @@ const handleRequest = async (req, res) => {
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(
-          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context. Use "tabs" to group related widgets into tabbed tiles and "sizes" to make key tiles wider.', parameters: { type: 'OBJECT', properties: {
+          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for: if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context. Use "tabs" to group related widgets into tabbed tiles and "sizes" to make key tiles wider.', parameters: { type: 'OBJECT', properties: {
             name: { type: 'STRING', description: 'Short page name in the user\'s language, e.g. "Streaming"' },
             widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to place on the page (3-6 is ideal), from the available list' },
             tabs: { type: 'ARRAY', items: { type: 'ARRAY', items: { type: 'STRING' } }, description: 'Optional: groups of 2+ widget ids (all also present in "widgets") to merge into a single tabbed tile. e.g. [["twitch","obs"]] puts Twitch and OBS as tabs in one tile. Use when widgets are related or when the user asks for tabs.' },
@@ -18407,7 +19986,7 @@ const handleRequest = async (req, res) => {
             widget: { type: 'STRING', description: 'Widget id to duplicate, from the available list' },
             page: { type: 'STRING', description: 'Exact name of the destination page' },
           }, required: ['widget', 'page'] } },
-          { name: 'genesis_remove_page', description: 'GENESIS: remove a dashboard page by its exact name. DESTRUCTIVE — always confirm with the user before calling.', parameters: { type: 'OBJECT', properties: {
+          { name: 'genesis_remove_page', description: 'GENESIS: remove a dashboard page by its exact name. DESTRUCTIVE: always confirm with the user before calling.', parameters: { type: 'OBJECT', properties: {
             page: { type: 'STRING', description: 'Exact name of the page to remove' },
           }, required: ['page'] } },
           { name: 'genesis_setup_deck', description: 'GENESIS: populate the Deck (stream-deck) widget with a ready-to-use profile of keys. Call this in the SAME turn whenever you compose/extend a page that includes the "deck" widget, or when the user asks to configure the deck. Each key needs a short title in the user\'s language, one emoji icon, a theme-fitting accent hex color and an action from the allowed list.', parameters: { type: 'OBJECT', properties: {
@@ -18426,13 +20005,13 @@ const handleRequest = async (req, res) => {
         );
         _genesisText = ` GENESIS (dashboard composer) is ENABLED. Available widget ids: ${_avail.join(', ') || 'unknown'}.` +
           ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages).` +
-          ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name — no need to ask which widgets.' +
+          ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name: no need to ask which widgets.' +
           ' When the request is GENERIC ("create a new dashboard/page" with no purpose), do NOT compose yet: first ask, in the user\'s language, one short question about what the page is for, suggesting 2-3 concrete examples (e.g. gaming, work/focus, music, streaming). If useful, follow up with at most ONE more question about what they want to see on it, then compose. Never ask more than two questions before composing.' +
-          ' RICH LAYOUT — compose thoughtfully, not just a flat row of tiles:' +
-          '  • TABS: pass "tabs" to genesis_compose_page/genesis_add_widgets to merge related widgets into a single tabbed tile. ALWAYS honour an explicit request for tabs, AND use tabs on your own when two or more widgets are closely related or the page would otherwise be crowded — e.g. group [obs, twitch] or [obs, twitch, youtube] on a streaming page, [tasks, agenda, notes] on a work page, [media, audio, mic] for sound. Never group a widget the user wants prominent on its own.' +
-          '  • SIZES: pass "sizes" to make the page\'s primary tile wider ("wide" or "full") — e.g. the OBS/preview tile on a streaming page, the media tile on a music page — so the layout has a clear focal point.' +
+          ' RICH LAYOUT: compose thoughtfully, not just a flat row of tiles:' +
+          '  • TABS: pass "tabs" to genesis_compose_page/genesis_add_widgets to merge related widgets into a single tabbed tile. ALWAYS honour an explicit request for tabs, AND use tabs on your own when two or more widgets are closely related or the page would otherwise be crowded, e.g. group [obs, twitch] or [obs, twitch, youtube] on a streaming page, [tasks, agenda, notes] on a work page, [media, audio, mic] for sound. Never group a widget the user wants prominent on its own.' +
+          '  • SIZES: pass "sizes" to make the page\'s primary tile wider ("wide" or "full"), e.g. the OBS/preview tile on a streaming page, the media tile on a music page, so the layout has a clear focal point.' +
           '  • DUPLICATE: call genesis_duplicate_widget to mirror a widget (media, mic, tasks, notes, agenda, system, audio, timer, lighting) onto another page when the user wants it available in more than one place (e.g. "keep the player on every page").' +
-          ' DECK: the "deck" widget is a programmable stream-deck key grid — NEVER leave it empty. Whenever a page you compose or extend includes "deck" (or the user asks to set up the deck), ALSO call genesis_setup_deck in the same turn: pick the most essential keys for the theme (4-10) — e.g. for gaming: mic toggle, app mixer, play/pause, lighting color, OBS record; for streaming: OBS stream/record/scene, mic toggle, mixer — each with a short title in the user\'s language, one fitting emoji, an accent hex color matching the theme, and add ledColor on the most important keys so the RGB lighting reacts on press. Choose cols×rows proportionate to the key count (4 keys → 2x2, 6 → 3x2, 8 → 4x2).' +
+          ' DECK: the "deck" widget is a programmable stream-deck key grid, NEVER leave it empty. Whenever a page you compose or extend includes "deck" (or the user asks to set up the deck), ALSO call genesis_setup_deck in the same turn: pick the most essential keys for the theme (4-10), e.g. for gaming: mic toggle, app mixer, play/pause, lighting color, OBS record; for streaming: OBS stream/record/scene, mic toggle, mixer, each with a short title in the user\'s language, one fitting emoji, an accent hex color matching the theme, and add ledColor on the most important keys so the RGB lighting reacts on press. Choose cols×rows proportionate to the key count (4 keys → 2x2, 6 → 3x2, 8 → 4x2).' +
           ' After all genesis calls, ALWAYS recap briefly in the user\'s language what you created: the page, its widgets, and each deck key with its function.' +
           ' Confirm before genesis_remove_page.';
       }
@@ -18442,17 +20021,17 @@ const handleRequest = async (req, res) => {
       if (_features.guardian === true) {
         AI_FUNCTIONS.push({
           name: 'guardian_report',
-          description: 'GUARDIAN: get the hardware-health digest — CPU/GPU load and temperature plus RAM usage aggregated over the last 24h / 7 days / 30 days, with 7d-vs-30d trend deltas. Call BEFORE answering any question about PC health, temperatures over time, thermal trends, or "is my PC ok".',
+          description: 'GUARDIAN: get the hardware-health digest, CPU/GPU load and temperature plus RAM usage aggregated over the last 24h / 7 days / 30 days, with 7d-vs-30d trend deltas. Call BEFORE answering any question about PC health, temperatures over time, thermal trends, or "is my PC ok".',
           parameters: { type: 'OBJECT', properties: {} },
         });
         AI_FUNCTIONS.push({
           name: 'query_sensor_history',
-          description: 'GUARDIAN: get the recorded history of ONE sensor broken down for comparison — today vs yesterday, last 24h, 7-day and 30-day averages, the peak day of the last 30 days, and the last 7 daily points. Use this (not guardian_report) for specific time comparisons like "was my GPU hotter yesterday than today", "what was my worst day this month", "how has my CPU temp trended this week".',
+          description: 'GUARDIAN: get the recorded history of ONE sensor broken down for comparison, today vs yesterday, last 24h, 7-day and 30-day averages, the peak day of the last 30 days, and the last 7 daily points. Use this (not guardian_report) for specific time comparisons like "was my GPU hotter yesterday than today", "what was my worst day this month", "how has my CPU temp trended this week".',
           parameters: { type: 'OBJECT', properties: {
             metric: { type: 'STRING', description: 'Which sensor: "cpu" (load %), "cpuTemp", "gpu" (load %), "gpuTemp", "mem" (RAM %), "cpuWatts" or "gpuWatts" (power draw). Friendly names like "gpu temp", "ram" or "cpu power" also work.' },
           }, required: ['metric'] },
         });
-        _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. For a SPECIFIC time comparison or a single sensor over time (today vs yesterday, worst day this month, this week\'s trend), call query_sensor_history with the metric instead. If collectedDays is low, note that the history is still short.';
+        _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data, mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. For a SPECIFIC time comparison or a single sensor over time (today vs yesterday, worst day this month, this week\'s trend), call query_sensor_history with the metric instead. If collectedDays is low, note that the history is still short.';
       }
       // PERSISTENT MEMORY — durable facts Xenon remembers about the user across
       // sessions. On by default (local & private); disabled via Settings →
@@ -18482,20 +20061,22 @@ const handleRequest = async (req, res) => {
             description: { type: 'STRING', description: 'Short plain-language summary of what this command does, shown to the user on the confirmation card.' },
           }, required: ['command', 'description'] },
         });
-        _pcControlText = ' PC CONTROL is ENABLED: you may use run_pc_command for actions no other tool covers. It executes ONLY after the user approves a confirmation card showing the exact command — so after calling it, do NOT say it is done; instead tell the user to review and confirm on the card — the result is shown to them there once it runs. Always prefer a dedicated tool when one exists. Keep commands minimal and safe; if a request is ambiguous or potentially destructive (deleting files, changing system config), explain the risk and ask the user to confirm the intent before proposing the command.'
+        _pcControlText = ' PC CONTROL is ENABLED: you may use run_pc_command for actions no other tool covers. It executes ONLY after the user approves a confirmation card showing the exact command, so after calling it, do NOT say it is done; instead tell the user to review and confirm on the card: the result is shown to them there once it runs. Always prefer a dedicated tool when one exists. Keep commands minimal and safe; if a request is ambiguous or potentially destructive (deleting files, changing system config), explain the risk and ask the user to confirm the intent before proposing the command.'
           + ' Make each command SELF-SUFFICIENT so it does not fail on a missing prerequisite: when creating a file in a folder that may not exist, create the folder first in the same command (e.g. `New-Item -ItemType Directory -Force -Path "$HOME\\Desktop\\Nintendo" | Out-Null; New-Item -ItemType File -Force -Path "$HOME\\Desktop\\Nintendo\\dante.txt" -Value "…"`), and generally use `-Force`/existence checks so a reasonable command succeeds on the first try. If a command fails, read the error shown on the card and propose a corrected one.';
       }
       const _summaryText = convSummary
-        ? ` CONVERSATION MEMORY — a summary of earlier parts of THIS conversation that scrolled out of the recent window (treat it as accurate context; the recent turns follow after it): ${convSummary}`
+        ? ` CONVERSATION MEMORY. A summary of earlier parts of THIS conversation that scrolled out of the recent window (treat it as accurate context; the recent turns follow after it): ${convSummary}`
         : '';
-      const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
+      // Its own string so the Xenon credits path can move it out of the cached prefix.
+      const SYS_NOW = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). `;
+      const SYS_BASE = SYS_NOW +
         // The screen matters to the assistant only as a shape (short, wide, touch-first),
         // never as a brand: naming one display here made the AI answer "I run on a CORSAIR
         // Xeneon Edge" to a user on a Mac with a spare monitor, or on a phone.
-        'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard the user runs on whatever screen they can spare: a second monitor, a touchscreen, a paired phone or tablet, or a small wide panel next to their main display.' +
+        'You are Xenon, a capable, helpful AI assistant embedded in Xenon. A real-time dashboard the user runs on whatever screen they can spare: a second monitor, a touchscreen, a paired phone or tablet, or a small wide panel next to their main display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
-        ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
-        ' YOU CAN DIRECTLY CONTROL THE WHOLE DASHBOARD — this is a core part of your job, not an afterthought. Whenever the user asks for something a tool covers, DO IT with the tool instead of only describing it. Your controls, by area:' +
+        ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing, then answer using the results.' +
+        ' YOU CAN DIRECTLY CONTROL THE WHOLE DASHBOARD: this is a core part of your job, not an afterthought. Whenever the user asks for something a tool covers, DO IT with the tool instead of only describing it. Your controls, by area:' +
         '  • Audio & mic: mute/unmute the mic, set mic volume, set speaker volume, mute the speaker, turn a single app up/down or mute it (per-app mixer), and switch the default speaker/output or microphone/input device by name (list them first if unsure).' +
         '  • Media: play/pause, next, previous track, and choose which app the Now Playing tile follows (media source).' +
         '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
@@ -18505,32 +20086,32 @@ const handleRequest = async (req, res) => {
         '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
         '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
-        '  • Creator & marketplace: search the community catalog and start installs (the user always confirms in the review dialog), CREATE brand-new custom widgets by writing their code (ground with sdk_reference, then create_widget), and build or extend full Deck profiles (ground with deck_action_catalog, then configure_deck).' +
-        ' APP KNOWLEDGE: you have built-in documentation about Xenon itself. BEFORE answering any question about how Xenon works — setup, requirements, why something reads empty (e.g. fans/watts and admin rights), updates, the marketplace, supporter codes, publishing content, integrations setup, privacy, troubleshooting — call xenon_knowledge with the question and ground your answer on the returned card instead of guessing; if the card does not cover it, say plainly what you are unsure about.' +
-        ' Feature-gated extras appear as extra tools ONLY when the matching integration is connected or the user enabled them: full Spotify playback control incl. playing/queueing any song by name (spotify_control), smart-home control via Home Assistant incl. detailed brightness/colour/temperature/fan/cover control (home_assistant), Discord voice control incl. join-by-name/mute/deafen/volume (discord_voice), composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
-        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision, searching & installing community marketplace content, and CREATING new custom widgets and Deck profiles from scratch — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
+        '  • Creator & marketplace: search the community catalog and start installs (the user always confirms in the review dialog), CREATE brand-new custom widgets by writing their code (ground with sdk_reference, then create_widget), and build or extend full Deck profiles (ground with deck_action_catalog, then configure_deck). You can also create ANY other Xenon creation as a share code that opens in the import window for the user to review: a theme (also with light and dark palettes), an animated background, a page, a bigger Deck profile with folders, the top bar, an icon pack, an Ambient scene or a whole package (ground with preset_reference, then create_preset). Sound packs cannot be generated: they are audio files.' +
+        ' APP KNOWLEDGE: you have built-in documentation about Xenon itself. BEFORE answering any question about how Xenon works: setup, requirements, why something reads empty (e.g. fans/watts and admin rights), updates, the marketplace, supporter codes, publishing content, integrations setup, privacy, troubleshooting: call xenon_knowledge with the question and ground your answer on the returned card instead of guessing; if the card does not cover it, say plainly what you are unsure about.' +
+        ' Feature-gated extras appear as extra tools ONLY when the matching integration is connected or the user enabled them: full Spotify playback control incl. playing/queueing any song by name (spotify_control), smart-home control via Home Assistant incl. detailed brightness/colour/temperature/fan/cover control (home_assistant), Discord voice control incl. join-by-name/mute/deafen/volume (discord_voice), composing/editing dashboard pages (Genesis: pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control: run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
+        ' WHEN ASKED WHAT YOU CAN DO, OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest: that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision, searching & installing community marketplace content, and CREATING new custom widgets and Deck profiles from scratch, plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and, when PC Control is on, running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose (NO bulleted list, no "*", no line breaks) and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn: do not invent capabilities.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
         // ── Conversational data collection ──────────────────────────────────
-        ' CONVERSATIONAL BEHAVIOUR — follow these rules every time:' +
-        ' (1) COLLECT BEFORE ACTING: when the user asks you to do something but has not provided the information you need to call the function, ask for it conversationally — one concise question at a time — and wait for the answer. Do NOT call the function with invented, empty, or guessed required fields.' +
+        ' CONVERSATIONAL BEHAVIOUR: follow these rules every time:' +
+        ' (1) COLLECT BEFORE ACTING: when the user asks you to do something but has not provided the information you need to call the function, ask for it conversationally, one concise question at a time, and wait for the answer. Do NOT call the function with invented, empty, or guessed required fields.' +
         '     Examples: "aggiungimi un task" → ask what the task is; "metti un timer" → ask for how long; "crea un evento" → ask title then date/time; "scrivi nelle note" → ask what to write; "cambia tema" → ask which (xenon/ocean/ember/violet/mono).' +
         ' (2) IDENTIFY BEFORE DELETE/COMPLETE: when the user says "elimina il task", "segna come fatto il timer", etc. without specifying which one, call list_tasks/list_timers/list_calendar_events first and then ask the user to confirm which item.' +
-        ' (3) CONFIRM DESTRUCTIVE ACTIONS: before running clear_all_tasks, clear_all_calendar_events, write_notes (overwrite), delete_calendar_event, or any bulk delete, briefly state what you are about to do ("Sto per cancellare tutti i task, procedo?") and wait for confirmation. Exception: if the user\'s message already makes the intent unambiguous and explicit ("sì cancella tutto", "svuota tutto"), proceed directly.' +
-        ' (4) COLLECT KEY OPTIONAL FIELDS TOO — after required fields, also ask for these specific optional ones before calling the function:' +
+        ' (3) CONFIRM DESTRUCTIVE ACTIONS: before running clear_all_tasks, clear_all_calendar_events, write_notes (overwrite), edit_note delete, delete_calendar_event, or any bulk delete, briefly state what you are about to do ("Sto per cancellare tutti i task, procedo?") and wait for confirmation. Exception: if the user\'s message already makes the intent unambiguous and explicit ("sì cancella tutto", "svuota tutto"), proceed directly.' +
+        ' (4) COLLECT KEY OPTIONAL FIELDS TOO: after required fields, also ask for these specific optional ones before calling the function:' +
         '   • create_task → after the task text, ask for priority (alta / media / bassa).' +
-        '   • start_timer → after the duration, ask for a label (e.g. "Come lo chiamo?" — skip if user seems in a hurry or already answered).' +
-        '   • create_calendar_event → collect in this exact order before calling the function: (a) title if missing, (b) date if missing, (c) time if missing — ask as one short question e.g. "A che ora?" — do NOT skip this, do NOT default to 00:00, (d) then ask once about a reminder ("Vuoi un promemoria? Se sì, quando?"). Call create_calendar_event EXACTLY ONCE with all collected fields — never call it before the reminder question, never call it twice.' +
+        '   • start_timer → after the duration, ask for a label (e.g. "Come lo chiamo?": skip if user seems in a hurry or already answered).' +
+        '   • create_calendar_event → collect in this exact order before calling the function: (a) title if missing, (b) date if missing, (c) time if missing, ask as one short question e.g. "A che ora?": do NOT skip this, do NOT default to 00:00, (d) then ask once about a reminder ("Vuoi un promemoria? Se sì, quando?"). Call create_calendar_event EXACTLY ONCE with all collected fields: never call it before the reminder question, never call it twice.' +
         '   For all other optional fields (recurrence, notes on events, etc.) use sensible defaults and do NOT ask unless the user explicitly mentions them.' +
-        '   Exception: if the request already contains everything ("crea evento riunione domani alle 15"), call immediately — no further questions.' +
+        '   Exception: if the request already contains everything ("crea evento riunione domani alle 15"), call immediately, no further questions.' +
         ' (5) VOLUME WITHOUT A NUMBER: if the user says "alza", "abbassa", "aumenta", "diminuisci" volume/microfono without a number, infer a reasonable delta (±20 from the current value or a sensible target like 80 for "alza" and 40 for "abbassa") and act without asking.' +
-        ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request — respond to THAT, do not carry over or replay a previous command.' +
-        ' (7) ASK WHEN GENUINELY UNSURE: you are a real assistant, not a guesser. When a request is ambiguous, could reasonably mean different things, or would produce a big/irreversible change from an unclear instruction, ask ONE short clarifying question before acting instead of guessing. But do NOT over-ask: when the intent is clear or a sensible default obviously fits, just do it. Balance — one good question beats a wrong action, and one confident action beats a needless question.' +
+        ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request: respond to THAT, do not carry over or replay a previous command.' +
+        ' (7) ASK WHEN GENUINELY UNSURE: you are a real assistant, not a guesser. When a request is ambiguous, could reasonably mean different things, or would produce a big/irreversible change from an unclear instruction, ask ONE short clarifying question before acting instead of guessing. But do NOT over-ask: when the intent is clear or a sensible default obviously fits, just do it. Balance: one good question beats a wrong action, and one confident action beats a needless question.' +
 
         // ── Other rules ─────────────────────────────────────────────────────
-        ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks) — anything you write as text is shown and spoken to the user verbatim.' +
+        ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks): anything you write as text is shown and spoken to the user verbatim.' +
         ' Always reply in the same language as the user.' +
-        ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
+        ' IMPORTANT. Speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
         _deckProfilesText +
         _streamingText +
         _integrationsText +
@@ -18541,15 +20122,19 @@ const handleRequest = async (req, res) => {
         _pcControlText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
-      const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
-        ' When you need to ask the user a clarifying question (data collection), ask only ONE question per turn and keep it to a single short spoken sentence — the microphone will reopen automatically after your reply so the user can answer immediately.' +
+      const SYS_VOICE = ' This is a VOICE conversation: your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
+        ' When you need to ask the user a clarifying question (data collection), ask only ONE question per turn and keep it to a single short spoken sentence: the microphone will reopen automatically after your reply so the user can answer immediately.' +
         ' If the user only says a dismissal ("stop", "basta", "ferma", "esci", "lascia stare", "grazie" with nothing else), reply with a single short word like "Ok" and call close_ai_panel.';
-      const SYS_AUDIO = ' The user\'s request is provided as an audio clip — transcribe it yourself and act on it. Ignore any bracketed placeholder like "[richiesta vocale]" — it is just an internal label, not something the user said. If a short text snippet also accompanies the audio, it is the BEGINNING of the same spoken sentence (captured a moment earlier) and the audio continues it — treat them as one continuous request and combine them.';
-      const SYS_TEXT = ' Be concise but complete; replies may be read aloud.';
+      const SYS_AUDIO = ' The user\'s request is provided as an audio clip: transcribe it yourself and act on it. Ignore any bracketed placeholder like "[richiesta vocale]": it is just an internal label, not something the user said. If a short text snippet also accompanies the audio, it is the BEGINNING of the same spoken sentence (captured a moment earlier) and the audio continues it: treat them as one continuous request and combine them.';
+      // [[answer]] lines become one-tap rows in the chat (js/ai-reply-choices.js): the
+      // answers to Bit's own question, or up to 2 next steps after it did something.
+      const SYS_TEXT = ' Be concise but complete; replies may be read aloud.' +
+        ' When you ask the user something (rule 7, data collection, or a question about any topic that needs more detail) and the answer is one of a few likely options, end your reply with 2 to 4 short answers, each alone on its own last line as [[answer]] (e.g. [[Sì]] / [[No]], or [[Piccolo]] [[Medio]] [[Grande]]), in the user\'s language, at most 6 words each. They show as buttons the user taps to reply; the user can still type anything else. Only add them to a real question, never to a statement, and do not ask just to offer buttons: ask only when the answer changes what you do.' +
+        ' After you actually DID something for the user (changed the dashboard, a setting, a page, or made a widget), you may instead end with at most 2 concrete next steps they are likely to want, in the same [[...]] format, phrased as what the user would say (e.g. [[Rendilo più grande]] [[Mettilo nella pagina Giochi]]). Never generic ones (no [[Altro?]] or [[Serve altro?]]), never after a plain answer, a fact or small talk.';
       // Strong language lock — placed LAST so it overrides any tendency to drift to
       // English (which happens most when the turn carries an image or audio).
       const SYS_LANG = langName
-        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user's latest message is clearly in a different language, whether they typed it OR spoke it (match the language they actually used this turn). Never switch to English on your own.`
+        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName}, including when you describe a screenshot, an image, or anything you "see", unless the user's latest message is clearly in a different language, whether they typed it OR spoke it (match the language they actually used this turn). Never switch to English on your own.`
         : '';
       // Opt-in "advanced reasoning" (Settings → Funzioni AI): route TEXT turns to
       // the stronger model. Voice / audio turns stay on the fast model — latency
@@ -18630,11 +20215,14 @@ const handleRequest = async (req, res) => {
               apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
               latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
               latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              pictures: _aiPictures,
+              surface: _aiSurface,
               provider: 'ollama',
             }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions })),
           });
           json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
         } catch (e) {
+          if (aiStoppedReply(e, json)) return;
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
         }
@@ -18655,19 +20243,59 @@ const handleRequest = async (req, res) => {
         try {
           const result = await aiCli.chat({
             provider, model: cliModel, systemText, history: currentMessages,
-            tools: AI_FUNCTIONS,
+            tools: AI_FUNCTIONS, signal: aiTurns.signal(),
             executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
               apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
               latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
               latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              pictures: _aiPictures,
+              surface: _aiSurface,
               provider,
             }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
           });
           json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
         } catch (e) {
+          if (aiStoppedReply(e, json)) return;
           const code = (e && e.code) || 'cli_failed';
           res.writeHead(code === 'cli_failed' ? 502 : 400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: code, detail: code === 'cli_failed' ? String((e && e.message) || '').slice(0, 400) : undefined }));
+        }
+        return;
+      }
+
+      if (provider === 'xenon') {
+        // Xenon credits (ai-xenon-credits.js): the Claude loop, each round through
+        // the supporter hub, which charges it. The remembered pass stays on disk.
+        // The time rides on the turn instead of the system text, so the system
+        // prefix is the same from one turn to the next and the hub's cache holds.
+        const settings = await readHubSettings().catch(() => null);
+        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const systemText = SYS_BASE.slice(SYS_NOW.length) + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
+        try {
+          const result = await aiXenon.chat({
+            dataDir: DATA_DIR, model: settings && settings.xenonModel, effort: settings && settings.xenonEffort, geminiTools: AI_FUNCTIONS,
+            // Read live: set_creation_model may change them during this turn.
+            creation: () => ({ model: _serverHubSettings.xenonModel, effort: _serverHubSettings.xenonEffort }),
+            history: currentMessages, systemText, turnNote: SYS_NOW,
+            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              pictures: _aiPictures,
+              surface: _aiSurface,
+              provider,
+            }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent, credits: result.balance });
+        } catch (e) {
+          if (aiStoppedReply(e, json, { credits: Number.isFinite(e.balance) ? e.balance : undefined })) return;
+          const code = (e && e.code) || 'network';
+          const payable = code === 'no_credits' || code === 'no_code' || code === 'bad_code';
+          if (e && e.detail) console.warn('[ai] Xenon AI ' + code + ':', e.detail);
+          // What the turn already made (a widget to place) goes back with the error.
+          const made = Array.isArray(e && e.clientActions) ? e.clientActions : undefined;
+          res.writeHead(payable ? 402 : 502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'xenon_' + code, credits: Number.isFinite(e && e.balance) ? e.balance : undefined, clientActions: made }));
         }
         return;
       }
@@ -18700,11 +20328,14 @@ const handleRequest = async (req, res) => {
               apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
               latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
               latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              pictures: _aiPictures,
+              surface: _aiSurface,
               provider,
             }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
           });
           json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
         } catch (e) {
+          if (aiStoppedReply(e, json)) return;
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
         }
@@ -18767,6 +20398,8 @@ const handleRequest = async (req, res) => {
             latestUserText: _latestUserText,
             latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
             latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+            pictures: _aiPictures,
+            surface: _aiSurface,
           });
         for (const a of fnClientActions) clientActions.push(a);
         if (fnScreen) pendingScreenImage = fnScreen;
@@ -18801,6 +20434,7 @@ const handleRequest = async (req, res) => {
         .trim();
       json({ text, clientActions, newContent: content });
     } catch (e) {
+      if (aiStoppedReply(e, json)) return;
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
@@ -18828,7 +20462,7 @@ const handleRequest = async (req, res) => {
         return txt ? `${m.role === 'model' ? 'Assistant' : 'User'}: ${txt}` : '';
       }).filter(Boolean).join('\n').slice(0, 8000);
       if (!transcript) { json({ summary: prev }); return; }
-      const sysText = `You maintain a running summary of a conversation between a user and Xenon (a dashboard assistant). Update the summary so it captures the durable context: what the user wants, decisions made, facts they shared, and any open thread — written in ${langName}. Be concise (at most ~8 short sentences). Output ONLY the updated summary, with no preamble.`;
+      const sysText = `You maintain a running summary of a conversation between a user and Xenon (a dashboard assistant). Update the summary so it captures the durable context: what the user wants, decisions made, facts they shared, and any open thread, written in ${langName}. Be concise (at most ~8 short sentences). Output ONLY the updated summary, with no preamble.`;
       const userText = (prev ? `Current summary:\n${prev}\n\n` : '') + `New conversation turns to fold in:\n${transcript}\n\nUpdated summary:`;
       let summary = prev;
       if (provider === 'ollama') {
@@ -18849,6 +20483,9 @@ const handleRequest = async (req, res) => {
         const provModel = providerModelFor(provider, 'chat', settings);
         if (!provKey) { json({ summary: prev }); return; }
         const out = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 400 }).catch(() => '');
+        if (out) summary = String(out).trim().slice(0, 2000);
+      } else if (provider === 'xenon') {
+        const out = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 400 }).catch(() => '');
         if (out) summary = String(out).trim().slice(0, 2000);
       } else if (aiCli.isCliProvider(provider)) {
         const out = await cliOneShot(provider, sysText, userText).catch(() => '');
@@ -18894,10 +20531,10 @@ const handleRequest = async (req, res) => {
       };
       const ctx = body.ctx && typeof body.ctx === 'object' ? body.ctx : {};
       const KIND_DESC = {
-        zero: 'one of the meters just hit zero — roast the user into fixing it',
-        nag: 'the meter is STILL at zero — nag again from a fresh angle',
-        welcomeback: 'the user just finished a game session during which a meter died — congratulate and roast',
-        return: 'the user just came back to the PC after being away — welcome them back with a wink',
+        zero: 'one of the meters just hit zero: roast the user into fixing it',
+        nag: 'the meter is STILL at zero: nag again from a fresh angle',
+        welcomeback: 'the user just finished a game session during which a meter died: congratulate and roast',
+        return: 'the user just came back to the PC after being away: welcome them back with a wink',
       };
       const kindDesc = KIND_DESC[clean(ctx.kind, 20)] || KIND_DESC.nag;
       const facts = [];
@@ -18916,7 +20553,7 @@ const handleRequest = async (req, res) => {
       if (weather) facts.push('weather outside: ' + weather);
       const sysText = 'You are Bit, an 8-bit pixel guardian who lives on the user\'s PC dashboard and guards their self-care meters (hydration, energy, movement, eye rest, posture). '
         + `Write exactly ONE line in ${langName}, maximum 140 characters. No quotes, no emoji, no preamble, no explanations. `
-        + `Tone: ${TONE_DESC[tone]}. Funny, like a friend teasing — never a bully. Situation: ${kindDesc}.`;
+        + `Tone: ${TONE_DESC[tone]}. Funny, like a friend teasing: never a bully. Situation: ${kindDesc}.`;
       const userText = 'Context:\n' + (facts.length ? facts.join('\n') : '(no extra context)') + '\n\nBit\'s one-liner:';
       let text = '';
       if (provider === 'ollama') {
@@ -18936,9 +20573,10 @@ const handleRequest = async (req, res) => {
         const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
         const provModel = providerModelFor(provider, 'chat', settings);
         if (provKey) text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 100 }).catch(() => '');
-      } else if (aiCli.isCliProvider(provider)) {
+      } else if (aiCli.isCliProvider(provider) || provider === 'xenon') {
         // Bit speaks up on its own, so it never spends the user's Claude Code /
-        // Codex subscription: an empty line sends the client to its phrase bank.
+        // Codex subscription or their Xenon credits: an empty line sends the
+        // client to its phrase bank.
         text = '';
       } else {
         if (apiKey) text = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 100).catch(() => '');
@@ -19216,9 +20854,10 @@ const handleRequest = async (req, res) => {
       let sttText;
       // Each provider hears the user the way /api/transcribe does, so none of
       // them quietly needs a Gemini key: local whisper for Ollama, Claude (no
-      // speech API) and a Claude Code / Codex subscription; OpenAI's own speech
-      // model, with its server-only key, for ChatGPT. Before this, the voice orb
-      // sent Claude and ChatGPT to Gemini and failed without a Gemini key.
+      // speech API), Xenon credits and a Claude Code / Codex subscription;
+      // OpenAI's own speech model, with its server-only key, for ChatGPT.
+      // Before this, the voice orb sent Claude and ChatGPT to Gemini and failed
+      // without a Gemini key.
       if (sttProvider === 'openai') {
         const s = await readHubSettings().catch(() => null);
         const openaiKey = String((s && s.openaiApiKey) || '').trim();
@@ -19233,7 +20872,7 @@ const handleRequest = async (req, res) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ text: '', error: e.message })); return;
         }
-      } else if (sttProvider === 'ollama' || sttProvider === 'anthropic' || aiCli.isCliProvider(sttProvider)) {
+      } else if (sttProvider === 'ollama' || sttProvider === 'anthropic' || sttProvider === 'xenon' || aiCli.isCliProvider(sttProvider)) {
         process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
         try {
           sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
@@ -19271,6 +20910,11 @@ const handleRequest = async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'bad_request' }));
     }
+
+  } else if (reqPath === '/api/ai/xenon/balance' && req.method === 'GET') {
+    // Xenon credits left on this PC's supporter pass, for Settings. Numbers only:
+    // the pass and the hub's session token never leave this server.
+    json(await aiXenon.balance(DATA_DIR));
 
   } else if (reqPath === '/api/ai/cli/status' && req.method === 'GET') {
     // Claude Code / Codex: is the program there, and is the user signed in to
@@ -19342,7 +20986,7 @@ const handleRequest = async (req, res) => {
       // transcribe. Ollama and Claude (no speech API) use local whisper.cpp;
       // ChatGPT uses OpenAI Whisper with its server-only key. No Gemini key
       // required. Errors degrade gracefully (HTTP 200, empty text).
-      if (tProvider === 'ollama' || tProvider === 'anthropic' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
+      if (tProvider === 'ollama' || tProvider === 'anthropic' || tProvider === 'xenon' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
         if (!audioB64) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'missing_params' })); return;
@@ -19388,7 +21032,7 @@ const handleRequest = async (req, res) => {
       }
       const tPayload = JSON.stringify({
         contents: [{ parts: [
-          { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). The recording may begin with a short notification chime or activation tone — ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.' },
+          { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else: no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). The recording may begin with a short notification chime or activation tone: ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.' },
           { inline_data: { mime_type: safeMime, data: audioB64 } },
         ] }],
         generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1 },
@@ -19436,8 +21080,9 @@ const handleRequest = async (req, res) => {
         res.end(JSON.stringify({ error: 'missing_params' })); return;
       }
       // Non-Gemini providers return a ready WAV. Ollama and Claude use the free
-      // local Edge neural TTS; ChatGPT uses OpenAI TTS (server-only key).
-      if (ttsProvider === 'ollama' || ttsProvider === 'anthropic' || ttsProvider === 'openai' || aiCli.isCliProvider(ttsProvider)) {
+      // local Edge neural TTS, and so do Xenon credits; ChatGPT uses OpenAI TTS
+      // (server-only key).
+      if (ttsProvider === 'ollama' || ttsProvider === 'anthropic' || ttsProvider === 'xenon' || ttsProvider === 'openai' || aiCli.isCliProvider(ttsProvider)) {
         try {
           let wavBuf;
           if (ttsProvider === 'openai') {
@@ -19509,7 +21154,7 @@ const handleRequest = async (req, res) => {
       try {
         inlineData = await askGemini();
       } catch (err) {
-        process.stdout.write(`[TTS] Gemini failed (${err.message}) — falling back to the local voice\n`);
+        process.stdout.write(`[TTS] Gemini failed (${err.message}): falling back to the local voice\n`);
         if (/not found|not supported|NOT_FOUND|404/i.test(String(err.message || ''))) {
           aiModels.markMissing('gemini', ttsModel);
         }
@@ -19714,7 +21359,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
     try {
       const b = JSON.parse(await readBody(req) || '{}');
-      playChimeOnServer(b.kind === 'close' ? 'close' : 'wake');
+      chimeRequested(b.kind);
     } catch {}
     res.writeHead(204); res.end();
 
@@ -20240,7 +21885,7 @@ const handleRequest = async (req, res) => {
         + 'executable/program/eseguibile -> ["exe"], installer -> ["exe","msi"], shortcut -> ["lnk"], '
         + 'spreadsheet -> ["xlsx","xls","csv"], code -> the languages named. '
         + 'Screenshots: Windows names them "Screenshot ...", so use {"terms":["screenshot"],"kind":"image"} plus any date. '
-        + 'The engine matches file names, dates, sizes and text inside documents — NEVER what an image or video shows; '
+        + 'The engine matches file names, dates, sizes and text inside documents: NEVER what an image or video shows; '
         + 'drop visual-content descriptions ("that shows a mixer") instead of turning them into name terms. '
         + '"app": true when the user is looking for an installed application or program (to launch or locate). '
         + '"after" and "before": modified-date bounds, YYYY-MM-DD. "minBytes" and "maxBytes": file size bounds in bytes. '
@@ -20270,6 +21915,8 @@ const handleRequest = async (req, res) => {
         const provModel = providerModelFor(provider, 'chat', settings);
         if (!provKey) { json({ ok: false, error: 'no_provider' }); return; }
         text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
+      } else if (provider === 'xenon') {
+        text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
       } else if (aiCli.isCliProvider(provider)) {
         text = await cliOneShot(provider, sysText, userText, settings).catch(() => '');
       } else {
@@ -20324,6 +21971,102 @@ const handleRequest = async (req, res) => {
     _spotlightClaimed = true;
     json({ ok: true });
 
+  } else if (reqPath === '/deck/client-step' && req.method === 'POST') {
+    // The Virtual Deck window or a Deck on a widget layer cannot open the AI
+    // chat or the mixer: a dashboard (or the screen, in "widgets only") claims
+    // the step. In CSRF_MUTATION_PATHS, denied to paired devices.
+    try {
+      const body = JSON.parse(await readBody(req, 8 * 1024) || '{}');
+      json(await deckShortcutRunner.handOff(require('./js/deck-actions.js').validateAction(body && body.action)));
+    } catch { json({ ok: false, error: 'failed' }); }
+
+  } else if (reqPath === '/deck/shortcut-claim' && req.method === 'POST') {
+    // A dashboard on this PC takes a Deck shortcut's step that only a dashboard
+    // can do; the first claim wins (deck-shortcut-runner.js). In
+    // CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
+    try {
+      const body = JSON.parse(await readBody(req, 4 * 1024) || '{}');
+      json({ ok: deckShortcutRunner.claim(body && body.nonce) });
+    } catch { json({ ok: false }); }
+
+  } else if (reqPath === '/tiles/play-claim' && req.method === 'POST') {
+    // A surface on this PC with the tile takes what Bit asked to play
+    // (tile-play.js); the first claim wins. In CSRF_MUTATION_PATHS, denied to
+    // paired devices in remote-access.js.
+    try {
+      const body = JSON.parse(await readBody(req, 4 * 1024) || '{}');
+      json({ ok: tilePlay.claim(body && body.nonce) });
+    } catch { json({ ok: false }); }
+
+  } else if (reqPath === '/layers/edit' && req.method === 'GET') {
+    // A layer window opened (or reconnected) during edit mode reads it here;
+    // later changes arrive over SSE `layers-edit`. Read-only.
+    json({ on: layersEdit.get() });
+
+  } else if (reqPath === '/screen-draw' && req.method === 'GET') {
+    // Whether the drawing sheet is open (screen-draw-shell.js), for a page that
+    // (re)connects; changes arrive over SSE `screen_draw`. Read-only.
+    json({ drawing: drawShell.get() });
+
+  } else if (reqPath === '/screen-menu' && req.method === 'GET') {
+    // Whether the menu is open over the screen and on which section, for a page
+    // that (re)connects; changes arrive over SSE `screen_menu`. Read-only.
+    json(screenMenu.get());
+
+  } else if (reqPath === '/screen-menu' && req.method === 'POST') {
+    // The menu page closes itself (Esc, a click outside, a row that closes it)
+    // or wakes Bit. In CSRF_MUTATION_PATHS, denied to paired devices.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      if (body && body.bit === true) _menuWakeBit();
+      json({ ok: true, where: body && body.open === true ? screenMenu.show({ section: body.section }) : screenMenu.close() });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+    }
+
+  } else if (reqPath === '/xenon-menu' && req.method === 'GET') {
+    // The menu's sections (xenon-menu.js), the same for the screen and the
+    // dashboard panel (a paired phone's too). Read-only, never a path.
+    try { json(await _xenonMenuState()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/layers/host' && req.method === 'POST') {
+    // The native shell reports what it can draw (layers-host.js); the `layers`
+    // capability probe reads it. Re-sent while the shell runs; the report expires.
+    // In CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
+    try {
+      const body = JSON.parse(await readBody(req, 16 * 1024) || '{}');
+      const menuKey = _menuHotkey();
+      const accepted = layersHost.accept(body);
+      // A shell that can draw the menu arms its shortcut (and frees it on quit).
+      if (_menuHotkey() !== menuKey) { try { refreshHotkeyListener(); } catch { /* the next report retries */ } }
+      json(accepted);
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+    }
+
+  } else if (reqPath === '/layers/desk' && req.method === 'POST') {
+    // The shell says which virtual desktop is shown (apps/native layers/desks.rs,
+    // through js/layers-shell.js); a page tied to it is shown (layer-pages.js).
+    // In CSRF_MUTATION_PATHS, denied to paired devices in remote-access.js.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      const current = Number(body && body.current);
+      const count = Number(body && body.count);
+      if (!Number.isInteger(current) || current < 0 || current > 64 || !Number.isInteger(count) || count < 0 || count > 64) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+        return;
+      }
+      layersHost.setDesk(current, count);
+      _deskPageSync(current);
+      json({ ok: true });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+    }
+
   } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {
     // Settings → Ricerca row: is the global hotkey listening, or why not
     // ('taken' = another app owns the combo, e.g. PowerToys Run on Alt+Space).
@@ -20348,8 +22091,14 @@ const handleRequest = async (req, res) => {
       json({
         slots: _hotkey.slots || {},
         bindings: (_hotkey.bindings || [])
-          .filter((b) => b.slot !== 'spotlight')
+          .filter((b) => b.slot !== 'spotlight' && !b.keyId)
           .map((b) => ({ slot: b.slot, combo: b.combo, target: b.target })),
+        // The Deck keys' shortcuts, one verdict per key (the key editor).
+        // `taken` = every combo already in use here, so the editor can refuse
+        // one before it is saved.
+        state: _hotkey.state,
+        deck: _deckShortcutStatus(),
+        taken: (_hotkey.bindings || []).map((b) => ({ combo: b.combo, keyId: b.keyId || '', slot: b.slot })),
       });
     } catch (e) { err500(e.message); }
 
@@ -20489,6 +22238,8 @@ const handleRequest = async (req, res) => {
         text = await mod.oneShot({
           apiKey: key, model, systemText: sysText, userText, maxTokens: 1500,
         }).catch(() => '');
+      } else if (provider === 'xenon') {
+        text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 1500 }).catch(() => '');
       } else if (aiCli.isCliProvider(provider)) {
         text = await cliOneShot(provider, sysText, userText, settings).catch(() => '');
       } else {
@@ -20602,9 +22353,13 @@ const handleRequest = async (req, res) => {
     // only, never a key.
     try {
       const settings = await readHubSettings().catch(() => null) || {};
-      const model = await lyricsTranslationModel(aiLocal.sanitizeProvider(settings.aiProvider), settings);
+      const provider = aiLocal.sanitizeProvider(settings.aiProvider);
+      const model = await smallTaskModel(provider, settings);
       await lyricsPrices.refresh(); // the published price table, at most every 12 h
-      json({ ok: true, ...(await lyricsTranslator.usage(_serverHubSettings.lyricsTranslateCap, model)) });
+      const usage = await lyricsTranslator.usage(_serverHubSettings.lyricsTranslateCap, model);
+      // Bit on Sparks: the same estimate in Sparks, the unit the user pays in.
+      if (provider === 'xenon' && usage.estimate) usage.estimate.sparks = Math.max(1, Math.round(usage.estimate.usd * aiXenon.SPARKS_PER_USD));
+      json({ ok: true, ...usage });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/features/devclean' && req.method === 'GET') {
@@ -20903,6 +22658,255 @@ const handleRequest = async (req, res) => {
       json({ ok });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/captures' && req.method === 'GET') {
+    // The gallery: a page of captures, newest first, with ids and names only
+    // (captures.js keeps the paths). Readable from a paired phone, which may
+    // look and download; deleting, trimming, copying and "show in folder" are
+    // the PC's (REMOTE_DENY).
+    try {
+      const q = urlObj.searchParams;
+      const page = await _captures.browse({
+        kind: q.get('kind') || '', game: q.get('game') || '',
+        before: q.get('before'), limit: q.get('limit'),
+      });
+      const first = !(Number(q.get('before')) > 0);
+      // A video with its words written down says so (capture-transcripts.js).
+      const entries = page.entries.map(e => (_transcripts.has(e.id) ? { ...e, transcript: true } : e));
+      json({
+        ok: true, ...page, entries,
+        ...(first ? { games: _captures.games(), usedBytes: await _captures.usage(CAPTURE_KINDS) } : {}),
+        editable: _captureHost.available(),
+        // What this engine can do (the macOS one makes no shareable copies and
+        // finds no private data; a Linux one without ffmpeg cannot trim):
+        // hidden, not refused.
+        can: {
+          trim: _captureHost.has('trim'),
+          copy: _captureHost.has('copy_files'),
+          export: _captureHost.has('export'),
+          cover: _captureHost.has('cover'),
+          speech: _captureHost.has('speech'),
+        },
+        // A screenshot can be pinned over every window (capabilities/screen-pin.js).
+        pinnable: layersHost.available(),
+        // "To phone" needs the file transfer on and a paired phone to see it.
+        sendable: transferEnabled() && remoteAccess.count() > 0,
+        transcribing: _transcripts.status().working || '',
+        // A copy being made (capture-export.js), for a gallery opened halfway.
+        exporting: _captureExport.status(),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/transcript' && req.method === 'GET') {
+    // A video's transcript by opaque id: the lines and chapters for the
+    // gallery, or a subtitle file (`format=srt|vtt`). Readable from a paired
+    // phone like the video itself; making one is the PC's (/captures/transcribe).
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const id = urlObj.searchParams.get('id') || '';
+      const e = _captures.get(id);
+      const t = e ? await _transcripts.read(e.id) : null;
+      const format = urlObj.searchParams.get('format') || 'json';
+      if (format === 'json') { json(t ? { ok: true, ...t } : { ok: false, error: e ? 'no_transcript' : 'not_found' }); return; }
+      if (!t || (format !== 'srt' && format !== 'vtt')) { res.writeHead(404); res.end(); return; }
+      const body = Buffer.from(format === 'srt' ? TranscriptFormat.toSrt(t.lines) : TranscriptFormat.toVtt(t.lines), 'utf8');
+      res.writeHead(200, {
+        'Content-Type': format === 'srt' ? 'application/x-subrip; charset=utf-8' : 'text/vtt; charset=utf-8',
+        'Content-Length': String(body.length),
+        'Content-Disposition': fileTransferLib.contentDisposition(e.name.replace(/\.[^.]+$/, '') + '.' + format),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/transcribe' && req.method === 'POST') {
+    // Starts writing down what is said in a video; answers at once, progress
+    // and the end come over SSE `transcript`. The PC's only (REMOTE_DENY).
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      const r = await _transcripts.start(String((body && body.id) || ''));
+      json(r.ok ? { ok: true, working: true } : r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/export' && req.method === 'POST') {
+    // A copy of a video for sharing (vertical, fitted to a size, GIF): answers
+    // at once, progress and the end come over SSE `capture_export`. The PC's
+    // only (REMOTE_DENY + CSRF).
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}') || {};
+      const r = await _captureExport.start(String(body.id || ''), {
+        kind: body.kind, focus: body.focus, webcam: body.webcam === true, mb: body.mb,
+      });
+      json(r.ok ? { ok: true, working: true, kind: r.kind } : r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/export-cancel' && req.method === 'POST') {
+    // Stops the copy being made; nothing is left on disk.
+    try { json(await _captureExport.cancel()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/thumb' && req.method === 'GET') {
+    // A capture's preview (JPEG made by the engine, cached under DATA_DIR).
+    // 404 = none: the gallery draws the kind's icon instead.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const file = await _captureGallery.thumb(urlObj.searchParams.get('id') || '');
+      if (!file) { res.writeHead(404); res.end(); return; }
+      const body = await fs.promises.readFile(file);
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': String(body.length),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        // An id never names another file: a trim is a new capture.
+        'Cache-Control': 'private, max-age=86400',
+      });
+      res.end(body);
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
+  } else if (reqPath === '/captures/file' && (req.method === 'GET' || req.method === 'HEAD')) {
+    // The capture itself, by opaque id, with Range for the player's seeking;
+    // `dl=1` asks the browser to save it. Same shape as /api/transfer/file:
+    // no caller-supplied path exists to contain. Not CSRF-listed: a pure read,
+    // and Download is a top-level navigation.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const e = _captures.get(urlObj.searchParams.get('id') || '');
+      if (!e) { res.writeHead(404); res.end(); return; }
+      const stat = await fs.promises.stat(e.file);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+      const disposition = fileTransferLib.contentDisposition(e.name);
+      serveFileRange(req, res, e.file, stat, {
+        'Content-Type': VIDEO_KINDS.includes(e.kind) ? 'video/mp4' : e.kind === 'gif' ? 'image/gif' : 'image/png',
+        'Content-Disposition': urlObj.searchParams.get('dl') === '1' ? disposition : disposition.replace(/^attachment/, 'inline'),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'no-store',
+        'Accept-Ranges': 'bytes',
+      });
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
+  } else if ((reqPath === '/captures/delete' && req.method === 'POST')
+    || (reqPath === '/captures/reveal' && req.method === 'POST')
+    || (reqPath === '/captures/copy' && req.method === 'POST')
+    || (reqPath === '/captures/trim' && req.method === 'POST')) {
+    // delete / reveal / copy / trim, by id. Loopback-only (REMOTE_DENY) and in
+    // CSRF_MUTATION_PATHS: each one acts on a file on this PC.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      const id = String((body && body.id) || '');
+      let r;
+      if (reqPath === '/captures/delete') r = await _captures.remove(id);
+      else if (reqPath === '/captures/trim') r = await _captureGallery.trim(id, { start: body.start, end: body.end });
+      else if (reqPath === '/captures/copy') r = await _captureGallery.copy(id);
+      else {
+        const e = _captures.get(id);
+        if (e) revealInFileManager(e.file);
+        r = e ? { ok: true } : { ok: false, error: 'not_found' };
+      }
+      // Every open gallery (a phone's too) shows the change.
+      if (r.ok && (reqPath === '/captures/delete' || reqPath === '/captures/trim')) broadcastSSE('captures', { changed: true });
+      json(r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/clips' && req.method === 'POST') {
+    // "Clips from marks": a short copy around each marked moment of a video
+    // (capture-gallery.js clips()). Like a trim: CSRF-checked, the original kept.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      json(await makeMarkClips(String((body && body.id) || ''), body && body.which));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/send' && req.method === 'POST') {
+    // "To phone": the capture joins the PC → phone file list (capture-send.js).
+    // Loopback-only and CSRF-checked: the phone downloads, the PC sends.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      json(await sendCaptureToPhone(String((body && body.id) || '')));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/spots' && req.method === 'POST') {
+    // The gallery's editor: where a screenshot shows an e-mail, an IBAN or a
+    // long number (rectangles only, never the text). Loopback-only.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      json(await _captureCovers.spots(String((body && body.id) || '')));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/captures/save' && req.method === 'POST') {
+    // The editor's drawing as a new screenshot beside the original: the body is
+    // the PNG itself, the id in the query. Loopback-only, CSRF-checked.
+    try {
+      const id = String(urlObj.searchParams.get('id') || '');
+      let png;
+      try { png = await readBodyBuffer(req, CaptureCovers.MAX_PNG_BYTES); } catch (e) {
+        if (e.code === 'PAYLOAD_TOO_LARGE') { json({ ok: false, error: 'too_large' }); return; }
+        throw e;
+      }
+      const r = await _captureCovers.save(id, png);
+      if (r.ok) broadcastSSE('captures', { changed: true });
+      json(r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/capture/settings' && req.method === 'GET') {
+    // Loopback-only (REMOTE_DENY): the answer names the recordings folder on
+    // this PC. The settings blob carries only `folderSet`.
+    try {
+      const o = captureOptions();
+      json({
+        ok: true, ...o,
+        defaultFolder: await defaultCaptureFolder('recording'),
+        defaultShotFolder: await defaultCaptureFolder('screenshot'),
+        defaultBenchFolder: await defaultCaptureFolder('benchmark'),
+        defaultBugFolder: await defaultCaptureFolder('bugreport'),
+        usedBytes: await _captures.usage(VIDEO_KINDS),
+        picking: _captureFolder.picking(),
+        replayState: _replay.status(),
+        ...(await replayDiskInfo(o)),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/capture/settings' && req.method === 'POST') {
+    // Frame rate, size, quality, pill, space limit; `folder: ''` (or
+    // shotFolder, benchFolder) goes back to the default folder. A folder is only
+    // set through /capture/settings/pick.
+    // Loopback-only (REMOTE_DENY), in CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const { bad, owner } = CaptureSettings.applyCaptureChange(captureOptions(), body);
+      if (bad.length) { json({ ok: false, error: owner ? 'reserved' : 'bad_value', bad, ...(owner ? { owner } : {}) }); return; }
+      const resets = {};
+      for (const key of CaptureSettings.FOLDER_KEYS) if (body[key] === '') resets[key] = '';
+      const saved = await updateCaptureSettings(body, resets);
+      json({ ok: true, ...saved });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/capture/settings/pick' && req.method === 'POST') {
+    // The system's folder dialog, on the PC. Waits for the choice (the engine
+    // closes a forgotten dialog after 5 minutes). Loopback-only, CSRF-listed.
+    try {
+      if (!_captureHost.has('pick_folder')) { json({ ok: false, error: 'unavailable' }); return; }
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      const key = CaptureSettings.FOLDERS[body && body.for] || CaptureSettings.FOLDERS.recording;
+      const kind = Object.keys(CaptureSettings.FOLDERS).find((k) => CaptureSettings.FOLDERS[k] === key);
+      const r = await chooseCaptureFolder(kind);
+      if (!r.ok || r.cancelled) { json(r); return; }
+      const saved = await updateCaptureSettings({}, { [key]: r.path });
+      json({ ok: true, [key]: saved[key] });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {
     // Loopback-only (REMOTE_DENY), because the answer contains a real folder on
     // this PC. The phone gets what it actually needs — the size limit — from
@@ -20914,6 +22918,8 @@ const handleRequest = async (req, res) => {
         ...s,
         inboxDir: transferInboxDir(),
         inboxDefault: fileTransferLib.defaultInboxDir({}),
+        // The folder comes from the system dialog where there is one.
+        canPick: _captureHost.has('pick_folder'),
         stats: fileTransfer.stats(),
       });
     } catch (e) { err500(e.message); }
@@ -20930,30 +22936,18 @@ const handleRequest = async (req, res) => {
         });
         if (!check.ok) { json({ ok: false, error: check.error }); return; }
       }
-      await withHubSettingsLock(async () => {
-        // `prev` is read INSIDE the lock: one captured before acquiring it is
-        // already stale by the time the write lands.
-        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-        const merged = { ...(cur.fileTransfer || {}) };
-        for (const key of ['enabled', 'autoDeliver', 'notifyPhone']) {
-          if (typeof body[key] === 'boolean') merged[key] = body[key];
-        }
-        for (const key of ['maxFileMb', 'quotaMb', 'keepDays']) {
-          if (Number.isFinite(Number(body[key]))) merged[key] = Number(body[key]);
-        }
-        if (typeof body.inboxDir === 'string') merged.inboxDir = body.inboxDir.trim();
-        const saved = await writeHubSettings({
-          ...cur,
-          fileTransfer: merged,
-          rev: nextSettingsRev(cur.rev, body.rev),
-        });
-        _serverHubSettings = saved;
-        broadcastSSE('settings', { rev: saved.rev });
-      });
-      _applyTransferLimits();
-      broadcastTransfer();
-      const s = transferSettings();
-      json({ ok: true, ...s, inboxDir: transferInboxDir() });
+      json(await updateTransferSettings(body));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/transfer/settings/pick' && req.method === 'POST') {
+    // The arrival folder from the system's folder dialog, on the PC where the
+    // capture engine runs. Loopback-only and in CSRF_MUTATION_PATHS, like the
+    // POST above; the dialog's answer is validated by the same validInboxDir.
+    try {
+      if (isRemote || !_captureHost.has('pick_folder')) { json({ ok: false, error: 'unavailable' }); return; }
+      const r = await chooseTransferFolder();
+      if (!r.ok || r.cancelled) { json(r); return; }
+      json(await updateTransferSettings({ inboxDir: r.path }));
     } catch (e) { err500(e.message); }
 
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
@@ -21171,6 +23165,32 @@ const handleRequest = async (req, res) => {
         json(await streamYouTube.query(String(body.op || ''), params));
       } finally { release(); }
     } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath.startsWith('/api/mcp/dev/')) {
+    // Claude Code / Codex building widgets (mcp-dev.js). Never from a paired
+    // device: absent from remotePathAllowed, and refused here as well.
+    if (isRemote) { res.writeHead(403); res.end(); return; }
+    try {
+      await handleMcpDevRoute(req, res, reqPath, json);
+    } catch (e) {
+      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : (e && e.code === 'PAYLOAD_TOO_LARGE' ? 'too_large' : 'failed') });
+    }
+
+  } else if (reqPath === '/sdk/ai' && req.method === 'POST') {
+    // A widget's question to the AI the user set for Bit (sdk-ai.js), sent by
+    // the dashboard host for a frame it bridged. Needs the `ai` grant (which safe
+    // mode and a suspend empty) AND the manifest asking for it, and runs under
+    // the user's daily number per widget. In CSRF_MUTATION_PATHS: it spends.
+    try {
+      const body = JSON.parse(await readBody(req, 64 * 1024) || '{}');
+      const pkgId = String(body.pkg || '');
+      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId) || !sdkGrantsFor(pkgId).ai) { json({ ok: false, error: 'not_allowed' }); return; }
+      const pkg = (await sdkPackagesCached()).packages.find(p => p.id === pkgId);
+      if (!pkg || pkg.ai !== true) { json({ ok: false, error: 'not_allowed' }); return; }
+      json(await sdkAi.ask(pkgId, body, _serverHubSettings.sdkAiDailyCap));
+    } catch (e) {
+      json({ ok: false, error: e instanceof SyntaxError ? 'bad_json' : (e && e.code === 'PAYLOAD_TOO_LARGE' ? 'too_long' : 'failed') });
+    }
 
   } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
     // POST, and in CSRF_MUTATION_PATHS, because of what it costs rather than what
@@ -21800,6 +23820,14 @@ const handleRequest = async (req, res) => {
     // origin:'creator' no longer launders it into an exportable "own" widget.
     const body = await readBody(req);
     let payload; try { payload = JSON.parse(body); } catch { payload = null; }
+    // A package opened with the pass trial: the files are already in the vault,
+    // the import flow only confirms which one to put in place.
+    if (payload && payload.trialVault === true) {
+      const r = await trialVault.accept(payload.id);
+      if (r.ok) await refreshSdkScan();
+      json(r);
+      return;
+    }
     const origin = (payload && payload.origin === 'creator') ? 'creator' : 'import';
     // Optional: the version of the catalog ENTRY this payload came from. Only the
     // caller knows it (the manifest carries its own, unrelated number), and it is
@@ -21865,6 +23893,7 @@ const handleRequest = async (req, res) => {
       if (!dir.startsWith(SDK_WIDGETS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
       await fs.promises.rm(dir, { recursive: true, force: true });
       await recordWidgetOrigin(id, 'forget');   // drop the origin record with the files
+      if (trialVault.has(id)) await trialVault.remove(id);
       refreshSdkScan();
       json({ ok: true });
     } catch (e) { err500(e.message); }
@@ -21903,9 +23932,23 @@ const handleRequest = async (req, res) => {
     // headers as every widget asset — the probe runs under the identical sandbox.
     let probePath = null;
     try { probePath = m ? decodeURIComponent(m[2]) : null; } catch { probePath = null; }
-    const abs = (m && probePath !== sdkWidgets.PERF_PROBE_FILENAME)
+    // A trial package is served from the vault's memory, and only while the
+    // trial runs; an installed copy of the same id is served from disk instead.
+    const trialPkg = m && probePath !== sdkWidgets.PERF_PROBE_FILENAME
+      && (await sdkPackagesCached()).packages.some((p) => p.id === m[1] && p.trial === true);
+    const trialFile = trialPkg ? await trialVault.asset(m[1], m[2]) : null;
+    const abs = (m && !trialPkg && probePath !== sdkWidgets.PERF_PROBE_FILENAME)
       ? sdkWidgets.resolveAsset(SDK_WIDGETS_DIR, m[1], m[2]) : null;
-    if (m && probePath === sdkWidgets.PERF_PROBE_FILENAME) {
+    if (trialFile) {
+      res.writeHead(200, {
+        'Content-Type': trialFile.mime,
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy': widgetCsp,
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(trialFile.mime.startsWith('text/html')
+        ? sdkWidgets.injectPerfProbe(trialFile.bytes.toString('utf8')) : trialFile.bytes);
+    } else if (m && probePath === sdkWidgets.PERF_PROBE_FILENAME) {
       res.writeHead(200, {
         'Content-Type': 'text/javascript; charset=utf-8',
         'Cache-Control': 'no-cache',
@@ -22505,6 +24548,32 @@ const handleRequest = async (req, res) => {
       else res.write('event: audio\ndata: {"unavailable":true}\n\n');
       res.write(now);
     }).catch(() => {});
+    // The Voicemeeter mixer as last read: the poll only broadcasts a change, so a
+    // widget opening later would otherwise wait for someone to move a fader.
+    if (vmLastJson) { try { res.write(`event: voicemeeter\ndata: ${vmLastJson}\n\n`); } catch (e) { /* ignore */ } }
+    // A benchmark already recording: lights its Deck key, no toast (seed).
+    try {
+      const bench = _benchmark.status();
+      if (bench.running) res.write(`event: benchmark\ndata: ${JSON.stringify({ running: true, game: bench.game, seed: true })}\n\n`);
+    } catch (e) { /* ignore */ }
+    // A recording already going: lights its Deck key and shows the "Recording" card.
+    try {
+      const rec = _recorder.status();
+      if (rec.on) res.write(`event: recording\ndata: ${JSON.stringify({ ...rec, seed: true })}\n\n`);
+    } catch (e) { /* ignore */ }
+    // The steps recorder running: lights its Deck key and shows its card.
+    try {
+      const st = _stepsRecorder.status();
+      if (st.on) res.write(`event: steps
+data: ${JSON.stringify({ ...st, seed: true })}
+
+`);
+    } catch (e) { /* ignore */ }
+    // Instant Replay on: lights its Deck key, no "replay on" card (seed).
+    try {
+      const rp = _replay.status();
+      if (rp.enabled) res.write(`event: replay\ndata: ${JSON.stringify({ ...rp, seed: true })}\n\n`);
+    } catch (e) { /* ignore */ }
     // Seed a ringing call. A dashboard that opens (or a phone that unlocks)
     // mid-ring must show the card immediately: the whole point of the feature is
     // the ~40 seconds a call lasts, and waiting for the next broadcast would
@@ -22775,6 +24844,103 @@ function _startLivePcmCapture(onPcm, onError) {
 // System instruction for a Live voice session: date/time, identity, spoken-answer
 // brief, remembered facts, optional rolling summary carried from the client, and
 // the reply language. Mirrors the /api/ai SYS_BASE+SYS_VOICE spirit, compactly.
+// The tools of the integrations the user connected (OBS, Twitch, YouTube, Streamer.bot,
+// Spotify, Home Assistant, Discord voice), pushed onto `fns`, and the lines that tell
+// the model they exist. Shared by the chat turn and Voice Live, so a spoken "play X
+// on Spotify" or "turn on the lamp" works the same as a typed one.
+async function addIntegrationAiFunctions(fns) {
+  const AI_FUNCTIONS = fns;
+  // STREAMING — OBS / Twitch / YouTube / Streamer.bot control. Exposed ONLY
+  // when the matching integration is configured/connected (mirrors the deck
+  // action-catalog gating), so non-streamers pay zero extra tokens. Every tool
+  // routes through the same allowlisted deckRegistry that Deck keys use.
+  let _streamingText = '';
+  {
+    const _s = (await readHubSettings().catch(() => null)) || {};
+    const _tw = await streamTwitch.status().catch(() => ({ connected: false }));
+    const _yt = await streamYouTube.status().catch(() => ({ connected: false }));
+    const _enabled = [];
+    if (_s.obsHost || obsLocalWanted) {
+      AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
+        scene: { type: 'STRING', description: 'Scene name: required only for switch_scene' },
+      }, required: ['action'] } });
+      _enabled.push('OBS (recording, streaming, scene switching)');
+    }
+    if (_tw.connected) {
+      AI_FUNCTIONS.push({ name: 'twitch_action', description: 'Control your Twitch channel: create a clip, set the stream title or game/category, send a chat message, drop a stream marker, shout out a channel, change chat mode, or run an ad.', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'One of: create_clip, set_title, set_game, send_chat, marker, shoutout, chat_mode, run_ad' },
+        value: { type: 'STRING', description: 'The parameter: new title (set_title), game/category (set_game), message (send_chat), marker note (marker), channel login (shoutout), chat mode emoteonly|followers|subscribers|slow|off (chat_mode), or ad length in seconds (run_ad). Omit for create_clip.' },
+      }, required: ['action'] } });
+      _enabled.push('Twitch (clip, title, game, chat, marker, shoutout, chat mode, ad)');
+    }
+    if (_yt.connected) {
+      AI_FUNCTIONS.push({ name: 'youtube_broadcast', description: 'Start, stop, or toggle your YouTube live broadcast.', parameters: { type: 'OBJECT', properties: {
+        mode: { type: 'STRING', description: 'One of: start, stop, toggle' },
+      }, required: ['mode'] } });
+      _enabled.push('YouTube (start/stop broadcast)');
+    }
+    if (_s.streamerbotHost) {
+      AI_FUNCTIONS.push({ name: 'streamerbot_action', description: 'Trigger a Streamer.bot action by its exact name.', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'Exact Streamer.bot action name to run' },
+      }, required: ['action'] } });
+      _enabled.push('Streamer.bot (run actions)');
+    }
+    if (_enabled.length) {
+      _streamingText = ' STREAMING CONTROL is available for: ' + _enabled.join('; ') + '.'
+        + ' Use these tools when the user asks to control their stream (e.g. "start recording", "go live", "switch to my Gioco scene", "set the title to…", "clip that"). "Go live" on Twitch means start the OBS stream (obs_control start_streaming).'
+        + ' If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected and point them to Settings → Streaming.';
+    }
+  }
+  // SMART DEVICE & MEDIA CONTROL — Spotify / Home Assistant / Discord voice.
+  // Each tool is declared ONLY when its integration is connected/configured
+  // (mirrors the streaming gate), so users without it pay zero extra tokens.
+  // Every control routes through the same allowlisted deckRegistry the Deck +
+  // widgets use; reads (now-playing, entity list, voice state) call the
+  // provider instance directly, exactly like the existing data endpoints.
+  let _integrationsText = '';
+  {
+    const _sp = await streamSpotify.status().catch(() => ({ connected: false }));
+    const _dc = await discordRpc.status().catch(() => ({ connected: false }));
+    const _s2 = (await readHubSettings().catch(() => null)) || {};
+    const _haCfg = (_s2.homeAssistant && typeof _s2.homeAssistant === 'object') ? _s2.homeAssistant : {};
+    const _haOn = !!(_haCfg.url && _haCfg.token);
+    const _bits = [];
+    if (_sp.connected) {
+      AI_FUNCTIONS.push({ name: 'spotify_control', description: 'Control Spotify in full: play/pause, next/previous track, PLAY A SPECIFIC SONG, artist, album or playlist by NAME (searches Spotify and starts it), add a song to the queue, shuffle on/off, repeat, save/like the current track, set the device volume, seek, switch the playback device, and read what is currently playing. Playback control needs Spotify Premium (a "premium_required" error means the account is not Premium).', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'One of: play, pause, next, previous, play_song, queue_song, play_playlist, shuffle_on, shuffle_off, repeat, like, unlike, volume, seek, device, status. Use "status" to read the current track, playback state and available devices before answering "what\'s playing?" or when you need the device list.' },
+        query: { type: 'STRING', description: 'The song/artist/album name for play_song and queue_song, the playlist name for play_playlist, or the device name for device. Omit otherwise.' },
+        value: { type: 'STRING', description: 'The numeric/enum parameter: repeat mode (off|context|track, omit to cycle); volume 0-100; seek position in SECONDS. Omit otherwise.' },
+      }, required: ['action'] } });
+      _bits.push('Spotify (play/pause, next/prev, play or queue any song by name, playlists, shuffle, repeat, like, volume, seek, switch device)');
+    }
+    if (_haOn) {
+      AI_FUNCTIONS.push({ name: 'home_assistant', description: 'Control the user\'s smart home through Home Assistant: list every device/entity with its current state, turn a device on/off/toggle, activate a scene, and control ANY device in fine detail (light brightness & colour, thermostat temperature, fan speed, cover position, media players, switches…) via a Home Assistant service call. When you do not already know the exact entity_id, call action "list" FIRST and match by the friendly name/area.', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'One of: list, turn_on, turn_off, toggle, scene, service. "list" returns all entities (id, friendly name, domain, area, state). "service" performs a detailed call (see service/data).' },
+        entity_id: { type: 'STRING', description: 'The Home Assistant entity id, e.g. "light.living_room" or "climate.bedroom". Required for every action except list.' },
+        service: { type: 'STRING', description: 'For action "service": the "<domain>.<service>" to call, e.g. "light.turn_on", "climate.set_temperature", "cover.set_cover_position", "fan.set_percentage".' },
+        data: { type: 'STRING', description: 'For action "service": the service parameters as a JSON object string, e.g. {"brightness_pct":40,"color_name":"red"} or {"temperature":21}. Omit when the service takes no extra data.' },
+      }, required: ['action'] } });
+      _bits.push('Home Assistant (list devices, on/off/toggle, scenes, and detailed control: brightness, colour, temperature, fan speed, covers, media players)');
+    }
+    if (_dc.connected) {
+      AI_FUNCTIONS.push({ name: 'discord_voice', description: 'Control the user\'s Discord voice settings via the desktop app: mute/unmute the microphone, deafen/undeafen, switch between push-to-talk and voice-activity, JOIN a voice channel by name, leave the current channel, nudge the input (mic) or output (speaker) volume up/down, toggle an audio-processing feature, and read the current voice state plus the list of available voice channels.', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'One of: mute, unmute, deafen, undeafen, ptt, vad, join, leave, input_volume, output_volume, audio_toggle, status. Use "status" to read the current mute/deafen state and the joinable channels before a join.' },
+        channel: { type: 'STRING', description: 'The voice channel name to join (for action join). Matched case-insensitively against the user\'s channels.' },
+        mode: { type: 'STRING', description: 'up or down: for input_volume / output_volume.' },
+        feature: { type: 'STRING', description: 'For audio_toggle: noise_suppression | echo_cancellation | automatic_gain_control | qos.' },
+      }, required: ['action'] } });
+      _bits.push('Discord voice (mute/deafen, push-to-talk, join/leave a channel by name, input/output volume, audio features)');
+    }
+    if (_bits.length) {
+      _integrationsText = ' SMART DEVICE & MEDIA CONTROL is available for: ' + _bits.join('; ') + '.'
+        + ' Use these tools whenever the user asks to control the matching thing, e.g. "metti <canzone> su Spotify"/"play <song>" → spotify_control play_song; "accendi la luce del salotto"/"turn on the living room light" → home_assistant (list first if you don\'t know the entity, then turn_on); "abbassa le luci al 30%" → home_assistant service light.turn_on with {"brightness_pct":30}; "mettimi in muto su Discord" → discord_voice mute; "entra nel canale Gaming" → discord_voice join.'
+        + ' For Home Assistant, ALWAYS call action "list" first when you are unsure of the exact entity_id, then act on the matched id. If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected (Settings → Spotify / Casa / Discord) rather than pretending it worked.';
+    }
+  }
+  return { streamingText: _streamingText, integrationsText: _integrationsText };
+}
+
 function _buildLiveSystemInstruction({ langName, summary }) {
   const now = new Date();
   const nowDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -22784,7 +24950,7 @@ function _buildLiveSystemInstruction({ langName, summary }) {
     ? ' ' + aiMemory.formatForPrompt() : '';
   const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
   const langText = langName ? ` Always reply in ${langName}.` : '';
-  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a dashboard the user runs on a second screen of their own. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card.` + memText + sumText + langText;
+  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a dashboard the user runs on a second screen of their own. This is a spoken conversation: keep answers short and natural, 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card. When the user asks you to make something (a theme, a page, a widget, an Ambient scene, a Deck profile, a package), ground it with preset_reference, build it with create_preset, and fix every critique "fix" item with another create_preset call before you speak about it; then say in one sentence what you made and that it is open in the import window for them to check. Never read codes, JSON or file contents aloud.` + memText + sumText + langText;
 }
 
 async function _teardownLiveSession(reason) {
@@ -22873,7 +25039,8 @@ function _handleLiveClient(client) {
       // Match the turn-based handler: expose the memory tools by voice too when
       // memory is on, so "remember this" / "forget that" work in a Live session.
       if (settings.aiMemory !== false) tools.push(...buildMemoryFunctions());
-      const systemInstruction = _buildLiveSystemInstruction({ langName, summary });
+      const linked = await addIntegrationAiFunctions(tools);
+      const systemInstruction = _buildLiveSystemInstruction({ langName, summary }) + linked.streamingText + linked.integrationsText;
 
       const session = aiLive.createLiveSession({
         apiKey,
@@ -22881,7 +25048,7 @@ function _handleLiveClient(client) {
         systemInstruction,
         tools,
         WebSocketImpl: require('ws').WebSocket,
-        onSetupComplete: () => { process.stdout.write('[Live] setup complete — session ready\n'); send({ type: 'ready' }); },
+        onSetupComplete: () => { process.stdout.write('[Live] setup complete: session ready\n'); send({ type: 'ready' }); },
         onAudio: (b64) => send({ type: 'audio', data: b64 }),
         onInputText: (text) => { latestUserText = text; send({ type: 'input', text }); },
         onOutputText: (text) => send({ type: 'output', text }),
@@ -22962,7 +25129,7 @@ async function refreshStartupTaskState() {
   // the reason Xenon will not be there tomorrow.
   if (res.repaired.length) {
     startupLog.write('startup task: put back ' + res.repaired.join(', ')
-      + ' on "' + startupTask.TASK_NAME + '" — something had changed settings this install owns.');
+      + ' on "' + startupTask.TASK_NAME + '": something had changed settings this install owns.');
   }
   if (res.failed) {
     startupLog.write('startup task: could not repair "' + startupTask.TASK_NAME + '": ' + res.failed);
@@ -23000,6 +25167,43 @@ function ensureHelperUpToDate(attempt = 1) {
       // falls back to the next-boot retry (the marker stays unwritten).
       if (attempt < HELPER_REFRESH_MAX_TRIES) {
         setTimeout(() => { try { ensureHelperUpToDate(attempt + 1); } catch { /* ignore */ } }, HELPER_REFRESH_RETRY_MS).unref();
+      }
+    }).catch(() => { /* best-effort */ });
+  } catch { /* best-effort */ }
+}
+
+// The capture engine is compiled, so like the helper it cannot ride in the
+// source zip the self-update applies: it is its own release asset, covered by
+// the same Ed25519-signed SHA256SUMS and fetched through the same verified path.
+// One difference: nobody ever declined the engine (the helper is optional in the
+// installer), and every install made before it existed lacks it, so a MISSING
+// engine is fetched from this version's release, not only refreshed. Until it is
+// there the capture features stay hidden (`requires`), never broken.
+const CAPTURE_CHECK_MARKER = path.join(DATA_DIR, 'capture-checked.txt');
+// Only where an engine can lag behind the server's list, or (Linux) where its
+// answer is the only list (see capture-host.js).
+function learnCaptureFeatures() {
+  const asks = process.platform === 'darwin' || process.platform === 'linux';
+  if (asks && _captureHost.available()) _captureHost.request('ping');
+}
+// The macOS and Linux engines are their own assets; once one is in place a ping
+// tells the host what it can do (capture-host.js `has`). Linux: x86-64 only.
+function ensureCaptureEngine(attempt = 1) {
+  const linux = process.arch === 'x64' ? CAPTURE_ASSET_LINUX : null;
+  const asset = { win32: CAPTURE_ASSET, darwin: CAPTURE_ASSET_MAC, linux }[process.platform];
+  if (!asset || !APP_VERSION) return;
+  try {
+    let marked = '';
+    try { marked = fs.readFileSync(CAPTURE_CHECK_MARKER, 'utf8').trim(); } catch { /* first run */ }
+    const present = fs.existsSync(CAPTURE_EXE);
+    if (present && marked === APP_VERSION) { learnCaptureFeatures(); return; }
+    const up = createHelperUpdate({ helperExe: CAPTURE_EXE, appVersion: APP_VERSION, asset });
+    (present ? up.refresh() : up.install()).then(status => {
+      learnCaptureFeatures();
+      const done = status === 'up-to-date' || status === 'installed' || status === 'skip-not-latest';
+      if (done) { writeFileAtomic(CAPTURE_CHECK_MARKER, APP_VERSION).catch(() => {}); return; }
+      if (attempt < HELPER_REFRESH_MAX_TRIES) {
+        setTimeout(() => { try { ensureCaptureEngine(attempt + 1); } catch { /* ignore */ } }, HELPER_REFRESH_RETRY_MS).unref();
       }
     }).catch(() => { /* best-effort */ });
   } catch { /* best-effort */ }
@@ -23070,9 +25274,14 @@ function _startListen(host) {
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
+    setTimeout(() => { try { ensureCaptureEngine(); } catch { /* ignore */ } }, 12000);
     // Its first look is two minutes in: the dashboard's own startup comes first.
     autoUpdater.start().catch((e) => console.warn('[auto-update] start failed:', e && e.message));
     widgetAutoUpdater.start().catch((e) => console.warn('[widget-auto-update] start failed:', e && e.message));
+    trialVault.init()
+      .then(() => trialPass.start())
+      .then(() => trialVault.sync())
+      .catch((e) => console.warn('[trial-pass] start failed:', e && e.message));
     // The logon task that opens the dashboard in a browser outlives the script it
     // points at, and a stale one greets the user with a wscript error box at every
     // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it
@@ -23152,7 +25361,7 @@ function _startListen(host) {
         ? 'settings: loaded ' + SETTINGS_FILE + ' (rev ' + (Number(s.rev) || 0)
             + ', store ' + (String(s.storeId || '').slice(0, 8) || 'none') + ')'
         : 'settings: no file at ' + SETTINGS_FILE
-            + ' — starting a NEW store, so this run begins from the factory defaults');
+            + ': starting a NEW store, so this run begins from the factory defaults');
       // A layout about to be replaced by the version migration is copied out
       // before anything writes over it, and the fact is stated — the reset itself
       // is silent from every surface, which is how it reads as a bug rather than
@@ -23188,7 +25397,7 @@ function _startListen(host) {
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
       // Layouts a Gen2 controller fills in by itself are saved like the user's own.
       lighting.setNativeChangeHook(() => { _persistLighting(); });
-      try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
+      try { lighting.applyConfig((s || _serverHubSettings).lighting); _syncSessionWatch(); } catch (e) { console.error('Lighting init failed:', e.message); }
       // OpenRGB was removed from the product. Tear down anything a previous
       // version may have left so it never launches itself again: drop the
       // auto-start scheduled task (one fire-and-forget call, silent if absent).
@@ -23199,6 +25408,9 @@ function _startListen(host) {
       // crawler index for the user's extra search folders (both no-op/cheap
       // when off; delayed so they never compete with boot).
       setTimeout(() => {
+        // The Deck's key shortcuts register with the page ones (refreshes the
+        // listener itself when there are any).
+        readDeckStore().then((store) => _refreshDeckShortcuts(store.configs)).catch(() => {});
         try { refreshHotkeyListener(); } catch { /* ignore */ }
         // Whether this install still starts itself at sign-in. Delayed with the
         // rest of the non-urgent boot work: nothing on screen depends on it, and
@@ -23235,7 +25447,7 @@ function _startListen(host) {
       startupLog.write(settingsBootRead
         ? 'settings: loaded, but a startup step after it failed: ' + why
         : 'FAILED to read ' + SETTINGS_FILE + ': ' + why
-            + ' — this run falls back to the factory defaults, and every settings save is'
+            + '. This run falls back to the factory defaults, and every settings save is'
             + ' refused until that file can be read. Do not re-create your setup yet.');
       console.error('[settings] boot read failed:', why);
     });
@@ -23299,7 +25511,7 @@ function applyBindHost() {
   const want = desiredBindHost();
   if (_rebinding || want === _listenHost) return;
   _rebinding = true;
-  console.log(`[bind] paired access changed — moving listener to ${want}:${PORT}`);
+  console.log(`[bind] paired access changed: moving listener to ${want}:${PORT}`);
   try {
     server.close(() => {
       _eaddrinuseRetries = 0;
@@ -23344,6 +25556,9 @@ function idleProbeWanted() {
   // while the user is active on another screen (idleMinutes clamped by normalize).
   const a = _serverHubSettings && _serverHubSettings.ambientMode;
   if (a && a.enabled !== false && Number(a.idleMinutes) > 0) return true;
+  // The PC's own screensaver on the screens without the dashboard
+  // (js/screen-scene-model.js wantsIdle): the native shell opens it from idleSec.
+  if (a && a.enabled !== false && Number(a.saverMinutes) > 0) return true;
   // Presenza ambientale (ambient.js): the greeting splash holds a day-part until
   // someone is actually at the PC. Without this signal it falls back to greeting
   // on the clock alone, which spends the morning greeting on an empty room.
@@ -23370,15 +25585,14 @@ async function _pollIdleProbe() {
   // broadcast (prev must stay a number across a reconnect hiccup) and reset the
   // fast cadence exactly while a screensaver is up.
   if (sseClients.size > 0 && idleProbeWanted()) {
-    try {
-      const r = await runCollector(IDLE_SCRIPT, [], 5000);
-      if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) {
-        const prev = _idleProbe.sec;
-        _idleProbe.sec = Math.max(0, Number(r.idleSec));
-        _idleProbe.at = Date.now();
-        if (typeof prev === 'number' && prev >= IDLE_AWAY_SEC && _idleProbe.sec < IDLE_AWAY_SEC) broadcastStatusNow();
-      }
-    } catch { /* probe unavailable → idleSec reads null → PC actions stay off */ }
+    // Unreadable → idleSec reads null → PC actions stay off.
+    const sec = await readIdleSeconds();
+    if (sec != null) {
+      const prev = _idleProbe.sec;
+      _idleProbe.sec = sec;
+      _idleProbe.at = Date.now();
+      if (typeof prev === 'number' && prev >= IDLE_AWAY_SEC && _idleProbe.sec < IDLE_AWAY_SEC) broadcastStatusNow();
+    }
     // Cadence from the last KNOWN sample — even when this read failed. A single
     // worker hiccup while the user is away must not drop back to the slow tick
     // right when spotting the return matters most.
@@ -23432,10 +25646,419 @@ function statusPayload() {
 // (main.js retries it on each status event).
 let _lastStatusJson = '';
 let _lastStatusSentAt = 0;
+// A widget page marked "when I play" is shown while a game runs (layer-pages.js).
+const _gamePageSync = LayerPages.createGamePageSync({
+  current: () => _serverHubSettings && _serverHubSettings.layers,
+  update: (edit) => updateLayersSetting(edit),
+  warn: (msg) => console.warn(msg),
+});
+// A widget page tied to a virtual desktop is shown on it (POST /layers/desk).
+const _deskPageSync = LayerPages.createDeskPageSync({
+  current: () => _serverHubSettings && _serverHubSettings.layers,
+  update: (edit) => updateLayersSetting(edit),
+  warn: (msg) => console.warn(msg),
+});
+// The Game performance tile's feed: only while a game runs and a tile shows it.
+function perfWanted() {
+  if (_feedWidgetInUse('perf')) return true;
+  // A tile on a hidden surface draws nothing, so it wants no feed.
+  const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+  if (layers.enabled && layers.widgets.some(w => w.kind === 'tile' && w.widget === 'perf' && !layers.hidden.includes(w.surface))) return true;
+  // A Store widget granted the `perf` stream (sdk-widgets.js), like `processes`.
+  return sdkStreamGranted('perf');
+}
+// One summary per game played (game-sessions.js). Fed by the status tick, so it
+// adds no timer of its own; the system tick adds the CPU/GPU averages.
+const _gameSessions = createGameSessions({
+  fps: fpsMonitor,
+  file: path.join(DATA_DIR, 'game-sessions.json'),
+  writeFileAtomic,
+  enabled: gameSessionsEnabled,
+  onEnd: () => { try { _perfStream.sessionEnded(); } catch {} },
+});
+_gameSessions.load().catch(() => {});
+// A benchmark run (benchmark.js): its own 1 s timer only while one is going.
+// Start and end are told to every dashboard over SSE `benchmark`.
+let _documentsDir = null;
+const documentsRoot = () => (_documentsDir || (_documentsDir = resolveDocumentsDir({ execFile })));
+const _benchmark = createBenchmark({
+  fps: fpsMonitor,
+  game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  documentsDir: documentsRoot,
+  // The folder the user chose for benchmark files, or Documents/Xenon/Benchmark.
+  folder: () => _captureFolder.resolve(captureOptions().benchFolder),
+  writeFile: (file, text) => fs.promises.writeFile(file, text, 'utf8'),
+  mkdir: (dir, opts) => fs.promises.mkdir(dir, opts),
+  onStart: ({ game }) => broadcastSSE('benchmark', { running: true, game }),
+  onEnd: (result) => broadcastSSE('benchmark', { running: false, result }),
+});
+// What Xenon captured (captures.js), saved under the user's Pictures and Videos folders.
+let _picturesDir = null;
+let _videosDir = null;
+const videosRoot = () => (_videosDir || (_videosDir = resolveUserFolder('videos', { execFile })));
+const picturesRoot = () => (_picturesDir || (_picturesDir = resolveUserFolder('pictures', { execFile })));
+const _captures = createCaptures({
+  file: path.join(DATA_DIR, 'captures.json'),
+  writeFileAtomic,
+  picturesDir: picturesRoot,
+  videosDir: videosRoot,
+  // A capture deleted here or pruned for space takes its preview and its pins
+  // on the screen with it (capabilities/screen-pin.js).
+  onRemove: (id) => {
+    _captureGallery.forget(id);
+    _transcripts.forget(id).catch(() => {});
+    updateLayersSetting(cur => LayersModel.unpinCapture(cur, id)).catch(() => { /* a pin left shows "not found" with its x */ });
+  },
+});
+// The gallery's previews, trims and clipboard copies (capture-gallery.js).
+const _captureGallery = createCaptureGallery({
+  host: _captureHost,
+  store: _captures,
+  thumbDir: path.join(DATA_DIR, 'capture-thumbs'),
+  mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+  exists: (p) => fs.promises.access(p).then(() => true, () => false),
+  unlink: (p) => fs.promises.unlink(p),
+});
+// "To phone" (capture-send.js): the capture into the file transfer's PC → phone
+// list, the same push a file sent from the PC gets, every Files tile refreshed.
+const _captureSend = createCaptureSend({
+  store: _captures,
+  transfer: fileTransfer,
+  enabled: () => transferEnabled(),
+  phones: () => remoteAccess.count(),
+  sizeOf: (p) => fs.promises.stat(p).then((st) => (st.isFile() ? st.size : null), () => null),
+  link: (a, b) => fs.promises.link(a, b),
+  copyFile: (a, b) => fs.promises.copyFile(a, b, fs.constants.COPYFILE_EXCL),
+  rename: (a, b) => fs.promises.rename(a, b),
+  unlink: (p) => fs.promises.unlink(p),
+});
+// "Copy to a folder" (capture-copy.js): Desktop, Downloads, Documents, Pictures
+// or Videos by name; the path stays here.
+const _captureCopy = createCaptureCopy({
+  store: _captures,
+  folderOf: (place) => resolveUserFolder(place, { execFile }),
+  mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+  exists: (p) => fs.promises.access(p).then(() => true, () => false),
+  copyFile: (a, b) => fs.promises.copyFile(a, b),
+  rename: (a, b) => fs.promises.rename(a, b),
+  unlink: (p) => fs.promises.unlink(p),
+});
+async function sendCaptureToPhone(id) {
+  const r = await _captureSend.send(id);
+  if (r.ok && !r.already) {
+    broadcastTransfer();
+    if (transferSettings().notifyPhone) {
+      webPushNotify({ title: 'Xenon', body: transferPushBody(), tag: 'transfer', url: '/' }, { urgency: 'normal', ttl: 3600 }).catch(() => {});
+    }
+  }
+  return r;
+}
+// "Clips from marks" (capture-gallery.js clips()): the gallery's button, the
+// Deck key and Bit. Every open gallery shows the new copies.
+async function makeMarkClips(id, which) {
+  const r = await _captureGallery.clips(id, { which: String(which || 'auto') });
+  if (!r.ok) return r;
+  broadcastSSE('captures', { changed: true });
+  return {
+    ok: true, clips: r.clips, of: r.of, first: r.entries[0].id, names: r.entries.map(e => e.name),
+    ...(r.stopped ? { stopped: r.stopped } : {}),
+  };
+}
+// Videos made ready to share (capture-export.js): vertical, fitted to a size,
+// GIF. Every open gallery follows the progress; a new copy refreshes them.
+const _captureExport = createCaptureExport({
+  host: _captureHost,
+  store: _captures,
+  sizeOf: (p) => fs.promises.stat(p).then((st) => st.size, () => null),
+  onProgress: (ev) => broadcastSSE('capture_export', ev),
+  onDone: (ev) => {
+    broadcastSSE('capture_export', {
+      id: ev.id, kind: ev.kind, from: ev.from, done: true, ok: ev.ok === true,
+      ...(ev.ok ? { newId: ev.entry.id, name: ev.entry.name, bytes: ev.bytes } : { error: ev.error }),
+    });
+    if (ev.ok) broadcastSSE('captures', { changed: true });
+  },
+});
+// Screenshots made ready to share: private spots, covered and edited copies.
+const _captureCovers = CaptureCovers.createCaptureCovers({
+  host: _captureHost,
+  store: _captures,
+  exists: (p) => fs.promises.access(p).then(() => true, () => false),
+  writeFile: (p, data) => fs.promises.writeFile(p, data),
+  rename: (a, b) => fs.promises.rename(a, b),
+  unlink: (p) => fs.promises.unlink(p),
+});
+// What is said in a recording, written down on this PC (capture-transcripts.js):
+// the engine decodes the sound, the voice's whisper.cpp writes it, one at a time.
+const _transcripts = createCaptureTranscripts({
+  host: _captureHost,
+  store: _captures,
+  dir: path.join(DATA_DIR, 'capture-transcripts'),
+  whisper: () => (_whisperReady() ? { exe: aiLocal.whisperExe(__dirname), model: aiLocal.whisperPaths(__dirname).model } : null),
+  spawn: (exe, args) => spawn(exe, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }),
+  clean: aiLocal.cleanTranscript,
+  speedArgs: aiLocal.whisperSpeedArgs,
+  lowPriority: (pid) => { try { os.setPriority(pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch { /* gone or not allowed */ } },
+  readFile: (p, enc) => fs.promises.readFile(p, enc),
+  writeFileAtomic,
+  unlink: (p) => fs.promises.unlink(p),
+  readdir: (dir) => fs.promises.readdir(dir),
+  mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+  stat: (p) => fs.promises.stat(p),
+  onState: (ev) => broadcastSSE('transcript', ev),
+});
+_transcripts.load().catch(() => {});
+// The folders the user chose for recordings, screenshots and benchmark files
+// (capture-folder.js), checked like the transfer inbox: never inside Xenon's
+// own folders, never a link. One dialog at a time, whichever it is for.
+const CAPTURE_FOLDER_TITLES = { recording: 'capture_folder_title', screenshot: 'shot_folder_title', benchmark: 'bench_folder_title', bugreport: 'bug_folder_title', buglogs: 'bug_logs_title', backup: 'backup_folder_title', transfer: 'xfer_folder_title' };
+let _captureFolderKind = 'recording';
+const _captureFolder = createCaptureFolder({
+  host: _captureHost,
+  validDir: (dir) => fileTransferLib.validInboxDir(dir, { dataDir: DATA_DIR, appRoot: path.join(__dirname, '..') }),
+  title: () => LayerI18n.text(CAPTURE_FOLDER_TITLES[_captureFolderKind], _serverHubSettings && _serverHubSettings.language),
+});
+async function defaultCaptureFolder(kind) {
+  if (kind === 'screenshot') return path.join(await picturesRoot(), 'Xenon');
+  if (kind === 'benchmark') return path.join(await documentsRoot(), 'Xenon', 'Benchmark');
+  if (kind === 'bugreport') return path.join(await documentsRoot(), 'Xenon', 'Bug reports');
+  // The log folder has no default: nothing is added until the user picks one.
+  if (kind === 'buglogs') return documentsRoot();
+  return path.join(await videosRoot(), 'Xenon');
+}
+// The dialog opens where that kind of file goes now.
+async function chooseCaptureFolder(kind = 'recording') {
+  const k = CaptureSettings.FOLDERS[kind] ? kind : 'recording';
+  // The dialog on screen is for another kind: its answer must not land here.
+  if (_captureFolder.picking() && _captureFolderKind !== k) return { ok: false, error: 'picking' };
+  _captureFolderKind = k;
+  const cur = captureOptions()[CaptureSettings.FOLDERS[k]];
+  return _captureFolder.choose(cur || await defaultCaptureFolder(k));
+}
+// Where files from a paired phone arrive (fileTransfer.inboxDir).
+async function chooseTransferFolder() {
+  if (_captureFolder.picking()) return { ok: false, error: 'picking' };
+  _captureFolderKind = 'transfer';
+  return _captureFolder.choose(transferInboxDir());
+}
+// The only writer of the fileTransfer block: POST /api/transfer/settings and
+// its /pick. `body.inboxDir`, when set, was validated by the caller.
+async function updateTransferSettings(body) {
+  await withHubSettingsLock(async () => {
+    // `prev` is read INSIDE the lock: one captured before acquiring it is
+    // already stale by the time the write lands.
+    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const merged = { ...(cur.fileTransfer || {}) };
+    for (const key of ['enabled', 'autoDeliver', 'notifyPhone']) {
+      if (typeof body[key] === 'boolean') merged[key] = body[key];
+    }
+    for (const key of ['maxFileMb', 'quotaMb', 'keepDays']) {
+      if (Number.isFinite(Number(body[key]))) merged[key] = Number(body[key]);
+    }
+    if (typeof body.inboxDir === 'string') merged.inboxDir = body.inboxDir.trim();
+    const saved = await writeHubSettings({
+      ...cur,
+      fileTransfer: merged,
+      rev: nextSettingsRev(cur.rev, body.rev),
+    });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+  });
+  _applyTransferLimits();
+  broadcastTransfer();
+  return { ok: true, ...transferSettings(), inboxDir: transferInboxDir() };
+}
+// Where one backup goes (/backup/save from the iCUE view): asked each time,
+// never remembered, opening in Downloads.
+async function chooseBackupFolder() {
+  if (_captureFolder.picking()) return { ok: false, error: 'picking' };
+  _captureFolderKind = 'backup';
+  return _captureFolder.choose(path.join(os.homedir(), 'Downloads'));
+}
+_captures.load().catch(() => {});
+// Markers on the capture timeline (capture-markers.js): the user's bookmarks
+// and, from the status tick, the game's stutters while something records.
+const captureRunning = () => _recorder.status().on === true || _replay.status().on === true;
+const _captureMarkers = createCaptureMarkers({
+  fps: fpsMonitor,
+  active: captureRunning,
+  autoMarks: () => captureOptions().autoMarks !== false,
+  onAdd: (m) => _autoClips.onMark(m),
+});
+// PresentMon pauses with no dashboard connected (_syncFpsMonitor); a recording
+// that marks stutters keeps it reading, or the video gets none.
+function holdFpsForMarkers() {
+  const hold = captureRunning() && captureOptions().autoMarks !== false;
+  if (hold === _fpsHeldByCapture) return;
+  _fpsHeldByCapture = hold;
+  _syncFpsMonitor();
+}
+// A screen or window recording (recorder.js). Start and end go to every
+// dashboard over SSE `recording` (the Deck key, the "Recording" card); the
+// saved file over SSE `capture`, like a screenshot.
+const _recorder = createRecorder({
+  host: _captureHost,
+  store: _captures,
+  game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+  exists: (p) => fs.promises.access(p).then(() => true, () => false),
+  options: captureOptions,
+  folder: () => _captureFolder.resolve(captureOptions().folder),
+  markers: _captureMarkers,
+  onChange: (state) => broadcastSSE('recording', state),
+  onSaved: (e) => broadcastSSE('capture', {
+    kind: 'recording', id: e.id, name: e.name, game: e.game, seconds: e.seconds, reason: e.reason,
+    ...(e.every ? { every: e.every, span: e.span } : {}),
+    ...(e.pruned ? { pruned: e.pruned, limitGB: captureOptions().maxGB } : {}),
+  }),
+});
+// The steps recorder (steps-recorder.js): every click a step, written up in
+// the user's language in Documents/Xenon/Steps. State to every dashboard over
+// SSE `steps` (the Deck key, the "Recording steps" card); the document over
+// SSE `capture` with the count only, never a step's text.
+const stepsLanguage = () => (_serverHubSettings && _serverHubSettings.language) || 'en';
+// "Open" / "Show" the last steps document or bug report after a restart (capture-last.js).
+const _captureLast = createCaptureLast({
+  file: path.join(DATA_DIR, 'capture-last.json'),
+  readFile: (p) => fs.promises.readFile(p, 'utf8'),
+});
+const _stepsRecorder = createStepsRecorder({
+  host: _captureHost,
+  root: documentsRoot,
+  mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+  readFile: (p) => fs.promises.readFile(p),
+  writeFile: (p, data) => fs.promises.writeFile(p, data, 'utf8'),
+  rename: (a, b) => fs.promises.rename(a, b),
+  rmdir: (dir) => fs.promises.rmdir(dir),
+  words: async () => {
+    const lang = stepsLanguage();
+    const out = {};
+    for (const key of StepsDoc.ALL_WORDS) out[key] = await LayerI18n.text(key, lang);
+    return out;
+  },
+  badge: () => LayerI18n.text('steps_badge', stepsLanguage()),
+  lang: stepsLanguage,
+  when: (ms) => {
+    try { return new Date(ms).toLocaleString(stepsLanguage(), { dateStyle: 'long', timeStyle: 'short' }); } catch { return new Date(ms).toLocaleString(); }
+  },
+  openFile: (file) => { openExternalPath(file).catch((e) => console.warn('[steps] open failed:', e && e.message)); },
+  reveal: (file) => revealInFileManager(file),
+  remember: _captureLast.forKind('steps'),
+  exists: (file) => fs.promises.access(file).then(() => true, () => false),
+  onChange: (state) => broadcastSSE('steps', state),
+  onSaved: (e) => broadcastSSE('capture', { kind: 'steps', count: e.count, reason: e.reason }),
+});
+// Instant Replay (replay.js): the last seconds of the screen in a ring on disk
+// (user-folders.js `replayRingDir`), saved like a recording. State to every dashboard over SSE
+// `replay` (the Deck key, Settings); the saved clip over SSE `capture`.
+const _replay = createReplay({
+  host: _captureHost,
+  store: _captures,
+  options: captureOptions,
+  folder: () => _captureFolder.resolve(captureOptions().folder),
+  game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+  // Running, not only in front: an Alt+Tab must not throw the kept minutes away.
+  gaming: () => gameDetect.isGameRunning(),
+  ringDir: replayRingDir(),
+  mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+  markers: _captureMarkers,
+  onChange: (state) => broadcastSSE('replay', state),
+  onSaved: (e) => broadcastSSE('capture', {
+    kind: 'replay', id: e.id, name: e.name, game: e.game, seconds: e.seconds,
+    ...(e.auto ? { auto: e.auto } : {}),
+    ...(e.folderMissing === true ? { folderMissing: true } : {}),
+    ...(e.pruned ? { pruned: e.pruned, limitGB: captureOptions().maxGB } : {}),
+  }),
+});
+// Clips the replay saves by itself around a marked moment (capture-autoclips.js,
+// capture.replayClips); fed by the marker log above.
+const _autoClips = createAutoClips({
+  replay: _replay,
+  recording: () => _recorder.status().on === true,
+  mode: () => captureOptions().replayClips || 'marks',
+});
+// The bug report package (bug-report.js): the window in front, the last
+// seconds from Instant Replay, the system and the chosen logs, in one .zip in
+// Documents/Xenon/Bug reports. Never the PC name, the user name or a window
+// title; the notice carries counts and the zip's name only.
+const _bugReport = createBugReport({
+  host: _captureHost,
+  replay: () => _replay,
+  folder: () => _captureFolder.resolve(captureOptions().bugFolder),
+  defaultDir: () => defaultCaptureFolder('bugreport'),
+  logFolder: () => _captureFolder.resolve(captureOptions().bugLogs),
+  system: async () => {
+    const s = await getSystemInfo().catch(() => ({}));
+    return {
+      xenon: APP_VERSION, os: os.type(), osRelease: os.release(), arch: os.arch(),
+      cpu: s.cpuName, cores: os.cpus().length,
+      ramTotal: s.memory && s.memory.total, ramPercent: s.memory && s.memory.percent,
+      gpu: s.gpuName, vramTotal: s.vramTotal, uptime: s.uptime,
+    };
+  },
+  foreground: () => { try { return gameDetect.getForegroundProcess(); } catch { return ''; } },
+  fs: fs.promises,
+  tmpRoot: os.tmpdir(),
+  writeZip,
+  reveal: (file) => revealInFileManager(file),
+  remember: _captureLast.forKind('bugreport'),
+  onSaved: (e) => broadcastSSE('capture', {
+    kind: 'bugreport', name: e.name, app: e.app, video: e.video, screenshot: e.screenshot, logs: e.logs,
+    ...(e.noVideo ? { noVideo: e.noVideo } : {}),
+    ...(e.logsMissing === true ? { logsMissing: true } : {}),
+    ...(e.folderMissing === true ? { folderMissing: true } : {}),
+  }),
+});
+// "Why does it stutter?" (stutter-why.js): the system tick feeds it while a game
+// runs; the perf stream carries its line, the Deck key and Bit ask it directly.
+const _stutterWatch = createStutterWatch({
+  fps: fpsMonitor,
+  readSystem: async () => ({ ...(await getSystemInfo()), cpuMaxCore: cachedCpuMaxCore }),
+  game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+});
+// A game in exclusive full screen hides the widgets over it: said once per game
+// (exclusive-hint.js), only when there is something on the overlay to hide.
+const _exclusiveHint = createExclusiveHint({
+  fps: fpsMonitor,
+  overlayShown: () => {
+    const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
+    return LayersModel.surfaceKeys(layers).some((k) => k.startsWith('overlay:')
+      && LayersModel.shownFor(layers, k).some((w) => w.show !== 'notGaming'));
+  },
+  broadcast: (payload) => broadcastSSE('exclusive_hint', payload),
+});
+const _perfStream = createPerfStream({
+  fps: fpsMonitor,
+  why: () => _stutterWatch.current(),
+  wanted: perfWanted,
+  hasClients: () => sseClients.size > 0,
+  broadcast: (payload) => broadcastSSE('perf', payload),
+  last: () => _gameSessions.last(),
+  bench: () => _benchmark.status(),
+  // A game that runs but draws no readable frames is named, not "start a game".
+  game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
+});
 function broadcastStatusNow() {
-  if (sseClients.size === 0) return;
+  // Instant Replay follows the game with or without a dashboard open; this
+  // tick also settles a backup import or a missed game event.
+  try { _replay.sync(); } catch {}
+  try { holdFpsForMarkers(); } catch {}
+  if (sseClients.size === 0) {
+    _perfStream.setGaming(false);
+    // A session still ends when its game does, and a recording marks its
+    // stutters, dashboard open or not.
+    if (_gameSessions.isOpen()) {
+      try { _gameSessions.tick({ running: gameDetect.isGameRunning(), game: gameDetect.getGameProcess() }); } catch {}
+    }
+    try { _captureMarkers.tick({ running: gameDetect.isGameRunning(), game: gameDetect.getGameProcess() }); } catch {}
+    return;
+  }
   const st = statusPayload();
+  try { _gameSessions.tick({ running: st.gameRunning, game: st.gameProcess }); } catch {}
+  try { _captureMarkers.tick({ running: st.gameRunning, game: st.gameProcess }); } catch {}
+  try { _perfStream.setGaming(st.gaming && perfWanted()); } catch {}
   try { lighting.onStatus({ gaming: st.gaming }); } catch {}
+  try { _gamePageSync(st.gameRunning); } catch {}
   try { briefing.onStatusTick(st); } catch {}
   const j = JSON.stringify(st);
   if (j === _lastStatusJson && Date.now() - _lastStatusSentAt < 30000) return;
@@ -23492,6 +26115,12 @@ async function _systemTick() {
       broadcastSSE('system', sys);
       lighting.onSystem(sys);
       try { briefing.onSystemSample(sys); } catch {}
+      try { _gameSessions.onSystem(sys); } catch {}
+      try {
+        const game = gameDetect.isGameRunning() ? gameDetect.getGameProcess() : '';
+        _stutterWatch.onSystem(game ? { ...sys, cpuMaxCore: cachedCpuMaxCore } : null, game);
+        try { _exclusiveHint.onTick(game); } catch {}
+      } catch {}
     } catch {}
   }
   const t = setTimeout(_systemTick, sensorRateMs());
@@ -23617,11 +26246,30 @@ function _gracefulShutdown() {
   // No countdown or install may start while this process is going away.
   try { autoUpdater.stop(); } catch {}
   try { widgetAutoUpdater.stop(); } catch {}
+  layersEdit.stop();
+  _perfStream.stop();
+  _calendarReminders.stop();
+  deckShortcutRunner.stop();
+  mcpDev.close();
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
-  // immediately could kill the process mid write-fsync-rename.
+  // immediately could kill the process mid write-fsync-rename. A game session
+  // in progress is closed and saved the same way.
   let shutdownFlush = Promise.resolve();
   try { shutdownFlush = _flushLightingPersist().catch(() => {}); } catch {}
+  try { const sessions = _gameSessions.flush(); shutdownFlush = Promise.all([shutdownFlush, sessions]).catch(() => {}); } catch {}
+  try { const bench = _benchmark.flush(); shutdownFlush = Promise.all([shutdownFlush, bench]).catch(() => {}); } catch {}
+  // A recording in progress is stopped and indexed before the engine goes; the
+  // index is written after it. Past the safety timeout the engine still
+  // finishes the file by itself when its stdin closes with this process.
+  try { _transcripts.stop(); } catch {}
+  try { _autoClips.stop(); } catch {}
+  try {
+    const shots = Promise.all([_recorder.flush().catch(() => {}), _stepsRecorder.flush().catch(() => {}), _replay.flush().catch(() => {})])
+      .then(() => _captureHost.stop())
+      .then(() => _captures.flush());
+    shutdownFlush = Promise.all([shutdownFlush, shots]).catch(() => {});
+  } catch { _captureHost.stop(); }
   // Terminate all open SSE streams (the main long-lived handles).
   for (const res of sseClients) { try { res.end(); } catch {} }
   sseClients.clear();
@@ -23649,6 +26297,7 @@ function _gracefulShutdown() {
   // Native controllers: hand the headers back to the board's own effects and
   // close the USB handles before the process goes.
   try { shutdownFlush = shutdownFlush.then(() => lighting.closeNative()).catch(() => {}); } catch {}
+  try { _sessionWatch.stop(); } catch {}
   // Stop the persistent PowerShell collector host (safe to kill: no SMTC handles).
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
@@ -23731,6 +26380,7 @@ function _gracefulShutdown() {
   // Stop a running disk scan (the helper child has no job object).
   try { diskSpace.stop(); } catch {}
   try { devClean.stop(); } catch {}
+  try { trialPass.stop(); } catch {}
   // Stop the Living Index host (in-RAM index + watchers).
   try { livingIndex.stop(); } catch {}
   // Unregister the global Spotlight hotkey (and cancel a pending respawn, so a

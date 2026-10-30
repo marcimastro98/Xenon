@@ -79,7 +79,7 @@ const SDK_API_VERSION = 1;
 // target `lightDevice` / `lightPart`. A pulled snapshot, no colours per LED.
 // `sensors` is every hardware sensor by name (an AIO's liquid, a VRM, each fan),
 // the catalog behind Settings → Sensor sources. Read only while granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -165,6 +165,9 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // tile shows. Low-risk (your own notes-style data, no system reach), grant-gated,
   // and each mutation is validated + length-capped in the action registry.
   tasks: Object.freeze(['taskAdd', 'taskToggle', 'taskDelete']),
+  // Mark one of the user's own Vitals meters done. Same low reach as tasks:
+  // the user's own self-care data, no system access, validated in the registry.
+  vitals: Object.freeze(['vitalsRefill']),
   // Soundboard playback. Browser-played (no registry case — the host dispatches
   // to deck.js's DeckSoundPlayer), and SDK-originated playSound may ONLY name a
   // pack-relative clip (packs/<pack>/<clip>.<ext>, see SDK_SOUND_FILE_RE) —
@@ -203,7 +206,67 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // state. The target is one of the user's own page ids, or a relative move, and
   // a page this screen does not have is refused rather than redirected.
   pages: Object.freeze(['dashboardPage']),
+  // Take a screenshot, start or stop a recording, save the Instant Replay: the
+  // capture keys of the Deck, START only. What the widget gets back is ok or an
+  // error code, never the picture, the file, its name or where it went (the
+  // bridge forwards only those two fields). SDK_ACTION_LIMITS below keeps out
+  // the modes that are not a capture: 'reveal' opens a file manager on the
+  // PC, replay on/off changes a setting, and the microphone stays the user's
+  // choice on their own key. The capture itself is never silent: the saved
+  // toast, the recording card and the on-screen badge show it as for a key.
+  // Text from the screen goes to the clipboard and the widget gets a line
+  // count: only from an area the user drags (SDK_ACTION_LIMITS), because a
+  // window or screen read would rewrite the clipboard with no gesture of theirs.
+  // A pinned screenshot is the same: an area the user drags, shown on their screen.
+  // The colour picker and the ruler wait for the user's own click or drag; the
+  // colour or size goes to the clipboard and the widget learns only ok/error.
+  // A bookmark on the recording that runs is a time on the user's own video:
+  // it starts nothing and reads nothing.
+  capture: Object.freeze(['screenshot', 'record', 'replay', 'screenText', 'screenPin', 'screenColor', 'screenMeasure', 'captureMarker']),
+  // Start and stop a benchmark of the game in front of the user (v4.12.0). The
+  // CSV stays in the user's folder: the widget gets ok or an error code, never
+  // the file, its name or the numbers in it ('reveal', which opens a file
+  // manager on the PC, is kept out by SDK_ACTION_LIMITS). Whether a run is going
+  // is already in the `perf` stream (`bench`), behind that stream's own grant.
+  benchmark: Object.freeze(['benchmark']),
+  // Open the gallery of what Xenon captured, on the screen the widget is on
+  // (the PC's screens when it is not on a dashboard). Only the filter: an `id`
+  // is never allowed, since a widget has no way to know one and must not learn
+  // that a capture exists by guessing. It never receives the list.
+  gallery: Object.freeze(['gallery']),
+  // Show or hide the widgets on the desktop and in the overlay, and switch
+  // their pages. Same kind of act as `pages` for the dashboard: what moves is
+  // the user's own layout, visible the instant it happens, and nothing leaves
+  // the PC. Placing, moving and removing widgets stays the user's (the edit mode
+  // and the voice), so one widget can never rearrange another. Drawing on the
+  // screen belongs here too: a sheet over the user's own screen, closed with
+  // Esc, that reads nothing and sends nothing back but whether it is open.
+  // Game Companion opens Bit's card for the game on the screen: the screen goes
+  // to the AI only when the user taps "Analyze screen" on the card itself.
+  layers: Object.freeze(['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion']),
 });
+
+// Per-type limits inside a category: a field the widget sends must be one of
+// these values (absent is fine: the registry's default is always allowed).
+// Mirrored in js/custom-widget.js, where bridge actions are gated.
+const SDK_ACTION_LIMITS = Object.freeze({
+  screenshot: Object.freeze({ mode: Object.freeze(['take']) }),
+  // Never the microphone or the webcam: a widget does not turn either on.
+  record: Object.freeze({ mode: Object.freeze(['toggle', 'start', 'stop']), audio: Object.freeze(['sound', 'silent']), webcam: Object.freeze(['off']) }),
+  replay: Object.freeze({ mode: Object.freeze(['save']) }),
+  screenText: Object.freeze({ target: Object.freeze(['region']) }),
+  // Pin an area the user drags, never a capture the widget names (it knows none).
+  screenPin: Object.freeze({ source: Object.freeze(['region']), id: Object.freeze([]) }),
+  benchmark: Object.freeze({ mode: Object.freeze(['toggle', 'start', 'stop']) }),
+  // Empty list = the field must be absent.
+  gallery: Object.freeze({ filter: Object.freeze(['all', 'video', 'screenshot']), id: Object.freeze([]) }),
+});
+
+function sdkActionWithinLimits(action) {
+  const limits = action && SDK_ACTION_LIMITS[action.type];
+  if (!limits) return true;
+  return Object.entries(limits).every(([field, allowed]) => action[field] == null || allowed.includes(action[field]));
+}
 
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)
 // may use — sourced from the authority (sound-packs.js) so the server can
@@ -600,6 +663,7 @@ function normalizeDeckExtras(raw, declaredActions) {
       for (const s of m.steps) {
         const action = validateAction(s && s.action);
         if (!action || !SDK_ACTION_TYPES.includes(action.type)) return { ok: false };
+        if (!sdkActionWithinLimits(s.action) || !sdkActionWithinLimits(action)) return { ok: false };
         // A macro step may only touch categories the manifest also DECLARES in
         // `actions` — otherwise the user is never asked to grant that category
         // and the macro can never run (macro_unavailable). Fail loud at install.
@@ -680,6 +744,9 @@ function macroCategories(macro) {
   return cats;
 }
 
+// The shapes a package may say it was drawn for (manifest "size").
+const TILE_SIZES = Object.freeze(['small', 'medium', 'wide', 'tall', 'large']);
+
 // Rebuild a raw manifest into the exact shape the host trusts. Returns
 // { ok:true, manifest } or { ok:false, reason } — never a spread of the input.
 function normalizeManifest(raw, folderId) {
@@ -750,6 +817,7 @@ function normalizeManifest(raw, folderId) {
   const topbarButton = raw.topbarButton === true;
   const clipboard = raw.clipboard === true;
   const accent = raw.accent === true;
+  const ai = raw.ai === true;
   // Asking to cover the dashboard. Normalized away for an ambient package: an
   // Ambient scene already owns the whole screen, so the grant would be a
   // permission line that buys the user nothing.
@@ -802,6 +870,11 @@ function normalizeManifest(raw, folderId) {
       // copies on its own). Write-only, no read; enforced entirely host-side in
       // js/custom-widget.js, so there is no server enforcement here.
       clipboard,
+      // The widget may ask the AI the user set for Bit (Sparks, their own key,
+      // Ollama or their plan) plain questions, through POST /sdk/ai: no tools,
+      // no history, a daily number per widget the user chooses. Enforced
+      // server-side (grant + this flag) in server.js and sdk-ai.js.
+      ai,
       // The widget may tint the dashboard's ACCENT at runtime — the same channel
       // the album-art accent uses, for sources Windows' media session never sees
       // (a Plex/Plexamp client, a game overlay). Runtime only: it never writes a
@@ -830,6 +903,10 @@ function normalizeManifest(raw, folderId) {
       // Cosmetic like the icon (no grant); anything else is dropped and the panel
       // falls back to the catalog entry's category, then "other".
       category: ['productivity', 'media', 'system', 'streaming'].includes(raw.category) ? raw.category : null,
+      // The shape the widget was drawn for, so a new tile of it starts with that
+      // shape instead of the default span (js/dashboard-grid.js spanForSize).
+      // Cosmetic like the category; anything else is dropped.
+      size: TILE_SIZES.includes(raw.size) && raw.surface !== 'ambient' ? raw.size : null,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,
@@ -985,6 +1062,37 @@ const PERF_PROBE_SOURCE = [
   "        { types: ['csp-violation'], buffered: true }).observe();",
   '    } catch (e) { /* ReportingObserver unsupported */ }',
   "    document.addEventListener('securitypolicyviolation', (e) => note(e.effectiveDirective, e.blockedURI), true);",
+  "    // What went wrong while it ran, for the author: an uncaught error, a",
+  "    // rejected promise nobody handled, a console.error. Same batching as above.",
+  "    const errs = new Map();",
+  "    let errT = 0;",
+  "    const flushErr = () => {",
+  "      errT = 0;",
+  "      try {",
+  "        const items = [...errs.values()].slice(0, 8);",
+  "        errs.clear();",
+  "        if (items.length) parent.postMessage({ xenonSdk: 1, type: 'error', items }, '*');",
+  "      } catch (e) { /* never disturb the widget */ }",
+  "    };",
+  "    const fault = (kind, msg) => {",
+  "      try {",
+  "        const m = String(msg == null ? '' : msg).slice(0, 300);",
+  "        const k = kind + '|' + m;",
+  "        const prev = errs.get(k);",
+  "        if (prev) prev.count++;",
+  "        else if (errs.size < 8) errs.set(k, { kind, message: m, count: 1 });",
+  "        if (!errT) errT = setTimeout(flushErr, 1500);",
+  "      } catch (e) { /* never disturb the widget */ }",
+  "    };",
+  "    window.addEventListener('error', (e) => { if (e && e.target && e.target !== window) return; fault('error', e && e.message); });",
+  "    window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; fault('rejection', r && r.message ? r.message : r); });",
+  "    try {",
+  "      const ce = console.error;",
+  "      console.error = function (...args) {",
+  "        fault('console', args.map((x) => (x && x.message) || String(x)).join(' '));",
+  "        return ce.apply(this, args);",
+  "      };",
+  "    } catch (e) { /* console not writable */ }",
   '    try {',
   '      new PerformanceObserver((l) => { for (const e of l.getEntries()) { S.lt += e.duration; S.ltN++; } })',
   "        .observe({ type: 'longtask', buffered: true });",
@@ -1286,10 +1394,13 @@ async function readPackagePayload(rootDir, id) {
 }
 
 module.exports = {
+  TILE_SIZES,
   SDK_API_VERSION,
   SDK_STREAMS,
   SDK_ACTION_CATEGORIES,
   SDK_ACTION_TYPES,
+  SDK_ACTION_LIMITS,
+  sdkActionWithinLimits,
   SDK_SOUND_FILE_RE,      // unit-tested (SDK soundboard file boundary)
   WIDGET_CSP, widgetCspFor,
   normalizeManifest,

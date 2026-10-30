@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+-->
+<!-- "Widgets only": the on-screen alerts window (js/screen-alerts.js). With no
+     dashboard window, the dashboard's pop-ups (captures, timers, Guardian,
+     scores, cameras, a Deck shortcut that failed) show here, top right of the
+     main screen, with the same cards. The window is transparent and lets every
+     click through except on a card. -->
+<html lang="en" data-screen-alerts>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon alerts</title>
+<link rel="stylesheet" href="styles/fonts.css">
+<link rel="stylesheet" href="styles/global.css">
+<link rel="stylesheet" href="styles/themes-light.css">
+<link rel="stylesheet" href="styles/theme-contract.css">
+<link rel="stylesheet" href="styles/themes-retro.css">
+<link rel="stylesheet" href="styles/themes-comic.css">
+<link rel="stylesheet" href="components/Toast/Toast.css">
+<link rel="stylesheet" href="components/CallModal/CallModal.css">
+<link rel="stylesheet" href="components/ScreenAlerts/ScreenAlerts.css">
+</head>
+<body>
+<script src="shared/src/constants.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="layer-i18n.js"></script>
+<script src="js/theme-palette.js"></script>
+<script src="js/theme-tokens.js"></script>
+<script src="js/native-bridge.js"></script>
+<script src="js/usage-mode.js"></script>
+<script src="js/audio-feedback.js"></script>
+<script src="js/toast.js"></script>
+<script src="js/alert-toasts.js"></script>
+<script src="js/deck-error-text.js"></script>
+<script src="js/capture-toast.js"></script>
+<script src="js/capture-gallery-model.js"></script>
+<script src="js/call-modal.js"></script>
+<script src="js/screen-bit.js"></script>
+<script src="js/screen-companion.js"></script>
+<script src="js/screen-alerts.js"></script>
+<!-- Bit's voice panel, the dashboard's own, cut from index.html by the route
+     (server/screen-alerts-page.js). Inert until "Hey Xenon" (js/screen-bit.js). -->
+<template id="screen-bit-markup"><!-- bit markup --></template>
+<!-- The Game Companion card, cut from index.html the same way. Inert until a
+     Deck key, its shortcut or the voice opens it (js/screen-companion.js). -->
+<template id="screen-companion-markup"><!-- companion markup --></template>
+</body>
+</html>

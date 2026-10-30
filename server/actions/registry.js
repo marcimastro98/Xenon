@@ -6,6 +6,11 @@
 const { validateAction, validateGesture } = require('../js/deck-actions.js');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');
+const { CAPABILITIES } = require('../js/capability-catalog.js');
+
+// Types declared in js/capability-catalog.js. Validated above like every other
+// action, then handed whole to the capability runner (server/capabilities/).
+const CAPABILITY_TYPES = new Set(CAPABILITIES.map(c => c.type));
 
 function isHttpUrl(s) {
   return typeof s === 'string' && /^https?:\/\/\S+$/i.test(s.trim());
@@ -590,6 +595,11 @@ function createRegistry(deps) {
           const r = await d.timers.cancel(label);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
         }
+        case 'vitalsRefill': {
+          if (typeof d.vitalsRefill !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.vitalsRefill(action.vital);
+          return r && r.ok ? { ok: true, refilled: r.refilled } : { ok: false, error: (r && r.error) || 'refill_failed' };
+        }
         case 'taskAdd': {
           if (typeof d.taskAdd !== 'function') return { ok: false, error: 'unavailable' };
           const text = action.text.trim();
@@ -967,7 +977,13 @@ function createRegistry(deps) {
           const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args, gesture);
           return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'handler_failed' };
         }
-        default: return { ok: false, error: 'unsupported' };
+        default:
+          if (CAPABILITY_TYPES.has(action.type)) {
+            if (typeof d.runCapability !== 'function') return { ok: false, error: 'unavailable' };
+            const r = await d.runCapability(action);
+            return r && typeof r === 'object' ? r : { ok: false, error: 'capability_failed' };
+          }
+          return { ok: false, error: 'unsupported' };
       }
     } catch (err) {
       return { ok: false, error: (err && err.message) || 'effect_error' };

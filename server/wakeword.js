@@ -1,7 +1,7 @@
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Local "Hey Xenon" wake word — zero extra dependencies, 100% offline.
+// Local "Hey Bit" wake word — zero extra dependencies, 100% offline.
 //
 // The same ffmpeg the STT recorder uses streams raw 16 kHz mono PCM from the
 // default microphone; a Node-side energy VAD cuts out short utterances; each
@@ -179,14 +179,27 @@ function _createSegmenter(onSegment) {
   };
 }
 
-// Does a transcript contain the wake phrase? Deliberately fuzzy: whisper
-// renders an accented "hey xenon" as "ehi zenon", "hei senon", "zenone", …
-// The leading "hey" is optional — the product name alone is distinctive
-// enough, and requiring it would miss more wakes than it saves.
+// The wake phrase is "Hey Bit", the assistant's name. "Bit" alone is an everyday
+// word ("a bit", "bit by bit"), so unlike the old name it only counts right after
+// a call word, and whisper's accented takes of both are accepted: "ehi bit",
+// "hei bit", "hey beat", "heybit".
+const CALL_WORD = /^(hey|hei|hej|hay|ehi|ei|ey)$/;
+const BIT_WORD = /^(bit|bitt|bits|beat|bid)$/;
+
+// Does a transcript contain the wake phrase? Deliberately fuzzy: whisper picks
+// spellings freely. "Hey Xenon", the phrase before Bit had a name, still works
+// so nobody who learned it is left talking to a dashboard that no longer listens.
 function matchesWakeWord(text) {
   if (typeof text !== 'string' || !text) return false;
   const plain = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const tokens = plain.split(/[^a-z]+/).filter(Boolean);
+  if (tokens.some((tok, i) => CALL_WORD.test(tok) && BIT_WORD.test(tokens[i + 1] || ''))) return true;
+  if (tokens.some((tok) => /^(hey|hei|ehi|ei|ey)(bit|bitt|beat)$/.test(tok))) return true;
+  return matchesOldName(tokens);
+}
+
+// "Hey Xenon": the leading "hey" is optional, the old name alone is distinctive.
+function matchesOldName(tokens) {
   // The product name's phonetic skeleton is consonant + vowel + n + vowel + n —
   // "xenon" / "zenon" / "senon" / "sanon" / "zenone" / "xeneon". Whisper picks the
   // vowels freely (renders "Hey Xenon" as "AXANON", "Sanon", "AXN on", …) so the
@@ -206,9 +219,9 @@ function matchesWakeWord(text) {
 async function _onSegment(pcm) {
   const durMs = Math.round(pcm.length / (SAMPLE_RATE * 2) * 1000);
   if (_stopped || !_wanted || _suspended) return;
-  if (_transcribing) { _wdbg(`segment ${durMs}ms dropped — whisper busy`); return; }
-  if (Date.now() - _lastWakeAt < WAKE_COOLDOWN_MS) { _wdbg(`segment ${durMs}ms dropped — post-wake cooldown`); return; }
-  if (_deps.isBusy()) { _wdbg(`segment ${durMs}ms dropped — mic owned by voice session`); return; }
+  if (_transcribing) { _wdbg(`segment ${durMs}ms dropped: whisper busy`); return; }
+  if (Date.now() - _lastWakeAt < WAKE_COOLDOWN_MS) { _wdbg(`segment ${durMs}ms dropped: post-wake cooldown`); return; }
+  if (_deps.isBusy()) { _wdbg(`segment ${durMs}ms dropped: mic owned by voice session`); return; }
   _transcribing = true;
   try {
     const text = await _deps.transcribe(_wavFromPcm(pcm));

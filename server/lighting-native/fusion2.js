@@ -170,6 +170,15 @@ class Fusion2Controller {
     });
   }
 
+  // Forget what the controller was told (LED counts, frames, who owns the
+  // headers): the next write sets it all up again.
+  forget() {
+    this.counts = [];
+    this.lastFrames = [];
+    this.lastZones = [];
+    this.taken = false;
+  }
+
   async close() {
     try { await this.release(); } catch { /* the device may be gone */ }
     if (this.dev) await this.dev.close();

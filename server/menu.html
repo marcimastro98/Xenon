@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+-->
+<!-- The Xenon menu over the main screen (js/screen-menu-page.js): the native
+     shell shows this page over everything while the menu is open
+     (server/screen-menu.js). The same menu as the dashboard's panel
+     (js/xenon-menu.js draws both). -->
+<html lang="en" data-screen-menu>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon menu</title>
+<link rel="stylesheet" href="styles/fonts.css">
+<link rel="stylesheet" href="styles/global.css">
+<link rel="stylesheet" href="styles/themes-light.css">
+<link rel="stylesheet" href="styles/theme-contract.css">
+<link rel="stylesheet" href="styles/themes-retro.css">
+<link rel="stylesheet" href="styles/themes-comic.css">
+<link rel="stylesheet" href="components/Base/components-base.css">
+<link rel="stylesheet" href="components/XenonMenu/XenonMenu.css">
+</head>
+<body class="xm-page">
+<div class="xm-scrim" id="xm-scrim">
+  <div class="xm-frame" role="dialog" aria-modal="true" data-i18n-aria-label="xmenu_title">
+    <div id="xm-root"></div>
+  </div>
+</div>
+<script src="shared/src/constants.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="layer-i18n.js"></script>
+<script src="js/theme-palette.js"></script>
+<script src="js/theme-tokens.js"></script>
+<script src="js/deck-shortcuts.js"></script>
+<script src="js/deck-error-text.js"></script>
+<script src="js/xenon-menu-icons.js"></script>
+<script src="js/xenon-menu.js"></script>
+<script src="js/menu-gamepad.js"></script>
+<script src="js/screen-menu-page.js"></script>
+</body>
+</html>
