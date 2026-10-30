@@ -26,7 +26,7 @@
     "cc.jump.link": "连接方法",
     "cc.jump.mod": "Xenon mod",
     "cc.jump.data": "什么数据发往哪里",
-    "cc.jump.ai": "Xenon AI",
+    "cc.jump.ai": "Bit",
     "cc.jump.faq": "常见问题",
     "cc.h.quota": "5 小时和 7 天额度",
     "cc.quota.p1": "Claude Code 会把你订阅的真实限额交给它的状态行：5 小时窗口和 7 天窗口，各自包括已用多少以及何时重置。连接 Claude Code 后，Xenon 会把每个窗口画成一排分段的格子，并带有距离重置的倒计时。",
@@ -79,8 +79,8 @@
     "cc.data.p2": "Claude Code 的钩子和状态行把报告发送到 <code>127.0.0.1</code>，也就是你自己的电脑。每份报告都必须携带 Xenon 生成的密钥，没有密钥的报告会被 Xenon 拒绝。钩子通过请求头发送密钥，状态行脚本则从 Xenon 自己的数据文件夹中读取密钥，所以密钥不会出现在命令行或进程列表中。",
     "cc.data.p3": "实时会话状态保存在内存中。Xenon 不会把它写入磁盘，Xenon 重启时它从空白开始。",
     "cc.data.p4": "已配对的手机可以使用这个磁贴、回答请求和启动运行，但不能冒充 Claude Code 发送报告：已配对设备访问这些地址会被拒绝。",
-    "cc.h.ai": "用你的 Claude 或 ChatGPT 订阅驱动 Xenon AI",
-    "cc.ai.p1": "与这个磁贴无关的另一项功能：从 4.11.10 版起，仪表盘的助手 Xenon AI 可以通过你自己的订阅回答，而不必使用 API 密钥。在<strong>设置 → Xenon AI</strong>中选择 <strong>Claude Code</strong> 或 <strong>Codex</strong>。之后 Xenon 会调用你电脑上安装的官方程序，该程序用你的 Claude 或 ChatGPT 套餐登录。",
+    "cc.h.ai": "用你的 Claude 或 ChatGPT 订阅驱动 Bit",
+    "cc.ai.p1": "与这个磁贴无关的另一项功能：从 4.11.10 版起，仪表盘的助手 Bit 可以通过你自己的订阅回答，而不必使用 API 密钥。在<strong>设置 → Bit 助手</strong>中选择 <strong>Claude Code</strong> 或 <strong>Codex</strong>。之后 Xenon 会调用你电脑上安装的官方程序，该程序用你的 Claude 或 ChatGPT 套餐登录。",
     "cc.ai.p2": "你在程序内部通过 Anthropic 或 OpenAI 自己的登录流程登录，Xenon 不会读取、保存或转交你的凭据。这是 Anthropic 允许在其自有应用之外使用 Claude 订阅的唯一方式。",
     "cc.ai.p3": "“设置”会显示程序是否已安装并登录，如果没有，还会告诉你该运行什么。模型菜单由程序自己填充，所以列出的是你的账号目前可以使用的模型。",
     "cc.ai.p4": "助手保留它的仪表盘工具：它可以更换主题、设置 Deck 按键、添加任务和计时器，以及控制灯光和媒体。程序自带的终端和文件工具保持关闭。",
@@ -97,6 +97,10 @@
     "cc.faq.api.q": "这个磁贴能配合 API 密钥使用吗？",
     "cc.faq.api.a": "能，但没有额度窗口，额度窗口只有 Pro 和 Max 套餐才有。磁贴会改为用你设定的每周预算来衡量你的令牌用量。",
     "cc.cta.h": "下载 Xenon",
-    "cc.cta.p": "免费，无需账号。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或者在<a href=\"/download.html\">下载页面</a>选择你的系统。想先看看，可以打开<a href=\"/demo/\">浏览器演示</a>。"
+    "cc.cta.p": "免费，无需账号。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">下载 Windows 版 Xenon</a>，或者在<a href=\"/download.html\">下载页面</a>选择你的系统。想先看看，可以打开<a href=\"/demo/\">浏览器演示</a>。",
+    "cc.jump.widgets": "你的小组件",
+    "cc.h.widgets": "制作你自己的小组件",
+    "cc.widgets.p1": "如果你在 Claude Code 中写代码，它也能为 Xenon 制作小组件。在<strong>设置 → 小组件与分享 → 用 Claude Code 或 Codex 制作小组件</strong>中，点击<strong>连接 Claude Code</strong>。Claude Code 会阅读小组件 SDK，在文件夹中编写小组件，安装到你的仪表板，查看遇到的错误和磁贴截图，然后修正它。",
+    "cc.widgets.p2": "第一次使用时，仪表板会询问是否允许。它绝不会批准小组件的权限，只修改你自己做的小组件，并且只能在运行 Xenon 的电脑上使用。<a href=\"/create/#mcp\">工作原理及手动添加方法</a>。"
   }
 }

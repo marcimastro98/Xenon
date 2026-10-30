@@ -26,7 +26,7 @@
     "cc.jump.link": "Connecting it",
     "cc.jump.mod": "The mod",
     "cc.jump.data": "What is sent where",
-    "cc.jump.ai": "Xenon AI",
+    "cc.jump.ai": "Bit",
     "cc.jump.faq": "Common questions",
     "cc.h.quota": "The 5-hour and 7-day quota",
     "cc.quota.p1": "Claude Code hands its status line the real limits of your subscription: the 5-hour window and the 7-day window, each with how much is used and when it resets. Once Claude Code is connected, Xenon draws each window as a row of segments with a countdown to its reset.",
@@ -79,8 +79,8 @@
     "cc.data.p2": "Claude Code's hooks and status line send their reports to <code>127.0.0.1</code>, which is your own PC. Each report must carry a key that Xenon created, and Xenon refuses any report without it. The hooks send the key in a request header and the status line script reads it from Xenon's own data folder, so it never appears on a command line or in a process list.",
     "cc.data.p3": "Live session state is kept in memory. Xenon does not write it to disk, and it starts empty when Xenon restarts.",
     "cc.data.p4": "A paired phone can use the tile, answer requests and start runs, but it cannot send reports as if it were Claude Code: those addresses are refused to paired devices.",
-    "cc.h.ai": "Xenon AI on your Claude or ChatGPT subscription",
-    "cc.ai.p1": "Separate from the tile, Xenon AI, the dashboard's assistant, can answer through your own subscription instead of an API key, since version 4.11.10. In <strong>Settings → Xenon AI</strong>, pick <strong>Claude Code</strong> or <strong>Codex</strong>. Xenon then asks the official program installed on your PC, signed in with your Claude or ChatGPT plan.",
+    "cc.h.ai": "Bit on your Claude or ChatGPT subscription",
+    "cc.ai.p1": "Separate from the tile, Bit, the dashboard's assistant, can answer through your own subscription instead of an API key, since version 4.11.10. In <strong>Settings → Bit assistant</strong>, pick <strong>Claude Code</strong> or <strong>Codex</strong>. Xenon then asks the official program installed on your PC, signed in with your Claude or ChatGPT plan.",
     "cc.ai.p2": "You sign in inside the program, through Anthropic's or OpenAI's own sign-in, and Xenon does not read, store or pass on your credentials. This is the only way Anthropic allows a Claude subscription to be used outside its own apps.",
     "cc.ai.p3": "Settings shows whether the program is installed and signed in, and what to run if it is not. The model menu is filled by the program itself, so it lists what your account can use today.",
     "cc.ai.p4": "The assistant keeps its dashboard tools: it can change the theme, set up Deck keys, add tasks and timers, and control lights and media. The program's own terminal and file tools stay switched off.",
@@ -97,6 +97,10 @@
     "cc.faq.api.q": "Does the tile work with an API key?",
     "cc.faq.api.a": "Yes, without the quota windows, which only Pro and Max plans have. The tile measures your tokens against a weekly budget you set instead.",
     "cc.cta.h": "Download Xenon",
-    "cc.cta.p": "Free, with no account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or pick your system on the <a href=\"/download.html\">download page</a>. To look around first, open the <a href=\"/demo/\">browser demo</a>."
+    "cc.cta.p": "Free, with no account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or pick your system on the <a href=\"/download.html\">download page</a>. To look around first, open the <a href=\"/demo/\">browser demo</a>.",
+    "cc.jump.widgets": "Your widgets",
+    "cc.h.widgets": "Building your own widgets",
+    "cc.widgets.p1": "If you write code in Claude Code, it can also build widgets for Xenon. In <strong>Settings → Widgets &amp; sharing → Build widgets with Claude Code or Codex</strong>, press <strong>Connect Claude Code</strong>. Claude Code then reads the Widget SDK, writes the widget in a folder, installs it on your dashboard, reads the errors it hits and looks at a picture of its tile, then fixes it.",
+    "cc.widgets.p2": "The first time, the dashboard asks whether to allow it. It never approves a widget's permissions, only changes widgets you made, and works only from the PC running Xenon. <a href=\"/create/#mcp\">How it works, and how to add it by hand</a>."
   }
 }

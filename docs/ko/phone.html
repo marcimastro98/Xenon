@@ -71,13 +71,12 @@
   .route { background: var(--panel); border: 0; border-radius: var(--r-1); padding: 24px 24px 22px; }
   .route.pick { background: var(--g-2); }
   .route .tag { display: block; margin-bottom: 8px; font: 600 15px/1.3 var(--sans); color: var(--muted); }
-  /* Beta mark for the feature this whole page is about. Gold, not green: green
-     is what this page uses for "yes, this works", and a caveat must not borrow it. */
+  /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
   .beta-pill {
     display: inline-block; vertical-align: middle; margin-left: 12px;
-    font: 700 15px/1 var(--sans); letter-spacing: 0;
-    color: var(--beta-fg); background: var(--beta-bg);
-    border-radius: 6px; padding: 5px 9px;
+    font: 600 15px/1.2 var(--sans); letter-spacing: 0;
+    color: var(--muted); border: 1px solid var(--rule-2);
+    border-radius: 4px; padding: 3px 8px;
   }
   .route h3 { margin: 0 0 6px; font: 700 20px/1.3 var(--display); color: var(--text); }
   .route .time { font-size: 15px; color: var(--muted); margin: 0 0 12px; }
@@ -145,17 +144,17 @@
   .grid > div.h2 { grid-row: span 2; }
   .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
   /* ── A reproduction of the settings rows ──────────────────────── */
-  .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .ui { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
   .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .ui-row:last-child { border-bottom: none; }
   .sw { width: 34px; height: 20px; border-radius: 999px; background: var(--rule); flex: none; position: relative; margin-top: 2px; }
-  .sw.on { background: var(--bone-0); }
+  .sw.on { background: var(--main); }
   .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #0b0d0c; }
   .sw.on::after { left: auto; right: 3px; background: #08110c; }
   .ui-txt strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 600; }
   .ui-txt span { display: block; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .ui-btn { display: inline-block; background: var(--g-2); border: 1px solid var(--rule-2);
-            color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
+            color: var(--green); border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
   .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
   .yn ul { list-style: none; padding: 0; margin: 0; }
   .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
@@ -174,8 +173,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
@@ -189,10 +188,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
       <ul class="xh-mlinks">
@@ -247,7 +246,7 @@
           <li><span class="k">✓</span><span data-i18n="ph.can.2">덱 키. 휴대폰이 아니라 PC에서 실행됩니다</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.3">미디어, 볼륨, 마이크 음소거, 앱 전환</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.4">스토어: 위젯, 아이콘 팩, 사운드 팩, 테마</span></li>
-          <li><span class="k">✓</span><span data-i18n="ph.can.5">Xenon AI, 그리고 PC에 저장되는 설정</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.5">Bit, 그리고 PC에 저장되는 설정</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.6">사진과 파일을 양방향으로 보내기</span></li>
         </ul>
       </div>
@@ -285,7 +284,7 @@
         <ul>
       <li data-i18n="ph.r2.1">암호화되고, 공유기 포트를 하나도 열지 않고 어디서나 쓸 수 있습니다</li>
       <li data-i18n="ph.r2.2">휴대폰에 앱처럼 설치되고 아이콘도 생깁니다</li>
-      <li data-i18n="ph.r2.3">Xenon AI가 마이크를 쓸 수 있게 됩니다</li>
+      <li data-i18n="ph.r2.3">Bit이 마이크를 쓸 수 있게 됩니다</li>
       <li data-i18n="ph.r2.4">공유기가 주소를 바꿔도 주소가 그대로입니다</li>
         </ul>
       </div>
@@ -355,7 +354,7 @@
       </li>
       <li>
         <h3 data-i18n="ph.t5.h">홈 화면에 추가합니다</h3>
-        <p data-i18n-html="ph.t5.p">Safari에서는 공유를 누르고 <strong>홈 화면에 추가</strong>를 고르세요. Android에서는 Chrome이 설치를 제안합니다. 그러면 Xenon이 자체 아이콘으로, 주소창 없이 전체 화면으로 열립니다. 여기서는 마이크가 되므로 Xenon AI가 PC 대신 휴대폰으로 들을 수 있습니다. 알림도 됩니다. 설정에서 휴대폰으로 들어가 이 기기의 알림을 켜 두면, 앱을 닫아 두어도 타이머가 끝날 때 알려 줍니다.</p>
+        <p data-i18n-html="ph.t5.p">Safari에서는 공유를 누르고 <strong>홈 화면에 추가</strong>를 고르세요. Android에서는 Chrome이 설치를 제안합니다. 그러면 Xenon이 자체 아이콘으로, 주소창 없이 전체 화면으로 열립니다. 여기서는 마이크가 되므로 Bit이 PC 대신 휴대폰으로 들을 수 있습니다. 알림도 됩니다. 설정에서 휴대폰으로 들어가 이 기기의 알림을 켜 두면, 앱을 닫아 두어도 타이머가 끝날 때 알려 줍니다.</p>
       </li>
     </ol>
 
@@ -397,10 +396,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

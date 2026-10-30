@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>한 화면에서 쓰는 Xenon: 위젯, 게임 오버레이, 인스턴트 리플레이</title>
+<meta name="description" content="두 번째 모니터도 계정도 없이 바탕 화면이나 게임 위에 위젯, FPS 오버레이, 스크린샷, 녹화, 인스턴트 리플레이를 띄웁니다.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="한 화면에서 쓰는 Xenon: 위젯, 게임 오버레이, 인스턴트 리플레이">
+<meta property="og:description" content="두 번째 모니터도 계정도 없이 바탕 화면이나 게임 위에 위젯, FPS 오버레이, 스크린샷, 녹화, 인스턴트 리플레이를 띄웁니다.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ko/single-screen.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/ko/single-screen.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/single-screen.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/single-screen.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/single-screen.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/single-screen.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/single-screen.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/single-screen.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/single-screen.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/single-screen.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon을 쓰려면 두 번째 모니터가 필요한가요?","acceptedAnswer":{"@type":"Answer","text":"아니요. Xenon 앱에서는 위젯을 바탕 화면이나 앱 위에 둘 수 있고, Xenon 메뉴는 어느 앱에서나 Alt+Shift+X로 열립니다. 두 번째 화면이나 페어링한 휴대폰은 선택 사항입니다."}},{"@type":"Question","name":"오버레이가 게임 안으로 들어가나요?","acceptedAnswer":{"@type":"Answer","text":"아니요. Xenon은 게임 위에 자기 창을 그리고, Windows에서는 PresentMon으로 프레임 타임을 읽습니다. 게임 프로세스에 코드를 넣는 일은 절대 없습니다."}},{"@type":"Question","name":"인스턴트 리플레이에 NVIDIA나 AMD 그래픽 카드가 필요한가요?","acceptedAnswer":{"@type":"Answer","text":"아니요. Windows와 macOS에서는 시스템 자체의 캡처와 동영상 인코더를 쓰므로 어떤 그래픽 카드에서도 작동합니다. 기본으로 꺼져 있으며, 보관하는 몇 분의 영상은 메모리가 아니라 디스크에 있습니다."}},{"@type":"Question","name":"이 기능들은 유료인가요?","acceptedAnswer":{"@type":"Answer","text":"아니요. 화면 위젯, 오버레이, 스크린샷, 녹화, 인스턴트 리플레이, 갤러리는 무료이며 계정이 필요 없습니다."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/single-screen.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/single-screen.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/single-screen.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/single-screen.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/single-screen.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/single-screen.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/single-screen.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">메뉴</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">커피 한 잔 사주기</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/single-screen.html" aria-current="page" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"화면 하나로 쓰는 Xenon","item":"https://xenon-app.com/ko/single-screen.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="os.h1">한 화면에서 쓰는 Xenon</h1>
+    <p class="lede" data-i18n="os.lede">Xenon은 위젯, 게임 성능 오버레이, 스크린샷, 녹화, 인스턴트 리플레이를 지금 쓰는 화면에 띄웁니다. 두 번째 모니터도 계정도 필요 없고, 게임에 아무것도 주입하지 않습니다.</p>
+    <p class="updated" data-i18n="os.updated">최종 업데이트: 2026년 10월 30일</p>
+
+    <p data-i18n-html="os.intro">이 모든 것은 <strong>Xenon 앱</strong>에 있습니다. Windows에서 동작하며 macOS와 Linux는 베타입니다. 원하면 두 번째 화면이나 휴대폰의 대시보드도 그대로 쓸 수 있고, 그 대시보드로 이 페이지의 모든 것을 제어할 수 있습니다.</p>
+
+    <nav class="jump">
+      <a href="#widgets" data-i18n="os.jump.widgets">위젯</a>
+      <a href="#menu" data-i18n="os.jump.menu">Xenon 메뉴</a>
+      <a href="#perf" data-i18n="os.jump.perf">게임 성능</a>
+      <a href="#capture" data-i18n="os.jump.capture">캡처</a>
+      <a href="#phone" data-i18n="os.jump.phone">내 휴대폰</a>
+      <a href="#systems" data-i18n="os.jump.systems">Mac과 Linux</a>
+      <a href="#faq" data-i18n="os.jump.faq">자주 묻는 질문</a>
+    </nav>
+
+    <h2 id="widgets" data-i18n="os.h.widgets">화면 위의 위젯</h2>
+    <p data-i18n-html="os.widgets.p1">Bit에게 <strong>“날씨를 바탕 화면 오른쪽 위에 띄워 줘”</strong>라고 하면 위젯이 그 자리에 나타납니다. 위젯은 <strong>바탕 화면에</strong> 두어 창 아래에 있다가 바탕 화면을 표시할 때 올라오게 할 수 있고, <strong>모든 것 위에</strong> 두어 앱과 테두리 없는 창 모드의 게임 위에 띄울 수 있고, <strong>앱 옆에</strong> 두어 그 창을 따라다니다가 창을 최소화하면 숨게 할 수도 있습니다.</p>
+    <p data-i18n="os.widgets.p2">위젯 옆을 클릭하면 그 아래에 있는 것이 클릭되고, 위젯을 클릭해도 쓰던 창의 포커스를 빼앗지 않습니다. 대시보드의 모든 타일과 모든 Store 위젯을 화면에 둘 수 있습니다.</p>
+    <p data-i18n-html="os.widgets.p3">직접 배치하려면 Bit에게 “위젯 좀 옮길게”라고 하거나 Deck 키 <strong>화면의 위젯 편집</strong>을 누르세요. 끌어서 옮기고, 모서리를 끌어 크기를 바꾸고, 위젯을 다른 위젯 위에 놓으면 탭이 됩니다. 위젯은 업무, 게임 같은 페이지에 나눠 둘 수 있습니다. <strong>게임할 때</strong>로 표시한 페이지는 게임이 실행되는 동안 저절로 나타나고, 페이지가 가상 데스크톱을 따라가게 할 수도 있습니다.</p>
+    <p data-i18n-html="os.widgets.p4">대시보드가 전혀 필요 없다면 설정 → 일반 → Xenon 사용 방식에서 <strong>위젯만</strong>을 고르세요. 그러면 앱은 숨겨진 창까지 포함해 대시보드 창을 하나도 두지 않고 메모리도 덜 씁니다. 클립 저장이나 타이머 종료 같은 알림은 화면 오른쪽 위에 나타나고, Bit은 여전히 “Hey Xenon”에 답합니다.</p>
+
+    <h2 id="menu" data-i18n="os.h.menu">Xenon 메뉴</h2>
+    <p data-i18n-html="os.menu.p1">테두리 없는 창 모드의 게임을 포함해 어떤 앱에서든 <strong>Alt+Shift+X</strong>를 누르면 화면 위에 메뉴 하나가 열립니다. 스크린샷, 영역, 녹화, 갤러리, 화면의 위젯과 그 페이지, 게임 위 오버레이, 캡처 옵션, 한곳에 모은 모든 단축키(다른 앱이 이미 쓰는 키는 그 앱 이름 표시), 모양, Xenon 사용 방식이 들어 있습니다.</p>
+    <p data-i18n="os.menu.p2">트레이나 Deck 키에서 열거나 Bit에게 부탁해도 됩니다. 컨트롤러에서는 가운데의 작은 버튼 두 개를 잠깐 함께 누르고 있으세요. Xbox 방식 컨트롤러는 보기(View)와 메뉴(Menu), PlayStation 컨트롤러는 만들기(Create)와 옵션(Options)입니다. 방향 패드로 이동하고, A로 누르고, B로 닫습니다.</p>
+
+    <h2 id="perf" data-i18n="os.h.perf">게임 위에 띄우는 게임 성능</h2>
+    <p data-i18n-html="os.perf.p1"><strong>게임 성능</strong> 타일은 지금 하는 게임의 프레임 레이트, 1%와 0.1% 로우, 프레임 타임, 그리고 끊김이 뾰족하게 튀어 보이는 최근 프레임 그래프를 보여 주고, 그 아래에 CPU와 GPU 부하를 표시합니다. Bit에게 “게임 위에 FPS 보여 줘”라고 하면 게임 위에 띄웁니다. Windows에서는 <strong>Ctrl+Shift+F9</strong>로 게임 위의 위젯을 숨겼다가 다시 보이게 합니다.</p>
+    <p data-i18n="os.perf.p2">Xenon은 2분 넘게 플레이한 게임을 모두 기억하므로 어느 저녁과 다음 저녁을 비교할 수 있고, Bit은 Xenon이 이미 측정한 데이터로 “게임이 왜 끊겨?”에 답합니다. Deck 키 하나로 플레이 한 번의 모든 프레임 타임을 CSV 파일로 저장합니다.</p>
+    <p data-i18n="os.perf.p3">Windows에서는 Xenon이 모든 프레임을 측정합니다. Linux에서는 게임을 MangoHud로 실행해야 프레임 레이트가 나옵니다. macOS에서는 한 앱이 다른 앱의 프레임 레이트를 측정할 수 없으며, 타일에 그렇게 표시됩니다.</p>
+
+    <h2 id="capture" data-i18n="os.h.capture">스크린샷, 녹화, 인스턴트 리플레이</h2>
+    <p data-i18n="os.capture.p1">화면 전체, 맨 앞의 창, 또는 멈춘 화면 위에서 끌어 지정한 영역의 스크린샷을 찍으세요. HDR 화면에서는 보이는 색 그대로 저장됩니다. 화면이나 창 하나를 소리와 함께 MP4로 녹화하고, 마이크는 직접 고를 때만 추가됩니다.</p>
+    <p data-i18n-html="os.capture.p2"><strong>인스턴트 리플레이</strong>는 화면의 마지막 몇 분을 15초부터 60분까지 메모리가 아니라 디스크에 보관합니다. Windows에서 <strong>Ctrl+Shift+F10</strong>을 누르거나, Deck 키를 탭하거나, “방금 30초 저장해 줘”라고 말하면 약 1초 만에 클립이 저장됩니다. 켜져 있는 동안 계속 녹화하므로 설정 → 캡처에서 직접 켜기 전까지는 꺼져 있습니다.</p>
+    <p data-i18n="os.capture.p3">인스턴트 리플레이가 실행되는 동안 순간을 표시하면 Xenon이 그 앞뒤로 클립을 저장합니다. 갤러리는 캡처를 날짜와 게임별로 묶고, 동영상을 다시 인코딩하지 않고 자르고, 이 PC에서 받아쓰기를 만들고, 세로 9:16 사본이나 채팅용 가벼운 사본을 만들고, 캡처를 페어링한 휴대폰으로 보냅니다.</p>
+    <p data-i18n="os.capture.p4">Windows와 macOS에서는 시스템 자체의 캡처와 동영상 인코더를 쓰므로 어떤 그래픽 카드에서도 작동합니다. 모든 것이 PC에 남으며, 아무것도 업로드되지 않습니다.</p>
+
+    <h2 id="phone" data-i18n="os.h.phone">두 번째 화면이 되는 휴대폰</h2>
+    <p data-i18n-html="os.phone.p1">모니터가 하나라면 주머니 속 휴대폰이 두 번째 화면이 될 수 있습니다. Xenon과 페어링하면 내 Wi-Fi를 통해 대시보드가 표시됩니다. FPS를 보여 주는 게임 성능 타일이 있으니 게임 위에는 아무것도 띄우지 않아도 되고, Deck 키로 PC에서 리플레이를 저장하거나 스크린샷을 찍을 수 있습니다. <a href="/ko/phone.html">휴대폰 페어링 방법</a>.</p>
+
+    <h2 id="systems" data-i18n="os.h.systems">Mac과 Linux에서</h2>
+    <p data-i18n="os.systems.p1">화면 위젯, 위젯만 모드, Xenon 메뉴, 스크린샷, 녹화는 macOS와 Linux에서도 베타로 동작합니다. 아직 실제 Mac이나 실제 Linux PC에서 시험하지 않았으니 안 되는 것이 있으면 알려 주세요. 시스템이 할 수 없는 기능은 나타나지 않으며, 설정에 이유가 표시됩니다.</p>
+    <p data-i18n="os.systems.p2">Linux에서는 데스크톱 환경과 설치된 도구에 따라 쓸 수 있는 기능이 달라집니다. 위젯에는 컴포지터가 있는 X11 세션, 또는 gtk-layer-shell 라이브러리가 있는 KDE Plasma, Sway, Hyprland가 필요합니다. Wayland의 GNOME은 앱이 자기 창을 다른 창 아래나 위에 두지 못하게 합니다. SteamOS 게임 모드에서는 게임 위에 아무것도 열 수 없으니 휴대폰을 쓰세요.</p>
+
+    <h2 id="limits" data-i18n="os.h.limits">Xenon이 하지 않는 일</h2>
+    <p data-i18n="os.limits.p1">Xenon은 자기 창만 그리고 게임 프로세스에는 절대 들어가지 않습니다. 그래서 전용 전체 화면 게임 위에는 그릴 수 없습니다. 타일에 그렇게 표시되며, 게임의 디스플레이 설정에서 테두리 없는 창 모드로 바꿀 수 있습니다. 오버클럭, 전압이나 팬 변경, 드라이버 설정 변경은 하지 않습니다.</p>
+
+    <h2 id="faq" data-i18n="os.h.faq">자주 묻는 질문</h2>
+    <details><summary data-i18n="os.faq.second.q">Xenon을 쓰려면 두 번째 모니터가 필요한가요?</summary><div class="body"><p data-i18n="os.faq.second.a">아니요. Xenon 앱에서는 위젯을 바탕 화면이나 앱 위에 둘 수 있고, Xenon 메뉴는 어느 앱에서나 Alt+Shift+X로 열립니다. 두 번째 화면이나 페어링한 휴대폰은 선택 사항입니다.</p></div></details>
+    <details><summary data-i18n="os.faq.cheat.q">오버레이가 게임 안으로 들어가나요?</summary><div class="body"><p data-i18n="os.faq.cheat.a">아니요. Xenon은 게임 위에 자기 창을 그리고, Windows에서는 PresentMon으로 프레임 타임을 읽습니다. 게임 프로세스에 코드를 넣는 일은 절대 없습니다.</p></div></details>
+    <details><summary data-i18n="os.faq.gpu.q">인스턴트 리플레이에 NVIDIA나 AMD 그래픽 카드가 필요한가요?</summary><div class="body"><p data-i18n="os.faq.gpu.a">아니요. Windows와 macOS에서는 시스템 자체의 캡처와 동영상 인코더를 쓰므로 어떤 그래픽 카드에서도 작동합니다. 기본으로 꺼져 있으며, 보관하는 몇 분의 영상은 메모리가 아니라 디스크에 있습니다.</p></div></details>
+    <details><summary data-i18n="os.faq.price.q">이 기능들은 유료인가요?</summary><div class="body"><p data-i18n="os.faq.price.a">아니요. 화면 위젯, 오버레이, 스크린샷, 녹화, 인스턴트 리플레이, 갤러리는 무료이며 계정이 필요 없습니다.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="os.cta.h">Xenon 다운로드</h3>
+      <p data-i18n-html="os.cta.p">무료이며 계정이 필요 없습니다. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows용 Xenon 다운로드</a> 또는 <a href="/ko/download.html">다운로드 페이지</a>에서 시스템을 고르세요.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

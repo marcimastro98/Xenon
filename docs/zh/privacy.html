@@ -87,7 +87,7 @@
   td { color: var(--muted); }
   button.consent-reset {
     font-family: var(--sans); font-size: 16px; font-weight: 700;
-    min-height: 44px; padding: 11px 20px; border-radius: 9px; cursor: pointer;
+    min-height: 44px; padding: 11px 20px; border-radius: 6px; cursor: pointer;
     background: transparent; color: var(--text); border: 1px solid var(--line-2);
     transition: border-color .2s, color .2s;
   }
@@ -100,8 +100,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
@@ -115,10 +115,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/zh/#install" data-xl="install">安装</a>
       <ul class="xh-mlinks">
@@ -136,7 +136,7 @@
     <!-- xenon:crumbs --><nav class="xc" aria-label="面包屑导航"><ol><li><a href="/zh/" data-xl="home">首页</a></li><li><a href="/zh/privacy.html" aria-current="page" data-xl="f.privacy">隐私</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/zh/"},{"@type":"ListItem","position":2,"name":"隐私","item":"https://xenon-app.com/zh/privacy.html"}]}</script><!-- /xenon:crumbs -->
     <h1 data-i18n="pv.h1">隐私政策</h1>
     <p class="lede" data-i18n="pv.lede">Xenon 应用运行在你自己的电脑上，数据也保存在那里。本网站是另一回事，规则也不一样。本页把两者分开来讲，分别说明各自会发送和保存什么。</p>
-    <p class="updated" data-i18n="pv.updated">最后更新：2026年10月14日</p>
+    <p class="updated" data-i18n="pv.updated">最后更新：2026年10月30日</p>
 
     <h2 data-i18n="pv.sum.h">摘要</h2>
     <div class="card accent">
@@ -185,7 +185,7 @@
 
     <h2 data-i18n="pv.app.h">Xenon 应用</h2>
     <p data-i18n-html="pv.app.p1">应用把你的数据保存在你的电脑上。设置、笔记、任务、日程、Deck、AI 记忆和上传的背景都放在 <code>server/data/</code> 里。应用不会把这个文件夹上传到任何地方，里面也没有分析 SDK、崩溃上报或行为追踪。下面介绍的两个匿名计数器，是应用关于自身所做的仅有的报告，两者都不带任何形式的标识符：服务器保存的只是计数，从来不是关于某台机器的记录。</p>
-    <p data-i18n-html="pv.app.search">本地文件搜索和磁盘空间小组件都在你的电脑上运行：你的搜索词、文件名、文件夹索引和磁盘扫描结果都在那里计算，而你从搜索中打开过的文件列表（用来让你自己的结果排序更准）也和其他数据一样保存在 <code>server/data/</code> 里。你交给 Xenon AI 的内容是例外。使用云端 AI 服务商时，<strong>智能搜索</strong>（Ctrl+I）会把你输入的句子发送给该服务商；让 AI 查找文件或解释你的磁盘情况时，它据以回答的结果也会发送给该服务商，比如文件名和文件夹大小。<strong>用于 AI 搜索和清理的完整上下文</strong>开关（默认关闭）还会发送你已安装应用的名称、已索引的文件夹、最常用的文件夹，以及你最近从搜索中打开的文件，但从不发送它们的内容。</p>
+    <p data-i18n-html="pv.app.search">本地文件搜索和磁盘空间小组件都在你的电脑上运行：你的搜索词、文件名、文件夹索引和磁盘扫描结果都在那里计算，而你从搜索中打开过的文件列表（用来让你自己的结果排序更准）也和其他数据一样保存在 <code>server/data/</code> 里。你交给 Bit 的内容是例外。使用云端 AI 服务商时，<strong>智能搜索</strong>（Ctrl+I）会把你输入的句子发送给该服务商；让 AI 查找文件或解释你的磁盘情况时，它据以回答的结果也会发送给该服务商，比如文件名和文件夹大小。<strong>用于 AI 搜索和清理的完整上下文</strong>开关（默认关闭）还会发送你已安装应用的名称、已索引的文件夹、最常用的文件夹，以及你最近从搜索中打开的文件，但从不发送它们的内容。</p>
     <p data-i18n-html="pv.app.calls">应用<em>确实</em>会做的，是为需要联网的功能发起网络请求。下面是这些请求，以及每一项在什么时候发生。</p>
 
     <div class="tbl-scroll">
@@ -235,6 +235,11 @@
             <td data-i18n-html="pv.t.hub.why">你的电脑会保存一个随机 UUID（<code>install-id.json</code>），让一次评分只计一次，一个代码也不能无限次重复使用。这个 UUID 从不离开你的电脑：发送的是它的单向哈希，而且评分和兑换代码使用的是同一个 UUID 的<strong>不同</strong>哈希。这是有意为之：如果共用一个值，支持者代码（它可以关联到某个 Discord 账号）和星级评分就会以同一个标识符存放在数据库里，我就能看到某位有名有姓的支持者给哪些作品评过分。用两个不同的值，就没有任何可以用来匹配它们的东西。两个哈希都不和你的硬件或姓名绑定；删掉这个文件，就会生成一个新的 UUID。更新你已解锁的内容时，同样只发送这个哈希、作品的 ID 和你当前的版本，不发送任何代码；中心只会回应它已经认定为所有者的电脑。</td>
           </tr>
           <tr>
+            <td data-i18n-html="pv.t.sparks.what">支持者中心<br><span style="color:var(--dim)">(火花)</span></td>
+            <td data-i18n="pv.t.sparks.when">当你用火花购买内容，或 Bit 使用火花运行时</td>
+            <td data-i18n="pv.t.sparks.why">购买时会发送你的代码、该内容和安装哈希。使用火花的 Bit 会发送你的请求，这些请求会继续发往 Anthropic。保存哪些内容，见下方的火花一节。</td>
+          </tr>
+          <tr>
             <td><code>ipwho.is</code>, <code>get.geojs.io</code>, <code>ipapi.co</code></td>
             <td data-i18n="pv.t.ip.when">仅在天气自动定位开启时</td>
             <td data-i18n="pv.t.ip.why">把你的 IP 转换成一个大致的城市，让天气小组件知道你在哪里。Xenon 按这个顺序询问这三个服务，使用最先回应的那个。手动设置位置，这些请求就永远不会发生。</td>
@@ -257,7 +262,7 @@
           <tr>
             <td data-i18n-html="pv.t.lyrtr.what">你选择的 AI 提供商<br><span style="color:var(--dim)">歌词翻译</span></td>
             <td data-i18n="pv.t.lyrtr.when">仅在歌词小组件中打开“翻译歌词行”时</td>
-            <td data-i18n="pv.t.lyrtr.why">收听 20 秒后，把正在播放的歌曲的歌词行发送给你在 Xenon AI 中选择的 AI 提供商，每首歌一次。使用 Ollama 时不会离开电脑。在 Gemini 的免费层级中，Google 可能用收到的内容改进其产品。默认关闭。</td>
+            <td data-i18n="pv.t.lyrtr.why">收听 20 秒后，把正在播放的歌曲的歌词行发送给你在“设置 → Bit 助手”中选择的 AI 提供商，每首歌一次。使用 Ollama 时不会离开电脑。在 Gemini 的免费层级中，Google 可能用收到的内容改进其产品。默认关闭。</td>
           </tr>
           <tr>
             <td data-i18n-html="pv.t.svc.what">你自己连接的服务<br><span style="color:var(--dim)">Spotify、Twitch、YouTube、Discord、Home Assistant、OBS、AI 服务商、股票/新闻/足球信息源</span></td>
@@ -309,6 +314,18 @@
     <p data-i18n-html="pv.v48.p1">在 v4.7.1 及之前，这个开关在你打开之前一直是关闭的。从 <strong>v4.8.0 起，新安装默认开启</strong>，因为几乎没有人会去打开这样的开关，统计数字也就因此毫无用处。你可以随时在“设置”中关闭它，关闭后立即生效。</p>
     <p data-i18n-html="pv.v48.p2"><strong>如果你之前已经安装了 Xenon，那么对你来说什么都没有变。</strong>只有在还没有设置文件时，也就是全新安装时，才会读取新的默认值。如果你在 v4.8.0 之前安装、并且没有动过这个开关，它会保持关闭：当初告诉你的是，除非你另行选择，它就是关闭的，而更新不应该悄悄改变这一点。如果你曾经打开过它，它会保持开启。无论哪种情况，应用都会沿用你的设置里已有的选择。</p>
 
+    <h2 id="pass-trial" data-i18n="pv.trial.h">通行证 7 天试用</h2>
+    <p data-i18n="pv.trial.p1">你可以试用支持者通行证 7 天。在支持者中心的一个页面上，用你的电子邮箱地址申请，页面上还有一个默认不勾选的复选框，用来接收新掉落内容的消息。该页面使用 Cloudflare Turnstile 阻挡机器人。代码通过 Brevo 以邮件形式发送给你。</p>
+    <p data-i18n="pv.trial.p2">中心保存的内容：你的邮箱地址、该地址的带密钥单向哈希、以哈希形式保存的代码、首次使用代码的安装的哈希（与支持者代码使用的相同）、试用的申请日期、开始日期和结束日期、你是否要求接收消息，以及该地址之后是否成为支持者。它会发送代码、结束前两天的一封提醒，以及试用结束时的一封邮件。</p>
+    <p data-i18n="pv.trial.p3">会被删除的内容：邮箱地址在试用结束 30 天后删除，如果代码从未使用，则在申请 30 天后删除，代码也会同时删除。地址的哈希会保留，因此同一地址不能开始第二次试用；无法从该哈希还原出地址。如果你勾选了消息复选框并使用了代码，地址会为这些消息保留，直到你点击每封此类邮件中的退订链接，或成为支持者为止，之后会像其他地址一样被删除。</p>
+    <p data-i18n="pv.trial.p4">在你的电脑上，应用会把试用代码和结束日期保存在 trial-pass.json 中。试用期间，它会发送代码和安装的哈希，向中心询问试用是否仍然有效。如果该地址成为了支持者，中心会把你的支持者代码交给同一安装一次，应用会自动切换。试用结束时，试用安装的内容会从你的电脑上移除；你的其他东西都不会被动。试用中的小组件和 Ambient 场景以加密形式保存在 trial-vault 文件夹中；应用每次启动时用同一个代码和安装哈希向中心请求它们的密钥，密钥只保存在内存中。</p>
+
+    <h2 id="sparks" data-i18n="pv.sparks.h">火花</h2>
+    <p data-i18n="pv.sparks.p1">火花是 Xenon 的点数。每个月的支持都包含 300 火花，任何人都可以在 Buy Me a Coffee 上作为附加项目购买更多。每次购买，Buy Me a Coffee 都会把金额、该笔购买的参考编号以及你付款用的电子邮箱地址告诉支持者中心。如果这个地址属于一位支持者，火花会加到其支持者代码上。否则，中心会生成一个火花代码（XC-…），并通过 Brevo 向该地址发送一次。对于火花代码，中心保存的是地址的带密钥单向哈希（从不保存地址本身）、代码的哈希以及代码的前四个字符。邮件记录只保留打码后的地址。</p>
+    <p data-i18n="pv.sparks.p2">当你用火花购买商店里的内容时，应用会把你的代码、该内容以及与支持者代码相同的安装哈希发送给中心。中心会保存哪个代码在什么时间、以什么价格购买了哪项内容，以及打开过它的安装哈希（最多 3 个），这样在你的其他电脑上也能再次打开，而不会重复扣费。</p>
+    <p data-i18n="pv.sparks.p3">当 Bit 使用火花运行时，你的代码会在中心开启一个会话，之后只传输一个会话令牌，最长有效 30 天。你向 Bit 提出的内容以及 Bit 创作的内容，会经由中心发送给运行 Claude 模型的 Anthropic，并适用 Anthropic 的条款。中心不会保存这些内容：每次回答只记录模型、令牌数、费用和月份，用来计算你的火花。</p>
+    <p data-i18n="pv.sparks.p4">在你的电脑上，火花代码和支持者代码一样保存在应用数据文件夹中的 sparks-code.json 里，绝不会放进同步到已配对设备的设置中。如果同一台电脑上也有支持者代码，火花会被一次性转移到支持者代码上，火花代码随后被删除。</p>
+
     <h2 data-i18n="pv.rights.h">你的权利</h2>
     <p data-i18n-html="pv.rights.p1">根据《通用数据保护条例》（GDPR），你可以要求访问、更正或删除你的个人数据，也可以反对对其进行处理。对于本网站，实际可行的做法是：按“拒绝”（或上面的按钮）来停止 Analytics，使用 Google 的<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">停用浏览器插件</a>，或者清除浏览器数据。对于应用，卸载会停止上面描述的所有请求，删除 <code>server/data/</code> 会移除应用保存的一切，包括安装 UUID。</p>
     <p data-i18n-html="pv.rights.p2">你也有权向监管机构投诉；在意大利，这个机构是 <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>（意大利个人数据保护局）。</p>
@@ -322,10 +339,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

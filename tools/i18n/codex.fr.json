@@ -58,6 +58,10 @@
     "ld.q4": "Pourquoi dois-je faire confiance aux hooks dans Codex ?",
     "ld.a4": "Codex exécute un hook uniquement après que vous avez fait confiance à ce hook exact. Il s'agit d'une vérification de sécurité propre à Codex, de sorte que Xenon ne le fait jamais pour vous. Si Xenon ou Node est déplacé dans un autre dossier, les hooks changent et Codex vous demande de leur faire confiance à nouveau ; la tuile indique quand.",
     "ld.q5": "La tuile fonctionne-t-elle avec une clé API ?",
-    "ld.a5": "Les sessions et les approbations fonctionnent. Les fenêtres de plan n'existent que sur un plan ChatGPT, donc avec une clé API, la tuile n'a rien à afficher."
+    "ld.a5": "Les sessions et les approbations fonctionnent. Les fenêtres de plan n'existent que sur un plan ChatGPT, donc avec une clé API, la tuile n'a rien à afficher.",
+    "cx.jump.widgets": "Vos widgets",
+    "cx.h.widgets": "Créer vos propres widgets",
+    "cx.widgets.p1": "Si vous codez dans Codex, il peut aussi créer des widgets pour Xenon. Dans <strong>Réglages → Widgets et partage → Créer des widgets avec Claude Code ou Codex</strong>, appuyez sur <strong>Connecter Codex</strong>. Codex lit alors le SDK des widgets, écrit le widget dans un dossier, l'installe sur votre tableau de bord, lit les erreurs qu'il rencontre et regarde une image de sa tuile, puis le corrige.",
+    "cx.widgets.p2": "La première fois, le tableau de bord vous demande s'il faut l'autoriser. Il n'approuve jamais les permissions d'un widget, ne modifie que les widgets que vous avez faits et ne fonctionne que depuis le PC où tourne Xenon. <a href=\"/create/#mcp\">Comment ça marche, et comment l'ajouter à la main</a>."
   }
 }

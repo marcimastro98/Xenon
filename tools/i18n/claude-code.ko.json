@@ -26,7 +26,7 @@
     "cc.jump.link": "연결하기",
     "cc.jump.mod": "Xenon 모드",
     "cc.jump.data": "무엇이 어디로 전송되나",
-    "cc.jump.ai": "Xenon AI",
+    "cc.jump.ai": "Bit",
     "cc.jump.faq": "자주 묻는 질문",
     "cc.h.quota": "5시간, 7일 할당량",
     "cc.quota.p1": "Claude Code는 상태 표시줄에 구독의 실제 한도를 넘겨줍니다. 5시간 주기와 7일 주기이며, 각각 얼마나 썼는지와 언제 초기화되는지가 들어 있습니다. Claude Code를 연결하면 Xenon이 각 주기를 칸으로 나뉜 게이지로 그리고, 초기화까지 남은 시간을 표시합니다.",
@@ -79,8 +79,8 @@
     "cc.data.p2": "Claude Code의 훅과 상태 표시줄은 보고를 <code>127.0.0.1</code>, 즉 내 PC로 보냅니다. 모든 보고에는 Xenon이 만든 키가 있어야 하며, 키가 없는 보고는 Xenon이 거부합니다. 훅은 요청 헤더에 키를 넣어 보내고, 상태 표시줄 스크립트는 Xenon의 데이터 폴더에서 키를 읽으므로, 키가 명령줄이나 프로세스 목록에 나타나지 않습니다.",
     "cc.data.p3": "실시간 세션 상태는 메모리에만 보관합니다. Xenon은 이를 디스크에 쓰지 않으며, Xenon이 다시 시작되면 빈 상태로 시작합니다.",
     "cc.data.p4": "페어링한 휴대폰은 타일을 쓰고, 요청에 답하고, 작업을 시작할 수 있지만, Claude Code인 것처럼 보고를 보낼 수는 없습니다. 그 주소들은 페어링한 기기에서는 거부됩니다.",
-    "cc.h.ai": "Claude나 ChatGPT 구독으로 쓰는 Xenon AI",
-    "cc.ai.p1": "타일과는 별개로, 대시보드의 어시스턴트인 Xenon AI는 버전 4.11.10부터 API 키 대신 내 구독으로 답할 수 있습니다. <strong>설정 → Xenon AI</strong>에서 <strong>Claude Code</strong>나 <strong>Codex</strong>를 고르세요. 그러면 Xenon이 PC에 설치된 공식 프로그램에 질문하며, 이 프로그램은 Claude나 ChatGPT 요금제로 로그인되어 있습니다.",
+    "cc.h.ai": "Claude나 ChatGPT 구독으로 쓰는 Bit",
+    "cc.ai.p1": "타일과는 별개로, 대시보드의 어시스턴트인 Bit은 버전 4.11.10부터 API 키 대신 내 구독으로 답할 수 있습니다. <strong>설정 → Bit 어시스턴트</strong>에서 <strong>Claude Code</strong>나 <strong>Codex</strong>를 고르세요. 그러면 Xenon이 PC에 설치된 공식 프로그램에 질문하며, 이 프로그램은 Claude나 ChatGPT 요금제로 로그인되어 있습니다.",
     "cc.ai.p2": "로그인은 프로그램 안에서 Anthropic이나 OpenAI의 자체 로그인으로 하며, Xenon은 자격 증명을 읽거나 저장하거나 전달하지 않습니다. Anthropic이 Claude 구독을 자사 앱 밖에서 쓰도록 허용하는 방법은 이것뿐입니다.",
     "cc.ai.p3": "설정에는 프로그램이 설치되어 있는지, 로그인되어 있는지, 아니라면 무엇을 실행해야 하는지가 표시됩니다. 모델 메뉴는 프로그램이 직접 채우므로, 지금 계정에서 쓸 수 있는 모델이 나옵니다.",
     "cc.ai.p4": "어시스턴트는 대시보드 도구를 그대로 씁니다. 테마를 바꾸고, Deck 키를 설정하고, 할 일과 타이머를 추가하고, 조명과 미디어를 제어할 수 있습니다. 프로그램 자체의 터미널 도구와 파일 도구는 꺼진 채로 둡니다.",
@@ -97,6 +97,10 @@
     "cc.faq.api.q": "API 키로도 타일이 동작하나요?",
     "cc.faq.api.a": "네, 다만 Pro와 Max 요금제에만 있는 할당량 주기는 표시되지 않습니다. 대신 직접 정한 주간 예산에 대해 토큰 사용량을 측정합니다.",
     "cc.cta.h": "Xenon 다운로드",
-    "cc.cta.p": "무료이고 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon을 다운로드</a>하거나 <a href=\"/download.html\">다운로드 페이지</a>에서 내 시스템을 고르세요. 먼저 둘러보고 싶다면 <a href=\"/demo/\">브라우저 데모</a>를 여세요."
+    "cc.cta.p": "무료이고 계정이 필요 없습니다. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows용 Xenon을 다운로드</a>하거나 <a href=\"/download.html\">다운로드 페이지</a>에서 내 시스템을 고르세요. 먼저 둘러보고 싶다면 <a href=\"/demo/\">브라우저 데모</a>를 여세요.",
+    "cc.jump.widgets": "내 위젯",
+    "cc.h.widgets": "나만의 위젯 만들기",
+    "cc.widgets.p1": "Claude Code에서 코드를 작성한다면 Xenon 위젯도 만들 수 있습니다. <strong>설정 → 위젯 &amp; 공유 → Claude Code 또는 Codex로 위젯 만들기</strong>에서 <strong>Claude Code 연결</strong>을 누르세요. Claude Code이 위젯 SDK를 읽고, 폴더에 위젯을 작성해 대시보드에 설치하고, 발생한 오류와 타일 사진을 확인한 뒤 고칩니다.",
+    "cc.widgets.p2": "처음에는 대시보드에서 허용할지 묻습니다. 위젯 권한은 절대 승인하지 않고, 직접 만든 위젯만 바꾸며, Xenon이 실행 중인 PC에서만 작동합니다. <a href=\"/create/#mcp\">작동 방식과 직접 추가하는 방법</a>."
   }
 }

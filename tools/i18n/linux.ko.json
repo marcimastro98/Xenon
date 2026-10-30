@@ -35,7 +35,7 @@
     "lx.st.mpris": "MPRIS를 통해 동작합니다.",
     "lx.row.fps": "게임 내 FPS 카운터",
     "lx.st.mangohud": "MangoHud를 통해 동작합니다.",
-    "lx.row.ai": "Xenon AI, 채팅, 동작, \"Hey Xenon\" 음성 호출",
+    "lx.row.ai": "Bit, 채팅, 동작, \"Hey Bit\" 음성 호출",
     "lx.st.ai": "클라우드와 로컬 모두 동작합니다.",
     "lx.row.lighting": "네트워크 조명: WLED, Hue, Nanoleaf, OpenRGB",
     "lx.row.services": "스트리밍, Spotify, Discord, Home Assistant",

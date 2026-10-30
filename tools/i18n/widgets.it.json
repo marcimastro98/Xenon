@@ -45,7 +45,7 @@
     "wg.h.media": "Media",
     "wg.media.intro": "6 widget.",
     "wg.w.media": "<strong>Riproduzione.</strong> Cosa suona in qualsiasi app multimediale sul PC, con la copertina, play e pausa, brano precedente e successivo.",
-    "wg.w.chat": "<strong>Chat.</strong> La chat scritta di Xenon AI, dove fai domande, alleghi immagini, PDF e file di testo, e le chiedi di cambiare cose sulla dashboard.",
+    "wg.w.chat": "<strong>Chat.</strong> La chat scritta di Bit, dove fai domande, alleghi immagini, PDF e file di testo, e gli chiedi di cambiare cose sulla dashboard.",
     "wg.w.chatgpt": "<strong>Chiedi a ChatGPT.</strong> Una chat a cui risponde il tuo piano ChatGPT tramite OpenAI Codex sul PC, senza chiave API. Le conversazioni restano sul PC, non nella cronologia di ChatGPT.",
     "wg.w.browser": "<strong>Browser.</strong> Una pagina web dentro un riquadro, con tab, barra degli indirizzi, avanti e indietro, gestita da un browser Chromium sul PC, così apre anche i siti che non si lasciano incorporare.",
     "wg.w.slideshow": "<strong>Slideshow.</strong> Fa scorrere le immagini e le GIF animate che aggiungi, o una cartella del PC, e con un tocco la metti in pausa o vai avanti a mano.",

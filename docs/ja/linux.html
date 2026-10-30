@@ -66,13 +66,6 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon は Linux で動きますか？","acceptedAnswer":{"@type":"Answer","text":"はい、ベータです。ダッシュボード、ウィジェット、カタログ、各種連携は Windows と同じです。マシンを読み取る部分の一部は X11 のみか、まだ使えません。"}},{"@type":"Question","name":"どの Linux パッケージをダウンロードすればいいですか？","acceptedAnswer":{"@type":"Answer","text":"AppImage は x86_64 のデスクトップならどれでも動きます。Debian と Ubuntu 向けの .deb、Fedora と openSUSE 向けの .rpm もあります。"}},{"@type":"Question","name":"Linux で Xenon は自動で起動しますか？","acceptedAnswer":{"@type":"Answer","text":"はい。初回起動時に systemd のユーザーサービスを登録します。ユーザーマネージャーがない環境では、代わりに XDG 自動起動を使います。"}},{"@type":"Question","name":"Xenon は Wayland で動きますか？","acceptedAnswer":{"@type":"Answer","text":"ほとんどは動きます。開いているアプリのウィジェット、アプリスイッチャー、AI の画面認識には X11 のセッションが必要です。"}}]}</script>
 
 <style>
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
-  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
-  .dl a.pick:hover { border-color: var(--line-2); }
-  .dl .os { font: 700 19px/1.3 var(--display); }
-  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
   .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
   .tablewrap td { vertical-align: top; }
   pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -86,8 +79,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">ベータ</span></a></li><li><a href="/ja/#support" data-xl="supporters">サポーター</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
@@ -101,10 +94,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">閉じる</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">ベータ</span></a></li><li><a href="/ja/#support" data-xl="supporters">サポーター</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ja/#install" data-xl="install">インストール</a>
       <ul class="xh-mlinks">
@@ -143,10 +136,14 @@
     <p data-i18n-html="lx.setup.p1">アプリを開きます。初回起動時に、ターミナルのウィンドウでダッシュボードをセットアップするよう提案されます。エンジンをダウンロードし、展開する前にダウンロードを検証し、ログイン時に Xenon が起動するよう <code>systemd --user</code> サービスを登録します。ユーザーマネージャーがない環境では代わりに XDG 自動起動のエントリーを使い、そのことを知らせます。この代替手段ではクラッシュ後に Xenon が再起動しないことも伝えます。</p>
     <p data-i18n="lx.setup.p2">.deb と .rpm がインストール時にこれを行わないのは意図的です。セットアップが作るものはすべて1つのユーザーアカウントに属しますが、パッケージは root としてマシン全体にインストールされるからです。</p>
     <p data-i18n="lx.setup.p3">インストーラーは、入っていない任意のツールも一覧で示します。Debian と Ubuntu では:</p>
-    <pre><code>sudo apt install nodejs npm unzip           # required
-sudo apt install wireplumber                # volume, microphone and the per-app mixer
-sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
-sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
+    <pre><code># required
+sudo apt install nodejs npm unzip
+# volume, microphone and the per-app mixer
+sudo apt install wireplumber
+# the open-applications widget (X11 sessions)
+sudo apt install wmctrl xdotool x11-utils
+# voice input and spoken replies
+sudo apt install ffmpeg</code></pre>
     <p data-i18n-html="lx.setup.p4">デスクトップにターミナルエミュレーターがまったくない場合、アプリはインストーラーを表示できません。<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">リリース</a>からソースの zip をダウンロードして展開し、<code>./INSTALL.sh</code> を実行してください。</p>
 
     <h2 id="works" data-i18n="lx.h.works">Linux で動く機能</h2>
@@ -160,7 +157,7 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
         <tr><td data-i18n="lx.row.audio">システムの音量、マイクのミュート、アプリごとのミキサー</td><td data-i18n="lx.st.wireplumber">WirePlumber がインストールされていれば動作します。</td></tr>
         <tr><td data-i18n="lx.row.media">再生中の曲とメディアキー</td><td data-i18n="lx.st.mpris">動作します。MPRIS を使います。</td></tr>
         <tr><td data-i18n="lx.row.fps">ゲーム内の FPS カウンター</td><td data-i18n="lx.st.mangohud">動作します。MangoHud を使います。</td></tr>
-        <tr><td data-i18n="lx.row.ai">Xenon AI、チャット、操作、「Hey Xenon」音声起動</td><td data-i18n="lx.st.ai">動作します。クラウドでもローカルでも使えます。</td></tr>
+        <tr><td data-i18n="lx.row.ai">Bit、チャット、操作、「Hey Bit」音声起動</td><td data-i18n="lx.st.ai">動作します。クラウドでもローカルでも使えます。</td></tr>
         <tr><td data-i18n="lx.row.lighting">ネットワーク上のライティング: WLED、Hue、Nanoleaf、OpenRGB</td><td data-i18n="lx.st.works">動作します。</td></tr>
         <tr><td data-i18n="lx.row.services">配信、Spotify、Discord、Home Assistant</td><td data-i18n="lx.st.works">動作します。</td></tr>
         <tr><td data-i18n="lx.row.phone">スマートフォンやタブレットをセカンドスクリーンに</td><td data-i18n="lx.st.works">動作します。</td></tr>
@@ -188,10 +185,10 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

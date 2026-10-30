@@ -58,6 +58,10 @@
     "ld.q4": "왜 Codex에서 훅을 신뢰해야 하나요?",
     "ld.a4": "Codex는 바로 그 훅을 신뢰한 뒤에만 실행합니다. Codex 자체의 안전 확인이므로 Xenon이 대신하지 않습니다. Xenon이나 Node의 폴더가 바뀌면 훅도 바뀌어 Codex가 다시 신뢰를 요청하며, 타일이 알려 줍니다.",
     "ld.q5": "API 키로도 되나요?",
-    "ld.a5": "세션과 승인은 됩니다. 요금제 구간은 ChatGPT 요금제에만 있으므로 API 키로는 표시할 것이 없습니다."
+    "ld.a5": "세션과 승인은 됩니다. 요금제 구간은 ChatGPT 요금제에만 있으므로 API 키로는 표시할 것이 없습니다.",
+    "cx.jump.widgets": "내 위젯",
+    "cx.h.widgets": "나만의 위젯 만들기",
+    "cx.widgets.p1": "Codex에서 코드를 작성한다면 Xenon 위젯도 만들 수 있습니다. <strong>설정 → 위젯 &amp; 공유 → Claude Code 또는 Codex로 위젯 만들기</strong>에서 <strong>Codex 연결</strong>을 누르세요. Codex이 위젯 SDK를 읽고, 폴더에 위젯을 작성해 대시보드에 설치하고, 발생한 오류와 타일 사진을 확인한 뒤 고칩니다.",
+    "cx.widgets.p2": "처음에는 대시보드에서 허용할지 묻습니다. 위젯 권한은 절대 승인하지 않고, 직접 만든 위젯만 바꾸며, Xenon이 실행 중인 PC에서만 작동합니다. <a href=\"/create/#mcp\">작동 방식과 직접 추가하는 방법</a>."
   }
 }

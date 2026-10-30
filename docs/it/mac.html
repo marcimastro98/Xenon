@@ -69,23 +69,19 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon funziona su Mac?","acceptedAnswer":{"@type":"Answer","text":"Sì, in beta, su macOS 11 o successivo. Un solo .dmg universale funziona su Apple Silicon e Intel. La dashboard, i widget e le integrazioni sono gli stessi di Windows; alcune funzioni di sistema non sono disponibili."}},{"@type":"Question","name":"Posso usare uno Xeneon Edge con un Mac?","acceptedAnswer":{"@type":"Answer","text":"Sì. La prima volta che si apre, Xenon chiede quale schermo usare, e puoi scegliere l'Edge. macOS non supporta da solo i touchscreen USB, quindi per il touch serve un'app che trasformi i tocchi in clic. L'illuminazione iCUE e il touch che lascia il focus al gioco ci sono solo su Windows."}},{"@type":"Question","name":"Perché macOS dice che Xenon non si può aprire?","acceptedAnswer":{"@type":"Answer","text":"L'app non è ancora notarizzata da Apple. Da macOS 15 in poi apri Impostazioni di Sistema, Privacy e sicurezza, e clicca Apri comunque accanto a Xenon. Da macOS 11 a 14 fai clic con il tasto destro sull'app e scegli Apri. Basta farlo una volta per versione."}},{"@type":"Question","name":"Di quali permessi ha bisogno Xenon su un Mac?","acceptedAnswer":{"@type":"Answer","text":"La dashboard funziona senza nessuno. L'Accesso completo al disco permette alla ricerca e al widget Spazio disco di vedere la tua cartella utente e il Cestino. Accessibilità permette ai tasti del Deck di inviare scorciatoie da tastiera. Registrazione schermo e Microfono servono alla visione dello schermo e alla voce dell'AI."}},{"@type":"Question","name":"Come si disinstalla Xenon da un Mac?","acceptedAnswer":{"@type":"Answer","text":"Fai doppio clic su UNINSTALL.command in ~/Library/Application Support/Xenon e scrivi REMOVE quando te lo chiede. Rimuove l'app, l'elemento login, il server locale, i tuoi dati e la cartella di installazione."}}]}</script>
 
 <style>
+  /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
   .beta-pill {
     display: inline-block; vertical-align: middle; margin-left: 12px;
-    font-family: var(--sans); font-size: 14px;
-    color: var(--beta-fg); background: var(--beta-bg);
-    border: 0; border-radius: 6px; padding: 4px 10px;
+    font: 600 15px/1.2 var(--sans); letter-spacing: 0;
+    color: var(--muted); border: 1px solid var(--rule-2);
+    border-radius: 4px; padding: 3px 8px;
   }
   h3 { font-size: 17px; margin: 30px 0 8px; color: var(--text); }
   .shot-edge { margin: 30px 0 6px; }
   .shot-edge img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
   .shot-edge figcaption { margin-top: 10px; font-size: 15px; line-height: 1.5; color: var(--muted); }
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 18px; }
-  .dl a.pick { display: block; padding: 16px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); text-decoration: none; color: var(--text); max-width: 420px; }
-  .dl a.pick:hover { border-color: var(--green); }
-  .dl .os { font-weight: 600; font-size: 16px; }
-  .dl .os small { font-family: var(--sans); font-size: 15px; color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font-family: var(--mono); font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 15px; color: var(--muted); }
+  /* One file: the card stays the width of one column. */
+  .dl a.pick { max-width: 420px; }
   pre { background: var(--g-2); border-radius: 10px; padding: 12px 14px; margin: 0 0 16px; }
   pre code { background: none; padding: 0; white-space: pre-wrap; overflow-wrap: break-word; }
   .tablewrap { margin: 18px 0 8px; }
@@ -105,8 +101,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
@@ -120,10 +116,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Chiudi</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/it/#install" data-xl="install">Installazione</a>
       <ul class="xh-mlinks">
@@ -227,9 +223,9 @@
         <tr><td data-i18n="mac.row.hotkey">Scorciatoia globale per la ricerca</td><td data-i18n="mac.st.helper">Funziona, tramite Xenon Helper.</td></tr>
         <tr><td data-i18n="mac.row.search">Ricerca dei file, mappa del disco e pulizia</td><td data-i18n="mac.st.search">Funziona, tramite Xenon Helper. La ricerca guarda i nomi dei file. Per includere la tua cartella utente serve l'Accesso completo al disco.</td></tr>
         <tr><td data-i18n="mac.row.type">Scrivere testo e spostare finestre dalla dashboard</td><td data-i18n="mac.st.no">Non disponibile su un Mac.</td></tr>
-        <tr><td data-i18n="mac.row.ai">Chat e azioni di Xenon AI, in cloud e in locale</td><td data-i18n="mac.st.works">Funziona.</td></tr>
+        <tr><td data-i18n="mac.row.ai">Chat e azioni di Bit, in cloud e in locale</td><td data-i18n="mac.st.works">Funziona.</td></tr>
         <tr><td data-i18n="mac.row.voice">Input vocale e visione dello schermo dell'AI</td><td data-i18n="mac.st.voice">Funziona. La voce richiede ffmpeg.</td></tr>
-        <tr><td data-i18n="mac.row.wake">Attivazione vocale "Hey Xenon"</td><td data-i18n="mac.st.wake">Funziona con ffmpeg e con Whisper, gratuito e in locale, che si installa tramite Homebrew da Impostazioni, Xenon AI.</td></tr>
+        <tr><td data-i18n="mac.row.wake">Attivazione vocale "Hey Bit"</td><td data-i18n="mac.st.wake">Funziona con ffmpeg e con Whisper, gratuito e in locale, che si installa tramite Homebrew da Impostazioni, Assistente Bit.</td></tr>
         <tr><td data-i18n="mac.row.lights">Illuminazione in rete: WLED, Hue, Nanoleaf, OpenRGB</td><td data-i18n="mac.st.works">Funziona.</td></tr>
         <tr><td data-i18n="mac.row.icue">Illuminazione CORSAIR iCUE</td><td data-i18n="mac.st.win">Solo su Windows.</td></tr>
         <tr><td data-i18n="mac.row.services">Streaming, Spotify, Discord, Home Assistant, Claude Code</td><td data-i18n="mac.st.works">Funziona.</td></tr>
@@ -255,7 +251,7 @@
       <li data-i18n-html="mac.perm.fda"><strong>Accesso completo al disco, per Xenon.</strong> Permette alla ricerca e al widget Spazio disco di vedere la tua cartella utente, il Cestino e quasi tutto <code>~/Library/Caches</code>. Senza, Xenon resta fuori dalla tua cartella utente invece di chiederti Scrivania, Documenti e Download uno alla volta, e mostra un solo avviso con un pulsante che apre il pannello giusto delle impostazioni.</li>
       <li data-i18n-html="mac.perm.ax"><strong>Accessibilità, per Xenon Helper.</strong> Permette ai tasti del Deck di inviare una scorciatoia da tastiera all'app in primo piano. Finché non lo consenti, quel tipo di tasto non compare nell'editor. Xenon controlla questo permesso all'avvio, quindi dopo averlo consentito chiudi Xenon e riaprilo.</li>
       <li data-i18n-html="mac.perm.screen"><strong>Registrazione schermo.</strong> Serve quando l'AI fa uno screenshot per vedere il tuo schermo. Senza, la cattura mostra solo lo sfondo della scrivania.</li>
-      <li data-i18n-html="mac.perm.mic"><strong>Microfono.</strong> Serve per l'input vocale e per l'attivazione vocale "Hey Xenon". Senza, Xenon non trova nessun microfono.</li>
+      <li data-i18n-html="mac.perm.mic"><strong>Microfono.</strong> Serve per l'input vocale e per l'attivazione vocale "Hey Bit". Senza, Xenon non trova nessun microfono.</li>
       <li data-i18n-html="mac.perm.auto"><strong>Automazione.</strong> Solo se manca Xenon Helper: in quel caso il cambio app passa agli script, e macOS chiede il permesso una volta per ogni applicazione.</li>
     </ul>
     <p data-i18n="mac.fda.h">Per dare a Xenon l'Accesso completo al disco:</p>
@@ -298,10 +294,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

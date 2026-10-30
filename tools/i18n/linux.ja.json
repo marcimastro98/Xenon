@@ -35,7 +35,7 @@
     "lx.st.mpris": "動作します。MPRIS を使います。",
     "lx.row.fps": "ゲーム内の FPS カウンター",
     "lx.st.mangohud": "動作します。MangoHud を使います。",
-    "lx.row.ai": "Xenon AI、チャット、操作、「Hey Xenon」音声起動",
+    "lx.row.ai": "Bit、チャット、操作、「Hey Bit」音声起動",
     "lx.st.ai": "動作します。クラウドでもローカルでも使えます。",
     "lx.row.lighting": "ネットワーク上のライティング: WLED、Hue、Nanoleaf、OpenRGB",
     "lx.row.services": "配信、Spotify、Discord、Home Assistant",

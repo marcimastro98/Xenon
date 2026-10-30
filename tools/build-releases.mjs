@@ -128,13 +128,15 @@ function render(versions) {
   .rel h2 time { font: 600 16px/1 var(--sans); color: var(--bone-1); letter-spacing: 0; }
   .rel h3 { margin: 22px 0 8px; font: 700 18px/1.3 var(--sans); color: var(--bone-1); }
   .rel-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-  .rel-items > li { padding: 10px 0; border-top: 1px solid var(--g-2); }
-  .rel-items summary { cursor: pointer; font-weight: 650; list-style: none; display: flex; gap: 10px; align-items: baseline; }
+  /* The whole row opens an entry: the summary carries the row's padding. */
+  .rel-items > li { padding: 0; border-top: 1px solid var(--g-2); }
+  .rel-items summary { padding: 10px 0; cursor: pointer; font-weight: 650; list-style: none; display: flex; gap: 10px; align-items: baseline; }
+  .rel-items details[open] { padding-bottom: 10px; }
   .rel-items summary::-webkit-details-marker { display: none; }
   .rel-items summary::before { content: '+'; flex: 0 0 auto; width: 14px; color: var(--bone-1); font-weight: 700; }
   .rel-items details[open] summary::before { content: '−'; }
   .rel-items details > :not(summary) { margin-left: 24px; }
-  .rel-one { padding-left: 24px !important; font-weight: 650; }
+  .rel-items > li.rel-one { padding: 10px 0 10px 24px; font-weight: 650; }
   .rel-items summary:hover { text-decoration: underline; text-underline-offset: .18em; }
   .rel-items details p { margin: 10px 0 0; color: var(--bone-1); font-size: 17px; max-width: 70ch; }
   .rel-items details ul { margin: 8px 0 0; color: var(--bone-1); font-size: 17px; }

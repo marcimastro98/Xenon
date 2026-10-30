@@ -26,7 +26,7 @@
     "cc.jump.link": "Collegarlo",
     "cc.jump.mod": "La mod",
     "cc.jump.data": "Cosa va dove",
-    "cc.jump.ai": "Xenon AI",
+    "cc.jump.ai": "Bit",
     "cc.jump.faq": "Domande frequenti",
     "cc.h.quota": "La quota a 5 ore e a 7 giorni",
     "cc.quota.p1": "Claude Code passa alla sua riga di stato i limiti reali del tuo abbonamento: la finestra di 5 ore e quella di 7 giorni, ognuna con quanto è stato usato e quando si azzera. Una volta collegato Claude Code, Xenon disegna ogni finestra come una fila di segmenti, con il conto alla rovescia fino all'azzeramento.",
@@ -79,8 +79,8 @@
     "cc.data.p2": "Gli hook e la riga di stato di Claude Code mandano i loro dati a <code>127.0.0.1</code>, cioè il tuo PC. Ogni invio deve portare una chiave creata da Xenon, e Xenon rifiuta qualsiasi invio che ne sia privo. Gli hook mandano la chiave in un'intestazione della richiesta e lo script della riga di stato la legge dalla cartella dei dati di Xenon, quindi non compare mai in una riga di comando o in un elenco di processi.",
     "cc.data.p3": "Lo stato delle sessioni in tempo reale resta in memoria. Xenon non lo scrive su disco, e riparte vuoto quando Xenon si riavvia.",
     "cc.data.p4": "Un telefono abbinato può usare il riquadro, rispondere alle richieste e avviare esecuzioni, ma non può mandare dati come se fosse Claude Code: quegli indirizzi sono vietati ai dispositivi abbinati.",
-    "cc.h.ai": "Xenon AI con il tuo abbonamento Claude o ChatGPT",
-    "cc.ai.p1": "A parte il riquadro, dalla versione 4.11.10 Xenon AI, l'assistente della dashboard, può rispondere tramite il tuo abbonamento invece che con una chiave API. In <strong>Impostazioni → Xenon AI</strong> scegli <strong>Claude Code</strong> o <strong>Codex</strong>. Xenon a quel punto passa le domande al programma ufficiale installato sul tuo PC, in cui hai fatto l'accesso con il tuo piano Claude o ChatGPT.",
+    "cc.h.ai": "Bit con il tuo abbonamento Claude o ChatGPT",
+    "cc.ai.p1": "A parte il riquadro, dalla versione 4.11.10 Bit, l'assistente della dashboard, può rispondere tramite il tuo abbonamento invece che con una chiave API. In <strong>Impostazioni → Assistente Bit</strong> scegli <strong>Claude Code</strong> o <strong>Codex</strong>. Xenon a quel punto passa le domande al programma ufficiale installato sul tuo PC, in cui hai fatto l'accesso con il tuo piano Claude o ChatGPT.",
     "cc.ai.p2": "L'accesso lo fai dentro il programma, con il login di Anthropic o di OpenAI, e Xenon non legge, non salva e non trasmette le tue credenziali. È l'unico modo in cui Anthropic consente di usare un abbonamento Claude fuori dalle sue app.",
     "cc.ai.p3": "Le impostazioni mostrano se il programma è installato e se hai fatto l'accesso, e cosa eseguire se non è così. Il menu dei modelli lo riempie il programma stesso, quindi elenca quello che il tuo account può usare oggi.",
     "cc.ai.p4": "L'assistente mantiene i suoi strumenti per la dashboard: può cambiare il tema, preparare tasti del Deck, aggiungere task e timer, e comandare luci e media. Gli strumenti del programma per il terminale e i file restano spenti.",
@@ -97,6 +97,10 @@
     "cc.faq.api.q": "Il riquadro funziona con una chiave API?",
     "cc.faq.api.a": "Sì, senza le finestre di quota, che esistono solo nei piani Pro e Max. Il riquadro misura invece i tuoi token rispetto a un budget settimanale che imposti tu.",
     "cc.cta.h": "Scarica Xenon",
-    "cc.cta.p": "Gratis, senza account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Scarica Xenon per Windows</a>, oppure scegli il tuo sistema nella <a href=\"/download.html\">pagina dei download</a>. Per dare prima un'occhiata, apri la <a href=\"/demo/\">demo nel browser</a>."
+    "cc.cta.p": "Gratis, senza account. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Scarica Xenon per Windows</a>, oppure scegli il tuo sistema nella <a href=\"/download.html\">pagina dei download</a>. Per dare prima un'occhiata, apri la <a href=\"/demo/\">demo nel browser</a>.",
+    "cc.jump.widgets": "I tuoi widget",
+    "cc.h.widgets": "Creare i tuoi widget",
+    "cc.widgets.p1": "Se scrivi codice in Claude Code, può anche creare widget per Xenon. In <strong>Impostazioni → Widget e condivisione → Crea widget con Claude Code o Codex</strong>, premi <strong>Collega Claude Code</strong>. Claude Code legge l'SDK dei widget, scrive il widget in una cartella, lo installa sulla dashboard, legge gli errori che incontra e guarda una foto del suo riquadro, poi lo corregge.",
+    "cc.widgets.p2": "La prima volta la dashboard ti chiede se consentirlo. Non approva mai i permessi di un widget, cambia solo i widget fatti da te e funziona solo dal PC su cui gira Xenon. <a href=\"/create/#mcp\">Come funziona e come aggiungerlo a mano</a>."
   }
 }

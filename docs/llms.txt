@@ -26,7 +26,8 @@ CORSAIR Xeneon Edge (a 2560×720 touch strip) and works on any screen.
   first launch, System Settings, Privacy & Security, Open Anyway. Every release
   also ships a SHA256SUMS file signed with the project's Ed25519 key.
 - Price: free. There is no paid version, trial or licence to buy. Optional
-  supporter tiers get monthly drops in the community catalog.
+  supporter tiers get monthly drops in the community catalog and 300 Sparks
+  a month, Xenon's credits.
 - Licence: source on GitHub under a custom non-commercial licence. Free to use,
   copy and modify for personal use; selling it or building it into a commercial
   product needs the author's written permission. It is not an open-source
@@ -97,6 +98,7 @@ CORSAIR Xeneon Edge (a 2560×720 touch strip) and works on any screen.
 - [Full feature list](https://github.com/marcimastro98/Xenon/blob/main/FEATURES.md)
 - [Developer guide](https://github.com/marcimastro98/Xenon/blob/main/DEVELOPER.md)
 - [Widget SDK](https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md)
+- [xenon-mcp](https://xenon-app.com/create/#mcp): an MCP server (npm `xenon-mcp`) that lets Claude Code, Codex or any MCP client read the Widget SDK, install a widget on the local Xenon, read its runtime errors and screenshot its tile
 - [Discord](https://discord.gg/MBVrw9kZyg)
 
 ## Sharing between users

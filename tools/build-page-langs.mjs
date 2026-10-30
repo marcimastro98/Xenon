@@ -82,7 +82,10 @@ function localizeUrls(s, lang) {
     if (copies.has(file)) return '/' + lang + '/' + file + tail;
     return u;
   };
-  s = s.replace(/(\s(?:href|src|poster)=")([^"]*)(")/g, (all, a, url, b) => a + fix(url) + b);
+  // Both quote styles: translated HTML in tools/i18n/*.json uses single quotes
+  // (it lives inside a JSON string), and a missed `href='catalog/'` became
+  // /zh/catalog/, a 404 Google kept reporting.
+  s = s.replace(/(\s(?:href|src|poster)=)(["'])(.*?)\2/g, (all, a, q, url) => a + q + fix(url) + q);
   s = s.replace(/(\ssrcset=")([^"]*)(")/g, (all, a, set, b) => a + set.split(',').map((part) => {
     const bits = part.trim().split(/\s+/);
     bits[0] = fix(bits[0]);

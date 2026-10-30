@@ -86,8 +86,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
+    <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">ベータ</span></a></li><li><a href="/ja/#support" data-xl="supporters">サポーター</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">コーヒーをおごる</span></a>
@@ -101,10 +101,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">閉じる</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ja/#screens" data-xl="screens">画面</a></li><li><a href="/ja/#widgets" data-xl="widgets">ウィジェット</a></li><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/create/" data-xl="create">つくる</a></li><li><a href="/ja/#support" data-xl="support">支援</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">デモ</a></li><li><a href="/catalog/" data-xl="catalog">カタログ</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">ベータ</span></a></li><li><a href="/ja/#support" data-xl="supporters">サポーター</a></li><li><a href="/ja/faq.html" data-xl="help">ヘルプ</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ja/#install" data-xl="install">インストール</a>
       <ul class="xh-mlinks">
@@ -139,8 +139,9 @@
       <a href="#deck" data-i18n="cc.jump.deck">依頼と Deck キー</a>
       <a href="#link" data-i18n="cc.jump.link">接続</a>
       <a href="#mod" data-i18n="cc.jump.mod">Xenon の mod</a>
+      <a href="#widgets" data-i18n="cc.jump.widgets">自分のウィジェット</a>
       <a href="#data" data-i18n="cc.jump.data">何がどこに送られるか</a>
-      <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
+      <a href="#ai" data-i18n="cc.jump.ai">Bit</a>
       <a href="#faq" data-i18n="cc.jump.faq">よくある質問</a>
     </nav>
 
@@ -213,14 +214,17 @@
     <p data-i18n-html="cc.mod.p4">手動でインストールするには、Claude Code で <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> と入力します。更新するには、ターミナルで <code>claude plugin update xenon@xenon</code> を実行し、新しいセッションを始めます。削除するには、タイルの「接続を解除」を押すか、Claude Code でプラグインを削除します。</p>
 
 
+    <h2 id="widgets" data-i18n="cc.h.widgets">自分のウィジェットを作る</h2>
+    <p data-i18n-html="cc.widgets.p1">Claude Code でコードを書いているなら、Xenon のウィジェットも作れます。<strong>設定 → ウィジェットと共有 → Claude Code または Codex でウィジェットを作る</strong>で <strong>Claude Code を接続</strong> を押してください。Claude Code がウィジェット SDK を読み、フォルダーにウィジェットを書き、ダッシュボードにインストールし、発生したエラーとタイルの画像を確認して修正します。</p>
+    <p data-i18n-html="cc.widgets.p2">初回はダッシュボードで許可するか確認されます。ウィジェットの権限を承認することはなく、あなたが作ったウィジェットだけを変更し、Xenon が動いている PC からだけ使えます。<a href="/create/#mcp">仕組みと手動での追加方法</a>。</p>
     <h2 id="data" data-i18n="cc.h.data">何がどこに送られるか</h2>
     <p data-i18n="cc.data.p1">タイルはアカウントも API キーも使いません。トークン数はディスク上のファイルから、ライブのデータは同じ PC 上の Claude Code から取得します。</p>
     <p data-i18n-html="cc.data.p2">Claude Code のフックとステータスラインは、報告を <code>127.0.0.1</code>、つまり自分の PC に送ります。各報告には Xenon が作った鍵が必要で、鍵のない報告は拒否されます。フックは鍵をリクエストヘッダーで送り、ステータスラインのスクリプトは Xenon 自身のデータフォルダーから読むので、鍵がコマンドラインやプロセスの一覧に現れることはありません。</p>
     <p data-i18n="cc.data.p3">ライブのセッションの状態はメモリーに保持されます。Xenon はそれをディスクに書き込まず、Xenon を再起動すると空の状態から始まります。</p>
     <p data-i18n="cc.data.p4">ペアリングしたスマートフォンは、タイルを使い、リクエストに答え、実行を始めることはできますが、Claude Code になりすまして報告を送ることはできません。報告用のアドレスは、ペアリングしたデバイスからは拒否されます。</p>
 
-    <h2 id="ai" data-i18n="cc.h.ai">Claude や ChatGPT のサブスクリプションで使う Xenon AI</h2>
-    <p data-i18n-html="cc.ai.p1">タイルとは別に、ダッシュボードのアシスタントである Xenon AI は、バージョン 4.11.10 から API キーの代わりに自分のサブスクリプションで答えられます。<strong>設定 → Xenon AI</strong> で <strong>Claude Code</strong> か <strong>Codex</strong> を選びます。すると Xenon は、PC にインストールされ、Claude または ChatGPT のプランでサインインしている公式のプログラムに問い合わせます。</p>
+    <h2 id="ai" data-i18n="cc.h.ai">Claude や ChatGPT のサブスクリプションで使う Bit</h2>
+    <p data-i18n-html="cc.ai.p1">タイルとは別に、ダッシュボードのアシスタントである Bit は、バージョン 4.11.10 から API キーの代わりに自分のサブスクリプションで答えられます。<strong>設定 → Bit アシスタント</strong> で <strong>Claude Code</strong> か <strong>Codex</strong> を選びます。すると Xenon は、PC にインストールされ、Claude または ChatGPT のプランでサインインしている公式のプログラムに問い合わせます。</p>
     <p data-i18n="cc.ai.p2">サインインはプログラムの中で、Anthropic や OpenAI 自身のサインインを通じて行います。Xenon は認証情報を読み取ったり、保存したり、ほかに渡したりしません。Claude のサブスクリプションを Anthropic 自身のアプリの外で使う方法として、Anthropic が認めているのはこれだけです。</p>
     <p data-i18n="cc.ai.p3">設定には、プログラムがインストールされてサインインしているかどうかと、そうでない場合に実行するコマンドが表示されます。モデルのメニューはプログラム自身が作るので、あなたのアカウントで今使えるモデルが並びます。</p>
     <p data-i18n="cc.ai.p4">アシスタントはダッシュボードのツールをそのまま使えます。テーマの変更、Deck キーの設定、タスクやタイマーの追加、ライトやメディアの操作です。プログラム自身のターミナルやファイルのツールはオフのままです。</p>
@@ -245,10 +249,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ja/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

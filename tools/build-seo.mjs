@@ -20,6 +20,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { headerHtml, footerHtml } from './site-chrome.mjs';
 import { LANG_PAGES, HOME_LANGS, langsOf, pathOf } from './lang-pages.mjs';
 
@@ -46,6 +47,25 @@ const esc = (s) => String(s == null ? '' : s)
 // first "</script" in the raw text. Escaping "<" keeps a description that
 // contains markup from truncating the whole graph.
 const ld = (obj) => JSON.stringify(obj, null, 2).replace(/</g, '\\u003c');
+
+// Store descriptions are a small Markdown subset; the shared parser in
+// @xenon/core decides their shape here too, so a page reads like the Store.
+const richText = createRequire(import.meta.url)('../packages/core/src/rich-text.js');
+const plainDesc = (s) => richText.plain(s);
+const inlineHtml = (nodes) => nodes.map((n) => {
+  if (n.t === 'text') return esc(n.v);
+  if (n.t === 'code') return `<code>${esc(n.v)}</code>`;
+  const tag = n.t === 'b' ? 'strong' : 'em';
+  return `<${tag}>${inlineHtml(n.c)}</${tag}>`;
+}).join('');
+// Every piece of text goes through esc(); only the parser's own elements are written.
+function descHtml(text) {
+  return richText.parse(text).map((blk) => {
+    if (blk.type === 'p') return `<p>${blk.lines.map(inlineHtml).join('<br>')}</p>`;
+    if (blk.type === 'h') return `<p><strong>${inlineHtml(blk.c)}</strong></p>`;
+    return `<${blk.type}>${blk.items.map((it) => `<li>${inlineHtml(it)}</li>`).join('')}</${blk.type}>`;
+  }).join('');
+}
 
 // Collapse to a single line and cut on a word boundary — meta descriptions are
 // truncated around 160 chars, and a clean cut reads better than an ellipsis
@@ -166,17 +186,16 @@ nav.crumb a:hover{color:var(--green)}
 main{padding-bottom:72px}
 .tier{display:inline-block;font-size:15px;font-weight:700;
 color:var(--green);margin:26px 0 10px}
-.tier.locked{color:var(--gold)}
-.tier.limited{color:var(--iris)}
 h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-weight:800}
 .by{color:var(--muted);margin-top:10px;font-size:15px}
 .by b{color:var(--text);font-weight:600}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;
-font-size:14px;color:var(--muted)}
+.chip{border:1px solid var(--rule-2);border-radius:4px;padding:2px 6px;
+font-size:13px;font-weight:600;line-height:1.2;color:var(--muted)}
 .desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
+.desc p,.desc ul,.desc ol{margin:0 0 .6em}.desc>:last-child{margin-bottom:0}.desc ul,.desc ol{padding-left:1.25em}.desc li+li{margin-top:.25em}
 .shots{margin-top:28px;display:grid;gap:14px}
-.shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
+.shots img{border:1px solid var(--line);border-radius:10px;width:100%;background:var(--panel)}
 .sec{margin-top:34px}
 .sec h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px}
 .sec p{color:var(--bone-1);max-width:66ch}
@@ -186,9 +205,9 @@ font-size:14px;color:var(--muted)}
 .tags{display:flex;flex-wrap:wrap;gap:8px}
 .tags span{font-size:15px;color:var(--muted)}
 .cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
+.btn{display:inline-flex;align-items:center;gap:9px;border-radius:6px;padding:13px 20px;font-weight:600;
 font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
-.btn.fill{background:var(--green);border-color:var(--green);color:var(--g-0)}
+.btn.fill{background:var(--main);border-color:var(--main);color:var(--main-ink)}
 .btn:hover{border-color:var(--rule-2)}
 .note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
 .steps{margin:0;padding-left:22px;color:var(--bone-1);max-width:66ch}
@@ -205,7 +224,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 @media(max-width:559px){.facts b{flex-basis:100%}}
 .rel{display:grid;gap:10px;grid-template-columns:1fr}
 .rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
-background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
+background:var(--panel);border-radius:6px;padding:12px 15px;transition:border-color .2s}
 .rel a:hover{border-color:var(--rule-2)}
 .rel .n{font-weight:600;font-size:15px}
 .rel .k{font-size:15px;color:var(--muted);margin-left:auto;white-space:nowrap}
@@ -270,7 +289,7 @@ function entryPage(e, indexable, live = []) {
 
   const title = `${e.name}: ${kindLabel} for Xenon`;
   const description = clamp(
-    e.description ||
+    plainDesc(e.description) ||
     `${e.name}, a ${kindLabel.toLowerCase()} for the Xenon dashboard by ${e.author}. Import it into your local Xenon in one paste.`
   );
   const image = shots > 0 ? shotUrl(e.id, 1) : `${SITE}/images/overview.png`;
@@ -282,7 +301,7 @@ function entryPage(e, indexable, live = []) {
     '@id': url + '#item',
     name: e.name,
     url,
-    description: (e.description || description).replace(/\s+/g, ' ').trim(),
+    description: (plainDesc(e.description) || description).replace(/\s+/g, ' ').trim(),
     inLanguage: 'en',
     author: { '@type': 'Person', name: e.author },
     isPartOf: { '@id': `${SITE}/catalog/#catalog` },
@@ -501,7 +520,7 @@ ${headerHtml()}
     <h1>${esc(e.name)}</h1>
     <p class="by">${esc(kindLabel)} for the Xenon dashboard, by <a href="/creators/${creatorSlug(e.author)}/"><b>${esc(e.author)}</b></a></p>
     ${chips.length ? `<div class="meta">${chips.map((c) => `<span class="chip">${c}</span>`).join('')}</div>` : ''}
-    ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
+    ${e.description ? `<div class="desc">${descHtml(e.description)}</div>` : ''}
     ${shotTags.length ? `<div class="shots">${shotTags.join('')}</div>` : ''}
     ${e.changelog ? `<section class="sec"><h2>What's in it</h2><p>${esc(e.changelog)}</p></section>` : ''}
     ${KIND_BLURB[e.kind]
@@ -624,7 +643,7 @@ function creatorPage(c) {
   const cards = c.entries.map((e, i) => {
     const kindLabel = KIND_LABEL[e.kind] || e.kind;
     const locked = e.locked === true || e.supportersOnly === true;
-    const desc = e.description ? clamp(e.description, 140) : '';
+    const desc = e.description ? clamp(plainDesc(e.description), 140) : '';
     const shots = Number.isInteger(e.shots) ? e.shots : 0;
 
     // The first shot, webp then png then gone — the same two-step the catalog
@@ -681,7 +700,7 @@ function creatorPage(c) {
 .cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
 .cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
 .cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
-.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
+.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
 .cr-card:hover{border-color:var(--green)}
 .cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
 .cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
@@ -902,6 +921,8 @@ const STATIC_ROUTES = [
   { loc: '/claude-code.html', file: 'docs/claude-code.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/codex.html', file: 'docs/codex.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/sensor-panel.html', file: 'docs/sensor-panel.html', priority: '0.7', changefreq: 'monthly' },
+  // Xenon without a second monitor: widgets on the desktop, the game overlay, capture.
+  { loc: '/single-screen.html', file: 'docs/single-screen.html', priority: '0.8', changefreq: 'monthly' },
 ];
 
 // Every page published in several languages lists all of them, each URL

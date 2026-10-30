@@ -26,15 +26,24 @@ const ICON = {
   gh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>',
 };
 
+// The wordmark: Bit, drawn by CSS (.xh-mark in docs/site.css, a green per theme),
+// next to the name. Lowercase like the logo; the label gives readers "Xenon".
+export const BRAND = '<a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>';
+
 // Labels carry data-xl keys; docs/chrome.js swaps them into the page language.
+// The same five on a phone and on the home (docs/index.html), held equal by
+// server/test/site-menu.test.mjs. The fourth field marks a Beta place.
 const NAV = [
-  ['/#widgets', 'widgets', 'Widgets'],
   ['/demo/', 'demo', 'Demo'],
   ['/catalog/', 'catalog', 'Catalog'],
-  ['/create/', 'create', 'Create'],
-  ['/#support', 'support', 'Support'],
+  ['/maker/', 'maker', 'Maker', true],
+  ['/#support', 'supporters', 'Supporters'],
   ['/faq.html', 'help', 'Help'],
 ];
+
+const navItem = ([href, k, label, beta]) => beta
+  ? `<li><a href="${href}"><span data-xl="${k}">${label}</span><span class="xh-beta" data-xl="beta">Beta</span></a></li>`
+  : `<li><a href="${href}" data-xl="${k}">${label}</a></li>`;
 
 const LANG_BLOCK = `<div class="lang" id="lang">
         <button class="lang-btn" id="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language"><span id="lang-cur">EN</span></button>
@@ -42,6 +51,7 @@ const LANG_BLOCK = `<div class="lang" id="lang">
           <button type="button" data-lang="en" role="option" lang="en">English</button>
           <button type="button" data-lang="it" role="option" lang="it">Italiano</button>
           <button type="button" data-lang="es" role="option" lang="es">Español</button>
+          <button type="button" data-lang="fr" role="option" lang="fr">Français</button>
           <button type="button" data-lang="ja" role="option" lang="ja">日本語</button>
           <button type="button" data-lang="ko" role="option" lang="ko">한국어</button>
           <button type="button" data-lang="zh" role="option" lang="zh">中文</button>
@@ -49,11 +59,11 @@ const LANG_BLOCK = `<div class="lang" id="lang">
       </div>`;
 
 export function headerHtml({ lang = false, page = '' } = {}) {
-  const items = NAV.map(([href, k, label]) => `<li><a href="${href}" data-xl="${k}">${label}</a></li>`).join('');
+  const items = NAV.map(navItem).join('');
   return `<!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+    ${BRAND}
     <nav class="xh-nav" aria-label="Main"><ul>${items}</ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
@@ -68,10 +78,10 @@ export function headerHtml({ lang = false, page = '' } = {}) {
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      ${BRAND}
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/#screens" data-xl="screens">Screens</a></li>${items}</ul>
+    <ul class="xh-mlist">${items}</ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/#install" data-xl="install">Install</a>
       <ul class="xh-mlinks">
@@ -92,11 +102,11 @@ export function footerHtml() {
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      ${BRAND}
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
-    ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
-    ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
+    ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/maker/', 'f.maker', 'Xenon Maker'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
+    ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
     ${col('project', 'Project', [['/#support', 'f.support', 'Supporters'], ['https://github.com/marcimastro98/Xenon', '', 'GitHub', true], ['https://discord.gg/MBVrw9kZyg', '', 'Discord', true], ['/faq.html', 'f.faq', 'Help and questions'], ['/privacy.html', 'f.privacy', 'Privacy']])}
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
@@ -114,6 +124,7 @@ export const GUIDES = [
   ['xeneon-edge-widgets.html', 'f.edge'],
   ['tablet-dashboard.html', 'f.tablet'],
   ['phone.html', 'f.phone'],
+  ['single-screen.html', 'f.onescreen'],
   ['mac.html', 'f.mac'],
   ['linux.html', 'f.linux'],
   ['widgets.html', 'f.widgets'],
@@ -191,10 +202,12 @@ const PAGES = [
   { file: 'docs/deck.html', lang: false },
   { file: 'docs/claude-code.html', lang: false },
   { file: 'docs/codex.html', lang: false },
+  { file: 'docs/single-screen.html', lang: false },
   { file: 'docs/sensor-panel.html', lang: false },
   { file: 'docs/catalog/index.html', lang: true, oldHeader: /<nav class="top">[\s\S]*?<\/nav>\n/ },
   { file: 'docs/create/index.html', lang: false, oldHeader: /<header class="topbar">[\s\S]*?<\/header>\n/, footerBeforeBody: true },
   { file: 'docs/submit/index.html', lang: true, oldHeader: /<header class="top">[\s\S]*?<\/header>\n/, footerBeforeBody: true },
+  { file: 'docs/submit/status/index.html', lang: false },
 ];
 
 function rewrite({ file, lang, oldHeader, noFooter, footerBeforeBody }) {

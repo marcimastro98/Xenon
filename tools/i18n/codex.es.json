@@ -58,6 +58,10 @@
     "ld.q4": "¿Por qué tengo que aprobar los hooks en Codex?",
     "ld.a4": "Codex solo ejecuta un hook después de que hayas aprobado ese hook exacto. Es la comprobación de seguridad del propio Codex, así que Xenon nunca lo hace por ti. Si Xenon o Node cambian de carpeta, los hooks cambian y Codex te pide aprobarlos otra vez; el widget te avisa.",
     "ld.q5": "¿Funciona el widget con una clave de API?",
-    "ld.a5": "Las sesiones y las aprobaciones sí. Las ventanas del plan solo existen con un plan de ChatGPT, así que con una clave de API el widget no tiene ninguna que mostrar."
+    "ld.a5": "Las sesiones y las aprobaciones sí. Las ventanas del plan solo existen con un plan de ChatGPT, así que con una clave de API el widget no tiene ninguna que mostrar.",
+    "cx.jump.widgets": "Tus widgets",
+    "cx.h.widgets": "Crear tus propios widgets",
+    "cx.widgets.p1": "Si escribes código en Codex, también puede crear widgets para Xenon. En <strong>Ajustes → Widgets y compartir → Crea widgets con Claude Code o Codex</strong>, pulsa <strong>Conectar Codex</strong>. Codex lee el SDK de widgets, escribe el widget en una carpeta, lo instala en tu panel, lee los errores que encuentra y mira una imagen de su recuadro, y luego lo corrige.",
+    "cx.widgets.p2": "La primera vez, el panel te pregunta si lo permites. Nunca aprueba los permisos de un widget, solo cambia widgets hechos por ti y funciona solo desde el PC donde corre Xenon. <a href=\"/create/#mcp\">Cómo funciona y cómo añadirlo a mano</a>."
   }
 }

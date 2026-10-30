@@ -35,7 +35,7 @@
     "lx.st.mpris": "可用，通过 MPRIS。",
     "lx.row.fps": "游戏内帧率计数器",
     "lx.st.mangohud": "可用，通过 MangoHud。",
-    "lx.row.ai": "Xenon AI、聊天、操作、“Hey Xenon”语音唤醒",
+    "lx.row.ai": "Bit、聊天、操作、“Hey Bit”语音唤醒",
     "lx.st.ai": "可用，云端和本地都支持。",
     "lx.row.lighting": "网络灯光：WLED、Hue、Nanoleaf、OpenRGB",
     "lx.row.services": "直播、Spotify、Discord、Home Assistant",

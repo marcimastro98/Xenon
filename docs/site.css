@@ -58,22 +58,21 @@
 
   /* Text. Three steps, and the third is the one that mattered: the old --dim
      (#66736c) sat at 4.04:1 on #070808, i.e. below the 4.5:1 floor, on the
-     supporting line of most cards on the site. --bone-2 is 5.4:1. */
+     supporting line of most cards on the site. --bone-2 holds 4.5:1 on every
+     surface up to --g-3. These greys are the one brand set
+     (packages/core/src/brand-tokens.js), shared with the Maker and the emails. */
   --bone-0: #EDEDED;
   --bone-1: #BDBDBD;
-  --bone-2: #9A9A9A;
+  --bone-2: #A6A6A6;
 
-  /* Radii. The old sheet carried 40 border-radius declarations and 14px was on
-     everything, which is the texture a component library ships with. Two
-     values: square, and a 2px that only softens what the eye reads as a
-     physical edge. */
+  /* Radii: the brand's 4/6/10 (brand-tokens.js RADIUS). People prefer curved
+     contours to sharp ones (Bar & Neta 2006), and three steps keep a tag, a
+     control and a panel each recognisable. */
   --r-0: 0;
-  --r-1: 2px;
-  /* index.html still declares --r-2: 12px and --r-3: 20px and five rules read
-     them. Collapsing them here rather than editing those five keeps the whole
-     site on two radii without a sixth pass over the markup. */
-  --r-2: var(--r-1);
-  --r-3: var(--r-1);
+  --r-1: 6px;
+  /* Older rules still read --r-2 and --r-3; both are the panel step. */
+  --r-2: 10px;
+  --r-3: 10px;
 
   /* Motion. The old sheet contained exactly ONE easing curve for the whole
      site — cubic-bezier(0.16, 1, 0.3, 1), easeOutExpo off easings.net, the
@@ -157,16 +156,19 @@
   --ion: var(--bone-1);
   --hot: var(--bone-0);
 
-  /* ── The two inks that stay ──────────────────────────────────────────────
-     These are not accents. They IDENTIFY a tier in the catalog — supporter and
-     limited — the way Panic assigns a hex per product and Ableton ships 39
-     background utilities so an item can carry its own colour. Colour that
-     names a thing is information; colour sprayed on a hover is decoration.
-     Both are pulled down from where they were so they sit on graphite without
-     glowing. */
-  --gold: #D9A441;
-  --iris: #7E74C9;
-  --danger: #D8412F;   /* used once on the whole property */
+  /* ── Colour: Bit's green, then Bit's moods ───────────────────────────────
+     The base is grey. The main action of a page wears the green of the mark,
+     and what is picked or on wears it as words (--main-text); one thing unlike
+     the rest is the one found (brand-tokens.js). Bit's other moods keep their
+     meaning (Fluent 2: semantic colours are never decoration). The catalog
+     tiers used to be gold and iris, Bit's idle and think colours; they are
+     said in words now. */
+  --warn: #FFA657;     /* Bit worrying */
+  --danger: #FF5A5F;   /* Bit's "problem" red */
+  --main: #6EE787;
+  --main-hover: #8BF0A0;
+  --main-ink: #0B2412;
+  --main-text: #6EE787;
 
   /* Two third-party marks, for the same reason: they NAME a service. A grey
      Discord glyph is just a glyph, and the GitHub star is the one thing in that
@@ -213,28 +215,28 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --g-0: #E4E4E4;  --g-1: #EFEFEF;  --g-2: #D8D8D8;  --g-3: #CBCBCB;
-    --bone-0: #141414;  --bone-1: #444444;  --bone-2: #5E5E5E;
+    --bone-0: #141414;  --bone-1: #444444;  --bone-2: #545454;
     --rule: #C4C4C4;  --rule-2: #A3A3A3;
     --edge: rgba(9, 11, 13, 0.14);
     --gh-star: #9A6A00;
-    --gold:    #85610F;
-    --iris:    #574DA3;
+    --warn:    #843C0A;
+    --main: #1F8040;  --main-hover: #1A6E37;  --main-ink: #FFFFFF;  --main-text: #145E2C;
     --discord: #4550C6;
-    --danger:  #B22D1E;
+    --danger:  #9A2016;
     color-scheme: light;
   }
 }
 
 :root[data-theme="light"] {
   --g-0: #E4E4E4;  --g-1: #EFEFEF;  --g-2: #D8D8D8;  --g-3: #CBCBCB;
-  --bone-0: #141414;  --bone-1: #444444;  --bone-2: #5E5E5E;
+  --bone-0: #141414;  --bone-1: #444444;  --bone-2: #545454;
   --rule: #C4C4C4;  --rule-2: #A3A3A3;
   --edge: rgba(9, 11, 13, 0.14);
   --gh-star: #9A6A00;
-  --gold:    #85610F;
-  --iris:    #574DA3;
+  --warn:    #843C0A;
+  --main: #1F8040;  --main-hover: #1A6E37;  --main-ink: #FFFFFF;  --main-text: #145E2C;
   --discord: #4550C6;
-  --danger:  #B22D1E;
+  --danger:  #9A2016;
   color-scheme: light;
 }
 
@@ -486,59 +488,6 @@ a:hover, button:hover, .card:hover { transform: none; }
    e' un dirottamento. O il nome e' specifico del sistema (.rule-row), o la
    regola sta dentro la pagina che la usa. */
 
-/* ── The wordmark ────────────────────────────────────────────────────────────
-   The mark IS the X, so the word beside it is "ENON" and it has to sit against
-   the glyph like a letter, not beside it like a label. The 9px gap read as two
-   objects. The accessible name stays "Xenon" through aria-label on the anchor —
-   without it a screen reader announces "enon".
-
-   ONE wordmark for the whole site, and it lives here because it was drawn six
-   different ways: 14px at 0.16em on the FAQ, 1.05rem at 0.04em on the catalog,
-   19px at 0.08em on the redeem page, 17px of MONO on the home, the full word
-   "XENON" beside its own X on create/, and the mark at four heights. Every one
-   of those pages also loads this file AFTER its own <style>, so what is set
-   here wins without touching them; the home page is the one exception (it
-   links this file first) and carries the same values in its own rule.
-
-   Two things make it a wordmark rather than a picture next to a word. The word
-   is BASELINE-aligned to the mark: a flex item that is an image takes its
-   bottom edge as its baseline, and the art is trimmed to the glyph, so "ENON"
-   sits on the X's own baseline and the X rises over it at twice the cap height.
-   And the face is named outright rather than taken from --display, which is
-   swapped per language for CJK: a wordmark that changes typeface on the Korean
-   page is not a wordmark. */
-.logo, .brand {
-  display: inline-flex; align-items: baseline; gap: 0;
-  font-family: 'Archivo', 'Archivo Fallback', system-ui, -apple-system, sans-serif;
-  font-weight: 700; font-size: 17px; letter-spacing: 0.02em; line-height: 1;
-  text-decoration: none;
-}
-.logo img, .brand img { margin-right: 1px; }
-
-/* One wordmark for the whole site. images/logo-x.png is the mark trimmed to
-   the glyph — logo.png carries ~28% transparent padding a side, which is what
-   used to push "ENON" away from its own X and made the pair read as two
-   objects at five different sizes across the site.
-
-   The art is drawn white-on-transparent for a dark ground, so on the light
-   theme it is inverted and the hue rotated back, which keeps the right half's
-   blue and violet. Pages used to solve this with mix-blend-mode: screen, which
-   does the opposite of what is needed on paper: screen with white IS white. */
-.logo img, .brand img, header.top > img, .logo-mark {
-  width: 33px; height: 26px; object-fit: contain;
-  mix-blend-mode: normal; filter: none;
-}
-:root[data-theme="light"] .logo img,
-:root[data-theme="light"] .brand img,
-:root[data-theme="light"] header.top > img,
-:root[data-theme="light"] .logo-mark { filter: invert(1) hue-rotate(180deg); }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .logo img,
-  :root:not([data-theme="dark"]) .brand img,
-  :root:not([data-theme="dark"]) header.top > img,
-  :root:not([data-theme="dark"]) .logo-mark { filter: invert(1) hue-rotate(180deg); }
-}
-
 /* ── Filmati ─────────────────────────────────────────────────────────────────
    Le due GIF pesavano 3,2 MB a 11 e 14 fotogrammi al secondo, con 256 colori
    retinati su un'interfaccia scura: erano insieme il contenuto piu' pesante e
@@ -593,12 +542,27 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xh { position: sticky; top: 0; z-index: 30; background: var(--g-0); transition: background-color .2s; font-family: var(--sans); }
 .xh.scrolled { background: var(--g-2); }
 .xh .xh-w { max-width: 1440px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 36px; height: 64px; }
-.xh-brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; color: var(--bone-0); font: 800 23px/1 var(--display); letter-spacing: -0.01em; }
-.xh-mark { width: 32px; height: 32px; border-radius: 23%; background: #070808; display: grid; place-items: center; flex: 0 0 auto; }
-.xh-mark img, .xh-brand .xh-mark img { width: 23px; height: auto; display: block; filter: none !important; margin: 0; }
-.xh .xh-nav ul { list-style: none; display: flex; gap: 26px; margin: 0; padding: 0; }
+/* The logo (tools/brand): Bit at 2px a pixel stands on the baseline of "xenon",
+   two of his pixels away, and the letters' x-height is half his height
+   (22.6px x 0.487 = 11px). An empty flex item's baseline is its bottom edge,
+   which is what puts his feet on the line. The face is named outright: the
+   wordmark does not change typeface on the CJK pages. */
+.xh-brand { display: inline-flex; align-items: baseline; gap: 4px; text-decoration: none; color: var(--bone-0); font: 800 22.6px/1 'Sofia Sans Semi Condensed', 'Sofia SC Fallback', 'Sofia Sans', system-ui, sans-serif; letter-spacing: -0.015em; }
+.xh-mark { width: 16px; height: 22px; flex: none; background: url('/images/brand/bit.svg') 0 0 / 100% 100% no-repeat; }
+:root[data-theme="light"] .xh-mark { background-image: url('/images/brand/bit-light.svg'); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .xh-mark { background-image: url('/images/brand/bit-light.svg'); }
+}
+/* guide.css spaces every li; the bar and the footer keep their own rhythm. */
+.xh li, .xf li { margin: 0; }
+.xh .xh-nav ul { list-style: none; display: flex; align-items: center; gap: 26px; margin: 0; padding: 0; }
 .xh .xh-nav a { color: var(--bone-0); text-decoration: none; font: 500 16.5px/1 var(--sans); padding: 10px 0; display: inline-block; letter-spacing: 0; }
 .xh .xh-nav a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+/* The home's .beta tag (docs/index.html): a 4px outline, a label and never a button. */
+/* Taller than the label's line, so its link centres the two instead of
+   letting it push the name down. */
+.xh .xh-nav a:has(.xh-beta) { display: inline-flex; align-items: center; }
+.xh-beta { display: inline-block; vertical-align: 0.12em; margin-left: 8px; font: 600 13px/1.2 var(--sans); color: var(--bone-1); border: 1px solid var(--rule-2); border-radius: 4px; padding: 2px 6px; }
 .xh-end { margin-left: auto; display: flex; align-items: center; gap: 18px; }
 .xh-marks { display: flex; align-items: center; gap: 4px; }
 .xh-mk { display: inline-flex; align-items: center; gap: 6px; min-width: 40px; min-height: 40px; justify-content: center; padding: 0 6px; color: var(--bone-1); text-decoration: none; border-radius: 10px; }
@@ -642,17 +606,15 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xg li { break-inside: avoid; padding: 7px 0; font-size: 17px; line-height: 1.4; }
 .xg a { color: var(--bone-0); text-underline-offset: .18em; }
 .xg .xg-dl { margin: 18px 0 0; font-size: 17px; font-weight: 700; }
+/* The main action: Bit's green, the one coloured fill (brand-tokens.js). */
 .xh-dl {
-  --lit: #008DFF;
-  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 10px;
-  color: #fff; text-decoration: none; font: 700 16px/1 var(--display); letter-spacing: 0.004em;
-  background-color: #104D82;
-  background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
-  border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38), 0 10px 22px -16px rgba(0,0,0,.75);
-  transition: transform .11s cubic-bezier(.2,.8,.2,1), filter .15s;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 6px;
+  color: var(--main-ink); text-decoration: none; font: 700 16px/1 var(--display); letter-spacing: 0.004em;
+  background: var(--main);
+  border: 1px solid var(--main);
+  transition: transform .11s cubic-bezier(.2,.8,.2,1), background-color .15s;
 }
-.xh-dl:hover { filter: brightness(1.1); color: #fff; }
+.xh-dl:hover { background: var(--main-hover); border-color: var(--main-hover); color: var(--main-ink); }
 .xh-dl:active { transform: translateY(2px) scale(.985); }
 /* The phone and tablet menu: an icon in the bar, a sheet over the page. The
    sheet is fixed to the viewport, not to the header, because on a phone the
@@ -672,16 +634,13 @@ a:hover, button:hover, .card:hover { transform: none; }
 html.xh-lock, html.xh-lock body { overflow: hidden; }
 .xh.open { position: relative; z-index: 9100; }
 .xh-key {
-  --lit: #008DFF;
-  display: flex; align-items: center; justify-content: center; min-height: 54px; padding: 0 22px; border-radius: 12px;
-  color: #fff; text-decoration: none; font: 700 18px/1 var(--display); letter-spacing: 0.004em;
-  background-color: #104D82;
-  background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28) 0%, color-mix(in oklab, var(--lit) 36%, #06101a) 55%, color-mix(in oklab, var(--lit) 20%, #04080d) 100%);
-  border: 1px solid color-mix(in oklab, var(--lit) 70%, #000);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -3px 0 rgba(0,0,0,.38), 0 10px 22px -16px rgba(0,0,0,.75);
-  transition: transform .11s cubic-bezier(.2,.8,.2,1), filter .15s;
+  display: flex; align-items: center; justify-content: center; min-height: 54px; padding: 0 22px; border-radius: 6px;
+  color: var(--main-ink); text-decoration: none; font: 700 18px/1 var(--display); letter-spacing: 0.004em;
+  background: var(--main);
+  border: 1px solid var(--main);
+  transition: transform .11s cubic-bezier(.2,.8,.2,1), background-color .15s;
 }
-.xh-key:hover { filter: brightness(1.1); color: #fff; }
+.xh-key:hover { background: var(--main-hover); border-color: var(--main-hover); color: var(--main-ink); }
 .xh-key:active { transform: translateY(2px) scale(.985); }
 @media (max-width: 1180px) {
   .xh .xh-nav { display: none; }
@@ -699,6 +658,8 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
   .xh-mlist a { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 12px 0; border-bottom: 1px solid var(--rule); font: 750 30px/1.1 var(--display); letter-spacing: -0.01em; color: var(--bone-0); text-decoration: none; }
   .xh-mlist a::after { content: ""; flex: 0 0 auto; width: 9px; height: 9px; margin-right: 4px; border-top: 2px solid var(--bone-1); border-right: 2px solid var(--bone-1); transform: rotate(45deg); transition: transform .15s; }
   .xh-mlist a:hover::after { transform: translateX(3px) rotate(45deg); }
+  /* The tag sits by its name; the arrow keeps the far end. */
+  .xh-mlist a .xh-beta { margin: 0 auto 0 0; }
   .xh-mfoot { margin-top: auto; width: 100%; max-width: 680px; box-sizing: border-box; padding: 28px 32px max(28px, env(safe-area-inset-bottom)); display: grid; gap: 14px; }
   .xh-mlinks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .xh-mlinks li:first-child { grid-column: 1 / -1; }
@@ -728,7 +689,7 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
 }
 @media (forced-colors: active) { .xh-dl, .xh-key { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; } }
 
-.xf { margin-top: 120px; padding: 56px 0 72px; background: var(--g-2); color: var(--bone-1); font-family: var(--sans); border: 0; }
+.xf { margin-top: 96px; padding: 56px 0 72px; background: var(--g-2); color: var(--bone-1); font-family: var(--sans); border: 0; }
 .xf .xf-w { max-width: 1440px; margin: 0 auto; padding: 0 32px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 32px 24px; }
 .xf-brand { grid-column: 1 / span 4; display: grid; gap: 14px; align-content: start; }
 .xf-brand p { margin: 0; font-size: 15.5px; line-height: 1.5; max-width: 42ch; color: var(--bone-1); }

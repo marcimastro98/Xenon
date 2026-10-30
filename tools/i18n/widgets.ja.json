@@ -45,7 +45,7 @@
     "wg.h.media": "メディア",
     "wg.media.intro": "6種類。",
     "wg.w.media": "<strong>再生。</strong> PC のメディアアプリで再生中のものを、カバー、再生と一時停止、前へ、次へとともに表示します。",
-    "wg.w.chat": "<strong>チャット。</strong> Xenon AI のテキストチャットです。質問したり、画像、PDF、テキストファイルを添付したり、ダッシュボードの変更を頼んだりできます。",
+    "wg.w.chat": "<strong>チャット。</strong> Bit のテキストチャットです。質問したり、画像、PDF、テキストファイルを添付したり、ダッシュボードの変更を頼んだりできます。",
     "wg.w.chatgpt": "<strong>ChatGPT に質問。</strong> PC の OpenAI Codex を通じて、あなたの ChatGPT プランが答えるチャットです。API キーは不要です。会話は PC に保存され、ChatGPT の履歴には残りません。",
     "wg.w.browser": "<strong>ブラウザ。</strong> タブ、アドレスバー、戻る、進むを備えた、タイルの中の Web ページです。PC 上の Chromium ブラウザが動かすので、埋め込みを拒否するサイトも開けます。",
     "wg.w.slideshow": "<strong>スライドショー。</strong> 追加した写真やアニメーション GIF、または PC 上のフォルダーの画像を順番に表示します。タップで一時停止したり、手動で送ったりできます。",
