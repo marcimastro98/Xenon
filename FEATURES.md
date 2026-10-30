@@ -45,6 +45,9 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [App switcher](#app-switcher)
 - [Browser](#browser)
 - [Second screen](#second-screen)
+- [On your main screen (widgets and the Xenon menu)](#on-your-main-screen-widgets-and-the-xenon-menu)
+- [Game performance](#game-performance)
+- [Capture (screenshots, recordings, Instant Replay)](#capture-screenshots-recordings-instant-replay)
 - [Smart Home (Home Assistant)](#smart-home-home-assistant)
 - [Cameras (UniFi Protect)](#cameras-unifi-protect)
 - [Streaming (Twitch, YouTube, OBS, Discord & Spotify)](#streaming-twitch-youtube-obs-discord--spotify)
@@ -160,7 +163,9 @@ The dashboard is now a **platform**: third parties (and you) can build widgets f
 - **Artwork a widget keeps, instead of re-downloading.** Widgets that show album covers, game art or video thumbnails can hand them to a picture element directly, and Xenon keeps the ones worth keeping on disk so they are still there after a restart. The address must be one the widget declared and you approved, exactly as before — this changes where an image is kept, never what a widget may reach. It stays a cache and not a hoard: bounded per widget and in total, oldest-unused thrown out first and really deleted, re-checked after a week, and removed entirely when you uninstall the widget.
 - **The numbers a monitoring widget actually needs.** The system data a widget can be granted carries the **CPU clock**, the **GPU core and memory clocks** and the **frames per second** in the game you are playing, alongside the temperatures, fan RPM, power draw and load it already had. Requested by a widget author who had run out of readings to draw. No extra permission: a widget you have already allowed to see system data gets them, one you have not still sees nothing. They cost nothing either — each rides a reading Xenon was already taking on the same tick, so a dashboard showing them does no more work than one that does not.
 - **Twitch and YouTube are open to widgets too.** Three data streams a widget can ask for: which channels you follow are **live** right now (plus what your Twitch tile is playing), the **chat** of the channel you are watching (already split into text and emotes, so a widget can draw it any way it likes), and your own **YouTube broadcast** (live, viewers, likes, health). Plus one action: **play a channel or a video** in the Twitch and YouTube tiles you already have, so a widget can be your own "my streamers" launcher. None of it opens a second connection to Twitch or YouTube — a widget gets a copy of what the builtin tile has already read, so it costs nothing extra while that tile is on the dashboard. Reading only: no sending chat messages, no starting a broadcast, no stream key.
+- **Widgets can ask your AI.** A widget can ask for one more permission: to ask a question to the AI you set for Bit and show the answer. It uses your Sparks when Bit runs on Sparks, otherwise your own key, Ollama or your Claude or ChatGPT plan; the widget never chooses the AI and never sees a key. One question at a time, no tools, no history, and a daily number per widget that you pick under Settings → Bit → Widget questions (50 to start). In Xenon Maker the same thing is the **Ask Bit** step.
 - **Dynamic Island Live Activities.** A widget may separately request a host-rendered activity in the Full or Minimal top bar: persistent text, progress, playback bars, selected Xenon readouts and up to two safe buttons, or a timed takeover that animates in for a goal/result and restores what was there. Widgets provide data, never HTML/CSS; Xenon validates and draws every block. Settings → Dynamic Island can disable any installed package or all takeovers without uninstalling anything.
+- **Write one with Claude Code or Codex.** Connect your coding assistant in Settings → Widgets & sharing (one button each), or add the `xenon-mcp` MCP server to any other client. It reads the SDK, writes a starter, installs the widget on your page, reads the errors it hits while it runs and looks at a picture of its tile, then fixes it. The dashboard asks you once before it is allowed; it never approves a widget's permissions, only touches widgets you made and works only from the PC running Xenon. See **[packages/mcp](packages/mcp/README.md)**.
 - **Documented and versioned from day one.** The full developer guide — package format, sandbox rules, the complete bridge protocol and the security model — lives in **[docs/WIDGET_SDK.md](WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. It's the first step of the Xenon widget ecosystem (a shared gallery comes next). *Beta*, fully localised across all 11 languages.
 
 ---
@@ -340,11 +345,11 @@ The mic re-opens only **after** Xenon finishes speaking, and near-silent or nois
 
 **Tap to interrupt:** during the thinking/speaking phase a "· tap to stop" hint appears — tapping anywhere instantly stops playback and exits voice mode. You can also say "stop"/"basta", or just wait in silence.
 
-**Hands-free with "Hey Xenon" (opt-in):** turn on the wake word in **Settings → Xenon AI** and saying *"Hey Xenon"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use — one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
+**Hands-free with "Hey Bit" (opt-in):** turn on the wake word in **Settings → Xenon AI** and saying *"Hey Bit"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use — one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
 
-> **How to say it.** Say it **on its own, then pause** — *"Hey Xenon."* … the chat opens … *then* your request. Saying it as the start of a sentence (*"Hey Xenon, what's the weather?"*, all in one breath) is the one way to miss: anything longer than **3 seconds of unbroken speech** is treated as conversation rather than a wake phrase and thrown away, which is what stops music and a chat across the room from waking it. The **"Hey" is optional** — the name alone is enough.
+> **How to say it.** Say it **on its own, then pause**: *"Hey Bit."* … the chat opens … *then* your request. Saying it as the start of a sentence (*"Hey Bit, what's the weather?"*, all in one breath) is the one way to miss: anything longer than **3 seconds of unbroken speech** is treated as conversation rather than a wake phrase and thrown away, which is what stops music and a chat across the room from waking it. **The "Hey" is needed**: "bit" alone is an everyday word (*a bit*, *bit by bit*), so it never wakes Bit on its own.
 >
-> **Your accent does not matter.** The match is deliberately loose, because the local Whisper hears the name differently in every voice: *zenon*, *senon*, *sanon*, *zenone*, *xeneon* and a dozen more all count. There is no pronunciation to learn and no voice to train — say it the way it comes out.
+> **Your accent does not matter.** The match is deliberately loose, because the local Whisper hears the call differently in every voice: *ehi bit*, *hei bit*, *hej bit*, *hey beat* and *heybit* all count. There is no pronunciation to learn and no voice to train: say it the way it comes out. The old phrase, *"Hey Xenon"*, still works too.
 
 ### Voce Live — real-time, talk-over-it voice (beta)
 
@@ -776,21 +781,26 @@ A retro game HUD for looking after yourself: pixel-art meters that drain the lon
 - **Tap for coaching, confirm to refill** — tapping a bar (or a top-bar chip, or a reminder toast) opens a small card explaining what the meter tracks and what actually helps (drink a glass of water now; the 20-20-20 eye rule; stand up and walk a couple of minutes…). Hit **"Done! +100"** once you've done it and the bar springs back to full with a pixel burst and a floating "+100".
 - **Fits any tile size** — the HUD compacts itself as you shrink the tile (smaller rows, then just the bars), down to a tiny at-a-glance strip.
 - **Fun reminders** — below 25% (and again at zero) a game-style toast nudges you ("Stamina drained — stand up and take a walk 🚶"). Reminders respect the master Notifiche switch and have their own toggle; each threshold fires once per drain.
-- **XP & level** — every refill earns +25 XP toward the widget's **LV badge** (with a LEVEL UP! toast), and the header shows a beating pixel heart plus your time at the PC this session.
+- **XP & level** — every refill earns +25 XP toward your self-care **Level** (with a LEVEL UP! toast), and the header shows a beating pixel heart plus your time at the PC today (time away does not count).
+- **A streak that forgives a slip** — refill at least one meter a day to keep your streak; one missed day is forgiven, two in a row start it again.
+- **Natural breaks** — after time away from the PC, Stamina and Focus refill by themselves when you come back, because you already took the break (on by default, needs the away pause).
 - **Top-bar mini chips** — an opt-in toggle puts tiny pixel icons with micro bars next to the clock and weather (they follow the minimal-topbar island too). Tap a chip to refill on the spot.
-- **Tunable** — per-vital on/off and drain interval (water every 45 min, food every 3 h, 20-20-20-style eye breaks…) in **Settings → Notifiche → Vitals**.
+- **Tunable** — per-vital on/off and drain interval (water every 45 min, food every 3 h, 20-20-20-style eye breaks…) in **Settings → Bit**.
+- **Refill without tapping** — tell Bit ("I just drank", "I took a break"), press a Deck key (**Refill a vital**, Vitals group; any key can also show a meter live, or the emptiest one, under **Live value**), or use a widget: widgets made in the Xenon Maker and SDK widgets with the `vitals` stream can show the meters and fill them.
 - Deliberately light: no new dependencies, inline pixel-art SVG sprites, decay math riding the existing 1-second clock tick, cheap transform/opacity animations that respect "reduce motion". Fully localised (EN/IT/KO/JA/ZH).
 
 ### Bit — the pixel guardian
 <!--TODO-->
 <!-- SCREENSHOT: Bit's GAME OVER screen over the dashboard. Save as docs/images/vitals-pet.png -->
 
-An opt-in 8-bit tamagotchi (**Settings → Notifiche → Vitals → Bit**) that lives in a corner of the dashboard, mirrors your Vitals and *roasts* you — always in pixel style, whatever theme you run.
+An opt-in 8-bit tamagotchi (**Settings → Bit**) that lives in a corner of the dashboard, mirrors your Vitals and *roasts* you — always in pixel style, whatever theme you run.
 
 - **Moods** — bouncy and green when you're fine, worried at low meters, furious (shaking, steam puffs) at zero, a floating ghost when every vital is dead. Tap him for a quick menu: worst meters, **Truce 30 min**, **Quiet for today**.
 - **250+ hand-written roasts** (IT/EN) served through a no-repeat shuffle, in three tones — **Gentle / Sarcastic / Savage** ("Hydration: 0%. You are officially freeze-dried.").
-- **An escalation ladder, every rung opt-in**: speech-bubble + toast nags → dashboard desaturation with glitch pulses (~5 min at zero) → full **CRT GAME OVER screen** (~8 min) → **pixel popups on your real monitors** (10 min; all screens when 3+ vitals are dead) → **minimize all windows** (15 min, 30 s warning, nothing is closed) → **lock the PC** (20 min, 60 s countdown; the normal Windows lock).
+- **An escalation ladder, every rung opt-in**: speech-bubble + toast nags → dashboard desaturation with glitch pulses (~5 min at zero) → full **CRT GAME OVER screen** (~8 min) → **pixel popups on your real monitors** (10 min; all screens when 3+ vitals are dead) → **minimize all windows** (15 min, 30 s warning, nothing is closed) → **lock the PC** (20 min, 60 s countdown; the system's normal lock).
+- **macOS and Linux (Beta)** — the popup shows on the main screen through the Xenon app, or as a system notification; minimizing the windows works on macOS, Linux X11 and KDE, and is hidden with a reason on GNOME Wayland.
 - **Presence-aware and fail-safe** — the PC-invading rungs need *fresh keyboard/mouse input* (a system-idle probe in the persistent PowerShell worker; the touchscreen alone is not proof you're at the desk), every opt-in is re-checked server-side, and hard cooldowns cap the mayhem.
+- **Sleeping hours you choose** — Bit is quiet from 23:00 to 7:00 by default; pick your own hours (for example 18:00 to 9:00 to keep him quiet outside work). **Talk to Bit** in his menu opens the chat.
 - **Gamer truce** (default on) — silent and hands-off during games, with a post-match roast if a vital died mid-session. Refills flip him instantly to praise, with a tiny WebAudio chiptune fanfare.
 - Zero new dependencies; with Bit off, not a single timer runs.
 
@@ -849,6 +859,50 @@ A genuine **extra Windows desktop, live inside a dashboard tile** — drag any a
 - **Remove cleanly** — **Settings → Second screen → Remove** takes the virtual monitor away (with a confirmation first).
 
 > First version: needs the **Xenon Helper** companion (installed by `INSTALL.bat`; the tile shows a clear message if it's missing), the live view is **video only, no sound**, and some hardware-accelerated/DRM-protected windows (certain video players) may show black — ordinary apps capture fine.
+
+---
+
+## On your main screen (widgets and the Xenon menu)
+
+No second monitor needed: in the Xenon app, any tile or Store widget can sit on the screen you work on. Windows first; macOS and Linux as a Beta that has not been tried on real hardware yet.
+
+- **Three places for a widget.** On the desktop, under your windows: it comes up with Win+D and steps aside while a maximized window fills that screen. Over everything, games in a borderless window included. Next to an app (Windows only): it follows that app's window and hides when the app is minimized or closed.
+- **Clicks go where you expect.** A click next to a widget reaches whatever is underneath, and clicking a widget does not take the focus from the window you were using.
+- **Light on memory.** Widgets on the same screen share one window, and almost every tile loads a lighter page that carries only what it needs, so a window of widgets uses less than half the memory of the dashboard.
+- **Arrange them by hand or by voice.** Ask Bit "put the weather on the desktop, top right", or press Edit the widgets on screen: drag to move (they line up with the edges and with each other), drag a corner to resize, drop one on another to make tabs, Add to pick a new one. Pages such as Work and Games switch with a tap, a Deck key or Bit, and a page marked When I play shows while a game runs.
+- **Hide the overlay in one press.** Ctrl+Shift+F9 hides and shows the widgets over the game; the desktop ones stay. The keys stay free for other apps while nothing is over the game.
+- **The Xenon menu.** Alt+Shift+X opens one menu over any app with everything Xenon does on that screen: capture, widgets, the overlay, shortcuts and macros (clashes with other apps named), look, and how you use Xenon. The dashboard has the same menu and the **Main screen** tile, so a second screen or a phone controls the main screen too.
+- **Widgets only.** Settings, General, How you use Xenon: Dashboard, Widgets only or Both. With Widgets only there is no dashboard window at all; your widgets, the search shortcut, the pop-ups (captures, timers, reminders, calls), Bit's voice card, Game Companion and Performance Mode keep working.
+- **Wallpaper and screensaver.** Your Ambient scene can sit behind the desktop icons or start as the PC screensaver. Neither runs during a game or while a window fills the screen, and both start off.
+- **Glowing edges.** While you talk to Bit, the border of the screen lights up. It never takes a click, and on Windows it stays out of screenshots and recordings.
+
+Settings says why when something is missing on your PC, for example on GNOME with Wayland, where an app cannot put its windows under or over the others. The [CHANGELOG](CHANGELOG.md) has what each system can do.
+
+---
+
+## Game performance
+
+- **Game performance tile.** The frame rate of the game you are playing, its 1% and 0.1% lows, the frame time, a line of the latest frames where a stutter shows as a spike, and CPU and GPU load with the GPU temperature. It updates four times a second, only while a game runs and the tile is on a screen. Put it over your game by asking Bit "show my FPS over the game".
+- **Choose what it shows.** Settings, Performance, Game performance has a switch for the 1% low, the 0.1% low, the frame time, the graph and the CPU and GPU row. Or ask Bit "hide the graph on the FPS tile".
+- **Games played, compared.** Each game you play for more than two minutes is remembered (average FPS, lows, length, load, peak temperatures). Settings, Performance, Games played lists the last ten, each against the time before in the same game, so a driver update or a patch shows up on its own. Ask Bit "did the driver update help?".
+- **Benchmark.** A Deck key, or Bit, records the time of every frame to a CSV file in Documents, Xenon, Benchmark, and stops when the game closes or after 30 minutes.
+- **Why does it stutter?** A Deck key and Bit answer with one cause and one next step, for example "Video memory full: lower texture quality or resolution". Fixed rules on your PC, no AI model, nothing sent anywhere.
+- **Exclusive full screen.** No window can show over a game in exclusive full screen: the tile says so, and a message suggests borderless or windowed full screen.
+
+Frame times come from PresentMon on Windows. On Linux the frame rate needs the game started with MangoHud; on macOS one app cannot read another's frame rate, and the tile says so.
+
+---
+
+## Capture (screenshots, recordings, Instant Replay)
+
+All of it runs on your PC with nothing uploaded, from the Deck keys in the Capture group, from the Xenon menu or by asking Bit. Windows first; macOS and Linux as a Beta, where what your system cannot do does not appear.
+
+- **Screenshot** of the screen, the window in front or an area picked on a frozen screen, saved as PNG and copied. On an HDR screen the colours come out as you see them.
+- **Record video** of the screen or one window: only that app's sound, the whole PC sound, your microphone on its own track (never on unless you choose it), or none. A webcam bubble can sit in a corner. A small pill shows the time and stops it; it never appears in the video. If Xenon closes mid-recording, the part already recorded plays.
+- **Instant Replay** keeps the last 15 seconds to 60 minutes on disk, not in memory. Ctrl+Shift+F10, a Deck key or "save the last 30 seconds" saves a clip in about a second. Off by default.
+- **Gallery** grouped by day and game: trim without encoding again, copy the file to paste into a chat, make a vertical 9:16 copy, a lighter copy that fits 10 to 100 MB or a GIF, and a transcript made by the local Whisper, with chapters written by Bit. A paired phone can look at and download your captures.
+- **Work tools:** copy text from the screen, pin a screenshot over your windows, cover e-mail addresses, IBANs and long numbers before sharing, colour picker and ruler, draw on the screen, timelapse, a step recorder that writes a procedure with a picture per click (never what you type), and a one-press bug report .zip.
+- **For widget makers:** a widget with the `capture` permission can start a screenshot, a recording or a replay save, and never sees the picture, the video or where they are saved.
 
 ---
 
@@ -1038,7 +1092,7 @@ Xenon speaks up only when it's worth it — everything here is computed **locall
 
 - **Game session recap** — close a game after a real session (10 minutes or more) and the dashboard greets you back with a one-glance summary: **how long you played, average and peak FPS** (when the FPS reader is installed), and the **highest CPU/GPU temperatures** the session reached. One toast per session, nothing while you're playing.
 - **Sustained heat alerts** — beyond the existing temperature-*spike* warning, Xenon now notices a GPU or CPU that has sat **above its safe threshold continuously for 15+ minutes** (a blocked fan, an airflow problem, a runaway app) and tells you plainly: *"GPU has been at 91°C for 16 minutes"*. Deliberately hard to nag: at most one alert per hour per sensor, only for heat actually observed.
-- **A smarter morning greeting** — the morning greeting splash includes **today's first calendar events** in a small glass card, and (with spoken Ambient presence on) Xenon reads your day ahead aloud: weather plus *"You have 3 events today. First up: …"*.
+- **A smarter morning greeting** — the morning greeting splash includes **today's first calendar events** on the greeting, and (with spoken Ambient presence on) Xenon reads your day ahead aloud: weather plus *"You have 3 events today. First up: …"*.
 
 Fully localised (EN/IT/KO/JA/ZH); zero cost while no dashboard is open.
 
@@ -1046,10 +1100,11 @@ Fully localised (EN/IT/KO/JA/ZH); zero cost while no dashboard is open.
 
 ## Daily greeting
 
-Once per part of the day, Xenon welcomes you with a **fullscreen cinematic greeting** — its own scenography for each moment: a warm rising sun at dawn, bright daylight in the afternoon, a glowing sunset in the evening, and a moonlit sky with twinkling stars at night.
+Once per part of the day, Xenon welcomes you with a **fullscreen greeting drawn in pixels**: a sunrise, a bright afternoon with clouds, a sunset and a moonlit night with stars, with **Bit** doing what it would do at that hour (coffee in the morning, sunglasses in the afternoon, a book in the evening, asleep at night).
 
-- The greeting **types itself in** letter by letter, followed by a friendly line, today's date, and — when available — a glass pill with the **current weather** (condition, temperature, city).
-- It **dismisses itself** after a few seconds (a thin progress line shows how long) or instantly with a tap anywhere.
+- Under the greeting, **one true line about your day** from your calendar: how many events are left and when the first is, or what tomorrow looks like. With nothing to say there is no line. Then today's date and, when available, the **current weather** (condition, temperature, city), and the first events of the morning.
+- It fills any screen, from a phone in portrait to the 32:9 Xeneon Edge, on a whole-pixel grid, and in all 11 languages.
+- It **dismisses itself** after a few seconds or instantly with a tap anywhere.
 - Fully respects the system **reduce-motion** preference, and never repeats the same part-of-day greeting after a reload.
 
 > With **Ambient presence** (an opt-in Xenon AI feature) the greeting can also be **spoken aloud**, alongside heads-up reminders before events and spoken Guardian alerts. See [Xenon AI → Advanced AI features](#advanced-ai-features-opt-in).

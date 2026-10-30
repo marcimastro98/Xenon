@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/images/logo-mark.png" alt="Xenon" width="112">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/xenon-logo-dark.svg">
+    <img src="docs/images/brand/xenon-logo-light.svg" alt="Xenon" height="88">
+  </picture>
 </p>
 
 # Xenon
@@ -7,11 +10,11 @@
 **Turn any second screen into your PC's control center.** A spare monitor, an old display you dug out of a drawer, a tablet, the phone already in your pocket, or a **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — driven from any browser, on Windows, macOS or Linux.
 Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more, all from one glanceable screen.
 
-And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
+And it has a personality: **Bit**, a little pixel guardian who lives in the corner. Bit is also the assistant you talk to: say *"Hey Bit"* and ask it to change a page, build a theme or start a timer. It watches your habits too, and roasts you (kindly) into drinking some water and standing up now and then.
 
 Everything runs **100% locally**: no cloud, no telemetry, no account required. The app does check for
 updates at launch, and reaches the network for features you turn on (weather, media artwork, song lyrics, the
-community catalog) — every one of those calls is listed in the [privacy page](https://xenon-app.com/privacy.html).
+community catalog, a cloud AI if you pick one). Every one of those calls is listed in the [privacy page](https://xenon-app.com/privacy.html).
 
 ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
@@ -62,7 +65,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Native full-screen app** — a borderless kiosk that opens itself on the screen you pick (no browser or iCUE), finds that display among your monitors and stays pinned to it through display changes and standby. **Xenon asks which screen the first time it opens**, and Settings → Schermo changes the answer later; pick your phone instead and this PC shows nothing at all, not even at login, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface. **Swipe up for the desktop, iPhone-style**: a quick flick up from the bottom of the screen tucks the dashboard away into a small floating button and reveals the desktop underneath — tap the button to bring Xenon back (toggleable in Settings → General).
 - **Game-safe touch** *(native app)* — touch the dashboard mid-game and nothing breaks: the cursor snaps straight back to the monitor it came from, and while a game is running taps never steal its focus — no more full-screen games minimizing because you muted the mic or skipped a track. Typing (AI chat, notes, search) still works exactly as before. This is something only the native app can offer — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports your cursor and takes the game's focus, because only a real native window can tell Windows how to treat it. Both protections are on by default and toggleable from the tray.
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
-- **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. Widgets can also request host-rendered **Dynamic Island Live Activities**: persistent music/status layouts, animated goal-style takeovers and safe action buttons, all individually switchable by the user. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
+- **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. Widgets can also request host-rendered **Dynamic Island Live Activities**: persistent music/status layouts, animated goal-style takeovers and safe action buttons, all individually switchable by the user. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**. Writing one with **Claude Code or Codex**? Connect it in Settings and the assistant installs the widget, reads its errors and looks at its tile itself ([packages/mcp](packages/mcp/README.md)).
 - **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
 - **Incoming calls** — when Discord, Teams, Zoom or your phone rings, the dashboard opens a full-screen card with **Answer, Decline and Silence**, on every screen at once, and pushes it to a paired phone. Discord calls are answered outright; Teams and Zoom are answered by bringing their window forward and pressing the shortcut they document. Where a call cannot be picked up the card says so and offers to open the app instead of showing a button that does nothing.
 - **Your phone on the dashboard** *(Windows, beta)* — contacts, call history, a keypad that places real calls, and text messages you can read and reply to, from the phone paired to the PC over Bluetooth. It reads the phone the way a car does, over the standard Bluetooth profiles, so the same thing works with an iPhone and with an Android with nothing installed on the phone. Nothing is stored and nothing is uploaded. Answering a call is deliberately absent and the app says why: that channel belongs to the operating system. Also reachable by voice through Xenon AI and from a Deck key.
@@ -73,7 +76,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Developer cleanup** *(supporters)* — finds the space Docker images and build cache, Ollama models, editor folders of deleted projects and the WSL/Docker virtual disks hold, and frees it safely; on Windows it can also compact those virtual disks.
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
-- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. It **remembers facts about you**, stays coherent across long conversations, starts **speaking its reply almost immediately**, and offers **one-tap undo** for changes it makes. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
+- **Bit, the assistant**: voice, vision and chat that can control the whole dashboard, started hands-free with the local **"Hey Bit"** wake word. It **remembers facts about you**, stays coherent across long conversations, starts **speaking its reply almost immediately**, and offers **one-tap undo** for changes it makes. It works with **Gemini, OpenAI, Anthropic** or a **local model through Ollama**, with **Claude Code and Codex** on your own subscription, or with **Sparks, Xenon's credits**, with no key to set up.
 - **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis — and viewable trend charts on the System tile), and **Ambient presence** (proactive greetings and alerts).
 - **Sensor history & PC Screen Time** — an opt-in **History** tab on the System tile charts CPU/GPU temperature and load and RAM over 24h / 7 days / 30 days, plus a screen-time breakdown of your most-used apps and games. No AI needed; everything stays on your PC.
 - **Proactive moments** *(opt-in)* — a game-session recap when you finish playing, sustained-heat alerts, and a morning agenda in the daily greeting — all computed locally, no AI required.
@@ -89,6 +92,9 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).
 - **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen. Optional one-click **ad-blocker** (uBlock Origin Lite) and a hide-toolbar mode for full-screen video.
 - **Second screen** — a genuine extra Windows desktop inside a tile you can see and control; one-click virtual-display setup, instant resolution (incl. ultra-wide), touch-or-mouse control.
+- **On your main screen**: no second monitor needed. Put any tile or Store widget on the desktop or over your game, open the Xenon menu with Alt+Shift+X, or choose **Widgets only** for no dashboard window at all. See **[FEATURES.md](FEATURES.md#on-your-main-screen-widgets-and-the-xenon-menu)**.
+- **Game performance**: FPS, 1% and 0.1% lows and frame times in a tile you can put over the game, each game compared with the time before, a CSV benchmark and a plain answer to "why does it stutter?".
+- **Capture**: screenshots, video recording, Instant Replay and a gallery with trim, vertical and lighter copies and transcripts, plus work tools (copy text from the screen, pin, cover private data, colour picker, ruler, draw, step recorder). Everything stays on your PC.
 - **Smart Home** — control your home's lights, sensors and appliances via [Home Assistant](https://www.home-assistant.io/), grouped by room; live, local, and lightweight (a tile plus Deck actions).
 - **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps) and optional pausing of heavy live tiles (Browser, Second screen) while gaming or optimizing.
 - **App switcher** — every open window at a glance, tap to focus, with favourite app shortcuts.
@@ -342,11 +348,15 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Type text, move windows | ✅ | — | — ¹⁴ |
 | Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
 | Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ⁴ |
-| "Hey Xenon" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
+| "Hey Bit" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
 | Streaming, Spotify, Discord, Home Assistant, Claude Code, OpenAI Codex | ✅ | ✅ | ✅ |
 | In-game FPS counter | ✅ | — | ✅ ¹³ |
+| Widgets on your screen, Xenon menu | ✅ | Beta | Beta ²² |
+| Screenshots, video recording, gallery | ✅ | Beta | Beta ²² |
+| Instant Replay | ✅ | Beta | Beta ²² |
+| 1% lows, benchmark, "why does it stutter?" | ✅ | — | — |
 | Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
 | Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
 | Incoming-call card (ring + silence + open the app) | ✅ | Discord only ¹⁸ | ✅ ⁶ |
@@ -401,6 +411,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 
 ²¹ Through the Xenon Helper, which holds the index for the folders you choose and moves what you clean to the Trash, so a cleanup can be undone from there. The Trash and most of `~/Library/Caches` are only visible once Xenon has [Full Disk Access](#macos-full-disk-access). Search matches file names: content search, the part Windows Search provides, is not offered on a Mac.
 
+²² Linux uses the tools of your desktop, so what you get depends on the session and on what is installed. Widgets on the screen need X11 with a compositor, or KDE Plasma, Sway or Hyprland with gtk-layer-shell; not GNOME with Wayland. Capture uses the screenshot and recording tools of your desktop (for example maim or grim, and ffmpeg). Settings shows only what works on your PC and says why for the rest. macOS and Linux have not been tried on real hardware yet.
+
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 
 If a tile is empty and you want to know why, run **`npm run doctor`** from the install folder. It reads your machine the way Xenon does and prints, line by line, what works, what is simply absent (a sensor your hardware does not expose — the tile shows `--` and that is expected), and what is actually broken. It changes nothing: it starts no server, installs nothing and touches no setting. Adding `-- --capture ./caps` also saves the raw output of each tool, which is exactly what to attach to a bug report.
@@ -446,6 +458,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 - **[DEVELOPER.md](DEVELOPER.md)** — developer quick start, HTTP API, file layout, and architecture.
 - **[docs/THEME_SYSTEM.md](docs/THEME_SYSTEM.md)** — semantic theme roles, contrast, per-widget overrides, and import/export.
 - **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)** — build your own Xenon widget: package format, sandbox, and the bridge protocol.
+- **[packages/mcp](packages/mcp/README.md)**: `xenon-mcp`, the MCP server that lets Claude Code, Codex or any MCP client build, install and test widgets on your dashboard.
 - **[CHANGELOG.md](CHANGELOG.md)** — full version history.
 - **[docs/streaming-setup.md](docs/streaming-setup.md)** — Twitch & YouTube connection guide.
 
@@ -455,19 +468,22 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 **Found a bug?** Open a [Bug Report](https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md) with your Windows version, what you did and what happened, and any error text from `INSTALL.bat`. For anything that went wrong while installing, attach `%LOCALAPPDATA%\Xenon\setup.log`.
 
-**Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md) — all feedback is welcome.
+**Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md). All feedback is welcome.
 
 **If this saved you some time**, one person writes Xenon in their spare time, and the people below are what pays for the code-signing certificate, the domain and the servers. There is no paid version and there never will be; support is a gift, and it unlocks a few things as a thank-you:
 
 | | What it unlocks |
 |---|---|
-| **$5, a coffee** | One month of supporter-only themes and widgets, the Supporter role on Discord, your name in the [Hall of supporters](https://xenon-app.com/#support). |
-| **$25, a supporter pass** | Five months of drops, paid once. Nothing renews by itself. |
-| **$50, a whole year** | Twelve months of drops as a [yearly membership](https://www.buymeacoffee.com/marcimastro98/membership). It renews by itself and stops whenever you say. |
+| **5 USD once, a coffee** | One month of supporter-only themes and widgets, the Supporter role on Discord, your name in the [Hall of supporters](https://xenon-app.com/#support). |
+| **25 USD once, a supporter pass** | Five months of drops, paid once. Nothing renews by itself. |
+| **5 USD a month** | Drops every month while you stay, as a [monthly membership](https://www.buymeacoffee.com/marcimastro98/membership). You can cancel any time. |
+| **50 USD a year** | Twelve months of drops, plus a theme built for you, one request a month, as a [yearly membership](https://www.buymeacoffee.com/marcimastro98/membership). It renews each year until you stop it. |
+
+Every plan also brings **300 Sparks a month, Xenon's credits**, and unlocks **Lyrics** and **Developer cleanup** inside Xenon. Already a supporter? More Sparks come in packs of 500, 1050 or 2200 for 5, 10 or 20 USD, and they never expire: [Extras on Buy Me a Coffee](https://www.buymeacoffee.com/marcimastro98/extras).
 
 <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50" width="210"></a>
 
-Your code arrives by email within a minute of the payment; paste it once in **Settings → Support** and the drops unlock in the gallery.
+Your code arrives by email within a minute of the payment; paste it once in **Settings → Support Xenon** and the drops unlock in the Store.
 
 ---
 

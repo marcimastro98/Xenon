@@ -42,8 +42,55 @@ performance probe under that name inside every package (it measures long tasks
 and frame rate and reports them to the dashboard, so users can see which widget
 is using resources, and it tells the dashboard what the sandbox refused, see
 *From a web page to a widget*). A file with that name inside your package is ignored. The
-probe never touches your DOM or globals beyond `window.__xenonPerf`, and you do
-not need to do anything to support it.
+probe never touches your DOM or globals beyond `window.__xenonPerf`, apart from
+wrapping `console.error` so your error lines reach the author tools (your call
+still runs as before), and you do not need to do anything to support it.
+
+## Building with Claude Code, Codex or another coding assistant (v4.12)
+
+If you write widget code with a coding assistant, connect it to Xenon and it can
+do the whole loop itself: read this reference, write a starter, install the
+widget, put it on your dashboard, read the errors it hits while it runs, look at
+a picture of its tile, and fix what is wrong.
+
+In Xenon, **Settings → Widgets & sharing → Build widgets with Claude Code or
+Codex** has a **Connect** button for each. By hand:
+
+```sh
+claude mcp add --scope user xenon-widgets -- npx -y xenon-mcp   # Claude Code
+codex mcp add xenon-widgets -- npx -y xenon-mcp                 # Codex
+```
+
+Any other MCP client runs `npx -y xenon-mcp` as a stdio server (Node.js 18+). In
+Claude Code, `/plugin install xenon-widgets --marketplace marcimastro98/Xenon`
+adds the same server plus a `build-widget` skill. The first time the assistant
+uses a tool, Xenon asks on the dashboard: **Let this tool build widgets?** The
+connected tools are listed in that Settings card, where **Remove** ends one.
+
+| Tool | What it does |
+|---|---|
+| `xenon_status` | Xenon's version, this SDK's version, whether widgets are on and a dashboard is open |
+| `sdk_reference` | This document, by section |
+| `new_widget` | A working starter in a new or empty folder |
+| `check_widget` | The install checks without installing: package rules, sandbox, Store review notes |
+| `install_widget` | Install or update from the folder, put it on your dashboard and show its page |
+| `widget_issues` | Errors, blocked requests, whether its permissions are approved, how heavy it is |
+| `widget_screenshot` | A picture of the tile on screen now |
+| `my_widgets` | Your own widgets; with an id and a folder, writes one out to keep working on it |
+| `share_widget` | A share code, plus the Store review notes |
+
+The folder's name is the widget id unless the tool is given `id`. Limits are the
+same as any package: 40 files, 512 KB each, 3 MB in all.
+
+What it does not do: it never approves a widget's permissions (you still do, on
+the dashboard); it reads, changes and shares only widgets you made, never Store
+downloads or share codes; it works only from the PC running Xenon, never from a
+paired phone. An error thrown in widget code reaches it as `Script error.`,
+because the sandbox is another origin: wrap code in `try`/`catch` and
+`console.error` the message, which arrives in full. The screenshot is that box of
+the screen, so a window over the dashboard shows in it, and it is not available on
+Linux under Wayland. A widget placed as a desktop widget (outside the dashboard
+window) does not report errors or pictures yet.
 
 ## manifest.json
 
@@ -67,6 +114,7 @@ not need to do anything to support it.
   "shape": { "preset": "hexagon" },
   "icon": ["M3 10h7c3 0 4-8 6-8s2 8 5 8", "M3 16h18", "M3 21h11"],
   "category": "system",
+  "size": "wide",
   "deck": {
     "actions": [
       { "id": "quiet", "name": "Quiet mode",
@@ -103,10 +151,12 @@ not need to do anything to support it.
 | `mini` | no | `true` → your widget may draw a **mini widget in the top bar's button row**, where the user placed it (Settings → Top bar → bar buttons). Same host-rendered block vocabulary as the Dynamic Island, in a smaller room. See *Mini slot*. |
 | `topbarButton` | no | `true` → your widget may add **one button of its own to the top bar**: a label, an optional short glyph and a tooltip, drawn by Xenon. The user places, hides, renames and recolours it like the built-in buttons. See *Bar button*. (v4.12) |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
+| `ai` | no | `true` → your widget may **ask a question to the AI the user chose for Bit** (Sparks, their own key, Ollama or their Claude/ChatGPT plan) and get the answer as text. One question at a time, a daily number per widget the user chooses, no tools and no history. See *Asking the AI*. (v4.12) |
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 | `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
 | `shape` | no | The **silhouette of your own tile**: `{ "preset": "hexagon" }` or your own closed SVG path, `{ "path": "M .5 0 L 1 .5 L .5 1 L 0 .5 Z" }`. Optional `"fit": "fit"` keeps the proportions instead of stretching, and `"inset"` (0–25) is extra safe margin in percent. Not a permission — it cannot reach past your tile — and the user's own shape for that tile always wins. Ignored on an `ambient` package. See *Tile shape*. |
 | `category` | no | Where the "+" panel files your widget (v4.11.11): `"productivity"`, `"media"`, `"system"` or `"streaming"`, the same groups as Xenon's own widgets. Without it the panel uses the category of your widget's Store entry, and failing that it goes under *Other*. Every installed widget is also listed under the panel's **Installed** filter. Not a permission; any other value is dropped. |
+| `size` | no | The shape your widget is drawn for, so a new tile of it starts in that shape instead of the default span: `"small"` (one value at a glance), `"medium"`, `"wide"` (a short strip), `"tall"` (a full-height column) or `"large"` (the main instrument of a page). Xenon turns it into columns and rows from the screen it lands on: on the 2560x720 Xeneon Edge a `wide` tile is about 750x220 px, on a 1920x1080 monitor it takes more columns. The user can still resize it, so the widget must still recompose at every size. Not a permission; any other value is dropped, and Ambient packages ignore it. (v4.12) |
 | `icon` | no | **Your widget's own glyph** (v4.11.11), shown on its tab in a tab group and on its result in the "+" panel's search, instead of the generic puzzle. SVG path data in a **24×24 box**, drawn the way every built-in widget icon is drawn: a 2 px round stroke in the text colour. A string, or up to 4 paths as an array; `{ "path": …, "fill": true }` draws a solid glyph instead. Not a permission. A malformed icon is dropped and your package still installs, with the puzzle. See *Widget icon*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
@@ -329,14 +379,17 @@ than the manifest requested):
   actions: ['media'],                 // granted action categories
   // Granted boolean capabilities you have to know about because YOU decide
   // whether to use them. See "Clipboard", "Dashboard accent", "Filling the
-  // screen". `expand` is false in a service or ambient frame whatever the grant
+  // screen", "Asking the AI". `expand` is false in a service or ambient frame whatever the grant
   // says, so you can use it directly to decide whether to draw the affordance.
-  clipboard: false, accent: true, expand: true,
+  clipboard: false, accent: true, expand: true, ai: false,
   // Which frame you are. A package declaring `background: true` runs a hidden
   // service frame AND any mounted tile — the same code, twice. Use this to keep
   // side effects (a badge refresh, a scheduled write) in exactly one of them.
   // See "Background service frames".
   service: false,
+  // Where this frame is drawn, and whether a dashboard is in use (v4.12.0).
+  // See "Where your widget is".
+  placement: { where: 'dashboard', dashboard: true },
   // Addresses the user typed into your `userHosts` slots, keyed by slot id.
   // Only slots they actually filled appear. See "User-supplied addresses".
   userHosts: {
@@ -986,6 +1039,121 @@ if (m.type === 'data' && m.stream === 'sensors') {
    no answer could be read at all, and `sensorAccess` (`'ok'`, `'needs_admin'`,
    `'missing'`) says why, as it does on `system`.
 5. **`name` and `hw` come from drivers.** Render them with `textContent`.
+
+### 3c-ter. The game you are playing, frame by frame — `perf` (v4.12.0)
+
+`system` has one `fps` number every 5 seconds. `perf` is what the Game
+performance tile draws: four readings a second while a game runs, with the lows
+and the newest frame times.
+
+```js
+if (m.type === 'data' && m.stream === 'perf') {
+  const d = m.data;
+  if (!d.active) {
+    // No game. `last` is the latest game played, or null:
+    // { game: 'cyberpunk2077', durationS: 5400, avgFps: 97.2, low1Fps: 61.4,
+    //   low01Fps: 48.9, cpuAvg: 41, gpuAvg: 96, cpuTempMax: 78, gpuTempMax: 71,
+    //   deltaAvgFps: 12.3, … }   deltaAvgFps = against the time before, same game
+    // A game that runs but draws no readable frames comes as
+    // { active: false, game: 'Game.exe' }, plus reader: false when the frame
+    // reader (PresentMon) is not installed: name it instead of "no game".
+    if (d.game) return showUnreadable(d.game, d.reader === false);
+    return showIdle(d.last);
+  }
+  // d.process  the game's process name, 'Cyberpunk2077.exe'
+  // d.fps      what reaches the screen; d.presentFps what the game hands over
+  //            (higher with frame generation), d.displayFps as on `system`
+  // d.avgFps, d.low1Fps, d.low01Fps   over the last 2000 frames (about 30 s at 60 FPS)
+  // d.p99Ms    99th percentile frame time, in milliseconds
+  // d.frames   up to 120 newest frame times in ms, oldest first (for a graph)
+  // d.bench    { elapsedS } while a benchmark records, otherwise null
+  // d.why      { verdict, reason } once the PC's own rules give the same answer on two
+  //            system readings in a row (5 to 10 s at the default refresh), else null:
+  //            verdict smooth | stutter | low; reason smooth, capped, vram_full,
+  //            ram_full, gpu_hot, cpu_hot, gpu_bound, cpu_bound, mixed,
+  //            no_gpu_reading, loading (shaders or streaming: nothing at its limit)
+  // d.exclusive true when the game runs in exclusive full screen: no window,
+  //            yours included, can show over it (borderless or windowed full
+  //            screen fixes that); false otherwise, and always false on Linux
+}
+```
+
+1. **Nothing runs until you are granted it**, like `processes` and `sensors`:
+   the stream starts only while a game runs, a dashboard is open and some
+   package holds the grant (or the user shows the Game performance tile).
+2. **Nothing arrives before the first game.** Until a reading comes, assume no
+   game is running. When the game closes, one `{ active: false }` arrives at once,
+   so do not wait for a timeout to clear your numbers.
+3. **Every number but `fps` is nullable.** The lows need enough frames, and on
+   Linux (MangoHud) there is only `fps`: no lows, no frame times, `process` empty. macOS has no
+   way to read another app's frames, so there the stream never sends a reading.
+4. **`process` and `game` are names from the system.** Render them with
+   `textContent`.
+
+### 3c-quater. The games you played — `gameSessions` (v4.12.0)
+
+The list behind Settings → Performance → Games played: one summary per game
+session, newest first, plus the newest against the one before it of the same
+game. Its own grant, because it is history (which games, when, for how long),
+and the dialog says so.
+
+It is a PULL stream: ask for it when you need it, it changes only when a game
+ends.
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'refresh', id: 1, stream: 'gameSessions' }, '*');
+
+if (m.type === 'data' && m.stream === 'gameSessions') {
+  const d = m.data;
+  // d.enabled   false when the user turned "Games played" off: sessions is empty
+  // d.current   { game: 'cyberpunk2077', start: 1793000000000 } while a game runs, else null
+  // d.sessions  up to 20, newest first:
+  //   { id: 'gs_m1x2', game: 'cyberpunk2077', start, end, durationS: 5400,
+  //     avgFps: 97.2, low1Fps: 61.4, low01Fps: 48.9, frames: 524880,
+  //     cpuAvg: 41, gpuAvg: 96, cpuTempMax: 78, gpuTempMax: 71 }
+  // d.compare   the newest session against the one before it of the same game:
+  //   { game, latestId, previousId, deltaAvgFps: 12.3, deltaLow1Fps, deltaLow01Fps }
+  //   previousId and the deltas are null the first time a game is played
+}
+```
+
+1. **Times are milliseconds since 1970**, as `Date.now()` gives them.
+2. **Every number but `avgFps` is nullable.** On Linux (MangoHud) there are no
+   lows; macOS has no way to read another app's frames, so the list stays empty.
+3. **`game` is the process name without `.exe`, in lower case.** Render it with
+   `textContent`.
+4. Sessions shorter than two minutes are not kept, and at most 100 are stored.
+
+### 3c-quinquies. Self-care meters — `vitals` (v4.12.0)
+
+The Vitals meters (hydration, energy, stamina, focus, posture): how full each
+one that is on is, when it runs out, the self-care level and the daily streak.
+The same numbers the Vitals tile and Bit read. Pushed on every change (a
+refill, a setting, the return from a break); `refresh` asks for it now.
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'refresh', id: 1, stream: 'vitals' }, '*');
+
+if (m.type === 'data' && m.stream === 'vitals') {
+  const d = m.data;
+  // d.enabled         false when the user turned Vitals off
+  // d.meters          only the ones that are on:
+  //   { id: 'hydration', name: 'Hydration', percent: 62, everyMinutes: 45, emptyInMinutes: 28 }
+  //   (name is in the user's language)
+  // d.level           self-care level, from 1
+  // d.refillsToday    meters refilled today
+  // d.streakDays      days in a row with at least one refill (one missed day is forgiven)
+  // d.bestStreakDays
+  // d.away            true while the user is away from the PC: the meters are frozen
+}
+```
+
+1. **`percent` is a snapshot.** Between pushes it drains linearly: one full
+   meter lasts `everyMinutes`. Count down from `emptyInMinutes` if you draw a
+   live bar, and stop counting while `away` is true.
+2. To mark a meter done, ask for the `vitals` **action** category and send
+   `{ type: 'vitalsRefill', vital: 'hydration' }` (or `'all'`). It writes
+   exactly what a tap on the bar writes, streak and level included.
 
 ### 3d. `lang` — host → widget (v4.11.8)
 
@@ -1805,6 +1973,35 @@ This is **not a permission**: it changes your own entries and nothing else. The
 host never parses it as markup; each path is set with `setAttribute('d', …)` on an
 SVG `<path>`. Older Xenon versions ignore the field.
 
+### 4c-quater. Where your widget is — `placement` (host → widget) (v4.12.0)
+
+The same widget can sit on the dashboard, on the desktop, over a game or beside
+another app's window. `init` says which, and a change is pushed:
+
+```js
+{ xenonSdk: 1, type: 'placement', placement: { where: 'overlay', dashboard: false } }
+```
+
+- `where`: `'dashboard'` (a dashboard page, on any screen or a paired phone),
+  `'desktop'` (under the windows, on the desktop), `'overlay'` (above
+  everything, games included), `'anchor'` (following one app's window),
+  `'background'` (a service frame) or `'ambient'` (an Ambient scene on the
+  dashboard). An Ambient scene the user also shows on the PC itself says
+  `'wallpaper'` (the animated wallpaper, behind the desktop icons: nothing on
+  it can be clicked) or `'screensaver'` (full screen after the PC sits idle; any
+  input ends it, so never ask for a tap there). Both fill whole monitors that
+  nobody is touching: keep motion slow and draw a few frames a second, not one
+  per screen refresh. Xenon steps its own scenes' endless CSS animations to
+  12 fps there; your frame's loop is yours to pace.
+- `dashboard`: `false` when the user runs Xenon as widgets only, with no
+  dashboard. Leave out anything that says "open it on the dashboard" then.
+
+Use it for layout, not for permission: over a game, keep to the essentials and
+leave the middle of the screen alone. No grant is needed, it says nothing about
+the user, and you cannot move yourself: where a widget goes is the user's
+choice. On an older Xenon the field is missing: treat that as
+`{ where: 'dashboard', dashboard: true }`.
+
 ### 4d. `notice` — host → widget (v4.10)
 
 Whether a Xenon pop-up is on screen right now. Sent immediately after `init`,
@@ -1935,6 +2132,7 @@ the same gate Deck keys go through):
 | `browser` | `{ type: 'browserOpen', url: 'https://…', expand?: true }` (http/https only). Shows the page in the **Browser tile** already on the dashboard. See [Opening a page on the dashboard](#opening-a-page-on-the-dashboard-browser) below. |
 | `watch` | `{ type: 'twitchWatchPlay', channel }` and `{ type: 'ytWatchPlay', video }` — play a channel or a video in the **Twitch** and **YouTube** tiles already on the dashboard. Pair with the `twitchWatch` stream to know what is live. See [Playing in the Twitch and YouTube tiles](#playing-in-the-twitch-and-youtube-tiles-watch) below. |
 | `tasks` | `{ type: 'taskAdd', text }`, `{ type: 'taskToggle', id }`, `{ type: 'taskDelete', id }` — add / complete-toggle / delete a to-do in the same list the Tasks tile shows (pair with the `tasks` **stream** to read the list and each task's `id`). `text` is capped at 200 chars server-side; a new task is created with default (medium) priority. No external service required. |
+| `vitals` | `{ type: 'vitalsRefill', vital }` — mark a Vitals meter done, `vital` one of `hydration`, `energy`, `stamina`, `focus`, `posture` or `all` (every meter that is on). The same write as a tap on the bar. Errors: `vitals_off` (Vitals is off), `vital_off` (that meter is off). Pair with the `vitals` **stream** to read the meters. |
 | `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
 The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma is write-only (no stream): fire the actions or show a static control. The whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` and `lightPart` take device ids and part indexes from the `lighting` stream (a pull snapshot, requested like `network`).
@@ -2130,6 +2328,163 @@ action: { type: 'dashboardPage', page: 'next' }   // 'next' | 'prev' | 'back'
 
 Listed to the user as "Turn the dashboard to another page".
 
+### 5c-ter. Screenshots, recordings and the replay: `capture` (v4.12.0)
+
+The capture keys of the Deck, reachable from a widget: a "clip that" button on a
+game overlay, a timer that saves the replay when a round ends.
+
+```js
+action: { type: 'screenshot' }                          // the whole screen
+action: { type: 'screenshot', target: 'window' }        // the window in front
+action: { type: 'screenshot', target: 'region' }        // the user drags an area
+action: { type: 'record', mode: 'toggle' }              // 'toggle' | 'start' | 'stop'
+action: { type: 'record', target: 'window', audio: 'silent' }  // audio: 'sound' | 'silent'
+action: { type: 'replay' }                              // save what the replay kept
+action: { type: 'replay', seconds: '30' }               // only the last 30 s of it
+action: { type: 'screenText' }                          // the user drags an area, its text goes to the clipboard
+action: { type: 'screenPin' }                           // the user drags an area, it stays pinned over the windows
+action: { type: 'screenColor', format: 'hex' }          // the user clicks a pixel, its colour goes to the clipboard
+action: { type: 'screenMeasure' }                       // the user drags an area, its size goes to the clipboard
+action: { type: 'captureMarker' }                       // a bookmark on the recording or replay that runs
+// { ok: true }, or { ok: false, error: 'unavailable' | 'running' | 'not_recording' | 'off' | 'saving' | … }
+```
+
+```json
+{ "actions": ["capture"] }
+```
+
+- **It starts a capture, it never sees one.** The answer is `ok` and an error
+  code. The picture, the video, its name and its folder never reach the widget,
+  and there is no stream that carries them.
+- **Only the start.** `mode: 'reveal'` (open the file manager on the PC),
+  turning the replay on or off, `audio: 'sound_mic'` (the microphone) and a
+  `webcam` corner (the camera bubble; only `'off'` passes) are
+  refused with `not_allowed`: those stay on the user's own keys and in Settings.
+  Leave a field out and the Deck key's default applies.
+- **Nothing is silent.** The user sees the same "Screenshot saved", "Recording"
+  and "Replay saved" notices a Deck key shows, and the recording badge on the
+  screen being recorded.
+- **Text from the screen** puts the words of an area the user drags on the
+  clipboard. The widget gets `{ ok: true, lines, chars, copied }` (or `empty`,
+  or `cancelled` when the user pressed Esc), never the text. Only the dragged
+  area: `target: 'window'` and `target: 'screen'` are refused with
+  `not_allowed`, because they would rewrite the clipboard with no gesture of
+  the user's. `no_ocr_language` means Windows has no text recognition for the
+  user's language; the notice tells them where to add it.
+- **Pin on screen** (`screenPin`) takes an area the user drags (saved and copied
+  like a screenshot) and keeps it on the screen above the windows, or on the
+  desktop with `surface: 'desktop'`. The user moves it, resizes it and unpins it
+  themselves. The widget gets `{ ok: true, pinned, surface }` (or `cancelled`),
+  never the picture. Only the dragged area: `source: 'last'` and an `id` are
+  refused with `not_allowed`, because they would put a saved picture on the
+  screen with no gesture of the user's. `too_many` means 24 widgets are on the
+  screen already; `unavailable` also means the Xenon app is not running.
+- **Colour picker and ruler** (`screenColor`, `screenMeasure`) freeze the
+  screens; the user clicks a pixel (a magnifier shows it) or drags an area, and
+  the colour (`format`: `hex`, `rgb` or `hsl`) or the size (`333 × 177`) goes on
+  the clipboard, with a notice that shows it. The widget gets `ok` or an error
+  code, never the colour or the size; `cancelled` means Esc or a right click.
+- **Mark this moment** (`captureMarker`) drops a bookmark on the recording or
+  Instant Replay that is running, the same as the user's Deck key: the saved
+  video carries it and the gallery jumps to it. The widget gets `ok`, or
+  `not_recording` when nothing records; it never learns the time or the video.
+  Two presses within a second are one bookmark.
+- **Not in this category:** the copies the gallery makes (vertical 9:16,
+  smaller for a chat, GIF). Making one re-encodes a video of the user's for a
+  minute or more, so it stays on the user's own Deck key, the gallery and Bit.
+  The bug report package is not here either: it bundles the user's screen, the
+  last seconds of video and system details, so only the user's Deck key and Bit
+  make one. Sending a capture to the paired phone is not here either: it moves
+  a file of the user's off the PC, so only the gallery, the Deck key and Bit do it.
+  "Clips from marks" is not here either: it writes copies of the user's videos,
+  so only the gallery, the Deck key and Bit make them.
+- `unavailable` means this PC has no capture engine, or not that feature, so
+  hide the button rather than report a failure. `off` means the Instant Replay
+  is switched off in Settings; say so, the user turns it on.
+- Allowed in manifest Deck macros, with the same limits.
+- **Do not fire it on a timer.** A screenshot or a recording nobody asked for
+  fills the user's disk; tie it to a tap or to an event the user set up.
+
+Listed to the user as "Take screenshots, start and stop recordings, save the
+replay, copy the text of an area you pick or pin it on the screen (it never
+sees any of it)".
+
+### 5c-quater. Benchmark, gallery and the widgets on the screen (v4.12.0)
+
+Three small categories for the controls a game overlay or a control-room tile
+wants next to the capture buttons. Each is its own line in the permission
+dialog.
+
+```js
+// `benchmark`: every frame time of the running game, saved as a CSV on this PC
+action: { type: 'benchmark', mode: 'toggle' }          // 'toggle' | 'start' | 'stop'
+// { ok: true }, or { ok: false, error: 'no_game' | 'running' | 'not_running' | 'too_short' | 'unavailable' }
+
+// `gallery`: open the screenshots and clips Xenon saved
+action: { type: 'gallery' }                            // everything
+action: { type: 'gallery', filter: 'video' }           // 'all' | 'video' | 'screenshot'
+
+// `layers`: the widgets on the desktop and in the overlay
+action: { type: 'layersToggle', surface: 'overlay' }   // mode: 'toggle' | 'on' | 'off'; surface: 'all' | 'overlay' | 'desktop'
+action: { type: 'layerPage', page: 'next' }            // a page name or number; empty or 'next' = the next one
+// { ok: false, error: 'no_pages' | 'unknown_page' | 'unavailable' }
+action: { type: 'screenDraw', mode: 'toggle' }         // drawing on the screen; mode: 'toggle' | 'start' | 'stop'
+// { ok: true, drawing: true } = open now; { ok: false, error: 'unsupported' | 'unavailable' }
+action: { type: 'xenonMenu', mode: 'open', section: 'keys' } // mode: 'toggle' | 'open' | 'close'
+// section: 'now' | 'widgets' | 'overlay' | 'capture' | 'keys' | 'look' | 'mode'
+// { ok: true, where: 'screen' | 'dashboard' | 'closed', section } ; { ok: false, error: 'unavailable' }
+action: { type: 'gameCompanion' }                     // Bit's card for the game being played
+// { ok: true } ; { ok: false, error: 'companion_off' | 'screen_alerts_off' | 'unavailable' }
+```
+
+```json
+{ "actions": ["benchmark", "gallery", "layers"] }
+```
+
+- **Benchmark: the file stays on the PC.** The answer is `ok` and an error code;
+  the CSV, its name and its numbers never reach the widget. `mode: 'reveal'`
+  (open the folder) is refused with `not_allowed`. To show that a run is going,
+  read `bench` in the `perf` stream (§3c-ter): `{ elapsedS }` while it records,
+  `null` otherwise. A run also ends by itself when the game closes or after 30
+  minutes. `unavailable` means this PC cannot read single frame times (macOS
+  and Linux today): hide the button.
+- **Gallery: it opens, the widget sees nothing.** On a dashboard it opens on
+  that screen, like a Deck key pressed there; from the desktop, the overlay or
+  the background it opens on the PC. Only `filter`: an `id` is refused with
+  `not_allowed`, and there is no stream that lists the captures.
+- **Layers: show, hide and switch pages, nothing else.** Placing, moving,
+  attaching to an app and removing widgets stays with the user (the edit mode and
+  the voice), so a widget can never rearrange another or learn which apps are open. Hiding the overlay hides your widget too if it
+  sits there: give the user a way back that is not on the overlay (a Deck key,
+  the shortcut). Switching page takes your widget off the screen as well when it
+  is not on the new page. `no_pages` means the user made no pages yet; `unavailable`
+  means this PC has no widgets on the screen (no Xenon app).
+- **Drawing on the screen** (`screenDraw`, v4.12.0) lays a see-through sheet
+  over the monitor under the pointer, with a small bar for colour, tool, undo and
+  close: for a "Draw" button in a presenting or teaching widget. The strokes show
+  in screenshots and recordings; on Windows the bar never does. Your widget gets
+  back only whether it is open; nothing is read from the screen and nothing is
+  saved. Esc or the bar's x closes it at any time. On macOS and Linux (Beta) it
+  opens on the main screen where the app can put windows on the screen; elsewhere
+  the answer is `unsupported`.
+- **Xenon menu** (`xenonMenu`, v4.12.0) opens, closes or toggles the menu, like
+  its Deck key: over the main screen when the Xenon app draws it there, otherwise
+  as a panel on the open dashboards (`where` says which). `section` picks the page
+  it opens on. Nothing is read: your widget gets back only where it opened. Every
+  row inside the menu is the user's to press.
+- **Game Companion** (`gameCompanion`, v4.12.0) opens Bit's card for the game
+  being played, like its Deck key: on the dashboard, or on the main screen with
+  Widgets only. Opening it sends nothing to the AI; the screen goes to Bit only
+  when the user taps Analyze screen on the card. Your widget gets back `ok` and
+  nothing else, not even the game (that is in the `perf` stream, behind its own
+  permission). `companion_off` means Game Companion is turned off (Settings,
+  Advanced AI features); `screen_alerts_off` means Widgets only with the on-screen alerts off.
+- All of these are allowed in manifest Deck macros, with the same limits.
+
+Listed to the user as "Start and stop a benchmark of your game (the file stays
+on this PC)", "Open the gallery of your screenshots and clips (it never sees
+them)" and "Show or hide your widgets on the screen, switch their pages, open drawing on the screen, the Xenon menu and Game Companion".
+
 ### 5d. Turning one person up or down: `discordUserVol` (v4.11)
 
 Two actions in the `discord` category act on ONE member of the voice channel the
@@ -2318,17 +2673,21 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `lighting`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
 | Category | Action types |
 |----------|--------------|
 | `audioDevice` | `audioDevice`, `audioDeviceToggle`, `audioDeviceFirst` |
+| `benchmark` | `benchmark` |
 | `browser` | `browserOpen` |
+| `capture` | `screenshot`, `record`, `replay`, `screenText`, `screenPin`, `screenColor`, `screenMeasure`, `captureMarker` |
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` |
+| `gallery` | `gallery` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |
+| `layers` | `layersToggle`, `layerPage`, `screenDraw`, `xenonMenu`, `gameCompanion` |
 | `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice`, `lightPart` |
 | `media` | `media`, `mediaSeek` |
 | `mic` | `micMute` |
@@ -2341,6 +2700,7 @@ the user granted, and every action is re-validated server-side.
 | `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` |
 | `url` | `openUrl` |
+| `vitals` | `vitalsRefill` |
 | `voicemeeter` | `vmStripMute`, `vmStripGain`, `vmStripBus`, `vmBusMute`, `vmBusGain`, `vmMacro` |
 | `volume` | `volume`, `appVolume`, `appMute` |
 | `watch` | `twitchWatchPlay`, `ytWatchPlay` |
@@ -2575,6 +2935,13 @@ the host mounts a hidden sandboxed frame (same CSP, same grants, capped at 4
 packages) so those contributions remain live with no tile on screen. Shown to
 the user in the permission dialog; meaningless (and normalized away) without
 one of those capabilities.
+
+With **Widgets only** (no dashboard on the PC, v4.12) the service frame still
+runs while one of your handlers is granted, so your Deck keys, their keyboard
+shortcuts, your `state` values and your hooks keep working. Badges, the mini
+slot, the bar button and the island have nowhere to show there, so they alone
+do not start it. A tile of yours placed on the screen does not answer handlers
+or hooks in that mode: declare `background: true` if your keys must work.
 
 ### 9b. Dynamic Island — `island` (widget → host) (v4.6 / v4.10)
 
@@ -2981,7 +3348,7 @@ When you publish a new version of your widget to the Store, people who installed
 
 What you should know before you bump the version:
 
-- **A new permission stops it.** If the new `manifest.json` asks for anything the user has not approved for the old version, Xenon does not install it by itself. That means a new stream, action, host, hook, handler, capability (`storage`, `secrets`, `island`, `badge`, `mini`, `clipboard`, `accent`, `expand`), a new `userHosts` slot, or a different `surface`. The user is told an update is waiting, and gets the usual permission window when they update by hand. Everyone who stays on the old version keeps working.
+- **A new permission stops it.** If the new `manifest.json` asks for anything the user has not approved for the old version, Xenon does not install it by itself. That means a new stream, action, host, hook, handler, capability (`storage`, `secrets`, `island`, `badge`, `mini`, `clipboard`, `ai`, `accent`, `expand`), a new `userHosts` slot, or a different `surface`. The user is told an update is waiting, and gets the usual permission window when they update by hand. Everyone who stays on the old version keeps working.
 - **Same id, higher version.** The catalog entry's `pkgId` has to be the `id` inside the package, and the version has to go up, or nobody receives it.
 - **Allow for a day.** The delay is on purpose: a version that turns out wrong can be hidden from the catalog before it reaches anyone.
 - **A package that fails its checks** (it does not validate, or the scan does not see it afterwards) is put back to the old version and is not retried by itself.
@@ -3161,6 +3528,54 @@ Why the confirmation: a sandboxed iframe's tap propagates a live "user activatio
 to the host for a few seconds, so a widget that copied on its own could rewrite
 your clipboard off an unrelated tap. Tying every copy to a fresh host tap the user
 reads removes that entirely.
+
+## Asking the AI: `ai` (v4.12)
+
+Declare `"ai": true` and your widget may ask a question to **the AI the user chose
+for Bit**: Sparks when Bit runs on Sparks, otherwise their own key (OpenAI,
+Anthropic, Gemini), their Ollama, or their Claude or ChatGPT plan. Your widget
+never picks the provider, never sees a key and never learns which one answered.
+If the user has no AI set up you get `error: 'no_ai'`.
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'ai', id: 7,
+  prompt: 'Give me one word that rhymes with "light".',
+  system: 'Answer with a single lowercase word.', // optional
+  maxTokens: 40,                                   // optional, 16 to 1024, default 400
+  json: false }, '*');                             // optional: ask for a JSON answer
+// → { xenonSdk: 1, type: 'ai_result', id: 7, ok: true, text: 'night', left: 49 }
+//   or { …, ok: false, error: 'no_ai' | 'no_credits' | 'cap' | 'busy' | 'rate_limited'
+//                             | 'too_long' | 'bad_prompt' | 'not_allowed' | 'failed' }
+
+// With the helper (sdk-example/xenon-client.js):
+const r = await xenon.ai('Summarise this headline in five words: ' + title, { maxTokens: 60 });
+if (r.ok) line.textContent = r.text;
+```
+
+- **One question, one answer.** No tools, no history, no memory of earlier
+  questions: the model sees only `system` and `prompt`. Send what it needs every time.
+- `prompt` is required (≤ 8000 chars), `system` is optional (≤ 2000 chars). Text over
+  the limit is refused with `too_long` rather than cut. Xenon puts a short fixed frame
+  ahead of your `system` so every provider answers the same way: the answer only, plain
+  text unless your instructions ask for JSON.
+- `json: true` asks the provider for a JSON answer. `text` is still a string: parse it
+  yourself, inside a `try`.
+- The answer is at most 16000 characters. Render it with `textContent`, never
+  `innerHTML`: it is text from a model, not markup you wrote.
+- **One question at a time per widget** (`busy` while one is running), and a **daily
+  number per widget** the user chooses in Settings → Bit → *Widget questions* (20, 50,
+  100 or 200, default 50). `left` says how many your widget still has today; past it
+  you get `cap` until midnight, local time. The count survives a restart. A question
+  that reached the provider counts even if it failed; an empty Sparks balance does not.
+- `no_credits`: Bit runs on Sparks and the balance is empty. Say so plainly and stop
+  asking; the questions work again as soon as the user has Sparks.
+- Every question can cost the user something (Sparks, the money of their key, their
+  plan quota), so **ask when the person does something** (a tap, a new song, a new
+  item), never on a timer. A widget that asks in a loop runs into its day in minutes.
+- Answers can take a while on a local model or a plan: the helper waits up to three
+  minutes. Show a quiet working state, and keep the previous answer on screen meanwhile.
+- `init` echoes your granted `ai` flag, so you can hide the AI part of your widget
+  when the user declined it.
 
 ## Dashboard accent
 

@@ -40,6 +40,7 @@ const REVIEWED = {
   hide: 'AppHandle::hide is macOS-only; every call site here is Window::hide, which is not gated.',
   show: 'AppHandle::show is macOS-only; every call site here is Window::show, which is not gated.',
   new: 'Matches an iOS-only constructor by name only. We build no iOS target.',
+  controller: 'PlatformWebview::controller exists on Windows (WebView2) and macOS (WKUserContentController); our only call, in memory_level.rs, is inside cfg(windows).',
 };
 
 function fail(msg) {
