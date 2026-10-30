@@ -4,6 +4,9 @@ name: Release (atomic)
 # so the moment the release is published, everything is already attached:
 #
 #   xenon-helper.exe            native companion (server/install.ps1 downloads it)
+#   xenon-capture.exe           capture engine (the server fetches and verifies it)
+#   xenon-capture-macos         its macOS twin, universal, ad-hoc signed
+#   xenon-capture-linux-x64     its Linux twin (drives the session's own tools)
 #   Xenon_X.Y.Z_x64-setup.exe   NSIS installer (also what the Tauri updater applies)
 #   Xenon_X.Y.Z_x64-setup.exe.sig  its minisign signature
 #   Xenon-Setup-x64.exe         stable-named copy — the permanent download link
@@ -12,7 +15,7 @@ name: Release (atomic)
 #   Xenon_X.Y.Z_universal.dmg   macOS disk image
 #   Xenon-macOS-universal.dmg   stable-named copy — the permanent macOS link
 #   latest.json                 Tauri updater manifest (windows + both darwin arches)
-#   SHA256SUMS / SHA256SUMS.sig Ed25519-signed hashes (self-update + helper verify)
+#   SHA256SUMS / SHA256SUMS.sig Ed25519-signed hashes (self-update + helper + engine verify)
 #
 # latest.json is assembled in `publish`, not in a build job: it carries one entry
 # per platform, so no single builder can write it. Each native job stages a
@@ -30,7 +33,8 @@ name: Release (atomic)
 #   2. git tag vX.Y.Z && git push origin vX.Y.Z
 #   3. wait for this workflow (~15 min) → a DRAFT release appears with all assets
 #   4. polish the release notes on GitHub and click Publish
-#   5. submit Xenon-Setup-x64.exe / xenon-native.exe / xenon-helper.exe to
+#   5. submit Xenon-Setup-x64.exe / xenon-native.exe / xenon-helper.exe /
+#      xenon-capture.exe to
 #      microsoft.com/wdsi/filesubmission as "Software developer → Incorrectly
 #      detected as malware". NOT optional while nothing here is Authenticode-
 #      signed: every release ships a brand-new unsigned hash with zero
@@ -157,6 +161,74 @@ jobs:
           name: xenon-helper
           path: out/xenon-helper.exe
 
+  capture:
+    # The capture engine (apps/capture, Rust): screenshots, recordings, Instant
+    # Replay and the gallery's previews and trims. A separate release asset for
+    # the same reason as the helper: it is compiled, so it cannot ride in the
+    # source zip the self-update applies. The server fetches it by itself
+    # (server.js ensureCaptureEngine, through helper-update.js) and installs it
+    # only when it hashes to its line in the signed SHA256SUMS below.
+    # Signing machine for the same reason as the helper (see that job).
+    runs-on: [self-hosted, windows, xenon-signing]
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      # Same PATH trap as the native job: System32's bash.exe is WSL's launcher.
+      - name: Prefer Git Bash over WSL's bash.exe
+        shell: pwsh
+        run: |
+          $git = 'C:\Program Files\Git\bin'
+          if (-not (Test-Path (Join-Path $git 'bash.exe'))) { throw "Git for Windows not found at $git" }
+          Add-Content -Path $env:GITHUB_PATH -Value $git
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+
+      # --locked: the committed Cargo.lock is what was tested; a release never
+      # resolves a newer crate on its own.
+      - name: Build the capture engine
+        run: cargo build --release --locked --manifest-path apps/capture/Cargo.toml
+
+      - name: Sign the engine when a certificate is configured
+        shell: pwsh
+        env:
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: |
+          # Same opt-in as the helper: no secret = unsigned, said out loud;
+          # a secret without its certificate on this runner = fail.
+          $exe = 'apps/capture/target/release/xenon-capture.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw "the build left no $exe" }
+          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
+            Write-Host 'no code-signing certificate configured - shipping xenon-capture.exe unsigned'
+            exit 0
+          }
+          $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
+          if (-not $cert -or -not $cert.HasPrivateKey) {
+            throw "WINDOWS_SIGN_THUMBPRINT is set but certificate $thumb is not usable in Cert:\CurrentUser\My on this runner. This job has to run on the signing machine, with SimplySign Desktop logged in."
+          }
+          $env:XENON_SIGN_THUMBPRINT = $thumb
+          & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path $exe
+          # The engine is spawned by the server and captures the screen: an
+          # unsigned copy is exactly what antivirus flags, so a lost signature
+          # fails the release instead of shipping.
+          $sig = Get-AuthenticodeSignature -LiteralPath $exe
+          if ($sig.Status -ne 'Valid') { throw "xenon-capture.exe is not validly signed: $($sig.Status) - $($sig.StatusMessage)" }
+          Write-Host "engine signed by: $($sig.SignerCertificate.Subject)"
+
+      - name: Upload capture engine artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-capture
+          path: apps/capture/target/release/xenon-capture.exe
+
   native:
     # The signing machine, not a hosted runner. The certificate lives behind
     # the SimplySign virtual card, in the interactive session of the user who
@@ -202,7 +274,11 @@ jobs:
 
       - name: Generate app icons
         working-directory: apps/native
-        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+        # tauri icon blurs Bit at small sizes: keep its icns, android/ and ios/,
+        # then draw the flat PNGs and icon.ico pixel-exact (tools/brand).
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
 
       # -- Authenticode signing ---------------------------------------------
       # Entirely opt-in on ONE secret, WINDOWS_SIGN_THUMBPRINT, and unset is
@@ -409,7 +485,11 @@ jobs:
 
       - name: Generate app icons
         working-directory: apps/native
-        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+        # tauri icon blurs Bit at small sizes: keep its icns, android/ and ios/,
+        # then draw the flat PNGs and icon.ico pixel-exact (tools/brand).
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
 
       # SIGNING and NOTARIZATION are two different things here, and only the
       # second one costs money. Both are opt-in on their own secrets.
@@ -688,6 +768,32 @@ jobs:
           tar -czf stage/xenon-helper-macos.tar.gz -C "$(dirname "$BIN")" xenon-helper
           echo "staged $(du -h stage/xenon-helper-macos.tar.gz | cut -f1) helper"
 
+      # The capture engine (apps/capture), built on Apple's own tools: no
+      # frameworks are linked, so it needs no entitlements. Ad-hoc signed, which
+      # is what Apple silicon requires to run it; the server downloads it
+      # without a quarantine flag and checks it against the signed SHA256SUMS,
+      # so Gatekeeper is not the gate here, the Ed25519 signature is. A bare
+      # file: the server sets the executable bit itself (helper-update.js).
+      # continue-on-error until it has shipped once, like the helper above.
+      - name: Build the macOS capture engine
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --locked --manifest-path apps/capture/Cargo.toml --target "$t"
+          done
+          OUT=stage/xenon-capture-macos
+          mkdir -p stage
+          lipo -create -output "$OUT" \
+            apps/capture/target/aarch64-apple-darwin/release/xenon-capture \
+            apps/capture/target/x86_64-apple-darwin/release/xenon-capture
+          codesign --force --sign - "$OUT"
+          codesign --verify --strict "$OUT"
+          ARCHS=$(lipo -archs "$OUT")
+          echo "capture engine archs: $ARCHS, version $("$OUT" --version)"
+          case "$ARCHS" in *arm64*) ;; *) echo "arm64 missing"; exit 1 ;; esac
+          case "$ARCHS" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1 ;; esac
+
       - name: Stage artifacts and the macos updater fragment
         run: |
           set -euo pipefail
@@ -705,6 +811,9 @@ jobs:
           # Xenon. Worth knowing before clicking Publish.
           if [ ! -f stage/xenon-helper-macos.tar.gz ]; then
             echo "::warning::the macOS helper did not build - every Mac install will fall back to the osascript paths"
+          fi
+          if [ ! -f stage/xenon-capture-macos ]; then
+            echo "::warning::the macOS capture engine did not build - Macs get no screenshots, recordings or gallery from this release"
           fi
           BUNDLE=apps/native/src-tauri/target/universal-apple-darwin/release/bundle
           TARBALL=$(ls "$BUNDLE"/macos/*.app.tar.gz 2>/dev/null | head -1)
@@ -796,7 +905,11 @@ jobs:
 
       - name: Generate app icons
         working-directory: apps/native
-        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+        # tauri icon blurs Bit at small sizes: keep its icns, android/ and ios/,
+        # then draw the flat PNGs and icon.ico pixel-exact (tools/brand).
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
 
       # Tauri's bundler fetches its AppRun launcher on the first build and stores
       # it with mode 0770, so it ships inside the AppImage as AppRun.wrapped with
@@ -849,9 +962,29 @@ jobs:
           fi
           rm -rf "$work"
 
+      # The capture engine (apps/capture) on Linux: no libraries linked beyond
+      # glibc, it runs the session's own tools (grim, maim, ffmpeg, tesseract)
+      # and says in its ping which ones it found. A bare file, built on the same
+      # 22.04 image as the AppImage for the same glibc reason; the server sets
+      # the executable bit and checks it against the signed SHA256SUMS.
+      # continue-on-error like the rest of this job.
+      - name: Build the Linux capture engine
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cargo build --release --locked --manifest-path apps/capture/Cargo.toml
+          mkdir -p stage
+          OUT=stage/xenon-capture-linux-x64
+          cp apps/capture/target/release/xenon-capture "$OUT"
+          strip "$OUT"
+          echo "capture engine: $(file -b "$OUT"), version $("$OUT" --version)"
+
       - name: Stage artifacts and the linux updater fragment
         run: |
           set -euo pipefail
+          if [ ! -f stage/xenon-capture-linux-x64 ]; then
+            echo "::warning::the Linux capture engine did not build - Linux gets no screenshots, recordings or gallery from this release"
+          fi
           BUNDLE=apps/native/src-tauri/target/release/bundle
           # Which file the updater consumes on Linux has changed between Tauri
           # versions (a .AppImage.tar.gz, or the .AppImage itself alongside a
@@ -907,7 +1040,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: [gate, helper, native, native-macos, native-linux]
+    needs: [gate, helper, capture, native, native-macos, native-linux]
     if: needs.gate.outputs.proceed == 'true'
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
@@ -957,7 +1090,7 @@ jobs:
           curl -fsSL --retry 3 -o source.zip \
             "https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.zip"
 
-      - name: Hash and sign SHA256SUMS (source + helper + installer)
+      - name: Hash and sign SHA256SUMS (source + helper + capture engine + installer)
         env:
           XENON_UPDATE_SIGNING_KEY: ${{ secrets.XENON_UPDATE_SIGNING_KEY }}
         run: |
@@ -969,8 +1102,8 @@ jobs:
               console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
               process.exit(1);
             }
-            // Required vs optional is not cosmetic. source.zip, the helper and
-            // the setup exe are what self-update.js and the Windows bootstrap
+            // Required vs optional is not cosmetic. source.zip, the helper, the
+            // capture engine and the setup exe are what self-update.js and the Windows bootstrap
             // VERIFY against this file: silently omitting one strands every
             // updating install on integrity_missing, so a missing required
             // entry has to fail the release. The platform installers are listed
@@ -979,8 +1112,13 @@ jobs:
             const entries = [
               ["source.zip", "source.zip", true],
               ["assets/xenon-helper.exe", "xenon-helper.exe", true],
+              ["assets/xenon-capture.exe", "xenon-capture.exe", true],
               ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe", true],
               ["assets/Xenon-macOS-universal.dmg", "Xenon-macOS-universal.dmg", false],
+              // Optional while its job may fail: a Mac without it keeps the
+              // capture features hidden, it never runs an unverified file.
+              ["assets/xenon-capture-macos", "xenon-capture-macos", false],
+              ["assets/xenon-capture-linux-x64", "xenon-capture-linux-x64", false],
               ["assets/Xenon-Linux-x86_64.AppImage", "Xenon-Linux-x86_64.AppImage", false],
               ["assets/Xenon-Linux-x86_64.deb", "Xenon-Linux-x86_64.deb", false],
               ["assets/Xenon-Linux-x86_64.rpm", "Xenon-Linux-x86_64.rpm", false],

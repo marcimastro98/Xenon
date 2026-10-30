@@ -78,7 +78,11 @@ jobs:
 
       - name: Generate app icons
         working-directory: apps/native
-        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+        # tauri icon blurs Bit at small sizes: keep its icns, android/ and ios/,
+        # then draw the flat PNGs and icon.ico pixel-exact (tools/brand).
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
 
       # -- Authenticode signing ---------------------------------------------
       # Entirely opt-in on ONE secret, WINDOWS_SIGN_THUMBPRINT, and unset is
