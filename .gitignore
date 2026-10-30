@@ -21,6 +21,9 @@ yarn-error.log*
 # Tauri native app — Rust build output and generated schemas/capabilities.
 # (Cargo.lock and src-tauri/icons/ ARE committed once generated.)
 apps/native/src-tauri/target/
+apps/capture/target/
+# Built by npm run capture:build (the release pipeline builds and signs its own).
+server/capture/
 apps/native/src-tauri/gen/
 
 # OS
@@ -138,3 +141,6 @@ docs/maker/
 
 # Playwright MCP screenshots and snapshots taken while checking UI work
 .playwright-mcp/
+
+# Copied in by `npm pack`/`npm publish` (prepack); the repo LICENSE is the only source.
+packages/mcp/LICENSE

@@ -86,12 +86,14 @@ docs/robots.txt                 export-ignore
 #   server/sdk-example/   served by server.js (the SDK's example widgets)
 #   docs/*.md at root     ai-knowledge.js reads docs/WIDGET_SDK.md for the AI
 #   packages/core/        IS server/shared (junction created on postinstall)
+#   packages/mcp/         the xenon-mcp bridge Settings connects Claude Code / Codex to
 #   tools/                link-shared.mjs runs on npm postinstall
 #   CHANGELOG.md          the thing users actually read after an update
 
 # Unit tests — never run on an install (~1 MB, the single biggest win here)
 server/test/                    export-ignore
 packages/core/test/             export-ignore
+packages/mcp/test/              export-ignore
 
 # Tauri shell sources. The kiosk app ships as its own signed setup exe; the
 # NSIS hook and xenon-bootstrap.ps1 are bundled INTO that installer (a Tauri
