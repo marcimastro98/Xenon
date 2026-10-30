@@ -41,7 +41,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
-main { padding: clamp(40px, 6vh, 72px) 0 32px; }
+main { padding: clamp(40px, 6vh, 72px) 0 0; }
 
 h1 {
   margin: 0 0 18px; color: var(--text);
@@ -73,8 +73,9 @@ code {
 }
 
 /* Section links under the title: a row of plain links. */
-.jump { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 8px; font-size: 16px; }
-.jump a { color: var(--text); font-weight: 600; text-decoration-color: var(--line-2); text-underline-offset: .22em; }
+/* Each link is a 44px row, so a finger finds it; the rows sit with no gap. */
+.jump { display: flex; flex-wrap: wrap; gap: 0 22px; margin: 0 0 8px; font-size: 16px; }
+.jump a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); font-weight: 600; text-decoration-color: var(--line-2); text-underline-offset: .22em; }
 .jump a:hover { text-decoration-color: currentColor; }
 
 /* Questions: rows under a hairline, the + and − set in the text face. */
@@ -94,12 +95,25 @@ details .body { padding: 0 0 18px 26px; }
 details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
 details .body ol { padding-left: 20px; }
 
-.card { margin: 32px 0; padding: 24px 26px; background: var(--panel); border: 0; border-radius: var(--r-1); }
-.card.accent { background: var(--g-2); }
+/* The home's card: a 1px rule, panel corners, no fill and no shadow. */
+.card { margin: 32px 0; padding: 24px; background: none; border: 1px solid var(--rule); border-radius: var(--r-2); }
 .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
-.card h3 { margin: 0 0 10px; }
+.card h3 { margin: 0 0 8px; }
 
-.note { margin: 20px 0; padding-left: 16px; border-left: 2px solid var(--line-2); font-size: 16px; color: var(--muted); }
+.note { margin: 16px 0; font-size: 16px; color: var(--muted); }
+
+/* Download cards (download, mac, linux): the same card, one per file. The
+   visitor's own system takes the page's one neutral fill. */
+.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0 16px; }
+.dl a.pick { display: block; padding: 20px 24px; border: 1px solid var(--rule); border-radius: var(--r-2); background: none; text-decoration: none; color: var(--text); }
+.dl a.pick:hover { border-color: var(--rule-2); }
+.dl .os { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 700 19px/1.3 var(--display); }
+.dl .os small, .dl .you { font: 600 13px/1.2 var(--sans); padding: 2px 6px; border: 1px solid var(--rule-2); border-radius: 4px; color: var(--muted); }
+.dl .file { display: block; margin-top: 8px; font: 600 15px/1.4 var(--sans); color: var(--text); overflow-wrap: anywhere; }
+.dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
+.dl a.pick.is-you { background: var(--main); border-color: var(--main); color: var(--main-ink); }
+.dl a.pick.is-you .os, .dl a.pick.is-you .file, .dl a.pick.is-you .req { color: var(--main-ink); }
+.dl a.pick.is-you .you { color: var(--main-ink); border-color: currentColor; }
 
 /* Tables (the tablewrap scrolls sideways on a phone instead of the page) and
    command blocks. */

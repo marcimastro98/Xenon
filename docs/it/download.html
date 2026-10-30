@@ -66,13 +66,6 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Dove scarico Xenon?","acceptedAnswer":{"@type":"Answer","text":"Dai link di questa pagina, che puntano sempre all'ultima release su GitHub: Xenon-Setup-x64.exe per Windows, Xenon-macOS-universal.dmg per macOS e un AppImage, .deb o .rpm per Linux."}},{"@type":"Question","name":"Scaricare Xenon è gratis?","acceptedAnswer":{"@type":"Answer","text":"Sì. Non c'è una versione a pagamento né un account. Il sorgente è pubblico su GitHub con una licenza non commerciale."}},{"@type":"Question","name":"Perché Windows mi avvisa sull'installer di Xenon?","acceptedAnswer":{"@type":"Answer","text":"Perché Microsoft concede la reputazione di SmartScreen col tempo. L'installer per Windows è firmato, quindi Windows mostra un editore verificato, ma SmartScreen può comunque avvisare per un po': clicca Ulteriori informazioni, poi Esegui comunque. Ogni release pubblica anche un file SHA256SUMS firmato, così puoi verificare il download da solo."}},{"@type":"Question","name":"Xenon si aggiorna da solo?","acceptedAnswer":{"@type":"Answer","text":"Sì. All'avvio controlla se c'è una nuova release e si aggiorna da solo."}}]}</script>
 
 <style>
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
-  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
-  .dl a.pick:hover { border-color: var(--line-2); }
-  .dl .os { font: 700 19px/1.3 var(--display); }
-  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
   .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
   .tablewrap td { vertical-align: top; }
   pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -80,13 +73,6 @@
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/guide.css">
 <script src="/chrome.js" defer></script>
-<style id="dl-mark">
-  /* The visitor's own system, marked and lit like the Deck key on the home. */
-  .dl .pick.is-you, a.pick.is-you { --lit: #008DFF; color: #fff !important; border-color: color-mix(in oklab, var(--lit) 70%, #000) !important; background-color: #104D82 !important;
-    background-image: linear-gradient(180deg, color-mix(in oklab, var(--lit) 56%, #0b1a28), color-mix(in oklab, var(--lit) 20%, #04080d)) !important; }
-  .pick.is-you * { color: #fff !important; }
-  .pick .you { display: inline-block; margin-left: 8px; font: 700 15px/1 var(--sans); padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,.18); }
-</style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Xenon","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)","softwareVersion":"4.11.10","releaseNotes":"https://github.com/marcimastro98/Xenon/releases/tag/v4.11.10","downloadUrl":"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"fileSize":"2.4 MB"}</script>
 </head>
 <body>
@@ -94,8 +80,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
+    <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Offrimi un caffè</span></a>
@@ -109,10 +95,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Chiudi</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/it/#screens" data-xl="screens">Schermi</a></li><li><a href="/it/#widgets" data-xl="widgets">Widget</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/create/" data-xl="create">Crea</a></li><li><a href="/it/#support" data-xl="support">Sostieni</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/it/#support" data-xl="supporters">Sostenitori</a></li><li><a href="/it/faq.html" data-xl="help">Aiuto</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/it/#install" data-xl="install">Installazione</a>
       <ul class="xh-mlinks">
@@ -151,9 +137,14 @@
 
     <h2 id="verify" data-i18n="dl.h.verify">Verifica del download</h2>
     <p data-i18n-html="dl.verify.p1">Ogni release pubblica un file <code>SHA256SUMS</code> firmato con la chiave Ed25519 del progetto. Confronta l'hash di quello che hai scaricato:</p>
-    <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
-shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
-sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
+    <pre><code># Windows, PowerShell
+Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256
+
+# macOS
+shasum -a 256 Xenon-macOS-universal.dmg
+
+# Linux
+sha256sum Xenon-Linux-x86_64.AppImage</code></pre>
     <p data-i18n-html="dl.verify.p2">Se corrisponde alla riga di quel file nel <code>SHA256SUMS</code> della release, il file è byte per byte quello che GitHub Actions ha compilato dal sorgente pubblico a quel tag. Su Windows puoi anche cliccare col tasto destro sull'installer, scegliere <strong>Proprietà</strong> e aprire la scheda <strong>Firme digitali</strong> per vedere l'editore.</p>
 
     <h2 id="other" data-i18n="dl.h.other">Altri modi per installare</h2>
@@ -174,10 +165,10 @@ sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></p
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/it/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">Una dashboard touch gratuita per gli schermi accanto al tuo PC. Windows, con macOS e Linux in beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/it/download.html" data-xl="f.download">Scarica</a></li><li><a href="/demo/" data-xl="f.demo">Demo nel browser</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crea widget</a></li><li><a href="/releases.html" data-xl="f.releases">Release</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guide</h2><ul><li><a href="/it/xeneon-edge-widgets.html" data-xl="f.edge">Xenon sullo Xeneon Edge</a></li><li><a href="/it/tablet-dashboard.html" data-xl="f.tablet">Tablet o telefono come dashboard</a></li><li><a href="/it/phone.html" data-xl="f.phone">Abbinare un telefono</a></li><li><a href="/it/mac.html" data-xl="f.mac">Xenon su Mac</a></li><li><a href="/it/linux.html" data-xl="f.linux">Xenon su Linux</a></li><li><a href="/it/widgets.html" data-xl="f.widgets">Tutti i widget</a></li><li><a href="/it/deck.html" data-xl="f.deck">Tasti del Deck</a></li><li><a href="/it/claude-code.html" data-xl="f.claude">Claude Code su uno schermo touch</a></li><li><a href="/it/codex.html" data-xl="f.codex">OpenAI Codex su uno schermo touch</a></li><li><a href="/it/sensor-panel.html" data-xl="f.sensor">Un pannello sensori per il PC</a></li><li><a href="/it/xenon-exe.html" data-xl="f.exe">L'installer è sicuro?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Progetto</h2><ul><li><a href="/it/#support" data-xl="f.support">Sostenitori</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/it/faq.html" data-xl="f.faq">Aiuto e domande</a></li><li><a href="/it/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

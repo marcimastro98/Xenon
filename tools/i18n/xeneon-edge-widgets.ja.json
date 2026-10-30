@@ -26,7 +26,7 @@
     "edge.add.pages": "<strong>ドラッグ＆ドロップで作るページ。</strong> サイズを変えられるタイルのグリッドで、ページは最大8枚。レイアウトは保存して、コードとして共有できます。",
     "edge.add.controls": "<strong>PC を操作するコントロール。</strong> マイクのミュート、オーディオ出力の切り替え、曲のスキップ、アプリごとの音量ミックス。アプリ、OBS、ショートカット、マクロ用に Stream Deck のようなキーのグリッドも使えます。",
     "edge.add.touch": "<strong>ゲームを邪魔しないタッチ。</strong> ネイティブアプリでは、Edge をタップしてもマウスがゲームから離れず、ゲームのフォーカスも奪いません。これを Windows に求められるのは、本物のネイティブウィンドウだけです。",
-    "edge.add.ai": "<strong>Xenon AI。</strong> ページに欲しいものを伝えると、そのページを組み立てます。Google Gemini か、Ollama 経由の無料のローカルモデルで動きます。",
+    "edge.add.ai": "<strong>Bit。</strong> ページに欲しいものを伝えると、そのページを組み立てます。Google Gemini か、Ollama 経由の無料のローカルモデルで動きます。",
     "edge.add.sensors": "<strong>センサーと履歴。</strong> CPU、GPU、メモリ、ディスク、ネットワーク、ゲーム内の実際の FPS に加え、24時間から30日までの履歴。温度の読み取りには署名付きのもの（PawnIO）を使い、WinRing0 は使いません。",
     "edge.add.lighting": "<strong>ライティング。</strong> CPU の温度、タイマー、アルバムアートに合わせて iCUE の LED を光らせます。ネットワーク上の Govee、LIFX、WLED、Hue、Nanoleaf のライトも一緒に動かせます。",
     "edge.add.catalog": "<strong>コミュニティのカタログ。</strong> ほかのオーナーが共有したテーマ、ウィジェットパック、ページのレイアウト一式を、コード1つでインストールできます。",

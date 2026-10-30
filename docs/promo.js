@@ -1,9 +1,9 @@
-// The month's drops on the Xenon site (xenon-app.com), in three places the hub chooses per drop:
-//   spotlight  a sheet that opens once per visit (desktop), or a panel along the bottom edge
-//              that appears after the first scroll or tap (phone, where an interstitial on the
-//              page a search result lands on is penalised by Google)
+// The month's drops on the Xenon site (xenon-app.com), in two places:
 //   strip      a band above the header, on every page, until the visitor closes it
-//   corner     a card at the bottom right of the home, after the first screen (desktop only)
+//   panel      a card at the bottom right (computer) or along the bottom edge (phone), on every
+//              page once half of it has been read, once per drop. Never a modal and never on
+//              arrival: see the Panel section for the reasons. The hub's formats "spotlight" and
+//              "corner" both draw this panel; when both are set, spotlight wins.
 //
 // What to show is decided in the supporter hub (admin, "Site banners") and published as
 // /community/site-promo.json. Everything a banner says about the pack itself (its name, whether it
@@ -60,13 +60,13 @@
     zh: { widget: '小组件', theme: '主题', bg: '背景', ambient: '环境场景', bundle: '合集', deck: 'Deck 配置' },
   };
   const STR = {
-    en: { supK: '{k} for Xenon supporters.', freeK: '{k}, free in the Xenon catalog.', sup: 'For Xenon supporters.', free: 'Free in the Xenon catalog.', unlock: 'Unlock', get: 'Get it', see: 'See {name}', later: 'Not now', close: 'Close', pause: 'Pause the loop', play: 'Play the loop', until: 'Available until {d}.', left: '{n} days left.', last: 'Last day.', preview: 'Preview, not published' },
-    fr: { supK: '{k} pour les supporters de Xenon.', freeK: '{k}, gratuit dans le catalogue Xenon.', sup: 'Pour les supporters de Xenon.', free: 'Gratuit dans le catalogue Xenon.', unlock: 'Déverrouiller', get: 'Obtenez-le', see: 'Voir {name}', later: 'Plus tard', close: 'Fermer', pause: 'Mettre la boucle en pause', play: 'Lire la boucle', until: 'Disponible jusqu\'au {d}.', left: '{n} jours restants.', last: 'Dernier jour.', preview: 'Aperçu, non publié' },
-    it: { supK: '{k} per chi sostiene Xenon.', freeK: '{k} gratis nel catalogo Xenon.', sup: 'Per chi sostiene Xenon.', free: 'Gratis nel catalogo Xenon.', unlock: 'Sblocca', get: 'Prendilo', see: 'Vedi {name}', later: 'Non ora', close: 'Chiudi', pause: 'Metti in pausa', play: 'Riproduci', until: 'Disponibile fino al {d}.', left: 'Ancora {n} giorni.', last: 'Ultimo giorno.', preview: 'Anteprima, non pubblicato' },
-    es: { supK: '{k} para quienes apoyan Xenon.', freeK: '{k} gratis en el catálogo de Xenon.', sup: 'Para quienes apoyan Xenon.', free: 'Gratis en el catálogo de Xenon.', unlock: 'Desbloquear', get: 'Conseguir', see: 'Ver {name}', later: 'Ahora no', close: 'Cerrar', pause: 'Pausar', play: 'Reproducir', until: 'Disponible hasta el {d}.', left: 'Quedan {n} días.', last: 'Último día.', preview: 'Vista previa, sin publicar' },
-    ja: { supK: 'Xenonサポーター向けの{k}。', freeK: 'Xenonカタログの無料の{k}。', sup: 'Xenonサポーター向け。', free: 'Xenonカタログで無料。', unlock: '解除する', get: '入手', see: '{name}を見る', later: '今はしない', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで。', left: '残り{n}日。', last: '最終日。', preview: 'プレビュー（未公開）' },
-    ko: { supK: 'Xenon 서포터를 위한 {k}.', freeK: 'Xenon 카탈로그의 무료 {k}.', sup: 'Xenon 서포터 전용.', free: 'Xenon 카탈로그에서 무료.', unlock: '잠금 해제', get: '받기', see: '{name} 보기', later: '나중에', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지.', left: '{n}일 남음.', last: '마지막 날.', preview: '미리보기, 게시되지 않음' },
-    zh: { supK: '为 Xenon 支持者准备的{k}。', freeK: 'Xenon 目录中的免费{k}。', sup: '为 Xenon 支持者准备。', free: 'Xenon 目录中免费。', unlock: '解锁', get: '获取', see: '查看 {name}', later: '以后再说', close: '关闭', pause: '暂停', play: '播放', until: '到 {d} 为止。', left: '还剩 {n} 天。', last: '最后一天。', preview: '预览，未发布' },
+    en: { supK: '{k} for Xenon supporters.', freeK: '{k}, free in the Xenon catalog.', sup: 'For Xenon supporters.', free: 'Free in the Xenon catalog.', unlock: 'Unlock', get: 'Get it', see: 'See {name}', close: 'Close', pause: 'Pause the loop', play: 'Play the loop', until: 'Available until {d}.', left: '{n} days left.', last: 'Last day.', preview: 'Preview, not published' },
+    fr: { supK: '{k} pour les supporters de Xenon.', freeK: '{k}, gratuit dans le catalogue Xenon.', sup: 'Pour les supporters de Xenon.', free: 'Gratuit dans le catalogue Xenon.', unlock: 'Déverrouiller', get: 'Obtenez-le', see: 'Voir {name}', close: 'Fermer', pause: 'Mettre la boucle en pause', play: 'Lire la boucle', until: 'Disponible jusqu\'au {d}.', left: '{n} jours restants.', last: 'Dernier jour.', preview: 'Aperçu, non publié' },
+    it: { supK: '{k} per chi sostiene Xenon.', freeK: '{k} gratis nel catalogo Xenon.', sup: 'Per chi sostiene Xenon.', free: 'Gratis nel catalogo Xenon.', unlock: 'Sblocca', get: 'Prendilo', see: 'Vedi {name}', close: 'Chiudi', pause: 'Metti in pausa', play: 'Riproduci', until: 'Disponibile fino al {d}.', left: 'Ancora {n} giorni.', last: 'Ultimo giorno.', preview: 'Anteprima, non pubblicato' },
+    es: { supK: '{k} para quienes apoyan Xenon.', freeK: '{k} gratis en el catálogo de Xenon.', sup: 'Para quienes apoyan Xenon.', free: 'Gratis en el catálogo de Xenon.', unlock: 'Desbloquear', get: 'Conseguir', see: 'Ver {name}', close: 'Cerrar', pause: 'Pausar', play: 'Reproducir', until: 'Disponible hasta el {d}.', left: 'Quedan {n} días.', last: 'Último día.', preview: 'Vista previa, sin publicar' },
+    ja: { supK: 'Xenonサポーター向けの{k}。', freeK: 'Xenonカタログの無料の{k}。', sup: 'Xenonサポーター向け。', free: 'Xenonカタログで無料。', unlock: '解除する', get: '入手', see: '{name}を見る', close: '閉じる', pause: '一時停止', play: '再生', until: '{d}まで。', left: '残り{n}日。', last: '最終日。', preview: 'プレビュー（未公開）' },
+    ko: { supK: 'Xenon 서포터를 위한 {k}.', freeK: 'Xenon 카탈로그의 무료 {k}.', sup: 'Xenon 서포터 전용.', free: 'Xenon 카탈로그에서 무료.', unlock: '잠금 해제', get: '받기', see: '{name} 보기', close: '닫기', pause: '일시정지', play: '재생', until: '{d}까지.', left: '{n}일 남음.', last: '마지막 날.', preview: '미리보기, 게시되지 않음' },
+    zh: { supK: '为 Xenon 支持者准备的{k}。', freeK: 'Xenon 目录中的免费{k}。', sup: '为 Xenon 支持者准备。', free: 'Xenon 目录中免费。', unlock: '解锁', get: '获取', see: '查看 {name}', close: '关闭', pause: '暂停', play: '播放', until: '到 {d} 为止。', left: '还剩 {n} 天。', last: '最后一天。', preview: '预览，未发布' },
   };
   const tr = (l, k) => { const d = STR[l] || STR.en; return d[k] != null ? d[k] : STR.en[k]; };
 
@@ -173,6 +173,18 @@
 
   const startOf = (p) => (p.activeFrom ? Date.parse(p.activeFrom) : -Infinity);
 
+  // The newest supporter pack open now (limited editions are sold apart, so they are left out).
+  // The thanks page shows it instead of a fixed screenshot, so its picture is never out of date.
+  function newestDrop(entries, now) {
+    let best = null;
+    for (const e of Array.isArray(entries) ? entries : []) {
+      if (!e || !e.supportersOnly || e.limited || !ID_RE.test(String(e.id || '')) || !entryOpen(e, now)) continue;
+      if (!best || String(e.addedAt || '') > String(best.addedAt || '')) best = e;
+    }
+    return best;
+  }
+  const dropShot = (id) => 'https://' + MEDIA_HOST + '/community/shots/' + encodeURIComponent(id) + '.webp';
+
   // What each place shows now: one live promo per format whose entry is in the catalog and open.
   // The hub refuses two live in the same place; should a hand-edited feed carry them anyway, the
   // one that started last wins, then the id, so the choice is stable. A promo whose entry is
@@ -263,14 +275,14 @@
     return 'en';
   }
 
-  const core = { LANGS, FORMATS, CAP, LINK_HOSTS, MEDIA_HOST, SOON_DAYS, STR, KIND, FALLBACK_LOOK, validatePromo, normalizeFeed, isLive, entryOpen, pickPerFormat, endOf, daysLeft, contrast, lookOf, sliceCss, textFor, describe, pageLang };
+  const core = { LANGS, FORMATS, CAP, LINK_HOSTS, MEDIA_HOST, SOON_DAYS, STR, KIND, FALLBACK_LOOK, validatePromo, normalizeFeed, isLive, entryOpen, pickPerFormat, endOf, daysLeft, contrast, lookOf, sliceCss, textFor, describe, pageLang, newestDrop, dropShot };
   if (typeof module === 'object' && module.exports) { module.exports = core; return; }
   if (typeof document === 'undefined') return;
+  window.XenonPromo = core;
 
   // ── The page half ─────────────────────────────────────────────────────────────
   const HUB_ORIGIN = 'https://xenon-supporter-hub.xenonedge.workers.dev';
-  const DISMISS_KEY = 'xenon.site.promo.v1';      // { "strip:<id>": ts, "corner:<id>": ts }
-  const SEEN_KEY = 'xenon.site.promo.seen';        // sessionStorage: spotlight ids shown this visit
+  const DISMISS_KEY = 'xenon.site.promo.v1';      // { "strip:<promo id>": ts, "panel:<entry id>": ts }
   const CONSENT_KEY = 'xenon.site.consent';
 
   let PREVIEW = false;
@@ -284,7 +296,6 @@
   const mq = (q) => !!(window.matchMedia && window.matchMedia(q).matches);
   const desktop = () => mq('(min-width: 900px) and (pointer: fine)');
   const reduced = () => mq('(prefers-reduced-motion: reduce)');
-  const isHome = () => /^\/([a-z]{2}\/)?(index\.html)?$/.test(location.pathname || '/');
 
   function readJson(store, key) {
     try { const v = JSON.parse(store.getItem(key) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; }
@@ -298,11 +309,6 @@
       const keys = Object.keys(all).sort((a, b) => all[b] - all[a]).slice(0, 40);
       localStorage.setItem(DISMISS_KEY, JSON.stringify(Object.fromEntries(keys.map((k) => [k, all[k]]))));
     } catch (e) { /* private mode: it comes back next visit, which is fine */ }
-  }
-  function seen(id) { if (PREVIEW) return false; try { return !!readJson(sessionStorage, SEEN_KEY)[id]; } catch (e) { return false; } }
-  function markSeen(id) {
-    if (PREVIEW) return;
-    try { const s = readJson(sessionStorage, SEEN_KEY); s[id] = 1; sessionStorage.setItem(SEEN_KEY, JSON.stringify(s)); } catch (e) { /* once per page load then */ }
   }
   function consentDecided() { try { return !!localStorage.getItem(CONSENT_KEY); } catch (e) { return true; } }
   function whenConsented(fn) {
@@ -322,27 +328,18 @@
     '.xp-line{margin:0;font-weight:400;line-height:1.4;color:var(--ink)}',
     '.xp-what{margin:0;font:500 14px/1.4 var(--xp-t);color:var(--ink);opacity:.74}',
     '.xp-what.soon{opacity:1;font-weight:700}',
-    '.xp-go{display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:var(--paper);text-decoration:none;font:700 17px/1 var(--xp-t);padding:17px 24px;border-radius:3px;white-space:nowrap}',
+    '.xp-go{display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:var(--paper);text-decoration:none;font:700 17px/1 var(--xp-t);padding:17px 24px;border-radius:6px;white-space:nowrap}',
     '.xp-go:hover{text-decoration:underline;text-underline-offset:3px}',
     '.xp-go:active{transform:translateY(1px)}',
     '.xp a:focus-visible,.xp button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}',
-    '.xp-later{border:0;background:none;color:var(--ink);font:500 15px/1 var(--xp-t);padding:10px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}',
     '.xp-x{border:0;background:none;color:var(--ink);cursor:pointer;font:300 26px/1 var(--xp-t);width:44px;height:44px;display:grid;place-items:center;flex:0 0 auto}',
     '.xp-media{position:relative;display:block;width:100%;overflow:hidden;background:var(--paper);border:0;padding:0;margin:0;cursor:pointer}',
     '.xp-media video,.xp-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}',
-    // Spotlight, desktop: a sheet of the pack's paper, the loop filling its top; no entrance.
-    'dialog.xp-spot{border:0;padding:0;margin:auto;width:min(1080px,calc(100vw - 64px));max-width:none;max-height:calc(100vh - 48px);overflow:visible;background:transparent;color:inherit}',
-    'dialog.xp-spot::backdrop{background:rgba(20,20,20,.78)}',
-    '.xp-spot .xp-sheet{position:relative}.xp-spot .xp-sheet:focus{outline:none}',
-    '.xp-spot .xp-media{aspect-ratio:16/7}',
-    '.xp-spot .xp-body{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px 48px;align-items:end;padding:30px 36px 34px;border-top:1px solid var(--ink)}',
-    '.xp-spot .xp-name{font-size:clamp(44px,6vw,76px)}',
-    '.xp-spot .xp-line{font-size:21px;margin-top:14px;max-width:46ch}',
-    '.xp-spot .xp-what{margin-top:10px}',
-    '.xp-spot .xp-act{display:flex;flex-direction:column;align-items:flex-end;gap:8px}',
-    '.xp-spot .xp-close{position:absolute;top:-48px;right:-8px;color:#f2f2f2}',
-    '@media (max-height:760px){.xp-spot .xp-media{aspect-ratio:16/5.4}.xp-spot .xp-media video,.xp-spot .xp-media img{object-position:50% 0}}',
-    // Spotlight, phone: along the bottom edge, not modal, about a third of the screen at most.
+    // Panel: one straight move in from the edge it sits on, nothing else moving.
+    '.xp-panel{transform:translateY(calc(100% + 40px));visibility:hidden}',
+    '.xp-panel.in{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.3,0,.2,1)}',
+    '@media (prefers-reduced-motion: reduce){.xp-panel.in{transition:none}}',
+    // Panel, phone: along the bottom edge, not modal, about a third of the screen at most.
     '.xp-drawer{position:fixed;left:0;right:0;bottom:0;z-index:90;border-top:1px solid var(--ink);padding-bottom:env(safe-area-inset-bottom)}',
     // The loop never takes more than a seventh of the height, and a short phone (an iPhone SE is
     // 667px) gets the words alone: the panel stays about a third of the screen at most.
@@ -369,9 +366,8 @@
     '.xp-strip .xp-cta{color:var(--ink);font:700 15px/1 var(--xp-t);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px;white-space:nowrap}',
     '.xp-strip .xp-x{position:absolute;top:0;right:4px;font-size:22px}',
     '@media (max-width:899px){.xp-strip{height:52px}.xp-strip .xp-in{gap:12px;padding-right:48px}.xp-strip .xp-line,.xp-strip .xp-media{display:none}.xp-strip .xp-id{flex:1 1 auto;display:grid;gap:3px}.xp-strip .xp-name{font-size:17px;overflow:hidden;text-overflow:ellipsis}.xp-strip .xp-id .xp-what{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.xp-strip .xp-x{top:4px}}',
-    // Corner: a card of the same paper, on the home after the first screen. One straight move in.
-    '.xp-corner{position:fixed;right:24px;bottom:24px;z-index:85;width:340px;border:1px solid var(--ink);transform:translateY(calc(100% + 40px));visibility:hidden}',
-    '.xp-corner.in{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.3,0,.2,1)}',
+    // Panel, computer: a card of the same paper in the bottom corner, over the margin, not the text.
+    '.xp-corner{position:fixed;right:24px;bottom:24px;z-index:85;width:340px;border:1px solid var(--ink)}',
     '.xp-corner .xp-media{aspect-ratio:16/7;border-bottom:1px solid var(--ink)}',
     '.xp-corner .xp-body{position:relative;padding:18px 18px 20px}',
     '.xp-corner .xp-name{font-size:34px;padding-right:32px}',
@@ -380,7 +376,6 @@
     '.xp-corner .xp-go{width:100%;margin-top:16px}',
     '.xp-corner .xp-x{position:absolute;top:8px;right:4px}',
     '.xp-mark{position:absolute;left:0;top:0;padding:6px 8px;background:var(--ink);color:var(--paper);font:600 12px/1 var(--xp-t)}',
-    '@media (prefers-reduced-motion: reduce){.xp-corner.in{transition:none}}',
   ].join('');
 
   function css() {
@@ -494,113 +489,86 @@
     offsetHeaders(s.getBoundingClientRect().height);
   }
 
-  // ── Corner ──────────────────────────────────────────────────────────────────────
-  let cornerWatch = null;
-  function renderCorner(pick, l, force) {
-    const old = document.querySelector('.xp-corner');
-    if (old) old.remove();
-    if (cornerWatch) { document.removeEventListener('scroll', cornerWatch, true); cornerWatch = null; }
-    if (!pick || (!force && (!desktop() || !isHome() || dismissed('corner', pick.promo.id)))) return;
-    const p = pick.promo;
-    const f = describe(p, pick.entry, l, Date.now());
-    const c = dress(el('aside', 'xp xp-corner'), p);
-    c.setAttribute('aria-label', f.name);
-    const body = el('div', 'xp-body');
-    body.appendChild(el('h2', 'xp-name', f.name));
-    if (f.line) body.appendChild(el('p', 'xp-line', f.line));
-    body.appendChild(el('p', 'xp-what' + (f.soon ? ' soon' : ''), f.what));
-    body.appendChild(link(f, 'xp-go', f.cta, 'corner', p.id));
-    body.appendChild(closer('', l, () => { dismiss('corner', p.id); c.remove(); }));
-    if (f.video || f.poster) c.appendChild(media(f, l));
-    c.appendChild(body);
-    if (PREVIEW) c.appendChild(el('span', 'xp-mark', tr(l, 'preview')));
-    document.body.appendChild(c);
-    const show = () => requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('in')));
-    if (force) { show(); return; }
-    // After most of the first screen has gone by, and never over something the visitor opened.
-    cornerWatch = () => {
-      if (window.scrollY < window.innerHeight * 0.75 || screenBusy() || !consentDecided()) return;
-      document.removeEventListener('scroll', cornerWatch, true);
-      cornerWatch = null;
-      show();
-    };
-    document.addEventListener('scroll', cornerWatch, { passive: true, capture: true });
+  // ── Panel ───────────────────────────────────────────────────────────────────────
+  // The month's drop, once per drop and only to someone already reading. It waits until half the
+  // page has gone by (NN/g, "Popups: 10 Problematic Trends", 2019: a box on arrival is the one people
+  // hate most; Google Search Central treats a box covering the page a search result opened as
+  // intrusive), covers nothing (a corner card on a computer, the bottom edge on a phone, never a
+  // modal), and is remembered as soon as it shows, so it never comes back for that drop (Wikimedia
+  // banner tests: one ask, then quiet). The hub's "spotlight" and "corner" both land here; spotlight wins.
+  const HALF = 0.5;
+  function halfRead() {
+    const max = (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0);
+    return max > 0 && (window.scrollY || 0) >= max * HALF;
   }
 
-  // ── Spotlight ───────────────────────────────────────────────────────────────────
-  function openSpotlight(pick, l) {
-    document.querySelectorAll('dialog.xp-spot, .xp-drawer').forEach((n) => n.remove());
+  // A press on a button or link is someone doing something (copying a code,
+  // opening an entry): the panel must not land on top of what they just did.
+  const CONTROL_QUIET_MS = 4000;
+  let lastControl = 0;
+  const onControl = (e) => !!(e && e.target && e.target.closest
+    && e.target.closest('a, button, input, select, textarea, label, [role="button"]'));
+  const justActed = () => Date.now() - lastControl < CONTROL_QUIET_MS;
+  let controlWatch = false;
+
+  function buildPanel(pick, l) {
     const p = pick.promo;
     const f = describe(p, pick.entry, l, Date.now());
-    markSeen(p.id);
-    if (desktop()) {
-      const d = el('dialog', 'xp-spot');
-      d.setAttribute('aria-label', f.name);
-      const sheet = dress(el('div', 'xp xp-sheet'), p);
-      // The sheet takes the focus when it opens, not the loop (which is a pause button): a ring
-      // around the picture on arrival reads as a fault, and Tab still reaches every control.
-      sheet.tabIndex = -1;
-      sheet.setAttribute('autofocus', '');
-      if (f.video || f.poster) sheet.appendChild(media(f, l));
-      const body = el('div', 'xp-body');
-      const left = el('div');
-      left.appendChild(el('h2', 'xp-name', f.name));
-      if (f.line) left.appendChild(el('p', 'xp-line', f.line));
-      left.appendChild(el('p', 'xp-what' + (f.soon ? ' soon' : ''), f.what));
-      const act = el('div', 'xp-act');
-      act.appendChild(link(f, 'xp-go', f.cta, 'spotlight', p.id));
-      const later = el('button', 'xp-later', tr(l, 'later'));
-      later.type = 'button';
-      later.addEventListener('click', () => d.close());
-      act.appendChild(later);
-      body.appendChild(left);
-      body.appendChild(act);
-      sheet.appendChild(body);
-      sheet.appendChild(closer('xp-close', l, () => d.close()));
-      if (PREVIEW) sheet.appendChild(el('span', 'xp-mark', tr(l, 'preview')));
-      d.appendChild(sheet);
-      d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
-      d.addEventListener('close', () => d.remove());
-      document.body.appendChild(d);
-      if (d.showModal) d.showModal(); else d.setAttribute('open', '');
-      return;
-    }
-    const s = dress(el('aside', 'xp xp-drawer'), p);
+    const wide = desktop();
+    const s = dress(el('aside', 'xp xp-panel ' + (wide ? 'xp-corner' : 'xp-drawer')), p);
     s.setAttribute('aria-label', f.name);
     if (f.video || f.poster) s.appendChild(media(f, l));
     const body = el('div', 'xp-body');
-    const top = el('div', 'xp-top');
-    top.appendChild(el('h2', 'xp-name', f.name));
-    top.appendChild(closer('', l, () => s.remove()));
-    body.appendChild(top);
-    if (f.line) body.appendChild(el('p', 'xp-line', f.line));
-    const row = el('div', 'xp-row');
-    row.appendChild(el('p', 'xp-what' + (f.soon ? ' soon' : ''), f.what));
-    row.appendChild(link(f, 'xp-go', f.go, 'spotlight', p.id));
-    body.appendChild(row);
+    const x = closer('', l, () => s.remove());
+    const what = el('p', 'xp-what' + (f.soon ? ' soon' : ''), f.what);
+    if (wide) {
+      body.appendChild(el('h2', 'xp-name', f.name));
+      if (f.line) body.appendChild(el('p', 'xp-line', f.line));
+      body.appendChild(what);
+      body.appendChild(link(f, 'xp-go', f.cta, p.format, p.id));
+      body.appendChild(x);
+    } else {
+      const top = el('div', 'xp-top');
+      top.appendChild(el('h2', 'xp-name', f.name));
+      top.appendChild(x);
+      body.appendChild(top);
+      if (f.line) body.appendChild(el('p', 'xp-line', f.line));
+      const row = el('div', 'xp-row');
+      row.appendChild(what);
+      row.appendChild(link(f, 'xp-go', f.go, p.format, p.id));
+      body.appendChild(row);
+    }
     s.appendChild(body);
     if (PREVIEW) s.appendChild(el('span', 'xp-mark', tr(l, 'preview')));
+    return s;
+  }
+  function showPanel(pick, l) {
+    const s = buildPanel(pick, l);
     document.body.appendChild(s);
+    requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('in')));
   }
 
-  function scheduleSpotlight(pick, l) {
-    if (!pick || seen(pick.promo.id)) return;
+  let panelWatch = null;
+  function renderPanel(pick, l, force) {
+    document.querySelectorAll('.xp-panel').forEach((n) => n.remove());
+    if (panelWatch) { document.removeEventListener('scroll', panelWatch, true); panelWatch = null; }
+    if (!pick) return;
+    if (force) { showPanel(pick, l); return; }
+    const drop = pick.entry.id;
+    if (dismissed('panel', drop)) return;
+    if (!controlWatch) {
+      controlWatch = true;
+      document.addEventListener('pointerdown', (e) => { if (onControl(e)) lastControl = Date.now(); }, { capture: true, passive: true });
+    }
     whenConsented(() => {
-      if (desktop()) {
-        setTimeout(() => {
-          if (document.visibilityState === 'hidden' || screenBusy()) return;
-          openSpotlight(pick, l);
-        }, 1500);
-        return;
-      }
-      // Phone: never on the page a search result just opened; after the first scroll or tap.
-      const once = () => {
-        document.removeEventListener('scroll', once, true);
-        window.removeEventListener('pointerdown', once);
-        setTimeout(() => { if (!screenBusy()) openSpotlight(pick, l); }, 900);
+      panelWatch = () => {
+        if (!halfRead() || document.visibilityState === 'hidden' || screenBusy() || justActed()) return;
+        document.removeEventListener('scroll', panelWatch, true);
+        panelWatch = null;
+        dismiss('panel', drop);
+        showPanel(pick, l);
       };
-      document.addEventListener('scroll', once, { passive: true, capture: true });
-      window.addEventListener('pointerdown', once);
+      document.addEventListener('scroll', panelWatch, { passive: true, capture: true });
     });
   }
 
@@ -608,13 +576,10 @@
     observers.forEach((o) => o.disconnect());
     observers = [];
     const l = lang();
-    const force = !!(opts && opts.force);
     const any = picks.spotlight || picks.strip || picks.corner;
     if (any) css();
     renderStrip(picks.strip, l);
-    renderCorner(picks.corner, l, force);
-    if (force) { if (picks.spotlight) openSpotlight(picks.spotlight, l); }
-    else scheduleSpotlight(picks.spotlight, l);
+    renderPanel(picks.spotlight || picks.corner, l, !!(opts && opts.force));
   }
 
   async function load() {

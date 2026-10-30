@@ -89,10 +89,6 @@ for (const rel of COPY_ALLOWLIST) {
 }
 log('copied ' + COPY_ALLOWLIST.join(', '));
 
-// Drop the 1.12 MB hi-res logo; patch 6 below rewrites its only reference to the
-// 28 KB mark. One PNG was 14% of the whole payload and it is incompressible.
-rmSync(join(OUT, 'public', 'images', 'logo', 'logo.png'), { force: true });
-
 // ── 2. Materialize shared/ from packages/core — NEVER from server/shared.
 //      That path is a junction on Windows and a `dir` symlink elsewhere
 //      (tools/link-shared.mjs), and cpSync without dereference copies the LINK,
@@ -190,15 +186,7 @@ log('materialized shared/src from packages/core');
   log('wrote index.html');
 }
 
-// ── 5. Patch 6: the 1.12 MB logo reference.
-{
-  const file = join(OUT, 'components', 'SettingsModal', 'SettingsModal.css');
-  const src = readFileSync(file, 'utf8');
-  writeFileSync(file, patchOnce(src, '/public/images/logo/logo.png', '/public/images/logo/logo-mark.png',
-    'SettingsModal.css logo.png → logo-mark.png (−1.1 MB)'));
-}
-
-// ── 6. The demo runtime, token-substituted.
+// ── 5. The demo runtime, token-substituted.
 {
   const dst = join(OUT, 'demo');
   mkdirSync(dst, { recursive: true });
@@ -209,7 +197,7 @@ log('materialized shared/src from packages/core');
   log('wrote demo/ runtime');
 }
 
-// ── 7. A #try=<id> fragment must never contain the substring "edge":
+// ── 6. A #try=<id> fragment must never contain the substring "edge":
 //      edge-preview.js tests `hash.indexOf('edge') >= 0` and would silently boot
 //      the demo into the 2560x720 letterbox. boot.js strips the fragment before
 //      anything reads it, and this is the belt to that pair of braces.
@@ -219,7 +207,7 @@ log('materialized shared/src from packages/core');
   if (bad.length) fail('catalog ids containing "edge" would trip the Edge-preview hash sniff: ' + bad.join(', '));
 }
 
-// ── 8. Build stamp. demo/boot.js reseeds a visitor's localStorage when this
+// ── 7. Build stamp. demo/boot.js reseeds a visitor's localStorage when this
 //      changes, so a redeploy repairs anyone left holding corrupted demo state.
 writeFileSync(join(OUT, '.build-stamp'), JSON.stringify({ version, builtAt: stamp }, null, 2) + '\n');
 

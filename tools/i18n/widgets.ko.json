@@ -45,7 +45,7 @@
     "wg.h.media": "미디어",
     "wg.media.intro": "위젯 6개.",
     "wg.w.media": "<strong>재생.</strong> PC의 미디어 앱에서 재생 중인 것을 커버, 재생과 일시정지, 이전과 다음 버튼과 함께 보여 줍니다.",
-    "wg.w.chat": "<strong>채팅.</strong> Xenon AI의 텍스트 채팅입니다. 질문하고, 이미지, PDF, 텍스트 파일을 첨부하고, 대시보드에서 무언가를 바꿔 달라고 할 수 있습니다.",
+    "wg.w.chat": "<strong>채팅.</strong> Bit의 텍스트 채팅입니다. 질문하고, 이미지, PDF, 텍스트 파일을 첨부하고, 대시보드에서 무언가를 바꿔 달라고 할 수 있습니다.",
     "wg.w.chatgpt": "<strong>ChatGPT에게 묻기.</strong> PC의 OpenAI Codex를 통해 내 ChatGPT 요금제가 답하는 채팅입니다. API 키가 필요 없습니다. 대화는 PC에 저장되며 ChatGPT 기록에는 남지 않습니다.",
     "wg.w.browser": "<strong>브라우저.</strong> 탭, 주소 표시줄, 뒤로와 앞으로 버튼이 있는 웹 페이지를 타일 안에 띄웁니다. PC의 Chromium 브라우저가 실행하므로 다른 페이지에 삽입되기를 거부하는 사이트도 열립니다.",
     "wg.w.slideshow": "<strong>슬라이드쇼.</strong> 추가한 사진과 움직이는 GIF, 또는 PC의 폴더를 차례로 보여 줍니다. 탭하면 멈추거나 직접 넘길 수 있습니다.",

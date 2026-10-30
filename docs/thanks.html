@@ -34,6 +34,7 @@
 </script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/consent.js" defer></script>
+<script src="/promo.js" defer></script>
 <!-- Theme, before the first paint: a deferred script would flash the other
      ground first. /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
@@ -85,8 +86,6 @@
     --text:  var(--bone-0);
     --muted: var(--bone-1);
     --dim:   var(--bone-2);
-    --sans:  'Inter', system-ui, -apple-system, sans-serif;
-    --mono:  'JetBrains Mono', ui-monospace, monospace;
     --maxw:  1140px;
   }
   * { box-sizing: border-box; }
@@ -103,62 +102,14 @@
     color: var(--text); overflow-wrap: anywhere;
   }
 
-  header.top {
-    border-bottom: 1px solid var(--line);
-    padding: 20px 0; position: sticky; top: 0; z-index: 10;
-    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .logo {
-    display: inline-flex; align-items: center; gap: 10px;
-    color: var(--text); text-decoration: none;
-    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
-  }
-  .logo img { width: 34px; height: 23px; }
-  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
-  .back:hover { color: var(--green); }
-
-  /* Header right cluster + language picker: same markup and behaviour as the
-     FAQ, so the choice carries across the site. */
-  .head-right { display: flex; align-items: center; gap: 14px; }
-  .navbtn {
-    font-size: 13px; font-weight: 600; padding: 8px 13px;
-    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
-    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
-    font-family: var(--sans); transition: border-color .2s, color .2s;
-  }
-  .navbtn svg { width: 16px; height: 16px; flex: none; }
-  .navbtn:hover { border-color: var(--green); }
-  .lang { position: relative; }
-  .lang-menu {
-    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
-    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
-    opacity: 0; transform: translateY(-6px); pointer-events: none;
-    transition: opacity .22s ease, transform .22s ease;
-  }
-  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
-  .lang-menu button {
-    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
-    background: none; border: 0; border-radius: 8px; color: var(--muted);
-    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
-  }
-  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
-  .lang-menu button.on { color: var(--green); }
-  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
-
   /* ── The download line ── */
   .toast {
     margin-top: 22px; display: flex; align-items: center; gap: 12px;
-    border: 1px solid var(--line); background: var(--g-1); border-radius: 2px;
-    padding: 11px 16px; font-size: 14.5px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: var(--r-2);
+    padding: 12px 16px; font-size: 15px; color: var(--muted);
   }
   .toast > span:last-child { flex: 1; min-width: 0; }
-  .toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text); flex: none; animation: tk-pulse 1.6s ease-in-out infinite; }
-  .toast[data-state="none"] .dot { display: none; }
-  .toast code { font-size: 12.5px; }
-  @keyframes tk-pulse { 50% { opacity: .25; } }
+  .toast code { font-size: 14px; }
 
   /* ── On a phone, a tablet or a Chromebook: no download, the file is for a
      computer, and three ways to get the link there. It takes the place of
@@ -167,15 +118,15 @@
   [data-handheld] .toast { display: none; }
   [data-handheld] .away {
     display: grid; gap: 14px; margin-top: 22px;
-    background: var(--g-1); border: 1px solid var(--line-2); border-radius: 3px; padding: 22px;
+    border: 1px solid var(--line); border-radius: var(--r-2); padding: 24px;
   }
   .away h2 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
   .away .away-line { margin: 0; color: var(--muted); font-size: 15.5px; max-width: 40em; }
   .away-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
   .away-btn {
     display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px;
-    padding: 12px 16px; border: 1px solid var(--line-2); border-radius: 3px;
-    background: var(--g-0); color: var(--text); text-decoration: none; cursor: pointer;
+    padding: 12px 16px; border: 1px solid var(--line-2); border-radius: 6px;
+    background: none; color: var(--text); text-decoration: none; cursor: pointer;
     font-family: var(--sans); font-size: 15px; font-weight: 600; line-height: 1.2;
     transition: border-color var(--d-state), background var(--d-state);
   }
@@ -184,8 +135,8 @@
   .away-btn svg { width: 17px; height: 17px; flex: none; }
   /* The first action that exists is the filled one: Send the link where the
      browser can share, Copy link where it cannot. */
-  .away-btn.primary, .away-btn[hidden] + .away-btn { background: var(--text); color: var(--g-0); border-color: var(--text); }
-  .away .away-status { margin: 0; min-height: 1.6em; font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .away-btn.primary, .away-btn[hidden] + .away-btn { background: var(--main); color: var(--main-ink); border-color: var(--main); }
+  .away .away-status { margin: 0; min-height: 1.6em; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
 
   /* ── Two columns: the thanks and the next steps on the left, the support
      card on the right. In one column the steps come before the card: they
@@ -193,7 +144,9 @@
   .hero {
     display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px;
     grid-template-areas: "intro card" "next card";
-    padding: 40px 0 96px; align-items: start;
+    /* The card is taller than the thanks: the spare height goes under the steps, not between. */
+    grid-template-rows: auto 1fr;
+    padding: 40px 0 0; align-items: start;
   }
   .intro { grid-area: intro; }
   .next  { grid-area: next; border-top: 1px solid var(--line); padding-top: 22px; }
@@ -202,63 +155,67 @@
   .shot { margin: 0 0 30px; }
   .shot img {
     display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 32 / 9;
-    object-fit: cover; border: 1px solid var(--line); border-radius: 2px;
+    object-fit: cover; border: 1px solid var(--line); border-radius: 10px; background: var(--g-1);
   }
-  .shot figcaption, .eyebrow {
-    margin-top: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--dim);
-  }
+  .shot a { display: block; color: inherit; }
+  .shot figcaption { margin-top: 8px; font-size: 15px; color: var(--muted); min-height: 1.4em; }
   h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1.04; letter-spacing: -0.02em; margin: 0 0 18px; text-wrap: balance; }
   .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; max-width: 34em; }
   .lede strong { color: var(--text); font-weight: 600; }
 
-  .eyebrow { margin: 0 0 14px; }
-  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
-  .steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; color: var(--muted); font-size: 15px; counter-increment: s; }
-  .steps li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono); font-size: 12px; color: var(--text); padding-top: 3px; }
+  /* The steps' heading: a plain small heading, not a tracked caps label. */
+  .eyebrow { margin: 0 0 16px; font: 700 20px/1.3 var(--display); color: var(--text); }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; counter-reset: s; }
+  .steps li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; color: var(--muted); font-size: 16px; counter-increment: s; }
+  .steps li::before { content: counter(s); font: 700 16px/1.6 var(--display); color: var(--text); }
   .steps strong { color: var(--text); font-weight: 600; }
 
   /* ── Support card ── */
   .card {
-    background: var(--g-1); border: 1px solid var(--line-2); border-radius: 3px;
-    padding: 26px; display: grid; gap: 18px;
+    background: none; border: 1px solid var(--rule); border-radius: var(--r-2);
+    padding: 24px; display: grid; gap: 16px;
   }
   .card h2 { margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
   .card .sub { margin: -8px 0 0; color: var(--muted); font-size: 15px; }
-  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: 2px; padding: 3px; gap: 3px; background: var(--g-0); }
+  /* The Scintille every plan brings, with the app's own spark (tools/brand/build.mjs). */
+  .card .sparks { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 15px; font-weight: 600; }
+  .card .sparks img { flex: none; width: 16px; height: 16px; image-rendering: pixelated; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: var(--r-1); padding: 3px; gap: 3px; }
   .seg button {
-    font-family: var(--sans); font-size: 14.5px; font-weight: 600; padding: 9px 10px; border: 0; border-radius: 1px;
+    min-height: 44px; font-family: var(--sans); font-size: 15px; font-weight: 600; padding: 8px 10px; border: 0; border-radius: 4px;
     background: none; color: var(--muted); cursor: pointer; transition: background var(--d-state), color var(--d-state);
   }
-  .seg button[aria-pressed="true"] { background: var(--text); color: var(--g-0); }
+  .seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--main) 18%, var(--g-1)); color: var(--main-text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--main) 55%, transparent); }
 
   .opts { display: grid; gap: 8px; }
   .opt {
-    display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: start; text-align: left;
-    padding: 14px 16px; border: 1px solid var(--line); border-radius: 2px; background: var(--g-0);
+    display: grid; grid-template-columns: 84px 1fr; gap: 16px; align-items: start; text-align: left;
+    padding: 16px; border: 1px solid var(--line); border-radius: var(--r-1); background: none;
     color: var(--muted); font: inherit; cursor: pointer; width: 100%;
     transition: border-color var(--d-state);
   }
   .opt:hover { border-color: var(--line-2); }
   .opt[aria-checked="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
-  .opt .price { font-family: var(--mono); font-size: 19px; font-weight: 500; color: var(--text); line-height: 1.3; font-variant-numeric: tabular-nums; }
-  .opt .price small { display: block; font-size: 10px; letter-spacing: .06em; color: var(--dim); text-transform: uppercase; font-weight: 400; }
+  /* The home's price: the number in the display face, its unit under it in the text face. */
+  .opt .price { font: 780 22px/1.2 var(--display); color: var(--text); font-variant-numeric: tabular-nums; }
+  .opt .price small { display: block; margin-top: 2px; font: 600 14px/1.3 var(--sans); color: var(--muted); }
   .opt .name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--text); font-weight: 600; font-size: 15.5px; }
-  .opt .what { display: block; font-size: 13.5px; line-height: 1.5; margin-top: 3px; }
-  .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); border: 1px solid currentColor; border-radius: 2px; padding: 1px 5px; font-weight: 500; }
+  .opt .what { display: block; font-size: 15px; line-height: 1.5; margin-top: 4px; }
+  /* A label, not a button: the same outline tag as Beta (brand-tokens.js). */
+  .tag { font: 600 13px/1.2 var(--sans); color: var(--muted); border: 1px solid var(--rule-2); border-radius: 4px; padding: 2px 6px; }
 
   .go {
     display: flex; align-items: center; justify-content: center; gap: 10px; text-align: center;
-    background: var(--text); color: var(--g-0); text-decoration: none;
-    font-weight: 700; font-size: 16px; padding: 15px 20px; border-radius: 3px;
+    background: var(--main); color: var(--main-ink); text-decoration: none;
+    font-weight: 700; font-size: 16px; padding: 15px 20px; border-radius: 6px;
     transition: background var(--d-state);
   }
-  .go:hover { background: var(--muted); }
+  .go:hover { background: var(--main-hover); }
   .go:active { transform: translateY(1px); }
   .go svg { width: 17px; height: 17px; flex: none; }
-  .hint { margin: -8px 0 0; font-family: var(--mono); font-size: 11.5px; color: var(--dim); text-align: center; line-height: 1.6; }
-  .hint b { color: var(--text); font-weight: 500; }
-  .foot { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 6px; font-size: 13.5px; color: var(--dim); }
+  .hint { margin: -8px 0 0; font-size: 15px; color: var(--muted); text-align: center; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 650; }
+  .foot { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 8px; font-size: 15px; color: var(--muted); }
   .foot a { color: var(--muted); }
 
   footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
@@ -266,16 +223,14 @@
   footer a:hover { color: var(--green); }
 
   @media (max-width: 880px) {
-    .hero { grid-template-columns: 1fr; grid-template-areas: "intro" "next" "card"; gap: 40px; padding: 28px 0 64px; }
+    .hero { grid-template-columns: 1fr; grid-template-areas: "intro" "next" "card"; grid-template-rows: none; gap: 40px; padding: 28px 0 64px; }
   }
   @media (max-width: 480px) {
     .wrap { padding: 0 16px; }
-    .back { display: none; }
     .card { padding: 20px 16px; }
     [data-handheld] .away { padding: 20px 16px; }
-    .opt { grid-template-columns: 64px 1fr; gap: 10px; padding: 12px; }
+    .opt { grid-template-columns: 72px 1fr; gap: 12px; padding: 16px 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .toast .dot { animation: none; } }
 </style>
 <link rel="stylesheet" href="/site.css">
 <script src="/chrome.js" defer></script>
@@ -285,8 +240,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
@@ -311,10 +266,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/#install" data-xl="install">Install</a>
       <ul class="xh-mlinks">
@@ -332,7 +287,6 @@
     <!-- Filled by the script below from ?f=. Without a script the page still
          reads correctly and points at the download page. -->
     <div class="toast" id="toast" role="status" data-state="none">
-      <span class="dot" aria-hidden="true"></span>
       <span id="toast-text">Pick your file on the <a href="download.html">download page</a>.</span>
     </div>
 
@@ -360,9 +314,11 @@
 
     <section class="hero">
       <div class="intro">
-        <figure class="shot">
-          <img src="images/ambient-edge-poster.webp" alt="" width="1600" height="450">
-          <figcaption data-i18n="t.shot">Ambient scene on a CORSAIR Xeneon Edge</figcaption>
+        <!-- Filled by showDrop() from the catalog: the newest supporter pack open now, so the
+             picture is never a screenshot with an old date on it. Removed if the catalog is out of reach. -->
+        <figure class="shot" id="drop">
+          <a id="drop-link" href="/catalog/" data-track="drop_click" data-track-location="thanks_drop"><img id="drop-img" alt="" width="1600" height="450"></a>
+          <figcaption id="drop-cap"></figcaption>
         </figure>
         <h1 data-i18n="t.h1">Thanks for downloading Xenon</h1>
         <p class="lede" data-i18n="t.lede1">Xenon is written by one person, with no ads and no investors. It keeps going because people support it.</p>
@@ -379,6 +335,7 @@
       <aside class="card" aria-labelledby="sup-h">
         <h2 id="sup-h" data-i18n="t.card.h">Want to help?</h2>
         <p class="sub" data-i18n="t.card.sub">Supporters get the monthly supporter drops, the Discord role and their name on the site.</p>
+        <p class="sparks"><img src="images/brand/spark.svg" width="16" height="16" alt=""><span data-i18n="t.card.sparks">Every plan also brings 300 Sparks a month, Xenon&#39;s credits.</span></p>
 
         <div class="seg" role="group" aria-labelledby="sup-h">
           <button type="button" id="seg-once" data-mode="once" aria-pressed="true" data-i18n="t.seg.once">One-time</button>
@@ -405,11 +362,11 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
@@ -424,7 +381,7 @@ const I18N = {
   "t.nav.back": "← Back to the site",
   "t.toast.started": "Your download of {file} has started. Nothing happened? <a id='manual'>Download it manually</a>.",
   "t.toast.none": "Pick your file on the <a href='/download.html'>download page</a>.",
-  "t.shot": "Ambient scene on a CORSAIR Xeneon Edge",
+  "t.drop": "{name}, the newest supporter pack",
   "t.h1": "Thanks for downloading Xenon",
   "t.lede1": "Xenon is written by one person, with no ads and no investors. It keeps going because people support it.",
   "t.lede2": "The app stays free and complete even if you never give anything.",
@@ -438,6 +395,7 @@ const I18N = {
   "t.step.3": "<strong>Pick the screen.</strong> A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. <a href='/phone.html'>Pairing a phone</a> takes about thirty seconds.",
   "t.card.h": "Want to help?",
   "t.card.sub": "Supporters get the monthly supporter drops, the Discord role and their name on the site.",
+  "t.card.sparks": "Every plan also brings 300 Sparks a month, Xenon's credits.",
   "t.seg.once": "One-time",
   "t.seg.sub": "Membership",
   "t.coffee.name": "A coffee",
@@ -445,7 +403,7 @@ const I18N = {
   "t.pass.name": "Supporter pass",
   "t.pass.what": "Five months of drops, paid once. Nothing renews by itself.",
   "t.free.name": "Another amount",
-  "t.free.what": "Each coffee is $5. The more you give, the longer the drops keep coming.",
+  "t.free.what": "Each coffee is 5 USD. The more you give, the longer the drops keep coming.",
   "t.month.name": "Monthly",
   "t.month.what": "Drops arrive every month while you stay. Cancel whenever you like.",
   "t.year.name": "A whole year",
@@ -482,7 +440,7 @@ const I18N = {
   "t.nav.back": "← Retour au site",
   "t.toast.started": "Votre téléchargement de {file} a démarré. Rien ne s'est passé ? <a id='manual'>Téléchargez-le manuellement<\/a>.",
   "t.toast.none": "Sélectionnez votre fichier sur la <a href='/download.html'>page de téléchargement<\/a>.",
-  "t.shot": "Scène d'ambiance sur un CORSAIR Xeneon Edge",
+  "t.drop": "{name}, le dernier pack pour supporters",
   "t.h1": "Merci d'avoir téléchargé Xenon",
   "t.lede1": "Xenon est rédigé par une seule personne, sans publicité ni investisseurs. Il continue grâce au soutien de ses lecteurs.",
   "t.lede2": "L'application reste gratuite et complète, même si vous ne donnez rien.",
@@ -496,6 +454,7 @@ const I18N = {
   "t.step.3": "<strong>Choisissez l'écran.<\/strong> Un moniteur de rechange, une tablette, votre téléphone ou un CORSAIR Xeneon Edge. <a href='/phone.html'>L'appairage d'un téléphone<\/a> prend environ trente secondes.",
   "t.card.h": "Vous souhaitez aider ?",
   "t.card.sub": "Les supporters reçoivent les dépôts mensuels pour supporters, le rôle Discord et leur nom sur le site.",
+  "t.card.sparks": "Chaque formule apporte aussi 300 Étincelles par mois, les crédits de Xenon.",
   "t.seg.once": "Paiement unique",
   "t.seg.sub": "Adhésion",
   "t.coffee.name": "Un café",
@@ -503,7 +462,7 @@ const I18N = {
   "t.pass.name": "Pass supporter",
   "t.pass.what": "Cinq mois de sorties, payé une seule fois. Rien ne se renouvelle automatiquement.",
   "t.free.name": "Un autre montant",
-  "t.free.what": "Chaque café coûte 5 $. Plus vous donnez, plus les gouttes continuent à tomber.",
+  "t.free.what": "Chaque café coûte 5 USD. Plus vous donnez, plus longtemps les drops arrivent.",
   "t.month.name": "Mensuel",
   "t.month.what": "Les livraisons sont effectuées chaque mois tant que vous restez. Annulez à tout moment.",
   "t.year.name": "Une année entière",
@@ -540,7 +499,7 @@ const I18N = {
   "t.nav.back": "← Torna al sito",
   "t.toast.started": "Il download di {file} è partito. Non succede nulla? <a id='manual'>Scaricalo a mano</a>.",
   "t.toast.none": "Scegli il file giusto nella <a href='/download.html'>pagina di download</a>.",
-  "t.shot": "Scena Ambient su un CORSAIR Xeneon Edge",
+  "t.drop": "{name}, l'ultimo pack per chi sostiene Xenon",
   "t.h1": "Grazie per aver scaricato Xenon",
   "t.lede1": "Xenon lo scrive una persona sola, senza pubblicità e senza investitori. Va avanti grazie a chi lo sostiene.",
   "t.lede2": "L'app resta gratis e completa anche se non doni nulla.",
@@ -554,6 +513,7 @@ const I18N = {
   "t.step.3": "<strong>Scegli lo schermo.</strong> Un monitor in più, un tablet, il telefono o un CORSAIR Xeneon Edge. <a href='/phone.html'>Collegare un telefono</a> richiede una trentina di secondi.",
   "t.card.h": "Vuoi darmi una mano?",
   "t.card.sub": "Chi sostiene Xenon riceve i drop mensili per sostenitori, il ruolo su Discord e il nome sul sito.",
+  "t.card.sparks": "Ogni piano porta anche 300 Scintille al mese, i crediti di Xenon.",
   "t.seg.once": "Una volta",
   "t.seg.sub": "Abbonamento",
   "t.coffee.name": "Un caffè",
@@ -561,7 +521,7 @@ const I18N = {
   "t.pass.name": "Pass sostenitore",
   "t.pass.what": "Cinque mesi di drop, pagati una volta sola. Niente si rinnova da solo.",
   "t.free.name": "Un altro importo",
-  "t.free.what": "Ogni caffè vale $5. Più ne offri, più a lungo ricevi i drop.",
+  "t.free.what": "Ogni caffè vale 5 USD. Più ne offri, più a lungo ricevi i drop.",
   "t.month.name": "Mensile",
   "t.month.what": "I drop arrivano ogni mese finché resti. Disdici quando vuoi.",
   "t.year.name": "Un anno intero",
@@ -598,7 +558,7 @@ const I18N = {
   "t.nav.back": "← Volver al sitio",
   "t.toast.started": "La descarga de {file} ha empezado. ¿No pasa nada? <a id='manual'>Descárgalo a mano</a>.",
   "t.toast.none": "Elige tu archivo en la <a href='/download.html'>página de descarga</a>.",
-  "t.shot": "Escena Ambient en una CORSAIR Xeneon Edge",
+  "t.drop": "{name}, el último pack para quienes apoyan Xenon",
   "t.h1": "Gracias por descargar Xenon",
   "t.lede1": "Xenon lo escribe una sola persona, sin anuncios ni inversores. Sigue adelante gracias a quienes lo apoyan.",
   "t.lede2": "La app sigue siendo gratis y completa aunque no des nada.",
@@ -612,6 +572,7 @@ const I18N = {
   "t.step.3": "<strong>Elige la pantalla.</strong> Un monitor de sobra, una tablet, tu móvil o una CORSAIR Xeneon Edge. <a href='/phone.html'>Vincular un móvil</a> lleva unos treinta segundos.",
   "t.card.h": "¿Quieres echarme una mano?",
   "t.card.sub": "Quienes apoyan Xenon reciben los lanzamientos mensuales para patrocinadores, el rol en Discord y su nombre en el sitio.",
+  "t.card.sparks": "Cada plan trae también 300 Chispas al mes, los créditos de Xenon.",
   "t.seg.once": "Una vez",
   "t.seg.sub": "Membresía",
   "t.coffee.name": "Un café",
@@ -619,7 +580,7 @@ const I18N = {
   "t.pass.name": "Pase de patrocinador",
   "t.pass.what": "Cinco meses de lanzamientos, pagados una sola vez. Nada se renueva solo.",
   "t.free.name": "Otra cantidad",
-  "t.free.what": "Cada café vale $5. Cuanto más das, más tiempo recibes los lanzamientos.",
+  "t.free.what": "Cada café vale 5 USD. Cuanto más das, más tiempo recibes los lanzamientos.",
   "t.month.name": "Mensual",
   "t.month.what": "Los lanzamientos llegan cada mes mientras sigas. Cancela cuando quieras.",
   "t.year.name": "Un año entero",
@@ -656,7 +617,7 @@ const I18N = {
   "t.nav.back": "← 사이트로 돌아가기",
   "t.toast.started": "{file} 다운로드가 시작되었습니다. 아무 일도 없나요? <a id='manual'>직접 다운로드</a>하세요.",
   "t.toast.none": "<a href='/download.html'>다운로드 페이지</a>에서 파일을 고르세요.",
-  "t.shot": "CORSAIR Xeneon Edge의 Ambient 장면",
+  "t.drop": "{name}, 최신 서포터 팩",
   "t.h1": "Xenon을 다운로드해 주셔서 감사합니다",
   "t.lede1": "Xenon은 한 사람이 만듭니다. 광고도 투자자도 없고, 후원해 주는 분들 덕분에 계속됩니다.",
   "t.lede2": "아무것도 후원하지 않아도 앱은 무료이고 완전합니다.",
@@ -670,6 +631,7 @@ const I18N = {
   "t.step.3": "<strong>화면을 고르세요.</strong> 남는 모니터, 태블릿, 휴대폰 또는 CORSAIR Xeneon Edge. <a href='/phone.html'>휴대폰 연결</a>은 30초 정도 걸립니다.",
   "t.card.h": "도와주시겠어요?",
   "t.card.sub": "후원자는 매달 서포터 드롭, Discord 역할, 그리고 사이트에 이름을 받습니다.",
+  "t.card.sparks": "모든 플랜에 매달 300 스파크(Xenon 크레딧)도 포함됩니다.",
   "t.seg.once": "한 번",
   "t.seg.sub": "멤버십",
   "t.coffee.name": "커피 한 잔",
@@ -677,7 +639,7 @@ const I18N = {
   "t.pass.name": "서포터 패스",
   "t.pass.what": "드롭 다섯 달, 한 번만 결제합니다. 저절로 갱신되지 않습니다.",
   "t.free.name": "다른 금액",
-  "t.free.what": "커피 한 잔은 $5입니다. 많이 후원할수록 드롭을 더 오래 받습니다.",
+  "t.free.what": "커피 한 잔은 5 USD입니다. 많이 후원할수록 드롭을 더 오래 받습니다.",
   "t.month.name": "매달",
   "t.month.what": "멤버로 있는 동안 매달 드롭이 옵니다. 언제든 해지할 수 있습니다.",
   "t.year.name": "일 년 전체",
@@ -714,7 +676,7 @@ const I18N = {
   "t.nav.back": "← サイトに戻る",
   "t.toast.started": "{file} のダウンロードが始まりました。始まらない場合は<a id='manual'>手動でダウンロード</a>してください。",
   "t.toast.none": "<a href='/download.html'>ダウンロードページ</a>でファイルを選んでください。",
-  "t.shot": "CORSAIR Xeneon Edge の Ambient シーン",
+  "t.drop": "{name}、最新のサポーター向けパック",
   "t.h1": "Xenon をダウンロードしていただきありがとうございます",
   "t.lede1": "Xenon はひとりで作っています。広告も投資家もなく、支援してくれる人たちのおかげで続いています。",
   "t.lede2": "何も支援しなくても、アプリは無料で機能も欠けません。",
@@ -728,6 +690,7 @@ const I18N = {
   "t.step.3": "<strong>画面を選びます。</strong> 空いているモニター、タブレット、スマートフォン、または CORSAIR Xeneon Edge。<a href='/phone.html'>スマートフォンの接続</a>は 30 秒ほどです。",
   "t.card.h": "応援してもらえますか？",
   "t.card.sub": "支援者には毎月のサポーター向けドロップ、Discord のロール、そしてサイトへのお名前掲載があります。",
+  "t.card.sparks": "どのプランにも毎月 300 スパーク（Xenon のクレジット）が付きます。",
   "t.seg.once": "一回",
   "t.seg.sub": "メンバーシップ",
   "t.coffee.name": "コーヒー一杯",
@@ -735,7 +698,7 @@ const I18N = {
   "t.pass.name": "サポーターパス",
   "t.pass.what": "ドロップ五か月分を一度だけ。自動更新はありません。",
   "t.free.name": "ほかの金額",
-  "t.free.what": "コーヒー一杯は $5 です。多いほど、ドロップを長く受け取れます。",
+  "t.free.what": "コーヒー一杯は 5 USD です。多いほど、ドロップを長く受け取れます。",
   "t.month.name": "毎月",
   "t.month.what": "続けている間、毎月ドロップが届きます。いつでも解約できます。",
   "t.year.name": "まるごと一年",
@@ -772,7 +735,7 @@ const I18N = {
   "t.nav.back": "← 返回网站",
   "t.toast.started": "{file} 已开始下载。没有反应？<a id='manual'>手动下载</a>。",
   "t.toast.none": "请在<a href='/download.html'>下载页面</a>选择你的文件。",
-  "t.shot": "CORSAIR Xeneon Edge 上的 Ambient 场景",
+  "t.drop": "{name}，最新的支持者专属包",
   "t.h1": "感谢下载 Xenon",
   "t.lede1": "Xenon 由一个人开发，没有广告，也没有投资人。它能继续下去，靠的是支持它的人。",
   "t.lede2": "即使你什么都不付，应用也一样免费、完整。",
@@ -786,6 +749,7 @@ const I18N = {
   "t.step.3": "<strong>选择屏幕。</strong> 闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 都可以。<a href='/phone.html'>配对手机</a>大约需要三十秒。",
   "t.card.h": "愿意帮我一把吗？",
   "t.card.sub": "支持者每月可获得支持者专属内容、Discord 身份组，名字还会出现在网站上。",
+  "t.card.sparks": "每种方案每月还附带 300 火花，也就是 Xenon 的点数。",
   "t.seg.once": "一次性",
   "t.seg.sub": "会员",
   "t.coffee.name": "一杯咖啡",
@@ -793,7 +757,7 @@ const I18N = {
   "t.pass.name": "支持者通行证",
   "t.pass.what": "五个月的专属内容，一次付清。不会自动续费。",
   "t.free.name": "其他金额",
-  "t.free.what": "每杯咖啡 $5。给得越多，收到专属内容的时间就越长。",
+  "t.free.what": "每杯咖啡 5 USD。给得越多，收到专属内容的时间就越长。",
   "t.month.name": "按月",
   "t.month.what": "只要你还在，每月都会收到专属内容。随时可以取消。",
   "t.year.name": "整整一年",
@@ -856,13 +820,13 @@ const I18N = {
     const BMC = 'https://www.buymeacoffee.com/marcimastro98';
     const OPTS = {
       once: [
-        { id: 'coffee', price: '$5', unit: 't.unit.once', url: BMC },
-        { id: 'pass', price: '$25', unit: 't.unit.once', url: BMC, tag: 't.tag.pick' },
-        { id: 'free', price: '$?', unit: 't.unit.free', url: BMC },
+        { id: 'coffee', price: '5 USD', unit: 't.unit.once', url: BMC },
+        { id: 'pass', price: '25 USD', unit: 't.unit.once', url: BMC, tag: 't.tag.pick' },
+        { id: 'free', price: '5+ USD', unit: 't.unit.free', url: BMC },
       ],
       sub: [
-        { id: 'month', price: '$5', unit: 't.unit.month', url: BMC + '/membership' },
-        { id: 'year', price: '$50', unit: 't.unit.year', url: BMC + '/membership', tag: 't.tag.theme' },
+        { id: 'month', price: '5 USD', unit: 't.unit.month', url: BMC + '/membership' },
+        { id: 'year', price: '50 USD', unit: 't.unit.year', url: BMC + '/membership', tag: 't.tag.theme' },
       ],
     };
     const DEFAULT = { once: 'pass', sub: 'year' };
@@ -1002,6 +966,31 @@ const I18N = {
     }
   })();
 
+  // The picture on top: the newest supporter pack open now (promo.js picks it), linked to its
+  // catalog page. A picture of what supporting gets you, that changes by itself with each drop.
+  (function () {
+    const fig = document.getElementById('drop');
+    let drop = null;
+    function caption() {
+      if (drop) document.getElementById('drop-cap').textContent = window.XT('t.drop').replace('{name}', drop.name);
+    }
+    window.__thanksDrop = caption;
+    document.addEventListener('DOMContentLoaded', async () => {
+      const P = window.XenonPromo;
+      try {
+        const res = P && await fetch('/community/catalog.json', { cache: 'no-cache' });
+        drop = res && res.ok ? P.newestDrop((await res.json()).entries, Date.now()) : null;
+      } catch (e) { drop = null; }
+      if (!drop) { fig.remove(); return; }
+      const img = document.getElementById('drop-img');
+      img.onerror = () => fig.remove();
+      img.src = P.dropShot(drop.id);
+      img.alt = String(drop.name || '');
+      document.getElementById('drop-link').href = '/catalog/' + encodeURIComponent(drop.id) + '/';
+      caption();
+    });
+  })();
+
   // Same engine and same storage key as the home page and the FAQ, so a
   // visitor's language choice carries across the site.
   (function () {
@@ -1022,6 +1011,7 @@ const I18N = {
       const c = document.getElementById('lang-cur'); if (c) c.textContent = cur.toUpperCase();
       document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
       if (window.__thanksRender) window.__thanksRender();
+      if (window.__thanksDrop) window.__thanksDrop();
       try { localStorage.setItem(KEY, cur); } catch (e) { /* private mode */ }
     }
     const box = document.getElementById('lang');

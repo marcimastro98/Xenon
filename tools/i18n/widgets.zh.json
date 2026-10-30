@@ -45,7 +45,7 @@
     "wg.h.media": "媒体",
     "wg.media.intro": "6 个小组件。",
     "wg.w.media": "<strong>播放。</strong>电脑上任何媒体应用正在播放的内容，带封面、播放和暂停、上一首和下一首。",
-    "wg.w.chat": "<strong>聊天。</strong>Xenon AI 的文字聊天：你可以提问，附加图片、PDF 和文本文件，还可以让它修改仪表盘上的内容。",
+    "wg.w.chat": "<strong>聊天。</strong>Bit 的文字聊天：你可以提问，附加图片、PDF 和文本文件，还可以让它修改仪表盘上的内容。",
     "wg.w.chatgpt": "<strong>问问 ChatGPT。</strong>通过电脑上的 OpenAI Codex，由你自己的 ChatGPT 套餐回答的聊天，无需 API 密钥。对话保存在电脑上，不会出现在你的 ChatGPT 历史中。",
     "wg.w.browser": "<strong>浏览器。</strong>磁贴里的网页，带标签页、地址栏以及后退和前进，由电脑上的 Chromium 浏览器运行，所以连拒绝被嵌入的网站也能打开。",
     "wg.w.slideshow": "<strong>幻灯片。</strong>轮流显示你添加的图片和 GIF 动图，或者电脑上某个文件夹里的图片；点按一下即可暂停，也可以手动逐张切换。",

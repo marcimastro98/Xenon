@@ -86,8 +86,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
@@ -101,10 +101,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
       <ul class="xh-mlinks">
@@ -139,8 +139,9 @@
       <a href="#deck" data-i18n="cc.jump.deck">요청 버튼과 Deck 키</a>
       <a href="#link" data-i18n="cc.jump.link">연결하기</a>
       <a href="#mod" data-i18n="cc.jump.mod">Xenon 모드</a>
+      <a href="#widgets" data-i18n="cc.jump.widgets">내 위젯</a>
       <a href="#data" data-i18n="cc.jump.data">무엇이 어디로 전송되나</a>
-      <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
+      <a href="#ai" data-i18n="cc.jump.ai">Bit</a>
       <a href="#faq" data-i18n="cc.jump.faq">자주 묻는 질문</a>
     </nav>
 
@@ -213,14 +214,17 @@
     <p data-i18n-html="cc.mod.p4">직접 설치하려면 Claude Code에서 <code>/plugin install xenon --marketplace marcimastro98/Xenon</code>을 입력하세요. 업데이트하려면 터미널에서 <code>claude plugin update xenon@xenon</code>을 실행하고 새 세션을 시작하세요. 제거하려면 타일에서 연결 해제를 누르거나, Claude Code에서 플러그인을 제거하세요.</p>
 
 
+    <h2 id="widgets" data-i18n="cc.h.widgets">나만의 위젯 만들기</h2>
+    <p data-i18n-html="cc.widgets.p1">Claude Code에서 코드를 작성한다면 Xenon 위젯도 만들 수 있습니다. <strong>설정 → 위젯 &amp; 공유 → Claude Code 또는 Codex로 위젯 만들기</strong>에서 <strong>Claude Code 연결</strong>을 누르세요. Claude Code이 위젯 SDK를 읽고, 폴더에 위젯을 작성해 대시보드에 설치하고, 발생한 오류와 타일 사진을 확인한 뒤 고칩니다.</p>
+    <p data-i18n-html="cc.widgets.p2">처음에는 대시보드에서 허용할지 묻습니다. 위젯 권한은 절대 승인하지 않고, 직접 만든 위젯만 바꾸며, Xenon이 실행 중인 PC에서만 작동합니다. <a href="/create/#mcp">작동 방식과 직접 추가하는 방법</a>.</p>
     <h2 id="data" data-i18n="cc.h.data">무엇이 어디로 전송되나</h2>
     <p data-i18n="cc.data.p1">타일은 계정도 API 키도 쓰지 않습니다. 토큰 수는 디스크의 파일에서, 실시간 데이터는 같은 PC의 Claude Code에서 옵니다.</p>
     <p data-i18n-html="cc.data.p2">Claude Code의 훅과 상태 표시줄은 보고를 <code>127.0.0.1</code>, 즉 내 PC로 보냅니다. 모든 보고에는 Xenon이 만든 키가 있어야 하며, 키가 없는 보고는 Xenon이 거부합니다. 훅은 요청 헤더에 키를 넣어 보내고, 상태 표시줄 스크립트는 Xenon의 데이터 폴더에서 키를 읽으므로, 키가 명령줄이나 프로세스 목록에 나타나지 않습니다.</p>
     <p data-i18n="cc.data.p3">실시간 세션 상태는 메모리에만 보관합니다. Xenon은 이를 디스크에 쓰지 않으며, Xenon이 다시 시작되면 빈 상태로 시작합니다.</p>
     <p data-i18n="cc.data.p4">페어링한 휴대폰은 타일을 쓰고, 요청에 답하고, 작업을 시작할 수 있지만, Claude Code인 것처럼 보고를 보낼 수는 없습니다. 그 주소들은 페어링한 기기에서는 거부됩니다.</p>
 
-    <h2 id="ai" data-i18n="cc.h.ai">Claude나 ChatGPT 구독으로 쓰는 Xenon AI</h2>
-    <p data-i18n-html="cc.ai.p1">타일과는 별개로, 대시보드의 어시스턴트인 Xenon AI는 버전 4.11.10부터 API 키 대신 내 구독으로 답할 수 있습니다. <strong>설정 → Xenon AI</strong>에서 <strong>Claude Code</strong>나 <strong>Codex</strong>를 고르세요. 그러면 Xenon이 PC에 설치된 공식 프로그램에 질문하며, 이 프로그램은 Claude나 ChatGPT 요금제로 로그인되어 있습니다.</p>
+    <h2 id="ai" data-i18n="cc.h.ai">Claude나 ChatGPT 구독으로 쓰는 Bit</h2>
+    <p data-i18n-html="cc.ai.p1">타일과는 별개로, 대시보드의 어시스턴트인 Bit은 버전 4.11.10부터 API 키 대신 내 구독으로 답할 수 있습니다. <strong>설정 → Bit 어시스턴트</strong>에서 <strong>Claude Code</strong>나 <strong>Codex</strong>를 고르세요. 그러면 Xenon이 PC에 설치된 공식 프로그램에 질문하며, 이 프로그램은 Claude나 ChatGPT 요금제로 로그인되어 있습니다.</p>
     <p data-i18n="cc.ai.p2">로그인은 프로그램 안에서 Anthropic이나 OpenAI의 자체 로그인으로 하며, Xenon은 자격 증명을 읽거나 저장하거나 전달하지 않습니다. Anthropic이 Claude 구독을 자사 앱 밖에서 쓰도록 허용하는 방법은 이것뿐입니다.</p>
     <p data-i18n="cc.ai.p3">설정에는 프로그램이 설치되어 있는지, 로그인되어 있는지, 아니라면 무엇을 실행해야 하는지가 표시됩니다. 모델 메뉴는 프로그램이 직접 채우므로, 지금 계정에서 쓸 수 있는 모델이 나옵니다.</p>
     <p data-i18n="cc.ai.p4">어시스턴트는 대시보드 도구를 그대로 씁니다. 테마를 바꾸고, Deck 키를 설정하고, 할 일과 타이머를 추가하고, 조명과 미디어를 제어할 수 있습니다. 프로그램 자체의 터미널 도구와 파일 도구는 꺼진 채로 둡니다.</p>
@@ -245,10 +249,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

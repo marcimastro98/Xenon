@@ -77,7 +77,7 @@
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--g-1);
   }
   .shot-fig figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
-  .tablewrap { margin: 20px 0 22px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .tablewrap { margin: 20px 0 22px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .tablewrap table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.55; }
   .tablewrap th, .tablewrap td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); color: var(--muted); }
   .tablewrap th { color: var(--text); font-weight: 600; font-size: 15px; background: var(--g-1); }
@@ -105,8 +105,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
@@ -120,10 +120,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
       <ul class="xh-mlinks">
@@ -289,7 +289,7 @@
     <p data-i18n-html="sens.history.p1">설정 → 성능에서 <strong>센서 기록</strong>을 켜면 시스템 타일에 기록 탭이 생깁니다. 최근 24시간, 7일, 30일 동안의 CPU와 GPU 온도와 사용률, RAM 사용량을 차트로 보여 주며, 차트마다 최신 값과 최고값이 표시됩니다. 기본으로 꺼져 있고 AI가 필요 없습니다.</p>
     <p data-i18n="sens.history.p2">Xenon은 5분마다 한 번 측정합니다. 시간별 값은 3일, 일별 값은 약 3개월 동안 PC의 파일에 보관합니다. 24시간 보기는 시간별 값을, 7일과 30일 보기는 일별 값을 씁니다.</p>
     <p data-i18n="sens.history.p3">같은 탭에 PC 사용 시간도 표시됩니다. 기간 동안 가장 많이 쓴 앱, 전체 활동 시간, 그중 게임 시간입니다. 기록을 켜면 에너지 위젯도 최근 24시간의 CPU와 GPU 소비 전력을 차트로 보여 줍니다.</p>
-    <p data-i18n="sens.history.p4">Guardian은 같은 기록의 AI 쪽 기능으로, 설정 → Xenon AI에 있는 선택형 고급 AI 기능 중 하나입니다. "내 PC 상태 어때?"라고 물으면 기록을 분석합니다. Guardian을 켜면 CPU가 90 °C, GPU가 88 °C, RAM이 95%에 이를 때 알림도 나타나며, 항목마다 30분에 한 번까지만 나타납니다.</p>
+    <p data-i18n="sens.history.p4">Guardian은 같은 기록의 AI 쪽 기능으로, 설정 → Bit 어시스턴트에 있는 선택형 고급 AI 기능 중 하나입니다. "내 PC 상태 어때?"라고 물으면 기록을 분석합니다. Guardian을 켜면 CPU가 90 °C, GPU가 88 °C, RAM이 95%에 이를 때 알림도 나타나며, 항목마다 30분에 한 번까지만 나타납니다.</p>
 
     <h2 id="games" data-i18n="sens.h.games">게임 모드와 성능 모드</h2>
     <p data-i18n="sens.games.p1">게임 모드는 기본으로 켜져 있습니다. 게임이 전체 화면으로 실행되면 애니메이션 배경과 AI 빛 효과가 멈춰, 대시보드가 게임과 GPU를 두고 경쟁하지 않습니다. 게임에서 나오면 다시 돌아옵니다.</p>
@@ -323,10 +323,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

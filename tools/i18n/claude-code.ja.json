@@ -26,7 +26,7 @@
     "cc.jump.link": "接続",
     "cc.jump.mod": "Xenon の mod",
     "cc.jump.data": "何がどこに送られるか",
-    "cc.jump.ai": "Xenon AI",
+    "cc.jump.ai": "Bit",
     "cc.jump.faq": "よくある質問",
     "cc.h.quota": "5時間と7日間の使用量",
     "cc.quota.p1": "Claude Code は、ステータスラインにサブスクリプションの実際の上限を渡しています。5時間の枠と7日間の枠で、それぞれどれだけ使ったかと、いつリセットされるかです。Claude Code を接続すると、Xenon はそれぞれの枠を区切られたメーターとして表示し、リセットまでのカウントダウンを付けます。",
@@ -79,8 +79,8 @@
     "cc.data.p2": "Claude Code のフックとステータスラインは、報告を <code>127.0.0.1</code>、つまり自分の PC に送ります。各報告には Xenon が作った鍵が必要で、鍵のない報告は拒否されます。フックは鍵をリクエストヘッダーで送り、ステータスラインのスクリプトは Xenon 自身のデータフォルダーから読むので、鍵がコマンドラインやプロセスの一覧に現れることはありません。",
     "cc.data.p3": "ライブのセッションの状態はメモリーに保持されます。Xenon はそれをディスクに書き込まず、Xenon を再起動すると空の状態から始まります。",
     "cc.data.p4": "ペアリングしたスマートフォンは、タイルを使い、リクエストに答え、実行を始めることはできますが、Claude Code になりすまして報告を送ることはできません。報告用のアドレスは、ペアリングしたデバイスからは拒否されます。",
-    "cc.h.ai": "Claude や ChatGPT のサブスクリプションで使う Xenon AI",
-    "cc.ai.p1": "タイルとは別に、ダッシュボードのアシスタントである Xenon AI は、バージョン 4.11.10 から API キーの代わりに自分のサブスクリプションで答えられます。<strong>設定 → Xenon AI</strong> で <strong>Claude Code</strong> か <strong>Codex</strong> を選びます。すると Xenon は、PC にインストールされ、Claude または ChatGPT のプランでサインインしている公式のプログラムに問い合わせます。",
+    "cc.h.ai": "Claude や ChatGPT のサブスクリプションで使う Bit",
+    "cc.ai.p1": "タイルとは別に、ダッシュボードのアシスタントである Bit は、バージョン 4.11.10 から API キーの代わりに自分のサブスクリプションで答えられます。<strong>設定 → Bit アシスタント</strong> で <strong>Claude Code</strong> か <strong>Codex</strong> を選びます。すると Xenon は、PC にインストールされ、Claude または ChatGPT のプランでサインインしている公式のプログラムに問い合わせます。",
     "cc.ai.p2": "サインインはプログラムの中で、Anthropic や OpenAI 自身のサインインを通じて行います。Xenon は認証情報を読み取ったり、保存したり、ほかに渡したりしません。Claude のサブスクリプションを Anthropic 自身のアプリの外で使う方法として、Anthropic が認めているのはこれだけです。",
     "cc.ai.p3": "設定には、プログラムがインストールされてサインインしているかどうかと、そうでない場合に実行するコマンドが表示されます。モデルのメニューはプログラム自身が作るので、あなたのアカウントで今使えるモデルが並びます。",
     "cc.ai.p4": "アシスタントはダッシュボードのツールをそのまま使えます。テーマの変更、Deck キーの設定、タスクやタイマーの追加、ライトやメディアの操作です。プログラム自身のターミナルやファイルのツールはオフのままです。",
@@ -97,6 +97,10 @@
     "cc.faq.api.q": "タイルは API キーでも使えますか？",
     "cc.faq.api.a": "はい。ただし使用量の枠は Pro と Max のプランにしかないので、表示されません。代わりに、自分で設定した週間予算に対するトークン数をタイルが測ります。",
     "cc.cta.h": "Xenon をダウンロード",
-    "cc.cta.p": "無料で、アカウントは不要です。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>で自分のシステムを選んでください。先に見てみたい場合は、<a href=\"/demo/\">ブラウザのデモ</a>を開いてください。"
+    "cc.cta.p": "無料で、アカウントは不要です。<a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Windows 版 Xenon をダウンロード</a>するか、<a href=\"/download.html\">ダウンロードページ</a>で自分のシステムを選んでください。先に見てみたい場合は、<a href=\"/demo/\">ブラウザのデモ</a>を開いてください。",
+    "cc.jump.widgets": "自分のウィジェット",
+    "cc.h.widgets": "自分のウィジェットを作る",
+    "cc.widgets.p1": "Claude Code でコードを書いているなら、Xenon のウィジェットも作れます。<strong>設定 → ウィジェットと共有 → Claude Code または Codex でウィジェットを作る</strong>で <strong>Claude Code を接続</strong> を押してください。Claude Code がウィジェット SDK を読み、フォルダーにウィジェットを書き、ダッシュボードにインストールし、発生したエラーとタイルの画像を確認して修正します。",
+    "cc.widgets.p2": "初回はダッシュボードで許可するか確認されます。ウィジェットの権限を承認することはなく、あなたが作ったウィジェットだけを変更し、Xenon が動いている PC からだけ使えます。<a href=\"/create/#mcp\">仕組みと手動での追加方法</a>。"
   }
 }

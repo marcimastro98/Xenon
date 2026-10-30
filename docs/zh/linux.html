@@ -66,13 +66,6 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon 能在 Linux 上运行吗？","acceptedAnswer":{"@type":"Answer","text":"能，目前是测试版。仪表盘、小组件、目录和各项集成与 Windows 上完全相同；少数读取电脑信息的部分仅限 X11，或者暂不可用。"}},{"@type":"Question","name":"应该下载哪个 Linux 软件包？","acceptedAnswer":{"@type":"Answer","text":"AppImage 可以在任何 x86_64 桌面系统上运行。另外还有适用于 Debian 和 Ubuntu 的 .deb，以及适用于 Fedora 和 openSUSE 的 .rpm。"}},{"@type":"Question","name":"Xenon 在 Linux 上会自动启动吗？","acceptedAnswer":{"@type":"Answer","text":"会。首次启动时会注册一个 systemd 用户服务；如果没有用户级服务管理器，则改用 XDG 自启动。"}},{"@type":"Question","name":"Xenon 能在 Wayland 上运行吗？","acceptedAnswer":{"@type":"Answer","text":"大部分功能可以。“打开的应用”小组件、应用切换器和 AI 查看屏幕的功能需要 X11 会话。"}}]}</script>
 
 <style>
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
-  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
-  .dl a.pick:hover { border-color: var(--line-2); }
-  .dl .os { font: 700 19px/1.3 var(--display); }
-  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
   .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
   .tablewrap td { vertical-align: top; }
   pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -86,8 +79,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
+    <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">请我喝杯咖啡</span></a>
@@ -101,10 +94,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">关闭</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/zh/#screens" data-xl="screens">屏幕</a></li><li><a href="/zh/#widgets" data-xl="widgets">小组件</a></li><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/create/" data-xl="create">创作</a></li><li><a href="/zh/#support" data-xl="support">支持</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">演示</a></li><li><a href="/catalog/" data-xl="catalog">目录</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/zh/#support" data-xl="supporters">支持者</a></li><li><a href="/zh/faq.html" data-xl="help">帮助</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/zh/#install" data-xl="install">安装</a>
       <ul class="xh-mlinks">
@@ -143,10 +136,14 @@
     <p data-i18n-html="lx.setup.p1">打开应用。首次启动时，它会提出在终端窗口中设置仪表盘：下载引擎，在解压前验证下载的文件，并注册一个 <code>systemd --user</code> 服务，让 Xenon 在你登录时启动。如果没有用户级服务管理器，它会改用 XDG 自启动项，并告诉你这一点，包括这种备用方式不会在 Xenon 崩溃后重新启动它。</p>
     <p data-i18n="lx.setup.p2">.deb 和 .rpm 在安装时不做这一步，这是有意为之：设置过程创建的所有东西都属于某一个用户账号，而软件包是以 root 身份为整台电脑安装的。</p>
     <p data-i18n="lx.setup.p3">安装程序还会列出你缺少的可选工具。在 Debian 和 Ubuntu 上：</p>
-    <pre><code>sudo apt install nodejs npm unzip           # required
-sudo apt install wireplumber                # volume, microphone and the per-app mixer
-sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
-sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
+    <pre><code># required
+sudo apt install nodejs npm unzip
+# volume, microphone and the per-app mixer
+sudo apt install wireplumber
+# the open-applications widget (X11 sessions)
+sudo apt install wmctrl xdotool x11-utils
+# voice input and spoken replies
+sudo apt install ffmpeg</code></pre>
     <p data-i18n-html="lx.setup.p4">如果你的桌面环境根本没有终端模拟器，应用就无法向你显示安装程序：请从<a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">发布页面</a>下载源代码 zip，解压后运行 <code>./INSTALL.sh</code>。</p>
 
     <h2 id="works" data-i18n="lx.h.works">Linux 上哪些功能可用</h2>
@@ -160,7 +157,7 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
         <tr><td data-i18n="lx.row.audio">系统音量、麦克风静音、分应用混音器</td><td data-i18n="lx.st.wireplumber">可用，需要安装 WirePlumber。</td></tr>
         <tr><td data-i18n="lx.row.media">正在播放和媒体键</td><td data-i18n="lx.st.mpris">可用，通过 MPRIS。</td></tr>
         <tr><td data-i18n="lx.row.fps">游戏内帧率计数器</td><td data-i18n="lx.st.mangohud">可用，通过 MangoHud。</td></tr>
-        <tr><td data-i18n="lx.row.ai">Xenon AI、聊天、操作、“Hey Xenon”语音唤醒</td><td data-i18n="lx.st.ai">可用，云端和本地都支持。</td></tr>
+        <tr><td data-i18n="lx.row.ai">Bit、聊天、操作、“Hey Bit”语音唤醒</td><td data-i18n="lx.st.ai">可用，云端和本地都支持。</td></tr>
         <tr><td data-i18n="lx.row.lighting">网络灯光：WLED、Hue、Nanoleaf、OpenRGB</td><td data-i18n="lx.st.works">可用。</td></tr>
         <tr><td data-i18n="lx.row.services">直播、Spotify、Discord、Home Assistant</td><td data-i18n="lx.st.works">可用。</td></tr>
         <tr><td data-i18n="lx.row.phone">把手机或平板用作第二块屏幕</td><td data-i18n="lx.st.works">可用。</td></tr>
@@ -188,10 +185,10 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/zh/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

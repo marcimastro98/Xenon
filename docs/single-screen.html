@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon on one screen: widgets, game overlay and Instant Replay</title>
+<meta name="description" content="Widgets on your desktop or over your games, an FPS overlay, screenshots, recordings and Instant Replay, with no second monitor and no account.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Xenon on one screen: widgets, game overlay and Instant Replay">
+<meta property="og:description" content="Widgets on your desktop or over your games, an FPS overlay, screenshots, recordings and Instant Replay, with no second monitor and no account.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/single-screen.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://xenon-app.com/single-screen.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/single-screen.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/single-screen.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/single-screen.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/single-screen.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/single-screen.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/single-screen.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/single-screen.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/single-screen.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Do I need a second monitor to use Xenon?","acceptedAnswer":{"@type":"Answer","text":"No. In the Xenon app widgets can go on your desktop or over your apps, and the Xenon menu opens over any app with Alt+Shift+X. A second screen or a paired phone is optional."}},{"@type":"Question","name":"Does the overlay go inside the game?","acceptedAnswer":{"@type":"Answer","text":"No. Xenon draws its own windows on top of the game and reads frame times with PresentMon on Windows. It never loads code into the game’s process."}},{"@type":"Question","name":"Does Instant Replay need an NVIDIA or AMD card?","acceptedAnswer":{"@type":"Answer","text":"No. On Windows and macOS it uses the system’s own capture and video encoders, so it works with any graphics card. It is off by default, and the kept minutes wait on the disk, not in memory."}},{"@type":"Question","name":"Do these features cost anything?","acceptedAnswer":{"@type":"Answer","text":"No. Widgets on the screen, the overlay, screenshots, recordings, Instant Replay and the gallery are free, with no account."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/single-screen.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/single-screen.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/single-screen.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/single-screen.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/single-screen.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/single-screen.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/single-screen.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">Menu</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/#install" data-xl="install">Install</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">Buy me a coffee</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/single-screen.html" aria-current="page" data-xl="f.onescreen">Xenon on one screen</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Xenon on one screen","item":"https://xenon-app.com/single-screen.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="os.h1">Xenon on one screen</h1>
+    <p class="lede" data-i18n="os.lede">Xenon puts its widgets, a game performance overlay, screenshots, recordings and Instant Replay on the screen you already have. No second monitor, no account, nothing injected into your games.</p>
+    <p class="updated" data-i18n="os.updated">Last updated: 30 October 2026</p>
+
+    <p data-i18n-html="os.intro">All of this lives in the <strong>Xenon app</strong>: on Windows, and on macOS and Linux, which are in beta. A dashboard on a second screen or a phone is still there if you want it, and it can control everything on this page.</p>
+
+    <nav class="jump">
+      <a href="#widgets" data-i18n="os.jump.widgets">Widgets</a>
+      <a href="#menu" data-i18n="os.jump.menu">Xenon menu</a>
+      <a href="#perf" data-i18n="os.jump.perf">Game performance</a>
+      <a href="#capture" data-i18n="os.jump.capture">Capture</a>
+      <a href="#phone" data-i18n="os.jump.phone">Your phone</a>
+      <a href="#systems" data-i18n="os.jump.systems">Mac and Linux</a>
+      <a href="#faq" data-i18n="os.jump.faq">Common questions</a>
+    </nav>
+
+    <h2 id="widgets" data-i18n="os.h.widgets">Widgets on your screen</h2>
+    <p data-i18n-html="os.widgets.p1">Ask Bit <strong>“put the weather on the desktop, top right”</strong> and the widget appears there. A widget can sit <strong>on the desktop</strong>, under your windows, and come up when you show the desktop; <strong>over everything</strong>, on top of your apps and of games in a borderless window; or <strong>next to an app</strong>, following its window and hiding when you minimize it.</p>
+    <p data-i18n="os.widgets.p2">Clicks next to a widget reach whatever is underneath, and clicking a widget does not take the focus from the window you were using. Every tile of the dashboard and every Store widget can go on the screen.</p>
+    <p data-i18n-html="os.widgets.p3">To arrange them by hand, ask Bit “let me move my widgets” or press the Deck key <strong>Edit the widgets on screen</strong>: drag to move, drag a corner to resize, drop one widget on another to make tabs. Widgets can live on pages, such as Work and Games: a page marked <strong>When I play</strong> shows by itself while a game runs, and a page can follow a virtual desktop.</p>
+    <p data-i18n-html="os.widgets.p4">If you do not want the dashboard at all, choose <strong>Widgets only</strong> in Settings, General, How you use Xenon. The app then keeps no dashboard window, not even a hidden one, and uses less memory. Alerts such as a saved clip or a timer that ends appear at the top right of your screen, and Bit still answers “Hey Xenon”.</p>
+
+    <h2 id="menu" data-i18n="os.h.menu">The Xenon menu</h2>
+    <p data-i18n-html="os.menu.p1">Press <strong>Alt+Shift+X</strong> in any app, games in a borderless window included, and one menu opens over your screen: screenshot, area, record and gallery; the widgets on the screen and their pages; the overlay over the game; the capture options; every keyboard shortcut in one place, with the ones another app already uses named; the look; and how you use Xenon.</p>
+    <p data-i18n="os.menu.p2">It also opens from the tray, from a Deck key, or by asking Bit. With a controller, hold the two small buttons in the middle together for a moment: View and Menu on an Xbox-style controller, Create and Options on a PlayStation one. The D-pad moves, A presses, B closes.</p>
+
+    <h2 id="perf" data-i18n="os.h.perf">Game performance over the game</h2>
+    <p data-i18n-html="os.perf.p1">The <strong>Game performance</strong> tile shows the frame rate of the game you are playing, its 1% and 0.1% lows, the frame time and a line of the latest frames where a stutter shows up as a spike, with CPU and GPU load underneath. Ask Bit “show my FPS over the game” to put it over your game. On Windows, <strong>Ctrl+Shift+F9</strong> hides the widgets over the game and brings them back.</p>
+    <p data-i18n="os.perf.p2">Xenon remembers every game you play for more than two minutes, so you can compare one evening with the next, and Bit answers “why does my game stutter?” from what Xenon already measures. A Deck key saves every frame time of a run as a CSV file.</p>
+    <p data-i18n="os.perf.p3">On Windows Xenon measures every frame. On Linux the frame rate needs the game started with MangoHud. On macOS one app cannot measure the frame rate of another, and the tile says so.</p>
+
+    <h2 id="capture" data-i18n="os.h.capture">Screenshots, recordings and Instant Replay</h2>
+    <p data-i18n="os.capture.p1">Take a screenshot of the screen, of the window in front or of an area you drag over a frozen screen. On an HDR screen the picture keeps the colours you see. Record the screen or one window as an MP4 with its sound, and add your microphone only if you choose it.</p>
+    <p data-i18n-html="os.capture.p2"><strong>Instant Replay</strong> keeps the last minutes of your screen, from 15 seconds to 60 minutes, on the disk and not in memory. Press <strong>Ctrl+Shift+F10</strong> on Windows, tap a Deck key or say “save the last 30 seconds” and the clip is saved in about a second. It is off until you turn it on in Settings, Capture, because while it is on it records all the time.</p>
+    <p data-i18n="os.capture.p3">Mark a moment while Instant Replay runs and Xenon saves a clip around it. The gallery groups your captures by day and game, trims a video without encoding it again, writes a transcript on this PC, makes a vertical 9:16 copy or a lighter one for a chat, and sends a capture to your paired phone.</p>
+    <p data-i18n="os.capture.p4">On Windows and macOS it uses the system’s own capture and video encoders, so it works with any graphics card. Everything stays on your PC: nothing is uploaded.</p>
+
+    <h2 id="phone" data-i18n="os.h.phone">Your phone as the second screen</h2>
+    <p data-i18n-html="os.phone.p1">With one monitor, the second screen can be the phone in your pocket. Pair it with Xenon and it shows your dashboard over your own Wi-Fi: the Game performance tile with your FPS, so nothing sits over the game, and Deck keys that save the replay or take a screenshot on the PC. <a href="/phone.html">How to pair a phone</a>.</p>
+
+    <h2 id="systems" data-i18n="os.h.systems">On a Mac and on Linux</h2>
+    <p data-i18n="os.systems.p1">Widgets on the screen, Widgets only, the Xenon menu, screenshots and recordings work on macOS and Linux too, as a beta: they have not been tried on a real Mac or a real Linux PC yet, so tell us what does not work. What a system cannot do does not appear, and Settings says why.</p>
+    <p data-i18n="os.systems.p2">On Linux what you get depends on your desktop and on the tools installed. Widgets need an X11 session with a compositor, or KDE Plasma, Sway or Hyprland with the gtk-layer-shell library; GNOME with Wayland does not let an app put its windows under or over the others. In SteamOS Game Mode nothing can open over the game, so there use the phone.</p>
+
+    <h2 id="limits" data-i18n="os.h.limits">What Xenon does not do</h2>
+    <p data-i18n="os.limits.p1">Xenon draws only its own windows and never enters the game’s process. So it cannot draw over a game in exclusive full screen: the tile says so, and the game’s display settings can switch it to borderless. It does not overclock, change voltages or fans, or change driver settings.</p>
+
+    <h2 id="faq" data-i18n="os.h.faq">Common questions</h2>
+    <details><summary data-i18n="os.faq.second.q">Do I need a second monitor to use Xenon?</summary><div class="body"><p data-i18n="os.faq.second.a">No. In the Xenon app widgets can go on your desktop or over your apps, and the Xenon menu opens over any app with Alt+Shift+X. A second screen or a paired phone is optional.</p></div></details>
+    <details><summary data-i18n="os.faq.cheat.q">Does the overlay go inside the game?</summary><div class="body"><p data-i18n="os.faq.cheat.a">No. Xenon draws its own windows on top of the game and reads frame times with PresentMon on Windows. It never loads code into the game’s process.</p></div></details>
+    <details><summary data-i18n="os.faq.gpu.q">Does Instant Replay need an NVIDIA or AMD card?</summary><div class="body"><p data-i18n="os.faq.gpu.a">No. On Windows and macOS it uses the system’s own capture and video encoders, so it works with any graphics card. It is off by default, and the kept minutes wait on the disk, not in memory.</p></div></details>
+    <details><summary data-i18n="os.faq.price.q">Do these features cost anything?</summary><div class="body"><p data-i18n="os.faq.price.a">No. Widgets on the screen, the overlay, screenshots, recordings, Instant Replay and the gallery are free, with no account.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="os.cta.h">Download Xenon</h3>
+      <p data-i18n-html="os.cta.p">Free, with no account. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Download Xenon for Windows</a>, or pick your system on the <a href="/download.html">download page</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">More guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul><p class="xg-dl"><a href="/download.html" data-xl="f.download">Download</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

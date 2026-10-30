@@ -58,6 +58,10 @@
     "ld.q4": "Why do I have to trust the hooks in Codex?",
     "ld.a4": "Codex runs a hook only after you have trusted that exact hook. It is Codex’s own safety check, so Xenon never does it for you. If Xenon or Node moves to another folder, the hooks change and Codex asks you to trust them again; the tile says when.",
     "ld.q5": "Does the tile work with an API key?",
-    "ld.a5": "Sessions and approvals do. The plan windows exist only on a ChatGPT plan, so with an API key the tile has none to show."
+    "ld.a5": "Sessions and approvals do. The plan windows exist only on a ChatGPT plan, so with an API key the tile has none to show.",
+    "cx.jump.widgets": "Your widgets",
+    "cx.h.widgets": "Building your own widgets",
+    "cx.widgets.p1": "If you write code in Codex, it can also build widgets for Xenon. In <strong>Settings → Widgets &amp; sharing → Build widgets with Claude Code or Codex</strong>, press <strong>Connect Codex</strong>. Codex then reads the Widget SDK, writes the widget in a folder, installs it on your dashboard, reads the errors it hits and looks at a picture of its tile, then fixes it.",
+    "cx.widgets.p2": "The first time, the dashboard asks whether to allow it. It never approves a widget's permissions, only changes widgets you made, and works only from the PC running Xenon. <a href=\"/create/#mcp\">How it works, and how to add it by hand</a>."
   }
 }

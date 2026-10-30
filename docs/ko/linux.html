@@ -66,13 +66,6 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Xenon은 Linux에서 실행되나요?","acceptedAnswer":{"@type":"Answer","text":"네, 베타입니다. 대시보드, 위젯, 카탈로그, 연동은 Windows와 똑같고, 기기를 읽어 오는 일부 기능은 X11에서만 되거나 아직 없습니다."}},{"@type":"Question","name":"어떤 Linux 패키지를 내려받아야 하나요?","acceptedAnswer":{"@type":"Answer","text":"AppImage는 모든 x86_64 데스크톱에서 실행됩니다. Debian과 Ubuntu용 .deb, Fedora와 openSUSE용 .rpm도 있습니다."}},{"@type":"Question","name":"Linux에서 Xenon이 자동으로 시작되나요?","acceptedAnswer":{"@type":"Answer","text":"네. 첫 실행 때 systemd 사용자 서비스를 등록하며, 사용자 매니저가 없는 환경에서는 XDG 자동 시작 항목으로 대신합니다."}},{"@type":"Question","name":"Xenon은 Wayland에서 동작하나요?","acceptedAnswer":{"@type":"Answer","text":"대부분 동작합니다. 열린 앱 위젯, 앱 전환기, AI의 화면 인식은 X11 세션이 필요합니다."}}]}</script>
 
 <style>
-  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
-  .dl a.pick { display: block; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--r-1); background: var(--panel); text-decoration: none; color: var(--text); }
-  .dl a.pick:hover { border-color: var(--line-2); }
-  .dl .os { font: 700 19px/1.3 var(--display); }
-  .dl .os small { font: 600 15px/1 var(--sans); color: var(--muted); margin-left: 6px; }
-  .dl .file { display: block; margin-top: 6px; font: 500 15px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-  .dl .req { display: block; margin-top: 8px; font-size: 16px; line-height: 1.45; color: var(--muted); }
   .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
   .tablewrap td { vertical-align: top; }
   pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -86,8 +79,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
@@ -101,10 +94,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
       <ul class="xh-mlinks">
@@ -143,10 +136,14 @@
     <p data-i18n-html="lx.setup.p1">앱을 여세요. 처음 실행하면 터미널 창에서 대시보드를 설정하겠다고 제안합니다. 엔진을 내려받고, 압축을 풀기 전에 다운로드를 검증하고, 로그인할 때 Xenon이 시작되도록 <code>systemd --user</code> 서비스를 등록합니다. 사용자 매니저가 없는 환경에서는 대신 XDG 자동 시작 항목을 쓰고 그렇다고 알려 줍니다. 이 대체 방식에서는 Xenon이 비정상 종료되어도 다시 시작되지 않는다는 점도 함께 알려 줍니다.</p>
     <p data-i18n="lx.setup.p2">.deb와 .rpm이 설치할 때 이 작업을 하지 않는 것은 의도한 것입니다. 설정이 만드는 모든 것은 한 사용자 계정에 속하는데, 패키지는 root 권한으로 컴퓨터 전체에 설치되기 때문입니다.</p>
     <p data-i18n="lx.setup.p3">설치 프로그램은 설치되어 있지 않은 선택 도구도 알려 줍니다. Debian과 Ubuntu에서는 다음과 같습니다.</p>
-    <pre><code>sudo apt install nodejs npm unzip           # required
-sudo apt install wireplumber                # volume, microphone and the per-app mixer
-sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
-sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
+    <pre><code># required
+sudo apt install nodejs npm unzip
+# volume, microphone and the per-app mixer
+sudo apt install wireplumber
+# the open-applications widget (X11 sessions)
+sudo apt install wmctrl xdotool x11-utils
+# voice input and spoken replies
+sudo apt install ffmpeg</code></pre>
     <p data-i18n-html="lx.setup.p4">데스크톱에 터미널 에뮬레이터가 전혀 없다면 앱이 설치 과정을 보여 줄 수 없습니다. <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">릴리스</a>에서 소스 zip을 내려받아 압축을 풀고 <code>./INSTALL.sh</code>를 실행하세요.</p>
 
     <h2 id="works" data-i18n="lx.h.works">Linux에서 되는 것</h2>
@@ -160,7 +157,7 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
         <tr><td data-i18n="lx.row.audio">시스템 볼륨, 마이크 음소거, 앱별 믹서</td><td data-i18n="lx.st.wireplumber">WirePlumber를 설치하면 동작합니다.</td></tr>
         <tr><td data-i18n="lx.row.media">지금 재생 중 표시와 미디어 키</td><td data-i18n="lx.st.mpris">MPRIS를 통해 동작합니다.</td></tr>
         <tr><td data-i18n="lx.row.fps">게임 내 FPS 카운터</td><td data-i18n="lx.st.mangohud">MangoHud를 통해 동작합니다.</td></tr>
-        <tr><td data-i18n="lx.row.ai">Xenon AI, 채팅, 동작, "Hey Xenon" 음성 호출</td><td data-i18n="lx.st.ai">클라우드와 로컬 모두 동작합니다.</td></tr>
+        <tr><td data-i18n="lx.row.ai">Bit, 채팅, 동작, "Hey Bit" 음성 호출</td><td data-i18n="lx.st.ai">클라우드와 로컬 모두 동작합니다.</td></tr>
         <tr><td data-i18n="lx.row.lighting">네트워크 조명: WLED, Hue, Nanoleaf, OpenRGB</td><td data-i18n="lx.st.works">동작합니다.</td></tr>
         <tr><td data-i18n="lx.row.services">스트리밍, Spotify, Discord, Home Assistant</td><td data-i18n="lx.st.works">동작합니다.</td></tr>
         <tr><td data-i18n="lx.row.phone">휴대폰이나 태블릿을 두 번째 화면으로</td><td data-i18n="lx.st.works">동작합니다.</td></tr>
@@ -188,10 +185,10 @@ sudo apt install ffmpeg                     # voice input and spoken replies</co
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

@@ -55,17 +55,16 @@ nav.crumb a:hover{color:var(--green)}
 main{padding-bottom:72px}
 .tier{display:inline-block;font-size:15px;font-weight:700;
 color:var(--green);margin:26px 0 10px}
-.tier.locked{color:var(--gold)}
-.tier.limited{color:var(--iris)}
 h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-weight:800}
 .by{color:var(--muted);margin-top:10px;font-size:15px}
 .by b{color:var(--text);font-weight:600}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;
-font-size:14px;color:var(--muted)}
+.chip{border:1px solid var(--rule-2);border-radius:4px;padding:2px 6px;
+font-size:13px;font-weight:600;line-height:1.2;color:var(--muted)}
 .desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
+.desc p,.desc ul,.desc ol{margin:0 0 .6em}.desc>:last-child{margin-bottom:0}.desc ul,.desc ol{padding-left:1.25em}.desc li+li{margin-top:.25em}
 .shots{margin-top:28px;display:grid;gap:14px}
-.shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
+.shots img{border:1px solid var(--line);border-radius:10px;width:100%;background:var(--panel)}
 .sec{margin-top:34px}
 .sec h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px}
 .sec p{color:var(--bone-1);max-width:66ch}
@@ -75,9 +74,9 @@ font-size:14px;color:var(--muted)}
 .tags{display:flex;flex-wrap:wrap;gap:8px}
 .tags span{font-size:15px;color:var(--muted)}
 .cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
+.btn{display:inline-flex;align-items:center;gap:9px;border-radius:6px;padding:13px 20px;font-weight:600;
 font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
-.btn.fill{background:var(--green);border-color:var(--green);color:var(--g-0)}
+.btn.fill{background:var(--main);border-color:var(--main);color:var(--main-ink)}
 .btn:hover{border-color:var(--rule-2)}
 .note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
 .steps{margin:0;padding-left:22px;color:var(--bone-1);max-width:66ch}
@@ -94,7 +93,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 @media(max-width:559px){.facts b{flex-basis:100%}}
 .rel{display:grid;gap:10px;grid-template-columns:1fr}
 .rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
-background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
+background:var(--panel);border-radius:6px;padding:12px 15px;transition:border-color .2s}
 .rel a:hover{border-color:var(--rule-2)}
 .rel .n{font-weight:600;font-size:15px}
 .rel .k{font-size:15px;color:var(--muted);margin-left:auto;white-space:nowrap}
@@ -173,8 +172,8 @@ footer a:hover{color:var(--green)}
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
@@ -188,10 +187,10 @@ footer a:hover{color:var(--green)}
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/#screens" data-xl="screens">Screens</a></li><li><a href="/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/create/" data-xl="create">Create</a></li><li><a href="/#support" data-xl="support">Support</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/#install" data-xl="install">Install</a>
       <ul class="xh-mlinks">
@@ -214,7 +213,7 @@ footer a:hover{color:var(--green)}
     <h1>Forest</h1>
     <p class="by">Theme for the Xenon dashboard, by <a href="/creators/domi-spamer7777-lgtm/"><b>Domi / spamer7777-lgtm</b></a></p>
     <div class="meta"><span class="chip">v1.1.0</span><span class="chip">Style</span><span class="chip">Added 2026-07-23</span></div>
-    <p class="desc">Dimmly lit forest with fireflies flying around</p>
+    <div class="desc"><p>Dimmly lit forest with fireflies flying around</p></div>
     <div class="shots"><img src="https://assets.xenon-app.com/community/shots/forest.webp" alt="Forest, screenshot 1 of 2" loading="eager" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/forest.png'"><img src="https://assets.xenon-app.com/community/shots/forest-2.webp" alt="Forest, screenshot 2 of 2" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/forest-2.png'"></div>
     
     <section class="sec"><h2>What a theme does</h2><p>A theme repaints the whole dashboard: accent, background, surfaces and text, on every screen the dashboard is open on. It changes nothing about which widgets you run.</p></section>
@@ -255,11 +254,11 @@ footer a:hover{color:var(--green)}
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>

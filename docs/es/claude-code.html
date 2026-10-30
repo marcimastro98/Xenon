@@ -86,8 +86,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul></nav>
+    <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/es/#support" data-xl="supporters">Mecenas</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Invítame a un café</span></a>
@@ -101,10 +101,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Cerrar</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/es/#screens" data-xl="screens">Pantallas</a></li><li><a href="/es/#widgets" data-xl="widgets">Widgets</a></li><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/create/" data-xl="create">Crear</a></li><li><a href="/es/#support" data-xl="support">Apoyar</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catálogo</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/es/#support" data-xl="supporters">Mecenas</a></li><li><a href="/es/faq.html" data-xl="help">Ayuda</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/es/#install" data-xl="install">Instalación</a>
       <ul class="xh-mlinks">
@@ -139,8 +139,9 @@
       <a href="#deck" data-i18n="cc.jump.deck">Pedir y teclas del Deck</a>
       <a href="#link" data-i18n="cc.jump.link">Conectarlo</a>
       <a href="#mod" data-i18n="cc.jump.mod">El mod</a>
+      <a href="#widgets" data-i18n="cc.jump.widgets">Tus widgets</a>
       <a href="#data" data-i18n="cc.jump.data">Qué se envía y adónde</a>
-      <a href="#ai" data-i18n="cc.jump.ai">Xenon AI</a>
+      <a href="#ai" data-i18n="cc.jump.ai">Bit</a>
       <a href="#faq" data-i18n="cc.jump.faq">Preguntas frecuentes</a>
     </nav>
 
@@ -213,14 +214,17 @@
     <p data-i18n-html="cc.mod.p4">Para instalarlo a mano, escribe <code>/plugin install xenon --marketplace marcimastro98/Xenon</code> en Claude Code. Para actualizarlo, ejecuta <code>claude plugin update xenon@xenon</code> en una terminal y abre una sesión nueva. Para quitarlo, pulsa Desconectar en el mosaico, o quita el plugin en Claude Code.</p>
 
 
+    <h2 id="widgets" data-i18n="cc.h.widgets">Crear tus propios widgets</h2>
+    <p data-i18n-html="cc.widgets.p1">Si escribes código en Claude Code, también puede crear widgets para Xenon. En <strong>Ajustes → Widgets y compartir → Crea widgets con Claude Code o Codex</strong>, pulsa <strong>Conectar Claude Code</strong>. Claude Code lee el SDK de widgets, escribe el widget en una carpeta, lo instala en tu panel, lee los errores que encuentra y mira una imagen de su recuadro, y luego lo corrige.</p>
+    <p data-i18n-html="cc.widgets.p2">La primera vez, el panel te pregunta si lo permites. Nunca aprueba los permisos de un widget, solo cambia widgets hechos por ti y funciona solo desde el PC donde corre Xenon. <a href="/create/#mcp">Cómo funciona y cómo añadirlo a mano</a>.</p>
     <h2 id="data" data-i18n="cc.h.data">Qué se envía y adónde</h2>
     <p data-i18n="cc.data.p1">El mosaico no usa ninguna cuenta ni ninguna API key. Sus recuentos de tokens salen de archivos de tu disco, y sus datos en vivo vienen de Claude Code en el mismo PC.</p>
     <p data-i18n-html="cc.data.p2">Los hooks y la línea de estado de Claude Code envían sus informes a <code>127.0.0.1</code>, que es tu propio PC. Cada informe tiene que llevar una clave creada por Xenon, y Xenon rechaza cualquier informe que no la lleve. Los hooks envían la clave en una cabecera de la petición y el script de la línea de estado la lee de la propia carpeta de datos de Xenon, así que nunca aparece en una línea de comandos ni en una lista de procesos.</p>
     <p data-i18n="cc.data.p3">El estado en vivo de las sesiones se guarda en memoria. Xenon no lo escribe en el disco, y empieza vacío cuando Xenon se reinicia.</p>
     <p data-i18n="cc.data.p4">Un teléfono vinculado puede usar el mosaico, responder solicitudes e iniciar ejecuciones, pero no puede enviar informes haciéndose pasar por Claude Code: esas direcciones se rechazan para los dispositivos vinculados.</p>
 
-    <h2 id="ai" data-i18n="cc.h.ai">Xenon AI con tu suscripción de Claude o ChatGPT</h2>
-    <p data-i18n-html="cc.ai.p1">Aparte del mosaico, Xenon AI, el asistente del panel, puede responder a través de tu propia suscripción en lugar de una API key, desde la versión 4.11.10. En <strong>Ajustes → Xenon AI</strong>, elige <strong>Claude Code</strong> o <strong>Codex</strong>. Entonces Xenon le pregunta al programa oficial instalado en tu PC, con la sesión iniciada con tu plan de Claude o de ChatGPT.</p>
+    <h2 id="ai" data-i18n="cc.h.ai">Bit con tu suscripción de Claude o ChatGPT</h2>
+    <p data-i18n-html="cc.ai.p1">Aparte del mosaico, Bit, el asistente del panel, puede responder a través de tu propia suscripción en lugar de una API key, desde la versión 4.11.10. En <strong>Ajustes → Asistente Bit</strong>, elige <strong>Claude Code</strong> o <strong>Codex</strong>. Entonces Xenon le pregunta al programa oficial instalado en tu PC, con la sesión iniciada con tu plan de Claude o de ChatGPT.</p>
     <p data-i18n="cc.ai.p2">Inicias sesión dentro del programa, con el inicio de sesión de Anthropic o de OpenAI, y Xenon no lee, guarda ni transmite tus credenciales. Es la única forma que permite Anthropic de usar una suscripción de Claude fuera de sus propias apps.</p>
     <p data-i18n="cc.ai.p3">Ajustes muestra si el programa está instalado y con la sesión iniciada, y qué ejecutar si no lo está. El menú de modelos lo rellena el propio programa, así que muestra lo que tu cuenta puede usar hoy.</p>
     <p data-i18n="cc.ai.p4">El asistente conserva sus herramientas del panel: puede cambiar el tema, configurar teclas del Deck, añadir tareas y temporizadores, y controlar luces y música. Las herramientas de terminal y de archivos del propio programa siguen desactivadas.</p>
@@ -245,10 +249,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/es/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">Un panel táctil gratis para las pantallas junto a tu PC. Windows, con macOS y Linux en beta.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/es/download.html" data-xl="f.download">Descargar</a></li><li><a href="/demo/" data-xl="f.demo">Demo en el navegador</a></li><li><a href="/catalog/" data-xl="f.catalog">Catálogo</a></li><li><a href="/create/" data-xl="f.create">Crear widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versiones</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/es/download.html" data-xl="f.download">Descargar</a></li><li><a href="/demo/" data-xl="f.demo">Demo en el navegador</a></li><li><a href="/catalog/" data-xl="f.catalog">Catálogo</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Crear widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Versiones</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">Guías</h2><ul><li><a href="/es/xeneon-edge-widgets.html" data-xl="f.edge">Xenon en el Xeneon Edge</a></li><li><a href="/es/tablet-dashboard.html" data-xl="f.tablet">Tablet o teléfono como panel</a></li><li><a href="/es/phone.html" data-xl="f.phone">Emparejar un teléfono</a></li><li><a href="/es/mac.html" data-xl="f.mac">Xenon en un Mac</a></li><li><a href="/es/linux.html" data-xl="f.linux">Xenon en Linux</a></li><li><a href="/es/widgets.html" data-xl="f.widgets">Todos los widgets</a></li><li><a href="/es/deck.html" data-xl="f.deck">Teclas del Deck</a></li><li><a href="/es/claude-code.html" data-xl="f.claude">Claude Code en una pantalla táctil</a></li><li><a href="/es/codex.html" data-xl="f.codex">OpenAI Codex en una pantalla táctil</a></li><li><a href="/es/sensor-panel.html" data-xl="f.sensor">Un panel de sensores para tu PC</a></li><li><a href="/es/xenon-exe.html" data-xl="f.exe">¿Es seguro el instalador?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Proyecto</h2><ul><li><a href="/es/#support" data-xl="f.support">Mecenas</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/es/faq.html" data-xl="f.faq">Ayuda y preguntas</a></li><li><a href="/es/privacy.html" data-xl="f.privacy">Privacidad</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>

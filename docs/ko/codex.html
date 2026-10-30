@@ -77,8 +77,8 @@
 <!-- xenon:header -->
 <header class="xh" id="xh">
   <div class="xh-w">
-    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
-    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
     <div class="xh-end">
       <div class="xh-marks">
         <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">커피 한 잔 사주기</span></a>
@@ -92,10 +92,10 @@
   </div>
   <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
     <div class="xh-mtop">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
     </div>
-    <ul class="xh-mlist"><li><a href="/ko/#screens" data-xl="screens">화면</a></li><li><a href="/ko/#widgets" data-xl="widgets">위젯</a></li><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/create/" data-xl="create">만들기</a></li><li><a href="/ko/#support" data-xl="support">후원</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
     <div class="xh-mfoot">
       <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
       <ul class="xh-mlinks">
@@ -122,6 +122,7 @@
       <a href="#sessions" data-i18n="cx.jump.sessions">세션</a>
       <a href="#approve" data-i18n="cx.jump.approve">승인</a>
       <a href="#link" data-i18n="cx.jump.link">연결하기</a>
+      <a href="#widgets" data-i18n="cx.jump.widgets">내 위젯</a>
       <a href="#data" data-i18n="cx.jump.data">무엇이 어디로 가는지</a>
       <a href="#faq" data-i18n="cx.jump.faq">자주 묻는 질문</a>
     </nav>
@@ -152,6 +153,9 @@
     <p data-i18n-html="cx.link.backup">처음 변경하기 전에 Xenon은 파일 사본을 <code>hooks.json.xenon-backup</code>으로 옆에 저장합니다. 파일을 읽을 수 없으면 Xenon은 그대로 두고 알려 줍니다.</p>
     <p data-i18n-html="cx.link.remove">Xenon을 제거하면 추가한 훅이 빠지고 백업도 삭제됩니다. 기존 훅은 그대로 둡니다. 제거하지 않고 같은 작업을 하려면 타일에서 <strong>연결 해제</strong>를 탭하거나 Xenon이 설치된 폴더에서 <code>node server/codex-link.js unlink</code>를 실행하세요.</p>
 
+    <h2 id="widgets" data-i18n="cx.h.widgets">나만의 위젯 만들기</h2>
+    <p data-i18n-html="cx.widgets.p1">Codex에서 코드를 작성한다면 Xenon 위젯도 만들 수 있습니다. <strong>설정 → 위젯 &amp; 공유 → Claude Code 또는 Codex로 위젯 만들기</strong>에서 <strong>Codex 연결</strong>을 누르세요. Codex이 위젯 SDK를 읽고, 폴더에 위젯을 작성해 대시보드에 설치하고, 발생한 오류와 타일 사진을 확인한 뒤 고칩니다.</p>
+    <p data-i18n-html="cx.widgets.p2">처음에는 대시보드에서 허용할지 묻습니다. 위젯 권한은 절대 승인하지 않고, 직접 만든 위젯만 바꾸며, Xenon이 실행 중인 PC에서만 작동합니다. <a href="/create/#mcp">작동 방식과 직접 추가하는 방법</a>.</p>
     <h2 id="data" data-i18n="cx.h.data">무엇이 어디로 가는지</h2>
     <p data-i18n-html="cx.data.p1">타일은 API 키를 쓰지 않으며 로그인 정보를 읽지 않습니다. 요금제는 ChatGPT 앱과 에디터 확장이 Codex와 통신할 때 쓰는 <code>codex app-server</code>에서 가져옵니다. Xenon은 타일이 대시보드에 있을 때만 자체 사본을 실행하고, 읽기만 요청하며, 필요 없어지고 몇 분 뒤 종료합니다.</p>
     <p data-i18n-html="cx.data.p2">훅은 Xenon이 만든 키와 함께 <code>127.0.0.1</code>(내 PC)에 보고합니다. 키가 없는 보고는 거부되며, 키는 Xenon의 데이터 폴더에서 읽으므로 명령줄에 나타나지 않습니다. 세션 상태는 메모리에만 있으며 Xenon을 다시 시작하면 비워집니다.</p>
@@ -176,10 +180,10 @@
 <footer class="xf">
   <div class="xf-w">
     <div class="xf-brand">
-      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark"><img src="/images/logo-x.png" alt="" width="170" height="134" loading="lazy"></span>Xenon</a>
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
       <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
     </div>
-    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
