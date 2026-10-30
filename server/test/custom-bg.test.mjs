@@ -139,7 +139,7 @@ test('a malicious asset value cannot break out of the script element', () => {
   // of a VALID set must never contain a raw angle bracket.
   const html = buildSrcdoc('function draw(){}', { ok: PNG_1PX });
   const markerStart = html.indexOf(',__assetsJson=');
-  const markerEnd = html.indexOf(';(function(){', markerStart);
+  const markerEnd = html.indexOf(',__fps=', markerStart);
   const literal = html.slice(markerStart, markerEnd);
   assert.ok(!literal.includes('<') && !literal.includes('>'), 'no raw <> in the assets literal');
 });

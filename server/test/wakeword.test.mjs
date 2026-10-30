@@ -7,7 +7,23 @@ const wake = require('../wakeword.js');
 
 // ── Wake-phrase matcher: fuzzy on purpose (whisper renders accents freely) ──
 
-test('matcher: accepts the wake phrase and its common whisper renderings', () => {
+test('matcher: accepts "Hey Bit" and its common whisper renderings', () => {
+  const yes = [
+    'Hey Bit', 'hey bit.', 'Hey, Bit!', 'HEY BIT', 'Ehi Bit', 'ehi, bit',
+    'hei bit', 'Hej Bit', 'hey beat', 'Hey Bitt.', 'heybit', 'Ehi Bit, ci sei?',
+  ];
+  for (const s of yes) assert.equal(wake.matchesWakeWord(s), true, `"${s}" must match`);
+});
+
+test('matcher: "bit" in ordinary speech never wakes Bit', () => {
+  const no = [
+    'a bit', 'just a bit more', 'bit by bit', 'it bit me', 'he bit the apple',
+    'bit', 'Bit', 'hey, a bit of help', 'orbit', 'bitcoin', 'hey there bit',
+  ];
+  for (const s of no) assert.equal(wake.matchesWakeWord(s), false, `"${s}" must NOT match`);
+});
+
+test('matcher: the old "Hey Xenon" and its whisper renderings still work', () => {
   const yes = [
     'Hey Xenon', 'hey xenon.', 'XENON', 'xenon',
     'Ehi, Zenon!', 'hei senon', 'Zenone', 'ei zenon',

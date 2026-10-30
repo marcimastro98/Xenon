@@ -141,6 +141,21 @@ test('handlers get the payload itself, and init seeds theme, lang and tempUnit',
   assert.equal(JSON.stringify(vis), '[false]');
 });
 
+test('placement is seeded from init and follows the push', async () => {
+  const c = load();
+  c.fromHost({ type: 'init', api: 1, pkgId: 'w', placement: { where: 'overlay', dashboard: true } });
+  const got = [];
+  c.xenon.on('placement', (p) => got.push(p.where + '|' + p.dashboard));   // subscribed after init
+  c.fromHost({ type: 'placement', placement: { where: 'overlay', dashboard: false } });
+  await new Promise((r) => setTimeout(r, 5));
+  // The push came before the replay could run: the handler gets the new value
+  // and never the old one after it.
+  assert.equal(JSON.stringify(got), '["overlay|false"]');
+  c.xenon.on('placement', (p) => got.push('late:' + p.dashboard));
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(JSON.stringify(got), '["overlay|false","late:false"]');
+});
+
 test('a reply that never comes resolves as a timeout', async () => {
   mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
   try {

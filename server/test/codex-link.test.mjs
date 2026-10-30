@@ -120,6 +120,20 @@ test('an out-of-date handler is replaced where it stands, never moved', async ()
   assert.deepEqual(after.hooks.PermissionRequest[1], { hooks: [USER_HOOK] }, 'the user group keeps index 1');
 });
 
+test('repair leaves alone hooks another data folder linked', async () => {
+  const s = await sandbox();
+  await link.link(s.data, 3030);
+  const j = await read(s.file);
+  j.hooks.PermissionRequest[0].hooks[0].command = '"C:\old\node.exe" "C:\old\codex-hook.js" permission';
+  await fs.writeFile(s.file, JSON.stringify(j, null, 2));
+  const before = await fs.readFile(s.file, 'utf8');
+  const other = path.join(s.root, 'other-data');
+  await fs.mkdir(other, { recursive: true });
+  const r = await link.repairLink(other, 3031);
+  assert.equal(r.repaired, false);
+  assert.equal(await fs.readFile(s.file, 'utf8'), before);
+});
+
 test('repair never links an install the user did not link', async () => {
   const s = await sandbox();
   const r = await link.repairLink(s.data, 3030);

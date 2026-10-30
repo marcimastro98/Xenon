@@ -206,7 +206,7 @@ test('the unlock dialog asks for key version 1 when the file names none', async 
   const src = fs.readFileSync(new URL('../js/preset-share.js', import.meta.url), 'utf8');
   // Sent nothing, the hub answers with its LATEST key, which stops opening the
   // original download the day a newer version is published.
-  assert.match(src, /JSON\.stringify\(\{ entryId: locked\.entryId, code: unlockField\.value, kv: locked\.kv \|\| 1 \}\)/);
+  assert.match(src, /entryId: locked\.entryId, code: unlockField\.value, kv: locked\.kv \|\| 1, enc: locked\.enc,/);
 });
 
 test('peekLocked reports no key version for a file that predates versions, and the named one otherwise', async () => {

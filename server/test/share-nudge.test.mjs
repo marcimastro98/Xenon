@@ -51,44 +51,25 @@ test('the server stores it, and a stale client save cannot un-dismiss it', () =>
   assert.match(block, /if \(prev\.shareNudgeSeen === true\) incoming\.shareNudgeSeen = true;/);
 });
 
-test('it never interrupts a voice session, the lock screen, a game, a scene, or another card', () => {
-  const fn = CARD.slice(CARD.indexOf('function busyRightNow()'));
-  const body = fn.slice(0, fn.indexOf('\n  }'));
-  for (const cls of ['lock-screen-active', 'ai-voice-mode', 'ai-listening', 'game-mode',
-    'ambient-scene-open', 'ambient-canvas-open']) {
-    assert.match(body, new RegExp(cls), `${cls} holds the card back`);
-  }
-  assert.match(body, /catch \{ return true; \}/, 'if it cannot tell, it does not interrupt');
-  const show = CARD.slice(CARD.indexOf('setTimeout(() => {', CARD.indexOf('async function maybeShow()')));
-  assert.match(show.slice(0, 400), /if \(busyRightNow\(\)\) return;/, 're-checked at the last moment');
-  assert.match(show.slice(0, 400), /if \(anotherCardUp\(\)\) return;/, 'never two cards in the corner');
-  assert.match(CARD, /getElementById\('support-ask'\) \|\| document\.getElementById\('discord-invite'\)/);
-  // It is the last of the three to arrive on a boot where more than one is due.
-  assert.match(CARD, /const SHOW_AFTER_MS = 7000;/);
-});
-
-// Every way off the card is final: the button, "not now", and the ×. Once per
-// install means once, whichever way it ends.
-test('every exit remembers, and the button opens the composer that already exists', () => {
-  for (const anchor of ["go.addEventListener", "later.addEventListener", "close.addEventListener"]) {
-    const fn = CARD.slice(CARD.indexOf(anchor));
-    const body = fn.slice(0, fn.indexOf('});') + 3);
-    assert.match(body, /remember\(\);/, anchor + ' remembers');
-  }
-  const go = CARD.slice(CARD.indexOf("go.addEventListener"));
-  assert.match(go.slice(0, go.indexOf('\n    });')), /ShareCard\.open\(\{ source: 'setup' \}\)/,
-    'it opens the share card in Settings, not a second composer');
+// Filing a letter interrupts nothing; Bit's note about it waits through a voice
+// session, the lock screen, a game or a scene (bit-mail-core.js quiet()).
+test("it is filed as one letter in Bit's mail, never a card on screen", () => {
+  assert.doesNotMatch(CARD, /document\.body\.appendChild|getElementById\('share-nudge'\)/, 'no corner card any more');
   const gate = CARD.slice(CARD.indexOf('async function maybeShow()'));
-  assert.match(gate.slice(0, gate.indexOf('\n  }')), /if \(!window\.ShareCard/, 'and never invites without it');
+  const body = gate.slice(0, gate.indexOf('\n  }'));
+  assert.match(body, /window\.BitMail\.post\(\{\s*id: 'share:setup',\s*kind: 'share'/);
+  assert.match(body, /remember\(\);/, 'remembered as it is filed: once means once, read or not');
+  assert.match(body, /if \(!window\.ShareCard/, 'and never invites without the composer');
+  assert.match(CARD, /window\.BitMail\.register\('share', drawLetter\)/);
+  const draw = CARD.slice(CARD.indexOf('function drawLetter('));
+  assert.match(draw.slice(0, draw.indexOf('\n  }')), /ShareCard\.open\(\{ source: 'setup' \}\)/,
+    'its button opens the share card in Settings, not a second composer');
 });
 
-test('the card is loaded, styled, and every string exists in all eleven languages', () => {
+test('the letter is loaded, and every string exists in all eleven languages', () => {
   assert.match(HTML, /<script src="js\/support-card\.js"><\/script>\n<script src="js\/share-nudge\.js"><\/script>/,
     'loaded right after the supporter ask, which it defers to');
-  assert.match(HTML, /components\/ShareNudge\/ShareNudge\.css/);
-  const css = readFileSync(new URL('../components/ShareNudge/ShareNudge.css', import.meta.url), 'utf8');
-  assert.match(css, /\.share-nudge \.share-nudge-logo \{ background: var\(--accent/, 'the disc is the theme accent, not Discord blue');
-  for (const key of ['share_nudge_title', 'share_nudge_text', 'share_nudge_go', 'share_nudge_later']) {
+  for (const key of ['share_nudge_title', 'share_nudge_text', 'share_nudge_go']) {
     const found = new Set();
     let current = null;
     for (const line of I18N.split('\n')) {
@@ -109,5 +90,5 @@ test('the card speaks plainly, with no em dashes', () => {
     checked++;
     assert.ok(!JSON.parse(m[1]).includes('—'), 'em dash in: ' + m[1].slice(0, 50));
   }
-  assert.equal(checked, 44, 'four strings in eleven languages');
+  assert.equal(checked, 33, 'three strings in eleven languages');
 });

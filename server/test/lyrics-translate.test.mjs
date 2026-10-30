@@ -343,3 +343,14 @@ test('a Japanese song for a Japanese user still gets its reading from the provid
   await t.translate({ songKey: 'nova|mix|200', texts: lines, lang: 'ja', reading: true, cap: 200 });
   assert.equal(p.calls.length, 1);
 });
+
+test('an empty Sparks balance is not a failed song: nothing counted, asked again later', async () => {
+  const empty = Object.assign(new Error('Xenon credits: no_credits'), { code: 'no_credits' });
+  const p = fakeProvider([empty, OK(2)]);
+  const t = createLyricsTranslator({ complete: p.complete });
+  assert.deepEqual(plain(await t.translate(ASK)), { ok: false, error: 'no_credits' });
+  assert.equal((await t.usage(200)).songs, 0);
+  // With Sparks again the same song is translated at once, not after the failure wait.
+  assert.equal((await t.translate(ASK)).ok, true);
+  assert.equal(p.calls.length, 2);
+});

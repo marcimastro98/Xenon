@@ -60,10 +60,11 @@ test('the analytics prelude is still extractable from docs/index.html', () => {
   assert.ok(site.includes('static.cloudflareinsights.com'), 'Cloudflare beacon missing from the prelude');
 });
 
-test('the 1.12 MB logo has exactly one CSS reference to rewrite', () => {
+test('the settings stamp uses the small app icon, not a hi-res logo', () => {
+  // The old 1.12 MB logo.png was 14% of the demo payload; the app no longer ships it.
   const css = read('server', 'components', 'SettingsModal', 'SettingsModal.css');
-  assert.equal(countOf(css, '/public/images/logo/logo.png'), 1,
-    'build-demo.mjs rewrites this single reference to logo-mark.png and skips the 1.12 MB file');
+  assert.equal(countOf(css, '/public/images/logo/logo.png'), 0);
+  assert.equal(countOf(css, '/public/images/logo/logo-mark.png'), 1);
 });
 
 test('the copy allowlist equals the directory list the server actually serves', () => {
@@ -121,4 +122,40 @@ test('the catalog only offers "Try in the browser" for client-side kinds', () =>
   assert.ok(m, 'DEMO_KINDS is gone from docs/catalog/index.html');
   const kinds = m[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
   assert.deepEqual(kinds.sort(), ['bg', 'page', 'theme']);
+});
+
+test('the demo splash has a line in every language the app speaks', () => {
+  // i18n.js is not loaded when the splash paints, so boot.js carries its own copy.
+  const i18n = read('server', 'js', 'i18n.js');
+  const boot = read('tools', 'demo', 'boot.js');
+  const appLangs = [...i18n.matchAll(/^ {2}([a-z]{2}): \{$/gm)].map((m) => m[1]);
+  const block = /const SPLASH_TEXT = \{([\s\S]*?)\n {2}\};/.exec(boot);
+  assert.ok(block, 'SPLASH_TEXT is gone from tools/demo/boot.js');
+  const splashLangs = [...block[1].matchAll(/^ {4}([a-z]{2}): '/gm)].map((m) => m[1]);
+  assert.ok(appLangs.length >= 11, 'expected the app languages in i18n.js');
+  assert.deepEqual(splashLangs.sort(), appLangs.sort());
+});
+
+test('the demo timers have the shape the timer card reads', async () => {
+  // timer.js counts from durationSecs/startedAt/status; an older shape
+  // (total/remaining/running) left the demo's Focus timer reading NaN:NaN.
+  const vm = await import('node:vm');
+  const ctx = { window: {} };
+  vm.runInNewContext(read('tools', 'demo', 'data.js'), ctx);
+  const timers = ctx.window.__XD__.timers;
+  assert.ok(timers.length > 0);
+  for (const t of timers) {
+    assert.ok(Number.isFinite(t.durationSecs) && t.durationSecs > 0, `${t.id} has a duration`);
+    assert.ok(['running', 'paused', 'done'].includes(t.status), `${t.id} has a status`);
+    assert.ok((t.pausedElapsed || 0) < t.durationSecs, `${t.id} still has time left`);
+  }
+  assert.match(read('tools', 'demo', 'boot.js'), /t\.status === 'running'\) t\.startedAt = Date\.now\(\)/,
+    'boot.js starts the running timers when the demo opens');
+});
+
+test('the Sparks chip reading its balance on start is answered quietly, not with the runs-on-your-PC toast', () => {
+  const boot = read('tools', 'demo', 'boot.js');
+  const quiet = boot.slice(boot.indexOf('const QUIET_READS'), boot.indexOf('};', boot.indexOf('const QUIET_READS')));
+  assert.ok(read('server', 'js', 'xenon-credits.js').includes("'/api/ai/xenon/balance'"), 'the chip still reads this path');
+  assert.ok(quiet.includes("'/api/ai/xenon/balance': () => ok({ ok: false, error: 'no_code' })"));
 });

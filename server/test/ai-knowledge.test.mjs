@@ -49,7 +49,8 @@ test('lookup: natural questions land on the right card (EN and IT)', () => {
     ['come funzionano i codici supporter', 'supporter'],
     ['how do I publish my theme to the marketplace', 'marketplace'],
     ['impostazioni non si salvano dopo il refresh', 'troubleshooting'],
-    ['hey xenon wake word non funziona', 'ai'],
+    ['hey bit wake word non funziona', 'ai'],
+    ['quanti crediti costa un widget con opus', 'ai-credits'],
   ];
   for (const [q, want] of cases) {
     const out = ak.lookup(q);

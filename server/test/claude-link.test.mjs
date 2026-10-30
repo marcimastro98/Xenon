@@ -240,6 +240,8 @@ test('repairLink brings an older link up to date and keeps the user\'s own hooks
   const s = sandbox();
   try {
     const token = await link.ensureToken(s.data);
+    const state = path.join(s.data, 'claude-bridge.json');
+    fs.writeFileSync(state, JSON.stringify({ ...JSON.parse(fs.readFileSync(state, 'utf8')), linkedAt: 1 }));
     const hooks = olderLink(token);
     hooks.PreToolUse.push({ matcher: 'Bash', hooks: [{ type: 'command', command: 'my-guard.sh' }] });
     s.write({ hooks, statusLine: { type: 'command', command: 'node "x/claude-statusline.js"' } });
@@ -255,6 +257,22 @@ test('repairLink brings an older link up to date and keeps the user\'s own hooks
     // Idempotent: a second pass finds nothing to do.
     const again = await link.repairLink(s.data, PORT);
     assert.equal(again.repaired, false);
+  } finally { s.cleanup(); }
+});
+
+test('repairLink leaves alone a link another data folder made', async () => {
+  // A second Xenon (another port, its own data folder) sees the user's hooks:
+  // they are not its link, so it must not rewrite them with its port and token.
+  const s = sandbox();
+  try {
+    const token = await link.ensureToken(s.data);
+    const hooks = olderLink(token);
+    s.write({ hooks, statusLine: { type: 'command', command: 'node "x/claude-statusline.js"' } });
+    const before = fs.readFileSync(s.settingsFile, 'utf8');
+    const r = await link.repairLink(s.data, PORT + 1);
+    assert.equal(r.repaired, false);
+    assert.equal(r.linked, true);
+    assert.equal(fs.readFileSync(s.settingsFile, 'utf8'), before);
   } finally { s.cleanup(); }
 });
 

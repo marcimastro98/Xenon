@@ -41,6 +41,11 @@ test('a paired device gets the dashboard, not a view of it', () => {
     ['/backup/export', 'GET'], ['/background', 'POST'], ['/font', 'POST'],
     ['/api/community/catalog', 'POST'], ['/icon-pack', 'POST'],
     ['/deck/app-icon', 'GET'], ['/deck/popup/open', 'POST'],
+    // The gallery: a phone looks at the captures and downloads them, and makes
+    // new copies (trim, export, transcript); the original is never touched.
+    ['/captures', 'GET'], ['/captures/thumb', 'GET'], ['/captures/file', 'GET'],
+    ['/captures/trim', 'POST'], ['/captures/clips', 'POST'], ['/captures/export', 'POST'], ['/captures/export-cancel', 'POST'],
+    ['/captures/transcribe', 'POST'], ['/captures/transcript', 'GET'],
   ];
   for (const [p, m] of allowed) {
     assert.equal(ra.remotePathAllowed(p, m), true, m + ' ' + p + ' must be allowed');
@@ -79,6 +84,8 @@ test('only what needs a person at the PC is refused', () => {
     ['/api/transfer/settings', 'GET'],
     // …and every GET that writes (see the dedicated test below).
     ['/toggle', 'GET'], ['/media/next', 'GET'], ['/notes', 'GET'],
+    // …and the drawing sheet laid over this PC's screen, with its state.
+    ['/draw', 'GET'], ['/screen-draw', 'GET'],
   ];
   for (const [p, m] of denied) {
     assert.equal(ra.remotePathAllowed(p, m), false, m + ' ' + p + ' must be refused');
@@ -144,9 +151,30 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // at the PC with the picker, the Slideshow folder-source shape. (The POST
     // is further down: this list is sorted.)
     'GET /api/transfer/settings',
+    // The recordings folder on this PC is in the answer; the phone reads the
+    // other options from the settings blob, where the folder is blanked.
+    'GET /capture/settings',
+    // The drawing sheet (macOS, Linux) lays over this PC's screen.
+    'GET /draw',
+    // The Xenon menu over this PC's screen, and whether it is open: a phone opens
+    // the same menu as a panel (GET /xenon-menu stays reachable).
+    'GET /menu',
     // The GET that SAVES the whole notes store (the iCUE ?save= shape). Reading
     // notes goes through /notes/list, which is allowed.
     'GET /notes',
+    // The desktop scene (wallpaper, screensaver) draws on this PC's screens.
+    'GET /scene',
+    // The on-screen alerts window draws on this PC's screen only.
+    'GET /screen-alerts',
+    // Whether that sheet is open: only the PC's own pages need it.
+    'GET /screen-draw',
+    'GET /screen-menu',
+    // The hidden Store widget host of "widgets only": a phone would run every
+    // widget's Deck actions a second time.
+    'GET /sdk-service',
+    // The hidden "widgets only" page belongs to the app's own window on this
+    // PC; a phone has nothing to drive.
+    'GET /shell-driver',
     // The channel's RTMP stream key. It is the one credential the dashboard is
     // asked to put on screen, and whoever reads it can broadcast to the user's
     // channel — so it stays on the PC rather than crossing the LAN in the clear.
@@ -177,6 +205,10 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // /api/codex/decide, like any other dashboard.
     'POST /api/codex/event',
     'POST /api/codex/permission',
+    // Forgetting the PC's saved Sparks code, same reason as the pass below.
+    'POST /api/community/sparks/forget',
+    // Forgetting the PC's saved pass: the phone cannot type it back.
+    'POST /api/community/supporter/forget',
     // Dev cleanup: compaction raises a UAC prompt on the PC, and the unlock
     // spends one of the supporter pass's three device slots. Both are decided
     // by whoever sits at the PC; pruning and the overview stay open.
@@ -187,6 +219,11 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /api/gamemode/install-presentmon',
     'POST /api/lighting/sdk-install',
     'POST /api/native/install',
+    // Performance Mode with no dashboard: the driver page and the on-screen
+    // alerts window of THIS PC talk through these. A phone posting here would
+    // answer a card it cannot see, or overwrite the session's saved power plan.
+    'POST /api/performance/screen',
+    'POST /api/performance/state',
     // Dialling. The phonebook, the call log and the live call state stay open
     // to a paired device — that is the dashboard being the dashboard — but the
     // call itself is placed where its audio comes out, which is the PC. A dial
@@ -215,18 +252,49 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // The other half of the transfer settings pair above: the only writer of
     // the folder arrivals land in.
     'POST /api/transfer/settings',
+    // The same folder from the system dialog, which opens on the PC.
+    'POST /api/transfer/settings/pick',
     // Installs Xenon Helper from Settings: downloads an exe the server then
     // runs. Same class as the other installers, and done at the PC.
     'POST /audio/levels/install-helper',
+    // Recording options and the folder dialog: both act on this PC's disk,
+    // and the dialog opens on the PC, where only someone at it can answer.
+    'POST /capture/settings',
+    'POST /capture/settings/pick',
+    // The gallery acts on files on the PC (delete, clipboard, show in folder);
+    // a paired device looks, downloads and makes new copies.
+    'POST /captures/copy',
+    'POST /captures/delete',
+    'POST /captures/reveal',
+    // The screenshot editor: private spots read on the PC and the edited copy
+    // written there.
+    'POST /captures/save',
+    // "To phone": the PC sends a capture; the phone downloads it directly.
+    'POST /captures/send',
+    'POST /captures/spots',
+    // A Deck shortcut's sound/AI/mixer step is for a dashboard on the PC.
+    'POST /deck/client-step',
+    'POST /deck/shortcut-claim',
     'POST /embedded-browser/adblock/install',
+    // The shell says which virtual desktop is shown; a phone would switch pages.
+    'POST /layers/desk',
+    // The native shell's report of what it draws (widget layers, monitors). A
+    // phone is not that shell, and a report from one would offer the AI
+    // placements nothing on the PC will draw.
+    'POST /layers/host',
     'POST /remote/install',
+    // Opening or closing the menu over the PC's screen is the PC's own gesture.
+    'POST /screen-menu',
     'POST /second-screen/create-display',
     'POST /second-screen/install',
     'POST /second-screen/remove-display',
+    // A tile's choices saved from a widget on the PC's screen; a phone saves through /settings.
+    'POST /settings/tile',
     // Raises a UAC prompt on a PC nobody is standing at.
     'POST /system/enable-sensors',
     // The updater swaps files and restarts the server under the connection
     // making the request.
+    'POST /tiles/play-claim',
     'POST /update/apply',
     'POST /update/prepare',
   ]);
@@ -1134,4 +1202,14 @@ test('a phone may subscribe to notifications, but only by POST', () => {
   }
   // The read is a read: it answers with counts and hosts, never an endpoint.
   assert.equal(ra.remotePathAllowed('/api/push/status', 'GET'), true);
+});
+
+// The pass trial: a paired phone reads its state and may ask the hub or record
+// what came off, but only by POST, never by a navigation.
+test('pass trial routes: the read is open, the hub call and the write are POST-only', () => {
+  assert.equal(ra.remotePathAllowed('/api/community/trial', 'GET'), true);
+  for (const p of ['/api/community/trial/check', '/api/community/trial/tried']) {
+    assert.equal(ra.remotePathAllowed(p, 'POST'), true, p);
+    assert.equal(ra.remotePathAllowed(p, 'GET'), false, p);
+  }
 });

@@ -144,7 +144,7 @@ test('a new favourite goes to the bottom of the pinned group', () => {
   const at = WIDGET.indexOf('function toggleFav(');
   const fn = WIDGET.slice(at, WIDGET.indexOf('\n  }', at));
   assert.match(fn, /cur\.concat\(\[key\]\)/);
-  assert.match(fn, /saveHubSettings\(\{ server: true \}\)/, 'and it follows you to the other surfaces');
+  assert.match(fn, /saveTileSetting\(\{ discordFavChannels: next \}\)/, 'and it follows you to the other surfaces, a widget on the screen too');
 });
 
 // ── Presentation ─────────────────────────────────────────────────────────────

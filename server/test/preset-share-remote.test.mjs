@@ -109,3 +109,34 @@ test('redeem: rate_limited gets its own message, before the offline fallback', (
   const chain = src.slice(start, src.indexOf('preset_redeem_offline', start));
   assert.match(chain, /err === 'rate_limited'\)\s*\{[^}]*devclean_unlock_rate/);
 });
+
+test('skipsPasteStep: a whole code goes straight to review, locked or flagged ones wait', async () => {
+  const { skipsPasteStep } = require('../js/preset-share.js');
+  const inner = encodePreset('theme', 'Nebula', { accent: '#1ed760' }, {});
+  const { code: locked } = await makeRemoteLocked(inner);
+  assert.equal(skipsPasteStep(inner, false), true);
+  assert.equal(skipsPasteStep(inner, true), false, 'performance note is read first');
+  assert.equal(skipsPasteStep(locked, false), false, 'a protected code asks for its unlock code');
+  assert.equal(skipsPasteStep('', false), false);
+  assert.equal(skipsPasteStep(undefined, false), false);
+});
+
+test('makeDraftTracker: a new draft closes the dialogs of the previous one, nothing else', () => {
+  const { makeDraftTracker } = require('../js/preset-share.js');
+  const drafts = makeDraftTracker();
+  const closed = [];
+  const dialog = (name) => { const close = () => { closed.push(name); drafts.forget(close); }; drafts.track(close); return close; };
+  dialog('outside before');
+  drafts.open(() => { dialog('draft 1 import'); dialog('draft 1 review'); });
+  const userOwn = dialog('opened by the user after');
+  assert.deepEqual(closed, [], 'opening a draft closes nothing that is not a draft');
+  drafts.open(() => dialog('draft 2 review'));
+  assert.deepEqual(closed, ['draft 1 import', 'draft 1 review'], 'the previous draft is replaced');
+  userOwn();
+  drafts.open(() => dialog('draft 3 review'));
+  assert.deepEqual(closed, ['draft 1 import', 'draft 1 review', 'opened by the user after', 'draft 2 review']);
+  assert.throws(() => drafts.open(() => { throw new Error('boom'); }));
+  dialog('after a failed draft');
+  drafts.open(() => {});
+  assert.equal(closed.includes('after a failed draft'), false, 'a failed draft stops tracking');
+});

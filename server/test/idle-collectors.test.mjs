@@ -61,6 +61,14 @@ test('Linux: a hint from the future (clock change) clamps to zero', () => {
   assert.equal(linux.parseLoginctlIdle(`IdleHint=yes\nIdleSinceHint=${us(NOW + 60000)}\n`, NOW), 0);
 });
 
+test('Linux X11: xprintidle milliseconds become whole seconds; anything else is unknown', () => {
+  assert.equal(linux.parseXprintidle('734598\n'), 734);
+  assert.equal(linux.parseXprintidle('999'), 0);
+  assert.equal(linux.parseXprintidle(''), null);
+  assert.equal(linux.parseXprintidle("couldn't open display"), null);
+  assert.equal(linux.parseXprintidle('-5'), null);
+});
+
 test('both collectors expose idleSeconds on the seam', () => {
   assert.equal(typeof darwin.idleSeconds, 'function');
   assert.equal(typeof linux.idleSeconds, 'function');

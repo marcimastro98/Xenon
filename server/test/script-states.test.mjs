@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 //
 // The feature is only real if FIVE files agree: the source list and its
 // evaluator (deck-model.js), the live snapshot (deck.js), the SSE wiring on BOTH
-// surfaces (main.js for the dashboard, deck-popup.js for the Virtual Deck — the
+// surfaces (main.js for the dashboard, deck-feed.js for the Virtual Deck — the
 // popup hosts no page code, so a listener missing there leaves its keys dark),
 // and the server store itself. Each half is pinned below.
 
@@ -150,8 +150,8 @@ test('both deck surfaces listen for script_states', () => {
   // different places; a listener on only one leaves the other's keys dark.
   assert.match(read('js', 'main.js'), /addEventListener\('script_states'/);
   assert.match(read('js', 'main.js'), /refreshStates\(\{ scriptStates:/);
-  assert.match(read('js', 'deck-popup.js'), /on\('script_states'/);
-  assert.match(read('js', 'deck-popup.js'), /refreshStates\(\{ scriptStates:/);
+  assert.match(read('js', 'deck-feed.js'), /on\('script_states'/);
+  assert.match(read('js', 'deck-feed.js'), /refreshStates\(\{ scriptStates:/);
 });
 
 test('the deck snapshot carries scriptStates', () => {

@@ -1,7 +1,7 @@
-// The Xenon mark while the dashboard loads (js/boot-splash.js). What a user
-// would notice if it broke: a splash in the wrong colours, one that never
-// leaves when the backend is slow or offline, one that stays after being
-// switched off, or a dashboard that flashes empty tiles before it.
+// Bit while the dashboard loads (js/boot-splash.js). What a user would notice
+// if it broke: a splash on the wrong ground, one that never leaves when the
+// backend is slow or offline, a hello that holds up a tap, one that stays
+// after being switched off, or a dashboard that flashes empty tiles before it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -12,7 +12,7 @@ const SRC = read('../js/boot-splash.js');
 const LOOK_KEY = 'xeneonedge.bootLook.v1';
 
 // Runs boot-splash.js against a fake page and hand-driven timers.
-function boot({ stored = null, computed = {} } = {}) {
+function boot({ stored = null, computed = {}, reduced = false } = {}) {
   let now = 0;
   const timers = new Map();
   let nextId = 1;
@@ -34,6 +34,7 @@ function boot({ stored = null, computed = {} } = {}) {
     localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v) },
     CSS: { supports: (_p, v) => /^(#[0-9a-f]{3,8}|rgba?\([\d.,\s%]+\))$/i.test(v) },
     getComputedStyle: () => ({ getPropertyValue: (p) => computed[p] || '' }),
+    matchMedia: (q) => ({ matches: reduced && q.includes('reduce') }),
     document: { getElementById: (id) => (id === 'boot-splash' ? el : null), documentElement: {} },
   };
   sandbox.window = sandbox;
@@ -62,18 +63,21 @@ test('the remembered theme colours paint the splash, junk never does', () => {
   assert.deepEqual(good.props, { '--bs-bg': 'rgb(58, 46, 36)', '--bs-text': '#eadfc8', '--bs-accent': 'rgb(237, 162, 87)' });
   assert.ok(!good.classes.has('is-neutral'));
 
-  // A first visit knows no theme: a neutral mark, not the default green.
+  // A first visit knows no theme: the product's dark ground.
   assert.ok(boot().classes.has('is-neutral'));
   assert.ok(boot({ stored: '{not json' }).classes.has('is-neutral'));
 });
 
-test('it leaves once settings and data are in, or soon after the settings alone', () => {
+test('once settings and data are in, Bit says hello and leaves', () => {
   const both = boot();
   both.api.ready('settings');
   both.api.ready('data');
   both.advance(499);
-  assert.ok(!both.classes.has('is-leaving'), 'the mark finishes coming together first');
+  assert.ok(!both.classes.has('is-ready'), 'on screen long enough to be seen');
   both.advance(1);
+  assert.ok(both.classes.has('is-ready'));
+  assert.ok(!both.classes.has('is-leaving'), 'the hello plays first');
+  both.advance(670);
   assert.ok(both.classes.has('is-leaving'));
   both.advance(700);
   assert.equal(both.el.isConnected, false, 'removed even if no transitionend arrives');
@@ -82,23 +86,45 @@ test('it leaves once settings and data are in, or soon after the settings alone'
   noData.advance(800);
   noData.api.ready('settings');
   noData.advance(1199);
-  assert.ok(!noData.classes.has('is-leaving'));
+  assert.ok(!noData.classes.has('is-ready'));
   noData.advance(1);
-  assert.ok(noData.classes.has('is-leaving'), 'a screen without a System tile does not wait for the cap');
+  assert.ok(noData.classes.has('is-ready'), 'a screen without a System tile does not wait for the cap');
+  noData.advance(670);
+  assert.ok(noData.classes.has('is-leaving'));
+});
+
+test('without motion there is no hello: it just leaves', () => {
+  const still = boot({ reduced: true });
+  still.api.ready('settings');
+  still.api.ready('data');
+  still.advance(500);
+  assert.ok(!still.classes.has('is-ready'));
+  assert.ok(still.classes.has('is-leaving'));
 });
 
 test('a slow or offline backend never keeps the splash past the cap, and a tap ends it', () => {
   const offline = boot();
   offline.advance(5999);
-  assert.ok(!offline.classes.has('is-leaving'));
+  assert.ok(!offline.classes.has('is-ready'));
   offline.advance(1);
+  assert.ok(offline.classes.has('is-ready'));
+  offline.advance(670);
   assert.ok(offline.classes.has('is-leaving'));
 
   const tapped = boot();
-  tapped.advance(600);
+  tapped.advance(100);
   tapped.listeners.pointerdown();
   tapped.advance(0);
-  assert.ok(tapped.classes.has('is-leaving'));
+  assert.ok(tapped.classes.has('is-leaving'), 'a tap does not wait for the minimum');
+  assert.ok(!tapped.classes.has('is-ready'), 'nor for the hello');
+
+  const midHello = boot();
+  midHello.api.ready('settings');
+  midHello.api.ready('data');
+  midHello.advance(600);
+  assert.ok(midHello.classes.has('is-ready') && !midHello.classes.has('is-leaving'));
+  midHello.listeners.pointerdown();
+  assert.ok(midHello.classes.has('is-leaving'), 'a tap during the hello cuts it short');
 });
 
 test('switched off, it is gone before it paints, and the choice is remembered', () => {

@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 
 const require = createRequire(import.meta.url);
-const { createHelperUpdate } = require('../helper-update.js');
+const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC } = require('../helper-update.js');
 
 // The boot self-heal must install the native helper ONLY when its bytes hash to the
 // value recorded in the release's Ed25519-SIGNED SHA256SUMS. These tests sign with a
@@ -190,4 +190,126 @@ test('install() without a release for this version is not-ready, not a crash', a
     assert.equal(await mk(exe, f).install(), 'not-ready');
     assert.equal(fs.existsSync(exe), false);
   });
+});
+
+// The capture engine rides the same verified path under its own asset name:
+// it is fetched by that name, checked against THAT line of the signed sums
+// (never the helper's), and its leftovers are its own.
+function captureFetch(over = {}) {
+  const exeBytes = over.exeBytes ?? NEW_BYTES;
+  const sumsText = over.sumsText ?? ('0'.repeat(64) + '  xenon-helper.exe\n' + NEW_HASH + '  xenon-capture.exe\n');
+  const assets = [
+    { name: 'xenon-helper.exe', browser_download_url: 'https://x/helper' },
+    { name: 'xenon-capture.exe', browser_download_url: 'https://x/capture' },
+    { name: 'SHA256SUMS', browser_download_url: 'https://x/sums' },
+    { name: 'SHA256SUMS.sig', browser_download_url: 'https://x/sig' },
+  ];
+  const asked = [];
+  const f = async (url) => {
+    const u = String(url);
+    asked.push(u);
+    if (u.includes('/releases/tags/v' + APP)) return { ok: true, json: async () => ({ tag_name: APP, assets }) };
+    if (u.endsWith('/sums')) return { ok: true, text: async () => sumsText };
+    if (u.endsWith('/sig')) return { ok: true, text: async () => sign(sumsText) };
+    if (u.endsWith('/capture')) return { ok: true, body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array(exeBytes)); c.close(); } }) };
+    if (u.endsWith('/helper')) return { ok: true, body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array(Buffer.from('the-helper'))); c.close(); } }) };
+    return { ok: false };
+  };
+  f.asked = asked;
+  return f;
+}
+
+test('capture engine: install() fetches xenon-capture.exe by its own name and its own signed line', async () => {
+  assert.equal(CAPTURE_ASSET, 'xenon-capture.exe');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-cap-'));
+  try {
+    const exe = path.join(dir, 'capture', 'xenon-capture.exe');
+    const f = captureFetch();
+    const status = await createHelperUpdate({ helperExe: exe, appVersion: APP, fetchImpl: f, publicKeyPem: PUB_PEM, asset: CAPTURE_ASSET }).install();
+    assert.equal(status, 'installed');
+    assert.deepEqual(fs.readFileSync(exe), NEW_BYTES);
+    assert.ok(f.asked.some((u) => u.endsWith('/capture')));
+    assert.ok(!f.asked.some((u) => u.endsWith('/helper')), 'never the helper');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('capture engine: bytes that match only the helper line are a mismatch; its leftovers are cleaned, the helper\'s are not', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-cap-'));
+  try {
+    const exe = path.join(dir, 'xenon-capture.exe');
+    fs.writeFileSync(exe, 'old-engine');
+    for (const n of ['xenon-capture.exe.old-1', 'xenon-capture.exe.download', 'xenon-helper.exe.old-2']) fs.writeFileSync(path.join(dir, n), 'x');
+    const helperOnly = NEW_HASH + '  xenon-helper.exe\n' + '0'.repeat(64) + '  xenon-capture.exe\n';
+    const mkCap = (fetchImpl) => createHelperUpdate({ helperExe: exe, appVersion: APP, fetchImpl, publicKeyPem: PUB_PEM, asset: CAPTURE_ASSET });
+    assert.equal(await mkCap(captureFetch({ sumsText: helperOnly })).install(), 'mismatch');
+    assert.deepEqual(fs.readFileSync(exe), Buffer.from('old-engine'), 'left untouched');
+    const left = fs.readdirSync(dir).sort();
+    assert.deepEqual(left, ['xenon-capture.exe', 'xenon-helper.exe.old-2']);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// The macOS engine is its own asset (xenon-capture-macos) installed as
+// capture/xenon-capture: a bare download is not executable until it is made so,
+// and its leftovers are named after the file on disk, not the asset.
+function macFetch(over = {}) {
+  const sumsText = over.sumsText ?? (NEW_HASH + '  xenon-capture-macos\n');
+  const assets = [
+    { name: 'xenon-capture-macos', browser_download_url: 'https://x/capmac' },
+    { name: 'SHA256SUMS', browser_download_url: 'https://x/sums' },
+    { name: 'SHA256SUMS.sig', browser_download_url: 'https://x/sig' },
+  ];
+  return async (url) => {
+    const u = String(url);
+    if (u.includes('/releases/tags/v' + APP)) return { ok: true, json: async () => ({ tag_name: APP, assets }) };
+    if (u.endsWith('/sums')) return { ok: true, text: async () => sumsText };
+    if (u.endsWith('/sig')) return { ok: true, text: async () => sign(sumsText) };
+    if (u.endsWith('/capmac')) return { ok: true, body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array(NEW_BYTES)); c.close(); } }) };
+    return { ok: false };
+  };
+}
+
+test('macOS engine: installed under its local name and made executable before the swap', async () => {
+  assert.equal(CAPTURE_ASSET_MAC, 'xenon-capture-macos');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-capmac-'));
+  try {
+    const exe = path.join(dir, 'xenon-capture');
+    fs.writeFileSync(exe, 'old-engine');
+    for (const n of ['xenon-capture.old-1', 'xenon-capture.download', 'xenon-helper.old-2']) fs.writeFileSync(path.join(dir, n), 'x');
+    const chmods = [];
+    const fsImpl = { ...fs, chmodSync: (p, m) => { chmods.push([path.basename(p), m]); } };
+    const up = createHelperUpdate({ helperExe: exe, appVersion: APP, fetchImpl: macFetch(), publicKeyPem: PUB_PEM, asset: CAPTURE_ASSET_MAC, platform: 'darwin', fsImpl });
+    assert.equal(await up.install(), 'installed');
+    assert.deepEqual(fs.readFileSync(exe), NEW_BYTES);
+    assert.equal(chmods.length, 1);
+    assert.equal(chmods[0][1], 0o755);
+    assert.match(chmods[0][0], /^xenon-capture\.download$/);
+    const left = fs.readdirSync(dir).filter(n => !n.startsWith('xenon-capture.old-')).sort();
+    assert.deepEqual(left, ['xenon-capture', 'xenon-helper.old-2'], 'its own leftovers only');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('macOS engine: a hash that does not match leaves the old engine and sets no mode', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-capmac-'));
+  try {
+    const exe = path.join(dir, 'xenon-capture');
+    fs.writeFileSync(exe, 'old-engine');
+    const chmods = [];
+    const fsImpl = { ...fs, chmodSync: (p, m) => { chmods.push(m); } };
+    const up = createHelperUpdate({ helperExe: exe, appVersion: APP, fetchImpl: macFetch({ sumsText: '0'.repeat(64) + '  xenon-capture-macos\n' }), publicKeyPem: PUB_PEM, asset: CAPTURE_ASSET_MAC, platform: 'darwin', fsImpl });
+    assert.equal(await up.install(), 'mismatch');
+    assert.deepEqual(fs.readFileSync(exe), Buffer.from('old-engine'));
+    assert.deepEqual(chmods, []);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('Windows engine: no mode is set', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-cap-'));
+  try {
+    const exe = path.join(dir, 'xenon-capture.exe');
+    const chmods = [];
+    const fsImpl = { ...fs, chmodSync: (p, m) => { chmods.push(m); } };
+    const up = createHelperUpdate({ helperExe: exe, appVersion: APP, fetchImpl: captureFetch(), publicKeyPem: PUB_PEM, asset: CAPTURE_ASSET, platform: 'win32', fsImpl });
+    assert.equal(await up.install(), 'installed');
+    assert.deepEqual(chmods, []);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

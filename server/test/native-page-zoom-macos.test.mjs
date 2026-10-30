@@ -34,7 +34,7 @@ test('the page-zoom signal goes only to shells that declare it', () => {
 
 test('the signal waits for the page to load and sends only the latest scale', () => {
   const body = bridgeFn('sendPageZoomSignalSoon');
-  assert.match(body, /document\.readyState === 'complete'/,
+  assert.match(body, /afterLoad\(fire\)/,
     'assigning location.href during load aborts the page in WebView2');
   assert.match(body, /pageZoomShellSignal === currentNativeZoom\) return/);
   assert.match(body, /'xenon-zoom:set\?z=' \+ currentNativeZoom/);

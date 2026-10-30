@@ -22,18 +22,25 @@ function dictionaries() {
 
 const SAME_EVERYWHERE = new Set([
   // Names of products, services and protocols.
-  'Xenon AI', 'Claude Code', 'Discord', 'Discord: soundboard', 'OBS', 'OBS: streaming', 'Streamer.bot',
+  'Xenon AI', 'Bit', 'Game Companion', 'Claude Code', 'Discord', 'Discord: soundboard', 'OBS', 'OBS: streaming', 'Streamer.bot',
   'Streamer.bot: code trigger', 'Code trigger', 'Spotify', 'Spotify: shuffle', 'Spotify: volume', 'Home Assistant',
   'Razer Chroma', 'Chroma Link', 'Wave Link', 'Voicemeeter', 'Twitch', 'YouTube', 'Kick', 'Trovo', 'Webhook', 'URL',
   'GET', 'POST', 'LCD', 'Steam AppID', 'Emoji', 'Push-to-talk', 'Bus (A1, B2…)', 'Arguments (JSON)',
   'Action (widget/id)', 'Macro (widget/id)',
+  // The Vitals feature's name, kept as is by several languages.
+  'Vitals',
   // Words that are the same in at least one of the languages.
-  'Alarm', 'Volume', 'Volume −', 'Volume +', 'Auto', 'Cycle', 'Color', 'Color 1', 'Color 2', 'Neon', 'Comic', 'Audio',
+  '1 minute',
+  'Alarm', 'Area', 'Desktop', 'Downloads', 'Documents', 'GIF', 'Vertical 9:16', 'Timelapse', 'Webcam', 'Screenshots', 'Videos', 'Volume','Volume −', 'Volume +', 'Auto', 'Cycle', 'Color', 'Color 1', 'Color 2', 'Neon', 'Comic', 'Audio',
   'Communication', 'Media', 'Widgets', 'Soundboard', 'Streaming', 'Stream', 'System', 'Timers', 'Col', 'Label',
   'Action', 'Animation', 'Type', 'Direction', 'Diagonal', 'Radial', 'Vertical', 'Horizontal', 'Image', 'Standby',
   'Aurora', 'Headset', 'Keypad', 'Local', 'Mouse', 'Palette', 'Pause', 'Shuffle (on/off)', 'App', 'Body', 'Project',
   'Description', 'Effect', 'effect', 'Message', 'Minutes', 'Mix', 'Mode', 'Page', 'Platform', 'Prompt', 'Sound',
-  'Source', 'Style', 'Text', 'Carbon', 'Graphite', 'Flash',
+  'Notifications', 'Source', 'Style', 'Text', 'Carbon', 'Graphite', 'Flash', 'Benchmark', 'Screenshot', 'Capture', 'Dashboard',
+  // NVIDIA's name for the feature, kept by its German, Dutch and Italian users.
+  'Instant Replay',
+  // Colour formats, written the same everywhere; French and German say Format.
+  'HEX', 'RGB', 'HSL', 'Format',
 ]);
 
 test('every Deck string is translated in all 11 languages', () => {

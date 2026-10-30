@@ -1,19 +1,18 @@
 // Announcement channel, end to end (js/hub-messages.js) against DOM stubs.
 //
-// hub-match.js covers WHO matches; this covers what happens next, which is where
-// the expensive mistakes live. An announcement is shown once and then remembered
-// forever, so recording it at the wrong moment does not degrade the feature — it
-// destroys that message for that machine, permanently and silently.
+// hub-match.js covers WHO matches; this covers what happens next. Every message
+// is filed as a letter in Bit's mail (js/bit-mail.js), once ever, and nothing
+// opens on screen. Opening a letter reads the feed again, so what it draws
+// (picture, button, poll) comes from the validated feed, never from
+// localStorage, which anyone can edit.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
 
-/** A dashboard just real enough to run the channel. `busy` decides whether the
- *  interrupt queue ever finds a free moment. */
-function dashboard({ messages, busy = false, settings = {}, seen = [] } = {}) {
-  const store = new Map();
+/** A dashboard just real enough to run the channel. `busy` puts an overlay on screen. */
+function dashboard({ messages, busy = false, settings = {}, seen = [], store = new Map() } = {}) {
   if (seen.length) store.set('xeneonedge.catalogSeen', JSON.stringify(seen));
   const localStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -22,147 +21,184 @@ function dashboard({ messages, busy = false, settings = {}, seen = [] } = {}) {
   };
   const el = (tag) => ({
     tag, className: '', type: '', textContent: '', title: '', children: [], style: {}, dataset: {},
+    isConnected: true, on: {},
     classList: { add() {}, remove() {}, contains: () => false },
+    get firstChild() { return this.children[0] || null; },
     appendChild(c) { this.children.push(c); return c; },
-    addEventListener() {}, setAttribute() {}, remove() {}, closest: () => null,
+    insertBefore(c, ref) { const i = this.children.indexOf(ref); this.children.splice(i < 0 ? 0 : i, 0, c); return c; },
+    addEventListener(type, fn) { this.on[type] = fn; }, setAttribute() {}, remove() { this.removed = true; }, closest: () => null,
+    play() { return Promise.resolve(); },
   });
   const opened = [];
   const body = { classList: { contains: () => false }, appendChild(n) { opened.push(n); } };
   const document = {
     body, documentElement: { lang: 'it' }, createElement: el,
-    querySelector: () => (busy ? {} : null),   // an overlay already on screen
+    querySelector: () => (busy ? {} : null),
     addEventListener() {}, removeEventListener() {},
   };
-  const window = {};
+  const letters = [];
+  const renderers = {};
+  const window = {
+    BitMail: {
+      post(l) { if (!window.BitMailCore.post(l)) return false; letters.push(l); return true; },
+      register(kind, fn) { renderers[kind] = fn; },
+      open() {},
+    },
+  };
   const toasts = [];
   const posted = [];
-  let ticker = null;
+  const feed = { messages };
 
   const g = {
     window, document, localStorage,
     hubSettings: settings,
     makeEl: (t, c, x) => { const n = el(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; },
-    apiJson: async () => ({ ok: true, context: { version: '4.9.0', os: 'win32' }, messages }),
+    apiJson: async () => ({ ok: true, context: { version: '4.9.0', os: 'win32' }, messages: feed.messages }),
     ContentInstalls: { normalizeContentInstalls: (v) => (Array.isArray(v) ? v : []) },
     fetch: async (url, opts) => { posted.push({ url, body: JSON.parse(opts.body) }); return { ok: true }; },
     // The 35s boot timer must not fire; everything else runs immediately.
     setTimeout: (fn, ms) => (ms >= 30000 ? 0 : setTimeout(fn, 0)),
-    setInterval: (fn) => { ticker = fn; return 1; },
-    clearInterval: () => { ticker = null; },
+    setInterval: () => 1,
+    clearInterval: () => {},
   };
   const load = (rel) => { const n = Object.keys(g); new Function(...n, read(rel))(...n.map((k) => g[k])); };
 
   load('js/interrupt-queue.js'); g.XenonInterrupts = window.XenonInterrupts;
+  load('js/bit-mail-core.js');
   load('js/hub-match.js'); g.HubMatch = window.HubMatch;
   window.XenonToast = { show: (o) => toasts.push(o) }; g.XenonToast = window.XenonToast;
   load('js/hub-messages.js');
 
   return {
-    window, opened, toasts, posted,
-    /** Run the daily check, then let the queue run past its give-up point. */
-    async check({ expire = false } = {}) {
+    window, opened, toasts, posted, letters, store, feed,
+    /** Run the check (past its 3h throttle) and return what it filed. */
+    async check() {
+      store.delete('xeneonedge.hubMessageCheck');
+      const before = letters.length;
       await window.HubMessages.checkDaily();
-      await new Promise((r) => setTimeout(r, 20));
-      if (expire) for (let i = 0; i < 205 && ticker; i++) ticker();
       return {
-        opened: opened.map((n) => n.className),
-        toasts: toasts.map((t) => t.title),
+        filed: letters.slice(before).map((l) => l.id),
         seen: window.XenonInterrupts.readSeen(),
-        budgetSpent: window.XenonInterrupts.budgetSpent(),
       };
+    },
+    /** Open a letter the way Bit's mail does and return the drawn node. */
+    async open(id) {
+      const letter = window.BitMailCore.get(id);
+      const node = el('div');
+      const ctx = { closed: 0, close() { ctx.closed++; }, remove() {} };
+      renderers[letter.kind](letter, node, ctx);
+      await new Promise((r) => setTimeout(r, 5));
+      return { node, ctx };
     },
   };
 }
 
-const modal = (over = {}) => ({ id: 'big-news', level: 'modal', title: 'Importante', ...over });
-const toast = (over = {}) => ({ id: 'small-news', level: 'toast', title: 'Nota', ...over });
+const news = (over = {}) => ({ id: 'big-news', level: 'modal', title: 'Importante', body: 'Novità', ...over });
 
-// ── The one that matters ───────────────────────────────────────────────────
-// Recording it at queue time meant five minutes of game mode deleted the
-// announcement for good. catalog-drop.js marks seen inside its own callback for
-// exactly this reason.
-test('a modal that never gets on screen is not remembered as shown', async () => {
-  const d = dashboard({ messages: [modal()], busy: true });
-  const out = await d.check({ expire: true });
-  assert.deepEqual(out.opened, [], 'nothing rendered');
-  assert.deepEqual(out.seen, [], 'and nothing may be marked seen');
-  assert.equal(out.budgetSpent, false, 'a slot spent on nothing is a slot wasted');
-});
+/** Every node in a drawn tree, flattened. */
+const nodes = (n) => (n ? [n, ...(n.children || []).flatMap(nodes)] : []);
+const classes = (n) => nodes(n).map((x) => x.className).filter(Boolean);
 
-test('a modal that does get on screen is remembered, once', async () => {
-  const d = dashboard({ messages: [modal()] });
+test('each message becomes one letter, nothing opens on screen, and it is marked seen', async () => {
+  const d = dashboard({ messages: [news(), news({ id: 'small-news', level: 'toast', title: 'Nota' })] });
   const out = await d.check();
-  assert.deepEqual(out.opened, ['hubmsg-overlay']);
-  assert.deepEqual(out.seen, ['big-news']);
-  assert.equal(out.budgetSpent, true);
+  assert.deepEqual(out.filed, ['hub:big-news', 'hub:small-news'], 'a modal and a toast are both letters now');
+  assert.deepEqual(d.opened, [], 'nothing was added to the page');
+  assert.deepEqual(d.toasts, [], 'and no toast: Bit says it arrived, on its own schedule');
+  assert.deepEqual(out.seen, ['big-news', 'small-news']);
+  const l = d.letters[0];
+  assert.equal(l.kind, 'hub');
+  assert.equal(l.title, 'Importante');
+  assert.equal(l.line, 'Novità');
+  assert.deepEqual(l.data, { msgId: 'big-news' }, 'only the id is stored, never the button or the picture');
 });
 
-test('an already-seen message is never re-shown', async () => {
-  const d = dashboard({ messages: [modal()], seen: ['big-news'] });
-  const out = await d.check();
-  assert.deepEqual(out.opened, []);
-  assert.equal(out.budgetSpent, false, 'and it does not consume the day');
+test('filed even while something is on screen, because filing interrupts nothing', async () => {
+  const d = dashboard({ messages: [news()], busy: true });
+  assert.deepEqual((await d.check()).filed, ['hub:big-news']);
+  assert.deepEqual(d.opened, []);
 });
 
-// ── Toasts ─────────────────────────────────────────────────────────────────
-test('a toast is on screen the moment it is presented, so it is marked at once', async () => {
-  const d = dashboard({ messages: [toast()] });
-  const out = await d.check();
-  assert.deepEqual(out.toasts, ['Nota']);
-  assert.deepEqual(out.seen, ['small-news']);
-  assert.equal(out.budgetSpent, false, 'toasts do not interrupt, so they cost no slot');
+test('a message is filed once, ever, and an already-seen one never', async () => {
+  const store = new Map();
+  let d = dashboard({ messages: [news()], store });
+  assert.deepEqual((await d.check()).filed, ['hub:big-news']);
+  d = dashboard({ messages: [news()], store });
+  assert.deepEqual((await d.check()).filed, [], 'a new session does not repeat it');
+
+  d = dashboard({ messages: [news({ id: 'old' })], seen: ['old'] });
+  assert.deepEqual((await d.check()).filed, [], 'announced before by any channel');
+  d = dashboard({ messages: [news({ id: 'about-a', entryId: 'a' })], seen: ['a'] });
+  assert.deepEqual((await d.check()).filed, [], 'its drop already had its own letter');
 });
 
-// ── Which message gets the day ─────────────────────────────────────────────
-// present() treats a poll as a modal, so the selection has to as well; picking
-// with level alone made the winner depend on feed order.
-test('a poll declared as a toast still takes the modal slot, not a toast', async () => {
-  const poll = { id: 'q', level: 'toast', title: 'Cosa prima?', poll: { options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] } };
-  const d = dashboard({ messages: [poll] });
-  const out = await d.check();
-  assert.deepEqual(out.opened, ['hubmsg-overlay']);
-  assert.deepEqual(out.toasts, [], 'a poll can never be a toast: its answers are buttons');
-  assert.equal(out.budgetSpent, true);
+test('banners are not letters, and a long body is cut for the list', async () => {
+  const d = dashboard({ messages: [news({ id: 'b', level: 'banner' }), news({ id: 'long', body: 'x'.repeat(500) })] });
+  assert.deepEqual((await d.check()).filed, ['hub:long']);
+  assert.equal(d.letters[0].line.length, 240);
 });
 
-test('only one modal-shaped message runs per day; the rest keep their turn', async () => {
-  const d = dashboard({ messages: [modal({ id: 'first' }), modal({ id: 'second' }), toast()] });
-  const out = await d.check();
-  assert.equal(out.opened.length, 1, 'one interruption, not two');
-  assert.deepEqual(out.toasts, ['Nota'], 'the toast still goes out alongside it');
-  assert.ok(out.seen.includes('first') && out.seen.includes('small-news'));
-  assert.equal(out.seen.includes('second'), false, 'the loser waits for another day');
+test('with announcements off, nothing is filed', async () => {
+  const d = dashboard({ messages: [news()], settings: { hubMessages: false } });
+  assert.deepEqual((await d.check()).filed, []);
 });
 
-// ── The switch ─────────────────────────────────────────────────────────────
-test('with announcements off, nothing is fetched and nothing is shown', async () => {
-  const d = dashboard({ messages: [modal()], settings: { hubMessages: false } });
-  const out = await d.check();
-  assert.deepEqual(out.opened, []);
-  assert.deepEqual(out.toasts, []);
-  assert.deepEqual(out.seen, []);
-});
-
-// ── Media ──────────────────────────────────────────────────────────────────
+// ── Opening a letter ───────────────────────────────────────────────────────
 const IMG = 'https://assets.xenon-app.com/community/messages/v490.webp';
 const CLIP = 'https://assets.xenon-app.com/community/messages/v490.mp4';
 
-/** Every className in the tree the overlay rendered. */
-const classes = (node) => (node ? [node.className, ...(node.children || []).flatMap(classes)].filter(Boolean) : []);
-
-test('a modal with a picture renders a media frame above the text', async () => {
-  const d = dashboard({ messages: [modal({ media: { type: 'image', url: IMG, alt: 'Il widget Disco' } })] });
-  const out = await d.check();
-  assert.deepEqual(out.opened, ['hubmsg-overlay']);
-  assert.ok(classes(d.opened[0]).includes('hubmsg-media'));
+test('an opened letter draws the picture or clip from the feed, and no frame without one', async () => {
+  const d = dashboard({ messages: [news({ media: { type: 'image', url: IMG, alt: 'Il widget Disco' } }), news({ id: 'clip', media: { type: 'video', url: CLIP } }), news({ id: 'plain' })] });
+  await d.check();
+  const pic = (await d.open('hub:big-news')).node;
+  assert.equal(pic.children[0].className, 'bitmail-media', 'the picture sits above the text');
+  assert.equal(pic.children[0].children[0].src, IMG);
+  assert.ok(classes((await d.open('hub:clip')).node).includes('bitmail-media'));
+  assert.ok(!classes((await d.open('hub:plain')).node).includes('bitmail-media'));
 });
 
-test('a clip renders too, and a message with no media renders no frame', async () => {
-  const withClip = dashboard({ messages: [modal({ media: { type: 'video', url: CLIP } })] });
-  await withClip.check();
-  assert.ok(classes(withClip.opened[0]).includes('hubmsg-media'));
+test('a letter edited in localStorage cannot bring its own picture or link', async () => {
+  const d = dashboard({ messages: [news()] });
+  await d.check();
+  // Tamper with the stored box: the data the renderer gets is only an id.
+  const box = JSON.parse(d.store.get('xeneonedge.bitMail'));
+  box.letters[0].data = { msgId: 'big-news', media: { type: 'image', url: 'https://evil.example/x.png' }, action: { type: 'url', url: 'https://evil.example' } };
+  d.store.set('xeneonedge.bitMail', JSON.stringify(box));
+  const fresh = dashboard({ messages: [news()], store: d.store });
+  const { node } = await fresh.open('hub:big-news');
+  assert.ok(!nodes(node).some((n) => String(n.src || '').includes('evil')), 'no src from storage');
+});
 
-  const plain = dashboard({ messages: [modal()] });
-  await plain.check();
-  assert.ok(!classes(plain.opened[0]).includes('hubmsg-media'), 'no empty frame when there is nothing to show');
+test('a message withdrawn from the feed opens as its summary alone', async () => {
+  const d = dashboard({ messages: [news({ media: { type: 'image', url: IMG } })] });
+  await d.check();
+  d.feed.messages = [];
+  const { node } = await d.open('hub:big-news');
+  assert.deepEqual(classes(node), ['bitmail-letter-line'], 'the stored summary, nothing more');
+  assert.equal(node.children[0].textContent, 'Novità');
+});
+
+test('a poll is answered inside the letter, once', async () => {
+  const poll = news({ id: 'q', title: 'Cosa prima?', poll: { options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] } });
+  const d = dashboard({ messages: [poll] });
+  await d.check();
+  const { node, ctx } = await d.open('hub:q');
+  const buttons = nodes(node).filter((n) => n.className === 'bitmail-btn');
+  assert.deepEqual(buttons.map((b) => b.textContent), ['A', 'B'], 'the options are the buttons');
+  buttons[1].on.click();
+  assert.deepEqual(d.posted, [{ url: '/api/community/poll', body: { messageId: 'q', optionId: 'b' } }]);
+  assert.equal(ctx.closed, 1);
+  assert.equal(d.toasts.length, 1, 'the thank-you');
+  const again = (await d.open('hub:q')).node;
+  assert.equal(nodes(again).filter((n) => n.className === 'bitmail-btn').length, 0, 'asked once');
+});
+
+test('every letter carries the opt-out, and the old pop-ups are gone', async () => {
+  const d = dashboard({ messages: [news()] });
+  await d.check();
+  const { node } = await d.open('hub:big-news');
+  const off = nodes(node).find((n) => n.className === 'bitmail-link');
+  off.on.click();
+  assert.equal(d.store.get('xeneonedge.hubMessagesMuted'), '1');
+  assert.doesNotMatch(read('js/hub-messages.js'), /hubmsg-overlay|aria-modal|whenIdle|showModal|showToast/);
 });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const require = createRequire(import.meta.url);
@@ -45,55 +45,76 @@ test('unknown features are never unlockable, and junk on disk is ignored', async
   assert.equal(await fu.isUnlocked('__proto__'), false);
 });
 
-// ── The one-week Lyrics trial ───────────────────────────────────────────────
+// ── Trials ──────────────────────────────────────────────────────────────────
 
-test('a trial unlocks Lyrics for a week, once per install, and survives a restart', async () => {
+const seedLocalTrial = (dir, startedAt) =>
+  writeFileSync(path.join(dir, 'feature-unlocks.json'), JSON.stringify({ unlocked: {}, trials: { lyrics: startedAt } }));
+const passTrial = (state, endsAt = 9e12) => ({ status: async () => ({ ok: true, state, used: state !== 'none', endsAt }) });
+
+test('no new local Lyrics trial starts; one already running is honored to its end', async () => {
+  const fresh = createFeatureUnlock({ dataDir: tmp(), redeem: async () => assert.fail() });
+  assert.equal((await fresh.status('lyrics')).trialAvailable, false);
+  assert.deepEqual(await fresh.startTrial('lyrics'), { ok: false, error: 'bad_request' });
+
   const dir = tmp();
   let clock = 1_000_000;
-  const now = () => clock;
-  const fu = createFeatureUnlock({ dataDir: dir, now, redeem: async () => assert.fail('a trial never calls the hub') });
-  assert.deepEqual(await fu.status('lyrics'), { unlocked: false, owned: false, trialEndsAt: null, trialAvailable: true });
-
-  const out = await fu.startTrial('lyrics');
-  assert.equal(out.ok, true);
-  assert.equal(out.unlocked, true);
-  assert.equal(out.trialEndsAt, 1_000_000 + 7 * 86400000);
-  assert.equal(await fu.isUnlocked('lyrics'), true);
-
-  // Reading it again after a restart, still inside the week.
-  clock += 6 * 86400000;
-  const later = createFeatureUnlock({ dataDir: dir, now, redeem: async () => assert.fail() });
-  assert.equal(await later.isUnlocked('lyrics'), true);
-
-  // The week is over: locked again, and it cannot be started a second time.
-  clock += 2 * 86400000;
-  assert.deepEqual(await later.status('lyrics'), { unlocked: false, owned: false, trialEndsAt: null, trialAvailable: false });
-  assert.deepEqual(await later.startTrial('lyrics'), { ok: false, error: 'trial_used' });
-});
-
-test('moving the clock back ends a trial instead of stretching it', async () => {
-  const dir = tmp();
-  let clock = 5_000_000_000;
+  seedLocalTrial(dir, clock);
   const fu = createFeatureUnlock({ dataDir: dir, now: () => clock, redeem: async () => assert.fail() });
-  await fu.startTrial('lyrics');
-  clock -= 86400000;
+  clock += 6 * 86400000;
+  assert.equal(await fu.isUnlocked('lyrics'), true);
+  assert.equal((await fu.status('lyrics')).trialEndsAt, 1_000_000 + 7 * 86400000);
+  clock += 2 * 86400000;
   assert.equal(await fu.isUnlocked('lyrics'), false);
 });
 
-test('Dev cleanup has no trial, and unlocking keeps a trial already on disk', async () => {
+test('moving the clock back ends a local trial instead of stretching it', async () => {
+  const dir = tmp();
+  const clock = 5_000_000_000;
+  seedLocalTrial(dir, clock + 86400000);
+  const fu = createFeatureUnlock({ dataDir: dir, now: () => clock, redeem: async () => assert.fail() });
+  assert.equal(await fu.isUnlocked('lyrics'), false);
+});
+
+test('the pass trial opens Lyrics while the hub says it runs, never Dev cleanup', async () => {
+  const on = createFeatureUnlock({ dataDir: tmp(), trialPass: passTrial('active', 123), redeem: async () => assert.fail() });
+  assert.deepEqual(await on.status('lyrics'), {
+    unlocked: true, owned: false, trialEndsAt: 123, trialAvailable: false, passTrial: true, passTrialAvailable: false, trialEnded: false,
+  });
+  assert.equal(await on.isUnlocked('devclean'), false);
+  for (const state of ['unverified', 'ended', 'none']) {
+    const off = createFeatureUnlock({ dataDir: tmp(), trialPass: passTrial(state), redeem: async () => assert.fail() });
+    assert.equal(await off.isUnlocked('lyrics'), false, state);
+  }
+});
+
+test('the tile offers the pass trial only to an install that never had it, and says when one is over', async () => {
+  const st = async (state) => createFeatureUnlock({ dataDir: tmp(), trialPass: passTrial(state), redeem: async () => assert.fail() }).status('lyrics');
+  assert.equal((await st('none')).passTrialAvailable, true);
+  assert.equal((await st('none')).trialEnded, false);
+  assert.equal((await st('ended')).passTrialAvailable, false);
+  assert.equal((await st('ended')).trialEnded, true);
+  assert.equal((await st('unverified')).trialEnded, false, 'paused, not over');
+
+  const dir = tmp();
+  seedLocalTrial(dir, 1_000_000);
+  const old = createFeatureUnlock({ dataDir: dir, now: () => 1_000_000 + 8 * 86400000, redeem: async () => assert.fail() });
+  assert.equal((await old.status('lyrics')).trialEnded, true, 'the old local week counts too');
+});
+
+test('a trial code typed into the Lyrics unlock opens it for the trial, without owning it', async () => {
+  const dir = tmp();
+  const fu = createFeatureUnlock({ dataDir: dir, redeem: async () => ({ ok: true, cek: 'k', trialEndsAt: 777 }) });
+  assert.deepEqual(await fu.unlock('lyrics', 'XT-AAAA-BBBB-CCCC'), { ok: true, unlocked: true, passTrial: true, trialEndsAt: 777 });
+  assert.equal((await fu.status('lyrics')).owned, false);
+});
+
+test('two unlocks landing together never lose each other, and buying makes it owned', async () => {
   const dir = tmp();
   const fu = createFeatureUnlock({ dataDir: dir, redeem: async () => ({ ok: true, saved: true }) });
-  assert.deepEqual(await fu.startTrial('devclean'), { ok: false, error: 'bad_request' });
-  assert.equal((await fu.status('devclean')).trialAvailable, false);
-
-  // Started together: neither write may lose the other.
-  await Promise.all([fu.startTrial('lyrics'), fu.unlock('devclean')]);
+  await Promise.all([fu.unlock('lyrics'), fu.unlock('devclean')]);
   const onDisk = JSON.parse(readFileSync(path.join(dir, 'feature-unlocks.json'), 'utf8'));
-  assert.ok(Number.isFinite(onDisk.trials.lyrics));
+  assert.ok(Number.isFinite(onDisk.unlocked.lyrics));
   assert.ok(Number.isFinite(onDisk.unlocked.devclean));
-
-  // Buying Lyrics during the trial makes it owned, with no end date.
-  await fu.unlock('lyrics');
   const s = await fu.status('lyrics');
   assert.equal(s.owned, true);
   assert.equal(s.trialEndsAt, null);

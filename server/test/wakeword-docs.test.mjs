@@ -31,15 +31,17 @@ test('the documented pause limit is the one the code enforces', () => {
 test('every spelling the docs promise really does match', () => {
   // The list in FEATURES.md is a promise to the reader; each one has to pass the
   // matcher or the promise is false.
-  for (const said of ['zenon', 'senon', 'sanon', 'zenone', 'xeneon', 'xenon']) {
+  for (const said of ['ehi bit', 'hei bit', 'hej bit', 'hey beat', 'heybit']) {
     assert.ok(wake.matchesWakeWord(said), `"${said}" is documented but does not match`);
     assert.ok(FEATURES.includes(said), `${said} is matched but not in the documented list`);
   }
 });
 
-test('"Hey" really is optional, as the docs say', () => {
-  assert.match(FEATURES, /\*\*"Hey" is optional\*\*/);
-  assert.ok(wake.matchesWakeWord('xenon'));
+test('"Hey" is needed before Bit, and the old "Hey Xenon" still works, as the docs say', () => {
+  assert.match(FEATURES, /\*\*The "Hey" is needed\*\*/);
+  assert.ok(!wake.matchesWakeWord('bit'));
+  assert.ok(wake.matchesWakeWord('hey bit'));
+  assert.match(FEATURES, /"Hey Xenon"\*, still works/);
   assert.ok(wake.matchesWakeWord('hey xenon'));
   assert.ok(wake.matchesWakeWord('ehi zenon'));
 });
@@ -73,8 +75,9 @@ test('every hint carries the pause, not just the phrase', () => {
   const hints = I18N.split('\n').filter((l) => l.trimStart().replace(/^["']/, '').startsWith('settings_wake_hint'));
   assert.equal(hints.length, LANGS.length);
   for (const line of hints) {
-    // Each language words it its own way; what has to be there is a second
-    // sentence about saying it alone, so a one-sentence hint fails this.
+    // Each language words it its own way. The phrase itself is in the switch's
+    // label; the hint has to keep the pause, where it runs and when it listens,
+    // so a hint cut down to one or two sentences fails this.
     const value = line.slice(line.indexOf(':') + 1);
     assert.ok(value.split(/[.。！]/).filter((p) => p.trim()).length >= 4,
       `a hint lost its timing sentence: ${value.slice(0, 60)}…`);

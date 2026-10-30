@@ -14,6 +14,18 @@ const require = createRequire(import.meta.url);
 const { normalizeLedColors, normalizeLedValue, mergeLedColors, hasDynamicLeds, ledFrame, MAX_LED_COLORS } = require('../lighting-led-colors.js');
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+// On a PC with the iCUE SDK DLL, lighting.js would connect to the real iCUE: the
+// tests would drive the real lights, and a busy iCUE holds the call and hangs the run.
+const fs = require('fs');
+const realExists = fs.existsSync;
+fs.existsSync = (p) => !String(p).endsWith('iCUESDK.x64_2019.dll') && realExists(p);
+
+test('the real iCUE SDK stays out of these tests', () => {
+  const lighting = require('../lighting.js');
+  lighting.refreshAvailability();
+  assert.equal(lighting.isAvailable(), false);
+});
+
 test('normalize keeps luid → hex and drops everything else', () => {
   const out = normalizeLedColors({ 720897: '#FF0000', '12': '#00ff00', abc: '#0000ff', '-1': '#ffffff', 5: 'red', 6: null, 99999999999: '#123456' });
   assert.deepEqual(out, { 12: '#00ff00', 720897: '#ff0000' });

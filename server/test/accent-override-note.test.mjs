@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+const TOKENS = readFileSync(new URL('../js/theme-tokens.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 
@@ -65,12 +66,13 @@ test('Retro is named before the album tint, because Retro is what wins', () => {
   assert.ok(retroAt > -1 && albumAt > -1, 'both branches exist');
   assert.ok(retroAt < albumAt, 'the Retro branch must come first');
   // …and it must match the precedence the palette actually applies. Read from
-  // deriveEffectiveThemePalette, which does the work — getEffectiveThemePalette
-  // is only the cache in front of it and contains neither branch.
-  const palette = SETTINGS.slice(SETTINGS.indexOf('function deriveEffectiveThemePalette'));
-  const p = palette.slice(0, palette.indexOf('\n}'));
+  // derivePalette in js/theme-tokens.js, which does the work — the settings.js
+  // functions only hand it the tint and keep the cache.
+  const palette = TOKENS.slice(TOKENS.indexOf('function derivePalette('));
+  const p = palette.slice(0, palette.indexOf('\n  }\n'));
+  assert.ok(p.indexOf("styleMode === 'retro'") > 0, 'the Retro branch is in the palette');
   assert.ok(
-    p.indexOf('_dynamicAccent') < p.indexOf("styleMode === 'retro'"),
+    p.indexOf('dynamicAccent) source.accent') < p.indexOf("styleMode === 'retro'"),
     'the palette applies the tint first and Retro over it — the note follows that order',
   );
 });
@@ -106,5 +108,5 @@ test('the note carries its key, not just its text', () => {
 // Retro's accent is the yellow in the report. If that constant ever moves, the
 // note explaining it should be revisited with it.
 test('Retro still pins the accent that was reported', () => {
-  assert.match(SETTINGS, /styleMode === 'retro'[\s\S]{0,400}accent: '#f5c518'/);
+  assert.match(TOKENS, /styleMode === 'retro'[\s\S]{0,400}accent: '#f5c518'/);
 });

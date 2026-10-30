@@ -19,7 +19,7 @@ const MANIFESTS = [
   {
     api: 1, id: 'now-playing-x1', name: 'Now playing', version: '1.0.0', entry: 'index.html', surface: 'tile',
     streams: ['system', 'media'], actions: ['media'], author: 'Ada', description: 'Cover and title.',
-    category: 'media', hosts: ['api.example.com'], storage: true,
+    category: 'media', hosts: ['api.example.com'], storage: true, size: 'wide',
   },
 ];
 
@@ -28,6 +28,14 @@ test('a Maker widget is listed exactly as the app would list it', () => {
     const app = normalizeManifest(m, m.id);
     assert.equal(app.ok, true, m.id);
     assert.deepEqual(makerPackage(m), app.manifest, m.id);
+  }
+});
+
+test('every tile size the app keeps, the demo keeps too', () => {
+  const { TILE_SIZES } = require('../sdk-widgets.js');
+  for (const size of [...TILE_SIZES, 'huge']) {
+    const m = { ...MANIFESTS[0], size };
+    assert.deepEqual(makerPackage(m), normalizeManifest(m, m.id).manifest, size);
   }
 });
 

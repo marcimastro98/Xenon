@@ -124,3 +124,21 @@ test('mergeIssues keeps order, drops duplicates and unknown kinds', () => {
   assert.deepEqual(out, [{ kind: 'network', host: 'a.com' }, { kind: 'storage' }]);
   assert.notEqual(out, a);
 });
+
+test('error reports: validated, cleaned, and merged by kind and message', () => {
+  assert.equal(D.validateErrorReport(null), null);
+  assert.equal(D.validateErrorReport({ items: [] }), null);
+  assert.equal(D.validateErrorReport({ items: [{ kind: 'nope', message: 'x' }] }), null);
+  assert.equal(D.validateErrorReport({ items: new Array(D.REPORT_ITEMS_MAX + 1).fill({ kind: 'error', message: 'x' }) }), null);
+  const got = D.validateErrorReport({ items: [{ kind: 'console', message: 'a\u0000b' + 'z'.repeat(400), count: 3 }, { kind: 'rejection', message: 'r', count: -2 }] });
+  assert.equal(got[0].message.length, 300);
+  assert.ok(!got[0].message.includes('\u0000'));
+  assert.equal(got[0].count, 3);
+  assert.equal(got[1].count, 1);
+  const merged = D.mergeErrors([{ kind: 'console', message: 'm', count: 2 }], [{ kind: 'console', message: 'm', count: 3 }, { kind: 'error', message: 'Script error.', count: 1 }]);
+  assert.deepEqual(merged, [{ kind: 'console', message: 'm', count: 5 }, { kind: 'error', message: 'Script error.', count: 1 }]);
+  const many = Array.from({ length: 30 }, (_, i) => ({ kind: 'error', message: 'e' + i, count: 1 }));
+  const kept = D.mergeErrors([], many);
+  assert.equal(kept.length, 20);
+  assert.equal(kept.at(-1).message, 'e29', 'the newest are kept');
+});
