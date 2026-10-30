@@ -60,12 +60,10 @@
   let events = [];         // most-recent first, capped EVT_MAX
   let seeded = false;
 
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="streamerbot"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="streamerbot"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
 
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // "RewardRedemption" → "Reward Redemption"; keeps acronyms readable enough.
@@ -162,7 +160,7 @@
     if (!feed) return;
     if (!events.length) {
       const msg = configured === false ? t('sbw_setup_short', 'Not connected')
-        : !connected ? t('sbw_offline_hint', 'Streamer.bot isn\'t reachable — open it and start Servers/Clients → WebSocket Server (it reconnects on its own).')
+        : !connected ? t('sbw_offline_hint', 'Streamer.bot isn\'t reachable: open it and start Servers/Clients → WebSocket Server (it reconnects on its own).')
           : t('sbw_waiting', 'Waiting for events…');
       feed.replaceChildren(el('div', 'sbw-empty', msg));
       return;

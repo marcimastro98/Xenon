@@ -49,58 +49,20 @@ body.layout-editing .vpet-menu-anchored { display: none; }
 /* The news/stocks ticker bar (34px, z60) docks to the same bottom edge — sit above it. */
 body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 
+/* The live Bit (js/bit-app.js) draws on an 18x17 stage around its 12x12 body,
+   so the box is larger than the body. It animates itself and stands still
+   under game mode, low power, idle and a frosted overlay: no CSS loops here. */
 .vpet-sprite {
-  width: 52px;
-  height: 52px;
-  padding: 4px;
+  width: 64px;
+  height: 60px;
+  padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
   filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 10px rgba(var(--vpet-rgb), 0.35));
-  animation: vpet-bob 2.6s ease-in-out infinite;
-  will-change: transform;
   transition: filter 0.4s ease;
 }
 .vpet-sprite svg { width: 100%; height: 100%; display: block; }
-@keyframes vpet-bob {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-3px); }
-}
-.vpet[data-mood="angry"] .vpet-sprite { animation: vpet-shake 0.55s steps(2) infinite; }
-@keyframes vpet-shake {
-  0%, 100% { transform: translateX(0); }
-  25%      { transform: translateX(-2px) rotate(-2deg); }
-  75%      { transform: translateX(2px) rotate(2deg); }
-}
-.vpet[data-mood="ghost"] .vpet-sprite { animation: vpet-float 3.4s ease-in-out infinite; opacity: 0.92; }
-@keyframes vpet-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-7px); }
-}
-/* Asleep (away / night quiet): slow, deep breathing bob + a floating "zzz".
-   The zzz rides ::after so the sprite itself stays the 1:1 brand shape. */
-.vpet[data-mood="sleep"] .vpet-sprite { animation: vpet-sleep 4.6s ease-in-out infinite; }
-@keyframes vpet-sleep {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-1px) scale(1.03); }
-}
-.vpet[data-mood="sleep"]::after,
-.clock-bit[data-mood="sleep"]::after {
-  content: 'zzz';
-  position: absolute;
-  font-family: 'VT323', 'Courier New', monospace;
-  color: rgba(var(--vpet-rgb), 0.9);
-  pointer-events: none;
-  animation: vpet-zzz 2.8s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-.vpet[data-mood="sleep"]::after { left: 46px; bottom: 40px; font-size: 16px; }
-.clock-bit[data-mood="sleep"]::after { right: -4px; top: -6px; font-size: 11px; }
-@keyframes vpet-zzz {
-  0%   { opacity: 0; transform: translateY(3px); }
-  30%  { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-6px); }
-}
 
 /* Speech bubble — pixel frame, VT323 body. Anchored above the sprite. */
 .vpet-bubble {
@@ -148,6 +110,8 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 }
 .vpet-menu-head {
   display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
   justify-content: space-between;
   align-items: baseline;
   color: var(--vpet-text);
@@ -309,8 +273,8 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 
 /* ── Topbar mini-Bit (#clock-bit, pet.position topbar/both) ──────────────────
    First child of #clock-vitals so it rides the minimal-island reparenting with
-   the clock. Same 12×12 sprite at chip scale, mood glow via --vpet-rgb; the
-   touch target stays comfortable (≥32px) even though the sprite is tiny. */
+   the clock. The same live Bit at chip scale, mood glow via --vpet-rgb; the
+   touch target stays comfortable (≥32px) even though Bit is tiny. */
 .clock-bit {
   position: relative;
   display: inline-flex;
@@ -326,27 +290,18 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   --vpet-body: rgb(var(--vpet-rgb));
 }
 .clock-bit .cb-sprite {
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 28px;
   display: block;
   filter: drop-shadow(0 0 6px rgba(var(--vpet-rgb), 0.45));
-  animation: vpet-bob 2.6s ease-in-out infinite;
-  will-change: transform;
 }
 .clock-bit .cb-sprite svg { width: 100%; height: 100%; display: block; }
-.clock-bit[data-mood="angry"] .cb-sprite { animation: vpet-shake 0.55s steps(2) infinite; }
-.clock-bit[data-mood="ghost"] .cb-sprite { animation: vpet-float 3.4s ease-in-out infinite; opacity: 0.92; }
-.clock-bit[data-mood="sleep"] .cb-sprite { animation: vpet-sleep 4.6s ease-in-out infinite; }
 /* Frosted overlay open: pause the pet's INFINITE loops only — one-shot moves
-   (glitch, go-in, chip pops) must finish or they'd freeze mid-frame. The 700ms
-   JS sprite flipper is gated on the same class in vitals-pet.js.
+   (glitch, go-in, chip pops) must finish or they'd freeze mid-frame. Bit
+   itself holds on the same class (js/bit-app.js TILE_HOLD).
    (See the overlay-frozen block in styles/backgroundfx.css.) */
-body.overlay-frozen .vpet-sprite,
-body.overlay-frozen .vpet[data-mood="sleep"]::after,
-body.overlay-frozen .clock-bit[data-mood="sleep"]::after,
 body.overlay-frozen .vpet-go-title,
-body.overlay-frozen .vpet-go-coin,
-body.overlay-frozen .cb-sprite { animation-play-state: paused; }
+body.overlay-frozen .vpet-go-coin { animation-play-state: paused; }
 
 /* Compact bubble under the chip — used when the floating pet is off. */
 .vpet-chip-bubble {
@@ -367,8 +322,6 @@ body.overlay-frozen .cb-sprite { animation-play-state: paused; }
 .vpet-settings-head { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) {
-  .vpet-sprite, .vpet[data-mood] .vpet-sprite, .vpet-go-title, .vpet-go-coin,
-  .clock-bit .cb-sprite, .clock-bit[data-mood] .cb-sprite,
-  .vpet[data-mood="sleep"]::after, .clock-bit[data-mood="sleep"]::after { animation: none; }
+  .vpet-go-title, .vpet-go-coin { animation: none; }
   .vpet-glitch { display: none; }
 }

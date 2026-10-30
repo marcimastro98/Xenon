@@ -64,6 +64,10 @@ const ACTION_CATALOG = [
   { type: 'stopwatchStart', group: 'timer', labelKey: 'deck_act_stopwatchStart', params: [{ name: 'label', kind: 'text' }, { name: 'everyMinutes', kind: 'text', optional: true, labelKey: 'deck_param_every_minutes' }] },
   { type: 'timerToggle', group: 'timer', labelKey: 'deck_act_timerToggle', params: [{ name: 'label', kind: 'text' }] },
   { type: 'timerCancel', group: 'timer', labelKey: 'deck_act_timerCancel', params: [{ name: 'label', kind: 'text' }] },
+  // Vitals: mark a meter done from a key. The server writes it with the same
+  // math as a tap on the bar or telling Bit (js/vitals-core.js refillPatch).
+  { type: 'vitalsRefill', group: 'vitals', labelKey: 'deck_act_vitalsRefill', params: [{ name: 'vital', kind: 'select', options: ['hydration', 'energy', 'stamina', 'focus', 'posture', 'all'], strict: true,
+    optionKeys: { hydration: 'vitals_hydration', energy: 'vitals_energy', stamina: 'vitals_stamina', focus: 'vitals_focus', posture: 'vitals_posture' } }] },
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   // 'set' (+ value 0–100) is appended LAST: options[0] stays the legacy default.
   { type: 'volume',   group: 'audio',  labelKey: 'deck_act_volume',   params: [{ name: 'mode', kind: 'select', options: ['mute', 'up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
@@ -251,8 +255,44 @@ const ACTION_CATALOG = [
   { type: 'signalRgbEffect', group: 'lighting', labelKey: 'deck_act_signalRgbEffect', params: [{ name: 'effect', kind: 'signalRgbEffect' }] },
 ];
 
+// The single-screen capabilities (js/capability-catalog.js) are Deck actions
+// too, so they validate here and run through the same server registry. The
+// browser loads that file first; an old cached page without it simply has none.
+const CAPABILITY_ACTIONS = (typeof module !== 'undefined' && module.exports)
+  ? require('./capability-catalog.js').CAPABILITIES
+  : ((typeof window !== 'undefined' && window.CapabilityCatalog && window.CapabilityCatalog.CAPABILITIES) || []);
+ACTION_CATALOG.push(...CAPABILITY_ACTIONS);
+
 function actionSpec(type) {
   return ACTION_CATALOG.find(a => a.type === type) || null;
+}
+
+// Params that only mean something on one person's own PC or account: an install
+// path (it names their user folder), a phone number, a device id, a webhook (its
+// token usually sits in the URL), an alarm code. A shared Deck profile carries
+// them empty (preset-share.js), and the FIRST one listed is what the action
+// cannot run without; a webhook's body or a third audio device are extras.
+const PERSONAL_PARAMS = Object.freeze({
+  openApp: ['path'], openFile: ['path'],
+  phoneCall: ['number'], phoneMessage: ['number'],
+  webhook: ['url', 'body'],
+  haAlarm: ['code'],
+  audioDevice: ['device'], audioDeviceFirst: ['device1', 'device2', 'device3'], audioDeviceToggle: ['deviceA', 'deviceB'],
+  spotifyDevice: ['device'],
+  discordUserVol: ['user'], discordUserMute: ['user'],
+  claudeAsk: ['projectId'],
+  wlOutputDevice: ['deviceId'],
+  lightDevice: ['device'], lightPart: ['device'],
+});
+
+// True for a validated action that is still waiting for its owner's own app,
+// file, number or device, as an imported key arrives. A playSound without a
+// file is the same case (a shared key keeps only sound-pack clips).
+function needsSetup(action) {
+  if (!action || typeof action !== 'object') return false;
+  if (action.type === 'playSound') return !String(action.file || '').trim();
+  const needed = (PERSONAL_PARAMS[action.type] || [])[0];
+  return !!needed && !String(action[needed] || '').trim();
 }
 
 // Explorer's "Copy as path" (Shift+right-click, and the Windows 11 context menu)
@@ -350,8 +390,8 @@ function compactTrigger(steps) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath };
+  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath, PERSONAL_PARAMS, needsSetup };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath };
+  module.exports = { ACTION_CATALOG, actionSpec, validateAction, validateGesture, KEY_GESTURES, triggerSteps, clampDelay, compactTrigger, unquotePath, PERSONAL_PARAMS, needsSetup };
 }

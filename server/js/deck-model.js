@@ -244,6 +244,21 @@ function normalizeKeyBehavior(raw, key) {
   }
 }
 
+// The shortcut rule lives in js/deck-shortcuts.js. A page that loads the model
+// without that file keeps the stored text as it is, so normalizing there can
+// never delete a shortcut set somewhere else.
+let _deckShortcuts = null;
+function keyShortcut(raw) {
+  if (!_deckShortcuts) {
+    if (typeof window !== 'undefined' && window.DeckShortcuts) _deckShortcuts = window.DeckShortcuts;
+    else if (typeof require === 'function') {
+      try { _deckShortcuts = require('./deck-shortcuts.js'); } catch { /* not beside the model */ }
+    }
+  }
+  if (_deckShortcuts) return _deckShortcuts.normalizeShortcut(raw);
+  return typeof raw === 'string' ? clampStr(raw, 40) : '';
+}
+
 function normalizeKey(raw, cols, rows) {
   if (!raw || typeof raw !== 'object') return null;
   const kind = raw.kind === 'folder' ? 'folder' : (raw.kind === 'action' ? 'action' : (raw.kind === 'slider' ? 'slider' : null));
@@ -308,6 +323,9 @@ function normalizeKey(raw, cols, rows) {
     key.triggers = (raw.triggers && typeof raw.triggers === 'object' && !Array.isArray(raw.triggers))
       ? Object.assign({}, raw.triggers)
       : {};
+    // A keyboard shortcut that runs this key from anywhere on the PC.
+    const shortcut = keyShortcut(raw.shortcut);
+    if (shortcut) key.shortcut = shortcut;
     if (raw.state && typeof raw.state === 'object' && raw.state.source) {
       key.state = { source: clampStr(raw.state.source, 32) };
       if (raw.state.scene) key.state.scene = clampStr(raw.state.scene, 200);
@@ -355,6 +373,8 @@ function normalizeKey(raw, cols, rows) {
     if (raw.live && typeof raw.live === 'object' && DECK_LIVE_SOURCES.includes(raw.live.source)) {
       key.live = { source: raw.live.source };
       if (raw.live.name) key.live.name = clampStr(raw.live.name, 200);
+      // A Vitals key names one of the fixed meters; anything else follows the emptiest.
+      if (key.live.source === 'vitals' && !DECK_VITALS_METERS.includes(key.live.name)) key.live.name = 'lowest';
     }
     // Optional LED reaction: light the RGB when this key fires ('press') or while
     // its bound state is active ('state'). Requires a valid hex colour, else dropped.
@@ -1073,7 +1093,7 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning', 'outputDevice', 'lightsOn'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning', 'outputDevice', 'lightsOn', 'benchmarkRunning', 'recordingOn', 'timelapseOn', 'stepsOn', 'replayOn'];
 
 // HA state strings that read as "on" for an entity binding without an explicit
 // value to match — covers switches/lights, covers, media, presence, locks,
@@ -1104,8 +1124,18 @@ function matchNamedState(state, bag) {
 // Live-value sources a key face can display (key.live). 'timer' shows a ticking
 // countdown from the timers snapshot; 'sdkState' shows the label/value an SDK
 // widget published for that state name; 'sensor' shows a live hardware reading
-// (temps/load/fan/watts from the system snapshot, or `battery:<device>`).
-const DECK_LIVE_SOURCES = ['timer', 'sdkState', 'sensor'];
+// (temps/load/fan/watts from the system snapshot, or `battery:<device>`);
+// 'vitals' shows how full a Vitals meter is (snapshot.vitals).
+const DECK_LIVE_SOURCES = ['timer', 'sdkState', 'sensor', 'vitals'];
+
+// The meters a 'vitals' live key can follow (live.name): 'lowest' is whichever
+// is emptiest right now, named on the face; the rest are the VitalsCore ids.
+const DECK_VITALS_METERS = ['lowest', 'hydration', 'energy', 'stamina', 'focus', 'posture'];
+// The tile's own thresholds (js/vitals.js LOW / EMPTY) and its warn/danger tokens.
+const VITALS_LOW_PCT = 25;
+const VITALS_EMPTY_PCT = 2;
+const VITALS_LOW_COLOR = '#f0b84f';
+const VITALS_EMPTY_COLOR = '#ff6268';
 
 // The fixed sensor metrics a live key can bind to (live.name). Battery keys
 // use the dynamic form 'battery:<device name>' instead.
@@ -1214,6 +1244,22 @@ function timersByLabel(timers) {
   return byLabel;
 }
 
+// A Vitals meter on the key face: its percent, coloured like the tile when low.
+// Vitals off, or the meter off, leaves the face empty.
+function formatVitalsText(name, vitals) {
+  if (!vitals || typeof vitals !== 'object' || !vitals.enabled || !Array.isArray(vitals.meters)) return { text: '' };
+  const meters = vitals.meters.filter((m) => m && Number.isFinite(m.percent));
+  const meter = name === 'lowest'
+    ? meters.reduce((low, m) => (!low || m.percent < low.percent ? m : low), null)
+    : meters.find((m) => m.id === name);
+  if (!meter) return { text: '' };
+  const pct = Math.max(0, Math.min(100, Math.round(meter.percent)));
+  const out = { text: name === 'lowest' && meter.name ? clampStr(meter.name + ' ' + pct + '%', 24) : pct + '%' };
+  if (pct <= VITALS_EMPTY_PCT) out.color = VITALS_EMPTY_COLOR;
+  else if (pct <= VITALS_LOW_PCT) out.color = VITALS_LOW_COLOR;
+  return out;
+}
+
 // Resolve a key's live binding against the state snapshot → { text, color? }.
 // Pure so the renderer's ticker and the tests share one formatter. `now` is
 // injectable for tests; the renderer passes Date.now().
@@ -1242,6 +1288,7 @@ function formatLiveValue(live, snapshot, now) {
   if (live.source === 'sensor') {
     return { text: formatSensorText(live.name, snapshot) };
   }
+  if (live.source === 'vitals') return formatVitalsText(live.name || 'lowest', snapshot.vitals);
   return { text: '' };
 }
 
@@ -1252,6 +1299,16 @@ function evaluateKeyState(state, snapshot) {
     case 'speakerMuted':  return !!snapshot.speakerMuted;
     // The lighting system's master switch (Settings → Lighting, a Lights on/off key).
     case 'lightsOn':      return !!snapshot.lightsOn;
+    // A benchmark recording the game's frame times (server/benchmark.js).
+    case 'benchmarkRunning': return !!snapshot.benchmarkRunning;
+    // A screen or window recording in progress (server/recorder.js).
+    case 'recordingOn': return !!snapshot.recordingOn;
+    // The same recorder taking a timelapse (`every` on SSE `recording`).
+    case 'timelapseOn': return !!snapshot.timelapseOn;
+    // The steps recorder running (server/steps-recorder.js).
+    case 'stepsOn': return !!snapshot.stepsOn;
+    // Instant Replay keeping the last seconds right now (server/replay.js).
+    case 'replayOn': return !!snapshot.replayOn;
     case 'obsRecording':  return !!snapshot.obsRecording;
     case 'obsStreaming':  return !!snapshot.obsStreaming;
     case 'obsScene':      return !!state.scene && state.scene === snapshot.obsScene;
@@ -1328,12 +1385,19 @@ function cycleIndexOf(key, snapshot) {
   const n = parseInt(v, 10);
   return (Number.isInteger(n) && n >= 1 && n <= key.cycle.length + 1) ? n - 1 : 0;
 }
+// SSE `recording` → the two keys it lights: one recorder, a timelapse when it
+// carries `every`, so a Record key stays dark during a timelapse and back.
+function recordingStates(d) {
+  const on = !!(d && d.on);
+  const lapse = on && !!d.every;
+  return { recordingOn: on && !lapse, timelapseOn: lapse };
+}
 // The trigger a cycle key runs in a state: tap for the first, cycle1.. after it.
 function cycleTriggerName(index) {
   return index > 0 ? 'cycle' + index : 'tap';
 }
 
-const DECK_MODEL_API = { toggleStateName, keyStateBinding, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { recordingStates, toggleStateName, keyStateBinding, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_VITALS_METERS, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

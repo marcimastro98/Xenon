@@ -185,9 +185,9 @@
 .cs-search-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 8px;
+  padding: 9px 10px;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 13px;
   color: var(--text, #f0f3f1);
   background: var(--input-bg, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
@@ -199,3 +199,57 @@
   border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5);
   background: var(--input-bg-focus, rgba(255, 255, 255, 0.08));
 }
+
+/* The chosen option's icon on the closed control (options with data-cs-icon). */
+.cs-trigger-ico { display: inline-flex; flex-shrink: 0; color: rgb(var(--accent-rgb)); }
+.cs-trigger-ico svg { width: 16px; height: 16px; }
+.cs-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Arrow-key position in a searchable list; Enter picks this row. */
+.cs-option.cs-active { background: rgba(255, 255, 255, 0.08); color: var(--text, #f0f3f1); }
+.cs-option.cs-selected.cs-active { background: rgba(var(--accent-rgb), 0.16); color: var(--accent); }
+/* The typed words inside each result. */
+.cs-option-label .cs-hit { background: none; color: var(--accent); font-weight: 700; }
+.cs-empty {
+  padding: 16px 12px; text-align: center;
+  font-size: 12px; color: var(--text-dim, #6b7a75);
+}
+
+/* Collapsible categories (data-cs-collapsible): each header is a full-width
+   button with the category's icon, name, how many actions it holds and a
+   chevron; its options sit indented under it. */
+.cs-group.cs-group-toggle,
+.cs-group.cs-group-static {
+  padding: 0; pointer-events: auto;
+  font-size: inherit; font-weight: inherit; letter-spacing: 0; text-transform: none;
+}
+.cs-group-btn,
+.cs-group-static {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 40px; box-sizing: border-box;
+  padding: 8px 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--text, #f0f3f1);
+  font: inherit; font-size: 13px; font-weight: 600; text-align: left;
+}
+.cs-group-btn { cursor: pointer; }
+.cs-group-btn:hover,
+.cs-group-btn:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
+.cs-group.cs-group-static {
+  min-height: 32px; padding: 10px 10px 4px;
+  font-size: 12px; font-weight: 600; color: var(--muted-text, #a6b1ad); user-select: none;
+}
+.cs-group-static .cs-group-ico svg { width: 15px; height: 15px; }
+.cs-group-ico { display: inline-flex; flex-shrink: 0; color: var(--muted-text, #a6b1ad); }
+.cs-group-ico svg { width: 18px; height: 18px; }
+.cs-group-open .cs-group-ico { color: rgb(var(--accent-rgb)); }
+.cs-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-group-count { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-dim, #6b7a75); font-variant-numeric: tabular-nums; }
+.cs-group-chev { display: inline-flex; flex-shrink: 0; color: var(--text-dim, #6b7a75); transition: transform 0.18s ease; }
+.cs-group-chev svg { width: 12px; height: 12px; }
+.cs-group-open .cs-group-chev { transform: rotate(90deg); }
+.cs-group-toggle ~ .cs-option,
+.cs-group-static ~ .cs-option { padding-left: 38px; }
+.cs-group-toggle ~ .cs-option::before,
+.cs-group-static ~ .cs-option::before { display: none; }
+.cs-group-toggle ~ .cs-option .cs-option-label { overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: reduce) { .cs-group-chev { transition: none; } }

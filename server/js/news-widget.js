@@ -32,7 +32,7 @@
   let resultsHost = null;
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="news"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="news"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   function safeHttp(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : ''; }
@@ -129,7 +129,7 @@
     // A pasted URL is a custom feed, not a search — offer only "add feed".
     if (looksLikeUrl(q)) {
       if (!isHttpsUrl(q)) {
-        host.appendChild(el('div', 'nw-result nw-result--info', t('news_feed_https_only', 'RSS feeds must start with https:// — http feeds aren’t supported.')));
+        host.appendChild(el('div', 'nw-result nw-result--info', t('news_feed_https_only', 'RSS feeds must start with https://, http feeds aren’t supported.')));
         return;
       }
       const add = el('button', 'nw-result nw-result--topic'); add.type = 'button';
@@ -192,7 +192,7 @@
     const u = String(url || '').trim();
     if (!u) return;
     if (!isHttpsUrl(u)) {
-      if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('news_add_fail', 'Could not add'), message: t('news_feed_https_only', 'RSS feeds must start with https:// — http feeds aren’t supported.') });
+      if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('news_add_fail', 'Could not add'), message: t('news_feed_https_only', 'RSS feeds must start with https://, http feeds aren’t supported.') });
       return;
     }
     const ok = await postFeeds('add', { type: 'custom', url: u });

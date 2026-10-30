@@ -198,9 +198,10 @@ function initDashboardPages() {
   rebuildDashboardPages();
 }
 
+// Returns the new page's id, or null when the page limit is reached.
 function addDashboardPage() {
   const layout = getDashboardLayout();
-  if (layout.pages.length >= DASHBOARD_PAGES_MAX) return;
+  if (layout.pages.length >= DASHBOARD_PAGES_MAX) return null;
   const id = 'page-' + Date.now().toString(36);
   layout.pages.push({ id, name: defaultPageName(layout.pages.length) });
   saveDashboardLayout(layout);
@@ -209,6 +210,7 @@ function addDashboardPage() {
   // A page is added to be filled: land on it, instead of leaving the view
   // wherever the rebuild happened to put it.
   if (window.DashboardPager && typeof window.DashboardPager.goToPage === 'function') window.DashboardPager.goToPage(id);
+  return id;
 }
 
 // The name a rename dialog should start from: what the user actually typed,

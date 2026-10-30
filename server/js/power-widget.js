@@ -30,7 +30,7 @@
   const TINTS = { power: '250, 200, 90', energy: '250, 200, 90', battery: '74, 222, 128' };
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="power"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="power"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   function fmtWatts(v) {

@@ -76,31 +76,62 @@
 
   const reduceMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  function panel() { return document.getElementById('media-panel'); }
+  // The tile the strip is drawn on. Not always #media-panel: a Media tile can be
+  // duplicated (copies carry no id) and the original hidden or left on another
+  // page, and the wave then never showed on the tile in view. Asked on Discord:
+  // "no wave line at all", with the helper running and the tile playing.
+  function panel() {
+    return canvas && canvas.parentNode ? canvas.parentNode : document.getElementById('media-panel');
+  }
+
+  // Every Media tile, the original first.
+  function mediaTiles() {
+    const all = Array.from(document.querySelectorAll('.media-panel[data-dashboard-widget="media"]'));
+    const original = document.getElementById('media-panel');
+    return original ? [original, ...all.filter((tile) => tile !== original)] : all;
+  }
+
+  function onScreen(tile) {
+    if (tile.dataset.dashboardHidden === 'true') return false;
+    const r = tile.getBoundingClientRect();
+    return r.width > 8 && r.height > 8 && r.bottom > 0 && r.top < window.innerHeight
+      && r.right > 0 && r.left < window.innerWidth;
+  }
 
   // ── Mount ───────────────────────────────────────────────────────
   // The canvas lives behind the tile's content (z-index below .media-pane) and
   // above the blurred cover, so the waveform reads as part of the artwork rather
   // than as a control. Created on demand: a dashboard with the setting off — the
   // default — never allocates a canvas at all.
+  let resizeObs = null;
+
   function mount() {
     if (canvas) return canvas;
-    const host = panel();
+    const tiles = mediaTiles();
+    const host = tiles.find(onScreen) || tiles[0];
     if (!host) return null;
     canvas = document.createElement('canvas');
     canvas.className = 'media-viz';
     canvas.setAttribute('aria-hidden', 'true');
-    host.appendChild(canvas);
     ctx = canvas.getContext('2d');
-    resize();
-    if (typeof ResizeObserver === 'function') {
-      new ResizeObserver(() => { resize(); invalidate(); }).observe(host);
-    }
+    adopt(host);
     return canvas;
+  }
+
+  // Moves the one canvas onto `host`, keeping its history.
+  function adopt(host) {
+    host.appendChild(canvas);
+    if (typeof ResizeObserver === 'function') {
+      if (!resizeObs) resizeObs = new ResizeObserver(() => { resize(); invalidate(); });
+      resizeObs.disconnect();
+      resizeObs.observe(host);
+    }
+    resize();
   }
 
   function unmount() {
     stop();
+    if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
     if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
     canvas = null; ctx = null; gradient = null; gradientKey = '';
     samples = []; capacity = 0; opacity = 0;
@@ -248,12 +279,13 @@
   let geomOk = false;
   let geomAt = 0;
 
+  // Also where the strip follows the Media tile in view, when there are several.
   function measure() {
     geomAt = performance.now();
-    const host = panel();
-    if (!host || host.dataset.dashboardHidden === 'true') { geomOk = false; return; }
-    const r = host.getBoundingClientRect();
-    geomOk = r.width > 8 && r.height > 8 && r.bottom > 0 && r.top < window.innerHeight;
+    if (!canvas) { geomOk = false; return; }
+    const host = mediaTiles().find(onScreen);
+    geomOk = !!host;
+    if (host && canvas.parentNode !== host) { adopt(host); gradient = null; }
   }
 
   function wanted() {
@@ -268,7 +300,28 @@
     return geomOk;
   }
 
+  // Why a wave that is on and measured is still not drawn, for the Settings line
+  // that would otherwise say "running" over an empty strip (asked on Discord:
+  // "Media tile sound wave not showing up any more"). Settings freezes the
+  // overlay itself while it is open, so only a freeze held by something else
+  // counts. 'silent': levels arrive, but never from the app the tile shows.
+  const SILENT_TICKS = 30;
+  const SILENT_LEVEL = 0.005;
+  function holdReason() {
+    const b = document.body.classList;
+    if (b.contains('perf-mode')) return 'perf';
+    if (b.contains('game-mode')) return 'game';
+    const freeze = window.ambientFreeze && window.ambientFreeze.tokens;
+    if (freeze && freeze().some((tok) => tok !== 'settings')) return 'overlay';
+    const host = panel();
+    if (host && host.classList.contains('lyrics-open')) return 'lyrics';
+    if (playing && sawLevels && samples.length >= Math.max(SILENT_TICKS, capacity) && samples.every((v) => v < SILENT_LEVEL)) return 'silent';
+    return '';
+  }
+
   function syncRunning() {
+    // The tile may not have existed yet when the setting was applied.
+    if (style !== 'off' && !canvas) mount();
     const on = wanted();
     if (canvas) canvas.classList.toggle('is-live', on);
     if (on && raf === null) { lastFrameAt = performance.now(); raf = requestAnimationFrame(frame); }
@@ -358,7 +411,7 @@
   document.addEventListener('scroll', invalidate, { passive: true, capture: true });
 
   window.MediaViz = {
-    setStyle, setPalette, setPlaying, setSource, onLevels,
+    setStyle, setPalette, setPlaying, setSource, onLevels, holdReason,
     STYLES: Object.keys(STYLES),
     // For tests and the settings preview.
     _state: () => ({ style, playing, proc, problem, sawLevels, samples: samples.length, running: raf !== null }),

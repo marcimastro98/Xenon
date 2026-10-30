@@ -1,0 +1,125 @@
+/* Drawing on the screen on macOS and Linux (draw.html): a see-through sheet
+   over the whole screen and the bar at its top. The bar looks like the capture
+   engine's on Windows (apps/capture/src/sketch/bar.rs): dark, six colours, the
+   four tools, undo, clear, close. Targets are 44 px for touch. */
+html[data-screen-draw],
+html[data-screen-draw] body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: "Sofia Sans", system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sdraw-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+#sdraw-live { pointer-events: none; }
+
+.sdraw-top {
+  --sdraw-back: rgb(30 30 30 / 0.94);
+  --sdraw-ink: rgb(240 240 240);
+  --sdraw-hover: rgb(52 52 52);
+  --sdraw-picked: rgb(70 70 70);
+  position: fixed;
+  top: 10px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.sdraw-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--sdraw-back);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  pointer-events: auto;
+  /* A narrow screen gets two rows, never a bar that hides buttons off its edge. */
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.sdraw-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
+.sdraw-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 24px;
+  margin: 0 5px;
+  background: rgb(255 255 255 / 0.16);
+}
+/* The bar is ~630 px wide: below that it wraps, and a divider would end a row. */
+@media (max-width: 660px) {
+  .sdraw-sep { display: none; }
+}
+
+.sdraw-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sdraw-ink);
+  cursor: pointer;
+}
+.sdraw-btn:hover { background: var(--sdraw-hover); }
+.sdraw-btn[aria-pressed="true"] { background: var(--sdraw-picked); }
+.sdraw-btn:focus-visible { outline: 2px solid var(--sdraw-ink); outline-offset: -2px; }
+.sdraw-btn:disabled { opacity: 0.35; cursor: default; background: transparent; }
+.sdraw-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sdraw-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35);
+}
+/* The model's palette (js/screen-draw-model.js), as the engine draws it. */
+.sdraw-red { background: rgb(232 64 64); }
+.sdraw-yellow { background: rgb(245 197 24); }
+.sdraw-green { background: rgb(46 184 114); }
+.sdraw-blue { background: rgb(47 128 237); }
+.sdraw-white { background: rgb(255 255 255); }
+.sdraw-black { background: rgb(17 17 17); }
+.sdraw-btn[aria-pressed="true"] .sdraw-swatch { box-shadow: 0 0 0 2px var(--sdraw-ink); }
+
+.sdraw-hint {
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: var(--sdraw-back);
+  color: var(--sdraw-ink);
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.sdraw-hint[hidden] { display: none; }

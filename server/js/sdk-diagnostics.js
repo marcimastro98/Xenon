@@ -200,12 +200,49 @@
     return mergeIssues([], out, REPORT_ITEMS_MAX);
   }
 
+  // What the probe saw go wrong while the widget ran (PERF_PROBE_SOURCE →
+  // {type:'error'}): an uncaught error, a rejected promise nobody handled, or a
+  // console.error. For the author only (Settings and the xenon-mcp tools), never
+  // shown as HTML. A thrown error from a widget script reaches the probe as the
+  // browser's muted "Script error." (the sandbox is another origin), so the
+  // console and promise kinds are the ones that carry a real message.
+  const ERROR_KINDS = Object.freeze(['error', 'rejection', 'console']);
+  const ERROR_TEXT_MAX = 300;
+  const ERRORS_MAX = 20;
+  function cleanErrorText(v) {
+    return String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, ERROR_TEXT_MAX);
+  }
+  function validateErrorReport(raw) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.items)) return null;
+    if (!raw.items.length || raw.items.length > REPORT_ITEMS_MAX) return null;
+    const out = [];
+    for (const it of raw.items) {
+      if (!it || typeof it !== 'object' || !ERROR_KINDS.includes(it.kind)) return null;
+      const count = Number.isInteger(it.count) && it.count > 0 ? Math.min(it.count, 9999) : 1;
+      out.push({ kind: it.kind, message: cleanErrorText(it.message), count });
+    }
+    return out;
+  }
+  // The same error again only counts up; the newest distinct ones are kept.
+  function mergeErrors(list, incoming) {
+    const out = Array.isArray(list) ? list.map((e) => ({ ...e })) : [];
+    for (const e of Array.isArray(incoming) ? incoming : []) {
+      const same = out.find((o) => o.kind === e.kind && o.message === e.message);
+      if (same) { same.count = Math.min(9999, same.count + e.count); continue; }
+      out.push({ ...e });
+    }
+    return out.slice(-ERRORS_MAX);
+  }
+
   return {
     ISSUE_KINDS,
     ISSUES_MAX,
     REPORT_ITEMS_MAX,
+    ERROR_KINDS,
     scanWidgetSource,
     validateBlockedReport,
+    validateErrorReport,
     mergeIssues,
+    mergeErrors,
   };
 });

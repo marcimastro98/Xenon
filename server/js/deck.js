@@ -24,7 +24,7 @@
   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
-  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, scriptStates: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN, lightsOn: false, outputDevice: '' };
+  const stateSnapshot = { benchmarkRunning: false, recordingOn: false, timelapseOn: false, stepsOn: false, replayOn: false, micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, scriptStates: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN, lightsOn: false, outputDevice: '' };
   // Every state-bound key drawn as on, whatever the state: only the Xenon
   // Maker's preview sets it (showView), to show the lit faces being designed.
   let previewLit = false;
@@ -816,6 +816,19 @@
     }
     // Open the live per-app volume mixer overlay (touch faders) — a browser-side UI.
     if (action.type === 'appMixer') { openDeckMixer(); return true; }
+    // The gallery opens on the screen whose key was pressed (a phone too).
+    if (action.type === 'gallery' && window.CaptureGallery) {
+      window.CaptureGallery.open({ filter: action.filter === 'all' ? '' : action.filter });
+      return true;
+    }
+    // On a phone the Xenon menu opens here, as the panel: the PC's menu window
+    // is drawn over a screen nobody holding the phone is looking at.
+    if (action.type === 'xenonMenu' && window.__xenonRemote && window.XenonMenuPanel) {
+      const P = window.XenonMenuPanel;
+      const mode = action.mode === 'open' || action.mode === 'close' ? action.mode : (P.isOpen() ? 'close' : 'open');
+      if (mode === 'close') P.close(); else P.open(action.section);
+      return true;
+    }
     return false;
   }
   // Soundboard playback lives in the browser — a Chromium <audio> element handles
@@ -858,10 +871,23 @@
   // SDK widget's granted soundboard actions here (pack-relative clips only —
   // the caller gates the file shape). Same element cache, same panic stop.
   window.DeckSoundPlayer = { play: playDeckSound, stopAll: stopAllDeckSounds };
+  // A key's keyboard shortcut runs on the server; the steps only a dashboard
+  // can do (sound, AI chat, mixer) come back here once claimed (main.js).
+  window.DeckClientRun = (action) => {
+    const kinds = (window.DeckShortcuts && window.DeckShortcuts.CLIENT_ACTIONS) || [];
+    const valid = action && window.DeckActions ? window.DeckActions.validateAction(action) : null;
+    return valid && kinds.includes(valid.type) ? runAction(valid) : Promise.resolve(false);
+  };
   // Returns true on success, false on a real failure (so the key can flash an
   // error). A missing/handled-client action counts as success — nothing failed.
   async function runAction(action) {
     if (!action) return true;
+    // A key imported from someone else arrives without their app path, number or
+    // device: say what to do instead of failing on an empty field.
+    if (window.DeckActions && window.DeckActions.needsSetup && window.DeckActions.needsSetup(action)) {
+      reportActionError('not_set_up');
+      return false;
+    }
     if (action.type === 'playSound') return playDeckSound(action);   // browser-played soundboard
     if (action.type === 'soundStopAll') return stopAllDeckSounds();  // stop every playing clip
     // Turn THIS screen's dashboard. Without a pager (the Virtual Deck window) it
@@ -872,6 +898,7 @@
       if (!res.ok) reportActionError('bad_page');
       return res.ok;
     }
+    if (handsOff(action)) return handOffStep(action);
     if (runClientAction(action)) return true;
     try {
       const res = await fetch('/actions/run', {
@@ -894,42 +921,33 @@
     } catch (e) { return false; }
   }
 
-  // Sentences for the reasons a person can act on; anything else still shows its
-  // raw code, because an unexplained code is what gets pasted into a report and
-  // swallowing it is what made this invisible. The code is appended either way.
-  const DECK_ERR_TEXT = {
-    not_found: ['deck_err_not_found', 'that path does not exist on this PC'],
-    bad_app_path: ['deck_err_bad_app_path', 'that is not something this system can launch'],
-    launch_failed: ['deck_err_launch_failed', 'the app would not start'],
-    blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
-    unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
-    bad_page: ['deck_err_bad_page', 'this screen has no such page, pick another for this key'],
-    unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
-    none_connected: ['deck_err_none_connected', 'none of these outputs is connected right now'],
-    // Voicemeeter. Every one of these is something the person holding the
-    // machine can fix — install it, start it, pick a strip their edition has —
-    // which is the bar this map sets. The opaque ones (read/write refused by
-    // the DLL) deliberately stay raw codes: a sentence that says nothing is
-    // worse than a code somebody can paste into a report.
-    voicemeeter_not_installed: ['deck_err_vm_not_installed', 'Voicemeeter is not installed on this PC'],
-    voicemeeter_not_running: ['deck_err_vm_not_running', 'Voicemeeter is installed but not running'],
-    voicemeeter_windows_only: ['deck_err_vm_windows_only', 'Voicemeeter only exists on Windows'],
-    voicemeeter_unavailable: ['deck_err_vm_unavailable', 'Xenon cannot reach Voicemeeter'],
-    voicemeeter_bad_strip: ['deck_err_vm_bad_strip', 'the Voicemeeter you are running does not have that strip'],
-    voicemeeter_bad_bus: ['deck_err_vm_bad_bus', 'the Voicemeeter you are running does not have that bus'],
-    voicemeeter_bad_param: ['deck_err_vm_bad_param', 'that is not a Voicemeeter parameter name'],
-    voicemeeter_bad_macro: ['deck_err_vm_bad_macro', 'that macro button number does not exist'],
-    voicemeeter_bad_value: ['deck_err_vm_bad_value', 'Voicemeeter will not take that value'],
-  };
+  // The Virtual Deck window and a Deck on a widget layer have no AI chat, and a
+  // layer window is cut to its tiles, so the mixer would open where nobody sees
+  // it: the step goes to the dashboard (or the screen's Bit) through the server.
+  function handsOff(action) {
+    if (action.type === 'ai') return !(window.startVoiceSession || window.openMediaChat || window.openAiPanel || window.aiAsk);
+    return action.type === 'appMixer' && typeof isLayerPage === 'function' && isLayerPage();
+  }
+  async function handOffStep(action) {
+    try {
+      const res = await fetch('/deck/client-step', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!(data && data.ok)) reportActionError((data && data.error) || 'failed');
+      return !!(data && data.ok);
+    } catch { reportActionError('failed'); return false; }
+  }
+
+  // The sentences live in js/deck-error-text.js (shared with the on-screen alerts).
+  const describeDeckError = (code) => window.DeckErrorText.describe(code, tt);
   // A slider posts one action per 100ms while it is dragged, so a failing one
   // would bury the screen. Identical messages collapse for a few seconds; a
   // DIFFERENT failure still gets through immediately.
   let _lastDeckErr = { msg: '', at: 0 };
   function reportActionError(code) {
     if (!window.XenonToast) return;
-    const known = DECK_ERR_TEXT[code];
-    const said = known ? tt(known[0], known[1]) : '';
-    const msg = said ? (code ? said + ' (' + code + ')' : said) : String(code || '');
+    const msg = describeDeckError(code);
     if (!msg) return;
     const now = Date.now();
     if (msg === _lastDeckErr.msg && now - _lastDeckErr.at < 3000) return;
@@ -944,6 +962,11 @@
   function tt(key, fallback) {
     return (typeof window.t === 'function' && window.t(key)) || fallback;
   }
+  // A key run from its keyboard shortcut failed on the server (main.js SSE).
+  window.DeckShortcutFailed = (info) => {
+    if (!window.XenonToast || !info) return;
+    window.XenonToast.show(window.DeckErrorText.shortcutFailed(info, tt));
+  };
   // Briefly flash a key red to surface a failed action (path not found, OBS
   // offline, …) — actions must not fail silently.
   function flashError(node) {
@@ -1755,11 +1778,17 @@
   // steppers (only when auto-fit is off), and a now-playing dock toggle. Each
   // control mutates the persisted config and re-renders.
   // Downscale a picked decoration image (shared rasterToCanvas core, utils.js)
-  // to a data: URL for the deck config. Small GIFs are kept byte-identical so
-  // they keep animating — same trick as the key-image reader.
+  // to a data: URL for the deck config. A moving picture keeps moving, as in
+  // the key-image reader: kept as-is when it fits 1 MB, else made into a
+  // smaller GIF (anim-picture.js); a still only when even that fails.
+  const DECOR_ANIM_MAX_CHARS = Math.ceil((1024 * 1024) / 3) * 4 + 22;
   async function deckDecorImageToDataUrl(file, maxEdge) {
     if (!file) return '';
-    if (file.type === 'image/gif' && file.size <= 1024 * 1024) return fileToDataUrl(file);
+    const moving = typeof AnimPicture !== 'undefined'
+      ? await AnimPicture.fitAnimatedPicture(file, { maxChars: DECOR_ANIM_MAX_CHARS, maxSide: maxEdge }).catch(() => null)
+      : null;
+    if (moving && moving.dataUrl) return moving.dataUrl;
+    if (moving && window.XenonToast) window.XenonToast.show({ type: 'info', kicker: 'Deck', message: tr('picture_kept_still', 'The animation was too big for here, so it is shown still.') });
     const cv = await rasterToCanvas(file, maxEdge);
     if (!cv) return '';
     try { return cv.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85); }
@@ -2186,8 +2215,8 @@
   // The docked now-playing transport — mirrors the chat mini-player. Buttons drive
   // the shared media session via mediaAction(); content filled by applyDeckMediaInto.
   // A normalized {c1,c2,angle} gradient → a CSS linear-gradient(). Delegates to
-  // the tile serializer (dashboard-layout.js, always loaded) — one CSS form for
-  // tiles and Deck, so they can't drift.
+  // the tile serializer (js/decor-bg.js, loaded wherever deck.js is) — one CSS
+  // form for tiles and Deck, so they can't drift.
   function deckGradCss(grad) { return tileGradCss(grad); }
   // Build the well-background layer (image, gradient, or both) from a wellImage
   // config, or null when there's nothing to show. Shared by render() and the

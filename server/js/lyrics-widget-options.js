@@ -32,9 +32,8 @@
   const settings = () => (typeof hubSettings === 'object' && hubSettings ? hubSettings : {});
 
   function save(patch) {
-    if (typeof saveHubSettings !== 'function' || typeof normalizeSettings !== 'function') return;
-    hubSettings = normalizeSettings({ ...hubSettings, ...patch });
-    saveHubSettings();
+    // Also from a widget on the screen, where the settings are read-only (utils.js).
+    if (typeof saveTileSetting === 'function') saveTileSetting(patch);
   }
 
   function toggleRow(label, hint, checked, onChange) {
@@ -110,8 +109,13 @@
     const box = el('div', 'lyo-cost');
     // A plan is not paid per token, and Codex's fixed instructions make a song
     // far bigger than "about two thousand": the plan paragraph below says it.
-    if (!PLANS[provider]) box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Xenon AI provider, with the song\'s lines. A song usually takes about two thousand tokens. Songs already translated are kept and never paid for again.')));
+    if (!PLANS[provider]) box.appendChild(el('p', '', tr('lyrics_opt_cost_what', 'Each new song is one request to your Bit provider, with the song\'s lines. A song usually takes about two thousand tokens. Songs already translated are kept and never paid for again.')));
     if (provider === 'ollama') box.appendChild(el('p', '', tr('lyrics_opt_cost_ollama', 'With Ollama it is free and stays on this PC.')));
+    else if (provider === 'xenon') {
+      box.appendChild(el('p', '', tr('lyrics_opt_cost_xenon', 'With Bit on Sparks, translation runs on Haiku, the smallest model, and is paid in Sparks. When your Sparks run out it stops, and starts again as soon as you have more.')));
+      estimateLine = el('p', 'lyo-estimate', '');
+      box.appendChild(estimateLine);
+    }
     else if (provider === 'gemini') box.appendChild(el('p', '', tr('lyrics_opt_cost_gemini', 'Gemini uses its cheapest model (Flash-Lite). On Google\'s free tier you pay nothing, but Google may use what you send to improve its products.')));
     else if (PLANS[provider]) {
       // Filled once the model is known (refreshUsage), said before the switch is on.
@@ -165,6 +169,7 @@
     const e = u && u.estimate;
     estimateLine.replaceChildren();
     if (!e || !Number.isFinite(e.usd)) return;
+    if (provider === 'xenon') { paintSparks(e); return; }
     // Providers bill in US dollars: no conversion that would date faster than the price.
     const cost = new Intl.NumberFormat(locale(), { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', maximumSignificantDigits: 2 }).format(e.usd);
     const day = new Date(String(e.checked) + 'T12:00:00');
@@ -175,6 +180,15 @@
       el('strong', '', tr('lyrics_opt_estimate', 'About {cost} per {songs} new songs.')
         .replace('{cost}', cost).replace('{songs}', String(e.songs))),
       document.createTextNode(' ' + basis));
+  }
+
+  // Bit on Sparks: the figure in Sparks (the server converts it), measured or typical.
+  function paintSparks(e) {
+    if (!Number.isFinite(e.sparks)) return;
+    estimateLine.append(
+      el('strong', '', tr('lyrics_opt_estimate_sparks', 'About {sparks} Sparks per {songs} new songs.')
+        .replace('{sparks}', e.sparks.toLocaleString(locale())).replace('{songs}', String(e.songs))),
+      document.createTextNode(' ' + tr(e.measured ? 'lyrics_opt_sparks_measured' : 'lyrics_opt_sparks_typical')));
   }
 
   async function refreshUsage() {

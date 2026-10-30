@@ -103,9 +103,28 @@
       // junk never survives, so it can never produce a false update badge.
       const sourceVersion = cleanText(raw.sourceVersion, 20);
       if (sourceVersion && /^[0-9]+(\.[0-9]+)*$/.test(sourceVersion)) record.sourceVersion = sourceVersion;
+      // Installed with the 7-day pass trial: it comes off when the trial ends
+      // (js/trial-pass-ui.js), back to the theme that was on before it.
+      if (raw.trial === true) {
+        record.trial = true;
+        const prevThemeId = cleanText(raw.prevThemeId, 80);
+        if (prevThemeId && RESOURCE_ID_RE.test(prevThemeId)) record.prevThemeId = prevThemeId;
+      }
       out.unshift(record);
     }
     return out;
+  }
+
+  // The import marker a new theme card gets. A look saved on top of an imported
+  // animated background is still that import (tweaking one colour must not make
+  // its code yours): the card keeps the background's marker, so it is not
+  // re-shared and leaves when that content is removed, the end of a pass trial
+  // included.
+  function themeCardMark(snapshot, opts) {
+    const bg = snapshot && snapshot.bgCustom && snapshot.bgCustom.imported === true ? snapshot.bgCustom : null;
+    if (!(opts && opts.imported === true) && !bg) return {};
+    const installId = String((opts && opts.installId) || (bg && bg.installId) || '');
+    return INSTALL_ID_RE.test(installId) ? { imported: true, installId } : { imported: true };
   }
 
   const api = {
@@ -115,6 +134,7 @@
     normalizeResources,
     normalizeContentInstalls,
     resourceCount,
+    themeCardMark,
   };
   if (root && typeof root === 'object') root.ContentInstalls = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

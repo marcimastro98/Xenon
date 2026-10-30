@@ -98,7 +98,7 @@
       // `hidden` from settingsSetCategory, so that test indexed only the open
       // one. A card this machine lacks is caught by its category being absent
       // from the sidebar, or by the Windows-only mark.
-      if (!cat || !catKeys[cat]) continue;
+      if (!cat || !catKeys[cat] || card.dataset.unavailable === '1') continue;
       if (window.XenonPlatform && window.XenonPlatform !== 'win32' && card.closest('[data-settings-win-only]')) continue;
       const catFields = fieldsFor(catKeys[cat], 0.3, { mainOnly: true });
       const headEl = card.querySelector('.settings-group-head [data-i18n]:not(.settings-hint)');

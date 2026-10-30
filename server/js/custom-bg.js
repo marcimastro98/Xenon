@@ -131,7 +131,22 @@
   // Assets ride the same way: a JSON payload of validated data: URIs, embedded
   // as a JS string literal (identical escaping → no </script> breakout, exact
   // round-trip) and parsed back inside the frame.
-  function buildSrcdoc(code, assets, fps) {
+  // The heavy-background guard (js/bg-guard.js) as frame source: its two
+  // self-contained functions plus `G`, the guard state BOOTSTRAP reads (null =
+  // off). Without the module (script failed to load) the background just runs
+  // unguarded, as it did before the guard existed.
+  const Guard = (typeof window !== 'undefined' && window.BgGuard)
+    || (() => { try { return require('./bg-guard.js'); } catch { return null; } })();
+  const GUARD_SRC = Guard
+    ? Guard.createGuard.toString() + Guard.guardStep.toString() + 'var G=createGuard(__fps,' + JSON.stringify(Guard.LIMITS) + ');'
+    : '';
+  function guardSource(on) {
+    return on && GUARD_SRC ? GUARD_SRC : 'var G=null;';
+  }
+
+  // `guard` false turns the heavy-background guard off (the user's Settings
+  // choice); anything else keeps it on, previews included.
+  function buildSrcdoc(code, assets, fps, guard) {
     const js = encodeForJsString(String(code || '').slice(0, CODE_MAX));
     const assetsJson = encodeForJsString(JSON.stringify(sanitizeBgAssets(assets)));
     // sanitizeBgFps returns a plain bounded integer, so embedding it as a
@@ -141,7 +156,8 @@
       '<style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}' +
       'canvas{display:block;width:100vw;height:100vh}</style></head><body>' +
       '<canvas id="c"></canvas>' +
-      '<script>var __src=' + js + ',__assetsJson=' + assetsJson + ',__fps=' + sanitizeBgFps(fps) + ';' + BOOTSTRAP + '</scr' + 'ipt>' +
+      '<script>var __src=' + js + ',__assetsJson=' + assetsJson + ',__fps=' + sanitizeBgFps(fps) + ';' +
+      guardSource(guard !== false) + BOOTSTRAP + '</scr' + 'ipt>' +
       '</body></html>';
   }
 
@@ -169,10 +185,11 @@
     // the browser scales the result — invisible on a soft backdrop sitting behind
     // a dim veil and the whole UI, and it never makes a backdrop look different
     // between surfaces, only slightly softer on very large ones.
-    'var BG_MAX_PX=2600000;',
+    // pxCap starts at that ceiling and only the heavy-background guard lowers it.
+    'var BG_MAX_PX=2600000,pxCap=BG_MAX_PX;',
     'function size(){var d=Math.min(window.devicePixelRatio||1,2);',
     'var w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);',
-    'var over=(w*d)*(h*d)/BG_MAX_PX;if(over>1)d=d/Math.sqrt(over);',
+    'var over=(w*d)*(h*d)/pxCap;if(over>1)d=d/Math.sqrt(over);',
     'canvas.width=Math.max(1,Math.floor(w*d));canvas.height=Math.max(1,Math.floor(h*d));',
     'ctx.setTransform(d,0,0,d,0,0);}',
     'size();addEventListener("resize",size);',
@@ -190,10 +207,18 @@
     'function next(){var wait=step-RAF_LEAD;if(wait>4){tmo=setTimeout(function(){tmo=0;raf=requestAnimationFrame(frame);},wait);}else raf=requestAnimationFrame(frame);}',
     'function frame(t){raf=0;if(start===null)start=t;',
     'if(t-last<step-1){raf=requestAnimationFrame(frame);return;}',
-    'last=t;var el=(t-start)/1000;',
+    'last=t;var el=(t-start)/1000,t0=G?performance.now():0;',
     'try{if(draw)draw(ctx,el,innerWidth,innerHeight,assets);}catch(e){report({k:"runtime",m:String(e&&e.message||e)});return;}',
+    // Only after the warm-up: the first seconds pay for JIT and image decode.
+    'if(G&&warmedUp){var lv=guardStep(G,performance.now()-t0,t0);if(lv>0)degrade(lv);if(still)return;}',
     'next();}',
-    'function play(){if(!raf&&!tmo&&draw)raf=requestAnimationFrame(frame);}',
+    // The heavy-background guard's steps (js/bg-guard.js): 1 half the frame
+    // rate, 2 a quarter of the pixels it draws now, 3 keep the last frame and stop. The host
+    // hears each step, to tell the user once it has become a still image.
+    'var still=false;',
+    'function degrade(lv){if(lv===1)step=1000/G.fps;else if(lv===2){pxCap=canvas.width*canvas.height/4;size();}else{still=true;stop();}',
+    'try{parent.postMessage({__xbgSlow:lv},"*");}catch(e){}}',
+    'function play(){if(!still&&!raf&&!tmo&&draw)raf=requestAnimationFrame(frame);}',
     'function stop(){if(tmo){clearTimeout(tmo);tmo=0;}if(raf){cancelAnimationFrame(raf);raf=0;}}',
     // Pause when the tab is hidden OR the host signals it (perf/game mode).
     // `warmedUp` gates sync() for the first few seconds after boot regardless
@@ -239,6 +264,8 @@
     let current = null;        // the code string currently mounted (avoid needless remounts)
     let currentAssets = {};    // shallow snapshot of the mounted assets map — a changed image remounts too
     let currentFps = null;     // the mounted frame cap — a changed fps remounts too
+    let currentGuard = null;   // the heavy-background guard on/off — a change remounts too
+    let slowLevel = 0;         // the guard's last step for the mounted frame (0 = untouched)
     let frameEl = null;        // the live iframe, so the host can signal pause/resume
     let lastPaused = null;
 
@@ -312,10 +339,12 @@
       current = null;
       currentAssets = {};
       currentFps = null;
+      currentGuard = null;
+      slowLevel = 0;
       frameEl = null;
     }
 
-    function mount(code, assets, fps) {
+    function mount(code, assets, fps, guard) {
       const host = layer();
       const frame = document.createElement('iframe');
       // No allow-same-origin: the frame runs at a null origin, isolated from the
@@ -324,16 +353,18 @@
       frame.setAttribute('aria-hidden', 'true');
       frame.setAttribute('tabindex', '-1');
       frame.title = '';
-      frame.srcdoc = buildSrcdoc(code, assets, fps);   // buildSrcdoc sanitizes (second guard)
+      frame.srcdoc = buildSrcdoc(code, assets, fps, guard);   // buildSrcdoc sanitizes (second guard)
       // Once the frame's script is live, tell it the current pause state (it may
       // have been mounted while already in perf/game mode).
       frameEl = frame;
       lastPaused = null;
+      slowLevel = 0;
       frame.addEventListener('load', () => syncPause(true));
       host.replaceChildren(frame);
       current = code;
       currentAssets = Object.assign({}, (assets && typeof assets === 'object') ? assets : {});
       currentFps = sanitizeBgFps(fps);
+      currentGuard = guard !== false;
     }
 
     // Mount `code` (+ optional bundled image assets, + the frame-rate cap) as the
@@ -341,15 +372,16 @@
     // code+assets+fps so re-applying settings — which happens on EVERY settings
     // mutation — neither restarts the animation nor pays any per-call work
     // proportional to the asset bytes.
-    function apply(code, assets, fps) {
+    function apply(code, assets, fps, guard) {
       const next = (typeof code === 'string' && code.trim()) ? code.slice(0, CODE_MAX) : '';
       if (!next) { if (current !== null) unmount(); document.body.classList.remove('custom-bg-on'); return; }
       const rawAssets = (assets && typeof assets === 'object' && !Array.isArray(assets)) ? assets : {};
-      if (next === current && sameAssetMaps(rawAssets, currentAssets) && sanitizeBgFps(fps) === currentFps) {
+      if (next === current && sameAssetMaps(rawAssets, currentAssets) && sanitizeBgFps(fps) === currentFps
+          && (guard !== false) === currentGuard) {
         document.body.classList.add('custom-bg-on');
         return;
       }
-      mount(next, rawAssets, fps);
+      mount(next, rawAssets, fps, guard);
       document.body.classList.add('custom-bg-on');
     }
 
@@ -363,10 +395,14 @@
     // Relay it to the app as a DOM event so the settings editor can surface a
     // friendly error. Source-checked against the live frame so nothing else can
     // spoof a status; the payload is only ever rendered as textContent host-side.
+    // The guard's steps arrive the same way, as 'xenon-bg-slow' {level 1-3};
+    // the last one is kept for an editor opened afterwards (slowLevel()).
     window.addEventListener('message', (e) => {
       if (!frameEl || e.source !== frameEl.contentWindow) return;
       const d = e && e.data;
-      if (!d || typeof d !== 'object' || !('__xbgError' in d)) return;
+      if (!d || typeof d !== 'object') return;
+      if ('__xbgSlow' in d) { reportSlow(d.__xbgSlow); return; }
+      if (!('__xbgError' in d)) return;
       const err = d.__xbgError;
       try {
         document.dispatchEvent(new CustomEvent('xenon-bg-status', {
@@ -379,8 +415,17 @@
       } catch { /* CustomEvent unsupported → no editor feedback, backdrop still works */ }
     });
 
+    function reportSlow(level) {
+      if (!Number.isInteger(level) || level < 1 || level > 3 || level <= slowLevel) return;
+      slowLevel = level;
+      try {
+        document.dispatchEvent(new CustomEvent('xenon-bg-slow', { detail: { level, code: current } }));
+      } catch { /* CustomEvent unsupported → no notice, the guard still acted */ }
+    }
+
     window.CustomBg = {
       apply, buildSrcdoc, sanitizeBgAssets, sanitizeBgFps,
+      slowLevel: () => slowLevel,
       // Caps + shape rules exported so the settings UI pre-checks (friendly
       // toasts) read the SAME numbers the sanitizer enforces.
       ASSET_DATA_RE, ASSET_MAX_COUNT, ASSET_MAX_CHARS, ASSETS_TOTAL_MAX,

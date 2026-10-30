@@ -1,0 +1,83 @@
+/* The on-screen alerts window of "widgets only" (js/screen-alerts.js): the
+   dashboard's toast cards, unchanged, on a transparent window over the main
+   screen. The window shows and takes clicks only where a card is. */
+
+/* !important: themes paint html/body with their own, more specific rules, and
+   this window must stay see-through whatever theme is active. */
+html[data-screen-alerts],
+html[data-screen-alerts] body {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+/* Top right, where Windows and the game overlays people know put theirs, and
+   clear of a game's centre. The window covers the work area, so this sits
+   just under the screen's top edge. */
+html[data-screen-alerts] .xtoast-stack {
+  top: 16px;
+  left: auto;
+  right: 16px;
+  transform: none;
+}
+
+/* Nothing behind the window is part of the page, so the card's blur has
+   nothing to soften: a denser fill keeps two lines readable over a game. */
+html[data-screen-alerts] .xtoast {
+  background: linear-gradient(rgba(var(--panel-rgb), 0.86) 0 0), var(--floating-ui-bg);
+}
+
+/* An incoming call: the dashboard's call card, without the backdrop that dims
+   the dashboard behind it. Top centre, apart from the cards on the right and
+   clear of a game's middle; the window is cut to the card, so the screen
+   around it stays in use. */
+html[data-screen-alerts] .call-overlay {
+  inset: 16px auto auto 50%;
+  transform: translateX(-50%);
+  display: block;
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+}
+
+/* Where the centred card would reach the pop-ups (420 px card, 400 px cards
+   16 px from the right edge), it moves to the left edge instead. */
+@media (max-width: 1260px) {
+  html[data-screen-alerts] .call-overlay {
+    left: 16px;
+    transform: none;
+  }
+}
+
+/* A short screen (a small laptop at 150%): a smaller avatar keeps the card
+   and its buttons on the screen. */
+@media (max-height: 600px) {
+  html[data-screen-alerts] .call-card { padding: 22px 20px 18px; gap: 14px; }
+  html[data-screen-alerts] .call-avatar { width: 80px; height: 80px; font-size: 30px; }
+}
+
+/* Under 460 px of height the card turns into its one-row grid (CallModal.css),
+   which needs the width it was drawn for. */
+@media (max-height: 460px) and (min-width: 700px) {
+  html[data-screen-alerts] .call-overlay { width: min(780px, calc(100vw - 32px)); }
+}
+
+/* The Game Companion card (js/screen-companion.js), opened from a key or the
+   voice: centred, as the game overlays people know put theirs, without the
+   backdrop that dims the dashboard. The full-window layer lets clicks through
+   so the pop-ups under it stay usable; only the card takes them. */
+html[data-screen-alerts] .gc-overlay {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+
+html[data-screen-alerts] .gc-card {
+  pointer-events: auto;
+  background: linear-gradient(rgba(var(--panel-rgb), 0.92) 0 0), var(--floating-ui-bg);
+}
+
+/* "Ask out loud" takes the row of the typed question (the window gets no
+   keyboard), so it reads as the second action under "Analyze screen". */
+html[data-screen-alerts] .gc-ask-voice { order: 1; }

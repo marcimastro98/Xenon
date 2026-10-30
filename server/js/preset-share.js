@@ -124,6 +124,15 @@
   // 6 is generous. Also keeps a crafted deeply-nested payload from recursing
   // the normalizer into a stack overflow — folders past the cap are emptied.
   const DECK_MAX_FOLDER_DEPTH = 6;
+  // What one package (bundle) code carries at most. Top-level so Node sees
+  // them too: the AI preset builder (server/ai-presets.js) checks against them.
+  const BUNDLE_MAX_WIDGETS = 12;
+  const BUNDLE_MAX_DECKS = 6;
+  // A deck code may embed the packages its keys reference (sdkMacro/sdkHandler/
+  // sdkState) — a smaller cap than a bundle: dependencies, not a distribution.
+  const DECK_EMBED_MAX_WIDGETS = 4;
+  // A Sparks buy asks twice; a second tap closer than this is one double tap.
+  const CONFIRM_GAP_MS = 600;
   // The community catalog caps a share code at 4 MB (hub MAX_CODE, and
   // community-catalog.js MAX_CODE_BYTES). A pack is always shareable as a FILE
   // regardless, so this only gates the "publish to catalog" reach — the builder
@@ -141,6 +150,8 @@
   // The pack-relative playSound.file shape that survives deck-profile
   // export/import (mirrors PACK_FILE_RE in server/sound-packs.js).
   const PACK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
+  // openApp launch arguments travel ("--incognito") unless one of them is a path.
+  const LOCAL_PATH_RE = /[a-z]:[\\/]|\\\\\w|(^|[\s"'=])(~[\\/]|\/(users|home|mnt|media|volumes)\/)/i;
 
   // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
   // Caps mirror server/icon-packs.js (the authority) so the builder gives the
@@ -268,6 +279,32 @@
   // full backup — the theme just exports colours-only with a heads-up.
   const THEME_FONT_EMBED_MAX = 2 * 1024 * 1024;
   const FONT_EXT_RE = /\.(woff2|woff|ttf|otf)$/i;
+  // A package may carry the user's wallpaper picture (never a video: too big for a
+  // code). A raster picture lands through POST /background on import, the same
+  // validated, server-named path as a manual upload; a pasted SVG stays a data: URI
+  // that normalizeSettings checks like any other.
+  const WALLPAPER_EMBED_MAX = 2 * 1024 * 1024;
+  // Smaller pictures travel untouched; larger ones are re-encoded to fit.
+  const WALLPAPER_KEEP_MAX = 1024 * 1024;
+  const WALLPAPER_EXT_BY_TYPE = Object.freeze({ 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif' });
+  const WALLPAPER_SVG_PREFIX = 'data:image/svg+xml;base64,';
+  const WALLPAPER_SVG_MAX_CHARS = 512 * 1024;
+  // Untrusted wallpaper from a code → { type, ext, name, data } | { type, name, url } | null.
+  function wallpaperPayload(w) {
+    if (!w || typeof w !== 'object') return null;
+    const type = String(w.type || '');
+    const name = String(w.name || '').trim().slice(0, 120);
+    if (type === 'image/svg+xml') {
+      const url = typeof w.url === 'string' ? w.url : '';
+      if (!url.startsWith(WALLPAPER_SVG_PREFIX) || url.length > WALLPAPER_SVG_MAX_CHARS) return null;
+      return { type, name, url };
+    }
+    const ext = WALLPAPER_EXT_BY_TYPE[type];
+    const data = typeof w.data === 'string' ? w.data : '';
+    if (!ext || !data || data.length > Math.ceil(WALLPAPER_EMBED_MAX / 3) * 4) return null;
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return null;
+    return { type, ext, name, data };
+  }
 
   // ── Pure format helpers (exported for unit tests) ─────────────────
   // Encode a preset into a compact, shareable code (base64url of the JSON envelope).
@@ -366,6 +403,33 @@
     return n;
   }
 
+  // The copy of one action step that may leave this PC: the owner's own paths,
+  // numbers and device ids emptied (DeckActions.PERSONAL_PARAMS). playSound keeps
+  // its file only as a sound-pack ref (packs/<packId>/<clipId>.<ext>, the same on
+  // every machine, see server/sound-packs.js).
+  function withoutPersonalParams(action, A) {
+    if (action.type === 'playSound') {
+      return PACK_SOUND_FILE_RE.test(String(action.file || '')) ? action : { ...action, file: '' };
+    }
+    const out = { ...action };
+    for (const name of (A.PERSONAL_PARAMS || {})[action.type] || []) if (name in out) out[name] = '';
+    if (action.type === 'openApp' && LOCAL_PATH_RE.test(String(action.args || ''))) delete out.args;
+    return out;
+  }
+
+  // How many keys of a sanitized profile arrive waiting for the receiver's own
+  // app, file, number or device (DeckActions.needsSetup on any step).
+  function keysToFinish(profile, deps) {
+    const A = deps && deps.actions, M = deps && deps.model;
+    if (!A || !M || typeof A.needsSetup !== 'function') return 0;
+    let n = 0;
+    eachProfileKey(profile, (key) => {
+      if (key.kind !== 'action' || !key.triggers) return;
+      if (M.KEY_TRIGGERS.some((slot) => A.triggerSteps(key.triggers[slot]).some((s) => A.needsSetup(s.action)))) n++;
+    });
+    return n;
+  }
+
   // Rebuild an untrusted deck profile into a clean { name, root } (no id — the
   // importer assigns a fresh one), or null. Everything is rebuilt, never
   // spread: the profile through DeckModel's normalizer (full 8×8 grid so no key
@@ -394,17 +458,13 @@
             // typeText injects arbitrary keystrokes into whatever app is focused —
             // with '\n' mapped to a real Enter that's runScript-class (a key could
             // type a command into a terminal/Run box and execute it). Drop those
-            // steps on export AND import; the importer adds their own. playSound
-            // steps are kept, and their FILE survives ONLY as a pack-relative
-            // sound-pack ref (packs/<packId>/<clipId>.<ext> — deterministic on
-            // every machine, see server/sound-packs.js): install the same pack
-            // and the key plays again after import. Any other path is blanked:
-            // it's a machine-local absolute path (dead on any other PC) that
-            // would otherwise leak the sharer's username/folder layout.
+            // steps on export AND import; the importer adds their own. Every
+            // other step keeps its action with the sharer's own paths, numbers
+            // and device ids emptied (withoutPersonalParams): they are dead on
+            // any other PC and would leak the sharer's user folder or contacts.
             const steps = A.triggerSteps(rawTriggers[name])
               .filter((s) => s.action && s.action.type !== 'runScript' && s.action.type !== 'typeText')
-              .map((s) => (s.action.type === 'playSound' && !PACK_SOUND_FILE_RE.test(String(s.action.file || ''))
-                ? { ...s, action: { ...s.action, file: '' } } : s));
+              .map((s) => ({ ...s, action: withoutPersonalParams(s.action, A) }));
             const t = A.compactTrigger(steps);
             if (t) clean[name] = t;
           }
@@ -412,8 +472,15 @@
           if (key.state && !(M.DECK_STATE_SOURCES || []).includes(key.state.source)) delete key.state;
           if (key.live && !(M.DECK_LIVE_SOURCES || []).includes(key.live.source)) delete key.live;
         }
+        // A keyboard shortcut is this PC's own choice: a shared profile must not
+        // grab a combination on somebody else's keyboard.
+        delete key.shortcut;
         if (key.icon && typeof key.icon.value === 'string' && /^blob:/i.test(key.icon.value)) key.icon.value = '';
         if (key.bgImage && typeof key.bgImage.value === 'string' && /^blob:/i.test(key.bgImage.value)) delete key.bgImage;
+        // The second face and the cycle faces carry icons too, under the same rule.
+        for (const face of [key.stateStyle].concat(Array.isArray(key.cycle) ? key.cycle : [])) {
+          if (face && face.icon && typeof face.icon.value === 'string' && /^blob:/i.test(face.icon.value)) delete face.icon;
+        }
       });
       const out = { name: prof.name, root: prof.root };
       // The author's grid shape travels with the profile (per-profile grids), so
@@ -612,6 +679,30 @@
     return { code: b64urlEncode(JSON.stringify(env)), codes };
   }
 
+  // A code handed over whole (catalog, link, assistant) skips the paste step and
+  // lands on its review. A protected one still waits for its code, and one with
+  // a performance note stays so the note is read first.
+  function skipsPasteStep(prefill, perfWarning) {
+    return !!prefill && !peekLocked(prefill) && perfWarning !== true;
+  }
+
+  // The assistant's drafts: a new version closes the dialogs of the previous one
+  // first, so voice mode, which runs each call as it arrives, never stacks them.
+  function makeDraftTracker() {
+    const closes = new Set();
+    let capturing = false;
+    return {
+      track(close) { if (capturing) closes.add(close); },
+      forget(close) { closes.delete(close); },
+      open(run) {
+        for (const close of [...closes]) close();
+        closes.clear();
+        capturing = true;
+        try { return run(); } finally { capturing = false; }
+      },
+    };
+  }
+
   // Recognise a locked bundle (before asking for a code) and normalise it into a
   // trusted shape, or null. Rejects malformed / out-of-bounds envelopes so the
   // unlock path only ever iterates a sane set of entries.
@@ -749,6 +840,11 @@
         source: importSource.source === 'catalog' ? 'catalog' : 'import',
         sourceId: importSource.sourceId || '',
         sourceVersion: importSource.sourceVersion || '',
+        // Opened with the pass trial: marked, with the theme to go back to.
+        ...(importSource.trial === true ? {
+          trial: true,
+          prevThemeId: typeof findActiveThemeId === 'function' ? String(findActiveThemeId() || '') : '',
+        } : {}),
         resources: {
           themeIds: [], pagePresetIds: [], pageIds: [], deckProfiles: [],
           deckPresetIds: [], widgetIds: [], ambientSceneIds: [], iconPackIds: [],
@@ -804,13 +900,12 @@
 
     function linkFor(code) { try { return location.origin + '/#preset=' + code; } catch { return '#preset=' + code; } }
 
+    // "Save as" where the browser has one (js/save-file.js), else a download.
     function download(filename, text, mime) {
-      const blob = new Blob([text], { type: mime || 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const type = mime || 'application/json';
+      const S = window.XenonSaveFile;
+      S.save({ name: filename, types: [type === 'text/plain' ? S.TEXT_TYPE : S.JSON_TYPE], make: async () => new Blob([text], { type }) })
+        .catch(() => toast(tr('save_file_failed', 'Could not save the file'), '', 'error'));
     }
     async function copy(text) {
       try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
@@ -860,6 +955,23 @@
     // ---- deck-profile export ----
     const deckDeps = () => ({ model: window.DeckModel, actions: window.DeckActions });
 
+    // How many keys of a listed profile would arrive empty somewhere else.
+    function templateKeysToFinish(entry) {
+      const D = window.Deck;
+      const tpl = (D && D.getProfileTemplate) ? D.getProfileTemplate(entry.instanceId, entry.profileId) : null;
+      const prof = tpl ? sanitizeDeckProfile(tpl, deckDeps()) : null;
+      return prof ? keysToFinish(prof, deckDeps()) : 0;
+    }
+    // The import preview says which keys need the receiver's own app, file or device.
+    function appendKeysToFinish(body, profiles) {
+      const n = profiles.reduce((sum, prof) => sum + keysToFinish(prof, deckDeps()), 0);
+      if (!n) return;
+      const line = document.createElement('p');
+      line.className = 'preset-modal-desc';
+      line.textContent = tr('preset_deck_finish', 'Keys to set up after import: {n}. They used apps, files or devices on the PC they came from, so they arrive empty: pick your own in the Deck editor.').replace('{n}', n);
+      body.appendChild(line);
+    }
+
     // Share one profile object (from the deck's profile menu, or the picker
     // below). Sanitized BEFORE encoding, so an exported code never carries
     // anything the validator wouldn't accept back.
@@ -867,15 +979,17 @@
       // Redistribution guard: a profile that arrived via a share code is someone
       // else's work — only original creations may leave as a new code.
       if (profileObj && profileObj.imported === true) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       const prof = sanitizeDeckProfile(profileObj, deckDeps());
       if (!prof || !countProfileKeys(prof)) {
-        toast(tr('preset_share_empty_deck', 'This profile is empty — nothing to share.'), '', 'error');
+        toast(tr('preset_share_empty_deck', 'This profile is empty: nothing to share.'), '', 'error');
         return;
       }
       const name = prof.name || tr('preset_kind_deck', 'Deck profile');
+      const finish = keysToFinish(prof, deckDeps());
+      if (finish) toast(name, tr('preset_deck_finish_meta', 'to set up after import: {n}').replace('{n}', finish), 'info');
       const shareWith = (widgets) => {
         const data = widgets && widgets.length ? Object.assign({}, prof, { widgets }) : prof;
         openShareDialog('deck', name, encodePreset('deck', name, data, { exportedAt: stamp(), appVersion: appVersion() }), prof);
@@ -943,12 +1057,12 @@
       const D = window.Deck;
       const all = (D && D.listAllDeckProfiles) ? D.listAllDeckProfiles() : [];
       if (!all.length) {
-        toast(tr('preset_share_empty_deck', 'This profile is empty — nothing to share.'), '', 'error');
+        toast(tr('preset_share_empty_deck', 'This profile is empty: nothing to share.'), '', 'error');
         return;
       }
       // Nothing of the user's own to share → say why instead of an all-disabled picker.
       if (!all.some(p => p.imported !== true)) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       if (all.length === 1) { doExportDeck(all[0]); return; }
@@ -974,7 +1088,7 @@
         const meta = document.createElement('span');
         meta.className = 'preset-page-meta';
         meta.textContent = p.imported === true
-          ? tr('preset_imported_hint', 'imported — not shareable')
+          ? tr('preset_imported_hint', 'imported: not shareable')
           : p.keys + ' ' + tr('preset_deck_keys', 'keys');
         btn.appendChild(nm); btn.appendChild(meta);
         btn.addEventListener('click', () => { close(); doExportDeck(p); });
@@ -1001,7 +1115,16 @@
     async function themeExportData() {
       const data = currentTheme();
       const font = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings.uiFont : null;
-      if (font && typeof font.url === 'string' && FONT_EXT_RE.test(font.url)) {
+      // The colours of a tweaked look are yours; an imported animated background
+      // or font inside it is not, so those stay behind.
+      const fontImported = !!(font && font.url && typeof getCustomThemes === 'function'
+        && getCustomThemes().some(card => card && card.imported === true && card.uiFont && card.uiFont.url === font.url));
+      const bgImported = !!(data.bgCustom && data.bgCustom.imported === true);
+      if (bgImported) delete data.bgCustom;
+      if (bgImported || fontImported) {
+        toast(tr('preset_export_parts_skipped', 'Parts of this theme came from someone else, so it was shared without them.'), '', 'info');
+      }
+      if (!fontImported && font && typeof font.url === 'string' && FONT_EXT_RE.test(font.url)) {
         try {
           const buf = await (await fetch(getFontSource(font))).arrayBuffer();
           if (buf.byteLength && buf.byteLength <= THEME_FONT_EMBED_MAX) {
@@ -1011,15 +1134,59 @@
               name: String(font.name || '').slice(0, 120),
             };
           } else {
-            toast(tr('preset_font_too_large', 'Font too large to embed — the theme was shared without it.'), '', 'error');
+            toast(tr('preset_font_too_large', 'Font too large to embed: the theme was shared without it.'), '', 'error');
           }
         } catch { /* font unreadable → export colours only */ }
       }
       return data;
     }
+    // Whether the wallpaper can go in a package: 'ok', 'video' (too big for a
+    // code), 'imported' (someone else's picture), or null when none is set.
+    function wallpaperState() {
+      const m = HS().backgroundMedia;
+      if (!m || !m.url) return null;
+      if (m.imported === true) return 'imported';
+      if (/^video\//.test(String(m.type || ''))) return 'video';
+      return 'ok';
+    }
+    // Draws the picture smaller until it fits; WebP where the WebView encodes it,
+    // JPEG where it does not (Safari/WKWebView hands back PNG for image/webp).
+    async function reencodeWallpaper(blob) {
+      const bitmap = await createImageBitmap(blob);
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        for (const [side, quality] of [[3840, 0.86], [2560, 0.8], [1920, 0.75]]) {
+          const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
+          canvas.width = Math.round(bitmap.width * scale);
+          canvas.height = Math.round(bitmap.height * scale);
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          let out = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
+          if (!out || out.type !== 'image/webp') out = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+          if (out && out.size <= WALLPAPER_EMBED_MAX) return out;
+        }
+        return null;
+      } finally { bitmap.close(); }
+    }
+    // The wallpaper as a package carries it, or null when it cannot travel.
+    async function wallpaperExportData() {
+      if (wallpaperState() !== 'ok') return null;
+      const m = HS().backgroundMedia;
+      const name = String(m.name || '').slice(0, 120);
+      if (m.url.startsWith('data:')) return wallpaperPayload({ type: 'image/svg+xml', name, url: m.url });
+      try {
+        const blob = await (await fetch(m.url)).blob();
+        // An animated GIF would lose its motion on a canvas, so it travels as is.
+        const keep = blob.type === 'image/gif' || (blob.size <= WALLPAPER_KEEP_MAX && WALLPAPER_EXT_BY_TYPE[blob.type]);
+        const packed = keep ? blob : await reencodeWallpaper(blob);
+        if (!packed || packed.size > WALLPAPER_EMBED_MAX) return null;
+        const data = bytesToBase64(new Uint8Array(await packed.arrayBuffer()));
+        return wallpaperPayload({ type: packed.type, name, data });
+      } catch { return null; }
+    }
     async function exportTheme() {
       if (currentThemeImported()) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       const name = tr('preset_share_theme_name', 'My theme');
@@ -1034,12 +1201,12 @@
       const cb = HS().bgCustom;
       const code = (cb && typeof cb.code === 'string') ? cb.code.trim() : '';
       if (!code) {
-        toast(tr('preset_share_empty_bg', 'No animated background to share yet — create or pick one first.'), '', 'error');
+        toast(tr('preset_share_empty_bg', 'No animated background to share yet: create or pick one first.'), '', 'error');
         return;
       }
       // Redistribution guard: an imported background is someone else's work.
       if (cb.imported === true) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       const name = (cb && cb.name && String(cb.name).trim()) || tr('preset_kind_bg', 'Animated background');
@@ -1142,18 +1309,18 @@
           const ext = (f.name.match(/\.([^.]+)$/) || [])[1];
           const type = /^svg$/i.test(ext) ? 'svg' : /^png$/i.test(ext) ? 'png' : '';
           if (!type) { toast(tr('iconpack_builder_badtype', 'Only .svg and .png icons are supported.'), f.name, 'error'); continue; }
-          if (f.size > ICONS_ICON_MAX) { toast(tr('iconpack_builder_toobig', 'Icon over 24 KB — export a smaller one.'), f.name, 'error'); continue; }
+          if (f.size > ICONS_ICON_MAX) { toast(tr('iconpack_builder_toobig', 'Icon over 24 KB: export a smaller one.'), f.name, 'error'); continue; }
           let bytes;
           try { bytes = new Uint8Array(await f.arrayBuffer()); } catch { continue; }
           if (type === 'svg') {
             const problem = iconSvgProblem(new TextDecoder().decode(bytes));
             if (problem) {
-              toast(tr('iconpack_builder_invalid_svg', 'SVG rejected — it contains scripts, external links or embedded content.'), f.name + ' · ' + problem, 'error');
+              toast(tr('iconpack_builder_invalid_svg', 'SVG rejected: it contains scripts, external links or embedded content.'), f.name + ' · ' + problem, 'error');
               continue;
             }
           }
           const total = icons.reduce((s, ic) => s + Math.ceil(ic.data.length * 3 / 4), 0) + bytes.length;
-          if (total > ICONS_PACK_MAX) { toast(tr('iconpack_builder_packfull', 'Pack over 2 MB — remove some icons first.'), f.name, 'error'); continue; }
+          if (total > ICONS_PACK_MAX) { toast(tr('iconpack_builder_packfull', 'Pack over 2 MB: remove some icons first.'), f.name, 'error'); continue; }
           const id = uniquePackItemId(iconIdFromFilename(f.name) || ('icon-' + (icons.length + 1)), icons.map(ic => ic.id));
           const data = bytesToBase64(bytes);
           icons.push({
@@ -1205,7 +1372,7 @@
       const { body, close } = buildModal(tr('soundpack_builder_title', 'Create sound pack'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
-      desc.textContent = tr('soundpack_builder_desc', 'Pick MP3, OGG or WAV clips (each up to 512 KB, 1.4 MB per pack). Whoever imports the pack can play them from Deck keys and widgets — and shared Deck profiles keep their sounds.');
+      desc.textContent = tr('soundpack_builder_desc', 'Pick MP3, OGG or WAV clips (each up to 512 KB, 1.4 MB per pack). Whoever imports the pack can play them from Deck keys and widgets, and shared Deck profiles keep their sounds.');
       body.appendChild(desc);
 
       const fieldRow = (labelKey, fallback, value, placeholder) => {
@@ -1276,8 +1443,8 @@
           if (clips.length >= SOUNDS_MAX_CLIPS) { toast(tr('soundpack_builder_full', 'Pack is full (24 clips).'), '', 'error'); break; }
           const ext = ((f.name.match(/\.([^.]+)$/) || [])[1] || '').toLowerCase();
           if (!SOUNDS_CLIP_EXTS.includes(ext)) { toast(tr('soundpack_builder_badtype', 'Only .mp3, .ogg and .wav clips are supported.'), f.name, 'error'); continue; }
-          if (f.size > SOUNDS_CLIP_MAX) { toast(tr('soundpack_builder_toobig', 'Clip over 512 KB — export a shorter or more compressed one.'), f.name, 'error'); continue; }
-          if (totalBytes() + f.size > SOUNDS_PACK_MAX) { toast(tr('soundpack_builder_packfull', 'Pack over 1.4 MB — remove some clips first.'), f.name, 'error'); continue; }
+          if (f.size > SOUNDS_CLIP_MAX) { toast(tr('soundpack_builder_toobig', 'Clip over 512 KB: export a shorter or more compressed one.'), f.name, 'error'); continue; }
+          if (totalBytes() + f.size > SOUNDS_PACK_MAX) { toast(tr('soundpack_builder_packfull', 'Pack over 1.4 MB: remove some clips first.'), f.name, 'error'); continue; }
           let bytes;
           try { bytes = new Uint8Array(await f.arrayBuffer()); } catch { continue; }
           const id = uniquePackItemId(iconIdFromFilename(f.name) || ('clip-' + (clips.length + 1)), clips.map(c => c.id));
@@ -1322,12 +1489,12 @@
     function exportPage() {
       const pages = listPages();
       if (!pages.some(p => p.count > 0)) {
-        toast(tr('preset_share_empty_page', 'This page is empty — nothing to share.'), '', 'error');
+        toast(tr('preset_share_empty_page', 'This page is empty: nothing to share.'), '', 'error');
         return;
       }
       // Only imported pages left → say why instead of an all-disabled picker.
       if (!pages.some(p => p.count > 0 && !p.imported)) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       if (pages.length === 1) { doExportPage(pages[0].id); return; }
@@ -1393,12 +1560,12 @@
       // else's layout — only original pages may leave as a new code.
       const meta = listPages().find(p => p.id === pageId);
       if (meta && meta.imported) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       const cp = capturePage(pageId);
       if (!cp || !cp.data || !Array.isArray(cp.data.items) || !cp.data.items.length) {
-        toast(tr('preset_share_empty_page', 'This page is empty — nothing to share.'), '', 'error');
+        toast(tr('preset_share_empty_page', 'This page is empty: nothing to share.'), '', 'error');
         return;
       }
       const dropped = await inlineDecorAssets(cp.data.items);
@@ -1435,7 +1602,7 @@
         const meta = document.createElement('span');
         meta.className = 'preset-page-meta';
         meta.textContent = p.imported === true
-          ? tr('preset_imported_hint', 'imported — not shareable')
+          ? tr('preset_imported_hint', 'imported: not shareable')
           : p.count
             ? p.count + ' ' + tr('preset_pick_widgets', 'widgets')
             : tr('preset_pick_empty', 'empty');
@@ -1455,11 +1622,7 @@
     // code/file. Widgets travel as their validated file payload (GET
     // /sdk/export) and re-install through the same server boundary. Only the
     // user's OWN creations are packable: imported items show up disabled.
-    const BUNDLE_MAX_WIDGETS = 12;
-    const BUNDLE_MAX_DECKS = 6;
-    // A deck code may embed the packages its keys reference (sdkMacro/sdkHandler/
-    // sdkState) — a smaller cap than a bundle: dependencies, not a distribution.
-    const DECK_EMBED_MAX_WIDGETS = 4;
+    // The caps (BUNDLE_MAX_WIDGETS and friends) sit at the top of the file.
 
     async function listSdkWidgets() {
       try {
@@ -1514,12 +1677,26 @@
       const { body, close } = buildModal(tr('preset_bundle_title', 'Create a package'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
-      desc.textContent = tr('preset_bundle_desc', 'Everything you created — theme, pages, Deck profiles, background, widgets and Ambient scenes — in one code or file. Pick what to include.');
+      desc.textContent = tr('preset_bundle_desc', 'Everything you created (theme, pages, Deck profiles, background, widgets and Ambient scenes) in one code or file. Pick what to include.');
       body.appendChild(desc);
+
+      // The package's name is what the Store and whoever imports it will see, so it
+      // is asked for here instead of stamped with a default nobody reads.
+      const nameLabel = document.createElement('label');
+      nameLabel.className = 'preset-unlock-label';
+      const nameText = document.createElement('span');
+      nameText.textContent = tr('preset_bundle_name', 'Package name');
+      const nameField = document.createElement('input');
+      nameField.type = 'text';
+      nameField.className = 'preset-unlock-field';
+      nameField.maxLength = 60;
+      nameField.addEventListener('input', () => nameField.classList.remove('need'));
+      nameLabel.appendChild(nameText); nameLabel.appendChild(nameField);
+      body.appendChild(nameLabel);
 
       const list = document.createElement('div');
       list.className = 'preset-check-list';
-      const importedMeta = tr('preset_imported_hint', 'imported — not shareable');
+      const importedMeta = tr('preset_imported_hint', 'imported: not shareable');
       // Live summary: every checkbox reports its kind so the footer can say
       // exactly what the package will contain, at a glance.
       const tracked = [];
@@ -1534,6 +1711,21 @@
         themeImported ? importedMeta : tr('preset_bundle_theme_meta', 'current appearance'), true, themeImported);
       track(themeRow.cb, 'theme');
       list.appendChild(themeRow.row);
+
+      // The wallpaper picture, optional: shown whenever one is set, so a video or
+      // someone else's picture says why it stays behind instead of vanishing.
+      const wallState = wallpaperState();
+      let wallRow = null;
+      if (wallState) {
+        const off = wallState !== 'ok';
+        hasImported = hasImported || wallState === 'imported';
+        const meta = wallState === 'imported' ? importedMeta
+          : wallState === 'video' ? tr('preset_bundle_wallpaper_video', 'a video is too big for a package')
+            : String(HS().backgroundMedia.name || '');
+        wallRow = checkRow(tr('preset_bundle_wallpaper', 'Wallpaper picture'), meta, !off, off);
+        track(wallRow.cb, 'wallpaper');
+        list.appendChild(wallRow.row);
+      }
 
       // Pages — one row each; empty and imported pages disabled.
       const pageRows = [];
@@ -1559,7 +1751,9 @@
         decks.slice(0, BUNDLE_MAX_DECKS).forEach((p) => {
           const off = p.imported === true;
           hasImported = hasImported || off;
-          const meta = off ? importedMeta : p.keys + ' ' + tr('preset_deck_keys', 'keys');
+          const finish = off ? 0 : templateKeysToFinish(p);
+          const meta = off ? importedMeta : p.keys + ' ' + tr('preset_deck_keys', 'keys')
+            + (finish ? ' · ' + tr('preset_deck_finish_meta', 'to set up after import: {n}').replace('{n}', finish) : '');
           const r = checkRow(p.name, meta, !off, off);
           track(r.cb, 'deck');
           list.appendChild(r.row);
@@ -1624,6 +1818,7 @@
       // Singular/plural labels reuse the per-kind names already translated.
       const KIND_LABELS = {
         theme: [tr('preset_kind_theme', 'Theme'), tr('preset_kind_theme', 'Theme')],
+        wallpaper: [tr('preset_bundle_wallpaper', 'Wallpaper picture'), tr('preset_bundle_wallpaper', 'Wallpaper picture')],
         page: [tr('preset_kind_page', 'Page'), tr('preset_bundle_pages', 'Pages')],
         deck: [tr('preset_kind_deck', 'Deck profile'), tr('preset_bundle_decks', 'Deck profiles')],
         bg: [tr('preset_kind_bg', 'Animated background'), tr('preset_kind_bg', 'Animated background')],
@@ -1645,7 +1840,7 @@
       if (hasImported) {
         const note = document.createElement('p');
         note.className = 'preset-modal-desc preset-bundle-note';
-        note.textContent = tr('preset_bundle_imported_note', 'Greyed-out items were installed from someone else and can\'t be redistributed — only your own creations travel in a package.');
+        note.textContent = tr('preset_bundle_imported_note', 'Greyed-out items were installed from someone else and can\'t be redistributed: only your own creations travel in a package.');
         body.appendChild(note);
       }
 
@@ -1654,30 +1849,33 @@
       go.type = 'button'; go.className = 'settings-btn primary';
       go.textContent = tr('preset_bundle_create', 'Create package');
       go.addEventListener('click', async () => {
+        const name = nameField.value.trim().slice(0, 60);
+        if (!name) { nameField.classList.add('need'); nameField.focus(); return; }
         const picked = (r) => r.cb.checked && !r.cb.disabled;
         const sel = {
           theme: themeRow.cb.checked && !themeRow.cb.disabled,
+          wallpaper: !!(wallRow && picked(wallRow)),
           pageIds: pageRows.filter(picked).map(r => r.id),
           deckRefs: deckRows.filter(picked).map(r => ({ instanceId: r.instanceId, profileId: r.profileId })),
           bg: !!(bgRow && picked(bgRow)),
           topbar: picked(topbarRow),
           widgetIds: widgetRows.filter(picked).map(r => r.id),
         };
-        if (!sel.theme && !sel.pageIds.length && !sel.deckRefs.length && !sel.bg && !sel.topbar && !sel.widgetIds.length) {
+        if (!sel.theme && !sel.wallpaper && !sel.pageIds.length && !sel.deckRefs.length && !sel.bg && !sel.topbar && !sel.widgetIds.length) {
           toast(tr('preset_bundle_empty', 'Pick at least one thing to include.'), '', 'error');
           return;
         }
         const prev = go.textContent;
         go.disabled = true; go.textContent = tr('preset_bundle_building', 'Packing…');
         try {
-          const built = await buildBundle(sel);
+          const built = await buildBundle(sel, name);
           if (!built) { go.disabled = false; go.textContent = prev; toast(tr('preset_bundle_fail', 'Could not build the package.'), '', 'error'); return; }
           // A bundle that embeds widgets can be large; if it can't survive the
           // import decode guard, ask the user to drop some rather than hand out a
           // code that will never import.
           if (b64urlDecode(built.code).length > MAX_CODE_BYTES) {
             go.disabled = false; go.textContent = prev;
-            toast(tr('preset_bundle_toobig', 'This package is too big to share — remove a widget and try again.'), '', 'error');
+            toast(tr('preset_bundle_toobig', 'This package is too big to share: remove a widget and try again.'), '', 'error');
             return;
           }
           close();
@@ -1694,9 +1892,14 @@
     // Gather the selected parts into a bundle envelope. Widget payloads are read
     // via GET /sdk/export/<id> (already-served files, same asset allowlist/caps —
     // and the server refuses packages that aren't the user's own).
-    async function buildBundle(sel) {
+    async function buildBundle(sel, name) {
       const data = {};
       if (sel.theme) data.theme = await themeExportData();
+      if (sel.wallpaper) {
+        const wallpaper = await wallpaperExportData();
+        if (wallpaper) data.wallpaper = wallpaper;
+        else toast(tr('preset_wallpaper_skipped', 'The wallpaper picture could not be added, so the package was made without it.'), '', 'error');
+      }
       const pages = [];
       let decorDropped = false;
       for (const id of sel.pageIds) {
@@ -1757,8 +1960,7 @@
       }
       if (widgets.length) data.widgets = widgets;
       if (sel.topbar && window.TopbarShare) data.topbar = TopbarShare.of(HS());
-      if (!data.theme && !data.pages && !data.decks && !data.bg && !data.topbar && !data.widgets) return null;
-      const name = tr('preset_bundle_name', 'My Xenon package');
+      if (!data.theme && !data.wallpaper && !data.pages && !data.decks && !data.bg && !data.topbar && !data.widgets) return null;
       return { name, code: encodePreset('bundle', name, data, { exportedAt: stamp(), appVersion: appVersion() }) };
     }
 
@@ -1777,7 +1979,7 @@
       // packages never appear in the picker (the server refuses them anyway).
       const widgets = all.filter(w => w.exportable !== false);
       if (!widgets.length) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       if (widgets.length === 1) { doExportWidget(widgets[0]); return; }
@@ -1791,7 +1993,7 @@
       }
       const scenes = all.filter(w => w.exportable !== false);
       if (!scenes.length) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       if (scenes.length === 1) { doExportWidget(scenes[0], 'ambient'); return; }
@@ -1802,7 +2004,7 @@
     function exportWidgetPkg(pkg) {
       if (!pkg || !pkg.id) return;
       if (pkg.exportable === false) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       doExportWidget(pkg, pkg.surface === 'ambient' ? 'ambient' : undefined);
@@ -1897,7 +2099,7 @@
       if (!src || !AS) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
       // Redistribution guard: a scene imported from someone else is not re-shareable.
       if (src.imported === true) {
-        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        toast(tr('preset_export_imported', 'This was imported from someone else: you can only share your own creations.'), '', 'error');
         return;
       }
       const scene = AS.normalizeScene(JSON.parse(JSON.stringify(src)));
@@ -1945,7 +2147,7 @@
       if (!env) return false;
       if (env.kind === 'theme') return applyTheme(env.data, env.name);
       if (env.kind === 'page') return applyPage(env.data, env.name, env.gridCols);
-      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.decks || r.bg || r.topbar || r.widgets.installed)); }
+      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.wallpaper || r.pages || r.decks || r.bg || r.topbar || r.widgets.installed)); }
       if (env.kind === 'bg') return applyBg(env.data);
       if (env.kind === 'ambient-layout') return applyAmbientLayout(env.data, env.name);
       if (env.kind === 'icons') return applyIcons(env.data);
@@ -2003,9 +2205,13 @@
         const catalogVersion = (opts && opts.catalogStamp === true
           && importSource && importSource.source === 'catalog' && importSource.sourceVersion)
           ? importSource.sourceVersion : '';
+        // A trial package is already in the local server's vault: this only puts it in place.
+        const install = w.payload.trialVault === true
+          ? { trialVault: true, id: String(w.payload.id || '') }
+          : Object.assign({}, w.payload, { origin: 'import', catalogVersion });
         const res = await fetch('/sdk/install', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import', catalogVersion })),
+          body: JSON.stringify(install),
         });
         const d = await res.json().catch(() => ({}));
         const ok = !!(res.ok && d.ok);
@@ -2103,7 +2309,7 @@
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols, tx) {
-      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, topbar: false, widgets: { installed: 0, failed: 0, ids: [], placed: [] } };
+      const out = { theme: false, wallpaper: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, topbar: false, widgets: { installed: 0, failed: 0, ids: [], placed: [] } };
       const pageBinds = [];
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
@@ -2111,6 +2317,7 @@
         // not the auto-numbered default — a bundle carries an identity too.
         out.theme = await applyTheme(data.theme, name || null, tx);
       }
+      if (data.wallpaper) out.wallpaper = await applyWallpaper(data.wallpaper, tx);
       if (Array.isArray(data.pages)) {
         for (const p of data.pages) {
           if (p && p.data && applyPage(p.data, p.name, gridCols, tx, pageBinds)) out.pages++;
@@ -2202,6 +2409,36 @@
         return font;
       } catch { return null; }
     }
+    // A package's wallpaper picture becomes this machine's wallpaper. Marked
+    // imported (never re-exported) and tied to the install receipt, so removing
+    // the package puts the user's own background choice back to none.
+    async function applyWallpaper(raw, tx) {
+      const w = wallpaperPayload(raw);
+      if (!w) return false;
+      let media;
+      if (w.url) {
+        media = { url: w.url, name: w.name || 'svg', type: w.type };
+      } else {
+        try {
+          const form = new FormData();
+          form.append('background', new Blob([base64ToBytes(w.data)], { type: w.type }), 'wallpaper.' + w.ext);
+          const res = await fetch('/background', { method: 'POST', body: form });
+          const up = await res.json().catch(() => ({}));
+          if (!res.ok || !up.url) return false;
+          media = { url: up.url, name: w.name || 'wallpaper.' + w.ext, type: up.type || w.type };
+        } catch { return false; }
+      }
+      media = Object.assign(media, { version: String(Date.now()), imported: true, installId: tx ? tx.id : undefined });
+      try {
+        const next = normalizeSettings(Object.assign({}, HS(), { backgroundMedia: media }));
+        if (!next.backgroundMedia) return false;   // the settings boundary refused it
+        hubSettings = next;
+        if (typeof saveHubSettings === 'function') saveHubSettings();
+        if (typeof applyHubSettings === 'function') applyHubSettings();
+        if (tx) tx.resources.background = true;
+        return true;
+      } catch { return false; }
+    }
     async function applyTheme(data, name, tx) {
       if (!data || typeof data !== 'object') return false;
       // Declared keys plus explicit nulls for omitted optional roles — an import
@@ -2280,6 +2517,7 @@
 
     // ---- minimal modal ----
     let presetModalSeq = 0;
+    const aiDrafts = makeDraftTracker();
     function buildModal(titleText, onClose) {
       const overlay = document.createElement('div');
       overlay.className = 'preset-modal-overlay';
@@ -2309,6 +2547,7 @@
       const close = () => {
         if (closed) return;
         closed = true;
+        aiDrafts.forget(close);
         overlay.remove();
         document.removeEventListener('keydown', onKey);
         if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, false);
@@ -2317,6 +2556,7 @@
         // object URLs — always stops it (stop-what-you-start).
         if (typeof onClose === 'function') { try { onClose(); } catch { /* teardown best-effort */ } }
       };
+      aiDrafts.track(close);
       const onKey = (e) => { if (e.key === 'Escape') close(); };
       x.addEventListener('click', close);
       overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
@@ -2332,10 +2572,12 @@
     // Reminder shown when importing a community PACKAGE (widget / Ambient scene):
     // these live outside settings, so a backup carries their placement but NOT the
     // package itself — the user must keep the import code to reinstall it later.
+    // A Store install is the exception: the Store reinstalls it, there is no code to keep.
     function appendKeepCodeNote(body) {
+      if (importSource.source === 'catalog') return;
       const note = document.createElement('p');
       note.className = 'preset-modal-desc preset-keep-code';
-      note.textContent = tr('preset_keep_code', 'Keep this import code somewhere safe — your backup saves your settings and layout, but not community widgets or scenes themselves. You\'ll need this code to reinstall it if you ever lose it.');
+      note.textContent = tr('preset_keep_code', 'Keep this import code somewhere safe: your backup saves your settings and layout, but not community widgets or scenes themselves. You\'ll need this code to reinstall it if you ever lose it.');
       body.appendChild(note);
     }
     function codeField(value, readOnly) {
@@ -2484,7 +2726,7 @@
         const params = new URLSearchParams({ name: String(name || '').slice(0, 60) });
         if (CATALOG_PUBLISH_KINDS.includes(kind)) params.set('kind', kind);
         window.open('https://xenon-app.com/submit/?' + params.toString(), '_blank', 'noopener');
-        toast(tr('preset_publish_hint2', 'Code copied — paste it into the "Share code" field of the publish page.'), '', 'info');
+        toast(tr('preset_publish_hint2', 'Code copied: paste it into the "Share code" field of the publish page.'), '', 'info');
       });
       row.appendChild(pubBtn);
       body.appendChild(row);
@@ -2513,7 +2755,7 @@
 
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
-      desc.textContent = tr('preset_lock_desc', 'Generate a set of access codes. Share the protected file with anyone — it only installs for someone who also has one of the codes. Hand a different code to each person.');
+      desc.textContent = tr('preset_lock_desc', 'Generate a set of access codes. Share the protected file with anyone: it only installs for someone who also has one of the codes. Hand a different code to each person.');
       form.appendChild(desc);
 
       const label = document.createElement('label');
@@ -2586,7 +2828,7 @@
 
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
-      desc.textContent = tr('preset_lock_result_desc', 'Share this file or link with anyone. It only installs for someone who also has one of the access codes below — give a different code to each person.');
+      desc.textContent = tr('preset_lock_result_desc', 'Share this file or link with anyone. It only installs for someone who also has one of the access codes below: give a different code to each person.');
       body.appendChild(desc);
 
       const oversize = lockedCode.length > LINK_SOFT_MAX;
@@ -2682,7 +2924,7 @@
 
       const note = document.createElement('p');
       note.className = 'preset-modal-desc preset-lock-note';
-      note.textContent = tr('preset_lock_codes_note', 'Save these codes now — they are shown only once. Each unlocks the theme and can be reused, so give one to each person and keep them private. If you lose them you cannot hand out new copies.');
+      note.textContent = tr('preset_lock_codes_note', 'Save these codes now: they are shown only once. Each unlocks the theme and can be reused, so give one to each person and keep them private. If you lose them you cannot hand out new copies.');
       body.appendChild(note);
     }
 
@@ -2708,7 +2950,7 @@
         if (code) { openImport(code, meta); return 'dialog'; }
         toast(tr(why === 'offline' ? 'preset_redeem_offline' : 'preset_update_not_linked',
           why === 'offline'
-            ? 'Couldn’t reach the unlock service — check your connection and try again.'
+            ? 'Couldn’t reach the unlock service: check your connection and try again.'
             : 'This copy is not linked to this PC yet. Open the download link you were sent, choose the file here, and enter your code once.'), '', 'error');
         return 'none';
       };
@@ -2739,7 +2981,14 @@
       return fallback(outcome.kind);
     }
 
+    // `draft: true` marks a code the assistant made: its dialogs replace the
+    // previous draft's instead of opening on top of them.
     function openImport(prefill, sourceMeta) {
+      if (sourceMeta && sourceMeta.draft === true) aiDrafts.open(() => openImportDialog(prefill, sourceMeta));
+      else openImportDialog(prefill, sourceMeta);
+    }
+
+    function openImportDialog(prefill, sourceMeta) {
       const source = sourceMeta && typeof sourceMeta === 'object' ? sourceMeta : {};
       importSource = {
         source: source.source === 'catalog' ? 'catalog' : 'import',
@@ -2751,6 +3000,16 @@
         // so it is seen at the moment of decision, not only on the store card.
         perfWarning: source.perfWarning === true,
       };
+      // The catalog's word that the pass trial may open this entry (supporter
+      // tier, not limited, past its first 30 days); the hub has the last word.
+      const trialEligible = source.trialEligible === true;
+      // A supporter-tier drop from the Store (not a limited one, which a
+      // membership does not open): someone without a code gets a way to join.
+      const supporterDrop = source.supporterDrop === true;
+      // Sold for Sparks (catalog `sparks`, 1 Spark = 1 US cent). A Sparks-only
+      // drop is never opened by a pass or the trial, so redeem is not its way in.
+      const sparksPrice = Number.isInteger(source.sparks) && source.sparks > 0 ? source.sparks : 0;
+      const sparksOnly = sparksPrice > 0 && source.sparksOnly === true;
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
@@ -2766,6 +3025,23 @@
       const field = codeField('', false);
       field.placeholder = tr('preset_import_placeholder', 'Paste the link or code here…');
       body.appendChild(field);
+      // From the Store the code is already here: a wall of base64 and "paste a
+      // code" say nothing to the person installing it. Its name does.
+      const fromStore = !!prefill && importSource.source === 'catalog';
+      if (fromStore) {
+        desc.hidden = true;
+        field.hidden = true;
+        const itemName = typeof source.name === 'string' ? source.name.trim().slice(0, 80) : '';
+        if (itemName) {
+          const what = document.createElement('div');
+          what.className = 'preset-modal-what';
+          const nm = document.createElement('span');
+          nm.className = 'preset-modal-whatname';
+          nm.textContent = itemName;
+          what.appendChild(nm);
+          body.insertBefore(what, field);
+        }
+      }
 
       // A protected preset needs an unlock code too — reveal this field the
       // moment the pasted content is recognised as a locked bundle.
@@ -2787,7 +3063,7 @@
       unlockNote.className = 'preset-unlock-note';
       unlockNote.hidden = true;
       unlockNote.textContent = tr('preset_redeem_note',
-        'Your code is personal and works on up to 3 of your devices. Don’t share it — codes used beyond that are detected and blocked.');
+        'Your code is personal and works on up to 3 of your devices. Don’t share it: codes used beyond that are detected and blocked.');
       unlockWrap.appendChild(unlockNote);
 
       // A supporter pass opens every supporter drop, so typing it again for
@@ -2796,6 +3072,20 @@
       // empty — the code itself never comes back to the browser, so all we get
       // here is whether there is one (GET /api/community/supporter).
       let savedPass = false;
+      // True once both reads below have settled, so the join line never flashes
+      // for a supporter whose saved code is still being looked up.
+      let passKnown = false;
+      // The pass trial on this PC ({ state, used, endsAt }); the code itself
+      // stays on the server like the saved pass (GET /api/community/trial).
+      let trialRun = null;
+      const trialActive = () => !!(trialRun && trialRun.state === 'active');
+      // An empty field works when the server has a code to fill in.
+      const emptyOk = () => !sparksOnly && ((savedPass && !passLapsed) || trialActive());
+      // A Sparks code (XC) saved on this PC, from GET /api/community/sparks.
+      let savedWallet = false;
+      // Whether any saved code here can pay (a Sparks code, or a pass holding Sparks).
+      let savedCanBuy = false;
+      const trialDate = (ms) => (window.TrialPass ? window.TrialPass.dateText(ms) : new Date(ms).toLocaleDateString());
       let askedSaved = false;
       // Asked the first time a remote-locked payload is actually recognised, not
       // on every Import dialog: most imports are an ordinary shared theme and
@@ -2805,46 +3095,239 @@
         askedSaved = true;
         // Best-effort and unawaited: the dialog works either way, and a failed
         // read simply means the code gets typed as it always did.
-        fetch('/api/community/supporter')
+        const pass = fetch('/api/community/supporter')
           .then((r) => r.json())
           .then((r) => { if (r && r.saved) { savedPass = true; syncUnlockVisibility(); } })
           .catch(() => {});
+        const trial = fetch('/api/community/trial')
+          .then((r) => r.json())
+          .then((r) => { if (r && r.ok) { trialRun = r; syncUnlockVisibility(); } })
+          .catch(() => {});
+        const sparks = !sparksPrice ? Promise.resolve() : fetch('/api/community/sparks')
+          .then((r) => r.json())
+          .then((r) => { if (r && r.ok) { savedWallet = r.wallet === true; savedCanBuy = r.canBuy === true; syncUnlockVisibility(); } })
+          .catch(() => {});
+        Promise.all([pass, trial, sparks]).then(() => { passKnown = true; syncUnlockVisibility(); });
       };
+      // With a saved pass or a running trial there is nothing to type: one line
+      // says what will unlock it, and the field only comes back on request.
+      // Forgetting the pass lives in Settings, next to where it is saved.
+      let typingOther = false;
       const savedRow = document.createElement('div');
       savedRow.className = 'preset-unlock-saved';
       savedRow.hidden = true;
       const savedText = document.createElement('span');
-      savedText.textContent = tr('preset_redeem_saved',
-        'Your supporter code is saved on this PC — leave this empty to use it.');
-      const forgetBtn = document.createElement('button');
-      forgetBtn.type = 'button';
-      forgetBtn.className = 'settings-btn subtle preset-unlock-forget';
-      forgetBtn.textContent = tr('preset_redeem_forget', 'Forget it');
-      forgetBtn.addEventListener('click', async () => {
-        forgetBtn.disabled = true;
-        try { await fetch('/api/community/supporter/forget', { method: 'POST' }); } catch { /* offline: the field still works */ }
-        forgetBtn.disabled = false;
-        savedPass = false;
+      const otherBtn = document.createElement('button');
+      otherBtn.type = 'button';
+      otherBtn.className = 'settings-btn subtle preset-unlock-forget';
+      otherBtn.textContent = tr('preset_redeem_other', 'Use another code');
+      otherBtn.addEventListener('click', () => {
+        typingOther = true;
         syncUnlockVisibility();
         unlockField.focus();
-        toast(tr('preset_redeem_forgotten', 'Code forgotten on this PC.'), '', 'info');
       });
-      savedRow.appendChild(savedText); savedRow.appendChild(forgetBtn);
+      savedRow.appendChild(savedText); savedRow.appendChild(otherBtn);
       unlockWrap.appendChild(savedRow);
+
+      // Only for someone with no code at all: no pass saved, no trial used yet,
+      // and a drop the trial may open.
+      const tryRow = document.createElement('div');
+      tryRow.className = 'preset-unlock-saved preset-unlock-try';
+      tryRow.hidden = true;
+      const tryText = document.createElement('span');
+      tryText.textContent = tr('trial_try_note', 'No code yet? Try every supporter drop free for 7 days.');
+      const tryBtn = document.createElement('button');
+      tryBtn.type = 'button';
+      tryBtn.className = 'settings-btn subtle preset-unlock-forget';
+      tryBtn.textContent = tr('trial_try_btn', 'Try 7 days free');
+      tryBtn.addEventListener('click', () => { if (window.TrialPass) window.TrialPass.openTry('import'); });
+      tryRow.appendChild(tryText); tryRow.appendChild(tryBtn);
+      unlockWrap.appendChild(tryRow);
+
+      // No code and no trial to offer: say where a code comes from instead of
+      // leaving an empty field as the only way forward.
+      const joinRow = document.createElement('div');
+      joinRow.className = 'preset-unlock-saved preset-unlock-try';
+      joinRow.hidden = true;
+      const joinText = document.createElement('span');
+      joinText.textContent = tr('preset_join_note', 'No code yet? Supporters get one, and it opens every supporter drop.');
+      const joinLink = document.createElement('a');
+      joinLink.className = 'settings-btn subtle preset-unlock-forget';
+      const consts = window.Xenon && window.Xenon.constants;
+      joinLink.href = consts && typeof consts.supportUrl === 'function'
+        ? consts.supportUrl('store-unlock') : 'https://www.buymeacoffee.com/marcimastro98/membership';
+      joinLink.target = '_blank'; joinLink.rel = 'noopener noreferrer';
+      joinLink.textContent = tr('gallery_supporters_join', 'Become a supporter');
+      joinRow.appendChild(joinText); joinRow.appendChild(joinLink);
+      unlockWrap.appendChild(joinRow);
+
+      // Bought with Sparks: one button pressed twice, the price and then the
+      // confirmation, because it spends. The local server picks the code that
+      // pays (the pass, else the Sparks code) and answers with the content key.
+      let confirmBuy = false;
+      let confirmAt = 0;
+      let boughtCek = '';
+      // The hub said the pass opens it: from then on Import redeems as usual.
+      let useRedeem = false;
+      // The saved pass is past its window: it no longer opens new drops, so a
+      // "supporters or Sparks" drop shows its price again.
+      let passLapsed = false;
+      const buyRow = document.createElement('div');
+      buyRow.className = 'preset-unlock-saved preset-unlock-buy' + (sparksOnly ? ' is-lead' : '');
+      buyRow.hidden = true;
+      const buyText = document.createElement('span');
+      const buyBtn = document.createElement('button');
+      buyBtn.type = 'button';
+      buyBtn.className = 'settings-btn subtle preset-unlock-forget';
+      // To the Store's Sparks tab, where the packs are sold: this window steps aside.
+      const buyMore = document.createElement('button');
+      buyMore.type = 'button';
+      buyMore.className = 'settings-btn subtle preset-unlock-forget';
+      buyMore.textContent = tr('sparks_buy_more', 'Buy Sparks');
+      buyMore.addEventListener('click', () => {
+        if (!window.XenonCredits || typeof window.XenonCredits.openShop !== 'function') return;
+        close();
+        window.XenonCredits.openShop();
+      });
+      buyMore.hidden = true;
+      buyRow.appendChild(buyText); buyRow.appendChild(buyBtn); buyRow.appendChild(buyMore);
+      // The price leads when it is the only way in; otherwise it is the second option.
+      if (sparksOnly) unlockWrap.insertBefore(buyRow, unlockLabel); else unlockWrap.appendChild(buyRow);
+      // Set once the Import button exists (it is built further down).
+      let importBtnRef = null;
+      const syncBuy = () => {
+        const n = String(sparksPrice);
+        buyText.textContent = (sparksOnly
+          ? tr('sparks_buy_line_only', 'Yours for good for {n} Sparks ({usd} USD), updates included.')
+          : tr('sparks_buy_line_or', 'Or keep it for good for {n} Sparks ({usd} USD), updates included.'))
+          .replace('{n}', n).replace('{usd}', (sparksPrice / 100).toFixed(2));
+        const label = (confirmBuy
+          ? tr('sparks_buy_confirm', 'Confirm: spend {n} Sparks')
+          : tr('sparks_buy_btn', 'Use {n} Sparks')).replace('{n}', n);
+        // Sold only for Sparks, buying IS the import: the main button says so and
+        // the row's own button steps aside, so there is one action on screen.
+        buyBtn.hidden = sparksOnly;
+        if (sparksOnly) {
+          // Nothing on this PC can pay for it: where to get Sparks sits next to the price.
+          if (passKnown && !savedCanBuy) buyMore.hidden = false;
+          // An XL copy typed in the field is redeemed, so the button says Import again.
+          const typedItem = canonCode(unlockField.value).startsWith('XL');
+          if (importBtnRef) importBtnRef.textContent = (boughtCek || typedItem) ? tr('preset_import_apply', 'Import') : label;
+          return;
+        }
+        buyBtn.textContent = label;
+        buyBtn.classList.toggle('primary', confirmBuy);
+        buyBtn.classList.toggle('subtle', !confirmBuy);
+      };
+      // The field comes back for a code the server does not have (or no longer accepts).
+      const askForCode = () => { typingOther = true; syncUnlockVisibility(); unlockField.focus(); };
+      const buyFailed = (r) => {
+        const err = r && r.error;
+        if (err === 'included') {
+          useRedeem = true;
+          syncUnlockVisibility();
+          toast(tr('sparks_err_included', 'Your supporter code opens this one: no Sparks needed.'), '', 'info');
+          importBtn.click();
+        } else if (err === 'no_code') {
+          askForCode();
+          toast(tr('sparks_err_no_code', 'Enter your Sparks code (XC-…) or your supporter code (XS-…).'), '', 'info');
+        } else if (err === 'no_sparks') {
+          buyMore.hidden = false;
+          toast(Number.isInteger(r.balance)
+            ? tr('sparks_err_short', 'Not enough Sparks: this costs {price}, you have {balance}.')
+              .replace('{price}', String(Number.isInteger(r.price) ? r.price : sparksPrice)).replace('{balance}', String(r.balance))
+            : tr('sparks_err_short_plain', 'Not enough Sparks for this one.'), '', 'error');
+        } else if (err === 'not_for_sale') {
+          toast(tr('sparks_err_not_for_sale', 'This drop is not sold for Sparks right now.'), '', 'error');
+        } else if (err === 'sold_out') {
+          toast(tr('sparks_err_sold_out', 'This drop is sold out.'), '', 'error');
+        } else if (err === 'revoked') {
+          toast(tr('sparks_err_revoked', 'This code was switched off. Use the newest one from your email.'), '', 'error');
+        } else if (err === 'limit') {
+          toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
+        } else if (err === 'bad_code' || err === 'wrong_code' || err === 'bad_entry' || err === 'bad_request') {
+          // A saved Sparks code the hub no longer knows was dropped by the server.
+          savedWallet = false;
+          askForCode();
+          toast(tr('preset_redeem_bad', 'Wrong or unknown code.'), '', 'error');
+        } else if (err === 'rate_limited' || err === 'busy') {
+          toast(tr('devclean_unlock_rate', 'Too many attempts. Try again in a few minutes.'), '', 'error');
+        } else {
+          toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service: check your connection and try again.'), '', 'error');
+        }
+      };
+      const buyWithSparks = async (locked) => {
+        if (!confirmBuy) { confirmBuy = true; confirmAt = Date.now(); syncBuy(); (sparksOnly ? importBtn : buyBtn).focus(); return; }
+        // The second tap of a double tap is not a confirmation.
+        if (Date.now() - confirmAt < CONFIRM_GAP_MS) return;
+        confirmBuy = false;
+        buyBtn.disabled = true; importBtn.disabled = true;
+        const typed = canonCode(unlockField.value);
+        let r = null;
+        try {
+          const res = await fetch('/api/community/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entryId: locked.entryId, code: /^X[CS]/.test(typed) ? unlockField.value : '', kv: locked.kv || 1 }),
+          });
+          r = await res.json();
+        } catch { r = null; }
+        buyBtn.disabled = false; importBtn.disabled = false;
+        syncBuy();
+        if (!r || !r.ok || typeof r.cek !== 'string' || !r.cek) { buyFailed(r); return; }
+        boughtCek = r.cek;
+        const done = r.bought
+          ? tr('sparks_bought', 'Bought for {n} Sparks: it is yours on up to 3 PCs.').replace('{n}', String(sparksPrice))
+          : tr('sparks_owned', 'You already own it: installing it again, no Sparks spent.');
+        const left = Number.isInteger(r.balance) ? ' ' + tr('sparks_left', '{n} Sparks left.').replace('{n}', String(r.balance)) : '';
+        toast(done + left, '', 'success');
+        if (window.XenonCredits && typeof window.XenonCredits.refresh === 'function') window.XenonCredits.refresh();
+        importBtn.click();
+      };
+      buyBtn.addEventListener('click', () => {
+        const locked = peekLocked(field.value);
+        if (locked && locked.remote) buyWithSparks(locked);
+      });
+      // A confirmation is for the code it was given with: a new code asks again.
+      unlockField.addEventListener('input', () => {
+        if (!confirmBuy && !sparksOnly) return;
+        confirmBuy = false;
+        syncBuy();
+      });
 
       // Remote-locked (v2) bundles take a hub code redeemed via the local
       // server instead of an offline unlock code — same field, clearer label.
       // XS = supporter pass, XL = per-drop code (limited/purchased).
       const syncUnlockVisibility = () => {
         const locked = peekLocked(field.value);
+        const remote = !!(locked && locked.remote);
+        const useSaved = remote && emptyOk() && !typingOther;
+        // Sold only for Sparks, a saved code does not unlock it, it pays for it.
+        const savedPays = remote && sparksOnly && (savedWallet || savedPass) && !typingOther;
+        const quiet = useSaved || savedPays;
         unlockWrap.hidden = !locked;
-        unlockNote.hidden = !(locked && locked.remote);
-        savedRow.hidden = !(locked && locked.remote && savedPass);
-        if (locked && locked.remote) {
+        unlockLabel.hidden = quiet;
+        unlockNote.hidden = !remote || quiet;
+        savedRow.hidden = !quiet;
+        savedText.textContent = savedPays
+          ? (savedWallet
+            ? tr('sparks_saved_pays', 'The Sparks code saved on this PC pays for it.')
+            : tr('sparks_saved_pays_pass', 'Paid with the Sparks on the supporter code saved on this PC.'))
+          : savedPass
+          ? tr('preset_redeem_saved_ready', 'Your supporter code saved on this PC unlocks it.')
+          : tr('trial_import_ready', 'Your free trial unlocks it, until {date}.')
+            .replace('{date}', trialRun && trialRun.endsAt ? trialDate(trialRun.endsAt) : '');
+        // With a pass saved, a "supporters or Sparks" drop opens with the pass:
+        // nothing to buy, so the line steps aside.
+        buyRow.hidden = !(remote && sparksPrice && !boughtCek && !useRedeem && !(savedPass && !sparksOnly && !passLapsed));
+        if (!buyRow.hidden) syncBuy();
+        tryRow.hidden = !(remote && trialEligible && !emptyOk() && trialRun && trialRun.used === false);
+        joinRow.hidden = !(remote && supporterDrop && passKnown && !emptyOk() && tryRow.hidden);
+        if (remote) {
           askSavedOnce();
-          unlockText.textContent = tr('preset_redeem_label2', 'Unlock code (XS-… or XL-…)');
-          unlockField.placeholder = savedPass
-            ? tr('preset_redeem_saved_placeholder', 'Leave empty to use your saved code')
+          unlockText.textContent = sparksOnly ? tr('sparks_code_label', 'Your Sparks code') : tr('preset_unlock_label', 'Unlock code');
+          unlockField.placeholder = sparksOnly
+            ? tr('sparks_code_placeholder', 'XC-… / XS-… / XL-…')
             : tr('preset_redeem_placeholder2', 'XS-XXXX-XXXX-XXXX / XL-XXXX-XXXX-XXXX');
         } else {
           unlockText.textContent = tr('preset_unlock_label', 'Unlock code');
@@ -2872,21 +3355,33 @@
       const fileBtn = document.createElement('button');
       fileBtn.type = 'button'; fileBtn.className = 'settings-btn subtle';
       fileBtn.textContent = tr('preset_import_file', 'Choose file…');
+      fileBtn.hidden = fromStore;
       fileBtn.addEventListener('click', () => fileInput.click());
       const importBtn = document.createElement('button');
       importBtn.type = 'button'; importBtn.className = 'settings-btn primary';
       importBtn.textContent = tr('preset_import_apply', 'Import');
+      importBtnRef = importBtn;
+      if (sparksOnly) syncBuy();
       importBtn.addEventListener('click', async () => {
         // Protected preset: unwrap it with the recipient's code first, then treat
         // the decrypted inner code exactly like a normal paste.
         const locked = peekLocked(field.value);
         let env;
         if (locked) {
+          // A Sparks-only drop, or a Sparks code typed in the field, is bought,
+          // not redeemed: Import asks for the same confirmation the button does.
+          const typedSparks = canonCode(unlockField.value).startsWith('XC');
+          const typedItem = canonCode(unlockField.value).startsWith('XL');
+          if (locked.remote && sparksPrice && !boughtCek && !useRedeem && !typedItem && (sparksOnly || typedSparks)) {
+            syncUnlockVisibility();
+            buyWithSparks(locked);
+            return;
+          }
           if (unlockWrap.hidden) {
             syncUnlockVisibility();
             // With a saved pass there is nothing to ask for — reveal the field
             // for the record and carry on with the unlock.
-            if (!(locked.remote && savedPass)) {
+            if (!(locked.remote && emptyOk())) {
               unlockField.focus();
               toast(tr(locked.remote ? 'preset_redeem_needed2' : 'preset_unlock_needed',
                 locked.remote
@@ -2898,10 +3393,16 @@
           // An empty field is a valid submission for a remote drop when this PC
           // has a saved pass: the server fills it in. Everywhere else it is
           // still nothing to work with.
-          const usingSaved = locked.remote && savedPass && !canonCode(unlockField.value);
-          if (!usingSaved && !canonCode(unlockField.value)) { unlockField.focus(); return; }
+          const usingSaved = locked.remote && emptyOk() && !canonCode(unlockField.value);
+          // A trial code, typed or filled in by the server: its refusals mean
+          // something else than a supporter pass's.
+          const viaTrial = canonCode(unlockField.value).startsWith('XT') || (usingSaved && !savedPass);
+          if (!boughtCek && !usingSaved && !canonCode(unlockField.value)) { unlockField.focus(); return; }
           let inner;
-          if (locked.remote) {
+          if (locked.remote && boughtCek) {
+            // Bought a moment ago: /api/community/buy already gave the key.
+            inner = await unlockWithCek(locked, boughtCek);
+          } else if (locked.remote) {
             if (!importSource.sourceId) importSource = { source: 'catalog', sourceId: locked.entryId, sourceVersion: '' };
             // One-time supporter code: the local server attaches the install id
             // and forwards to the hub, which returns the content key on success.
@@ -2915,7 +3416,12 @@
                 // so it is sealed under the FIRST key. Saying so matters: with nothing
                 // sent the hub answers with its LATEST key, which stops opening the
                 // original download the day a newer version is published.
-                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value, kv: locked.kv || 1 }),
+                // `enc` is the public locked content: a trial unlock is opened by the
+                // local server, which keeps the key and the widgets (trial-vault.js).
+                body: JSON.stringify({
+                  entryId: locked.entryId, code: unlockField.value, kv: locked.kv || 1, enc: locked.enc,
+                  catalogVersion: (locked.kind === 'widget' || locked.kind === 'ambient') ? importSource.sourceVersion : '',
+                }),
               });
               r = await res.json();
             } catch { r = null; }
@@ -2929,9 +3435,20 @@
                 savedPass = false;
                 syncUnlockVisibility();
                 unlockField.focus();
-                toast(tr('preset_redeem_saved_stale', 'Your saved code no longer works — it was replaced or revoked. Paste the newest one from your email.'), '', 'error');
+                toast(tr('preset_redeem_saved_stale', 'Your saved code no longer works: it was replaced or revoked. Paste the newest one from your email.'), '', 'error');
+              } else if (err === 'not_in_trial') {
+                toast(tr('trial_err_not_in', 'This drop is not part of the trial: drops in their first 30 days and limited drops are for supporters.'), '', 'error');
+              } else if (err === 'trial_used') {
+                toast(tr('trial_err_used', 'This PC has already had its free trial.'), '', 'error');
+              } else if (viaTrial && err === 'expired') {
+                toast(tr('trial_err_over', 'Your 7-day trial has ended. Support Xenon to keep unlocking drops.'), '', 'error');
+                if (window.TrialPass) window.TrialPass.refresh();
+              } else if (viaTrial && err === 'limit') {
+                toast(tr('trial_err_other_pc', 'This trial code is already in use on another PC. A trial works on one install.'), '', 'error');
               } else if (err === 'expired') {
-                toast(tr('preset_redeem_expired', 'Your supporter period has ended — renew it to unlock new drops. Anything you already unlocked stays yours.'), '', 'error');
+                passLapsed = true;
+                syncUnlockVisibility();
+                toast(tr('preset_redeem_expired', 'Your supporter period has ended: renew it to unlock new drops. Anything you already unlocked stays yours.'), '', 'error');
               } else if (err === 'limit') {
                 toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
               } else if (err === 'wrong_code') {
@@ -2943,7 +3460,7 @@
                 // for a network problem that isn't there.
                 toast(tr('devclean_unlock_rate', 'Too many attempts. Try again in a few minutes.'), '', 'error');
               } else {
-                toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service — check your connection and try again.'), '', 'error');
+                toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service: check your connection and try again.'), '', 'error');
               }
               // The saved pass was the one that failed, and the user typed
               // nothing: hand the field back rather than leave them re-pressing
@@ -2952,9 +3469,18 @@
               return;
             }
             if (r.saved) {
-              toast(tr('preset_redeem_saved_toast', 'Code saved on this PC — you won’t have to paste it again.'), '', 'info');
+              toast(tr('preset_redeem_saved_toast', 'Code saved on this PC: you won’t have to paste it again.'), '', 'info');
             }
-            inner = await unlockWithCek(locked, r.cek);
+            if (Number.isFinite(r.trialEndsAt)) {
+              // Installed with the trial: the receipt says so, and the end of
+              // the trial takes it off again (js/trial-pass-ui.js).
+              importSource = { ...importSource, trial: true };
+              if (!trialActive()) {
+                toast(tr('trial_started', 'Your 7-day trial is on until {date}.').replace('{date}', trialDate(r.trialEndsAt)), '', 'success');
+              }
+              if (window.TrialPass) window.TrialPass.refresh();
+            }
+            inner = typeof r.inner === 'string' && r.inner ? r.inner : await unlockWithCek(locked, r.cek);
           } else {
             inner = await unlockPreset(locked, unlockField.value);
           }
@@ -2967,11 +3493,11 @@
           // Pasting a raw draw() snippet here is a common mix-up — send them to
           // the "Code" editor instead of a bare "not a valid code" dead end.
           if (!locked && looksLikeBgCode(field.value)) {
-            toast(tr('preset_import_looks_like_code', 'That looks like animated-background code — paste it into the "Code" box under Animated background, not here. Import only accepts a shared preset code, link, or .json file.'), '', 'info');
+            toast(tr('preset_import_looks_like_code', 'That looks like animated-background code: paste it into the "Code" box under Animated background, not here. Import only accepts a shared preset code, link, or .json file.'), '', 'info');
             return;
           }
           if (!locked && looksLikeUnlockCode(field.value)) {
-            toast(tr('preset_import_looks_like_unlock', 'That is your unlock code, not the drop itself. Open the download link you were sent, choose the .json file here, and the unlock field will appear — your code goes there.'), '', 'info');
+            toast(tr('preset_import_looks_like_unlock', 'That is your unlock code, not the drop itself. Open the download link you were sent, choose the .json file here, and the unlock field will appear: your code goes there.'), '', 'info');
             return;
           }
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return;
@@ -3038,6 +3564,7 @@
       });
       row.appendChild(fileBtn); row.appendChild(importBtn);
       body.appendChild(row);
+      if (skipsPasteStep(prefill, importSource.perfWarning)) importBtn.click();
     }
 
     // Review step for an imported deck profile: shows the name, size and — the
@@ -3082,7 +3609,7 @@
       head.className = 'preset-modal-desc';
       head.textContent = summary.length
         ? tr('preset_deck_contains', 'This profile contains actions:')
-        : tr('preset_deck_noactions', 'No actions — looks only.');
+        : tr('preset_deck_noactions', 'No actions: looks only.');
       body.appendChild(head);
       if (summary.length) {
         const acts = document.createElement('div');
@@ -3100,6 +3627,7 @@
         caution.className = 'preset-modal-desc preset-deck-caution';
         caution.textContent = tr('preset_deck_caution', 'Only import profiles from people you trust. Actions run only when you tap their key, and each one is re-checked by Xenon before it runs.');
         body.appendChild(caution);
+        appendKeysToFinish(body, [prof]);
       }
 
       // Embedded widget dependencies: named + trust caution, like a bundle.
@@ -3134,7 +3662,7 @@
         body.appendChild(wl);
         const wCaution = document.createElement('p');
         wCaution.className = 'preset-modal-desc preset-deck-caution';
-        wCaution.textContent = tr('preset_bundle_caution', 'This package installs community widgets — code written by others. They run sandboxed with no network, stay hidden until you approve each one\'s permissions, and every action is re-checked by Xenon. Only import packages from people you trust.');
+        wCaution.textContent = tr('preset_bundle_caution', 'This package installs community widgets: code written by others. They run sandboxed with no network, stay hidden until you approve each one\'s permissions, and every action is re-checked by Xenon. Only import packages from people you trust.');
         body.appendChild(wCaution);
       }
 
@@ -3161,7 +3689,7 @@
           if (missing.length) {
             const note = document.createElement('p');
             note.className = 'preset-modal-desc preset-modal-note';
-            note.textContent = tr('preset_deck_soundpacks_missing', 'Not installed yet — get them from the community gallery so those keys play: ') + missing.join(', ');
+            note.textContent = tr('preset_deck_soundpacks_missing', 'Not installed yet. Get them from the community gallery so those keys play: ') + missing.join(', ');
             body.appendChild(note);
           }
         }).catch(() => { /* offline — skip the hint */ });
@@ -3174,7 +3702,7 @@
         if (!res || !res.ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         if (res.savedAsPreset) {
           toast(tr('preset_import_ok', 'Preset imported'),
-            tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'success');
+            tr('preset_deck_saved_preset', 'No Deck on the dashboard: saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'success');
         } else {
           toast(tr('preset_import_ok', 'Preset imported'), (name ? name + ' · ' : '') + tr('preset_kind_deck', 'Deck profile'), 'success');
         }
@@ -3287,6 +3815,7 @@
       const sceneCount = widgets.filter(w => w && w.surface === 'ambient').length;
       const tileCount = widgets.length - sceneCount;
       if (d.theme && typeof d.theme === 'object') chipFor('🎨 ' + tr('preset_bundle_theme', 'Colours & style'));
+      if (wallpaperPayload(d.wallpaper)) chipFor('🖼 ' + tr('preset_bundle_wallpaper', 'Wallpaper picture'));
       if (pages.length) chipFor('▦ ' + pages.length + ' ' + tr('preset_bundle_pages', 'Pages'));
       if (deckProfiles.length) chipFor('🗝 ' + deckProfiles.length + ' ' + tr('preset_bundle_decks', 'Deck profiles'));
       if (d.bg && typeof d.bg === 'object' && typeof d.bg.code === 'string' && d.bg.code.trim()) chipFor('🌄 ' + tr('preset_kind_bg', 'Animated background'));
@@ -3323,6 +3852,7 @@
           dCaution.className = 'preset-modal-desc preset-deck-caution';
           dCaution.textContent = tr('preset_deck_caution', 'Only import profiles from people you trust. Actions run only when you tap their key, and each one is re-checked by Xenon before it runs.');
           body.appendChild(dCaution);
+          appendKeysToFinish(body, deckProfiles);
         }
       }
 
@@ -3355,7 +3885,7 @@
         body.appendChild(wl);
         const caution = document.createElement('p');
         caution.className = 'preset-modal-desc preset-deck-caution';
-        caution.textContent = tr('preset_bundle_caution', 'This package installs community widgets — code written by others. They run sandboxed with no network, stay hidden until you approve each one\'s permissions, and every action is re-checked by Xenon. Only import packages from people you trust.');
+        caution.textContent = tr('preset_bundle_caution', 'This package installs community widgets: code written by others. They run sandboxed with no network, stay hidden until you approve each one\'s permissions, and every action is re-checked by Xenon. Only import packages from people you trust.');
         body.appendChild(caution);
       }
 
@@ -3377,12 +3907,13 @@
           try { await CustomWidget.getPackages(true); } catch { /* refresh best-effort */ }
           CustomWidget.requestGrants(res.widgets.ids);
         }
-        if (!res || (!res.theme && !res.pages && !res.decks && !res.bg && !res.topbar && !res.widgets.installed && !res.widgets.failed)) {
+        if (!res || (!res.theme && !res.wallpaper && !res.pages && !res.decks && !res.bg && !res.topbar && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
           return;
         }
         const parts = [];
         if (res.theme) parts.push(tr('preset_bundle_theme', 'Colours & style'));
+        if (res.wallpaper) parts.push(tr('preset_bundle_wallpaper', 'Wallpaper picture'));
         if (res.pages) parts.push(res.pages + ' ' + tr('preset_bundle_pages', 'Pages'));
         if (res.decks) parts.push(res.decks + ' ' + tr('preset_bundle_decks', 'Deck profiles'));
         if (res.bg) parts.push(tr('preset_kind_bg', 'Animated background'));
@@ -3391,7 +3922,7 @@
         toast(tr('preset_import_ok', 'Preset imported'), parts.join(' · ') || tr('preset_kind_bundle', 'Package'), 'success');
         if (res.decksAsPresets) {
           toast(tr('preset_import_ok', 'Preset imported'),
-            tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
+            tr('preset_deck_saved_preset', 'No Deck on the dashboard: saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
         }
         // A widget the page already carries needs no "add to this page" offer.
         if (res.widgets.installed) offerAddToPage(res.widgets.ids.filter(id => !res.widgets.placed.includes(id)));
@@ -3463,7 +3994,7 @@
       }
       const caution = document.createElement('p');
       caution.className = 'preset-modal-desc preset-deck-caution';
-      caution.textContent = tr('preset_widget_caution', 'This is a community widget — code written by someone else. It runs sandboxed with no network, stays hidden until you approve its permissions, and every action is re-checked by Xenon. Only import widgets from people you trust.');
+      caution.textContent = tr('preset_widget_caution', 'This is a community widget: code written by someone else. It runs sandboxed with no network, stays hidden until you approve its permissions, and every action is re-checked by Xenon. Only import widgets from people you trust.');
       body.appendChild(caution);
       appendKeepCodeNote(body);
 
@@ -3518,7 +4049,7 @@
       }
       const caution = document.createElement('p');
       caution.className = 'preset-modal-desc preset-deck-caution';
-      caution.textContent = tr('preset_ambient_caution', 'This is a community Ambient scene — code written by someone else. It runs fullscreen but sandboxed with no network, and it only sees the data you approve. Only import scenes from people you trust.');
+      caution.textContent = tr('preset_ambient_caution', 'This is a community Ambient scene: code written by someone else. It runs fullscreen but sandboxed with no network, and it only sees the data you approve. Only import scenes from people you trust.');
       body.appendChild(caution);
       appendKeepCodeNote(body);
 
@@ -3999,10 +4530,13 @@
       const owns = (item) => legacy
         ? item && item.imported === true && !item.installId
         : item && item.installId === record.id;
-      const nextThemes = (HS().customThemes || []).filter(theme => !(themeIds.has(theme.id) && owns(theme)));
+      // A card saved on top of this content carries its installId (addThemeCard)
+      // without being in the receipt: it goes with the content.
+      const nextThemes = (HS().customThemes || []).filter(theme => !(owns(theme) && (themeIds.has(theme.id) || !legacy)));
       const nextPresets = (HS().dashboardPresets || []).filter(preset => !(pagePresetIds.has(preset.id) && owns(preset)));
       const nextScenes = (HS().ambientScenes || []).filter(scene => !(sceneIds.has(scene.id) && owns(scene)));
-      const activeThemeRemoved = themeIds.has(activeThemeId) && !(nextThemes || []).some(x => x.id === activeThemeId);
+      const activeThemeRemoved = !!activeThemeId && (HS().customThemes || []).some(x => x && x.id === activeThemeId)
+        && !nextThemes.some(x => x.id === activeThemeId);
 
       const otherWidgetRefs = new Set();
       remaining.forEach(rec => (rec.resources.widgetIds || []).forEach(id => otherWidgetRefs.add(id)));
@@ -4014,7 +4548,11 @@
 
       const currentSdk = HS().sdkWidgets || {};
       const assign = Object.assign({}, currentSdk.assign || {});
-      for (const key of Object.keys(assign)) if (widgetDeleteSet.has(assign[key])) delete assign[key];
+      // keepTiles (the end of a trial): the tiles keep pointing at the widget, so
+      // they show it was a trial, and a reinstall puts it straight back in place.
+      if (!(opts && opts.keepTiles === true)) {
+        for (const key of Object.keys(assign)) if (widgetDeleteSet.has(assign[key])) delete assign[key];
+      }
       const grants = Object.assign({}, currentSdk.grants || {});
       widgetDeleteIds.forEach(id => { delete grants[id]; });
 
@@ -4024,6 +4562,10 @@
       const bgOwned = r.background && HS().bgCustom && (legacy
         ? HS().bgCustom.imported === true && !HS().bgCustom.installId
         : HS().bgCustom.installId === record.id);
+      // `background` also covers a wallpaper picture the package set.
+      const wall = HS().backgroundMedia;
+      const wallOwned = r.background && wall && wall.imported === true
+        && (legacy ? !wall.installId : wall.installId === record.id);
       const fontSet = new Set(r.fontUrls);
       const fontStillUsedByCard = (url) => nextThemes.some(theme => theme && theme.uiFont && theme.uiFont.url === url);
       const clearLiveFont = HS().uiFont && fontSet.has(HS().uiFont.url) && !fontStillUsedByCard(HS().uiFont.url);
@@ -4034,6 +4576,7 @@
         ambientScenes: nextScenes,
         contentInstalls: remaining,
         bgCustom: bgOwned ? { enabled: false, name: '', code: '', assets: {} } : HS().bgCustom,
+        backgroundMedia: wallOwned ? null : HS().backgroundMedia,
         uiFont: clearLiveFont ? null : HS().uiFont,
         ambientMode: removedActiveScene ? Object.assign({}, HS().ambientMode, { sceneId: 'builtin' }) : HS().ambientMode,
         sdkWidgets: Object.assign({}, currentSdk, { assign, grants }),
@@ -4093,7 +4636,13 @@
         if (name) { try { await fetch('/font/' + encodeURIComponent(name), { method: 'DELETE' }).then(res => res.arrayBuffer()); } catch { /* best-effort */ } }
       }
 
-      if (activeThemeRemoved && typeof applyThemeById === 'function') applyThemeById('glass');
+      const restoreThemeId = opts && typeof opts.restoreThemeId === 'string' ? opts.restoreThemeId : '';
+      // Back to the theme that was on before the trial, when it still exists.
+      const restorable = restoreThemeId && !themeIds.has(restoreThemeId)
+        && (nextThemes.some(x => x && x.id === restoreThemeId)
+          || (typeof BUILTIN_THEMES !== 'undefined' && BUILTIN_THEMES.some(x => x.id === restoreThemeId)))
+        ? restoreThemeId : '';
+      if (activeThemeRemoved && typeof applyThemeById === 'function') applyThemeById(restorable || 'glass');
       else {
         if (typeof applyHubSettings === 'function') applyHubSettings();
         if (typeof syncSettingsControls === 'function') syncSettingsControls();
@@ -4127,7 +4676,7 @@
       const { body, close } = buildModal(tr('settings_share_export_title', 'Esporta'));
       const intro = document.createElement('p');
       intro.className = 'preset-modal-desc';
-      intro.textContent = tr('export_pick_desc', 'Cosa vuoi esportare? Puoi condividere solo le tue creazioni — ciò che hai installato da altri non è ridistribuibile.');
+      intro.textContent = tr('export_pick_desc', 'Cosa vuoi esportare? Puoi condividere solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.');
       body.appendChild(intro);
 
       const list = document.createElement('div');
@@ -4179,6 +4728,8 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ownedUpdateOutcome, encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename, themeImportPatch };
+    module.exports = { ownedUpdateOutcome, encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, keysToFinish, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, skipsPasteStep, makeDraftTracker, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename, themeImportPatch,
+      wallpaperPayload, WALLPAPER_EMBED_MAX,
+      PRESET_KINDS, THEME_KEYS, MAX_CODE_BYTES, DECK_MAX_FOLDER_DEPTH, BUNDLE_MAX_WIDGETS, BUNDLE_MAX_DECKS, DECK_EMBED_MAX_WIDGETS };
   }
 })();

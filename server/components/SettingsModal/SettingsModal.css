@@ -135,6 +135,9 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
   gap: 12px;
   padding: 12px 16px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
+  /* The header answers to its own width (the panel is as wide as the window),
+     see the @container rules here and in XenonCredits.css. */
+  container: settings-head / inline-size;
 }
 
 .settings-head-actions {
@@ -144,12 +147,23 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
   flex: 0 0 auto;
 }
 
+/* A phone-width header keeps the title whole: the Store pill is its bag icon
+   alone (the button keeps its title for the name) and a touch-size target. */
+@container settings-head (max-width: 460px) {
+  .settings-store-pill { padding: 10px 12px; min-width: 44px; justify-content: center; }
+  .settings-store-pill > span { display: none; }
+}
+
 .settings-title-wrap { min-width: 0; }
 .settings-title {
   font-size: 18px;
   font-weight: 950;
   color: var(--text);
   letter-spacing: 0;
+  /* Never runs under the header buttons: a title that cannot fit is cut short. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .settings-subtitle {
   margin-top: 3px;
@@ -338,6 +352,18 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
 /* A note that reports a limit the user should act on (the living index hitting
    its entry cap), rather than merely describing state. */
 .settings-note-warn { color: var(--color-warn); }
+/* The recordings folder: a long path wraps instead of widening the pane. */
+.settings-capture-path { overflow-wrap: anywhere; }
+/* A folder row with a sentence under its name (bug report logs): the sentence
+   goes below, not squeezed beside a two-line name on a phone. */
+.settings-capture-folder > .settings-label-line:has(.settings-hint) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.settings-capture-folder .settings-hint { font-weight: 650; line-height: 1.35; }
+/* No folder dialog on this machine (capture-settings-pane.js applyEngine). */
+.settings-capture-folder [data-folder-pick][hidden] { display: none; }
 
 /* "This colour is hidden by an active background" — reads as a reason, not a hint. */
 .settings-bg-covered-note { color: var(--color-warn); margin-top: 2px; }
@@ -950,7 +976,8 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
    `el.hidden = true` really hides rows/grids anywhere in Settings. */
 .settings-toggle-row[hidden],
 .settings-row[hidden],
-.settings-grid[hidden] { display: none; }
+.settings-grid[hidden],
+.settings-note[hidden] { display: none; }
 /* A whole group that doesn't apply right now (e.g. Tema while Pixel Retro
    forces the dark CRT look) is dimmed and inert rather than lying active. */
 .settings-group.is-disabled { opacity: 0.42; pointer-events: none; }
@@ -1019,15 +1046,8 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
 .settings-aifeat-group .settings-toggle-row { padding: 8px 10px; min-height: 44px; }
 .aifeat-master-row { border-color: rgba(var(--accent-rgb),0.35); }
 .aifeat-row-disabled { opacity: 0.45; pointer-events: none; }
-.aifeat-cost-note {
-  margin: 8px 12px 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(245,158,11,0.3);
-  background: rgba(245,158,11,0.08);
-  font-size: 11.5px;
-  line-height: 1.45;
-}
+/* What these cost, said once as a plain line: a fact, not a warning. */
+.settings-group > .aifeat-cost-note { margin: 12px 0 0; line-height: 1.45; }
 .aifeat-hub-note { margin: 4px 12px 12px; font-size: 11.5px; }
 .aifeat-hub-note a { color: var(--accent); font-weight: 800; text-decoration: none; }
 .aifeat-hub-note a:hover { text-decoration: underline; }
@@ -1093,148 +1113,6 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
   min-width: 30px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-/* ── Xenon AI info block ─────────────────────────────────── */
-.settings-ai-info {
-  padding: 10px 13px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: rgba(var(--accent-rgb), 0.035);
-  /* Two columns: left = what it does, right = setup steps */
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 14px 20px;
-  align-items: start;
-}
-
-/* Left column wrapper */
-.settings-ai-col--main {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-}
-
-/* Right column wrapper */
-.settings-ai-col--setup {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-}
-
-/* Full-width bottom row (wake + privacy) */
-.settings-ai-col--footer {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.settings-ai-desc-text {
-  margin: 0;
-  font-size: 11.5px;
-  color: rgba(255,255,255,0.52);
-  line-height: 1.55;
-}
-
-.settings-ai-caps-label {
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: .055em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.36);
-}
-
-.settings-ai-caps {
-  margin: 0;
-  font-size: 11px;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.55;
-}
-
-.settings-ai-wake {
-  margin: 0;
-  font-size: 11px;
-  color: rgba(255,255,255,0.48);
-  line-height: 1.45;
-}
-
-.settings-ai-privacy {
-  margin: 0;
-  font-size: 10.5px;
-  color: rgba(255,255,255,0.30);
-  line-height: 1.4;
-}
-
-.settings-ai-steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: ai-step;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.settings-ai-steps li {
-  counter-increment: ai-step;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 11.5px;
-  color: rgba(255,255,255,0.42);
-  line-height: 1.45;
-}
-
-.settings-ai-steps li a {
-  color: var(--accent);
-  text-decoration: none;
-}
-.settings-ai-steps li a:hover { text-decoration: underline; }
-
-.settings-ai-steps li::before {
-  content: counter(ai-step);
-  flex-shrink: 0;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: rgba(var(--accent-rgb), 0.20);
-  color: var(--accent);
-  font-size: 9.5px;
-  font-weight: 900;
-  display: grid;
-  place-items: center;
-  margin-top: 1px;
-}
-
-.settings-subgroup {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.settings-subgroup-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.38);
-}
-
-@media (max-width: 680px) {
-  .settings-ai-info {
-    grid-template-columns: 1fr;
-  }
-  .settings-ai-col--footer {
-    grid-column: 1;
-  }
 }
 
 .theme-presets {
@@ -1448,6 +1326,7 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
   gap: 8px;
   width: 100%;
 }
+#settings-wake-status:empty { display: none; }
 .settings-mictest-result {
   margin: 0;
   min-height: 16px;
@@ -1775,17 +1654,21 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
   color: var(--text);
 }
 .native-promo-head svg { width: 16px; height: 16px; flex: 0 0 auto; color: rgb(var(--accent-rgb)); }
-.native-promo-beta {
-  margin-left: auto;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: rgb(var(--accent-rgb));
-  background: rgba(var(--accent-rgb), 0.16);
+/* Every Beta in Settings is the same label as on the site: smaller, squarer
+   and unfilled, so it is not taken for a button, and in the text colour, so it
+   is not taken for "on" (the accent) or a warning (packages/core brand-tokens). */
+.native-promo-beta,
+.settings-subcard-badge,
+.settings-platform-beta-chip {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--muted-text);
 }
+.native-promo-beta { margin-left: auto; }
 .native-promo-desc { margin: 0; font-size: 12px; color: var(--text); opacity: .92; }
 .native-promo-benefits {
   margin: 0;
@@ -1879,28 +1762,19 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   border-color: rgba(88,101,242,0.28);
 }
 .settings-nav-support-btn.is-featured.is-discord:hover { background: rgba(88,101,242,0.24); }
-/* "macOS / Linux is beta", above the version stamp. Amber and not the accent:
-   the accent means a feature is on, and a caveat that borrows it stops reading
-   as a caveat. Built only where it is true (see renderPlatformBeta). */
+/* "macOS / Linux is beta", above the version stamp. Neutral and not the
+   accent: the accent means a feature is on, and amber or orange is Bit
+   worrying, which a beta is not. Built only where it is true (see
+   renderPlatformBeta). */
 .settings-platform-beta {
   margin: 0 0 6px;
   padding: 9px 11px;
   border-radius: 10px;
-  background: rgba(255, 196, 77, 0.09);
-  border: 1px solid rgba(255, 196, 77, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 .settings-platform-beta[hidden] { display: none; }
 .settings-platform-beta-head { display: flex; align-items: center; gap: 7px; }
-.settings-platform-beta-chip {
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #ffc44d;
-  background: rgba(255, 196, 77, 0.16);
-}
 .settings-platform-beta-os { font-size: 11.5px; font-weight: 700; color: var(--text); }
 .settings-platform-beta-note {
   margin: 5px 0 0;
@@ -1913,10 +1787,10 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   margin-top: 5px;
   font-size: 10.5px;
   font-weight: 700;
-  color: #ffc44d;
-  text-decoration: none;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.settings-platform-beta-link:hover { text-decoration: underline; }
 
 .settings-nav-version {
   margin-top: 0;
@@ -1931,16 +1805,15 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
   align-items: center;
   gap: 7px;
 }
-/* Brand mark before the version text: the glow-on-black logo, with `screen` blend
-   so its black backdrop drops out onto the dark sidebar (no visible box). Kept small
-   and quiet to read as an "about" stamp, not a banner. */
+/* Brand mark before the version text: the app icon (Bit on his plate), which
+   reads on a light or dark sidebar alike. Small and quiet, an "about" stamp,
+   not a banner. */
 .settings-nav-version::before {
   content: "";
   flex: 0 0 auto;
-  width: 20px;
-  height: 15px;
-  background: url("/public/images/logo/logo.png") center / contain no-repeat;
-  mix-blend-mode: screen;
+  width: 16px;
+  height: 16px;
+  background: url("/public/images/logo/logo-mark.png") center / contain no-repeat;
 }
 .settings-nav-version:empty { display: none; }
 /* Tapping the version re-opens What's New (js/update.js). */
@@ -2167,6 +2040,36 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 
 /* Claude Code / Codex: the program's state, coloured by what the user must do. */
 #settings-cli-panel > * + * { margin-top: 12px; }
+
+/* Xenon credits: the model names carry their cost, so on a phone the picker
+   wraps instead of pushing the panel past the screen. */
+#settings-xenon-panel { min-width: 0; }
+#settings-xenon-panel > * + * { margin-top: 12px; }
+#settings-xenon-panel .cs-wrap { min-width: 0; max-width: 100%; }
+#settings-xenon-panel .cs-label { min-width: 0; }
+#settings-xenon-panel :is(.cs-trigger, .cs-option) { white-space: normal; text-align: start; }
+#settings-xenon-panel a.settings-btn { text-decoration: none; }
+
+#settings-gemini-setup[hidden] { display: none; }
+#settings-gemini-setup a { color: rgb(var(--accent-rgb)); font-weight: 800; }
+
+/* Xenon AI credits: ordinary settings rows. The balance sits where other rows
+   put their value; the bar is this month's included credits left. */
+.settings-ai-group > .settings-grid { row-gap: 18px; }
+.xai-balance { font-size: 15px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; }
+.xai-balance[hidden] { display: none; }
+.xai-meter { height: 4px; border-radius: 2px; overflow: hidden; background: rgba(var(--accent-rgb), 0.16); }
+.xai-meter[hidden] { display: none; }
+.xai-meter-fill {
+  display: block; height: 100%;
+  width: calc(var(--fill, 0) * 100%);
+  background: rgb(var(--accent-rgb));
+}
+.xai-credits .settings-note[hidden], #xai-offer .settings-note[hidden] { display: none; }
+.xai-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.xai-actions .settings-btn { min-height: 40px; text-decoration: none; }
+.xai-actions .settings-btn[hidden] { display: none; }
+
 .settings-cli-state { display: flex; flex-direction: column; gap: 6px; }
 .settings-cli-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .settings-cli-actions .settings-btn { width: auto; }
@@ -2273,17 +2176,14 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 .feed-refresh:disabled { opacity: 0.45; cursor: default; }
 .feed-refresh.is-loading { pointer-events: none; }
 .feed-refresh.is-loading { color: transparent; position: relative; }
-/* The Xenon X glyph (components/XenonLoader/XenonLoader.css) over the label. */
+/* Bit thinking (components/XenonLoader/XenonLoader.css) over the label. */
 .feed-refresh.is-loading::before {
   content: ""; position: absolute; inset: 0; margin: auto;
-  width: 18px; height: 18px;
-  background: var(--text);
-  -webkit-mask: var(--xl-mask) center / contain no-repeat;
-  mask: var(--xl-mask) center / contain no-repeat;
-  animation: xl-glyph var(--xl-beat, 1.2s) ease-in-out infinite;
+  width: 20px; height: 26px;
+  background: var(--xl-think) center / contain no-repeat;
 }
-:is(body.overlay-frozen, body.ambient-idle, body.game-mode, body.low-power-gpu) .feed-refresh.is-loading::before { animation: none; }
-@media (prefers-reduced-motion: reduce) { .feed-refresh.is-loading::before { animation: none; } }
+:is(body.overlay-frozen, body.ambient-idle, body.game-mode, body.low-power-gpu) .feed-refresh.is-loading::before { background-image: var(--xl-think-still); }
+@media (prefers-reduced-motion: reduce) { .feed-refresh.is-loading::before { background-image: var(--xl-think-still); } }
 
 /* Help + warnings: two scannable groups instead of a flat text wall. */
 .feed-help { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -2639,12 +2539,6 @@ button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 .cgal-brand-title { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.015em; color: var(--text, #e7e9ee); }
 .cgal-brand-sub { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-dim, #8b91a1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cgal-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
-.cgal-trust {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 600;
-  color: var(--accent, #35e08e); padding: 7px 12px; border-radius: 999px;
-  background: rgba(var(--accent-rgb), 0.1); border: 1px solid rgba(var(--accent-rgb), 0.24);
-}
-.cgal-trust svg { width: 14px; height: 14px; }
 .cgal-iconbtn {
   appearance: none; cursor: pointer; width: 40px; height: 40px; border-radius: 12px; flex: none;
   display: grid; place-items: center; color: var(--text-dim, #8b91a1);
@@ -2848,11 +2742,7 @@ input.cgal-search {
 }
 input.cgal-search::placeholder { color: var(--text-dim, #8b91a1); }
 input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.55); background: rgba(255, 255, 255, 0.07); }
-/* Wrap the category filters onto as many rows as needed instead of scrolling
-   them horizontally — a scrolling rail left the last filter (e.g. "deck") cut off
-   at the right edge, "almost out of range" (#3). With the modal height now locked
-   (#2), the extra row just sits at the top of the scroll area. */
-.cgal-rail { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 2px; }
+/* The "Novità" button in the search row (the kinds are a menu beside it). */
 .cgal-railbtn {
   display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; cursor: pointer;
   padding: 9px 15px; border-radius: 12px; font-size: 0.84rem; font-weight: 600;
@@ -2863,13 +2753,40 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-railbtn svg { width: 16px; height: 16px; }
 .cgal-railbtn:hover { color: var(--text, #e8eaf0); background: rgba(255, 255, 255, 0.08); }
 .cgal-railbtn.active { color: var(--accent, #35e08e); background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.4); }
-.cgal-railbtn.lim.active { color: #bcb0ff; background: rgba(139, 123, 255, 0.2); border-color: rgba(139, 123, 255, 0.45); }
-.cgal-railbtn.sup.active { color: #ffd089; background: rgba(255, 180, 84, 0.18); border-color: rgba(255, 180, 84, 0.42); }
 .cgal-select { position: relative; flex: none; }
 /* The two toolbar dropdowns are upgraded to the app's CustomSelect (the native
    OS popup read as cheap) — size its trigger to sit level with the search field. */
 .cgal-select .cs-wrap { display: flex; }
 .cgal-select .cs-trigger { padding: 11px 12px 11px 14px; border-radius: 12px; font-size: 0.82rem; min-width: 108px; }
+.cgal-kind .cs-trigger { min-width: 150px; }
+.cgal-railbtn { min-height: 44px; }
+/* On a phone the search takes its own row and the menus share the next one. */
+@media (max-width: 600px) {
+  .cgal-searchrow { flex-wrap: wrap; }
+  .cgal-searchbox { flex: 1 1 100%; }
+  .cgal-select { flex: 1 1 0; min-width: 0; }
+  .cgal-select .cs-trigger { width: 100%; min-width: 0; }
+}
+
+/* Quick Sparks under the search: the three packs as one even strip. */
+.cgal-quick .xai-pack-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.cgal-quick-pack.xai-pack {
+  gap: 10px; min-height: 48px; padding: 6px 14px; border-radius: 10px;
+  font-size: 0.84rem; color: var(--text, #e7e9ee); cursor: pointer;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cgal-quick-pack.xai-pack:hover { background: rgba(var(--accent-rgb), 0.10); border-color: rgba(var(--accent-rgb), 0.40); }
+.cgal-quick-pack.xai-pack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cgal-quick-pack .xai-pack-sparks { transform: scale(0.72); transform-origin: left center; width: 26px; }
+.cgal-quick-pack .xai-pack-words { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 0 8px; }
+.cgal-quick-pack .xai-pack-reach { display: none; }
+@media (max-width: 600px) {
+  .cgal-quick .xai-pack-list { gap: 8px; }
+  .cgal-quick-pack.xai-pack { padding: 6px 8px; }
+  .cgal-quick-pack .xai-pack-sparks { display: none; }
+  .cgal-quick-pack .xai-pack-words { flex-direction: column; gap: 0; }
+}
 
 /* ── Grid + product cards ── */
 .cgal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 18px; }
@@ -3044,10 +2961,6 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 /* With a saved supporter code, Unlock is the one thing to do: solid gold. */
 .cgal-unlock.is-saved { color: #12100a; background: var(--warn, #ffb454); border-color: transparent; font-weight: 700; }
 .cgal-unlock.is-saved:hover:not(:disabled) { background: var(--warn, #ffb454); filter: brightness(1.06); }
-/* In place of "Become a supporter" on the shelf, for a PC that keeps a code. */
-.cgal-feat-saved { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; color: var(--warn, #ffb454);
-  padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255, 180, 84, 0.42); background: rgba(255, 180, 84, 0.1); }
-.cgal-feat-saved svg { width: 14px; height: 14px; }
 .cgal-unlock:hover { background: rgba(255, 180, 84, 0.18); }
 /* Settled "already installed" state — a non-interactive chip, not a button, so it
    reads as done and can't re-trigger an import. Wins over .primary/.cgal-unlock
@@ -3217,9 +3130,6 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-feat-block.is-archive .cgal-khead-cnt { color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.06); }
 .cgal-khead-actions { display: flex; align-items: center; gap: 14px; flex: none; }
 .cgal-feat-lead { margin: 0 2px 14px; font-size: 0.84rem; line-height: 1.45; color: var(--text-dim, #8b91a1); }
-.cgal-feat-join { flex: none; white-space: nowrap; }
-.cgal-feat-block.is-sup .cgal-feat-join { color: #12100a; background: var(--warn, #ffb454); border-color: transparent; font-weight: 700; }
-.cgal-feat-block.is-sup .cgal-feat-join:hover { filter: brightness(1.06); }
 .cgal-feat-how { color: var(--warn, #ffb454) !important; }
 @media (max-width: 680px) {
   .cgal-feat-block { padding: 14px 14px 2px; }
@@ -3227,12 +3137,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
      other, and none of them could shrink: on a 390px phone the row measured
      385px of actions next to the title, which made the whole Store 585px wide
      inside a 355px panel. Everything then sat at whatever the sideways scroll
-     position happened to be. The controls take their own line here, and the
-     supporter button takes the width it needs. */
+     position happened to be. The controls take their own line here. */
   .cgal-khead { flex-wrap: wrap; row-gap: 8px; }
   .cgal-khead-l { flex: 1 1 auto; min-width: 0; }
   .cgal-khead-actions { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; gap: 8px 12px; }
-  .cgal-feat-join { flex: 1 1 auto; white-space: normal; }
 }
 
 /* ── "How it works" supporter perks panel (stacked over the Store) ── */
@@ -3248,6 +3156,8 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-info-perks li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; line-height: 1.5; color: var(--text, #e7e9ee); }
 .cgal-info-tick { flex: none; margin-top: 2px; color: var(--warn, #ffb454); }
 .cgal-info-tick svg { width: 16px; height: 16px; }
+/* The Scintille perk wears the spark in the tick's 16px slot, so the lines stay in one column. */
+.cgal-info-perks [data-xspark] { width: 16px; height: 16px; margin-top: 3px; }
 .cgal-info-note {
   display: flex; flex-direction: column; gap: 8px;
   font-size: 0.82rem; line-height: 1.5; color: var(--text-dim, #8b91a1);
@@ -3260,6 +3170,13 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   padding: 6px 11px; border-radius: 8px; background: rgba(255, 180, 84, 0.14); border: 1px solid rgba(255, 180, 84, 0.34);
 }
 .cgal-info-mail:hover { background: rgba(255, 180, 84, 0.22); }
+/* The Scintille packs for a saved supporter: one pack a row, like the perks above. */
+.cgal-info-sparks { display: flex; flex-direction: column; gap: 10px; }
+.cgal-info-sparks-head { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; font-size: 0.9rem; color: var(--text, #e7e9ee); }
+.cgal-info-sparks-head span, .cgal-info-sparks-note { color: var(--text-dim, #8b91a1); font-size: 0.82rem; line-height: 1.5; }
+.cgal-info-sparks-note { margin: 0; }
+.cgal-info-sparks .xai-pack-list { grid-template-columns: 1fr; }
+.cgal-info-sparks .xai-pack { justify-content: flex-start; }
 .cgal-info-cta { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
 .cgal-info-cta .cgal-btn { width: 100%; }
 .cgal-info-bmc { color: #12100a; background: var(--warn, #ffb454); border-color: transparent; font-weight: 700; }
@@ -3311,7 +3228,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   .cgal-grid.is-solo > .cgal-card > .cgal-body { padding: 13px 14px 14px; gap: 6px; }
   .cgal-grid.is-solo .cgal-name { font-size: 0.98rem; }
   .cgal-grid.is-solo .cgal-desc { font-size: 0.82rem; -webkit-line-clamp: 3; }
-  .cgal-brand-sub, .cgal-trust { display: none; }
+  .cgal-brand-sub { display: none; }
   .cgal-brand-title { font-size: 1.12rem; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3427,7 +3344,14 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .cgal-changelog-text { font-size: 0.82rem; line-height: 1.45; color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
 .cgal-metachip { font-size: 0.72rem; font-weight: 600; color: var(--text-dim, #8b91a1); padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
-.cgal-detail-desc { margin: 0; font-size: 0.92rem; line-height: 1.6; color: var(--text-soft, #c3c8d2); }
+.cgal-detail-desc { margin: 0; font-size: 0.92rem; line-height: 1.6; color: var(--text-soft, #c3c8d2); overflow-wrap: anywhere; }
+/* Rich descriptions (shared/src/rich-text.js): paragraphs, lists, bold. */
+.cgal-detail-desc p, .cgal-detail-desc ul, .cgal-detail-desc ol { margin: 0 0 0.6em; }
+.cgal-detail-desc > :last-child { margin-bottom: 0; }
+.cgal-detail-desc ul, .cgal-detail-desc ol { padding-left: 1.25em; }
+.cgal-detail-desc li + li { margin-top: 0.25em; }
+.cgal-detail-desc strong { color: var(--text, #e7e9ee); font-weight: 650; }
+.cgal-detail-desc code { font-size: 0.86em; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 12%, transparent); }
 .cgal-detail-swatches { display: flex; flex-direction: column; gap: 7px; }
 .cgal-detail-sw { display: flex; align-items: center; gap: 9px; }
 .cgal-detail-sw .preset-swatch-dot { width: 20px; height: 20px; }
@@ -3471,6 +3395,14 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   .cgal-detail-body { grid-template-columns: 1fr; gap: 16px; }
   .cgal-gal { position: static; }
   .cgal-detail-name { font-size: 1.3rem; }
+  /* One column puts the actions under the gallery and the whole description,
+     below the fold on a phone: keep them pinned to the bottom while scrolling. */
+  .cgal-detail-cta:not(:empty) {
+    /* -20px: the sticky edge sits inside the body's 20px padding otherwise. */
+    position: sticky; bottom: -20px; z-index: 1; margin: 0 -20px -20px; padding: 12px 20px 16px;
+    /* Near-opaque so the description scrolling underneath never shows through. */
+    background: rgba(var(--oled-bg-rgb, 10, 12, 16), 0.96); border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .cgal-detail-scrim, .cgal-detail, .cgal-zoom { animation: none; }
@@ -3545,6 +3477,8 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 10px;
 }
 .preset-unlock-field:focus { outline: none; border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.5); }
+.preset-unlock-field.need { border-color: rgba(var(--danger-rgb), 0.7); background: var(--danger-bg); }
+.preset-unlock-label + .preset-check-list { margin-top: 12px; }
 .preset-unlock-note { margin-top: 7px; font-size: 0.76rem; line-height: 1.45; color: var(--text-dim, rgba(231, 233, 238, 0.55)); }
 /* The supporter pass, kept in Settings. Same field treatment as the unlock box
    in the import dialog, so the two read as the same thing in two places. Wraps
@@ -3574,7 +3508,41 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   font-size: 0.76rem; line-height: 1.45; color: var(--text-dim, rgba(231, 233, 238, 0.55));
 }
 .preset-unlock-saved > span { flex: 1 1 12ch; }
+/* Both rows and the label set a display, which would beat the hidden attribute. */
+.preset-unlock-saved[hidden], .preset-unlock-label[hidden] { display: none; }
 .preset-unlock-forget { flex: none; padding: 6px 12px; font-size: 0.76rem; }
+/* "Buy Sparks" shows only after a buy fell short; .settings-btn sets a display. */
+.preset-unlock-forget[hidden] { display: none; }
+/* Sold only for Sparks the price is the offer, so it reads first and in full
+   contrast, with air before the code field under it. */
+.preset-unlock-buy.is-lead { margin-top: 0; font-size: 0.85rem; color: var(--text, #e7e9ee); }
+.preset-unlock-buy + .preset-unlock-label { margin-top: 12px; }
+/* "Buy Sparks" is a link styled as a button: no link underline. */
+a.preset-unlock-forget { text-decoration: none; }
+
+/* The pass trial's end card (js/trial-pass-ui.js): the Store pictures of what
+   was used, one full-width way to keep it, then the code and "not now" as plain
+   text links. The pictures carry the card, so nothing else is decorated. */
+.trial-end-gets { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin: 2px 0 12px; padding: 0; list-style: none; }
+.trial-end-gets li { display: grid; gap: 4px; min-width: 0; }
+.trial-end-pic {
+  display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+.trial-end-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.trial-end-pic.is-glyph { color: var(--text-dim, #8b91a1); }
+.trial-end-pic.is-glyph svg { width: 22px; height: 22px; }
+.trial-end-name { font-size: 0.8rem; line-height: 1.3; color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
+.trial-end-keep { display: block; width: 100%; min-height: 44px; margin-top: 12px; }
+.trial-end-price { margin-top: 6px; font-size: 0.76rem; color: var(--text-dim, rgba(231, 233, 238, 0.55)); }
+.trial-end-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; }
+.trial-end-link {
+  min-height: 44px; padding: 0 8px; border: 0; background: none; font: inherit; font-size: 0.82rem;
+  color: var(--text-muted, #a7adbb); text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.trial-end-link:hover { color: var(--text, #e7e9ee); }
+.trial-end-link:focus-visible { outline: 2px solid var(--accent, #45d483); outline-offset: 2px; border-radius: 4px; }
+.trial-welcome-row { font-size: 0.86rem; color: var(--text, #e7e9ee); }
 
 /* ── "Widgets & sharing" hub: intro + two explainer sub-cards ─────────────
    Groups the code-that-extends (community widgets) and the data-you-share
@@ -3610,13 +3578,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .settings-subcard-titles { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .settings-subcard-titles b { font-size: 13px; font-weight: 900; color: var(--text); }
-.settings-subcard-badge {
-  flex: none; align-self: center;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 999px;
-  color: rgba(var(--accent-rgb),1); background: rgba(var(--accent-rgb),0.14);
-  border: 1px solid rgba(var(--accent-rgb),0.3);
-}
+.settings-subcard-badge { flex: none; align-self: center; }
 
 /* Store — the featured entry point to the community catalog. Deliberately
    larger and accent-lit so it reads as the hero of this section, sitting above
@@ -3731,89 +3693,170 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .settings-memory-empty { margin: 0; font-size: 12px; color: var(--muted-text); line-height: 1.4; }
 .settings-memory-actions { display: flex; justify-content: flex-end; }
 
+/* Games played (js/game-sessions-pane.js): newest first, each against the time
+   before in the same game. Rows, not cards: the numbers are what matters. */
+.gamesess-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.gamesess-row {
+  display: grid; gap: 2px; min-width: 0;
+  padding: 8px 10px; border-radius: 9px;
+  background: rgba(var(--accent-rgb),0.06);
+  border: 1px solid rgba(var(--accent-rgb),0.14);
+}
+.gamesess-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.gamesess-game { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gamesess-fps { flex: none; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gamesess-meta, .gamesess-delta { font-size: 12px; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere; }
+.gamesess-delta.is-up { color: var(--color-success); }
+.gamesess-delta.is-down { color: var(--color-warn); }
+
 /* ── Sostieni Xenon (support category) ─────────────────────────
-   The one page allowed to be warm and loud: a donation hero and a Discord
-   card, both with a single unmistakable call to action. */
+   Read top to bottom: why (title, one line, the supporter count), the three
+   ways to pay as price tiles you tap whole, the "I already support" actions
+   beside them, and the free ways to help as one quiet row. On the wide, short
+   Xeneon Edge pane it all sits in one screen; narrower panes wrap the tiles.
+   It carries the support card's own pink (SupportAsk.css explains why it
+   ignores the theme accent) and nothing else loud. */
 .settings-support-group {
+  --sup-pink: 255, 45, 138;
+  --sup-pink-deep: 214, 0, 110;     /* white on it is 5.1:1, on the neon only 3.5:1 */
+  --sup-red: #ff2b3d;
+  display: grid;
+  gap: 14px;
   background: transparent;
   border: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
   overflow: visible;
 }
-.support-hero {
-  border-radius: 16px;
-  padding: 22px 20px;
-  text-align: center;
-  background: linear-gradient(160deg, rgba(255,77,141,0.16), rgba(255,77,141,0.05) 60%, transparent);
-  border: 1px solid rgba(255,77,141,0.28);
+/* The page is its tiles, not a card holding them; two classes so the theme
+   contract's generic surface (`.ai-provider-toggle label` in its list) loses. */
+.settings-group.settings-support-group { background-color: transparent; }
+.settings-support-group:lang(ko) { word-break: keep-all; }
+
+.support-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 32px;
+  padding: 2px 2px 0;
 }
-.support-hero-heart { width: 34px; height: 34px; margin: 0 auto 8px; color: #ff4d8d; }
-.support-hero-heart svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 14px rgba(255,77,141,0.45)); }
-.support-hero-title { font-size: 18px; font-weight: 900; letter-spacing: 0.01em; }
-.support-hero-lead {
-  margin: 6px auto 14px;
-  max-width: 520px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--muted-text);
-}
-.support-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 10px 22px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 800;
-  text-decoration: none;
-  transition: transform .12s ease, background .15s ease;
-}
-.support-cta:active { transform: scale(0.97); }
-.support-cta svg { width: 18px; height: 18px; }
-.support-cta-coffee { background: #ff4d8d; color: #fff; box-shadow: 0 8px 24px rgba(255,77,141,0.35); }
-.support-cta-coffee:hover { background: #ff5f99; }
-.support-cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.support-cta-once { color: var(--text); border: 1px solid rgba(255,77,141,0.45); }
-.support-cta-once:hover { background: rgba(255,77,141,0.12); }
-/* The supporter count under the buttons (components/SupportGoal). */
-.support-hero .support-goal { max-width: 360px; margin: 16px auto 0; }
-.support-card {
+.support-head-text { flex: 1 1 360px; min-width: 0; }
+.support-title {
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 16px;
+  gap: 10px;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  text-wrap: balance;
 }
-.support-card-discord { background: rgba(88,101,242,0.12); border: 1px solid rgba(88,101,242,0.3); }
-.support-card-ico { width: 30px; height: 30px; flex: 0 0 auto; color: #7784f5; }
-.support-card-ico svg { width: 100%; height: 100%; }
-.support-card-body { flex: 1 1 auto; min-width: 0; }
-.support-card-title { font-size: 14px; font-weight: 800; }
-.support-card-lead { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted-text); }
-.support-cta-discord { background: #5865F2; color: #fff; flex: 0 0 auto; padding: 10px 16px; font-size: 13px; }
-.support-cta-discord:hover { background: #6b77f4; }
-.support-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.support-title svg { flex: none; width: 20px; height: 20px; color: var(--sup-red); }
+.support-lead {
+  margin: 6px 0 0;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-text);
+}
+/* The supporter count (components/SupportGoal) in this page's pink. */
+.support-head .support-goal { --goal-fill: var(--sup-pink); flex: 0 1 360px; min-width: 220px; }
+.support-head .support-goal-bar { height: 8px; }
+
+.support-body { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; }
+.support-plans {
+  flex: 3 1 560px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.support-plan,
+.support-already {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
+}
+.support-plan {
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color .15s ease, background-color .15s ease, transform .12s ease;
+}
+.support-plan:hover { border-color: rgba(var(--sup-pink), 0.45); background: rgba(var(--sup-pink), 0.06); }
+.support-plan:active { transform: scale(0.985); }
+.support-plan:focus-visible { outline: 2px solid rgb(var(--sup-pink)); outline-offset: 2px; }
+.support-plan.is-main { border-color: rgba(var(--sup-pink), 0.5); background: rgba(var(--sup-pink), 0.09); }
+.support-plan-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; }
+.support-plan-price b {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.support-plan-price span { font-size: 13px; font-weight: 600; color: var(--muted-text); }
+/* Scintille come with every plan; the spark is the shared sprite (js/xenon-credits.js). */
+.support-plan-sparks { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text); }
+/* The note takes the slack, so every tile's button sits on the same line. */
+.support-plan-note { flex: 1; font-size: 13px; line-height: 1.45; color: var(--muted-text); }
+.support-plan-cta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1px solid rgba(var(--sup-pink), 0.42);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  transition: background-color .15s ease;
+}
+.support-plan:hover .support-plan-cta { background: rgba(var(--sup-pink), 0.14); }
+.support-plan-cta svg { width: 16px; height: 16px; }
+/* Monthly is the ask: the only filled thing on the page. */
+.support-plan.is-main .support-plan-cta { border-color: transparent; background: rgb(var(--sup-pink-deep)); color: #fff; }
+.support-plan.is-main:hover .support-plan-cta { background: rgb(235, 20, 125); }
+
+.support-already { flex: 1 1 260px; min-width: 0; }
+.support-already-title { font-size: 15px; font-weight: 800; line-height: 1.3; }
+.support-already-lead { flex: 1; margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted-text); }
+.support-already-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.support-already-actions .settings-btn { flex: 1 1 auto; min-height: 44px; }
+
+.support-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .support-link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 14px;
+  min-height: 40px;
+  padding: 0 13px;
   border-radius: 10px;
   font-size: 12.5px;
   font-weight: 700;
   color: var(--muted-text);
   text-decoration: none;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
 }
-.support-link:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.support-link:hover { color: var(--text); background: rgba(255,255,255,0.07); }
 .support-link svg { width: 15px; height: 15px; }
-@media (max-width: 640px) {
-  .support-card { flex-direction: column; text-align: center; }
+.support-link-discord svg { color: #7784f5; }
+:root[data-appearance="light"] :is(.support-plan, .support-already, .support-link) { border-color: var(--lt-border); }
+:root[data-appearance="light"] .support-plan.is-main { border-color: rgba(var(--sup-pink-deep), 0.5); }
+:root[data-appearance="light"] .support-plan-cta { border-color: rgba(var(--sup-pink-deep), 0.45); }
+:root[data-appearance="light"] .support-link-discord svg { color: #5865F2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .support-plan, .support-plan-cta { transition: none; }
+  .support-plan:active { transform: none; }
 }
 
 /* ── 2026-07 reorg: breathing room ─────────────────────────────
@@ -3899,349 +3942,6 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .settings-superseded-note { color: rgb(var(--accent-rgb)); }
 
 /* (Community gallery toolbar styles moved into the premium storefront block above.) */
-
-/* ── Catalog "new drop" modal (js/catalog-drop.js) ───────────────────────────
-   The shop card of a game store, kept tasteful: the room dims, a burst of the
-   pack's own light opens behind the card, the card lands with a small overshoot
-   and a shine crosses the picture once. Everything moves ONCE on entry and then
-   holds still (no infinite animation joins the freeze sets because none exists).
-   Tier colour (--xd) names the offer: gold for supporters, violet for a limited
-   edition. The pack's accent (--xa, from its catalog swatch) lights the card.
-   Landscape on a wide, short screen such as the Edge; stacked on a phone. */
-.xdrop-overlay {
-  position: fixed; inset: 0; z-index: 9000;
-  display: flex; align-items: center; justify-content: center; padding: 3vh 3vw;
-  background: radial-gradient(90% 90% at 50% 45%, rgba(8, 10, 16, 0.55), rgba(3, 4, 7, 0.86));
-  backdrop-filter: blur(6px);
-  animation: xdrop-fade 0.28s ease;
-}
-.xdrop-overlay.closing { animation: xdrop-fade 0.2s ease reverse; }
-@keyframes xdrop-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes xdrop-pop { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
-
-/* The burst: rays and a glow in the tier colour, opening once behind the card. */
-.xdrop-burst {
-  position: absolute; left: 50%; top: 50%; width: min(1500px, 170vw); aspect-ratio: 1;
-  transform: translate(-50%, -50%) scale(1); pointer-events: none;
-  background:
-    radial-gradient(closest-side, rgba(var(--xd-burst, 255, 196, 77), 0.34), rgba(var(--xd-burst, 255, 196, 77), 0.08) 45%, transparent 70%),
-    repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.05) 0deg 6deg, transparent 6deg 18deg);
-  -webkit-mask: radial-gradient(closest-side, #000 30%, transparent 72%);
-          mask: radial-gradient(closest-side, #000 30%, transparent 72%);
-  opacity: 0.8;
-  animation: xdrop-burst 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.xdrop-overlay:has(.is-limited) .xdrop-burst { --xd-burst: 160, 128, 255; }
-@keyframes xdrop-burst {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.45) rotate(-18deg); }
-  45% { opacity: 1; }
-  100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-}
-
-.xdrop-card {
-  --xd: 255, 196, 77;                    /* supporters gold */
-  --xd-top: #ffe08a; --xd-bot: #eea32f; --xd-edge: #9b5f0e; --xd-ink: #2a1800;
-  --xa: var(--xd);                        /* the pack's own accent, set inline */
-  position: relative; z-index: 1;
-  width: min(1080px, 94vw); max-height: 92vh; overflow: hidden;
-  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  border-radius: 26px;
-  border: 1.5px solid transparent;
-  background:
-    linear-gradient(180deg, rgba(var(--xa), 0.14), transparent 42%) padding-box,
-    linear-gradient(#0d1016, #0a0c11) padding-box,
-    linear-gradient(160deg, rgba(var(--xd), 0.95), rgba(var(--xa), 0.35) 45%, rgba(var(--xd), 0.55)) border-box;
-  box-shadow: 0 50px 120px -34px rgba(0, 0, 0, 0.85), 0 0 90px -24px rgba(var(--xa), 0.55), 0 1px 0 rgba(255, 255, 255, 0.1) inset;
-  color: #eef1f6;
-  animation: xdrop-open 0.62s cubic-bezier(0.2, 1.35, 0.35, 1) both;
-}
-.xdrop-card.is-limited { --xd: 160, 128, 255; --xd-top: #c9b8ff; --xd-bot: #7254ff; --xd-edge: #3d2a9e; --xd-ink: #fff; }
-@keyframes xdrop-open {
-  0% { opacity: 0; transform: translateY(28px) scale(0.84); }
-  60% { opacity: 1; transform: translateY(-4px) scale(1.025); }
-  100% { opacity: 1; transform: none; }
-}
-
-.xdrop-x {
-  position: absolute; top: 14px; right: 14px; z-index: 4;
-  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; cursor: pointer;
-  color: #e7e9ee; background: rgba(6, 8, 12, 0.55); border: 1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(6px); transition: background 0.15s ease;
-}
-.xdrop-x:hover { background: rgba(6, 8, 12, 0.85); }
-
-/* The picture of the pack, full height on the left. */
-.xdrop-art { position: relative; min-height: clamp(320px, 62vh, 470px); overflow: hidden; background: #05070a; }
-.xdrop-media { position: absolute; inset: 0; }
-.xdrop-shot { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Single-drop card: the whole screenshot, uncropped, over a blurred copy of it. */
-.xdrop-media.is-fit .xdrop-shot { position: relative; object-fit: contain; }
-.xdrop-shot-bg {
-  position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px);
-  object-fit: cover; filter: blur(22px) saturate(1.1) brightness(0.55);
-}
-.xdrop-art::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent 62%, #0c0f15), linear-gradient(180deg, transparent 60%, rgba(5, 7, 10, 0.55));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-.xdrop-art:has(.is-fit)::after {
-  background: linear-gradient(90deg, transparent 88%, #0c0f15), linear-gradient(180deg, transparent 75%, rgba(5, 7, 10, 0.4));
-}
-.xdrop-shine {
-  position: absolute; top: -20%; bottom: -20%; left: 0; width: 38%; z-index: 2; pointer-events: none;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.26) 45%, rgba(255, 255, 255, 0.06) 60%, transparent);
-  transform: translateX(-160%) skewX(-12deg);
-  animation: xdrop-shine 1.05s ease 0.45s 1 both;
-}
-@keyframes xdrop-shine { to { transform: translateX(330%) skewX(-12deg); } }
-
-/* The crest: the tier as an object, not a label. */
-.xdrop-crest, .xdrop-tile-crest {
-  position: absolute; left: 16px; top: 16px; z-index: 3;
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 13px 7px 10px; border-radius: 12px;
-  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em;
-  color: var(--xd-ink);
-  background: linear-gradient(180deg, var(--xd-top), var(--xd-bot));
-  box-shadow: 0 3px 0 var(--xd-edge), 0 10px 22px -8px rgba(var(--xd), 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-.xdrop-crest svg, .xdrop-tile-crest svg { width: 16px; height: 16px; }
-
-/* `min-height: 0` makes the overflow real: on a short screen the body scrolls
-   instead of being cut off by the card. */
-.xdrop-body { position: relative; padding: 30px 30px 22px; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
-.xdrop-kicker {
-  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
-  color: rgb(var(--xd)); margin: 0 44px 8px 0;
-}
-.xdrop-title { margin: 0; font-size: 2rem; line-height: 1.05; letter-spacing: -0.025em; font-weight: 850; text-wrap: balance;
-  text-shadow: 0 2px 18px rgba(var(--xa), 0.35); }
-.xdrop-facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.xdrop-fact {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 650;
-  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.08); color: #d7dbe3;
-}
-.xdrop-fact.is-time { color: rgb(var(--xd)); border-color: rgba(var(--xd), 0.4); background: rgba(var(--xd), 0.1); }
-.xdrop-fact.is-time::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
-.xdrop-sub { margin: 14px 0 0; font-size: 0.95rem; line-height: 1.55; color: #c3c8d2; }
-
-.xdrop-meter { display: grid; gap: 7px; margin-top: 16px; }
-.xdrop-bar { height: 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5); }
-.xdrop-barfill {
-  height: 100%; width: var(--gone, 0%); border-radius: 999px;
-  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.18) 0 8px, transparent 8px 16px), linear-gradient(180deg, var(--xd-top), var(--xd-bot));
-  box-shadow: 0 0 16px rgba(var(--xd), 0.7);
-  animation: xdrop-fill 0.9s cubic-bezier(0.2, 0.9, 0.3, 1) 0.35s both;
-}
-@keyframes xdrop-fill { from { width: 0; } to { width: var(--gone, 0%); } }
-.xdrop-left { font-size: 0.86rem; font-weight: 750; color: rgb(var(--xd)); font-variant-numeric: tabular-nums; }
-
-/* `flex: none`: the two things in the card that must keep their size. */
-.xdrop-actions { display: grid; gap: 10px; margin-top: 22px; flex: none; }
-.xdrop-btn {
-  appearance: none; border: 0; cursor: pointer; font-family: inherit;
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.18s ease, background 0.15s ease;
-}
-/* The lit key: a raised, glossy button with a solid lower edge that presses in. */
-.xdrop-primary {
-  position: relative; overflow: hidden;
-  height: 58px; border-radius: 16px;
-  font-size: 1.08rem; font-weight: 850; letter-spacing: -0.005em; color: var(--xd-ink);
-  background: linear-gradient(180deg, var(--xd-top), var(--xd-bot));
-  box-shadow: 0 5px 0 var(--xd-edge), 0 18px 34px -12px rgba(var(--xd), 0.9), inset 0 1.5px 0 rgba(255, 255, 255, 0.65), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
-}
-.xdrop-primary::after {
-  content: ""; position: absolute; top: 0; bottom: 0; width: 30%; left: 0; pointer-events: none;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-  transform: translateX(-140%) skewX(-18deg);
-  animation: xdrop-shine 0.9s ease 1.25s 2 both;
-}
-.xdrop-primary:hover { filter: brightness(1.06); }
-.xdrop-primary:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--xd-edge), 0 8px 16px -10px rgba(var(--xd), 0.8), inset 0 1.5px 0 rgba(255, 255, 255, 0.5); }
-.xdrop-primary:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-.xdrop-btn-label { position: relative; z-index: 1; }
-.xdrop-ghost {
-  height: 46px; border-radius: 14px; font-size: 0.92rem; font-weight: 650; color: #e7e9ee;
-  background: transparent; border: 1px solid rgba(255, 255, 255, 0.16);
-}
-.xdrop-ghost:hover { background: rgba(255, 255, 255, 0.06); }
-
-.xdrop-foot {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  flex-wrap: wrap; row-gap: 6px; flex: none;
-  margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-.xdrop-dontshow { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; color: #8b91a1; font-size: 0.8rem; min-height: 32px; }
-.xdrop-dontshow input { position: absolute; opacity: 0; width: 0; height: 0; }
-.xdrop-box { width: 19px; height: 19px; flex: none; border-radius: 6px; border: 1.5px solid rgba(255, 255, 255, 0.28); display: grid; place-items: center; transition: background 0.15s ease, border-color 0.15s ease; }
-.xdrop-box svg { width: 12px; height: 12px; opacity: 0; color: var(--xd-ink); transition: opacity 0.15s ease; }
-.xdrop-dontshow input:checked + .xdrop-box { background: rgb(var(--xd)); border-color: rgb(var(--xd)); }
-.xdrop-dontshow input:checked + .xdrop-box svg { opacity: 1; }
-.xdrop-dontshow input:focus-visible + .xdrop-box { outline: 2px solid rgb(var(--xd)); outline-offset: 2px; }
-.xdrop-later { background: none; border: 0; cursor: pointer; font-family: inherit; padding: 8px; color: #8b91a1; font-size: 0.8rem; font-weight: 650; }
-.xdrop-later:hover { color: #c3c8d2; }
-
-/* ── Several drops: one card, a row of offer tiles. */
-.xdrop-card.is-batch { display: flex; flex-direction: column; width: min(1040px, 96vw); }
-.xdrop-card.is-batch .xdrop-body { overflow-y: hidden; flex: 1 1 auto; }
-.xdrop-tiles {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;
-  margin-top: 18px; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 2px 6px; scrollbar-width: thin;
-}
-.xdrop-tile {
-  --xd: 255, 196, 77; --xd-top: #ffe08a; --xd-bot: #eea32f; --xd-edge: #9b5f0e; --xd-ink: #2a1800; --xa: var(--xd);
-  appearance: none; font-family: inherit; text-align: left; cursor: pointer; color: #eef1f6;
-  display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; padding: 0;
-  border: 1.5px solid rgba(var(--xd), 0.45);
-  background: linear-gradient(180deg, rgba(var(--xa), 0.12), transparent 60%), #0e1117;
-  box-shadow: 0 16px 34px -20px rgba(0, 0, 0, 0.8);
-  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-  animation: xdrop-pop 0.5s cubic-bezier(0.2, 1.3, 0.35, 1) both;
-}
-.xdrop-tile:nth-child(2) { animation-delay: 0.08s; }
-.xdrop-tile:nth-child(3) { animation-delay: 0.16s; }
-.xdrop-tile:nth-child(n+4) { animation-delay: 0.22s; }
-.xdrop-tile.is-limited { --xd: 160, 128, 255; --xd-top: #c9b8ff; --xd-bot: #7254ff; --xd-edge: #3d2a9e; --xd-ink: #fff; }
-.xdrop-tile:hover { transform: translateY(-3px); border-color: rgba(var(--xd), 0.85); box-shadow: 0 22px 40px -20px rgba(var(--xa), 0.6); }
-.xdrop-tile:active { transform: translateY(0) scale(0.99); }
-.xdrop-tile-art { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #05070a; }
-.xdrop-tile-crest { left: 10px; top: 10px; padding: 5px 10px 5px 8px; font-size: 0.7rem; border-radius: 10px; }
-.xdrop-tile-crest svg { width: 13px; height: 13px; }
-.xdrop-tile-mid { display: grid; gap: 3px; padding: 12px 14px 14px; }
-.xdrop-tile-name { font-size: 1rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xdrop-tile-line { font-size: 0.78rem; font-weight: 650; color: rgb(var(--xd)); font-variant-numeric: tabular-nums; }
-
-/* Narrow screens: the picture on top, then the offer. */
-@media (max-width: 760px) {
-  .xdrop-card:not(.is-batch) { grid-template-columns: 1fr; width: min(460px, 100%); }
-  .xdrop-art { min-height: 0; height: clamp(170px, 44vw, 230px); }
-  .xdrop-art::after { background: linear-gradient(180deg, transparent 55%, #0c0f15); }
-  .xdrop-body { padding: 20px 20px 16px; }
-  .xdrop-title { font-size: 1.5rem; }
-  .xdrop-tiles { grid-template-columns: 1fr 1fr; gap: 10px; }
-}
-@media (max-width: 420px) {
-  .xdrop-tiles { grid-template-columns: 1fr; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .xdrop-overlay, .xdrop-card, .xdrop-burst, .xdrop-tile, .xdrop-barfill { animation: none; }
-  .xdrop-shine, .xdrop-primary::after { display: none; }
-  .xdrop-btn, .xdrop-tile { transition: none; }
-}
-
-/* ── Hub announcement (js/hub-messages.js) ───────────────────────────────────
-   Sits next to the drop card because they are the same kind of surface, and
-   deliberately reads quieter than it: this one is a note, not an offer. Neutral
-   accent, no scarcity meter, and at most ONE piece of artwork in a fixed frame
-   (see .hubmsg-media). If it ever starts looking like the card above, the
-   channel has drifted into advertising. */
-.hubmsg-overlay {
-  position: fixed; inset: 0; z-index: 9000;
-  display: flex; align-items: center; justify-content: center; padding: 4vh 4vw;
-  background: rgba(5, 7, 11, 0.62); backdrop-filter: blur(4px);
-  animation: xdrop-fade 0.3s ease;
-}
-.hubmsg-overlay.closing { animation: xdrop-fade 0.2s ease reverse; }
-
-.hubmsg-card {
-  position: relative; width: min(420px, 96vw); max-height: 92vh; overflow-y: auto;
-  display: flex; flex-direction: column;
-  padding: 26px 24px 18px;
-  border-radius: 22px;
-  background: var(--glass-bg, #14181c);
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
-  box-shadow: 0 40px 90px -28px rgba(0, 0, 0, 0.78), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
-  animation: xdrop-pop 0.42s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.hubmsg-close {
-  position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
-  appearance: none; border: 0; cursor: pointer; font-family: inherit; font-size: 1.3rem; line-height: 1;
-  border-radius: 50%; background: rgba(255, 255, 255, 0.07); color: var(--text-dim, #8b91a1);
-}
-.hubmsg-close:hover { background: rgba(255, 255, 255, 0.13); color: var(--text, #e7e9ee); }
-
-/* Artwork. The rule above used to say a message carries none, and for a text-only
-   channel that was right — the risk it named is real and has not gone away. What
-   changed is that a release note describing a new widget, or a drop worth looking
-   at, was being written in prose and read by nobody: the card had no way to SHOW
-   anything. So one picture or clip is allowed, and the guard moved from "never"
-   to "the frame is fixed": a set aspect box the author cannot grow, above the
-   text, with no caption of its own. A card can illustrate what it says; it still
-   cannot become a poster.
-
-   Full-bleed to the card's top edge (hence .has-media dropping the top padding),
-   because a framed image inset on all four sides reads as a broken attachment.
-   The aspect-ratio is what stops the card from jumping when a file lands late —
-   the box is the right size before anything decodes. */
-.hubmsg-card.has-media { padding-top: 0; }
-.hubmsg-media {
-  position: relative; margin: 0 -24px 18px; aspect-ratio: 16 / 9; overflow: hidden;
-  border-radius: 22px 22px 14px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
-}
-.hubmsg-media img, .hubmsg-media video {
-  /* contain, not cover: the author's picture is shown whole (a 16:7 widget loop lost the start
-     of its title to the sides of this 16:9 box); the box's ground fills the difference. */
-  display: block; width: 100%; height: 100%; object-fit: contain;
-}
-/* With artwork behind it the close button sits on the picture, and its usual
-   translucent-white fill disappears against a pale one. Opaque dark here, since
-   this is the control that has to be findable on any image an author picks. */
-.hubmsg-card.has-media .hubmsg-close {
-  background: rgba(8, 10, 14, 0.62); color: #f2f4f8;
-  backdrop-filter: blur(6px); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-}
-.hubmsg-card.has-media .hubmsg-close:hover { background: rgba(8, 10, 14, 0.82); }
-
-.hubmsg-kicker {
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: rgba(var(--accent-rgb, 30, 215, 96), 1); margin-bottom: 8px;
-}
-.hubmsg-title { margin: 0; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.015em; color: var(--text, #e7e9ee); }
-.hubmsg-body { margin: 10px 0 0; font-size: 0.9rem; line-height: 1.5; color: var(--text-soft, #c3c8d2); }
-
-.hubmsg-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-/* Poll options. Stacked and full width so every answer is the same size — a
-   wider button reads as the recommended one, which biases the result. */
-.hubmsg-poll { display: flex; flex-direction: column; gap: 9px; margin-top: 20px; }
-.hubmsg-poll .hubmsg-btn { width: 100%; height: 46px; font-size: 0.92rem; font-weight: 600; }
-.hubmsg-btn {
-  appearance: none; border: 0; cursor: pointer; font-family: inherit;
-  border-radius: 14px; font-weight: 700; letter-spacing: -0.01em;
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  transition: transform 0.12s ease, filter 0.18s ease, background 0.15s ease;
-}
-.hubmsg-btn:active { transform: translateY(1px) scale(0.995); }
-.hubmsg-btn.primary {
-  /* --on-accent, not the never-defined --accent-ink this used to name: that
-     token resolves nowhere, so the fallback ink was pinned regardless of theme. */
-  height: 48px; font-size: 0.96rem; color: var(--on-accent, #06210f);
-  background: rgba(var(--accent-rgb, 30, 215, 96), 1);
-}
-.hubmsg-btn.primary:hover { filter: brightness(1.06); }
-.hubmsg-btn.ghost {
-  height: 42px; font-size: 0.88rem; font-weight: 600; color: var(--text, #e7e9ee);
-  background: transparent; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.16));
-}
-.hubmsg-btn.ghost:hover { background: rgba(255, 255, 255, 0.06); }
-
-/* The opt-out is plain and always present — never a hidden setting. */
-.hubmsg-optout {
-  margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
-  background: none; border-left: 0; border-right: 0; border-bottom: 0; cursor: pointer; font-family: inherit;
-  color: var(--text-dim, #8b91a1); font-size: 0.8rem; font-weight: 600; text-align: center;
-}
-.hubmsg-optout:hover { color: var(--text-soft, #c3c8d2); }
-
-@media (max-width: 460px) { .hubmsg-card { width: 100%; } }
-@media (prefers-reduced-motion: reduce) {
-  .hubmsg-overlay, .hubmsg-card { animation: none; }
-  .hubmsg-btn { transition: none; }
-}
 
 /* Ricerca e disco: vertical rhythm for rows dropped straight into the group
    (no .settings-grid here), the second head, and multiline folder inputs. */

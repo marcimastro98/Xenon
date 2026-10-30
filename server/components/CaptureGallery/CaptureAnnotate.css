@@ -1,0 +1,75 @@
+/* The screenshot editor (js/capture-annotate.js), over the gallery's viewer
+   and loaded with it the first time "Edit" is pressed. */
+.cann {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; flex-direction: column; min-height: 0;
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+}
+.cann-top {
+  display: flex; align-items: center; gap: 8px; flex: none; padding: 10px 16px;
+  border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+.cann-title { flex: 1; min-width: 0; font-size: 1rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cann-save { min-height: 44px; padding: 0 18px; }
+.cann-top .cgal-iconbtn { width: 44px; height: 44px; }
+.cann-top .cgal-iconbtn:disabled, .cann-save:disabled { opacity: 0.45; cursor: default; }
+
+.cann-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; background: #000; overflow: hidden; }
+.cann-canvas { display: block; touch-action: none; cursor: crosshair; }
+.cann-canvas[data-tool="text"] { cursor: text; }
+.cann.is-busy .cann-canvas { cursor: progress; }
+.cann-input {
+  position: absolute; width: 200px; max-width: calc(100% - 8px); min-height: 44px; padding: 0 10px;
+  font: inherit; font-size: 0.95rem; color: var(--text, #e7e9ee);
+  background: rgb(var(--panel-rgb, 17, 19, 20)); border: 1px solid var(--accent, #35e08e); border-radius: 6px;
+}
+.cann-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.cann-tools {
+  display: flex; flex-direction: column; gap: 8px; flex: none; padding: 10px 16px;
+  border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+.cann-toolrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 560px; width: 100%; margin: 0 auto; }
+.cann-tool {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 0; min-height: 52px; padding: 4px 2px;
+  color: var(--text-dim, #8b91a1); background: transparent;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08)); border-radius: 6px; cursor: pointer;
+}
+.cann-tool:hover { color: var(--text, #e7e9ee); }
+.cann-tool[aria-pressed="true"] { color: var(--text, #e7e9ee); border-color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.08); }
+.cann-tool:focus-visible, .cann-swatch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.cann-ic, .cann-ic svg { display: block; width: 20px; height: 20px; }
+.cann-tool-label { max-width: 100%; font-size: 0.74rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.cann-lower { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; }
+.cann-colors { display: flex; gap: 6px; }
+.cann-swatch {
+  position: relative; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; cursor: pointer;
+}
+.cann-swatch::before {
+  content: ''; position: absolute; inset: 10px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.cann-swatch-0::before { background: #e84040; }
+.cann-swatch-1::before { background: #f5c518; }
+.cann-swatch-2::before { background: #ffffff; }
+.cann-swatch[aria-pressed="true"]::after {
+  content: ''; position: absolute; inset: 5px; border-radius: 50%; border: 2px solid var(--text, #e7e9ee);
+}
+.cann-swatch:disabled { opacity: 0.3; cursor: default; }
+.cann-find { min-height: 44px; padding: 0 16px; }
+.cann-find:disabled { opacity: 0.5; cursor: default; }
+
+.cann-say { flex: none; min-height: 1.2em; padding: 0 16px 10px; text-align: center; font-size: 0.86rem; color: var(--text-dim, #8b91a1); }
+.cann-say:empty { display: none; }
+.cann-say.is-bad { color: var(--red); }
+
+@media (max-width: 560px) {
+  .cann-top { padding: 8px 12px; }
+  .cann-save { padding: 0 12px; }
+  .cann-tools { padding: 8px 12px; }
+  .cann-lower { justify-content: space-between; }
+  .cann-find { flex: 1 1 auto; }
+}

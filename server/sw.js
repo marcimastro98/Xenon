@@ -147,7 +147,8 @@ self.addEventListener('push', (e) => {
     // the whole feature off.
     renotify: true,
     icon: '/public/images/logo/logo-mark.png',
-    badge: '/public/images/logo/logo-mark.png',
+    // Android paints the badge from its alpha alone, so it is Bit cut out, no plate.
+    badge: '/public/images/logo/badge.png',
     data: { url: typeof d.url === 'string' ? d.url : '/' },
   }));
 });

@@ -21,7 +21,7 @@
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // probe OBS. Adding the widget makes it live on the next layout pass.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="obs"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="obs"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   const st = { streaming: false, recording: false, scene: '', mutes: {}, volumes: {}, inputs: [] };

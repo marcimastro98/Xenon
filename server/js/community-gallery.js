@@ -21,6 +21,16 @@
     return (v === k && fb != null) ? fb : v;
   };
   const el = makeEl; // shared DOM factory from utils.js
+  // Descriptions are a small Markdown subset (shared/src/rich-text.js): the
+  // detail view formats it, clamped cards and the hero show it as plain text.
+  // Without the shared module the raw text shows, as before.
+  const richText = () => window.Xenon && window.Xenon.richText;
+  const descPlain = (s) => { const rt = richText(); return rt ? rt.plain(s) : s; };
+  function descInto(node, s) {
+    const rt = richText();
+    if (rt) node.appendChild(rt.render(document, s)); else node.textContent = s;
+    return node;
+  }
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
   // Monthly membership page, counted per surface through the hub (see
   // supportUrl in @xenon/core); the plain page if the shared module is missing.
@@ -233,7 +243,9 @@
   let sortBy = 'feat';
   let shown = PAGE;
   let limitedOnly = false;   // dedicated "Limited edition" entry point
-  let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine)
+  let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine) | 'sparks' (the Sparks shop)
+  // Switches the open Store to a tab; set by open(), null while it is closed.
+  let showTab = null;
   // Set to a repaint fn while the Store is open, cleared on close. Lets an install
   // committed elsewhere (preset-share.js) re-render the open Store so a card flips
   // to "Installed" — the finishing half of keeping the Store open across an
@@ -455,14 +467,14 @@
           body: JSON.stringify({ entryId: entry.id, stars: n }),
         });
         if (out && out.ok) {
-          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks — rating saved!'), important: true });
+          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks: rating saved!'), important: true });
           // Refresh the aggregate so the average reflects the new vote.
           const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1');
           if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
           paint();
         } else {
           mine = prev; paint();
-          if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error', 'Couldn’t save the rating — try again later.') });
+          if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error', 'Couldn’t save the rating: try again later.') });
         }
       });
       row.appendChild(b);
@@ -679,7 +691,7 @@
       PresetShare.updateOwned(code, { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
       return;
     }
-    if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true });
+    if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, trialEligible: trialCovers(entry), supporterDrop: !entry.limited && !sparksOnly(entry) && (entry.locked === true || entry.supportersOnly === true), sparks: entry.limited ? 0 : (entry.sparks || 0), sparksOnly: sparksOnly(entry), name: entry.name || '' });
   }
 
   // "Become a supporter" — the warm heart CTA shown beside a locked entry's
@@ -701,10 +713,16 @@
   // entry IS installed, the join pitch steps back behind the Installed/Update
   // control — no point selling a membership to an owner.
   function appendLockedButtons(cta, entry) {
-    const unlock = importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock' + (supporterSaved ? ' is-saved' : ''), unlockLabel(), 'lock');
+    // Sold only for Sparks: a membership does not open it, so there is nothing to join.
+    if (sparksOnly(entry)) {
+      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', unlockLabel(entry), 'lock'));
+      return;
+    }
+    const unlock = importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock' + (supporterSaved ? ' is-saved' : ''), unlockLabel(entry, true), 'lock');
     if (supporterSaved) { cta.appendChild(unlock); return; }
     if (entryInstallState(entry) === 'none') {
       cta.appendChild(becomeSupporterButton('cgal-btn cgal-btn-hero cgal-info-bmc'));
+      if (!trialUsed && trialCovers(entry)) cta.appendChild(tryTrialButton());
       cta.appendChild(unlock);
     } else {
       cta.appendChild(unlock);
@@ -840,7 +858,7 @@
     const info = el('div', 'cgal-detail-info');
     const tier = el('div', 'cgal-detail-tier');
     if (limited) { tier.classList.add('t-limited'); tier.appendChild(icon('limited')); tier.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
-    else if (locked) { tier.classList.add('t-sup'); tier.appendChild(icon('supporters')); tier.appendChild(el('span', null, t('gallery_locked_badge', 'Supporters'))); }
+    else if (locked) { tier.classList.add('t-sup'); lockedTierInto(tier, entry, t('gallery_locked_badge', 'Supporters'), true); }
     else { tier.appendChild(kindIcon(entry.kind)); tier.appendChild(el('span', null, kindLabel(entry.kind))); }
     info.appendChild(tier);
 
@@ -877,7 +895,7 @@
     // (their cards still display the aggregate where one exists).
     if (!locked && !limited) ratingBoxInto(info, entry);
 
-    if (entry.description) info.appendChild(el('p', 'cgal-detail-desc', entry.description));
+    if (entry.description) info.appendChild(descInto(el('div', 'cgal-detail-desc'), entry.description));
 
     if (entry.preview && (entry.preview.accent || entry.preview.bg || entry.preview.text)) {
       const sw = el('div', 'cgal-detail-swatches');
@@ -928,6 +946,21 @@
     detailEl = scrim;
   }
 
+  // More Scintille for a supporter: what they are, and the way to the Sparks tab,
+  // where the packs are sold.
+  function sparkPacks() {
+    const box = el('div', 'cgal-info-sparks');
+    const head = el('p', 'cgal-info-sparks-head');
+    head.appendChild(el('b', null, t('xai_packs_title', 'Buy Sparks')));
+    head.appendChild(el('span', null, t('gallery_sparks_what', "Xenon's credits, the ones you buy never expire")));
+    box.appendChild(head);
+    const go = el('button', 'cgal-btn', t('sparks_shop_open', 'See the packs'));
+    go.type = 'button';
+    go.addEventListener('click', () => openSparks());
+    box.appendChild(go);
+    return box;
+  }
+
   // "How it works" for the Supporters tier — a compact perks panel (what you
   // get, how long it lasts, the Discord role) with the two CTAs. Kept out of the
   // shelf itself so the dense Store stays glanceable; opened on demand.
@@ -946,19 +979,23 @@
     const body = el('div', 'cgal-info-body');
     body.appendChild(el('p', 'cgal-info-lead', supporterSaved
       ? t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')
-      : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.')));
+      : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters: become one to unlock them.')));
     const ul = el('ul', 'cgal-info-perks');
     // perk4 is the yearly tier's commissioned theme: it sits after perk3,
     // which sets up "more money buys more time", because the theme is the one
     // thing money buys that is not time. The code note stays last: it is
     // housekeeping, not a reason to support.
-    ['gallery_sup_perk1', 'gallery_sup_perk2', 'gallery_sup_perk3', 'gallery_sup_perk4', 'gallery_sup_code_note'].forEach((k) => {
+    // The Scintille come right after the drops: both are what a month buys.
+    ['gallery_sup_perk1', 'support_perk_sparks', 'gallery_sup_perk2', 'gallery_sup_perk3', 'gallery_sup_perk4', 'gallery_sup_code_note'].forEach((k) => {
       const li = document.createElement('li');
-      li.appendChild(icon('check', 'cgal-info-tick'));
+      const sparks = k === 'support_perk_sparks' && window.XenonCredits;
+      li.appendChild(sparks ? window.XenonCredits.offerMark() : icon('check', 'cgal-info-tick'));
       li.appendChild(el('span', null, t(k, '')));
       ul.appendChild(li);
     });
     body.appendChild(ul);
+    // A supporter can buy more Scintille right here: the packs reach the saved code.
+    if (supporterSaved && window.XenonCredits) body.appendChild(sparkPacks());
     // Codes now arrive automatically by email (supporter hub); Discord/email
     // stays as the didn't-get-it fallback, with the address right there.
     const note = el('div', 'cgal-info-note');
@@ -1025,7 +1062,7 @@
     const info = el('div', 'cgal-hero-info');
     const eyebrow = el('div', 'cgal-hero-eyebrow');
     if (limited) { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_limited_section', 'Limited edition'))); }
-    else if (locked) { eyebrow.appendChild(icon('supporters')); eyebrow.appendChild(el('span', null, t('gallery_supporters_section', 'Supporters'))); }
+    else if (locked) lockedTierInto(eyebrow, entry, t('gallery_supporters_section', 'Supporters'));
     else { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_sort_feat', 'Featured'))); }
     eyebrow.appendChild(el('span', 'cgal-hero-kind', kindLabel(entry.kind)));
     info.appendChild(eyebrow);
@@ -1034,7 +1071,7 @@
     const by = el('div', 'cgal-hero-by'); bylineInto(by, entry);
     info.appendChild(by);
     const heroUntil = untilLabel(entry, 'cgal-until-big'); if (heroUntil) info.appendChild(heroUntil);
-    if (entry.description) info.appendChild(el('p', 'cgal-hero-desc', entry.description));
+    if (entry.description) info.appendChild(el('p', 'cgal-hero-desc', descPlain(entry.description)));
 
     if (Array.isArray(entry.tags) && entry.tags.length) {
       const tags = el('div', 'cgal-tags');
@@ -1110,7 +1147,7 @@
     const body = el('div', 'cgal-spotcard-body');
     const eyebrow = el('div', 'cgal-spotcard-eyebrow');
     if (limited) { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
-    else if (locked) { eyebrow.appendChild(icon('supporters')); eyebrow.appendChild(el('span', null, t('gallery_locked_badge', 'Supporters'))); }
+    else if (locked) lockedTierInto(eyebrow, entry, t('gallery_locked_badge', 'Supporters'));
     else { eyebrow.appendChild(kindIcon(entry.kind)); eyebrow.appendChild(el('span', null, kindLabel(entry.kind))); }
     body.appendChild(eyebrow);
     body.appendChild(el('div', 'cgal-spotcard-title', entry.name));
@@ -1128,8 +1165,10 @@
           t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(stock.left)).replace('{t}', String(stock.total))));
       }
     } else {
+      // The side column is too narrow for "Unlock with a code" on one line; the
+      // short label is enough here, the unlock dialog says how to get a code.
       row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get',
-        locked ? unlockLabel() : t('gallery_import', 'Import…'), locked ? 'lock' : null));
+        locked ? t('gallery_unlock_saved', 'Unlock') : t('gallery_import', 'Import…'), locked ? 'lock' : null));
     }
     body.appendChild(row);
     card.appendChild(body);
@@ -1202,7 +1241,7 @@
     // Tier pill (top-left) — the loudest signal on the card.
     const tier = el('div', 'cgal-tier');
     if (limited) { tier.classList.add('t-limited'); tier.appendChild(icon('limited')); tier.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
-    else if (locked) { tier.classList.add('t-sup'); tier.appendChild(icon('supporters')); tier.appendChild(el('span', null, t('gallery_locked_badge', 'Supporters'))); }
+    else if (locked) { tier.classList.add('t-sup'); lockedTierInto(tier, entry, t('gallery_locked_badge', 'Supporters')); }
     else { tier.appendChild(kindIcon(entry.kind)); tier.appendChild(el('span', null, kindLabel(entry.kind))); }
     media.appendChild(tier);
     // "New since your last visit" flag (top-right, opposite the tier pill) — #5.
@@ -1239,7 +1278,7 @@
     // amber alarm on half the Store.
     body.appendChild(by);
     const cardUntil = untilLabel(entry); if (cardUntil) body.appendChild(cardUntil);
-    if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
+    if (entry.description) body.appendChild(el('div', 'cgal-desc', descPlain(entry.description)));
     if (Array.isArray(entry.tags) && entry.tags.length) {
       const tags = el('div', 'cgal-tags');
       entry.tags.slice(0, 3).forEach((tag) => tags.appendChild(el('span', 'cgal-tag', '#' + tag)));
@@ -1263,7 +1302,7 @@
     // A free card's button is the quiet one. A bright accent button on every
     // free card made free content the loudest thing in the Store, louder than
     // the supporter packs; the accent is kept for an update, which asks you to act.
-    row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get', locked ? unlockLabel() : t('gallery_import', 'Import…'), locked ? 'lock' : null));
+    row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get', locked ? unlockLabel(entry) : t('gallery_import', 'Import…'), locked ? 'lock' : null));
     if (entry.needsNewerApp) row.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
     body.appendChild(row);
     card.appendChild(body);
@@ -1329,12 +1368,51 @@
   // code still works is only known at unlock, against a specific drop, so the
   // Store says the code is SAVED, never that it is valid.
   let supporterSaved = false;
+  // True until the server says this install never used the pass trial, so the
+  // "Try 7 days free" button never shows on a guess.
+  let trialUsed = true;
   async function refreshSupporterSaved() {
-    const r = await api('/api/community/supporter');
+    const [r, trial] = await Promise.all([api('/api/community/supporter'), api('/api/community/trial')]);
     supporterSaved = !!(r && r.saved);
+    trialUsed = !(trial && trial.ok === true && trial.used === false);
   }
-  function unlockLabel() {
-    return supporterSaved ? t('gallery_unlock_saved', 'Unlock') : t('gallery_unlock', 'Unlock with a code');
+  const trialCovers = (entry) => !!(window.TrialPass && window.TrialPass.covers(entry));
+  // Sold for Sparks with no supporter way in (the hub's "Sparks only").
+  const sparksOnly = (entry) => !!entry && !entry.limited && entry.sparks > 0 && entry.supportersOnly !== true;
+  // "150 Sparks", with the amount in US dollars where there is room (1 Spark = 1 US cent).
+  function sparksPriceText(n, withUsd) {
+    const words = t('gallery_sparks_price', '{n} Sparks').replace('{n}', String(n));
+    return withUsd ? words + ' (' + (n / 100).toFixed(2) + ' USD)' : words;
+  }
+  // The supporter-tier mark; a Sparks-only drop shows its price instead.
+  // A drop also sold for Sparks names that second way in next to the first.
+  function lockedTierInto(node, entry, label, withUsd) {
+    if (sparksOnly(entry) && window.XenonCredits) {
+      node.appendChild(window.XenonCredits.offerMark());
+      node.appendChild(el('span', null, sparksPriceText(entry.sparks, withUsd)));
+      return;
+    }
+    node.appendChild(icon('supporters'));
+    node.appendChild(el('span', null, label));
+    if (!entry.limited && entry.sparks > 0) {
+      node.appendChild(el('span', null, t('gallery_or_sparks', 'or {price}').replace('{price}', sparksPriceText(entry.sparks, withUsd))));
+    }
+  }
+  function tryTrialButton() {
+    const b = el('button', 'cgal-btn cgal-btn-hero cgal-try');
+    b.type = 'button';
+    b.appendChild(el('span', null, t('trial_try_btn', 'Try 7 days free')));
+    b.addEventListener('click', () => { if (window.TrialPass) window.TrialPass.openTry(); });
+    return b;
+  }
+  // `wide` is the detail view's button, which has room to name the Sparks price.
+  function unlockLabel(entry, wide) {
+    if (entry && sparksOnly(entry)) return t('gallery_unlock_sparks', 'Unlock for {n} Sparks').replace('{n}', String(entry.sparks));
+    if (supporterSaved) return t('gallery_unlock_saved', 'Unlock');
+    if (wide && entry && !entry.limited && entry.sparks > 0) {
+      return t('gallery_unlock_code_or_sparks', 'Unlock with a code or {price}').replace('{price}', sparksPriceText(entry.sparks));
+    }
+    return t('gallery_unlock', 'Unlock with a code');
   }
   async function refreshInstallIndex() {
     let pkg = new Map();
@@ -1538,7 +1616,7 @@
       const frag = document.createDocumentFragment();
       const lim = sortList(limited);
       if (lim.length) { frag.appendChild(heroBanner(lim[0])); if (lim.length > 1) { const lgrid = el('div', 'cgal-grid'); lim.slice(1).forEach((e) => lgrid.appendChild(renderCard(e))); frag.appendChild(lgrid); } }
-      else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now — check back soon.')));
+      else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now: check back soon.')));
       body.replaceChildren(frag);
       return;
     }
@@ -1584,37 +1662,47 @@
     if (window.initCustomSelect) initCustomSelect(selSort);
     bar.appendChild(searchRow);
 
-    // Icon category rail.
-    const seg = el('div', 'cgal-rail');
-    const kinds = KIND_ORDER.filter((k) => browse.some((e) => e.kind === k));
-    const mkSeg = (iconName, label, k, cls) => {
-      const b = el('button', 'cgal-railbtn' + (cls ? ' ' + cls : '')); b.type = 'button'; b.dataset.k = k;
-      b.appendChild(icon(iconName));
-      b.appendChild(el('span', 'cgal-railtxt', label));
-      b.addEventListener('click', () => { activeKind = (k === 'all') ? '' : k; shown = PAGE; syncControls(); paintGrid(); });
-      return b;
+    // The kinds in one menu beside the sort: as a rail of chips they took two
+    // rows of a wide screen. Each option keeps its icon (the static set).
+    const kindWrap = el('div', 'cgal-select cgal-kind');
+    const selKind = document.createElement('select'); selKind.className = 'cgal-select-el'; selKind.setAttribute('data-cs-fixed', '');
+    const addKind = (v, label, iconName) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = label;
+      o.setAttribute('data-cs-icon', ICONS[iconName] || ICONS.widget);
+      selKind.appendChild(o);
     };
-    seg.appendChild(mkSeg('all', t('gallery_all', 'All'), 'all'));
-    // "Novità" chip — shown only when something IS new since the last visit
-    // (#5), with the count right on it so the rail says how much is waiting.
+    addKind('all', t('gallery_all', 'All'), 'all');
+    if (limited.length) addKind('__limited', t('gallery_limited_badge', 'Limited'), 'limited');
+    if (supporters.length) addKind('__supporters', t('gallery_supporters_section', 'Supporters'), 'supporters');
+    KIND_ORDER.filter((k) => browse.some((e) => e.kind === k)).forEach((k) => addKind(k, kindLabel(k), k));
+    selKind.addEventListener('change', () => { activeKind = selKind.value === 'all' ? '' : selKind.value; shown = PAGE; syncControls(); paintGrid(); });
+    kindWrap.appendChild(selKind); searchRow.insertBefore(kindWrap, sortWrap);
+    if (window.initCustomSelect) initCustomSelect(selKind);
+    // "Novità" stays a button in the row while something IS new since the last
+    // visit (#5), its count on it, so what is waiting is seen without a menu.
     const newCount = all.filter(isNewEntry).length;
+    let newBtn = null;
     if (newCount) {
-      const nb = mkSeg('new', t('gallery_new_filter', 'Novità'), '__new', 'is-new');
-      nb.appendChild(el('span', 'cgal-rail-cnt', newCount > 99 ? '99+' : String(newCount)));
-      seg.appendChild(nb);
+      newBtn = el('button', 'cgal-railbtn is-new'); newBtn.type = 'button';
+      newBtn.appendChild(icon('new'));
+      newBtn.appendChild(el('span', 'cgal-railtxt', t('gallery_new_filter', 'Novità')));
+      newBtn.appendChild(el('span', 'cgal-rail-cnt', newCount > 99 ? '99+' : String(newCount)));
+      newBtn.addEventListener('click', () => { activeKind = activeKind === '__new' ? '' : '__new'; shown = PAGE; syncControls(); paintGrid(); });
+      searchRow.appendChild(newBtn);
     }
-    if (limited.length) seg.appendChild(mkSeg('limited', t('gallery_limited_badge', 'Limited'), '__limited', 'lim'));
-    if (supporters.length) seg.appendChild(mkSeg('supporters', t('gallery_supporters_section', 'Supporters'), '__supporters', 'sup'));
-    kinds.forEach((k) => seg.appendChild(mkSeg(k, kindLabel(k), k)));
-    bar.appendChild(seg);
+    if (window.XenonCredits) bar.appendChild(quickSparks());
 
     function syncControls() {
-      seg.querySelectorAll('.cgal-railbtn').forEach((b) => b.classList.toggle('active', b.dataset.k === (activeKind || 'all')));
+      const k = activeKind && activeKind !== '__new' && selKind.querySelector('option[value="' + activeKind + '"]') ? activeKind : 'all';
+      selKind.value = k;
+      if (selKind._csSync) selKind._csSync();
+      if (newBtn) newBtn.classList.toggle('active', activeKind === '__new');
       selSort.value = sortBy;
+      if (selSort._csSync) selSort._csSync();
     }
 
     const host = el('div', 'cgal-gridhost');
-    const stale = out.stale ? el('div', 'cgal-status cgal-stale', t('gallery_stale', 'Offline — showing the last saved copy.')) : null;
+    const stale = out.stale ? el('div', 'cgal-status cgal-stale', t('gallery_stale', 'Offline: showing the last saved copy.')) : null;
 
     // ── View builders ──
     // The one place a card grid is built. A section holding a SINGLE entry gets
@@ -1622,12 +1710,10 @@
     // way the website catalog does. Without it the lone 232px card sat at the
     // left edge of a full-width shelf with the rest of the row empty, and its
     // description stayed clipped to two lines while there was room to spare.
-    // `dupIds`, when given, decides noId PER CARD — a tier shelf carries entries
-    // that are also up in the spotlight, and only those may skip the DOM id.
-    function cardGrid(items, limit, noId, dupIds) {
+    function cardGrid(items, limit, noId) {
       const list = typeof limit === 'number' ? items.slice(0, limit) : items;
       const grid = el('div', 'cgal-grid' + (list.length === 1 ? ' is-solo' : ''));
-      list.forEach((e) => grid.appendChild(renderCard(e, dupIds ? dupIds.has(e.id) : noId)));
+      list.forEach((e) => grid.appendChild(renderCard(e, noId)));
       return grid;
     }
     function section(k, items, iconName, titleText, noId) {
@@ -1668,9 +1754,9 @@
       return wrap;
     }
     // A premium "shelf" for the two exclusive tiers (Limited and Supporters) —
-    // deliberately on par: a tinted bordered container, a lead line, an optional
-    // join action in the head, and the tier's own cards. Same footprint so
-    // neither reads as the poor cousin of the other.
+    // deliberately on par: a tinted bordered container, a lead line (or, on the
+    // Supporters shelf, the membership plan card) and the tier's own cards.
+    // Same footprint so neither reads as the poor cousin of the other.
     function featureSection(opts) {
       const wrap = el('div', 'cgal-kblock cgal-feat-block ' + (opts.cls || ''));
       const head = el('div', 'cgal-khead');
@@ -1690,24 +1776,12 @@
         info.addEventListener('click', opts.onInfo);
         actions.appendChild(info);
       }
-      if (opts.savedLabel) {
-        const saved = el('span', 'cgal-feat-saved');
-        saved.appendChild(icon('check'));
-        saved.appendChild(el('span', null, opts.savedLabel));
-        actions.appendChild(saved);
-      } else if (opts.joinLabel) {
-        const join = document.createElement('a');
-        join.className = 'cgal-btn cgal-feat-join';
-        join.href = opts.joinHref; join.target = '_blank'; join.rel = 'noopener noreferrer';
-        if (opts.joinIcon) join.appendChild(icon(opts.joinIcon));
-        join.appendChild(el('span', null, opts.joinLabel));
-        actions.appendChild(join);
-      }
       if (actions.childElementCount) head.appendChild(actions);
       wrap.appendChild(head);
-      if (opts.lead) wrap.appendChild(el('p', 'cgal-feat-lead', opts.lead));
-      // The shelf carries the WHOLE tier — including entries already up in the
-      // spotlight (opts.dupIds marks those so their card skips the DOM id).
+      if (opts.plan) wrap.appendChild(opts.plan);
+      else if (opts.lead) wrap.appendChild(el('p', 'cgal-feat-lead', opts.lead));
+      // The shelf carries its tier minus what the spotlight already shows (the
+      // rule the website and the hub's layout preview follow).
       // More cards than fit the width scroll horizontally with a finger swipe
       // (.cgal-hrail, native overflow-x pan); nothing is cut to a preview count.
       // A single entry keeps the wide solo card instead of a lonely rail.
@@ -1715,19 +1789,19 @@
       // of the wide shelf. A tier of wide cards costs a screenful, which is the
       // whole reason the form control exists — same choice as the website catalog.
       if (opts.compact) {
-        wrap.appendChild(cardGrid(opts.items, null, false, opts.dupIds));
+        wrap.appendChild(cardGrid(opts.items, null, false));
       } else if (opts.items.length === 1) {
-        wrap.appendChild(cardGrid(opts.items, 1, !!(opts.dupIds && opts.dupIds.has(opts.items[0].id))));
+        wrap.appendChild(cardGrid(opts.items, 1, false));
       } else if (opts.items.length) {
         const rail = el('div', 'cgal-hrail');
-        opts.items.forEach((e) => rail.appendChild(renderCard(e, !!(opts.dupIds && opts.dupIds.has(e.id)))));
+        opts.items.forEach((e) => rail.appendChild(renderCard(e, false)));
         wrap.appendChild(rail);
       }
       return wrap;
     }
     function flatInto(frag, list) {
       list = sortList(list);
-      if (!list.length) { frag.appendChild(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet — new community creations will appear as they are published.'))); return; }
+      if (!list.length) { frag.appendChild(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet: new community creations will appear as they are published.'))); return; }
       frag.appendChild(cardGrid(list, shown));
       if (list.length > shown) {
         const lm = el('div', 'cgal-loadmore');
@@ -1743,7 +1817,7 @@
       if (activeKind === '__limited') {
         const lim = sortList(limited.filter(matchesBrowse));
         if (lim.length) { frag.appendChild(heroBanner(lim[0])); if (lim.length > 1) frag.appendChild(cardGrid(lim.slice(1))); }
-        else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now — check back soon.')));
+        else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now: check back soon.')));
         host.replaceChildren(frag); return;
       }
       if (activeKind === '__supporters') { flatInto(frag, supporters.filter(matchesBrowse)); host.replaceChildren(frag); return; }
@@ -1771,11 +1845,10 @@
       }
       if (browsingAll) {
         // What leads the Store: the admin's spotlight when the catalog sets one,
-        // else the automatic ladder (see spotlightPick). The KIND sections below
-        // skip whatever the spotlight shows; the tier shelves and the Novità
-        // shelf deliberately do NOT (a tier shelf shows its whole tier) — their
-        // duplicate cards skip the DOM id, and the install/rating slots key on
-        // data-id filled via querySelectorAll, so duplicates are safe there.
+        // else the automatic ladder (see spotlightPick). Every shelf below skips
+        // whatever the spotlight shows, as the website and the hub's layout
+        // preview do: the same pack twice on one screen reads as filler. Only
+        // the Novità shelf repeats cards by design (noId).
         const spot = spotlightPick(limited, supporters, pool);
         const heroEntry = spot.main;
         const spotIds = new Set(spot.side.map((e) => e.id));
@@ -1825,33 +1898,28 @@
         // the shape are data. A block with an empty list renders nothing, so the
         // Store never shows an empty shelf just because it is enabled.
         const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
+        const notSpot = (e) => !spotIds.has(e.id);
         LAYOUT.forEach((b) => {
           if (!b.on) return;
           if (b.type === 'spotlight') {
             if (heroEntry) frag.appendChild(spotlightBlock(heroEntry, spot.side));
           } else if (b.type === 'limited') {
-            // Two exclusive shelves, on par with each other. Each carries its
-            // WHOLE tier — including entries up in the spotlight (dupIds makes
-            // those cards skip the DOM id): a 4-item tier must read as 4 items
-            // on its shelf, not as the 2 left over after the spotlight.
-            const items = cap(shelfLimited, b);
+            // Two exclusive shelves, on par with each other.
+            const items = cap(shelfLimited.filter(notSpot), b);
             if (items.length) frag.appendChild(featureSection({
-              items, dupIds: spotIds, compact: b.form === 'grid', iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
+              items, compact: b.form === 'grid', iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
               title: t('gallery_limited_section', 'Limited edition'),
-              lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.'),
+              lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide: reserved on Discord.'),
             }));
           } else if (b.type === 'supporters') {
             // Renders whenever the tier EXISTS, even with every entry up in the
-            // spotlight: it carries the "how it works" panel and the join
-            // button, which are the whole conversion path.
+            // spotlight: it carries the membership plan and the "how it works"
+            // panel, which are the whole conversion path. The plan is the same
+            // card the Sparks tab shows (SparksStore.plan).
             if (supporters.length) frag.appendChild(featureSection({
-              items: cap(sortList(supporters), b), dupIds: spotIds, compact: b.form === 'grid', iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
+              items: cap(sortList(supporters.filter(notSpot)), b), compact: b.form === 'grid', iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
               title: t('gallery_supporters_section', 'Supporters'),
-              lead: supporterSaved
-                ? t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')
-                : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
-              joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: supportHref('store-section'), joinIcon: 'supporters',
-              savedLabel: supporterSaved ? t('gallery_supporter_saved', 'Supporter code saved') : '',
+              plan: window.SparksStore.plan({ supporter: supporterSaved, href: supportHref('store-section'), icon }),
               onInfo: openSupporterInfo,
             }));
           } else if (b.type === 'new') {
@@ -1866,7 +1934,7 @@
             if (items.length) frag.appendChild(plainBlock(t('gallery_justadded', 'Just added'), 'new', items, true));
           } else if (b.type === 'archive') {
             if (archive.length) frag.appendChild(featureSection({
-              items: cap(archive, b), dupIds: spotIds, compact: b.form === 'grid', iconName: 'archive', cls: 'is-archive', seeAllKind: '__limited',
+              items: cap(archive.filter(notSpot), b), compact: b.form === 'grid', iconName: 'archive', cls: 'is-archive', seeAllKind: '__limited',
               title: t('gallery_archive_section', 'Archive'),
               lead: t('gallery_archive_lead', 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.'),
             }));
@@ -1911,29 +1979,31 @@
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', true);
     searchQuery = ''; activeKind = ''; sortBy = 'feat'; shown = PAGE;
     limitedOnly = (filterKind === '__limited');
-    activeTab = (filterKind === '__installed') ? 'installed' : 'browse';
-    const browseKind = (filterKind === '__limited' || filterKind === '__installed') ? undefined : filterKind;
+    activeTab = (filterKind === '__installed') ? 'installed' : (filterKind === '__sparks' && window.SparksStore) ? 'sparks' : 'browse';
+    const browseKind = (filterKind === '__limited' || filterKind === '__installed' || filterKind === '__sparks') ? undefined : filterKind;
     if (window.InstalledManager) InstalledManager.reset();
     const bd = el('div', 'preset-modal-overlay cgal-overlay');
     const modal = el('div', 'preset-modal cgal-modal');
 
-    // Premium storefront header: brand mark + title + tagline, actions on the right.
+    // Storefront header: brand mark + title, actions on the right. The plain
+    // Store says nothing under its name: the tabs and the shelves say it.
     const head = el('div', 'cgal-topbar');
     const brand = el('div', 'cgal-brand');
     brand.appendChild(icon(limitedOnly ? 'limited' : 'store', 'cgal-brand-mark'));
     const brandTxt = el('div', 'cgal-brand-txt');
     brandTxt.appendChild(el('h3', 'cgal-brand-title', limitedOnly ? t('gallery_limited_section', 'Limited edition') : t('ui_store', 'Store')));
-    brandTxt.appendChild(el('p', 'cgal-brand-sub', limitedOnly
-      ? t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.')
-      : t('gallery_lead', 'Themes, backgrounds, widgets, scenes and packages shared by the community.')));
+    if (limitedOnly) brandTxt.appendChild(el('p', 'cgal-brand-sub', t('gallery_limited_lead_short', 'A fixed number of copies worldwide: reserved on Discord.')));
     brand.appendChild(brandTxt);
     head.appendChild(brand);
 
     const controls = el('div', 'cgal-head-actions');
-    const trust = el('div', 'cgal-trust');
-    trust.appendChild(icon('check'));
-    trust.appendChild(el('span', null, t('gallery_trust', 'Preview before install')));
-    controls.appendChild(trust);
+    // The Sparks, always in view: the balance, or the way to buy them. A tap
+    // opens the Sparks tab (the chip's own handler, XenonCredits.openShop,
+    // finds this Store open).
+    if (window.XenonCredits) {
+      controls.appendChild(XenonCredits.chip({ always: true }));
+      XenonCredits.sync();
+    }
     const refresh = el('button', 'cgal-iconbtn'); refresh.type = 'button'; refresh.title = t('gallery_refresh', 'Refresh'); refresh.appendChild(icon('refresh'));
     const x = el('button', 'cgal-iconbtn'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close'));
     x.addEventListener('click', close);
@@ -1955,6 +2025,11 @@
       };
       tabsEl.appendChild(mkTab('browse', t('gallery_tab_browse', 'Browse'), 'store'));
       tabsEl.appendChild(mkTab('installed', t('gallery_tab_installed', 'Installed'), 'check'));
+      if (window.SparksStore && window.XenonCredits) {
+        const sparksTab = mkTab('sparks', t('xai_balance_unit', 'Sparks'), 'none');
+        sparksTab.querySelector('.cgal-ic').replaceChildren(XenonCredits.spark({ still: true }));
+        tabsEl.appendChild(sparksTab);
+      }
       modal.appendChild(tabsEl);
     }
     // Red count of available updates on the Installed tab — you open it to update.
@@ -1981,6 +2056,14 @@
       });
     }
     function paintTab(force) {
+      if (activeTab === 'sparks') {
+        if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
+        window.SparksStore.render(body, {
+          catalog: async () => { const out = await api('/api/community/catalog'); return out && out.ok && Array.isArray(out.entries) ? out.entries : []; },
+          renderCard, icon, supportHref, close,
+        });
+        return;
+      }
       if (activeTab === 'installed') {
         // Leaving the catalog: drop the lazy bg-preview observer so the browse
         // grid's sandboxed preview frames stop running behind the tab.
@@ -2004,7 +2087,31 @@
     // While open, an install committed elsewhere repaints this Store — guarded to
     // the grid view so it never yanks a detail card or zoom the user is reading.
     repaintStore = () => { if (overlayEl && !detailEl && !zoomEl) paintTab(false); };
+    showTab = (id) => {
+      if (!tabsEl || !tabsEl.querySelector('.cgal-tab[data-tab="' + id + '"]')) return false;
+      if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl.remove(); detailEl = null; }
+      activeTab = id; syncTabs(); paintTab(false);
+      return true;
+    };
     paintTab(false);
+  }
+
+  // The Sparks under the Store's search: the three packs as small tiles that
+  // open the shop page straight away, and the way to the Sparks tab, which says
+  // what they are for.
+  // The three packs under the search, nothing else: each tile already says
+  // its Sparks and its price, and the Sparks tab explains the rest.
+  function quickSparks() {
+    const row = el('div', 'cgal-quick');
+    row.appendChild(window.XenonCredits.packList('cgal-quick-pack'));
+    return row;
+  }
+
+  // The Sparks tab, from anywhere: every "Buy Sparks" in the app lands here.
+  // An open Store switches to it; a closed one opens on it.
+  function openSparks() {
+    if (overlayEl && showTab && showTab('sparks')) return;
+    open('__sparks');
   }
 
   // Open the Store straight onto one entry's detail view — used by the "new
@@ -2110,5 +2217,5 @@
   // is SWR-cached, so this is cheap and usually instant).
   try { setTimeout(() => { try { refreshStoreDot(); } catch { /* ignore */ } }, 4000); } catch { /* no timers */ }
 
-  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, unlockEntry, kindIcon, shotUrl, refreshStoreDot };
+  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, openSparks, unlockEntry, kindIcon, shotUrl, refreshStoreDot };
 })();

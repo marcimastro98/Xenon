@@ -308,7 +308,7 @@
         aiRanFor = null;
         if (!input.value.trim()) { renderIdle(); return; }
         setExpanded(true);
-        statusEl.textContent = t('spot_ai_hint', 'Premi Invio: l’AI interpreta la frase');
+        statusEl.textContent = t('spot_ai_hint', 'Premi Invio e Bit legge la frase');
         return;
       }
       runSearch();
@@ -324,11 +324,12 @@
     filterBtn.appendChild(svgIcon('M3 5h18l-7 8v5l-4 2v-7L3 5Z'));
     filterBtn.addEventListener('click', () => toggleFilters());
 
-    // AI mode toggle: the sparkle. Ctrl+I flips it too.
+    // AI mode toggle: Bit (the sparkle where the engine is missing). Ctrl+I
+    // flips it too.
     const aiBtn = document.createElement('button');
     aiBtn.type = 'button';
     aiBtn.className = 'spot-ai-toggle';
-    aiBtn.title = t('spot_ai_toggle', 'Ricerca intelligente (Ctrl+I)');
+    aiBtn.title = t('spot_ai_toggle', 'Chiedi a Bit (Ctrl+I)');
     aiBtn.setAttribute('aria-pressed', 'false');
     const spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     spark.setAttribute('viewBox', '0 0 24 24');
@@ -339,13 +340,22 @@
     sp2.setAttribute('d', 'M18.5 13l1.2 3.3L23 17.5l-3.3 1.2L18.5 22l-1.2-3.3L14 17.5l3.3-1.2L18.5 13Z');
     spark.append(sp1, sp2);
     aiBtn.appendChild(spark);
+    paintAiBit('idle');
     aiBtn.addEventListener('click', () => setAiMode(!aiMode));
     bar.append(glass, input, filterBtn, aiBtn);
     if (opts.withClose) {
       const closeBtn = document.createElement('button');
       closeBtn.type = 'button';
       closeBtn.className = 'spot-close';
-      closeBtn.textContent = '×';
+      // A drawn X, not the × glyph: a font puts that off the button's centre.
+      const x = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      x.setAttribute('viewBox', '0 0 24 24');
+      x.setAttribute('aria-hidden', 'true');
+      const xp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      xp.setAttribute('d', 'M6 6l12 12M18 6L6 18');
+      x.appendChild(xp);
+      closeBtn.appendChild(x);
+      closeBtn.setAttribute('aria-label', t('spot_close', 'Chiudi'));
       closeBtn.title = t('spot_close', 'Chiudi');
       closeBtn.addEventListener('click', () => { if (typeof opts.onClose === 'function') opts.onClose(); });
       bar.appendChild(closeBtn);
@@ -694,6 +704,15 @@
     }
 
     // ── AI mode ──
+    // Bit on the toggle: still, in the mood of the moment (it thinks while the
+    // provider reads the phrase). Engine-drawn markup, no user text in it.
+    function paintAiBit(mood) {
+      const svg = window.BitApp ? BitApp.icon(mood, mood) : '';
+      if (!svg) return;
+      aiBtn.innerHTML = svg;
+      aiBtn.classList.add('has-bit');
+    }
+
     function setAiMode(on) {
       aiMode = !!on;
       aiRanFor = null;
@@ -712,7 +731,7 @@
         stateHost.classList.remove('spot-loading');
         if (input.value.trim()) {
           setExpanded(true);
-          statusEl.textContent = t('spot_ai_hint', 'Premi Invio: l’AI interpreta la frase');
+          statusEl.textContent = t('spot_ai_hint', 'Premi Invio e Bit legge la frase');
         }
       } else if (input.value.trim()) {
         runSearch();
@@ -734,8 +753,9 @@
       inflight = ctrl;
       aiRanFor = q;
       stateHost.classList.add('spot-loading', 'spot-ai-thinking');
+      paintAiBit('think');
       setExpanded(true);
-      statusEl.textContent = t('spot_ai_thinking', 'L’AI sta interpretando…');
+      statusEl.textContent = t('spot_ai_thinking', 'Bit legge la frase…');
       try {
         const res = await fetch('/search/ai', {
           method: 'POST',
@@ -746,7 +766,7 @@
         const out = await res.json().catch(() => ({}));
         if (ctrl !== inflight) return;
         if (!out || !out.ok) {
-          aiNotice = t('spot_ai_fallback', 'AI non disponibile: uso la ricerca normale');
+          aiNotice = t('spot_ai_fallback', 'Bit non risponde: uso la ricerca normale');
           aiRanFor = null;
           runSearch();
           return;
@@ -760,6 +780,7 @@
         if (ctrl === inflight) {
           inflight = null;
           stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
+          paintAiBit('idle');
         }
       }
     }
@@ -848,6 +869,7 @@
         if (debTimer) { clearTimeout(debTimer); debTimer = null; }
         if (inflight) { inflight.abort(); inflight = null; }
         stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
+        paintAiBit('idle');
         filterMenu.hidden = true;
         filterBtn.classList.remove('is-on');
         renderIdle();
@@ -856,7 +878,8 @@
       // Stop pending work without touching the DOM (overlay close, tile teardown).
       stop() {
         if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-        if (inflight) { inflight.abort(); inflight = null; }
+        // A cut AI read must not leave Bit thinking for the next open.
+        if (inflight) { inflight.abort(); inflight = null; paintAiBit('idle'); }
         recentReq++;
       },
     };
@@ -1115,6 +1138,10 @@
 
   // ── boot ─────────────────────────────────────────────────────────────────
   function init() {
+    // A widget on the screen only borrows the search UI for its tile: the
+    // overlay is not drawn there, so its gesture and Ctrl+Space would open an
+    // invisible search (the global hotkey still opens the real one).
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;
     attachGesture();
     // Desktop keyboard path inside a dashboard tab: Ctrl+Space (the global
     // OS-level hotkey is the helper's job and opens the /spotlight popup).

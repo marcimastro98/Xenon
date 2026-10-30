@@ -46,7 +46,7 @@
   const failed = { calls: '', contacts: '', messages: '' };
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="phone"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="phone"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   // ── Formatting ───────────────────────────────────────────────────────────

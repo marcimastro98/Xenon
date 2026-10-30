@@ -43,7 +43,7 @@
   const revealed = new Set();   // ids tapped open while "hide content" is on
   let view = 'feed';            // 'feed' | 'muted' (the muted-apps manager)
 
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="notifications"]')).filter(n => n.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="notifications"]')).filter(n => n.closest('.pager-page, .layer-slot')); }
 
   // Live settings win over the seed snapshot (the user may toggle mid-session).
   function wn() {
@@ -52,7 +52,11 @@
   }
 
   function persist(field, value) {
-    if (typeof updateWindowsNotifications === 'function') updateWindowsNotifications(field, value);
+    // A widget on the screen has read-only settings: this block goes alone to
+    // the server (utils.js saveTileSetting); the dashboard saves as before.
+    if (typeof isLayerPage === 'function' && isLayerPage() && typeof saveTileSetting === 'function') {
+      saveTileSetting({ windowsNotifications: { ...wn(), [field]: value } }).then(() => renderWidgets());
+    } else if (typeof updateWindowsNotifications === 'function') updateWindowsNotifications(field, value);
     seedFlags = { ...seedFlags, [field]: value };   // keep the fallback in step
   }
 
@@ -268,7 +272,7 @@
     const flags = wn();
     if (!flags.enabled) {
       showState(list, 'wn_off', 'Mirror your PC\'s notifications here', {
-        hint: ['wn_off_hint', 'Read locally from Windows — nothing ever leaves this PC. Off by default.'],
+        hint: ['wn_off_hint', 'Read locally from Windows: nothing ever leaves this PC. Off by default.'],
         cta: ['wn_enable', 'Turn on'],
         onCta: () => { persist('enabled', true); items = null; paint(); },
       });
@@ -292,7 +296,7 @@
       return;
     }
     if (!items.length) {
-      showState(list, 'wn_empty', 'No notifications — all caught up');
+      showState(list, 'wn_empty', 'No notifications: all caught up');
       return;
     }
     const frag = document.createDocumentFragment();

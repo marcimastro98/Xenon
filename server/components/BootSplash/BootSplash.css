@@ -1,15 +1,16 @@
-/* The Xenon mark over the first moments of a load (js/boot-splash.js).
+/* Bit over the first moments of a load (js/boot-splash.js).
 
    Between the first paint and the first settings + data, every tile shows its
    empty state ("--", no artwork, no events): a screen that looks broken. The
-   splash covers exactly that stretch and nothing more. Its colours are the
-   user's own theme, remembered from the last visit (--bs-*), so a dark brown
-   dashboard opens on dark brown, not on the default green. With nothing
-   remembered (a new device, or cleared site data) it shows the logo in its
-   official colours.
+   splash covers exactly that stretch and nothing more. Its ground is the
+   user's own theme, remembered from the last visit (--bs-bg), so a dark brown
+   dashboard opens on dark brown. With nothing remembered (a new device, or
+   cleared site data) it uses the product's dark ground.
 
-   The mark is the app's loader (components/XenonLoader/XenonLoader.css): here
-   its three pieces first come together, then it loads like everywhere else. */
+   Bit recharges while the dashboard loads, and says hello once it is ready:
+   the end of a wait is what people remember of it. Both pictures are the
+   loader set (tools/brand/loader.mjs) and share one box, so the swap never
+   moves Bit. */
 
 .boot-splash {
   position: fixed;
@@ -18,53 +19,30 @@
   display: grid;
   place-items: center;
   background: var(--bs-bg, var(--bg, #06080a));
-  color: var(--bs-text, var(--text, #f0f3f1));
-  --xl-chev: var(--bs-text, var(--text, #f0f3f1));
-  --xl-up: var(--bs-accent, var(--accent, #1ed760));
-  --xl-down: color-mix(in srgb, var(--bs-accent, var(--accent, #1ed760)) 60%, var(--bs-text, var(--text, #f0f3f1)));
   transition: opacity 0.32s ease, visibility 0s linear 0.32s;
 }
 .boot-splash.is-leaving {
   opacity: 0;
   visibility: hidden;
 }
+.boot-splash.is-neutral { background: #06080a; }
 
-/* Nothing remembered: the logo as it is, on the logo's dark ground. */
-.boot-splash.is-neutral {
-  background: #06080a;
-  --xl-chev: var(--xl-brand-chev);
-  --xl-up: var(--xl-brand-up);
-  --xl-down: var(--xl-brand-down);
-}
-
-.boot-splash-loader {
-  --xl-size: clamp(72px, 12vmin, 148px);
+/* 5 screen pixels per Bit pixel (the box is 20x19 cells), 7 on big screens. */
+.boot-splash-bit {
+  width: 100px;
+  aspect-ratio: 20 / 19;
+  background: url("../../public/images/loader/bit-recharge.svg") center / contain no-repeat;
+  image-rendering: pixelated;
   transition: transform 0.32s ease;
 }
-.boot-splash.is-leaving .boot-splash-loader { transform: scale(1.06); }
-
-/* The chevron arrives from the left, the two arms from the right, then the
-   loader's own beat takes over. */
-.boot-splash .xloader-chev {
-  animation: boot-splash-left 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both,
-    xl-beat var(--xl-beat) 0.9s ease-in-out infinite;
+@media (min-width: 900px) and (min-height: 600px) {
+  .boot-splash-bit { width: 140px; }
 }
-.boot-splash .xloader-up {
-  animation: boot-splash-up 0.55s 0.08s cubic-bezier(0.2, 0.8, 0.2, 1) both,
-    xl-beat var(--xl-beat) 1.1s ease-in-out infinite;
-}
-.boot-splash .xloader-down {
-  animation: boot-splash-down 0.55s 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both,
-    xl-beat var(--xl-beat) 1.3s ease-in-out infinite;
-}
-.boot-splash .xloader-bar { animation: boot-splash-fade 0.4s 0.45s ease both; }
-@keyframes boot-splash-left { from { opacity: 0; transform: translateX(-26px); } }
-@keyframes boot-splash-up   { from { opacity: 0; transform: translate(26px, -18px); } }
-@keyframes boot-splash-down { from { opacity: 0; transform: translate(26px, 18px); } }
-@keyframes boot-splash-fade { from { opacity: 0; } }
+.boot-splash.is-ready .boot-splash-bit { background-image: url("../../public/images/loader/bit-hello.svg"); }
+.boot-splash.is-leaving .boot-splash-bit { transform: translateY(-6px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .boot-splash .xloader-mark path,
-  .boot-splash .xloader-bar { animation: none; }
-  .boot-splash.is-leaving .boot-splash-loader { transform: none; }
+  .boot-splash-bit,
+  .boot-splash.is-ready .boot-splash-bit { background-image: url("../../public/images/loader/bit-recharge-still.svg"); }
+  .boot-splash.is-leaving .boot-splash-bit { transform: none; }
 }

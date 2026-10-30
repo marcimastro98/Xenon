@@ -12,6 +12,9 @@
   // gone). Anything that lands mid-flight, a settle or a re-snap, then reads the
   // page as page 1. Restores jump; only real moves (goToPage) glide.
   const RESTORE_SCROLL = 'instant';
+  // "Go to Streaming", "page 2", "next": js/page-target.js (loaded first).
+  const PageTarget = (typeof window !== 'undefined' && window.PageTarget)
+    || (typeof require === 'function' ? require('./page-target.js') : null);
 
   // Keep a page index within [0, count-1]; fall back to 0 when there are none.
   function clampPageIndex(index, count) {
@@ -342,11 +345,23 @@
   // Public: navigate by page id (used by dots, keyboard, and AI go_to_page).
   // Offset-based so hidden pages (removed from flow) don't break the math.
   function goToPage(id) {
-    const page = pages.find(p => p.id === id);
+    const want = resolvePage(id);
+    if (want && want.step) { goByDelta(want.step); return; }
+    const page = want && pages.find(p => p.id === want.id);
     if (!page || page.active === false || !viewport || !page.element) return;
     unparkAll();   // render the target during the smooth scroll; settle re-parks
     viewport.scrollTo({ left: page.element.offsetLeft, behavior: 'smooth' });
     setCurrentIndex(pages.indexOf(page));
+  }
+
+  // An exact id first (dots, keyboard); otherwise what the user said, among the
+  // pages they can reach. → { id } | { step } | null
+  function resolvePage(target) {
+    if (pages.some(p => p.id === target)) return { id: target };
+    const reachable = pages.filter(p => p.active !== false);
+    const hit = PageTarget ? PageTarget.findPageTarget(target, reachable) : null;
+    if (hit && hit.index != null) return reachable[hit.index] ? { id: reachable[hit.index].id } : null;
+    return hit;
   }
 
   // Go to the page a widget sits on. false when it is on no page (or on a hidden
@@ -507,13 +522,16 @@
     if (id === 'next') { pager.goByDelta(1); return { ok: true }; }
     if (id === 'prev') { pager.goByDelta(-1); return { ok: true }; }
     if (id === 'back') return pager.goBack() === true ? { ok: true } : { ok: false, error: 'not_found' };
+    const want = typeof pager.resolvePage === 'function' ? pager.resolvePage(id) : { id };
+    if (want && want.step) { pager.goByDelta(want.step); return { ok: true }; }
     const before = pager.getCurrentPage();
-    pager.goToPage(id);
-    return (id === before || pager.getCurrentPage() === id) ? { ok: true } : { ok: false, error: 'not_found' };
+    if (!want) return { ok: false, error: 'not_found' };
+    pager.goToPage(want.id);
+    return (want.id === before || pager.getCurrentPage() === want.id) ? { ok: true } : { ok: false, error: 'not_found' };
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, setLabel, goToPage, goToPageOf, goByDelta, goBack, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
+    window.DashboardPager = { init, registerPage, setLabel, goToPage, goToPageOf, goByDelta, goBack, resolvePage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe, navigate: (target) => navigateTo(window.DashboardPager, target) };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

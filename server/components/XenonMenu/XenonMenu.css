@@ -1,0 +1,223 @@
+/* The Xenon menu (js/xenon-menu.js): the same frame over the main screen
+   (menu.html) and inside the dashboard (js/xenon-menu-panel.js). Theme tokens
+   only; state is the accent colour on the word or the border, never a plate. */
+
+.xm-scrim {
+  position: fixed; inset: 0; z-index: 9000;
+  display: grid; place-items: center; padding: var(--space-5);
+  background: rgba(0, 0, 0, 0.55);
+}
+.xm-scrim[hidden] { display: none; }
+.xm-frame {
+  width: min(1080px, 100%); height: min(720px, 100%);
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-modal);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.xm {
+  display: grid; grid-template-columns: 248px minmax(0, 1fr);
+  height: 100%; min-height: 0;
+  color: var(--text); font-size: 15px;
+}
+.xm.is-busy { cursor: progress; }
+.xm button { font: inherit; color: inherit; }
+.xm button:focus-visible, .xm input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* A controller moves the focus by script, which browsers do not always ring: show it while the pad drives. */
+.xm.xm-pad button:focus, .xm.xm-pad input:focus { outline: none; box-shadow: var(--focus-ring); }
+/* A switch's input is invisible: the ring goes on its track. */
+.xm .xm-switch input:focus-visible + .ui-toggle-track, .xm.xm-pad .xm-switch input:focus + .ui-toggle-track { box-shadow: var(--focus-ring); }
+.xm-ic {
+  width: 20px; height: 20px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ── Sections ── */
+.xm-nav {
+  display: flex; flex-direction: column; gap: var(--space-4); min-height: 0;
+  padding: var(--space-5) var(--space-3);
+  border-right: 1px solid var(--line);
+}
+.xm-brand { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--space-3); }
+.xm-brand-name { font-size: 18px; font-weight: 700; }
+.xm-nav-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.xm-nav-btn, .xm-bit {
+  appearance: none; border: 1px solid transparent; background: none; cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 44px; padding: 0 var(--space-3); text-align: left;
+  border-radius: var(--radius-control); color: var(--text-dim);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.xm-nav-btn:hover { color: var(--text); background: var(--hover-bg); }
+.xm-nav-btn[aria-current="true"] { color: var(--text); background: var(--control-bg); }
+.xm-nav-btn[aria-current="true"] .xm-ic { color: var(--accent); }
+.xm-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-bit { margin-top: auto; color: var(--text); border-color: var(--accent); }
+.xm-bit .xm-ic { color: var(--accent); }
+.xm-bit:hover { background: var(--hover-bg); }
+
+/* ── One section ── */
+.xm-main { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-6); }
+.xm-head { display: flex; align-items: flex-start; gap: var(--space-4); margin-bottom: var(--space-5); }
+.xm-head .xm-words { flex: 1; }
+.xm-title { margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; }
+.xm-head .xm-sub { margin: 4px 0 0; font-size: 15px; }
+.xm-close {
+  appearance: none; border: 0; background: none; cursor: pointer; flex: none;
+  display: grid; place-items: center; width: 44px; height: 44px;
+  margin: -8px -8px 0 0; border-radius: var(--radius-control); color: var(--text-dim);
+}
+.xm-close:hover { color: var(--text); background: var(--hover-bg); }
+.xm-error { margin: 0 0 var(--space-4); color: var(--color-warn); font-weight: 600; }
+.xm-error[hidden] { display: none; }
+.xm-body { display: flex; flex-direction: column; gap: var(--space-5); }
+.xm-empty { margin: 0; color: var(--text-dim); }
+
+/* Quick actions */
+.xm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+.xm-tile {
+  appearance: none; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
+  min-height: 120px; padding: var(--space-4);
+  background: var(--control-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.xm-tile:hover { background: var(--hover-bg); border-color: var(--accent); }
+.xm-tile .xm-ic { width: 26px; height: 26px; color: var(--accent); }
+.xm-tile-label { margin-top: auto; font-weight: 650; }
+.xm-tile-key { font-size: 13px; color: var(--text-dim); }
+
+/* Rows */
+.xm-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-control); }
+.xm-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  min-height: 56px; padding: var(--space-2) var(--space-4);
+}
+.xm-row + .xm-row { border-top: 1px solid var(--line); }
+.xm-row--stack { flex-wrap: wrap; padding-block: var(--space-3); }
+.xm-row--stack > .xm-words { flex-basis: 100%; }
+.xm-row--button { justify-content: space-between; }
+.xm-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.xm-label { font-weight: 600; }
+.xm-label[hidden] { display: none; }
+.xm-sub { color: var(--text-dim); font-size: 13px; }
+.xm-value { color: var(--text-dim); text-align: right; min-width: 0; }
+.xm-tone-on .xm-value, .xm-tone-on .xm-note { color: var(--accent); }
+.xm-tone-warn .xm-value, .xm-tone-warn .xm-note { color: var(--color-warn); }
+.xm-act { min-height: 44px; flex: none; }
+.xm-switch { flex: none; }
+/* The 42x24 switch takes presses from a 48x48 square around it. */
+.xm-switch input { inset: -12px -3px; width: auto; height: auto; }
+
+.xm-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.xm-choice, .xm-addchoice {
+  appearance: none; cursor: pointer; min-height: 44px; padding: 0 var(--space-4);
+  background: var(--control-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.xm-choice:hover, .xm-addchoice:hover { background: var(--hover-bg); }
+.xm-choice[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 650; }
+
+.xm-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); width: 100%; }
+.xm-mode {
+  appearance: none; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: 4px; min-height: 88px; padding: var(--space-4);
+  background: var(--control-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.xm-mode:hover { background: var(--hover-bg); }
+.xm-mode[aria-pressed="true"] { border-color: var(--accent); }
+.xm-mode[aria-pressed="true"] .xm-mode-name { color: var(--accent); }
+.xm-mode-name { font-weight: 650; }
+
+.xm-combo {
+  appearance: none; cursor: pointer; flex: none; min-width: 150px; min-height: 44px; padding: 0 var(--space-4);
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  background: var(--control-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.xm-combo:hover:not(:disabled) { border-color: var(--accent); }
+.xm-combo:disabled { cursor: default; opacity: 1; color: var(--text-dim); }
+.xm-combo.is-recording { border-color: var(--accent); color: var(--accent); }
+
+.xm-search {
+  width: 100%; min-height: 44px; padding: 0 var(--space-3);
+  font: inherit; color: var(--text); background: var(--control-bg);
+  border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.xm-addlist {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-2);
+  width: 100%; max-height: 280px; overflow-y: auto;
+}
+.xm-addchoice { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Phone width: sections in a row on top, one column below ── */
+@media (max-width: 720px) {
+  .xm-scrim { padding: 0; }
+  .xm-frame { width: 100%; height: 100%; border-radius: 0; border: 0; }
+  .xm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .xm-nav {
+    flex-direction: row; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-3); border-right: 0; border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  .xm-brand { display: none; }
+  .xm-nav-list { flex-direction: row; overflow: visible; }
+  .xm-nav-btn, .xm-bit { flex: none; }
+  .xm-bit { margin-top: 0; }
+  .xm-main { padding: var(--space-4); }
+  .xm-title { font-size: 22px; }
+  .xm-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xm-tile { min-height: 96px; }
+  .xm-modes { grid-template-columns: minmax(0, 1fr); }
+  .xm-row { flex-wrap: wrap; }
+  .xm-combo { min-width: 0; }
+  .xm-value { text-align: left; }
+}
+
+/* A finger on a handheld's small screen: 48 px targets instead of 44. */
+@media (pointer: coarse) {
+  .xm-nav-btn, .xm-bit, .xm-act, .xm-choice, .xm-addchoice, .xm-combo, .xm-search { min-height: 48px; }
+  .xm-close { width: 48px; height: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xm-nav-btn, .xm-bit, .xm-tile { transition: none; }
+}
+
+/* ── The "Main screen" tile (js/screen-tile.js) ── */
+.screen-tile-mount {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  height: 100%; min-height: 0; padding: var(--space-4);
+  color: var(--text);
+}
+.scr-head { display: flex; align-items: center; flex: none; }
+.scr-title { font-weight: 700; font-size: 15px; }
+.scr-body { display: flex; flex-direction: column; gap: var(--space-4); flex: 1; min-height: 0; overflow-y: auto; }
+.scr-error { margin: 0; color: var(--color-warn); font-size: 13px; font-weight: 600; }
+.scr-error[hidden] { display: none; }
+.scr-empty { margin: 0; color: var(--text-dim); font-size: 13px; }
+.scr-group { display: flex; flex-direction: column; gap: var(--space-2); }
+.scr-group-head { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.scr-group-title { font-weight: 650; font-size: 13px; }
+.scr-group-sub { color: var(--text-dim); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scr-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: var(--space-2); }
+.scr-quick-btn {
+  appearance: none; cursor: pointer; font: inherit; color: inherit;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-2);
+  min-height: 72px; padding: var(--space-3);
+  background: var(--control-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+}
+.scr-quick-btn:hover { background: var(--hover-bg); border-color: var(--accent); }
+.scr-quick-btn:focus-visible, .screen-tile-mount .ui-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.scr-quick-btn .xm-ic { color: var(--accent); }
+.scr-quick-label { font-size: 13px; font-weight: 600; text-align: left; overflow-wrap: break-word; hyphens: auto; }
+.scr-list { display: flex; flex-direction: column; }
+.scr-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); min-height: 32px; padding: 6px 0; }
+.scr-row + .scr-row { border-top: 1px solid var(--line); }
+.scr-name { font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scr-value { font-size: 13px; color: var(--text-dim); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scr-tone-on .scr-value { color: var(--accent); }
+.scr-tone-warn .scr-value { color: var(--color-warn); }
+.scr-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.scr-actions .ui-btn, .scr-all { min-height: 44px; }
+.scr-all { flex: none; width: 100%; }

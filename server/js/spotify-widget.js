@@ -45,7 +45,7 @@
 
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it does no polling.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="spotify"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="spotify"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   // Tiles the user is actually looking at. The pager keeps off-screen pages
   // mounted, so a tile parked on page 2 still passes document.hidden and would
   // otherwise keep burning Spotify API quota invisibly — gate polling on this.
@@ -114,9 +114,7 @@
   let activeTab = window.TileTabMemory ? TileTabMemory.get('spotify', TABS.map((tb) => tb.id), 'queue') : 'queue';
 
   function openSpotifySettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('spotify');
+    openSettingsCategory('spotify');
   }
 
   // mm:ss for a millisecond duration (— when unknown).
@@ -134,7 +132,7 @@
     let msg = '';
     if (e === 'premium_required') msg = t('spotify_w_premium', 'Spotify Premium required for playback control');
     else if (e === 'forbidden') msg = t('spotify_w_reconnect', 'Reconnect Spotify in Settings → Spotify to grant permission');
-    else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device — start playback first');
+    else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device: start playback first');
     else if (e === 'nothing_playing') msg = t('spotify_w_nothing', 'Nothing playing right now');
     else if (e === 'rate_limited') msg = busyLine();
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
@@ -454,7 +452,7 @@
       if (eHint) {
         eHint.hidden = !(forbidden || closed);
         eHint.textContent = forbidden
-          ? t('spotify_w_perm_hint', 'Reconnect in Settings → Spotify (Disconnect, then Connect) and approve access — the current login is missing playback permission.')
+          ? t('spotify_w_perm_hint', 'Reconnect in Settings → Spotify (Disconnect, then Connect) and approve access: the current login is missing playback permission.')
           : (closed ? t('spotify_w_closed_hint', 'If Spotify is already open, play something once so it shows up here.') : '');
       }
     }
@@ -545,7 +543,7 @@
     // often doesn't match what actually plays next — say so rather than showing a
     // wrong "next" as fact (the "random music shows the next song wrong" report).
     if (!queueReliable) {
-      frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate — Spotify only knows the exact order inside a playlist or album')));
+      frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate: Spotify only knows the exact order inside a playlist or album')));
     }
     queue.forEach(tk => frag.appendChild(trackRow(tk, queueContext)));
     panel.replaceChildren(frag);
@@ -621,14 +619,14 @@
   // So the wait is named once it is long enough to be worth naming.
   function busyLine() {
     const mins = Math.round(rateLimitMs / 60000);
-    if (mins >= 2) return t('spotify_w_busy_for', 'Spotify is busy — about {m} min').replace('{m}', String(mins));
-    return t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+    if (mins >= 2) return t('spotify_w_busy_for', 'Spotify is busy: about {m} min').replace('{m}', String(mins));
+    return t('spotify_w_busy', 'Spotify is busy: retrying shortly');
   }
 
   function problemLine(problem) {
     if (problem === 'rate_limited') return busyLine();
     if (problem === 'not_connected') return t('spotify_w_notlinked', 'Not linked');
-    return t('spotify_w_unreachable', 'Could not reach Spotify — retrying');
+    return t('spotify_w_unreachable', 'Could not reach Spotify: retrying');
   }
 
   function emptyState(iconSvg, label) {

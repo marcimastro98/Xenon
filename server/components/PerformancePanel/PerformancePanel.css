@@ -216,16 +216,13 @@
 /* Loading state: the Xenon X pulses where the icon was. */
 .sys-optimize-btn.is-loading { opacity: 0.75; cursor: progress; }
 .sys-optimize-btn.is-loading svg { display: none; }
-/* The Xenon X glyph (components/XenonLoader/XenonLoader.css) in the icon's place. */
+/* Bit thinking (components/XenonLoader/XenonLoader.css) in the icon's place. */
 .sys-optimize-btn.is-loading::before {
-  content: ""; width: 14px; height: 14px; flex-shrink: 0;
-  background: currentColor;
-  -webkit-mask: var(--xl-mask) center / contain no-repeat;
-  mask: var(--xl-mask) center / contain no-repeat;
-  animation: xl-glyph var(--xl-beat, 1.2s) ease-in-out infinite;
+  content: ""; width: 10px; height: 13px; flex-shrink: 0;
+  background: var(--xl-think) center / contain no-repeat;
 }
-:is(body.overlay-frozen, body.ambient-idle, body.game-mode, body.low-power-gpu) .sys-optimize-btn.is-loading::before { animation: none; }
-@media (prefers-reduced-motion: reduce) { .sys-optimize-btn.is-loading::before { animation: none; } }
+:is(body.overlay-frozen, body.ambient-idle, body.game-mode, body.low-power-gpu) .sys-optimize-btn.is-loading::before { background-image: var(--xl-think-still); }
+@media (prefers-reduced-motion: reduce) { .sys-optimize-btn.is-loading::before { background-image: var(--xl-think-still); } }
 /* A session is running: the button reads "Restore" and is filled with the
    accent, so a session left on is visible from the dashboard. Static, no
    animation: it is shown exactly while animations are paused. */

@@ -15,11 +15,8 @@ const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpe
 const SETTINGS_MAX_FONT_BYTES = 8 * 1024 * 1024;
 const SETTINGS_FONT_TYPES = Object.freeze(new Set(['font/woff2', 'font/woff', 'font/ttf', 'font/otf']));
 const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 'otf']));
-// Uploaded fonts are registered under one fixed family name; the actual typeface
-// comes from the @font-face src, so the family label never needs to match the file.
-const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'perf', 'screen', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -131,6 +128,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    perf:     Object.freeze({ x: 8, y: 74, w: 8, h: 10, visible: false, page: 'dashboard' }),
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     devclean: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
@@ -140,6 +138,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     // both sides and reads a default per id, so an id present on one side only
     // is a crash on the other.
     phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
+    // The Xenon menu on the main screen, from the dashboard (js/screen-tile.js).
+    screen:   Object.freeze({ x: 16, y: 76, w: 8, h: 12, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -212,11 +212,6 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   portrait: Object.freeze({ custom: false, items: Object.freeze({}) }),
 });
 
-// The activities Performance Mode can detect and react to. One list, used by
-// the normalizers, the settings toggles, and the trigger-app editor. Declared
-// before DEFAULT_HUB_SETTINGS: hubSettings is normalized at module load.
-const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting'];
-
 // Lighting effects a context profile can apply (a subset of the ambient-animation
 // styles). '' in a profile means "don't touch lighting"; 'none' turns it off.
 const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
@@ -243,6 +238,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // The bar's look in every style (surface, size, buttons, clock, where toasts
   // appear, each button's own icon/label/colours). Rules in js/topbar-look.js.
   topbarLook: TopbarLook.normalize(null),
+  // Widgets on the desktop, in the overlay or anchored to an app (single-screen
+  // use). Off with nothing placed by default. Rules in js/layers-model.js.
+  layers: LayersModel.normalize(null),
   // Dynamic Island personalization shared by Full + Minimal. `items` controls
   // built-in segments (order in Minimal, visibility in both chromes), while
   // hiddenSources holds per-installed-package opt-outs and takeovers gates the
@@ -269,6 +267,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       { id: 'badges', hidden: false },
       { id: 'claude', hidden: false },
       { id: 'codex', hidden: false },
+      { id: 'perf', hidden: false },
     ],
     // The BUTTONS of the chrome, as opposed to the clock contents above. Order
     // and side apply in both chromes (quickbar/top-actions in Full become the
@@ -375,7 +374,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   mutedText: null, // optional secondary-text colour (#rrggbb) or null = auto
   lineColor: null, // optional divider/border colour (#rrggbb) or null = auto
   backgroundMedia: null,
-  uiFont: null, // custom global typeface: { url, name, version } or null → default Inter
+  uiFont: null, // custom global typeface: { url, name, version } or null → default Sofia Sans
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   // Ambient / Screensaver mode (evolution of the Focus lock screen).
   // idleMinutes 0 = never auto-start; sceneId 'builtin' = the native scene
@@ -383,7 +382,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // whose manifest declares surface:'ambient'.
   // openOnStartup: boot straight into the scene and keep it up (a home screen,
   // not a screensaver: nothing dismisses it but the user).
-  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', openOnStartup: false }),
+  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', wallpaper: false, saverMinutes: 0, openOnStartup: false }),
   // Native canvas Ambient scenes the user composed (or imported). Client-owned
   // (like customThemes): referenced by ambientMode.sceneId as "canvas:<id>".
   ambientScenes: Object.freeze([]),
@@ -418,6 +417,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lyricsReading: true,
   lyricsTranslateCap: 200,
   lyricsStage: false,
+  // Questions a widget granted `ai` may ask the AI set for Bit per day (sdk-ai.js).
+  sdkAiDailyCap: 50,
   // Spotify tile: start the closed desktop app minimized (Windows, macOS).
   spotifyStartMinimized: false,
   // Open the dashboard in the default browser at Windows logon (default on).
@@ -523,7 +524,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   contentInstalls: Object.freeze([]),
   geminiApiKey: '',
   geminiApiKeySet: false,
-  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
   // ChatGPT (OpenAI) + Claude (Anthropic). Keys are SERVER-ONLY: the server
@@ -539,6 +540,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   anthropicApiKey: '',
   anthropicApiKeySet: false,
   anthropicModel: 'auto',
+  xenonModel: 'sonnet', // Xenon credits: 'haiku' | 'sonnet' | 'opus'
+  xenonEffort: 'medium', // how hard the creation model reasons: 'low' | 'medium' | 'high'
   // Claude Code / Codex (the user's own subscription, ai-cli.js). 'default'
   // lets the program choose; no key, the program has its own sign-in.
   claudeCodeModel: 'default',
@@ -558,6 +561,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // backdrop, the default); true = ambient — the dashboard stays visible and only
   // the screen edge glows, with the live captions in a small glass strip.
   aiVoiceAmbient: false,
+  // Which screens light their edges while a voice chat is on (native app,
+  // js/ai-edge-glow.js): auto = the screen Bit was called from.
+  aiEdgeGlow: 'auto',
+  // How this PC uses Xenon: dashboard / widgets / both, '' = not asked yet
+  // (js/usage-mode.js).
+  usageMode: '',
   // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
   // because they consume AI quota (Gemini) or compute (local provider).
   // `enabled` is the master switch: when false every feature below is inert
@@ -574,6 +583,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // the AI Guardian feature — when on, the server records CPU/GPU load+temp and
   // RAM over time for the history charts, with or without any AI. Never leaves the PC.
   sensorHistory: Object.freeze({ enabled: false }),
+  // Game sessions log (Settings → Performance): ON unless explicitly turned off.
+  gameSessions: Object.freeze({ enabled: true }),
+  // What the Game performance tile shows besides the FPS (js/perf-hud.js): all on.
+  perfHud: Object.freeze({ low1: true, low01: true, frame: true, graph: true, hw: true }),
   // User-given fan names for the Fans widget, keyed "<kind>|<sensor name>"
   // ("mb|Fan #3" → "Radiatore alto"). The board only reports header numbers —
   // the user is the one who knows what's plugged where. Empty = no renames;
@@ -618,7 +631,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // decides whether the structural incoming-call signal raises the fullscreen
   // card; the phonebook is useful without that.
   phone: Object.freeze({ enabled: false, ring: true, hide: true }),
-  // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the server
+  // Local "Hey Bit" wake word. OFF by default (privacy) — when on, the server
   // listens to the microphone locally (ffmpeg + whisper.cpp) while a dashboard
   // is open; audio never leaves the PC and candidate clips are never stored.
   wakeWord: Object.freeze({ enabled: false }),
@@ -667,12 +680,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // "Ask ChatGPT" tile: the model Codex answers with. See js/chatgpt-widget.js.
   chatgptWidget: Object.freeze({ model: 'default' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
-  // Performance Mode (opt-in, off by default). Broader than gameMode: a
-  // user-triggered / suggested profile that pauses dashboard animations and
-  // applies reversible system tweaks (power plan) with confirmation. See
-  // docs/superpowers/specs/performance-mode.md.
-  // (PERF_ACTIVITIES below must stay above the first normalizeSettings call —
-  // hubSettings is initialized at module load.)
+  bgGuard: true, // slow down, then still, an animated background that weighs on the PC (js/bg-guard.js)
   // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
   // when the foreground activity changes and revert when it ends
   // (context-profiles.js). Off by default; empty entry = "don't touch that
@@ -690,46 +698,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       meeting: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
     }),
   }),
-  performance: Object.freeze({
-    enabled: false,        // master opt-in
-    autoSuggest: true,     // show a banner when a tracked activity is detected
-    // 'suggest' shows the banner + confirmation sheet; 'auto' applies the safe,
-    // reversible tweaks (animations, power plan, priority) by itself when an
-    // enabled activity starts and restores them when it ends. App closing is
-    // NEVER automatic — it always goes through the sheet.
-    autoMode: 'suggest',
-    // Which detected activities trigger the auto-suggest banner. Gaming only by
-    // default — the others are opt-in so the suggestion never nags during
-    // normal desk work unless the user wants it.
-    autoActivities: Object.freeze({ gaming: true, coding: false, writing: false, streaming: false, creating: false, meeting: false }),
-    useAi: true,           // let Xenon AI drive the decisions (when a provider is configured)
-    active: false,         // runtime: an optimization session is currently applied
-    activatedBy: '',       // runtime: '' | 'manual' | 'auto' — auto sessions auto-restore
-    autoActivity: '',      // runtime: the activity that auto-applied the session
-    savedPowerPlan: '',    // GUID of the user's power plan before we switched (for restore)
-    closedApps: [],        // runtime: apps we closed this session, for one-tap reopen
-    // Learning: per-app keep/close counters from the user's sheet choices, used
-    // to bias future preselection toward what this user actually does.
-    appChoices: Object.freeze({}),
-    // runtime: what was actually applied this session (the sheet lets the user
-    // pick per-run, so this can differ from `opts`). Drives restore + perf-mode.
-    applied: Object.freeze({ pauseAnimations: false, powerPlan: 'none', boostedProc: '' }),
-    opts: Object.freeze({
-      pauseAnimations: true, // pause dashboard animations + background FX (reversible)
-      powerPlan: 'high',     // 'none' | 'high' | 'ultimate' — Windows power scheme to apply
-      manageApps: false,     // offer to close chosen background apps (opt-in, high-touch)
-      priorityBoost: false,  // nudge the active app's process priority up (reversible)
-      pauseStreams: true,    // pause heavy live tiles (Browser, future second screen) while gaming/optimizing
-    }),
-    // User customization of the per-activity trigger app lists, relative to the
-    // built-in defaults: `add` extends, `remove` drops a default. Process names,
-    // lowercase, no extension.
-    activityApps: Object.freeze({
-      gaming:  Object.freeze({ add: [], remove: [] }),
-      coding:  Object.freeze({ add: [], remove: [] }),
-      writing: Object.freeze({ add: [], remove: [] }),
-    }),
-  }),
+  // Performance Mode: defaults and normalizer in js/perf-settings.js (the
+  // "widgets only" driver page runs it too, without this file).
+  performance: PERF_DEFAULTS,
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in
     brightness: 1.0,
@@ -888,7 +859,7 @@ const BG_CUSTOM_CODE_MAX = 60000;
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
 // Every provider id Xenon AI knows, mirrored from ai-local.js AI_PROVIDERS.
 // Up here because normalizeSettings reads them at load (see SURFACE_KINDS).
-const AI_PROVIDER_IDS = ['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex'];
+const AI_PROVIDER_IDS = ['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'];
 const AI_CLI_PROVIDERS = ['claudecode', 'codex'];
 // How often the sensor readings refresh, in ms. Mirrors SENSOR_RATE_MS in
 // server.js — the server clamps to this same set, so an out-of-range value
@@ -940,8 +911,10 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // — a grant carrying a stream/action the server allows but this list omits gets
 // silently stripped on save, so the widget is granted a capability it can never
 // use. server/test/sdk-grant-cats-sync guards that half.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch', 'pages']);
+// The daily numbers of AI questions a widget may get (server: sdk-ai.js DAILY_CAPS).
+const SDK_AI_DAILY_CAPS = Object.freeze([20, 50, 100, 200]);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'vitals', 'soundboard', 'browser', 'watch', 'pages', 'capture', 'benchmark', 'gallery', 'layers']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -990,13 +963,23 @@ function sanitizeBackgroundMedia(value) {
   // A pasted SVG wallpaper lives inline as a base64 data: URI. It is only ever
   // rendered as an <img> source (secure static mode — no scripts/fetches), so it
   // is safe; bounded so it can't bloat the settings blob.
+  let out;
   if (url.startsWith('data:')) {
     if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
-    return { url, name: name || 'svg', type: 'image/svg+xml', version };
+    out = { url, name: name || 'svg', type: 'image/svg+xml', version };
+  } else {
+    if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
+    if (!/^(image|video)\//.test(type)) return null;
+    out = { url, name: name || url.split('/').pop(), type, version };
   }
-  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
-  if (!/^(image|video)\//.test(type)) return null;
-  return { url, name: name || url.split('/').pop(), type, version };
+  // Redistribution marker, as on bgCustom: a wallpaper that came in a package is
+  // someone else's picture, so it is never offered back in an export.
+  if (value.imported === true) out.imported = true;
+  if (out.imported && typeof ContentInstalls !== 'undefined'
+      && ContentInstalls.INSTALL_ID_RE.test(String(value.installId || ''))) {
+    out.installId = String(value.installId);
+  }
+  return out;
 }
 
 // Custom UI font reference — mirrors sanitizeBackgroundMedia (server-side twin:
@@ -1034,10 +1017,15 @@ function normalizeAmbientMode(value) {
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
   const isCanvas = typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(raw) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(raw);
   const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || isCanvas) ? raw : defaults.sceneId;
+  // The scene behind the desktop icons and the screensaver of the screens
+  // without the dashboard (js/screen-scene-model.js). Both off by default.
+  const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.includes(idle) ? idle : defaults.idleMinutes,
     sceneId,
+    wallpaper: source.wallpaper === true,
+    saverMinutes: saverMinutes(source.saverMinutes),
     openOnStartup: source.openOnStartup === true,
   };
 }
@@ -1487,7 +1475,7 @@ function normalizeTopbarRails(value) {
 // is inlined (not a module const) because normalizeSettings runs at load time,
 // before a top-level const would be initialised — a TDZ crash otherwise.
 function normalizeTopbarClock(value, legacyRoot) {
-  const canonical = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex'];
+  const canonical = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude', 'codex', 'perf'];
   const v = value && typeof value === 'object' ? value : {};
   const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
   const version = Number(v.version) || 0;
@@ -1567,6 +1555,7 @@ function normalizeTopbarActions(value) {
     { id: 'ambient', side: 'left', hidden: false },
     { id: 'xenon', side: 'left', hidden: false },
     { id: 'search', side: 'left', hidden: false },
+    { id: 'mail', side: 'left', hidden: false },
     { id: 'mini', side: 'left', hidden: false },
     { id: 'layout', side: 'right', hidden: false },
     { id: 'settings', side: 'right', hidden: false },
@@ -1762,6 +1751,7 @@ function normalizeSettings(source) {
     topbarRailsAutoHide: value.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(value.topbarClock, value),
     topbarLook: TopbarLook.normalize(value.topbarLook),
+    layers: LayersModel.normalize(value.layers),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     clockScale: clampNumber(value.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
     clockDateScale: clampNumber(value.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
@@ -1825,6 +1815,8 @@ function normalizeSettings(source) {
     lyricsReading: value.lyricsReading !== false,
     lyricsTranslateCap: [50, 200, 500].includes(Number(value.lyricsTranslateCap)) ? Number(value.lyricsTranslateCap) : 200,
     lyricsStage: value.lyricsStage === true,
+    // The same choices as the server (sdk-ai.js DAILY_CAPS).
+    sdkAiDailyCap: SDK_AI_DAILY_CAPS.includes(Number(value.sdkAiDailyCap)) ? Number(value.sdkAiDailyCap) : 50,
     spotifyStartMinimized: value.spotifyStartMinimized === true,
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
@@ -1890,6 +1882,8 @@ function normalizeSettings(source) {
     anthropicApiKey: String(value.anthropicApiKey || '').trim().slice(0, 200),
     anthropicApiKeySet: value.anthropicApiKeySet === true || !!String(value.anthropicApiKey || '').trim(),
     anthropicModel: normalizeModelChoice(value.anthropicModel),
+    xenonModel: ['haiku', 'sonnet', 'opus'].includes(value.xenonModel) ? value.xenonModel : 'sonnet',
+    xenonEffort: ['low', 'medium', 'high'].includes(value.xenonEffort) ? value.xenonEffort : 'medium',
     claudeCodeModel: normalizeCliModel(value.claudeCodeModel),
     codexModel: normalizeCliModel(value.codexModel),
     // Gemini, one per role. Same shape as the two above: `auto` / `auto:<family>`
@@ -1911,8 +1905,12 @@ function normalizeSettings(source) {
     aiProReasoning: value.aiProReasoning === true,
     aiLiveVoice: value.aiLiveVoice === true,
     aiVoiceAmbient: value.aiVoiceAmbient === true,
+    aiEdgeGlow: ['auto', 'main', 'second', 'all', 'off'].includes(value.aiEdgeGlow) ? value.aiEdgeGlow : 'auto',
+    usageMode: window.UsageMode ? window.UsageMode.normalize(value.usageMode) : '',
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
+    gameSessions: { enabled: !(value.gameSessions && value.gameSessions.enabled === false) },
+    perfHud: window.PerfHud ? window.PerfHud.normalizePerfHud(value.perfHud) : { low1: true, low01: true, frame: true, graph: true, hw: true },
     fanLabels: normalizeFanLabels(value.fanLabels),
     proactive: normalizeProactive(value.proactive),
     notifications: normalizeNotifications(value.notifications),
@@ -1935,6 +1933,7 @@ function normalizeSettings(source) {
     codexWidget: normalizeCodexWidget(value.codexWidget),
     chatgptWidget: normalizeChatgptWidget(value.chatgptWidget),
     gameMode: value.gameMode !== false,
+    bgGuard: value.bgGuard !== false,
     performance: normalizePerformance(value.performance),
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
     lighting: normalizeLighting(value.lighting),
@@ -2235,7 +2234,7 @@ function normalizeProactive(value) {
   };
 }
 
-// Local "Hey Xenon" wake word — privacy-touching, strict opt-in: anything that
+// Local "Hey Bit" wake word — privacy-touching, strict opt-in: anything that
 // isn't literally `true` stays off. Same shape the server persists.
 function normalizeWakeWord(value) {
   const v = value && typeof value === 'object' ? value : {};
@@ -2344,12 +2343,15 @@ function normalizeNotifications(value) {
   // 'always' holds them back the whole time, 'off' never does. Enforced in
   // js/toast.js, which never holds back an error, warning, reminder or timer.
   const quiet = (v.quiet === 'off' || v.quiet === 'always') ? v.quiet : 'auto';
-  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet };
+  // `onScreen`: in "Solo widget" (no dashboard window) the same pop-ups show in
+  // a small click-through window on the main screen (/screen-alerts).
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet, onScreen: v.onScreen !== false };
 }
 
 // Vitals — known-key rebuild, identical to the server normalizer (server.js):
 // per-vital enable + interval, plus the widget-owned state (last-refill
 // timestamps, XP, daily fill counter).
+function vitalsHour(h) { return Number.isInteger(h) && h >= 0 && h <= 23; }
 function normalizeVitals(value) {
   const v = value && typeof value === 'object' ? value : {};
   const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
@@ -2392,6 +2394,11 @@ function normalizeVitals(value) {
     position: ['floating', 'topbar', 'both'].includes(petSrc.position) ? petSrc.position : 'floating',
     aiRoasts: petSrc.aiRoasts === true,
     nightQuiet: petSrc.nightQuiet !== false,
+    // The quiet window, whole local hours: from (inclusive) to (exclusive),
+    // wrapping past midnight when from > to; from === to means no quiet hours.
+    // Anything but an hour 0-23 reads as the default (null is not midnight).
+    quietFrom: vitalsHour(petSrc.quietFrom) ? petSrc.quietFrom : 23,
+    quietTo: vitalsHour(petSrc.quietTo) ? petSrc.quietTo : 7,
     thresholds,
   };
   // Bit's durable bookkeeping (state.pet): truce (snooze/mute-today) and the
@@ -2437,6 +2444,7 @@ function normalizeVitals(value) {
     // Freeze the meters while the user is away from the PC (no real input for
     // 5+ min, via the server idle probe) and resume exactly where they were.
     awayPause: v.awayPause !== false,
+    naturalBreaks: v.naturalBreaks !== false,
     pet,
     items,
     state: {
@@ -2542,6 +2550,7 @@ function normalizeSdkWidgets(value) {
         mini: g.mini === true,
         topbarButton: g.topbarButton === true,
         clipboard: g.clipboard === true,
+        ai: g.ai === true,
         accent: g.accent === true,
         expand: g.expand === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
@@ -2775,56 +2784,6 @@ function aiFeatureEnabled(key) {
   return !!(f && f.enabled === true && f[key] === true);
 }
 
-function normalizePerformance(value) {
-  const d = DEFAULT_HUB_SETTINGS.performance;
-  const v = value && typeof value === 'object' ? value : {};
-  const o = v.opts && typeof v.opts === 'object' ? v.opts : {};
-  const powerPlan = ['none', 'high', 'ultimate'].includes(o.powerPlan) ? o.powerPlan : d.opts.powerPlan;
-  const savedPowerPlan = (typeof v.savedPowerPlan === 'string'
-    && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.savedPowerPlan))
-    ? v.savedPowerPlan.toLowerCase() : '';
-  // Closed-app records (for one-tap reopen). Keep only the fields we need, and
-  // only entries with a launchable executable path; cap the list defensively.
-  const closedApps = (Array.isArray(v.closedApps) ? v.closedApps : [])
-    .filter(a => a && typeof a === 'object' && typeof a.path === 'string' && /\.(exe|lnk)$/i.test(a.path))
-    .slice(0, 30)
-    .map(a => ({ name: String(a.name || '').slice(0, 80), path: a.path.slice(0, 1024) }));
-  const aa = v.autoActivities && typeof v.autoActivities === 'object' ? v.autoActivities : {};
-  const dAA = DEFAULT_HUB_SETTINGS.performance.autoActivities;
-  const autoActivities = {};
-  for (const act of PERF_ACTIVITIES) {
-    autoActivities[act] = typeof aa[act] === 'boolean' ? aa[act] : !!dAA[act];
-  }
-  const ap = v.applied && typeof v.applied === 'object' ? v.applied : {};
-  const appliedPlan = ['none', 'high', 'ultimate'].includes(ap.powerPlan) ? ap.powerPlan : 'none';
-  return {
-    enabled: v.enabled === true,
-    autoSuggest: v.autoSuggest !== false,
-    autoMode: v.autoMode === 'auto' ? 'auto' : 'suggest',
-    autoActivities,
-    useAi: v.useAi !== false,
-    active: v.active === true,
-    activatedBy: ['manual', 'auto'].includes(v.activatedBy) ? v.activatedBy : '',
-    autoActivity: PERF_ACTIVITIES.includes(v.autoActivity) ? v.autoActivity : '',
-    savedPowerPlan,
-    closedApps,
-    appChoices: normalizePerfAppChoices(v.appChoices),
-    applied: {
-      pauseAnimations: ap.pauseAnimations === true,
-      powerPlan: appliedPlan,
-      boostedProc: (typeof ap.boostedProc === 'string' && /^[\w.+\- ]{1,60}$/.test(ap.boostedProc)) ? ap.boostedProc : '',
-    },
-    opts: {
-      pauseAnimations: o.pauseAnimations !== false,
-      powerPlan,
-      manageApps: o.manageApps === true,
-      priorityBoost: o.priorityBoost === true,
-      pauseStreams: o.pauseStreams !== false,
-    },
-    activityApps: normalizeActivityApps(v.activityApps),
-  };
-}
-
 // Smart context profiles (context-profiles.js owns the behavior). Rebuild from
 // known keys only: page/deck are free strings (loosely bounded — the live lists
 // validate at apply time), lighting is a fixed enum. Off by default.
@@ -2846,52 +2805,6 @@ function normalizeContextProfiles(value) {
     };
   }
   return { enabled: v.enabled === true, revertOnExit: v.revertOnExit !== false, map };
-}
-
-// Sanitize a list of process names: lowercase, no extension, safe chars only,
-// deduped and capped. Shared by the per-activity add/remove lists.
-function normalizeAppNameList(value) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set();
-  const out = [];
-  for (const raw of value) {
-    const n = String(raw == null ? '' : raw).toLowerCase().trim().replace(/\.exe$/, '');
-    if (!/^[a-z0-9._+\-]{1,40}$/.test(n) || seen.has(n)) continue;
-    seen.add(n);
-    out.push(n);
-    if (out.length >= 40) break;
-  }
-  return out;
-}
-
-function normalizeActivityApps(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const one = (a) => {
-    const x = a && typeof a === 'object' ? a : {};
-    return { add: normalizeAppNameList(x.add), remove: normalizeAppNameList(x.remove) };
-  };
-  const out = {};
-  for (const act of PERF_ACTIVITIES) out[act] = one(v[act]);
-  return out;
-}
-
-// Per-app keep/close counters (learning from the sheet choices). Keys are bare
-// lowercase process names; counts are small bounded ints; the map is capped.
-function normalizePerfAppChoices(value) {
-  const v = value && typeof value === 'object' ? value : {};
-  const out = {};
-  let n = 0;
-  for (const key of Object.keys(v)) {
-    const name = String(key).toLowerCase().trim().replace(/\.exe$/, '');
-    if (!/^[a-z0-9._+\- ]{1,40}$/.test(name)) continue;
-    const c = v[key] && typeof v[key] === 'object' ? v[key] : {};
-    const kept = Math.min(99, Math.max(0, parseInt(c.kept, 10) || 0));
-    const closed = Math.min(99, Math.max(0, parseInt(c.closed, 10) || 0));
-    if (!kept && !closed) continue;
-    out[name] = { kept, closed };
-    if (++n >= 60) break;
-  }
-  return out;
 }
 
 function normalizeLightingEvent(value, fallback) {
@@ -3038,7 +2951,14 @@ function loadHubSettings() {
   }
 }
 
+// A layer surface (`?layer=`, js/layer-host.js) is a viewer of these settings: it
+// changes them in memory to show its tiles and must never write them back, to
+// localStorage (shared with the dashboard on this origin) or to the server.
+// Read from the URL, not LayerHost, because saves can run before layer-host.js loads.
+const _settingsReadOnly = /[?&]layer=/.test(String((window.location && window.location.search) || ''));
+
 function saveLocalHubSettings() {
+  if (_settingsReadOnly) return;
   // Server-only secrets stay OUT of localStorage: all three provider API keys
   // (geminiApiKey joined them in v4.11.0), the UniFi console
   // password and the Home Assistant token. They stay in memory only long enough
@@ -3064,6 +2984,7 @@ function saveLocalHubSettings() {
 }
 
 function postHubSettingsToServer() {
+  if (_settingsReadOnly) return Promise.resolve(null);
   // NO keepalive here: keepalive caps the request body at 64KB across the whole
   // page, and a settings blob with imported themes / Ambient scenes / decor easily
   // exceeds that — the fetch then rejects IMMEDIATELY ("Failed to fetch") and the
@@ -3115,7 +3036,7 @@ function _postHubSettingsWithRetry(token, attempt) {
   postHubSettingsToServer().catch((err) => {
     if (token !== _settingsSaveToken) return;
     if (!_settingsSaveRetryable(err)) {              // permanent client error → stop
-      console.error('settings: server rejected the save and won\'t accept it — giving up', err);
+      console.error('settings: server rejected the save and won\'t accept it, giving up', err);
       return;
     }
     if (attempt === 4) console.warn('settings: server save keeps failing, still retrying', err);
@@ -3212,7 +3133,7 @@ function _postWeatherConfigWithRetry(token, attempt) {
   }).catch((err) => {
     if (token !== _weatherConfigSaveToken) return;
     if (!_settingsSaveRetryable(err)) {                         // permanent client error → stop
-      console.error('weather: server rejected the save and won\'t accept it — giving up', err);
+      console.error('weather: server rejected the save and won\'t accept it, giving up', err);
       return;
     }
     setTimeout(() => _postWeatherConfigWithRetry(token, attempt + 1), Math.min(800 * Math.pow(2, attempt), 10000));
@@ -3288,7 +3209,7 @@ function saveHubSettings(options = {}) {
     hubSettings = normalizeSettings(hubSettings);
   }
   saveLocalHubSettings();
-  if (toServer) {
+  if (toServer && !_settingsReadOnly) {
     if (_hubHydratedFromServer) queueHubSettingsServerSave();
     else _hubServerSavePending = true;
   }
@@ -3388,7 +3309,7 @@ function sendHubSettingsBeacon() {
   // Same wipe guard as saveHubSettings: a page that never merged with the
   // server (fresh storage, server down at boot) must not beacon its defaults
   // over the user's stored configuration on unload.
-  if (!_hubHydratedFromServer) return;
+  if (!_hubHydratedFromServer || _settingsReadOnly) return;
   // A weather change still inside its 250ms debounce would be lost on unload: the
   // whole-blob beacon below no longer carries weather (POST /settings keeps
   // prev.weather), so flush it through its own endpoint. sendBeacon first, then a
@@ -3742,7 +3663,21 @@ async function _hydrateHubSettingsImpl() {
       }
       const askedSurface = window.SurfacePicker && typeof window.SurfacePicker.maybeStart === 'function'
         && window.SurfacePicker.maybeStart();
-      if (!askedSurface && window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
+      // "How do you want to use Xenon?" comes right after the screen question
+      // (never over the phone pairing guide), and before the tour, which is
+      // pointless when the answer hides the dashboard.
+      const startTour = () => {
+        if (window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
+      };
+      const askUsage = (then) => !!(window.UsageAsk && typeof window.UsageAsk.maybeStart === 'function'
+        && window.UsageAsk.maybeStart(then));
+      if (askedSurface) {
+        window.addEventListener('surface-picker-done', (e) => {
+          if (!(e.detail && e.detail.phone)) askUsage();
+        }, { once: true });
+      } else if (!askUsage((mode) => { if (mode !== 'widgets') startTour(); })) {
+        startTour();
+      }
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runFirstRunSurfaces, { once: true });
     else runFirstRunSurfaces();
@@ -3857,49 +3792,12 @@ function isSupportedFontFile(file) {
 }
 
 // CSS format() hint by extension — helps the browser pick/decode the face.
-function fontFaceFormat(url) {
-  const ext = String(url || '').slice(url.lastIndexOf('.') + 1).toLowerCase();
-  if (ext === 'woff2') return " format('woff2')";
-  if (ext === 'woff') return " format('woff')";
-  if (ext === 'ttf') return " format('truetype')";
-  if (ext === 'otf') return " format('opentype')";
-  return '';
-}
-
 function getFontSource(font) {
-  if (!font || !font.url) return '';
-  return font.version ? `${font.url}?v=${encodeURIComponent(font.version)}` : font.url;
-}
-
-// Register (or clear) the custom global typeface. The uploaded font is bound to a
-// fixed @font-face family; --user-font-family flips global.css onto it, and the
-// retro skin's own pixel fonts still win (they use !important) when active.
-function applyUiFont() {
-  const font = hubSettings.uiFont;
-  const root = document.documentElement;
-  let styleEl = document.getElementById('user-font-face');
-  if (font && font.url) {
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'user-font-face';
-      document.head.appendChild(styleEl);
-    }
-    // The url charset is server-restricted to [A-Za-z0-9._-] (plus the version
-    // query), so it cannot break out of the CSS url() context.
-    const src = getFontSource(font);
-    styleEl.textContent = `@font-face{font-family:'${USER_FONT_FAMILY}';src:url("${src}")${fontFaceFormat(font.url)};font-display:swap;}`;
-    root.style.setProperty('--user-font-family', `'${USER_FONT_FAMILY}'`);
-  } else {
-    if (styleEl) styleEl.remove();
-    root.style.removeProperty('--user-font-family');
-  }
+  return ThemeTokens.fontSource(font);
 }
 
 function getBackgroundSource(media) {
-  if (!media) return '';
-  // Data URIs are self-contained — appending a `?v=` cache-buster would corrupt them.
-  if (media.url.startsWith('data:')) return media.url;
-  return media.version ? `${media.url}?v=${encodeURIComponent(media.version)}` : media.url;
+  return ThemeTokens.backgroundSource(media);
 }
 
 function createBackgroundImage(source) {
@@ -4186,104 +4084,17 @@ let _dynamicAccent = null;   // effective: _widgetAccent || _albumAccent
 
 let _effectiveThemePalette = null;
 
+// The palette, its CSS tokens and the tile drop shadow live in js/theme-tokens.js,
+// shared with the light layer page; these keep the dashboard's own state around it.
 function deriveEffectiveThemePalette() {
-  // Safe mode: factory palette, full stop. Derives from STOCK without reading
-  // any user colour/variant key, so nothing saved is touched and toggling off
-  // re-derives the user's theme unchanged.
-  if (hubSettings.safeMode === true) {
-    const tone = resolveAppearance(hubSettings.appearance);
-    return ThemePalette.derive({ ...ThemePalette.STOCK[tone] }, tone);
-  }
-  const source = { ...hubSettings };
-  if (hubSettings.appearance === 'auto' && hubSettings.autoPalette === true) {
-    const stock = ThemePalette.STOCK[resolveAppearance('auto')];
-    Object.assign(source, stock, {
-      mutedText: null, lineColor: null, accentText: null,
-      successColor: null, warningColor: null, dangerColor: null, infoColor: null,
-    });
-    // Accent remains a user preference even while the neutral palette follows
-    // Windows; album-art accent may still replace it below.
-    source.accent = hubSettings.accent;
-  }
-  // Dual-palette theme: overlay the half matching the resolved tone (on 'auto'
-  // that's the live OS tone, so Windows flips repaint through the existing
-  // matchMedia / refreshOsTheme listeners and nothing is persisted).
-  Object.assign(source, ThemePalette.applyVariant(source, activePaletteVariant(hubSettings)));
-  if (hubSettings.dynamicAlbumTheme !== false && _dynamicAccent) source.accent = _dynamicAccent;
-  // Comic's default material is printed on the Base background. Authors can
-  // still separate canvas and paper explicitly with `surface`.
-  if (hubSettings.styleMode === 'comic' && !source.surface) source.surface = source.background;
-  // Retro intentionally owns a fixed CRT palette; expose the same effective
-  // colours to SDK widgets instead of leaking the previous skin's palette.
-  if (hubSettings.styleMode === 'retro') {
-    Object.assign(source, {
-      background: '#050510', surface: '#0d0e20', surfaceAlt: '#121328', controlColor: '#181a34',
-      text: '#e8e8dc', mutedText: '#a9a9c0', lineColor: '#4c4c78', accent: '#f5c518',
-    });
-  }
-  const hint = hubSettings.styleMode === 'retro' ? 'dark' : resolveAppearance(hubSettings.appearance);
-  return ThemePalette.derive(source, hint);
+  return ThemeTokens.derivePalette(hubSettings, { resolve: resolveAppearance, dynamicAccent: _dynamicAccent });
 }
 
-// The tile drop shadow, expressed in terms of --panel-shadow-alpha so the theme
-// editor's "panel shadow" slider and the per-tile one finally reach a rule: the
-// token they both write had no consumer anywhere in the CSS, so neither control
-// changed a pixel. Kept as a shared constant because applyTileStyle() has to
-// re-declare the SAME expression on a tile wrapper — a custom property holding
-// var() is resolved where it is declared, so a tile that set only the alpha
-// would keep inheriting the value :root had already computed.
-const PANEL_DROP_CSS = {
-  dark: '0 1px 1px rgba(0,0,0, calc(var(--panel-shadow-alpha) * 0.73)), 0 10px 30px -14px rgba(0,0,0, calc(var(--panel-shadow-alpha) * 2.05))',
-  light: '0 1px 2px rgba(20,30,40, calc(var(--panel-shadow-alpha) * 0.5)), 0 10px 30px -16px rgba(20,30,40, calc(var(--panel-shadow-alpha) * 1.4))',
-};
+const PANEL_DROP_CSS = ThemeTokens.PANEL_DROP_CSS;
 if (typeof window !== 'undefined') window.PANEL_DROP_CSS = PANEL_DROP_CSS;
 
 function applyThemePaletteTokens(root, palette) {
-  Object.entries(ThemePalette.cssTokens(palette)).forEach(([key, value]) => root.style.setProperty(key, value));
-  root.dataset.appearance = palette.tone;
-  root.style.colorScheme = palette.tone;
-
-  // Component-facing semantic material tokens. They are intentionally defined
-  // in terms of the palette roles, so every future theme and per-tile override
-  // inherits coherent fields, hover states and selected states automatically.
-  const semantic = {
-    '--surface-raised': 'var(--surface-alt)',
-    '--surface-subtle': 'color-mix(in srgb, var(--surface), var(--text) 5%)',
-    '--surface-strong': 'color-mix(in srgb, var(--surface), var(--text) 10%)',
-    '--hover-bg': 'color-mix(in srgb, var(--surface), var(--text) 7%)',
-    '--active-bg': 'color-mix(in srgb, var(--surface), var(--accent) 18%)',
-    '--input-bg': 'var(--control-bg)',
-    '--divider': 'color-mix(in srgb, var(--line), transparent 28%)',
-    '--scrollbar-thumb': 'color-mix(in srgb, var(--text), transparent 76%)',
-    '--selection-bg': 'color-mix(in srgb, var(--accent), var(--surface) 76%)',
-    '--selection-text': 'var(--text)',
-    '--focus-ring': 'color-mix(in srgb, var(--accent), transparent 25%)',
-    '--floating-ui-bg': 'color-mix(in srgb, var(--surface), transparent 22%)',
-    '--floating-ui-border': 'var(--line)',
-    '--oled-bg-rgb': ThemePalette.rgb(palette.surface).join(', '),
-    '--oled-border': 'var(--line)',
-    '--slider-fill': 'var(--accent)',
-    '--slider-track': 'var(--control-bg)',
-  };
-  Object.entries(semantic).forEach(([key, value]) => root.style.setProperty(key, value));
-
-  const light = palette.tone === 'light';
-  root.style.setProperty('--glass-bg', light
-    ? 'linear-gradient(135deg, color-mix(in srgb, var(--surface) 88%, white), color-mix(in srgb, var(--surface-alt) 82%, transparent))'
-    : 'linear-gradient(135deg, color-mix(in srgb, var(--surface) 88%, white 12%), color-mix(in srgb, var(--surface) 96%, transparent) 58%, color-mix(in srgb, var(--surface-alt) 92%, white 8%))');
-  root.style.setProperty('--glass-border', light ? 'color-mix(in srgb, var(--line), white 28%)' : 'color-mix(in srgb, var(--line), white 14%)');
-  root.style.setProperty('--glass-highlight', light ? 'color-mix(in srgb, var(--surface), white 70%)' : 'rgba(255,255,255,0.38)');
-  root.style.setProperty('--glass-sheen', light
-    ? 'linear-gradient(180deg, color-mix(in srgb, var(--surface), white 58%), transparent 38%)'
-    : 'linear-gradient(180deg, rgba(255,255,255,0.14), transparent 30%)');
-  root.style.setProperty('--readability-shadow', light ? 'none' : '0 1px 3px rgba(0,0,0,0.86), 0 0 14px rgba(0,0,0,0.42)');
-  root.style.setProperty('--icon-readability-filter', light ? 'none' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.86)) drop-shadow(0 0 8px rgba(0,0,0,0.32))');
-  root.style.setProperty('--shadow-sm', light ? '0 1px 2px rgba(20,30,40,0.08)' : '0 1px 2px rgba(0,0,0,0.30)');
-  root.style.setProperty('--shadow-md', light ? '0 1px 2px rgba(20,30,40,0.05), 0 8px 22px -6px rgba(20,30,40,0.10)' : '0 1px 2px rgba(0,0,0,0.22), 0 8px 22px -6px rgba(0,0,0,0.38)');
-  root.style.setProperty('--shadow-lg', light ? '0 2px 4px rgba(20,30,40,0.05), 0 18px 44px -12px rgba(20,30,40,0.14)' : '0 2px 4px rgba(0,0,0,0.24), 0 18px 44px -12px rgba(0,0,0,0.50)');
-  root.style.setProperty('--shadow-xl', light ? '0 3px 6px rgba(20,30,40,0.06), 0 30px 70px -18px rgba(20,30,40,0.18)' : '0 3px 6px rgba(0,0,0,0.26), 0 30px 70px -18px rgba(0,0,0,0.60)');
-  root.style.setProperty('--panel-topline', light ? 'color-mix(in srgb, var(--surface), white 72%)' : 'rgba(255,255,255,0.055)');
-  root.style.setProperty('--panel-drop', PANEL_DROP_CSS[light ? 'light' : 'dark']);
+  ThemeTokens.applyPalette(root, palette);
   _effectiveThemePalette = palette;
   return palette;
 }
@@ -4357,21 +4168,6 @@ function setDynamicAccent(hex, source) {
   else if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
 }
 
-// Extended full-editor theme tokens, applied inline on :root. Skipped under the
-// full alternate skins, which own their geometry/material. A leftover inline
-// --radius would otherwise defeat Retro's square corners and Comic's hand-drawn
-// corners (hence the explicit removal on the alternate-skin branch). The defaults
-// reproduce the stock Liquid Glass look, so an untouched theme is a visual no-op.
-function applyThemeSurfaceTokens(root, alternateSkin) {
-  const scoped = ['--radius', '--radius-control', '--radius-tile', '--radius-modal', '--glass-blur', '--glass-saturate'];
-  if (alternateSkin) { scoped.forEach(prop => root.style.removeProperty(prop)); return; }
-  const round = clampNumber(hubSettings.uiRoundness, 0, 2, 1);
-  [['--radius', 8], ['--radius-control', 10], ['--radius-tile', 16], ['--radius-modal', 20]]
-    .forEach(([prop, base]) => root.style.setProperty(prop, `${+(base * round).toFixed(2)}px`));
-  root.style.setProperty('--glass-blur', `${Math.round(clampNumber(hubSettings.glassBlur, 0, 40, 22))}px`);
-  root.style.setProperty('--glass-saturate', `${Math.round(clampNumber(hubSettings.glassSaturate, 100, 220, 160))}%`);
-}
-
 function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
   // The native shell's interface scale, applied on every hydrate rather than only
@@ -4420,14 +4216,6 @@ function applyHubSettings() {
   syncSwipeHomeControl();
   syncHideRdpControl();
   const root = document.documentElement;
-  const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
-  // Border/shadow strength are user multipliers (1 = stock look); caps widened so
-  // a 2× still fits, but the default value is byte-for-byte the previous formula.
-  const borderStrength = clampNumber(hubSettings.panelBorderStrength, 0, 2, 1);
-  const shadowStrength = clampNumber(hubSettings.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength);
-  const panelBorderAlpha = Math.min(0.4, (0.045 + (hubSettings.panelAlpha * 0.08)) * borderStrength);
-  const panelShadowAlpha = Math.min(0.6, (0.05 + (hubSettings.panelAlpha * 0.18)) * shadowStrength);
-  const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
   // The top bar's clock. Stamped as plain multipliers and applied in Topbar.css,
   // where each breakpoint owns the BASE size it scales — the Edge and the phone
   // draw a smaller clock than a desktop, and a single hard-coded size here would
@@ -4439,16 +4227,10 @@ function applyHubSettings() {
   const bgBlur = Math.round(hubSettings.bgBlur);
   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
-  // Dashboard style language: skins own geometry/material only. Colour and
-  // contrast always flow through ThemePalette; Retro is the sole fixed-palette
-  // exception because its identity is a dark CRT.
-  // Safe mode neutralizes the skins too (styleMode itself stays saved).
-  const safe = hubSettings.safeMode === true;
-  const retro = !safe && hubSettings.styleMode === 'retro';
-  const comic = !safe && hubSettings.styleMode === 'comic';
-  if (retro) root.dataset.style = 'retro';
-  else if (comic) root.dataset.style = 'comic';
-  else delete root.dataset.style;
+  // Dashboard style language (Retro, Comic or glass): js/theme-tokens.js, which
+  // the light layer page shares so a layer tile wears the same skin.
+  const skin = ThemeTokens.applySkin(root, hubSettings);
+  const { safe, retro } = skin;
   document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
 
   // Idle animation auto-pause (ambient-idle.js runs independently; push the
@@ -4478,40 +4260,20 @@ function applyHubSettings() {
   const palette = applyAccentColor();
   const light = palette.tone === 'light';
 
-  // Custom global typeface (independent of the colour palette).
-  applyUiFont();
+  // Custom global typeface (independent of the colour palette, js/theme-tokens.js).
+  ThemeTokens.applyFont(document, hubSettings.uiFont);
 
-  root.style.setProperty('--panel-alpha', (comic ? 1 : hubSettings.panelAlpha).toFixed(2));
-  root.style.setProperty('--panel-soft-alpha', (comic ? 1 : panelSoftAlpha).toFixed(2));
-  root.style.setProperty('--panel-border-alpha', (light ? 0.10 * borderStrength : panelBorderAlpha).toFixed(3));
-  root.style.setProperty('--panel-shadow-alpha', (light ? 0.10 * shadowStrength : panelShadowAlpha).toFixed(3));
+  // Panel opacity, border, shadow, corners and glass (js/theme-tokens.js).
+  ThemeTokens.applyMaterial(root, hubSettings, palette, skin);
   root.style.setProperty('--clock-time-scale', String(clockScale));
   root.style.setProperty('--clock-date-scale', String(clockDateScale));
   TopbarLook.apply(hubSettings.topbarLook);
-  root.style.setProperty('--panel-highlight-alpha', light ? '0.55' : panelHighlightAlpha.toFixed(3));
-
-  // Comic is opaque paper by default; the palette engine already maps its
-  // automatic surface to Base background, while an explicit `surface` wins.
-  if (comic) {
-    root.style.setProperty('--panel-alpha', '1');
-    root.style.setProperty('--panel-soft-alpha', '1');
-  }
 
   root.style.setProperty('--bg-dim', hubSettings.bgDim.toFixed(2));
   root.style.setProperty('--bg-safe-dim', bgSafeDim.toFixed(2));
   root.style.setProperty('--bg-safe-dim-strong', bgSafeDimStrong.toFixed(2));
   root.style.setProperty('--bg-blur', `${bgBlur}px`);
   root.style.setProperty('--bg-scale', bgScale.toFixed(3));
-
-  // Extended theme tokens — corner radius, glass blur/saturation and optional
-  // secondary colours. Glass-only (the full skins own their geometry/material).
-  // Safe mode drops the inline overrides too: stylesheet defaults = factory glass.
-  applyThemeSurfaceTokens(root, retro || comic || safe);
-
-  // Borders consume the effective semantic line colour, whether it was picked
-  // manually or auto-derived. Retro's !important CRT edge still wins.
-  const lineAlpha = light ? (0.10 * borderStrength) : panelBorderAlpha;
-  root.style.setProperty('--panel-border', `rgba(${ThemePalette.rgb(palette.line).join(', ')}, ${lineAlpha.toFixed(3)})`);
 
   // ── Background FX (static bg + aurora + perspective grid) ───────
   const aurora = normalizeBgAurora(hubSettings.bgAurora);
@@ -4527,7 +4289,7 @@ function applyHubSettings() {
   // static premium bg does. Mounted/cleared through the sandboxed CustomBg module.
   const customOn = !safe && bgCustom.enabled && !!bgCustom.code && !media;
   if (window.CustomBg && typeof window.CustomBg.apply === 'function') {
-    window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null, bgCustom.fps);
+    window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null, bgCustom.fps, hubSettings.bgGuard !== false);
   }
 
   // Static premium background — mutually exclusive with the animated aurora
@@ -4767,12 +4529,10 @@ function addThemeCard(snapshot, name, opts) {
     name: String(name || '').trim().slice(0, 40)
       || (t('theme_custom_default') + ' ' + (existing.length + 1)),
   };
-  // Redistribution marker for imported looks — export refuses to re-share them.
-  if (opts && opts.imported === true) card.imported = true;
-  if (card.imported && opts && typeof ContentInstalls !== 'undefined'
-      && ContentInstalls.INSTALL_ID_RE.test(String(opts.installId || ''))) {
-    card.installId = String(opts.installId);
-  }
+  // Redistribution marker for imported looks — export refuses to re-share them
+  // (ContentInstalls.themeCardMark: an imported background inside counts too).
+  if (typeof ContentInstalls !== 'undefined') Object.assign(card, ContentInstalls.themeCardMark(snapshot, opts));
+  else if (opts && opts.imported === true) card.imported = true;
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: existing.concat([card]) });
   saveHubSettings();
   renderThemeGallery();
@@ -5154,6 +4914,7 @@ function syncSettingsControls() {
   syncHideRdpControl();
   syncAudioCommsControl();
   syncNativeZoomControl();
+  syncUsageModeControl();
   syncStackModeControls();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
@@ -5162,6 +4923,8 @@ function syncSettingsControls() {
   syncBgFxControls();
   syncGameModeControls();
   syncSensorHistoryControls();
+  syncGameSessionsControls();
+  syncPerfHudControls();
   syncProactiveControls();
   syncNotificationsControls();
   syncVitalsControls();
@@ -5460,6 +5223,17 @@ function applySurfaceKind(kind, state) {
 }
 
 let _settingsCat = 'appearance';
+// A card shown only where its feature runs, decided by a probe that answers
+// later: it stays out of every category until then, and a late answer never
+// shows it inside another category.
+function setSettingsCardAvailable(card, ok) {
+  if (!card) return;
+  if (ok) delete card.dataset.unavailable;
+  else card.dataset.unavailable = '1';
+  const open = document.getElementById('settings-content');
+  card.hidden = !ok || !open || card.dataset.settingsCat !== open.dataset.cat;
+}
+
 function settingsSetCategory(cat) {
   _settingsCat = cat;
   if (window.SettingsSearch) SettingsSearch.leave();
@@ -5468,7 +5242,7 @@ function settingsSetCategory(cat) {
   if (content) {
     content.dataset.cat = cat;
     content.querySelectorAll('[data-settings-cat]').forEach(el => {
-      el.hidden = el.dataset.settingsCat !== cat;
+      el.hidden = el.dataset.settingsCat !== cat || el.dataset.unavailable === '1';
     });
     content.scrollTop = 0;
   }
@@ -5481,6 +5255,7 @@ function settingsSetCategory(cat) {
   if (cat === 'island') renderDynamicIslandSources();
   if (window.SettingsBarPreview) SettingsBarPreview.page(cat);
   if (cat === 'search') renderSearchDiskSettings();
+  if ((cat === 'capture' || cat === 'performance') && window.CaptureSettingsPane) CaptureSettingsPane.show();
   if (cat === 'performance' && window.SensorSourcesPage) window.SensorSourcesPage.show();
   // The monitor list is live: rendered on open, and re-rendered by the shell's
   // push when a display is plugged in or out while the panel is on screen.
@@ -5547,15 +5322,21 @@ async function syncSupporterCodeBox() {
   const forget = $('settings-supporter-forget');
   const field = $('settings-supporter-code');
   if (!state || !forget || !field) return;
-  let saved = false;
+  // The same box holds a Sparks code (XC) for someone who bought Sparks without
+  // being a supporter; /api/community/sparks says which of the two this PC has.
+  let pass = false;
+  let wallet = false;
   try {
-    const res = await fetch('/api/community/supporter', { cache: 'no-store' });
+    const res = await fetch('/api/community/sparks', { cache: 'no-store' });
     const out = await res.json();
-    saved = !!(out && out.saved);
+    pass = !!(out && out.pass === true);
+    wallet = !!(out && out.wallet === true);
   } catch { /* offline: the box still works, it just cannot report */ }
-  state.textContent = saved
+  const saved = pass || wallet;
+  state.textContent = pass
     ? t('settings_supporter_saved')
-    : t('settings_supporter_none');
+    : wallet ? t('settings_sparks_code_saved') : t('settings_supporter_none');
+  forget.dataset.which = pass ? 'pass' : 'sparks';
   forget.hidden = !saved;
   // A saved code is a STATE: "Code saved" and Remove, nothing to type. An empty
   // field and a Save button beside a saved code read as "enter your code", which
@@ -5570,6 +5351,18 @@ async function syncSupporterCodeBox() {
   if (savedLine) savedLine.hidden = !saved;
 }
 
+// "Enter your code" on the Support page: the box lives with the other sharing
+// tools (category sdk), so go there and put the cursor in it.
+function openSupporterCode() {
+  settingsSetCategory('sdk');
+  const field = $('settings-supporter-code');
+  const row = field && field.closest('.settings-subcard');
+  if (!row) return;
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  if (!field.hidden) field.focus({ preventScroll: true });
+}
+window.openSupporterCode = openSupporterCode;
+
 async function saveSupporterCode() {
   const field = $('settings-supporter-code');
   if (!field) return;
@@ -5577,9 +5370,12 @@ async function saveSupporterCode() {
   if (!code) { field.focus(); return; }
   const btn = $('settings-supporter-save');
   if (btn) btn.disabled = true;
+  // A Sparks code has its own store (sparks-wallet.js); with a pass already here
+  // the server moves its Sparks onto the pass.
+  const isSparks = code.toUpperCase().replace(/[^A-Z0-9]/g, '').startsWith('XC');
   let out = null;
   try {
-    const res = await fetch('/api/community/supporter/save', {
+    const res = await fetch(isSparks ? '/api/community/sparks/save' : '/api/community/supporter/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
@@ -5604,10 +5400,14 @@ async function saveSupporterCode() {
 async function forgetSupporterCode() {
   const btn = $('settings-supporter-forget');
   if (btn) btn.disabled = true;
-  try { await fetch('/api/community/supporter/forget', { method: 'POST' }); }
+  let status = 0;
+  const path = btn && btn.dataset.which === 'sparks' ? '/api/community/sparks/forget' : '/api/community/supporter/forget';
+  try { status = (await fetch(path, { method: 'POST' })).status; }
   catch { /* offline: nothing changed, the state line below says so */ }
   if (btn) btn.disabled = false;
-  setSettingsStatus('settings_supporter_removed', 'ok');
+  // A paired device is refused (403): the pass stays saved, so say so.
+  if (status >= 200 && status < 300) setSettingsStatus('settings_supporter_removed', 'ok');
+  else setSettingsStatus(status === 403 ? 'settings_supporter_pc_only' : 'settings_supporter_failed', 'error');
   syncSupporterCodeBox();
 }
 window.saveSupporterCode = saveSupporterCode;
@@ -5716,7 +5516,7 @@ function renderSearchDiskSettings() {
         // installer") would send them to fix something that is not broken.
         if (st.fdaBlocked) {
           idxStatus.textContent = t('settings_search_idx_fda',
-            'macOS ha revocato a Xenon l’Accesso completo al disco: succede a ogni aggiornamento. Finché manca, Xenon non indicizza la tua cartella utente — altrimenti macOS chiederebbe il permesso per Scrivania, Documenti, Download, Foto e Musica a ogni scansione. Riattivalo in Impostazioni di Sistema → Privacy e Sicurezza → Accesso completo al disco: togli Xenon dall’elenco e riaggiungila.');
+            'macOS ha revocato a Xenon l’Accesso completo al disco: succede a ogni aggiornamento. Finché manca, Xenon non indicizza la tua cartella utente: altrimenti macOS chiederebbe il permesso per Scrivania, Documenti, Download, Foto e Musica a ogni scansione. Riattivalo in Impostazioni di Sistema → Privacy e Sicurezza → Accesso completo al disco: togli Xenon dall’elenco e riaggiungila.');
           idxStatus.hidden = false;
           return;
         }
@@ -5794,12 +5594,18 @@ function toggleSettings() {
   if (!overlay) return;
   overlay.hidden = !overlay.hidden;
   if (!overlay.hidden) {
+    // The lock screen and ambient scenes sit above Settings, and the lock
+    // screen's backdrop is see-through, so a Settings opened under one (voice,
+    // a paired phone, a shortcut) showed through it. Opening Settings means the
+    // user is here: take the screen back first.
+    if (window.AmbientMode && AmbientMode.isOpen()) AmbientMode.close();
     // Every open starts on the settings themselves, not on the category list.
     const nav = $('settings-nav');
     if (nav) nav.classList.remove('is-open');
     renderSettingsModal();
     settingsSetCategory(_settingsCat);
     if (window.SettingsSearch) SettingsSearch.onOpen();
+    if (window.CaptureSettingsPane) CaptureSettingsPane.probe();
   }
   else if (window.NewsWidget) NewsWidget.mountFeedManager(null);
   freezeSettingsAmbient(!overlay.hidden);
@@ -6288,6 +6094,16 @@ function updateBgCustom(key, value) {
   if (!next.enabled || !String(next.code || '').trim()) clearBgCodeError();
 }
 
+// The heavy-background guard on/off (js/bg-guard.js). A change remounts the
+// background, so turning it back on measures the code again from the start.
+function updateBgGuard(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, bgGuard: !!enabled });
+  saveHubSettings();
+  applyHubSettings();
+  syncBgFxControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 // ── Bundled background images (assets) ────────────────────────────────────────
 // Pictures the draw() code can paint (assets.name → drawImage). Stored as data:
 // URIs INSIDE bgCustom, so they persist, travel with a shared background code
@@ -6491,14 +6307,6 @@ async function updateSlideshowFolder(value) {
   catch { _postHubSettingsWithRetry(token, 0); }
   refreshSlideshowFolderStatus(true);
   if (window.SlideshowWidget && typeof SlideshowWidget.refreshFolderNow === 'function') SlideshowWidget.refreshFolderNow();
-}
-
-// Open the Settings overlay straight at the Slideshow pane (the widget's empty
-// state links here).
-function openSlideshowSettings() {
-  const overlay = $('settings-overlay');
-  if (overlay && overlay.hidden) toggleSettings();
-  settingsSetCategory('slideshow');
 }
 
 // Thumbnails are drawn to a CANVAS, not shown as <img>. An animated GIF in an
@@ -6708,6 +6516,29 @@ function renderBgFrozenNote() {
   el.hidden = !frozen;
 }
 
+// What the heavy-background guard did to the running background, so an author
+// testing a snippet knows the slowdown is the PC's guard, not their code.
+const BG_SLOW_NOTES = ['', 'settings_bg_slow_fps', 'settings_bg_slow_res', 'settings_bg_slow_still'];
+function renderBgSlowNote() {
+  const el = $('settings-bgcode-slow');
+  if (!el) return;
+  const level = (window.CustomBg && typeof CustomBg.slowLevel === 'function') ? CustomBg.slowLevel() : 0;
+  el.textContent = level ? t(BG_SLOW_NOTES[level]) : '';
+  el.hidden = !level;
+}
+// The still image is the one step the user can see, so it is said once per
+// background per session; the two lighter steps only show in the editor.
+const _bgStillToldFor = new Set();
+if (typeof document !== 'undefined') {
+  document.addEventListener('xenon-bg-slow', (e) => {
+    renderBgSlowNote();
+    const d = (e && e.detail) || {};
+    if (d.level !== 3 || _bgStillToldFor.has(d.code)) return;
+    _bgStillToldFor.add(d.code);
+    if (typeof showHubToast === 'function') showHubToast(t('settings_bg_slow_toast_kicker'), t('settings_bg_slow_toast'), t('settings_bg_slow_toast_meta'));
+  });
+}
+
 // Drop a starter snippet into the code box (and enable the background so the user
 // sees it immediately). Never overwrites non-empty code without asking.
 async function applyBgCustomTemplate(id) {
@@ -6792,8 +6623,10 @@ function syncBgFxControls() {
   // Code-defined background controls + its own priority. When it's on it owns the
   // backdrop just like a static bg, so the aurora/grid/static are superseded.
   renderBgFrozenNote();
+  renderBgSlowNote();
   const cb = normalizeBgCustom(hubSettings.bgCustom);
   setChk('settings-bgcode-enabled', cb.enabled);
+  setChk('settings-bgguard-enabled', hubSettings.bgGuard !== false);
   const codeName = $('settings-bgcode-name');
   if (codeName && document.activeElement !== codeName) codeName.value = cb.name;
   const codeFps = $('settings-bgcode-fps');
@@ -6933,6 +6766,73 @@ function updateSensorHistory(enabled) {
   // Let the System-tile History tab appear/disappear immediately.
   document.dispatchEvent(new CustomEvent('sensor-history-changed'));
   setSettingsStatus('settings_saved', 'ok');
+}
+
+// Game sessions log (Settings → Performance → Partite giocate). ON by default;
+// the group shows only where the server can read a frame rate.
+function updateGameSessions(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, gameSessions: { enabled: !!enabled } });
+  saveHubSettings();
+  syncGameSessionsControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// What the Game performance tile shows besides the FPS (js/perf-hud.js).
+function updatePerfHud(part, on) {
+  if (!window.PerfHud || !window.PerfHud.PERF_HUD_PARTS.includes(part)) return;
+  const perfHud = window.PerfHud.applyPerfHudChange(hubSettings.perfHud, { [part]: !!on });
+  hubSettings = normalizeSettings({ ...hubSettings, perfHud });
+  saveHubSettings();
+  syncPerfHudControls();
+  if (window.PerfWidget) window.PerfWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncPerfHudControls() {
+  const parts = window.PerfHud ? window.PerfHud.normalizePerfHud(hubSettings.perfHud) : null;
+  if (!parts) return;
+  for (const k of window.PerfHud.PERF_HUD_PARTS) {
+    const el = $(`settings-perfhud-${k}`);
+    if (el) el.checked = parts[k];
+  }
+}
+
+let _gameSessionsProbe = null;
+let _gameSessionsClearArmed = 0;
+
+function syncGameSessionsControls() {
+  const el = $('settings-gamesess-enabled');
+  if (el) el.checked = !(hubSettings.gameSessions && hubSettings.gameSessions.enabled === false);
+  if (window.GameSessionsPane) window.GameSessionsPane.render();
+  const group = $('settings-gamesess-group');
+  if (!group || _gameSessionsProbe) return;
+  _gameSessionsProbe = apiJson('/actions/catalog').then((d) => {
+    if (!d) { _gameSessionsProbe = null; return; }   // asked again on the next render
+    setSettingsCardAvailable(group, !!(d.capabilities && d.capabilities.gameSessions === true));
+  });
+}
+
+// Two taps, not a dialog: the first arms the button for a few seconds and says
+// what the second one does.
+async function clearGameSessions() {
+  const btn = $('settings-gamesess-clear');
+  if (!btn) return;
+  if (Date.now() - _gameSessionsClearArmed > 4000) {
+    _gameSessionsClearArmed = Date.now();
+    btn.textContent = t('settings_gamesess_clear_confirm');
+    setTimeout(() => {
+      if (Date.now() - _gameSessionsClearArmed >= 4000) btn.textContent = t('settings_gamesess_clear');
+    }, 4100);
+    return;
+  }
+  _gameSessionsClearArmed = 0;
+  btn.textContent = t('settings_gamesess_clear');
+  const res = await apiJson('/actions/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'gameSessionsSet', mode: 'clear' }),
+  });
+  setSettingsStatus(res && res.ok ? 'settings_gamesess_cleared' : 'settings_gamesess_clear_failed', res && res.ok ? 'ok' : 'error');
+  if (window.GameSessionsPane) window.GameSessionsPane.render();
 }
 
 function syncSensorHistoryControls() {
@@ -7187,7 +7087,7 @@ function updateNotifications(field, enabled) {
     setSettingsStatus('settings_saved', 'ok');
     return;
   }
-  if (field !== 'enabled' && field !== 'popups' && field !== 'sounds') return;
+  if (field !== 'enabled' && field !== 'popups' && field !== 'sounds' && field !== 'onScreen') return;
   const cur = hubSettings.notifications || {};
   hubSettings = normalizeSettings({ ...hubSettings, notifications: { ...cur, [field]: !!enabled } });
   saveHubSettings();
@@ -7205,7 +7105,15 @@ function syncNotificationsControls() {
   // The pop-up sub-toggle is meaningless while notifications are off.
   const row = $('settings-notif-popups-row');
   if (row) row.classList.toggle('is-disabled', !enabled);
-  // Sound sub-toggle: likewise gated by the master switch.
+  // "Widgets only" pop-ups: only the native app can drop the dashboard window
+  // (as the usage mode row). Not gated by the master switch: they also carry
+  // timers and captures, which never were notifications.
+  const caps = window.__XENON_NATIVE_CAPS__ || {};
+  const onScreenRow = $('settings-notif-onscreen-row');
+  if (onScreenRow) onScreenRow.hidden = !(window.__XENON_NATIVE__ === true && caps.layers === true);
+  const onScreen = $('settings-notif-onscreen');
+  if (onScreen) onScreen.checked = n.onScreen !== false;
+  // Sound sub-toggle: gated by the master switch, like the pop-ups.
   const snd = $('settings-notif-sounds');
   if (snd) { snd.checked = n.sounds !== false; snd.disabled = !enabled; }
   const sndRow = $('settings-notif-sounds-row');
@@ -7435,7 +7343,7 @@ async function refreshPhoneCapabilities() {
 
 // ── Vitals (Settings → Notifiche, Vitals card) ──
 function updateVitalsSetting(field, enabled) {
-  if (!['enabled', 'topbar', 'reminders', 'awayPause'].includes(field)) return;
+  if (!['enabled', 'topbar', 'reminders', 'awayPause', 'naturalBreaks'].includes(field)) return;
   const cur = hubSettings.vitals || {};
   hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, [field]: !!enabled } });
   saveHubSettings();
@@ -7504,6 +7412,74 @@ function updateVitalsPetThreshold(stage, minutes) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// Bit's quiet window: the hour he falls asleep (quietFrom) and wakes (quietTo).
+function updateVitalsPetQuietHour(field, hour) {
+  if (field !== 'quietFrom' && field !== 'quietTo') return;
+  const cur = hubSettings.vitals || {};
+  const next = Math.round(Number(hour));
+  if (!Number.isFinite(next) || (cur.pet || {})[field] === next) return;
+  const pet = { ...(cur.pet || {}), [field]: next };
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
+  saveHubSettings();
+  syncVitalsControls();
+  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// What Bit can do on THIS computer (server/vitals-nag.js): a step that cannot
+// work here is greyed out with the reason, never offered as if it would.
+let vitalsPcCaps = null;
+let vitalsPcCapsAsked = false;
+async function readVitalsPcCaps() {
+  if (vitalsPcCapsAsked) return;
+  vitalsPcCapsAsked = true;
+  try {
+    const res = await fetch(SERVER + '/api/vitals/caps', { cache: 'no-store' });
+    const body = res.ok ? await res.json() : null;
+    if (body && body.ok) { vitalsPcCaps = body; syncVitalsControls(); }
+  } catch { vitalsPcCapsAsked = false; /* asked again on the next render */ }
+}
+
+const VITALS_POPUP_CAP_KEYS = Object.freeze({ main: 'settings_vpet_cap_main', notify: 'settings_vpet_cap_notify', '': 'settings_vpet_cap_none' });
+const VITALS_MINIMIZE_CAP_KEYS = Object.freeze({ wayland: 'settings_vpet_cap_wayland', needs_wmctrl: 'settings_vpet_cap_wmctrl' });
+
+function vitalsCapLine(id, text) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+function blockVitalsStep(id, can) {
+  if (can) return;
+  const box = $(id);
+  if (box) box.disabled = true;
+  const row = $(id + '-row');
+  if (row) row.classList.add('is-disabled');
+}
+
+function syncVitalsPcCaps() {
+  readVitalsPcCaps();
+  const caps = vitalsPcCaps;
+  if (!caps) return;
+  const popup = typeof caps.popup === 'string' ? caps.popup : '';
+  const popupKey = VITALS_POPUP_CAP_KEYS[popup];
+  // Off Windows the popup and the hiding are new and untried on real hardware.
+  const beta = popup && popup !== 'screens' ? ' (' + t('settings_sdk_beta') + ')' : '';
+  blockVitalsStep('settings-vpet-monitors', !!popup);
+  vitalsCapLine('settings-vpet-monitors-cap', popupKey ? t(popupKey) + beta : '');
+  const min = caps.minimize || {};
+  blockVitalsStep('settings-vpet-minimize', min.ok === true);
+  vitalsCapLine('settings-vpet-minimize-cap', min.ok === true ? '' : t(VITALS_MINIMIZE_CAP_KEYS[min.reason] || 'settings_vpet_cap_none'));
+}
+
+// /api/vitals/roast never spends Sparks or a Claude Code / Codex subscription
+// on its own, so on those providers the roasts are Bit's built-in lines.
+const VITALS_AI_BANK_PROVIDERS = Object.freeze(['xenon', 'claudecode', 'codex']);
+function syncVitalsAiBank() {
+  vitalsCapLine('settings-vpet-ai-cap', VITALS_AI_BANK_PROVIDERS.includes(hubSettings.aiProvider) ? t('settings_vpet_ai_bank') : '');
+}
+
 function syncVitalsControls() {
   const v = hubSettings.vitals || {};
   const enabled = v.enabled !== false;
@@ -7516,6 +7492,12 @@ function syncVitalsControls() {
     const row = $(id + '-row');
     if (row) row.classList.toggle('is-disabled', !enabled);
   });
+  // Natural breaks ride on the away detection, so they need the away pause on.
+  const breaksOn = enabled && v.awayPause !== false;
+  const nb = $('settings-vitals-naturalbreaks');
+  if (nb) { nb.checked = v.naturalBreaks !== false; nb.disabled = !breaksOn; }
+  const nbRow = $('settings-vitals-naturalbreaks-row');
+  if (nbRow) nbRow.classList.toggle('is-disabled', !breaksOn);
   // Bit — the pet master toggle needs Vitals itself on; every sub-control needs
   // the pet on too (mirrors the notifications → popups disable pattern).
   const pet = v.pet || {};
@@ -7534,6 +7516,8 @@ function syncVitalsControls() {
     const row = $(id + '-row');
     if (row) row.classList.toggle('is-disabled', !petOn);
   });
+  syncVitalsPcCaps();
+  syncVitalsAiBank();
   const tone = $('settings-vpet-tone');
   if (tone) {
     tone.disabled = !petOn;
@@ -7572,6 +7556,21 @@ function syncVitalsControls() {
     }
     const row = $('settings-vpet-thr-' + stage + '-row');
     if (row) row.classList.toggle('is-disabled', !petOn);
+  });
+  // The quiet window's hours follow the night toggle.
+  const quietOn = petOn && pet.nightQuiet !== false;
+  [['quiet-from', pet.quietFrom, 23], ['quiet-to', pet.quietTo, 7]].forEach(([id, hour, fallback]) => {
+    const sel = $('settings-vpet-' + id);
+    if (sel) {
+      sel.disabled = !quietOn;
+      const want = String(Number.isInteger(hour) ? hour : fallback);
+      if (sel.value !== want) {
+        sel.value = want;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    const row = $('settings-vpet-' + id + '-row');
+    if (row) row.classList.toggle('is-disabled', !quietOn);
   });
   const items = v.items || {};
   VITALS_IDS.forEach((id) => {
@@ -8104,6 +8103,11 @@ function renderPerformanceTriggerApps() {
   }
 }
 
+function updatePerformanceBarAlways(enabled) {
+  _savePerformance({ barAlways: !!enabled });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function updatePerformanceUseAi(enabled) {
   _savePerformance({ useAi: !!enabled });
   setSettingsStatus('settings_saved', 'ok');
@@ -8181,6 +8185,7 @@ function syncPerformanceControls() {
   const actRow = $('settings-perf-activities');
   if (actRow) actRow.hidden = (mode === 'manual');
   renderPerformanceTriggerApps();
+  setChecked('settings-perf-baralways', p.barAlways);
   setChecked('settings-perf-useai', p.useAi);
   setChecked('settings-perf-pauseanim', p.opts.pauseAnimations);
   setChecked('settings-perf-powerplan', p.opts.powerPlan !== 'none');
@@ -8421,6 +8426,7 @@ function syncAmbientSettings() {
       idle.dispatchEvent(new Event('change', { bubbles: true }));
     }
   }
+  syncAmbientPcSettings(cfg);
   syncAmbientScenePicker(cfg);
   renderAmbientSceneManager();
   // The lockWidgets toggles only shape the builtin scene.
@@ -8514,19 +8520,45 @@ window.addEventListener('xenon:sdk-packages', () => {
   try { syncAmbientScenePicker(normalizeAmbientMode(hubSettings.ambientMode)); } catch { /* settings not ready */ }
 });
 
+// The animated wallpaper and the PC's screensaver (js/screen-scene-model.js):
+// windows of the native app, so the rows show only where it can draw them.
+function syncAmbientPcSettings(cfg) {
+  const sec = $('settings-ambient-pc');
+  const caps = window.__XENON_NATIVE_CAPS__ || {};
+  if (sec) sec.hidden = !(window.__XENON_NATIVE__ === true && caps.scene === true);
+  // Linux has no place behind the icons: the window manager stacks the scene.
+  const hint = $('settings-ambient-wallpaper-hint');
+  const hintKey = caps.wallpaperBehindIcons === false ? 'ambient_wallpaper_hint_under' : 'ambient_wallpaper_hint';
+  if (hint && hint.dataset.i18n !== hintKey) {
+    hint.dataset.i18n = hintKey;
+    hint.textContent = t(hintKey);
+  }
+  const wallpaper = $('settings-ambient-wallpaper');
+  if (wallpaper) wallpaper.checked = cfg.wallpaper;
+  const saver = $('settings-ambient-saver');
+  if (saver && saver.value !== String(cfg.saverMinutes)) {
+    saver.value = String(cfg.saverMinutes);
+    // A custom select re-syncs its label on 'change' (see the idle select).
+    saver.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
+const AMBIENT_SETTING_KEYS = Object.freeze(['enabled', 'idleMinutes', 'sceneId', 'openOnStartup', 'wallpaper', 'saverMinutes']);
+
 function updateAmbientSetting(key, value) {
-  if (!['enabled', 'idleMinutes', 'sceneId', 'openOnStartup'].includes(key)) return;
+  if (!AMBIENT_SETTING_KEYS.includes(key)) return;
   const cur = normalizeAmbientMode(hubSettings.ambientMode);
   const next = { ...cur };
   if (key === 'enabled') next.enabled = !!value;
   else if (key === 'idleMinutes') next.idleMinutes = Number(value);
   else if (key === 'openOnStartup') next.openOnStartup = !!value;
+  else if (key === 'wallpaper') next.wallpaper = !!value;
+  else if (key === 'saverMinutes') next.saverMinutes = Number(value);
   else next.sceneId = String(value || 'builtin');
-  // Guarded: syncAmbientSettings dispatches 'change' on the idle custom-select to
-  // re-sync its visible label — an unchanged value must be a no-op, not a save
+  // Guarded: syncAmbientSettings dispatches 'change' on the custom selects to
+  // re-sync their visible label — an unchanged value must be a no-op, not a save
   // (and must not re-fire the scene grant prompt below).
-  if (next.enabled === cur.enabled && next.idleMinutes === cur.idleMinutes && next.sceneId === cur.sceneId
-      && next.openOnStartup === cur.openOnStartup) return;
+  if (AMBIENT_SETTING_KEYS.every((k) => next[k] === cur[k])) return;
   hubSettings = normalizeSettings({ ...hubSettings, ambientMode: next });
   saveHubSettings();
   syncAmbientSettings();
@@ -8742,6 +8774,17 @@ function syncMediaVisualizerControl() {
 // visualization?" by someone who had turned it on and seen nothing happen.
 // /audio/levels/status already knew why; nothing on screen was asking it.
 let _mediaVizStatusSeq = 0;
+// What is keeping a working wave off screen ('' when nothing is).
+const MEDIA_VIZ_HOLDS = ['perf', 'game', 'overlay', 'lyrics', 'silent'];
+function mediaVizHold() {
+  const h = window.MediaViz && window.MediaViz.holdReason ? window.MediaViz.holdReason() : '';
+  return MEDIA_VIZ_HOLDS.includes(h) ? h : '';
+}
+// Performance Mode starting or ending changes what that line has to say.
+window.addEventListener('xenon:perf-change', () => {
+  const el = $('settings-media-viz-status');
+  if (el && el.isConnected && !el.closest('[hidden]')) refreshMediaVizStatus(true);
+});
 async function refreshMediaVizStatus(recheck) {
   const el = $('settings-media-viz-status');
   if (!el) return;
@@ -8756,7 +8799,11 @@ async function refreshMediaVizStatus(recheck) {
   else if (!st.available || st.failure === 'no-helper') { key = 'settings_media_viz_st_missing'; state = 'bad'; }
   else if (st.failure === 'helper-too-old') { key = 'settings_media_viz_st_old'; state = 'bad'; }
   else if (st.failure === 'helper-failed') { key = 'settings_media_viz_st_failed'; state = 'bad'; }
-  else if (on) { key = 'settings_media_viz_st_ok'; state = 'ok'; }
+  else if (on) {
+    const hold = mediaVizHold();
+    key = hold ? 'settings_media_viz_st_hold_' + hold : 'settings_media_viz_st_ok';
+    state = hold ? 'warn' : 'ok';
+  }
   el.textContent = key ? t(key).replace('{version}', (st && st.minVersion) || '') : '';
   el.dataset.state = state;
   el.hidden = !key;
@@ -9754,13 +9801,13 @@ function applyTopbarSetup(share) {
 }
 
 // Built-in island segment id → i18n label key (editor rows).
-const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude', codex: 'topbar_el_codex' };
+const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude', codex: 'topbar_el_codex', perf: 'topbar_el_perf' };
 // Chrome-button id → i18n label key. Must stay in step with ACTION_SELECTORS in
 // js/topbar-minimal.js and with the canonical list in BOTH normalizers
 // (js/settings.js and its server.js twin) — pinned by test/topbar-island-sync.
 const TOPBAR_ACTION_LABELS = {
   lock: 'topbar_btn_lock', ambient: 'topbar_btn_ambient', xenon: 'topbar_btn_xenon',
-  search: 'topbar_btn_search', mini: 'topbar_btn_mini', layout: 'topbar_btn_layout',
+  search: 'topbar_btn_search', mail: 'topbar_btn_mail', mini: 'topbar_btn_mini', layout: 'topbar_btn_layout',
   settings: 'topbar_btn_settings', apps: 'topbar_btn_apps', favorites: 'topbar_btn_favorites',
 };
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
@@ -10553,7 +10600,7 @@ function clearSettingsFont() {
 // a plain browser → dashboard reload. Confirmed first, since it interrupts the
 // session.
 function restartXenon() {
-  const msg = t('settings_restart_confirm', 'Riavviare Xenon? Le tue impostazioni, i widget e gli sfondi restano — serve solo a ripulire eventuali blocchi.');
+  const msg = t('settings_restart_confirm', 'Riavviare Xenon? Le tue impostazioni, i widget e gli sfondi restano: serve solo a ripulire eventuali blocchi.');
   if (typeof window.confirm === 'function' && !window.confirm(msg)) return;
   setSettingsStatus('settings_restart_running', 'ok');
   if (typeof window.restartXenonApp === 'function') window.restartXenonApp();
@@ -10628,6 +10675,16 @@ function syncAiSettingsControls() {
   }
   const keyReset = $('settings-gemini-reset');
   if (keyReset) keyReset.hidden = !hubSettings.geminiApiKeySet;
+  const sdkAiCap = $('settings-sdk-ai-cap');
+  if (sdkAiCap) {
+    sdkAiCap.replaceChildren(...SDK_AI_DAILY_CAPS.map((n) => {
+      const o = document.createElement('option');
+      o.value = String(n);
+      o.textContent = t('settings_sdk_ai_cap_n').replace('{n}', String(n));
+      return o;
+    }));
+    sdkAiCap.value = String(hubSettings.sdkAiDailyCap);
+  }
   const ttsToggle = $('settings-ai-tts');
   if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
   const proToggle = $('settings-ai-pro');
@@ -10636,6 +10693,7 @@ function syncAiSettingsControls() {
   if (liveToggle) liveToggle.checked = hubSettings.aiLiveVoice === true;
   const ambientToggle = $('settings-ai-voice-ambient');
   if (ambientToggle) ambientToggle.checked = hubSettings.aiVoiceAmbient === true;
+  syncAiEdgeGlowControl();
   const memToggle = $('settings-ai-memory');
   if (memToggle) {
     const on = hubSettings.aiMemory !== false;
@@ -10815,11 +10873,17 @@ function backupToast(titleKey, meta) {
   if (typeof showHubToast === 'function') showHubToast('Backup', title, meta || '');
 }
 
-// Server writes the backup to disk (Downloads) and returns the path. Used as the
+// Server writes the backup to disk and returns the path. Used as the
 // embedded-view path and as a fallback when a browser download is blocked.
-async function exportBackupToDisk() {
-  const res = await fetch('/backup/save', { method: 'POST' });
+// `pick`: the system folder dialog on the PC first (where the capture engine
+// runs), Downloads when there is no dialog.
+async function exportBackupToDisk(pick = false) {
+  const res = await fetch('/backup/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pick }),
+  });
   const out = await res.json().catch(() => null);
+  if (out && out.ok === true && out.cancelled === true) return;
+  if (out && out.error === 'picking') { backupToast('settings_folder_busy'); return; }
   if (!out || out.ok !== true) throw new Error((out && out.error) || 'save_failed');
   backupToast('settings_backup_saved', out.path || '');
 }
@@ -10828,22 +10892,18 @@ async function exportBackup() {
   const btn = document.querySelector('[onclick="exportBackup()"]');
   try {
     if (btn) btn.disabled = true;
-    // Embedded WebView: no download manager — let the server save the file.
-    if (isEmbeddedView()) { await exportBackupToDisk(); return; }
-    // Real browser: native download of the JSON blob.
-    const res = await fetch('/backup/export');
-    if (!res.ok) throw new Error('export_failed');
-    const blob = await res.blob();
-    const name = 'xenon-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    backupToast('settings_backup_exported');
+    // Embedded WebView: no download manager, no save dialog — the server asks
+    // where on the PC and saves the file there.
+    if (isEmbeddedView()) { await exportBackupToDisk(true); return; }
+    // Real browser: "Save as" where it has one (js/save-file.js), else a download.
+    const make = async () => {
+      const res = await fetch('/backup/export');
+      if (!res.ok) throw new Error('export_failed');
+      return res.blob();
+    };
+    const name = 'xenon-backup-' + window.XenonSaveFile.today() + '.json';
+    const how = await window.XenonSaveFile.save({ name, types: [window.XenonSaveFile.JSON_TYPE], make });
+    if (how !== 'cancelled') backupToast('settings_backup_exported');
   } catch (e) {
     console.error('Backup export failed:', e);
     // Last resort: try the server-side save so the user always gets a file.
@@ -11124,11 +11184,15 @@ function _aiUpdateModelDownloadState() {
 function _reflectAiProviderRows(provider) {
   const show = (id, on) => { const el = $(id); if (el) el.hidden = !on; };
   show('ai-local-panel', provider === 'ollama');
+  show('settings-gemini-setup', provider === 'gemini');
+  // Live voice is Gemini Live; on any other provider voice is turn-based.
+  show('settings-ai-live-row', provider === 'gemini');
   show('settings-gemini-key-row', provider === 'gemini');
   show('settings-gemini-models', provider === 'gemini');
   show('settings-openai-panel', provider === 'openai');
   show('settings-anthropic-panel', provider === 'anthropic');
   show('settings-cli-panel', AI_CLI_PROVIDERS.includes(provider));
+  show('settings-xenon-panel', provider === 'xenon');
 }
 
 // Reflect the persisted provider settings into the AI controls. Safe to call
@@ -11155,6 +11219,9 @@ function syncAiProviderControls() {
   const aReset = $('settings-anthropic-reset'); if (aReset) aReset.hidden = !cfg.anthropicApiKeySet;
   if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') _aiLoadProviderModels(provider);
   if (AI_CLI_PROVIDERS.includes(provider)) aiCliRefresh(provider, false);
+  // The credits card at the top shows the balance on Xenon AI and the offer
+  // otherwise, so it is painted for every provider.
+  if (window.XenonCreditsSettings) window.XenonCreditsSettings.refresh();
 
   const urlInput = $('ai-ollama-url');
   if (urlInput) urlInput.value = cfg.ollamaUrl || 'http://localhost:11434';
@@ -11172,7 +11239,7 @@ function renderAiHwScan(scan) {
   const hwStats = $('ai-hw-stats');
   if (!hwStats) return;
   if (!scan || typeof scan !== 'object') { hwStats.textContent = '—'; return; }
-  hwStats.textContent = `RAM ${scan.ram} GB · VRAM ${scan.vram} GB · ${scan.cores} core — ${scan.tier}`;
+  hwStats.textContent = `RAM ${scan.ram} GB · VRAM ${scan.vram} GB · ${scan.cores} core · ${scan.tier}`;
   const incompatible = scan.tier === 'incompatible';
   if (hwBlock) hwBlock.classList.toggle('ai-incompatible', incompatible);
   const ollamaRadio = $('ai-provider-ollama');
@@ -11403,7 +11470,10 @@ function initAiProviderSettings() {
       persistAiProviderSettings();
       if (r.value === 'ollama') { await aiLocalScan(); await aiLocalRefreshStatus(); await aiLocalSyncAutostart(); }
       else if (AI_CLI_PROVIDERS.includes(r.value)) aiCliRefresh(r.value, true);
+      else if (r.value === 'xenon') { if (window.XenonCreditsSettings) window.XenonCreditsSettings.refresh(); }
       else _aiLoadProviderModels(r.value);
+      if (window.XenonCreditsSettings) window.XenonCreditsSettings.render();
+      if (window.XenonCredits) window.XenonCredits.renderChips();
     });
   });
 
@@ -11884,11 +11954,11 @@ async function testWavelinkConnection(btn) {
       // Name the reason like the Streamer.bot test does: "is the app running?"
       // is wrong advice when the app IS running and answered under a name or on
       // a port we did not accept, and that is exactly what gets reported to us.
-      const base = t('settings_wl_fail', 'Could not reach Wave Link — is the app running?');
+      const base = t('settings_wl_fail', 'Could not reach Wave Link: is the app running?');
       setStatus('is-err', (r && r.error) ? base + ' (' + r.error + ')' : base);
     }
   } catch (e) {
-    setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link — is the app running?'));
+    setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link: is the app running?'));
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -11904,12 +11974,17 @@ async function testChromaConnection(btn) {
   try {
     const r = await fetch('/api/chroma/test', { method: 'POST' }).then((res) => res.json()).catch(() => null);
     if (r && r.ok) setStatus('is-ok', t('settings_chroma_ok', 'Razer Chroma connected'));
-    else setStatus('is-err', t('settings_chroma_fail', 'Could not reach Razer Chroma — is Synapse running?'));
+    else setStatus('is-err', t('settings_chroma_fail', 'Could not reach Razer Chroma: is Synapse running?'));
   } catch (e) {
-    setStatus('is-err', t('settings_chroma_fail', 'Could not reach Razer Chroma — is Synapse running?'));
+    setStatus('is-err', t('settings_chroma_fail', 'Could not reach Razer Chroma: is Synapse running?'));
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+function updateSdkAiDailyCap(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, sdkAiDailyCap: Number(value) });
+  saveHubSettings();
 }
 
 function updateAiTts(enabled) {
@@ -11930,6 +12005,80 @@ function updateAiLiveVoice(enabled) {
 function updateAiVoiceAmbient(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, aiVoiceAmbient: !!enabled });
   saveHubSettings();
+  if (window.AiEdgeGlow) window.AiEdgeGlow.refresh();
+}
+
+// Why the native app cannot draw the edge glow here: it draws it wherever it
+// draws widget layers (layers/linux.rs `probe`), so the reason is the same.
+const AI_EDGE_GLOW_WHY_KEYS = { wayland: 'settings_ai_edge_glow_why_wayland', no_compositor: 'settings_ai_edge_glow_why_compositor' };
+
+// The edge glow is drawn by the native app: elsewhere the row is hidden, and
+// where the app cannot draw it a line says why instead.
+function syncAiEdgeGlowControl() {
+  const row = $('settings-ai-edge-glow-row');
+  const caps = window.__XENON_NATIVE_CAPS__ || {};
+  const native = window.__XENON_NATIVE__ === true;
+  if (row) row.hidden = !(native && caps.aiGlow === true);
+  const whyKey = native && caps.aiGlow !== true ? AI_EDGE_GLOW_WHY_KEYS[caps.layersWhy] || '' : '';
+  const whyRow = $('settings-ai-edge-glow-why-row');
+  const whyLine = $('settings-ai-edge-glow-why');
+  if (whyRow) whyRow.hidden = !whyKey;
+  if (whyLine && whyKey) {
+    whyLine.dataset.i18n = whyKey;
+    whyLine.textContent = t(whyKey);
+  }
+  const el = $('settings-ai-edge-glow');
+  if (!el) return;
+  el.value = hubSettings.aiEdgeGlow || 'auto';
+  if (typeof el._csSync === 'function') el._csSync();
+}
+
+function updateAiEdgeGlow(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiEdgeGlow: value });
+  saveHubSettings();
+  syncAiEdgeGlowControl();
+  if (window.AiEdgeGlow) window.AiEdgeGlow.refresh();
+}
+
+// Why the native app cannot draw widget layers here (layers/linux.rs `probe`):
+// the i18n key of the reason, or '' when it can or the shell does not say.
+const LAYERS_WHY_KEYS = { wayland: 'settings_layers_why_wayland', no_compositor: 'settings_layers_why_compositor' };
+
+function syncLayersWhy(caps) {
+  const group = $('settings-layers-why-group');
+  const line = $('settings-layers-why');
+  const key = window.__XENON_NATIVE__ === true && caps.layers !== true ? LAYERS_WHY_KEYS[caps.layersWhy] || '' : '';
+  // A category switch shows every group of its category: these two stay out of
+  // it through `unavailable`, not just `hidden`.
+  setSettingsCardAvailable(group, !!key);
+  if (line && key) {
+    line.dataset.i18n = key;
+    line.textContent = t(key);
+  }
+}
+
+// How this PC uses Xenon (js/usage-mode.js). Only the native app can drop the
+// dashboard window for the widgets, so elsewhere the row is hidden; where the
+// app cannot draw them, a line says why instead.
+function syncUsageModeControl() {
+  const group = $('settings-usage-mode-group');
+  const caps = window.__XENON_NATIVE_CAPS__ || {};
+  setSettingsCardAvailable(group, window.__XENON_NATIVE__ === true && caps.layers === true);
+  syncLayersWhy(caps);
+  const el = $('settings-usage-mode');
+  if (!el) return;
+  el.value = window.UsageMode.normalize(hubSettings.usageMode) || 'dashboard';
+  if (typeof el._csSync === 'function') el._csSync();
+}
+
+async function updateUsageMode(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, usageMode: value });
+  saveHubSettings();
+  syncUsageModeControl();
+  // The window trades itself for the driver page through the server (route
+  // `/`), so the save has to land first; the settings stream retries anyway.
+  try { await flushHubSettingsToServer(); } catch { /* retried by the stream */ }
+  if (window.LayersShell) window.LayersShell.sync();
 }
 
 // ── Persistent AI memory (Settings → Xenon AI) ─────────────────────────────
@@ -12008,7 +12157,7 @@ function updateAiMicSensitivity(value) {
   if (out) out.textContent = String(v);
 }
 
-// ── "Hey Xenon" wake word (Settings → Xenon AI) ────────────────────────────
+// ── "Hey Bit" wake word (Settings → Xenon AI) ────────────────────────────
 // The server owns the listener (ffmpeg + whisper.cpp); the client only flips
 // the persisted toggle and reflects the live status line.
 
@@ -12049,8 +12198,8 @@ async function refreshWakeWordStatus() {
     }
     if (installBtn) installBtn.hidden = true;
     out.textContent = st.listening
-      ? t('wake_status_listening', 'In ascolto: di\' «Hey Xenon» per aprire la chat vocale.')
-      : t('wake_status_starting', 'Attivo — l\'ascolto parte quando il dashboard è aperto.');
+      ? t('wake_status_listening', 'In ascolto: di\' «Hey Bit» per aprire la chat vocale.')
+      : t('wake_status_starting', 'Attivo: l\'ascolto parte quando il dashboard è aperto.');
   } catch {
     out.textContent = '';
     if (installBtn) installBtn.hidden = true;

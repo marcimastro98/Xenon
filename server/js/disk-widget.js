@@ -707,7 +707,7 @@
     const settings = typeof hubSettings !== 'undefined' && hubSettings ? hubSettings : {};
     const provider = settings.aiProvider || 'gemini';
     if (provider === 'ollama') return true;
-    if (provider === 'claudecode' || provider === 'codex') return true;
+    if (provider === 'claudecode' || provider === 'codex' || provider === 'xenon') return true;
     if (provider === 'openai') return settings.openaiApiKeySet === true;
     if (provider === 'anthropic') return settings.anthropicApiKeySet === true;
     return geminiKeyReady(settings);
@@ -862,7 +862,7 @@
     } else {
       const code = out && out.error;
       const message = code === 'no_provider'
-        ? tr('disk_ai_no_provider', 'Configura un provider in Impostazioni → Xenon AI. L’analisi locale qui sopra resta completa e disponibile.')
+        ? tr('disk_ai_no_provider', 'Configura un provider in Impostazioni → Assistente Bit. L’analisi locale qui sopra resta completa e disponibile.')
         : code === 'timeout'
           ? tr('disk_ai_timeout', 'Il provider ha impiegato troppo. Nessun dato è stato modificato: puoi riprovare.')
           : tr('disk_ai_failed', 'L’approfondimento AI non è riuscito. L’analisi locale resta disponibile e nessun file è stato toccato.');
@@ -1064,11 +1064,10 @@
         tr('disk_ai_optional', 'Facoltativo: l’analisi locale sopra funziona già senza inviare nulla.')));
       aiButton.addEventListener('click', () => runAdvisorAi(aiButton, aiOutput));
     } else {
-      aiButton.textContent = tr('disk_ai_configure', 'Configura Xenon AI');
+      aiButton.textContent = tr('disk_ai_configure', 'Configura Bit');
       aiButton.addEventListener('click', () => {
         closeAdvisorModal();
-        if (typeof toggleSettings === 'function') toggleSettings();
-        if (typeof settingsSetCategory === 'function') settingsSetCategory('ai');
+        openSettingsCategory('ai');   // was a toggle: with Settings open it closed them
       });
       aiOutput.appendChild(el('div', 'diskw-modal-ai-ready',
         tr('disk_ai_not_enabled', 'Nessuna AI configurata: non c’è alcun errore. Tutti i numeri e le spiegazioni locali restano disponibili.')));
@@ -1649,9 +1648,7 @@
     box.setAttribute('aria-busy', 'true');
 
     const hero = el('div', 'diskw-clean-loader-hero');
-    const orbit = el('div', 'diskw-clean-orbit');
-    orbit.appendChild(el('span', '', permanent ? '⌫' : '↻'));
-    hero.appendChild(orbit);
+    hero.appendChild(XenonLoader.create({ size: 'lg' }));
     const copy = el('div', 'diskw-clean-loader-copy');
     copy.appendChild(el('span', 'diskw-clean-loader-kicker',
       tr('disk_clean_operation', 'Operazione protetta')));
@@ -1934,7 +1931,7 @@
 
   function renderLoading() {
     const card = el('div', 'diskw-state-card');
-    card.appendChild(XenonLoader.create({ bar: true }));
+    card.appendChild(XenonLoader.create());
     card.appendChild(el('strong', '', loadingSlow
       ? tr('disk_loading_slow', 'Sto aggregando milioni di file…')
       : tr('disk_loading', 'Compongo la mappa live…')));

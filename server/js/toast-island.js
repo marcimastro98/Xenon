@@ -26,7 +26,15 @@
   const ICON_POP = 0.8;       // the app tile springs in from this scale
   const ICON_POP_MS = 420;
   const FLING_MS = 260;
-  const CARD_RADIUS = 20;     // .xtoast border-radius (Toast.css)
+  // The pill's face fades in on the glass once it is nearly the pill's width (a
+  // card is narrower than the pill, so earlier it would spill past the glass).
+  const GHOST_IN_AT = 0.3;
+  const GHOST_IN_MS = 170;
+  // With no pill on screen to land on, the glass settles out where it is instead.
+  const VANISH_MS = 360;
+  const VANISH_SHRINK = { width: 0.86, height: 0.6, rise: 6 };
+  const HOME_Z = 57;          // .topbar-mini z-index (TopbarMinimal.css)
+  const CARD_RADIUS = 22;     // .xtoast border-radius (Toast.css)
   const LIST_ROWS = 4;
   const LIST_IDLE_MS = 8000;
   const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
@@ -78,7 +86,7 @@
   }
 
   function create(host) {
-    let root = null, bg = null, slot = null, pillSkin = null;
+    let root = null, bg = null, slot = null, pillSkin = null, ghost = null;
     let order = [];      // ids on the island, newest first
     let shownId = 0;
     let view = 'card';   // 'card' | 'list' (with nothing to show: the pill)
@@ -120,13 +128,30 @@
 
     // Glide the glass to `to` from wherever it is, mid-flight included. Layout
     // properties on one fixed element with nothing in flow inside it: cheap.
-    function morphBox(to, ms) {
+    function morphBox(to, ms, easing) {
       const from = readBox();
       bg.getAnimations().forEach(a => a.cancel());
+      slot.getAnimations().forEach(a => { if (a.id === 'xisland-clip') a.cancel(); });
       Object.assign(bg.style, px(to));
       target = to;
       if (reduced() || typeof bg.animate !== 'function' || near(from, to)) return Promise.resolve();
-      return bg.animate([px(from), px(to)], { duration: ms, easing: SPRING }).finished.then(() => {}, () => {});
+      const timing = { duration: ms, easing: easing || SPRING };
+      // The content is cut to the glass on the way, so text never shows past
+      // its edges while the glass is still smaller than the card (opening, a
+      // bigger card next, closing onto the pill).
+      if (slot.firstElementChild) {
+        const box = contentBox();
+        slot.animate([{ clipPath: clipTo(from, box) }, { clipPath: clipTo(to, box) }], timing).id = 'xisland-clip';
+      }
+      return bg.animate([px(from), px(to)], timing).finished.then(() => {}, () => {});
+    }
+
+    // The glass box `g` as a clip on the slot's box `s`: an inset, never past the
+    // slot (the spring's overshoot makes the glass the larger of the two).
+    function clipTo(g, s) {
+      const inset = [g.top - s.top, (s.left + s.width) - (g.left + g.width), (s.top + s.height) - (g.top + g.height), g.left - s.left]
+        .map(v => Math.max(0, v) + 'px');
+      return 'inset(' + inset.join(' ') + ' round ' + g.radius + 'px)';
     }
 
     // Where the island lives without a notification: the pill, or the SDK capsule
@@ -138,7 +163,24 @@
         return { left: h.left, top: h.top, width: h.right - h.left, height: h.height, radius: h.radius, pill: h.kind === 'pill' };
       }
       const w = 120, ht = 36;
-      return { left: slot.offsetLeft + (slot.offsetWidth - w) / 2, top: slot.offsetTop, width: w, height: ht, radius: ht / 2, pill: false };
+      return { left: slot.offsetLeft + (slot.offsetWidth - w) / 2, top: slot.offsetTop, width: w, height: ht, radius: ht / 2, pill: false, none: true };
+    }
+
+    // Worth flying back to only if it will be on screen when the glass lands. The
+    // pill sits below every overlay, so under Settings (or with no pill at all)
+    // the glass would shrink into an empty capsule floating over the overlay,
+    // and then blink out. Anything positioned above the pill's band on its spot
+    // means it is covered (the pill itself is visibility:hidden here, so the hit
+    // test sees what is behind or above it, never the pill).
+    function homeOnScreen(home) {
+      if (!home || home.none || typeof document.elementsFromPoint !== 'function') return false;
+      const hits = document.elementsFromPoint(home.left + home.width / 2, home.top + home.height / 2);
+      const hit = hits.find(el => !root.contains(el));
+      for (let el = hit; el && el !== document.body; el = el.parentElement) {
+        const cs = getComputedStyle(el);
+        if (cs.position !== 'static' && (parseInt(cs.zIndex, 10) || 0) > HOME_Z) return false;
+      }
+      return true;
     }
 
     // Layout values, not a rect: the island may be mid-swipe (a transform).
@@ -319,7 +361,7 @@
     function release(fromFling) {
       listListeners(false);
       if (root) root.remove();
-      root = bg = slot = pillSkin = target = null;
+      root = bg = slot = pillSkin = ghost = target = null;
       held = homing = flinging = false;
       host.sync();
       const pill = pillEl();
@@ -331,20 +373,63 @@
       }
     }
 
+    // The pill's face rides the glass home: a copy of its contents fades in over
+    // the last stretch of the trip, so the glass lands as the pill, never as an
+    // empty capsule. The real pill (still visibility:hidden) takes over in the
+    // frame the glass lands, its contents already back from .mini-yield.
+    function carryHome(home) {
+      const pill = home.pill ? pillEl() : null;
+      if (!pill || reduced()) return;
+      pill.classList.remove('mini-yield');
+      ghost = pill.cloneNode(true);
+      ghost.removeAttribute('id');
+      ghost.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+      ghost.classList.remove('mini-yield', 'mini-morph-dim', 'mini-morphing');
+      ghost.classList.add('xisland-ghost');
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.inert = true;
+      ghost.style.opacity = '0';
+      root.insertBefore(ghost, slot);
+      fade(ghost, 1, GHOST_IN_MS, BOX_MS.close * GHOST_IN_AT);
+    }
+
+    function dropGhost() {
+      if (!ghost) return;
+      const el = ghost;
+      ghost = null;
+      fade(el, 0, CONTENT_OUT_MS).then(() => el.remove());
+    }
+
+    // No pill on screen to land on: the glass draws in a little and rises as it
+    // fades, settling out where it is.
+    function vanish() {
+      const b = readBox();
+      const width = b.width * VANISH_SHRINK.width;
+      const height = b.height * VANISH_SHRINK.height;
+      const to = { left: b.left + (b.width - width) / 2, top: b.top - VANISH_SHRINK.rise, width, height, radius: Math.min(b.radius, height / 2) };
+      // The skins fade, not their parent: an opacity there would drop the blur.
+      Array.from(bg.children).forEach(s => fade(s, 0, VANISH_MS * 0.8, VANISH_MS * 0.2));
+      return morphBox(to, VANISH_MS, EASE_OUT);
+    }
+
+    // The text leaves as the glass starts to move, not before it: waiting for the
+    // fade left an empty card standing still for a beat.
     async function close(g) {
+      if (!held) { release(false); return; }
       const cur = currentContent();
-      if (held && cur) {
-        await fade(cur, 0, CONTENT_OUT_MS);
-        if (g !== gen) return;
-        detach(cur);
-      }
-      if (held) {
-        homing = true;
-        host.sync();
+      if (cur) fade(cur, 0, CONTENT_OUT_MS).then(() => { if (cur.parentNode === slot) detach(cur); });
+      const home = homeBox();
+      const landing = homeOnScreen(home);
+      homing = true;
+      host.sync();
+      if (landing) {
         wear(pillSkin);
-        await morphBox(homeBox(), BOX_MS.close);
-        if (g !== gen) return;
+        carryHome(home);
+        await morphBox(home, BOX_MS.close);
+      } else {
+        await vanish();
       }
+      if (g !== gen) return;
       release(false);
     }
 
@@ -354,7 +439,7 @@
       const kind = wanted();
       listListeners(kind === 'list');
       if (!kind) { if (root) await close(g); return; }
-      if (homing) { homing = false; host.sync(); } // news caught it on the way home
+      if (homing) { homing = false; dropGhost(); host.sync(); } // news caught it on the way home
       syncTimers(kind);
       const opening = !held;
       if (opening && !(await open(g))) return;
@@ -383,8 +468,12 @@
       wear(cardSkin());
       const ms = opening ? BOX_MS.open : BOX_MS.swap;
       const travel = morphBox(contentBox(), ms);
-      if (entering) popIcon(next, ms * CONTENT_IN_AT);
-      await fade(next, 1, CONTENT_IN_MS, ms * CONTENT_IN_AT, CONTENT_RISE);
+      // Out of the pill the card waits for the glass to start growing; from one
+      // card to the next the old one has already faded, so the new one comes in
+      // at once (fade through) instead of leaving the glass empty for a beat.
+      const at = opening ? ms * CONTENT_IN_AT : 0;
+      if (entering) popIcon(next, at);
+      await fade(next, 1, CONTENT_IN_MS, at, CONTENT_RISE);
       if (g !== gen) return;
       if (next.classList.contains('xtoast')) next.classList.add('xtoast-in');
       await travel;

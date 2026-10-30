@@ -172,7 +172,7 @@
       if (m.type === 'frame') drawFrame(tab, m.data, m.meta);
       else if (m.type === 'nav' || m.type === 'opened') { if (m.url) setTabUrl(tab, m.url); }
       else if (m.type === 'error') handleTabError(tab, m.error);
-      else if (m.type === 'cleared') { if (typeof showHubToast === 'function') showHubToast(t('browser_clear', 'Browser'), t('browser_cleared', 'Site data cleared — the page has been reloaded.'), ''); }
+      else if (m.type === 'cleared') { if (typeof showHubToast === 'function') showHubToast(t('browser_clear', 'Browser'), t('browser_cleared', 'Site data cleared: the page has been reloaded.'), ''); }
     });
     const drop = () => { tabsById.forEach((tab) => { tab.opened = false; tab.streaming = false; }); };
     relay.addEventListener('close', drop);
@@ -264,7 +264,7 @@
     const el = group.loadingEl;
     if (!el) return;
     el.classList.remove('is-error', 'is-paused');
-    const spin = XenonLoader.create({ bar: true });
+    const spin = XenonLoader.create();
     const txt = document.createElement('span');
     txt.className = 'browser-loading-text'; txt.textContent = t('browser_loading', 'Loading…');
     el.replaceChildren(spin, txt);
@@ -437,7 +437,7 @@
       // "edge"), but the sentence must match the machine reading it.
       return window.XenonPlatform && window.XenonPlatform !== 'win32'
         ? t('browser_unavailable_chromium', 'The Browser widget needs a Chromium-based browser (Chromium, Chrome, Brave or Edge). None was found.')
-        : t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+        : t('browser_unavailable', 'Microsoft Edge isn’t installed: it’s required for the Browser widget.');
     }
     if (isLaunchError(c)) return t('browser_err_launch', 'Couldn’t open this page right now. Please try again in a moment.');
     return '';   // no_tile / bad_url / empty_url / unknown → stay quiet
@@ -1033,7 +1033,7 @@
       // protocol. The message now says what is actually required.
       p.textContent = window.XenonPlatform && window.XenonPlatform !== 'win32'
         ? t('browser_unavailable_chromium', 'The Browser widget needs a Chromium-based browser (Chromium, Chrome, Brave or Edge). None was found.')
-        : t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+        : t('browser_unavailable', 'Microsoft Edge isn’t installed: it’s required for the Browser widget.');
       div.appendChild(p);
 
       if (canInstallBrowser) {
@@ -1049,11 +1049,11 @@
             .then((d) => {
               if (d && d.ok) { probeAvailability(); return; }
               btn.disabled = false;
-              btn.textContent = t('browser_install_failed', 'Installation did not finish — try again');
+              btn.textContent = t('browser_install_failed', 'Installation did not finish: try again');
             })
             .catch(() => {
               btn.disabled = false;
-              btn.textContent = t('browser_install_failed', 'Installation did not finish — try again');
+              btn.textContent = t('browser_install_failed', 'Installation did not finish: try again');
             });
         });
         div.appendChild(btn);

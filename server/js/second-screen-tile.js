@@ -545,8 +545,8 @@
       tile.touchBtn.innerHTML = control ? ICONS.touchPointer : ICONS.touchScroll;
       tile.touchBtn.classList.toggle('ss-btn-active', control);
       tile.touchBtn.title = control
-        ? t('second_screen_touch_control_on', 'Touch controls the screen — tap to scroll the dashboard instead')
-        : t('second_screen_touch_control_off', 'Touch scrolls the dashboard — tap to control the screen with touch');
+        ? t('second_screen_touch_control_on', 'Touch controls the screen: tap to scroll the dashboard instead')
+        : t('second_screen_touch_control_off', 'Touch scrolls the dashboard: tap to control the screen with touch');
     }
   }
 

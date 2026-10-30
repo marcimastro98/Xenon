@@ -42,7 +42,7 @@
   const press = AK.createPressGuard('.codex-widget-mount, .cx-overlay, #clock-codex', () => renderNow());
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="openaicodex"]')).filter((n) => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="openaicodex"]')).filter((n) => n.closest('.pager-page, .layer-slot'));
   }
   function isParked(tile) {
     const page = tile.closest('.pager-page');

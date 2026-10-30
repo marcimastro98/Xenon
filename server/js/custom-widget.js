@@ -7,7 +7,7 @@
 // talks to the dashboard ONLY through the versioned postMessage bridge below:
 //   widget → host:  hello, action {id, action}
 //   host → widget:  init {api, theme, lang, streams, actions}, data {stream,…},
-//                   theme {theme}, action_result {id, ok, error}
+//                   theme {theme}, action_result {id, ok, error, …per-type counts}
 // The user grants each package its data streams and action categories in an
 // explicit permission dialog before it ever renders; the host forwards only
 // granted streams and dispatches only granted actions — every action is then
@@ -44,12 +44,54 @@
     streamerbot: ['sbDoAction', 'sbSendMessage', 'sbCodeTrigger'],
     url: ['openUrl'],
     tasks: ['taskAdd', 'taskToggle', 'taskDelete'],
+    vitals: ['vitalsRefill'],
     soundboard: ['playSound', 'soundStopAll'],
     browser: ['browserOpen'],
     watch: ['twitchWatchPlay', 'ytWatchPlay'],
     youtubePlayer: ['ytPlayer'],
     pages: ['dashboardPage'],
+    capture: ['screenshot', 'record', 'replay', 'screenText', 'screenPin', 'screenColor', 'screenMeasure', 'captureMarker'],
+    benchmark: ['benchmark'],
+    gallery: ['gallery'],
+    layers: ['layersToggle', 'layerPage', 'screenDraw', 'xenonMenu', 'gameCompanion'],
   };
+  // Fields a widget may set on those types (server/sdk-widgets.js
+  // SDK_ACTION_LIMITS): a capture START only, never 'reveal', replay on/off or
+  // the microphone. Absent is fine, the registry's default is allowed.
+  const ACTION_LIMITS = {
+    screenshot: { mode: ['take'] },
+    record: { mode: ['toggle', 'start', 'stop'], audio: ['sound', 'silent'], webcam: ['off'] },
+    replay: { mode: ['save'] },
+    screenText: { target: ['region'] },
+    screenPin: { source: ['region'], id: [] },
+    benchmark: { mode: ['toggle', 'start', 'stop'] },
+    gallery: { filter: ['all', 'video', 'screenshot'], id: [] },
+  };
+  // What a widget learns back from an action besides ok/error (WIDGET_SDK §5c):
+  // counts and yes/no, never a text, a colour, a size, a file, a name or an id.
+  // A list is the allowed values; 'flag' turns any truthy value into true.
+  const ACTION_RESULT_FIELDS = {
+    screenText: { lines: 'number', chars: 'number', copied: 'boolean', empty: 'boolean', cancelled: 'boolean', picking: 'boolean' },
+    screenPin: { pinned: 'flag', surface: ['overlay', 'desktop'], cancelled: 'boolean', picking: 'boolean' },
+    screenColor: { cancelled: 'boolean', picking: 'boolean' },
+    screenMeasure: { cancelled: 'boolean', picking: 'boolean' },
+    screenDraw: { drawing: 'boolean' },
+    xenonMenu: { where: ['screen', 'dashboard', 'closed'], section: ['now', 'widgets', 'overlay', 'capture', 'keys', 'look', 'mode'] },
+  };
+  function actionResultExtras(type, res) {
+    const fields = Object.hasOwn(ACTION_RESULT_FIELDS, type) ? ACTION_RESULT_FIELDS[type] : null;
+    const out = {};
+    if (!fields || !res || res.ok !== true) return out;
+    for (const [name, rule] of Object.entries(fields)) {
+      const v = res[name];
+      if (v == null) continue;
+      if (rule === 'flag') out[name] = true;
+      else if (Array.isArray(rule)) { if (rule.includes(v)) out[name] = v; }
+      else if (rule === 'number') { if (Number.isFinite(v)) out[name] = v; }
+      else if (typeof v === rule) out[name] = v;
+    }
+    return out;
+  }
   // The only playSound.file shape an SDK widget may use — an installed sound
   // pack's clip, never an arbitrary local path (that stays a Deck-key-only
   // privilege). Mirrors SDK_SOUND_FILE_RE in server/sdk-widgets.js.
@@ -134,6 +176,9 @@
     devStorage: ['cw_stream_devstorage', 'How much space developer tools take up'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
     sensors: ['cw_stream_sensors', 'Every temperature, fan, power and clock sensor of your PC'],
+    perf: ['cw_stream_perf', 'Frame rate of the game you are playing'],
+    gameSessions: ['cw_stream_gameSessions', 'The games you played and how they ran'],
+    vitals: ['cw_stream_vitals', 'Your Vitals: how full each meter is, your level and your streak'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
     audioLevels: ['cw_stream_audiolevels', 'How loud each app is playing'],
@@ -184,9 +229,15 @@
     streamerbot: ['cw_act_streamerbot', 'Trigger Streamer.bot actions'],
     url: ['cw_act_url', 'Open web links on this PC'],
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
+    vitals: ['cw_act_vitals', 'Mark a Vitals meter done (water drunk, break taken)'],
     soundboard: ['cw_act_soundboard', 'Play clips from your installed sound packs'],
     browser: ['cw_act_browser', 'Open web pages in the Browser tile on your dashboard'],
     watch: ['cw_act_watch', 'Play a channel or a video in the Twitch and YouTube tiles'],
+    pages: ['cw_act_pages', 'Turn the dashboard to another page'],
+    capture: ['cw_act_capture', 'Take screenshots, start and stop recordings, save the replay, copy the text of an area you pick or pin it on the screen, copy the color of a point or the size of an area, mark a moment in the recording (it never sees any of it)'],
+    benchmark: ['cw_act_benchmark', 'Start and stop a benchmark of your game (the file stays on this PC)'],
+    gallery: ['cw_act_gallery', 'Open the gallery of your screenshots and clips (it never sees them)'],
+    layers: ['cw_act_layers', 'Show or hide your widgets on the screen and switch their pages'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
@@ -265,6 +316,23 @@
       }));
       return { ok: true, enabled: !!s.enabled, devices };
     } }),
+    // The games played and how each ran (average FPS, lows, load, peak
+    // temperatures), newest first. Pulled: it changes only when a game ends.
+    gameSessions: Object.freeze({ ttl: 10000, load: async () => {
+      const d = await api('/perf/sessions?limit=20');
+      if (!d || typeof d !== 'object' || d.ok !== true) return { ok: false, enabled: false, current: null, sessions: [], compare: null };
+      return {
+        ok: true,
+        enabled: d.enabled !== false,
+        current: d.current && typeof d.current === 'object' ? d.current : null,
+        sessions: Array.isArray(d.sessions) ? d.sessions : [],
+        compare: d.compare && typeof d.compare === 'object' ? d.compare : null,
+      };
+    } }),
+    // The Vitals meters, the numbers Bit reads (js/vitals.js sdkSnapshot).
+    // Read from this page, no request; vitals.js also pushes on every change.
+    vitals: Object.freeze({ ttl: 5000, load: async () => (window.VitalsWidget && typeof window.VitalsWidget.sdkSnapshot === 'function'
+      ? window.VitalsWidget.sdkSnapshot() : { ok: false, enabled: false, meters: [] }) }),
     discordChannels: Object.freeze({ ttl: 5000, load: async () => {
       const [catalog, roster] = await Promise.all([
         api('/stream/discord/channels'),
@@ -412,7 +480,13 @@
   // Optional display meta per state ({label, icon, color}) for key.live badges.
   const sdkStateMeta = {};
 
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest('.pager-page')); }
+  // Tiles on a dashboard page, plus those a layer surface has moved into its slots.
+  // A layer window shows its slots only: the dashboard pages it also boots stay
+  // hidden, and mounting their widgets cost memory and ran their Deck states twice.
+  function tiles() {
+    const scope = window.LayerHost && window.LayerHost.active ? '.layer-slot' : '.pager-page, .layer-slot';
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest(scope));
+  }
 
   // Identity comes from the ATOM (data-dashboard-instance, set on every
   // duplicated copy; the primary has none → base id), NEVER from the enclosing
@@ -424,6 +498,19 @@
   // copy's gs-id IS its data-dashboard-instance, so stored keys keep working.
   function instanceIdOf(tile) {
     return tile.getAttribute('data-dashboard-instance') || 'custom';
+  }
+
+  // Store widgets placed on a layer surface (js/layer-host.js) are keyed by the
+  // layer id and live only in memory: a layer page never saves sdkWidgets.assign.
+  let layerAssign = new Map();
+  function setLayerAssign(map) {
+    layerAssign = map instanceof Map ? new Map(map) : new Map();
+  }
+
+  // The package assigned to a custom-widget instance, or null.
+  function assignedIdOf(cfg, instId) {
+    if (layerAssign.has(instId)) return layerAssign.get(instId);
+    return (cfg.assign && typeof cfg.assign === 'object') ? (cfg.assign[instId] || null) : null;
   }
 
   function safeModeOn() {
@@ -515,10 +602,18 @@
   // FORCED call that lands mid-flight still gets its fresh pass afterwards —
   // an early-return here used to silently skip the rescan of a just-installed
   // package.
+  // Files may have changed on disk: every mounted frame reloads them, and what
+  // the old code reported (blocked requests, errors) no longer describes the
+  // widget, so the xenon-mcp tools would send its author after fixed bugs.
+  function bumpAssets() {
+    assetVersion++;
+    blockedByPkg.clear();
+    errorsByPkg.clear();
+  }
   async function fetchPackages(force) {
     // A forced fetch is a Rescan / (re)install — the files on disk may have
     // changed, so bump the asset version to force mounted frames to reload them.
-    if (force) assetVersion++;
+    if (force) bumpAssets();
     if (pkgFetchPromise) {
       await pkgFetchPromise;
       if (!force) return;
@@ -710,6 +805,42 @@
     return hs.hwTempUnit === 'c' || hs.hwTempUnit === 'f' ? hs.hwTempUnit : tempUnit();
   }
 
+  // Where this frame is drawn, and whether a dashboard is in use on this PC.
+  // A widget can lay itself out for the place it is in (a corner of the desktop,
+  // over a game, beside a window) and leave out a "open on the dashboard" hint
+  // when the user runs widgets only. Not a permission: it says where the widget
+  // is, nothing about the user, and the user alone decides where it goes.
+  const LAYER_SURFACES = Object.freeze(['desktop', 'overlay', 'anchor']);
+  // The desktop scene page (scene.html) shows an Ambient scene as the animated
+  // wallpaper or the PC's screensaver (js/screen-scene.js sets data-scene).
+  const SCENE_PLACES = Object.freeze({ wallpaper: 'wallpaper', saver: 'screensaver' });
+  function placementOf(entry) {
+    let where = 'dashboard';
+    if (entry.service) where = 'background';
+    else if (entry.ambient) {
+      const scene = document.documentElement && document.documentElement.dataset.scene;
+      where = Object.hasOwn(SCENE_PLACES, scene || '') ? SCENE_PLACES[scene] : 'ambient';
+    } else {
+      const m = /[?&]layer=([^&]*)/.exec(String((window.location && window.location.search) || ''));
+      let kind = '';
+      try { kind = m ? decodeURIComponent(m[1]).split(':')[0] : ''; } catch { kind = ''; }
+      if (LAYER_SURFACES.includes(kind)) where = kind;
+    }
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    return { where, dashboard: hs.usageMode !== 'widgets' };
+  }
+  const placementKey = (p) => p.where + '|' + p.dashboard;
+  // Change-detected against what init said, like postSize: a settings pass that
+  // leaves the mode alone sends nothing.
+  function postPlacement(entry) {
+    if (!entry || !entry.ready) return;
+    const placement = placementOf(entry);
+    const key = placementKey(placement);
+    if (entry.placementKey === key) return;
+    entry.placementKey = key;
+    post(entry, { type: 'placement', placement });
+  }
+
   // ── postMessage bridge ───────────────────────────────────────────
   // The iframe origin is opaque ('null'), so identity is established by
   // matching event.source against our own iframes — never by origin — and the
@@ -827,6 +958,7 @@
       mini: !!(grant && grant.mini === true),
       topbarButton: !!(grant && grant.topbarButton === true),
       clipboard: !!(grant && grant.clipboard === true),
+      ai: !!(grant && grant.ai === true),
       accent: !!(grant && grant.accent === true),
       expand: !!(grant && grant.expand === true),
       // Addresses the user typed into the package's userHosts slots, keyed by
@@ -836,6 +968,8 @@
   }
   function actionAllowed(grant, action) {
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') return false;
+    const limits = ACTION_LIMITS[action.type];
+    if (limits && !Object.entries(limits).every(([f, ok]) => action[f] == null || ok.includes(action[f]))) return false;
     return grant.actions.some(cat => (ACTION_CATEGORIES[cat] || []).includes(action.type));
   }
 
@@ -1257,6 +1391,14 @@
       post(entry, { type: 'action_result', id: reqId, ok: !!(res && res.ok), error: (res && res.ok) ? undefined : ((res && res.error) || 'failed') });
       return;
     }
+    // The gallery opens on the screen the widget is on, like a Deck key pressed
+    // there. A layer page is clipped to its tiles, so from one (or from a page
+    // without the gallery) it goes to the server, which opens it on the PC.
+    if (msg.action.type === 'gallery' && window.CaptureGallery && !(typeof isLayerPage === 'function' && isLayerPage())) {
+      window.CaptureGallery.open({ filter: msg.action.filter && msg.action.filter !== 'all' ? msg.action.filter : '' });
+      post(entry, { type: 'action_result', id: reqId, ok: true });
+      return;
+    }
     // The user sees the destination before the browser leaves Xenon. Declining
     // is a normal outcome, not an error the widget should retry: it reports
     // 'declined', the same shape the clipboard prompt uses.
@@ -1272,7 +1414,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg.action),
     });
-    post(entry, { type: 'action_result', id: reqId, ok: !!(d && d.ok), error: (d && d.error) || (d ? undefined : 'offline') });
+    post(entry, { type: 'action_result', id: reqId, ok: !!(d && d.ok), error: (d && d.error) || (d ? undefined : 'offline'), ...actionResultExtras(msg.action.type, d) });
   }
 
   // Proxied fetch: the sandboxed frame has no network (CSP), so the host relays
@@ -1596,6 +1738,25 @@
       .then((ok) => reply(!!ok, ok ? undefined : 'declined'));
   }
 
+  // A question to the AI the user set for Bit (`ai` capability). The server
+  // (POST /sdk/ai, sdk-ai.js) checks the grant and the manifest again, bounds
+  // the text, runs one question per widget at a time and counts the user's
+  // daily number per widget; here the text is only shaped and the frame always
+  // gets an answer, even when the request breaks.
+  function onBridgeAi(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'ai_result', id: reqId }, payload));
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.ai !== true || !grant.ai) { reply({ ok: false, error: 'not_allowed' }); return; }
+    const body = { pkg: entry.pkgId, prompt: msg.prompt, system: msg.system, maxTokens: msg.maxTokens, json: msg.json === true };
+    api('/sdk/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then((r) => {
+        if (r && r.ok && typeof r.text === 'string') reply({ ok: true, text: r.text, left: Number.isSafeInteger(r.left) ? r.left : undefined });
+        else reply({ ok: false, error: (r && typeof r.error === 'string') ? r.error : 'failed' });
+      })
+      .catch(() => reply({ ok: false, error: 'failed' }));
+  }
+
   // ── Fullscreen tile (`expand` capability) ────────────────────────────────
   // A granted widget may ask to paint its tile over the whole dashboard — the
   // same thing `browserOpen`'s `expand` already does for the Browser tile, for
@@ -1826,6 +1987,52 @@
     return (blockedByPkg.get(pkgId) || []).slice();
   }
 
+  // ── What went wrong while it ran (probe `error` reports) ──
+  // Same trust and the same floor as the blocked list: the author reads these
+  // through the xenon-mcp tools. Text only, never rendered as HTML.
+  const errorsByPkg = new Map();   // pkgId → [{ kind, message, count }]
+  function onBridgeError(entry, msg) {
+    if (!window.SdkDiagnostics || typeof SdkDiagnostics.validateErrorReport !== 'function') return;
+    const now = Date.now();
+    if (now - (entry.errorAt || 0) < BLOCKED_MIN_INTERVAL_MS) return;
+    entry.errorAt = now;
+    const items = SdkDiagnostics.validateErrorReport(msg);
+    if (!items || !items.length) return;
+    errorsByPkg.set(entry.pkgId, SdkDiagnostics.mergeErrors(errorsByPkg.get(entry.pkgId), items));
+  }
+  function getRuntimeErrors(pkgId) {
+    return (errorsByPkg.get(pkgId) || []).map((e) => ({ ...e }));
+  }
+
+  // For the xenon-mcp tools: is this package drawn in a tile the person can
+  // see right now, and where on the screen. The first visible tile wins.
+  function devLookup(pkgId) {
+    const pkg = packageById(pkgId);
+    for (const [instId, entry] of frames) {
+      if (instId === AMBIENT_INST_ID || entry.pkgId !== pkgId || !entry.frame || !entry.frame.isConnected) continue;
+      const r = entry.frame.getBoundingClientRect();
+      const inView = r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth;
+      if (!inView || document.visibilityState !== 'visible') continue;
+      return {
+        found: true,
+        approved: !!(pkg && packageGranted(pkg)),
+        rect: { left: r.left, top: r.top, width: r.width, height: r.height, screenX: window.screenX, screenY: window.screenY },
+        dpr: window.devicePixelRatio || 1,
+      };
+    }
+    return { found: false, approved: !!(pkg && packageGranted(pkg)) };
+  }
+  // For the xenon-mcp tools: go to the page holding this package's tile, so the
+  // person sees what they asked for (a full page puts it on a new one) and the
+  // tools can look at it. instId names a tile just placed, whose assignment
+  // waits for the permission dialog. false when no tile on a page shows it.
+  function devShow(pkgId, instId) {
+    const cfg = sdk();
+    const tile = tiles().find((t) => (instId ? instanceIdOf(t) === instId : assignedIdOf(cfg, instanceIdOf(t)) === pkgId));
+    const pager = window.DashboardPager;
+    return !!(tile && pager && typeof pager.goToPageOf === 'function' && pager.goToPageOf(tile));
+  }
+
   // Plain serializable snapshot for the Installed tab's activity chips.
   function getPerfStats() {
     const out = {};
@@ -1850,6 +2057,8 @@
     const grant = grantsFor(entry.pkgId);
     if (d.type === 'hello') {
       entry.ready = true;
+      const placement = placementOf(entry);
+      entry.placementKey = placementKey(placement);
       post(entry, {
         type: 'init',
         api: 1,
@@ -1877,6 +2086,9 @@
         // clipboard copy is widget-initiated and returns a result — the widget
         // needs to know it was granted so it can show an honest copy affordance.
         clipboard: grant.clipboard,
+        // Same reason again: a widget that may ask the AI shows its AI button
+        // only when it can.
+        ai: grant.ai,
         // Same reason as clipboard: the widget decides whether to drive the
         // dashboard accent at all, so it has to know whether it may.
         accent: grant.accent,
@@ -1888,6 +2100,8 @@
         // apart — so a package with side effects had to guess which copy of
         // itself was speaking. Cheap to send, and it closes that guess.
         service: entry.service === true,
+        // Where the frame is drawn and whether a dashboard is in use (v4.12.0).
+        placement,
       });
       // History first, then the latest value: a widget building a chart gets the
       // past and then the present, in order.
@@ -1947,6 +2161,8 @@
       if (entry.ready) onBridgeExpand(entry, grant, d);
     } else if (d.type === 'clipboard') {
       if (entry.ready) onBridgeClipboard(entry, grant, d);
+    } else if (d.type === 'ai') {
+      if (entry.ready) onBridgeAi(entry, grant, d);
     } else if (d.type === 'accent') {
       if (entry.ready) onBridgeAccent(entry, grant, d);
     } else if (d.type === 'perf') {
@@ -1960,6 +2176,9 @@
       // Same probe, same reasoning: not gated on entry.ready, because a widget
       // whose inline script was refused never got to say 'hello'.
       onBridgeBlocked(entry, d);
+    } else if (d.type === 'error') {
+      // Same probe again: an error before 'hello' is the one worth knowing.
+      onBridgeError(entry, d);
     } else if (d.type === 'handler_ack') {
       // The widget answered a dispatched deck-handler call. The sandboxed frame
       // has no network, so the HOST page relays the ack to the parked
@@ -2318,7 +2537,13 @@
   }
   function syncServiceFrames() {
     const wanted = new Map();   // 'svc:'+pkgId → pkg
-    if (sdk().enabled === true) {
+    // A layer window shows its own tiles only: the main dashboard already runs
+    // the background frames, and a second copy would answer every Deck key twice.
+    const layerSurface = !!(window.LayerHost && window.LayerHost.active);
+    // The hidden widget host of "widgets only" (sdk-service.html) has no bar,
+    // badge or island to feed: there, only granted Deck actions justify a frame.
+    const handlersOnly = document.documentElement.hasAttribute('data-sdk-service');
+    if (sdk().enabled === true && !layerSurface) {
       let count = 0;
       for (const pkg of ((pkgCache && pkgCache.packages) || [])) {
         if (count >= SERVICE_FRAMES_MAX) break;
@@ -2338,7 +2563,7 @@
         const miniLive = pkg.mini === true && grant.mini;
         // A bar button the user placed must answer a tap with no tile on screen.
         const buttonLive = pkg.topbarButton === true && grant.topbarButton;
-        if (!handlersLive && !badgeLive && !islandLive && !miniLive && !buttonLive) continue;
+        if (!handlersLive && (handlersOnly || (!badgeLive && !islandLive && !miniLive && !buttonLive))) continue;
         wanted.set('svc:' + pkg.id, pkg);
         count++;
       }
@@ -2398,6 +2623,9 @@
   function refreshTheme() {
     for (const [, entry] of frames) {
       if (entry.ready) post(entry, { type: 'theme', theme: themePayload(entry) });
+      // Every settings pass ends here, so a change of the usage mode reaches
+      // the widgets on the same pass.
+      postPlacement(entry);
       // applyAllTileStyles() ends here, and it is also what draws a tile's
       // silhouette — so this is the one place that sees a shape the USER changed
       // in the style editor. Change-detected, so an ordinary theme repaint costs
@@ -2678,6 +2906,7 @@
     const wantsMini = pkg.mini === true;
     const wantsTopbarButton = pkg.topbarButton === true;
     const wantsClipboard = pkg.clipboard === true;
+    const wantsAi = pkg.ai === true;
     const wantsAccent = pkg.accent === true;
     const wantsExpand = pkg.expand === true;
     const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
@@ -2708,7 +2937,7 @@
         userHostFields.push({ slot, input, err });
       });
       panel.appendChild(box);
-      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_userhosts_note', 'This widget needs an address only you know. Xenon will let it reach exactly what you type here and nothing else — never this PC itself.')));
+      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_userhosts_note', 'This widget needs an address only you know. Xenon will let it reach exactly what you type here and nothing else: never this PC itself.')));
     }
     if (hooks.length) addSection('cw_perm_hooks', 'It can receive local events:', hooks, {});
     if (deckNames.length) addSection('cw_perm_deck', 'It adds to the Deck:', deckNames, {});
@@ -2728,7 +2957,7 @@
     // Live Activities are named separately because they may replace the clock,
     // animate a temporary takeover and expose Xenon-drawn action buttons.
     if (wantsIsland) {
-      addSection('cw_perm_island', 'It can show a line in the top status island:', [t('cw_perm_island_val', 'Short text only — never links or images')], {});
+      addSection('cw_perm_island', 'It can show a line in the top status island:', [t('cw_perm_island_val', 'Short text only: never links or images')], {});
     }
     if (wantsIslandDynamic) {
       addSection('cw_perm_island_dynamic', 'It can create Dynamic Island activities:', [t('cw_perm_island_dynamic_val', 'May temporarily replace the clock with Xenon-drawn text, meters and buttons')], {});
@@ -2741,7 +2970,7 @@
     // Persistent badge: a small always-on chip next to the clock (both topbar
     // chromes), distinct from the transient island above — plain text only.
     if (wantsBadge) {
-      addSection('cw_perm_badge', 'It can show a small badge next to the clock:', [t('cw_perm_badge_val', 'Short text only — never links or images')], {});
+      addSection('cw_perm_badge', 'It can show a small badge next to the clock:', [t('cw_perm_badge_val', 'Short text only: never links or images')], {});
     }
     // A badge you can PRESS is a different promise from one you can read, so it
     // is named on its own line rather than folded into the one above.
@@ -2762,11 +2991,17 @@
     if (wantsClipboard) {
       addSection('cw_perm_clipboard', 'It can copy to your clipboard (with a tap):', [t('cw_perm_clipboard_val', 'You confirm each copy, and it can never read your clipboard')], {});
     }
+    // AI: say what it spends and the daily ceiling in the same line, because
+    // "it can use AI" alone hides that each question is the user's to pay.
+    if (wantsAi) {
+      const cap = (typeof hubSettings === 'object' && hubSettings && Number(hubSettings.sdkAiDailyCap)) || 50;
+      addSection('cw_perm_ai', 'It can ask questions to the AI you chose for Bit:', [t('cw_perm_ai_val', 'Up to {n} a day, paid with your Sparks or your own AI. It sees only what the widget sends.').replace('{n}', String(cap))], {});
+    }
     // Accent: the widget can tint the dashboard while it runs. Name the limits in
     // the same breath — accent only, nothing saved — because "it can change your
     // theme" would otherwise read as far more than it is.
     if (wantsAccent) {
-      addSection('cw_perm_accent', 'It can tint the dashboard accent colour:', [t('cw_perm_accent_val', 'The accent only, while it runs — your saved theme is never changed')], {});
+      addSection('cw_perm_accent', 'It can tint the dashboard accent colour:', [t('cw_perm_accent_val', 'The accent only, while it runs: your saved theme is never changed')], {});
     }
     // Expand: the widget can cover the dashboard. Say who ends it, because "it
     // can take over the screen" without "you close it whenever you like" reads
@@ -2795,11 +3030,11 @@
     // widget asking for only that one is announced as "Nothing". `accent` was
     // already missing; `expand` joins the list in the same breath.
     if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsMini && !wantsTopbarButton && !wantsClipboard && !wantsAccent && !wantsExpand) {
-      panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
+      panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing: it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
     if (hosts.length || userHostSlots.length) {
-      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon — never directly from the widget.')));
+      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon: never directly from the widget.')));
     }
 
     const row = el('div', 'cw-perm-actions-row');
@@ -2813,7 +3048,7 @@
     const UH_ERRORS = {
       empty: ['cw_uh_empty', 'Enter an address'],
       bad: ['cw_uh_bad', 'That doesn\'t look like an address'],
-      forbidden: ['cw_uh_forbidden', 'This address points back at this PC — widgets can never reach it'],
+      forbidden: ['cw_uh_forbidden', 'This address points back at this PC: widgets can never reach it'],
       not_private: ['cw_uh_private', 'Only an address on your own network (like 192.168.1.50 or nas.local)'],
     };
     const readUserHosts = () => {
@@ -2840,7 +3075,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, accent: wantsAccent, expand: wantsExpand } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, ai: wantsAi, accent: wantsAccent, expand: wantsExpand } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -2884,7 +3119,8 @@
   function showState(body, msgKey, msgFb, opts) {
     const box = el('div', 'cw-state');
     const ico = el('span', 'cw-state-ico'); ico.innerHTML = ICONS.puzzle;   // static SVG
-    box.append(ico, el('span', 'cw-state-txt', t(msgKey, msgFb)));
+    // `message`: a pre-built literal (a translated line with a name in it).
+    box.append(ico, el('span', 'cw-state-txt', (opts && opts.message) || t(msgKey, msgFb)));
     if (opts && opts.hint) box.appendChild(el('span', 'cw-state-hint', t(opts.hint[0], opts.hint[1])));
     if (opts && opts.buttons) {
       const row = el('div', 'cw-state-btns');
@@ -2928,7 +3164,7 @@
   // when at least one listed widget falls in it, so tapping one can never empty
   // the list on its own.
   const PICK_CATS = [
-    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'sensors', 'battery', 'processes', 'scriptStates'] },
+    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'sensors', 'perf', 'battery', 'processes', 'scriptStates'] },
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
@@ -3200,6 +3436,7 @@
       || (pkg.mini === true && !g.mini)
       || (pkg.topbarButton === true && !g.topbarButton)
       || (pkg.clipboard === true && !g.clipboard)
+      || (pkg.ai === true && !g.ai)
       || (pkg.accent === true && !g.accent)
       || (pkg.expand === true && !g.expand);
   }
@@ -3263,11 +3500,12 @@
       // paint so leaving/entering a mounted state flips it correctly.
       if (wrap) wrap.classList.remove('cw-mounted');
       const cfg = sdk();
-      const assignedId = (cfg.assign && typeof cfg.assign === 'object') ? cfg.assign[instId] : null;
+      const assignedId = assignedIdOf(cfg, instId);
       const pkg = assignedId ? packageById(assignedId) : null;
       if (titleEl) titleEl.textContent = pkg ? pkg.name : t('cw_title', 'Custom widget');
       if (swapBtn) {
-        swapBtn.hidden = !assignedId;
+        // A layer placement is changed from its editor, never from the tile.
+        swapBtn.hidden = !assignedId || layerAssign.has(instId);
         swapBtn.title = t('cw_unassign', 'Choose another widget');
         swapBtn.onclick = () => {
           const cur = sdk();
@@ -3286,7 +3524,7 @@
         reloadBtn.hidden = !assignedId;
         reloadBtn.title = t('cw_reload', 'Reload widget (pick up file changes)');
         reloadBtn.onclick = () => {
-          assetVersion++;
+          bumpAssets();
           const entry = frames.get(instId);
           if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
           paint();
@@ -3340,6 +3578,29 @@
         return;
       }
       if (!pkg) {
+        // The pass trial ended and took this widget off (js/trial-pass-ui.js):
+        // the tile keeps its place, says so, and gets it back on a reinstall.
+        const tried = window.TrialPass ? window.TrialPass.endedWidget(assignedId) : null;
+        if (tried) {
+          const name = tried.name || t('cw_title', 'Widget');
+          const chooseOther = { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } };
+          showState(body, '', '', tried.canPutBack ? {
+            message: t('trial_tile_back', '{name} is ready to come back').replace('{name}', name),
+            buttons: [
+              { key: 'trial_put_back', fb: 'Put it back', primary: true, onClick: () => window.TrialPass.putBack(tried.entryId) },
+              chooseOther,
+            ],
+          } : {
+            message: t('trial_tile_ended', 'Your trial of {name} has ended').replace('{name}', name),
+            hint: ['trial_tile_hint', 'Supporters keep it, and it comes back right here.'],
+            buttons: [
+              { key: 'trial_support', fb: 'Become a supporter', primary: true, onClick: () => window.TrialPass.openSupport('trial-tile') },
+              { key: 'trial_have_code', fb: 'I have a code', onClick: () => window.TrialPass.openCodeField() },
+              chooseOther,
+            ],
+          });
+          return;
+        }
         showState(body, 'cw_missing', 'This widget package was removed', {
           buttons: [
             { key: 'cw_unassign', fb: 'Choose another', primary: true, onClick: () => { if (swapBtn) swapBtn.onclick(); } },
@@ -3368,7 +3629,7 @@
         const entry = frames.get(instId);
         if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
         showState(body, 'cw_too_new', 'This widget needs a newer Xenon', {
-          hint: ['cw_too_new_hint', 'It asks for something this version does not have yet (' + unknown.join(', ') + '). Update Xenon — and if you just did, reload the dashboard.'],
+          hint: ['cw_too_new_hint', 'It asks for something this version does not have yet (' + unknown.join(', ') + '). Update Xenon, and if you just did, reload the dashboard.'],
           buttons: [
             { key: 'cw_rescan', fb: 'Rescan', primary: true, onClick: () => fetchPackages(true) },
             { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } },
@@ -3387,7 +3648,7 @@
           addrOnly ? 'cw_needs_addr' : 'cw_review',
           addrOnly ? 'This widget needs an address' : 'This widget asks for new permissions', {
             hint: addrOnly
-              ? ['cw_needs_addr_hint', 'It talks to something on your own network — tell it where to find it.']
+              ? ['cw_needs_addr_hint', 'It talks to something on your own network: tell it where to find it.']
               : ['cw_review_hint', 'It was updated (or predates a Xenon feature) and now requests capabilities you haven\'t approved.'],
             buttons: [
               addrOnly
@@ -3686,8 +3947,9 @@
   function addToPage(pkgId, pageId) {
     const DG = window.DashboardGrid;
     if (!DG || typeof DG.addWidgetToPage !== 'function') return null;
-    const page = pageId || (window.DashboardPager && window.DashboardPager.getCurrentPage && window.DashboardPager.getCurrentPage()) || undefined;
-    return placePackage(pkgId, () => DG.addWidgetToPage('custom', page), (id) => {
+    const page = pageId || currentPageId();
+    const size = spanOnPage(packageById(pkgId), page);
+    return placePackage(pkgId, () => DG.addWidgetToPage('custom', page, size), (id) => {
       if (id.includes('~')) { DG.removePlacement(id); return; }
       // The primary host tile is hidden, as its own control would.
       const layout = getDashboardLayout();
@@ -3695,6 +3957,48 @@
       saveDashboardLayout(layout);
       if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
     });
+  }
+  // A widget the assistant just made goes on the page the person is looking
+  // at, in the shape it was drawn for. A new version of one already on a tile
+  // only refreshes that tile.
+  function currentPageId() {
+    const pager = window.DashboardPager;
+    return (pager && pager.getCurrentPage && pager.getCurrentPage()) || undefined;
+  }
+  // The shape the package was drawn for on `page`, when it names one.
+  function spanOnPage(pkg, page) {
+    const DG = window.DashboardGrid;
+    return pkg && pkg.size && DG && typeof DG.sizeForHint === 'function' ? DG.sizeForHint(pkg.size, page) : null;
+  }
+  // A widget the assistant just made goes on the page the person is looking
+  // at, in the shape it was drawn for. When that page has no room for it, it
+  // gets a page of its own, named after it, instead of squeezing every tile.
+  // A new version of one already on a tile only refreshes that tile, and a
+  // turn that sends the same widget twice places it once.
+  const _placing = new Set();
+  async function placeCreated(pkgId) {
+    if (_placing.has(pkgId)) return null;
+    _placing.add(pkgId);
+    try {
+      await fetchPackages(true);
+      const assign = sdk().assign || {};
+      if (Object.keys(assign).some((inst) => assign[inst] === pkgId)) return null;
+      const pkg = packageById(pkgId);
+      const page = currentPageId();
+      const DG = window.DashboardGrid;
+      const span = spanOnPage(pkg, page) || { w: 8, h: 6 };
+      const pages = window.DashboardPages;
+      if (pkg && page && DG && typeof DG.fitsOnPage === 'function' && !DG.fitsOnPage(page, span) && pages && typeof pages.add === 'function') {
+        const fresh = pages.add();
+        if (fresh) {
+          if (typeof pages.rename === 'function') pages.rename(fresh, pkg.name);
+          return addToPage(pkgId, fresh);
+        }
+      }
+      return addToPage(pkgId, page);
+    } finally {
+      _placing.delete(pkgId);
+    }
   }
   function addAsTab(pkgId, targetMember) {
     const TG = window.DashboardTabGroups;
@@ -3720,14 +4024,14 @@
     getPackages, cachedPackages, packageGranted, requestGrant, requestGrants, assignToTile,
     // A Store widget in a NEW tile, on a page or as a tab: the "+" panel, the
     // Installed list and the after-install prompt all use these.
-    addToPage, addAsTab, bindPackages,
+    addToPage, addAsTab, bindPackages, placeCreated,
     // The bundled examples not installed yet, and installing one: the "+" panel
     // offers them under Installed, as the empty tile's chooser always has.
     missingExamples, installExample,
     // Effective on/off (safe mode masks it): the palette offers Store widgets
     // only while a tile could actually run one.
     enabled: () => !!sdk().enabled,
-    getPerfStats, setSuspended, isSuspended, getSandboxIssues,
+    getPerfStats, setSuspended, isSuspended, getSandboxIssues, getRuntimeErrors, devLookup, devShow, setLayerAssign,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
     // e.g. the tab-group bar — label a custom tile with the real widget name
@@ -3736,7 +4040,7 @@
     assignedName(instId) {
       try {
         const cfg = sdk();
-        const id = (cfg.assign && typeof cfg.assign === 'object') ? cfg.assign[instId || 'custom'] : null;
+        const id = assignedIdOf(cfg, instId || 'custom');
         const pkg = id ? packageById(id) : null;
         return (pkg && pkg.name) ? String(pkg.name) : '';
       } catch { return ''; }
@@ -3746,7 +4050,7 @@
     assignedIcon(instId) {
       try {
         const cfg = sdk();
-        const id = (cfg.assign && typeof cfg.assign === 'object') ? cfg.assign[instId || 'custom'] : null;
+        const id = assignedIdOf(cfg, instId || 'custom');
         return packageIconEl(id ? packageById(id) : null);
       } catch { return null; }
     },

@@ -16,7 +16,7 @@
 
   const LOW = 0.25;         // reminder threshold
   const EMPTY = 0.02;       // "at zero" threshold
-  const XP_PER_FILL = 25;
+  const XP_PER_FILL = window.VitalsCore.XP_PER_FILL;
 
   // ── pixel art (static, trusted markup) ──
   // 12×12 grid, crispEdges — tiny multi-colour sprites, no external assets.
@@ -66,34 +66,38 @@
   function enabledIds(v) {
     return VITALS_IDS.filter(id => v.items && v.items[id] && v.items[id].on !== false);
   }
-  function level(v, id, now) {
-    const it = (v.items && v.items[id]) || {};
-    const last = Number(v.state && v.state.last && v.state.last[id]) || 0;
-    if (!last) return 1;
-    const span = Math.max(5, Number(it.min) || 60) * 60000;
-    return Math.min(1, Math.max(0, 1 - (now - last) / span));
-  }
+  // The same math Bit reads on the server (js/vitals-core.js).
+  const level = (v, id, now) => window.VitalsCore.level(v, id, now);
   function saveState(patch) {
     const cur = cfg();
     hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, state: { ...cur.state, ...patch } } });
     saveHubSettings();
   }
-  function dayKey(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
+  const dayKey = (d) => window.VitalsCore.dayKey(d);
   function todayKey() { return dayKey(new Date()); }
 
-  // Session timer — "play time" since this dashboard tab appeared. Survives
-  // reloads in the same tab (sessionStorage), resets on a fresh open.
-  let sessionStart = Date.now();
+  // Time at the computer today (VitalsCore.activeStep): stops while the user
+  // is away, so an always-on screen does not count the night. Kept in this
+  // browser so a reload keeps the count; another screen counts its own.
+  const ACTIVE_KEY = 'xenonVitalsActive';
+  const ACTIVE_SAVE_MS = 60000;
+  let active = null;
+  let activeSavedAt = 0;
   try {
-    const saved = Number(sessionStorage.getItem('xenonVitalsSessionStart'));
-    if (Number.isFinite(saved) && saved > 0 && saved <= Date.now()) sessionStart = saved;
-    else sessionStorage.setItem('xenonVitalsSessionStart', String(sessionStart));
-  } catch { /* storage unavailable — per-load session is fine */ }
+    const saved = JSON.parse(localStorage.getItem(ACTIVE_KEY) || 'null');
+    if (saved && typeof saved.day === 'string' && Number.isFinite(saved.ms) && Number.isFinite(saved.at)) active = saved;
+  } catch { /* storage unavailable: the count starts with this page */ }
+  function stepActive() {
+    const now = Date.now();
+    active = window.VitalsCore.activeStep(active, now, away ? freezeStart : 0);
+    if (now - activeSavedAt < ACTIVE_SAVE_MS) return;
+    activeSavedAt = now;
+    try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(active)); } catch { /* best effort */ }
+  }
   function sessionText() {
-    const m = Math.floor((Date.now() - sessionStart) / 60000);
-    return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + 'm';
+    const m = Math.floor((active ? active.ms : 0) / 60000);
+    const time = m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + 'm';
+    return t('vitals_today', 'Oggi') + ' ' + time;
   }
 
   // Server boot fence — bootAt rides the status SSE (see main.js). A last-refill
@@ -191,8 +195,10 @@
       });
       petPatch = { ...ps, ep };
     }
+    // A natural break refills after the episode shift above, like a tap would.
+    const breakPatch = v.naturalBreaks !== false ? core.naturalBreak({ ...last, ...credit.patch }, returnAt) : {};
     saveState({
-      last: { ...last, ...credit.patch },
+      last: { ...last, ...credit.patch, ...breakPatch },
       awayCreditAt: credit.awayCreditAt,
       ...(petPatch ? { pet: petPatch } : {}),
     });
@@ -236,7 +242,7 @@
   }
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="vitals"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="vitals"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   // ── widget ──
@@ -247,12 +253,12 @@
     heart.innerHTML = SPRITES.heart;                       // static, trusted SVG
     head.appendChild(heart);
     head.appendChild(el('span', 'vt-title', t('vitals_title', 'Vitals')));
-    const lvl = el('span', 'vt-lvl', 'LV ' + (1 + Math.floor((Number(v.state.xp) || 0) / 100)));
+    const lvl = el('span', 'vt-lvl', t('vitals_level', 'Livello {n}').replace('{n}', String(1 + Math.floor((Number(v.state.xp) || 0) / 100))));
     lvl.title = t('vitals_level_title', '+25 XP per refill');
     head.appendChild(lvl);
     const session = el('span', 'vt-session');
-    session.title = t('vitals_session_title', 'Time at the PC this session');
-    session.append('⏱ ', el('span', 'vt-session-time', sessionText()));
+    session.title = t('vitals_session_title', 'Time at the computer today');
+    session.append(el('span', 'vt-session-time', sessionText()));
     head.appendChild(session);
     wrap.appendChild(head);
 
@@ -425,32 +431,11 @@
   function refill(id) {
     const v = cfg();
     if (!v.enabled || !VITALS_IDS.includes(id)) return;
-    const day = todayKey();
-    const sameDay = v.state.day === day;
-    const xp = (Number(v.state.xp) || 0) + XP_PER_FILL;
-    const prevLevel = 1 + Math.floor((Number(v.state.xp) || 0) / 100);
-    const newLevel = 1 + Math.floor(xp / 100);
     // Bit's memory: the first refill of a new day extends (or restarts) the
-    // daily self-care streak. Computed before the save so the streak rides the
-    // same settings write; `streakUp` > 0 tells Bit to celebrate it.
-    const mem = (v.state && v.state.mem && typeof v.state.mem === 'object') ? v.state.mem : {};
-    const lastFillDay = typeof mem.lastFillDay === 'string' ? mem.lastFillDay : '';
-    let streak = Number(mem.streak) || 0;
-    let streakUp = 0;
-    if (lastFillDay !== day) {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      streak = lastFillDay === dayKey(y) ? streak + 1 : 1;
-      if (streak >= 2) streakUp = streak;
-    }
-    saveState({
-      last: { ...(v.state.last || {}), [id]: Date.now() },
-      xp,
-      day,
-      fills: (sameDay ? Number(v.state.fills) || 0 : 0) + 1,
-      log: (sameDay && Array.isArray(v.state.log) ? v.state.log : []).concat(id),
-      mem: { ...mem, streak, bestStreak: Math.max(Number(mem.bestStreak) || 0, streak), lastFillDay: day },
-    });
+    // daily self-care streak, in the same settings write; `streakUp` > 0 tells
+    // Bit to celebrate it. Bit's own refill tool writes the same patch.
+    const { patch, streakUp, levelUp } = window.VitalsCore.refillPatch(v, id, Date.now());
+    saveState(patch);
     delete notified[id];
     paint();
     // Juice: pop the bar segments back in, float the XP gain, pulse the chip.
@@ -474,8 +459,8 @@
       void chip.offsetWidth;
       chip.classList.add('cv-pop');
     }
-    if (newLevel > prevLevel && window.XenonToast) {
-      window.XenonToast.show({ type: 'success', kicker: 'VITALS', title: 'LEVEL UP!', message: 'LV ' + newLevel, duration: 4000 });
+    if (levelUp && window.XenonToast) {
+      window.XenonToast.show({ type: 'success', kicker: t('vitals_title', 'Vitals'), title: t('vitals_level_up', 'Nuovo livello'), message: t('vitals_level', 'Livello {n}').replace('{n}', String(levelUp)), duration: 4000 });
     }
     // Bit reacts to the refill (praise — or streak celebration —, episode
     // reset, effect cleanup).
@@ -500,8 +485,8 @@
       notified[id] = stage;
       window.XenonToast.show({
         type: stage === 'empty' ? 'warning' : 'reminder',
-        kicker: 'VITALS',
-        title: t('vitals_' + id, id) + (stage === 'empty' ? ' — 0%' : ''),
+        kicker: t('vitals_title', 'Vitals'),
+        title: t('vitals_' + id, id) + (stage === 'empty' ? ': 0%' : ''),
         message: t('vitals_low_' + id, 'Time for a break'),
         duration: 9000,
         onClick: () => openDetail(id),
@@ -522,6 +507,8 @@
   // ── ticking / public API ──
   function tick() {
     const v = cfg();
+    if (v.enabled) stepActive();
+    publishDeck();
     if (!v.enabled || !hasActiveSurface(v)) { syncTopbar(v); return; }
     if (ensureFresh(v)) { paint(); return; }
     const now = effectiveNow(); // frozen at freezeStart while the user is away
@@ -547,9 +534,36 @@
     });
     chipSig = '';                                          // config may have changed — rebuild chips
     syncTopbar(v);
+    publishSdk();
+    publishDeck();
   }
 
   function renderWidgets() { paint(); }
+
+  // What an SDK widget granted `vitals` reads (js/custom-widget.js): the same
+  // numbers Bit reads, frozen with the bars while the user is away.
+  // Each meter also carries its name in the user's language, so a widget can
+  // label it without its own translations.
+  function sdkSnapshot() {
+    const snap = window.VitalsCore.snapshot(cfg(), effectiveNow());
+    const meters = snap.meters.map((m) => ({ ...m, name: t('vitals_' + m.id, m.id) }));
+    return { ok: true, ...snap, meters, away };
+  }
+  // A Deck key showing a meter (live source 'vitals', js/deck-model.js). tick()
+  // runs every second, so the Deck repaints only when a whole percent changes.
+  let deckSig = '';
+  function publishDeck() {
+    if (!window.Deck || typeof window.Deck.refreshStates !== 'function') return;
+    const snap = sdkSnapshot();
+    const vitals = { enabled: snap.enabled, meters: snap.meters.map((m) => ({ id: m.id, percent: m.percent, name: m.name })) };
+    const sig = JSON.stringify(vitals);
+    if (sig === deckSig) return;
+    deckSig = sig;
+    window.Deck.refreshStates({ vitals });
+  }
+  function publishSdk() {
+    if (window.CustomWidget && typeof window.CustomWidget.onData === 'function') window.CustomWidget.onData('vitals', sdkSnapshot());
+  }
 
   // Read-only snapshot for Bit (vitals-pet.js): current level per enabled vital
   // plus the exact "hit zero at" instant (last refill + full span) — computed,
@@ -578,5 +592,5 @@
     return out;
   }
 
-  window.VitalsWidget = { renderWidgets, tick, refill, openDetail, snapshot, onStatus, bootSynced };
+  window.VitalsWidget = { renderWidgets, tick, refill, openDetail, snapshot, sdkSnapshot, onStatus, bootSynced };
 })();

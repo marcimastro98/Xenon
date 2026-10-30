@@ -309,3 +309,5 @@
 
 .task-btn-delete { color: var(--color-danger); }
 .task-btn-delete:hover { background: var(--danger-bg); color: var(--color-danger); }
+
+.tasks-recur-days-row[hidden] { display: none; }

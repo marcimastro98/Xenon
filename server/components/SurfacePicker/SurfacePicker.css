@@ -142,6 +142,33 @@
 }
 .sp-later:hover { color: var(--text, #f0f3f1); }
 
+/* "How do you want to use Xenon?" (usage-ask.js): the same dialog, three
+   cards that are radio buttons, one Continue. The chosen card carries the
+   accent; its "Chosen"/"Choose" line says the same in words. */
+.ua-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) {
+  .ua-cards { grid-template-columns: 1fr; }
+}
+.ua-card {
+  min-height: 44px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+.ua-card:hover { border-color: rgba(var(--accent-rgb), 0.5); }
+.ua-card:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.85); outline-offset: 2px; }
+.ua-card.is-on {
+  border-color: rgba(var(--accent-rgb), 0.75);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+.ua-body { font-size: 13.5px; line-height: 1.55; color: var(--text-dim, #9aa8a1); }
+.ua-state { margin-top: auto; font-size: 12.5px; font-weight: 600; color: var(--text-faint, #66736c); }
+.ua-card.is-on .ua-state { color: var(--accent, #1ed760); }
+.ua-key { white-space: nowrap; }
+.ua-go { margin-top: 18px; min-width: 160px; min-height: 44px; justify-content: center; }
+
 /* Where the phone answer lands. A brief ring so the panel the user was sent to
    is obviously the one they were sent to. */
 .ra-highlight {

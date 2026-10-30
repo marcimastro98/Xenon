@@ -62,7 +62,7 @@
   let resultsHost = null;
 
   function tiles() {
-    return Array.from(document.querySelectorAll('[data-dashboard-widget="football"]')).filter(n => n.closest('.pager-page'));
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="football"]')).filter(n => n.closest('.pager-page, .layer-slot'));
   }
 
   // ── formatting helpers ──
@@ -409,7 +409,7 @@
   function identityFallback(host) {
     const list = favorites.length ? favorites : (teamsData || []);
     if (!list.length) {
-      host.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet — search a team or competition above')));
+      host.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet: search a team or competition above')));
       return host;
     }
     host.appendChild(el('div', 'fw-daysep', t('football_no_fixtures', 'No matches scheduled')));
@@ -467,7 +467,7 @@
   function tableTab() {
     const host = el('div', 'fw-feed');
     const leagues = tableLeagues();
-    if (!leagues.length) { host.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet — search a team or competition above'))); return host; }
+    if (!leagues.length) { host.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet: search a team or competition above'))); return host; }
     const current = leagues.find(l => l.id === tableLeague) || leagues[0];
     if (leagues.length > 1) {
       const chips = el('div', 'fw-lchips');

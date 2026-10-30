@@ -72,7 +72,6 @@
     '.upd-overlay',            // What's New / update available
     '.preset-modal-overlay',   // preset import/export
     '.cgal-overlay',           // Store / community gallery
-    '.xdrop-overlay',          // paid catalog drop nudge
     '.cw-perm-backdrop',       // SDK grant request
     '.cw-clip-backdrop',       // SDK clipboard confirmation
     '.cw-ext-backdrop',        // SDK open-external confirmation

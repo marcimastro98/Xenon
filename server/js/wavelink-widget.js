@@ -34,7 +34,7 @@
 
   // Only tiles actually placed on a dashboard page count (a hidden/never-added
   // widget sits in #widget-pool, outside any .pager-page).
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="wavelink"]')).filter(x => x.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="wavelink"]')).filter(x => x.closest('.pager-page, .layer-slot')); }
 
   const st = {
     enabled: null, connected: false, dialect: 0, version: '',

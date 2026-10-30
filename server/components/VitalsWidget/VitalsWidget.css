@@ -38,20 +38,10 @@ body.overlay-frozen .clock-vital.is-low .cv-ico { animation-play-state: paused; 
   0%, 70%, 100% { transform: scale(1); }
   80%, 90% { transform: scale(1.18); }
 }
-.vt-title {
-  font-size: 12px; font-weight: 800; letter-spacing: 0.22em;
-  text-transform: uppercase; opacity: 0.92;
-}
-.vt-lvl {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
-  padding: 2px 7px; border-radius: 6px;
-  color: rgb(var(--accent-rgb));
-  background: rgba(var(--accent-rgb), 0.14);
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  font-variant-numeric: tabular-nums;
-}
+.vt-title { font-size: 14px; font-weight: 700; opacity: 0.92; }
+.vt-lvl { font-size: 12px; font-weight: 600; opacity: 0.62; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vt-session {
-  margin-left: auto; font-size: 11px; opacity: 0.62;
+  margin-left: auto; font-size: 12px; opacity: 0.62;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 
@@ -77,8 +67,7 @@ body.overlay-frozen .clock-vital.is-low .cv-ico { animation-play-state: paused; 
 .vt-ico svg { width: 100%; height: 100%; }
 .vt-body { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
 .vt-name {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
-  text-transform: uppercase; opacity: 0.7;
+  font-size: 13px; font-weight: 600; opacity: 0.82;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .vt-pct {
@@ -138,10 +127,7 @@ body.overlay-frozen .clock-vital.is-low .cv-ico { animation-play-state: paused; 
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   padding: 2px 2px 0; min-width: 0;
 }
-.vt-today-label {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
-  text-transform: uppercase; opacity: 0.45; flex: 0 0 auto;
-}
+.vt-today-label { font-size: 12px; font-weight: 600; opacity: 0.6; flex: 0 0 auto; }
 .vt-today-strip { display: flex; gap: 3px; overflow: hidden; flex: 1 1 auto; min-width: 0; }
 .vt-dot {
   width: 7px; height: 7px; border-radius: 1px; flex: 0 0 auto;
@@ -149,22 +135,17 @@ body.overlay-frozen .clock-vital.is-low .cv-ico { animation-play-state: paused; 
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 .vt-today-count {
-  font-size: 10px; font-weight: 800; opacity: 0.6;
+  font-size: 12px; font-weight: 700; opacity: 0.7;
   font-variant-numeric: tabular-nums; flex: 0 0 auto;
 }
-.vt-card-count {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.6;
-  padding: 2px 7px; border-radius: 6px; flex: 0 0 auto;
-  background: rgba(255, 255, 255, 0.07);
-  font-variant-numeric: tabular-nums;
-}
+.vt-card-count { font-size: 12px; font-weight: 600; opacity: 0.7; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 
 /* States (disabled / nothing enabled) + first-run hint. */
 .vt-state {
   flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
   font-size: 12px; opacity: 0.55; text-align: center; padding: 12px;
 }
-.vt-hint { flex: 0 0 auto; font-size: 10px; opacity: 0.4; text-align: center; letter-spacing: 0.04em; }
+.vt-hint { flex: 0 0 auto; font-size: 12px; opacity: 0.55; text-align: center; }
 
 /* ── topbar mini chips (inside .clock-meta, next to the weather pill) ── */
 .clock-vitals { display: inline-flex; align-items: center; gap: 12px; margin-left: 4px; }
@@ -228,7 +209,7 @@ body.topbar-minimal .topbar-mini .cv-bar { width: 18px; }
 .vt-card-ico { width: 30px; height: 30px; display: inline-flex; flex: 0 0 auto; }
 .vt-card-ico svg { width: 100%; height: 100%; }
 .vt-card-name {
-  font-size: 14px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+  font-size: 16px; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .vt-card-pct {
@@ -250,7 +231,7 @@ body.topbar-minimal .topbar-mini .cv-bar { width: 18px; }
 .vt-card-actions { display: flex; gap: 10px; margin-top: 2px; }
 .vt-btn {
   flex: 1 1 0; min-height: 44px; border-radius: 12px; cursor: pointer;
-  font-size: 13px; font-weight: 800; letter-spacing: 0.04em;
+  font-size: 14px; font-weight: 700;
   border: 1px solid var(--line);
   background: var(--control-bg); color: var(--text);
 }
@@ -270,7 +251,7 @@ body.topbar-minimal .topbar-mini .cv-bar { width: 18px; }
   .vt-ico { width: 16px; height: 16px; }
   .vt-bar { height: 7px; gap: 2px; }
   .vt-pct { font-size: 12px; min-width: 26px; }
-  .vt-name { font-size: 9px; letter-spacing: 0.1em; }
+  .vt-name { font-size: 11px; }
   .vt-hint { display: none; }
   .vt-today { display: none; }
 }

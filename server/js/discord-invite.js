@@ -70,7 +70,7 @@
 
     const text = document.createElement('p');
     text.className = 'discord-invite-text';
-    text.textContent = t('discord_invite_text', 'Share your themes, swap ideas, and get help — come hang out with other Xenon users on our Discord.');
+    text.textContent = t('discord_invite_text', 'Share your themes, swap ideas, and get help: come hang out with other Xenon users on our Discord.');
 
     const actions = document.createElement('div');
     actions.className = 'discord-invite-actions';

@@ -23,8 +23,26 @@
   // set by the shell's init script, and Tauri's built-in `window.isTauri` global,
   // which Tauri core injects into the webview regardless of our shim (so this
   // still holds even on an older native build whose shim lacked the marker).
-  const isNative = window.__XENON_NATIVE__ === true || window.isTauri === true;
+  // A widget-layer window (apps/native/src-tauri/src/layers) is a Tauri webview
+  // too, but not the kiosk: its shell drops every signal except its own, and a
+  // dropped one sent while the page loads still cancels the page's `load` event.
+  const isNative = window.__XENON_LAYER_SHELL__ !== true
+    && (window.__XENON_NATIVE__ === true || window.isTauri === true);
   const SERVER = (window.Xenon && window.Xenon.constants && window.Xenon.constants.LOOPBACK_ORIGIN) || '';
+
+  // Shell signals are navigations, and one sent while the page is still loading
+  // cancels its `load` event for good: every later "wait for load" never runs.
+  // readyState still reaches 'complete' then, and the timer runs after the load
+  // event that same step dispatches.
+  function afterLoad(fn) {
+    if (document.readyState === 'complete') { fn(); return; }
+    const onState = () => {
+      if (document.readyState !== 'complete') return;
+      document.removeEventListener('readystatechange', onState);
+      setTimeout(fn, 0);
+    };
+    document.addEventListener('readystatechange', onState);
+  }
 
   // Restart the app from the dashboard (Settings → "Riavvia Xenon"). A clean
   // relaunch that clears transient/stuck state — a wedged widget, a stalled
@@ -202,7 +220,7 @@
     function reasonText(code) {
       const map = {
         no_installer: tr('native_promo_err_no_installer', 'the installer is not on the latest release yet'),
-        download_failed: tr('native_promo_err_download', 'the download failed — check your connection'),
+        download_failed: tr('native_promo_err_download', 'the download failed: check your connection'),
         launch_missing: tr('native_promo_err_launch', 'installed, but the app could not be started'),
       };
       return map[code] || code;
@@ -234,7 +252,7 @@
           btn.textContent = tr('native_promo_done_btn', 'Installed ✓');
           const done = tr('native_promo_st_done', 'Installed! The app is now open full-screen.');
           const guide = inIcueFrame
-            ? tr('native_promo_done_icue', 'It runs on its own, independently of iCUE — you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
+            ? tr('native_promo_done_icue', 'It runs on its own, independently of iCUE: you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
             : tr('native_promo_done_browser', 'It is now full-screen on the display you gave it. This browser tab stays available too.');
           if (statusEl) statusEl.textContent = done + ' ' + guide;
           return;
@@ -246,7 +264,7 @@
         }
         if (tries >= MAX_TRIES) {
           btn.disabled = false;
-          setStatus('native_promo_st_timeout', 'This is taking longer than usual — check the Edge, or try again.');
+          setStatus('native_promo_st_timeout', 'This is taking longer than usual: check the Edge, or try again.');
           return;
         }
         pollTimer = setTimeout(tick, 1200);
@@ -308,8 +326,7 @@
         } catch (e) { /* not native */ }
       }, 1500);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
   }
 
   function setHomeGestureEnabled(on) {
@@ -354,8 +371,7 @@
         } catch (e) { /* not native */ }
       }, 1500);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
   }
 
   function setHideOnRdp(on) {
@@ -433,8 +449,7 @@
         try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom; } catch (e) { /* not native */ }
       }, 120);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
   }
 
   // A frame that loads while the page is already scaled comes out unscaled:
@@ -938,9 +953,13 @@
       }
       send(on ? 'guard-on' : 'guard-off');
     }
-    new MutationObserver(syncGameMode)
-      .observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    syncGameMode();
+    // After load: settings.js sets the class during boot, and a signal then
+    // would cancel the page's load event (see afterLoad).
+    afterLoad(() => {
+      new MutationObserver(syncGameMode)
+        .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      syncGameMode();
+    });
 
     document.addEventListener('focusin', (e) => {
       if (!guardOn || !isEditable(e.target)) return;
@@ -1007,6 +1026,9 @@
   }
 
   function onDisplaysChanged() {
+    // Widget layers cover a monitor's work area: they move with the screens.
+    if (window.LayersShell) window.LayersShell.onDisplays();
+    if (window.AiEdgeGlow) window.AiEdgeGlow.refresh();
     if (typeof displayListener === 'function') {
       try { displayListener(displayState()); } catch (e) { /* a listener must not break the shell */ }
     }
@@ -1040,8 +1062,7 @@
         try { window.location.href = next; } catch (e) { /* not native */ }
       }, 200);
     };
-    if (document.readyState === 'complete') fire();
-    else window.addEventListener('load', fire, { once: true });
+    afterLoad(fire);
     return true;
   }
 
@@ -1065,6 +1086,7 @@
 
   window.XenonNative = {
     isNative: isNative,
+    afterLoad: afterLoad,
     displayState: displayState,
     onDisplaysChanged: onDisplaysChanged,
     setDisplayListener: setDisplayListener,

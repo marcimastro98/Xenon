@@ -17,34 +17,9 @@
 // ambient-idle.js (whose fixed 60s animation-pause is load-bearing for GPU
 // cost) — same activity events, independent lifecycle.
 //
-// Pure helpers (resolveScene, idleStartSuppressed, normalizeIdleMinutes) are
+// Pure helpers (idleStartSuppressed, normalizeIdleMinutes) are
 // exported for node:test (server/test/ambient-logic.test.mjs), same pattern as
 // preset-share.js.
-
-// Pick the scene to show for the current settings + installed packages + saved
-// canvas scenes. Returns one of:
-//   { builtin:true, fallback? }         — the native lockscreen scene
-//   { builtin:false, pkg }              — an installed SDK surface:'ambient' pkg
-//   { builtin:false, canvas:true, scene } — a native canvas scene (JSON layout)
-// Falls back to builtin when the configured scene is missing, isn't an ambient
-// scene, or the SDK subsystem is off — the user must never hit a dead button
-// because a package/scene was deleted.
-function resolveAmbientScene(cfg, packages, sdkEnabled, scenes) {
-  const sceneId = (cfg && typeof cfg.sceneId === 'string') ? cfg.sceneId : 'builtin';
-  if (sceneId === 'builtin') return { builtin: true };
-  // Native canvas scene ("canvas:<id>") — first-party, no SDK subsystem needed.
-  if (typeof sceneId === 'string' && sceneId.indexOf('canvas:') === 0) {
-    const id = sceneId.slice('canvas:'.length);
-    const scene = (Array.isArray(scenes) ? scenes : []).find(s => s && s.id === id);
-    if (!scene) return { builtin: true, fallback: 'missing' };
-    return { builtin: false, canvas: true, scene };
-  }
-  if (!sdkEnabled) return { builtin: true, fallback: 'sdk_off' };
-  const pkg = (Array.isArray(packages) ? packages : [])
-    .find(p => p && p.id === sceneId && p.surface === 'ambient');
-  if (!pkg) return { builtin: true, fallback: 'missing' };
-  return { builtin: false, pkg };
-}
 
 // Should the game-mode watcher tear the open scene down right now? Pure — the
 // observer gathers the flags from the DOM so this stays unit-testable.
@@ -264,7 +239,7 @@ if (typeof window !== 'undefined') (function () {
       ? tt('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.')
       : fallback === 'ungranted'
         ? tt('cw_review_hint', 'It was updated (or predates a Xenon feature) and now requests capabilities you haven\'t approved.')
-        : tt('ambient_scene_missing_hint', 'The selected scene was removed — showing the built-in one.');
+        : tt('ambient_scene_missing_hint', 'The selected scene was removed: showing the built-in one.');
     window.XenonToast.show({ type: 'info', title, message });
   }
 
@@ -650,7 +625,7 @@ if (typeof window !== 'undefined') (function () {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    resolveAmbientScene,
+    resolveAmbientScene: require('./ambient-resolve.js').resolveAmbientScene,
     ambientIdleSuppressed,
     ambientStartupDecision,
     ambientGameCloses,

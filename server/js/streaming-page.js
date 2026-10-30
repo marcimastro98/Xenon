@@ -56,7 +56,7 @@
           key: 'discordClientId', labelKey: 'streaming_field_clientid',
           shape: /^\d{15,25}$/,
           shapeKey: 'streaming_discord_id_shape',
-          shapeFb: 'That doesn\'t look like a Discord Client ID — it\'s the long number labeled "Application ID" on your app\'s General Information page (not the Public Key or the Client Secret).',
+          shapeFb: 'That doesn\'t look like a Discord Client ID: it\'s the long number labeled "Application ID" on your app\'s General Information page (not the Public Key or the Client Secret).',
         },
         { key: 'discordClientSecret', labelKey: 'streaming_field_secret' },
       ],
@@ -89,7 +89,7 @@
     if (st.connected) {
       card.appendChild(el('p', 'streaming-connected', t('streaming_connected_as', 'Connected as') + ' ' + (st.login || '')));
       if (!st.configured) {
-        card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
+        card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found: re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm(cfg));
       }
       const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
@@ -163,11 +163,11 @@
     // first. Kept in step with the translated string, which says the same.
     const relink = el('p', 'settings-note streaming-warn',
       t('streaming_discord_notif_relink',
-        'Discord has not granted this app notification access — reconnecting alone will not help. '
+        'Discord has not granted this app notification access: reconnecting alone will not help. '
         + 'Remove the app in Discord → User Settings → Authorizations, then link again.'));
     box.appendChild(toggleRow(
       'streaming_discord_notif', 'Mirror notifications on the dashboard',
-      'streaming_discord_notif_hint', 'DMs and mentions appear in the Discord widget. Read locally from the desktop app — nothing leaves this PC.',
+      'streaming_discord_notif_hint', 'DMs and mentions appear in the Discord widget. Read locally from the desktop app: nothing leaves this PC.',
       dn.enabled, (on) => {
         if (typeof updateDiscordNotifications === 'function') updateDiscordNotifications('enabled', on);
         hideRow.hidden = !on;
@@ -277,7 +277,7 @@
     const detail = (r && typeof r.detail === 'string') ? r.detail : '';
     if (code === 'no_server') return t('streaming_no_server', 'Xenon did not answer. If you have just updated Xenon, restart it and try again.');
     return t('streaming_error', 'Could not start login. Try again.')
-      + (code ? ' (' + code + ')' : '') + (detail ? ' — “' + detail + '”' : '');
+      + (code ? ' (' + code + ')' : '') + (detail ? ' “' + detail + '”' : '');
   }
 
   async function startLogin(cfg, card, btn) {
@@ -308,7 +308,7 @@
   function rpcLoginError(r) {
     const err = (r && r.error) || '';
     const detail = (r && typeof r.detail === 'string') ? r.detail : '';
-    const withDetail = (msg) => msg + (detail ? ' — “' + detail + '”' : '');
+    const withDetail = (msg) => msg + (detail ? ' “' + detail + '”' : '');
     switch (err) {
       case 'discord_not_running':
         return t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.');
@@ -317,15 +317,15 @@
       case 'discord_pipe_denied':
         return t('streaming_discord_pipedenied', 'Discord is running as administrator, so Xenon is not allowed to talk to it. Quit Discord completely (tray icon → Quit) and reopen it normally, then press Connect. Waiting will not help.');
       case 'login_in_progress':
-        return t('streaming_discord_inflight', 'A login is already waiting for approval — look for the pop-up in Discord (or wait for it to time out) before trying again.');
+        return t('streaming_discord_inflight', 'A login is already waiting for approval: look for the pop-up in Discord (or wait for it to time out) before trying again.');
       case 'invalid_client_id':
         return t('streaming_discord_badclientid', 'Discord rejected the Client ID. Copy the "Application ID" from your app\'s General Information page in the Developer Portal and re-enter it under Edit credentials.');
       case 'discord_closed':
         return withDetail(t('streaming_discord_closed', 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.'));
       case 'authorize_denied':
-        return t('streaming_discord_denied', 'Authorization was denied in Discord. Approve the request — and make sure you are signed in with the account that owns this application.');
+        return t('streaming_discord_denied', 'Authorization was denied in Discord. Approve the request, and make sure you are signed in with the account that owns this application.');
       case 'invalid_scope':
-        return withDetail(t('streaming_discord_invalidscope', 'Discord rejected the requested permissions. Check, in this order: the Discord desktop app is signed in with the account that OWNS this application (or one you added under the app\'s OAuth2 testers); your app has at least one redirect registered (http://localhost); and the app is not an Activity — the "Embedded App" flag blocks this kind of access.'));
+        return withDetail(t('streaming_discord_invalidscope', 'Discord rejected the requested permissions. Check, in this order: the Discord desktop app is signed in with the account that OWNS this application (or one you added under the app\'s OAuth2 testers); your app has at least one redirect registered (http://localhost); and the app is not an Activity, the "Embedded App" flag blocks this kind of access.'));
       case 'authorize_failed':
         return withDetail(t('streaming_discord_authfailed', 'Discord refused the authorization. The Discord desktop app must be signed in with the same account that owns this application in the Developer Portal.'));
       case 'authorize_timeout':
@@ -414,7 +414,7 @@
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // poll Twitch or open the chat socket. Adding the widget starts it; removing
   // it (parked back to the pool) stops the poll and closes the chat connection.
-  function twitchTiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="twitch"]')).filter(el => el.closest('.pager-page')); }
+  function twitchTiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="twitch"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   function stopTilePoll() { if (tilePoll) { clearInterval(tilePoll); tilePoll = null; } }
 
   // Inline icons (currentColor) for a polished, non-emoji look.
@@ -449,9 +449,7 @@
 
   // Open Settings → Streaming directly (from the widget's "not linked" notice).
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // POST a Deck action (reuses the allowlisted dispatcher) and flash the button.
@@ -775,11 +773,14 @@
 
   // ── SSE hooks (fed by main.js, mirroring how the Deck is updated) ─────────
   function onMic(muted) { micMuted = !!muted; if (twitchTiles().length) paintControls(); }
+  // The status stream as a light layer page relays it (layer-lite-tiles.js): a
+  // partial payload without the mute state leaves the button alone.
+  function onStatus(d) { if (d && typeof d.muted === 'boolean') onMic(d.muted); }
   function onObs(state) {
     if (state && typeof state.obsStreaming === 'boolean') obsStreaming = state.obsStreaming;
     if (twitchTiles().length) paintControls();
   }
   function onObsPreview(p) { obsPreviewImg = (p && p.image) || ''; if (twitchTiles().length) paintPreview(); }
 
-  window.StreamingPage = { init, renderWidgets, onMic, onObs, onObsPreview };
+  window.StreamingPage = { init, renderWidgets, onMic, onStatus, onObs, onObsPreview };
 })();

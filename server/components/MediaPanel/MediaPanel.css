@@ -47,7 +47,132 @@
   overflow-y: auto;
 }
 
-/* "AI unavailable — add API key" notice (shown in the Chat tab when no key) */
+/* Bit's chat head: the live Bit, its name, the Scintille left and a new chat. */
+.bit-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--divider);
+}
+.bit-chat-face { width: 30px; height: 28px; flex: none; display: grid; place-items: end center; }
+.bit-chat-face .xbit { width: 30px; height: auto; display: block; }
+.bit-chat-name { font-size: 15px; font-weight: 600; margin-right: auto; }
+.bit-chat-btn {
+  width: 44px; height: 44px;
+  flex: none;
+  display: grid; place-items: center;
+  border: 0; border-radius: 10px;
+  background: transparent;
+  color: var(--muted-text);
+  cursor: pointer;
+}
+.bit-chat-btn svg { width: 20px; height: 20px; }
+.bit-chat-btn:hover { background: var(--hover-bg); color: var(--text); }
+.bit-chat-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The back arrow only exists in the phone's full-screen chat. */
+.bit-chat-back { display: none; margin-left: -10px; }
+.bit-sheet .bit-chat-back { display: grid; }
+
+/* On the Scintille: the spark and what is left, a quiet button that opens the
+   panel under the head (js/bit-chat-model.js). */
+.bit-chat-model {
+  min-height: 44px;
+  flex: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 4px 0 8px;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bit-chat-model[hidden] { display: none; }
+.bit-chat-spark { display: inline-flex; width: 16px; height: 16px; }
+.bit-chat-spark .xspark { width: 100%; height: 100%; }
+.bit-chat-model > svg { width: 16px; height: 16px; color: var(--muted-text); transition: transform .18s ease; }
+.bit-chat-model[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.bit-chat-model:hover,
+.bit-chat-model[aria-expanded="true"] { background: var(--hover-bg); }
+.bit-chat-model:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The panel sits in the pane's flow under the head, so a short tile scrolls
+   its messages instead of clipping a floating panel. */
+.bit-model-panel:not([hidden]) {
+  flex: none;
+  display: grid;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  border-bottom: 1px solid var(--divider);
+}
+/* The words outside the list line up with the words inside its rows. */
+.bit-model-top, .bit-model-label, .bit-model-note { padding-inline: 10px; }
+.bit-model-top { display: flex; align-items: center; gap: 10px; }
+.bit-model-balance { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-variant-numeric: tabular-nums; }
+.bit-model-balance .xspark { width: 18px; height: 18px; }
+.bit-model-balance b { font-size: 15px; font-weight: 700; color: var(--text); }
+.bit-model-label { font-size: 12px; font-weight: 600; color: var(--muted-text); }
+.bit-model-list { display: grid; gap: 4px; }
+.bit-model-opt {
+  min-height: 40px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  border: 1px solid transparent; border-radius: 8px;
+  background: transparent;
+  color: var(--muted-text);
+  font: inherit; font-size: 13px; text-align: left;
+  cursor: pointer;
+}
+.bit-model-opt-name { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bit-model-opt small { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; }
+.bit-model-opt:hover { background: var(--hover-bg); color: var(--text); }
+.bit-model-opt[aria-pressed="true"] {
+  border-color: rgba(var(--accent-rgb), 0.45);
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--text);
+}
+.bit-model-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bit-model-note { margin: 0; font-size: 12px; line-height: 1.4; color: var(--muted-text); }
+
+/* Bit's one main action (Ricarica, Prendi le Scintille) is Bit green on every
+   theme; the way around it is plain text. */
+.bit-main-btn,
+.bit-model-topup {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0; border-radius: 8px;
+  background: var(--bit-action, #6ee787);
+  color: var(--bit-action-ink, #0b2412);
+  font: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.bit-main-btn { min-height: 44px; padding: 0 18px; font-size: 14px; }
+.bit-main-btn:hover,
+.bit-model-topup:hover { filter: brightness(1.06); }
+.bit-quiet-btn {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0; background: transparent;
+  color: var(--muted-text);
+  font: inherit; font-size: 13px;
+  text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+}
+.bit-quiet-btn:hover { color: var(--text); }
+.bit-main-btn:focus-visible,
+.bit-model-topup:focus-visible,
+.bit-quiet-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .bit-model-opt, .bit-model-topup { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .bit-chat-model > svg { transition: none; } }
+
+/* Nothing can answer yet: Bit says what it needs, one green way to get it and
+   a quiet way around it (an own Gemini key). */
 .media-chat-nokey:not([hidden]) {
   flex: 1 1 auto;
   display: flex;
@@ -58,8 +183,67 @@
   text-align: center;
   padding: 20px;
 }
-.media-chat-nokey svg { width: 34px; height: 34px; color: var(--accent); opacity: 0.85; }
-.media-chat-nokey p { font-size: 13px; max-width: 300px; line-height: 1.5; color: var(--muted-text); margin: 0; }
+.bit-nokey-face { display: grid; place-items: end center; width: 56px; height: 52px; }
+.bit-nokey-face svg { width: 56px; height: auto; display: block; }
+.bit-nokey-words p { font-size: 13px; max-width: 320px; line-height: 1.5; color: var(--muted-text); margin: 0; }
+.bit-nokey-words strong { display: block; margin-bottom: 4px; font-size: 15px; color: var(--text); }
+.bit-nokey-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+/* An empty chat: Bit, a hello, one line on what it does, and three things to
+   ask that fit this PC (js/bit-welcome.js). */
+.bit-welcome {
+  margin: auto;
+  width: min(100%, 380px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 4px;
+  text-align: center;
+}
+.bit-welcome-face { display: grid; place-items: end center; width: 56px; height: 52px; margin-bottom: 4px; }
+.bit-welcome-face svg { width: 56px; height: auto; display: block; }
+.bit-welcome-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+.bit-welcome-line { margin: 0 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted-text); }
+.bit-starters { width: 100%; display: grid; gap: 6px; }
+.bit-starter {
+  min-height: 48px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border: 0; border-radius: 10px;
+  background: var(--control-bg);
+  color: var(--text);
+  font: inherit; font-size: 13.5px; text-align: left;
+  cursor: pointer;
+}
+.bit-starter > svg { flex: none; width: 18px; height: 18px; color: var(--muted-text); }
+.bit-starter-words { display: grid; gap: 1px; min-width: 0; }
+.bit-starter-words small { font-size: 12px; color: var(--muted-text); }
+.bit-starter:hover { background: var(--hover-bg); }
+.bit-starter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A short tile keeps the starters and drops Bit and the line, so the welcome
+   starts at the top instead of showing a cut-off Bit. The log is sized by its
+   flex parent, so size containment cannot collapse it. */
+[data-chatf="pane"] .ai-chat { container: bitlog / size; }
+@container bitlog (max-height: 340px) {
+  .bit-welcome { margin: 0 auto; padding-top: 4px; }
+  .bit-welcome-face, .bit-welcome-line { display: none; }
+}
+@container bitlog (max-height: 200px) {
+  .bit-welcome-title { display: none; }
+}
+
+/* The phone's full-screen chat (js/bit-chat-full.js): under Settings and the
+   Store (220), so Ricarica and "Uso una chiave Gemini" open on top of it. */
+.bit-sheet {
+  position: fixed; inset: 0; z-index: 205;
+  display: flex; flex-direction: column;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--bg);
+  color: var(--text);
+}
+.bit-sheet > [data-chatf="pane"] { flex: 1 1 auto; min-height: 0; }
+body.bit-sheet-open { overflow: hidden; }
 
 /* Chat tab while music plays: blurred album cover behind the chat */
 .media-panel.media-chat-mode .media-bg {
@@ -71,7 +255,9 @@
 
 /* Blurred album cover behind the Chat tab while music plays (restores the look
    the chat had when it lived inside the media tile). */
-.chat-panel { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; }
+/* clip, not just hidden: the over-filled cover made the panel a scroll
+   container, and focusing the input could slide the whole chat sideways. */
+.chat-panel { position: relative; overflow: hidden; overflow: clip; isolation: isolate; display: flex; flex-direction: column; }
 .chat-bg {
   position: absolute;
   inset: -12%;            /* over-fill so blurred edges fall outside the tile */

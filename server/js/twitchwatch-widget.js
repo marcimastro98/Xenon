@@ -47,7 +47,7 @@
   // Only tiles actually placed on a dashboard page count — a widget that was
   // never added sits in the #widget-pool, outside any .pager-page, and must not
   // poll anything.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="twitchwatch"]')).filter(n => n.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="twitchwatch"]')).filter(n => n.closest('.pager-page, .layer-slot')); }
 
   let poll = null;
   let connected = null;              // null = not asked yet
@@ -111,9 +111,7 @@
   // Open Settings → Streaming, the same way the Discord widget's "not linked"
   // notice does.
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   // Open a URL where the user can see it: a visible Browser tile first (which

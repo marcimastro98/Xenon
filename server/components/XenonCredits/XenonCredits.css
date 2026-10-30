@@ -1,0 +1,80 @@
+/* The Scintille chip (js/xenon-credits.js): the balance wherever the
+   assistant can spend it (Settings, Store, chat). One look everywhere, so a
+   number seen in the Store is recognised in the chat. */
+.xc-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 32px; padding: 0 12px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--text);
+  font: inherit; font-size: 12.5px; font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+.xc-chip[hidden] { display: none; }
+.xc-chip:hover { border-color: rgba(var(--accent-rgb), 0.7); }
+.xc-chip:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 2px; }
+.xc-chip b { font-weight: 900; font-variant-numeric: tabular-nums; }
+.xc-chip-cta { font-weight: 900; color: rgb(var(--accent-rgb)); }
+.xc-chip[data-level="low"], .xc-chip[data-level="empty"] {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 45%);
+  background: var(--warning-bg);
+}
+.xc-chip[data-level="low"] .xc-chip-cta, .xc-chip[data-level="empty"] .xc-chip-cta { color: var(--color-warn); }
+@media (pointer: coarse) { .xc-chip { min-height: 40px; } }
+
+
+/* In the Settings header, next to the Store pill and as tall as it. When the
+   header is narrow (a phone, or a small window: the panel is as wide as the
+   window, not the screen) the number alone, so the title keeps its room. */
+.settings-head-credits { min-height: 38px; }
+@container settings-head (max-width: 700px) {
+  .settings-head-credits > span:not(.xc-chip-cta) { display: none; }
+}
+
+/* The Scintilla (shared/src/bit-spark.js): Bit's spark, in crisp pixels. Most
+   of the time it rests; every few seconds it twinkles and blinks. The frames
+   are toggled with steps, so nothing is redrawn between them. */
+.xspark { display: block; width: 100%; height: 100%; }
+[data-xspark] { display: inline-flex; width: 18px; height: 18px; flex: none; vertical-align: middle; }
+.xspark:not(.xspark-still) .xspark-f0 { animation: xspark-rest 4.6s steps(1, end) infinite; }
+.xspark:not(.xspark-still) .xspark-f1 { opacity: 0; animation: xspark-twinkle 4.6s steps(1, end) infinite; }
+.xspark:not(.xspark-still) .xspark-f2 { opacity: 0; animation: xspark-blink 4.6s steps(1, end) infinite; }
+@keyframes xspark-rest { 0% { opacity: 1; } 86% { opacity: 0; } 96% { opacity: 1; } }
+@keyframes xspark-twinkle { 0% { opacity: 0; } 86% { opacity: 1; } 91% { opacity: 0; } }
+@keyframes xspark-blink { 0% { opacity: 0; } 91% { opacity: 1; } 96% { opacity: 0; } }
+
+/* Still whenever the dashboard stands still, like Bit on a tile. */
+body:is(.overlay-frozen, .ambient-idle, .game-mode, .low-power-gpu, .perf-mode) .xspark g { animation: none; }
+@media (prefers-reduced-motion: reduce) { .xspark g { animation: none; } }
+
+.xc-chip .xspark { width: 16px; height: 16px; flex: none; }
+/* A line naming Scintille someone would get (XenonCredits.offerLine). */
+/* Spacing and size come from the surface's own text class next to it. */
+.xc-offer { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
+.xai-balance { display: inline-flex; align-items: center; gap: 6px; }
+/* The packs (XenonCredits.packList), in Settings, the Store and the chat. The
+   surface's own button class gives the look; this only lays them out, as many
+   in a row as fit, so a narrow chat tile stacks them by itself. */
+.xai-pack-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px; }
+.xai-pack {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 8px 12px;
+  text-align: start; text-decoration: none;
+}
+.xai-pack-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.xai-pack-line { display: flex; flex-wrap: wrap; gap: 0 8px; font-weight: 500; }
+.xai-pack b { font-variant-numeric: tabular-nums; }
+.xai-pack-price { color: var(--muted-text); }
+.xai-pack-bonus { color: rgb(var(--accent-rgb)); }
+/* What the pack buys, in widgets: the value, so it reads in the text colour. */
+.xai-pack-reach { color: var(--text); }
+/* A pack's heap of Scintille: one, two or three, the first the biggest. */
+.xai-pack-sparks { position: relative; flex: none; width: 34px; height: 30px; }
+.xai-pack-sparks .xspark { position: absolute; }
+.xai-pack-sparks .xspark:nth-child(1) { left: 0; top: 5px; width: 24px; height: 24px; }
+.xai-pack-sparks .xspark:nth-child(2) { left: 19px; top: 0; width: 15px; height: 15px; }
+.xai-pack-sparks .xspark:nth-child(3) { left: 21px; top: 16px; width: 13px; height: 13px; }
+.ai-prov-ic[data-bit-icon] { width: 20px; height: 20px; }

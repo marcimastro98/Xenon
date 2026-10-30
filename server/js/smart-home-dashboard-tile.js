@@ -82,7 +82,8 @@
       else say('err', t('settings_ha_dash_failed', 'The tile could not be added.'));
     });
 
-    api('/api/homeassistant/dashboards').then((r) => {
+    // apiJson, not the global `api`: that is the Deck store's object.
+    apiJson('/api/homeassistant/dashboards').then((r) => {
       const list = r && r.ok && Array.isArray(r.dashboards) ? r.dashboards : [{ path: 'lovelace', title: '' }];
       select.replaceChildren();
       list.forEach((d) => {

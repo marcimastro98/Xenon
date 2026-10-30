@@ -48,8 +48,7 @@
   // Never two cards in the corner, and never over a dialog, the Store, What's
   // New or a Claude Code approval: the arbiter's list of "something is up".
   function screenTaken() {
-    if (document.getElementById('discord-invite') || document.getElementById('support-ask')
-      || document.getElementById('share-nudge')) return true;
+    if (document.getElementById('discord-invite')) return true;
     const I = window.XenonInterrupts;
     return !!(I && typeof I.busy === 'function' && I.busy());
   }
@@ -123,12 +122,14 @@
     card.setAttribute('aria-label', t('support_appeal_title', 'A note from Marcello, who makes Xenon'));
 
     const text = el('p', 'discord-invite-text', noteText(goal));
+    const C = window.XenonCredits;
+    const sparks = C ? C.offerLine(t('support_sparks_also', "Every month you also get 300 Sparks, Xenon's credits."), 'support-appeal-sparks') : null;
 
     const already = el('button', 'support-ask-already', t('support_ask_already', 'I already support Xenon'));
     already.type = 'button';
     already.addEventListener('click', () => { silence(); hide(); a.thankSupporter(); });
 
-    card.append(buildHead(a), text, buildGoal(goal), buildActions(a), already);
+    card.append(buildHead(a), text, ...(sparks ? [sparks] : []), buildGoal(goal), buildActions(a), already);
     document.body.appendChild(card);
     requestAnimationFrame(() => card.classList.add('is-in'));
   }
@@ -186,6 +187,7 @@
   }
 
   function init() {
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;   // shown by the main dashboard, never by a layer window
     const c = CARDS();
     if (c && typeof c.whenReady === 'function') c.whenReady(() => { maybeShow(); });
     else maybeShow();

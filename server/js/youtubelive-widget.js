@@ -38,16 +38,14 @@
   const api = apiJson;                   // shared fetch-JSON helper from utils.js
   // Only tiles actually placed on a dashboard page count — a widget sitting in the
   // pool must not poll YouTube. Same rule as every other polling widget.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtubelive"]')).filter(n => n.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtubelive"]')).filter(n => n.closest('.pager-page, .layer-slot')); }
   // A paired phone is refused the stream key by the server (it is a credential
   // that lets its holder broadcast to the channel). Knowing that here means not
   // offering a button that could only fail.
   const isRemote = !!window.__xenonRemote;
 
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   const POLL_MS = 30000;

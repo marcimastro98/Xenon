@@ -247,6 +247,8 @@ body.game-mode .spot-loading .spot-bar-icon { animation: none; }
 }
 .spot-ai-toggle svg { width: 19px; height: 19px; fill: rgba(255, 255, 255, 0.75); }
 :root[data-theme="light"] .spot-ai-toggle svg { fill: rgba(0, 0, 0, 0.6); }
+/* Bit keeps its own colours: off is the same Bit, dimmed by the button. */
+.spot-ai-toggle.has-bit svg { width: 22px; height: 22px; }
 .spot-ai-toggle:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.07); }
 :root[data-theme="light"] .spot-ai-toggle:hover { background: rgba(0, 0, 0, 0.06); }
 .spot-ai-toggle:active { transform: scale(0.94); }
@@ -312,11 +314,13 @@ body.game-mode .spot-ai .spot-shell::after { animation: none; }
   border: none;
   background: rgba(255, 255, 255, 0.08);
   color: inherit;
-  font-size: 21px;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
   cursor: pointer;
   opacity: 0.8;
 }
+.spot-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 :root[data-theme="light"] .spot-close { background: rgba(0, 0, 0, 0.08); }
 .spot-close:active { transform: scale(0.94); }
 

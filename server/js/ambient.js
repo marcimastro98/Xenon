@@ -9,6 +9,9 @@
 // only cloud call is the optional TTS, which honours the existing aiTtsEnabled
 // setting. While the feature is OFF the minute tick is a single boolean check.
 (function () {
+  // The greeting, heads-ups and spoken alerts come from the main dashboard only;
+  // a layer window would say each of them a second time.
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;
   const STORE_KEY = 'xenonedge.ambient.v1';
   const HEADSUP_MIN = 10;            // minutes before an event
   const notifiedEventIds = new Set(); // session-scoped heads-up dedupe
@@ -99,6 +102,12 @@
     return out.sort((a, b) => a.at - b.at).slice(0, 3);
   }
 
+  // The true line under the greeting (events left today, or tomorrow's), or null.
+  function greetingFact(part, now) {
+    if (typeof calendarEvents === 'undefined' || !window.GreetingFacts) return null;
+    return GreetingFacts.pick(part, calendarEvents, now, new Intl.DateTimeFormat(t('locale'), timeParts()));
+  }
+
   // One greeting per day-part per day (persisted, so reloads don't repeat it).
   function maybeGreet() {
     const now = new Date();
@@ -132,7 +141,7 @@
     // the user saw nothing until the next one.
     let shown = false;
     if (window.GreetingSplash) {
-      try { GreetingSplash.show(part, agenda); shown = true; } catch { /* fall through to the toast */ }
+      try { GreetingSplash.show(part, { agenda, fact: greetingFact(part, now) }); shown = true; } catch { /* fall through to the toast */ }
     }
     if (!shown && typeof showHubToast === 'function') {
       showHubToast('Xenon', text, '');

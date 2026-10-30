@@ -672,6 +672,14 @@ body.overlay-frozen .xfer-bar-fill { transition: none; }
   font: 0.78rem/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
+/* The folder chosen with the system dialog: the same path, read-only, wrapping
+   anywhere so a long one goes onto a second line instead of sideways. */
+.xfer-set-path {
+  font: 0.78rem/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+  color: var(--text-muted, rgba(255, 255, 255, 0.7));
+}
+
 .xfer-set-input:focus {
   outline: none;
   border-color: rgba(var(--accent-rgb), 0.55);

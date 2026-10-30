@@ -45,38 +45,18 @@
   const DECAY_BASE = 0.15;          // visible desaturation the instant decay starts
   const AI_ROAST_TIMEOUT_MS = 3500; // AI slower than this → offline bank line
 
-  // ── pixel sprite (static, trusted markup — same px() idiom as vitals.js) ──
-  const px = (fill, cells) => cells.map(c =>
-    `<rect x="${c[0]}" y="${c[1]}" width="${c[2] || 1}" height="${c[3] || 1}" fill="${fill}"/>`).join('');
-  const wrap = (inner) => `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true">${inner}</svg>`;
-  const INK = '#0d1117';
-  const BODY = px('var(--vpet-body)', [[6, 0], [6, 1], [3, 2, 6], [2, 3, 8, 6], [3, 9, 6], [3, 10, 2], [7, 10, 2]]);
-  const EYES = { open: px(INK, [[4, 4, 1, 2], [7, 4, 1, 2]]), blink: px(INK, [[4, 5], [7, 5]]) };
-  const FACES = {
-    happy:   (eyes) => BODY + EYES[eyes] + px(INK, [[4, 7], [5, 8, 2], [7, 7]]),
-    neutral: (eyes) => BODY + EYES[eyes] + px(INK, [[5, 7, 2]]),
-    worried: (eyes) => BODY + EYES[eyes] + px(INK, [[4, 3], [7, 3], [5, 8, 2]]) + px('#4fc3f7', [[10, 4]]),
-    angry:   (eyes) => BODY + px(INK, [[3, 3, 2], [7, 3, 2]]) + EYES[eyes] + px(INK, [[4, 8], [5, 7], [6, 8], [7, 7]])
-             + px('#e8f4ff', [[0, 1], [11, 2]]),
-    // Asleep (away / night quiet): the exact same body (brand rule: never a new
-    // Bit shape) with closed eyes and a soft mouth; the "zzz" is CSS (::after).
-    sleep:   () => BODY + EYES.blink + px(INK, [[5, 8, 2]]),
-    ghost:   (alt) => px('#e8f4ff', [[3, 1, 6], [2, 2, 8], [2, 3, 8, 6]])
-             + px('#e8f4ff', alt ? [[3, 9], [5, 9], [7, 9]] : [[2, 9], [4, 9], [6, 9], [8, 9]])
-             + px(INK, [[4, 4, 1, 2], [7, 4, 1, 2], [5, 7, 2]]),
-  };
-  function spriteMarkup(mood, alt) {
-    if (mood === 'ghost') return wrap(FACES.ghost(alt));
-    return wrap((FACES[mood] || FACES.neutral)(alt ? 'blink' : 'open'));
-  }
+  // ── Bit's look: the shared engine (shared/src/bit*.js via js/bit-app.js) ──
+  // The pet's moods are the engine's mood clips, so this Bit is the same one
+  // the chat, the Maker and the game companion show. The engine animates and
+  // holds itself (game mode, low power, idle, frosted overlay, reduced motion).
+  const CLIP = { happy: 'happy', neutral: 'idle', worried: 'worry', angry: 'angry', sleep: 'sleep', ghost: 'drowsy' };
   const MOOD_RGB = { happy: '110,231,135', neutral: '255,215,94', worried: '255,166,87', angry: '255,90,95', sleep: '138,180,248', ghost: '232,244,255' };
+  const GAMEOVER_PX = 56;
 
   // ── state ──
   let host = null;            // floating pet root element
   let chip = null;            // topbar mini-Bit button (#clock-bit)
   let tickTimer = null;
-  let frameTimer = null;
-  let frameAlt = false;
   let bubbleTimer = null;
   let typeTimer = null;
   let chipBubbleEl = null;
@@ -93,7 +73,6 @@
   let prevGaming = false;
   let diedDuringGame = '';    // vital that hit zero while quiet-in-game held fire
   let mood = '';
-  const reducedMotion = (typeof matchMedia === 'function') ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
   // Per-stage escalation delays (minutes → ms). The user tunes each rung in
   // Settings → Bit; a missing/invalid value falls back to the ladder default
@@ -209,9 +188,9 @@
       const pet = petCfg();
       if (pet.aiRoasts !== true) return bank();
       if (typeof _aiProviderReady !== 'function' || typeof _aiProviderCfg !== 'function' || !_aiProviderReady()) return bank();
-      // Bit speaks up on its own: it never spends a Claude Code / Codex
-      // subscription (the server refuses too), so skip the round trip.
-      if (['claudecode', 'codex'].includes(_aiProviderCfg().provider)) return bank();
+      // Bit speaks up on its own: it never spends Sparks or a Claude Code /
+      // Codex subscription (the server refuses too), so skip the round trip.
+      if (['xenon', 'claudecode', 'codex'].includes(_aiProviderCfg().provider)) return bank();
       const now = Date.now();
       if (now - lastAiAt < NAG_GLOBAL_GAP_MS) return bank();
       lastAiAt = now;
@@ -274,26 +253,25 @@
   }
 
   // ── DOM: pet + chip + bubble + menu ──
-  // One state machine, two mounts: the floating pet and the topbar chip render
-  // the same mood/frame — paintSprites() fans a sprite update out to whichever
-  // mounts exist, so there is never a second timer or a second mood ladder.
-  function paintSprites() {
-    const m = spriteMarkup(mood, frameAlt);
-    if (host) { const b = host.querySelector('.vpet-sprite'); if (b) b.innerHTML = m; }   // static, trusted SVG
-    if (chip) { const s = chip.querySelector('.cb-sprite'); if (s) s.innerHTML = m; }     // static, trusted SVG
+  // One state machine, two mounts: the floating pet and the topbar chip each
+  // carry a live Bit, and setMood()/react() fan out to both, so there is never
+  // a second mood ladder.
+  function bits() {
+    const app = window.BitApp;
+    if (!app) return [];
+    return [host && host.querySelector('.vpet-sprite'), chip && chip.querySelector('.cb-sprite')]
+      .map((el) => el && app.playerFor(el)).filter(Boolean);
   }
-  function frameTick() {
-    if ((!host && !chip) || document.hidden) return;
-    // Quiesce with the rest of the dashboard: no sprite churn while the page
-    // sits idle (ambient-idle pauses every decorative loop) or when the user
-    // asked for reduced motion.
-    if (document.body.classList.contains('ambient-idle')) return;
-    // Frosted overlay open: the sprite is invisible under the blur, but every
-    // innerHTML swap would still force a re-blur of the overlay above it.
-    if (document.body.classList.contains('overlay-frozen')) return;
-    if (reducedMotion && reducedMotion.matches) return;
-    frameAlt = !frameAlt;
-    paintSprites();
+  function mountBit(el, fidgets) {
+    if (window.BitApp) window.BitApp.mount(el, { mood: CLIP[mood] || 'idle', fidgets });
+  }
+  // A one-off move (a refill, a welcome back); the mood comes back after it.
+  function react(clipId) {
+    bits().forEach((p) => p.play(clipId));
+  }
+  // Let go of the players whose host just left the page.
+  function releaseBits() {
+    if (window.BitApp) window.BitApp.sweep();
   }
 
   function mount() {
@@ -315,6 +293,7 @@
     btn.addEventListener('click', toggleMenu);
     host.appendChild(btn);
     document.body.appendChild(host);
+    mountBit(btn, true);
     setMood(mood || 'neutral', true);
   }
   function unmountFloating() {
@@ -324,6 +303,7 @@
     closeMenu();
     host.remove();
     host = null;
+    releaseBits();
   }
 
   // The topbar mini-Bit: first child of #clock-vitals, so it rides the
@@ -344,6 +324,7 @@
     chip.appendChild(spr);
     chip.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(e); });
     hostEl.prepend(chip);
+    mountBit(spr, false); // a tiny Bit next to the clock stays still between moods
     hostEl.hidden = false;
     if (window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
     setMood(mood || 'neutral', true);
@@ -352,6 +333,7 @@
     if (!chip) return;
     chip.remove();
     chip = null;
+    releaseBits();
     if (chipBubbleTimer) { clearTimeout(chipBubbleTimer); chipBubbleTimer = null; }
     if (chipBubbleEl) { chipBubbleEl.remove(); chipBubbleEl = null; }
     const hostEl = document.getElementById('clock-vitals');
@@ -366,7 +348,6 @@
 
   function teardown() {
     if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
-    if (frameTimer) { clearInterval(frameTimer); frameTimer = null; }
     if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null; }
     if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
     if (lockCountTimer) { clearInterval(lockCountTimer); lockCountTimer = null; }
@@ -378,6 +359,7 @@
     nightGreeted = false;
     unmountChip();
     if (host) { host.remove(); host = null; }
+    releaseBits();
     // Stop-what-you-start: an enable→disable cycle must not leave a live
     // AudioContext behind (sound() lazily recreates it).
     if (audioCtx) { try { audioCtx.close().catch(() => {}); } catch { /* already closed */ } audioCtx = null; }
@@ -391,7 +373,7 @@
       el.dataset.mood = next;
       el.style.setProperty('--vpet-rgb', MOOD_RGB[next] || MOOD_RGB.neutral);
     });
-    paintSprites();
+    bits().forEach((p) => p.setMood(CLIP[next] || 'idle'));
   }
 
   function showBubble(text, ms) {
@@ -446,17 +428,17 @@
     menu.className = 'vpet-menu';
     const head = document.createElement('div');
     head.className = 'vpet-menu-head';
-    head.textContent = 'BIT';
+    head.textContent = 'Bit';
     const lv = document.createElement('span');
     lv.className = 'vpet-menu-lv';
-    lv.textContent = 'LV ' + (1 + Math.floor((Number(v.state && v.state.xp) || 0) / 100));
+    lv.textContent = t('vitals_level', 'Livello {n}').replace('{n}', String(1 + Math.floor((Number(v.state && v.state.xp) || 0) / 100)));
     head.appendChild(lv);
     // Bit's memory on display: the current self-care streak (days in a row).
     const streak = Number(memState().streak) || 0;
     if (streak >= 2) {
       const st = document.createElement('span');
       st.className = 'vpet-menu-streak';
-      st.textContent = '🔥' + streak;
+      st.textContent = t('vpet_streak_days', '{n} giorni di fila').replace('{n}', String(streak));
       st.title = t('vpet_streak_title', 'Self-care streak (days in a row)');
       head.appendChild(st);
     }
@@ -489,7 +471,7 @@
       roastGen++; // a roast in flight must not break the truce it predates
       saveVitalsState({ pet: { ...petState(), snoozeUntil: Date.now() + 30 * 60000 } });
       closeMenu();
-      showBubble(lang().startsWith('it') ? 'Ok. 30 minuti. Poi torno.' : 'Fine. 30 minutes. Then I\'m back.', 5000);
+      showBubble(t('vpet_snooze_ok', 'Ok. 30 minuti. Poi torno.'), 5000);
     });
     const mute = document.createElement('button');
     mute.type = 'button';
@@ -499,9 +481,24 @@
       roastGen++;
       saveVitalsState({ pet: { ...petState(), muteDay: todayKey() } });
       closeMenu();
-      showBubble(lang().startsWith('it') ? 'Silenzio fino a domani. Ricordati che esisto.' : 'Silent until tomorrow. Remember I exist.', 5000);
+      showBubble(t('vpet_mute_ok', 'Silenzio fino a domani. Ricordati che esisto.'), 5000);
     });
     menu.append(snooze, mute);
+    // The pet is the same Bit as the assistant: one tap to its chat, with a
+    // question about the meters ready to send or change.
+    if (typeof window.openAiPanel === 'function') {
+      const talk = document.createElement('button');
+      talk.type = 'button';
+      talk.className = 'vpet-menu-act';
+      talk.textContent = t('vpet_talk', 'Parla con Bit');
+      talk.addEventListener('click', () => {
+        closeMenu();
+        window.openAiPanel();
+        const input = document.getElementById('ai-text-input');
+        if (input && !input.value) input.value = t('vpet_talk_prompt', 'Come sto con i vitali?');
+      });
+      menu.appendChild(talk);
+    }
     return menu;
   }
   function toggleMenu(e) {
@@ -585,7 +582,8 @@
     sub.textContent = allDead ? phrase('alldead', '', deadMs) : phrase('gameover', vital, deadMs);
     const ico = document.createElement('div');
     ico.className = 'vpet-go-sprite';
-    ico.innerHTML = spriteMarkup(allDead ? 'ghost' : 'angry', false);   // static, trusted SVG
+    // The engine's own palette and numbers only (BitApp.still), never user text.
+    ico.innerHTML = window.BitApp ? window.BitApp.still(CLIP[allDead ? 'ghost' : 'angry'], GAMEOVER_PX) : '';
     const actions = document.createElement('div');
     actions.className = 'vpet-go-actions';
     const fix = document.createElement('button');
@@ -614,6 +612,24 @@
   }
 
   // ── server-side actions (each rung re-checked server-side too) ──
+  // What this PC can do (server/vitals-nag.js): read once per page. Until it
+  // answers, every rung stays as the user set it; the server still says no
+  // to what cannot work, but a warning that promises it is never shown.
+  let pcCaps = null;
+  async function readPcCaps() {
+    try {
+      const res = await fetch('/api/vitals/caps', { cache: 'no-store' });
+      const body = res.ok ? await res.json() : null;
+      if (body && body.ok) pcCaps = body;
+    } catch { /* offline: the server refuses what it cannot do */ }
+  }
+  const pcCan = (step) => {
+    if (!pcCaps) return true;
+    if (step === 'monitors') return !!pcCaps.popup;
+    if (step === 'minimize') return !!(pcCaps.minimize && pcCaps.minimize.ok);
+    return true;
+  };
+
   function serverNag(action, extra) {
     try {
       fetch('/api/vitals/nag', {
@@ -643,7 +659,7 @@
     window.XenonToast.show({
       // Bit plays its own 8-bit cue via sound() (gated by pet.sounds), so the
       // generic notification cue is suppressed here to avoid a double sound.
-      type, kicker: 'BIT', title, message, duration: 10000, silent: true,
+      type, kicker: 'Bit', title, message, duration: 10000, silent: true,
       onClick: vital ? () => { if (window.VitalsWidget) window.VitalsWidget.openDetail(vital); } : undefined,
     });
   }
@@ -665,10 +681,10 @@
     // roast — Bit just sleeps until vitals.js announces the return (onReturn).
     if (snap.away === true) { setMood('sleep'); return; }
 
-    // Night quiet (23–07): Bit sleeps; decay may still creep, but no bubbles,
-    // toasts, GAME OVER or PC actions until morning. One yawny line if the
-    // user is demonstrably around anyway.
-    const quietNight = pet.nightQuiet !== false && core.isNight(new Date().getHours());
+    // Quiet hours (the user's window, 23–07 by default): Bit sleeps; decay may
+    // still creep, but no bubbles, toasts, GAME OVER or PC actions until the
+    // window ends. One yawny line if the user is demonstrably around anyway.
+    const quietNight = pet.nightQuiet !== false && core.isNight(new Date().getHours(), pet.quietFrom, pet.quietTo);
     if (quietNight) {
       if (!nightGreeted && present() && !snoozed()) {
         nightGreeted = true;
@@ -748,8 +764,8 @@
       }
       const stages = core.stagesFor(deadMs, {
         effects: pet.effects !== false,
-        monitors: pet.monitors === true,
-        minimize: pet.minimize === true,
+        monitors: pet.monitors === true && pcCan('monitors'),
+        minimize: pet.minimize === true && pcCan('minimize'),
         lock: pet.lock === true,
         present: present(),
         at: atMs,
@@ -767,7 +783,7 @@
         roastOrBank(first ? 'zero' : 'nag', id, deadMs).then((text) => {
           if (gen !== roastGen || !activated()) return;
           showBubble(text);
-          toast('warning', vitalName(id) + ' — 0%', text, id);
+          toast('warning', vitalName(id) + ': 0%', text, id);
         });
       }
 
@@ -821,7 +837,7 @@
           ep.locked = true;
           persistEp(id, z, ep, bumpMemPatch('locksTotal'));
           // Send the "it was me" line so the server can flash it on the real
-          // monitors right before the Windows lock screen takes over.
+          // monitors right before the lock screen takes over.
           serverNag('lock', { text: phrase('locked', id, deadMs), mood: 'angry' });
         }
       } else if (ep.lockWarnAt && !ep.locked) {
@@ -835,33 +851,37 @@
     if (anyDecay && !snoozed() && !quietNight) glitchPulse(now);
   }
 
-  // Dramatic 1s countdown in the bubble while the lock warning runs. Aborts the
-  // moment the vital is refilled (the episode disappears) or the pet is torn down.
+  // Dramatic 1s countdown while the lock warning runs: in the pet's bubble, or
+  // under the topbar chip when Bit lives only there. Aborts the moment the
+  // vital is refilled (the episode disappears) or the pet is torn down.
+  function lockCountLine(text) {
+    if (host) {
+      const bubble = host.querySelector('.vpet-bubble');
+      const txt = host.querySelector('.vpet-bubble-txt');
+      if (!bubble || !txt) return;
+      if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+      bubble.hidden = !text;
+      if (text) txt.textContent = text;
+      return;
+    }
+    if (text) showChipBubble(text, 1500);
+    else if (chipBubbleEl) chipBubbleEl.hidden = true;
+  }
   function startLockCountdown(vital) {
     if (lockCountTimer) clearInterval(lockCountTimer);
-    const it = lang().startsWith('it');
     lockCountTimer = setInterval(() => {
       const ep = episodes[vital];
-      if (!host || !ep || !ep.lockWarnAt || ep.locked) {
+      if ((!host && !chip) || !ep || !ep.lockWarnAt || ep.locked) {
         clearInterval(lockCountTimer);
         lockCountTimer = null;
-        // Don't strand a frozen "PC LOCK IN Ns" bubble when the countdown is
-        // aborted (truce, presence lost; the refill path overwrites it with
-        // its own praise bubble anyway).
-        if (host && ep && !ep.lockWarnAt) {
-          const b = host.querySelector('.vpet-bubble');
-          if (b) b.hidden = true;
-        }
+        // Don't strand a frozen countdown when it is aborted (truce, presence
+        // lost; the refill path overwrites it with its own praise anyway).
+        if (ep && !ep.lockWarnAt) lockCountLine('');
         return;
       }
       const left = Math.max(0, Math.ceil((ep.lockWarnAt + LOCK_WARN_MS - Date.now()) / 1000));
-      const bubble = host.querySelector('.vpet-bubble');
-      const txt = host.querySelector('.vpet-bubble-txt');
-      if (bubble && txt) {
-        bubble.hidden = false;
-        txt.textContent = (it ? 'BLOCCO PC TRA ' : 'PC LOCK IN ') + left + 's — ' + vitalName(vital) + '!';
-      }
-      if (left <= 0) { clearInterval(lockCountTimer); lockCountTimer = null; if (bubble) bubble.hidden = true; }
+      if (left <= 0) { clearInterval(lockCountTimer); lockCountTimer = null; lockCountLine(''); return; }
+      lockCountLine(t('vpet_lock_in', 'Blocco del PC tra {s} s: {vital}!').replace('{s}', String(left)).replace('{vital}', vitalName(vital)));
     }, 1000);
   }
 
@@ -869,8 +889,8 @@
   function sync() {
     if (activated()) {
       ensureMounts();
-      if (!frameTimer) frameTimer = setInterval(frameTick, 700);
       if (!tickTimer) { tickTimer = setInterval(tick, TICK_MS); tick(); }
+      if (!pcCaps) readPcCaps();
     } else {
       teardown();
     }
@@ -897,6 +917,7 @@
     if (!stillDead) setDecay(0);
     const streakUp = info && Number(info.streakUp) > 0 ? Math.round(Number(info.streakUp)) : 0;
     showBubble(streakUp ? phrase('streak', '', streakUp * 60000) : phrase('praise', '', 0), 6000);
+    react(streakUp ? 'celebrate' : 'thanks');
     sound('praise');
     tick();
   }
@@ -911,6 +932,7 @@
     roastOrBank('return', '', Math.max(1, Number(minsAway) || 1) * 60000).then((text) => {
       if (gen !== roastGen || !activated()) return;
       setMood('happy');
+      react('welcomeBack');
       showBubble(text, 8000);
       sound('talk');
     });

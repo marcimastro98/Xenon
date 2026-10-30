@@ -12,7 +12,8 @@
 //                                   'visibility', ... fn(payload, message),
 //                                   where payload is the theme, the stream's
 //                                   data, the language...; the current theme,
-//                                   lang and tempUnit arrive at once from init;
+//                                   lang, tempUnit and placement arrive at once
+//                                   from init;
 //                                   returns an unsubscribe
 //   xenon.fetch(url, options)       the proxied fetch: needs the host in your
 //                                   manifest `hosts`; resolves with
@@ -20,6 +21,9 @@
 //                                   error, json() }
 //   xenon.store.get/set/delete/keys the persistent store (`"storage": true`)
 //   xenon.assetUrl(url)             an <img> src for a picture on a declared host
+//   xenon.ai(prompt, options)       a question to the AI the user chose for Bit
+//                                   (`"ai": true`); options { system, maxTokens,
+//                                   json }; resolves with { ok, text, left, error }
 //
 // The helper sends the `hello` handshake itself: do not send your own.
 //
@@ -35,6 +39,8 @@
   const FETCH_GAP_MS = 1100;
   const STORE_WRITE_GAP_MS = 140;
   const REPLY_TIMEOUT_MS = 30000;
+  // An answer can take a while: a local model, or the user's Claude/ChatGPT plan.
+  const AI_TIMEOUT_MS = 180000;
 
   let nextId = 1;
   const pending = new Map();      // id -> { resolve, timer }
@@ -42,13 +48,13 @@
   // The latest push of each STATE kind (one 'data' per stream, 'theme',
   // 'size'...), replayed to a handler that subscribes after it arrived. One-off
   // events (hooks, deck handler calls) are never replayed: they would run twice.
-  const REPLAYED = new Set(['data', 'theme', 'size', 'visibility', 'shape', 'lang', 'tempUnit', 'notice']);
+  const REPLAYED = new Set(['data', 'theme', 'size', 'visibility', 'shape', 'lang', 'tempUnit', 'placement', 'notice']);
   // The field a handler receives as its first argument; other kinds get `data`,
   // or the whole message when they have none (size, shape).
-  const PAYLOAD_FIELD = { theme: 'theme', lang: 'lang', tempUnit: 'tempUnit', visibility: 'visible', notice: 'active' };
-  // init carries the starting theme, language and unit; they are seeded as if
+  const PAYLOAD_FIELD = { theme: 'theme', lang: 'lang', tempUnit: 'tempUnit', placement: 'placement', visibility: 'visible', notice: 'active' };
+  // init carries the starting theme, language, unit and placement; they are seeded as if
   // pushed, so on('theme', fn) paints once without waiting for a change.
-  const SEEDED_FROM_INIT = ['theme', 'lang', 'tempUnit'];
+  const SEEDED_FROM_INIT = ['theme', 'lang', 'tempUnit', 'placement'];
   const latest = new Map();
   let init = null;
   let resolveReady;
@@ -60,13 +66,13 @@
 
   // One request/reply round-trip. Never rejects: a missing reply resolves as
   // { ok: false, error: 'timeout' } so callers handle one shape.
-  function ask(type, fields) {
+  function ask(type, fields, timeoutMs) {
     const id = 'xc' + (nextId++);
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         pending.delete(id);
         resolve({ ok: false, error: 'timeout' });
-      }, REPLY_TIMEOUT_MS);
+      }, timeoutMs || REPLY_TIMEOUT_MS);
       pending.set(id, { resolve, timer });
       send(Object.assign({ type, id }, fields));
     });
@@ -94,6 +100,8 @@
     };
   }
   const fetchQueue = makeQueue(FETCH_GAP_MS);
+  // The host answers one question per widget at a time ('busy' otherwise).
+  const aiQueue = makeQueue(0);
   const writeQueue = makeQueue(STORE_WRITE_GAP_MS);
 
   window.addEventListener('message', (e) => {
@@ -136,7 +144,12 @@
   function on(type, fn) {
     if (!listeners.has(type)) listeners.set(type, new Set());
     listeners.get(type).add(fn);
-    latest.forEach((m) => { if (m.type === type) setTimeout(() => deliver(fn, m), 0); });
+    // Replayed on the next turn, and only if nothing newer arrived meanwhile:
+    // that one already reached fn, and an older replay after it would leave the
+    // widget showing the stale value.
+    latest.forEach((m, key) => {
+      if (m.type === type) setTimeout(() => { if (latest.get(key) === m) deliver(fn, m); }, 0);
+    });
     return () => listeners.get(type).delete(fn);
   }
 
@@ -167,7 +180,14 @@
     return '/sdk/asset/' + encodeURIComponent(init.pkgId) + '?u=' + encodeURIComponent(String(url));
   }
 
-  window.xenon = { ready, on, fetch: request, store, assetUrl, send };
+  // Each question counts toward the daily number the user allows a widget, so
+  // ask when the person does something, not on a timer.
+  function ai(prompt, options) {
+    const o = options || {};
+    return aiQueue(() => ask('ai', { prompt: String(prompt), system: o.system, maxTokens: o.maxTokens, json: o.json === true }, AI_TIMEOUT_MS));
+  }
+
+  window.xenon = { ready, on, fetch: request, store, assetUrl, ai, send };
   // Say hello once the page's own scripts (deferred ones too) have run, so
   // their handlers are in place before the host starts talking.
   const hello = () => send({ type: 'hello' });

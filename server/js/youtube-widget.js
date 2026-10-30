@@ -46,7 +46,7 @@
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // poll the YouTube API. Adding the widget moves it into a page → polling starts
   // on the next layout pass; removing it parks it back → polling stops.
-  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtube"]')).filter(el => el.closest('.pager-page')); }
+  function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtube"]')).filter(el => el.closest('.pager-page, .layer-slot')); }
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let poll = null;
@@ -123,9 +123,7 @@
   // The notice below is what remains, and it is the way in: tapping it lands on
   // the page where the account is connected.
   function openStreamingSettings() {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
-    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+    openSettingsCategory('streaming');
   }
 
   function showActionErr(btn, reason) {
@@ -498,7 +496,7 @@
   // through his library for one that would work (#126).
   function blockedText() {
     if (player.errCode === 153) {
-      return t('youtube_embed_config', 'YouTube would not start the player here. This is not the video — open it in the browser.');
+      return t('youtube_embed_config', 'YouTube would not start the player here. This is not the video: open it in the browser.');
     }
     return t('youtube_no_embed', 'This video cannot be played inside apps.');
   }

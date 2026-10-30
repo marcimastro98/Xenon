@@ -8,6 +8,45 @@ const _xcFmt = (typeof window !== 'undefined' && window.Xenon && window.Xenon.fo
 
 const $ = id => document.getElementById(id);
 
+// A layer window (`/?layer=…`, js/layer-host.js) draws the tiles placed on one
+// surface and nothing else. What speaks, rings, chimes, notifies or announces
+// on its own belongs to the main dashboard: a second copy would do it twice,
+// unseen, or mark an announcement read that nobody saw. Read from the URL so
+// modules that load before layer-host.js can ask too.
+function isLayerPage() {
+  return /[?&]layer=/.test(String((typeof window !== 'undefined' && window.location && window.location.search) || ''));
+}
+
+// A tile's "Set up" button: Settings on that category. A widget on the screen
+// has no Settings of its own (read-only, or no settings.js at all), so the shell
+// opens the dashboard there (layers::spec::tile_settings).
+function openSettingsCategory(cat) {
+  if (isLayerPage()) {
+    try { window.location.href = 'xenon-app:open-dashboard?open=settings&cat=' + encodeURIComponent(cat || ''); } catch (e) { /* not in the shell */ }
+    return;
+  }
+  if (typeof window.openSettings === 'function') window.openSettings(cat);
+}
+
+// A tile's own choice kept in the settings (a Discord favourite, the ChatGPT
+// model, a lyrics option). The dashboard saves it with the settings; a layer
+// page never writes the whole blob, so it sends just these fields to
+// /settings/tile (server/tile-settings.js). The change shows at once and is put
+// back if the server refuses it. Resolves true when saved.
+async function saveTileSetting(patch) {
+  const before = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+  const norm = typeof normalizeSettings === 'function' ? normalizeSettings : (s) => s;
+  hubSettings = norm({ ...before, ...patch });
+  if (!isLayerPage() && typeof saveHubSettings === 'function') { saveHubSettings(); return true; }
+  try {
+    const r = await fetch(SERVER + '/settings/tile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patch }) });
+    if (r.ok) return true;
+    console.warn('[tile-settings] not saved:', r.status);
+  } catch (e) { console.warn('[tile-settings] not saved:', e && e.message); }
+  hubSettings = before;
+  return false;
+}
+
 // DOM element factory shared by the widget/settings modules, which alias it
 // locally as `el`. utils.js loads before every module script in index.html.
 function makeEl(tag, cls, text) {
@@ -165,7 +204,7 @@ function openSvgPasteDialog() {
     cancel.addEventListener('click', () => finish(''));
     insert.addEventListener('click', () => {
       const uri = svgTextToDataUrl(ta.value);
-      if (!uri) { errEl.textContent = tr('svg_paste_invalid', 'That does not look like valid SVG — it must start with <svg and end with </svg>.'); errEl.hidden = false; return; }
+      if (!uri) { errEl.textContent = tr('svg_paste_invalid', 'That does not look like valid SVG: it must start with <svg and end with </svg>.'); errEl.hidden = false; return; }
       finish(uri);
     });
     document.addEventListener('keydown', onKey, true);

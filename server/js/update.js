@@ -67,7 +67,7 @@
   // exists to be read and pasted by whoever is stuck.
   function applyFailureText(lastResult) {
     const base = lastResult && lastResult.rolledBack === false
-      ? tr('update_failed_not_rolled_back', 'The update failed and automatic recovery also failed — please re-run INSTALL.bat.')
+      ? tr('update_failed_not_rolled_back', 'The update failed and automatic recovery also failed: please re-run INSTALL.bat.')
       : tr('update_failed_rolled_back', 'The update could not be applied and your previous version was restored.');
     const reason = updReasonText(lastResult && lastResult.reason);
     const detail = String((lastResult && lastResult.detail) || '').trim().slice(0, 200);
@@ -533,7 +533,7 @@
     overlay.className = 'upd-overlay';
     const card = document.createElement('div');
     card.className = 'upd-card upd-updating';
-    const sp = XenonLoader.create({ size: 'lg', bar: true });
+    const sp = XenonLoader.create({ size: 'lg' });
     const msg = document.createElement('div');
     msg.className = 'upd-title';
     msg.textContent = tr('update_updating', 'Aggiornamento in corso…');
@@ -886,6 +886,14 @@
   // turns up (the dashboard goes first again), and otherwise looks again every
   // ten minutes.
   let shellCatchUpTimer = null;
+  // "Widgets only" (shell-driver.html): nothing on screen to draw the overlay
+  // on, so the app half runs unseen; the app restarting is the sign, as it is
+  // for the quiet catch-up.
+  const isShellDriver = () => document.documentElement.hasAttribute('data-shell-driver');
+  function shellPhaseView() {
+    if (isShellDriver()) return { setTitle() {}, setSub() {}, fail() {} };
+    return showUpdatingOverlay();
+  }
   function catchUpShell(info) {
     const pending = takeShellPending();
     if (!shellBehind(info) || info.updateAvailable) return;
@@ -902,7 +910,7 @@
     });
     const caps = window.__XENON_NATIVE_CAPS__ || {};
     if (plan === 'now') {
-      runShellPhase(showUpdatingOverlay(), caps, target);
+      runShellPhase(shellPhaseView(), caps, target);
       return;
     }
     if (plan !== 'quiet' || shellCatchUpTimer) return;
@@ -918,7 +926,7 @@
       const tried = readShellTried();
       if (tried === null || tried === target) return;   // tapped meanwhile, or nothing can be remembered
       if (a.safeNow === true && !(a.postponedUntil > 0)) {
-        runShellPhase(showUpdatingOverlay(), caps, target);
+        runShellPhase(shellPhaseView(), caps, target);
         return;
       }
       lookAgain();
@@ -1165,14 +1173,14 @@
         type: 'warning',
         duration: 0,   // sticky: this is the one notice that costs the user their next session
         title: tr('startup_task_off_title', 'Xenon will not start at your next sign-in'),
-        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself — Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
+        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself: Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
       });
     } else if (repaired.length) {
       window.XenonToast.show({
         type: 'info',
         duration: 10000,
         title: tr('startup_task_fixed_title', 'Xenon repaired its own startup entry'),
-        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under — it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
+        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under: it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
       });
     }
   }
@@ -1192,7 +1200,7 @@
             type: 'error',
             duration: 12000,
             title: tr('update_failed_title', 'Aggiornamento non riuscito'),
-            message: tr('update_native_shell_error', 'L’app non è riuscita a completare il proprio aggiornamento. La dashboard è aggiornata — riproverà al prossimo avvio.'),
+            message: tr('update_native_shell_error', 'L’app non è riuscita a completare il proprio aggiornamento. La dashboard è aggiornata: riproverà al prossimo avvio.'),
           });
         }
       }
@@ -1234,6 +1242,12 @@
   }
 
   async function boot() {
+    // Update notices, What's New and the shell catch-up belong to the main
+    // dashboard; a layer window has none of that chrome on screen.
+    if (typeof isLayerPage === 'function' && isLayerPage()) return;
+    // The driver of "widgets only" keeps only the app catching up with its
+    // dashboard; the update card lives in the alerts window (screen-alerts.js).
+    if (isShellDriver()) { catchUpShell(await check(false)); return; }
     const [info, wn] = await Promise.all([check(false), loadWhatsNew()]);
     // Wait for the stored dismissal to be known before deciding anything. The
     // check() above already went to the network, so in practice the local

@@ -14,7 +14,22 @@
   --xt-press-ms: 80ms;
   --xt-veil: color-mix(in srgb, currentColor 8%, transparent);
   --xt-veil-strong: color-mix(in srgb, currentColor 14%, transparent);
+  /* Arrivals and the stack's glide settle on a spring with a ~1.5% overshoot
+     (damping 0.8, the island's own curve in toast-island.js); engines without
+     linear() get an ease-out. */
+  --xt-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  /* How much of the panel colour the card's glass carries. Dense enough that
+     a bright tile behind it tints the card instead of showing through, which
+     on light paper turned the card into a rainbow smear. */
+  --xt-fill: 0.62;
 }
+@supports (transition-timing-function: linear(0, 1)) {
+  .xtoast-stack,
+  .xisland {
+    --xt-settle: linear(0, 0.0206, 0.0734, 0.1469, 0.2322, 0.3226, 0.4131, 0.5002, 0.5813, 0.6552, 0.721, 0.7785, 0.8279, 0.8696, 0.9043, 0.9326, 0.9553, 0.9731, 0.9868, 0.997, 1.0044, 1.0094, 1.0126, 1.0144, 1.0151, 1.015, 1.0144, 1.0134, 1.0121, 1.0108, 1.0094, 1.008, 1.0068, 1.0056, 1.0046, 1.0037, 1.0029, 1.0022, 1.0016, 1.0012, 1);
+  }
+}
+:root[data-appearance="light"] :is(.xtoast-stack, .xisland) { --xt-fill: 0.8; }
 
 .xtoast-stack {
   position: fixed;
@@ -32,7 +47,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: 8px;
   width: min(400px, calc(100vw - 28px));
   pointer-events: none; /* children re-enable; gaps stay click-through */
 }
@@ -45,28 +60,32 @@
   --xt-ink: #fff;
   position: relative;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  /* One line runs through the app tile, the first two lines of text and the
+     close button: the tile and the button are centred on it, and the text
+     starts on it (a single line is centred on the tile instead). */
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: start;
-  gap: 12px;
-  padding: 12px 12px 12px 13px;
-  border-radius: 20px;
+  column-gap: 12px;
+  padding: 12px;
+  /* Concentric with the app tile: 22 = the tile's 10 + the 12 of padding. */
+  border-radius: 22px;
   color: var(--text);
   pointer-events: auto;
   /* The pill's glass, a little denser so two lines of text stay readable over
      busy tiles. */
   border: 1px solid var(--floating-ui-border);
-  background: linear-gradient(rgba(var(--panel-rgb), 0.5) 0 0), var(--floating-ui-bg);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  backdrop-filter: blur(24px) saturate(140%);
+  background: linear-gradient(rgba(var(--panel-rgb), var(--xt-fill)) 0 0), var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(115%);
+  backdrop-filter: blur(28px) saturate(115%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--panel-highlight-alpha)), var(--shadow-lg);
-  /* Enter/exit (toggled by .xtoast-in / .xtoast-out). Drops in from the top with a
-     spring-like overshoot, quicker out. */
+  /* Enter/exit (toggled by .xtoast-in / .xtoast-out). Drops in from the top and
+     settles on the spring; leaves faster than it came, the way it came. */
   opacity: 0;
-  transform: translateY(-16px) scale(0.96);
+  transform: translateY(-14px) scale(0.94);
   transform-origin: top center;
   transition:
-    transform 0.5s cubic-bezier(0.22, 1.15, 0.36, 1),
-    opacity 0.32s ease,
+    transform 0.56s var(--xt-settle),
+    opacity 0.22s ease-out,
     scale 0.32s var(--xt-spring);
   will-change: transform, opacity;
 }
@@ -74,9 +93,13 @@
 .xtoast-in { opacity: 1; transform: none; }
 .xtoast-out {
   opacity: 0;
-  transform: translateY(-10px) scale(0.96);
-  transition: transform 0.28s ease-in, opacity 0.26s ease-in;
+  transform: translateY(-8px) scale(0.96);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1), opacity 0.18s ease-in;
 }
+/* A card leaving the stack (toast.js leaveStack) goes under its neighbours, so
+   the one gliding up into its place covers it instead of showing its text
+   through the glass. */
+.xtoast-leaving { z-index: -1; }
 
 /* A tappable card gives under the finger, not while it is being swiped. It keys
    on .is-held (toast.js, never set from its buttons) because the card captures
@@ -84,7 +107,7 @@
    free. */
 .xtoast-stack > .xtoast-clickable.is-held:not(.is-dragging) {
   scale: 0.985;
-  transition-duration: 0.5s, 0.32s, var(--xt-press-ms);
+  transition-duration: 0.56s, 0.22s, var(--xt-press-ms);
 }
 
 /* ── Notification island (minimal chrome, js/toast-island.js) ─────────────────
@@ -106,7 +129,7 @@
 .xisland-bg {
   position: absolute;
   box-sizing: border-box;
-  border-radius: 20px;
+  border-radius: 22px;
 }
 .xisland-skin {
   position: absolute;
@@ -122,12 +145,25 @@
   backdrop-filter: blur(10px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
 }
+/* A copy of the pill's contents riding the glass home (toast-island.js
+   carryHome): it sits where the real pill sits, faces only, the glass is
+   .xisland-bg. !important because the pill's own rules are written against a
+   long body.* chain, and body.xtoast-island hides every .topbar-mini. */
+.xisland > .xisland-ghost {
+  visibility: visible !important;
+  border-color: transparent !important;
+  background: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  pointer-events: none !important;
+}
 /* The card's look (.xtoast above): the same for every card. */
 .xisland-skin--card {
   border: 1px solid var(--floating-ui-border);
-  background: linear-gradient(rgba(var(--panel-rgb), 0.5) 0 0), var(--floating-ui-bg);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  backdrop-filter: blur(24px) saturate(140%);
+  background: linear-gradient(rgba(var(--panel-rgb), var(--xt-fill)) 0 0), var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(115%);
+  backdrop-filter: blur(28px) saturate(115%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--panel-highlight-alpha)), var(--shadow-lg);
 }
 /* Same spot and anchor as the pill (TopbarMinimal.css): top 9px, centre or a
@@ -164,15 +200,15 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   transition-duration: var(--xt-press-ms);
 }
 
-/* "+N": the notifications waiting behind this one. It shares the right column
-   with the close button; tapping it opens them as a list. */
-.xtoast.has-more { grid-template-rows: auto 1fr; row-gap: 4px; }
-.xtoast.has-more > .xtoast-icon,
-.xtoast.has-more > .xtoast-body { grid-row: 1 / span 2; }
-.xtoast.has-more > .xtoast-close { grid-column: 3; grid-row: 1; }
+/* "+N": the notifications waiting behind this one, on the tile's line just
+   before the close button (under it, a one-line card grew an empty second
+   row); tapping it opens them as a list. */
+.xtoast.has-more { grid-template-columns: 36px minmax(0, 1fr) auto auto; }
+.xtoast.has-more > .xtoast-close { grid-column: 4; grid-row: 1; }
 .xisland-more {
   grid-column: 3;
-  grid-row: 2;
+  grid-row: 1;
+  margin: 3px -6px 0 0;
   min-width: 30px;
   padding: 0 6px;
   color: var(--muted-text);
@@ -223,25 +259,25 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
 .xisland-row .xtoast-icon svg { width: 16px; height: 16px; }
 .xisland-row-text { display: grid; min-width: 0; }
 .xisland-row .xtoast-kicker { font-size: 11.5px; }
-.xisland-row .xtoast-title { margin-top: 0; font-size: 14px; font-weight: 650; }
+.xisland-row .xtoast-title { margin-top: 0; font-size: 14px; font-weight: 650; display: block; white-space: nowrap; text-overflow: ellipsis; }
 .xisland-list-clear { justify-self: end; margin: 6px 4px 2px; }
 
 /* The app tile: a solid square in the source's colour, like an app icon. */
 .xtoast-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   color: var(--xt-ink);
   background: rgb(var(--xt-rgb));
 }
 .xtoast-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.2;
+  stroke-width: 2.1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -254,10 +290,24 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   object-fit: cover;
   border-radius: inherit;
 }
-/* The tile springs into place as the card arrives. */
+/* The tile springs into place as the card arrives, and a success draws its
+   tick once the tile has landed: the one moment that says "done". */
 .xtoast-in > .xtoast-icon { animation: xtoast-pop 0.42s var(--xt-spring) 0.08s backwards; }
+.xtoast-in > .xtoast-icon .xtoast-tick {
+  stroke-dasharray: 1;
+  animation: xtoast-draw 0.34s cubic-bezier(0.3, 0, 0.2, 1) 0.24s backwards;
+}
 
-.xtoast-body { min-width: 0; align-self: center; }
+/* At least the tile's height, text centred in it: a lone title sits on the
+   tile's centre, a kicker and title pair fills it, anything longer starts at
+   its top and runs on below. */
+.xtoast-body {
+  min-width: 0;
+  min-height: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
 .xtoast-kicker {
   color: var(--muted-text);
@@ -269,14 +319,18 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   text-overflow: ellipsis;
 }
 
+/* Two lines before it is cut: a reminder's title is the reminder. */
 .xtoast-title {
   margin-top: 1px;
   font-size: 15px;
   line-height: 1.25;
-  font-weight: 700;
-  white-space: nowrap;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .xtoast-msg {
@@ -286,6 +340,8 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   font-weight: 500;
   line-height: 1.38;
   font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -301,7 +357,7 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   margin-top: 10px;
 }
 .xtoast-action {
-  min-height: 36px;
+  min-height: 38px;
   padding: 0 14px;
   border: 0;
   border-radius: 10px;
@@ -333,12 +389,16 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   place-items: center;
   transition: background 0.15s ease, color 0.15s ease, transform 0.32s var(--xt-spring);
 }
+/* Centred on the app tile: (36 - 30) / 2. */
 .xtoast-close {
   width: 30px;
+  margin-top: 3px;
   color: var(--muted-text);
 }
 .xtoast-close::after,
 .xisland-more::after { content: ""; position: absolute; inset: -7px; }
+/* The chip's target stops at its own edge so it never covers the close button's. */
+.xisland-more::after { right: 0; }
 .xtoast-close:hover,
 .xisland-more:hover { background: var(--xt-veil); color: var(--text); }
 .xtoast-x { display: grid; }
@@ -399,11 +459,13 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
 
 @keyframes xtoast-ring { to { stroke-dashoffset: -100; } }
 @keyframes xtoast-pop { from { scale: 0.8; } }
+@keyframes xtoast-draw { from { stroke-dashoffset: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   .xtoast { transition: opacity 0.2s ease; transform: none; }
   .xtoast-in, .xtoast-out { transform: none; }
-  .xtoast-in > .xtoast-icon { animation: none; }
+  .xtoast-in > .xtoast-icon,
+  .xtoast-in > .xtoast-icon .xtoast-tick { animation: none; }
   /* Presses still show, without the travel or the bounce. */
   .xisland-bg,
   .xisland-slot,
