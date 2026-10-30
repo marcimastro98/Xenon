@@ -10,7 +10,11 @@ mod edge_swipe;
 mod focus_guard;
 #[cfg(windows)]
 mod gpu;
+mod layers;
+mod memory_level;
 mod monitor;
+#[cfg(desktop)]
+mod page_load;
 mod prefs;
 mod spotlight_window;
 mod tray;
@@ -632,9 +636,7 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
             // for them) and turning it back on is a decision, not a repair we
             // make behind their back. Tell the splash, which offers the switch.
             if !backend_answers_once(port) {
-                if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.eval("try{window.__XENON_TASK_DISABLED__=true;}catch(e){}");
-                }
+                tell_splash(&handle, "try{window.__XENON_TASK_DISABLED__=true;}catch(e){}");
             }
             return;
         }
@@ -646,21 +648,84 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
             // Someone running `node server/server.js` by hand answers it and is
             // left alone.
             if !backend_answers_once(port) {
-                // Best-effort, like every other push into the page: the splash
-                // may still be loading, in which case its own timer covers us.
-                if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.eval("try{window.__XENON_BACKEND_ABSENT__=true;}catch(e){}");
-                }
+                tell_splash(&handle, "try{window.__XENON_BACKEND_ABSENT__=true;}catch(e){}");
             }
             return; // no task to nudge
         }
-        if backend_answers(port) {
+        // Installed and switched on. The splash must know this before its own
+        // timer runs out: without it, an engine that is merely slow (or failed
+        // to start) was shown as "Xenon isn't finished installing", whose setup
+        // then answered "already installed, restart your PC" — round and round
+        // (reported on Discord, Oct 2026). Its own thread, because the probe
+        // below takes up to a minute and the splash needs this now.
+        {
+            let h = handle.clone();
+            std::thread::spawn(move || {
+                tell_splash(&h, "try{window.__XENON_BACKEND_INSTALLED__=true;}catch(e){}");
+            });
+        }
+        // At sign-in the logon task is starting the engine at this very moment,
+        // and a cold boot can keep node from listening for well over the usual
+        // 16s. `/Run` then re-runs start-hidden.vbs, which stops whatever has
+        // just started listening and starts a second node — a slower start, not
+        // a faster one. So the app's own sign-in launch waits longer first.
+        let autostarted = std::env::args().any(|a| a == "--autostart");
+        let tries = if autostarted { LOGON_PROBE_TRIES } else { PROBE_TRIES };
+        if backend_answers_within(port, tries) {
             return; // backend is up — nothing to heal
         }
         let _ = std::process::Command::new("schtasks")
             .args(["/Run", "/TN", BACKEND_TASK])
             .creation_flags(CREATE_NO_WINDOW)
             .status();
+    });
+}
+
+/// How many times a flag is pushed into the splash, and how far apart. An eval
+/// sent before the page has loaded is simply lost, and these flags decide which
+/// panel the user sees; a lost one used to leave the splash on its timer alone.
+/// Re-sending is harmless: each one only sets a property the page reads.
+#[cfg(windows)]
+const SPLASH_TELL_TIMES: u32 = 10;
+#[cfg(windows)]
+const SPLASH_TELL_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
+
+#[cfg(windows)]
+fn tell_splash(handle: &tauri::AppHandle, js: &str) {
+    for _ in 0..SPLASH_TELL_TIMES {
+        if let Some(win) = handle.get_webview_window("main") {
+            let _ = win.eval(js);
+        }
+        std::thread::sleep(SPLASH_TELL_EVERY);
+    }
+}
+
+/// The splash's "Start Xenon" button, routed through `xenon-setup:start`: the
+/// engine is installed and its task is on, it is just not running. Never fired
+/// at an engine that answers, because start-hidden.vbs stops whatever listens
+/// on the port before it starts node.
+#[cfg(windows)]
+fn start_backend_task(app: &tauri::AppHandle, port: u16) {
+    let handle = app.clone();
+    // Off the WebView UI thread: called from the navigation hook, which runs on
+    // it, and the probe plus process creation block.
+    std::thread::spawn(move || {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        if backend_answers_once(port) {
+            return;
+        }
+        let started = std::process::Command::new("schtasks")
+            .args(["/Run", "/TN", BACKEND_TASK])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !started {
+            if let Some(win) = handle.get_webview_window("main") {
+                let _ = win.eval("try{window.__XENON_START_FAILED__=true;}catch(e){}");
+            }
+        }
     });
 }
 
@@ -1289,12 +1354,28 @@ fn backend_answers_once(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
 }
 
-/// True once the local backend accepts a connection. Polls for ~8–16s so a
+/// Probe rounds before healing a backend that does not answer: ~8–16s, so a
 /// normally-starting backend is never interfered with.
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+const PROBE_TRIES: u32 = 4;
+/// The same when the app itself was launched at sign-in, where the logon task
+/// is starting the engine alongside it and a cold boot is slow: ~25–50s.
+#[cfg(windows)]
+const LOGON_PROBE_TRIES: u32 = 12;
+
+/// True once the local backend accepts a connection, polling for the usual
+/// ~8–16s.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn backend_answers(port: u16) -> bool {
+    backend_answers_within(port, PROBE_TRIES)
+}
+
+/// True once the local backend accepts a connection within `tries` probe rounds
+/// (one connection attempt of up to 2s, then a 2s pause).
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+fn backend_answers_within(port: u16, tries: u32) -> bool {
     use std::time::Duration;
-    for _ in 0..4 {
+    for _ in 0..tries {
         if backend_answers_once(port) {
             return true;
         }
@@ -1564,10 +1645,32 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 use std::sync::atomic::Ordering;
+                // A cancelled `xenon-app:` signal also ends in a page-load event
+                // (src/page_load.rs): none of the work below is for it.
+                let started = matches!(_payload.event(), tauri::webview::PageLoadEvent::Started);
                 let is_dashboard = matches!(
                     _payload.url().host_str(),
                     Some("127.0.0.1") | Some("localhost")
-                );
+                ) && page_load::real(_webview.label(), started);
+                // "Widgets only" (server/js/usage-mode.js): the server sends the
+                // main window to the driver page instead of the dashboard. The
+                // URL alone says which one loaded, so the window hides before the
+                // driver paints and comes back when the dashboard loads. Only the
+                // main webview's loads count: this hook also fires for every
+                // widget-layer window, whose page is `/` too.
+                if is_dashboard && _webview.label() == "main" {
+                    if let Some(win) = _webview.app_handle().get_webview_window("main") {
+                        if monitor::set_driver(&win, _payload.url().path() == monitor::DRIVER_PATH) {
+                            let app = _webview.app_handle().clone();
+                            std::thread::spawn(move || layers::driver_left(&app));
+                        }
+                        // A window that starts hidden (phone mode, a login
+                        // start) never passed through `hide_window`.
+                        if !win.is_visible().unwrap_or(true) {
+                            memory_level::set_low(&win, true);
+                        }
+                    }
+                }
                 if is_dashboard && !UPDATE_CHECK_STARTED.swap(true, Ordering::SeqCst) {
                     spawn_update_check(_webview.app_handle().clone());
                 }
@@ -1640,7 +1743,10 @@ pub fn run() {
             // A user who double-clicks Xenon must always SEE it, even in phone
             // mode: an app that opens and shows nothing reads as broken.
             let autostarted = std::env::args().any(|a| a == "--autostart");
-            let start_hidden = !display_prefs.shows_on_this_pc() && autostarted;
+            // "Widgets only" last time: a login start shows no splash either.
+            monitor::seed_driver(&display_prefs);
+            let start_hidden =
+                (!display_prefs.shows_on_this_pc() || display_prefs.widgets_only) && autostarted;
             // A deliberate launch in phone mode must SHOW the window: nothing is
             // written, so the next login is hidden again as chosen. Without this
             // the window is built visible and then hidden a moment later by
@@ -1659,6 +1765,13 @@ pub fn run() {
             // `displays` is a snapshot: the window does not exist yet at this
             // point, so `display.active` is deliberately absent here and arrives
             // with the first push (on page load, on placement, on replug).
+            //
+            // Linux draws layers only on X11 with a compositor (layers/linux.rs);
+            // `layersWhy` tells the dashboard what is missing, so it can say so.
+            #[cfg(target_os = "linux")]
+            let layers_why = layers::linux::probe();
+            #[cfg(not(target_os = "linux"))]
+            let layers_why: Option<&str> = None;
             let caps_js = format!(
                 "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
                 serde_json::json!({
@@ -1688,6 +1801,35 @@ pub fn run() {
                     // comes with the push.
                     "displays": monitor::display_list_json(app.handle()),
                     "phoneMode": !display_prefs.shows_on_this_pc(),
+                    // Widget layers on the desktop and in the overlay
+                    // (xenon-app:layers-sync): Windows, macOS and Linux on X11.
+                    // Anchoring to an app is Windows only (`draws` per backend).
+                    "layers": layers_why.is_none(),
+                    "layersWhy": layers_why,
+                    // Xenon AI's edge glow on other screens (xenon-app:ai-glow):
+                    // native windows wherever layer windows can be drawn, so
+                    // on Linux not on GNOME Wayland or X11 without a compositor.
+                    "aiGlow": layers_why.is_none(),
+                    // The Ambient scene as animated wallpaper and screensaver
+                    // (layers/scene.rs), in the same layers-sync, where layer
+                    // windows can be drawn at all.
+                    "scene": layers_why.is_none() && layers::draws_scene(),
+                    // "Draw on screen" as a layer window (draw.html, the
+                    // `draw:` surface) where the capture engine has no sheet.
+                    "draw": layers_why.is_none() && layers::draws_sheet(),
+                    // The Xenon menu over the main screen (menu.html, the
+                    // `menu:` surface) and its global shortcut.
+                    "menu": layers_why.is_none() && layers::draws_menu(),
+                    // A widget that follows one app's window (`anchor:` surfaces).
+                    "anchor": layers_why.is_none() && layers::draws_anchor(),
+                    // It says which virtual desktop is shown (layers/desks.rs).
+                    "desks": layers_why.is_none() && layers::desks::supported(),
+                    // Holding View + Menu on a controller opens the Xenon menu
+                    // (layers/pad.rs).
+                    "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),
+                    // Linux stacks the wallpaper under the windows, not behind
+                    // the icons a desktop may draw (layers/linux.rs).
+                    "wallpaperBehindIcons": !cfg!(target_os = "linux"),
                 })
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
@@ -1832,6 +1974,21 @@ pub fn run() {
                             // sign-in page in this profile, so the player embed
                             // in the dashboard reads the session (twitch_login.rs).
                             // A plain thread for the same reason as above.
+                            // The dashboard's widget placements changed (or it just
+                            // loaded): open, move and close the layer windows to
+                            // match (layers/mod.rs). A plain thread, like above.
+                            "layers-sync" => {
+                                let h = nav_handle.clone();
+                                let u = url.clone();
+                                std::thread::spawn(move || layers::sync(&h, &u));
+                            }
+                            // Xenon AI's voice state changed: light or dim the
+                            // edges of the other screens (layers/glow.rs).
+                            "ai-glow" => {
+                                let h = nav_handle.clone();
+                                let u = url.clone();
+                                std::thread::spawn(move || layers::glow(&h, &u));
+                            }
                             #[cfg(windows)]
                             "twitch-login" => {
                                 let h = nav_handle.clone();
@@ -1850,11 +2007,16 @@ pub fn run() {
                     if scheme == "xenon-setup" {
                         #[cfg(windows)]
                         match url.path() {
+                            // Also the "Repair Xenon" button: the same script
+                            // starts an installed engine first and reinstalls
+                            // it only when it still does not start.
                             "run" => run_backend_bootstrap(&nav_handle),
                             // The other half of the same panel: the engine IS
                             // installed here, its startup task is simply
                             // switched off (see spawn_backend_nudge).
                             "enable-task" => repair_startup_task(&nav_handle),
+                            // Installed and switched on, just not running.
+                            "start" => start_backend_task(&nav_handle, port),
                             _ => {}
                         }
                         return false;
@@ -2084,9 +2246,12 @@ pub fn run() {
             #[cfg(windows)]
             {
                 focus_guard::start(&window);
-                window.on_window_event(|event| {
+                let focused = window.clone();
+                window.on_window_event(move |event| {
                     if let tauri::WindowEvent::Focused(true) = event {
                         focus_guard::on_focused();
+                        // Safety net for a show that bypassed `monitor::show_window`.
+                        memory_level::set_low(&focused, false);
                     }
                 });
             }

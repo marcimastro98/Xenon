@@ -26,70 +26,69 @@
   * { box-sizing: border-box; }
   html, body {
     margin: 0; height: 100%; overflow: hidden;
-    background: #070808; color: #f0f3f1;
-    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    /* The dashboard's own boot ground (BootSplash.css), so the hand-over to it
+       does not flash. */
+    background: #06080a; color: #ededed;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     -webkit-user-select: none; user-select: none; cursor: default;
   }
+  /* Bit sits where the dashboard's splash draws it (the middle of the window),
+     and the words hang below. The two 1fr rows keep Bit centred; when the text
+     needs more room than half the window, the top row gives it up first, and
+     past that the page scrolls from the top, so nothing is ever cut off. */
   .wrap {
-    height: 100%; display: flex; flex-direction: column;
-    align-items: center; gap: 28px;
-    /* The setup offer below makes this page tall enough to overflow a small
-       non-Edge window, where the kiosk opens as an ordinary resizable one.
-       `safe center` and not plain `center`: an overflowing centred flex column
-       spills past its START edge, which no scrollbar can reach — the wordmark
-       and the spinner would be cropped away with no way to scroll back up.
-       `safe` falls back to flex-start exactly when that would happen. */
-    justify-content: safe center;
-    padding: 24px; overflow-y: auto;
-    background:
-      radial-gradient(1200px 480px at 50% -10%, rgba(30,215,96,0.10), transparent 60%),
-      radial-gradient(900px 400px at 50% 120%, rgba(30,215,96,0.06), transparent 60%);
+    height: 100%; overflow-y: auto; padding: 24px 16px;
+    display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center;
   }
-  .mark {
-    font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: 0.08em;
-    text-transform: uppercase;
+  /* Bit recharging, the same picture as the dashboard's boot splash (made by
+     tools/brand/build.mjs), at the same size: 5 screen pixels per Bit pixel, 7
+     on big windows. It stands still without motion, and while the page waits
+     for a click rather than for Xenon. */
+  .bit {
+    grid-row: 2; width: 100px; aspect-ratio: 20 / 19;
+    background: url("bit-recharge.svg") center / contain no-repeat;
+    image-rendering: pixelated;
   }
-  .mark span { color: #1ed760; }
-  .ring {
-    width: 46px; height: 46px; border-radius: 50%;
-    border: 3px solid rgba(255,255,255,0.14);
-    border-top-color: #1ed760;
-    animation: spin 0.9s linear infinite;
+  .wrap.is-asking .bit { background-image: url("bit-recharge-still.svg"); }
+  @media (min-width: 900px) and (min-height: 600px) { .bit { width: 140px; } }
+  @media (prefers-reduced-motion: reduce) { .bit { background-image: url("bit-recharge-still.svg"); } }
+  .words {
+    grid-row: 3; align-self: start; width: min(100%, 46ch);
+    display: flex; flex-direction: column; gap: 8px; padding-top: 20px;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .status { font-size: 14px; color: rgba(240,243,241,0.62); min-height: 1.2em; }
-  .hint { font-size: 12px; color: rgba(240,243,241,0.34); max-width: 44ch; text-align: center; line-height: 1.5; }
-  @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
-  /* The first-run setup offer — hidden until the probe has given up on
-     finding a backend (see the setup handover in the script below). */
-  .setup { display: none; flex-direction: column; align-items: center; gap: 14px; max-width: 52ch; }
+  .status { font-size: 14px; color: #bdbdbd; text-align: center; min-height: 1.4em; margin: 0; }
+  .hint { font-size: 13px; color: #bdbdbd; line-height: 1.5; margin: 0; }
+  .status:empty, .hint:empty, .setup-note:empty { display: none; }
+  /* The first-run offer, hidden until the probe gives up on finding Xenon (see
+     the setup handover in the script below). Left-aligned: it is a paragraph
+     to read, and centred lines make the eye hunt for each start. */
+  .setup { display: none; flex-direction: column; align-items: flex-start; gap: 10px; }
   .setup.show { display: flex; }
-  .setup-title { font-size: 15px; font-weight: 600; color: rgba(240,243,241,0.86); }
-  .setup-body { font-size: 12px; color: rgba(240,243,241,0.42); text-align: center; line-height: 1.6; }
+  .setup-title { font-size: 17px; font-weight: 600; margin: 0; }
+  .setup-body, .setup-note { font-size: 14px; color: #bdbdbd; line-height: 1.5; margin: 0; }
+  .setup-note { font-size: 13px; }
   .setup-btn {
-    font: inherit; font-size: 14px; font-weight: 600; color: #070808;
-    background: #1ed760; border: 0; border-radius: 999px;
-    padding: 11px 26px; cursor: pointer;
+    font: inherit; font-size: 14px; font-weight: 600; color: #0b2412;
+    background: #6ee787; border: 0; border-radius: 6px;
+    min-height: 44px; padding: 0 20px; margin: 6px 0 2px; cursor: pointer;
   }
-  .setup-btn:hover { background: #29e06b; }
-  .setup-btn:disabled { background: rgba(240,243,241,0.16); color: rgba(240,243,241,0.5); cursor: default; }
+  .setup-btn:hover { background: #8bf0a0; }
+  .setup-btn:focus-visible { outline: 2px solid #ededed; outline-offset: 2px; }
+  .setup-btn:disabled { background: #2c2c2c; color: #a6a6a6; cursor: default; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="mark">XEN<span>O</span>N</div>
-    <div class="ring" aria-hidden="true"></div>
-    <div class="status" id="status">Starting…</div>
-    <div class="hint" id="hint"></div>
-    <div class="setup" id="setup">
-      <div class="setup-title" id="setup-title">Xenon isn't finished installing</div>
-      <div class="setup-body" id="setup-body">
-        This app is the screen; the Xenon dashboard engine that draws it isn't on this PC yet.
-        Setting it up takes a few minutes and only happens once — a window will open and show
-        you the progress. Already installed and just booting? Give it a few more seconds; this
-        screen continues on its own.
+  <div class="wrap" id="wrap">
+    <div class="bit" aria-hidden="true"></div>
+    <div class="words">
+      <p class="status" id="status" role="status">Starting Xenon…</p>
+      <p class="hint" id="hint"></p>
+      <div class="setup" id="setup">
+        <h1 class="setup-title" id="setup-title">Xenon isn't finished installing</h1>
+        <p class="setup-body" id="setup-body">One part of Xenon is still missing on this PC. Setup installs it in a few minutes and shows each step in its own window. You only do this once.</p>
+        <button class="setup-btn" id="setup-btn" type="button">Complete setup</button>
+        <p class="setup-note" id="setup-note">Already installed? Wait a few seconds: the dashboard opens here by itself when Xenon starts.</p>
       </div>
-      <button class="setup-btn" id="setup-btn" type="button">Complete setup</button>
     </div>
   </div>
 
@@ -97,7 +96,9 @@
     'use strict';
     // The local backend service. Kept in sync with server.js / @xenon/core.
     var port = window.__XENON_PORT__ || 3030;
-    var DASHBOARD = 'http://127.0.0.1:' + port + '/';
+    // `shell=main` marks the app's own window: in "widgets only" mode the server
+    // sends it to the small driver page instead (server/js/usage-mode.js).
+    var DASHBOARD = 'http://127.0.0.1:' + port + '/?shell=main';
     var PING = 'http://127.0.0.1:' + port + '/ping';
 
     var statusEl = document.getElementById('status');
@@ -106,7 +107,13 @@
     var setupTitleEl = document.getElementById('setup-title');
     var setupBodyEl = document.getElementById('setup-body');
     var setupBtn = document.getElementById('setup-btn');
+    var setupNoteEl = document.getElementById('setup-note');
+    var wrapEl = document.getElementById('wrap');
     var okStreak = 0;
+
+    // Bit recharges while Xenon is on its way, and stands still while the page
+    // waits for a click: an animation there would claim work that is not happening.
+    function asking(on) { wrapEl.classList.toggle('is-asking', on); }
     var done = false;
 
     // Everything below is timed off the WALL CLOCK, never off a probe counter.
@@ -150,22 +157,71 @@
     // bootstrap that answers "already installed, nothing to do" — a dead end you
     // could sit in forever (reported on Discord, Aug 2026). The shell now reads
     // the task's XML and says so; the panel below offers the switch instead.
-    var panelMode = ''; // '' | 'install' | 'enable'
+    var panelMode = ''; // '' | 'install' | 'enable' | 'start' | 'repair'
     function taskDisabled() { return window.__XENON_TASK_DISABLED__ === true; }
 
-    function offerEnable() {
-      if (done || panelMode === 'enable') return;
-      panelMode = 'enable';
-      setupTitleEl.textContent = 'Xenon’s startup is switched off';
-      setupBodyEl.textContent =
-        'The Xenon dashboard engine is installed on this PC, but the task that starts it when ' +
-        'you sign in is turned off, so nothing is running. Switching it back on takes a second, ' +
-        'and it starts on its own from then on.';
-      setupBtn.textContent = 'Turn it back on';
+    // The FOURTH state, and the one that sent people round in circles: the
+    // engine is installed and its task is on, but nothing answers (a slow cold
+    // boot, or an engine that fails to start). This page used to fall through
+    // to the install panel after 20 s; its setup found everything in place and
+    // said "already installed, restart your PC", and the restart led straight
+    // back here (reported on Discord, Oct 2026). The shell says when the task is
+    // registered and on; from then on this page never talks about installing.
+    // It waits longer, offers to start Xenon, and only when a start still
+    // produces nothing offers the repair, which shows the reason and reinstalls
+    // the engine with the user's data kept.
+    var START_AFTER_MS = 25000; // a cold boot can keep the engine quiet this long
+    var START_REARM_MS = 30000; // after "Start Xenon" with still no answer
+    var startClickedAt = 0;
+    function backendInstalled() { return window.__XENON_BACKEND_INSTALLED__ === true; }
+    function startFailed() { return window.__XENON_START_FAILED__ === true; }
+
+    function showPanel(mode, title, body, note, button) {
+      panelMode = mode;
+      setupTitleEl.textContent = title;
+      setupBodyEl.textContent = body;
+      setupNoteEl.textContent = note;
+      setupBtn.textContent = button;
       setupBtn.disabled = false;
       setupEl.classList.add('show');
       hintEl.textContent = '';
-      statusEl.textContent = 'One more step';
+      statusEl.textContent = '';
+      asking(true);
+    }
+
+    function offerStart() {
+      // Replaces an install panel nobody has acted on yet: that one was shown
+      // before the shell's answer arrived, and it is the wrong one.
+      if (done || (panelMode !== '' && !(panelMode === 'install' && !setupClickedAt))) return;
+      showPanel('start', 'Xenon has not started yet',
+        'Xenon is installed on this PC, but it is not running. Start it now.',
+        'Just turned the PC on? Xenon can need up to a minute; the dashboard opens here by itself.',
+        'Start Xenon');
+    }
+
+    function offerRepair() {
+      if (done || panelMode !== 'start') return;
+      if (!canSetup) {
+        // A build without the bootstrap (tauri dev) has no repair to offer:
+        // give the start back rather than leave a dead button.
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Try again';
+        setupBodyEl.textContent = 'Xenon has still not started. The reason is in %LOCALAPPDATA%\\Xenon\\server.log.';
+        asking(true);
+        return;
+      }
+      showPanel('repair', 'Xenon did not start',
+        'Xenon is installed, but it does not start. Repair shows why, starts it again and, if that is ' +
+        'not enough, installs it again. Your settings, layouts and notes are kept.',
+        '', 'Repair Xenon');
+    }
+
+    function offerEnable() {
+      if (done || panelMode === 'enable') return;
+      showPanel('enable', 'Xenon is set not to start',
+        'Xenon is installed, but its start at sign-in is turned off, so it is not running. ' +
+        'Turn it on and Xenon starts now, and every time you sign in.',
+        '', 'Turn on');
     }
 
     // Windows can refuse the switch when the task was registered at the highest
@@ -178,9 +234,9 @@
       setupBtn.disabled = false;
       setupBtn.textContent = 'Try again';
       setupBodyEl.textContent =
-        'Windows would not let us switch it back on from here, which usually means it needs an ' +
-        'administrator. You can do it by hand: press Ctrl+Shift+Esc for Task Manager, open ' +
-        '"Startup apps", find Xenon in the list and set it to Enabled.';
+        'Windows needs an administrator to turn it on. You can do it yourself: press ' +
+        'Ctrl+Shift+Esc, open Startup apps, find Xenon and set it to Enabled.';
+      asking(true);
     }
 
     function offerSetup() {
@@ -192,7 +248,8 @@
       // not installed is the page arguing with itself. The panel owns the
       // message from here; the probe keeps running underneath and still takes
       // over on its own if the backend turns up.
-      statusEl.textContent = 'One more step';
+      statusEl.textContent = '';
+      asking(true);
     }
 
     /** True once the panel owns the copy — the timed messages stand down. */
@@ -201,20 +258,37 @@
     setupBtn.addEventListener('click', function () {
       setupClickedAt = Date.now();
       setupBtn.disabled = true;
+      setupNoteEl.textContent = '';
+      asking(false);
       if (panelMode === 'enable') {
         saidEnableFailed = false; // a retry gets to report its own failure
-        setupBtn.textContent = 'Turning it on…';
-        setupBodyEl.textContent =
-          'Switching the startup back on and starting Xenon. This screen takes over by itself ' +
-          'as soon as the dashboard is up.';
+        setupBtn.textContent = 'Turning on…';
+        setupBodyEl.textContent = 'Starting Xenon. The dashboard opens here when it is ready.';
         // Not a navigation: the shell intercepts this scheme and never loads it.
         window.location.href = 'xenon-setup:enable-task';
         return;
       }
-      setupBtn.textContent = 'Setup started';
+      if (panelMode === 'start') {
+        startClickedAt = Date.now();
+        window.__XENON_START_FAILED__ = false; // a retry reports its own outcome
+        setupBtn.textContent = 'Starting…';
+        setupBodyEl.textContent = 'Starting Xenon. The dashboard opens here when it is ready.';
+        setupNoteEl.textContent = '';
+        window.location.href = 'xenon-setup:start';
+        return;
+      }
+      if (panelMode === 'repair') {
+        setupBtn.textContent = 'Repair is running';
+        setupBodyEl.textContent =
+          'Follow the steps in the window that just opened. The dashboard opens here by itself ' +
+          'as soon as Xenon starts.';
+        window.location.href = 'xenon-setup:run';
+        return;
+      }
+      setupBtn.textContent = 'Setup is running';
       setupBodyEl.textContent =
-        'Setup is running in the window that just opened — follow it there. This screen ' +
-        'takes over by itself as soon as the dashboard is up.';
+        'Follow the steps in the window that just opened. When setup ends, the dashboard ' +
+        'opens here by itself.';
       // Not a navigation: the shell intercepts this scheme and never loads it.
       window.location.href = 'xenon-setup:run';
     });
@@ -226,30 +300,45 @@
     // shell allows a fresh run once its console is gone (see BOOTSTRAP_CHILD).
     function rearmSetup() {
       if (setupBtn.disabled === false) return;
+      // A start that produced nothing moves on to the repair (offerRepair).
+      if (panelMode === 'start') return;
       if (panelMode === 'enable') {
         // The switch went in and still nothing answers: the task is on now, so
         // what is left is starting it, and a restart is the reliable way there.
         setupBtn.disabled = false;
         setupBtn.textContent = 'Try again';
         setupBodyEl.textContent =
-          'The startup is switched back on, but nothing is answering yet. Restarting the PC ' +
-          'usually finishes the job, since Xenon starts when you sign in.';
+          'Xenon will now start when you sign in, but it has not started yet. Restart the PC ' +
+          'and it opens here.';
+        asking(true);
+        return;
+      }
+      if (panelMode === 'repair') {
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Run repair again';
+        setupBodyEl.textContent =
+          'Xenon has still not started. If the repair window said what is wrong, fix that and run ' +
+          'repair again.';
+        setupNoteEl.textContent =
+          'To ask for help, send the files server.log and setup.log from %LOCALAPPDATA%\\Xenon.';
+        asking(true);
         return;
       }
       setupBtn.disabled = false;
-      setupBtn.textContent = 'Try setup again';
+      setupBtn.textContent = 'Run setup again';
       setupBodyEl.textContent =
-        'Still nothing answering. If the setup window never appeared, or it closed saying ' +
-        'Xenon was already installed, the engine is on this PC but not starting — restarting ' +
-        'the PC usually fixes it. Otherwise you can run the setup again. Whatever the setup ' +
-        'did, it wrote it down in %LOCALAPPDATA%\\Xenon\\setup.log — that file is what to ' +
-        'send if you ask for help.';
+        'Xenon has still not started. If the setup window did not open, or it said Xenon is ' +
+        'already installed, restart the PC. Otherwise run setup again.';
+      setupNoteEl.textContent =
+        'To ask for help, send the file %LOCALAPPDATA%\\Xenon\\setup.log: setup writes down ' +
+        'everything it did there.';
+      asking(true);
     }
 
     function go() {
       if (done) return;
       done = true;
-      statusEl.textContent = 'Loading dashboard…';
+      statusEl.textContent = 'Opening the dashboard…';
       // Replace so the splash is not in the webview history.
       window.location.replace(DASHBOARD);
     }
@@ -278,11 +367,11 @@
           // stands down while the panel is up rather than overwriting it.
           if (!saidWaiting && elapsed() >= 3000 && !setupShowing()) {
             saidWaiting = true;
-            statusEl.textContent = 'Waiting for the Xenon service…';
+            statusEl.textContent = 'Waiting for Xenon to start…';
           }
           if (!saidSlow && elapsed() >= 10000 && !setupShowing()) {
             saidSlow = true;
-            hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
+            hintEl.textContent = 'This is taking longer than usual. Xenon is still trying.';
           }
           // The shell knows within a couple of seconds when the task is merely
           // switched off, and that panel is the right one whether or not this
@@ -293,7 +382,15 @@
           // offer it. The shell's logon-task nudge (see lib.rs) has had its shot
           // by now, so silence this long means "not installed", not "slow".
           // offerSetup() is idempotent, so re-entering here costs nothing.
-          if (canSetup && (backendAbsent() || elapsed() >= SETUP_AFTER_MS)) offerSetup();
+          // Installed and switched on: never the install panel (see offerStart).
+          if (backendInstalled()) {
+            if (elapsed() >= START_AFTER_MS) offerStart();
+            if (startClickedAt && (startFailed() || Date.now() - startClickedAt >= START_REARM_MS)) {
+              offerRepair();
+            }
+          } else if (canSetup && (backendAbsent() || elapsed() >= SETUP_AFTER_MS)) {
+            offerSetup();
+          }
           // Setup was started and the backend still isn't there — hand the
           // button back rather than leave a dead one on screen.
           if (setupClickedAt && Date.now() - setupClickedAt >= SETUP_REARM_MS) {
@@ -315,7 +412,8 @@
             var installer = /Mac/i.test(navigator.platform || '') ? 'INSTALL.command'
               : /Win/i.test(navigator.platform || '') ? 'INSTALL.bat'
               : 'INSTALL.sh';
-            hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with ' + installer + ' from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
+            hintEl.textContent = 'Xenon has not started after a minute. Restart the PC, or install it again with ' +
+              installer + ' from github.com/marcimastro98/Xenon. The dashboard opens here as soon as Xenon starts.';
           }
           setTimeout(probe, 500);
         });

@@ -15,6 +15,9 @@ use tauri::{
 use crate::prefs::Placement;
 use crate::{monitor, prefs};
 
+/// Opens the Xenon menu the way its shortcut does (POST /screen-menu).
+pub(crate) const OPEN_MENU_JS: &str = "try{fetch('/screen-menu',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"open\":true}'}).catch(function(){})}catch(e){}";
+
 pub fn build(app: &App) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Show Xenon", true, None::<&str>)?;
     let hide = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
@@ -25,6 +28,11 @@ pub fn build(app: &App) -> tauri::Result<()> {
     // kind of instruction that gets a report abandoned instead of answered.
     let crash_log = MenuItem::with_id(app, "crash-log", "Open crash log", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
+    // The Xenon menu over the screen (screen-menu.js), for when its shortcut is
+    // forgotten. Only where the shell can draw it.
+    let xenon_menu = crate::layers::draws_menu()
+        .then(|| MenuItem::with_id(app, "xenon-menu", "Open Xenon menu", true, None::<&str>))
+        .transpose()?;
 
     let window = app.get_webview_window("main");
     let saved = prefs::load(app.handle());
@@ -118,6 +126,9 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let menu = Menu::new(app)?;
     menu.append(&show)?;
     menu.append(&hide)?;
+    if let Some(item) = &xenon_menu {
+        menu.append(item)?;
+    }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&fullscreen)?;
     if displays_now.len() > 1 {
@@ -160,7 +171,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 "show" => monitor::show_now(app),
                 "hide" => {
                     if let Some(w) = app.get_webview_window("main") {
-                        let _ = w.hide();
+                        monitor::hide_window(&w);
                     }
                 }
                 "fullscreen" => {
@@ -221,6 +232,13 @@ pub fn build(app: &App) -> tauri::Result<()> {
                     app.restart()
                 }
                 "quit" => app.exit(0),
+                // Asked of the server, which owns whether the menu is open: the
+                // page in the main window (dashboard or driver) is on its origin.
+                "xenon-menu" => {
+                    if let Some(w) = app.get_webview_window("main") {
+                        let _ = w.eval(OPEN_MENU_JS);
+                    }
+                }
                 other => {
                     if let Some(name) = other.strip_prefix("mon:") {
                         monitor::move_to_named_monitor(app, name);

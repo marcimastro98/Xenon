@@ -53,6 +53,7 @@ pub fn open(app: &AppHandle) {
         let _ = win.eval(&format!(
             "if (!document.querySelector('.spotlight')) location.replace('{URL}');"
         ));
+        crate::memory_level::set_low(&win, false);
         let _ = win.show();
         // Re-assert on every open: cheap, and it survives anything that
         // dropped the topmost bit while the window was hidden.
@@ -123,6 +124,8 @@ pub fn open(app: &AppHandle) {
 fn hide(app: &AppHandle) {
     if let Some(win) = app.get_webview_window(LABEL) {
         let _ = win.hide();
+        // Hidden between searches, often for hours: give its memory back.
+        crate::memory_level::set_low(&win, true);
         // Back to the compact pill so the NEXT open never flashes tall.
         let _ = win.set_size(LogicalSize::new(W, H_COMPACT));
     }
