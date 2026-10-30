@@ -18,6 +18,7 @@
   const HOST_RE = /^[a-z0-9.-]{1,253}$/;
   const VERSION_RE = /^[0-9A-Za-z._-]{1,20}$/;
   const CATEGORIES = ['productivity', 'media', 'system', 'streaming'];
+  const TILE_SIZES = ['small', 'medium', 'wide', 'tall', 'large'];
   const HEAD = '<!doctype html><html><head>';
   const HTML_MAX = 4 * 1024 * 1024;
 
@@ -48,11 +49,12 @@
       storage: m.storage === true, storageGroup: '', secrets: false,
       surface, background: false,
       island: false, islandDynamic: false, islandFull: false,
-      badge: false, badgeAction: false, mini: false, topbarButton: false, clipboard: false, accent: false,
-      expand: false,
+      badge: false, badgeAction: false, mini: false, topbarButton: false, clipboard: false,
+      ai: m.ai === true, accent: false, expand: false,
       shape: surface === 'tile' && DI ? DI.normalizeTileShape(m.shape) : null,
       icon: DI ? DI.normalizeWidgetIcon(m.icon) : null,
       category: CATEGORIES.includes(m.category) ? m.category : null,
+      size: surface === 'tile' && TILE_SIZES.includes(m.size) ? m.size : null,
       entry: 'index.html',
       streams: list(m.streams, LIST_ITEM_RE), actions: list(m.actions, LIST_ITEM_RE),
       hosts: list(m.hosts, HOST_RE).slice(0, 8),
@@ -99,7 +101,8 @@
       streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: pkg.hosts.slice(), userHosts: {},
       hooks: [], handlers: [], storage: pkg.storage === true, secrets: false,
       island: false, islandDynamic: false, islandFull: false, badge: false, badgeAction: false,
-      mini: false, topbarButton: false, clipboard: false, accent: false, expand: false,
+      // The demo has no AI of the user to ask: a widget that asks gets not_allowed.
+      mini: false, topbarButton: false, clipboard: false, ai: false, accent: false, expand: false,
     };
   }
 
