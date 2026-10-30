@@ -14,7 +14,6 @@ const readFileSync = (p, enc) => { const s = readFileSyncRaw(p, enc); return typ
 const APPEAL = readFileSync(new URL('../js/support-appeal.js', import.meta.url), 'utf8');
 const GOAL = readFileSync(new URL('../js/support-goal.js', import.meta.url), 'utf8');
 const SETTINGS = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
-const SHARE = readFileSync(new URL('../js/share-nudge.js', import.meta.url), 'utf8');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
@@ -79,11 +78,10 @@ test('the moment is re-checked just before it shows, and never over another card
   assert.match(later, /if \(screenTaken\(\)\) return;/);
   assert.match(later, /if \(!dueThisYear\(c\)\) return;/, 'December 31 can turn into January 1 during the wait');
   const taken = body(APPEAL, 'function screenTaken()');
-  for (const id of ['discord-invite', 'support-ask', 'share-nudge']) {
+  for (const id of ['discord-invite']) {
     assert.match(taken, new RegExp(`getElementById\\('${id}'\\)`), id + ' holds it back');
   }
   assert.match(taken, /I\.busy\(\)/, 'and so does anything the interrupt arbiter calls busy');
-  assert.match(SHARE, /getElementById\('support-appeal'\)/, 'the share invitation defers to it in turn');
 });
 
 test('every exit is final for the year, and "I already support Xenon" for good', () => {

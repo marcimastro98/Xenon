@@ -28,10 +28,10 @@ test('gpu.ps1 diffs raw engine counters against the previous call', () => {
   assert.match(src, /\$global:XenonGpuEnginePrev\b/);
 });
 
-test('NVIDIA fans skip the full LHM Update() when nvidia-smi gave the clocks', () => {
+test('NVIDIA fans skip the full LHM Update() when nvidia-smi gave the clocks and the temperature', () => {
   // Update() refreshed every sensor of the card (~60-80 ms) for two RPM values.
   const src = code(read('server/gpu.ps1'));
-  assert.match(src, /Get-LhmGpuReadings -FansOnly:\$haveClocks/);
+  assert.match(src, /Get-LhmGpuReadings -FansOnly:\$haveRest/);
   assert.match(src, /GetFanCoolersStatus/);
   // Anything unexpected must fall back to Update(), never to "no fans".
   const fansOnly = src.slice(src.indexOf('if ($FansOnly'), src.indexOf('$hardware.Update()', src.indexOf('if ($FansOnly')));

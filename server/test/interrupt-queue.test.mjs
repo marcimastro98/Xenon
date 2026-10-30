@@ -135,7 +135,7 @@ test('the highest priority waiter wins the gap, and only one runs per tick', () 
   assert.equal(iq._waiting(), 2, 'the others stay queued, they are not dropped');
 
   // Presenting made the screen busy again; nothing else may slip through.
-  state.overlays = ['.xdrop-overlay'];
+  state.overlays = ['.cgal-overlay'];
   iq._tick();
   assert.deepEqual(order, ['limited']);
 

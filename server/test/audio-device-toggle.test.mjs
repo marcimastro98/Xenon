@@ -144,7 +144,7 @@ test('the deck follows the real default output, and asks for it right after a sw
   assert.match(DECK, /AUDIO_ACTION_TYPES\.includes\(action\.type\)\) pollAudioState\(\);/);
   // The live audio push feeds it on the dashboard and in the Deck popup alike.
   assert.match(read('../js/main.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);
-  assert.match(read('../js/deck-popup.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);
+  assert.match(read('../js/deck-feed.js'), /refreshStates\(\{ outputDevice: \(d\.speaker && d\.speaker\.id\) \|\| '' \}\)/);
 });
 
 test('every language names the key, its two pickers and the not-connected reason', () => {

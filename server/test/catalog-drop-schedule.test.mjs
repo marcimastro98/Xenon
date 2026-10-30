@@ -1,11 +1,11 @@
-// When the month's-drops window shows (js/catalog-drop.js), run against DOM
-// stubs with a clock the test moves.
+// The month's drops (js/catalog-drop.js) as letters in Bit's mail, run against
+// DOM stubs with a clock the test moves.
 //
-// The rules (decided 2026-09-28): once per session, i.e. each time Xenon
-// starts; every paid drop of the last 30 days that the user does not already
-// have, all in one window (publish A: A; publish B: A and B); off only through
-// the new Settings switch, which starts ON for everybody, including anyone who
-// had switched the previous window off.
+// The rules: the catalog is read once per session; every paid drop of the last
+// 30 days that the user does not already have becomes ONE letter, once ever
+// (publish A: A; publish B: B); nothing opens on screen, Bit's note decides
+// when to say so (js/bit-mail.js); off only through the monthlyDrops switch,
+// which starts ON for everybody (decided 2026-09-28).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -51,11 +51,14 @@ function dashboard({ hubSettings = {}, packages = [], local } = {}) {
     addEventListener() {}, removeEventListener() {},
   };
   let catalog = [];
+  const letters = [];
   let asks = 0;
   const timeouts = [];
   let ticker = null;
   const window = {
     CommunityGallery: { openEntry() {}, openSupporters() {}, open() {} },
+    // Filed through the real store (js/bit-mail-core.js), on this dashboard's localStorage.
+    BitMail: { post(l) { if (!window.BitMailCore.post(l)) return false; letters.push(l); return true; }, register() {} },
     CustomWidget: { getPackages: async () => ({ packages }), cachedPackages: () => packages },
   };
   const g = {
@@ -70,44 +73,64 @@ function dashboard({ hubSettings = {}, packages = [], local } = {}) {
   const load = (src) => { const n = Object.keys(g); new Function(...n, src)(...n.map((k) => g[k])); };
   load(read('js/interrupt-queue.js'));
   g.XenonInterrupts = window.XenonInterrupts;
+  load(read('js/bit-mail-core.js'));
   load(limitedStockSource() + '\n' + read('js/catalog-drop.js'));
 
   return {
-    timeouts, localMap,
+    timeouts, localMap, letters, opened,
     set catalog(v) { catalog = v; },
     get asks() { return asks; },
     set busy(v) { busy = v; },
     advance(ms) { clock += ms; },
-    // What the window listed: one entry → the single card; several → the batch.
-    async start({ expire = false } = {}) {
-      const before = opened.length;
+    // The ids of the letters this start filed.
+    async start() {
+      const before = letters.length;
       await window.CatalogDrop.checkOnStart();
       await new Promise((r) => setTimeout(r, 5));
-      if (expire) for (let i = 0; i < 205 && ticker; i++) ticker();
-      else if (ticker) ticker();
-      return opened.slice(before).map((n) => n.className);
+      if (ticker) ticker();
+      return letters.slice(before).map((l) => l.id);
     },
   };
 }
 
 const pack = (id, daysAgo, extra) => Object.assign({ id, kind: 'bundle', name: id, locked: true, addedAt: iso(daysAgo) }, extra);
 
-test('publish A: A. Publish B: A and B. Every session, not just once', async () => {
+test('publish A: a letter about A. Publish B: a letter about B, and A is not sent twice', async () => {
+  const d = dashboard();
+  d.catalog = [pack('a', 2)];
+  assert.deepEqual(await d.start(), ['drop:a']);
+  const l = d.letters[0];
+  assert.equal(l.kind, 'drop');
+  assert.equal(l.title, 'a');
+  assert.deepEqual(l.data, { entryId: 'a' });
+  assert.match(l.note, /^a is out/, 'Bit names the drop in its one sentence');
+});
+
+test('across sessions each drop is one letter, ever', async () => {
   const local = new Map();
   let d = dashboard({ local });
   d.catalog = [pack('a', 2)];
-  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'A is shown');
-
-  d = dashboard({ local });   // Xenon starts again
+  assert.deepEqual(await d.start(), ['drop:a']);
+  // A new session re-reads the catalog; the mailbox (same localStorage) refuses the repeat.
+  d = dashboard({ local });
   d.catalog = [pack('a', 3), pack('b', 0)];
-  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'shown again, now with A and B');
-
+  assert.deepEqual(await d.start(), ['drop:b']);
   d = dashboard({ local });
   d.catalog = [pack('a', 4), pack('b', 1)];
-  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'and again at the next start, although both were seen');
+  assert.deepEqual(await d.start(), [], 'both already filed');
 });
 
-test('once per session: a second look in the same session shows nothing', async () => {
+test('nothing opens on screen: no window, no overlay, whatever is going on', async () => {
+  const d = dashboard();
+  d.catalog = [pack('a', 1), pack('lim', 1, { locked: false, limited: { dropId: 'lim', total: 50, claimed: 3 } })];
+  d.busy = true;
+  assert.deepEqual(await d.start(), ['drop:lim', 'drop:a'], 'filed at once, limited editions first');
+  assert.equal(d.opened.length, 0, 'nothing was added to the page');
+  const src = read('js/catalog-drop.js');
+  assert.doesNotMatch(src, /xdrop-overlay|aria-modal|whenIdle/, 'the full-screen card is gone');
+});
+
+test('once per session: a second look in the same session asks nothing', async () => {
   const d = dashboard();
   d.catalog = [pack('a', 1)];
   assert.equal((await d.start()).length, 1);
@@ -123,7 +146,7 @@ test('only the last 30 days, and nothing already over', async () => {
     pack('ended', 5, { activeUntil: new Date(NOW - 3600 * 1000).toISOString() }),
     pack('free', 1, { locked: false }),
   ];
-  assert.deepEqual(await d.start(), [], 'nothing current and paid: no window');
+  assert.deepEqual(await d.start(), [], 'nothing current and paid: no letter');
 });
 
 test('what the user already has is left out', async () => {
@@ -139,25 +162,22 @@ test('what the user already has is left out', async () => {
   assert.deepEqual(await d.start(), [], 'every current drop is already theirs');
 });
 
-test('the old switch and the old per-device mute do not hide it; the new switch does', async () => {
+test('the old switch and the old per-device mute do not stop it; the new switch does', async () => {
   const local = new Map([['xeneonedge.catalogDropsMuted', '1']]);
   let d = dashboard({ hubSettings: { catalogDrops: false }, local });
   d.catalog = [pack('a', 1)];
-  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'on by default, whatever was chosen for the old window');
+  assert.deepEqual(await d.start(), ['drop:a'], 'on by default, whatever was chosen for the old window');
 
   d = dashboard({ hubSettings: { monthlyDrops: false }, local });
   d.catalog = [pack('a', 1)];
-  assert.deepEqual(await d.start(), [], 'off in Settings: off');
+  assert.deepEqual(await d.start(), [], 'off in Settings: no letters');
 });
 
-test('offline, or held behind another window, it tries again in the same session', async () => {
+test('the drop is marked seen for the hub channel, so an announcement about it is not a repeat', async () => {
   const d = dashboard();
   d.catalog = [pack('a', 1)];
-  d.busy = true;
-  assert.deepEqual(await d.start({ expire: true }), [], 'busy the whole time: the queue gives up');
-  d.busy = false;
-  d.advance(10 * 60 * 1000);
-  assert.deepEqual(await d.start(), ['xdrop-overlay'], 'the next look, once free, shows it');
+  await d.start();
+  assert.deepEqual(JSON.parse(d.localMap.get('xeneonedge.catalogSeen')), ['a']);
 });
 
 test('the retry chain stops once the session has had its check', () => {

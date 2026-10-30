@@ -44,9 +44,9 @@ for (const [side, src] of [['server', SERVER], ['client', CLIENT]]) {
 
   test(`${side}: the existing switches are untouched by the new field`, () => {
     const N = loadNormalizer(src);
-    assert.deepEqual(N({ enabled: false, popups: false, sounds: false, quiet: 'off' }),
-      { enabled: false, popups: false, sounds: false, quiet: 'off' });
-    assert.deepEqual(N({}), { enabled: true, popups: true, sounds: true, quiet: 'auto' });
+    assert.deepEqual(N({ enabled: false, popups: false, sounds: false, quiet: 'off', onScreen: false }),
+      { enabled: false, popups: false, sounds: false, quiet: 'off', onScreen: false });
+    assert.deepEqual(N({}), { enabled: true, popups: true, sounds: true, quiet: 'auto', onScreen: true });
   });
 }
 

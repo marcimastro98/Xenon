@@ -113,21 +113,22 @@ test('it never interrupts a voice session, the lock screen, a game or a scene', 
     assert.match(body, new RegExp(cls), `${cls} holds the card back`);
   }
   assert.match(body, /catch \{ return true; \}/, 'if it cannot tell, it does not interrupt');
-  // Re-checked at the last moment: the wait is long enough for one to have begun.
-  const show = CARD.slice(CARD.indexOf('setTimeout(() => {', CARD.indexOf('async function maybeShow()')));
-  assert.match(show.slice(0, 400), /if \(busyRightNow\(\)\) return;/);
+  // The ask itself is a letter now: nothing goes on screen, and Bit's note,
+  // which does, waits through the same moments (bit-mail-core.js quiet()).
+  assert.doesNotMatch(CARD, /document\.body\.appendChild|getElementById\('support-ask'\)/, 'no corner card any more');
+  assert.match(CARD, /window\.XenonSupportAsk = \{[^}]*busyRightNow/, 'kept for the December appeal');
 });
 
 // Three objects you get, each with its own glyph. The same three facts in one
 // sentence were skimmed past, which is what made the card read as small print.
 test('the perks are a list of things, not a sentence about them', () => {
-  const fn = CARD.slice(CARD.indexOf("perks.className = 'support-ask-perks'"));
+  const fn = CARD.slice(CARD.indexOf("perks.className = 'bitmail-perks'"));
   const body = fn.slice(0, fn.indexOf('\n    });'));
   for (const key of ['support_perk_themes', 'support_perk_discord', 'support_perk_name']) {
     assert.match(body, new RegExp(key), key + ' is its own row');
   }
   assert.match(body, /createElement\('li'\)/, 'rendered as list items');
-  assert.match(body, /support-perk-icon/, 'each with its own glyph');
+  assert.match(body, /bitmail-perk-icon/, 'each with its own glyph');
 });
 
 // Pressing it used to close the card and silently open a settings page, which
@@ -152,7 +153,7 @@ test('the card speaks plainly, with no em dashes', () => {
 });
 
 test('monthly is the offer, one-off is the alternative', () => {
-  assert.ok(CARD.indexOf('support_ask_monthly') < CARD.indexOf('support_ask_once'),
+  assert.ok(CARD.indexOf('support_letter_monthly') > 0 && CARD.indexOf('support_letter_monthly') < CARD.indexOf('support_letter_once'),
     'the monthly button comes first');
   assert.match(CARD, /open\(supportLink\('monthly'\)\)/, 'and it opens the membership page');
   assert.match(CARD, /plan === 'once' \? BMC : BMC \+ '\/membership'/,
@@ -261,4 +262,71 @@ test('the card is loaded, styled, and every string exists in all eleven language
     const missing = LANGS.filter((l) => !found.has(l));
     assert.deepEqual(missing, [], `${key} missing from: ${missing.join(', ')}`);
   }
+});
+
+// ── The letter, run ────────────────────────────────────────────────────────
+// The gate passing files ONE letter in Bit's mail and remembers the ask at
+// once; opening the letter draws the offer. Run against DOM stubs.
+async function runAsk({ credits = true, dismissed = false, supporter = false, use = { firstRunDay: '2000-01-01', usageDays: 40 } } = {}) {
+  const el = (tag) => ({
+    tag, className: '', type: '', textContent: '', innerHTML: '', children: [], on: {},
+    append(...c) { this.children.push(...c); }, appendChild(c) { this.children.push(c); return c; },
+    addEventListener(t, fn) { this.on[t] = fn; }, setAttribute() {},
+  });
+  const posted = [];
+  const renderers = {};
+  const opened = [];
+  let remembered = 0;
+  let silenced = 0;
+  const window = {
+    BitMail: { post: (l) => { posted.push(l); return true; }, register: (k, fn) => { renderers[k] = fn; } },
+    XenonStartupCards: {
+      supportAskDismissed: () => dismissed, usageHistory: () => use,
+      rememberSupportAsk: () => { remembered++; }, silenceSupportAppeal: () => { silenced++; },
+    },
+    open: (u) => opened.push(u),
+  };
+  if (credits) window.XenonCredits = { offerMark: () => ({ ...el('span'), sprite: true }) };
+  const document = { readyState: 'complete', createElement: el, body: { appendChild() { throw new Error('no card on screen'); } } };
+  const fetch = async () => ({ json: async () => ({ ok: true, saved: supporter }) });
+  new Function('window', 'document', 'fetch', 'requestAnimationFrame', CARD)(window, document, fetch, () => {});
+  await new Promise((r) => setTimeout(r, 5));
+  return { posted, renderers, opened, get remembered() { return remembered; }, get silenced() { return silenced; } };
+}
+const all = (n) => (n ? [n, ...(n.children || []).flatMap(all)] : []);
+
+test('the ask is filed once as a letter, and remembered as it is filed', async () => {
+  const d = await runAsk();
+  assert.equal(d.posted.length, 1);
+  assert.equal(d.posted[0].id, 'support:ask');
+  assert.equal(d.posted[0].kind, 'support');
+  assert.equal(d.remembered, 1, 'once means once, read or not');
+  assert.equal((await runAsk({ dismissed: true })).posted.length, 0, 'never twice');
+  assert.equal((await runAsk({ supporter: true })).posted.length, 0, 'never to a supporter');
+  assert.equal((await runAsk({ use: { firstRunDay: '2000-01-01', usageDays: 3 } })).posted.length, 0, 'not before ten days of use');
+});
+
+test('the opened letter carries the offer, monthly first, and the way out', async () => {
+  const d = await runAsk();
+  const node = { children: [], append(...c) { this.children.push(...c); }, appendChild(c) { this.children.push(c); return c; } };
+  const ctx = { closed: 0, removed: 0, close() { this.closed++; }, remove() { this.removed++; } };
+  d.renderers.support(d.posted[0], node, ctx);
+  const buttons = all(node).filter((n) => n.tag === 'button');
+  assert.deepEqual(buttons.map((b) => b.className), ['bitmail-btn is-main', 'bitmail-btn', 'bitmail-link']);
+  const perks = all(node).filter((n) => n.tag === 'li');
+  assert.equal(perks.length, 4, 'four perks');
+  assert.ok(all(perks[1]).some((n) => n.sprite), 'the Scintille perk wears the spark sprite, not a stand-in glyph');
+  buttons[0].on.click();
+  assert.match(d.opened[0], /membership/);
+  assert.equal(ctx.closed, 1);
+  buttons[2].on.click();
+  assert.equal(d.silenced, 1, 'the December appeal goes quiet too');
+  assert.equal(ctx.removed, 1, 'and the letter is gone: it was answered');
+});
+
+test('without the credits module the Scintille perk still reads, just without its sprite', async () => {
+  const d = await runAsk({ credits: false });
+  const node = { children: [], append(...c) { this.children.push(...c); }, appendChild(c) { this.children.push(c); return c; } };
+  d.renderers.support(d.posted[0], node, { close() {}, remove() {} });
+  assert.equal(all(node).filter((n) => n.tag === 'li').length, 4);
 });

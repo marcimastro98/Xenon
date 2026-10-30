@@ -189,6 +189,27 @@ test('isNight: 23:00–07:00 local, boundaries exact', () => {
   assert.equal(core.isNight(NaN), false, 'unknown hour fails safe (day)');
 });
 
+test('isNight: the user\'s own window, across midnight or inside one day, empty when from = to', () => {
+  assert.equal(core.isNight(0, 1, 9), false, 'a 1-9 sleeper is awake at midnight');
+  assert.equal(core.isNight(1, 1, 9), true);
+  assert.equal(core.isNight(8, 1, 9), true);
+  assert.equal(core.isNight(9, 1, 9), false, 'wakes on the hour');
+  assert.equal(core.isNight(21, 21, 6), true, 'wraps past midnight');
+  assert.equal(core.isNight(5, 21, 6), true);
+  assert.equal(core.isNight(20, 21, 6), false);
+  for (let h = 0; h < 24; h++) assert.equal(core.isNight(h, 22, 22), false, 'no quiet hours at ' + h);
+});
+
+test('naturalBreak: coming back refills Stamina and Focus at the return, nothing else', () => {
+  const returnAt = 5_000_000;
+  const last = { hydration: 1000, energy: 2000, stamina: 3000, focus: 4000, posture: 5000 };
+  assert.deepEqual(core.naturalBreak(last, returnAt), { stamina: returnAt, focus: returnAt });
+  assert.deepEqual(core.naturalBreak({ stamina: 0, focus: returnAt + 1 }, returnAt), {}, 'never seeded, or already newer');
+  assert.deepEqual(core.naturalBreak(last, 0), {}, 'no return instant');
+  assert.deepEqual(core.naturalBreak(null, returnAt), {});
+  assert.deepEqual([...core.NATURAL_BREAK_IDS], ['stamina', 'focus']);
+});
+
 test('mergePetBookkeeping: max/OR semantics, newer episode identity wins', () => {
   const a = { snoozeUntil: 100, muteDay: '2026-07-09', ep: { hydration: { z: 10, goAt: 50, ovAt: 0, min: true, lock: false }, focus: { z: 5, goAt: 1, ovAt: 1, min: false, lock: false } } };
   const b = { snoozeUntil: 200, muteDay: '2026-07-10', ep: { hydration: { z: 10, goAt: 40, ovAt: 60, min: false, lock: true }, energy: { z: 7, goAt: 0, ovAt: 0, min: false, lock: false } } };
@@ -231,4 +252,20 @@ test('langOf: maps each supported code (and its region variant) to its bank, els
   assert.equal(core.langOf('nl-BE'), 'nl');
   assert.equal(core.langOf('sv'), 'en');   // unsupported → English fallback
   assert.equal(core.langOf(''), 'en');
+});
+
+test('Bit never says "Windows": Xenon runs on macOS and Linux too', () => {
+  const lines = [];
+  for (const lang of LANGS) {
+    for (const bucket of Object.values(core.BANK[lang])) {
+      const walk = (v) => {
+        if (typeof v === 'string') lines.push(v);
+        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+      };
+      walk(bucket);
+    }
+  }
+  assert.ok(lines.length > 500, 'the walk reached the phrases');
+  const hits = lines.filter((l) => /Windows|윈도우/.test(l));
+  assert.deepEqual(hits, []);
 });

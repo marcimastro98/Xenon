@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 
 // Settings calls it "Temperature unit", not "Weather temperature unit" — and it
 // only ever reached the weather. Someone running Xenon in °F read the forecast
@@ -116,10 +117,15 @@ test('fillTemps replaces every occurrence, not just the first', () => {
 test('the RAM alert keeps its percentage out of the conversion', () => {
   // guardian_alert_mem's {v} is a percentage. Converting it would print
   // "RAM nearly full (199%)" to anyone on °F.
-  const m = /const key = d\.type === 'gpu'[\s\S]{0,400}?fillTemps/.exec(MAIN);
-  assert.ok(m, 'the Guardian toast no longer converts at all');
-  assert.match(m[0], /d\.type === 'mem'\s*\n?\s*\?\s*t\(key\)\.replace\('\{v\}'/,
+  // The wording lives in alert-toasts.js, shared by the dashboard and the
+  // "widgets only" alerts window.
+  const A = createRequire(import.meta.url)('../js/alert-toasts.js');
+  const t = (k) => ({ guardian_alert_mem: 'RAM nearly full ({v}%)', guardian_alert_cpu: 'CPU at {v}°{u}' })[k] || k;
+  assert.equal(A.guardianText({ type: 'mem', value: 93 }, { t, hwF: true }), 'RAM nearly full (93%)',
     'the RAM alert is going through the temperature conversion');
+  assert.equal(A.guardianText({ type: 'cpu', value: 100 }, { t, hwF: true }), 'CPU at 212°F',
+    'the Guardian toast no longer converts at all');
+  assert.match(MAIN, /window\.AlertToasts\.guardian\(/);
 });
 
 test('the thermal hint quotes the thresholds briefing.js actually enforces', () => {

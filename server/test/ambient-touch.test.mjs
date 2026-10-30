@@ -67,12 +67,12 @@ test('the scene reads the task store and the feed safely', () => {
   assert.match(notif, /\.textContent = String\(n\.body\)/);
   // innerHTML in the renderer only ever gets the static icon table.
   for (const m of CANVAS.matchAll(/innerHTML = ([^;]+);/g)) assert.match(m[1], /^(svg|glyph|ICON\.\w+|playing \? ICON\.pause : ICON\.play|muted \? ICON\.speakerOff : ICON\.speaker)$/, m[0]);
-  // The weather icon is a name looked up in the static greeting.js table, never data.
+  // The weather icon is a name looked up in the static weather-glyphs.js table, never data.
   assert.match(CANVAS, /const glyph = ico \? P\.weatherGlyph\(d\) : '';/);
   const PARTS = read('../js/ambient-canvas-parts.js');
   const wg = PARTS.slice(PARTS.indexOf('function weatherGlyph'), PARTS.indexOf('window.AmbientCanvasParts'));
   assert.match(wg, /return glyphs\[name\] \|\| glyphs\.cloud \|\| '';/);
-  assert.match(read('../js/greeting.js'), /window\.WeatherGlyphs = WEATHER_ICONS;/);
+  assert.match(read('../js/weather-glyphs.js'), /window\.WeatherGlyphs = Object\.freeze\(WEATHER_ICONS\);/);
 });
 
 test('a Volume element keeps the server reading the speaker', () => {

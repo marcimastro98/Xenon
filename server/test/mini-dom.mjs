@@ -77,6 +77,9 @@ export function makeDom() {
       get() { return node._text + node.children.map((c) => c.textContent).join(''); },
       set(v) { node._text = String(v); node.children = []; },
     });
+    // Elements only (there are no text nodes here), enough for a `while
+    // (from.firstChild) to.appendChild(from.firstChild)` move.
+    Object.defineProperty(node, 'firstChild', { get() { return node.children[0] || null; } });
     Object.defineProperty(node, 'innerHTML', {
       // Enough to satisfy modules that inject their own static, trusted markup.
       // The CONTENT is not parsed: no test here asserts on it, and pretending to
@@ -107,6 +110,14 @@ export function makeDom() {
       return child;
     };
     node.append = (...kids) => kids.forEach(node.appendChild);
+    node.insertBefore = (child, ref) => {
+      if (!ref) return node.appendChild(child);
+      if (child.parentNode) child.remove();
+      child.parentNode = node;
+      node.children.splice(node.children.indexOf(ref), 0, child);
+      return child;
+    };
+    node.prepend = (...kids) => kids.slice().reverse().forEach((k) => node.insertBefore(k, node.children[0] || null));
     node.replaceChildren = (...kids) => {
       node.children.slice().forEach((c) => c.remove());
       node._text = '';
@@ -128,9 +139,12 @@ export function makeDom() {
     node.click = () => (node._handlers.click || []).forEach((fn) => fn({
       stopPropagation() {}, preventDefault() {}, target: node,
     }));
+    // A list here is just "any of these compound selectors" (perf-widget.js
+    // looks for '.pager-page, .layer-slot'), so it is exact, unlike in find().
     node.closest = (sel) => {
+      const parts = sel.split(',').map((p) => p.trim());
       let n = node;
-      while (n) { if (matches(n, sel)) return n; n = n.parentNode; }
+      while (n) { if (parts.some((p) => matches(n, p))) return n; n = n.parentNode; }
       return null;
     };
     node.cloneNode = () => {

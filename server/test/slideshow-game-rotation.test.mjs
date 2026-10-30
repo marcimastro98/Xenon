@@ -21,6 +21,7 @@ import vm from 'node:vm';
 const SRC = readFileSync(new URL('../js/slideshow-widget.js', import.meta.url), 'utf8');
 
 function matches(n, sel) {
+  if (sel.includes(',')) return sel.split(',').some((s) => matches(n, s.trim()));
   const attr = /^\[([\w-]+)="([^"]*)"\]$/.exec(sel);
   if (attr) return n.attrs && n.attrs[attr[1]] === attr[2];
   if (sel.startsWith('.')) return (' ' + n.className + ' ').includes(' ' + sel.slice(1) + ' ');
@@ -100,7 +101,7 @@ function makeWorld(slideshow) {
     clearTimeout: (...a) => clearTimeout(...a),
     MutationObserver: class { constructor(cb) { observers.push(cb); } observe() {} },
     fetch: () => new Promise(() => {}),
-    openSlideshowSettings() {},
+    openSettingsCategory() {},
   };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);

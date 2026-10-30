@@ -12,10 +12,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import { createLinuxHotkey, keyPathFor, commandFor, KEY_PATH, KEY_ROOT, SCHEMA, CUSTOM_SCHEMA } from '../linux-hotkey.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = readFileSync(join(ROOT, 'server.js'), 'utf8');
+const DeckShortcuts = createRequire(import.meta.url)('../js/deck-shortcuts.js');
+const LayersModel = createRequire(import.meta.url)('../js/layers-model.js');
+const CaptureSettings = createRequire(import.meta.url)('../capture-settings.js');
 const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
 const CS = readFileSync(join(ROOT, '..', 'helper', 'HotkeyHost.cs'), 'utf8');
 const SWIFT = readFileSync(join(ROOT, '..', 'helper-mac', 'Sources', 'xenon-helper', 'HotkeyHost.swift'), 'utf8');
@@ -88,12 +92,96 @@ test('both sides normalize page shortcuts the same way', () => {
 });
 
 // ── the binding table IS the wire format ────────────────────────────────────
-function loadBindings(settings) {
+function loadBindings(settings, deckConfigs, engine = true, menuShell = false) {
   const m = SERVER.match(/function _hotkeyBindings\(\) \{[\s\S]*?\n\}/);
+  const o = SERVER.match(/function _overlayHotkey\(\) \{[\s\S]*?\n\}/);
+  const r = SERVER.match(/function _replayHotkey\(\) \{[\s\S]*?\n\}/);
   assert.ok(m, '_hotkeyBindings not found');
+  assert.ok(o, '_overlayHotkey not found');
+  assert.ok(r, '_replayHotkey not found');
+  const mk = SERVER.match(/function _menuHotkey\(\) \{[\s\S]*?\n\}/);
+  assert.ok(mk, '_menuHotkey not found');
+  const screenMenu = { available: () => menuShell };
+  const deck = DeckShortcuts.collectShortcuts(deckConfigs || {});
+  const captureOptions = () => CaptureSettings.normalizeCaptureSettings(settings && settings.capture);
+  const host = { available: () => engine, has: (f) => engine && f === 'replay' };
   // eslint-disable-next-line no-new-func
-  return new Function('_serverHubSettings', `const MAX_HOTKEY_BINDINGS = 16;\n${m[0]}; return _hotkeyBindings();`)(settings);
+  return new Function('_serverHubSettings', 'DeckShortcuts', '_deckShortcuts', 'LayersModel', 'captureOptions', '_captureHost', 'screenMenu',
+    `const MAX_HOTKEY_BINDINGS = 16;\n${m[0]}\n${o[0]}\n${r[0]}\n${mk[0]}; return _hotkeyBindings();`)(settings, DeckShortcuts, deck, LayersModel, captureOptions, host, screenMenu);
 }
+
+// Layers with one widget on the given surface.
+function layersWith(surface, extra) {
+  return { enabled: true, widgets: [{ id: 'lw_abcd1', kind: 'tile', widget: 'perf', surface }], ...extra };
+}
+
+test('the overlay shortcut is held only while a widget is in the overlay, and goes last', () => {
+  assert.deepEqual(loadBindings({ layers: layersWith('overlay') }), [{ slot: 'overlay', combo: 'ctrl+shift+f9' }]);
+  assert.deepEqual(loadBindings({ layers: layersWith('desktop') }), [], 'nothing in the overlay, nothing held');
+  assert.deepEqual(loadBindings({ layers: layersWith('overlay', { enabled: false }) }), []);
+  assert.deepEqual(loadBindings({ layers: layersWith('overlay', { overlayKey: 'off' }) }), [], 'turned off by the user');
+  assert.deepEqual(loadBindings({ layers: layersWith('overlay', { overlayKey: 'alt+shift+o' }) }), [{ slot: 'overlay', combo: 'alt+shift+o' }]);
+  // A combo the user put on a Deck key wins: the default steps aside.
+  const out = loadBindings({ searchSettings: { hotkeyEnabled: true, hotkeyCombo: 'alt+space' }, layers: layersWith('overlay') }, deckWith('ctrl+shift+f9'));
+  assert.deepEqual(out.map((b) => b.slot), ['spotlight', 'deck-0']);
+  const after = loadBindings({ searchSettings: { hotkeyEnabled: true, hotkeyCombo: 'alt+space' }, layers: layersWith('overlay') }, deckWith('ctrl+alt+shift+k'));
+  assert.deepEqual(after.map((b) => b.slot), ['spotlight', 'deck-0', 'overlay']);
+  // Never past what the helper registers.
+  const pageHotkeys = Array.from({ length: 16 }, (_, i) => ({ combo: 'ctrl+alt+shift+' + i, target: 'p' + i }));
+  const full = loadBindings({ searchSettings: { hotkeyEnabled: false }, pageHotkeys, layers: layersWith('overlay') });
+  assert.ok(full.length <= 16);
+  assert.ok(!full.some((b) => b.slot === 'overlay'), 'no room, no overlay shortcut');
+});
+
+test('the overlay shortcut toggles the overlay alone, and a layers edit re-arms it', () => {
+  assert.match(SERVER, /binding\.slot === 'overlay'\) capabilityRunner\.run\(\{ type: 'layersToggle', mode: 'toggle', surface: 'overlay' \}\)/);
+  assert.match(SERVER, /b\.slot === 'overlay' \? 'Xenon overlay'/);
+  const upd = SERVER.slice(SERVER.indexOf('async function updateLayersSetting'));
+  assert.match(upd.slice(0, 1200), /if \(_overlayHotkey\(\) \+ '\|' \+ _menuHotkey\(\) !== keys\) \{ try \{ refreshHotkeyListener\(\); \}/);
+});
+
+test('the Xenon menu shortcut is held only with a shell that draws the menu, and goes last', () => {
+  assert.deepEqual(loadBindings({}, null, true, true), [{ slot: 'menu', combo: 'alt+shift+x' }]);
+  assert.deepEqual(loadBindings({}, null, true, false), [], 'no shell, the combo stays free');
+  assert.deepEqual(loadBindings({ layers: { menuKey: 'off' } }, null, true, true), [], 'turned off by the user');
+  assert.deepEqual(loadBindings({ layers: { menuKey: 'ctrl+alt+m' } }, null, true, true), [{ slot: 'menu', combo: 'ctrl+alt+m' }]);
+  // A Deck key on the same combo wins.
+  assert.deepEqual(loadBindings({}, deckWith('alt+shift+x'), true, true).map((b) => b.slot), ['deck-0']);
+  assert.match(SERVER, /binding\.slot === 'menu'\) screenMenu\.toggle\(\)/);
+  assert.match(SERVER, /b\.slot === 'menu' \? 'Xenon menu'/, 'named on the desktop, never "Xenon page NaN"');
+});
+
+// A Deck config holding one action key per shortcut given.
+function deckWith(...combos) {
+  const keys = combos.map((c, i) => ({ kind: 'action', id: 'k' + i, title: 'Key ' + i, shortcut: c, triggers: { tap: { type: 'mediaKey', key: 'play' } } }));
+  return { main: { profiles: [{ name: 'P', root: { pages: [{ keys }] } }] } };
+}
+
+test('Deck key shortcuts come after the search and page ones', () => {
+  const out = loadBindings({
+    searchSettings: { hotkeyEnabled: true, hotkeyCombo: 'alt+space' },
+    pageHotkeys: [{ combo: 'ctrl+alt+1', target: 'home' }],
+  }, deckWith('ctrl+shift+f9', 'ctrl+alt+shift+k'));
+  assert.deepEqual(out.map((b) => b.slot), ['spotlight', 'page-0', 'deck-0', 'deck-1']);
+  assert.equal(out[2].keyId, 'k0');
+  assert.equal(out[3].combo, 'ctrl+alt+shift+k');
+});
+
+test('a Deck shortcut never takes a combo a page already holds, nor a slot past 16', () => {
+  const pageHotkeys = Array.from({ length: 15 }, (_, i) => ({ combo: 'ctrl+alt+shift+' + i, target: 'p' }));
+  const out = loadBindings({ searchSettings: { hotkeyEnabled: false }, pageHotkeys },
+    deckWith('ctrl+alt+shift+0', 'ctrl+shift+f9', 'ctrl+shift+f10'));
+  assert.equal(out.length, 16);
+  assert.deepEqual(out.filter((b) => b.keyId).map((b) => b.keyId), ['k1']);
+  const plan = DeckShortcuts.planBindings(out.filter((b) => !b.keyId), DeckShortcuts.collectShortcuts(
+    deckWith('ctrl+alt+shift+0', 'ctrl+shift+f9', 'ctrl+shift+f10')).list, 16);
+  assert.deepEqual(plan.refused, { k0: 'clash', k2: 'full' });
+});
+
+test('the Linux entries for Deck shortcuts get their own name', () => {
+  assert.match(SERVER, /b\.keyId \? 'Xenon shortcut ' : 'Xenon page '/);
+  assert.match(SERVER, /else if \(binding\.keyId\) deckShortcutRunner\.press\(binding\.keyId, binding\.combo\)/);
+});
 
 test('Spotlight takes index 0 whenever it is on', () => {
   // This is the compatibility story: a helper too old to understand a list
@@ -322,4 +410,32 @@ test('the Linux press route reads its index off the parsed URL', () => {
   assert.ok(m, 'the press route is gone');
   assert.match(m[0], /urlObj\.searchParams\.get\('i'\)/);
   assert.ok(!/new URL\(reqPath/.test(m[0]), 'the index is being parsed out of a query-less path');
+});
+
+// ── Instant Replay's save shortcut ──────────────────────────────────────────
+test('the replay shortcut is held only while the replay is on and the engine runs, and goes last', () => {
+  assert.deepEqual(loadBindings({ capture: { replay: true } }), [{ slot: 'replay', combo: 'ctrl+shift+f10' }]);
+  assert.deepEqual(loadBindings({ capture: { replay: false } }), [], 'replay off: the combo stays free for other apps');
+  assert.deepEqual(loadBindings({ capture: { replay: true } }, null, false), [], 'no engine: pressing could not save anything');
+  assert.deepEqual(loadBindings({ capture: { replay: true, replayKey: 'off' } }), [], 'turned off by the user');
+  assert.deepEqual(loadBindings({ capture: { replay: true, replayKey: 'alt+shift+r' } }), [{ slot: 'replay', combo: 'alt+shift+r' }]);
+  // A stored combo someone else owns never reaches the helper.
+  assert.deepEqual(loadBindings({ capture: { replay: true, replayKey: 'alt+f10' } }), [{ slot: 'replay', combo: 'ctrl+shift+f10' }]);
+  // After the overlay, and a Deck key on the same combo wins.
+  const both = loadBindings({ capture: { replay: true }, layers: layersWith('overlay') });
+  assert.deepEqual(both.map((b) => b.slot), ['overlay', 'replay']);
+  const clash = loadBindings({ capture: { replay: true } }, deckWith('ctrl+shift+f10'));
+  assert.deepEqual(clash.map((b) => b.slot), ['deck-0']);
+  const pageHotkeys = Array.from({ length: 16 }, (_, i) => ({ combo: 'ctrl+alt+shift+' + i, target: 'p' + i }));
+  assert.ok(!loadBindings({ pageHotkeys, capture: { replay: true } }).some((b) => b.slot === 'replay'), 'no room, no replay shortcut');
+});
+
+test('the replay shortcut saves the replay, says a failure, and a capture change re-arms it', () => {
+  assert.match(SERVER, /binding\.slot === 'replay'\) _pressReplayHotkey\(\);/);
+  assert.match(SERVER, /b\.slot === 'replay' \? 'Xenon replay'/);
+  const press = SERVER.slice(SERVER.indexOf('function _pressReplayHotkey()'));
+  assert.match(press.slice(0, 600), /capabilityRunner\.run\(\{ type: 'replay', mode: 'save' \}\)/);
+  assert.match(press.slice(0, 600), /broadcastSSE\('deck_shortcut_failed', \{ title: 'Instant Replay', error: \(r && r\.error\) \|\| 'failed' \}\)/);
+  const upd = SERVER.slice(SERVER.indexOf('async function updateCaptureSettings'));
+  assert.match(upd.slice(0, 1400), /if \(_replayHotkey\(\) !== replayKey\) \{ try \{ refreshHotkeyListener\(\); \}/);
 });

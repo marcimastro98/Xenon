@@ -298,7 +298,7 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
   assert.match(body, /json\(\{ text: result\.text, clientActions: result\.clientActions, newContent: result\.newContent \}\)/);
   assert.match(body, /You have no other tools: no shell, no file access/);
   // web_search runs key-free for them, like the other non-Gemini providers.
-  assert.match(S, /\(provider === 'ollama' \|\| provider === 'openai' \|\| provider === 'anthropic' \|\| aiCli\.isCliProvider\(provider\)\)\n\s+\? await aiLocal\.localWebSearch/);
+  assert.match(S, /\(provider === 'ollama' \|\| provider === 'openai' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\)\)\n\s+\? await aiLocal\.localWebSearch/);
   // The bridge finds this server: configured once PORT exists (a const used
   // before its line would take the whole server down at start).
   assert.ok(S.indexOf('aiCli.configure({ port: PORT })') > S.indexOf('const PORT = (() => {'));
@@ -307,9 +307,11 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
 test("Bit's automatic lines never spend the subscription; what the user starts may", () => {
   const S = read('../server.js');
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));
-  assert.match(roast, /aiCli\.isCliProvider\(provider\)\) \{[\s\S]*?text = '';/);
+  // Nor the user's Xenon credits.
+  assert.match(roast, /aiCli\.isCliProvider\(provider\) \|\| provider === 'xenon'\) \{[\s\S]*?text = '';/);
+  assert.doesNotMatch(roast, /aiXenon/);
   assert.doesNotMatch(roast, /cliOneShot/);
-  assert.match(read('../js/vitals-pet.js'), /\['claudecode', 'codex'\]\.includes\(_aiProviderCfg\(\)\.provider\)\) return bank\(\);/);
+  assert.match(read('../js/vitals-pet.js'), /\['xenon', 'claudecode', 'codex'\]\.includes\(_aiProviderCfg\(\)\.provider\)\) return bank\(\);/);
   for (const route of ["'/api/ai/summarize'", "'/search/ai'", "'/api/disk/advisor'"]) {
     const at = S.indexOf('reqPath === ' + route);
     assert.ok(at > 0, route);
@@ -317,20 +319,20 @@ test("Bit's automatic lines never spend the subscription; what the user starts m
   }
 });
 
-test('lyrics translation, the one automatic use of a plan, runs on its small model at low effort', () => {
+test('lyrics translation and widget questions, the automatic uses of a plan, run on its small model at low effort', () => {
   const S = read('../server.js');
-  const fn = S.slice(S.indexOf('async function completeLyricsTranslation('), S.indexOf('async function lyricsTranslateBlocker('));
-  assert.match(fn, /aiCli\.oneShot\(\{\s*provider, model: await lyricsTranslationModel\(provider, settings\), effort: 'low'/);
+  const fn = S.slice(S.indexOf('async function completeWithUserAi('), S.indexOf('async function userAiBlocker('));
+  assert.match(fn, /aiCli\.oneShot\(\{\s*provider, model: await smallTaskModel\(provider, settings\), effort: 'low'/);
   assert.match(S, /if \(aiCli\.isCliProvider\(provider\)\) return aiCli\.lightModel\(provider\);/);
 });
 
 test('voice stays local and free: nothing quietly needs a Gemini key', () => {
   const S = read('../server.js');
-  assert.match(S, /const useLocal = provider === 'ollama' \|\| provider === 'anthropic' \|\| aiCli\.isCliProvider\(provider\);/);
+  assert.match(S, /const useLocal = provider === 'ollama' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\);/);
   // The voice orb used to send Claude and ChatGPT to Gemini to be transcribed,
   // and failed for anyone without a Gemini key. Now it hears them the way
   // /api/transcribe always did.
-  assert.match(S, /\} else if \(sttProvider === 'ollama' \|\| sttProvider === 'anthropic' \|\| aiCli\.isCliProvider\(sttProvider\)\) \{/);
+  assert.match(S, /\} else if \(sttProvider === 'ollama' \|\| sttProvider === 'anthropic' \|\| sttProvider === 'xenon' \|\| aiCli\.isCliProvider\(sttProvider\)\) \{/);
   assert.match(S, /if \(sttProvider === 'openai'\) \{[\s\S]{0,700}aiOpenai\.stt\(\{ apiKey: openaiKey, wavBuffer: wavData/);
   assert.match(S, /aiCli\.isCliProvider\(tProvider\)\) \{/);
   assert.match(S, /aiCli\.isCliProvider\(ttsProvider\)\) \{/);
@@ -595,4 +597,16 @@ test('resolveCodex is exported for the Codex tile, with childEnv stripping the A
     assert.equal(env.OPENAI_API_KEY, undefined);
     assert.equal(env.CODEX_API_KEY, undefined);
   } finally { delete process.env.OPENAI_API_KEY; delete process.env.CODEX_API_KEY; }
+});
+
+test('mcpAddArgs: the widget server is added under its own name, user-wide for Claude Code', () => {
+  const launch = ['/opt/xenon/node', '/opt/xenon/packages/mcp/bin/xenon-mcp.js'];
+  assert.equal(cli.MCP_SERVER_NAME, 'xenon-widgets');
+  assert.deepEqual(I.mcpAddArgs('claudecode', launch), ['mcp', 'add', '--scope', 'user', 'xenon-widgets', '--', ...launch]);
+  assert.deepEqual(I.mcpAddArgs('codex', launch), ['mcp', 'add', 'xenon-widgets', '--', ...launch]);
+});
+
+test('addMcpServer: refuses an unknown provider or an empty launch before running anything', async () => {
+  assert.deepEqual(await cli.addMcpServer('gemini', ['node']), { ok: false, error: 'bad_provider' });
+  assert.deepEqual(await cli.addMcpServer('codex', []), { ok: false, error: 'bad_launch' });
 });

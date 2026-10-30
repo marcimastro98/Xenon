@@ -22,6 +22,15 @@ test('catalog: valid entries pass with the exact rebuilt shape', () => {
   assert.deepEqual(e.preview, { accent: '#1ed760', bg: '#070808', text: '#f0f3f1' });
 });
 
+test('catalog: a Sparks price is a whole number in range, the trial choice one of two words', () => {
+  const one = (extra) => cat.normalizeCatalog({ entries: [entry(extra)] })[0];
+  assert.equal(one({ sparks: 150 }).sparks, 150);
+  for (const bad of [0, -5, 1.5, '150', 100001, null]) assert.equal('sparks' in one({ sparks: bad }), false, String(bad));
+  assert.equal(one({ trial: 'now' }).trial, 'now');
+  assert.equal(one({ trial: 'never' }).trial, 'never');
+  for (const bad of ['after30', 'NOW', 1, true]) assert.equal('trial' in one({ trial: bad }), false, String(bad));
+});
+
 test('catalog: accepts a bare array and drops junk shapes', () => {
   assert.equal(cat.normalizeCatalog([entry()]).length, 1);
   assert.equal(cat.normalizeCatalog(null).length, 0);
@@ -59,9 +68,9 @@ test('catalog: dupes and overflow are dropped, strings capped', () => {
   const many = Array.from({ length: 250 }, (_, i) => entry({ id: 'e-' + i }));
   assert.equal(cat.normalizeCatalog(many).length, 200);
   assert.equal(cat.normalizeCatalog([entry(), entry()]).length, 1);
-  const long = cat.normalizeCatalog([entry({ name: 'N'.repeat(500), description: 'D'.repeat(900) })])[0];
+  const long = cat.normalizeCatalog([entry({ name: 'N'.repeat(500), description: 'D'.repeat(1200) })])[0];
   assert.equal(long.name.length, 60);
-  assert.equal(long.description.length, 300);
+  assert.equal(long.description.length, 800);
 });
 
 test('catalog: preview keeps only validated hex colours', () => {

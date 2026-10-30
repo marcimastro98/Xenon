@@ -123,8 +123,9 @@ test('tiles cast no drop shadow until someone asks for one', () => {
   assert.match(S, /\n  tileShadowStrength: 0,\n/, 'the client default is not 0');
   assert.match(read('../server.js'), /\n  tileShadowStrength: 0,/, 'the server default is not 0, and the two would disagree');
   assert.match(read('../styles/global.css'), /--panel-shadow-alpha: 0;/, 'the first paint, before any script runs, still has a shadow');
-  // The theme code falls back to the same default rather than a private 1.
-  assert.match(S, /clampNumber\(hubSettings\.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS\.tileShadowStrength\)/);
+  // The theme code (shared with the layer page) falls back to the same default
+  // rather than a private 1.
+  assert.match(read('../js/theme-tokens.js'), /clampNumber\(s\.tileShadowStrength, 0, 2, 0\)/);
 });
 
 // "Nothing changed, I still see it." A new default alone only reaches a fresh

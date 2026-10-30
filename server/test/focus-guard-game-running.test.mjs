@@ -72,6 +72,48 @@ test('the native focus guard watches game-running, not game-mode', () => {
   assert.doesNotMatch(sync, /classList\.contains\('game-mode'\)/);
 });
 
+// The guard's first report used to go out while the page was still loading. A
+// shell signal is a navigation, and one then cancels the `load` event for good,
+// so every signal that waited for `load` (home gesture, widget layers…) never
+// went out in the native app.
+test('the focus guard says nothing until the page has loaded, without needing the load event', () => {
+  const at = (name) => BRIDGE.indexOf(name);
+  const afterLoad = BRIDGE.slice(at('function afterLoad('), BRIDGE.indexOf('\n  }\n', at('function afterLoad(')) + 4);
+  const guard = BRIDGE.slice(at('function initNativeFocusGuard('), BRIDGE.indexOf('\n  }\n', at('function initNativeFocusGuard(')) + 4);
+  const signals = [];
+  const timers = [];
+  const stateListeners = [];
+  const document = {
+    readyState: 'interactive',
+    body: { classList: { contains: () => false } },
+    addEventListener: (type, fn) => { if (type === 'readystatechange') stateListeners.push(fn); },
+    removeEventListener: (type, fn) => { const i = stateListeners.indexOf(fn); if (i >= 0) stateListeners.splice(i, 1); },
+  };
+  const window = {
+    addEventListener() {},
+    location: { set href(v) { signals.push(v); } },
+  };
+  class MutationObserver { observe() {} }
+  const run = new Function('document', 'window', 'setTimeout', 'clearTimeout', 'MutationObserver', `
+    const isNative = true;
+    ${afterLoad}
+    ${guard}
+    initNativeFocusGuard();
+  `);
+  run(document, window, (fn) => timers.push(fn), () => {}, MutationObserver);
+  assert.deepEqual(signals, [], 'nothing while loading');
+  document.readyState = 'complete';
+  for (const fn of stateListeners.slice()) fn();
+  assert.deepEqual(signals, [], 'not inside the step that dispatches load');
+  while (timers.length) timers.shift()();
+  assert.deepEqual(signals, ['xenon-focus:guard-off']);
+});
+
+test('a widget-layer window is not the kiosk: native-bridge sends it no shell signals', () => {
+  assert.match(BRIDGE, /const isNative = window\.__XENON_LAYER_SHELL__ !== true\s*&& \(window\.__XENON_NATIVE__ === true \|\| window\.isTauri === true\);/);
+  assert.doesNotMatch(BRIDGE, /addEventListener\('load', fire/, 'every shell signal waits through afterLoad');
+});
+
 test('the Game mode hint says the focus option does not depend on it, in every language', () => {
   const block = I18N.slice(I18N.indexOf('// Game mode is only the look'));
   for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {

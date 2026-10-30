@@ -114,7 +114,8 @@ test('after a press the face follows at once, and "none connected" is said in wo
   const D = read('../js/deck.js');
   assert.match(D, /const AUDIO_ACTION_TYPES = \[[^\]]*'audioDeviceFirst'/);
   assert.match(D, /AUDIO_ACTION_TYPES\.includes\(action\.type\)\) pollAudioState\(\);/);
-  assert.match(D, /none_connected: \['deck_err_none_connected', 'none of these outputs is connected right now'\],/);
+  // The sentences live in js/deck-error-text.js, shared with the alerts window.
+  assert.match(read('../js/deck-error-text.js'), /none_connected: \['deck_err_none_connected', 'none of these outputs is connected right now'\],/);
 });
 
 // ── widgets ─────────────────────────────────────────────────────────────────

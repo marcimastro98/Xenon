@@ -170,7 +170,7 @@ test('the design rules hold in the stylesheet: no gradient, no shadow, no blur, 
 });
 
 // ── The page half, through a fake DOM ──────────────────────────────────────────────
-function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path = '/', htmlLang = 'en', wide = true, consent = 'granted', stored = {} } = {}) {
+function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path = '/', htmlLang = 'en', wide = true, consent = 'granted', stored = {}, pageHeight = 3000 } = {}) {
   const docListeners = {};
   const winListeners = {};
   const make = (tag) => ({
@@ -201,7 +201,7 @@ function fakeDom({ feed, catalog, now = NOW, framed = false, search = '', path =
   const hasClass = (n, c) => (' ' + n.className + ' ').includes(' ' + c + ' ');
   const byClass = (q) => all().filter((n) => hasClass(n, q.slice(1)));
   const document = {
-    readyState: 'complete', head, body, documentElement: { lang: htmlLang }, visibilityState: 'visible',
+    readyState: 'complete', head, body, documentElement: { lang: htmlLang, scrollHeight: pageHeight }, visibilityState: 'visible',
     createElement: make,
     getElementById: (id) => all().find((n) => n.id === id) || null,
     querySelector: (q) => {
@@ -290,53 +290,73 @@ test('render: a closed strip stays closed, and closing it gives the header its p
   assert.equal(again.all().some((n) => again.hasClass(n, 'xp-strip')), false);
 });
 
-test('render: the spotlight waits for the cookie choice, then opens once per visit', async () => {
+// The drop panel: never on arrival, only once the visitor has read half the page, never a modal,
+// and once per drop (not per visit). The page in these tests is 3000px tall in a 900px window, so
+// half of it is a scroll of 1050px.
+const panelOf = (dom) => dom.all().find((n) => dom.hasClass(n, 'xp-panel'));
+const scrollTo = (dom, y) => { dom.window.scrollY = y; (dom.docListeners.scroll || []).slice().forEach((fn) => fn()); };
+
+test('render: the panel waits for the cookie choice and for half the page, and is never a modal', async () => {
   const dom = await run({ consent: null });
-  assert.equal(dom.timers.length, 0, 'nothing scheduled before the choice');
+  scrollTo(dom, 2000);
+  assert.equal(panelOf(dom), undefined, 'nothing before the cookie choice');
   dom.ctx.document.dispatchEvent(new dom.ctx.CustomEvent('xenon:consent', { detail: { granted: false } }));
-  assert.equal(dom.timers.length, 1);
-  dom.runTimers();
-  const d = dom.all().find((n) => n.tagName === 'DIALOG');
-  assert.ok(d && d.open, 'a modal sheet on a wide screen');
-  assert.match(d.textContent, /Not now/);
-  assert.match(dom.session.getItem('xenon.site.promo.seen'), /river-spot/);
-
-  // Same visit, next page: no second spotlight.
-  const next = fakeDom({ feed: FEED, catalog: { entries: ENTRIES } });
-  next.session.setItem('xenon.site.promo.seen', dom.session.getItem('xenon.site.promo.seen'));
-  vm.runInNewContext(src, next.ctx);
-  await settle();
-  next.runTimers();
-  assert.equal(next.all().some((n) => n.tagName === 'DIALOG'), false);
+  scrollTo(dom, 600);
+  assert.equal(panelOf(dom), undefined, 'not after the first screen: half the page has not been read');
+  scrollTo(dom, 1100);
+  const panel = panelOf(dom);
+  assert.ok(panel, 'after half the page');
+  assert.ok(dom.hasClass(panel, 'xp-corner'), 'in the corner on a computer');
+  assert.equal(panel.classList.contains('in'), true);
+  assert.equal(dom.all().some((n) => n.tagName === 'DIALOG'), false, 'never a modal');
+  assert.equal(dom.timers.length, 0, 'no timer: it answers the reading, not the clock');
+  assert.match(panel.textContent, /Which app is weighing on your PC\./);
+  assert.doesNotMatch(src, /showModal|<dialog|'dialog'/);
 });
 
-test('render: on a phone the spotlight is a panel, and only after the first scroll or tap', async () => {
-  const dom = await run({ wide: false });
-  assert.equal(dom.timers.length, 0, 'not on the page a search result just opened');
-  (dom.winListeners.pointerdown || [])[0]();
-  dom.runTimers();
-  assert.equal(dom.all().some((n) => n.tagName === 'DIALOG'), false, 'never a modal on a phone');
-  const panel = dom.all().find((n) => dom.hasClass(n, 'xp-drawer'));
-  assert.ok(panel);
-  assert.match(panel.textContent, /Unlock/);
-  assert.match(panel.textContent, /A widget for Xenon supporters\./, 'the phone says what it is');
-  assert.equal(dom.all().some((n) => dom.hasClass(n, 'xp-corner')), false, 'no corner card on a phone');
+test('render: the panel shows once per drop, across visits, whatever the hub called the place', async () => {
+  const dom = await run();
+  scrollTo(dom, 1100);
+  assert.equal(dom.all().filter((n) => dom.hasClass(n, 'xp-panel')).length, 1, 'one panel even with a spotlight and a corner set');
+  const saved = dom.local.getItem('xenon.site.promo.v1');
+  assert.match(saved, /"panel:river"/, 'remembered by the drop, as soon as it is shown');
+
+  const again = await run({ stored: { 'xenon.site.promo.v1': saved }, path: '/faq/' });
+  scrollTo(again, 2000);
+  assert.equal(panelOf(again), undefined, 'not again on the next visit');
+  assert.ok(again.all().some((n) => again.hasClass(n, 'xp-strip')), 'the strip is on every page until closed');
 });
 
-test('render: the corner card is on the home only, and only after most of the first screen', async () => {
-  const dom = await run({ path: '/it/' });
-  const card = dom.all().find((n) => dom.hasClass(n, 'xp-corner'));
-  assert.ok(card);
-  const watch = (dom.docListeners.scroll || []).slice();
-  watch.forEach((fn) => fn());
-  assert.equal(card.classList.contains('in'), false, 'not before scrolling');
-  dom.window.scrollY = 800;
-  watch.forEach((fn) => fn());
-  assert.equal(card.classList.contains('in'), true);
-
+test('render: on every page, and on a phone it runs along the bottom edge', async () => {
   const faq = await run({ path: '/faq/' });
-  assert.equal(faq.all().some((n) => faq.hasClass(n, 'xp-corner')), false);
-  assert.ok(faq.all().some((n) => faq.hasClass(n, 'xp-strip')), 'the strip is on every page');
+  scrollTo(faq, 1100);
+  assert.ok(panelOf(faq), 'not only on the home');
+
+  const phone = await run({ wide: false });
+  scrollTo(phone, 1100);
+  const panel = panelOf(phone);
+  assert.ok(phone.hasClass(panel, 'xp-drawer'));
+  assert.match(panel.textContent, /A widget for Xenon supporters\./, 'the phone says what it is');
+});
+
+// A press on a button or link (copying a code, opening an entry) is someone
+// doing something: the panel must not land on top of it.
+const onButton = { target: { closest: () => ({}) } };
+
+test('render: the panel waits while a button was just pressed, then comes on the next scroll', async () => {
+  const dom = await run();
+  dom.docListeners.pointerdown[0](onButton);
+  scrollTo(dom, 1100);
+  assert.equal(panelOf(dom), undefined, 'not on top of what was just done');
+  dom.ctx.Date.now = () => NOW + 5000;
+  scrollTo(dom, 1150);
+  assert.ok(panelOf(dom), 'tried again, not dropped');
+});
+
+test('render: a page too short to scroll never gets the panel', async () => {
+  const dom = await run({ pageHeight: 900 });
+  scrollTo(dom, 0);
+  assert.equal(panelOf(dom), undefined);
 });
 
 test('render: nothing inside a frame or on the demo, and nothing live skips the catalog', async () => {
@@ -363,4 +383,22 @@ test('preview: only the hub origin is heard, only the draft is drawn, nothing is
   assert.match(strip.textContent, /Anteprima, non pubblicato/);
   assert.equal(dom.ctx.fetched.length, 0);
   assert.equal(dom.local.getItem('xenon.site.promo.v1'), null);
+});
+
+// ── The thanks page picture: the newest supporter pack, so it never shows a stale date ──
+test('the thanks page shows the newest supporter pack that is open now', () => {
+  const entries = [
+    { id: 'old', name: 'Old', supportersOnly: true, addedAt: '2026-07-23' },
+    { id: 'newest', name: 'Newest', supportersOnly: true, addedAt: '2026-10-02', activeFrom: '2026-10-01', activeUntil: '2026-11-02T23:59:59+01:00' },
+    { id: 'free', name: 'Free', addedAt: '2026-10-10' },
+    { id: 'limited', name: 'Limited', supportersOnly: true, limited: 40, addedAt: '2026-10-11' },
+    { id: 'staged', name: 'Staged', supportersOnly: true, addedAt: '2026-10-12', activeFrom: '2026-12-01' },
+    { id: 'pulled', name: 'Pulled', supportersOnly: true, addedAt: '2026-10-13', active: false },
+  ];
+  assert.equal(P.newestDrop(entries, NOW).id, 'newest');
+  // Once its window closes the page moves on by itself, to the next one still open.
+  assert.equal(P.newestDrop(entries, Date.parse('2026-11-05T12:00:00Z')).id, 'old');
+  assert.equal(P.newestDrop([{ id: 'free', addedAt: '2026-10-10' }], NOW), null);
+  assert.equal(P.newestDrop(null, NOW), null);
+  assert.equal(P.dropShot('notte-stellata'), 'https://assets.xenon-app.com/community/shots/notte-stellata.webp');
 });

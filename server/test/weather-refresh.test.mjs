@@ -60,3 +60,25 @@ test('fetchWeather clears its guard in a finally, and its failure render cannot 
   // stale rather than blanked); that the render is WRAPPED has not.
   assert.match(body, /try\s*\{\s*applyWeather\(.*\);\s*\}\s*catch/, 'the failure render must be guarded');
 });
+
+// ── The city chosen by hand, on the light pages too ─────────────────────────
+// layer-lite.html and scene.html load system.js without settings.js. Its
+// normalizer was missing there, so fetchWeather fell back to "auto" and a
+// widget on the desktop showed the IP's town instead of the city the user typed.
+test('fetchWeather keeps a manual city where settings.js is not loaded', async () => {
+  const src = read('js/system.js');
+  const fn = src.slice(src.indexOf('async function fetchWeather('));
+  const body = fn.slice(0, fn.indexOf('\nasync function '));
+  const urls = [];
+  const run = new Function('hubSettings', 'fetchWithDeadline', 'applyWeather', 'weatherStaleFallback',
+    `let fetchingWeather = false; const lang = 'it'; const SERVER = ''; const WEATHER_FETCH_TIMEOUT_MS = 1;
+     ${body}
+     return fetchWeather();`);
+  const fetchStub = async (url) => { urls.push(url); return { ok: true, json: async () => ({ ok: true }) }; };
+  await run({ weather: { mode: 'manual', city: 'Trento' } }, fetchStub, () => {}, () => null);
+  await run({}, fetchStub, () => {}, () => null);
+  const q0 = new URLSearchParams(urls[0].split('?')[1]);
+  assert.equal(q0.get('mode'), 'manual');
+  assert.equal(q0.get('city'), 'Trento');
+  assert.equal(new URLSearchParams(urls[1].split('?')[1]).get('mode'), 'auto');
+});
