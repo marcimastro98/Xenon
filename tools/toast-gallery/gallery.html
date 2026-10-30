@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<!-- The notification gallery (serve.mjs): the app's own toast.js, toast-island.js
+     and styles, over a stand-in for a busy dashboard, so the glass is judged on
+     something. ?place=stack|alerts|island  ?theme=dark|light  ?set=1|2
+     ?motion=1 (cards arrive one by one)  ?list=1 (island: open the "+N" list)
+     The film script (film.mjs) drives the rest through window.gallery. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notification gallery</title>
+<link rel="stylesheet" href="styles/fonts.css">
+<link rel="stylesheet" href="styles/global.css">
+<link rel="stylesheet" href="styles/themes-light.css">
+<link rel="stylesheet" href="styles/theme-contract.css">
+<link rel="stylesheet" href="components/TopbarMinimal/TopbarMinimal.css">
+<link rel="stylesheet" href="components/Toast/Toast.css">
+<link rel="stylesheet" href="components/CallModal/CallModal.css">
+<link rel="stylesheet" href="components/ScreenAlerts/ScreenAlerts.css">
+<style>
+  body { margin: 0; min-height: 100vh; background: var(--bg, #0b0d0e); color: var(--text); font-family: var(--font-ui, system-ui); }
+  .fake-grid {
+    position: fixed; inset: 0; padding: 14px; box-sizing: border-box;
+    display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-auto-rows: 150px;
+  }
+  body.topbar-minimal .fake-grid { padding-top: 58px; }
+  .fake-grid > div { border-radius: 18px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+  .fake-grid > div:nth-child(3n) { background: linear-gradient(135deg, #e5484d, #8e4ec6); }
+  .fake-grid > div:nth-child(5n) { background: linear-gradient(160deg, #1ed760, #0090ff); }
+  .fake-grid > div:nth-child(7n) { background: repeating-linear-gradient(45deg, #ffb224 0 14px, #fff1 14px 28px); }
+  html[data-screen-alerts] .fake-grid > div { filter: saturate(1.4) brightness(0.8); }
+  /* The clock pill's face (the real one holds the clock segments). */
+  .gallery-clock { display: grid; place-items: center; height: 100%; padding: 0 18px; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="fake-grid" aria-hidden="true"></div>
+<script src="js/theme-palette.js"></script>
+<script src="js/theme-tokens.js"></script>
+<script src="js/toast-island.js"></script>
+<script src="js/toast.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const tone = q.get('theme') === 'light' ? 'light' : 'dark';
+  const place = q.get('place') || 'stack';
+  ThemeTokens.applyPalette(document.documentElement, ThemePalette.derive({ ...ThemePalette.STOCK[tone] }, tone));
+  if (place === 'alerts') document.documentElement.setAttribute('data-screen-alerts', '');
+  const grid = document.querySelector('.fake-grid');
+  for (let i = 0; i < 40; i++) grid.appendChild(document.createElement('div'));
+
+  // Minimal chrome: the clock pill the island grows out of and lands back on,
+  // and the one call toast-island.js makes into topbar-minimal.js.
+  if (place === 'island') {
+    document.body.classList.add('topbar-minimal');
+    const pill = document.createElement('div');
+    pill.id = 'topbar-mini';
+    pill.className = 'topbar-mini';
+    const clock = document.createElement('span');
+    clock.className = 'gallery-clock';
+    clock.textContent = '15:42';
+    pill.appendChild(clock);
+    document.body.appendChild(pill);
+    window.TopbarMinimal = {
+      homeBox() {
+        const r = pill.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height, radius: parseFloat(getComputedStyle(pill).borderTopLeftRadius) || r.height / 2, kind: 'pill' };
+      },
+      reflowIsland() {},
+    };
+  }
+
+  // A stand-in app logo, the way the Windows mirror hands one over.
+  const LOGO = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="9" fill="#5865f2"/><circle cx="14" cy="21" r="4" fill="#fff"/><circle cx="26" cy="21" r="4" fill="#fff"/></svg>');
+  const noop = () => {};
+  const SETS = {
+    1: [
+      { type: 'info', title: 'Layout saved' },
+      { type: 'update', kicker: 'Xenon 4.12.0', title: 'An update is ready', message: 'Tap to install. The dashboard restarts in a few seconds.', onClick: noop,
+        actions: [{ label: 'Install', primary: true, onClick: noop }, { label: 'Skip this version', onClick: noop }] },
+      { type: 'notification', kicker: 'Discord', title: 'Luca in #general', message: 'Are we still on for tonight? I can bring the second controller and the long HDMI cable.', iconUrl: LOGO },
+      { type: 'success', kicker: 'Screen capture', title: 'Clip saved', message: '00:42, Videos\\Xenon' },
+    ],
+    2: [
+      { type: 'warning', kicker: 'Storage', title: 'Disk C: is almost full', message: '4.2 GB left of 512 GB' },
+      { type: 'timer', kicker: 'Timer', title: 'Tea is ready', message: '5:00 finished' },
+      { type: 'reminder', kicker: 'Calendar, 15:30', title: 'Call with the CORSAIR team about the spotlight video and the next widget', message: 'In 10 minutes' },
+      { type: 'error', kicker: 'Deck', title: 'OBS is not connected', message: 'Open OBS, then press the key again.' },
+    ],
+  };
+  const list = SETS[q.get('set')] || SETS[1];
+  const ids = [];
+  const fire = (o, duration) => { const id = XenonToast.show({ duration, silent: true, important: true, ...o }); ids.push(id); return id; };
+  // For film.mjs: show one sample, or close one, while the frames are taken.
+  window.gallery = {
+    show: (set, i, duration = 600000) => fire((SETS[set] || SETS[1])[i], duration),
+    dismiss: (id) => XenonToast.dismiss(id),
+    openList: () => { const chip = document.querySelector('.xisland-more'); if (chip) chip.click(); return !!chip; },
+    ids,
+  };
+  if (q.get('empty') !== '1') {
+    // Oldest first, so the first sample ends up at the top like the newest.
+    const motion = q.get('motion') === '1';
+    list.slice().reverse().forEach((o, i) => {
+      if (motion) setTimeout(() => fire(o, 9000), 400 + i * 450); else fire(o, 600000);
+    });
+    if (q.get('list') === '1') setTimeout(() => window.gallery.openList(), 1200);
+  }
+  window.__galleryReady = true;
+</script>
+</body>
+</html>

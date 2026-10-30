@@ -1,3 +1,6 @@
+Sofia Sans: Copyright 2019 The Sofia Sans Project Authors (https://github.com/lettersoup/Sofia-Sans), same license as below.
+Pixelify Sans: Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans), same license as below.
+
 Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

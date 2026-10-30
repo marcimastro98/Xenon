@@ -17,6 +17,8 @@
   const D = window.__XD__;
   const BUILD = '__BUILD__';
   const VERSION = '__V__';
+  // A running timer started some minutes before the demo opened (data.js keeps it as data).
+  for (const t of D.timers) if (t.status === 'running') t.startedAt = Date.now();
 
   // ── 1. Park the fragment ──────────────────────────────────────────────────
   // Read it, remember it, and REMOVE it before anything else looks. Two things
@@ -223,9 +225,10 @@
     '/search/open', '/search/reveal', '/search/ai', '/spotlight/claimed', '/lock',
     '/api/community/rate', '/api/community/redeem', '/api/screenshot', '/api/screenshot/monitor',
     '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock', '/api/features/lyrics/unlock', '/api/features/lyrics/trial',
+    '/api/community/trial/check', '/api/community/trial/tried',
     '/api/claude/history/delete',
   ];
-  const blockedPrefixes = ['/api/ai/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
+  const blockedPrefixes = ['/api/ai/', '/api/mcp/', '/api/stt/', '/remote/', '/api/lighting/set', '/deck/press'];
 
   // Reads the app makes on its own while it starts, under a blocked prefix.
   // Answered quietly: the "runs on your PC" toast is for something the visitor
@@ -233,6 +236,10 @@
   const QUIET_READS = {
     '/remote/status': () => ok({ ready: false, installed: false, blocked: false, connectedClients: [] }),
     '/api/ai/memory': () => ok({ facts: [] }),
+    // The Sparks chip reads the balance on start: the demo has no code, so no balance.
+    '/api/ai/xenon/balance': () => ok({ ok: false, error: 'no_code' }),
+    '/api/mcp/dev/clients': () => ok({ ok: true, clients: [] }),
+    '/api/mcp/dev/pairs': () => ok({ ok: true, pairs: [] }),
   };
 
   let lastToastAt = 0;
@@ -500,10 +507,6 @@
   }, 3000);
   setInterval(() => push('audio', audioPayload()), 5000);
   setInterval(() => { if (sim.playing) push('media', mediaPayload()); }, 1000);
-  setInterval(() => {
-    const tm = D.timers[0];
-    if (tm && tm.running && tm.remaining > 0) { tm.remaining--; push('timer_update', { timers: D.timers }); }
-  }, 1000);
 
   // ── 7. WebSocket + sendBeacon ─────────────────────────────────────────────
   // Stuck at CONNECTING forever, deliberately: browser-tile.js and
@@ -528,7 +531,34 @@
   // ── 8. Splash ─────────────────────────────────────────────────────────────
   // 115 classic scripts execute serially; on a mid laptop that is seconds of
   // blank page. This is the highest-value 30 lines in the whole demo.
+  // i18n.js is not loaded yet, so the line carries its own copy in the app's
+  // languages, picked the way the dashboard will pick its own.
+  const SPLASH_TEXT = {
+    en: 'Loading the Xenon demo…',
+    it: 'Caricamento della demo di Xenon…',
+    es: 'Cargando la demo de Xenon…',
+    fr: 'Chargement de la démo Xenon…',
+    de: 'Xenon-Demo wird geladen…',
+    pt: 'A carregar a demo do Xenon…',
+    nl: 'Xenon-demo wordt geladen…',
+    ru: 'Загрузка демо Xenon…',
+    ja: 'Xenon デモを読み込んでいます…',
+    ko: 'Xenon 데모를 불러오는 중…',
+    zh: '正在加载 Xenon 演示…',
+  };
+  function splashLang() {
+    const said = [];
+    try { said.push(localStorage.getItem('uiLang'), localStorage.getItem('xenon.site.lang')); } catch { /* none */ }
+    for (const l of navigator.languages || [navigator.language]) said.push(l);
+    for (const l of said) {
+      const code = String(l || '').slice(0, 2).toLowerCase();
+      if (SPLASH_TEXT[code]) return code;
+    }
+    return 'en';
+  }
   (function splash() {
+    // The Maker covers its preview frame with its own loading state.
+    if (window.__XENON_DEMO_MAKER__) return;
     const s = document.createElement('div');
     s.id = 'demo-splash';
     s.setAttribute('style', [
@@ -537,11 +567,14 @@
       'background:#070808', 'color:#f0f3f1', 'font:600 15px/1.5 system-ui,sans-serif',
       'letter-spacing:.02em', 'transition:opacity .45s ease',
     ].join(';'));
+    const lang = splashLang();
+    s.lang = lang;
     s.innerHTML = '<div style="width:46px;height:46px;border-radius:50%;'
       + 'border:3px solid rgba(0,141,255,.18);border-top-color:#008dff;'
       + 'animation:demospin 900ms linear infinite"></div>'
-      + '<div style="opacity:.7">Loading the Xenon demo…</div>'
+      + '<div style="opacity:.7"></div>'
       + '<style>@keyframes demospin{to{transform:rotate(360deg)}}</style>';
+    s.children[1].textContent = SPLASH_TEXT[lang];
     const mount = () => { if (document.body) document.body.appendChild(s); };
     if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount, { once: true });
     window.addEventListener('load', () => {

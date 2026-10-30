@@ -115,7 +115,9 @@ window.__XD__ = (function () {
       { id: 'e5', title: 'Coffee with Marco', startsAt: iso(dayAt(3, 16, 30)) },
     ],
 
-    timers: [{ id: 'tm1', label: 'Focus', total: 1500, remaining: 1140, running: true }],
+    // The server's own shape (timer.js reads durationSecs/startedAt/status);
+    // boot.js sets startedAt when the demo opens, the card counts down by itself.
+    timers: [{ id: 'tm1', label: 'Focus', durationSecs: 1500, pausedElapsed: 360, status: 'running', startedAt: 0 }],
 
     // The client reads tempC/feelsC/condition/location and gates on `ok`.
     weather: {
