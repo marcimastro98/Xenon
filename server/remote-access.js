@@ -140,6 +140,26 @@ const REMOTE_DENY = new Set([
   // is chosen at the PC, with the picker, which is the same shape the Slideshow
   // folder source has: the path lives only in settings and never on the wire.
   '/api/transfer/settings',
+  // Opens the folder dialog on the PC for the same folder.
+  '/api/transfer/settings/pick',
+  // Recording options: the folder recordings land in (a path on the PC, chosen
+  // there with the system's folder dialog), and how many old ones may be
+  // deleted to stay under a space limit. Set at the PC, like the transfer folder.
+  '/capture/settings',
+  '/capture/settings/pick',
+  // The gallery: delete (no undo from a phone in another room), copy to the
+  // PC's clipboard and show in its folder on the PC's screen stay at the PC.
+  // A paired device looks, downloads, and makes NEW copies (trim, export,
+  // transcript): the original is never touched, and the Deck keys a phone
+  // presses already reach the same export and transcript through /actions/run.
+  '/captures/delete',
+  '/captures/reveal',
+  '/captures/copy',
+  // "To phone" is sent from the PC; the phone already downloads directly.
+  '/captures/send',
+  // The editor reads a screenshot on the PC and writes a copy beside it.
+  '/captures/spots',
+  '/captures/save',
   // Dialling a number. The phonebook, the call log and the live call state ARE
   // reachable from a paired device — that is the dashboard being the dashboard
   // — but placing the call is not, and the reason is what happens next rather
@@ -154,6 +174,50 @@ const REMOTE_DENY = new Set([
   // shows the text of the same messages — but sending one goes out under the
   // user's own number to somebody else, cannot be recalled, and is metered.
   '/api/phone/send',
+  // The native shell's own report of what it draws (widget layers, monitors).
+  // A phone is not that shell: a report from one would offer the AI placements
+  // nothing on the PC will draw.
+  '/layers/host',
+  // Which virtual desktop the PC shows; from a phone it would flip the widget pages.
+  '/layers/desk',
+  // The sound/AI/mixer step of a Deck shortcut belongs to a dashboard on the PC;
+  // a phone that claimed it would play the sound in the user's pocket.
+  '/deck/shortcut-claim',
+  // A Deck key's AI chat or mixer handed to the PC's dashboard: it opens there.
+  '/deck/client-step',
+  // Same for what Bit plays in a tile: it belongs on the PC's screens.
+  '/tiles/play-claim',
+  // The hidden page that keeps the widget windows in sync in "widgets only"
+  // mode (shell-driver.html). It belongs to the shell's own window; a phone that
+  // loaded it would drive nothing and only hold a stream open.
+  '/shell-driver',
+  // The on-screen alerts window of "widgets only" (screen-alerts.html): pop-ups
+  // drawn on this PC's screen. A phone has its own dashboard and its own toasts.
+  '/screen-alerts',
+  // The hidden Store widget host of "widgets only" (sdk-service.html). A phone
+  // that loaded it would run a second copy of every widget's Deck actions.
+  '/sdk-service',
+  // The desktop scene (scene.html): the wallpaper and the screensaver drawn on
+  // this PC's screens. A phone has its own Ambient.
+  '/scene',
+  // The drawing sheet (draw.html) laid over this PC's screen, and whether it is
+  // open. A phone that loaded it would draw on nothing.
+  '/draw',
+  '/screen-draw',
+  // The Xenon menu window over this PC's screen (menu.html) and whether it is
+  // open (screen-menu.js). A phone opens the same menu as a panel of its own
+  // dashboard (GET /xenon-menu stays reachable, its rows run through
+  // /actions/run like the Deck); it never drives the PC's menu window.
+  '/menu',
+  '/screen-menu',
+  // Performance Mode of "widgets only" (perf-screen.js): the driver page's save
+  // of its session and the cards it puts on this PC's screen. A phone has its
+  // own dashboard; one that answered here would start a session on the PC.
+  '/api/performance/screen',
+  '/api/performance/state',
+  // A tile's choices saved from a widget on the PC's screen (tile-settings.js).
+  // A phone has the whole dashboard and saves through /settings.
+  '/settings/tile',
 ]);
 
 // Prefix denials, for routes that carry an id tail.
@@ -193,6 +257,8 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/community/catalog', '/api/community/code', '/api/community/messages',
   '/api/lyrics', '/api/features/lyrics/unlock', '/api/features/lyrics/trial', '/api/lyrics/offset', '/api/lyrics/translate',
   '/api/community/installed', '/api/community/installs', '/api/community/poll',
+  // The chat's stop button: reachable from a phone, by POST only.
+  '/api/ai/turn/stop',
   '/api/community/support-goal', '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
   // The owner update: POST-only like the redeem it sits beside. It hands back a
   // content key (and sometimes a private file), so a navigation must not reach it.
@@ -205,6 +271,16 @@ const DEFAULT_GET_MUTATORS = new Set([
   // the import dialog makes it from a paired phone.
   '/api/community/supporter/forget',
   '/api/community/supporter/save',
+  // Buying a drop with Sparks spends them, so POST only, like the redeem: a phone
+  // buys from the Store by POST, a navigation never can. Saving the Sparks code
+  // plants a code, like the pass save above.
+  '/api/community/buy',
+  '/api/community/sparks/save',
+  '/api/community/sparks/forget',
+  // The pass trial: a hub call and a write, by POST only. The read beside them
+  // (/api/community/trial) is deliberately absent, like the supporter boolean.
+  '/api/community/trial/check',
+  '/api/community/trial/tried',
   '/api/community/rate', '/icon-pack', '/sound-pack', '/sdk/install', '/api/lighting/sdk-install',
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
@@ -213,9 +289,14 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/codex/event', '/api/codex/permission', '/api/codex/decide', '/api/codex/link', '/api/codex/unlink',
   '/api/chatgpt/ask', '/api/chatgpt/cancel', '/api/chatgpt/delete',
   '/search/open', '/search/reveal', '/search/ai',
+  // A widget's question to the user's AI spends Sparks, a key's money or plan quota.
+  '/sdk/ai',
+  // Widget authors' MCP: tokens and installs.
+  '/api/mcp/dev/pair', '/api/mcp/dev/pair/poll', '/api/mcp/dev/pair/answer', '/api/mcp/dev/call',
+  '/api/mcp/dev/report', '/api/mcp/dev/revoke', '/api/mcp/dev/connect',
   '/disk/scan', '/disk/scan/cancel', '/disk/clean', '/disk/clean/cancel', '/disk/reveal', '/api/disk/advisor',
   '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock',
-  '/spotlight/claimed', '/api/screenshot', '/api/screenshot/monitor',
+  '/spotlight/claimed', '/deck/shortcut-claim', '/deck/client-step', '/tiles/play-claim', '/layers/host', '/layers/desk', '/api/screenshot', '/api/screenshot/monitor',
   '/api/remote-access/enable', '/api/remote-access/pair', '/api/remote-access/pair/cancel',
   '/api/remote-access/redeem', '/api/remote-access/rename', '/api/remote-access/revoke',
   '/api/remote-access/revoke-all',
@@ -264,6 +345,9 @@ const DEFAULT_GET_MUTATORS = new Set([
   // navigation to it. /api/phone, /contacts, /calls, /messages and /message are
   // deliberately absent: they are reads a paired device is meant to make.
   '/api/phone/dial', '/api/phone/send',
+  // The gallery's new copies: a paired device makes them, by POST only (each
+  // writes a file or runs the encoder or whisper on the PC).
+  '/captures/trim', '/captures/clips', '/captures/export', '/captures/export-cancel', '/captures/transcribe',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 
@@ -321,6 +405,10 @@ const REMOTE_ADMIN = new Set([
   '/api/devclean/compact',
   '/api/features/devclean/unlock',
   '/api/features/lyrics/unlock',
+  // Throws away the PC's remembered supporter pass: only the person at the PC
+  // can put it back, so only they may remove it. The Sparks code the same.
+  '/api/community/supporter/forget',
+  '/api/community/sparks/forget',
   // Widens where Claude Code may start work on this PC: the person at the PC decides.
   '/api/claude/folder',
 ]);

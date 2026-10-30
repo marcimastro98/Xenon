@@ -1381,6 +1381,65 @@ async function sendKeys(combo) {
   catch { return { ok: false, error: 'ydotool_failed' }; }
 }
 
+// --- Showing the desktop: Bit's "I'll hide your windows" (vitals-nag.js) -----
+// X11 has a standard for it: _NET_SHOWING_DESKTOP, which `wmctrl -k on` sets on
+// every EWMH window manager (GNOME, KDE, Xfce, Cinnamon, MATE…). Wayland has no
+// protocol for one app to hide the others; KDE's KWin still answers its own
+// global shortcut over D-Bus ("Show Desktop", Meta+D, src/useractions.cpp), so
+// Plasma works there too. GNOME on Wayland exposes nothing an app may call, so
+// it is the one desktop where this is not possible.
+function linuxSession(env = process.env) {
+  const wayland = !!(env.WAYLAND_DISPLAY || String(env.XDG_SESSION_TYPE || '').toLowerCase() === 'wayland');
+  const desktop = String(env.XDG_CURRENT_DESKTOP || env.DESKTOP_SESSION || '').toLowerCase();
+  return { wayland, kde: /kde|plasma/.test(desktop) };
+}
+
+// → 'wmctrl' | 'kwin' | '' (cannot here), given which tools answer.
+function pickHideTool(session, has) {
+  if (!session.wayland && has.wmctrl) return 'wmctrl';
+  if (session.kde && has.dbusSend) return 'kwin';
+  return '';
+}
+
+let _hideProbe = null;
+// Why it cannot, when it cannot: 'wayland' (no desktop API) or 'needs_wmctrl'.
+async function hideWindowsTool() {
+  if (_hideProbe) return _hideProbe;
+  const session = linuxSession();
+  const answers = async (bin, args) => {
+    try { await run(bin, args, 3000); return true; } catch { return false; }
+  };
+  const has = {
+    wmctrl: !session.wayland && await answers('wmctrl', ['-m']),
+    dbusSend: session.kde && await answers('dbus-send', ['--version']),
+  };
+  const tool = pickHideTool(session, has);
+  _hideProbe = { tool, reason: tool ? '' : (session.wayland ? 'wayland' : 'needs_wmctrl') };
+  return _hideProbe;
+}
+
+async function hideWindows() {
+  const { tool, reason } = await hideWindowsTool();
+  if (tool === 'wmctrl') {
+    if (await runX('wmctrl', ['-k', 'on'], 5000) === null) throw new Error('wmctrl_failed');
+    return;
+  }
+  if (tool === 'kwin') {
+    await run('dbus-send', ['--session', '--type=method_call', '--dest=org.kde.kglobalaccel', '/component/kwin',
+      'org.kde.kglobalaccel.Component.invokeShortcut', 'string:Show Desktop'], 5000);
+    return;
+  }
+  const err = new Error(reason);
+  err.code = reason;
+  throw err;
+}
+
+// A desktop notification: the fallback for Bit's popup when no Xenon app window
+// can draw it. notify-send is libnotify's, on every common desktop.
+async function notify(title, text) {
+  await run('notify-send', ['--app-name=Xenon', '--', String(title), String(text)], 5000);
+}
+
 // --- Per-process CPU/RAM for the `processes` stream -------------------------
 // One read of /proc/<pid>/stat per process carries BOTH the cumulative CPU time
 // and the resident set, so this needs no external tool and no second file.
@@ -1522,7 +1581,21 @@ function parseLoginctlIdle(text, nowMs) {
   const now = Number.isFinite(nowMs) ? nowMs : Date.now();
   return Math.max(0, Math.floor((now * 1000 - sinceUs) / 1e6));
 }
+// On X11 `xprintidle` (when installed) reads the XScreenSaver extension: the
+// exact time since the last input, in milliseconds. Not on Wayland, where it
+// would only see the XWayland apps.
+function parseXprintidle(text) {
+  const t = String(text || '').trim();
+  if (!/^\d{1,15}$/.test(t)) return null;
+  return Math.floor(Number(t) / 1000);
+}
 async function idleSeconds() {
+  if (process.env.DISPLAY && process.env.XDG_SESSION_TYPE !== 'wayland' && !process.env.WAYLAND_DISPLAY) {
+    try {
+      const sec = parseXprintidle(await run('xprintidle', [], 4000));
+      if (sec != null) return sec;
+    } catch { /* not installed: logind below */ }
+  }
   const uid = typeof process.getuid === 'function' ? process.getuid() : null;
   if (uid == null) return null;
   try {
@@ -1533,12 +1606,12 @@ async function idleSeconds() {
 
 module.exports = {
   gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  sendKeys, keysAvailable, processes, idleSeconds, parseLoginctlIdle,
+  sendKeys, keysAvailable, hideWindows, hideWindowsTool, notify, processes, idleSeconds, parseLoginctlIdle, parseXprintidle,
   // exported for unit tests
   parseProcStat,
   parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseHwmonReading, hwmonDevKey, hwmonKind, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseDiskstats, parseMountsFor,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
-  ydotoolArgs,
+  ydotoolArgs, linuxSession, pickHideTool,
 };

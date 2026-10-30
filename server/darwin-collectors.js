@@ -1092,6 +1092,54 @@ async function lock() {
   if (slept === null) throw new Error('lock unavailable: no helper and pmset failed');
 }
 
+// --- Hiding the other apps: Bit's "I'll hide your windows" (vitals-nag.js) ---
+// macOS has no "show desktop" an app may call, but it has what Option-Command-H
+// does: hiding the other apps. NSRunningApplication.hide() is a plain AppKit
+// call, reached here through osascript's JavaScript bridge: no System Events,
+// so no Automation or Accessibility prompt. Xenon's own windows stay, since
+// the dashboard is what Bit talks from.
+const XENON_BUNDLE_ID = 'com.marcimastro98.xenon';
+const HIDE_APPS_JXA = `
+ObjC.import('AppKit');
+const keep = ${JSON.stringify([XENON_BUNDLE_ID])};
+const apps = $.NSWorkspace.sharedWorkspace.runningApplications;
+let shown = 0, hidden = 0;
+for (let i = 0; i < apps.count; i++) {
+  const a = apps.objectAtIndex(i);
+  // 0 = NSApplicationActivationPolicyRegular: apps with a Dock icon and windows.
+  if (a.activationPolicy !== 0 || a.isHidden) continue;
+  if (keep.includes(ObjC.unwrap(a.bundleIdentifier) || '')) continue;
+  shown++;
+  if (a.hide) hidden++;
+}
+JSON.stringify({ shown, hidden });
+`;
+
+// { shown, hidden } from the script, or null when it printed something else.
+function parseHideResult(text) {
+  try {
+    const r = JSON.parse(String(text || '').trim());
+    return Number.isInteger(r.shown) && Number.isInteger(r.hidden) ? r : null;
+  } catch { return null; }
+}
+
+async function hideWindows() {
+  const r = parseHideResult(await run('/usr/bin/osascript', ['-l', 'JavaScript', '-e', HIDE_APPS_JXA], 8000));
+  // Nothing to hide is not a failure; apps that were there and stayed are.
+  if (!r || (r.shown > 0 && r.hidden === 0)) throw new Error('hide_failed');
+}
+
+async function hideWindowsTool() { return { tool: 'appkit', reason: '' }; }
+
+// A Notification Center banner: the fallback for Bit's popup when no Xenon app
+// window can draw it. The text travels as an argument, never inside the script.
+async function notify(title, text) {
+  await run('/usr/bin/osascript', [
+    '-e', 'on run argv', '-e', 'display notification (item 2 of argv) with title (item 1 of argv)', '-e', 'end run',
+    String(title), String(text),
+  ], 5000);
+}
+
 // --- Per-process CPU/RAM for the `processes` stream -------------------------
 // `ps -Ao pid=,rss=,time=,comm=` is the whole data source: one process, no
 // permission prompt, and — unlike Linux — macOS ps prints cumulative CPU time
@@ -1288,11 +1336,11 @@ async function idleSeconds() {
 
 module.exports = {
   gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  processes, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
+  hideWindows, hideWindowsTool, notify, processes, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
   // exported for unit tests
   parsePsTime, parsePsProcesses,
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
-  parseIoregDisks,
+  parseIoregDisks, parseHideResult,
   buildAudioRows, isCaptureTarget, ratioToPct, withCurrentOutput,
 };

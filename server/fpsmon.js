@@ -23,9 +23,17 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { frameStats, toFrameTimes, cleanFrameTimes, createFrameRing } = require('./frame-stats');
 
 const SAMPLE_WINDOW_MS = 2000;   // a process must have presented this recently
 const MAX_SAMPLES = 240;         // rolling frame-time samples kept per process
+// The lows need a longer tail than the median: 0.1% of 240 frames is a quarter
+// of a frame. ~7 s at 300 fps, ~33 s at 60.
+const STATS_SAMPLES = 2000;
+// Frames kept per process for the readers by mark (game sessions on the 3 s
+// status tick, benchmarks every second): 6000 = nothing lost below 2000 FPS
+// between two looks. The live stats still read the newest STATS_SAMPLES.
+const RING_FRAMES = 6000;
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off hard after repeated instant failures
 const GAMING_GRACE_MS = 10000;   // stay "gaming" briefly after frames stop (anti-flicker)
@@ -63,6 +71,13 @@ function isIgnoredProc(name) {
 function isGamingPresentMode(modeRaw) {
   const mode = normHeader(modeRaw);
   return mode.startsWith('hardware') || mode.includes('independentflip');
+}
+
+// "Hardware: Legacy Flip" / "Hardware: Legacy Copy to front buffer": exclusive
+// full screen. Nothing outside the game can draw over it without injecting into
+// it, which Xenon never does, so the overlay says so (exclusive-hint.js).
+function isExclusivePresentMode(modeRaw) {
+  return normHeader(modeRaw).startsWith('hardwarelegacy');
 }
 
 // Where the single-binary PresentMon CLI is expected to live.
@@ -199,18 +214,23 @@ function rowValues(cols, fields) {
     if (Number.isFinite(dt) && dt > 0 && dt <= 1000) display = dt;
   }
   if (present == null && display == null) return null;
-  return { pid, name, present, display, usesFps };
+  const exclusive = cols.presentMode >= 0 && isExclusivePresentMode(fields[cols.presentMode]);
+  return { pid, name, present, display, usesFps, exclusive };
 }
 
 function handleRow(fields) {
   const r = rowValues(_cols, fields);
   if (!r) return;
   let entry = _byPid.get(r.pid);
-  if (!entry) { entry = { name: r.name, samples: [], display: [], usesFps: r.usesFps, lastSeen: 0 }; _byPid.set(r.pid, entry); }
+  if (!entry) {
+    entry = { name: r.name, samples: [], display: [], usesFps: r.usesFps, lastSeen: 0, presentRing: createFrameRing(RING_FRAMES), displayRing: createFrameRing(RING_FRAMES) };
+    _byPid.set(r.pid, entry);
+  }
   entry.name = r.name || entry.name;
   entry.usesFps = r.usesFps;
-  if (r.present != null) push(entry.samples, r.present);
-  if (r.display != null) push(entry.display, r.display);
+  entry.exclusive = r.exclusive;
+  if (r.present != null) { push(entry.samples, r.present); entry.presentRing.push(r.present); }
+  if (r.display != null) { push(entry.display, r.display); entry.displayRing.push(r.display); }
   entry.lastSeen = Date.now();
 }
 
@@ -252,10 +272,18 @@ function start() {
     scheduleRestart(startedAt);
     return;
   }
-  _proc.stdout.on('data', d => onData(d.toString('utf8')));
-  _proc.stderr.on('data', () => { /* PresentMon logs warnings here; ignore */ });
-  _proc.on('error', () => { _proc = null; scheduleRestart(startedAt); });
-  _proc.on('close', () => { _proc = null; scheduleRestart(startedAt); });
+  // A process killed by pause can close after resume started its successor:
+  // only the current one may feed the parser, clear _proc or schedule a restart.
+  const proc = _proc;
+  const ended = () => {
+    if (_proc !== proc) return;
+    _proc = null;
+    scheduleRestart(startedAt);
+  };
+  proc.stdout.on('data', d => { if (_proc === proc) onData(d.toString('utf8')); });
+  proc.stderr.on('data', () => { /* PresentMon logs warnings here; ignore */ });
+  proc.on('error', ended);
+  proc.on('close', ended);
 }
 
 function scheduleRestart(startedAt) {
@@ -337,6 +365,15 @@ function entryFps(entry) {
   return { fps: displayFps != null ? displayFps : presentFps, presentFps, displayFps };
 }
 
+// Frame-time statistics for one entry, from the same side entryFps reports: the
+// display side when the capture carries it, the present side otherwise.
+function entryStats(entry) {
+  if (!entry || !entry.presentRing) return null;
+  if (entry.displayRing.size()) return Object.assign({ side: 'display' }, frameStats(entry.displayRing.last(STATS_SAMPLES)));
+  const s = frameStats(toFrameTimes(entry.presentRing.last(STATS_SAMPLES), entry.usesFps));
+  return s && Object.assign({ side: 'present' }, s);
+}
+
 // The live table's pick. Doubles as the pruning pass: stale PIDs are evicted
 // while we scan, keeping the map bounded to processes that presented recently.
 function _bestEntry() {
@@ -358,6 +395,63 @@ function getCurrentFps() {
 // Either may be null on its own.
 function getFpsDetail() {
   return entryFps(_bestEntry());
+}
+
+// Average, 1% and 0.1% lows and frame-time percentiles of the active game, or
+// null. Computed on demand: nothing here runs per frame except the ring store.
+function getFrameStats() {
+  const best = _bestEntry();
+  const stats = entryStats(best);
+  return stats ? Object.assign({ process: best.name || '', exclusive: best.exclusive === true }, stats) : null;
+}
+
+// The newest `n` frame times (ms, oldest first) of an entry, from the same
+// side entryStats measures, for the performance tile's graph. Null when
+// nothing is measured.
+function entryWindow(entry, n) {
+  if (!entry || !entry.presentRing) return null;
+  if (entry.displayRing.size()) return { side: 'display', frames: entry.displayRing.last(n) };
+  const frames = cleanFrameTimes(toFrameTimes(entry.presentRing.last(n), entry.usesFps));
+  return frames.length ? { side: 'present', frames } : null;
+}
+
+// The same, for the active game.
+function getFrameWindow(n) {
+  return entryWindow(_bestEntry(), n);
+}
+
+// Frame times an entry presented since `mark` (what the last call returned), so
+// a game session can add every frame once. A mark from another entry or side
+// (the game restarted, the capture gained a display column) starts over: those
+// frames are not comparable with the ones already counted. The ring holds
+// RING_FRAMES, so a reader every 3 s misses nothing below 2000 FPS.
+function entryFramesSince(entry, mark) {
+  if (!entry || !entry.presentRing) return { mark: null, frames: [] };
+  const display = entry.displayRing.size() > 0;
+  const ring = display ? entry.displayRing : entry.presentRing;
+  const next = { entry, side: display ? 'display' : 'present', total: ring.total() };
+  if (!mark || mark.entry !== entry || mark.side !== next.side) return { mark: next, frames: [] };
+  const fresh = ring.last(next.total - mark.total);
+  return { mark: next, frames: display ? fresh : cleanFrameTimes(toFrameTimes(fresh, entry.usesFps)) };
+}
+
+// The entry of a named game (lowercase, no .exe, as game detection reports it),
+// not the foreground one: a session keeps counting its game while the user is
+// in another window.
+function entryForGame(byPid, game) {
+  const want = String(game || '').toLowerCase().replace(/\.exe$/, '');
+  if (!want) return null;
+  let found = null;
+  for (const e of byPid.values()) {
+    const name = String(e.name || '').toLowerCase().replace(/\.exe$/, '');
+    if (name === want && (!found || e.lastSeen > found.lastSeen)) found = e;
+  }
+  return found;
+}
+
+function getFramesSince(mark, game) {
+  _bestEntry();   // prunes stale entries
+  return entryFramesSince(entryForGame(_byPid, game), mark);
 }
 
 // Diagnostic: name + fps of the process currently driving game detection, or
@@ -418,9 +512,9 @@ function stopFpsMonitor() {
 
 module.exports = {
   startFpsMonitor, stopFpsMonitor, pauseFpsMonitor, resumeFpsMonitor,
-  getCurrentFps, getFpsDetail, getGamingProcess, setForegroundPid,
+  getCurrentFps, getFpsDetail, getFrameStats, getFrameWindow, getFramesSince, getGamingProcess, setForegroundPid,
   isGaming, isAvailable, reload,
   // Pure, and exported so every decision this module makes can be pinned
   // without a Windows box with a game running on it.
-  parseHeader, rowValues, pickEntry, entryFps,
+  parseHeader, rowValues, pickEntry, entryFps, entryStats, entryWindow, entryFramesSince, entryForGame,
 };

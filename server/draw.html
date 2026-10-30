@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+-->
+<!-- Drawing on the screen on macOS and Linux (js/screen-draw-page.js): a
+     see-through sheet the native shell opens over the main screen while
+     "Draw on screen" is on (screen-draw-shell.js). Windows draws with the
+     capture engine's own sheet instead. -->
+<html lang="en" data-screen-draw>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon draw</title>
+<link rel="stylesheet" href="styles/fonts.css">
+<link rel="stylesheet" href="components/ScreenDraw/ScreenDraw.css">
+</head>
+<body>
+<canvas class="sdraw-canvas" id="sdraw-done" aria-hidden="true"></canvas>
+<canvas class="sdraw-canvas" id="sdraw-live" aria-hidden="true"></canvas>
+<div class="sdraw-top">
+  <div class="sdraw-bar" id="sdraw-bar" role="toolbar">
+    <div class="sdraw-group" id="sdraw-colours"></div>
+    <span class="sdraw-sep" aria-hidden="true"></span>
+    <div class="sdraw-group" id="sdraw-tools">
+      <button type="button" class="sdraw-btn" data-tool="pen" data-i18n-title="draw_pen" data-i18n-aria-label="draw_pen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.2-4.6L16.6 4a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8z"/></svg>
+      </button>
+      <button type="button" class="sdraw-btn" data-tool="marker" data-i18n-title="cann_highlight" data-i18n-aria-label="cann_highlight">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 15l-4 5h6l2-2M9 15l7.6-9.6a2 2 0 0 1 2.9-.2l.3.3a2 2 0 0 1-.2 2.9L10 16z"/></svg>
+      </button>
+      <button type="button" class="sdraw-btn" data-tool="arrow" data-i18n-title="cann_arrow" data-i18n-aria-label="cann_arrow">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5M10 5h9v9"/></svg>
+      </button>
+      <button type="button" class="sdraw-btn" data-tool="box" data-i18n-title="cann_box" data-i18n-aria-label="cann_box">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="6.5" width="15" height="11" rx="1"/></svg>
+      </button>
+    </div>
+    <span class="sdraw-sep" aria-hidden="true"></span>
+    <button type="button" class="sdraw-btn" id="sdraw-undo" data-i18n-title="cann_undo" data-i18n-aria-label="cann_undo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+    </button>
+    <button type="button" class="sdraw-btn" id="sdraw-clear" data-i18n-title="draw_clear" data-i18n-aria-label="draw_clear">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg>
+    </button>
+    <button type="button" class="sdraw-btn" id="sdraw-close" data-i18n-title="capg_close" data-i18n-aria-label="capg_close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <p class="sdraw-hint" id="sdraw-hint" data-i18n="draw_hint"></p>
+</div>
+<script src="shared/src/constants.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="layer-i18n.js"></script>
+<script src="js/screen-draw-model.js"></script>
+<script src="js/screen-draw-page.js"></script>
+</body>
+</html>

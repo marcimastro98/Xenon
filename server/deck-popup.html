@@ -9,6 +9,10 @@
      surface. Served by the same loopback server; same trust boundary. -->
 <link rel="stylesheet" href="styles/global.css">
 <link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
+<!-- A Mixer key opens the app-volume rows here (AudioSection.css + volume.js), and
+     a failing key says why in a toast instead of only flashing red. -->
+<link rel="stylesheet" href="components/AudioSection/AudioSection.css">
+<link rel="stylesheet" href="components/Toast/Toast.css">
 <style>
   /* Popup chrome: the deck IS the window. */
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
@@ -30,11 +34,19 @@
 <script src="js/utils.js"></script>
 <script src="js/state.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/toast.js"></script>
+<script src="js/volume.js"></script>
+<script src="js/deck-shortcuts.js"></script>
 <script src="js/deck-model.js"></script>
+<script src="js/vitals-core.js"></script>
 <script src="js/deck-store.js"></script>
 <script src="js/deck-icons.js"></script>
+<script src="js/capability-catalog.js"></script>
 <script src="js/deck-actions.js"></script>
+<script src="js/deck-error-text.js"></script>
+<script src="js/decor-bg.js"></script>
 <script src="js/deck.js"></script>
+<script src="js/deck-feed.js"></script>
 <script src="js/deck-popup.js"></script>
 </body>
 </html>

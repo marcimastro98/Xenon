@@ -169,6 +169,10 @@ const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
 const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand reconnect attempts while an effect wants paint
 const DEVICE_RESCAN_MS = 30000;                  // slow rescan for devices that registered after the initial enumeration (one SDK call, only while painting)
+const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
+const OFF_COLOR = { r: 0, g: 0, b: 0 };
+let poweredDown = false;                         // Windows is shutting down / sleeping: the lights are back with their hardware
+let powerHoldTimer = null;
 
 function loadLib() {
   if (lib) return true;
@@ -537,6 +541,9 @@ async function writeDeviceCustom(dev, mode, follow) {
 // Where a device's colours go: the iCUE SDK, or a controller Xenon drives itself.
 // colors[i] is the colour of dev.ledIds[i]. Returns true when the device took them.
 async function pushLeds(dev, colors) {
+  // A frame computed just before the PC went to sleep or off must not take the
+  // lights back from their hardware.
+  if (poweredDown) return false;
   try {
     if (dev.source === 'native') {
       native.write(dev, colors);   // handed over, never awaited (see lighting-native)
@@ -648,6 +655,8 @@ function gamingPaused() {
 // (manual colour / animation / accent). Temperature, album, volume flash and the
 // event flashes each light up on their own when enabled, even with the master OFF.
 function wantsPaint() {
+  if (poweredDown) return false;
+  if (keyLook.isOut()) return true;                                   // a key switched every light off
   if (gamingPaused()) return false;
   if (config.enabled) return true;                                    // fixed illumination
   if (keyLook.isHeld()) return true;                                  // a Deck key set the lights
@@ -671,7 +680,7 @@ function active() {
 // (nothing to paint) apply() releases via alpha-0, so iCUE's own lighting shows.
 function shouldConnect() {
   const e = config.effects;
-  return config.enabled || !!deckReaction || keyLook.isHeld() || !!e.temperature || !!e.musicAlbum
+  return config.enabled || !!deckReaction || keyLook.isHeld() || keyLook.isOut() || !!e.temperature || !!e.musicAlbum
     || (e.timer && e.timer.enabled !== false)
     || (e.notification && e.notification.enabled !== false)
     || (e.reminder && e.reminder.enabled !== false);
@@ -737,7 +746,7 @@ function syncAnimationTicker() {
   const style = config.animation && config.animation.style;
   const deckDynamic = !!deckReaction && deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
   const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic;
-  const shouldRun = dynamic && active();
+  const shouldRun = dynamic && active() && !keyLook.isOut();
   if (shouldRun && !animTimer) animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
   else if (!shouldRun && animTimer) { clearInterval(animTimer); animTimer = null; }
 }
@@ -850,6 +859,15 @@ async function apply() {
       return;
     }
     idleReleased = false; // painting again — the next idle transition releases once
+
+    // "Lights off" from a key: every light dark, the Lighting page map included.
+    if (keyLook.isOut()) {
+      for (const dev of paintDevices()) {
+        if (config.devices[dev.id] !== false) await writeDevice(dev.id, OFF_COLOR);
+      }
+      external.writeWith(() => OFF_COLOR);
+      return;
+    }
 
     // Event flash (transient, top priority). Null = finished → drop it.
     let eventColor = null;
@@ -1162,6 +1180,42 @@ function releaseKeyLook() {
   apply();
 }
 
+// "Lights off" from a key (true): every light dark, over the map, the music and
+// the effects. false switches them back on to what they showed.
+function setLightsOut(on) {
+  if (on) keyLook.release();
+  if (!keyLook.setOut(on) && !on) return;
+  lastWrite.clear();
+  reconcileConnection();
+  apply();
+}
+function isLightsOut() { return keyLook.isOut(); }
+
+// Windows is about to shut down, restart, sign out or sleep. Hand every light
+// back to its own hardware while this process still runs: a controller left in
+// Xenon's direct mode keeps its last frame on standby power, lit (and flickering)
+// with the PC off. Nothing is painted again until powerUp(), which the wake from
+// sleep calls, or POWER_HOLD_MS later when a shutdown was cancelled.
+async function powerDown() {
+  poweredDown = true;
+  syncAnimationTicker();
+  clearTimeout(powerHoldTimer);
+  powerHoldTimer = setTimeout(powerUp, POWER_HOLD_MS);
+  if (powerHoldTimer.unref) powerHoldTimer.unref();
+  try { await native.powerDown(); } catch (e) { lastError = e.message; }
+  await releaseAll();
+}
+
+function powerUp() {
+  clearTimeout(powerHoldTimer);
+  powerHoldTimer = null;
+  if (!poweredDown) return;
+  poweredDown = false;
+  native.resume();
+  lastWrite.clear();
+  apply();
+}
+
 // Now-playing album colour feed (client pushes the same hue used for the theme,
 // plus an optional 2-3 colour palette for the per-LED gradient).
 // Ignored when the musicAlbum effect is off, so the user toggle fully disables it.
@@ -1194,6 +1248,7 @@ function clearAlbum() {
 function applyConfig(next) {
   if (!next || typeof next !== 'object') return;
   if (typeof next.enabled === 'boolean') config.enabled = next.enabled;
+  if (next.enabled === true) keyLook.setOut(false);   // switching the lights on in Settings ends a key's "lights off"
   if (typeof next.brightness === 'number') config.brightness = Math.max(0, Math.min(1, next.brightness));
   if (typeof next.pauseDuringGame === 'boolean') config.pauseDuringGame = next.pauseDuringGame;
   if (next.devices && typeof next.devices === 'object') config.devices = next.devices;
@@ -1348,6 +1403,7 @@ function getStatus() {
     available: isAvailable(),
     connected,
     enabled: config.enabled,
+    lightsOut: keyLook.isOut(),
     devices: getDevices().map(d => ({ ...d, optedIn: config.devices[d.id] !== false, ...deviceModeOf(d.id) })),
     effects: { ...config.effects },
     animation: { ...config.animation, palette: (config.animation.palette || []).slice() },
@@ -1366,7 +1422,7 @@ module.exports = {
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
-  setPartLook, holdKeyLook, releaseKeyLook, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative: native.stop,
+  setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, isLightsOut, powerDown, powerUp, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative: native.stop,
   _fx: fx,
   _enumerationComplete: enumerationComplete, // pure predicate — unit-tested in lighting-enumeration.test.mjs
 };

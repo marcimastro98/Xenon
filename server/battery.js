@@ -54,7 +54,11 @@ function mergeSources(corsair, bluetooth, prevMap, now) {
 // device sweep on it would stall every sensor read behind it. Battery runs at
 // most once a minute, so paying a process spawn buys full isolation from the
 // permanent sensor host.
-function createBatteryMonitor({ runScript, lighting }) {
+//
+// `systemBattery` (optional): the PC's own pack from power/index.js, for the
+// systems where battery.ps1 cannot run (macOS, Linux). Used only when the
+// script reported no pack itself, so Windows never lists it twice.
+function createBatteryMonitor({ runScript, lighting, systemBattery }) {
   let deviceMap = new Map();
   let cache = { payload: null, updatedAt: 0 };
   let pending = null;
@@ -80,14 +84,27 @@ function createBatteryMonitor({ runScript, lighting }) {
     }
   }
 
+  async function readSystem(bluetooth) {
+    if (typeof systemBattery !== 'function') return [];
+    if (bluetooth.devices.some((d) => d && d.type === 'system')) return [];
+    try {
+      const b = await systemBattery();
+      // Plugged in counts as charging, as battery.ps1 reads Win32_Battery.
+      return b ? [{ name: 'Battery', percent: b.percent, charging: b.charging === true || b.plugged === true, type: 'system' }] : [];
+    } catch {
+      return [];
+    }
+  }
+
   async function getDevices({ force = false } = {}) {
     if (!force && cache.payload && Date.now() - cache.updatedAt < TTL_MS) return cache.payload;
     if (pending) return pending;
     pending = (async () => {
       try {
         const [corsair, bluetooth] = await Promise.all([readCorsair(), readBluetooth()]);
+        const system = await readSystem(bluetooth);
         const now = Date.now();
-        deviceMap = mergeSources(corsair.devices, bluetooth.devices, deviceMap, now);
+        deviceMap = mergeSources(corsair.devices, bluetooth.devices.concat(system), deviceMap, now);
         // updatedAt stays internal (it drives stale eviction): on the wire it
         // would change every cycle and defeat the SSE broadcast's JSON dedup.
         const devices = [...deviceMap.values()]

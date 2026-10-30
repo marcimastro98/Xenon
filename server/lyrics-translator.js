@@ -137,6 +137,7 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
       pending.set(key, job);
     }
     const entry = await pending.get(key);
+    if (entry.noCredits) return { ok: false, error: 'no_credits' };
     return entry.failed ? { ok: false, error: 'failed', retryAt: entry.until } : reply(entry, index);
   }
 
@@ -151,7 +152,14 @@ function createLyricsTranslator({ dataDir, complete, now = Date.now, writeFile =
       out = T.parseReply(res && res.text, unique.length, wantReading, lang);
       if (out && out.same && sung) { out = null; if (onError) onError(new Error(`the model called a ${sung} song already in the user's language`)); }
       else if (!out && onError) onError(new Error('the reply could not be used'));
-    } catch (e) { out = null; if (onError) onError(e); }
+    } catch (e) {
+      // Bit on Sparks with an empty balance: the hub charged nothing and the song
+      // is fine, so it is neither counted nor remembered as failed. It is asked
+      // again as soon as there are Sparks.
+      if (e && e.code === 'no_credits') return { noCredits: true };
+      out = null;
+      if (onError) onError(e);
+    }
     // A request that reached the provider counts against the month even when
     // its reply was unusable: the user was billed for it either way.
     if (out || tokens) await count(tokens, res && res.input, res && res.output);

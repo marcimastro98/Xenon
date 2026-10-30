@@ -73,6 +73,8 @@
 <link rel="stylesheet" href="components/AppSwitcher/AppSwitcher.css">
 <link rel="stylesheet" href="components/TabSwitcher/TabSwitcher.css">
 <link rel="stylesheet" href="components/SettingsModal/SettingsModal.css">
+<link rel="stylesheet" href="components/XenonCredits/XenonCredits.css">
+<link rel="stylesheet" href="components/SparksStore/SparksStore.css">
 <link rel="stylesheet" href="components/WeatherModal/WeatherModal.css">
 <link rel="stylesheet" href="components/LockScreen/LockScreen.css">
 <link rel="stylesheet" href="components/AmbientCanvas/AmbientCanvas.css">
@@ -108,11 +110,13 @@
 <link rel="stylesheet" href="components/FootballWidget/FootballWidget.css">
 <link rel="stylesheet" href="components/ClaudeWidget/ClaudeWidget.css">
 <link rel="stylesheet" href="components/CodexWidget/CodexWidget.css">
+<link rel="stylesheet" href="components/PerfMarker/PerfMarker.css">
 <link rel="stylesheet" href="components/ChatGPTWidget/ChatGPTWidget.css">
 <link rel="stylesheet" href="components/NewsWidget/NewsWidget.css">
 <link rel="stylesheet" href="components/FansWidget/FansWidget.css">
 <link rel="stylesheet" href="components/PowerWidget/PowerWidget.css">
 <link rel="stylesheet" href="components/BatteryWidget/BatteryWidget.css">
+<link rel="stylesheet" href="components/PerfWidget/PerfWidget.css">
 <link rel="stylesheet" href="components/VitalsWidget/VitalsWidget.css">
 <link rel="stylesheet" href="components/SlideshowWidget/SlideshowWidget.css">
 <link rel="stylesheet" href="components/VitalsPet/VitalsPet.css">
@@ -126,7 +130,7 @@
 <link rel="stylesheet" href="components/DiscordInvite/DiscordInvite.css">
 <link rel="stylesheet" href="components/SupportAsk/SupportAsk.css">
 <link rel="stylesheet" href="components/SupportGoal/SupportGoal.css">
-<link rel="stylesheet" href="components/ShareNudge/ShareNudge.css">
+<link rel="stylesheet" href="components/BitMail/BitMail.css">
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
 <link rel="stylesheet" href="components/DiskWidget/DiskWidget.css">
@@ -160,20 +164,15 @@
 <link rel="stylesheet" href="components/PhoneView/PhoneView.css">
 <!-- Browser-only "preview at Xeneon Edge size" stage (js/edge-preview.js) -->
 <link rel="stylesheet" href="styles/edge-preview.css">
+<link rel="stylesheet" href="components/LayerHost/LayerHost.css">
+<link rel="stylesheet" href="components/CaptureGallery/CaptureGallery.css">
+<link rel="stylesheet" href="components/XenonMenu/XenonMenu.css">
 </head>
 <body>
-<!-- The Xenon mark while the dashboard loads, in the user's theme colours
+<!-- Bit while the dashboard loads, on the user's theme ground
      (js/boot-splash.js, right below, runs before the rest of the page). -->
 <div class="boot-splash" id="boot-splash" aria-hidden="true">
-  <!-- The same mark XenonLoader.create() builds (js/xenon-loader.js). -->
-  <span class="xloader xloader--lg boot-splash-loader">
-    <svg class="xloader-mark" viewBox="32 50 194 156" aria-hidden="true">
-      <path class="xloader-chev" d="M39 54H93L156 128L93 202H39L99 128Z"/>
-      <path class="xloader-up" d="M162 54H219L161.3 116.7L134 84.5Z"/>
-      <path class="xloader-down" d="M162 202H219L161.3 139.3L134 171.5Z"/>
-    </svg>
-    <span class="xloader-bar"></span>
-  </span>
+  <span class="boot-splash-bit"></span>
 </div>
 <script src="js/boot-splash.js"></script>
 <!-- Tile silhouettes. One sprite for the whole dashboard: identical shapes share
@@ -203,9 +202,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
         <span data-i18n="ui_ambient">Ambient</span>
       </button>
-      <button class="topbtn topbtn-xenon" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Xenon AI">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
-        <span>Xenon</span>
+      <button class="topbtn topbtn-xenon" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Bit">
+        <svg viewBox="0 0 24 24" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><path d="M12 0h2v4h4v2h2v12h-2v4h-4v-2h-4v2h-4v-4h-2v-12h2v-2h6z M8 8v4h2v-4z M14 8v4h2v-4z M10 14v2h4v-2z"/></svg>
+        <span>Bit</span>
       </button>
       <!-- Spotlight: discoverable path beside the pull-down gesture; the
            quickbar is adopted whole by the Minimal left rail, so this button
@@ -213,6 +212,12 @@
       <button class="topbtn qbtn-search" type="button" onclick="if(window.Spotlight)Spotlight.open()" data-i18n-title="tip_search" title="Cerca sul PC">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z"/></svg>
         <span data-i18n="ui_search">Cerca</span>
+      </button>
+      <!-- Bit's mail (js/bit-mail.js): hidden until the first letter arrives. -->
+      <button class="topbtn qbtn-mail" id="bit-mail-btn" type="button" hidden onclick="if(window.BitMail)BitMail.toggle()" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="bitmail_title" title="Posta di Bit">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z"/></svg>
+        <span data-i18n="bitmail_btn">Posta</span>
+        <span class="topbtn-update-dot bitmail-dot" id="bit-mail-dot" hidden aria-hidden="true"></span>
       </button>
       <!-- SDK mini-widget slot (js/sdk-mini.js). Host-rendered like the island and
            the badges — never an iframe. `hidden` while no package is drawing in
@@ -261,6 +266,10 @@
         <!-- OpenAI Codex marker: a Codex session working, or one waiting on an
              approval. Populated by js/codex-widget.js; same island rules. -->
         <span class="clock-codex" id="clock-codex" hidden></span>
+        <!-- Performance Mode marker: on screen while a session runs (and always,
+             when the user asks for it in Settings). Populated by js/perf-marker.js;
+             same island rules as the two above. -->
+        <span class="clock-perf" id="clock-perf" hidden></span>
       </div>
     </div>
 
@@ -337,6 +346,23 @@
     <section class="panel chat-panel dashboard-widget" data-dashboard-widget="chat" data-dashboard-hidden="true">
       <div class="chat-bg" id="chat-bg" data-chatf="bg" aria-hidden="true"></div>
       <div class="media-pane" id="media-pane-chat" data-chatf="pane">
+        <div class="bit-chat-head" data-chatf="head">
+          <button type="button" class="bit-chat-btn bit-chat-back" data-bit-back data-i18n-title="bit_back" data-i18n-aria-label="bit_back" title="Torna alla dashboard" aria-label="Torna alla dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="bit-chat-face" data-chatf="bit" aria-hidden="true"></span>
+          <strong class="bit-chat-name">Bit</strong>
+          <button type="button" class="bit-chat-model" data-bit-model hidden aria-haspopup="true" aria-expanded="false">
+            <span class="bit-chat-spark" data-bit-model-spark aria-hidden="true"></span>
+            <span data-bit-model-name></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+          </button>
+          <button type="button" class="bit-chat-btn" onclick="aiClearHistory()" data-i18n-title="ai_reset" data-i18n-aria-label="ai_reset" title="Nuova chat" aria-label="Nuova chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <!-- The balance, the way to more and the model, under the head (js/bit-chat-model.js). -->
+        <div class="bit-model-panel" data-bit-model-panel hidden></div>
         <div class="media-chat-np" id="media-chat-np" data-chatf="np" hidden>
           <div class="media-chat-np-cover" id="media-chat-np-cover" data-chatf="np-cover"></div>
           <div class="media-chat-np-info">
@@ -350,8 +376,14 @@
           </div>
         </div>
         <div class="media-chat-nokey" id="media-chat-nokey" data-chatf="nokey" hidden>
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
-          <p data-i18n="ai_unavailable_no_key">AI non disponibile — inserisci la API key nelle Impostazioni</p>
+          <span class="bit-nokey-face" data-bit-icon aria-hidden="true"></span>
+          <div class="bit-nokey-words">
+            <p><strong data-i18n="bit_nokey_title">Per rispondere mi servono le Scintille.</strong> <span data-bit-nokey-line></span></p>
+            <div class="bit-nokey-actions">
+              <button type="button" class="bit-main-btn" onclick="XenonCredits.openShop()" data-i18n="bit_nokey_cta">Prendi le Scintille</button>
+              <button type="button" class="bit-quiet-btn" onclick="XenonCredits.openCredits()" data-i18n="bit_nokey_key">Uso una chiave Gemini</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -689,6 +721,20 @@
         <div class="phone-widget-mount"></div>
       </section>
 
+      <!-- Game performance — the running game's frame rate, lows and frame-time
+           graph, with CPU/GPU load. Fed over SSE 'perf' (seed: GET /perf) only
+           while a game runs; hidden by default. -->
+      <section class="panel perf-panel dashboard-widget" data-dashboard-widget="perf" data-dashboard-size="normal" data-dashboard-order="40" data-dashboard-hidden="true">
+        <div class="perf-widget-mount"></div>
+      </section>
+
+      <!-- Main screen: the Xenon menu's quick actions, widgets on the screen and
+           state, from the dashboard (js/screen-tile.js, rows from GET /xenon-menu).
+           "The whole menu" opens the same menu as a panel (js/xenon-menu-panel.js). -->
+      <section class="panel screen-panel dashboard-widget" data-dashboard-widget="screen" data-dashboard-size="normal" data-dashboard-order="41" data-dashboard-hidden="true">
+        <div class="screen-tile-mount"></div>
+      </section>
+
       <!-- Battery — wireless peripheral battery (Corsair via iCUE + Bluetooth).
            Fed over SSE 'battery' (seed: GET /api/battery); hidden by default. -->
       <section class="panel battery-panel dashboard-widget" data-dashboard-widget="battery" data-dashboard-size="normal" data-dashboard-order="33" data-dashboard-hidden="true">
@@ -907,12 +953,7 @@
 <div class="ai-overlay" id="ai-overlay" hidden onclick="if(event.target===this)closeAiPanel()">
   <div class="ai-panel" role="dialog" aria-modal="true" aria-labelledby="ai-panel-title">
     <div class="ai-header">
-      <div class="ai-avatar" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/>
-        </svg>
-      </div>
-      <span class="ai-header-title" id="ai-panel-title">Xenon AI</span>
+      <span class="ai-header-title" id="ai-panel-title">Bit</span>
       <div class="ai-header-actions">
         <button class="ai-clear-btn" type="button" onclick="aiClearHistory()" title="Cancella conversazione">↺</button>
         <button class="ai-header-close" type="button" onclick="closeAiPanel()" data-i18n-title="close" title="Chiudi">
@@ -921,66 +962,47 @@
       </div>
     </div>
     <div class="ai-chat" id="ai-chat" aria-live="polite" aria-label="Conversazione AI"></div>
-    <!-- Voice mode: clean animated conversation view (Siri/Gemini style).
-         Tapping anywhere on it instantly interrupts/stops (touchscreen-friendly). -->
+    <!-- Voice mode: Bit listens, thinks and talks; the words appear beside it.
+         Tapping Bit listens again; tapping anywhere else stops (touchscreen-friendly). -->
     <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
-      <div class="ai-presence" aria-hidden="true" onclick="event.stopPropagation(); _aiVoiceOrbTap()">
-        <div class="ai-voice-aura"></div>
-        <span class="ai-voice-ripple"></span>
-        <span class="ai-voice-ripple r2"></span>
-        <div class="ai-eq" aria-hidden="true">
-          <span class="ai-eq-bar" style="--i:0"></span>
-          <span class="ai-eq-bar" style="--i:1"></span>
-          <span class="ai-eq-bar" style="--i:2"></span>
-          <span class="ai-eq-bar" style="--i:3"></span>
-          <span class="ai-eq-bar" style="--i:4"></span>
-          <span class="ai-eq-bar" style="--i:5"></span>
-          <span class="ai-eq-bar" style="--i:6"></span>
-          <span class="ai-eq-bar" style="--i:7"></span>
-          <span class="ai-eq-bar" style="--i:8"></span>
-          <span class="ai-eq-bar" style="--i:9"></span>
-          <span class="ai-eq-bar" style="--i:10"></span>
-          <span class="ai-eq-bar" style="--i:11"></span>
-          <span class="ai-eq-bar" style="--i:12"></span>
-          <span class="ai-eq-bar" style="--i:13"></span>
-          <span class="ai-eq-bar" style="--i:14"></span>
-          <span class="ai-eq-bar" style="--i:15"></span>
-          <span class="ai-eq-bar" style="--i:16"></span>
-          <span class="ai-eq-bar" style="--i:17"></span>
-          <span class="ai-eq-bar" style="--i:18"></span>
-          <span class="ai-eq-bar" style="--i:19"></span>
-          <span class="ai-eq-bar" style="--i:20"></span>
-          <span class="ai-eq-bar" style="--i:21"></span>
-          <span class="ai-eq-bar" style="--i:22"></span>
-          <span class="ai-eq-bar" style="--i:23"></span>
+      <div class="ai-voice-stage">
+        <div class="ai-presence" aria-hidden="true" onclick="event.stopPropagation(); _aiVoiceOrbTap()">
+          <div class="ai-voice-aura"></div>
+          <div class="ai-voice-bit" data-voice-bit></div>
+          <div class="ai-voice-bars">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
         </div>
-        <div class="ai-voice-core" aria-hidden="true">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
+        <div class="ai-voice-words">
+          <div class="ai-voice-user" id="ai-voice-user"></div>
+          <div class="ai-voice-reply" id="ai-voice-reply"></div>
         </div>
+        <div class="ai-voice-hint" id="ai-voice-hint"></div>
       </div>
-      <div class="ai-voice-user" id="ai-voice-user"></div>
-      <div class="ai-voice-reply" id="ai-voice-reply"></div>
-      <div class="ai-voice-hint" id="ai-voice-hint"></div>
     </div>
     <div class="ai-status" id="ai-status" aria-live="polite"></div>
     <div class="ai-attach-preview" id="ai-attach-preview" hidden aria-label="Allegati in attesa"></div>
     <div class="ai-input-row">
-      <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" data-i18n-title="ai_attach" title="Allega file">
+      <button class="ai-attach-btn" id="ai-attach-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="bit_attach" data-i18n-aria-label="bit_attach" title="Allega un file o lo schermo" aria-label="Allega un file o lo schermo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-      </button>
-      <button class="ai-screen-btn" id="ai-screen-btn" type="button" onclick="aiCaptureScreen()" data-i18n-title="ai_screen" title="Cattura schermo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      </button>
-      <button class="ai-screen-btn ai-reset-btn" id="ai-reset-btn" type="button" onclick="aiClearHistory()" data-i18n-title="ai_reset" title="Nuova chat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="12" y1="8" x2="12" y2="14"/></svg>
       </button>
       <input type="file" id="ai-attach-input" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.md,.markdown,.txt,.log,.csv,.json,.xml,.yml,.yaml,.js,.ts,.jsx,.tsx,.py,.html,.css,.ini,.sh" multiple style="display:none" onchange="aiOnFileAttach(this)">
       <input class="ai-text-input" id="ai-text-input" type="text" maxlength="500" autocomplete="off" spellcheck="false" data-i18n-placeholder="ai_placeholder" placeholder="Chiedi a Xenon…" onkeydown="aiHandleKeydown(event)">
-      <button class="ai-dictate-btn" id="ai-dictate-btn" type="button" onclick="aiDictateToggle()" data-i18n-title="ai_dictate" title="Detta un messaggio">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93H2c0 4.42 2.72 8.22 7 9.44V21h2v-3.63h2V21h2v-2.63c4.28-1.22 7-5.02 7-9.37h-2c0 4.08-3.06 7.44-7 7.93z"/></svg>
+      <!-- One main button: dictate while the field is empty, Send once there is
+           something to send, Stop while a reply is on its way (bit-composer.js).
+           The full voice conversation stays on the top bar's Bit. -->
+      <button class="ai-dictate-btn" id="ai-dictate-btn" type="button" onclick="aiDictateToggle()" data-i18n-title="ai_dictate" data-i18n-aria-label="ai_dictate" title="Detta un messaggio" aria-label="Detta un messaggio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
       </button>
-      <button class="ai-send-btn" type="button" onclick="aiSendText()" title="Invia">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      <button class="ai-send-btn" type="button" onclick="aiSendOrStop()" data-i18n-title="tip_send" data-i18n-aria-label="tip_send" title="Invia" aria-label="Invia">
+        <svg class="ai-send-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        <svg class="ai-stop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
       </button>
     </div>
   </div>
@@ -994,6 +1016,8 @@
         <div class="settings-subtitle" data-i18n="settings_subtitle">Personalizza aspetto, widget e collegamenti di Xenon</div>
       </div>
       <div class="settings-head-actions">
+        <!-- The Scintille chip, in view from every Settings category (js/xenon-credits.js). -->
+        <button type="button" class="xc-chip settings-head-credits" data-xenon-credits data-xc-always hidden></button>
         <!-- Store — the community catalog, given a solid accent pill in the
              header so it's reachable from every Settings category, not only its
              own section. -->
@@ -1055,7 +1079,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="claude" onclick="settingsSetCategory('claude')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/></svg><span data-i18n="settings_cat_claude">Claude Code</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="codex" onclick="settingsSetCategory('codex')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5"/><path d="M12.5 15h4.5"/></svg><span data-i18n="settings_cat_codex">Codex</span></button>
         <div class="settings-nav-label" id="settings-nav-label-integrations" data-i18n="settings_nav_integrations" aria-hidden="true">Integrazioni</div>
-        <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><path d="M12 0h2v4h4v2h2v12h-2v4h-4v-2h-4v2h-4v-4h-2v-12h2v-2h6z M8 8v4h2v-4z M14 8v4h2v-4z M10 14v2h4v-2z"/></svg><span data-i18n="settings_ai">Assistente Bit</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="unifi" onclick="settingsSetCategory('unifi')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z"/><path d="m16 9 4.6-2.6a1 1 0 0 1 1.5.9v9.4a1 1 0 0 1-1.5.9L16 15"/><circle cx="9" cy="12" r="2.5"/></svg><span data-i18n="settings_unifi_title">Cameras</span></button>
@@ -1068,6 +1092,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
         <div class="settings-nav-label" data-i18n="settings_nav_system" aria-hidden="true">Sistema</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="capture" id="settings-nav-capture" hidden onclick="settingsSetCategory('capture')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><span data-i18n="settings_cat_capture">Cattura</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="sdk" onclick="settingsSetCategory('sdk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/></svg><span data-i18n="settings_cat_sdk">Widget e condivisione</span></button>
         </div>
         <!-- Two rows of two: the featured pair (donate, Discord) and the quiet pair
@@ -1186,6 +1211,30 @@
               <option value="zh">中文</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      <!-- How this PC uses Xenon (js/usage-mode.js). Native app with widget layers only. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-usage-mode-group" data-unavailable="1" hidden>
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_usage_mode">Come usi Xenon</span>
+            <span class="settings-hint" data-i18n="settings_usage_mode_hint">Solo widget: niente finestra della dashboard, solo i widget sullo schermo. È il modo più leggero.</span>
+          </span>
+          <select class="settings-select" id="settings-usage-mode" data-custom-select data-cs-fixed onchange="updateUsageMode(this.value)">
+            <option value="dashboard" data-i18n="deck_opt_dashboard">Dashboard</option>
+            <option value="widgets" data-i18n="deck_opt_widgets">Solo widget</option>
+            <option value="both" data-i18n="deck_opt_both">Tutti e due</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Why this app cannot put widgets on the screen (Linux on Wayland, or no
+           compositor): native caps `layersWhy`, filled by syncUsageModeControl. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-layers-why-group" data-unavailable="1" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="deck_act_layerList">Widget sullo schermo</span>
+          <span class="settings-hint" id="settings-layers-why" data-i18n="settings_layers_why_wayland">Per ora i widget sullo schermo funzionano solo in una sessione X11, e questa usa Wayland.</span>
         </div>
       </div>
 
@@ -1323,7 +1372,7 @@
           </label>
           <label class="settings-toggle-row full">
             <input class="settings-check" id="settings-boot-splash" type="checkbox" onchange="updateBootSplash(this.checked)">
-            <span class="settings-label-line"><span data-i18n="settings_boot_splash">Logo all'avvio</span><span class="settings-hint" data-i18n="settings_boot_splash_hint">mostra la X di Xenon nei colori del tuo tema mentre la dashboard si carica, invece delle tile ancora vuote</span></span>
+            <span class="settings-label-line"><span data-i18n="settings_boot_splash">Bit all'avvio</span><span class="settings-hint" data-i18n="settings_boot_splash_hint">mostra Bit sullo sfondo del tuo tema mentre la dashboard si carica, invece delle tile ancora vuote</span></span>
           </label>
           <label class="settings-toggle-row full">
             <input class="settings-check" id="settings-idle-anim-pause" type="checkbox" onchange="updateIdleAnimationPause(this.checked)">
@@ -1507,6 +1556,7 @@
         <div id="settings-pagehk-rows"></div>
         <button type="button" class="settings-btn subtle" id="settings-pagehk-add" onclick="addPageHotkey()" data-i18n="settings_pagehk_add">Aggiungi scorciatoia</button>
         <p class="settings-hint full" data-i18n="settings_pagehk_note">Scrivi la combinazione come ctrl+alt+1 (ctrl, alt, shift, win + una lettera, un numero o F1-F12). Se un'altra app la usa già la riga te lo dice. Richiede Xenon Helper su Windows e macOS; su Linux la scorciatoia viene aggiunta a quelle del desktop (GNOME).</p>
+        <p class="settings-hint full" data-i18n="settings_pagehk_deck_note">Anche ogni tasto del Deck può avere la sua scorciatoia: apri il tasto e scegli Scorciatoia da tastiera.</p>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-auto-open-row" hidden>
@@ -1539,7 +1589,7 @@
           <input class="settings-check" id="settings-version-ping" type="checkbox" onchange="updateVersionPing(this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_version_ping">Conta questa installazione, in forma anonima</span>
-            <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge pochi campi anonimi al controllo aggiornamenti già in corso — versione, sistema, da quanto esiste questa installazione e se è la prima accensione della settimana: nessun identificatore, nessuna richiesta in più, niente su cosa usi</span>
+            <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge pochi campi anonimi al controllo aggiornamenti già in corso. Versione, sistema, da quanto esiste questa installazione e se è la prima accensione della settimana: nessun identificatore, nessuna richiesta in più, niente su cosa usi</span>
           </span>
         </label>
         <!-- Deliberately OUTSIDE the label above: a link nested in a <label> makes
@@ -1811,7 +1861,7 @@
           <input class="settings-check" id="settings-notif-enabled" type="checkbox" onchange="updateNotifications('enabled', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_notif_enabled">Abilita notifiche</span>
-            <span class="settings-hint" data-i18n="settings_notif_enabled_hint">Da spento non ricevi notifiche (Windows e Discord) e i processi in background si fermano — più efficiente</span>
+            <span class="settings-hint" data-i18n="settings_notif_enabled_hint">Da spento non ricevi notifiche (Windows e Discord) e i processi in background si fermano: più efficiente</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-notif-popups-row">
@@ -1819,6 +1869,14 @@
           <span class="settings-label-line">
             <span data-i18n="settings_notif_popups">Avvisi pop-up sullo schermo</span>
             <span class="settings-hint" data-i18n="settings_notif_popups_hint">mostra un toast quando arriva una notifica; se spento restano solo nel widget Notifiche</span>
+          </span>
+        </label>
+        <!-- "Widgets only" pop-ups (js/screen-alerts.js). Native app with widget layers only. -->
+        <label class="settings-toggle-row full" id="settings-notif-onscreen-row" hidden>
+          <input class="settings-check" id="settings-notif-onscreen" type="checkbox" onchange="updateNotifications('onScreen', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_notif_onscreen">Avvisi sullo schermo in Solo widget</span>
+            <span class="settings-hint" data-i18n="settings_notif_onscreen_hint">Senza la finestra della dashboard, i pop-up (screenshot salvati, timer, Guardian) compaiono in alto a destra dello schermo principale.</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-notif-sounds-row">
@@ -1843,7 +1901,7 @@
           <input class="settings-check" id="settings-winnotif" type="checkbox" onchange="updateWindowsNotifications('enabled', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_winnotif">Rispecchia le notifiche di Windows</span>
-            <span class="settings-hint" data-i18n="settings_winnotif_hint">DM, mail, Teams, WhatsApp… ogni notifica del PC arriva in dashboard: pop-up e widget Notifiche. Lettura locale — niente esce da questo PC.</span>
+            <span class="settings-hint" data-i18n="settings_winnotif_hint">DM, mail, Teams, WhatsApp… ogni notifica del PC arriva in dashboard: pop-up e widget Notifiche. Lettura locale: niente esce da questo PC.</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-winnotif-hide-row">
@@ -1893,21 +1951,28 @@
           <input class="settings-check" id="settings-vitals-enabled" type="checkbox" onchange="updateVitalsSetting('enabled', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vitals_enabled">Abilita Vitals</span>
-            <span class="settings-hint" data-i18n="settings_vitals_enabled_hint">barre in stile videogioco (idratazione, energia, movimento, focus) che calano col tempo passato al PC — toccale per ricaricarle</span>
+            <span class="settings-hint" data-i18n="settings_vitals_enabled_hint">barre in stile videogioco (idratazione, energia, movimento, focus) che calano col tempo passato al PC: toccale per ricaricarle</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vitals-reminders-row">
           <input class="settings-check" id="settings-vitals-reminders" type="checkbox" onchange="updateVitalsSetting('reminders', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vitals_reminders">Promemoria pop-up</span>
-            <span class="settings-hint" data-i18n="settings_vitals_reminders_hint">un avviso quando un vitale scende sotto il 25% — toccalo per segnare fatto</span>
+            <span class="settings-hint" data-i18n="settings_vitals_reminders_hint">un avviso quando un vitale scende sotto il 25%: toccalo per vedere il consiglio</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vitals-awaypause-row">
           <input class="settings-check" id="settings-vitals-awaypause" type="checkbox" onchange="updateVitalsSetting('awayPause', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vitals_awaypause">Pausa quando non ci sei</span>
-            <span class="settings-hint" data-i18n="settings_vitals_awaypause_hint">dopo 5 minuti senza mouse o tastiera le barre si congelano e riprendono al tuo ritorno — i vitali contano solo il tempo passato davvero al PC</span>
+            <span class="settings-hint" data-i18n="settings_vitals_awaypause_hint">dopo 5 minuti senza mouse o tastiera le barre si congelano e riprendono al tuo ritorno: i vitali contano solo il tempo passato davvero al PC</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vitals-naturalbreaks-row">
+          <input class="settings-check" id="settings-vitals-naturalbreaks" type="checkbox" onchange="updateVitalsSetting('naturalBreaks', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vitals_naturalbreaks">Pause naturali</span>
+            <span class="settings-hint" data-i18n="settings_vitals_naturalbreaks_hint">quando torni dopo almeno 5 minuti lontano dal PC, Stamina e Focus si ricaricano da soli: la pausa l'hai già fatta (serve la pausa qui sopra)</span>
           </span>
         </label>
         <div class="settings-vitals-items">
@@ -1980,8 +2045,8 @@
              PC-invading toggles (monitor popups / minimize / lock) are enforced
              server-side too (see /api/vitals/nag), not just hidden here. -->
         <div class="settings-group-head vpet-settings-head">
-          <span data-i18n="settings_vpet">Bit — il guardiano pixel</span>
-          <span class="settings-hint" data-i18n="settings_vpet_hint">un tamagotchi che ti tiene d'occhio — e ti insulta a fin di bene</span>
+          <span data-i18n="settings_vpet">Bit: il guardiano pixel</span>
+          <span class="settings-hint" data-i18n="settings_vpet_hint">un tamagotchi che ti tiene d'occhio, e ti insulta a fin di bene</span>
         </div>
         <label class="settings-toggle-row full" id="settings-vpet-enabled-row">
           <input class="settings-check" id="settings-vpet-enabled" type="checkbox" onchange="updateVitalsPetSetting('enabled', this.checked)">
@@ -2014,7 +2079,8 @@
           <input class="settings-check" id="settings-vpet-ai" type="checkbox" onchange="updateVitalsPetSetting('aiRoasts', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_ai">Frecciate generate dall'AI</span>
-            <span class="settings-hint" data-i18n="settings_vpet_ai_hint">Bit chiede al provider Xenon AI configurato una battuta su misura (cosa stai facendo, da quanto, la tua streak) — se non risponde in pochi secondi usa le sue frasi offline</span>
+            <span class="settings-hint" data-i18n="settings_vpet_ai_hint">Bit chiede al provider del suo assistente una battuta su misura (cosa stai facendo, da quanto, la tua streak): se non risponde in pochi secondi usa le sue frasi offline</span>
+            <span class="settings-hint" id="settings-vpet-ai-cap" hidden></span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-effects-row">
@@ -2035,42 +2101,102 @@
           <input class="settings-check" id="settings-vpet-lighting" type="checkbox" onchange="updateVitalsPetSetting('lighting', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_lighting">Fai lampeggiare i LED quando si arrabbia</span>
-            <span class="settings-hint" data-i18n="settings_vpet_lighting_hint">quando un vitale arriva a zero e Bit si infuria, le tue luci RGB lampeggiano di rosso — serve l'illuminazione configurata</span>
+            <span class="settings-hint" data-i18n="settings_vpet_lighting_hint">quando un vitale arriva a zero e Bit si infuria, le tue luci RGB lampeggiano di rosso: serve l'illuminazione configurata</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-quiet-row">
           <input class="settings-check" id="settings-vpet-quiet" type="checkbox" onchange="updateVitalsPetSetting('quietInGame', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_quiet">Tregua durante i giochi</span>
-            <span class="settings-hint" data-i18n="settings_vpet_quiet_hint">mentre giochi Bit tace e non tocca niente — ma a fine partita ti presenta il conto</span>
+            <span class="settings-hint" data-i18n="settings_vpet_quiet_hint">mentre giochi Bit tace e non tocca niente, ma a fine partita ti presenta il conto</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-night-row">
           <input class="settings-check" id="settings-vpet-night" type="checkbox" onchange="updateVitalsPetSetting('nightQuiet', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_night">Di notte dorme</span>
-            <span class="settings-hint" data-i18n="settings_vpet_night_hint">dalle 23 alle 7 Bit dorme: niente frasi, popup o azioni sul PC — al massimo la dashboard perde un po' di colore</span>
+            <span class="settings-hint" data-i18n="settings_vpet_night_hint">nelle ore scelte qui sotto Bit dorme: niente frasi, popup o azioni sul PC, al massimo la dashboard perde un po' di colore</span>
           </span>
         </label>
+        <div class="settings-vitals-row" id="settings-vpet-quiet-from-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_quiet_from">Dorme dalle</span></label>
+          <select class="settings-select" id="settings-vpet-quiet-from" data-custom-select data-cs-fixed onchange="updateVitalsPetQuietHour('quietFrom', this.value)">
+            <option value="0">00:00</option>
+            <option value="1">01:00</option>
+            <option value="2">02:00</option>
+            <option value="3">03:00</option>
+            <option value="4">04:00</option>
+            <option value="5">05:00</option>
+            <option value="6">06:00</option>
+            <option value="7">07:00</option>
+            <option value="8">08:00</option>
+            <option value="9">09:00</option>
+            <option value="10">10:00</option>
+            <option value="11">11:00</option>
+            <option value="12">12:00</option>
+            <option value="13">13:00</option>
+            <option value="14">14:00</option>
+            <option value="15">15:00</option>
+            <option value="16">16:00</option>
+            <option value="17">17:00</option>
+            <option value="18">18:00</option>
+            <option value="19">19:00</option>
+            <option value="20">20:00</option>
+            <option value="21">21:00</option>
+            <option value="22">22:00</option>
+            <option value="23" selected>23:00</option>
+          </select>
+        </div>
+        <div class="settings-vitals-row" id="settings-vpet-quiet-to-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_quiet_to">Si sveglia alle</span></label>
+          <select class="settings-select" id="settings-vpet-quiet-to" data-custom-select data-cs-fixed onchange="updateVitalsPetQuietHour('quietTo', this.value)">
+            <option value="0">00:00</option>
+            <option value="1">01:00</option>
+            <option value="2">02:00</option>
+            <option value="3">03:00</option>
+            <option value="4">04:00</option>
+            <option value="5">05:00</option>
+            <option value="6">06:00</option>
+            <option value="7" selected>07:00</option>
+            <option value="8">08:00</option>
+            <option value="9">09:00</option>
+            <option value="10">10:00</option>
+            <option value="11">11:00</option>
+            <option value="12">12:00</option>
+            <option value="13">13:00</option>
+            <option value="14">14:00</option>
+            <option value="15">15:00</option>
+            <option value="16">16:00</option>
+            <option value="17">17:00</option>
+            <option value="18">18:00</option>
+            <option value="19">19:00</option>
+            <option value="20">20:00</option>
+            <option value="21">21:00</option>
+            <option value="22">22:00</option>
+            <option value="23">23:00</option>
+          </select>
+        </div>
         <label class="settings-toggle-row full" id="settings-vpet-monitors-row">
           <input class="settings-check" id="settings-vpet-monitors" type="checkbox" onchange="updateVitalsPetSetting('monitors', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_monitors">Popup pixel sugli altri monitor</span>
-            <span class="settings-hint" data-i18n="settings_vpet_monitors_hint">quando un vitale resta a zero abbastanza a lungo Bit sbuca in un angolo dello schermo del PC con l'insulto del momento — solo se sei davvero al PC (tempo regolabile qui sotto)</span>
+            <span class="settings-hint" data-i18n="settings_vpet_monitors_hint">quando un vitale resta a zero abbastanza a lungo Bit sbuca in un angolo dello schermo del PC con l'insulto del momento: solo se sei davvero al PC (tempo regolabile qui sotto)</span>
+            <span class="settings-hint" id="settings-vpet-monitors-cap" hidden></span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-minimize-row">
           <input class="settings-check" id="settings-vpet-minimize" type="checkbox" onchange="updateVitalsPetSetting('minimize', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_minimize">Può minimizzare le finestre</span>
-            <span class="settings-hint" data-i18n="settings_vpet_minimize_hint">con preavviso di 30 secondi — le finestre si riaprono dalla barra, non si chiude nulla (tempo regolabile qui sotto)</span>
+            <span class="settings-hint" data-i18n="settings_vpet_minimize_hint">con preavviso di 30 secondi: le finestre tornano con un clic, non si chiude nulla (tempo regolabile qui sotto)</span>
+            <span class="settings-hint" id="settings-vpet-minimize-cap" hidden></span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-lock-row">
           <input class="settings-check" id="settings-vpet-lock" type="checkbox" onchange="updateVitalsPetSetting('lock', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_lock">Può bloccare il PC</span>
-            <span class="settings-hint" data-i18n="settings_vpet_lock_hint">misura estrema con conto alla rovescia di 60 secondi — è il normale blocco di Windows: rientri col login, non perdi nulla (tempo regolabile qui sotto)</span>
+            <span class="settings-hint" data-i18n="settings_vpet_lock_hint">misura estrema con conto alla rovescia di 60 secondi. È il normale blocco schermo del PC: rientri col login, non perdi nulla (tempo regolabile qui sotto)</span>
           </span>
         </label>
 
@@ -2080,7 +2206,7 @@
              them in normalizeVitals. `nag` is always immediate, not exposed. -->
         <div class="settings-group-head vpet-settings-head">
           <span data-i18n="settings_vpet_timing">Tempi di escalation</span>
-          <span class="settings-hint" data-i18n="settings_vpet_timing_hint">quanti minuti un vitale deve restare a zero prima di ogni scalino — alza i valori se Bit è troppo aggressivo</span>
+          <span class="settings-hint" data-i18n="settings_vpet_timing_hint">quanti minuti un vitale deve restare a zero prima di ogni scalino: alza i valori se Bit è troppo aggressivo</span>
         </div>
         <div class="settings-vitals-row" id="settings-vpet-thr-decay-row">
           <label class="settings-toggle-row"><span data-i18n="settings_vpet_thr_decay">Decolorazione dashboard</span></label>
@@ -2161,6 +2287,28 @@
               <option value="10">10 min</option>
               <option value="15">15 min</option>
               <option value="30">30 min</option>
+            </select>
+          </div>
+        </section>
+        <section class="settings-ambient-sec" id="settings-ambient-pc" hidden>
+          <h4 class="settings-ambient-sec-title" data-i18n="ambient_sec_pc">Sul PC</h4>
+          <span class="settings-hint" data-i18n="ambient_pc_hint">Sugli schermi senza la dashboard. Con uno schermo solo, su quello.</span>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ambient-wallpaper" type="checkbox" onchange="updateAmbientSetting('wallpaper', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="ambient_wallpaper">Sfondo animato del desktop</span>
+              <span class="settings-hint" id="settings-ambient-wallpaper-hint" data-i18n="ambient_wallpaper_hint">La scena dietro le icone. Si ferma quando giochi, con una finestra a schermo intero e a batteria.</span>
+            </span>
+          </label>
+          <div class="settings-ambient-row">
+            <span class="settings-ambient-row-label" data-i18n="ambient_saver_label">Salvaschermo del PC</span>
+            <select class="settings-select" id="settings-ambient-saver" data-custom-select data-cs-fixed onchange="updateAmbientSetting('saverMinutes', this.value)">
+              <option value="0" data-i18n="ambient_idle_off" selected>Mai</option>
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="60">60 min</option>
             </select>
           </div>
         </section>
@@ -2358,7 +2506,7 @@
         <div class="settings-group-head">
           <span data-i18n="settings_bg_static">Sfondo statico</span>
           <span class="settings-hint" data-i18n="settings_bg_static_hint">Bellissimo e a zero animazioni, solo senza sfondo personalizzato</span>
-          <span class="settings-hint settings-superseded-note" id="settings-bgstatic-media-off" hidden data-i18n="settings_bg_static_media_off">Nascosto: è attivo uno sfondo personalizzato — rimuovilo per vederlo</span>
+          <span class="settings-hint settings-superseded-note" id="settings-bgstatic-media-off" hidden data-i18n="settings_bg_static_media_off">Nascosto: è attivo uno sfondo personalizzato, rimuovilo per vederlo</span>
         </div>
         <div class="bgstatic-picker" role="group" aria-label="Sfondo statico">
           <button class="bgstatic-option" type="button" data-bgstatic="none" onclick="updateBgStatic('style','none')" aria-pressed="true">
@@ -2442,8 +2590,8 @@
       <div class="settings-group settings-fx-group settings-bgcode-group" id="settings-bgcode-group" data-settings-cat="background">
         <div class="settings-group-head">
           <span data-i18n="settings_bg_code">Sfondo animato (codice)</span>
-          <span class="settings-hint" data-i18n="settings_bg_code_hint">Crea il tuo sfondo animato in JavaScript — gira in una sandbox isolata</span>
-          <span class="settings-hint settings-superseded-note" id="settings-bgcode-media-off" hidden data-i18n="settings_bg_static_media_off">Nascosto: è attivo uno sfondo personalizzato — rimuovilo per vederlo</span>
+          <span class="settings-hint" data-i18n="settings_bg_code_hint">Crea il tuo sfondo animato in JavaScript: gira in una sandbox isolata</span>
+          <span class="settings-hint settings-superseded-note" id="settings-bgcode-media-off" hidden data-i18n="settings_bg_static_media_off">Nascosto: è attivo uno sfondo personalizzato, rimuovilo per vederlo</span>
         </div>
         <!-- Imported background = someone else's work: the source code is locked
              and never shown or editable. Pick a template below to make your own. -->
@@ -2453,7 +2601,7 @@
             <input class="settings-check" id="settings-bgcode-enabled" type="checkbox" onchange="updateBgCustom('enabled',this.checked)">
             <span data-i18n="settings_fx_enable">Attiva</span>
           </label>
-          <p class="settings-note settings-bgcode-ai-hint full" data-i18n="settings_bg_code_ai_hint">Non serve saper programmare: scegli un modello qui sotto, incolla uno sfondo condiviso, oppure chiedi a Xenon — es. «crea uno sfondo animato con particelle blu che fluttuano».</p>
+          <p class="settings-note settings-bgcode-ai-hint full" data-i18n="settings_bg_code_ai_hint">Non serve saper programmare: scegli un modello, incolla uno sfondo condiviso, oppure chiedi a Bit, es. «crea uno sfondo animato con particelle blu che fluttuano».</p>
           <label class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_bg_code_name">Nome</span></span>
             <input class="settings-text-input" id="settings-bgcode-name" type="text" maxlength="60" placeholder="Il mio sfondo" spellcheck="false" autocomplete="off" oninput="updateBgCustom('name',this.value)">
@@ -2466,6 +2614,15 @@
                  as-is so it resets to the default 30, not Number('')=0 → clamped to 10.
                  min/max are synced from CustomBg.FPS_MIN/FPS_MAX in syncBgFxControls. -->
             <input type="number" id="settings-bgcode-fps" step="1" inputmode="numeric" onchange="updateBgCustom('fps', this.value)">
+          </label>
+          <!-- The heavy-background guard (js/bg-guard.js): a device choice, not
+               part of the background, so it never travels in a share code. -->
+          <label class="settings-toggle-row full" data-search-kw="settings_bg_guard_kw">
+            <input class="settings-check" id="settings-bgguard-enabled" type="checkbox" onchange="updateBgGuard(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_bg_guard">Alleggerisci gli sfondi pesanti</span>
+              <span class="settings-hint" data-i18n="settings_bg_guard_hint">Se uno sfondo rallenta il PC, prima scende di fotogrammi, poi di risoluzione, infine resta fermo come immagine.</span>
+            </span>
           </label>
           <div class="settings-row full settings-bgcode-templates">
             <span class="settings-label-line"><span data-i18n="settings_bg_code_templates">Modelli pronti</span></span>
@@ -2488,7 +2645,7 @@
           <!-- Bundled images: embedded as data: URIs inside the background itself, so a
                shared code stays self-contained — the sandbox still never touches the network. -->
           <div class="settings-row full settings-bgcode-assets-row">
-            <span class="settings-label-line"><span data-i18n="settings_bg_assets_label">Immagini</span><span class="settings-hint" data-i18n="settings_bg_assets_hint">PNG/JPEG/WebP/GIF incorporate nel codice — usale con drawImage(assets.nome, …)</span></span>
+            <span class="settings-label-line"><span data-i18n="settings_bg_assets_label">Immagini</span><span class="settings-hint" data-i18n="settings_bg_assets_hint">PNG/JPEG/WebP/GIF incorporate nel codice: usale con drawImage(assets.nome, …)</span></span>
             <div class="settings-bgasset-list" id="settings-bgcode-assets" hidden></div>
             <button type="button" class="settings-btn subtle" onclick="document.getElementById('settings-bgcode-asset-file').click()" data-i18n="settings_bg_assets_add">+ Aggiungi immagine</button>
             <input type="file" id="settings-bgcode-asset-file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onchange="addBgAssetFiles(this)">
@@ -2499,6 +2656,7 @@
             <p class="settings-bgcode-error" id="settings-bgcode-error" role="alert" hidden></p>
             <!-- Not an error: the machine froze the loop, not the code. Filled by renderBgFrozenNote(). -->
             <p class="settings-note" id="settings-bgcode-frozen" hidden></p>
+            <p class="settings-note" id="settings-bgcode-slow" hidden></p>
             <p class="settings-bgcode-error" id="settings-bgcode-overlimit" role="alert" hidden data-i18n="settings_bg_code_overlimit">Oltre il limite: il codice in eccesso non viene salvato. Sposta il dettaglio grafico pesante nelle Immagini qui sopra.</p>
           </label>
           <details class="settings-code-help full" id="settings-bgcode-help">
@@ -2506,7 +2664,7 @@
             <div class="settings-code-help-body">
               <p data-i18n="settings_bg_code_help_contract">Definisci una funzione draw(ctx, t, w, h): ctx è il contesto 2D della canvas, t i secondi trascorsi, w e h la dimensione in pixel. Viene chiamata circa 60 volte al secondo per disegnare un fotogramma. Dichiara eventuali particelle o stato con const/let sopra la funzione, così persistono tra un fotogramma e l'altro.</p>
               <p data-i18n="settings_bg_code_help_can">Puoi usare tutta l'API canvas 2D, Math e Date.</p>
-              <p data-i18n="settings_bg_code_help_assets">Le immagini aggiunte qui sopra arrivano come quinto parametro: draw(ctx, t, w, h, assets) — disegnale con ctx.drawImage(assets.nome, x, y). Viaggiano dentro il codice condiviso, quindi lo sfondo resta autosufficiente (di una GIF si vede solo il primo fotogramma).</p>
+              <p data-i18n="settings_bg_code_help_assets">Le immagini aggiunte arrivano come quinto parametro: draw(ctx, t, w, h, assets), disegnale con ctx.drawImage(assets.nome, x, y). Viaggiano dentro il codice condiviso, quindi lo sfondo resta autosufficiente (di una GIF si vede solo il primo fotogramma).</p>
               <p data-i18n="settings_bg_code_help_cant">La sandbox blocca rete, accesso alla dashboard, ai file e alle impostazioni: uno sfondo, anche importato, non può fare nulla di dannoso.</p>
               <pre class="settings-code-help-example"><code>function draw(ctx, t, w, h) {
   ctx.fillStyle = "#0b1020";
@@ -2684,6 +2842,15 @@
             <input class="settings-check" id="settings-perf-enabled" type="checkbox" onchange="updatePerformanceEnabled(this.checked)">
             <span data-i18n="settings_perf_enable">Attiva</span>
           </label>
+          <!-- Outside the options block: the bar button starts and ends a session
+               whether or not the suggestions above are switched on. -->
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-perf-baralways" type="checkbox" onchange="updatePerformanceBarAlways(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_perf_baralways">Pulsante sempre nella barra in alto</span>
+              <span class="settings-hint" data-i18n="settings_perf_baralways_hint">per attivarla quando vuoi; altrimenti compare solo mentre è attiva</span>
+            </span>
+          </label>
           <div class="settings-perf-options" id="settings-perf-options">
             <div class="settings-row full">
               <span class="settings-label-line"><span data-i18n="settings_perf_mode">Modalità</span></span>
@@ -2726,7 +2893,7 @@
             <label class="settings-toggle-row full">
               <input class="settings-check" id="settings-perf-useai" type="checkbox" onchange="updatePerformanceUseAi(this.checked)">
               <span class="settings-label-line">
-                <span data-i18n="settings_perf_useai">Usa Xenon AI per decidere (se configurata)</span>
+                <span data-i18n="settings_perf_useai">Usa Bit per decidere (se configurato)</span>
                 <span class="settings-hint" data-i18n="settings_perf_opt_useai_hint">Xenon analizza contesto e attività e sceglie le ottimizzazioni da solo</span>
               </span>
             </label>
@@ -2790,7 +2957,7 @@
         </div>
       </div>
 
-      <div class="settings-group" data-settings-cat="performance" id="settings-gpu-group" hidden>
+      <div class="settings-group" data-settings-cat="performance" id="settings-gpu-group" data-unavailable="1" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_gpu_title">GPU di rendering</span>
           <span class="settings-hint" data-i18n="settings_gpu_hint">Su quale scheda video il browser disegna la dashboard</span>
@@ -2818,6 +2985,314 @@
               <span class="settings-hint" data-i18n="settings_senshist_enable_hint">Un campione ogni 5 minuti di dati già letti; resta tutto sul tuo PC. Nessuna AI richiesta.</span>
             </span>
           </label>
+        </div>
+      </div>
+
+      <!-- The gallery (js/capture-gallery.js): everything Xenon captured. -->
+      <div class="settings-group" data-settings-cat="capture" id="settings-capture-gallery">
+        <div class="settings-group-head">
+          <span data-i18n="capg_title">Galleria</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <span class="settings-note" data-i18n="settings_gallery_note">Screenshot, registrazioni e replay: guardali, tagliali, copiali o eliminali.</span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" onclick="CaptureGallery.open()" data-i18n="settings_gallery_open">Apri la galleria</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screenshots: where they go (capture.shotFolder). Every folder on these
+           pages is chosen with the system folder dialog, never typed. -->
+      <div class="settings-group" data-settings-cat="capture" id="settings-capture-shots">
+        <div class="settings-group-head">
+          <span data-i18n="settings_shot_title">Screenshot</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full settings-capture-folder" data-folder-for="screenshot">
+            <span class="settings-label-line">
+              <span data-i18n="settings_folder_label">Cartella</span>
+            </span>
+            <span class="settings-note settings-capture-path" data-folder-path></span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" data-folder-pick onclick="CaptureSettingsPane.pick('screenshot')" data-i18n="settings_capture_pick">Cambia</button>
+              <button type="button" class="settings-btn settings-btn-ghost" data-folder-reset hidden onclick="CaptureSettingsPane.resetFolder('screenshot')" data-i18n="settings_shot_reset">Torna a Immagini</button>
+            </div>
+          </div>
+          <!-- What this OS or a missing tool keeps off this page, and why
+               (capture-settings-pane.js missingWhy). -->
+          <span class="settings-row full settings-note" id="settings-capture-why" hidden></span>
+        </div>
+      </div>
+
+      <!-- Instant Replay (server/replay.js): off by default. The length is any
+           whole number of seconds from 15 to 3600; the list holds the usual
+           ones and "Other" opens a minutes field. The line under the length is
+           the disk it takes while on (estimated from the main screen). -->
+      <div class="settings-group" data-settings-cat="capture" id="settings-replay-group">
+        <div class="settings-group-head">
+          <span data-i18n="settings_replay_title">Instant Replay</span>
+        </div>
+        <div class="settings-grid" id="settings-replay-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-replay-on" type="checkbox" onchange="CaptureSettingsPane.set('replay', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_on">Tieni gli ultimi minuti</span>
+              <span class="settings-hint" data-i18n="settings_replay_on_hint">Salvi il momento appena successo con un tasto del Deck o dicendo «salva il replay».</span>
+              <span class="settings-hint" id="settings-replay-state" hidden></span>
+            </span>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_length">Quanto tiene</span>
+            </span>
+            <span class="settings-note" id="settings-replay-disk" hidden></span>
+            <select class="settings-select" id="settings-replay-seconds" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.setReplayLength(this.value)">
+              <option value="15">15 s</option>
+              <option value="30" selected>30 s</option>
+              <option value="60">1 min</option>
+              <option value="120">2 min</option>
+              <option value="300">5 min</option>
+              <option value="600">10 min</option>
+              <option value="1200">20 min</option>
+              <option value="3600">60 min</option>
+              <option value="custom" data-i18n="settings_replay_custom">Altro</option>
+            </select>
+          </label>
+          <label class="settings-row full" id="settings-replay-custom" hidden>
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_minutes">Minuti (da 0,25 a 60)</span>
+            </span>
+            <input class="settings-text-input" id="settings-replay-minutes" type="number" min="0.25" max="60" step="0.25" inputmode="decimal" onchange="CaptureSettingsPane.setReplayMinutes(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_when">Quando</span>
+            </span>
+            <select class="settings-select" id="settings-replay-when" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('replayWhen', this.value)">
+              <option value="gaming" selected data-i18n="settings_replay_when_gaming">Solo mentre giochi</option>
+              <option value="always" data-i18n="settings_replay_when_always">Sempre, anche sul desktop</option>
+            </select>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_audio">Audio</span>
+            </span>
+            <select class="settings-select" id="settings-replay-audio" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('replayAudio', this.value)">
+              <option value="sound" selected data-i18n="settings_replay_audio_sound">Suono del PC</option>
+              <option value="sound_mic" data-i18n="settings_replay_audio_mic">Suono del PC e microfono</option>
+              <option value="silent" data-i18n="settings_replay_audio_silent">Senza suono</option>
+            </select>
+          </label>
+          <!-- Clips saved by themselves around a marked moment (server/capture-autoclips.js). -->
+          <label class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_clips">Clip da sola</span>
+              <span class="settings-hint" data-i18n="settings_replay_clips_hint">15 secondi prima e 5 dopo, nella galleria.</span>
+            </span>
+            <select class="settings-select" id="settings-replay-clips" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('replayClips', this.value)">
+              <option value="marks" selected data-i18n="settings_replay_clips_marks">Quando segni un momento</option>
+              <option value="all" data-i18n="settings_replay_clips_all">Anche dove il gioco scatta</option>
+              <option value="off" data-i18n="settings_replay_clips_off">Mai</option>
+            </select>
+          </label>
+          <!-- The save shortcut (js/capture-replay-key.js): recorded by pressing it. -->
+          <div class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_replay_key">Scorciatoia per salvare</span>
+            </span>
+            <span class="settings-note" id="settings-replay-key-state" aria-live="polite" hidden></span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" id="settings-replay-key" aria-pressed="false" onclick="CaptureReplayKey.record()">Ctrl+Shift+F10</button>
+              <button type="button" class="settings-btn settings-btn-ghost" id="settings-replay-key-off" onclick="CaptureReplayKey.toggleOff()" data-i18n="settings_replay_key_off">Spegni</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recording options (server/capture-settings.js, js/capture-settings-pane.js).
+           The nav entry shows only where the capture engine runs (capability
+           capture); on a paired device the pane says they are set at the PC. -->
+      <div class="settings-group" data-settings-cat="capture" id="settings-capture-video-group">
+        <div class="settings-group-head">
+          <span data-i18n="settings_capture_title">Registrazione video</span>
+        </div>
+        <p class="settings-note" id="settings-capture-remote" hidden data-i18n="settings_capture_remote">Queste opzioni si cambiano dal PC.</p>
+        <div class="settings-grid" id="settings-capture-grid">
+          <label class="settings-row full" data-capture-tuning>
+            <span class="settings-label-line">
+              <span data-i18n="settings_capture_fps">Fotogrammi al secondo</span>
+            </span>
+            <select class="settings-select" id="settings-capture-fps" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('fps', this.value)">
+              <option value="60" selected>60</option>
+              <option value="30">30</option>
+            </select>
+          </label>
+          <label class="settings-row full" data-capture-tuning>
+            <span class="settings-label-line">
+              <span data-i18n="settings_capture_size">Risoluzione</span>
+            </span>
+            <select class="settings-select" id="settings-capture-height" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('height', this.value)">
+              <option value="0" selected data-i18n="settings_capture_size_native">Come lo schermo</option>
+              <option value="1440">1440p</option>
+              <option value="1080">1080p</option>
+              <option value="720">720p</option>
+            </select>
+          </label>
+          <label class="settings-row full" data-capture-tuning>
+            <span class="settings-label-line">
+              <span data-i18n="settings_capture_quality">Qualità</span>
+            </span>
+            <select class="settings-select" id="settings-capture-quality" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('quality', this.value)">
+              <option value="normal" selected data-i18n="settings_capture_q_normal">Normale</option>
+              <option value="high" data-i18n="settings_capture_q_high">Alta, file più grandi</option>
+              <option value="small" data-i18n="settings_capture_q_small">File piccoli</option>
+            </select>
+          </label>
+          <label class="settings-toggle-row full" data-capture-badge>
+            <input class="settings-check" id="settings-capture-badge" type="checkbox" checked onchange="CaptureSettingsPane.set('badge', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_capture_badge">Mostra il tempo mentre registri</span>
+              <span class="settings-hint" data-i18n="settings_capture_badge_hint">In alto sullo schermo registrato, con il tasto per fermare. Non compare nel video.</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row full" data-capture-automarks>
+            <input class="settings-check" id="settings-capture-automarks" type="checkbox" checked onchange="CaptureSettingsPane.set('autoMarks', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_capture_automarks">Segna dove il gioco scatta</span>
+              <span class="settings-hint" data-i18n="settings_capture_automarks_hint">Nei video e nei replay, dove gli FPS crollano. Li trovi sotto il video nella galleria.</span>
+            </span>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_capture_limit">Spazio massimo</span>
+            </span>
+            <span class="settings-note" id="settings-capture-limit-hint"></span>
+            <select class="settings-select" id="settings-capture-maxgb" data-custom-select data-cs-fixed onchange="CaptureSettingsPane.set('maxGB', this.value)">
+              <option value="0" selected data-i18n="settings_capture_limit_none">Nessun limite</option>
+              <option value="10">10 GB</option>
+              <option value="25">25 GB</option>
+              <option value="50">50 GB</option>
+              <option value="100">100 GB</option>
+            </select>
+          </label>
+          <div class="settings-row full settings-capture-folder" data-folder-for="recording">
+            <span class="settings-label-line">
+              <span data-i18n="settings_folder_label">Cartella</span>
+            </span>
+            <span class="settings-note settings-capture-path" data-folder-path></span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" data-folder-pick onclick="CaptureSettingsPane.pick('recording')" data-i18n="settings_capture_pick">Cambia</button>
+              <button type="button" class="settings-btn settings-btn-ghost" data-folder-reset hidden onclick="CaptureSettingsPane.resetFolder('recording')" data-i18n="settings_capture_reset">Torna a Video</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bug report packages (server/bug-report.js): where the .zip goes, and the
+           folder whose newest logs go in it (none until the user picks one). -->
+      <div class="settings-group" data-settings-cat="capture" id="settings-bug-group">
+        <div class="settings-group-head">
+          <span data-i18n="deck_act_bugReport">Bug report</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full settings-capture-folder" data-folder-for="bugreport">
+            <span class="settings-label-line">
+              <span data-i18n="settings_folder_label">Cartella</span>
+            </span>
+            <span class="settings-note settings-capture-path" data-folder-path></span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" data-folder-pick onclick="CaptureSettingsPane.pick('bugreport')" data-i18n="settings_capture_pick">Cambia</button>
+              <button type="button" class="settings-btn settings-btn-ghost" data-folder-reset hidden onclick="CaptureSettingsPane.resetFolder('bugreport')" data-i18n="settings_bench_reset">Torna a Documenti</button>
+            </div>
+          </div>
+          <div class="settings-row full settings-capture-folder" data-folder-for="buglogs">
+            <span class="settings-label-line">
+              <span data-i18n="settings_bug_logs">Log da aggiungere</span>
+              <span class="settings-hint" data-i18n="settings_bug_logs_hint">I file più recenti di questa cartella entrano nel pacchetto.</span>
+            </span>
+            <span class="settings-note settings-capture-path" data-folder-path></span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" data-folder-pick onclick="CaptureSettingsPane.pick('buglogs')" data-i18n="settings_capture_pick">Cambia</button>
+              <button type="button" class="settings-btn settings-btn-ghost" data-folder-reset hidden onclick="CaptureSettingsPane.resetFolder('buglogs')" data-i18n="settings_bug_logs_clear">Togli</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game sessions (server/game-sessions.js): shown only where a frame rate
+           can be read (capability gameSessions); hidden until that is known. -->
+      <div class="settings-group" data-settings-cat="performance" id="settings-gamesess-group" data-unavailable="1" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_gamesess_title">Partite giocate</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-gamesess-enabled" type="checkbox" onchange="updateGameSessions(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_gamesess_enable">Ricorda le partite</span>
+              <span class="settings-hint" data-i18n="settings_gamesess_enable_hint">FPS medi e low di ogni partita, per confrontarle. Restano su questo PC.</span>
+            </span>
+          </label>
+          <div class="settings-row full gamesess-wrap" id="settings-gamesess-wrap">
+            <ul class="gamesess-list" id="settings-gamesess-list" hidden></ul>
+            <p class="settings-memory-empty" id="settings-gamesess-empty" hidden></p>
+          </div>
+          <div class="settings-row full settings-memory-actions">
+            <button class="settings-btn danger" type="button" id="settings-gamesess-clear" onclick="clearGameSessions()" data-i18n="settings_gamesess_clear">Cancella le partite</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- What the Game performance tile shows besides the FPS (js/perf-hud.js);
+           the same choice on the dashboard, on the screen and over the game. -->
+      <div class="settings-group" data-settings-cat="performance" id="settings-perfhud-group">
+        <div class="settings-group-head">
+          <span data-i18n="layout_widget_perf">Prestazioni in gioco</span>
+          <span class="settings-hint" data-i18n="settings_perfhud_hint">cosa mostra oltre agli FPS, ovunque sia la tile, anche sopra il gioco</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-perfhud-low1" type="checkbox" data-perfhud="low1" onchange="updatePerfHud(this.dataset.perfhud, this.checked)">
+            <span class="settings-label-line"><span data-i18n="perf_low1">1% low</span></span>
+          </label>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-perfhud-low01" type="checkbox" data-perfhud="low01" onchange="updatePerfHud(this.dataset.perfhud, this.checked)">
+            <span class="settings-label-line"><span data-i18n="perf_low01">0.1% low</span></span>
+          </label>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-perfhud-frame" type="checkbox" data-perfhud="frame" onchange="updatePerfHud(this.dataset.perfhud, this.checked)">
+            <span class="settings-label-line"><span data-i18n="perf_frametime">Frame time</span></span>
+          </label>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-perfhud-graph" type="checkbox" data-perfhud="graph" onchange="updatePerfHud(this.dataset.perfhud, this.checked)">
+            <span class="settings-label-line"><span data-i18n="settings_perfhud_graph">Grafico dei frame</span></span>
+          </label>
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-perfhud-hw" type="checkbox" data-perfhud="hw" onchange="updatePerfHud(this.dataset.perfhud, this.checked)">
+            <span class="settings-label-line"><span data-i18n="settings_perfhud_hw">CPU e GPU</span></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Benchmark CSV files (capture.benchFolder): shown where a benchmark can
+           run and the folder dialog exists, never on a paired device. -->
+      <div class="settings-group" data-settings-cat="performance" id="settings-bench-group" data-unavailable="1" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_bench_title">Benchmark</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full settings-capture-folder" data-folder-for="benchmark">
+            <span class="settings-label-line">
+              <span data-i18n="settings_folder_label">Cartella</span>
+            </span>
+            <span class="settings-note settings-capture-path" data-folder-path></span>
+            <div class="settings-backup-row">
+              <button type="button" class="settings-btn" data-folder-pick onclick="CaptureSettingsPane.pick('benchmark')" data-i18n="settings_capture_pick">Cambia</button>
+              <button type="button" class="settings-btn settings-btn-ghost" data-folder-reset hidden onclick="CaptureSettingsPane.resetFolder('benchmark')" data-i18n="settings_bench_reset">Torna a Documenti</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3064,14 +3539,14 @@
           <span data-i18n="settings_cat_spotify">Spotify</span>
           <span class="settings-hint" data-i18n="settings_spotify_hint">Queue, playlists &amp; devices</span>
         </div>
-        <p class="settings-note" data-i18n="settings_spotify_intro">Connect your Spotify account to add a Spotify tile and Deck keys — the queue, library and devices Windows can't show.</p>
+        <p class="settings-note" data-i18n="settings_spotify_intro">Collega il tuo account Spotify per aggiungere un tile Spotify e i tasti Deck. Completa il tile Media (che mostra la riproduzione di Windows per qualsiasi app) con ciò che Windows non può dare: la coda, la tua libreria e i tuoi dispositivi.</p>
         <ul class="settings-spotify-perks">
           <li data-i18n="settings_spotify_perk_queue">See your live Up Next queue with cover art.</li>
           <li data-i18n="settings_spotify_perk_playlists">Browse your playlists and tap one to start it.</li>
           <li data-i18n="settings_spotify_perk_devices">Switch playback between your Spotify Connect devices.</li>
           <li data-i18n="settings_spotify_perk_deck">Deck keys: save to Liked, play a playlist, shuffle, switch device.</li>
         </ul>
-        <p class="settings-note settings-spotify-premium" data-i18n="settings_spotify_premium">Reading the queue, playlists and devices works on any account. Playback control needs Spotify Premium — a Spotify limitation.</p>
+        <p class="settings-note settings-spotify-premium" data-i18n="settings_spotify_premium">Leggere coda, playlist e dispositivi funziona con qualsiasi account. Il controllo della riproduzione (avvia, casuale, cambia dispositivo) richiede Spotify Premium: è un limite di Spotify.</p>
         <div class="settings-spotify-setup-head" data-i18n="settings_spotify_setup_title">How to connect</div>
         <ol class="settings-spotify-steps">
           <li data-i18n="settings_spotify_step1">Open the Spotify Developer Dashboard and create an app (any name).</li>
@@ -3094,7 +3569,7 @@
         <!-- Energy widget sources: a second, independent picker filtered to
              power/energy entities (smart-home.js → SmartHome.initSettings()). -->
         <div class="settings-group-head energy-sources-head">
-          <span data-i18n="power_sources_title">Widget Energia — sorgenti</span>
+          <span data-i18n="power_sources_title">Widget Energia: sorgenti</span>
         </div>
         <div id="settings-energy-hub"></div>
       </div>
@@ -3312,7 +3787,7 @@
           <span class="settings-hint" data-i18n="settings_wshub_hint">Estendi la dashboard o condividi il tuo setup</span>
         </div>
         <div class="settings-wshub-body">
-          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo, condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
+          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo, condividilo come codice o file, scopri ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni, ciò che installi da altri non è ridistribuibile.</p>
 
           <section class="settings-store-hero" aria-labelledby="settings-store-hero-title">
             <span class="settings-store-hero-glow" aria-hidden="true"></span>
@@ -3322,7 +3797,7 @@
             <div class="settings-store-hero-body">
               <span class="settings-store-hero-eyebrow" data-i18n="settings_store_eyebrow">Community</span>
               <b class="settings-store-hero-title" id="settings-store-hero-title" data-i18n="ui_store">Store</b>
-              <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community — sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
+              <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community: sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
             </div>
             <button type="button" class="settings-btn primary settings-store-hero-cta" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n="settings_store_open">Apri lo Store</button>
           </section>
@@ -3343,7 +3818,7 @@
                 <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
               </span>
             </label>
-            <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link) — ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
+            <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link), ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
             <label class="settings-toggle-row">
               <input class="settings-check" id="settings-safe-mode" type="checkbox" onchange="setSafeMode(this.checked)">
               <span class="settings-label-line">
@@ -3369,7 +3844,7 @@
               <span class="settings-subcard-ico settings-subcard-ico--share" aria-hidden="true">🔗</span>
               <span class="settings-subcard-titles">
                 <b data-i18n="settings_share_title">Condividi &amp; Importa</b>
-                <span class="settings-hint" data-i18n="settings_share_lead">Condividi — o importa — tema, pagina, profilo Deck, widget, sfondo o un intero pacchetto, come link o file. Ognuno può essere protetto con codici d'accesso.</span>
+                <span class="settings-hint" data-i18n="settings_share_lead">Condividi, o importa, tema, pagina, profilo Deck, widget, sfondo o un intero pacchetto, come link o file. Ognuno può essere protetto con codici d'accesso.</span>
               </span>
             </div>
             <div class="settings-share-buttons">
@@ -3405,6 +3880,7 @@
                       onclick="forgetSupporterCode()" data-i18n="settings_supporter_forget" hidden>Rimuovi</button>
             </div>
             <p class="settings-note" id="settings-supporter-state" data-i18n="settings_supporter_none">Nessun codice salvato su questo PC.</p>
+            <p class="settings-note" data-i18n="settings_sparks_code_note">Hai comprato Scintille senza essere sostenitore? Anche il tuo codice Scintille (XC-…) va qui.</p>
             <p class="settings-note settings-safenote" data-i18n="settings_supporter_note">Il codice viene controllato quando sblocchi un drop, non qui: se lo sbagli te ne accorgi al primo sblocco. Vale finché il tuo periodo da supporter è attivo, funziona su un massimo di 3 dispositivi, e quello che hai già sbloccato resta tuo per sempre.</p>
           </section>
 
@@ -3423,28 +3899,46 @@
             </div>
             <p class="settings-note" data-i18n="settings_create_other_hint">Il resto si crea direttamente nell'app: temi e sfondi da Aspetto, le pagine dall'editor layout, i profili dal widget Deck, le scene Ambient dalla modalità Ambient.</p>
           </section>
+
+          <!-- Widget authors working in Claude Code or Codex: the xenon-mcp bridge
+               (js/mcp-dev-client.js fills and shows this card, on this PC only). -->
+          <section class="settings-subcard" id="settings-mcp-dev" hidden>
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">⌨</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_mcp_title">Crea widget con Claude Code o Codex</b>
+                <span class="settings-hint" data-i18n="settings_mcp_lead">Collega il tuo assistente di codice: legge l'SDK, installa il widget che scrivete insieme, lo mette sulla pagina e vede cosa non va.</span>
+              </span>
+            </div>
+            <div class="settings-share-buttons">
+              <button type="button" class="settings-btn" data-mcp-connect="claudecode" data-i18n="settings_mcp_connect_claude">Collega Claude Code</button>
+              <button type="button" class="settings-btn" data-mcp-connect="codex" data-i18n="settings_mcp_connect_codex">Collega Codex</button>
+            </div>
+            <p class="settings-note" id="settings-mcp-state" aria-live="polite" hidden></p>
+            <p class="settings-note" data-i18n="settings_mcp_manual">Un altro strumento? Aggiungi questo server MCP (serve Node.js 18 o più recente):</p>
+            <pre class="settings-code-help-example"><code>npx -y xenon-mcp</code></pre>
+            <div class="settings-memory-manage">
+              <ul class="settings-memory-list" id="settings-mcp-clients" aria-live="polite"></ul>
+              <p class="settings-memory-empty" id="settings-mcp-empty" data-i18n="settings_mcp_empty">Nessuno strumento collegato. Al primo uso Xenon ti chiede il permesso qui sulla dashboard.</p>
+            </div>
+            <div class="settings-howto-links">
+              <a class="settings-inline-link" href="https://xenon-app.com/create/#mcp" target="_blank" rel="noopener noreferrer" data-i18n="settings_mcp_guide">Come funziona →</a>
+            </div>
+          </section>
         </div>
       </div>
 
-      <!-- Sostieni Xenon — donation + Discord, deliberately warm and prominent. -->
+      <!-- Sostieni Xenon. The one settings page with its own pink (as the support
+           ask card, SupportAsk.css): the ask on the left, what someone who already
+           supports needs on the right. One column on narrow screens. -->
       <div class="settings-group settings-support-group" data-settings-cat="support" hidden>
-        <div class="support-hero">
-          <div class="support-hero-heart" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          </div>
-          <div class="support-hero-title" data-i18n="support_title">Ti piace Xenon?</div>
-          <p class="support-hero-lead" data-i18n="support_lead">Xenon è gratuito, senza pubblicità e sviluppato da una persona sola nel tempo libero. Se lo usi ogni giorno, un caffè è il modo migliore per dire grazie e tenere vivo il progetto.</p>
-          <!-- Monthly first: recurring support is what keeps the project running.
-               Both links go through the hub's counter (supportUrl in @xenon/core). -->
-          <div class="support-cta-row">
-            <a class="support-cta support-cta-coffee" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings" target="_blank" rel="noopener noreferrer">
+        <header class="support-head">
+          <div class="support-head-text">
+            <h3 class="support-title">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              <span data-i18n="support_ask_monthly">Sostieni ogni mese</span>
-            </a>
-            <a class="support-cta support-cta-once" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings&amp;p=once" target="_blank" rel="noopener noreferrer">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>
-              <span data-i18n="support_coffee_btn">Offrimi un caffè</span>
-            </a>
+              <span data-i18n="support_ask_title">Xenon è gratis, e resta gratis</span>
+            </h3>
+            <p class="support-lead" data-i18n="support_ask_lead">Lo scrive una persona sola, nel tempo libero. Niente pubblicità, niente investitori, nessuna versione a pagamento.</p>
           </div>
           <!-- Filled from the supporter hub when the pane opens (js/support-goal.js);
                stays hidden when the count cannot be read. -->
@@ -3452,30 +3946,53 @@
             <p class="support-goal-line"></p>
             <progress class="support-goal-bar" max="1" value="0"></progress>
           </div>
+        </header>
+
+        <div class="support-body">
+          <!-- The three ways to support, each a whole tappable tile. Every link
+               goes through the hub's counter (supportUrl in @xenon/core); the
+               yearly one lands on the same membership page under its own label,
+               so the count can tell the two apart. Monthly is the ask. -->
+          <div class="support-plans">
+            <a class="support-plan is-main" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings" target="_blank" rel="noopener noreferrer">
+              <span class="support-plan-price"><b data-i18n="support_plan_month_price">5&nbsp;$</b> <span data-i18n="support_plan_month_unit">al mese</span></span>
+              <span class="support-plan-sparks"><span data-xspark="offer"></span><span data-i18n="support_plan_sparks">300 Scintille al mese</span></span>
+              <span class="support-plan-note" data-i18n="support_plan_month_note">Temi e widget riservati, il ruolo su Discord e il tuo nome sul sito.</span>
+              <span class="support-plan-cta">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <span data-i18n="support_ask_monthly">Sostieni ogni mese</span>
+              </span>
+            </a>
+            <a class="support-plan" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings-year" target="_blank" rel="noopener noreferrer">
+              <span class="support-plan-price"><b data-i18n="support_plan_year_price">50&nbsp;$</b> <span data-i18n="support_plan_year_unit">all'anno</span></span>
+              <span class="support-plan-sparks"><span data-xspark="offer"></span><span data-i18n="support_plan_sparks">300 Scintille al mese</span></span>
+              <span class="support-plan-note" data-i18n="support_plan_year_note">Tutto quello del mensile, più un tema costruito su misura per te.</span>
+              <span class="support-plan-cta" data-i18n="support_plan_year_cta">Sostieni per un anno</span>
+            </a>
+            <a class="support-plan" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=settings&amp;p=once" target="_blank" rel="noopener noreferrer">
+              <span class="support-plan-price"><b data-i18n="support_plan_once_price">5&nbsp;$ o 25&nbsp;$</b> <span data-i18n="support_plan_once_unit">una volta</span></span>
+              <span class="support-plan-sparks"><span data-xspark="offer"></span><span data-i18n="support_plan_sparks">300 Scintille al mese</span></span>
+              <span class="support-plan-note" data-i18n="support_plan_once_note">Un mese di drop con 5&nbsp;$, cinque mesi con 25&nbsp;$. Stessi vantaggi, nessun rinnovo.</span>
+              <span class="support-plan-cta" data-i18n="support_plan_once_cta">Dona una volta</span>
+            </a>
+          </div>
+
+          <section class="support-already">
+            <div class="support-already-title" data-i18n="support_ask_already">Sostengo già Xenon</div>
+            <p class="support-already-lead" data-i18n="support_have_code_lead">Con il codice supporter i drop riservati si sbloccano con un tocco. Hai ricevuto un pacchetto? Importalo da qui.</p>
+            <div class="support-already-actions">
+              <button type="button" class="settings-btn primary" onclick="openSupporterCode()" data-i18n="support_code_btn">Inserisci il codice</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="support_perks_import">Importa un pacchetto perk</button>
+            </div>
+          </section>
         </div>
-        <div class="support-card support-card-discord">
-          <div class="support-card-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369A19.79 19.79 0 0 0 16.885 3.1a.074.074 0 0 0-.079.037c-.34.607-.719 1.4-.984 2.02a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.997-2.02.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.056c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-          </div>
-          <div class="support-card-body">
-            <div class="support-card-title" data-i18n="support_discord_title">Entra nella community</div>
-            <p class="support-card-lead" data-i18n="support_discord_lead">Novità in anteprima, aiuto rapido e le tue idee ascoltate: la community di Xenon vive su Discord.</p>
-          </div>
-          <a data-discord class="support-cta support-cta-discord" href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener noreferrer">
+
+        <!-- The free ways to help, quiet: one row under the ask. -->
+        <div class="support-links">
+          <a data-discord class="support-link support-link-discord" href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 16.885 3.1a.074.074 0 0 0-.079.037c-.34.607-.719 1.4-.984 2.02a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.997-2.02.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.056c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
             <span data-i18n="support_discord_btn">Unisciti al Discord</span>
           </a>
-        </div>
-        <div class="support-card support-card-perks">
-          <div class="support-card-ico" aria-hidden="true">🎁</div>
-          <div class="support-card-body">
-            <div class="support-card-title" data-i18n="support_perks_title">Perk per i sostenitori</div>
-            <p class="support-card-lead" data-i18n="support_perks_lead">Chi sostiene il progetto riceve pacchetti esclusivi — temi, sfondi e scene Ambient — protetti da codici d'accesso personali, pubblicati come post riservati ai membri su Buy Me a Coffee. Hai già un codice? Importa il pacchetto e inseriscilo quando richiesto.</p>
-          </div>
-          <button type="button" class="support-cta support-cta-perks settings-btn" onclick="if(window.PresetShare)PresetShare.openImport()">
-            <span data-i18n="support_perks_import">Importa un pacchetto perk</span>
-          </button>
-        </div>
-        <div class="support-links">
           <a class="support-link" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener noreferrer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>
             <span data-i18n="support_star_btn">Metti una stella su GitHub</span>
@@ -3486,38 +4003,49 @@
           </a>
         </div>
       </div>
-
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
         <div class="settings-group-head">
-          <span data-i18n="settings_ai">Xenon AI</span>
-          <span class="settings-hint" data-i18n="settings_ai_hint">Assistente intelligente</span>
-        </div>
-        <div class="settings-ai-info">
-          <!-- Left column: what Xenon AI does -->
-          <div class="settings-ai-col--main">
-            <p class="settings-ai-desc-text" data-i18n="settings_ai_desc">Assistente AI con voce neurale Microsoft, integrato nel dashboard. Capisce comandi in italiano, inglese, coreano, giapponese e cinese.</p>
-            <div class="settings-ai-caps-label" data-i18n="settings_ai_caps_label">Cosa può fare:</div>
-            <p class="settings-ai-caps" data-i18n="settings_ai_caps">🎙 Microfono · ▶ Media (play/pausa/avanti/indietro) · 🔊 Volume · 🌤 Meteo · 📝 Note · ✅ Task · 📅 Calendario · ⏱ Timer · 🖥 Screenshot schermo · 🚀 Apri app &amp; siti · 🎨 Tema · 🔒 Blocca PC</p>
-          </div>
-          <!-- Right column: setup steps -->
-          <div class="settings-ai-col--setup">
-            <div class="settings-ai-caps-label" data-i18n="settings_ai_setup">Come configurare (una sola volta):</div>
-            <ol class="settings-ai-steps">
-              <li><a href="https://aistudio.google.com" target="_blank" rel="noopener" data-i18n="settings_ai_step1">Vai su aistudio.google.com → crea una API key gratuita</a></li>
-              <li data-i18n="settings_ai_step2">Incolla la chiave nel campo qui sotto</li>
-              <li data-i18n="settings_ai_step3">Modello consigliato: gemini-3.1-flash-tts-preview (gratuito per uso personale)</li>
-            </ol>
-          </div>
-          <!-- Footer row: usage hint + privacy (full width) -->
-          <div class="settings-ai-col--footer">
-            <p class="settings-ai-wake" data-i18n="settings_ai_wake">💬 Usa la chat oppure premi il pulsante 🎙 per avviare la chat vocale. Tocca lo schermo o di' <strong>«stop»</strong> per chiuderla.</p>
-            <p class="settings-ai-privacy" data-i18n="settings_ai_privacy">🔒 La chiave API è salvata solo su questo PC e non viene mai trasmessa ad altri servizi.</p>
-          </div>
+          <span data-i18n="settings_ai">Assistente Bit</span>
         </div>
         <div class="settings-grid">
+          <!-- Scintille: the balance and the packs to buy when it
+               answers, the offer when it does not (js/ai-xenon-settings.js). -->
+          <div class="settings-row full xai-credits" id="settings-xenon-credits" hidden>
+            <span class="settings-label-line">
+              <span data-i18n="xai_credits_label">Scintille, i crediti di Bit</span>
+              <span class="xai-balance" role="status"><span data-xspark></span><b id="settings-xenon-balance"></b> <span data-i18n="xai_balance_unit">Scintille</span></span>
+            </span>
+            <div class="xai-meter" id="xai-meter" hidden><span class="xai-meter-fill" id="xai-meter-fill"></span></div>
+            <span class="settings-note" id="settings-xenon-split" hidden></span>
+            <span class="settings-note" id="xai-included" hidden></span>
+            <span class="settings-note settings-note-warn" id="xai-low" hidden></span>
+          </div>
+          <div class="settings-row full" id="xai-packs" hidden>
+            <span class="settings-label-line">
+              <span data-i18n="xai_packs_title">Compra Scintille</span>
+              <span class="settings-hint" data-i18n="xai_packs_hint">le Scintille comprate non scadono</span>
+            </span>
+            <span class="settings-note" data-i18n="sparks_settings_shop">I pacchetti sono nello Store, con tutto quello che ci puoi fare.</span>
+            <div class="xai-actions"><button type="button" class="settings-btn primary" id="xai-shop" onclick="XenonCredits.openShop()"><span data-xspark="offer" aria-hidden="true"></span><span data-i18n="sparks_shop_open">Vedi i pacchetti</span></button></div>
+            <span class="settings-note" id="xai-buy-status" role="status" hidden></span>
+          </div>
+          <div class="settings-row full" id="xai-offer" hidden>
+            <span class="settings-label-line"><span id="xai-offer-title"></span></span>
+            <span class="settings-note" id="xai-offer-line"></span>
+            <div class="xai-actions">
+              <button type="button" class="settings-btn primary" id="xai-use" onclick="XenonCredits.useXenon()" data-i18n="xai_offer_use" hidden>Usa le Scintille</button>
+              <a class="settings-btn primary" id="xai-support" href="https://xenon-supporter-hub.xenonedge.workers.dev/go/support?s=ai" target="_blank" rel="noopener noreferrer" data-i18n="xai_offer_support" hidden>Diventa sostenitore</a>
+              <button type="button" class="settings-btn" id="xai-have-code" onclick="openSupporterCode()" data-i18n="xai_offer_have_code" hidden>Ho già un codice</button>
+            </div>
+          </div>
           <div class="settings-row full" id="ai-provider-row">
-            <span class="settings-label-line"><span data-i18n="ai_provider_title">Provider AI</span><span class="settings-hint" data-i18n="ai_provider_local_hint">Gratuito, privato, gira sul tuo PC</span></span>
+            <span class="settings-label-line"><span data-i18n="ai_provider_title">Provider AI</span><span class="settings-hint" data-i18n="xai_provider_hint">chi risponde quando scrivi o parli a Bit</span></span>
             <div class="ai-provider-toggle">
+              <label class="ai-prov-xenon">
+                <input type="radio" name="aiProvider" value="xenon" id="ai-provider-xenon">
+                <span class="ai-prov-ic" aria-hidden="true" data-bit-icon></span>
+                <span class="ai-prov-name" data-i18n="xai_provider_name">Bit</span>
+              </label>
               <label>
                 <input type="radio" name="aiProvider" value="gemini" id="ai-provider-gemini">
                 <span class="ai-prov-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M12 2c.5 5.4 4.4 9.3 9.8 9.8v.4C16.4 12.7 12.5 16.6 12 22h-.4C11.1 16.6 7.2 12.7 1.8 12.2v-.4C7.2 11.3 11.1 7.4 11.6 2Z"/></svg></span>
@@ -3550,7 +4078,18 @@
               </label>
             </div>
           </div>
-
+          <!-- Scintille: which Claude tier answers. -->
+          <div class="settings-subpanel full" id="settings-xenon-panel" hidden>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_xenon_model">Modello per le creazioni</span><span class="settings-hint" data-i18n="settings_xenon_model_hint">widget, temi, sfondi, scene e Deck</span></span>
+              <select class="settings-text-input" id="settings-xenon-model" data-custom-select data-cs-fixed onchange="XenonCreditsSettings.onModelSelect(this.value)"></select>
+            </label>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_xenon_effort">Ragionamento</span><span class="settings-hint" data-i18n="settings_xenon_effort_hint">quanto pensa prima di creare</span></span>
+              <select class="settings-text-input" id="settings-xenon-effort" data-custom-select data-cs-fixed onchange="XenonCreditsSettings.onEffortSelect(this.value)"></select>
+            </label>
+            <p class="settings-note" data-i18n="settings_xenon_note">Domande, comandi e voce usano sempre Haiku, il modello più veloce: meno di una Scintilla a risposta. La trascrizione della voce resta locale e gratuita, e le battute di Bit non usano mai Scintille.</p>
+          </div>
           <div class="settings-subpanel full" id="ai-local-panel" hidden>
             <!-- Hardware compatibility (visible when local is selected) -->
             <div class="ai-hw-block" id="ai-hw-block">
@@ -3604,6 +4143,7 @@
             </details>
           </div>
 
+          <p class="settings-note" id="settings-gemini-setup" hidden><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" data-i18n="xai_gemini_setup">Crea una chiave gratuita su aistudio.google.com</a> <span data-i18n="xai_key_privacy">La chiave resta su questo PC.</span></p>
           <!-- Gemini: the key is server-only like the two below (v4.11.0), so the
                field shows a "saved" placeholder instead of the value. NO
                data-i18n-placeholder here on purpose — applyTranslations() would
@@ -3702,7 +4242,7 @@
               <select class="settings-text-input" id="settings-cli-model" data-custom-select data-cs-fixed onchange="onAiCliModelSelect(this.value)"></select>
               <span class="settings-hint" id="settings-cli-model-used" hidden></span>
             </label>
-            <p class="settings-note" data-i18n="settings_cli_limits">Usa i limiti del tuo abbonamento, gli stessi che usi per programmare. Xenon AI ha gli stessi strumenti degli altri provider (Deck, luci, impostazioni, attività e il resto), mentre gli strumenti del programma, come il terminale e l'accesso ai file, restano spenti. Voce e trascrizione restano locali e gratuite.</p>
+            <p class="settings-note" data-i18n="settings_cli_limits">Usa i limiti del tuo abbonamento, gli stessi che usi per programmare. Bit ha gli stessi strumenti degli altri provider (Deck, luci, impostazioni, attività e il resto), mentre gli strumenti del programma, come il terminale e l'accesso ai file, restano spenti. Voce e trascrizione restano locali e gratuite.</p>
           </div>
           <!-- Claude (Anthropic): key + model. Server-only key, same pattern. -->
           <div class="settings-subpanel full" id="settings-anthropic-panel" hidden>
@@ -3718,26 +4258,34 @@
               <span class="settings-hint" id="settings-anthropic-model-used" hidden></span>
             </label>
           </div>
+          <!-- Widgets granted `ai` ask this AI too (sdk-ai.js): how many questions
+               each may ask per day, since every one can cost the user. -->
+          <label class="settings-row full" id="settings-sdk-ai-cap-row">
+            <span class="settings-label-line"><span data-i18n="settings_sdk_ai_cap">Domande dei widget</span><span class="settings-hint" data-i18n="settings_sdk_ai_cap_hint">per ogni widget con il permesso AI, al giorno</span></span>
+            <select class="settings-text-input" id="settings-sdk-ai-cap" data-custom-select data-cs-fixed onchange="updateSdkAiDailyCap(this.value)"></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-ai-voice-group" data-settings-cat="ai">
+        <div class="settings-group-head">
+          <span data-i18n="xai_group_voice">Voce</span>
+        </div>
+        <div class="settings-grid">
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-ai-tts" type="checkbox" onchange="updateAiTts(this.checked)">
-            <span data-i18n="settings_ai_tts">Risposta vocale (TTS)</span>
-          </label>
-          <!-- Advanced reasoning — route TEXT chat turns to the stronger, slower
-               model. Voice turns always stay on the fast model. -->
-          <label class="settings-toggle-row">
-            <input class="settings-check" id="settings-ai-pro" type="checkbox" onchange="updateAiProReasoning(this.checked)">
             <span class="settings-label-line">
-              <span data-i18n="settings_ai_pro">Ragionamento avanzato</span>
-              <span class="settings-hint" data-i18n="settings_ai_pro_hint">Usa un modello più potente per le domande scritte complesse. Più preciso ma più lento; le risposte vocali restano veloci.</span>
+              <span data-i18n="settings_ai_tts">Risposta vocale</span>
+              <span class="settings-hint" data-i18n="settings_ai_tts_hint">Xenon legge ad alta voce le risposte.</span>
             </span>
           </label>
           <!-- Voce Live (beta) — full-duplex realtime voice via Gemini Live. The
                server owns the mic; the turn-based path stays the default+fallback. -->
-          <label class="settings-toggle-row">
+          <label class="settings-toggle-row" id="settings-ai-live-row">
             <input class="settings-check" id="settings-ai-live" type="checkbox" onchange="updateAiLiveVoice(this.checked)">
             <span class="settings-label-line">
               <span data-i18n="settings_ai_live">Voce Live (beta)</span>
-              <span class="settings-hint" data-i18n="settings_ai_live_hint">Conversazione vocale in tempo reale: parli e interrompi mentre Xenon risponde. Richiede una API key Gemini compatibile e consuma più quota; con le cuffie è al meglio. Off = voce a turni (predefinita).</span>
+              <span class="settings-hint" data-i18n="settings_ai_live_hint">Parli e interrompi mentre Bit risponde. Serve una chiave Gemini con accesso Live e consuma più quota; va meglio con le cuffie.</span>
             </span>
           </label>
           <!-- Voice chat presentation — ambient (transparent, dashboard visible,
@@ -3747,6 +4295,79 @@
             <span class="settings-label-line">
               <span data-i18n="settings_ai_voice_ambient">Chat vocale trasparente</span>
               <span class="settings-hint" data-i18n="settings_ai_voice_ambient_hint">Durante la chat vocale il dashboard resta visibile: si illumina solo il bordo dello schermo e le battute compaiono in basso. Off = schermata piena con l'orb (predefinita).</span>
+            </span>
+          </label>
+          <!-- The edge glow on other screens (native app only, js/ai-edge-glow.js). -->
+          <label class="settings-row full" id="settings-ai-edge-glow-row" hidden>
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_edge_glow">Bordo luminoso</span>
+              <span class="settings-hint" data-i18n="settings_ai_edge_glow_hint">Mentre parli con Bit si illumina il bordo di questi schermi.</span>
+            </span>
+            <select class="settings-select" id="settings-ai-edge-glow" data-custom-select data-cs-fixed onchange="updateAiEdgeGlow(this.value)">
+              <option value="auto" data-i18n="settings_ai_edge_glow_auto">Dove non c'è la dashboard</option>
+              <option value="main" data-i18n="settings_ai_edge_glow_main">Schermo principale</option>
+              <option value="second" data-i18n="settings_ai_edge_glow_second">Secondo schermo</option>
+              <option value="all" data-i18n="settings_ai_edge_glow_all">Tutti gli schermi</option>
+              <option value="off" data-i18n="settings_ai_edge_glow_off">Spento</option>
+            </select>
+          </label>
+          <!-- Where the app cannot draw the glow (Linux: GNOME on Wayland, no compositor): why. -->
+          <div class="settings-row full" id="settings-ai-edge-glow-why-row" hidden>
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_edge_glow">Bordo luminoso</span>
+              <span class="settings-hint" id="settings-ai-edge-glow-why" data-i18n="settings_ai_edge_glow_why_wayland">Questo desktop non permette alle app di disegnare sopra le altre finestre (GNOME su Wayland), quindi qui il bordo non si può illuminare.</span>
+            </span>
+          </div>
+          <label class="settings-row full settings-slider-row">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_sens">Sensibilità microfono</span>
+              <span class="settings-hint" data-i18n="settings_ai_sens_hint">alzala se Bit non ti sente, utile con le cuffie Bluetooth</span>
+            </span>
+            <div class="settings-slider-control">
+              <span class="settings-slider-end" data-i18n="settings_ai_sens_low">Bassa</span>
+              <input class="settings-slider" id="settings-ai-sens" type="range" min="0" max="100" step="1" oninput="updateAiMicSensitivity(this.value)">
+              <span class="settings-slider-end" data-i18n="settings_ai_sens_high">Alta</span>
+              <span class="settings-slider-value" id="settings-ai-sens-val">50</span>
+            </div>
+          </label>
+          <div class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_mictest">Prova microfono</span>
+              <span class="settings-hint" data-i18n="settings_ai_mictest_hint">Registra ~3 secondi e verifica se la voce viene davvero sentita dal dispositivo giusto (è lo stesso microfono usato dalla chat vocale, che può differire da quello mostrato dal misuratore).</span>
+            </span>
+            <div class="settings-mictest-control">
+              <button type="button" class="settings-btn" id="settings-mictest-btn" onclick="runAiMicTest()" data-i18n="settings_ai_mictest_btn">Avvia test</button>
+              <p class="settings-mictest-result" id="settings-mictest-result" aria-live="polite"></p>
+            </div>
+          </div>
+          <!-- Local "Hey Bit" wake word — strict opt-in, 100% offline
+               (ffmpeg + whisper.cpp on this PC; audio never leaves the machine). -->
+          <div class="settings-row full" id="settings-wake-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-wake-enabled" type="checkbox" onchange="updateWakeWord(this.checked)">
+              <span class="settings-label-line">
+                <span data-i18n="settings_wake">Attivazione vocale «Hey Bit»</span>
+                <span class="settings-hint" data-i18n="settings_wake_hint">Di’ «Hey Bit» e fai una pausa.</span>
+              </span>
+            </label>
+            <p class="settings-hint" id="settings-wake-status" aria-live="polite"></p>
+            <button type="button" class="settings-btn" id="settings-wake-whisper-btn" hidden onclick="wakeInstallWhisper(this)" data-i18n="ai_comp_download_whisper">Scarica Whisper</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group settings-ai-answers-group" data-settings-cat="ai">
+        <div class="settings-group-head">
+          <span data-i18n="xai_group_answers">Risposte e memoria</span>
+        </div>
+        <div class="settings-grid">
+          <!-- Advanced reasoning — route TEXT chat turns to the stronger, slower
+               model. Voice turns always stay on the fast model. -->
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ai-pro" type="checkbox" onchange="updateAiProReasoning(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_pro">Ragionamento avanzato</span>
+              <span class="settings-hint" data-i18n="settings_ai_pro_hint">Usa un modello più potente per le domande scritte complesse. Più preciso ma più lento; le risposte vocali restano veloci.</span>
             </span>
           </label>
           <!-- Persistent AI memory — Xenon remembers durable facts about you across
@@ -3767,39 +4388,6 @@
               </div>
             </div>
           </div>
-          <label class="settings-row full settings-slider-row">
-            <span class="settings-label-line">
-              <span data-i18n="settings_ai_sens">Sensibilità microfono</span>
-              <span class="settings-hint" data-i18n="settings_ai_sens_hint">più alta = più reattivo, ma più falsi positivi</span>
-            </span>
-            <div class="settings-slider-control">
-              <span class="settings-slider-end" data-i18n="settings_ai_sens_low">Bassa</span>
-              <input class="settings-slider" id="settings-ai-sens" type="range" min="0" max="100" step="1" oninput="updateAiMicSensitivity(this.value)">
-              <span class="settings-slider-end" data-i18n="settings_ai_sens_high">Alta</span>
-              <span class="settings-slider-value" id="settings-ai-sens-val">50</span>
-            </div>
-          </label>
-          <div class="settings-row full">
-            <span class="settings-label-line">
-              <span data-i18n="settings_ai_mictest">Prova microfono</span>
-              <span class="settings-hint" data-i18n="settings_ai_mictest_hint">Registra ~3 secondi e verifica se la voce viene davvero sentita dal dispositivo giusto (è lo stesso microfono usato dalla chat vocale, che può differire da quello mostrato dal misuratore).</span>
-            </span>
-            <div class="settings-mictest-control">
-              <button type="button" class="settings-btn" id="settings-mictest-btn" onclick="runAiMicTest()" data-i18n="settings_ai_mictest_btn">Avvia test</button>
-              <p class="settings-mictest-result" id="settings-mictest-result" aria-live="polite"></p>
-            </div>
-          </div>
-          <!-- Local "Hey Xenon" wake word — strict opt-in, 100% offline
-               (ffmpeg + whisper.cpp on this PC; audio never leaves the machine). -->
-          <div class="settings-row full" id="settings-wake-row">
-            <label class="settings-toggle-row">
-              <input class="settings-check" id="settings-wake-enabled" type="checkbox" onchange="updateWakeWord(this.checked)">
-              <span data-i18n="settings_wake">Attivazione vocale «Hey Xenon»</span>
-            </label>
-            <span class="settings-hint" data-i18n="settings_wake_hint">Di' «Hey Xenon» per aprire la chat vocale senza toccare lo schermo. Tutto avviene sul tuo PC (Whisper locale): nessun audio lascia il computer e nulla viene salvato. Attivo solo mentre il dashboard è aperto.</span>
-            <p class="settings-hint" id="settings-wake-status" aria-live="polite"></p>
-            <button type="button" class="settings-btn" id="settings-wake-whisper-btn" hidden onclick="wakeInstallWhisper(this)" data-i18n="ai_comp_download_whisper">Scarica Whisper</button>
-          </div>
         </div>
       </div>
 
@@ -3811,20 +4399,20 @@
           <span data-i18n="aifeat_title">Funzioni AI avanzate</span>
           <span class="settings-hint" data-i18n="aifeat_hint">Tutte disattivate di default</span>
         </div>
-        <p class="settings-note aifeat-cost-note" data-i18n="aifeat_cost_note">⚠ Queste funzioni usano l'AI in modo attivo: con Gemini consumano quota API, con il provider locale richiedono potenza di calcolo. Attivale solo se vuoi usarle.</p>
+        <p class="settings-note aifeat-cost-note" data-i18n="aifeat_cost_note">Queste funzioni usano l’AI anche quando non scrivi: consumano Scintille o la quota del provider, oppure potenza del PC con Ollama.</p>
         <div class="settings-grid">
           <label class="settings-toggle-row aifeat-master-row">
             <input class="settings-check" id="settings-aifeat-master" type="checkbox" onchange="updateAiFeature('enabled', this.checked)">
             <span class="settings-label-line">
               <span data-i18n="aifeat_master">Abilita funzioni AI avanzate</span>
-              <span class="settings-hint" data-i18n="aifeat_master_hint">interruttore generale — spento, nessuna funzione qui sotto è attiva</span>
+              <span class="settings-hint" data-i18n="aifeat_master_hint">da spento nessuna funzione qui sotto è attiva</span>
             </span>
           </label>
           <label class="settings-toggle-row aifeat-row">
             <input class="settings-check" id="settings-aifeat-genesis" type="checkbox" onchange="updateAiFeature('genesis', this.checked)">
             <span class="settings-label-line">
-              <span data-i18n="aifeat_genesis">Genesis — pagine create dall'AI</span>
-              <span class="settings-hint" data-i18n="aifeat_genesis_hint">chiedi a Xenon di comporre una pagina della dashboard per te</span>
+              <span data-i18n="aifeat_genesis">Genesis</span>
+              <span class="settings-hint" data-i18n="aifeat_genesis_hint">chiedi a Bit di comporre una pagina della dashboard per te</span>
             </span>
           </label>
           <label class="settings-toggle-row aifeat-row">
@@ -3837,7 +4425,7 @@
           <label class="settings-toggle-row aifeat-row">
             <input class="settings-check" id="settings-aifeat-guardian" type="checkbox" onchange="updateAiFeature('guardian', this.checked)">
             <span class="settings-label-line">
-              <span data-i18n="aifeat_guardian">Guardian — salute del PC</span>
+              <span data-i18n="aifeat_guardian">Guardian</span>
               <span class="settings-hint" data-i18n="aifeat_guardian_hint">storico temperature e carichi, analisi AI su richiesta</span>
             </span>
           </label>
@@ -3851,7 +4439,7 @@
           <label class="settings-toggle-row aifeat-row">
             <input class="settings-check" id="settings-aifeat-pcControl" type="checkbox" onchange="updateAiFeature('pcControl', this.checked)">
             <span class="settings-label-line">
-              <span data-i18n="aifeat_pccontrol">Controllo PC — comandi con conferma</span>
+              <span data-i18n="aifeat_pccontrol">Controllo PC</span>
               <span class="settings-hint" data-i18n="aifeat_pccontrol_hint">l'AI può eseguire comandi Windows, ma solo dopo la tua conferma su ogni singolo comando</span>
             </span>
           </label>
@@ -4210,29 +4798,34 @@
 
 <!-- Game Companion (opt-in, Settings → Funzioni AI): pill + overlay shown while gaming -->
 <button class="gc-pill" id="gc-pill" type="button" onclick="GameCompanion.openOverlay()" hidden>
-  <span class="gc-pill-icon" aria-hidden="true">🎮</span>
+  <span class="gc-pill-icon" id="gc-pill-icon" aria-hidden="true"></span>
   <span class="gc-pill-label" id="gc-pill-label">Game</span>
 </button>
 
-<div class="gc-overlay" id="gc-overlay" role="dialog" aria-modal="true" hidden>
+<div class="gc-overlay" id="gc-overlay" role="dialog" aria-modal="true" data-i18n-aria-label="gc_title" aria-label="Game Companion" hidden>
   <div class="gc-card">
     <div class="gc-head">
+      <span class="gc-bit" id="gc-bit" aria-hidden="true"></span>
       <div class="gc-headline">
-        <div class="gc-title" data-i18n="gc_title">Game Companion</div>
+        <strong class="gc-name">Bit</strong>
         <div class="gc-game" id="gc-game">—</div>
       </div>
-      <button class="gc-close" type="button" onclick="GameCompanion.closeOverlay()" data-i18n-title="close" title="Chiudi"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button class="gc-close" type="button" onclick="GameCompanion.closeOverlay()" data-i18n-title="close" data-i18n-aria-label="close" title="Chiudi" aria-label="Chiudi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="gc-stats">
       <div class="gc-stat"><span class="gc-stat-label" data-i18n="gc_session">Sessione</span><span class="gc-stat-value" id="gc-session">0:00</span></div>
       <div class="gc-stat"><span class="gc-stat-label">FPS</span><span class="gc-stat-value" id="gc-fps">—</span></div>
     </div>
-    <div class="gc-insight" id="gc-insight"></div>
-    <div class="gc-ask">
-      <input class="gc-ask-input" id="gc-question" type="text" maxlength="300" autocomplete="off" data-i18n-placeholder="gc_ask_placeholder" placeholder="Chiedi qualcosa sul gioco…" onkeydown="if(event.key==='Enter')GameCompanion.ask()">
-      <button class="gc-ask-btn" id="gc-ask-btn" type="button" onclick="GameCompanion.ask()" data-i18n-title="gc_ask_send" title="Invia"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+    <div class="gc-reply">
+      <span class="gc-reply-bit" id="gc-reply-bit" aria-hidden="true"></span>
+      <div class="gc-insight" id="gc-insight" aria-live="polite"></div>
     </div>
-    <button class="gc-analyze" id="gc-analyze" type="button" onclick="GameCompanion.analyze()" data-i18n="gc_analyze">Analizza schermo</button>
+    <div class="gc-ask">
+      <input class="gc-ask-input" id="gc-question" type="text" maxlength="300" autocomplete="off" data-i18n-placeholder="gc_ask_placeholder" placeholder="Chiedi a Bit del gioco…" onkeydown="if(event.key==='Enter')GameCompanion.ask()">
+      <button class="gc-ask-btn" id="gc-ask-btn" type="button" onclick="GameCompanion.ask()" data-i18n-title="gc_ask_send" data-i18n-aria-label="gc_ask_send" title="Invia" aria-label="Invia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+    </div>
+    <button class="gc-analyze" id="gc-analyze" type="button" onclick="GameCompanion.analyze()"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span data-i18n="gc_analyze">Analizza schermo</span></button>
+    <p class="gc-cost" id="gc-cost" hidden></p>
   </div>
 </div>
 
@@ -4253,6 +4846,16 @@
      admin so the two Store fronts cannot disagree about what shows where.
      community-gallery.js degrades to its own default order if this is absent. -->
 <script src="shared/src/storefront-layout.js"></script>
+<!-- Bit, the assistant's pixel face: one engine for the app, the site, the
+     Maker and the export tool (js/bit-app.js mounts it here). -->
+<script src="shared/src/bit-clips.js"></script>
+<script src="shared/src/bit.js"></script>
+<script src="shared/src/bit-player.js"></script>
+<script src="shared/src/bit-phrases.js"></script>
+<script src="shared/src/bit-spark.js"></script>
+<!-- Store descriptions: a small Markdown subset, shared with the website catalog
+     and the hub. Without it the Store shows descriptions as plain text. -->
+<script src="shared/src/rich-text.js"></script>
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
 <!-- Monotone-cubic path builder shared by the stat sparklines (utils.js) and the
@@ -4262,9 +4865,13 @@
 <script src="js/utils.js"></script>
 <script src="js/toast-island.js"></script>
 <script src="js/toast.js"></script>
+<script src="js/alert-toasts.js"></script>
 <!-- Interrupt arbiter: owns busy()/whenIdle()/the daily budget for every modal
      channel. Must load before any channel that waits its turn (catalog-drop). -->
 <script src="js/interrupt-queue.js"></script>
+<!-- Bit's mail: where the promo channels file letters instead of popping up. -->
+<script src="js/bit-mail-core.js"></script>
+<script src="js/bit-mail.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
@@ -4299,25 +4906,39 @@
 <script src="js/share-nudge.js"></script>
 <script src="js/support-goal.js"></script>
 <script src="js/support-appeal.js"></script>
+<script src="js/bg-guard.js"></script>
 <script src="js/custom-bg.js"></script>
 <script src="js/slideshow-widget.js"></script>
 <script src="js/theme-palette.js"></script>
+<script src="js/theme-tokens.js"></script>
 <script src="js/topbar-look.js"></script>
+<script src="js/layer-tiles.js"></script>
+<script src="js/layers-model.js"></script>
+<script src="js/usage-mode.js"></script>
 <script src="js/topbar-share.js"></script>
 <script src="js/content-installs.js"></script>
 <script src="js/fuzzy-find.js"></script>
 <script src="js/smart-home-order.js"></script>
 <script src="js/sensor-sources.js"></script>
 <script src="js/dashboard-portrait.js"></script>
+<script src="js/save-file.js"></script>
+<script src="js/perf-settings.js"></script>
+<script src="js/perf-hud.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/xenon-credits.js"></script>
+<script src="js/sparks-mail.js"></script>
+<script src="js/ai-xenon-settings.js"></script>
+<script src="js/bit-chat-model.js"></script>
 <script src="js/settings-bar-preview.js"></script>
 <script src="js/settings-search.js"></script>
 <script src="js/performance.js"></script>
+<script src="js/perf-marker.js"></script>
 <script src="js/tile-decor-presets.js"></script>
 <script src="js/tile-decor-schema.js"></script>
 <script src="js/tile-decor-layers.js"></script>
 <script src="js/tile-controls.js"></script>
 <script src="js/tile-shape-presets.js"></script>
+<script src="js/decor-bg.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/tile-style-fields.js"></script>
 <script src="js/tile-style-decor-model.js"></script>
@@ -4342,13 +4963,26 @@
 <script src="js/sdk-mini.js"></script>
 <script src="js/sdk-topbar-button.js"></script>
 <script src="js/lockscreen.js"></script>
+<script src="js/ambient-resolve.js"></script>
 <script src="js/ambient-mode.js"></script>
+<script src="js/ai-turn-wait.js"></script>
+<script src="js/bit-app.js"></script>
+<script src="js/ai-bit-chat.js"></script>
+<script src="js/ai-reply-choices.js"></script>
+<script src="js/bit-composer.js"></script>
+<script src="js/bit-welcome.js"></script>
+<script src="js/bit-chat-full.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/ai-live.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>
+<script src="js/page-target.js"></script>
 <script src="js/dashboard-pager.js"></script>
 <script src="js/dashboard-instances.js"></script>
 <script src="js/tile-tab-memory.js"></script>
+<script src="js/gif-read.js"></script>
+<script src="js/gif-write.js"></script>
+<script src="js/anim-picture.js"></script>
+<script src="js/ai-pictures.js"></script>
 <script src="js/ambient-scene.js"></script>
 <script src="js/ambient-canvas-parts.js"></script>
 <script src="js/ambient-canvas.js"></script>
@@ -4363,15 +4997,22 @@
 <script src="js/dashboard-presets.js"></script>
 <script src="js/genesis.js"></script>
 <script src="js/game-companion.js"></script>
+<script src="js/greeting-scene.js"></script>
+<script src="js/greeting-facts.js"></script>
+<script src="js/weather-glyphs.js"></script>
 <script src="js/greeting.js"></script>
 <script src="js/ambient.js"></script>
 <script src="js/ambient-idle.js"></script>
 <script src="js/gpu-hint.js"></script>
+<script src="js/deck-shortcuts.js"></script>
 <script src="js/deck-model.js"></script>
 <script src="js/deck-store.js"></script>
 <script src="js/deck-icons.js"></script>
+<script src="js/capability-catalog.js"></script>
 <script src="js/deck-actions.js"></script>
+<script src="js/deck-error-text.js"></script>
 <script src="js/deck.js"></script>
+<script src="js/deck-editor-shortcut.js"></script>
 <script src="js/deck-editor-behavior.js"></script>
 <script src="js/deck-editor.js"></script>
 <script src="js/lighting-ui.js"></script>
@@ -4431,6 +5072,15 @@
 <script src="js/phone-widget.js"></script>
 <script src="js/power-widget.js"></script>
 <script src="js/battery-widget.js"></script>
+<script src="js/perf-widget.js"></script>
+<script src="js/capture-toast.js"></script>
+<script src="js/capture-gallery-model.js"></script>
+<script src="js/capture-gallery-viewer.js"></script>
+<script src="js/capture-gallery.js"></script>
+<script src="js/capture-settings-pane.js"></script>
+<script src="js/game-sessions-pane.js"></script>
+<script src="js/capture-replay-key.js"></script>
+<script src="js/vitals-core.js"></script>
 <script src="js/vitals.js"></script>
 <script src="js/vitals-pet-core.js"></script>
 <script src="js/vitals-pet.js"></script>
@@ -4439,6 +5089,12 @@
 <script src="js/sdk-diagnostics.js"></script>
 <script src="js/sdk-youtube-player.js"></script>
 <script src="js/custom-widget.js"></script>
+<script src="js/layer-pin.js"></script>
+<script src="js/layer-host.js"></script>
+<script src="js/mcp-dev-client.js"></script>
+<script src="js/screen-scene-model.js"></script>
+<script src="js/layers-shell.js"></script>
+<script src="js/ai-edge-glow.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>
 <script src="js/second-screen-tile.js"></script>
@@ -4446,13 +5102,18 @@
 <script src="js/smart-home.js"></script>
 <script src="js/unifi-widget.js"></script>
 <script src="js/surface-picker.js"></script>
+<script src="js/usage-ask.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
 <script src="js/context-profiles.js"></script>
 <script src="js/preset-share.js"></script>
 <script src="js/installed-manager.js"></script>
+<script src="js/sparks-store.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
+<!-- The 7-day pass trial: reminders, the end-of-trial clean-up and card. Uses
+     PresetShare / CommunityGallery / CustomWidget at call time only. -->
+<script src="js/trial-pass-ui.js"></script>
 <!-- Share card: composes the postable PNG. Loaded after preset-share.js only for
      readability — openShareDialog() checks window.ShareCard at click time, so the
      order between the two is not load-bearing. -->
@@ -4462,6 +5123,13 @@
 <script src="js/hub-match.js"></script>
 <script src="js/hub-messages.js"></script>
 <script src="js/update.js"></script>
+<script src="js/dashboard-open.js"></script>
+<script src="js/xenon-menu-icons.js"></script>
+<script src="js/xenon-menu.js"></script>
+<script src="js/menu-gamepad.js"></script>
+<script src="js/xenon-menu-panel.js"></script>
+<script src="js/screen-tile.js"></script>
+<script src="js/tile-play.js"></script>
 <script src="js/main.js"></script>
 <!-- Installable app: registers the service worker, and only where that means
      something (secure context, not the native shell, not inside an iframe).

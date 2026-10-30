@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+-->
+<!-- "Widgets only": the hidden page that runs the Store widgets' background
+     frames (js/sdk-service.js), so their Deck keys and webhooks keep working
+     with no dashboard. The driver page holds it in a hidden frame only while a
+     widget has a Deck action the user granted (js/driver-sdk-host.js). -->
+<html lang="en" data-sdk-service>
+<head>
+<meta charset="UTF-8">
+<title>Xenon</title>
+</head>
+<body>
+<script src="shared/src/constants.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="layer-i18n.js"></script>
+<script src="js/theme-palette.js"></script>
+<script src="js/theme-tokens.js"></script>
+<script src="js/native-bridge.js"></script>
+<script src="js/deck-actions.js"></script>
+<script src="js/custom-widget.js"></script>
+<script src="js/widget-feed.js"></script>
+<script src="js/sdk-service.js"></script>
+</body>
+</html>
