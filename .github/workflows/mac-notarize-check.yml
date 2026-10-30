@@ -52,7 +52,11 @@ jobs:
 
       - name: Generate app icons
         working-directory: apps/native
-        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+        # tauri icon blurs Bit at small sizes: keep its icns, android/ and ios/,
+        # then draw the flat PNGs and icon.ico pixel-exact (tools/brand).
+        run: |
+          npm run tauri -- icon ../../docs/images/brand/icon-1024.png
+          node ../../tools/brand/build.mjs --tauri src-tauri/icons
 
       # SIGNING and NOTARIZATION are two different things here, and only the
       # second one costs money. Both are opt-in on their own secrets.

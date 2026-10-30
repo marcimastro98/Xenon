@@ -2,7 +2,7 @@ name: Release integrity
 
 # MANUAL RECOVERY TOOL. Normal releases sign SHA256SUMS inside release.yml (the
 # atomic pipeline triggered by pushing the version tag), so every asset —
-# source.zip, xenon-helper.exe, Xenon-Setup-x64.exe — is hashed, signed and
+# source.zip, xenon-helper.exe, xenon-capture.exe, Xenon-Setup-x64.exe — is hashed, signed and
 # staged on the draft BEFORE the release is published. The old
 # `release: published` trigger here signed after the fact and had to poll for
 # the helper build, leaving a window where self-update hit integrity_missing.
@@ -10,11 +10,12 @@ name: Release integrity
 # Run this manually to (re)sign an EXISTING release, e.g. if GitHub ever
 # re-compresses old source archives (the hash would stop matching) or after
 # manually re-attaching an asset. It hashes the source zip plus whichever of
-# xenon-helper.exe / Xenon-Setup-x64.exe are attached to the release.
+# xenon-helper.exe / xenon-capture.exe / Xenon-Setup-x64.exe are attached to the release.
 #
 # Consumers verifying against this signed manifest with the pinned key:
 #   - server/self-update.js       (source.zip line, before applying an update)
-#   - server/helper-update.js     (xenon-helper.exe line, boot self-heal)
+#   - server/helper-update.js     (xenon-helper.exe line, boot self-heal;
+#                                  xenon-capture.exe line, capture engine)
 #   - the setup.exe bootstrap     (source.zip line, first install)
 # All fail closed.
 #
@@ -52,6 +53,9 @@ jobs:
       - name: Download the attached binaries (whichever exist)
         run: |
           gh release download "$TAG" --pattern 'xenon-helper.exe' --dir . --clobber --repo "${{ github.repository }}" || echo "no helper attached"
+          gh release download "$TAG" --pattern 'xenon-capture.exe' --dir . --clobber --repo "${{ github.repository }}" || echo "no capture engine attached"
+          gh release download "$TAG" --pattern 'xenon-capture-macos' --dir . --clobber --repo "${{ github.repository }}" || echo "no macOS capture engine attached"
+          gh release download "$TAG" --pattern 'xenon-capture-linux-x64' --dir . --clobber --repo "${{ github.repository }}" || echo "no Linux capture engine attached"
           gh release download "$TAG" --pattern 'Xenon-Setup-x64.exe' --dir . --clobber --repo "${{ github.repository }}" || echo "no stable-named setup attached"
 
       - name: Hash and sign
@@ -66,7 +70,7 @@ jobs:
               console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
               process.exit(1);
             }
-            const files = ["source.zip", "xenon-helper.exe", "Xenon-Setup-x64.exe"].filter((f) => fs.existsSync(f));
+            const files = ["source.zip", "xenon-helper.exe", "xenon-capture.exe", "xenon-capture-macos", "xenon-capture-linux-x64", "Xenon-Setup-x64.exe"].filter((f) => fs.existsSync(f));
             let sums = "";
             for (const f of files) sums += crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex") + "  " + f + "\n";
             fs.writeFileSync("SHA256SUMS", sums);

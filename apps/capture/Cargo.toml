@@ -1,0 +1,102 @@
+[package]
+name = "xenon-capture"
+version = "0.1.0"
+description = "Xenon capture engine: screenshots and recordings with the OS capture APIs"
+authors = ["Marcello Mastroeni (marcimastro98)"]
+edition = "2021"
+rust-version = "1.87"
+publish = false
+
+# The server starts this on demand (`xenon-capture serve`) and talks to it in
+# JSON lines over stdio, like the Xenon Helper. No GUI, no window of its own.
+[dependencies]
+serde_json = "1"
+
+# Already under `windows`; named here because `#[implement]` (a COM callback
+# for an app's sound) expands to paths in it.
+[target.'cfg(windows)'.dependencies.windows-core]
+version = "0.62.2"
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62.2"
+features = [
+  "Foundation",
+  "Globalization",
+  "Graphics",
+  "Graphics_Capture",
+  "Graphics_DirectX",
+  "Graphics_DirectX_Direct3D11",
+  "Graphics_Imaging",
+  "Media_Ocr",
+  "Security_Authorization_AppCapabilityAccess",
+  "Security_Cryptography",
+  "Storage_Streams",
+  "Win32_Devices_Display",
+  "Win32_Foundation",
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D_Fxc",
+  "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Imaging",
+  "Win32_Media_Audio",
+  "Win32_Media_MediaFoundation",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_Performance",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_System_WinRT",
+  "Win32_System_WinRT_Direct3D11",
+  "Win32_System_WinRT_Graphics_Capture",
+  "Win32_UI_Accessibility",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+]
+
+# macOS only: recording, Instant Replay, exports and covers go through
+# ScreenCaptureKit, AVFoundation, CoreGraphics, ImageIO and Vision (mac/),
+# which Apple's command-line tools cannot do. ScreenCaptureKit itself is
+# opened at run time (mac/sck.rs), never linked, so the engine still starts
+# on a macOS too old to have it.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.5"
+block2 = "0.6.2"
+dispatch2 = { version = "0.3.1", default-features = false, features = ["std", "objc2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "NSArray", "NSDictionary", "NSEnumerator", "NSError", "NSObject", "NSProcessInfo", "NSString", "NSURL", "NSValue"] }
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "objc2", "CFArray", "CFBase", "CFCGTypes", "CFDate", "CFDictionary", "CFMachPort", "CFRunLoop", "CFString", "CFURL"] }
+objc2-core-audio-types = { version = "0.3.2", default-features = false, features = ["std", "objc2", "CoreAudioBaseTypes"] }
+objc2-core-media = { version = "0.3.2", default-features = false, features = ["std", "objc2", "objc2-core-audio-types", "objc2-core-video", "CMBase", "CMBlockBuffer", "CMFormatDescription", "CMSampleBuffer", "CMSync", "CMTime", "CMTimeRange"] }
+objc2-core-video = { version = "0.3.2", default-features = false, features = ["std", "objc2", "objc2-core-graphics", "CVBase", "CVBuffer", "CVImageBuffer", "CVPixelBuffer", "CVPixelBufferPool", "CVReturn"] }
+objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "dispatch2", "objc2-core-media", "objc2-core-video", "AVAsset", "AVAssetExportSession", "AVAssetReader", "AVAssetReaderOutput", "AVAssetTrack", "AVAssetWriter", "AVAssetWriterInput", "AVCaptureAudioDataOutput", "AVCaptureDevice", "AVCaptureInput", "AVCaptureOutputBase", "AVCaptureSession", "AVCaptureSessionPreset", "AVComposition", "AVCompositionTrack", "AVMediaFormat", "AVVideoSettings"] }
+objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "objc2", "CGBitmapContext", "CGColorSpace", "CGContext", "CGEvent", "CGEventTypes", "CGImage", "CGWindow"] }
+objc2-image-io = { version = "0.3.2", default-features = false, features = ["std", "objc2", "objc2-core-graphics", "CGImageDestination", "CGImageSource", "CGImageProperties"] }
+
+# Linux only: the ScreenCast portal of GNOME and KDE on Wayland (linux/portal.rs),
+# driven by zbus's own executor (no async runtime), and libc to hand its
+# PipeWire descriptor to gst-launch. Everything else on Linux is a system tool.
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.13.13", default-features = false, features = ["async-io", "screencast"] }
+libc = "0.2"
+
+[features]
+# A moving test picture in place of the webcam (win/record/camera.rs), so a
+# recording with the bubble can be checked without turning a real camera on.
+# Never in a release build.
+test-camera = []
+
+[profile.release]
+# Unwind so a panic in one request is caught and answered, not a dead process.
+panic = "unwind"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
