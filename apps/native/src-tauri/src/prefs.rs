@@ -97,6 +97,12 @@ pub struct DisplayPrefs {
     /// environment option and cannot change without restarting (see `gpu::arm`).
     #[serde(default = "default_true")]
     pub gpu_pin: bool,
+    /// The main window held the "widgets only" driver page when last seen
+    /// (`monitor::set_driver`). Not a choice made here: the server owns the mode
+    /// and this only mirrors it, so a login start stays hidden instead of
+    /// flashing the splash before the server sends the window to the driver.
+    #[serde(default)]
+    pub widgets_only: bool,
 }
 
 fn default_true() -> bool {
@@ -136,6 +142,7 @@ impl Default for DisplayPrefs {
             swipe_home: true,
             hide_on_rdp: false,
             gpu_pin: true,
+            widgets_only: false,
         }
     }
 }
@@ -220,4 +227,19 @@ pub fn update<F: FnOnce(&mut DisplayPrefs)>(app: &AppHandle, mutate: F) {
     let mut prefs = load(app);
     mutate(&mut prefs);
     save(app, &prefs);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn files_written_before_widgets_only_read_as_the_dashboard() {
+        let old: DisplayPrefs = serde_json::from_str(r#"{"fullscreen":true,"monitor":null}"#).unwrap();
+        assert!(!old.widgets_only);
+        assert!(old.fullscreen);
+        let now: DisplayPrefs =
+            serde_json::from_str(r#"{"fullscreen":false,"monitor":null,"widgets_only":true}"#).unwrap();
+        assert!(now.widgets_only);
+    }
 }

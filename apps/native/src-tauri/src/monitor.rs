@@ -24,6 +24,7 @@ use std::time::Instant;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, LogicalSize, Manager, Monitor, PhysicalSize, WebviewWindow};
 
+use crate::memory_level;
 use crate::prefs;
 use crate::prefs::Placement;
 
@@ -129,6 +130,40 @@ static NO_SCREEN: AtomicBool = AtomicBool::new(false);
 /// change re-evaluates from scratch.
 static SHOW_OVERRIDE: AtomicBool = AtomicBool::new(false);
 
+/// True while the main window holds the "widgets only" driver page
+/// (server/shell-driver.html): the user chose no dashboard on this PC, the
+/// widgets live in the layer windows and the driver only keeps them in sync.
+/// Like `Phone`, nothing is shown and nothing is re-pinned; unlike `Phone` it is
+/// not a placement but follows the page. Seeded at startup from the mirror in
+/// prefs (`widgets_only`) so the watchdog does not bring the splash up first.
+static DRIVER: AtomicBool = AtomicBool::new(false);
+
+/// The path the server redirects the main window to in "widgets only" mode.
+pub const DRIVER_PATH: &str = "/shell-driver";
+
+pub fn seed_driver(prefs: &prefs::DisplayPrefs) {
+    DRIVER.store(prefs.widgets_only, Ordering::SeqCst);
+}
+
+/// The main window loaded a page: the driver hides the window (every time: a
+/// manual launch shows the splash even when the driver was seeded), any other
+/// page (the dashboard, after the user switched back or asked for it from the
+/// tray) gets its normal placement again. The mirror is written on a change.
+/// True when the window just left the driver.
+pub fn set_driver(window: &WebviewWindow, on: bool) -> bool {
+    let was = DRIVER.swap(on, Ordering::SeqCst);
+    if on {
+        SHOW_OVERRIDE.store(false, Ordering::SeqCst);
+        hide_window(window);
+    } else if was {
+        place_now(window);
+    }
+    if was != on {
+        prefs::update(window.app_handle(), |p| p.widgets_only = on);
+    }
+    was && !on
+}
+
 /// Mirror of the placement triple, so the watchdog can read the user's choice on
 /// every 3-second tick without touching disk — the same reason `HIDE_ON_RDP`
 /// exists. Seeded at startup (see lib.rs) and updated by every writer.
@@ -212,6 +247,32 @@ pub(crate) fn app_primary(app: &AppHandle) -> Option<Monitor> {
     on_main(app, move || a.primary_monitor().ok().flatten()).flatten()
 }
 
+/// The screen a widget layer draws on, by the id the dashboard got from
+/// `display_list_json`. '' or a screen that is no longer attached means the
+/// primary one: a placement never disappears because its monitor did.
+pub(crate) fn layer_monitor(app: &AppHandle, id: &str) -> Option<Monitor> {
+    let monitors = app_monitors(app);
+    if !id.is_empty() {
+        if let Some(i) = display_ids(&monitors).iter().position(|x| x == id) {
+            return monitors.into_iter().nth(i);
+        }
+    }
+    app_primary(app).or_else(|| monitors.into_iter().next())
+}
+
+/// Every attached monitor, and whether it is the primary one: for Bit's edge
+/// glow from the on-screen alerts window (layers::glow_from_alerts).
+pub(crate) fn monitors_with_primary(app: &AppHandle) -> Vec<(Monitor, bool)> {
+    let primary = app_primary(app).map(|p| *p.position());
+    app_monitors(app)
+        .into_iter()
+        .map(|m| {
+            let is_primary = Some(*m.position()) == primary;
+            (m, is_primary)
+        })
+        .collect()
+}
+
 /// Mark this session as a deliberate, user-initiated launch, so phone mode does
 /// not hide a window the user just asked for by double-clicking the app. Set at
 /// startup when the process was NOT started by the login entry. Session-only:
@@ -244,13 +305,27 @@ fn may_show() -> bool {
     !RDP_HIDDEN.load(Ordering::SeqCst)
         && !NO_SCREEN.load(Ordering::SeqCst)
         && placement_cache().mode != Placement::Phone
+        && !DRIVER.load(Ordering::SeqCst)
 }
 
 /// Show the window only if nothing else wants it hidden.
 fn show_if_allowed(window: &WebviewWindow) {
     if may_show() {
-        let _ = window.show();
+        show_window(window);
     }
+}
+
+/// Every hide and show of the main window goes through these two, so a hidden
+/// dashboard (phone mode, widgets only, Remote Desktop, the tray) hands its
+/// memory back and a shown one asks for it first (see `memory_level.rs`).
+pub fn hide_window(window: &WebviewWindow) {
+    let _ = window.hide();
+    memory_level::set_low(window, true);
+}
+
+fn show_window(window: &WebviewWindow) {
+    memory_level::set_low(window, false);
+    let _ = window.show();
 }
 
 /// Whether this process is running inside a Windows Remote Desktop / Terminal
@@ -279,7 +354,7 @@ fn is_remote_session() -> bool {
 /// then owns the show-again-at-console transition as usual.
 pub fn apply_rdp_hide_now(window: &WebviewWindow) {
     if HIDE_ON_RDP.load(Ordering::SeqCst) && is_remote_session() && !RDP_HIDDEN.swap(true, Ordering::SeqCst) {
-        let _ = window.hide();
+        hide_window(window);
     }
 }
 
@@ -1173,6 +1248,10 @@ pub enum NoScreen {
 }
 
 fn resolve(window: &WebviewWindow, cache: &PlacementCache) -> Target {
+    // The driver page has nothing to show, whatever the placement says.
+    if DRIVER.load(Ordering::SeqCst) {
+        return Target::Nothing(NoScreen::Phone);
+    }
     match cache.mode {
         Placement::Phone => Target::Nothing(NoScreen::Phone),
         Placement::Screen => match chosen_monitor(window, cache) {
@@ -1224,7 +1303,7 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
             // their phone, then double-clicked Xenon anyway, and an app that
             // opens and shows nothing reads as broken.
             if !SHOW_OVERRIDE.load(Ordering::SeqCst) {
-                let _ = window.hide();
+                hide_window(window);
             } else {
                 // Showing it is not enough: this arm used to leave the window with
                 // whatever chrome it was BUILT with, which is the kiosk's —
@@ -1244,7 +1323,7 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
         }
         Target::Nothing(NoScreen::ChosenMissing) => {
             if !NO_SCREEN.swap(true, Ordering::SeqCst) && !SHOW_OVERRIDE.load(Ordering::SeqCst) {
-                let _ = window.hide();
+                hide_window(window);
             }
         }
     }
@@ -1315,7 +1394,7 @@ pub fn reveal(app: &AppHandle) {
                 Target::Nothing(_) => false,
             });
     if settled {
-        let _ = window.show();
+        show_window(&window);
         let _ = window.unminimize();
         let _ = window.set_focus();
     } else {
@@ -1328,12 +1407,19 @@ pub fn reveal(app: &AppHandle) {
 /// to see it, not to move house — so the next topology change re-evaluates.
 pub fn show_now(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else { return };
+    // "Widgets only": the window holds the driver, so showing it would show an
+    // empty page. Load the dashboard instead (`full=1` skips the server's
+    // redirect); its page load ends the driver and places the window.
+    if DRIVER.load(Ordering::SeqCst) {
+        load_dashboard(&window, "");
+        return;
+    }
     SHOW_OVERRIDE.store(true, Ordering::SeqCst);
     let cache = placement_cache();
     match resolve(&window, &cache) {
         Target::Nothing(_) => {
             // Nowhere legitimate to put it: land on the primary, this session only.
-            let _ = window.show();
+            show_window(&window);
             if let Some(m) = primary_or_first(&window) {
                 place_windowed_on(&window, &m);
             }
@@ -1342,6 +1428,30 @@ pub fn show_now(app: &AppHandle) {
     }
     let _ = window.unminimize();
     let _ = window.set_focus();
+}
+
+/// Show the dashboard on one of its screens (layers::spec::dashboard_page:
+/// only allowlisted words reach here). In "widgets only" the driver page
+/// becomes the dashboard with `open=<page>`, which it reads once at boot;
+/// otherwise the dashboard is already loaded and is asked directly.
+pub fn open_dashboard(app: &AppHandle, page: &'static str, cat: Option<&'static str>) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    let cat_query = cat.map(|c| format!("&cat={c}")).unwrap_or_default();
+    if DRIVER.load(Ordering::SeqCst) {
+        load_dashboard(&window, &format!("&open={page}{cat_query}"));
+        return;
+    }
+    show_now(app);
+    let cat_arg = cat.map(|c| format!(", cat: '{c}'")).unwrap_or_default();
+    let _ = window.eval(&format!("window.DashboardOpen && window.DashboardOpen.run({{ open: '{page}'{cat_arg} }})"));
+}
+
+/// The driver page leaves for the dashboard; its page load ends the driver.
+fn load_dashboard(window: &WebviewWindow, extra: &str) {
+    let port = std::env::var("XENON_PORT").ok().and_then(|p| p.parse::<u16>().ok()).unwrap_or(3030);
+    if let Ok(url) = tauri::Url::parse(&format!("http://127.0.0.1:{port}/?shell=main&full=1{extra}")) {
+        let _ = window.navigate(url);
+    }
 }
 
 /// Clip the OS window to a circle (or clear the clip). The kiosk window is a
@@ -1488,7 +1598,7 @@ fn clear_stuck_topmost(window: &WebviewWindow) {
 pub fn enter_home(window: &WebviewWindow) {
     let cache = placement_cache();
     // Nothing to collapse when this PC shows nothing.
-    if cache.mode == Placement::Phone {
+    if cache.mode == Placement::Phone || DRIVER.load(Ordering::SeqCst) {
         return;
     }
     HOME_MODE.store(true, Ordering::SeqCst);
@@ -1911,7 +2021,7 @@ pub fn start_watchdog(app: AppHandle) {
         // Phone mode: this PC shows nothing, so there is nothing to re-pin and
         // nothing to reveal. Checked BEFORE the RDP branch, whose show() would
         // otherwise put a hidden window back on screen when a remote session ends.
-        if cache.mode == Placement::Phone {
+        if cache.mode == Placement::Phone || DRIVER.load(Ordering::SeqCst) {
             continue;
         }
 
@@ -1924,7 +2034,7 @@ pub fn start_watchdog(app: AppHandle) {
         if HIDE_ON_RDP.load(Ordering::SeqCst) {
             if is_remote_session() {
                 if !RDP_HIDDEN.swap(true, Ordering::SeqCst) {
-                    let _ = window.hide();
+                    hide_window(&window);
                 }
                 continue; // stay hidden — don't re-pin while the session is remote
             } else if RDP_HIDDEN.swap(false, Ordering::SeqCst) {
@@ -1974,7 +2084,7 @@ pub fn start_watchdog(app: AppHandle) {
                     if !NO_SCREEN.swap(true, Ordering::SeqCst)
                         && !SHOW_OVERRIDE.load(Ordering::SeqCst)
                     {
-                        let _ = window.hide();
+                        hide_window(&window);
                         push_display_state(&app);
                     }
                 }

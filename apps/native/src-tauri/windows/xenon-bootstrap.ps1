@@ -118,12 +118,16 @@ function Show-LogHint {
 }
 
 function Write-Step($m) { Write-Host "==> $m" -ForegroundColor Cyan }
-function Fail($m) {
+# -Plain drops the "retry the setup" footer, for the failures where retrying
+# this same setup is exactly what would NOT help.
+function Fail([string]$m, [switch]$Plain) {
   Write-Host ''
   Write-Host "  $m" -ForegroundColor Red
-  Write-Host '  Nothing was changed on your PC beyond the Xenon app itself.' -ForegroundColor Gray
-  Write-Host '  You can retry by running the Xenon setup again, or install manually:' -ForegroundColor Gray
-  Write-Host "  https://github.com/$Repo#readme" -ForegroundColor Gray
+  if (-not $Plain) {
+    Write-Host '  Nothing was changed on your PC beyond the Xenon app itself.' -ForegroundColor Gray
+    Write-Host '  You can retry by running the Xenon setup again, or install manually:' -ForegroundColor Gray
+    Write-Host "  https://github.com/$Repo#readme" -ForegroundColor Gray
+  }
   Show-LogHint
   Write-Host ''
   Stop-Log
@@ -151,8 +155,11 @@ trap {
 function Done($m) {
   Write-Host ''
   Write-Host "  $m" -ForegroundColor Green
-  Write-Host '  If the dashboard still does not appear, restart your PC - the' -ForegroundColor Gray
-  Write-Host '  Xenon engine starts automatically when you sign in.' -ForegroundColor Gray
+  # Every Done is reached with the engine answering on 3030 (an installed engine
+  # that does not answer goes through the start-and-repair path below instead),
+  # so the app hands over on its own. This used to say "restart your PC", which
+  # on an engine that would not start led straight back to the same screen.
+  Write-Host '  The dashboard opens in the Xenon app by itself.' -ForegroundColor Gray
   Show-LogHint
   Write-Host ''
   Stop-Log
@@ -209,15 +216,115 @@ Write-Host ''
 # The probe is decided OUTSIDE its try on purpose: `catch { }` here swallows
 # everything, so bailing out from inside it would turn a redirected-stdin
 # failure into "carry on and install a second backend".
+function Test-EnginePort {
+  $answered = $false
+  try {
+    $tcp = New-Object Net.Sockets.TcpClient
+    $probe = $tcp.BeginConnect('127.0.0.1', 3030, $null, $null)
+    $answered = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
+    $tcp.Close()
+  } catch { }
+  return $answered
+}
+
 $taskPresent = Test-BackendTask
-$portTaken = $false
-try {
-  $tcp = New-Object Net.Sockets.TcpClient
-  $probe = $tcp.BeginConnect('127.0.0.1', 3030, $null, $null)
-  $portTaken = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
-  $tcp.Close()
-} catch { }
+$portTaken = Test-EnginePort
 $backendPresent = $taskPresent -or $portTaken
+
+# Runs the startup task and waits up to a minute for the engine to answer. A
+# task that refuses to run (switched off, broken) answers at once instead of
+# after a minute of waiting for nothing.
+function Start-EngineAndWait {
+  $exe = Join-Path $env:SystemRoot 'System32\schtasks.exe'
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { & $exe /Run /TN $TaskName 2>&1 | Out-Null } catch { return $false }
+  finally { $ErrorActionPreference = $prev }
+  if ($LASTEXITCODE -ne 0) { return $false }
+  for ($i = 0; $i -lt 30; $i++) {
+    Start-Sleep -Seconds 2
+    if (Test-EnginePort) { return $true }
+  }
+  return $false
+}
+
+# The engine's own account of why it did not start (startup-log.js writes it,
+# and start-hidden.vbs when node.exe cannot be found). Printed here it also
+# lands in setup.log, so the one file people send carries the cause.
+function Show-EngineLog {
+  $engineLog = Join-Path $LogDir 'server.log'
+  if (-not (Test-Path -LiteralPath $engineLog)) {
+    Write-Host '  The engine wrote nothing at all, so it never ran.' -ForegroundColor Gray
+    return
+  }
+  Write-Host '  The engine wrote down why:' -ForegroundColor Gray
+  try {
+    Get-Content -LiteralPath $engineLog -Tail 8 -ErrorAction Stop |
+      ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+  } catch { }
+}
+
+# The folder the startup task actually starts the engine from. It need not be
+# $InstallRoot: INSTALL.bat installs from wherever it was unzipped.
+function Get-TaskEngineRoot {
+  try {
+    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+    $vbs = ([string]$task.Actions[0].Arguments).Trim().Trim('"')
+    if (-not $vbs) { return '' }
+    return (Split-Path -Parent (Split-Path -Parent $vbs))
+  } catch { return '' }
+}
+
+# An engine that is alive but never got to listening (hung at start) still holds
+# its files open, and the reinstall below would then fail to copy over them.
+# Only node processes running THIS install's server.js are touched.
+function Stop-StuckEngine([string]$Root) {
+  $serverJs = Join-Path $Root 'server\server.js'
+  try {
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction Stop |
+      Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($serverJs, [StringComparison]::OrdinalIgnoreCase) -ge 0 } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  } catch { }
+}
+
+function Test-SamePath([string]$a, [string]$b) {
+  try {
+    return ([IO.Path]::GetFullPath($a).TrimEnd('\') -ieq [IO.Path]::GetFullPath($b).TrimEnd('\'))
+  } catch { return $false }
+}
+
+# Installed, switched on, and silent: the state the app used to present as "not
+# installed", and this script then answered "already installed - restart your
+# PC", which led straight back to the same screen (reported on Discord, Oct
+# 2026). Start it; when it will not start, say why and install the engine again
+# over itself, which keeps server\data.
+$repair = $false
+if ($taskPresent -and -not $portTaken) {
+  Write-Step 'Xenon is installed but not running. Starting it...'
+  if (Start-EngineAndWait) {
+    Done 'Xenon is running again.'
+  }
+  Write-Host ''
+  Write-Host '  Xenon did not start.' -ForegroundColor Yellow
+  Show-EngineLog
+  $engineRoot = Get-TaskEngineRoot
+  if ($engineRoot -and -not (Test-SamePath $engineRoot $InstallRoot)) {
+    # Installed by INSTALL.bat somewhere else. Reinstalling into $InstallRoot
+    # would leave that copy's settings behind, so this is the one case that
+    # sends the user back to their own folder rather than repairing here.
+    if (Test-Path -LiteralPath (Join-Path $engineRoot 'INSTALL.bat')) {
+      Fail ("Xenon on this PC was installed from $engineRoot. Run INSTALL.bat in that " +
+        'folder again to repair it: your settings, layouts and notes there are kept.') -Plain
+    }
+    Write-Host "  The folder Xenon ran from is gone: $engineRoot" -ForegroundColor Yellow
+    Write-Host '  Installing it again here.' -ForegroundColor Gray
+  } else {
+    Write-Host '  Installing the engine again. Your settings, layouts, notes and Deck keys are kept.' -ForegroundColor Gray
+    Stop-StuckEngine $InstallRoot
+  }
+  Write-Host ''
+  $repair = $true
+}
 
 # WHICH version is already here. "A backend exists" used to end this script on
 # the spot, and that is how a setup named after a version could leave a PC on an
@@ -279,6 +386,10 @@ try {
   # A machine that already HAS a backend used to never get this far, and must
   # not be handed a red failure for it now: unreachable GitHub with Xenon
   # already installed is "nothing to do", exactly as before.
+  if ($repair) {
+    Fail ("Xenon does not start, and repairing it means downloading it again, but GitHub could " +
+      "not be reached ($($_.Exception.Message)). Check your connection and run the repair again.") -Plain
+  }
   if ($backendPresent) {
     Done 'The Xenon backend is already installed. (Could not reach GitHub to check for a newer one.)'
   }
@@ -290,7 +401,8 @@ Write-Step "Latest release: $tag"
 
 # Now the decision this script used to make before it knew anything: leave an
 # existing backend alone, or replace it because it is behind.
-if ($backendPresent) {
+# A repair reinstalls whatever the version: the files on disk are what failed.
+if ($backendPresent -and -not $repair) {
   if (-not $installedVersion) {
     Done 'The Xenon backend is already installed - nothing to do.'
   }
@@ -477,13 +589,39 @@ $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
 # transcript, so this one lets go for the duration and appends again after.
 $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installer`"", '-Mode', 'native', '-SkipNativeApp', '-LogPath', "`"$LogPath`"")
 $ranInstaller = $false
+# On an account that is NOT an administrator, UAC asks for ANOTHER account's
+# password, and the elevated installer then runs AS that account: it registers
+# the startup task for the administrator, so it never fires when this user
+# signs in. The install works today and is gone after the next restart, and the
+# app offers setup again - an install loop. Such an account installs without
+# elevation instead (CPU temperature on some systems is all it costs).
+function Test-UserIsAdmin {
+  $exe = Join-Path $env:SystemRoot 'System32\whoami.exe'
+  if (-not (Test-Path -LiteralPath $exe)) { return $true } # unknown: ask, as before
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { $groups = (& $exe /groups /fo csv 2>$null) -join "`n" } catch { return $true }
+  finally { $ErrorActionPreference = $prev }
+  if (-not $groups) { return $true }
+  # The Administrators group by SID, never by name (names are localised). An
+  # administrator's limited token still lists it, as "used for deny only".
+  return ($groups -match 'S-1-5-32-544')
+}
+$elevate = Test-UserIsAdmin
+if (-not $elevate) {
+  Write-Host '  This Windows account is not an administrator, so Xenon installs for it without' -ForegroundColor Yellow
+  Write-Host '  administrator rights (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+}
 Stop-Log
 try {
+  if (-not $elevate) { throw 'not an administrator' }
   Start-Process -FilePath $psExe -Verb RunAs -ArgumentList $psArgs -Wait -ErrorAction Stop
   $ranInstaller = $true
 } catch {
   Resume-Log
-  Write-Host '  Administrator rights declined - continuing without them (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+  if ($elevate) {
+    Write-Host '  Administrator rights declined - continuing without them (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+  }
   Stop-Log
   try {
     Start-Process -FilePath $psExe -ArgumentList $psArgs -Wait -ErrorAction Stop
@@ -498,8 +636,8 @@ if (-not $ranInstaller) { Fail 'The Xenon installer did not run.' }
 
 Write-Host ''
 Write-Host '  ---------------------------------------------------' -ForegroundColor DarkGray
-Write-Host '  Xenon is installed. The app on your Xeneon Edge will' -ForegroundColor Green
-Write-Host '  come alive in a moment; the dashboard is also at:' -ForegroundColor Green
+Write-Host '  Xenon is installed. The Xenon app comes alive in a' -ForegroundColor Green
+Write-Host '  moment; the dashboard is also at:' -ForegroundColor Green
 Write-Host "    $DashUrl" -ForegroundColor White
 Write-Host '  ---------------------------------------------------' -ForegroundColor DarkGray
 Show-LogHint

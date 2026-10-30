@@ -29,6 +29,21 @@ tauri-plugin-updater = "2.10.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Windows only, and pinned to the exact versions wry already resolves, for the
+# same reason as webkit2gtk below: `with_webview` hands over wry's own WebView2
+# types. Used by `memory_level` to let a hidden webview give memory back.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "=0.38.2"
+windows-core = "=0.61.2"
+
+# macOS only, the versions tao and wry already resolve (no new crate): the
+# widget layers set their window level, Spaces behaviour and mouse pass-through
+# (layers/macos.rs), which Tauri has no call for.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSGeometry"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "NSApplication", "NSEvent", "NSGraphics", "NSResponder", "NSView", "NSWindow"] }
+
 # Linux only, and pinned to the exact version wry already resolves so the
 # WebView type in `with_webview` is the SAME type this crate names — a second
 # copy of webkit2gtk would compile and then refuse to match. Used by
