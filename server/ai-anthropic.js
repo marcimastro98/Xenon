@@ -112,13 +112,13 @@ function _httpError(status, bodyText) {
   try { const j = JSON.parse(bodyText); detail = (j && j.error && j.error.message) || ''; } catch { /* not JSON */ }
   let err;
   if (status === 401) {
-    err = new Error('Claude (Anthropic): the API key is invalid. Check it in Settings → Xenon AI.');
+    err = new Error('Claude (Anthropic): the API key is invalid. Check it in Settings → Bit assistant.');
     err.code = 'bad_key';
   } else if (status === 429) {
     err = new Error('Claude (Anthropic): too many requests or credit exhausted (rate limit). Check your Anthropic account.');
     err.code = 'rate_limited';
   } else if (status === 404) {
-    err = new Error('Claude (Anthropic): the requested model is not available for your key. Pick another in Settings → Xenon AI.' + (detail ? ' (' + detail + ')' : ''));
+    err = new Error('Claude (Anthropic): the requested model is not available for your key. Pick another in Settings → Bit assistant.' + (detail ? ' (' + detail + ')' : ''));
     err.code = 'model_missing';
   } else {
     err = new Error('Claude (Anthropic): HTTP error ' + status + (detail ? ' — ' + detail : ''));
@@ -159,52 +159,95 @@ function _textFrom(content) {
   return content.filter(b => b && b.type === 'text' && typeof b.text === 'string').map(b => b.text).join('');
 }
 
+// Text put in front of the latest user turn. Used for what changes every turn
+// (the time), so the system text in front of the cache stays the same.
+function _noteOnLatestUser(messages, note) {
+  const text = String(note || '').trim();
+  const last = messages[messages.length - 1];
+  if (!text || !last || last.role !== 'user') return;
+  last.content.unshift({ type: 'text', text });
+}
+
+// After the tool results (Anthropic wants those first in a user turn).
+function _appendToLatestUser(messages, text) {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== 'user') return;
+  if (!Array.isArray(last.content)) last.content = [{ type: 'text', text: String(last.content || '') }];
+  last.content.push({ type: 'text', text });
+}
+
+const CUT_TOOL_NOTE = 'Your last answer reached the length limit in the middle of a tool call, so nothing was run. Call the tool again with a shorter input: fewer files, less code, no comments, and think less before writing.';
+
 // Chat turn with function calling. Mirrors ai-local.localChat and returns the
 // same { text, clientActions, newContent } shape as /api/ai.
-async function chat({ apiKey, model, geminiTools, history, systemText, executeTool }) {
+//
+// `post` replaces the call to Anthropic with the user's key: Xenon credits
+// (ai-xenon-credits.js) send each round through the supporter hub instead.
+async function chat({ apiKey, model, geminiTools, history, systemText, turnNote, executeTool, post, maxTokens }) {
   const key = String(apiKey || '').trim();
-  if (!key) { const e = new Error('Claude (Anthropic): no API key configured.'); e.code = 'no_key'; throw e; }
+  if (!post && !key) { const e = new Error('Claude (Anthropic): no API key configured.'); e.code = 'no_key'; throw e; }
+  const send = post || ((body) => _post(key, body));
+  const outputTokens = maxTokens || MAX_TOKENS;
   const chatModel = sanitizeModel(model);
   const tools = geminiToolsToAnthropic(geminiTools);
   const messages = geminiHistoryToAnthropic(history);
+  _noteOnLatestUser(messages, turnNote);
   const clientActions = [];
   let finalText = '';
+  let shortened = false;
 
   const MAX_ITERS = 8;
-  for (let iter = 0; iter < MAX_ITERS; iter++) {
-    const body = { model: chatModel, max_tokens: MAX_TOKENS, system: systemText, messages };
-    if (tools.length) body.tools = tools;
-    const resp = await _post(key, body);
-    const content = Array.isArray(resp && resp.content) ? resp.content : [];
-    const toolUses = content.filter(b => b && b.type === 'tool_use' && b.name);
+  const rounds = async () => {
+    for (let iter = 0; iter < MAX_ITERS; iter++) {
+      const body = { model: chatModel, max_tokens: outputTokens, system: systemText, messages };
+      if (tools.length) body.tools = tools;
+      const resp = await send(body);
+      const content = Array.isArray(resp && resp.content) ? resp.content : [];
+      const toolUses = content.filter(b => b && b.type === 'tool_use' && b.name);
 
-    if (resp.stop_reason !== 'tool_use' || !toolUses.length) { finalText = _textFrom(content); break; }
+      // Cut at the length limit in the middle of a tool call: the call is lost,
+      // and ending here would answer nothing. Asked once more, shorter.
+      if (resp.stop_reason === 'max_tokens' && toolUses.length && !shortened) {
+        shortened = true;
+        _appendToLatestUser(messages, CUT_TOOL_NOTE);
+        continue;
+      }
+      if (resp.stop_reason !== 'tool_use' || !toolUses.length) { finalText = _textFrom(content); break; }
 
-    // Keep the assistant turn (verbatim content, incl. the tool_use blocks) so
-    // Claude has context, then answer each tool_use with its tool_result.
-    messages.push({ role: 'assistant', content });
-    const results = [];
-    let pendingImage = null;
-    for (const tu of toolUses) {
-      const args = (tu.input && typeof tu.input === 'object') ? tu.input : {};
-      const { fnResult, clientActions: acts, pendingScreenImage } = await executeTool(tu.name, args);
-      for (const a of (acts || [])) clientActions.push(a);
-      results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(fnResult) });
-      if (pendingScreenImage) pendingImage = pendingScreenImage;
-    }
-    // capture_screen: append the JPEG to the same user turn (after the
-    // tool_result blocks) so Claude can actually see the captured screen.
-    if (pendingImage) {
-      results.push({ type: 'text', text: 'Here is the current screenshot of the requested monitor.' });
-      results.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: pendingImage } });
-    }
-    messages.push({ role: 'user', content: results });
+      // Keep the assistant turn (verbatim content, incl. the tool_use blocks) so
+      // Claude has context, then answer each tool_use with its tool_result.
+      messages.push({ role: 'assistant', content });
+      const results = [];
+      let pendingImage = null;
+      for (const tu of toolUses) {
+        const args = (tu.input && typeof tu.input === 'object') ? tu.input : {};
+        const { fnResult, clientActions: acts, pendingScreenImage } = await executeTool(tu.name, args);
+        for (const a of (acts || [])) clientActions.push(a);
+        results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(fnResult) });
+        if (pendingScreenImage) pendingImage = pendingScreenImage;
+      }
+      // capture_screen: append the JPEG to the same user turn (after the
+      // tool_result blocks) so Claude can actually see the captured screen.
+      if (pendingImage) {
+        results.push({ type: 'text', text: 'Here is the current screenshot of the requested monitor.' });
+        results.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: pendingImage } });
+      }
+      messages.push({ role: 'user', content: results });
 
-    if (iter === MAX_ITERS - 1) {
-      // Budget exhausted: one more turn without tools for a closing answer.
-      const last = await _post(key, { model: chatModel, max_tokens: MAX_TOKENS, system: systemText, messages });
-      finalText = _textFrom(last && last.content);
+      if (iter === MAX_ITERS - 1) {
+        // Budget exhausted: one more turn without tools for a closing answer.
+        const last = await send({ model: chatModel, max_tokens: outputTokens, system: systemText, messages });
+        finalText = _textFrom(last && last.content);
+      }
     }
+  };
+  try {
+    await rounds();
+  } catch (e) {
+    // What earlier rounds already did (a widget installed, waiting for its
+    // place on the page) still reaches the user when a later round fails.
+    if (e && typeof e === 'object' && clientActions.length) e.clientActions = clientActions;
+    throw e;
   }
 
   const newContent = { role: 'model', parts: [{ text: finalText }] };
@@ -212,13 +255,25 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
 }
 
 // One-shot completion (no tools) → plain text. Used by summarize / JSON helpers.
-async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage }) {
+// A one-shot's user turn: the text alone, or a picture then the text (Claude
+// reads an image best placed before the question about it).
+function userContent(userText, image) {
+  const text = String(userText || '');
+  if (!image) return text;
+  return [
+    { type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.data } },
+    { type: 'text', text },
+  ];
+}
+
+// `image` ({ mimeType, data } base64), when given, rides with the text.
+async function oneShot({ apiKey, model, systemText, userText, maxTokens, onUsage, image }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('Claude (Anthropic): no API key configured.'); e.code = 'no_key'; throw e; }
   const body = {
     model: sanitizeModel(model),
     max_tokens: maxTokens || MAX_TOKENS,
-    messages: [{ role: 'user', content: String(userText || '') }],
+    messages: [{ role: 'user', content: userContent(userText, image) }],
   };
   if (systemText) body.system = systemText;
   const resp = await _post(key, body, 60000);
@@ -294,6 +349,7 @@ module.exports = {
   sanitizeModel,
   geminiToolsToAnthropic,
   geminiHistoryToAnthropic,
+  userContent,
   chat,
   oneShot,
   listModels,

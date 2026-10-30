@@ -160,7 +160,7 @@ function createAiMemory({ dataDir, now = Date.now }) {
     if (!store.length) return '';
     const recent = store.slice(-MAX_PROMPT_FACTS);
     const lines = recent.map((f) => `- ${f.text}`).join('\n');
-    return ' PERSISTENT MEMORY — things you already know about this user from earlier'
+    return ' PERSISTENT MEMORY: things you already know about this user from earlier'
       + ' conversations (treat as true unless they correct you; use naturally, do NOT'
       + ` recite them unprompted):\n${lines}\n`
       + ' When the user tells you something durable worth remembering about them (their'

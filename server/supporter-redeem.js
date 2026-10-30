@@ -25,14 +25,18 @@ const FETCH_TIMEOUT_MS = 8000;
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
 // Same canonical form as preset-share: uppercase, [A-Z0-9] only. Hub codes
-// canonicalize to a 2-letter prefix + 12 symbols: 'XS' (supporter pass) or
-// 'XL' (per-entry item code for limited/purchased drops).
+// canonicalize to a 2-letter prefix + 12 symbols: 'XS' (supporter pass), 'XL'
+// (per-entry item code for limited/purchased drops) or 'XT' (the 7-day pass
+// trial, see trial-pass.js).
 const canonCode = (s) => String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
-const HUB_CODE_RE = /^X[SL][A-Z0-9]{12}$/;
+const HUB_CODE_RE = /^X[SLT][A-Z0-9]{12}$/;
+const TRIAL_RE = /^XT[A-Z0-9]{12}$/;
 // Errors we pass through to the client verbatim; anything else maps to network.
 // 'wrong_code' = valid code, wrong tier/entry (e.g. a supporter code on a
 // limited drop, or an item code on a different entry than it was issued for).
-const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code']);
+// 'not_in_trial' = a trial code on something the trial does not open (a drop in
+// its first 30 days, a paid item); 'trial_used' = this install already had one.
+const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code', 'not_in_trial', 'trial_used']);
 // What /update can answer besides success. 'not_owner' is the hub's ONE answer for
 // every kind of refusal (it never says why), and the app treats it as "ask for the
 // code the usual way".
@@ -175,10 +179,24 @@ async function saveTypedCode(dataDir, code) {
   return ok ? { ok: true, saved: true } : { ok: false, error: 'network' };
 }
 
+// ── The running pass trial ───────────────────────────────────────────────────
+// server.js plugs trial-pass.js in here (it depends on this module, so it cannot
+// be required back). With it, a redeem the user typed nothing into uses the trial
+// code while the trial runs, and an XT the hub accepted is remembered there.
+let _trialPass = null;
+function useTrialPass(trialPass) { _trialPass = trialPass || null; }
+
 // ── Outbound POST ────────────────────────────────────────────────────────────
 let _transport = postJson; // swappable for tests
 
-function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES) {
+// A POST to another hub route (trial-pass.js, ai-xenon-credits.js), with the
+// same discipline. A credits call waits on the model and answers with a whole
+// turn, so it passes its own ceiling and timeout.
+function hubPost(pathname, body, maxBytes, timeoutMs) {
+  return _transport(HUB_BASE + pathname, body, maxBytes, timeoutMs);
+}
+
+function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES, timeoutMs = FETCH_TIMEOUT_MS) {
   return new Promise((resolve) => {
     if (!/^https:\/\//i.test(url)) return resolve({ ok: false, error: 'network' });
     const payload = JSON.stringify(body);
@@ -186,7 +204,7 @@ function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES) {
     try {
       req = https.request(url, {
         method: 'POST',
-        timeout: FETCH_TIMEOUT_MS,
+        timeout: timeoutMs,
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
       }, onResponse);
     } catch {
@@ -220,14 +238,18 @@ function postJson(url, body, maxBytes = MAX_RESPONSE_BYTES) {
 }
 
 // ── Redemption ───────────────────────────────────────────────────────────────
-async function redeem({ entryId, code, dataDir, kv }) {
+// `allowTrial: false` keeps the trial out of a redeem whose result is written to
+// disk for good (the widget auto-updater): trial content lives in the vault only.
+async function redeem({ entryId, code, dataDir, kv, viaTrial = false, allowTrial = true }) {
   const id = String(entryId || '');
   let canon = canonCode(code);
   // No code on the request means "use the pass this machine already redeemed
   // with". The client sends nothing rather than the value, so the pass stays on
   // disk here even while the tap comes from a paired phone.
   const fromSaved = !canon;
-  if (fromSaved) canon = await readSavedCode(dataDir);
+  if (fromSaved && !viaTrial) canon = await readSavedCode(dataDir);
+  const fromTrial = fromSaved && !canon && !!_trialPass && allowTrial;
+  if (fromTrial) canon = await _trialPass.activeCode();
   if (!ENTRY_ID_RE.test(id) || !HUB_CODE_RE.test(canon)) {
     return { ok: false, error: 'bad_request' };
   }
@@ -246,14 +268,27 @@ async function redeem({ entryId, code, dataDir, kv }) {
     // Remember it only once it has been proven to work, and only when the user
     // typed it: a pass that came FROM disk has nothing to learn.
     const saved = !fromSaved && await saveCode(dataDir, canon);
-    return {
+    const answer = {
       ok: true,
       cek: out.cek,
       name: typeof out.name === 'string' ? out.name.slice(0, 120) : '',
       saved: saved === true,
     };
+    // A trial code: the hub bound the trial to this install; its end is the hub's.
+    // Opened with a trial code: the route keeps the key on this server (trial-vault.js).
+    if (TRIAL_RE.test(canon)) answer.trial = true;
+    if (TRIAL_RE.test(canon) && Number.isFinite(out.trialEndsAt)) {
+      if (_trialPass) await _trialPass.remember(canon, out.trialEndsAt);
+      answer.trialEndsAt = out.trialEndsAt * 1000;
+    }
+    return answer;
   }
   const error = out && KNOWN_ERRORS.has(out.error) ? out.error : 'network';
+  // The hub refused the running trial's code: ask it now, so the trial state is
+  // not left saying "active" for the rest of its 48 hours of trust.
+  if (fromTrial && _trialPass && error !== 'network' && typeof _trialPass.check === 'function') {
+    try { await _trialPass.check(); } catch { /* the next scheduled look settles it */ }
+  }
   // A pass the hub no longer knows was REPLACED or revoked: reissuing a code
   // hub-side deactivates the previous one, and a saved pass had already worked
   // once, so 'bad_code' here means it is dead rather than mistyped. Drop it, or
@@ -264,7 +299,13 @@ async function redeem({ entryId, code, dataDir, kv }) {
   // expires_at; nothing deactivates a code on expiry), so the saved pass comes
   // back to life on its own the moment the user renews. 'limit' and
   // 'wrong_code' are statements about this request, not about the code.
-  if (fromSaved && error === 'bad_code') {
+  // An ex-supporter's saved pass ran out (or is not for this entry) while a pass
+  // trial runs here: the trial is what opens it, so ask with that instead.
+  if (fromSaved && !fromTrial && allowTrial && _trialPass && (error === 'expired' || error === 'wrong_code')
+      && await _trialPass.activeCode()) {
+    return redeem({ entryId: id, dataDir, kv, viaTrial: true });
+  }
+  if (fromSaved && !fromTrial && error === 'bad_code') {
     const dropped = await forgetCode(dataDir);
     if (dropped && dropped.ok) return { ok: false, error, forgot: true };
   }
@@ -315,7 +356,10 @@ async function update({ entryId, have, kv, dataDir }) {
 module.exports = {
   redeem,
   update,
+  hubPost,
+  useTrialPass,
   savedStatus,
+  readSavedCode,
   saveTypedCode,
   forgetCode,
   getInstallId,
