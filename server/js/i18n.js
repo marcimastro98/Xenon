@@ -64456,113 +64456,192 @@ Object.assign(i18n.nl, {
 // apps/native/src-tauri/src/see_through.rs and syncSeeThroughControl() in js/settings.js.
 Object.assign(i18n.it, {
   settings_see_through_head: "Sfondo trasparente",
-  settings_see_through_hint: "app Xenon su Windows",
+  settings_see_through_hint: "nell'app Xenon",
   settings_see_through: "Mostra il desktop dietro i pannelli",
   settings_see_through_desc: "L'app diventa trasparente e dietro i pannelli vedi la scrivania di quello schermo, anche uno sfondo animato di Wallpaper Engine. Quanto si vede lo regoli con Opacità pannelli e Oscuramento sfondo in Aspetto. Gli sfondi di Xenon restano salvati e tornano quando lo spegni. Per attivarlo o spegnerlo Xenon si riavvia.",
   settings_see_through_blocked: "Su questo PC lo schermo di Xenon è collegato a una scheda video diversa da quella che disegna la dashboard, e lì una finestra trasparente resterebbe vuota. Se nel menu dell'icona di Xenon vicino all'orologio c'è \"Match render GPU to screen\", attivalo e riavvia Xenon.",
+  settings_see_through_blocked_compositor: "Su questo PC nessun compositore disegna le trasparenze, e una finestra trasparente diventerebbe nera. Su X11 avvia un window manager con compositing (per esempio picom) e riavvia Xenon; in una sessione Wayland funziona da solo.",
   settings_see_through_tip: "Se lo sfondo di Wallpaper Engine si ferma dietro Xenon: nelle impostazioni di Wallpaper Engine, scheda Prestazioni, aggiungi una regola per xenon-native.exe che lo lasci in esecuzione (\"Application rules\", azione \"Keep running\").",
   settings_see_through_restart_title: "Riavviare Xenon?",
   settings_see_through_restart: "Per cambiare lo sfondo trasparente Xenon riavvia l'app. Impostazioni, widget e layout restano come sono.",
 });
 Object.assign(i18n.en, {
   settings_see_through_head: "See-through background",
-  settings_see_through_hint: "Xenon app on Windows",
+  settings_see_through_hint: "in the Xenon app",
   settings_see_through: "Show the desktop behind the panels",
   settings_see_through_desc: "The app turns transparent and you see that screen's desktop behind the panels, an animated Wallpaper Engine wallpaper included. Panel opacity and Background dim in Appearance set how much shows through. Xenon's own backgrounds stay saved and come back when you turn this off. Xenon restarts to switch it on or off.",
   settings_see_through_blocked: "On this PC Xenon's screen is driven by a different graphics card from the one drawing the dashboard, and a transparent window would stay blank there. If the Xenon icon's menu next to the clock has \"Match render GPU to screen\", turn it on and restart Xenon.",
+  settings_see_through_blocked_compositor: "No compositor is drawing transparency on this PC, so a transparent window would turn black. On X11, run a compositing window manager (picom, for example) and restart Xenon; a Wayland session works as it is.",
   settings_see_through_tip: "If the Wallpaper Engine wallpaper freezes behind Xenon: in Wallpaper Engine's settings, Performance tab, add an application rule for xenon-native.exe with the \"Keep running\" action.",
   settings_see_through_restart_title: "Restart Xenon?",
   settings_see_through_restart: "Xenon restarts the app to change the see-through background. Your settings, widgets and layout stay as they are.",
 });
 Object.assign(i18n.ko, {
   settings_see_through_head: "투명 배경",
-  settings_see_through_hint: "Windows용 Xenon 앱",
+  settings_see_through_hint: "Xenon 앱에서",
   settings_see_through: "패널 뒤에 바탕 화면 표시",
   settings_see_through_desc: "앱이 투명해져서 패널 뒤로 그 화면의 바탕 화면이 보입니다. Wallpaper Engine의 움직이는 배경도 보입니다. 얼마나 비칠지는 디자인의 패널 불투명도와 배경 어둡게로 조절합니다. Xenon의 배경은 그대로 저장되어 있다가 이 기능을 끄면 돌아옵니다. 켜거나 끌 때 Xenon이 다시 시작됩니다.",
   settings_see_through_blocked: "이 PC에서는 Xenon 화면이 대시보드를 그리는 그래픽 카드와 다른 그래픽 카드에 연결되어 있어 투명한 창이 비어 보이게 됩니다. 시계 옆 Xenon 아이콘 메뉴에 \"Match render GPU to screen\"이 있다면 켜고 Xenon을 다시 시작하세요.",
+  settings_see_through_blocked_compositor: "이 PC에서는 투명도를 그려 줄 컴포지터가 없어서 투명한 창이 검게 보입니다. X11에서는 컴포지팅 창 관리자(예: picom)를 실행한 뒤 Xenon을 다시 시작하세요. Wayland 세션에서는 그대로 작동합니다.",
   settings_see_through_tip: "Xenon 뒤에서 Wallpaper Engine 배경이 멈춘다면: Wallpaper Engine 설정의 성능 탭에서 xenon-native.exe에 대한 애플리케이션 규칙을 추가하고 동작을 \"Keep running\"으로 정하세요.",
   settings_see_through_restart_title: "Xenon을 다시 시작할까요?",
   settings_see_through_restart: "투명 배경을 바꾸려면 Xenon 앱이 다시 시작됩니다. 설정, 위젯, 레이아웃은 그대로 유지됩니다.",
 });
 Object.assign(i18n.ja, {
   settings_see_through_head: "透明な背景",
-  settings_see_through_hint: "Windows 版 Xenon アプリ",
+  settings_see_through_hint: "Xenon アプリで",
   settings_see_through: "パネルの後ろにデスクトップを表示",
   settings_see_through_desc: "アプリが透明になり、パネルの後ろにその画面のデスクトップが見えます。Wallpaper Engine の動く壁紙も表示されます。どれだけ透けるかは、外観のパネル不透明度と背景を暗くするで調整します。Xenon の背景は保存されたままで、オフにすると戻ります。オンとオフの切り替えでは Xenon が再起動します。",
   settings_see_through_blocked: "この PC では、Xenon の画面がダッシュボードを描画するグラフィックカードとは別のカードにつながっているため、透明なウィンドウは何も表示されなくなります。時計の横にある Xenon アイコンのメニューに \"Match render GPU to screen\" があれば、オンにして Xenon を再起動してください。",
+  settings_see_through_blocked_compositor: "この PC では透明を描画するコンポジターが動いていないため、透明なウィンドウは黒くなります。X11 ではコンポジット対応のウィンドウマネージャー (たとえば picom) を起動してから Xenon を再起動してください。Wayland セッションならそのまま動作します。",
   settings_see_through_tip: "Xenon の後ろで Wallpaper Engine の壁紙が止まる場合は、Wallpaper Engine の設定のパフォーマンスタブで xenon-native.exe のアプリケーションルールを追加し、動作を \"Keep running\" にしてください。",
   settings_see_through_restart_title: "Xenon を再起動しますか？",
   settings_see_through_restart: "透明な背景を切り替えるため、Xenon アプリを再起動します。設定、ウィジェット、レイアウトはそのまま残ります。",
 });
 Object.assign(i18n.zh, {
   settings_see_through_head: "透明背景",
-  settings_see_through_hint: "Windows 版 Xenon 应用",
+  settings_see_through_hint: "在 Xenon 应用中",
   settings_see_through: "在面板后显示桌面",
   settings_see_through_desc: "应用变为透明，面板后面会显示该屏幕的桌面，包括 Wallpaper Engine 的动态壁纸。透出多少由外观中的面板不透明度和背景变暗决定。Xenon 自己的背景仍会保存，关闭此项后恢复。开启或关闭时 Xenon 会重新启动。",
   settings_see_through_blocked: "在这台电脑上，Xenon 所在的屏幕连接在另一块显卡上，而不是绘制仪表盘的那块，透明窗口在那里会显示为空白。如果时钟旁 Xenon 图标的菜单里有 \"Match render GPU to screen\"，请开启它并重新启动 Xenon。",
+  settings_see_through_blocked_compositor: "这台电脑上没有合成器绘制透明效果，透明窗口会变成黑色。在 X11 上请运行支持合成的窗口管理器（例如 picom）后重新启动 Xenon；Wayland 会话无需任何设置。",
   settings_see_through_tip: "如果 Wallpaper Engine 壁纸在 Xenon 后面停住了：在 Wallpaper Engine 设置的性能选项卡中，为 xenon-native.exe 添加一条应用程序规则，操作选择 \"Keep running\"。",
   settings_see_through_restart_title: "重新启动 Xenon？",
   settings_see_through_restart: "更改透明背景需要重新启动 Xenon 应用。你的设置、小组件和布局都会保留。",
 });
 Object.assign(i18n.es, {
   settings_see_through_head: "Fondo transparente",
-  settings_see_through_hint: "app de Xenon en Windows",
+  settings_see_through_hint: "en la app de Xenon",
   settings_see_through: "Mostrar el escritorio detrás de los paneles",
   settings_see_through_desc: "La app se vuelve transparente y detrás de los paneles ves el escritorio de esa pantalla, también un fondo animado de Wallpaper Engine. Cuánto se ve lo ajustas con Opacidad del panel y Oscurecer fondo en Apariencia. Los fondos de Xenon siguen guardados y vuelven cuando lo apagas. Xenon se reinicia para activarlo o desactivarlo.",
   settings_see_through_blocked: "En este PC la pantalla de Xenon está conectada a una tarjeta gráfica distinta de la que dibuja el panel, y ahí una ventana transparente se quedaría vacía. Si el menú del icono de Xenon junto al reloj tiene \"Match render GPU to screen\", actívalo y reinicia Xenon.",
+  settings_see_through_blocked_compositor: "En este PC ningún compositor dibuja la transparencia, así que una ventana transparente se vería negra. En X11, ejecuta un gestor de ventanas con composición (por ejemplo picom) y reinicia Xenon; en una sesión Wayland funciona tal cual.",
   settings_see_through_tip: "Si el fondo de Wallpaper Engine se detiene detrás de Xenon: en los ajustes de Wallpaper Engine, pestaña Rendimiento, añade una regla de aplicación para xenon-native.exe con la acción \"Keep running\".",
   settings_see_through_restart_title: "¿Reiniciar Xenon?",
   settings_see_through_restart: "Para cambiar el fondo transparente Xenon reinicia la app. Tus ajustes, widgets y diseño se quedan como están.",
 });
 Object.assign(i18n.fr, {
   settings_see_through_head: "Fond transparent",
-  settings_see_through_hint: "app Xenon sous Windows",
+  settings_see_through_hint: "dans l'app Xenon",
   settings_see_through: "Afficher le bureau derrière les panneaux",
   settings_see_through_desc: "L'app devient transparente et vous voyez le bureau de cet écran derrière les panneaux, y compris un fond animé Wallpaper Engine. Opacité des panneaux et Assombrissement du fond, dans Apparence, règlent ce qui transparaît. Les fonds de Xenon restent enregistrés et reviennent quand vous le désactivez. Xenon redémarre pour l'activer ou le désactiver.",
   settings_see_through_blocked: "Sur ce PC, l'écran de Xenon est relié à une autre carte graphique que celle qui dessine le tableau de bord, et une fenêtre transparente y resterait vide. Si le menu de l'icône Xenon près de l'horloge propose \"Match render GPU to screen\", activez-le et redémarrez Xenon.",
+  settings_see_through_blocked_compositor: "Aucun compositeur ne dessine la transparence sur ce PC, une fenêtre transparente deviendrait donc noire. Sous X11, lancez un gestionnaire de fenêtres avec composition (picom par exemple) et redémarrez Xenon ; une session Wayland fonctionne telle quelle.",
   settings_see_through_tip: "Si le fond Wallpaper Engine se fige derrière Xenon : dans les paramètres de Wallpaper Engine, onglet Performances, ajoutez une règle d'application pour xenon-native.exe avec l'action \"Keep running\".",
   settings_see_through_restart_title: "Redémarrer Xenon ?",
   settings_see_through_restart: "Pour changer le fond transparent, Xenon redémarre l'app. Vos réglages, widgets et disposition restent tels quels.",
 });
 Object.assign(i18n.de, {
   settings_see_through_head: "Durchsichtiger Hintergrund",
-  settings_see_through_hint: "Xenon App unter Windows",
+  settings_see_through_hint: "in der Xenon App",
   settings_see_through: "Desktop hinter den Kacheln zeigen",
   settings_see_through_desc: "Die App wird durchsichtig und hinter den Kacheln siehst du den Desktop dieses Bildschirms, auch ein animiertes Hintergrundbild aus Wallpaper Engine. Wie viel durchscheint, stellst du mit Panel-Deckkraft und Hintergrund abdunkeln unter Aussehen ein. Die Hintergründe von Xenon bleiben gespeichert und kommen zurück, wenn du es ausschaltest. Zum Ein- und Ausschalten startet Xenon neu.",
   settings_see_through_blocked: "Auf diesem PC hängt der Bildschirm von Xenon an einer anderen Grafikkarte als der, die das Dashboard zeichnet, und dort bliebe ein durchsichtiges Fenster leer. Wenn das Menü des Xenon Symbols neben der Uhr \"Match render GPU to screen\" anbietet, schalte es ein und starte Xenon neu.",
+  settings_see_through_blocked_compositor: "Auf diesem PC zeichnet kein Compositor die Transparenz, ein durchsichtiges Fenster würde schwarz. Unter X11 einen Fenstermanager mit Compositing starten (zum Beispiel picom) und Xenon neu starten; eine Wayland Sitzung funktioniert so, wie sie ist.",
   settings_see_through_tip: "Wenn das Hintergrundbild von Wallpaper Engine hinter Xenon stehen bleibt: In den Einstellungen von Wallpaper Engine, Reiter Leistung, eine Anwendungsregel für xenon-native.exe mit der Aktion \"Keep running\" anlegen.",
   settings_see_through_restart_title: "Xenon neu starten?",
   settings_see_through_restart: "Um den durchsichtigen Hintergrund zu ändern, startet Xenon die App neu. Einstellungen, Widgets und Layout bleiben, wie sie sind.",
 });
 Object.assign(i18n.pt, {
   settings_see_through_head: "Fundo transparente",
-  settings_see_through_hint: "app Xenon no Windows",
+  settings_see_through_hint: "na app Xenon",
   settings_see_through: "Mostrar a área de trabalho atrás dos painéis",
   settings_see_through_desc: "A app fica transparente e atrás dos painéis vês a área de trabalho desse ecrã, incluindo um fundo animado do Wallpaper Engine. Quanto se vê ajustas com Opacidade dos painéis e Escurecer o fundo em Aspeto. Os fundos do Xenon ficam guardados e voltam quando o desligas. O Xenon reinicia para o ligar ou desligar.",
   settings_see_through_blocked: "Neste PC o ecrã do Xenon está ligado a uma placa gráfica diferente da que desenha o painel, e aí uma janela transparente ficaria vazia. Se o menu do ícone do Xenon junto ao relógio tiver \"Match render GPU to screen\", ativa-o e reinicia o Xenon.",
+  settings_see_through_blocked_compositor: "Neste PC nenhum compositor desenha a transparência, por isso uma janela transparente ficaria preta. No X11, executa um gestor de janelas com composição (por exemplo o picom) e reinicia o Xenon; numa sessão Wayland funciona tal como está.",
   settings_see_through_tip: "Se o fundo do Wallpaper Engine parar atrás do Xenon: nas definições do Wallpaper Engine, separador Desempenho, adiciona uma regra de aplicação para xenon-native.exe com a ação \"Keep running\".",
   settings_see_through_restart_title: "Reiniciar o Xenon?",
   settings_see_through_restart: "Para mudar o fundo transparente o Xenon reinicia a app. As tuas definições, widgets e disposição ficam como estão.",
 });
 Object.assign(i18n.ru, {
   settings_see_through_head: "Прозрачный фон",
-  settings_see_through_hint: "приложение Xenon для Windows",
+  settings_see_through_hint: "в приложении Xenon",
   settings_see_through: "Показывать рабочий стол за панелями",
   settings_see_through_desc: "Приложение становится прозрачным, и за панелями виден рабочий стол этого экрана, в том числе анимированные обои Wallpaper Engine. Сколько просвечивает, задают Непрозрачность панелей и Затемнение фона в разделе Внешний вид. Фоны Xenon остаются сохранёнными и вернутся, когда вы это выключите. Чтобы включить или выключить, Xenon перезапускается.",
   settings_see_through_blocked: "На этом ПК экран Xenon подключён к другой видеокарте, не к той, что рисует панель, и прозрачное окно там осталось бы пустым. Если в меню значка Xenon рядом с часами есть \"Match render GPU to screen\", включите его и перезапустите Xenon.",
+  settings_see_through_blocked_compositor: "На этом ПК нет композитора, который рисует прозрачность, поэтому прозрачное окно станет чёрным. В X11 запустите оконный менеджер с композитингом (например picom) и перезапустите Xenon; в сеансе Wayland всё работает как есть.",
   settings_see_through_tip: "Если обои Wallpaper Engine замирают за Xenon: в настройках Wallpaper Engine на вкладке Производительность добавьте правило приложения для xenon-native.exe с действием \"Keep running\".",
   settings_see_through_restart_title: "Перезапустить Xenon?",
   settings_see_through_restart: "Чтобы изменить прозрачный фон, Xenon перезапустит приложение. Настройки, виджеты и раскладка останутся как есть.",
 });
 Object.assign(i18n.nl, {
   settings_see_through_head: "Doorzichtige achtergrond",
-  settings_see_through_hint: "Xenon app op Windows",
+  settings_see_through_hint: "in de Xenon app",
   settings_see_through: "Bureaublad achter de panelen tonen",
   settings_see_through_desc: "De app wordt doorzichtig en achter de panelen zie je het bureaublad van dat scherm, ook een bewegende achtergrond van Wallpaper Engine. Hoeveel er doorschijnt regel je met Paneeldekking en Achtergrond dimmen bij Uiterlijk. De achtergronden van Xenon blijven bewaard en komen terug als je dit uitzet. Xenon herstart om het aan of uit te zetten.",
   settings_see_through_blocked: "Op deze pc hangt het scherm van Xenon aan een andere videokaart dan de kaart die het dashboard tekent, en daar zou een doorzichtig venster leeg blijven. Staat \"Match render GPU to screen\" in het menu van het Xenon pictogram bij de klok, zet het dan aan en herstart Xenon.",
+  settings_see_through_blocked_compositor: "Op deze pc tekent geen compositor de transparantie, dus een doorzichtig venster zou zwart worden. Start onder X11 een windowmanager met compositing (bijvoorbeeld picom) en herstart Xenon; een Wayland sessie werkt zoals hij is.",
   settings_see_through_tip: "Blijft de achtergrond van Wallpaper Engine stilstaan achter Xenon? Voeg in de instellingen van Wallpaper Engine, tabblad Prestaties, een toepassingsregel toe voor xenon-native.exe met de actie \"Keep running\".",
   settings_see_through_restart_title: "Xenon herstarten?",
   settings_see_through_restart: "Om de doorzichtige achtergrond te wijzigen herstart Xenon de app. Je instellingen, widgets en indeling blijven zoals ze zijn.",
+});
+
+// ── Discord widget: "Reply" on a mirrored DM or mention (server/discord-launch.js) ──
+Object.assign(i18n.it, {
+  discord_w_notif_reply: "Rispondi",
+  discord_w_notif_reply_title: "Apri questa conversazione in Discord",
+  discord_w_notif_reply_partial: "Discord è aperto: la conversazione la trovi lì",
+  discord_w_notif_reply_failed: "Non riesco ad aprire Discord su questo PC",
+});
+Object.assign(i18n.en, {
+  discord_w_notif_reply: "Reply",
+  discord_w_notif_reply_title: "Open this conversation in Discord",
+  discord_w_notif_reply_partial: "Discord is open: you'll find the conversation there",
+  discord_w_notif_reply_failed: "Could not open Discord on this PC",
+});
+Object.assign(i18n.ko, {
+  discord_w_notif_reply: "답장",
+  discord_w_notif_reply_title: "Discord에서 이 대화 열기",
+  discord_w_notif_reply_partial: "Discord가 열렸습니다. 대화는 그곳에서 찾을 수 있습니다",
+  discord_w_notif_reply_failed: "이 PC에서 Discord를 열 수 없습니다",
+});
+Object.assign(i18n.ja, {
+  discord_w_notif_reply: "返信",
+  discord_w_notif_reply_title: "この会話を Discord で開く",
+  discord_w_notif_reply_partial: "Discord を開きました。会話はそちらで探してください",
+  discord_w_notif_reply_failed: "この PC で Discord を開けませんでした",
+});
+Object.assign(i18n.zh, {
+  discord_w_notif_reply: "回复",
+  discord_w_notif_reply_title: "在 Discord 中打开此对话",
+  discord_w_notif_reply_partial: "Discord 已打开：请在那里找到这条对话",
+  discord_w_notif_reply_failed: "无法在这台电脑上打开 Discord",
+});
+Object.assign(i18n.es, {
+  discord_w_notif_reply: "Responder",
+  discord_w_notif_reply_title: "Abrir esta conversación en Discord",
+  discord_w_notif_reply_partial: "Discord está abierto: encontrarás la conversación ahí",
+  discord_w_notif_reply_failed: "No se pudo abrir Discord en este PC",
+});
+Object.assign(i18n.fr, {
+  discord_w_notif_reply: "Répondre",
+  discord_w_notif_reply_title: "Ouvrir cette conversation dans Discord",
+  discord_w_notif_reply_partial: "Discord est ouvert : la conversation vous y attend",
+  discord_w_notif_reply_failed: "Impossible d'ouvrir Discord sur ce PC",
+});
+Object.assign(i18n.de, {
+  discord_w_notif_reply: "Antworten",
+  discord_w_notif_reply_title: "Diese Unterhaltung in Discord öffnen",
+  discord_w_notif_reply_partial: "Discord ist offen: Dort findest du die Unterhaltung",
+  discord_w_notif_reply_failed: "Discord konnte auf diesem PC nicht geöffnet werden",
+});
+Object.assign(i18n.pt, {
+  discord_w_notif_reply: "Responder",
+  discord_w_notif_reply_title: "Abrir esta conversa no Discord",
+  discord_w_notif_reply_partial: "O Discord está aberto: encontras a conversa lá",
+  discord_w_notif_reply_failed: "Não foi possível abrir o Discord neste PC",
+});
+Object.assign(i18n.ru, {
+  discord_w_notif_reply: "Ответить",
+  discord_w_notif_reply_title: "Открыть этот разговор в Discord",
+  discord_w_notif_reply_partial: "Discord открыт: разговор найдёте там",
+  discord_w_notif_reply_failed: "Не удалось открыть Discord на этом ПК",
+});
+Object.assign(i18n.nl, {
+  discord_w_notif_reply: "Antwoorden",
+  discord_w_notif_reply_title: "Dit gesprek openen in Discord",
+  discord_w_notif_reply_partial: "Discord is open: daar vind je het gesprek",
+  discord_w_notif_reply_failed: "Kan Discord niet openen op deze pc",
 });
 
 function t(key) {

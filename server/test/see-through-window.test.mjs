@@ -76,7 +76,7 @@ test('a window the shell built see-through marks the page before the splash lift
   assert.ok(!loadBridge({ ...ON, seeThroughOn: false, seeThroughReady: false }).classes.has('see-through'));
 });
 
-test('only the Windows shell offers it; a browser, a phone and a layer window never do', () => {
+test('only the app offers it; a browser, a phone and a layer window never do', () => {
   assert.equal(loadBridge(null).native.seeThroughState().offered, false);
   assert.equal(loadBridge({ seeThrough: false }).native.seeThroughState().offered, false);
   const layer = loadBridge(ON, { layer: true });
@@ -114,7 +114,11 @@ test('the shell reports all four caps and handles both signals', () => {
   for (const cap of ['seeThrough', 'seeThroughOn', 'seeThroughWanted', 'seeThroughReady']) {
     assert.match(LIB, new RegExp(`"${cap}":`), `${cap} is never reported`);
   }
-  assert.match(LIB, /"seeThrough": cfg!\(windows\)/, 'offered on Windows only');
+  assert.match(LIB, /"seeThrough": cfg!\(any\(windows, target_os = "macos", target_os = "linux"\)\)/,
+    'offered by the Windows, macOS and Linux apps alike');
+  assert.match(LIB, /"seeThroughWhy": see_through\.why/);
+  // Built transparent on every platform when asked, no longer behind a cfg.
+  assert.doesNotMatch(LIB, /#\[cfg\(not\(target_os = "macos"\)\)\]\s*let builder = builder\.transparent/);
   assert.match(LIB, /"see-through-on" \| "see-through-off" =>/);
   assert.match(LIB, /see_through::set_from_dashboard\(&h, want\)/);
   // Decided after the GPU pin: whether it can be drawn depends on that pin.
@@ -164,4 +168,23 @@ test('every string of the switch is translated in every language', () => {
     const part = block.slice(at, block.indexOf('});', at));
     for (const key of keys) assert.match(part, new RegExp(`\\b${key}:`), `${lang} is missing ${key}`);
   }
+});
+
+test('each platform answers "can it be drawn here" for itself', () => {
+  // Windows: the GPU rule. macOS: always. Linux: only with a compositor, since
+  // without one the transparent pixels come out black.
+  assert.match(SEE_THROUGH, /#\[cfg\(windows\)\]\s*fn refusal[\s\S]*?see_through_ok\(presenting\)\)\.then_some\("gpu"\)/);
+  assert.match(SEE_THROUGH, /#\[cfg\(target_os = "macos"\)\]\s*fn refusal\(_presenting: Option<&str>\) -> Option<&'static str> \{\s*None/);
+  assert.match(SEE_THROUGH, /#\[cfg\(target_os = "linux"\)\]\s*fn refusal[\s\S]*?is_composited\(\)[\s\S]*?then_some\("compositor"\)/);
+});
+
+test('the reason travels to the page, and each one is explained in its own words', () => {
+  const st = loadBridge({ ...OFF, seeThroughWanted: true, seeThroughReady: false, seeThroughWhy: 'compositor' }).native.seeThroughState();
+  assert.equal(st.why, 'compositor');
+  assert.equal(loadBridge(ON).native.seeThroughState().why, '');
+  assert.match(SETTINGS, /state\.why === 'compositor' \? 'settings_see_through_blocked_compositor' : 'settings_see_through_blocked'/);
+  // The Wallpaper Engine tip is Windows only, like Wallpaper Engine.
+  assert.match(SETTINGS, /tip\.hidden = !state\.on \|\| window\.XenonPlatform !== 'win32'/);
+  const I18N = read('../js/i18n.js');
+  assert.equal((I18N.match(/settings_see_through_blocked_compositor:/g) || []).length, 11, 'in every language');
 });

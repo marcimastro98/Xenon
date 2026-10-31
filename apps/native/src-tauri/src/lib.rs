@@ -1841,9 +1841,11 @@ pub fn run() {
                     // `seeThroughOn`: this window was built transparent, so the
                     // dashboard paints no backdrop of its own. `seeThroughWanted`:
                     // the user's switch. `seeThroughReady`: it could be built
-                    // transparent, on this machine's screens and graphics cards.
-                    "seeThrough": cfg!(windows),
+                    // transparent here; when not, `seeThroughWhy` says why
+                    // ("gpu" on Windows, "compositor" on Linux).
+                    "seeThrough": cfg!(any(windows, target_os = "macos", target_os = "linux")),
                     "seeThroughOn": see_through.on,
+                    "seeThroughWhy": see_through.why,
                     "seeThroughWanted": display_prefs.see_through,
                     "seeThroughReady": see_through.ready,
                 })
@@ -1906,13 +1908,11 @@ pub fn run() {
                 .visible(!start_hidden)
                 .focused(!start_hidden)
                 .center();
-            // `transparent` is not on the macOS builder at all: it is gated
-            // behind the `macos-private-api` feature, which `macOSPrivateApi` in
-            // tauri.conf.json now switches on — for `background_color` above
-            // rather than for transparency (see that comment). The window is
-            // opaque unless the user asked for it see-through, which only the
-            // Windows shell offers (see_through.rs), so on macOS `on` is never set.
-            #[cfg(not(target_os = "macos"))]
+            // On macOS `transparent` exists only behind the `macos-private-api`
+            // feature, which `macOSPrivateApi` in tauri.conf.json switches on —
+            // first for `background_color` above, and now for this too. The
+            // window is opaque unless the user asked for it see-through and this
+            // machine can draw it (see_through.rs).
             let builder = builder.transparent(see_through.on);
             // The one exception to the dark backing above: a window the user asked
             // to be see-through (see_through.rs) has none at all, the layer

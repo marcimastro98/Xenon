@@ -400,6 +400,7 @@ const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
 const spotifyLaunch = require('./spotify-launch');
+const discordLaunch = require('./discord-launch'); // start/focus Discord and open a chat, on every OS
 const { normalizeMediaSeekResult } = require('./media-seek-result');
 const lyrics = require('./lyrics');
 const { createLyricsCache } = require('./lyrics-cache');
@@ -23988,19 +23989,24 @@ const handleRequest = async (req, res) => {
     json({ ok: true, enabled: dn.enabled, hide: dn.hide, state: discordRpc.notifStatus(), items: discordNotifs });
 
   } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
-    // Start the Discord desktop app (via its registered "discord://" protocol) so
-    // the widget's "Open Discord" overlay can bring it up when it isn't running.
-    // The protocol string is a FIXED constant — no user/settings input reaches the
-    // spawn — and ShellExecute surfaces a real error if Discord isn't installed.
+    // Start the Discord desktop app so the widget's "Open Discord" overlay can
+    // bring it up when it isn't running. One fixed launch per platform
+    // (discord-launch.js): this used to be PowerShell only, so the button did
+    // nothing on macOS and Linux. No user/settings input reaches the spawn.
     await readBody(req);
-    try {
-      await new Promise((resolve, reject) =>
-        execFile('powershell.exe',
-          ['-NoProfile', '-NonInteractive', '-Command', "try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='discord://';UseShellExecute=$true})}catch{exit 1}"],
-          { windowsHide: true, timeout: 10000 },
-          (e2) => e2 ? reject(e2) : resolve()));
-      json({ ok: true });
-    } catch (e) { json({ ok: false, error: 'launch_failed' }); }
+    json(await discordLaunch.launchDiscord());
+
+  } else if (reqPath === '/stream/discord/open-chat' && req.method === 'POST') {
+    // The widget's "Reply" on a mirrored DM or mention: bring Discord forward on
+    // this PC and show that conversation. Discord's local connection cannot send
+    // a message, so this is the reply button it allows. The channel id only ever
+    // reaches Discord's own connection, checked as a snowflake there and here.
+    let body = {};
+    try { body = JSON.parse((await readBody(req, 4096)) || '{}'); } catch { body = {}; }
+    json(await discordLaunch.openConversation(body && body.channelId, {
+      launch: () => discordLaunch.launchDiscord(),
+      select: (id) => discordRpc.openTextChannel(id),
+    }));
 
   // ── Spotify integration (Authorization Code + PKCE — redirect flow) ──────────
   // Responses never include tokens — only { connected, login, configured } or the
