@@ -421,3 +421,28 @@ body[data-bg-static="halo"] #bg-static {
     radial-gradient(160% 130% at 50% 52%, transparent 52%, rgba(20, 28, 44, 0.12) 100%),
     linear-gradient(180deg, #eef2f7, #e0e6ee);
 }
+
+/* ── See-through window (native app on Windows) ───────────────
+   The shell built the window transparent (apps/native/src-tauri/src/
+   see_through.rs) and js/native-bridge.js set html.see-through, so the
+   desktop under the window (a Wallpaper Engine scene, the wallpaper) is
+   the backdrop. Nothing of Xenon's own may paint the page ground: the
+   theme colour on html/body (themes set it there too, hence !important)
+   and the media layer's own fill. applyHubSettings() already switches
+   every backdrop layer off; hiding them here as well means a layer that
+   some later code turns on cannot cover the desktop by accident.
+   The media layer's dim (::after) stays: it is "Background dim", and
+   over an arbitrary wallpaper it is what keeps the text readable. */
+html.see-through,
+html.see-through body {
+  background: transparent !important;
+}
+html.see-through .user-bg-layer { background: transparent; }
+html.see-through .user-bg-layer img,
+html.see-through .user-bg-layer video,
+html.see-through #bg-aurora,
+html.see-through #bg-grid,
+html.see-through #bg-static,
+html.see-through #custom-bg-layer {
+  display: none !important;
+}

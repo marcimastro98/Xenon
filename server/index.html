@@ -2502,6 +2502,25 @@
         </div>
       </div>
 
+      <!-- Native app on Windows only: revealed by syncSeeThroughControl() (js/settings.js).
+           The switch lives in the app's display.json, not in the settings blob:
+           apps/native/src-tauri/src/see_through.rs. -->
+      <div class="settings-group settings-see-through-group" data-settings-cat="background" id="settings-see-through-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_see_through_head">Sfondo trasparente</span>
+          <span class="settings-hint" data-i18n="settings_see_through_hint">app Xenon su Windows</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-see-through" type="checkbox" onchange="updateSeeThrough(this)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_see_through">Mostra il desktop dietro i pannelli</span>
+            <span class="settings-hint" data-i18n="settings_see_through_desc">L'app diventa trasparente e dietro i pannelli vedi la scrivania di quello schermo, anche uno sfondo animato di Wallpaper Engine. Quanto si vede lo regoli con Opacità pannelli e Oscuramento sfondo in Aspetto. Gli sfondi di Xenon restano salvati e tornano quando lo spegni. Per attivarlo o spegnerlo Xenon si riavvia.</span>
+          </span>
+        </label>
+        <p class="settings-hint settings-hint-warn" id="settings-see-through-blocked" data-i18n="settings_see_through_blocked" hidden>Su questo PC lo schermo di Xenon è collegato a una scheda video diversa da quella che disegna la dashboard, e lì una finestra trasparente resterebbe vuota. Se nel menu dell'icona di Xenon vicino all'orologio c'è "Match render GPU to screen", attivalo e riavvia Xenon.</p>
+        <p class="settings-hint" id="settings-see-through-tip" data-i18n="settings_see_through_tip" hidden>Se lo sfondo di Wallpaper Engine si ferma dietro Xenon: nelle impostazioni di Wallpaper Engine, scheda Prestazioni, aggiungi una regola per xenon-native.exe che lo lasci in esecuzione ("Application rules", azione "Keep running").</p>
+      </div>
+
       <div class="settings-group settings-fx-group" id="settings-bgstatic-group" data-settings-cat="background">
         <div class="settings-group-head">
           <span data-i18n="settings_bg_static">Sfondo statico</span>

@@ -16,6 +16,7 @@ mod monitor;
 #[cfg(desktop)]
 mod page_load;
 mod prefs;
+mod see_through;
 mod spotlight_window;
 mod tray;
 #[cfg(windows)]
@@ -1727,6 +1728,12 @@ pub fn run() {
             );
             #[cfg(not(windows))]
             let gpu_flag: Option<&'static str> = None;
+            // See-through window (see_through.rs): after the pin, because whether a
+            // transparent webview is visible depends on which adapter draws it.
+            let see_through = see_through::decide(
+                &display_prefs,
+                monitor::initial_screen_name(app.handle(), &display_prefs).as_deref(),
+            );
             // Runtime-only capabilities merged over the shim's literal caps: the
             // dashboard's update orchestrator needs the shell's own version (to
             // know whether the exe is outdated too) and whether this shell
@@ -1830,6 +1837,15 @@ pub fn run() {
                     // Linux stacks the wallpaper under the windows, not behind
                     // the icons a desktop may draw (layers/linux.rs).
                     "wallpaperBehindIcons": !cfg!(target_os = "linux"),
+                    // The see-through window (see_through.rs, xenon-app:see-through-*).
+                    // `seeThroughOn`: this window was built transparent, so the
+                    // dashboard paints no backdrop of its own. `seeThroughWanted`:
+                    // the user's switch. `seeThroughReady`: it could be built
+                    // transparent, on this machine's screens and graphics cards.
+                    "seeThrough": cfg!(windows),
+                    "seeThroughOn": see_through.on,
+                    "seeThroughWanted": display_prefs.see_through,
+                    "seeThroughReady": see_through.ready,
                 })
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
@@ -1893,11 +1909,20 @@ pub fn run() {
             // `transparent` is not on the macOS builder at all: it is gated
             // behind the `macos-private-api` feature, which `macOSPrivateApi` in
             // tauri.conf.json now switches on — for `background_color` above
-            // rather than for transparency (see that comment). The window stays
-            // opaque either way; false is the default everywhere, so the intent
-            // is stated only on the platforms where the method exists.
+            // rather than for transparency (see that comment). The window is
+            // opaque unless the user asked for it see-through, which only the
+            // Windows shell offers (see_through.rs), so on macOS `on` is never set.
             #[cfg(not(target_os = "macos"))]
-            let builder = builder.transparent(false);
+            let builder = builder.transparent(see_through.on);
+            // The one exception to the dark backing above: a window the user asked
+            // to be see-through (see_through.rs) has none at all, the layer
+            // windows' recipe. The splash and the dashboard paint their own ground
+            // until the dashboard hands it over to the desktop.
+            let builder = if see_through.on {
+                builder.background_color(tauri::window::Color(0, 0, 0, 0))
+            } else {
+                builder
+            };
             // Borderless + native fullscreen is a combination macOS does not
             // have. `toggleFullScreen:` needs NSWindowStyleMaskTitled, and on a
             // window built with `decorations(false)` the transition dereferences
@@ -1988,6 +2013,16 @@ pub fn run() {
                                 let h = nav_handle.clone();
                                 let u = url.clone();
                                 std::thread::spawn(move || layers::glow(&h, &u));
+                            }
+                            // Settings → Background, "See-through background":
+                            // remember it, and relaunch when the window has to be
+                            // rebuilt (see_through.rs). A plain thread: it writes
+                            // display.json, and a restart from there runs the
+                            // normal Exit path.
+                            "see-through-on" | "see-through-off" => {
+                                let want = url.path() == "see-through-on";
+                                let h = nav_handle.clone();
+                                std::thread::spawn(move || see_through::set_from_dashboard(&h, want));
                             }
                             #[cfg(windows)]
                             "twitch-login" => {
