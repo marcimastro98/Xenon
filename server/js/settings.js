@@ -8963,7 +8963,11 @@ function syncSeeThroughControl() {
     ? native.seeThroughState()
     : { offered: false, on: false, wanted: false, ready: false, why: '' };
   // display (not `hidden`): the settings category switcher owns `hidden`.
-  if (row) row.style.display = state.offered ? '' : 'none';
+  // data-unavailable keeps it out of the Settings search where it is not offered.
+  if (row) {
+    row.style.display = state.offered ? '' : 'none';
+    if (state.offered) delete row.dataset.unavailable; else row.dataset.unavailable = '1';
+  }
   if (!state.offered) return;
   const check = $('settings-see-through');
   if (check) {
@@ -8982,9 +8986,37 @@ function syncSeeThroughControl() {
       blocked.textContent = t(key);
     }
   }
+  const onNote = $('settings-see-through-on');
+  if (onNote) onNote.hidden = !state.on;
   // Wallpaper Engine runs on Windows only, and so does its pause rule.
   const tip = $('settings-see-through-tip');
-  if (tip) tip.hidden = !state.on || window.XenonPlatform !== 'win32';
+  if (tip) {
+    tip.hidden = !state.on || window.XenonPlatform !== 'win32';
+    if (!tip.hidden) renderSeeThroughTip(tip);
+  }
+}
+
+// The tip names a file the user types into Wallpaper Engine, so the name is its
+// own element: in a monospace face, and never split at its hyphen across two
+// lines. The sentence stays one translated string with an {exe} slot, because
+// in Japanese or Korean the name sits in the middle of it. Rebuilt only when the
+// language changed (renderSettingsModal runs this after every switch).
+const SEE_THROUGH_EXE = 'xenon-native.exe';
+function renderSeeThroughTip(tip) {
+  const text = t('settings_see_through_tip');
+  if (tip.dataset.text === text) return;
+  tip.dataset.text = text;
+  const parts = text.split('{exe}');
+  tip.replaceChildren();
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      const code = document.createElement('code');
+      code.className = 'settings-filename';
+      code.textContent = SEE_THROUGH_EXE;
+      tip.appendChild(code);
+    }
+    if (part) tip.appendChild(document.createTextNode(part));
+  });
 }
 
 async function updateSeeThrough(input) {
@@ -8993,7 +9025,7 @@ async function updateSeeThrough(input) {
   const want = input.checked === true;
   if (native.seeThroughNeedsRestart(want)) {
     const title = t('settings_see_through_restart_title', 'Restart Xenon?');
-    const message = t('settings_see_through_restart', 'Xenon restarts the app to change this. Your settings, widgets and layout stay as they are.');
+    const message = t('settings_see_through_restart', 'Xenon restarts to apply this. Your settings, widgets and layout stay as they are.');
     const ok = (typeof settingsPrompt === 'function')
       ? await settingsPrompt({ type: 'confirm', title, message, okLabel: t('settings_restart_app', 'Restart Xenon') })
       : (typeof window.confirm !== 'function' || window.confirm(message));

@@ -166,3 +166,10 @@ test('every string of the button is translated in every language', () => {
     for (const key of keys) assert.match(part, new RegExp(`\\b${key}:`), `${lang} is missing ${key}`);
   }
 });
+
+test('the Reply button stays readable on a light theme', () => {
+  // The dark theme's pale blurple (#b7c0ff) is a smudge on a light panel.
+  const light = read('../styles/themes-light.css');
+  assert.match(light, /:root\[data-appearance="light"\] \.dc-notif-reply \{ color: #4752c4; \}|\.dc-notif-reply \{ color: #4752c4; \}/);
+  assert.match(light, /:root\[data-appearance="light"\] \.dc-notif-title,/);
+});

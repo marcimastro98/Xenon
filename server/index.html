@@ -2513,12 +2513,13 @@
         <label class="settings-toggle-row">
           <input class="settings-check" id="settings-see-through" type="checkbox" onchange="updateSeeThrough(this)">
           <span class="settings-label-line">
-            <span data-i18n="settings_see_through">Mostra il desktop dietro i pannelli</span>
-            <span class="settings-hint" data-i18n="settings_see_through_desc">L'app diventa trasparente e dietro i pannelli vedi la scrivania di quello schermo, anche uno sfondo animato di Wallpaper Engine. Quanto si vede lo regoli con Opacità pannelli e Oscuramento sfondo in Aspetto. Gli sfondi di Xenon restano salvati e tornano quando lo spegni. Per attivarlo o spegnerlo Xenon si riavvia.</span>
+            <span data-i18n="settings_see_through">Mostra la scrivania dietro i pannelli</span>
+            <span class="settings-hint" data-i18n="settings_see_through_desc">si vede lo sfondo del PC, anche quello animato di Wallpaper Engine. Quanto si vede lo regoli con Opacità pannelli e Oscuramento sfondo in Aspetto. Xenon si riavvia per applicarlo</span>
           </span>
         </label>
-        <p class="settings-hint settings-hint-warn" id="settings-see-through-blocked" data-i18n="settings_see_through_blocked" hidden>Su questo PC lo schermo di Xenon è collegato a una scheda video diversa da quella che disegna la dashboard, e lì una finestra trasparente resterebbe vuota. Se nel menu dell'icona di Xenon vicino all'orologio c'è "Match render GPU to screen", attivalo e riavvia Xenon.</p>
-        <p class="settings-hint" id="settings-see-through-tip" data-i18n="settings_see_through_tip" hidden>Se lo sfondo di Wallpaper Engine si ferma dietro Xenon: nelle impostazioni di Wallpaper Engine, scheda Prestazioni, aggiungi una regola per xenon-native.exe che lo lasci in esecuzione ("Application rules", azione "Keep running").</p>
+        <span class="settings-note" id="settings-see-through-on" data-i18n="settings_see_through_on_note" hidden>Finché è attivo, gli sfondi di Xenon restano in pausa. Tornano quando lo spegni.</span>
+        <span class="settings-note settings-note-warn" id="settings-see-through-blocked" data-i18n="settings_see_through_blocked" hidden>Qui non è disponibile: questo schermo è collegato a un'altra scheda video e la finestra resterebbe vuota. Se nel menu dell'icona di Xenon c'è "Match render GPU to screen", attivalo e riavvia Xenon.</span>
+        <span class="settings-note" id="settings-see-through-tip" hidden></span>
       </div>
 
       <div class="settings-group settings-fx-group" id="settings-bgstatic-group" data-settings-cat="background">

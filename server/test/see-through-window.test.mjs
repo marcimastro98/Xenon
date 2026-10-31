@@ -188,3 +188,32 @@ test('the reason travels to the page, and each one is explained in its own words
   const I18N = read('../js/i18n.js');
   assert.equal((I18N.match(/settings_see_through_blocked_compositor:/g) || []).length, 11, 'in every language');
 });
+
+test('the Wallpaper Engine tip names the file as a file, in every language', () => {
+  // The name is typed into Wallpaper Engine, so it is its own element (never
+  // split at its hyphen) and every translation leaves exactly one slot for it.
+  const I18N = read('../js/i18n.js');
+  const block = I18N.slice(I18N.indexOf('// ── See-through window'), I18N.indexOf('// ── Discord widget: "Reply"'));
+  const tips = [...block.matchAll(/settings_see_through_tip: "([^"]*)"/g)].map((m) => m[1]);
+  assert.equal(tips.length, 11);
+  for (const tip of tips) {
+    assert.equal(tip.split('{exe}').length, 2, `one {exe} slot: ${tip}`);
+    assert.ok(!tip.includes('xenon-native.exe'), 'the name comes from the code, not the string');
+  }
+  assert.match(SETTINGS, /const SEE_THROUGH_EXE = 'xenon-native\.exe';/);
+  assert.match(SETTINGS, /code\.className = 'settings-filename'/);
+  assert.match(read('../components/SettingsModal/SettingsModal.css'), /\.settings-filename \{[^}]*white-space: nowrap;/);
+  // No data-i18n on the tip: translateStatic would overwrite the built element
+  // with the raw sentence, {exe} and all.
+  assert.match(HTML, /<span class="settings-note" id="settings-see-through-tip" hidden><\/span>/);
+});
+
+test('while it is on, the card says the other backgrounds are paused', () => {
+  assert.match(HTML, /id="settings-see-through-on" data-i18n="settings_see_through_on_note" hidden/);
+  assert.match(SETTINGS, /onNote\.hidden = !state\.on/);
+});
+
+test('where it is not offered it is not a Settings search result either', () => {
+  assert.match(SETTINGS, /row\.dataset\.unavailable = '1'/);
+  assert.match(read('../js/settings-search.js'), /card\.dataset\.unavailable === '1'/);
+});
