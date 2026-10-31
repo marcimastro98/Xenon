@@ -16,6 +16,7 @@ mod monitor;
 #[cfg(desktop)]
 mod page_load;
 mod prefs;
+mod show_desktop;
 mod spotlight_window;
 mod tray;
 #[cfg(windows)]
@@ -2235,6 +2236,12 @@ pub fn run() {
             // never flashes over the remote desktop for a watchdog interval first.
             monitor::apply_rdp_hide_now(&window);
             monitor::start_watchdog(app.handle().clone());
+
+            // Win+D raises the desktop over every ordinary window, the kiosk on
+            // its own screen included (issue #143). Lift it above the desktop
+            // while the desktop is in front, without focusing it.
+            #[cfg(windows)]
+            show_desktop::start(app.handle());
 
             // Remember where the desktop mouse is so it can be put back after a
             // touch on the kiosk yanks it onto the Edge (tray-toggleable).

@@ -62,6 +62,7 @@ public static class XenonHotkey {
   [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW")] public static extern bool SpiGet(uint action, uint uiParam, ref uint pvParam, uint fWinIni);
   [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW")] public static extern bool SpiSet(uint action, uint uiParam, IntPtr pvParam, uint fWinIni);
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int val, int size);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int max);
 
   // NOTE: the union MUST carry MOUSEINPUT too. Without it the struct is smaller than
   // the OS INPUT (40 bytes on x64), cbSize mismatches, and SendInput silently sends
@@ -86,20 +87,59 @@ public static class XenonHotkey {
   const uint SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001;
   const uint SPIF_SENDCHANGE = 0x0002;
 
-  // First real, on-screen, top-level window beneath the foreground (the dashboard
-  // the user just tapped). Skips invisible, minimised, cloaked, tool, title-less.
+  // A real, on-screen app window: visible, not minimised, not a tool window, with
+  // a title, not cloaked, and not the desktop or the taskbar.
+  static bool Eligible(IntPtr h) {
+    if (h == IntPtr.Zero || !IsWindowVisible(h) || IsIconic(h)) return false;
+    if ((GetWindowLong(h, GWL_EXSTYLE) & WS_EX_TOOLWINDOW) != 0) return false;
+    if (GetWindowTextLength(h) == 0) return false;
+    int cloaked = 0;
+    try { DwmGetWindowAttribute(h, DWMWA_CLOAKED, out cloaked, sizeof(int)); } catch { }
+    if (cloaked != 0) return false;
+    return !IsShell(ClassOf(h));
+  }
+
+  public static string ClassOf(IntPtr h) {
+    var sb = new System.Text.StringBuilder(256);
+    GetClassName(h, sb, sb.Capacity);
+    return sb.ToString();
+  }
+
+  public static bool IsShell(string cls) {
+    return cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd";
+  }
+
+  public static string ProcessOf(IntPtr h) {
+    uint pid = 0;
+    GetWindowThreadProcessId(h, out pid);
+    try { return System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { return ""; }
+  }
+
+  // Whether the foreground window is Xenon itself, the surface the key was just
+  // tapped on: the Xenon app (xenon-native), the iCUE panel, or a browser tab on
+  // the dashboard, whose window title starts with the page title "Xenon".
+  public static bool IsDashboard(string process, string title) {
+    string p = (process ?? "").ToLowerInvariant();
+    if (p == "xenon-native" || p == "icue") return true;
+    string t = title ?? "";
+    return t == "Xenon" || t.StartsWith("Xenon - ") || t.StartsWith("Xenon \u2013 ") || t.StartsWith("Xenon \u2014 ");
+  }
+
+  // The window the shortcut is for. When the user just tapped the dashboard, the
+  // dashboard is in front and the app they were using is the first real window
+  // beneath it. But the dashboard is NOT always in front: "Keep games focused"
+  // stops a touch on the kiosk from taking the foreground, and a key pressed on a
+  // paired phone takes nothing either. Then the window in front IS the target,
+  // and walking past it focused whatever happened to lie below a full-screen game
+  // (issue #142: CS2 lost focus to a random app on every press).
   public static IntPtr FindTarget() {
     IntPtr fg = GetForegroundWindow();
+    if (Eligible(fg) && !IsDashboard(ProcessOf(fg), Title(fg))) return fg;
     IntPtr h = fg;
     for (int i = 0; i < 80 && h != IntPtr.Zero; i++) {
       h = GetWindow(h, GW_HWNDNEXT);
       if (h == IntPtr.Zero || h == fg) continue;
-      if (!IsWindowVisible(h) || IsIconic(h)) continue;
-      if ((GetWindowLong(h, GWL_EXSTYLE) & WS_EX_TOOLWINDOW) != 0) continue;
-      if (GetWindowTextLength(h) == 0) continue;
-      int cloaked = 0;
-      try { DwmGetWindowAttribute(h, DWMWA_CLOAKED, out cloaked, sizeof(int)); } catch { }
-      if (cloaked != 0) continue;
+      if (!Eligible(h)) continue;
       return h;
     }
     return IntPtr.Zero;
@@ -164,6 +204,9 @@ public static class XenonHotkey {
 
   public static bool Focus(IntPtr target) {
     if (!IsWindow(target)) return false;
+    // Already in front (the game kept focus): nothing to take, and nothing to
+    // disturb. A full-screen game is never asked to come forward a second time.
+    if (GetForegroundWindow() == target) return true;
     if (IsIconic(target)) ShowWindow(target, SW_RESTORE);
     for (int i = 0; i < 3; i++) {
       if (TryForeground(target)) return true;

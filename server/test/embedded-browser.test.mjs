@@ -531,3 +531,85 @@ test('resetPoisonedProfile wipes an unmarked existing profile once, spares fresh
 
   fs.rmSync(base, { recursive: true, force: true });
 });
+
+// ── An Edge that stays alive but stops answering (GitHub #144) ───────────────
+// send() used to wait forever: the tile sat on its loading spinner until Edge
+// was killed by hand. Now an unanswered command times out, a quick browser-level
+// probe tells a hung Edge from a slow page, and only a hung one is restarted.
+
+// Answers like makeFakeWS until `state.hung` is set, then answers nothing at all.
+// With `state.slowNav`, only Page.navigate goes unanswered (a slow site).
+function makeHangingWS(state) {
+  const Base = makeFakeWS(false);
+  return class HangingWS extends Base {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (state.hung) return;
+      if (state.slowNav && m.method === 'Page.navigate') return;
+      return super.send(raw);
+    }
+  };
+}
+
+test('a hung Edge is restarted, and the next open works on a fresh one (#144)', async () => {
+  const state = { hung: false };
+  let launches = 0;
+  let kills = 0;
+  const host = eb.createEmbeddedBrowser({
+    WebSocketImpl: makeHangingWS(state), idleMs: 10000,
+    cmdTimeoutMs: 40, navTimeoutMs: 40, probeTimeoutMs: 30,
+    launch: async () => { launches += 1; return { proc: { on() {}, kill() { kills += 1; }, unref() {} }, wsUrl: 'ws://x' }; },
+  });
+  const keepAlive = setInterval(() => {}, 20);
+  try {
+    await host.open('a', 'example.com', 400, 300, 1, () => {});
+    assert.equal(launches, 1);
+
+    state.hung = true;
+    await assert.rejects(host.open('b', 'example.com', 400, 300, 1, () => {}), /cdp_timeout/,
+      'an unanswered command fails instead of waiting forever');
+    await delay(80);
+    assert.equal(kills, 1, 'the probe got no answer either: the hung Edge is killed');
+
+    state.hung = false;
+    await host.open('c', 'example.com', 400, 300, 1, () => {});
+    assert.equal(launches, 2, 'the next open starts a fresh Edge');
+    assert.equal(host._tiles.has('c'), true);
+  } finally {
+    clearInterval(keepAlive);
+    host.shutdown();
+  }
+});
+
+test('a slow page is not a hung browser: Edge is kept (#144)', async () => {
+  const state = { slowNav: true };
+  let launches = 0;
+  let kills = 0;
+  const host = eb.createEmbeddedBrowser({
+    WebSocketImpl: makeHangingWS(state), idleMs: 10000,
+    cmdTimeoutMs: 40, navTimeoutMs: 40, probeTimeoutMs: 30,
+    launch: async () => { launches += 1; return { proc: { on() {}, kill() { kills += 1; }, unref() {} }, wsUrl: 'ws://x' }; },
+  });
+  const keepAlive = setInterval(() => {}, 20);
+  try {
+    await assert.rejects(host.open('a', 'example.com', 400, 300, 1, () => {}), /cdp_timeout/);
+    await delay(80);
+    assert.equal(kills, 0, 'the probe was answered: the browser is alive and stays');
+    assert.equal(launches, 1);
+  } finally {
+    clearInterval(keepAlive);
+    host.shutdown();
+  }
+});
+
+test('the reasons a hung Edge fails with are ones the tile retries on', () => {
+  // browser-tile.js retries an open whose error matches this pattern; an error
+  // it does not recognise would leave the tile showing nothing.
+  const retried = /timeout|connect|launch|exited|closed|port|socket|failed/i;
+  const src = require('node:fs').readFileSync(new URL('../embedded-browser.js', import.meta.url), 'utf8');
+  assert.match(src, /reject\(new Error\('cdp_timeout'\)\)/);
+  assert.match(src, /killBrowser\('hung_closed'\)/);
+  assert.ok(retried.test('cdp_timeout') && retried.test('hung_closed'));
+  assert.match(require('node:fs').readFileSync(new URL('../js/browser-tile.js', import.meta.url), 'utf8'),
+    /return \/timeout\|connect\|launch\|exited\|closed\|port\|socket\|failed\/i\.test/);
+});
