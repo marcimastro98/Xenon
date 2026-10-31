@@ -103,6 +103,13 @@ pub struct DisplayPrefs {
     /// flashing the splash before the server sends the window to the driver.
     #[serde(default)]
     pub widgets_only: bool,
+    /// Build the dashboard window see-through, so whatever is on the desktop
+    /// under it (a Wallpaper Engine scene, the Windows wallpaper) shows behind the
+    /// tiles. Fixed when the window is created, so changing it restarts the app
+    /// (see `see_through.rs`). Opt-in: a transparent window costs a little more
+    /// to compose and shows the desktop icons on that screen too.
+    #[serde(default)]
+    pub see_through: bool,
 }
 
 fn default_true() -> bool {
@@ -143,6 +150,7 @@ impl Default for DisplayPrefs {
             hide_on_rdp: false,
             gpu_pin: true,
             widgets_only: false,
+            see_through: false,
         }
     }
 }
@@ -241,5 +249,14 @@ mod tests {
         let now: DisplayPrefs =
             serde_json::from_str(r#"{"fullscreen":false,"monitor":null,"widgets_only":true}"#).unwrap();
         assert!(now.widgets_only);
+    }
+
+    #[test]
+    fn files_written_before_see_through_keep_an_opaque_window() {
+        let old: DisplayPrefs = serde_json::from_str(r#"{"fullscreen":true,"monitor":null}"#).unwrap();
+        assert!(!old.see_through);
+        let now: DisplayPrefs =
+            serde_json::from_str(r#"{"fullscreen":true,"monitor":null,"see_through":true}"#).unwrap();
+        assert!(now.see_through);
     }
 }

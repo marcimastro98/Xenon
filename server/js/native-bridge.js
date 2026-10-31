@@ -60,6 +60,48 @@
   }
   window.restartXenonApp = restartApp;
 
+  // ── Native shell: the see-through window ─────────────────────────────
+  // The Windows app can build its window transparent, so the desktop under it (a
+  // Wallpaper Engine scene, the Windows wallpaper) shows behind the tiles. The
+  // shell decides at launch and says so in its caps (see_through.rs):
+  //   seeThrough       → this shell offers the switch at all (Windows only)
+  //   seeThroughOn     → THIS window was built transparent
+  //   seeThroughWanted → the user's switch, as saved in display.json
+  //   seeThroughReady  → a transparent window can be drawn here; false when the
+  //                      screen is driven by a graphics card other than the one
+  //                      drawing the dashboard, where it would come out blank
+  // Layer windows and every other surface get "not offered".
+  function seeThroughState() {
+    const caps = isNative ? window.__XENON_NATIVE_CAPS__ : null;
+    const offered = !!caps && caps.seeThrough === true;
+    return {
+      offered,
+      on: offered && caps.seeThroughOn === true,
+      wanted: offered && caps.seeThroughWanted === true,
+      ready: offered && caps.seeThroughReady === true,
+    };
+  }
+  // Mirrors needs_restart in see_through.rs: the shell relaunches only when the
+  // window has to be rebuilt, so only then is there something to confirm.
+  function seeThroughNeedsRestart(want) {
+    const s = seeThroughState();
+    return s.offered && want !== s.on && (!want || s.ready);
+  }
+  function setSeeThrough(want) {
+    const s = seeThroughState();
+    if (!s.offered) return false;
+    // The page keeps its own copy of the switch until the relaunch (or for good,
+    // when nothing has to be rebuilt).
+    window.__XENON_NATIVE_CAPS__.seeThroughWanted = want === true;
+    afterLoad(() => {
+      try { window.location.href = want ? 'xenon-app:see-through-on' : 'xenon-app:see-through-off'; } catch (e) { /* not native */ }
+    });
+    return true;
+  }
+  // Set while the page is still under the boot splash, so the first frame after
+  // it already shows the desktop instead of flashing the theme's ground.
+  if (seeThroughState().on) document.documentElement.classList.add('see-through');
+
   // Localized string with a plain-English fallback (the dashboard's own t()).
   function tr(key, fallback) {
     try {
@@ -1102,6 +1144,9 @@
     setHomeGestureEnabled: setHomeGestureEnabled,
     setHideOnRdp: setHideOnRdp,
     setNativeZoom: setNativeZoom,
+    seeThroughState: seeThroughState,
+    seeThroughNeedsRestart: seeThroughNeedsRestart,
+    setSeeThrough: setSeeThrough,
   };
 
   function init() {
