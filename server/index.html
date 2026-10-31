@@ -2502,13 +2502,13 @@
         </div>
       </div>
 
-      <!-- Native app on Windows only: revealed by syncSeeThroughControl() (js/settings.js).
+      <!-- Native app only (Windows, macOS, Linux): revealed by syncSeeThroughControl() (js/settings.js).
            The switch lives in the app's display.json, not in the settings blob:
            apps/native/src-tauri/src/see_through.rs. -->
       <div class="settings-group settings-see-through-group" data-settings-cat="background" id="settings-see-through-row" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_see_through_head">Sfondo trasparente</span>
-          <span class="settings-hint" data-i18n="settings_see_through_hint">app Xenon su Windows</span>
+          <span class="settings-hint" data-i18n="settings_see_through_hint">nell'app Xenon</span>
         </div>
         <label class="settings-toggle-row">
           <input class="settings-check" id="settings-see-through" type="checkbox" onchange="updateSeeThrough(this)">

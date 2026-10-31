@@ -26,6 +26,7 @@
     leave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 17 5 12l5-5M5 12h11"/></svg>',
     join: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
     spkOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 10 5 4M21 10l-5 4"/></svg>',
+    reply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
     minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
@@ -781,6 +782,8 @@
     body.classList.toggle('is-masked', !!masked);
     txt.append(head, body);
     row.appendChild(txt);
+    const reply = replyButton(n);
+    if (reply) row.appendChild(reply);
     if (notif.hide && n.body) {
       row.classList.add('is-tappable');
       row.addEventListener('click', () => {
@@ -789,6 +792,48 @@
       });
     }
     return row;
+  }
+
+  // "Reply": bring Discord forward on this PC with that conversation open
+  // (server/discord-launch.js). Xenon cannot send the message itself, since
+  // Discord's local connection has no command for it, so this is the shortest
+  // honest path to answering. Only for a row that names its channel, and not on
+  // a paired phone: the button acts on the PC's Discord, and someone holding a
+  // phone answers in the Discord app in their hand.
+  function replyButton(n) {
+    if (!n.channelId) return null;
+    if (window.RemoteSurface && typeof window.RemoteSurface.isRemote === 'function' && window.RemoteSurface.isRemote()) return null;
+    const b = el('button', 'dc-notif-reply');
+    b.type = 'button';
+    b.title = t('discord_w_notif_reply_title', 'Open this conversation in Discord');
+    b.setAttribute('aria-label', b.title);
+    b.innerHTML = ICONS.reply;                       // static, trusted SVG
+    b.appendChild(el('span', 'dc-notif-reply-lbl', t('discord_w_notif_reply', 'Reply')));
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();                          // the row's own tap reveals hidden text
+      openConversation(b, n.channelId);
+    });
+    return b;
+  }
+
+  async function openConversation(btn, channelId) {
+    if (btn.disabled) return;
+    btn.disabled = true; btn.classList.remove('ok', 'err');
+    const r = await api('/stream/discord/open-chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channelId }),
+    }).catch(() => null);
+    const ok = !!(r && r.ok);
+    btn.classList.add(ok && r.selected ? 'ok' : 'err');
+    // Said, not left to a red flash: either Discord came up without the chat,
+    // or it could not be started at all, and the user needs to know which.
+    if (window.XenonToast && !(ok && r.selected)) {
+      window.XenonToast.show({
+        type: ok ? 'info' : 'warn',
+        title: t(ok ? 'discord_w_notif_reply_partial' : 'discord_w_notif_reply_failed',
+          ok ? 'Discord is open: find the conversation there' : 'Could not open Discord on this PC'),
+      });
+    }
+    setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1200);
   }
 
   // The Notifications tab: opt-in feed with deliberate states — off (points at

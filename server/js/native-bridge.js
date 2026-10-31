@@ -61,15 +61,16 @@
   window.restartXenonApp = restartApp;
 
   // ── Native shell: the see-through window ─────────────────────────────
-  // The Windows app can build its window transparent, so the desktop under it (a
-  // Wallpaper Engine scene, the Windows wallpaper) shows behind the tiles. The
-  // shell decides at launch and says so in its caps (see_through.rs):
-  //   seeThrough       → this shell offers the switch at all (Windows only)
+  // The app (Windows, macOS, Linux) can build its window transparent, so the
+  // desktop under it (a Wallpaper Engine scene, the wallpaper) shows behind the
+  // tiles. The shell decides at launch and says so in its caps (see_through.rs):
+  //   seeThrough       → this shell offers the switch at all
   //   seeThroughOn     → THIS window was built transparent
   //   seeThroughWanted → the user's switch, as saved in display.json
-  //   seeThroughReady  → a transparent window can be drawn here; false when the
-  //                      screen is driven by a graphics card other than the one
-  //                      drawing the dashboard, where it would come out blank
+  //   seeThroughReady  → a transparent window can be drawn here, and when not,
+  //   seeThroughWhy      why: 'gpu' (Windows: another graphics card shows this
+  //                      screen, it would come out blank) or 'compositor'
+  //                      (Linux: nothing composes it, it would come out black)
   // Layer windows and every other surface get "not offered".
   function seeThroughState() {
     const caps = isNative ? window.__XENON_NATIVE_CAPS__ : null;
@@ -79,6 +80,7 @@
       on: offered && caps.seeThroughOn === true,
       wanted: offered && caps.seeThroughWanted === true,
       ready: offered && caps.seeThroughReady === true,
+      why: offered && typeof caps.seeThroughWhy === 'string' ? caps.seeThroughWhy : '',
     };
   }
   // Mirrors needs_restart in see_through.rs: the shell relaunches only when the

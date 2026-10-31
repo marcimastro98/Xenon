@@ -8961,7 +8961,7 @@ function syncSeeThroughControl() {
   const native = window.XenonNative;
   const state = (native && typeof native.seeThroughState === 'function')
     ? native.seeThroughState()
-    : { offered: false, on: false, wanted: false, ready: false };
+    : { offered: false, on: false, wanted: false, ready: false, why: '' };
   // display (not `hidden`): the settings category switcher owns `hidden`.
   if (row) row.style.display = state.offered ? '' : 'none';
   if (!state.offered) return;
@@ -8972,9 +8972,19 @@ function syncSeeThroughControl() {
     check.disabled = !state.ready && !state.wanted;
   }
   const blocked = $('settings-see-through-blocked');
-  if (blocked) blocked.hidden = state.ready;
+  if (blocked) {
+    blocked.hidden = state.ready;
+    // One line for each reason the shell can give: a graphics card (Windows)
+    // or no compositor (Linux) need different things done about them.
+    const key = state.why === 'compositor' ? 'settings_see_through_blocked_compositor' : 'settings_see_through_blocked';
+    if (blocked.dataset.i18n !== key) {
+      blocked.dataset.i18n = key;
+      blocked.textContent = t(key);
+    }
+  }
+  // Wallpaper Engine runs on Windows only, and so does its pause rule.
   const tip = $('settings-see-through-tip');
-  if (tip) tip.hidden = !state.on;
+  if (tip) tip.hidden = !state.on || window.XenonPlatform !== 'win32';
 }
 
 async function updateSeeThrough(input) {

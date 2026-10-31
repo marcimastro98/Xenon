@@ -735,6 +735,23 @@ function createDiscordProvider(deps) {
     return { ok: true };
   }
 
+  // Show one text channel, group DM or DM in the Discord app (SELECT_TEXT_CHANNEL,
+  // under the `rpc` scope every linked account already granted). Used by the
+  // widget's "Reply" on a mirrored notification: Discord has no RPC command that
+  // SENDS a message, so the closest honest thing is taking the user to the chat.
+  // Never throws; the error is the RPC one, which discord-launch.js reads to
+  // decide whether a starting Discord is worth waiting for.
+  async function openTextChannel(channelId) {
+    const id = String(channelId == null ? '' : channelId).trim();
+    if (!isSnowflake(id)) return { ok: false, error: 'bad_channel' };
+    try {
+      await command('SELECT_TEXT_CHANNEL', { channel_id: id });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || 'discord_failed' };
+    }
+  }
+
   async function leaveVoice() {
     await command('SELECT_VOICE_CHANNEL', { channel_id: null });
     return { ok: true };
@@ -1231,7 +1248,7 @@ function createDiscordProvider(deps) {
 
   // NB: getAccessToken stays a private closure — never exposed on the provider, so
   // no consumer (or generic forwarding layer) can pull a live token off it.
-  return { configured, status, login, logout, runAction, listVoiceChannels, listSoundboardSounds, voiceRoster, voiceState, watchVoice, notifStatus, holdingUserOverrides, close };
+  return { configured, status, login, logout, runAction, openTextChannel, listVoiceChannels, listSoundboardSounds, voiceRoster, voiceState, watchVoice, notifStatus, holdingUserOverrides, close };
 }
 
 module.exports = {

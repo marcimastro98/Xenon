@@ -17,9 +17,13 @@
 //!     when the adapter that draws it is the one that shows it
 //!     (`drawn_where_shown`), and the watchdog restarts the app if a display
 //!     change breaks that later (`watch`): the relaunch re-pins to the new screen.
-//!   * **Windows only, for now.** The other shells report `seeThrough: false`, so
-//!     the dashboard does not offer the option there. macOS needs its own window
-//!     work and Linux depends on the compositor; neither has been tried.
+//!   * **Every platform has its own "can it be drawn here".** Windows: the GPU
+//!     rule above. macOS: always (the window server composes every window, and
+//!     `macOSPrivateApi` is already on for the window backing, which is what
+//!     unlocks a transparent WKWebView). Linux: only with a compositor, which a
+//!     Wayland session always has and an X11 one may not; without one the
+//!     transparent pixels come out BLACK, so the window stays solid and the
+//!     dashboard says why (`Launch::why`).
 //!
 //! The dashboard side: server/js/native-bridge.js reads the caps and sends the
 //! switch, syncSeeThroughControl() in server/js/settings.js draws it, and
@@ -52,6 +56,10 @@ pub struct Launch {
     /// switch on means the window came up opaque on purpose, and the dashboard
     /// says why instead of showing a switch that silently does nothing.
     pub ready: bool,
+    /// Why not, when `ready` is false: "gpu" (Windows, another graphics card
+    /// shows this screen) or "compositor" (Linux, nothing composes the
+    /// transparency). The dashboard picks its explanation from it.
+    pub why: Option<&'static str>,
 }
 
 /// Whether a transparent window on the target screen is drawn by the adapter
@@ -68,6 +76,8 @@ pub struct Launch {
 /// Anything else (a hybrid with the pin off, two discrete cards, a GPU name we
 /// cannot classify) is refused rather than guessed: the cost of a wrong guess
 /// is a dashboard that draws nothing at all.
+// Read by gpu.rs, which exists on Windows only; tested everywhere.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn drawn_where_shown(adapters: &[&str], pinned: Option<&str>, target: Option<&str>) -> bool {
     let Some(first) = adapters.first() else { return false };
     if adapters.iter().all(|a| a == first) {
@@ -79,23 +89,47 @@ pub fn drawn_where_shown(adapters: &[&str], pinned: Option<&str>, target: Option
 /// Whether the window should be see-through now. Read once, in `setup`, after
 /// the GPU pin is armed (the rule above reads it) and before the window exists.
 pub fn decide(prefs: &prefs::DisplayPrefs, presenting: Option<&str>) -> Launch {
-    #[cfg(windows)]
-    let ready = crate::gpu::see_through_ok(presenting);
-    #[cfg(not(windows))]
-    let ready = {
-        let _ = presenting;
-        false
-    };
-    let launch = Launch { on: prefs.see_through && ready, ready };
+    let why = refusal(presenting);
+    let ready = why.is_none();
+    let launch = Launch { on: prefs.see_through && ready, ready, why };
     ACTIVE.store(launch.on, Ordering::SeqCst);
     READY.store(launch.ready, Ordering::SeqCst);
     if prefs.see_through && !ready {
         crate::crash_log::note(
             "display",
-            "see-through window not built: this screen is drawn by another graphics card, so it would come out blank",
+            match why {
+                Some("compositor") => "see-through window not built: no compositor is running, so it would come out black",
+                _ => "see-through window not built: this screen is drawn by another graphics card, so it would come out blank",
+            },
         );
     }
     launch
+}
+
+/// Why a see-through window cannot be drawn on this machine now, or None.
+#[cfg(windows)]
+fn refusal(presenting: Option<&str>) -> Option<&'static str> {
+    (!crate::gpu::see_through_ok(presenting)).then_some("gpu")
+}
+
+#[cfg(target_os = "macos")]
+fn refusal(_presenting: Option<&str>) -> Option<&'static str> {
+    None
+}
+
+/// GDK says whether the screen is composited: always on Wayland, and on X11
+/// only while a compositing window manager runs (the same question
+/// layers/linux.rs asks before drawing widgets on the desktop). Main thread,
+/// which `setup` is.
+#[cfg(target_os = "linux")]
+fn refusal(_presenting: Option<&str>) -> Option<&'static str> {
+    let composited = gtk::gdk::Display::default().is_some_and(|d| d.default_screen().is_composited());
+    (!composited).then_some("compositor")
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn refusal(_presenting: Option<&str>) -> Option<&'static str> {
+    Some("unsupported")
 }
 
 /// Whether the switch moving to `want` needs a relaunch to show. Pure, for the
