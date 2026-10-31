@@ -830,7 +830,7 @@
       window.XenonToast.show({
         type: ok ? 'info' : 'warn',
         title: t(ok ? 'discord_w_notif_reply_partial' : 'discord_w_notif_reply_failed',
-          ok ? 'Discord is open: find the conversation there' : 'Could not open Discord on this PC'),
+          ok ? "Discord is open, but the conversation didn't open: find it there" : "Couldn't open Discord on this PC"),
       });
     }
     setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1200);

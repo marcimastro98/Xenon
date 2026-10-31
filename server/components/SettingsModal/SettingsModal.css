@@ -369,6 +369,36 @@ body.settings-bar-preview.topbar-minimal .edge-rail { position: fixed; }
 .settings-bg-covered-note { color: var(--color-warn); margin-top: 2px; }
 .settings-bg-covered-note[hidden] { display: none; }
 
+/* ── See-through background (Settings → Background) ────────────────────────
+   What it means right now, said under the switch as small boxed notes, the
+   look of the feed help boxes: a neutral one for "this is what happens", an
+   amber one for "not here, and why". Each box lines up with the toggle row
+   above it and keeps its own air, instead of a run of grey lines glued to the
+   card's edge. Colours come from the theme, so they hold in light and dark. */
+.settings-see-through-group > .settings-toggle-row { margin-bottom: 10px; }
+.settings-see-through-group > .settings-note {
+  margin: 0 16px 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  line-height: 1.45;
+}
+.settings-see-through-group > .settings-note-warn {
+  border-color: color-mix(in srgb, var(--color-warn) 32%, transparent);
+  background: color-mix(in srgb, var(--color-warn) 7%, transparent);
+}
+.settings-see-through-group > .settings-note:last-child { margin-bottom: 14px; }
+/* A file name the user has to type somewhere else: set apart, never broken. */
+.settings-filename {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 0.95em; font-weight: 600;
+  white-space: nowrap;
+  padding: 1px 5px; border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  color: var(--text);
+}
+
 /* ── Incoming calls: which apps may ring ────────────────────────────────────
    A row of on/off chips rather than a stack of toggle rows: there are seven of
    them plus anything the user added, they are a single question ("may this app
