@@ -128,10 +128,11 @@ function userVolumeFor(mode, current, value) {
 }
 
 // Map a GET_SELECTED_VOICE_CHANNEL response to a client-safe member list for the
-// widget: display name (server nick > global name > username), muted/deafened
-// flags (server- or self-imposed), what THIS machine hears them at, and a
-// speaking placeholder the live watch fills in. No avatars/tokens/emails — text
-// only, capped so a huge channel can't bloat the SSE payload.
+// widget: display name (server nick > global name > username), the avatar's
+// public CDN address (avatarUrl), muted/deafened flags (server- or self-imposed),
+// what THIS machine hears them at, and a speaking placeholder the live watch
+// fills in. No tokens or emails, capped so a huge channel can't bloat the SSE
+// payload.
 //
 // Two different mutes live in one RPC entry and they are not interchangeable:
 // `voice_state.mute`/`self_mute` is the member's OWN microphone state (everyone
@@ -139,6 +140,24 @@ function userVolumeFor(mode, current, value) {
 // are the local playback settings of THIS client — the ones the per-user volume
 // action writes. Keeping them apart is what lets a widget show "they muted
 // themselves" and "I turned them down" as the different things they are.
+// A member's avatar on Discord's CDN, as a fixed https URL built from two
+// checked values: never a string from the wire. A custom avatar is a 32-hex
+// hash (`a_` in front when it is animated: the .png is its still first frame,
+// which is also lighter on a dashboard). Without one, Discord's own default
+// avatar: picked by (id >> 22) % 6 for accounts on the new usernames, or by the
+// legacy discriminator % 5. 64px covers the 20px chip at 3x.
+function avatarUrl(user) {
+  const id = user && typeof user.id === 'string' ? user.id.trim() : '';
+  if (!isSnowflake(id)) return '';
+  const hash = typeof user.avatar === 'string' ? user.avatar : '';
+  if (/^(a_)?[0-9a-f]{32}$/.test(hash)) return 'https://cdn.discordapp.com/avatars/' + id + '/' + hash + '.png?size=64';
+  const disc = typeof user.discriminator === 'string' ? user.discriminator : '';
+  const index = /^\d{1,4}$/.test(disc) && disc !== '0' && disc !== '0000'
+    ? Number(disc) % 5
+    : Number((BigInt(id) >> 22n) % 6n);
+  return 'https://cdn.discordapp.com/embed/avatars/' + index + '.png';
+}
+
 function channelMembers(ch, cap = 50) {
   const states = ch && Array.isArray(ch.voice_states) ? ch.voice_states : [];
   const out = [];
@@ -149,6 +168,7 @@ function channelMembers(ch, cap = 50) {
     out.push({
       id: String(u.id),
       name: vs.nick || u.global_name || u.username || '',
+      avatar: avatarUrl(u),
       mute: !!(st.mute || st.self_mute),
       deaf: !!(st.deaf || st.self_deaf),
       // null (not 100) when Discord doesn't report it: a slider that opens at a
@@ -1266,6 +1286,7 @@ module.exports = {
   userVolumeAbs,
   userVolumeFor,
   channelMembers,
+  avatarUrl,
   encodeFrame,
   createDecoder,
   notifScopeState,

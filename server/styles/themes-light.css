@@ -439,3 +439,23 @@
   background: rgba(88, 101, 242, 0.12);
   border-color: rgba(71, 82, 196, 0.8);
 }
+
+/* Discord widget, member strip: the dark theme's pale green and red are too
+   faint on a light panel. */
+:root[data-appearance="light"] .dc-member.is-speaking { color: #1f7a45; }
+:root[data-appearance="light"] .dc-member-state { color: #d83c3e; }
+/* Discord widget, Channels tab: the server heading was a dark bar whose label
+   the light theme's own button text colour made unreadable, and the member
+   count was pale blurple on white. Light tints, Discord's darker blurple. */
+:root[data-appearance="light"] .dc-guild,
+:root[data-appearance="light"] button.dc-guild {
+  background: rgba(88, 101, 242, 0.08);
+  border-color: rgba(88, 101, 242, 0.28);
+  color: #3c45a5;
+}
+:root[data-appearance="light"] button.dc-guild:hover { background: rgba(88, 101, 242, 0.14); color: #2f378a; }
+:root[data-appearance="light"] button.dc-guild.is-collapsed { background: rgba(88, 101, 242, 0.05); color: #5a62a8; }
+:root[data-appearance="light"] .dc-guild-caret,
+:root[data-appearance="light"] button.dc-guild:hover .dc-guild-caret { color: #5a62a8; }
+:root[data-appearance="light"] .dc-guild-count,
+:root[data-appearance="light"] .dc-chan-count { color: #3c45a5; background: rgba(88, 101, 242, 0.14); }

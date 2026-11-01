@@ -64655,6 +64655,52 @@ Object.assign(i18n.nl, {
   discord_w_notif_reply_failed: "Kan Discord niet openen op deze pc",
 });
 
+// ── Discord widget: member avatars, the state named in the tooltip ──
+Object.assign(i18n.it, {
+  discord_w_member_muted: "microfono disattivato",
+  discord_w_member_deaf: "audio disattivato",
+});
+Object.assign(i18n.en, {
+  discord_w_member_muted: "muted",
+  discord_w_member_deaf: "deafened",
+});
+Object.assign(i18n.ko, {
+  discord_w_member_muted: "마이크 음소거",
+  discord_w_member_deaf: "헤드셋 음소거",
+});
+Object.assign(i18n.ja, {
+  discord_w_member_muted: "マイクミュート",
+  discord_w_member_deaf: "スピーカーミュート",
+});
+Object.assign(i18n.zh, {
+  discord_w_member_muted: "已静音",
+  discord_w_member_deaf: "已拒听",
+});
+Object.assign(i18n.es, {
+  discord_w_member_muted: "silenciado",
+  discord_w_member_deaf: "ensordecido",
+});
+Object.assign(i18n.fr, {
+  discord_w_member_muted: "muet",
+  discord_w_member_deaf: "en sourdine",
+});
+Object.assign(i18n.de, {
+  discord_w_member_muted: "stummgeschaltet",
+  discord_w_member_deaf: "taub geschaltet",
+});
+Object.assign(i18n.pt, {
+  discord_w_member_muted: "silenciado",
+  discord_w_member_deaf: "ensurdecido",
+});
+Object.assign(i18n.ru, {
+  discord_w_member_muted: "микрофон выключен",
+  discord_w_member_deaf: "звук выключен",
+});
+Object.assign(i18n.nl, {
+  discord_w_member_muted: "gedempt",
+  discord_w_member_deaf: "doof",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

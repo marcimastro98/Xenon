@@ -314,26 +314,52 @@ button.dc-guild.is-collapsed { background: #171a26; color: #9aa2ba; }
 .dc-members { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 5px; padding-left: 6px; }
 .dc-call-members { margin: 0; padding-left: 0; }
 .dc-member {
-  display: inline-flex; align-items: center; gap: 5px; max-width: 132px;
-  padding: 2px 8px 2px 6px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; max-width: 150px;
+  padding: 2px 9px 2px 2px; border-radius: 999px;
   font-size: 0.68rem; font-weight: 700; color: var(--text-dim, #8b91a1);
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .dc-member-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dc-member-dot { width: 7px; height: 7px; border-radius: 50%; background: #454b5c; flex: 0 0 auto; transition: background 0.15s ease, box-shadow 0.15s ease; }
-/* Speaking = Discord's green ring. */
+
+/* The avatar: Discord's picture over the person's initial, so a picture that
+   cannot load still leaves a clean blurple circle, with Discord's green ring
+   around it while they speak (js/discord-widget.js memberAvatar). */
+.dc-av {
+  position: relative; flex: 0 0 auto;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #5865f2;
+  transition: box-shadow 0.15s ease;
+}
+.dc-av-initial { font-size: 0.62rem; font-weight: 800; line-height: 1; color: #fff; }
+.dc-av-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border-radius: 50%; object-fit: cover;
+}
+/* Their own mute or deafen, after the name as in Discord's voice list. Red,
+   because it is the one thing in the strip that says "you will not hear them"
+   or "they will not hear you". */
+.dc-member-state { display: none; flex: 0 0 auto; color: #f0565b; }
+.dc-member-state > span { display: none; }
+.dc-member-state svg { width: 12px; height: 12px; display: block; }
+.dc-member.is-muted .dc-member-state,
+.dc-member.is-deaf .dc-member-state { display: block; }
+.dc-member.is-muted .dc-state-mic,
+.dc-member.is-deaf .dc-state-deaf { display: block; }
+.dc-member.is-muted .dc-member-name,
+.dc-member.is-deaf .dc-member-name { opacity: 0.6; }
+
+/* Speaking = Discord's green ring, on the avatar where Discord draws it. */
 .dc-member.is-speaking { color: #b7f5c8; border-color: rgba(59,214,120,0.5); background: rgba(59,214,120,0.14); }
-.dc-member.is-speaking .dc-member-dot { background: #3bd678; box-shadow: 0 0 0 3px rgba(59,214,120,0.22); }
-.dc-member.is-muted { opacity: 0.5; }
-.dc-member.is-muted .dc-member-dot { background: #ed4245; box-shadow: none; }
+.dc-member.is-speaking .dc-av { box-shadow: 0 0 0 2px #3bd678; }
 
 /* A name you can act on. Only members of the CURRENT call become buttons, and
    never your own: Discord has no per-user setting for your own account. */
 .dc-member.is-adjustable { cursor: pointer; font: inherit; font-size: 0.68rem; font-weight: 700; }
 .dc-member.is-adjustable:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.16); }
 .dc-member.is-open { color: #cdd3ff; border-color: rgba(88,101,242,0.65); background: rgba(88,101,242,0.20); }
-/* "I turned them down" is not "they muted themselves" — the dot is theirs, this
+/* "I turned them down" is not "they muted themselves": the badge is theirs, this
    ring is yours. Without it, turning someone to zero looks like their own mute. */
 .dc-member.is-local-muted { box-shadow: inset 0 0 0 1px rgba(237,66,69,0.55); }
 .dc-member.is-local-muted .dc-member-name { text-decoration: line-through; text-decoration-color: rgba(237,66,69,0.8); }
