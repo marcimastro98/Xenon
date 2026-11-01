@@ -404,10 +404,10 @@ test('channelMembers maps voice_states to a client-safe member list', () => {
   };
   const m = dc.channelMembers(ch);
   assert.equal(m.length, 2);
-  assert.deepEqual(m[0], { id: '10', name: 'Bobby', mute: true, deaf: false, volume: 60, localMute: false, speaking: false });  // nick wins, self_mute → mute
+  assert.deepEqual(m[0], { id: '10', name: 'Bobby', avatar: '', mute: true, deaf: false, volume: 60, localMute: false, speaking: false });  // nick wins, self_mute → mute; '10' is no snowflake, so no avatar
   // Discord reported no local settings for ann: volume stays null rather than a
   // guessed 100, so a widget slider can't open at a value the machine isn't at.
-  assert.deepEqual(m[1], { id: '11', name: 'ann', mute: false, deaf: true, volume: null, localMute: false, speaking: false });
+  assert.deepEqual(m[1], { id: '11', name: 'ann', avatar: '', mute: false, deaf: true, volume: null, localMute: false, speaking: false });
   assert.deepEqual(dc.channelMembers(null), []);
   assert.equal(dc.channelMembers({ voice_states: Array.from({ length: 80 }, (_, i) => ({ user: { id: String(i), username: 'u' + i } })) }).length, 50);  // capped
 });
@@ -593,7 +593,7 @@ test('provider.voiceRoster lists each voice channel with its current members', a
   assert.equal(general.name, 'General');
   assert.equal(general.guild, 'Server One');
   assert.equal(general.members.length, 1);
-  assert.deepEqual(general.members[0], { id: '900', name: 'Alice', mute: true, deaf: false, volume: null, localMute: false, speaking: false });
+  assert.deepEqual(general.members[0], { id: '900', name: 'Alice', avatar: '', mute: true, deaf: false, volume: null, localMute: false, speaking: false });
   assert.deepEqual(r.channels.find((c) => c.id === '102').members, []);   // nobody inside
   p.close();
 });
@@ -1014,4 +1014,41 @@ test('a rejected AUTHENTICATE whose refresh hard-fails clears creds and reports 
   assert.deepEqual(r, { ok: false, error: 'not_connected' });
   assert.equal((await p.status()).connected, false);   // creds actually cleared
   p.close();
+});
+
+// ── Member avatars (asked for on Discord: "show their avatar with their name") ──
+// The address is built here from two checked values, never taken from the
+// wire: it lands in an <img src> on the dashboard.
+test('avatarUrl builds Discord CDN addresses from a checked id and hash', () => {
+  const id = '80351110224678912';
+  const hash = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  assert.equal(dc.avatarUrl({ id, avatar: hash }), `https://cdn.discordapp.com/avatars/${id}/${hash}.png?size=64`);
+  // Animated: the .png is the still first frame, calmer on a dashboard.
+  assert.equal(dc.avatarUrl({ id, avatar: 'a_' + hash }), `https://cdn.discordapp.com/avatars/${id}/a_${hash}.png?size=64`);
+});
+
+test('avatarUrl falls back to Discord\'s own default avatar', () => {
+  const id = '80351110224678912';
+  // New usernames: (id >> 22) % 6. Legacy discriminators: discriminator % 5.
+  assert.equal(dc.avatarUrl({ id, avatar: null, discriminator: '0' }),
+    `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(id) >> 22n) % 6n)}.png`);
+  assert.equal(dc.avatarUrl({ id, discriminator: '1337' }), 'https://cdn.discordapp.com/embed/avatars/2.png');
+});
+
+test('avatarUrl never passes along what it was not built from', () => {
+  for (const bad of [null, {}, { id: '12' }, { id: '../../x', avatar: 'a'.repeat(32) }, { id: 'javascript:alert(1)' }]) {
+    assert.equal(dc.avatarUrl(bad), '', JSON.stringify(bad));
+  }
+  // A malformed hash is not interpolated: the default avatar is used instead.
+  for (const hash of ['"><img src=x onerror=alert(1)>', '../../../evil', 'A'.repeat(32), 'a'.repeat(31)]) {
+    const url = dc.avatarUrl({ id: '80351110224678912', avatar: hash });
+    assert.match(url, /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/[0-5]\.png$/, hash);
+  }
+});
+
+test('channelMembers carries each member\'s avatar', () => {
+  const [m] = dc.channelMembers({ voice_states: [
+    { user: { id: '80351110224678912', username: 'bob', avatar: 'a1b2c3d4e5f60718293a4b5c6d7e8f90' } },
+  ] });
+  assert.equal(m.avatar, 'https://cdn.discordapp.com/avatars/80351110224678912/a1b2c3d4e5f60718293a4b5c6d7e8f90.png?size=64');
 });
