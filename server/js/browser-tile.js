@@ -673,16 +673,26 @@
     stage.className = 'browser-stage';
     const loading = document.createElement('div');
     loading.className = 'browser-loading'; loading.textContent = t('browser_loading', 'Loading…'); loading.hidden = true;
-    // Floating "show toolbar" button — visible only while the chrome is hidden.
+    // With the toolbar hidden the tile is a page on its own: a local web
+    // interface, a Home Assistant dashboard, a video (GitHub #149). It keeps the
+    // three things such a page still needs, in one small group over its corner:
+    // reload, full screen, and the way back to the toolbar. Back, Forward and
+    // the address stay away until the toolbar is back.
+    const floatReload = mkBtn('browser-float-reload', ICONS.reload, 'browser_reload', 'Reload', () => { const tb = activeTab(group); if (tb) relaySend({ type: 'reload', tile: tb.tileId }); });
+    const floatExpand = mkBtn('browser-float-expand', ICONS.expand, 'browser_expand', 'Expand', () => toggleExpand(group));
     const reveal = mkBtn('browser-reveal', ICONS.showBar, 'browser_show_ui', 'Show toolbar', () => setChromeHidden(group, false));
-    reveal.hidden = true;
-    stage.append(loading, reveal);
+    const float = document.createElement('div');
+    float.className = 'browser-float';
+    float.setAttribute('role', 'toolbar');
+    float.hidden = true;
+    float.append(floatReload, floatExpand, reveal);
+    stage.append(loading, float);
 
     wrap.append(tabStrip, bar, favRow, stage);
     mount.replaceChildren(wrap);
 
     const group = {
-      id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading, revealBtn: reveal,
+      id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading, floatBar: float, floatExpandBtn: floatExpand,
       favRow, favList, favEditor, favNameInput: favName, favUrlInput: favUrl,
       tabs: [], active: 0, seq: 0, visible: false, onScreen: false, expanded: false, chromeHidden: false, closeTimer: null, moveQueued: false,
     };
@@ -931,7 +941,7 @@
   // its ResizeObserver re-renders the page at the larger size automatically.
   function applyChromeHidden(group) {
     group.wrap.classList.toggle('is-chrome-hidden', !!group.chromeHidden);
-    if (group.revealBtn) group.revealBtn.hidden = !group.chromeHidden;
+    if (group.floatBar) group.floatBar.hidden = !group.chromeHidden;
   }
   function setChromeHidden(group, hidden) {
     if (!group) return;
@@ -955,12 +965,20 @@
     if (!group) return;
     if (group.expanded) collapse(group); else expand(group);
   }
+  // The toolbar's button and the floating one say the same thing.
+  function setExpandIcon(group, expanded) {
+    for (const b of [group.expandBtn, group.floatExpandBtn]) {
+      if (!b) continue;
+      b.innerHTML = expanded ? ICONS.collapse : ICONS.expand;
+      b.title = expanded ? t('browser_collapse', 'Collapse') : t('browser_expand', 'Expand');
+    }
+  }
   function expand(group) {
     if (group.expanded) return;
     group.expanded = true;
     document.body.appendChild(group.wrap);
     group.wrap.classList.add('browser-overlay');
-    group.expandBtn.innerHTML = ICONS.collapse; group.expandBtn.title = t('browser_collapse', 'Collapse');
+    setExpandIcon(group, true);
     if (group.wrap.requestFullscreen) {
       group.wrap.requestFullscreen().catch(() => {});
       if (!group._fsHandler) {
@@ -973,7 +991,7 @@
     if (!group.expanded) return;
     group.expanded = false;
     group.wrap.classList.remove('browser-overlay');
-    group.expandBtn.innerHTML = ICONS.expand; group.expandBtn.title = t('browser_expand', 'Expand');
+    setExpandIcon(group, false);
     if (group._fsHandler) { document.removeEventListener('fullscreenchange', group._fsHandler); group._fsHandler = null; }
     if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) { /* ignore */ } }
     if (group.mount) group.mount.appendChild(group.wrap);
