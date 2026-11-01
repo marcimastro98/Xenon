@@ -1034,6 +1034,7 @@ function buildMemoryFunctions() {
 }
 
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
+const svvText = require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // Xenon Helper — optional native companion exe (built from helper/, or shipped
 // with the release). When present it replaces the persistent PowerShell hosts
@@ -3622,11 +3623,14 @@ function readSoundVolumeRows() {
   if (nativeCollectors) return nativeCollectors.audioRows();
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
-    execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
+    // UTF-8 asked for explicitly and decoded by what arrived (svv-text.js): read
+    // as latin1, "Kopfhörer" became "KopfhÃ¶rer" and switching to it did nothing
+    // (issue #145).
+    execFile(SVV, [...svvText.UTF8_EXPORT, '/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
       if (err) return reject(err);
       setTimeout(async () => {
         try {
-          const raw = await fs.promises.readFile(csv, 'latin1');
+          const raw = svvText.decodeCsv(await fs.promises.readFile(csv));
           const rows = raw
             .split('\n')
             .map(l => l.trim())
