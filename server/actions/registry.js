@@ -3,6 +3,7 @@
 // actions. ALL execution flows through here — validation/normalisation happens
 // at this boundary, and the OS side-effects are INJECTED so security decisions
 // live in one testable place. Reuses the shared catalog validator.
+const { repairMojibake } = require('../svv-text');
 const { validateAction, validateGesture } = require('../js/deck-actions.js');
 const { obsRequest } = require('./obs.js');
 const { streamerbotRequest } = require('./streamerbot.js');
@@ -999,11 +1000,20 @@ function createRegistry(deps) {
 // default MICROPHONE. Only entries present in the `speakers` (render) list are
 // resolvable — an id that is merely well-formed, or that names a capture
 // device, has no match and cannot be used.
+//
+// A key saved before issue #145 was fixed may hold the id as it was misread
+// then ("KopfhÃ¶rer" for "Kopfhörer"). That spelling is repaired and tried
+// second, against the same live list, so the key works again without being
+// set up anew; the check that makes this safe is unchanged.
 function resolveOutputDevice(id, speakers) {
   const wanted = String(id == null ? '' : id).trim();
   if (!wanted) return null;
   const list = Array.isArray(speakers) ? speakers : [];
-  return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
+  const find = (target) => list.find((s) => s && typeof s.id === 'string' && s.id === target) || null;
+  const exact = find(wanted);
+  if (exact) return exact;
+  const repaired = repairMojibake(wanted);
+  return repaired ? find(repaired) : null;
 }
 
 // The output a toggle key switches to: the second device when the first is the

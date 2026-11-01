@@ -1329,6 +1329,24 @@ fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
     }
 }
 
+/// Whether the window owns a screen of its own right now: the Edge, or full
+/// screen on a screen the user picked. A windowed dashboard shares its screen,
+/// and the round home button or the "widgets only" driver are not the kiosk.
+/// Read by show_desktop.rs, which keeps only such a window above Win+D.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn owns_its_screen(window: &WebviewWindow) -> bool {
+    if HOME_MODE.load(Ordering::SeqCst) || DRIVER.load(Ordering::SeqCst) {
+        return false;
+    }
+    matches!(resolve(window, &placement_cache()), Target::Kiosk(_) | Target::Windowed(_, true))
+}
+
+/// The window is the round home button, which is meant to stay on top.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn in_home_mode() -> bool {
+    HOME_MODE.load(Ordering::SeqCst)
+}
+
 /// Place the window where the user's choice says it belongs. Called at startup,
 /// after every choice, and whenever the watchdog decides a repair is due.
 pub fn place_now(window: &WebviewWindow) {
@@ -1565,6 +1583,10 @@ fn clear_stuck_topmost(window: &WebviewWindow) {
     const SWP_NOSIZE: u32 = 0x0001;
     const SWP_NOACTIVATE: u32 = 0x0010;
 
+    // Lifted over the desktop on purpose while Win+D shows it (show_desktop.rs).
+    if crate::show_desktop::raised() {
+        return;
+    }
     let Ok(hwnd) = window.hwnd() else { return };
     let hwnd = hwnd.0 as isize;
     unsafe {
