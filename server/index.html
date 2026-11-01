@@ -2502,6 +2502,26 @@
         </div>
       </div>
 
+      <!-- Native app only (Windows, macOS, Linux): revealed by syncSeeThroughControl() (js/settings.js).
+           The switch lives in the app's display.json, not in the settings blob:
+           apps/native/src-tauri/src/see_through.rs. -->
+      <div class="settings-group settings-see-through-group" data-settings-cat="background" id="settings-see-through-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_see_through_head">Sfondo trasparente</span>
+          <span class="settings-hint" data-i18n="settings_see_through_hint">nell'app Xenon</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-see-through" type="checkbox" onchange="updateSeeThrough(this)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_see_through">Mostra la scrivania dietro i pannelli</span>
+            <span class="settings-hint" data-i18n="settings_see_through_desc">si vede lo sfondo del PC, anche quello animato di Wallpaper Engine. Quanto si vede lo regoli con Opacità pannelli e Oscuramento sfondo in Aspetto. Xenon si riavvia per applicarlo</span>
+          </span>
+        </label>
+        <span class="settings-note" id="settings-see-through-on" data-i18n="settings_see_through_on_note" hidden>Finché è attivo, gli sfondi di Xenon restano in pausa. Tornano quando lo spegni.</span>
+        <span class="settings-note settings-note-warn" id="settings-see-through-blocked" data-i18n="settings_see_through_blocked" hidden>Qui non è disponibile: questo schermo è collegato a un'altra scheda video e la finestra resterebbe vuota. Se nel menu dell'icona di Xenon c'è «Match render GPU to screen», attivalo e riavvia Xenon.</span>
+        <span class="settings-note" id="settings-see-through-tip" hidden></span>
+      </div>
+
       <div class="settings-group settings-fx-group" id="settings-bgstatic-group" data-settings-cat="background">
         <div class="settings-group-head">
           <span data-i18n="settings_bg_static">Sfondo statico</span>

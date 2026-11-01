@@ -452,6 +452,8 @@ button.dc-guild.is-collapsed { background: #171a26; color: #9aa2ba; }
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 6px; padding: 1px 4px 0 0;
   scrollbar-width: thin; scrollbar-color: rgba(88,101,242,0.55) transparent;
+  /* The rows' Reply button reads this width (@container below). */
+  container-type: inline-size;
 }
 .dc-notif-list::-webkit-scrollbar { width: 6px; }
 .dc-notif-list::-webkit-scrollbar-thumb { background: rgba(88,101,242,0.5); border-radius: 999px; }
@@ -477,6 +479,29 @@ button.dc-guild.is-collapsed { background: #171a26; color: #9aa2ba; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .dc-notif-body.is-masked { opacity: 0.5; font-style: italic; }
+/* "Reply": brings Discord forward on this PC with the conversation open
+   (js/discord-widget.js replyButton). An outline, not a filled pill: it sits
+   on every row, and a column of solid buttons would outshout the messages.
+   30px tall, a comfortable target on the Edge's touch panel. */
+.dc-notif-reply {
+  flex: 0 0 auto; align-self: center;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 5px 11px; border-radius: 999px;
+  font: inherit; font-size: 0.7rem; font-weight: 800; color: #b7c0ff; cursor: pointer;
+  background: transparent; border: 1px solid rgba(88,101,242,0.4);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+}
+.dc-notif-reply svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.dc-notif-reply:hover,
+.dc-notif-reply:focus-visible { background: rgba(88,101,242,0.22); border-color: rgba(88,101,242,0.7); }
+.dc-notif-reply:focus-visible { outline: 2px solid rgba(88,101,242,0.9); outline-offset: 2px; }
+.dc-notif-reply:active { transform: scale(0.95); }
+.dc-notif-reply:disabled { opacity: 0.6; cursor: progress; }
+.dc-notif-reply.ok { border-color: rgba(59,165,93,0.85); }
+.dc-notif-reply.err { border-color: rgba(237,66,69,0.85); }
+.dc-notif-reply-lbl { white-space: nowrap; }
+/* A narrow tile keeps the arrow and drops the word. */
+@container (max-width: 300px) { .dc-notif-reply-lbl { display: none; } }
 /* Deliberate states: off / re-link needed / loading / empty — with a CTA that
    jumps to Settings → Streaming so none of them is a dead end. */
 .dc-notif-empty {

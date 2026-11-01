@@ -2025,6 +2025,16 @@ pub fn start_watchdog(app: AppHandle) {
             continue;
         }
 
+        // A see-through window that a display change moved onto a screen the
+        // other graphics card drives would go blank; this relaunches the app,
+        // which pins the webview to the right card (see_through.rs). A no-op for
+        // the opaque window everyone else has.
+        #[cfg(windows)]
+        {
+            let presenting = current_of(&window).and_then(|m| m.name().cloned());
+            crate::see_through::watch(&app, presenting.as_deref());
+        }
+
         // Remote-Desktop hide (opt-in): while the user is RDP'd into this PC, keep
         // the borderless kiosk out of the way so it doesn't cover the desktop they
         // came in to use; bring it back when the session ends. Checked before the

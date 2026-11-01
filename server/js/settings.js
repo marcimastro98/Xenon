@@ -4215,6 +4215,7 @@ function applyHubSettings() {
   syncMediaLyricsControl();
   syncSwipeHomeControl();
   syncHideRdpControl();
+  syncSeeThroughControl();
   const root = document.documentElement;
   // The top bar's clock. Stamped as plain multipliers and applied in Topbar.css,
   // where each breakpoint owns the BASE size it scales — the Edge and the phone
@@ -4283,11 +4284,15 @@ function applyHubSettings() {
   // Safe mode hides user-imported backdrops (code background + image/video
   // wallpaper) but keeps the factory FX (aurora/grid/static) as the user set
   // them. The stored keys are untouched — everything returns on toggle-off.
-  const media = safe ? null : hubSettings.backgroundMedia;
+  // The see-through window (native app, Windows): the desktop under the window IS
+  // the backdrop, so none of Xenon's own is drawn, nor kept decoding out of sight.
+  // Every choice stays stored and comes back when the window is opaque again.
+  const seeThrough = seeThroughWindowOn();
+  const media = (safe || seeThrough) ? null : hubSettings.backgroundMedia;
   // Code-defined animated background: when enabled (and no image/video wallpaper),
   // it owns the backdrop and suppresses the built-in FX below, exactly like a
   // static premium bg does. Mounted/cleared through the sandboxed CustomBg module.
-  const customOn = !safe && bgCustom.enabled && !!bgCustom.code && !media;
+  const customOn = !safe && !seeThrough && bgCustom.enabled && !!bgCustom.code && !media;
   if (window.CustomBg && typeof window.CustomBg.apply === 'function') {
     window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null, bgCustom.fps, hubSettings.bgGuard !== false);
   }
@@ -4296,13 +4301,13 @@ function applyHubSettings() {
   // (turning one on switches the other off: "zero animation" is the point) and,
   // like the aurora/grid, hidden when a custom image/video background is set or a
   // code-defined background owns the backdrop.
-  const staticOn = bgStatic.style !== 'none' && !media && !customOn;
+  const staticOn = !seeThrough && bgStatic.style !== 'none' && !media && !customOn;
   if (staticOn) document.body.dataset.bgStatic = bgStatic.style;
   else delete document.body.dataset.bgStatic;
   root.style.setProperty('--static-opacity', (0.30 + (bgStatic.intensity / 100) * 0.70).toFixed(3));
 
   // Aurora only shows when there's no custom background and no static/code bg is active.
-  const auroraOn = aurora.enabled && !media && !staticOn && !customOn;
+  const auroraOn = !seeThrough && aurora.enabled && !media && !staticOn && !customOn;
   document.body.classList.toggle('aurora-on', auroraOn);
   root.style.setProperty('--aurora-opacity', (0.12 + (aurora.intensity / 100) * 0.5).toFixed(3));
   root.style.setProperty('--aurora-duration', `${(72 - (aurora.speed / 100) * 54).toFixed(1)}s`);
@@ -4311,7 +4316,7 @@ function applyHubSettings() {
   // background — it shouldn't compete with (or visibly flicker over) a user
   // wallpaper. A static premium OR code-defined background also owns the backdrop
   // on its own, so the animated grid is suppressed while one is active.
-  document.body.classList.toggle('grid-on', grid.enabled && !media && !staticOn && !customOn);
+  document.body.classList.toggle('grid-on', !seeThrough && grid.enabled && !media && !staticOn && !customOn);
   root.style.setProperty('--grid-color', grid.color);
   root.style.setProperty('--grid-rgb', hexToRgb(grid.color).join(', '));
   // The grid reads stronger on a light background, so keep it gentler there.
@@ -4912,6 +4917,7 @@ function syncSettingsControls() {
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
   syncHideRdpControl();
+  syncSeeThroughControl();
   syncAudioCommsControl();
   syncNativeZoomControl();
   syncUsageModeControl();
@@ -6688,6 +6694,14 @@ function syncBgFxControls() {
   // A code-defined background supersedes the static premium picker too.
   const staticGroup = $('settings-bgstatic-group');
   if (staticGroup) staticGroup.classList.toggle('is-superseded', cb.enabled);
+  // The see-through window shows the desktop instead of every one of these; the
+  // switch's own group says so in words (syncSeeThroughControl).
+  if (seeThroughWindowOn()) {
+    ['settings-bgstatic-group', 'settings-aurora-group', 'settings-grid-group', 'settings-bgcode-group'].forEach((id) => {
+      const group = $(id);
+      if (group) group.classList.add('is-superseded');
+    });
+  }
 }
 
 // ── Game mode (auto-pause ambient FX during games) ────────────────
@@ -8930,6 +8944,99 @@ function updateHideOnRdp(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, hideOnRdp: checked === true });
   saveHubSettings();
   syncHideRdpControl();
+}
+
+// ── Native shell: see-through window (Settings → Background) ────────────────
+// Not a hubSettings value: it belongs to this PC's app window, like the screen it
+// opens on, so the shell keeps it in display.json and reports it in its caps
+// (js/native-bridge.js). It is fixed when the window is created, so changing it
+// relaunches the app, after asking.
+function seeThroughWindowOn() {
+  const native = window.XenonNative;
+  return !!(native && typeof native.seeThroughState === 'function' && native.seeThroughState().on);
+}
+
+function syncSeeThroughControl() {
+  const row = $('settings-see-through-row');
+  const native = window.XenonNative;
+  const state = (native && typeof native.seeThroughState === 'function')
+    ? native.seeThroughState()
+    : { offered: false, on: false, wanted: false, ready: false, why: '' };
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  // data-unavailable keeps it out of the Settings search where it is not offered.
+  if (row) {
+    row.style.display = state.offered ? '' : 'none';
+    if (state.offered) delete row.dataset.unavailable; else row.dataset.unavailable = '1';
+  }
+  if (!state.offered) return;
+  const check = $('settings-see-through');
+  if (check) {
+    check.checked = state.wanted;
+    // Nothing to switch on where it cannot be drawn; switching OFF stays possible.
+    check.disabled = !state.ready && !state.wanted;
+  }
+  const blocked = $('settings-see-through-blocked');
+  if (blocked) {
+    blocked.hidden = state.ready;
+    // One line for each reason the shell can give: a graphics card (Windows)
+    // or no compositor (Linux) need different things done about them.
+    const key = state.why === 'compositor' ? 'settings_see_through_blocked_compositor' : 'settings_see_through_blocked';
+    if (blocked.dataset.i18n !== key) {
+      blocked.dataset.i18n = key;
+      blocked.textContent = t(key);
+    }
+  }
+  const onNote = $('settings-see-through-on');
+  if (onNote) onNote.hidden = !state.on;
+  // Wallpaper Engine runs on Windows only, and so does its pause rule.
+  const tip = $('settings-see-through-tip');
+  if (tip) {
+    tip.hidden = !state.on || window.XenonPlatform !== 'win32';
+    if (!tip.hidden) renderSeeThroughTip(tip);
+  }
+}
+
+// The tip names a file the user types into Wallpaper Engine, so the name is its
+// own element: in a monospace face, and never split at its hyphen across two
+// lines. The sentence stays one translated string with an {exe} slot, because
+// in Japanese or Korean the name sits in the middle of it. Rebuilt only when the
+// language changed (renderSettingsModal runs this after every switch).
+const SEE_THROUGH_EXE = 'xenon-native.exe';
+function renderSeeThroughTip(tip) {
+  const text = t('settings_see_through_tip');
+  if (tip.dataset.text === text) return;
+  tip.dataset.text = text;
+  const parts = text.split('{exe}');
+  tip.replaceChildren();
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      const code = document.createElement('code');
+      code.className = 'settings-filename';
+      code.textContent = SEE_THROUGH_EXE;
+      tip.appendChild(code);
+    }
+    if (part) tip.appendChild(document.createTextNode(part));
+  });
+}
+
+async function updateSeeThrough(input) {
+  const native = window.XenonNative;
+  if (!input || !native || typeof native.setSeeThrough !== 'function') return;
+  const want = input.checked === true;
+  if (native.seeThroughNeedsRestart(want)) {
+    const title = t('settings_see_through_restart_title', 'Restart Xenon?');
+    const message = t('settings_see_through_restart', 'Xenon restarts to apply this. Your settings, widgets and layout stay as they are.');
+    const ok = (typeof settingsPrompt === 'function')
+      ? await settingsPrompt({ type: 'confirm', title, message, okLabel: t('settings_restart_app', 'Restart Xenon') })
+      : (typeof window.confirm !== 'function' || window.confirm(message));
+    if (!ok) {
+      input.checked = !want;
+      return;
+    }
+    setSettingsStatus('settings_restart_running', 'ok');
+  }
+  native.setSeeThrough(want);
+  syncSeeThroughControl();
 }
 
 // ── Audio: which Windows defaults a device switch moves ─────────────────────
