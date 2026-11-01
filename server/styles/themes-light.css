@@ -426,3 +426,16 @@
     var(--mic-fill) 0%, var(--mic-fill) var(--mic-level),
     var(--control-bg) var(--mic-level), var(--control-bg) 100%) !important;
 }
+
+/* Discord widget, Notifications tab: the dark theme's pale blurple (#b7c0ff)
+   reads as a smudge on a light panel. Discord's own darker blurple keeps the
+   sender's name and the Reply button at a readable contrast (about 6:1). */
+:root[data-appearance="light"] .dc-notif-title,
+:root[data-appearance="light"] .dc-notif-cta,
+:root[data-appearance="light"] .dc-notif-reply { color: #4752c4; }
+:root[data-appearance="light"] .dc-notif-reply { border-color: rgba(71, 82, 196, 0.45); }
+:root[data-appearance="light"] .dc-notif-reply:hover,
+:root[data-appearance="light"] .dc-notif-reply:focus-visible {
+  background: rgba(88, 101, 242, 0.12);
+  border-color: rgba(71, 82, 196, 0.8);
+}

@@ -359,6 +359,18 @@ pub fn mismatch(presenting: Option<&str>) -> bool {
     }
 }
 
+/// Whether a see-through window on `presenting` would be drawn by the same
+/// adapter that shows it. A transparent webview composed across adapters renders
+/// BLANK (spotlight_window.rs), so the main window is only built see-through when
+/// this holds. The rule itself lives in `see_through::drawn_where_shown`, where it
+/// is tested on every platform; this only reads the machine for it.
+pub fn see_through_ok(presenting: Option<&str>) -> bool {
+    let displays = enumerate_displays();
+    let adapters: Vec<&str> =
+        displays.iter().filter(|d| !d.virtual_display).map(|d| d.gpu.as_str()).collect();
+    crate::see_through::drawn_where_shown(&adapters, applied(), flag_for_target(&displays, presenting))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
