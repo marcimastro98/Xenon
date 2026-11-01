@@ -206,23 +206,36 @@
   background: #14161c;
 }
 
-/* Floating "show toolbar" button, top-right of the stage, only while chrome is hidden. */
-.browser-reveal {
+/* Toolbar hidden: Reload, Full screen and Show toolbar in one small group over
+   the page's top-right corner (js/browser-tile.js, GitHub #149). Quiet until
+   used, so a page shown on its own is not covered by controls, and fully
+   opaque under a pointer or the keyboard. */
+.browser-float {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 3;                            /* above the tab canvases and the loading overlay */
-  width: 32px;
-  height: 26px;
-  border-radius: 8px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
   background: rgba(20, 22, 28, 0.55);
-  color: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(6px);
-  opacity: 0.5;
+  opacity: 0.55;
   transition: opacity 0.15s ease, background 0.15s ease;
 }
-.browser-reveal:hover { opacity: 1; background: rgba(20, 22, 28, 0.8); }
-.browser-reveal[hidden] { display: none; }
+.browser-float:hover,
+.browser-float:focus-within { opacity: 1; background: rgba(20, 22, 28, 0.82); }
+.browser-float[hidden] { display: none; }
+.browser-float .browser-btn {
+  width: 30px;
+  height: 26px;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.86);
+}
+.browser-float .browser-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.browser-float .browser-btn svg { width: 15px; height: 15px; }
 .browser-canvas {
   position: absolute;          /* tab canvases stack in the stage; only the active shows */
   inset: 0;
