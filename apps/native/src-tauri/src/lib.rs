@@ -13,6 +13,7 @@ mod gpu;
 mod layers;
 mod memory_level;
 mod monitor;
+mod nav_policy;
 #[cfg(desktop)]
 mod page_load;
 mod prefs;
@@ -100,7 +101,10 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   document.addEventListener('keydown', function (e) {
     if (e.key === 'F11') {
       e.preventDefault();
-      window.location.href = 'xenon-fullscreen:toggle';
+      // Signals carry the launch nonce (nav_policy.rs); __xenonSignal is
+      // defined by a later initialization script, before any key can be pressed.
+      var sig = 'xenon-fullscreen:toggle';
+      window.location.href = typeof window.__xenonSignal === 'function' ? window.__xenonSignal(sig) : sig;
     }
   });
 })();
@@ -1864,7 +1868,12 @@ pub fn run() {
                 "try{{window.__XENON_SETUP_AVAILABLE__={};}}catch(e){{}}",
                 setup_available
             );
-            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}");
+            // The nonce every signal URL from this window must carry, and the
+            // script that hands it to the top-level page of our own origins only
+            // (nav_policy.rs explains why widget frames must never see it).
+            let signal_nonce = nav_policy::new_nonce();
+            let nonce_js = nav_policy::nonce_script(&signal_nonce, port);
+            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}\n{nonce_js}");
             // Size and full-screen state both come from the screen that will host
             // it, by the same rule `place_now` is about to apply (see
             // monitor::initial_window). The literal 2560×720 that used to be here
@@ -1955,7 +1964,25 @@ pub fn run() {
                 // taskbar and Alt-Tab — it runs quietly in the background.
                 .skip_taskbar(true)
                 .initialization_script(&init_script)
-                .on_navigation(move |url| {
+                .on_navigation(move |raw| {
+                    // Every `xenon-*` scheme is a signal, and a signal is obeyed
+                    // only with this launch's nonce (nav_policy.rs): on macOS and
+                    // Linux this hook also sees navigations inside the sandboxed
+                    // widget frames, which must not be able to restart the app,
+                    // move it between screens or run the updater. A signal without
+                    // it is dropped here, never passed on to the OS opener below.
+                    let checked;
+                    let url: &tauri::Url = if nav_policy::is_signal(raw) {
+                        match nav_policy::verified_signal(raw, &signal_nonce) {
+                            Some(u) => {
+                                checked = u;
+                                &checked
+                            }
+                            None => return false,
+                        }
+                    } else {
+                        raw
+                    };
                     let scheme = url.scheme();
                     // The update toast taps navigate here: install the pending
                     // update and relaunch. Never a real navigation.
@@ -2215,21 +2242,26 @@ pub fn run() {
                     if matches!(scheme, "tauri" | "data" | "blob" | "about") {
                         return true;
                     }
-                    let loopback = matches!(
-                        url.host_str(),
-                        Some("127.0.0.1") | Some("localhost") | Some("::1") | Some("tauri.localhost")
-                    );
-                    if matches!(scheme, "http" | "https") && loopback {
+                    // Loopback only on the port this shell's backend listens on:
+                    // any other local service is not our page, and is treated
+                    // like any other site below.
+                    if nav_policy::is_own_page(url, port) {
                         return true;
                     }
                     // The YouTube player in a tile navigates inside its own iframe.
                     if embed_nav::is_youtube_embed(url) {
                         return true;
                     }
-                    // Anything else (external http/https, mailto, tel, …) is handed
-                    // to the default browser and the in-webview navigation cancelled.
-                    use tauri_plugin_opener::OpenerExt;
-                    let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
+                    // External http/https, mailto and tel go to the default
+                    // browser (or mail/phone app) and the in-webview navigation is
+                    // cancelled. Every other scheme is dropped: handing it to the
+                    // OS opener launches whatever handler is registered for it
+                    // (search-ms:, ms-*:, vscode://, smb://, file:), and a widget
+                    // frame can name any of them. Same list as the layer windows.
+                    if nav_policy::opens_externally(url) {
+                        use tauri_plugin_opener::OpenerExt;
+                        let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
+                    }
                     false
                 });
 

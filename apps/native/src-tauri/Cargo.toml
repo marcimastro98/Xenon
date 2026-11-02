@@ -28,6 +28,9 @@ tauri-plugin-opener = "2.5.4"
 tauri-plugin-updater = "2.10.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# The per-launch nonce the main webview's signal URLs must carry (nav_policy.rs).
+# Already in the graph through tauri itself, so no new crate is fetched.
+getrandom = "0.3"
 
 # Windows only, and pinned to the exact versions wry already resolves, for the
 # same reason as webkit2gtk below: `with_webview` hands over wry's own WebView2

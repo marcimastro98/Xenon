@@ -334,31 +334,21 @@ test('whisperPaths returns exe and model under server/whisper', () => {
   assert.equal(p.model, path.join('/srv/app/server', 'whisper', 'ggml-small.bin'));
 });
 
-// whisper.cpp stopped attaching binaries to its tagged versions (v1.9.4, v1.9.5):
-// /releases/latest had no assets, and "Download Whisper" failed at once.
-const rel = (tag, names, extra = {}) => ({
-  tag_name: tag, ...extra,
-  assets: names.map(name => ({ name, browser_download_url: `https://github.com/ggml-org/whisper.cpp/releases/download/${tag}/${name}` })),
-});
-
-test('pickWhisperAsset skips a tagged release with no binaries and takes the newest build that has one', () => {
-  const a = ai.pickWhisperAsset([
-    rel('v1.9.5', []),
-    rel('b5454', ['whisper-bin-ubuntu-x64.tar.gz', 'whisper-bin-win-cuda-12.4.0-x64.zip', 'whisper-blas-bin-x64.zip', 'whisper-bin-x64.zip'], { prerelease: true }),
-    rel('b5130', ['whisper-bin-x64.zip'], { prerelease: true }),
-  ]);
-  assert.equal(a.browser_download_url, 'https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip');
-});
-
-test('pickWhisperAsset prefers a plain CPU zip over an accelerated one, and never a draft', () => {
-  const list = [
-    rel('b2', ['whisper-cublas-12.4.0-bin-x64.zip']),
-    rel('b1', ['whisper-bin-x64.zip']),
-  ];
-  assert.equal(ai.pickWhisperAsset(list).name, 'whisper-bin-x64.zip');
-  assert.equal(ai.pickWhisperAsset([rel('b3', ['whisper-bin-x64.zip'], { draft: true })]), null);
-  assert.equal(ai.pickWhisperAsset([rel('b2', ['whisper-cublas-12.4.0-bin-x64.zip'])]).name, 'whisper-cublas-12.4.0-bin-x64.zip');
-  for (const junk of [null, {}, 'x', [null, rel('v', ['whisper-bin-ubuntu-x64.tar.gz', 'whisper-bin-Win32.zip'])]]) {
-    assert.equal(ai.pickWhisperAsset(junk), null);
-  }
+// whisper-cli.exe from this download runs on every voice request, so it is one
+// pinned release with a pinned SHA-256, never "the newest release, pre-release or
+// not" (which ran whatever a third-party account published, unchecked).
+test('whisper.cpp is a pinned tagged release with a pinned SHA-256', () => {
+  assert.match(ai.WHISPER_VERSION, /^v\d+\.\d+\.\d+$/, 'a tagged version, not a moving bNNNN build');
+  assert.match(ai.WHISPER_ZIP_SHA256, /^[0-9a-f]{64}$/);
+  assert.equal(
+    ai.WHISPER_ZIP_URL,
+    `https://github.com/ggml-org/whisper.cpp/releases/download/${ai.WHISPER_VERSION}/whisper-bin-x64.zip`,
+  );
+  const src = require('node:fs').readFileSync(new URL('../ai-local.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /api\.github\.com\/repos\/ggml-org\/whisper\.cpp\/releases/, 'no "latest release" lookup');
+  const body = src.slice(src.indexOf('async function installWhisper'));
+  const dl = body.indexOf('_downloadToFile(WHISPER_ZIP_URL');
+  const check = body.indexOf('checkPinnedSha256(zipPath, WHISPER_ZIP_SHA256');
+  const unzip = body.indexOf('_unzipWindows(zipPath');
+  assert.ok(dl > 0 && check > dl && unzip > check, 'the zip is hashed after the download and before it is unpacked');
 });

@@ -1,5 +1,6 @@
 'use strict';
 const { psEscape } = require('./ps-quote');
+const { checkPinnedSha256 } = require('./pinned-hash');
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this
@@ -1179,8 +1180,20 @@ async function localWebSearch(query, timeoutMs = 8000) {
 // ── On-demand Whisper.cpp install ─────────────────────────────────────────
 // The installer no longer bundles Whisper.cpp/Ollama (too slow for everyone).
 // Instead the user downloads Whisper from Settings → Xenon AI when switching to
-// the local provider. These helpers fetch the latest whisper.cpp Windows x64
+// the local provider. These helpers fetch a PINNED whisper.cpp Windows x64
 // build + the ggml-small model, streaming progress back to the UI over SSE.
+
+// The exact whisper.cpp build Xenon installs, and the SHA-256 of its zip. The
+// zip's whisper-cli.exe is executed on every voice request, so "whatever the
+// newest release is" was code from a third party's account running here with
+// nothing checking it, including pre-releases nobody had looked at. One tagged
+// version, one asset, one hash: bump all three together after checking that the
+// new zip still carries whisper-cli.exe (whisper.cpp stopped attaching binaries
+// to its tags at v1.9.4, so a newer TAG is not automatically a usable one).
+const WHISPER_VERSION = 'v1.9.2';
+const WHISPER_ASSET = 'whisper-bin-x64.zip';
+const WHISPER_ZIP_SHA256 = '49dcc16de826f20bd53d44f947a1ae49dfa81f86cad67a64d80820cb192d674a';
+const WHISPER_ZIP_URL = `https://github.com/ggml-org/whisper.cpp/releases/download/${WHISPER_VERSION}/${WHISPER_ASSET}`;
 
 // HTTPS GET to a file, following 30x redirects (GitHub asset and HuggingFace
 // URLs both redirect to a CDN). Streams to destPath and reports received/total
@@ -1213,33 +1226,6 @@ function _downloadToFile(url, destPath, onProgress, _redirects = 0) {
     });
     req.on('error', reject);
     req.setTimeout(180000, () => { req.destroy(); reject(new Error('download timed out: ' + url)); });
-  });
-}
-
-// HTTPS GET returning parsed JSON, following redirects. Used for the GitHub
-// releases API (sends the recommended Accept + User-Agent headers).
-function _httpsJson(url, _redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (_redirects > 5) return reject(new Error('too many redirects'));
-    const req = https.get(url, {
-      headers: { 'User-Agent': 'XenonEdgeHub', 'Accept': 'application/vnd.github+json' },
-    }, (res) => {
-      const code = res.statusCode || 0;
-      if (code >= 300 && code < 400 && res.headers.location) {
-        res.resume();
-        const next = new URL(res.headers.location, url).toString();
-        return resolve(_httpsJson(next, _redirects + 1));
-      }
-      if (code !== 200) {
-        res.resume();
-        return reject(new Error('http ' + code + ' for ' + url));
-      }
-      let data = '';
-      res.on('data', (c) => { data += c; });
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('invalid JSON from ' + url)); } });
-    });
-    req.on('error', reject);
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error('request timed out: ' + url)); });
   });
 }
 
@@ -1290,35 +1276,6 @@ function _runBrewInstall(brewPath, formula) {
   });
 }
 
-// Pick the Windows x64 zip to install from a GitHub releases list (newest
-// first). whisper.cpp stopped attaching binaries to its tagged versions in
-// September 2026 (v1.9.4 and v1.9.5 have none): they now ship on the "bNNNN"
-// builds, marked as pre-releases. Asking for /releases/latest therefore found
-// nothing, and the download failed at once. So walk the list and take the
-// newest release, pre-release or not, that carries a usable zip.
-function pickWhisperAsset(releases) {
-  // Prefer the small CPU build (`whisper-bin-x64.zip`, ~4 MB). The accelerated
-  // variants (CUDA can be ~450 MB) need a matching GPU runtime and are far
-  // slower to download AND extract, which is what made the install look frozen.
-  // Never auto-pick them while a plain build exists; STT on the CPU build is fast.
-  const heavy = /cublas|cuda|clblast|hipblas|hip|vulkan|openblas|blas|arm64/i;
-  const isZip = (n) => /x64.*\.zip$/i.test(n) && !/win32|ubuntu|linux|mac/i.test(n);
-  const preds = [
-    (n) => /^whisper-bin-x64\.zip$/i.test(n),        // canonical CPU build (smallest)
-    (n) => isZip(n) && !heavy.test(n),                // any plain (non-accelerated) x64 zip
-    isZip,                                            // last resort: an accelerated x64 build
-  ];
-  const list = (Array.isArray(releases) ? releases : []).filter(r => r && !r.draft);
-  for (const pred of preds) {
-    for (const r of list) {
-      const assets = Array.isArray(r.assets) ? r.assets : [];
-      const a = assets.find(x => x && typeof x.name === 'string' && x.browser_download_url && pred(x.name));
-      if (a) return a;
-    }
-  }
-  return null;
-}
-
 // Recursively locate a whisper executable under `dir`. Returns the full path or
 // null. Used after unzip to find where the release placed the binary.
 function _findWhisperExeRecursive(dir) {
@@ -1339,9 +1296,9 @@ function _findWhisperExeRecursive(dir) {
 
 // Download + set up Whisper.cpp on demand. onProgress({ status, percent }).
 //  1. Ensure the whisper dir exists.
-//  2. If no exe: fetch latest whisper.cpp release, pick the Windows x64 zip,
-//     download (0→40%), unzip, delete the zip, then flatten so the exe sits in
-//     the dir root next to its ggml*.dll siblings.
+//  2. If no exe: download the pinned whisper.cpp Windows x64 zip (0→40%),
+//     check it against WHISPER_ZIP_SHA256, unzip, delete the zip, then flatten
+//     so the exe sits in the dir root next to its ggml*.dll siblings.
 //  3. If the ggml-small model is missing: download it (45→100%).
 // Returns { ok } reflecting whether both the exe and model are now present.
 async function installWhisper(serverDir, onProgress) {
@@ -1377,16 +1334,14 @@ async function installWhisper(serverDir, onProgress) {
     }
   } else if (!whisperExe(serverDir)) {
     report('Download Whisper…', 0);
-    const releases = await _httpsJson('https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=20');
-    const asset = pickWhisperAsset(releases);
-    if (!asset) {
-      throw new Error('No Windows x64 whisper.cpp download found on GitHub right now.');
-    }
     const zipPath = path.join(dir, 'whisper.zip');
-    await _downloadToFile(asset.browser_download_url, zipPath, (received, total) => {
+    await _downloadToFile(WHISPER_ZIP_URL, zipPath, (received, total) => {
       const frac = total > 0 ? received / total : 0;
       report('Download Whisper…', Math.round(frac * 40));
     });
+    // Before anything is unpacked: a zip that is not the reviewed build is
+    // deleted here, and its exe never reaches the folder localStt() runs from.
+    await checkPinnedSha256(zipPath, WHISPER_ZIP_SHA256, 'whisper.cpp ' + WHISPER_VERSION);
     report('Estrazione Whisper…', 42);
     // Extract into a FRESH subfolder (removed first in case a prior attempt left
     // it behind), so the plain ZipFile overload never hits an "already exists"
@@ -1464,7 +1419,9 @@ module.exports = {
   whisperPaths,
   whisperExe,
   installWhisper,
-  pickWhisperAsset,
+  WHISPER_VERSION,
+  WHISPER_ZIP_SHA256,
+  WHISPER_ZIP_URL,
   localStt,
   whisperSpeedArgs,
   cleanTranscript,

@@ -16,8 +16,17 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { execFile } = require('child_process');
+const { checkPinnedSha256 } = require('./pinned-hash');
 
-const RELEASE_API = 'https://api.github.com/repos/uBlockOrigin/uBOL-home/releases/latest';
+// The exact uBOL build Xenon installs, and the SHA-256 of its Edge zip. The
+// extension is loaded into the Browser tile with access to every page the user
+// opens there, so taking "the latest release" meant whatever the next upload to
+// that GitHub account turned out to be, unchecked. Pin one release and its hash,
+// and bump them together (the asset name carries the version:
+// uBOLite_<version>.edge.zip).
+const UBOL_VERSION = '2026.1026.1812';
+const UBOL_ZIP_SHA256 = '12a3be6e4c24c932677208bd0b8fff0689676ef2b0db689cfe794b02e0ed69fc';
+const UBOL_ZIP_URL = `https://github.com/uBlockOrigin/uBOL-home/releases/download/${UBOL_VERSION}/uBOLite_${UBOL_VERSION}.edge.zip`;
 
 function dir(dataDir) { return path.join(dataDir, 'embedded-browser-adblock'); }
 // The live, fully-installed extension lives under `current/` and is only ever
@@ -52,27 +61,6 @@ function extensionDir(dataDir) {
 }
 
 function isInstalled(dataDir) { return !!extensionDir(dataDir); }
-
-// HTTPS GET → parsed JSON, following redirects (GitHub API sends the recommended
-// Accept + User-Agent headers). Mirrors the pattern in ai-local.js.
-function _httpsJson(url, _redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (_redirects > 5) return reject(new Error('too many redirects'));
-    const req = https.get(url, { headers: { 'User-Agent': 'XenonEdgeHub', 'Accept': 'application/vnd.github+json' } }, (res) => {
-      const code = res.statusCode || 0;
-      if (code >= 300 && code < 400 && res.headers.location) {
-        res.resume();
-        return resolve(_httpsJson(new URL(res.headers.location, url).toString(), _redirects + 1));
-      }
-      if (code !== 200) { res.resume(); return reject(new Error('http ' + code + ' for ' + url)); }
-      let data = '';
-      res.on('data', (c) => { data += c; });
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('invalid JSON from ' + url)); } });
-    });
-    req.on('error', reject);
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error('request timed out: ' + url)); });
-  });
-}
 
 // HTTPS GET → file, following the CDN redirects GitHub release assets use.
 function _downloadToFile(url, destPath, _redirects = 0) {
@@ -145,16 +133,12 @@ async function install(dataDir) {
     await fs.promises.mkdir(base, { recursive: true });
     await fs.promises.rm(stage, { recursive: true, force: true }).catch(() => {});   // clear any prior partial attempt
 
-    const release = await _httpsJson(RELEASE_API);
-    const assets = Array.isArray(release && release.assets) ? release.assets : [];
-    const pick = (re) => assets.find((a) => a && typeof a.name === 'string' && a.browser_download_url && re.test(a.name));
-    // Prefer the Edge-specific build (the tile IS Edge); fall back to the generic
-    // Chromium build. Never the firefox/safari assets.
-    const asset = pick(/\.edge\.zip$/i) || pick(/\.chromium\.zip$/i);
-    if (!asset) throw new Error('No uBOL Edge/Chromium release asset found');
-
+    // The Edge-specific build: the tile IS Edge.
     const zipPath = path.join(base, 'ubol.zip');
-    await _downloadToFile(asset.browser_download_url, zipPath);
+    await _downloadToFile(UBOL_ZIP_URL, zipPath);
+    // Checked before it is unpacked, so a zip that is not the reviewed build never
+    // becomes an extension directory Edge could be pointed at.
+    await checkPinnedSha256(zipPath, UBOL_ZIP_SHA256, 'uBOL ' + UBOL_VERSION);
     await _unzipWindows(zipPath, stage);
     await fs.promises.unlink(zipPath).catch(() => {});
 
@@ -174,4 +158,4 @@ async function install(dataDir) {
 
 function isBusy() { return !!_installing; }
 
-module.exports = { dir, extensionDir, isInstalled, install, isBusy };
+module.exports = { dir, extensionDir, isInstalled, install, isBusy, UBOL_VERSION, UBOL_ZIP_SHA256, UBOL_ZIP_URL };

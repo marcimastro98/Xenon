@@ -2,16 +2,31 @@
 # install-native.ps1 - one-click install of the native Xenon kiosk app,
 # triggered from the dashboard (POST /api/native/install).
 #
-# Downloads the latest signed NSIS installer (*-setup.exe) from the GitHub
-# release and launches it silently. When the backend runs as the LocalSystem
-# service (session 0), a GUI/user install must run in the INTERACTIVE user
-# session, so we hand off through a one-shot scheduled task in that user's
-# context; when the backend runs in the user session (dev), we launch directly.
+# Launches the native app's NSIS installer silently. The DOWNLOAD is not done
+# here: server.js fetches Xenon-Setup-x64.exe through native-installer.js, which
+# checks it against the release's Ed25519-signed SHA256SUMS with the pinned key,
+# and only then starts this script with the verified file and its signed hash.
+# This script refuses to run anything it was not handed that way, and hashes the
+# file once more right before launching it, so a path that skipped the check (or
+# a file changed after it) is never executed silently.
+#
+# When the backend runs as the LocalSystem service (session 0), a GUI/user
+# install must run in the INTERACTIVE user session, so we hand off through a
+# one-shot scheduled task in that user's context; when the backend runs in the
+# user session (dev), we launch directly.
 #
 # Best-effort and fail-soft: every step is wrapped so a failure just leaves the
 # user on iCUE/browser (they can retry). On success it records install-mode.json
 # = native so the dashboard stops offering the install.
 # -------------------------------------------------------------------------
+
+[CmdletBinding()]
+param(
+  # The installer server.js downloaded and verified, and the SHA-256 the signed
+  # SHA256SUMS records for it. Both are required: there is no unverified path.
+  [string]$InstallerPath,
+  [string]$ExpectedSha256
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -54,23 +69,32 @@ function Write-InstallStatus([string]$State, [string]$Err) {
 }
 
 try {
-  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
   $dataDir = Join-Path $PSScriptRoot 'data'
   $dlDir = Join-Path $dataDir 'native-installer'
   New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
-  Write-InstallStatus 'downloading' ''
 
-  # 1) Find the *-setup.exe asset on the latest release.
-  $headers = @{ 'User-Agent' = 'XenonEdge'; 'Accept' = 'application/vnd.github+json' }
-  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $headers
-  $asset = $release.assets | Where-Object { $_.name -like '*-setup.exe' } | Select-Object -First 1
-  if (-not $asset) { Write-InstallStatus 'error' 'no_installer'; Write-Error 'No native installer (*-setup.exe) on the latest release yet.'; exit 2 }
+  # 1) Only ever run the file server.js verified, from the folder it downloads
+  # into. A missing or malformed hash means the caller skipped verification, and
+  # the answer to that is to run nothing.
+  if (-not $InstallerPath -or -not $ExpectedSha256 -or $ExpectedSha256 -notmatch '^[0-9a-fA-F]{64}$') {
+    # No Write-Error here: under 'Stop' it would throw into the catch below and
+    # overwrite the reason code the dashboard maps to a sentence.
+    Write-InstallStatus 'error' 'integrity_missing'; exit 2
+  }
+  $exe = [System.IO.Path]::GetFullPath($InstallerPath)
+  $dlRoot = [System.IO.Path]::GetFullPath($dlDir).TrimEnd('\') + '\'
+  if (-not $exe.StartsWith($dlRoot, [System.StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+    Write-InstallStatus 'error' 'integrity_missing'; exit 2
+  }
 
-  # 2) Download it.
-  $exe = Join-Path $dlDir $asset.name
-  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdge' }
-  if (-not (Test-Path $exe)) { Write-InstallStatus 'error' 'download_failed'; Write-Error 'Download failed.'; exit 3 }
+  # 2) Hash it again immediately before running it. server.js already checked it
+  # against the signed manifest, but the file sat on disk in between, and this is
+  # the last moment anything can still refuse to execute a substituted binary.
+  $actual = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
+  if ($actual -ne $ExpectedSha256.ToUpperInvariant()) {
+    Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
+    Write-InstallStatus 'error' 'hash_mismatch'; exit 3
+  }
   Write-InstallStatus 'installing' ''
 
   # 3) Launch the silent installer in the right session, then start the app:

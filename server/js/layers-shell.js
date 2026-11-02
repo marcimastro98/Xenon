@@ -132,7 +132,8 @@
       pending = '';
       if (!next) return;
       sent = next;
-      try { window.location.href = 'xenon-app:layers-sync?d=' + encodeURIComponent(next); } catch (e) { /* not native */ }
+      // With this launch's nonce, or the shell drops it (see native-bridge.js).
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:layers-sync?d=' + encodeURIComponent(next)); } catch (e) { /* not native */ }
     }, SIGNAL_DELAY_MS);
   }
 

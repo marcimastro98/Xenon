@@ -265,7 +265,9 @@
         setupBtn.textContent = 'Turning on…';
         setupBodyEl.textContent = 'Starting Xenon. The dashboard opens here when it is ready.';
         // Not a navigation: the shell intercepts this scheme and never loads it.
-        window.location.href = 'xenon-setup:enable-task';
+        // __xenonSignal adds this launch's nonce, without which the shell ignores
+        // the signal (src-tauri/src/nav_policy.rs); String is the no-shell fallback.
+        window.location.href = (window.__xenonSignal || String)('xenon-setup:enable-task');
         return;
       }
       if (panelMode === 'start') {
@@ -274,7 +276,7 @@
         setupBtn.textContent = 'Starting…';
         setupBodyEl.textContent = 'Starting Xenon. The dashboard opens here when it is ready.';
         setupNoteEl.textContent = '';
-        window.location.href = 'xenon-setup:start';
+        window.location.href = (window.__xenonSignal || String)('xenon-setup:start');
         return;
       }
       if (panelMode === 'repair') {
@@ -282,7 +284,7 @@
         setupBodyEl.textContent =
           'Follow the steps in the window that just opened. The dashboard opens here by itself ' +
           'as soon as Xenon starts.';
-        window.location.href = 'xenon-setup:run';
+        window.location.href = (window.__xenonSignal || String)('xenon-setup:run');
         return;
       }
       setupBtn.textContent = 'Setup is running';
@@ -290,7 +292,7 @@
         'Follow the steps in the window that just opened. When setup ends, the dashboard ' +
         'opens here by itself.';
       // Not a navigation: the shell intercepts this scheme and never loads it.
-      window.location.href = 'xenon-setup:run';
+      window.location.href = (window.__xenonSignal || String)('xenon-setup:run');
     });
 
     // Nothing tells this page whether the console ever opened: the shell may
