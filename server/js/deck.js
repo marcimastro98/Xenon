@@ -3846,12 +3846,16 @@
     return true;
   }
 
+  // Action types the assistant may not put on a key (see applyAiDeck).
+  const AI_DECK_REFUSED = new Set(['runScript', 'typeText', 'webhook']);
+
   // AI-composed deck (the configure_deck tool): unlike Genesis' curated enum,
   // this accepts the FULL action catalog — every action re-validated through
   // DeckActions.validateAction, every key through normalizeDeckConfig, states/
   // live/slider/stateStyle through their normalizers. Returns {ok,...} so the
   // AI can relay an honest outcome.
   function applyAiDeck(spec) {
+    const refusedTypes = new Set();
     const A = window.DeckActions;
     const M = window.DeckModel;
     if (!A || !M || !spec || typeof spec !== 'object') return { ok: false, error: 'bad_spec' };
@@ -3867,7 +3871,15 @@
       } else {
         const toSteps = (list) => (Array.isArray(list) ? list : (list ? [list] : []))
           .map((a) => ({ action: A.validateAction(a), delayMs: Math.max(0, Math.round(Number(a && a.delayMs) || 0)) }))
-          .filter((s) => s.action);
+          .filter((s) => {
+            if (!s.action) return false;
+            // The assistant can be talked into things by what it reads, and a
+            // key it builds is pressed later by a user who trusts its title
+            // ("Mute" that runs a script). Scripts, typed text and webhooks are
+            // keys the user builds in the Deck editor.
+            if (AI_DECK_REFUSED.has(s.action.type)) { refusedTypes.add(s.action.type); return false; }
+            return true;
+          });
         const trig = {};
         const tap = toSteps(k.actions || k.action);
         const dbl = toSteps(k.double);
@@ -3903,7 +3915,8 @@
       renderAll();
       applied = true;
     }
-    return applied ? { ok: true, keys: keys.length } : { ok: false, error: keys.length ? 'apply_failed' : 'no_valid_keys' };
+    const refused = refusedTypes.size ? { refused: [...refusedTypes], note: 'scripts, typed text and webhooks are added by the user in the Deck editor' } : {};
+    return applied ? { ok: true, keys: keys.length, ...refused } : { ok: false, error: keys.length ? 'apply_failed' : 'no_valid_keys', ...refused };
   }
 
   // Live per-app volume mixer in a touch overlay, opened by an `appMixer` Deck key

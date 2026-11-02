@@ -76,6 +76,33 @@ function shown(p, cwd) {
   return str(abs, 200);
 }
 
+function allArgs(i) {
+  const lines = [];
+  for (const k of Object.keys(i)) {
+    const v = i[k];
+    if (v == null || v === '') continue;
+    lines.push(k + ': ' + (typeof v === 'string' ? v.trim() : JSON.stringify(v)));
+  }
+  return lines.join('\n');
+}
+
+// Would the card show everything that is being approved? When it would cut
+// the text (an 800 character `echo` followed by `; curl … | sh`), the
+// decision goes back to Codex's own prompt, which shows it all.
+function fitsOnCard(tool, input) {
+  const t = String(tool || '');
+  const i = input && typeof input === 'object' ? input : {};
+  const len = (v) => (typeof v === 'string' ? v.trim().length : 0);
+  if (t === 'Bash') return len(i.command) <= MAX_DETAIL;
+  if (t === 'apply_patch') return true;                 // drawn as its files and line counts
+  if (t === 'write_stdin') return len(i.chars) <= 200;
+  if (/^mcp__/.test(t)) return allArgs(i).length <= 300;
+  if (t === 'request_permissions' || t === 'spawn_agent') return true;  // a reason or a task, nothing that runs
+  let raw = '';
+  try { raw = JSON.stringify(i); } catch { return false; }
+  return raw.length <= 300;
+}
+
 // { kind, text, note, files?, added?, removed?, server?, name? }
 function describeCodexTool(tool, input, cwd) {
   const t = str(tool, 80);
@@ -94,8 +121,9 @@ function describeCodexTool(tool, input, cwd) {
   if (t === 'spawn_agent') return { kind: 'agent', text: str(i.message || i.prompt || i.task, 300), note: '' };
   const mcp = /^mcp__(.+?)__(.+)$/.exec(t);
   if (mcp) {
-    const firstArg = Object.values(i).find((v) => typeof v === 'string' && v.trim());
-    return { kind: 'mcp', server: str(mcp[1], 60), name: str(mcp[2], 80), text: str(firstArg || '', 300), note: '' };
+    // Every argument, not the first string: its order is the model's, and a
+    // harmless first field could sit in front of the one that matters.
+    return { kind: 'mcp', server: str(mcp[1], 60), name: str(mcp[2], 80), text: str(allArgs(i), 300), note: '' };
   }
   let raw = '';
   try { raw = JSON.stringify(i); } catch { raw = ''; }
@@ -216,6 +244,7 @@ function createBridge({ now = Date.now, onChange = () => {}, waitMs = () => DEFA
     const tool = str(d.tool_name, 80);
     const input = d.tool_input && typeof d.tool_input === 'object' ? d.tool_input : {};
     const cwd = s ? s.cwd : (typeof d.cwd === 'string' ? d.cwd : '');
+    if (!fitsOnCard(tool, input)) return null;           // Codex's own prompt asks instead
     const id = 'x' + t.toString(36) + (++seq).toString(36);
     const ttl = Math.max(15000, Math.min(10 * 60 * 1000, Number(waitMs()) || DEFAULT_WAIT_MS));
     const danger = irreversible(tool, input);

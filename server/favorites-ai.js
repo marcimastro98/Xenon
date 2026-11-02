@@ -58,11 +58,14 @@ async function addEntry(kind, q, search) {
     const entry = found && football.normalizeTeams([found])[0];
     return entry ? { entry } : { error: 'not_found' };
   }
-  // News: an https feed address, a source the list knows by that name, or
-  // otherwise a topic made of the words ("notizie sull'AI").
-  if (/^https:\/\//i.test(q)) {
-    const entry = news.normalizeFeeds([{ type: 'custom', url: q }])[0];
-    return entry ? { entry } : { error: 'bad_feed' };
+  // News: a source the list knows by that name, or otherwise a topic made of
+  // the words ("notizie sull'AI"). Not a feed address: the server fetches a
+  // custom feed straight away and on every refresh, so an address the
+  // assistant was talked into by something it read (with the user's notes or
+  // contacts in the query string, or in the host name) would send them out
+  // without anyone seeing it. The user adds a custom feed in Settings, News.
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(q) || /^[\w-]+(\.[\w-]+)+\//.test(q)) {
+    return { error: 'custom_feed_in_settings', hint: 'Custom feed addresses are added by the user in Settings, News. The assistant can add a known source by name or a topic.' };
   }
   const sources = news.searchSources(q);
   const exact = sources.find((s) => fold(s.name) === fold(q)) || (sources.length === 1 ? sources[0] : null);

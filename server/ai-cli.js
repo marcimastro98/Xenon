@@ -161,10 +161,20 @@ function childEnv(provider) {
 
 // An empty folder of our own: no project files, no CLAUDE.md or AGENTS.md for
 // the program to pick up, nothing of the user's for it to wander into.
+//
+// Created once per run of the server with mkdtemp (a random name, mode 0700),
+// never a fixed name in the shared temp folder: on a machine with several
+// users another one could create /tmp/xenon-ai-cli first and plant a
+// CLAUDE.md, AGENTS.md or .claude/settings.json the assistant would obey, or
+// read the pictures attached to a question.
+let _workDir = null;
 async function workDir() {
-  const dir = path.join(os.tmpdir(), 'xenon-ai-cli');
-  await fsp.mkdir(dir, { recursive: true });
-  return dir;
+  if (_workDir) {
+    try { if ((await fsp.stat(_workDir)).isDirectory()) return _workDir; } catch { /* removed: make another */ }
+  }
+  _workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'xenon-ai-cli-'));
+  try { await fsp.chmod(_workDir, 0o700); } catch { /* Windows: the user's own temp folder */ }
+  return _workDir;
 }
 
 // `abortOn`: a pattern in the output that means waiting longer is pointless.
