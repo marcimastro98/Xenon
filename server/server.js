@@ -327,7 +327,7 @@ const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnecte
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
-const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
+const { createHomeAssistant, normalizeHomeAssistant, haSameDestination, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createHaQuery, normalizeHistoryRequest } = require('./actions/home-assistant-query');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
@@ -340,7 +340,7 @@ const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
-const { createUnifiProtect, normalizeUnifi, preserveUnifiCreds, redactUnifiCreds } = require('./actions/unifi');
+const { createUnifiProtect, normalizeUnifi, unifiSameDestination, preserveUnifiCreds, redactUnifiCreds } = require('./actions/unifi');
 const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
 const { preserveStockCreds, redactStockCreds } = require('./stocks-creds');
@@ -11500,6 +11500,9 @@ function normalizeServerBrowserFavorites(value) {
 // per app, keeping a cached icon + the exe path so a favorite for a CLOSED app can
 // be launched (the /windows/launch endpoint re-validates the path through the
 // allowlisted openApp runner before spawning). Array order IS the dock order.
+// Same pattern as SAFE_IMAGE_DATA_URI_RE in js/utils.js (a test keeps the two
+// identical): a raster image type and only base64 after the comma.
+const SAFE_IMAGE_DATA_URI_RE = /^data:image\/(png|jpeg|gif|webp|x-icon|bmp);base64,[A-Za-z0-9+/]+={0,2}$/;
 function normalizeServerAppFavorites(value) {
   if (!Array.isArray(value)) return [];
   const out = [];
@@ -11516,8 +11519,10 @@ function normalizeServerAppFavorites(value) {
       app,
       title: String(entry.title || '').slice(0, 200),
       // Cached window icon as a small data: URI (48px PNG ≈ a few KB); bounded so a
-      // malformed payload can't bloat settings.json.
-      icon: /^data:image\//.test(String(entry.icon || '')) ? String(entry.icon).slice(0, 60000) : '',
+      // malformed payload can't bloat settings.json. Over the bound it is dropped,
+      // not cut: a truncated image is broken anyway. The shape check is the
+      // dashboard's (SAFE_IMAGE_DATA_URI_RE): settings also arrive from backups.
+      icon: (typeof entry.icon === 'string' && entry.icon.length <= 60000 && SAFE_IMAGE_DATA_URI_RE.test(entry.icon)) ? entry.icon : '',
       path: String(entry.path || '').slice(0, 400),
     });
   }
@@ -12158,11 +12163,17 @@ function updateDeckConfigs(edit) {
 // helpers are the single place a future secret gets added — the stock/football/
 // news keys were once wiped on import precisely because one hand-built chain
 // missed them.
+//
+// The credentials tied to a destination (Home Assistant token, UniFi / OBS /
+// Streamer.bot passwords) are preserved only while that destination is
+// unchanged — see each helper. Otherwise one write that changes only the URL
+// (a settings save, or an imported backup) would aim the saved secret at a new
+// host.
 function redactSettingsSecrets(settings) {
-  return CaptureSettings.redactCaptureFolder(redactTransferPaths(redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))))))));
+  return icsFeeds.redactCalendarFeedUrls(CaptureSettings.redactCaptureFolder(redactTransferPaths(redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings))))))))))));
 }
 function preserveSettingsSecrets(incoming, prev) {
-  return CaptureSettings.preserveCaptureFolder(preserveTransferPaths(preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev), prev), prev);
+  return icsFeeds.preserveCalendarFeedUrls(CaptureSettings.preserveCaptureFolder(preserveTransferPaths(preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev), prev), prev), prev);
 }
 
 // The transfer inbox is a folder on THIS PC. It is not a secret, but it is a
@@ -12236,11 +12247,20 @@ function hasLightingProviderTokens(settings) {
 // ── Configuration backup ──────────────────────────────────────────────────────
 // Export/import of the user's configuration as ONE portable JSON file (layout,
 // Deck, calendar, tasks, timers, notes, settings, AI memory, Guardian history,
-// custom background). Secrets (API keys, Sunshine credentials, OBS password,
-// streaming tokens) are deliberately excluded: a backup file must be safe to
-// keep on a cloud drive or hand to someone. What travels instead is
-// `secretsConfigured` — boolean flags only — so the import can tell the user
-// exactly which services need re-configuring on the new machine. On import,
+// custom background). Credentials (API keys, Sunshine credentials, OBS /
+// Streamer.bot / UniFi passwords, the Home Assistant token, streaming tokens)
+// are deliberately excluded. What travels instead is `secretsConfigured` —
+// boolean flags only — so the import can tell the user exactly which services
+// need re-configuring on the new machine.
+//
+// A backup is NOT safe to hand to someone, though: it exists to restore the
+// user's own setup, so it keeps the personal configuration that setup is made
+// of — private calendar (.ics) links, Deck webhook addresses and bodies, the
+// Home Assistant alarm code on a Deck key, notes, tasks, AI memory. Stripping
+// those (as shared presets do with deck-actions.js PERSONAL_PARAMS) would make
+// a restore on a new PC silently lose calendars and break keys, with nothing to
+// tell the user what to re-enter. The export note in Settings says to keep the
+// file private; share a preset or a code instead of a backup. On import,
 // every section goes through the same normalizers as its normal save path, so
 // a tampered file can't smuggle bad shapes in. Installed third-party widget /
 // Ambient-scene PACKAGES are likewise excluded (they live in DATA_DIR/widgets,
@@ -12342,6 +12362,10 @@ async function buildBackup() {
   // another machine must not show a "saved" placeholder for a key it does not
   // contain.
   const safeSettings = redactSettingsSecrets({ ...settings, geminiApiKey: '' });
+  // Calendar links are redacted from every browser-facing copy, but the backup
+  // must carry them: there is no "re-enter it" prompt for a calendar after a
+  // restore, and the feed would simply vanish (see the section comment above).
+  if (Array.isArray(settings.calendarFeeds)) safeSettings.calendarFeeds = settings.calendarFeeds;
   const notesState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
   return {
     xenonBackup: BACKUP_FORMAT,
@@ -12480,6 +12504,11 @@ async function applyBackup(bundle) {
       // Backups never carry secrets — keep EVERY one configured on THIS machine
       // (the same composed preserve helper as POST /settings; a hand-built chain
       // here once missed the stock/football/news keys and wiped them on import).
+      // A secret tied to an address (Home Assistant, UniFi, OBS, Streamer.bot)
+      // is kept only when the backup names the same address: the file comes
+      // from outside, and a tampered one must not be able to redirect a saved
+      // token to a host of its choosing. A changed address then shows up as
+      // "needs setup" like any other missing secret.
       const incoming = preserveSettingsSecrets({ ...d.settings }, prev);
       if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
       // lighting.providers / deviceModes / native are bridge-owned (and the backup's copy
@@ -13622,6 +13651,13 @@ function _noteId() {
   return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// The shape every note and timer id must have. Ids end up in the dashboard's
+// attributes and CSS selectors (data-note-id, data-timer-time="<id>"), so one
+// carrying a quote or a bracket could break out of them. Every id this app mints
+// (_noteId, the timer id below, the dashboard's own note ids) already fits;
+// anything else — a hand-edited file, a tampered backup — gets a fresh one.
+const SAFE_ITEM_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+
 // Rebuild a trusted notes state from arbitrary persisted/wire input — explicit
 // known-key copy (never a spread of untrusted data), with caps applied.
 function normalizeNotesState(raw) {
@@ -13636,7 +13672,8 @@ function normalizeNotesState(raw) {
     if (body.length > NOTE_BODY_MAX) body = body.slice(0, NOTE_BODY_MAX);
     total += body.length;
     if (total > NOTES_TOTAL_MAX) break;
-    let id = String(n.id || '').slice(0, 64) || _noteId();
+    let id = String(n.id || '').slice(0, 64);
+    if (!SAFE_ITEM_ID_RE.test(id)) id = _noteId();
     while (seen.has(id)) id = _noteId();
     seen.add(id);
     notes.push({
@@ -13757,8 +13794,14 @@ let _timerCheckInterval = null;
 // IS a timer whose duration nobody set.
 const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);
 
+function _timerId() {
+  return `t${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function _normalizeTimer(item) {
-  const id          = String(item && item.id || `t${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
+  const given       = String(item && item.id || '').slice(0, 80);
+  // SAFE_ITEM_ID_RE: see _noteId. A malformed id is replaced, not escaped.
+  const id          = SAFE_ITEM_ID_RE.test(given) ? given : _timerId();
   const label       = String(item && item.label || 'Timer').trim().slice(0, 40);
   const kind        = TIMER_KINDS.includes(item && item.kind) ? item.kind : 'countdown';
   // A stopwatch has no duration. Storing 0 rather than a fake 60 keeps every
@@ -19581,8 +19624,13 @@ const handleRequest = async (req, res) => {
       const prev = (await readHubSettings().catch(() => null)) || {};
       const prevHa = (prev && prev.homeAssistant) || {};
       const url = typeof body.url === 'string' && body.url.trim() ? body.url.trim() : prevHa.url;
-      // Empty/omitted token in the body → fall back to the saved one (write-only field).
-      const token = typeof body.token === 'string' && body.token ? body.token : prevHa.token;
+      // Empty/omitted token in the body → fall back to the saved one (write-only
+      // field), but only for the server it was saved for. The URL comes from the
+      // request, so without this check any page that can POST here could point
+      // the probe at its own host and receive the long-lived token. A new URL
+      // needs its token typed alongside it, which is what the Connect form sends.
+      const typedToken = typeof body.token === 'string' && body.token ? body.token : '';
+      const token = typedToken || (haSameDestination(url, prevHa.url) ? prevHa.token : '');
       const probe = createHomeAssistant(async () => ({ baseUrl: url, token }));
       const r = await probe.test();
       // On success, return the entity list from the SAME already-seeded probe, so
@@ -19714,7 +19762,11 @@ const handleRequest = async (req, res) => {
       const prevU = (prev && prev.unifi) || {};
       const host = typeof body.host === 'string' && body.host.trim() ? body.host.trim() : prevU.host;
       const username = typeof body.username === 'string' && body.username.trim() ? body.username.trim() : prevU.username;
-      const password = typeof body.password === 'string' && body.password ? body.password : prevU.password;
+      // The saved password is reused only for the console + login it was saved
+      // for; host and username come from the request, so a changed one must
+      // arrive with its own password (see the Home Assistant test route).
+      const typedPassword = typeof body.password === 'string' && body.password ? body.password : '';
+      const password = typedPassword || (unifiSameDestination({ host, username }, prevU) ? prevU.password : '');
       const probe = createUnifiProtect(async () => ({ host, username, password }));
       const r = await probe.test();
       try { probe.destroy(); } catch (e) { /* ignore */ }   // free its keep-alive sockets to the console

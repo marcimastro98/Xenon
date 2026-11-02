@@ -64815,6 +64815,42 @@ Object.assign(i18n.zh, {
   ra_paired_toast_hint: "如果不是你配对的，请在 设置 > 手机 中将其移除。",
 });
 
+// The backup keeps private calendar links and Deck webhook addresses so a
+// restore brings them back; the note must not promise it is credential-free.
+Object.assign(i18n.it, {
+  settings_backup_note: "Include layout, Deck, calendario, attività, timer, note, impostazioni, memoria AI, cronologia sensori e sfondo personalizzato. Password, token e chiavi API non vengono inclusi, ma i link privati dei calendari e gli indirizzi webhook del Deck sì: conserva il file in privato.",
+});
+Object.assign(i18n.en, {
+  settings_backup_note: "Includes layout, Deck, calendar, tasks, timers, notes, settings, AI memory, sensor history and custom background. Passwords, tokens and API keys are not included, but private calendar links and Deck webhook addresses are: keep the file private.",
+});
+Object.assign(i18n.es, {
+  settings_backup_note: "Incluye diseño, Deck, calendario, tareas, temporizadores, notas, ajustes, memoria de IA, historial de sensores y fondo personalizado. No incluye contraseñas, tokens ni claves de API, pero sí los enlaces privados de calendario y las direcciones webhook del Deck: guarda el archivo en privado.",
+});
+Object.assign(i18n.fr, {
+  settings_backup_note: "Inclut la disposition, le Deck, le calendrier, les tâches, les minuteurs, les notes, les réglages, la mémoire IA, l'historique des capteurs et le fond personnalisé. Les mots de passe, jetons et clés API ne sont pas inclus, mais les liens d'agenda privés et les adresses webhook du Deck le sont : gardez le fichier privé.",
+});
+Object.assign(i18n.de, {
+  settings_backup_note: "Enthält Layout, Deck, Kalender, Aufgaben, Timer, Notizen, Einstellungen, KI-Gedächtnis, Sensorverlauf und eigenen Hintergrund. Passwörter, Tokens und API-Schlüssel sind nicht enthalten, private Kalenderlinks und Deck-Webhook-Adressen aber schon: Bewahre die Datei privat auf.",
+});
+Object.assign(i18n.pt, {
+  settings_backup_note: "Inclui o esquema, o Deck, o calendário, as tarefas, os temporizadores, as notas, as definições, a memória de IA, o histórico dos sensores e o fundo personalizado. Palavras-passe, tokens e chaves de API não são incluídos, mas as ligações privadas de calendário e os endereços webhook do Deck sim: guarde o ficheiro em privado.",
+});
+Object.assign(i18n.nl, {
+  settings_backup_note: "Bevat lay-out, Deck, agenda, taken, timers, notities, instellingen, AI-geheugen, sensorgeschiedenis en aangepaste achtergrond. Wachtwoorden, tokens en API-sleutels worden niet meegenomen, privé-agendalinks en Deck-webhookadressen wel: bewaar het bestand privé.",
+});
+Object.assign(i18n.ru, {
+  settings_backup_note: "Включает макет, Deck, календарь, задачи, таймеры, заметки, настройки, память ИИ, историю датчиков и собственный фон. Пароли, токены и API-ключи не включаются, но частные ссылки на календари и адреса вебхуков Deck включаются: храните файл в тайне.",
+});
+Object.assign(i18n.ko, {
+  settings_backup_note: "레이아웃, Deck, 캘린더, 작업, 타이머, 메모, 설정, AI 메모리, 센서 기록 및 사용자 지정 배경이 포함됩니다. 비밀번호, 토큰, API 키는 포함되지 않지만 비공개 캘린더 링크와 Deck 웹훅 주소는 포함되므로 파일을 비공개로 보관하세요.",
+});
+Object.assign(i18n.ja, {
+  settings_backup_note: "レイアウト、Deck、カレンダー、タスク、タイマー、メモ、設定、AIメモリー、センサー履歴、カスタム背景が含まれます。パスワード、トークン、APIキーは含まれませんが、非公開カレンダーのリンクとDeckのWebhookアドレスは含まれるため、ファイルは他人と共有しないでください。",
+});
+Object.assign(i18n.zh, {
+  settings_backup_note: "包含布局、Deck、日历、任务、计时器、便笺、设置、AI 记忆、传感器历史和自定义背景。不包含密码、令牌和 API 密钥，但包含私人日历链接和 Deck Webhook 地址：请妥善保管此文件，不要分享。",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

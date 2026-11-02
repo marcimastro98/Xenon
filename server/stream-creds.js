@@ -10,16 +10,42 @@
 // client save (which never carries the real password) wipes it; preserve without
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
-const STREAM_SECRET_KEYS = ['obsPassword', 'streamerbotPassword'];
+// The key list is shared with the dashboard's localStorage mirror (js/settings-secrets.js).
+const { SECRET_KEY_GROUPS } = require('./js/settings-secrets.js');
+const STREAM_SECRET_KEYS = SECRET_KEY_GROUPS.stream;
+
+// Each password belongs to the WebSocket server it was typed for. The defaults
+// mirror the clients (actions/obs.js / streamerbot.js connect to 127.0.0.1 when
+// the host is blank) and the settings normaliser's default ports.
+const STREAM_DESTINATIONS = {
+  obsPassword: { host: 'obsHost', port: 'obsPort', defaultPort: 4455 },
+  streamerbotPassword: { host: 'streamerbotHost', port: 'streamerbotPort', defaultPort: 8080 },
+};
+
+// "host:port" as the WebSocket client will dial it. Blank, localhost and the
+// loopback addresses all reach this PC, so they count as one destination.
+function streamDestination(settings, key) {
+  const d = STREAM_DESTINATIONS[key];
+  const s = (settings && typeof settings === 'object') ? settings : {};
+  let host = String(s[d.host] == null ? '' : s[d.host]).trim().toLowerCase();
+  if (!host || host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') host = 'loopback';
+  const port = parseInt(s[d.port], 10) || d.defaultPort;
+  return host + ':' + port;
+}
 
 // preserveStreamCreds: when an incoming client payload omits (or empties) a
 // stream password, carry the persisted one over so a client save can never wipe
-// a password the client never received. Mutates and returns `incoming`.
+// a password the client never received — but only while host and port are
+// unchanged. A save or an imported backup that points OBS / Streamer.bot at a
+// different machine must not send it the saved password. Mutates and returns
+// `incoming`.
 function preserveStreamCreds(incoming, prev) {
   if (!incoming || typeof incoming !== 'object') return incoming;
   if (!prev || typeof prev !== 'object') return incoming;
   for (const key of STREAM_SECRET_KEYS) {
-    if (!incoming[key] && prev[key]) incoming[key] = prev[key];
+    if (!incoming[key] && prev[key] && streamDestination(incoming, key) === streamDestination(prev, key)) {
+      incoming[key] = prev[key];
+    }
   }
   return incoming;
 }
@@ -30,13 +56,9 @@ function preserveStreamCreds(incoming, prev) {
 // real values).
 function redactStreamCreds(settings) {
   if (!settings || typeof settings !== 'object') return settings;
-  return {
-    ...settings,
-    obsPassword: '',
-    obsPasswordSet: !!settings.obsPassword,
-    streamerbotPassword: '',
-    streamerbotPasswordSet: !!settings.streamerbotPassword,
-  };
+  const out = { ...settings };
+  for (const key of STREAM_SECRET_KEYS) { out[key] = ''; out[key + 'Set'] = !!settings[key]; }
+  return out;
 }
 
-module.exports = { preserveStreamCreds, redactStreamCreds };
+module.exports = { preserveStreamCreds, redactStreamCreds, streamDestination, STREAM_SECRET_KEYS };

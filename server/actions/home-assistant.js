@@ -563,11 +563,23 @@ function normalizeHomeAssistant(input) {
   };
 }
 
+// True when two user-entered HA base URLs point at the same server: same scheme,
+// host and port once normalised ("https://ha.me/" and "https://HA.me:443" match).
+// The stored token belongs to the server it was typed for, so this is the test
+// for "may the saved token be used with this URL". Two unusable URLs compare
+// equal ('' === ''), which is harmless: no request is ever sent without a URL.
+function haSameDestination(a, b) {
+  return haHttpOrigin(a) === haHttpOrigin(b);
+}
+
 // Protect the persisted Home Assistant config against a client save. Two cases:
 //   - payload has NO homeAssistant block (older/partial/programmatic client):
 //     keep the whole persisted block (url + entities + token) so nothing is wiped.
 //   - payload HAS the block (the normal client, which owns url/entities but never
-//     receives the real token): carry the persisted token over when it's empty.
+//     receives the real token): carry the persisted token over when it's empty,
+//     but ONLY while the URL still points at the same server. Otherwise a save
+//     (or an imported backup) that only changed the URL would hand the long-lived
+//     token to whatever host the new URL names; the user re-enters it instead.
 function preserveHaToken(incoming, prev) {
   if (!incoming || typeof incoming !== 'object') return incoming;
   const prevHa = (prev && typeof prev === 'object' && prev.homeAssistant) || {};
@@ -578,7 +590,10 @@ function preserveHaToken(incoming, prev) {
     }
     return incoming;
   }
-  if (prevHa.token && !incoming.homeAssistant.token) incoming.homeAssistant.token = prevHa.token;
+  if (prevHa.token && !incoming.homeAssistant.token
+      && haSameDestination(incoming.homeAssistant.url, prevHa.url)) {
+    incoming.homeAssistant.token = prevHa.token;
+  }
   return incoming;
 }
 
@@ -973,6 +988,7 @@ module.exports = {
   actionToServiceCall,
   normalizeHomeAssistant,
   normalizeHaCamAngles,
+  haSameDestination,
   preserveHaToken,
   redactHaToken,
 };

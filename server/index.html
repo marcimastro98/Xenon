@@ -1840,7 +1840,7 @@
           <button type="button" class="settings-btn settings-btn-ghost" id="settings-backup-import-btn" onclick="importBackupPick()" data-i18n="settings_backup_import">Importa backup</button>
           <input type="file" id="settings-backup-file" accept=".json,application/json" hidden onchange="importBackupFile(this)">
         </div>
-        <div class="settings-hint" data-i18n="settings_backup_note">Include layout, Deck, calendario, attività, timer, note e impostazioni. Chiavi API e credenziali non vengono mai incluse.</div>
+        <div class="settings-hint" data-i18n="settings_backup_note">Include layout, Deck, calendario, attività, timer, note e impostazioni. Password, token e chiavi API non vengono inclusi, ma i link privati dei calendari e gli indirizzi webhook del Deck sì: conserva il file in privato.</div>
       </div>
 
       <div class="settings-group settings-tutorial-group" data-settings-cat="general">
@@ -4944,6 +4944,7 @@
 <script src="js/save-file.js"></script>
 <script src="js/perf-settings.js"></script>
 <script src="js/perf-hud.js"></script>
+<script src="js/settings-secrets.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/xenon-credits.js"></script>
 <script src="js/sparks-mail.js"></script>

@@ -3945,13 +3945,14 @@
       apps = Array.isArray(data && data.speakerApps) ? data.speakerApps : [];
     } catch { return; }   // offline: keep whatever's shown
     if (!host.isConnected) return;
-    if (!apps.length || typeof buildAppMixerRow !== 'function') {
+    if (!apps.length || typeof renderAppMixerRows !== 'function') {
       host.replaceChildren(el('div', 'deck-mix-empty', tr('deck_mix_empty', 'No app is playing audio right now')));
       return;
     }
-    // buildAppMixerRow escapes its user-controlled fields (escHtml on name/id);
-    // this is the same builder the dashboard's speaker mixer uses.
-    host.innerHTML = apps.map(buildAppMixerRow).join('');
+    // renderAppMixerRows escapes its user-controlled fields (escHtml on name/id)
+    // and sets icons through the DOM; it is the same renderer the dashboard's
+    // speaker mixer uses.
+    renderAppMixerRows(host, apps);
   }
   function openDeckMixer() {
     closeDeckMixer();

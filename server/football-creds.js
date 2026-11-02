@@ -9,7 +9,9 @@
 // client save (which never carries the real key) wipes it; preserve without
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
-const FOOTBALL_SECRET_KEYS = ['sportsDbKey'];
+// The key list is shared with the dashboard's localStorage mirror (js/settings-secrets.js).
+const { SECRET_KEY_GROUPS } = require('./js/settings-secrets.js');
+const FOOTBALL_SECRET_KEYS = SECRET_KEY_GROUPS.football;
 
 // preserveFootballCreds: when an incoming client payload omits (or empties) the
 // key, carry the persisted one over so a client save can never wipe a key the
@@ -28,11 +30,9 @@ function preserveFootballCreds(incoming, prev) {
 // shallow copy (persisted/in-memory settings keep the real value).
 function redactFootballCreds(settings) {
   if (!settings || typeof settings !== 'object') return settings;
-  return {
-    ...settings,
-    sportsDbKey: '',
-    sportsDbKeySet: !!settings.sportsDbKey,
-  };
+  const out = { ...settings };
+  for (const key of FOOTBALL_SECRET_KEYS) { out[key] = ''; out[key + 'Set'] = !!settings[key]; }
+  return out;
 }
 
 module.exports = { preserveFootballCreds, redactFootballCreds };

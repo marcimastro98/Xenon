@@ -75,6 +75,6 @@ function renderMicApps(apps) {
   const key = appMixKey(apps);
   if (key === host.dataset.mixKey && host.querySelector('.app-mix-slider')) { host.hidden = false; return; }
   host.dataset.mixKey = key;
-  host.innerHTML = apps.map(buildAppMixerRow).join('');
+  renderAppMixerRows(host, apps);
   host.hidden = false;
 }

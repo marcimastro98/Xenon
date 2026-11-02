@@ -908,18 +908,32 @@ function _aiSafeLinkScheme(url) {
   return /^(https?:|mailto:)/.test(probe);
 }
 
-function _inlineMarkdown(line) {
-  // Process bold, italic, inline code in order (no nesting to keep it simple)
-  return _escHtmlAI(line)
+// Bold, italic and inline code, in that order (no nesting to keep it simple).
+function _inlineEmphasis(html) {
+  return html
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/_(.+?)_/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_full, label, url) =>
-      _aiSafeLinkScheme(url)
-        ? `<a href="${url}" target="_blank" rel="noopener" class="ai-link">${label}</a>`
-        : `${label} (${url})`);
+    .replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>');
+}
+
+function _inlineMarkdown(line) {
+  // Links are taken out BEFORE the emphasis pass and put back after it. The
+  // other way round, a code span or an underscore inside a link's URL became
+  // markup — `<code class="…">` has quotes of its own — inside href="…", which
+  // let assistant text (and whatever page or file it was quoting) add
+  // attributes to the anchor. A URL ends at whitespace or ")" and never
+  // contains a quote or angle bracket; only the label gets emphasis.
+  const links = [];
+  const text = _escHtmlAI(String(line == null ? '' : line).replace(/\u0000/g, ''))
+    .replace(/\[([^\]]+)\]\(([^)\s"<>]+)\)/g, (_full, label, url) => {
+      links.push(_aiSafeLinkScheme(url)
+        ? `<a href="${url}" target="_blank" rel="noopener" class="ai-link">${_inlineEmphasis(label)}</a>`
+        : `${_inlineEmphasis(label)} (${url})`);
+      return `\u0000${links.length - 1}\u0000`;
+    });
+  return _inlineEmphasis(text).replace(/\u0000(\d+)\u0000/g, (_m, i) => links[Number(i)]);
 }
 
 function _aiRenderMarkdown(raw) {

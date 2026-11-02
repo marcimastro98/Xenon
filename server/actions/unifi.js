@@ -174,13 +174,24 @@ function normalizeUnifi(input) {
   };
 }
 
+// True when two { host, username } pairs name the same console login: same
+// normalised origin (scheme + host + port) and the same username. The saved
+// password belongs to that login, so this decides whether it may be reused.
+function unifiSameDestination(a, b) {
+  const x = (a && typeof a === 'object') ? a : {};
+  const y = (b && typeof b === 'object') ? b : {};
+  return unifiBaseUrl(x.host) === unifiBaseUrl(y.host)
+    && String(x.username == null ? '' : x.username).trim() === String(y.username == null ? '' : y.username).trim();
+}
+
 // Protect the persisted UniFi config against a client save. Two cases, mirroring
 // preserveHaToken:
 //   - payload has NO unifi block (older/partial/programmatic client): keep the
 //     whole persisted block so nothing is wiped.
 //   - payload HAS the block (the normal client, which owns host/username/cameras
 //     but never receives the real password): carry the persisted password over
-//     when the incoming one is empty.
+//     when the incoming one is empty AND host + username are unchanged. A changed
+//     host would otherwise receive the saved password on the next login.
 function preserveUnifiCreds(incoming, prev) {
   if (!incoming || typeof incoming !== 'object') return incoming;
   const prevU = (prev && typeof prev === 'object' && prev.unifi) || {};
@@ -191,7 +202,9 @@ function preserveUnifiCreds(incoming, prev) {
     }
     return incoming;
   }
-  if (prevU.password && !incoming.unifi.password) incoming.unifi.password = prevU.password;
+  if (prevU.password && !incoming.unifi.password && unifiSameDestination(incoming.unifi, prevU)) {
+    incoming.unifi.password = prevU.password;
+  }
   return incoming;
 }
 
@@ -438,6 +451,7 @@ module.exports = {
   normalizeUnifi,
   normalizeUnifiNotify,
   UNIFI_NOTIFY_KINDS,
+  unifiSameDestination,
   preserveUnifiCreds,
   redactUnifiCreds,
 };

@@ -11,13 +11,23 @@
 
 let appSearchQuery = '';
 
-// Only ever emit a cached favorite icon that is a data:image URI. The server
-// normalizes it, but the localStorage mirror is user-editable, so guard here too:
-// an arbitrary string interpolated into an <img src> could otherwise break out of
-// the attribute.
+// Only ever show a cached favorite icon that is a plain base64 raster data URI.
+// The server normalizes it, but the localStorage mirror is user-editable and a
+// restored backup is outside data, so guard here too (utils.js safeImageDataUri).
+// The <img> elements are also built with DOM properties, never by putting the
+// value into markup, so even a value that slipped past this check stays a URL.
 function safeIconSrc(value) {
-  const v = String(value || '');
-  return /^data:image\//.test(v) ? v : '';
+  return safeImageDataUri(value);
+}
+
+// Give each <img data-img-slot> placeholder rendered by a template its src,
+// through the DOM property. `srcs` is parallel to the slots, in document order.
+function fillImgSlots(root, srcs) {
+  const slots = root.querySelectorAll('img[data-img-slot]');
+  slots.forEach((img, i) => {
+    img.removeAttribute('data-img-slot');
+    if (srcs[i]) img.src = srcs[i];
+  });
 }
 
 function isAppFavorite(win) {
@@ -84,13 +94,15 @@ function renderAppFavorites() {
   }
   host.classList.add('has-favs');
   const openKeys = new Set(appWindows.map(appWindowKey));
+  const imgSrcs = [];
   host.innerHTML = favs.map((fav, i) => {
     const appName = prettyAppName(fav.app);
     const initial = escHtml((appName[0] || 'A').toUpperCase());
     const running = openKeys.has(fav.key);
     const inert = !running && !fav.path;            // closed and no launch path
     const iconSrc = safeIconSrc(fav.icon);
-    const icon = iconSrc ? `<img src="${iconSrc}" alt="">` : `<span class="qbtn-fav-letter">${initial}</span>`;
+    if (iconSrc) imgSrcs.push(iconSrc);
+    const icon = iconSrc ? '<img data-img-slot alt="">' : `<span class="qbtn-fav-letter">${initial}</span>`;
     const cls = 'qbtn qbtn-favorite'
       + (running ? ' running' : ' closed')
       + (inert ? ' inert' : '');
@@ -102,6 +114,7 @@ function renderAppFavorites() {
       </button>
     `;
   }).join('');
+  fillImgSlots(host, imgSrcs);
   initAppFavDrag(host);
 }
 
@@ -201,10 +214,11 @@ function renderAppWindows() {
     list.innerHTML = `<div class="app-empty">${escHtml(t('apps_loading'))}</div>`;
     return;
   }
+  initAppListActions(list);
   if (appWindowsError) {
     list.innerHTML = `<div class="app-empty app-error">`
       + `<span>${escHtml(t('apps_error'))}</span>`
-      + `<button type="button" class="app-retry" onclick="loadAppWindows()">${escHtml(t('apps_retry'))}</button>`
+      + `<button type="button" class="app-retry">${escHtml(t('apps_retry'))}</button>`
       + `</div>`;
     return;
   }
@@ -217,7 +231,12 @@ function renderAppWindows() {
     return;
   }
 
-  list.innerHTML = wins.map(win => {
+  // Window ids, icons and previews come from the window helper, and favorites
+  // from settings — none of them is ever written into the markup. Each card gets
+  // an index into `wins`; the delegated listener (initAppListActions) reads the
+  // id from there, and fillImgSlots sets the images through the DOM.
+  const imgSrcs = [];
+  list.innerHTML = wins.map((win, idx) => {
     const appName = prettyAppName(win.app);
     const initial = escHtml((appName[0] || 'A').toUpperCase());
     const favorite = isAppFavorite(win);
@@ -226,19 +245,23 @@ function renderAppWindows() {
     // when the screenshot preview is an unrecognisable window thumbnail. Falls back
     // to the app-name initial only when no icon could be extracted (e.g. some UWP apps).
     const iconSrc = safeIconSrc(win.icon);
-    const metaIcon = iconSrc
-      ? `<img src="${iconSrc}" alt="">`
-      : `<span class="app-meta-letter">${initial}</span>`;
-    const preview = win.preview
-      ? `<img src="${win.preview}" alt="">`
-      : `<span class="app-fallback-icon">${iconSrc ? `<img src="${iconSrc}" alt="">` : initial}</span>`;
+    const previewSrc = safeImageDataUri(win.preview);
+    // Slots in document order: the preview (or its fallback icon) comes first,
+    // then the meta badge.
+    let preview;
+    if (previewSrc) { imgSrcs.push(previewSrc); preview = '<img data-img-slot alt="">'; }
+    else if (iconSrc) { imgSrcs.push(iconSrc); preview = '<span class="app-fallback-icon"><img data-img-slot alt=""></span>'; }
+    else preview = `<span class="app-fallback-icon">${initial}</span>`;
+    let metaIcon;
+    if (iconSrc) { imgSrcs.push(iconSrc); metaIcon = '<img data-img-slot alt="">'; }
+    else metaIcon = `<span class="app-meta-letter">${initial}</span>`;
     return `
-      <div class="app-card${win.active ? ' active' : ''}" role="button" tabindex="0" onclick="focusAppWindow('${escHtml(win.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();focusAppWindow('${escHtml(win.id)}')}" title="${escHtml(t('apps_open'))}: ${escHtml(appName)}">
+      <div class="app-card${win.active ? ' active' : ''}" role="button" tabindex="0" data-win-index="${idx}" title="${escHtml(t('apps_open'))}: ${escHtml(appName)}">
         <span class="app-preview">
-          <button class="app-star${favorite ? ' favorited' : ''}" type="button" onclick="toggleAppFavorite(event,'${escHtml(win.id)}')" title="${escHtml(t(favorite ? 'apps_unfavorite' : 'apps_favorite'))}">
+          <button class="app-star${favorite ? ' favorited' : ''}" type="button" title="${escHtml(t(favorite ? 'apps_unfavorite' : 'apps_favorite'))}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.86L12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2Z"/></svg>
           </button>
-          <button class="app-close" type="button" onclick="closeAppWindowCard(event,'${escHtml(win.id)}')" title="${escHtml(t('apps_close'))}" aria-label="${escHtml(t('apps_close'))}">
+          <button class="app-close" type="button" title="${escHtml(t('apps_close'))}" aria-label="${escHtml(t('apps_close'))}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm11.2 0L19 6.4 6.4 19 5 17.6 17.6 5Z"/></svg>
           </button>
           ${preview}
@@ -255,6 +278,43 @@ function renderAppWindows() {
       </div>
     `;
   }).join('');
+  _appListWins = wins;
+  fillImgSlots(list, imgSrcs);
+}
+
+// The windows the cards currently on screen were rendered from, by index.
+let _appListWins = [];
+function _appCardWinId(card) {
+  const win = card ? _appListWins[Number(card.dataset.winIndex)] : null;
+  return win && win.id != null ? String(win.id) : '';
+}
+
+// One delegated listener per list instead of inline onclick="…('id')" handlers:
+// an id in an inline handler is markup the browser decodes before running it,
+// so a quote in a window id (or a crafted favorite) became script.
+let _appListActionsInit = false;
+function initAppListActions(list) {
+  if (_appListActionsInit) return;
+  _appListActionsInit = true;
+  list.addEventListener('click', (e) => {
+    if (e.target.closest('.app-retry')) { loadAppWindows(); return; }
+    const card = e.target.closest('.app-card');
+    if (!card || !list.contains(card)) return;
+    const id = _appCardWinId(card);
+    if (!id) return;
+    if (e.target.closest('.app-star')) { toggleAppFavorite(e, id); return; }
+    if (e.target.closest('.app-close')) { closeAppWindowCard(e, id); return; }
+    focusAppWindow(id);
+  });
+  list.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.app-card');
+    // Only the card itself: Enter on its star / close button is that button's click.
+    if (!card || e.target !== card) return;
+    e.preventDefault();
+    const id = _appCardWinId(card);
+    if (id) focusAppWindow(id);
+  });
 }
 
 async function loadAppWindows(showLoading) {

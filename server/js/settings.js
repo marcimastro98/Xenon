@@ -2959,20 +2959,17 @@ const _settingsReadOnly = /[?&]layer=/.test(String((window.location && window.lo
 
 function saveLocalHubSettings() {
   if (_settingsReadOnly) return;
-  // Server-only secrets stay OUT of localStorage: all three provider API keys
-  // (geminiApiKey joined them in v4.11.0), the UniFi console
-  // password and the Home Assistant token. They stay in memory only long enough
-  // for the pending POST to reach the server, which then redacts them back to ''
-  // on the next hydrate. The *Set flags are kept so the readiness checks and the
-  // "saved" placeholders survive a reload.
-  let forLocal = hubSettings;
-  if (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey || hubSettings.geminiApiKey
-      || (hubSettings.unifi && hubSettings.unifi.password)
-      || (hubSettings.homeAssistant && hubSettings.homeAssistant.token))) {
-    forLocal = { ...hubSettings, openaiApiKey: '', anthropicApiKey: '', geminiApiKey: '' };
-    if (forLocal.unifi && forLocal.unifi.password) forLocal.unifi = { ...forLocal.unifi, password: '' };
-    if (forLocal.homeAssistant && forLocal.homeAssistant.token) forLocal.homeAssistant = { ...forLocal.homeAssistant, token: '' };
-  }
+  // Server-only secrets stay OUT of localStorage: every key in the shared list
+  // (js/settings-secrets.js — the same list the server's redaction uses: API
+  // keys, OBS / Streamer.bot / UniFi passwords, the Home Assistant token, the
+  // Sunshine login) plus private calendar links. They stay in memory only long
+  // enough for the pending POST to reach the server, which then redacts them
+  // back to '' on the next hydrate. The *Set flags are kept so the readiness
+  // checks and the "saved" placeholders survive a reload.
+  // Without the shared list the mirror is skipped rather than written with
+  // secrets in it: the server copy is the authoritative one anyway.
+  if (!window.SettingsSecrets) return;
+  const forLocal = window.SettingsSecrets.stripSettingsSecrets(hubSettings);
   // Asset-carrying backgrounds/theme cards can push the blob past the origin
   // quota; a thrown setItem must not abort the save flow (the server copy —
   // written right after — is the authoritative one and still gets the change).
@@ -12415,7 +12412,12 @@ function renderCalendarFeeds(container) {
 
     const urlInput = document.createElement('input');
     urlInput.type = 'url';
-    urlInput.placeholder = t('feed_url');
+    // The server keeps the link itself (it is the calendar's password) and only
+    // sends its host + `urlSet`. A blank field therefore means "keep the saved
+    // link"; typing a new one replaces it.
+    urlInput.placeholder = feed.urlSet && !feed.url
+      ? (feed.host ? feed.host + ' · ' : '') + t('settings_key_saved')
+      : t('feed_url');
     urlInput.value = feed.url || '';
     urlInput.addEventListener('change', () => { feed.url = urlInput.value.trim(); commit(); });
 
