@@ -1571,12 +1571,41 @@ function Install-NativeAppIfPresent {
           return $true
         }
       }
+      # The installer runs silently (/S), so it is held to the same check as
+      # every update: the release's SHA256SUMS must carry a valid signature
+      # from the pinned key, and the file must hash to its line. Node does the
+      # check (native-installer-cli.js, shared with the dashboard's one-tap
+      # install); anything that does not verify is deleted and never run.
       $dlDir = Join-Path $PSScriptRoot 'data\native-installer'
+      $nodeExe = Get-NodePath
+      if (-not $nodeExe) { throw 'Node.js is not available to verify the download' }
+      $verifier = Join-Path $PSScriptRoot 'native-installer-cli.js'
       New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
-      $exe = Join-Path $dlDir $asset.name
-      Invoke-DownloadWithSpinner -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -Activity 'Downloading the native app installer'
-      if (-not (Test-Path $exe)) { throw 'the download did not produce the installer' }
-      Write-Step "Installing the native Xenon app ($($asset.name))..."
+      # Start-Process with the answer written to a file, like the other node
+      # calls here: a native command's stderr under ErrorActionPreference Stop
+      # would otherwise turn any warning line into a terminating error.
+      $answerFile = Join-Path $dlDir 'verify.json'
+      Remove-Item -LiteralPath $answerFile -Force -ErrorAction SilentlyContinue
+      Start-Process -FilePath $nodeExe -ArgumentList "`"$verifier`"", "`"$dlDir`"" `
+        -WorkingDirectory $PSScriptRoot -Wait -NoNewWindow -RedirectStandardOutput $answerFile | Out-Null
+      $verified = $null
+      try { $verified = (Get-Content -LiteralPath $answerFile -Raw).Trim() | ConvertFrom-Json } catch { }
+      Remove-Item -LiteralPath $answerFile -Force -ErrorAction SilentlyContinue
+      if (-not $verified -or -not $verified.ok) {
+        $why = if ($verified -and $verified.error) { $verified.error } else { 'no answer' }
+        if ($why -eq 'no_installer') {
+          Write-Host 'The native app installer is not attached to the latest release yet - you can install it later from the dashboard: Settings -> General.' -ForegroundColor Gray
+          return $false
+        }
+        throw "the installer could not be verified ($why)"
+      }
+      $exe = [string]$verified.path
+      # Hashed again right before it starts, so a file swapped after the check
+      # is refused too.
+      if (-not (Test-Path -LiteralPath $exe) -or ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne ([string]$verified.sha256).ToLowerInvariant())) {
+        throw 'the installer changed after it was verified'
+      }
+      Write-Step 'Installing the native Xenon app (verified)...'
       Invoke-ProcessWithSpinner -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -Activity 'Installing the native app' | Out-Null
       return $true
     } catch {
