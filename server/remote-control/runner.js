@@ -1,6 +1,7 @@
 'use strict';
 
 const { execFile, spawn } = require('node:child_process');
+const { psEscape, psQuote } = require('../ps-quote');
 
 /**
  * Start something and deliberately do NOT wait for it.
@@ -131,8 +132,8 @@ function mapOsascriptResult(r) {
 function runElevated(file, args = [], { timeoutMs = 600000 } = {}) {
   if (process.platform === 'darwin') return runElevatedMac(file, args, timeoutMs);
   if (process.platform !== 'win32') return runElevatedPosix(file, args, timeoutMs);
-  const safeFile = String(file).replace(/'/g, "''");
-  const argList = args.map((a) => `'${String(a).replace(/'/g, "''")}'`).join(',');
+  const safeFile = psEscape(file);
+  const argList = args.map((a) => psQuote(a)).join(',');
   const start = argList
     ? `Start-Process -FilePath '${safeFile}' -ArgumentList ${argList} -Verb RunAs -Wait -PassThru`
     : `Start-Process -FilePath '${safeFile}' -Verb RunAs -Wait -PassThru`;

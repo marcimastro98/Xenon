@@ -1,4 +1,5 @@
 'use strict';
+const { psEscape } = require('../ps-quote');
 
 const https = require('node:https');
 const defaultRunner = require('./runner');
@@ -136,7 +137,7 @@ function createSunshine({
   async function configureElevated(user, pass, serviceName = 'SunshineService') {
     if (!isWin) return configurePosix(user, pass);
     const l = await launcher();
-    const q = (s) => String(s).replace(/'/g, "''");
+    const q = (s) => psEscape(s);
     const inner =
       `& '${q((l && l.file) || EXE)}' --creds '${q(user)}' '${q(pass)}'; ` +
       `Restart-Service -Name '${q(serviceName)}' -Force`;

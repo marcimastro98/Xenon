@@ -1,4 +1,5 @@
 'use strict';
+const { psEscape } = require('./ps-quote');
 // One-click, opt-in ad-blocker for the embedded Browser widget.
 //
 // The Browser tile normally runs headless Edge with `--disable-extensions` to stay
@@ -100,8 +101,8 @@ function _downloadToFile(url, destPath, _redirects = 0) {
 // overwrite. Single quotes in paths are doubled so the PS literals stay intact.
 function _unzipWindows(zipPath, destDir) {
   return new Promise((resolve, reject) => {
-    const z = zipPath.replace(/'/g, "''");
-    const d = destDir.replace(/'/g, "''");
+    const z = psEscape(zipPath);
+    const d = psEscape(destDir);
     const ps =
       `Unblock-File -LiteralPath '${z}' -ErrorAction SilentlyContinue; ` +
       `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
