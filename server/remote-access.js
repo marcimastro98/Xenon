@@ -379,6 +379,8 @@ const GET_READ_EXCEPTIONS = new Set([
   '/api/screenshot/monitor',
   '/api/claude/link',
   '/api/codex/link',
+  // The Deck editor on a phone shows an app key's own icon.
+  '/deck/app-icon',
 ]);
 
 /** server.js calls this once at boot with its own CSRF_MUTATION_PATHS. */

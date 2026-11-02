@@ -61,7 +61,7 @@ test('the local sockets only open from our own pages', () => {
 });
 
 test('the rule runs on the loopback door for every path, before any route', () => {
-  const at = SERVER.indexOf('if (!isRemote && refusedCrossSite(req))');
+  const at = SERVER.indexOf('if (!isRemote && refusedCrossSite(req, PORT, reqPathEarly))');
   assert.ok(at > 0, 'the general guard is in the request handler');
   assert.ok(at > SERVER.indexOf('const isRemote = remote !== null;'), 'after the door is known');
   assert.ok(at < SERVER.indexOf("if (req.method === 'OPTIONS') { res.writeHead(204)"), 'before the preflight reply');
@@ -72,7 +72,42 @@ test('the rule runs on the loopback door for every path, before any route', () =
 test('the socket upgrade applies its rule after the loopback check', () => {
   const up = SERVER.slice(SERVER.indexOf("server.on('upgrade'"));
   const loop = up.indexOf('if (!isAllowedRequest(req)) { socket.destroy(); return; }');
-  const strict = up.indexOf('if (refusedSocketOrigin(req)) { socket.destroy(); return; }');
+  const strict = up.indexOf('if (refusedSocketOrigin(req, PORT)) { socket.destroy(); return; }');
   assert.ok(loop > 0 && strict > loop, 'both checks, loopback first');
   assert.ok(strict < up.indexOf('handleUpgrade'), 'before any socket is accepted');
+});
+
+test('a page served by another program on another local port is not us', () => {
+  // localhost:5173 and 127.0.0.1:3030 are "same-site" to a browser: the port
+  // is not part of the site. A dev server, a notebook or another app's web UI
+  // must still not drive Xenon.
+  const other = { origin: 'http://127.0.0.1:5173', 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'cors' };
+  assert.equal(refusedCrossSite(req('POST', other)), true);
+  assert.equal(refusedCrossSite(req('GET', other)), true, 'nor read an answer');
+  assert.equal(refusedCrossSite(req('POST', { origin: 'http://localhost:8080' })), true, 'old browser, Origin only');
+  assert.equal(refusedSocketOrigin(req('GET', { origin: 'http://localhost:8080' })), true);
+  assert.equal(refusedCrossSite(req('POST', { origin: 'https://127.0.0.1:3030' })), true, 'another scheme is another origin');
+  assert.equal(refusedCrossSite(req('POST', { origin: 'http://[::1]:3030' })), false, 'our IPv6 spelling');
+  assert.equal(refusedCrossSite(req('POST', { origin: 'http://127.0.0.1:4040' }), 4040), false, 'XENON_PORT is honoured');
+});
+
+test('an opaque origin cannot read either, even with no Fetch Metadata', () => {
+  // Safari before 16.4 and Firefox before 90: a sandboxed frame's fetch() sends
+  // Origin: null and nothing else. With Access-Control-Allow-Origin: * it
+  // could read /settings.
+  assert.equal(refusedCrossSite(req('GET', { origin: 'null' }), 3030, '/settings'), true);
+  assert.equal(refusedCrossSite(req('GET', { origin: 'null' }), 3030, '/api/screenshot'), true);
+});
+
+test("a sandboxed widget still loads its own module scripts and fonts", () => {
+  // The SDK guide recommends <script type="module">: a cors-mode GET with
+  // Origin: null from the widget's opaque origin. Its files are public code.
+  const moduleLoad = { origin: 'null', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'script' };
+  assert.equal(refusedCrossSite(req('GET', moduleLoad), 3030, '/sdk/widget/clock/main.js'), false);
+  assert.equal(refusedCrossSite(req('GET', { ...moduleLoad, 'sec-fetch-dest': 'font' }), 3030, '/sdk/widget/clock/font.woff2'), false);
+  assert.equal(refusedCrossSite(req('GET', moduleLoad), 3030, '/sdk/wk/abc/clock/main.js'), false, 'the paired-phone copy of the same files');
+  // Only reads, and only that folder.
+  assert.equal(refusedCrossSite(req('POST', moduleLoad), 3030, '/sdk/widget/clock/main.js'), true);
+  assert.equal(refusedCrossSite(req('GET', moduleLoad), 3030, '/sdk/store'), true);
+  assert.equal(refusedCrossSite(req('GET', moduleLoad), 3030, '/settings'), true);
 });

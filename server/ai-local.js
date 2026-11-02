@@ -1,4 +1,5 @@
 'use strict';
+const { psEscape } = require('./ps-quote');
 
 // ── Xenon AI — Local provider (Ollama + Whisper.cpp + msedge-tts) ──────────
 // Mirror of the Gemini path but fully local/free. server.js routes to this
@@ -1251,8 +1252,8 @@ function _httpsJson(url, _redirects = 0) {
 // are doubled so the PowerShell single-quoted literals stay intact.
 function _unzipWindows(zipPath, destDir) {
   return new Promise((resolve, reject) => {
-    const z = zipPath.replace(/'/g, "''");
-    const d = destDir.replace(/'/g, "''");
+    const z = psEscape(zipPath);
+    const d = psEscape(destDir);
     const ps =
       `Unblock-File -LiteralPath '${z}' -ErrorAction SilentlyContinue; ` +
       `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +

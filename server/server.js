@@ -2911,9 +2911,18 @@ function runPowerShellCommand(command, timeout = 5000) {
 const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
 const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
 const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
+const { psEscape, psQuote } = require('./ps-quote');
+// \\host\share, //host/share, \\?\UNC\host: touching one makes Windows
+// authenticate to that host with the user's credentials.
+function isNetworkPath(p) {
+  const s = String(p || '').trim();
+  if (/^[\\/]{2}[?.][\\/]/.test(s)) return /^[\\/]{2}[?.][\\/]UNC[\\/]/i.test(s);
+  return /^[\\/]{2}/.test(s);
+}
 
+// Doubles every quote PowerShell ends a single-quoted string on (ps-quote.js).
 function psSingleQuote(value) {
-  return String(value).replace(/'/g, "''");
+  return psEscape(value);
 }
 
 // Is the launcher this feature needs still on disk?
@@ -3653,7 +3662,7 @@ async function resolveAppIcons(appPaths) {
   const keys = appPaths.map(p => (p || '').toLowerCase());
   const uncached = [...new Set(keys)].filter(k => k && !appIconCache.has(k));
   if (uncached.length) {
-    const psArr = uncached.map(p => `'${p.replace(/'/g, "''")}'`).join(',');
+    const psArr = uncached.map(p => psQuote(p)).join(',');
     const psCmd = `
       $paths = @(${psArr})
       $out = @{}
@@ -8779,8 +8788,8 @@ async function runAiTool(fnName, fnArgs, deps) {
           'epic games': 'com.epicgames.launcher://apps',
         };
         const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
-        // Escape single quotes for PowerShell single-quoted strings
-        const psEscaped = resolved.replace(/'/g, "''");
+        // Every quote PowerShell ends a single-quoted string on (ps-quote.js).
+        const psEscaped = psEscape(resolved);
         // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
         // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
         const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
@@ -8812,7 +8821,7 @@ async function runAiTool(fnName, fnArgs, deps) {
           'whatsapp': 'whatsapp',
         };
         const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
-        const psEsc = procName.replace(/'/g, "''");
+        const psEsc = psEscape(procName);
         const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
         try {
           await new Promise((resolve, reject) =>
@@ -14730,6 +14739,9 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/phone/send',
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
   '/audio/app/volume', '/audio/app/mute',
+  // Runs PowerShell on a path taken from the query string (an icon lookup).
+  // Read-only, but no page on another site may aim it.
+  '/deck/app-icon',
   // The iCUE widget saves notes via GET (?save=1&data=) over JSONP <script>. That
   // same shape is a cross-site drive-by that could REPLACE the whole notes store
   // with one note — so it must be Sec-Fetch-Site-guarded like the other controls.
@@ -16059,7 +16071,9 @@ const handleRequest = async (req, res) => {
 
   // Requests from other sites: see cross-site.js. Before the OPTIONS reply,
   // so a refused preflight is refused here too.
-  if (!isRemote && refusedCrossSite(req)) {
+  let reqPathEarly = '';
+  try { reqPathEarly = new URL(req.url, 'http://localhost').pathname; } catch { /* refused below as foreign if it matters */ }
+  if (!isRemote && refusedCrossSite(req, PORT, reqPathEarly)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
     return;
@@ -17321,16 +17335,21 @@ const handleRequest = async (req, res) => {
     // The app's OWN icon for a Deck launch key, so "open app" / "open Store app"
     // keys need no external image. `path` → an exe/lnk's embedded icon (via
     // resolveAppIcons); `aumid` → a Store/UWP app's tile logo (via
-    // resolveStoreAppIcon). Read-only — it extracts an icon and mutates nothing —
-    // so the loopback boundary is the only guard needed; the exe path is
-    // quote-escaped into PowerShell and the AUMID is charset-checked before use.
+    // resolveStoreAppIcon). It mutates nothing, but it runs PowerShell on a
+    // path from the query string, so it is in CSRF_MUTATION_PATHS: a page on
+    // another site must not be able to aim it with an <img>. The path is
+    // quoted by psQuote() (every PowerShell quote character), a network path
+    // is refused, and the AUMID is charset-checked before use.
     try {
       const aumid = (urlObj.searchParams.get('aumid') || '').trim();
       const appPath = (urlObj.searchParams.get('path') || '').trim();
       let icon = null;
       if (aumid) {
         if (/^[\w.-]+![\w.-]+$/.test(aumid)) icon = await resolveStoreAppIcon(aumid);
-      } else if (appPath) {
+      } else if (appPath && !isNetworkPath(appPath)) {
+        // A network path is never read: asking Windows whether
+        // \\host\share\x.exe exists already sends the user's NTLM hash to
+        // that host. The path itself reaches PowerShell through psQuote().
         const icons = await resolveAppIcons([appPath]);
         icon = icons[0] || null;
       }
@@ -24698,7 +24717,7 @@ server.on('upgrade', (req, socket, head) => {
   // Same loopback/Host/Origin guard as every HTTP route — the relay is local-only.
   if (!isAllowedRequest(req)) { socket.destroy(); return; }
   // Only our own pages, same-origin, open these sockets (cross-site.js).
-  if (refusedSocketOrigin(req)) { socket.destroy(); return; }
+  if (refusedSocketOrigin(req, PORT)) { socket.destroy(); return; }
   if (pathname === '/api/ai/live') {
     liveWss.handleUpgrade(req, socket, head, (client) => _handleLiveClient(client));
     return;
