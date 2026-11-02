@@ -129,7 +129,7 @@
   <ItemGroup>
     <!-- GDI+ wrapper for the app-switcher window previews/icons (WindowsTool).
          Interop-based, no reflection serialization → safe with PublishTrimmed. -->
-    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.14" />
   </ItemGroup>
 
 </Project>
