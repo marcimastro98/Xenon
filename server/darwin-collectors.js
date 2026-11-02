@@ -758,6 +758,19 @@ async function osaWrite(script, timeoutMs) {
   return out;
 }
 
+// osascript argv for a graceful `quit` of the named app. The name comes from
+// the window list, i.e. from whatever another program chose to call itself, so
+// it travels as an argument (`item 1 of argv`) and is never spliced into the
+// script text: backslash/quote escaping was the only thing standing between a
+// crafted app name and arbitrary AppleScript (`do shell script …`). A name that
+// starts with "-" is refused because osascript would read it as an option, and
+// control characters never appear in a real app name.
+function quitAppArgs(name) {
+  const n = String(name == null ? '' : name);
+  if (!n || n.startsWith('-') || /[\u0000-\u001f\u007f]/.test(n)) return null;
+  return ['-e', 'on run argv', '-e', 'tell application (item 1 of argv) to quit', '-e', 'end run', n];
+}
+
 async function listApps(includeProtected) {
   const helped = await runHelper(['windows', 'list'], 5000);
   if (helped !== null) {
@@ -807,8 +820,9 @@ async function windows(action, id) {
     if (PROTECTED_APPS.has(hit.app)) return { ok: false, error: 'protected', app: hit.app };
     // `quit` is the graceful close: the app gets to prompt about unsaved work,
     // which is what the Windows path's WM_CLOSE does too.
-    const esc = hit.app.replace(/[\\"]/g, '\\$&');
-    const out = await osa(`tell application "${esc}" to quit`, 8000);
+    const args = quitAppArgs(hit.app);
+    if (!args) return { ok: false, error: 'not_found', app: hit.app };
+    const out = await runSoft('osascript', args, 8000);
     return out === null
       ? { ok: false, error: 'not_found', app: hit.app }
       : { ok: true, app: hit.app, path: hit.path };
@@ -1338,7 +1352,7 @@ module.exports = {
   gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   hideWindows, hideWindowsTool, notify, processes, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
   // exported for unit tests
-  parsePsTime, parsePsProcesses,
+  quitAppArgs, parsePsTime, parsePsProcesses,
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
   parseIoregDisks, parseHideResult,

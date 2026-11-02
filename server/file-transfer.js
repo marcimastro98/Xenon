@@ -62,7 +62,9 @@ const ID_RE = /^f[0-9a-f]{16}$/;
 const FILE_RE = /^f[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
 const EXT_RE = /^\.[a-z0-9]{1,8}$/;
 // Windows swallows these whole, extension and all, however they are spelled.
-const WIN_RESERVED_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+// Shared with the sound/icon pack validators (see win-reserved.js for the
+// forms covered: "con .txt", COM¹, CONIN$ …).
+const { WIN_RESERVED_RE } = require('./win-reserved');
 
 // The MIME a download is served with, keyed on the extension WE stored — never
 // on the `?mime=` the client declared. This is not cosmetic: iOS Safari routes

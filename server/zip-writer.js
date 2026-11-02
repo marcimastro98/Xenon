@@ -10,10 +10,15 @@
 
 const fs = require('fs');
 const zlib = require('zlib');
+const { pipeline } = require('stream');
 const { promisify } = require('util');
 
 const deflateRaw = promisify(zlib.deflateRaw);
 const MAX_TOTAL = 0xfffffff0; // under 4 GB, the classic format's limit
+// Without Zip64 every size and offset is a 32-bit field and the entry count a
+// 16-bit one; past either, the header silently wraps and the archive is corrupt.
+const MAX_ENTRY_SIZE = 0xffffffff;
+const MAX_ENTRIES = 0xffff;
 const STORED_EXT = /\.(png|jpe?g|gif|webp|mp4|webm|mkv|mov|zip|7z|gz|dmp)$/i;
 
 // zlib.crc32 arrived in node 20.15 / 22.2; the engines field allows 18.15.
@@ -96,7 +101,9 @@ function endRecord(count, cdSize, cdOffset) {
 // entries: [{ name, data: Buffer|string }] or [{ name, file, start?, mtime? }];
 // `start` skips the head of a file (a big log keeps its newest part).
 // Resolves { bytes, count }; rejects with err.code 'too_big' past MAX_TOTAL.
-async function writeZip(out, entries, { maxTotal = MAX_TOTAL } = {}) {
+async function writeZip(out, entries, { maxTotal: requestedMax = MAX_TOTAL } = {}) {
+  // A caller can lower the cap, never raise it past what the format can hold.
+  const maxTotal = Math.min(requestedMax, MAX_TOTAL);
   const part = out + '.part';
   const fh = await fs.promises.open(part, 'w');
   let pos = 0;
@@ -113,6 +120,7 @@ async function writeZip(out, entries, { maxTotal = MAX_TOTAL } = {}) {
     for (const entry of entries || []) {
       const name = safeName(entry && entry.name);
       if (!name || seen.has(name)) continue;
+      if (done.length >= MAX_ENTRIES) throw Object.assign(new Error('too many entries'), { code: 'too_big' });
       seen.add(name);
       const nameBuf = Buffer.from(name, 'utf8');
       const offset = pos;
@@ -128,19 +136,27 @@ async function writeZip(out, entries, { maxTotal = MAX_TOTAL } = {}) {
         let size = 0;
         const start = pos;
         const source = fs.createReadStream(entry.file, { start: from });
-        const pipe = store ? source : source.pipe(zlib.createDeflateRaw());
+        // pipeline, not .pipe(): with .pipe() a read error on the source (file
+        // deleted or locked mid-read) never reaches the deflate stream, so the
+        // loop below waits forever. pipeline destroys the deflate stream with
+        // the same error, and the for-await rejects.
+        const pipe = store ? source : pipeline(source, zlib.createDeflateRaw(), () => {});
         // The CRC is of the original bytes, so it reads the source, not the deflated pipe.
         if (!store) source.on('data', (chunk) => { crc = crc32(chunk, crc); size += chunk.length; });
         try {
           for await (const chunk of pipe) {
             if (store) { crc = crc32(chunk, crc); size += chunk.length; }
             guard(chunk.length);
+            if (size > MAX_ENTRY_SIZE) throw Object.assign(new Error('entry too big'), { code: 'too_big' });
             await put(chunk);
           }
         } finally {
           source.destroy();
         }
         const csize = pos - start;
+        // The file can have grown since stat (a live log); the total guard
+        // alone would not catch one entry passing the 32-bit size field.
+        if (size > MAX_ENTRY_SIZE || csize > MAX_ENTRY_SIZE) throw Object.assign(new Error('entry too big'), { code: 'too_big' });
         await put(localHeader(nameBuf, method, dt, crc, size, csize), offset);
         done.push({ nameBuf, method, dt, crc, size, csize, offset });
       } else {
@@ -169,4 +185,4 @@ async function writeZip(out, entries, { maxTotal = MAX_TOTAL } = {}) {
   }
 }
 
-module.exports = { writeZip, safeName, dosTime, crc32, crc32Fallback, MAX_TOTAL };
+module.exports = { writeZip, safeName, dosTime, crc32, crc32Fallback, MAX_TOTAL, MAX_ENTRIES };

@@ -17,6 +17,7 @@
 // instead of crashing the request. The IPC socket is lazy and idle-closed, so an
 // unconfigured or unused Discord integration keeps zero sockets open.
 
+const fs = require('fs');
 const net = require('net');
 const crypto = require('crypto');
 const path = require('path');
@@ -346,6 +347,26 @@ function pipePath(i) {
   return path.join(base, 'discord-ipc-' + i);
 }
 
+// POSIX only: is this discord-ipc-N something we may talk to? Without
+// XDG_RUNTIME_DIR the socket lives in a shared, world-writable temp dir
+// (/tmp on most Linux setups), where ANY local user can create discord-ipc-0
+// first and receive our RPC handshake, client id and — during login — the
+// OAuth authorization code / access token. So it must be the socket itself
+// (lstat: a symlink to somewhere else is refused) and it must be owned by the
+// user we run as. Deps are injectable for tests.
+function trustedIpcSocket(p, deps) {
+  const o = deps || {};
+  const lstat = o.lstatSync || fs.lstatSync;
+  const getuid = o.getuid || (typeof process.getuid === 'function' ? process.getuid : null);
+  if (!getuid) return true;   // no uid concept (Windows named pipes take another path)
+  try {
+    const st = lstat(p);
+    return st.isSocket() && st.uid === getuid();
+  } catch {
+    return false;
+  }
+}
+
 // Try discord-ipc-0..9 in turn; resolve the first that connects, else reject.
 // A pipe that EXISTS but refuses us fails in two ways that need OPPOSITE advice,
 // and libuv reports them differently (measured against a live Discord):
@@ -369,8 +390,11 @@ function connectPipe() {
         reject(new Error(why));
         return;
       }
-      const sock = net.connect({ path: pipePath(i) });
+      const target = pipePath(i);
       i += 1;
+      // A missing or foreign socket is treated like "nothing listening here".
+      if (process.platform !== 'win32' && !trustedIpcSocket(target)) { tryNext(); return; }
+      const sock = net.connect({ path: target });
       const onErr = (e) => {
         const code = e && e.code;
         if (code === 'EPERM' || code === 'EACCES') sawDenied = true;
@@ -1294,4 +1318,5 @@ module.exports = {
   errDetail,
   loginCloseError,
   authorizeError,
+  trustedIpcSocket,
 };

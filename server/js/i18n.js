@@ -64919,6 +64919,52 @@ Object.assign(i18n.nl, {
   preset_widget_replaces: "Vervangt {name}, een widget die je al hebt. De rechten die je hem gaf worden gewist, en die van de nieuwe keur je opnieuw goed.",
 });
 
+// ── Remote desktop: Sunshine too old to switch on (remote-control/installer.js) ──
+Object.assign(i18n.it, {
+  rc_sunshine_old_title: "Sunshine va aggiornato",
+  rc_sunshine_old: "Questa versione ha falle di sicurezza e non è stato possibile aggiornarla da sola. Aggiorna Sunshine all'ultima versione, poi riprova.",
+});
+Object.assign(i18n.en, {
+  rc_sunshine_old_title: "Sunshine needs an update",
+  rc_sunshine_old: "This version has security flaws and could not be updated automatically. Update Sunshine to the latest version, then try again.",
+});
+Object.assign(i18n.es, {
+  rc_sunshine_old_title: "Hay que actualizar Sunshine",
+  rc_sunshine_old: "Esta versión tiene fallos de seguridad y no se pudo actualizar sola. Actualiza Sunshine a la última versión y vuelve a intentarlo.",
+});
+Object.assign(i18n.fr, {
+  rc_sunshine_old_title: "Sunshine doit être mis à jour",
+  rc_sunshine_old: "Cette version a des failles de sécurité et n’a pas pu être mise à jour automatiquement. Mettez Sunshine à jour vers la dernière version, puis réessayez.",
+});
+Object.assign(i18n.de, {
+  rc_sunshine_old_title: "Sunshine muss aktualisiert werden",
+  rc_sunshine_old: "Diese Version hat Sicherheitslücken und ließ sich nicht automatisch aktualisieren. Aktualisiere Sunshine auf die neueste Version und versuche es dann erneut.",
+});
+Object.assign(i18n.pt, {
+  rc_sunshine_old_title: "O Sunshine tem de ser atualizado",
+  rc_sunshine_old: "Esta versão tem falhas de segurança e não foi possível atualizá-la automaticamente. Atualize o Sunshine para a versão mais recente e tente de novo.",
+});
+Object.assign(i18n.nl, {
+  rc_sunshine_old_title: "Sunshine moet worden bijgewerkt",
+  rc_sunshine_old: "Deze versie heeft beveiligingslekken en kon niet automatisch worden bijgewerkt. Werk Sunshine bij naar de nieuwste versie en probeer het opnieuw.",
+});
+Object.assign(i18n.ru, {
+  rc_sunshine_old_title: "Sunshine нужно обновить",
+  rc_sunshine_old: "В этой версии есть уязвимости, и обновить её автоматически не удалось. Обновите Sunshine до последней версии и попробуйте снова.",
+});
+Object.assign(i18n.ko, {
+  rc_sunshine_old_title: "Sunshine을 업데이트해야 합니다",
+  rc_sunshine_old: "이 버전에는 보안 취약점이 있으며 자동으로 업데이트하지 못했습니다. Sunshine을 최신 버전으로 업데이트한 다음 다시 시도하세요.",
+});
+Object.assign(i18n.ja, {
+  rc_sunshine_old_title: "Sunshine の更新が必要です",
+  rc_sunshine_old: "このバージョンにはセキュリティ上の欠陥があり、自動で更新できませんでした。Sunshine を最新バージョンに更新してから、もう一度お試しください。",
+});
+Object.assign(i18n.zh, {
+  rc_sunshine_old_title: "需要更新 Sunshine",
+  rc_sunshine_old: "此版本存在安全漏洞，且无法自动更新。请将 Sunshine 更新到最新版本，然后重试。",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

@@ -39,7 +39,10 @@ const https = require('node:https');
 const path = require('node:path');
 const fs = require('node:fs');
 const { writeFileAtomic } = require('./atomic-write.js');
-const { guardedLookup } = require('./sdk-proxy.js');
+// A subscription endpoint is a URL a client chose. It must name the public
+// internet: a paired phone could otherwise subscribe https://127.0.0.1:<port>/
+// or a LAN address and turn every notification into a blind POST there.
+const { isPublicUrl, publicLookup } = require('./net-guard.js');
 
 const STORE_FILENAME = 'web-push.json';
 const STORE_VERSION = 1;
@@ -200,6 +203,7 @@ function normalizeSubscription(input, { deviceId = '' } = {}) {
   // https only, and no credentials in the URL: both would end up in a log.
   if (u.protocol !== 'https:') return null;
   if (u.username || u.password) return null;
+  if (!isPublicUrl(endpoint)) return null;
   const keys = s.keys && typeof s.keys === 'object' ? s.keys : s;
   const p256dh = String(keys.p256dh || '');
   const auth = String(keys.auth || '');
@@ -249,13 +253,18 @@ function postToService({ endpoint, body, jwt, vapidPublicKey, ttl = DEFAULT_TTL,
     let u;
     try { u = new URL(endpoint); } catch { return resolve({ ok: false, status: 0, error: 'bad_endpoint' }); }
     if (u.protocol !== 'https:') return resolve({ ok: false, status: 0, error: 'insecure_endpoint' });
+    // Checked again on every send, not only at subscribe time: a store written
+    // by an older build, or edited by hand, must not get a pass.
+    if (!isPublicUrl(endpoint)) return resolve({ ok: false, status: 0, error: 'blocked_endpoint' });
+    let settled = false;
+    let deadline = null;
+    const settle = (v) => { if (!settled) { settled = true; clearTimeout(deadline); resolve(v); } };
     const req = request({
       protocol: u.protocol, hostname: u.hostname, port: u.port || 443,
       path: u.pathname + u.search, method: 'POST',
-      // The same guard the SDK proxy uses. A subscription endpoint is a URL a
-      // client chose, so without this it is an SSRF primitive aimed at the
-      // user's own machine.
-      lookup: guardedLookup,
+      // The connect-time half of the check above: a public-looking name that
+      // resolves to loopback/LAN space is refused here.
+      lookup: publicLookup,
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Encoding': 'aes128gcm',
@@ -268,10 +277,17 @@ function postToService({ endpoint, body, jwt, vapidPublicKey, ttl = DEFAULT_TTL,
       // The answer is a status code; nothing in the body is useful to us and a
       // service can return a long one, so it is drained rather than collected.
       res.resume();
-      res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode }));
+      res.on('end', () => settle({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode }));
     });
     req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')); });
-    req.on('error', (e) => resolve({ ok: false, status: 0, error: (e && e.code) || 'network' }));
+    req.on('error', (e) => settle({ ok: false, status: 0, error: (e && e.code) || 'network' }));
+    // setTimeout above is an idle timeout; a service that trickles its reply
+    // would hold the send open forever. Cap the whole exchange too.
+    deadline = setTimeout(() => {
+      if (typeof req.destroy === 'function') req.destroy(new Error('timeout'));
+      settle({ ok: false, status: 0, error: 'timeout' });
+    }, timeoutMs * 2);
+    if (deadline.unref) deadline.unref();
     req.end(body);
   });
 }

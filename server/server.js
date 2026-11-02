@@ -18,6 +18,13 @@ const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
+// Files the server creates are the user's alone on Linux and macOS (settings
+// with API keys, tokens, recordings, exports): a umask of 022 would make them
+// readable by every other account on the machine.
+if (process.platform !== 'win32') process.umask(0o077);
+// Screenshots, recordings and speech go to a private temp folder (0700), not
+// as predictable names in the shared /tmp.
+const { privateTmpDir, privateTmpFile } = require('./private-tmp');
 // Non-Windows native collectors (GPU/disk/CPU-temp/network/windows/audio).
 // Windows keeps the PowerShell path; elsewhere those spawns fail
 // (powershell.exe ENOENT) so the system tiles fall back to these. Each module
@@ -3857,19 +3864,31 @@ async function resolveStoreAppIcon(aumid) {
   return icon;
 }
 
+const FETCH_JSON_MAX_BYTES = 2 * 1024 * 1024;
 function fetchJson(url, timeout = 2500, extraHeaders) {
   return new Promise((resolve, reject) => {
     const headers = { 'User-Agent': 'Xenon/1.0', ...(extraHeaders || {}) };
     const req = https.get(url, { timeout, headers }, res => {
-      let body = '';
-      res.on('data', chunk => { body += chunk; });
+      // An answer is JSON from a weather or artwork service: anything else, or
+      // anything this large, is not one, and is not read into memory.
+      if (res.statusCode !== 200) { res.resume(); reject(new Error('HTTP ' + res.statusCode)); return; }
+      const chunks = [];
+      let size = 0;
+      res.on('data', chunk => {
+        size += chunk.length;
+        if (size > FETCH_JSON_MAX_BYTES) { req.destroy(new Error('body too large')); return; }
+        chunks.push(chunk);
+      });
       res.on('end', () => {
-        try { resolve(JSON.parse(body)); }
+        try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
         catch (e) { reject(e); }
       });
     });
     req.on('timeout', () => { req.destroy(new Error('Artwork lookup timeout')); });
     req.on('error', reject);
+    // `timeout` above only fires on a quiet socket; this ends a request that
+    // trickles forever (net-guard.armDeadline).
+    require('./net-guard').armDeadline(req, Math.max(timeout * 4, 10000));
   });
 }
 
@@ -4115,6 +4134,8 @@ async function resolveManualWeatherPlace(city, lang) {
     } catch { /* keep the raw-name value; wttr can still self-geolocate */ }
   }
 
+  // Keyed on the city a request names, so it is bounded: the oldest goes first.
+  if (weatherLocationCache.size >= 200) weatherLocationCache.delete(weatherLocationCache.keys().next().value);
   weatherLocationCache.set(cacheKey, { value, updatedAt: Date.now() });
   return value;
 }
@@ -7757,7 +7778,7 @@ async function _capShrinkToWidth(file, maxWidth) {
 async function captureScreenshot(monitor, opts) {
   const maxWidth = Math.min(3840, Math.max(640, Math.trunc(Number(opts && opts.maxWidth)) || 1920));
   const quality = String(Math.min(31, Math.max(1, Math.trunc(Number(opts && opts.quality)) || 3)));
-  const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
+  const tmpPath = privateTmpFile('xenon_ss_', '.jpg');
   try {
     if (process.platform === 'darwin') {
       // screencapture is built in and needs no ffmpeg: -x silences the shutter,
@@ -8036,7 +8057,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
 
     // Single sentence → the original one-shot path (no pipelining overhead).
     if (chunks.length <= 1) {
-      const gWavPath = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}.wav`);
+      const gWavPath = privateTmpFile('xenon-gtts-', '.wav');
       try {
         const wavBuf = await synth(clean);
         if (_speakGenToken !== myToken) return resolve();
@@ -8058,7 +8079,7 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     const writeChunk = async (t, idx) => {
       const buf = await synth(t);
       if (_speakGenToken !== myToken || !buf || !buf.length) return null;
-      const p = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}-${idx}.wav`);
+      const p = privateTmpFile(`xenon-gtts-${idx}-`, '.wav');
       await fs.promises.writeFile(p, buf);
       return p;
     };
@@ -9308,7 +9329,7 @@ function playChimeOnServer(kind) {
   if (!_chimeCache[k]) {
     try { _chimeCache[k] = _buildChimeWav(k); } catch { return; }
   }
-  const wavPath = path.join(os.tmpdir(), `xenon-chime-${k}.wav`);
+  const wavPath = privateTmpFile(`xenon-chime-${k}-`, '.wav');
   fs.promises.writeFile(wavPath, _chimeCache[k]).then(() => {
     const proc = _spawnWavPlayer(wavPath);
     proc.on('error', () => {});
@@ -14678,7 +14699,7 @@ const _codexBridge = codexBridge.createBridge({
 const _codexApp = codexAppServer.createAppServer({
   resolveExe: () => aiCli.resolveCodex(),
   env: () => aiCli.childEnv('codex'),
-  cwd: () => os.tmpdir(),
+  cwd: () => privateTmpDir(),
   clientVersion: APP_VERSION || '0.0.0',
   isOurHook: (cmd) => codexLink.isOurCommand(cmd),
   onChange: () => { _codexRefreshLink().catch(() => {}); },
@@ -20964,7 +20985,7 @@ const handleRequest = async (req, res) => {
         res.end(JSON.stringify({ error: 'already_recording' })); return;
       }
       const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const wavPath = path.join(os.tmpdir(), `xenon-stt-${id}.wav`);
+      const wavPath = privateTmpFile('xenon-stt-', '.wav');
 
       let resolveRecording, resolveSaved;
       const recordingStarted = new Promise(r => { resolveRecording = r; });
@@ -24523,7 +24544,11 @@ const handleRequest = async (req, res) => {
       await readBody(req);
       await remoteControl.enable();
       json({ ok: true });
-    } catch (e) { err500(e.message); }
+    } catch (e) {
+      // Sunshine too old (or its version unreadable): said, not a bare 500.
+      if (e && /^sunshine_/.test(String(e.code || ''))) { json({ ok: false, error: e.code, message: e.message }); return; }
+      err500(e.message);
+    }
 
   } else if (reqPath === '/remote/disable' && req.method === 'POST') {
     try {
@@ -26612,6 +26637,8 @@ function _gracefulShutdown() {
   try { shutdownFlush = _flushLightingPersist().catch(() => {}); } catch {}
   try { const sessions = _gameSessions.flush(); shutdownFlush = Promise.all([shutdownFlush, sessions]).catch(() => {}); } catch {}
   try { const bench = _benchmark.flush(); shutdownFlush = Promise.all([shutdownFlush, bench]).catch(() => {}); } catch {}
+  // Cache access times kept in memory since the last periodic write (sdk-asset-cache.js).
+  try { if (typeof sdkAssets.flush === 'function') { const a = sdkAssets.flush(); shutdownFlush = Promise.all([shutdownFlush, a]).catch(() => {}); } } catch {}
   // A recording in progress is stopped and indexed before the engine goes; the
   // index is written after it. Past the safety timeout the engine still
   // finishes the file by itself when its stdin closes with this process.

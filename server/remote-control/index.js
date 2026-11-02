@@ -157,6 +157,13 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
   }
 
   async function enable() {
+    // Remote desktop is never switched on over a Sunshine with published
+    // remote takeover flaws (CVE-2026-32253 and the Sept 2026 advisories):
+    // an older install is upgraded first, and refused if it stays old.
+    if (typeof installer.ensureSunshineCurrent === 'function') {
+      const sv = await installer.ensureSunshineCurrent();
+      if (!sv.ok) { const e = new Error(sv.message || sv.error); e.code = sv.error; throw e; }
+    }
     const settings = getSettings() || {};
     const onDemand = !!(settings.remoteControl && settings.remoteControl.onDemand);
     settings.remoteControl = { ...(settings.remoteControl || {}), enabled: true };

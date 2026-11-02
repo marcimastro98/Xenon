@@ -21,7 +21,7 @@ const path = require('path');
 
 const PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Windows reserved device names pass PACK_ID_RE but aren't usable folder names.
-const WIN_RESERVED_RE = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i;
+const { WIN_RESERVED_RE } = require('./win-reserved');
 const CLIP_ID_RE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const CLIP_EXTS = Object.freeze(['mp3', 'ogg', 'wav']);
 // The pack-relative reference a Deck key / SDK widget may use as playSound.file.
@@ -83,7 +83,9 @@ function validateSoundPack(payload) {
   for (const raw of rawClips) {
     if (!raw || typeof raw !== 'object') return { ok: false, error: 'bad_clip' };
     const clipId = cleanText(raw.id, 41);
-    if (!CLIP_ID_RE.test(clipId)) return { ok: false, error: 'bad_clip_id', clip: clipId };
+    // The clip id becomes the file name (<clipId>.<ext>), so "con" or "aux"
+    // would install fine on Linux and then fail on every Windows machine.
+    if (!CLIP_ID_RE.test(clipId) || WIN_RESERVED_RE.test(clipId)) return { ok: false, error: 'bad_clip_id', clip: clipId };
     if (seen.has(clipId)) return { ok: false, error: 'duplicate_clip_id', clip: clipId };
     seen.add(clipId);
     const ext = CLIP_EXTS.includes(raw.ext) ? raw.ext : '';

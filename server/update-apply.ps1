@@ -215,11 +215,76 @@ function Stop-Server {
   Start-Sleep -Milliseconds 900
 }
 
+# The per-logon task install.ps1 registers ($appName there). It starts the
+# backend with the rights the INSTALL chose: Highest when INSTALL.bat ran as
+# administrator, Limited otherwise.
+$serverTaskName = 'Xenon Edge Widget'
+
+# Restart the backend through its startup task, never as a child of this script.
+#
+# On the UAC path this worker is ELEVATED, and anything it starts inherits that
+# token. Starting start-hidden.vbs directly therefore left the backend running
+# as administrator after every protected-folder update: a browser-facing HTTP
+# server, plus every helper and script it spawns, all elevated without anyone
+# having chosen that. `schtasks /Run` hands the start to Task Scheduler, which
+# launches the task under the task's OWN principal and run level, so the
+# backend comes back with exactly the rights it was installed with, whoever
+# triggered the restart.
+#
+# No task (a dev checkout, a half-finished install): unelevated, the old direct
+# start is still fine, it hands out nothing the user does not already have.
+# Elevated, a one-off task for the signed-in user at Limited run level does the
+# start instead, and if even that is not possible the backend is left stopped
+# (logged) rather than started as administrator.
 function Start-Server {
+  $sys32 = [Environment]::SystemDirectory
+  $task = $null
+  try { $task = Get-ScheduledTask -TaskName $serverTaskName -ErrorAction SilentlyContinue } catch { }
+  if ($task) {
+    try {
+      & (Join-Path $sys32 'schtasks.exe') /Run /TN $serverTaskName | Out-Null
+      if ($LASTEXITCODE -eq 0) { Log "restart requested through the '$serverTaskName' task"; return }
+      Log "schtasks /Run failed (exit $LASTEXITCODE)"
+    } catch { Log "schtasks /Run failed: $($_.Exception.Message)" }
+  }
+  if (-not $isAdmin) {
+    try {
+      Start-Process -FilePath (Join-Path $sys32 'wscript.exe') `
+        -ArgumentList ('"' + $runner + '"') -WorkingDirectory $server
+    } catch { Log "restart failed: $($_.Exception.Message)" }
+    return
+  }
+  if (-not (Start-ServerAsSignedInUser)) {
+    Log 'restart skipped: no startup task, and the backend is never started from this elevated process. Start Xenon again to bring it back.'
+  }
+}
+
+# Elevated and no startup task: run start-hidden.vbs once through a throwaway
+# task whose principal is the signed-in (console) user at Limited run level, so
+# Task Scheduler gives it that user's normal, unelevated token. Removed again
+# right after it has started. Returns $true when the start was handed over.
+function Start-ServerAsSignedInUser {
+  $tn = 'Xenon update restart ' + [guid]::NewGuid().ToString('N')
   try {
-    Start-Process -FilePath (Join-Path $env:WINDIR 'System32\wscript.exe') `
-      -ArgumentList ('"' + $runner + '"') -WorkingDirectory $server
-  } catch { Log "restart failed: $($_.Exception.Message)" }
+    $user = ('' + (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).UserName).Trim()
+    if (-not $user) { Log 'restart: nobody is signed in at the console'; return $false }
+    $action = New-ScheduledTaskAction -Execute (Join-Path ([Environment]::SystemDirectory) 'wscript.exe') `
+      -Argument ('"' + $runner + '"') -WorkingDirectory $server
+    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName $tn -Action $action -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+    Start-ScheduledTask -TaskName $tn -ErrorAction Stop
+    # start-hidden.vbs starts node without waiting for it and exits; deleting
+    # the task definition afterwards does not touch the node it started.
+    Start-Sleep -Seconds 3
+    Log "restart requested as $user through a one-off Limited task"
+    return $true
+  } catch {
+    Log "restart through a one-off task failed: $($_.Exception.Message)"
+    return $false
+  } finally {
+    try { Unregister-ScheduledTask -TaskName $tn -Confirm:$false -ErrorAction SilentlyContinue } catch { }
+  }
 }
 
 # Poll GET /version until the server answers with the expected version (leading
@@ -343,10 +408,54 @@ function Remove-StaleAppFiles($stagedFiles, $oldVer) {
   Log "removed $removed stale file(s) from the previous version"
 }
 
+# ---- Which node.exe / npm.cmd may run here ----------------------------------
+# On the UAC path this worker is elevated, so whatever node.exe and npm.cmd it
+# picks run as administrator. PATH is no place to look for those: the user's own
+# PATH entries (and folders like %APPDATA%\npm or a per-user Node) are writable
+# without admin rights, so a node.exe planted there would be handed an admin
+# token by the next update - a silent elevation for anything running as the user.
+#
+# So, elevated, only the machine-wide Node.js install under Program Files counts:
+# only administrators can write there. The folder comes from the known-folder
+# API, not from %ProgramFiles%, because environment variables are the user's to
+# set. Unelevated, a planted node.exe gains nothing it did not already have, so
+# the node.exe install.ps1 recorded (node-path.txt, the one the launcher uses
+# too) and finally PATH are accepted as well, as before.
+#
 # npm.cmd resolved explicitly: 'Get-Command npm' can return npm.ps1 (an
 # ExternalScript), and 'cmd /c "...npm.ps1"' cannot run a .ps1 - it pops the
 # Windows "select an app for this .ps1" picker and stalls the update.
-$npmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
+function Get-TrustedNodeTool([string]$leaf) {
+  $dirs = @()
+  foreach ($sf in @([Environment+SpecialFolder]::ProgramFiles, [Environment+SpecialFolder]::ProgramFilesX86)) {
+    try {
+      $pf = [Environment]::GetFolderPath($sf)
+      if ($pf) { $dirs += (Join-Path $pf 'nodejs') }
+    } catch { }
+  }
+  foreach ($d in $dirs) {
+    $p = Join-Path $d $leaf
+    if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+  }
+  if ($isAdmin) { return $null }
+  # Not elevated from here on.
+  try {
+    $rec = Join-Path $env:LOCALAPPDATA 'Xenon\node-path.txt'
+    if ($env:LOCALAPPDATA -and (Test-Path -LiteralPath $rec)) {
+      # Written as UTF-16LE by install.ps1 (Save-NodePath).
+      $nodeRec = ('' + (Get-Content -LiteralPath $rec -Encoding Unicode -TotalCount 1)).Trim()
+      if ($nodeRec) {
+        $p = Join-Path (Split-Path -Parent $nodeRec) $leaf
+        if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+      }
+    }
+  } catch { }
+  $c = Get-Command $leaf -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($c) { return $c.Source }
+  return $null
+}
+$npmCmd = Get-TrustedNodeTool 'npm.cmd'
+if (-not $npmCmd -and $isAdmin) { Log 'elevated: no npm.cmd under Program Files\nodejs; PATH is not used for an elevated run' }
 # npm's own account of why it failed.
 #
 # This ran with no redirection, so everything npm printed went to a console
@@ -382,7 +491,9 @@ $npmErr = Join-Path $updDir 'npm-install.err.log'
 $script:npmDetail = ''
 function Invoke-Npm {
   # Two separate files: Start-Process refuses to redirect both streams to one.
-  $proc = Start-Process -FilePath $env:ComSpec `
+  # cmd.exe from System32, not %ComSpec%: the user can point that variable at
+  # anything, and on the UAC path this runs elevated.
+  $proc = Start-Process -FilePath (Join-Path ([Environment]::SystemDirectory) 'cmd.exe') `
     -ArgumentList '/c', "`"$npmCmd`"", 'install', '--ignore-scripts', '--no-audit', '--no-fund' `
     -WorkingDirectory $root -Wait -PassThru -NoNewWindow `
     -RedirectStandardOutput $npmOut -RedirectStandardError $npmErr
@@ -415,8 +526,9 @@ function Invoke-Npm {
 function Restore-SharedLinks {
   $linkScript = Join-Path $root 'tools\link-shared.mjs'
   if (-not (Test-Path $linkScript)) { Log 'no link-shared.mjs in this build; nothing to link'; return }
-  $nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
-  if (-not $nodeExe) { Log 'node.exe not on PATH; shared links left to the server boot'; return }
+  # Same rule as npm.cmd above: elevated, only Program Files\nodejs\node.exe.
+  $nodeExe = Get-TrustedNodeTool 'node.exe'
+  if (-not $nodeExe) { Log 'no trusted node.exe found; shared links left to the server boot'; return }
   try {
     $p = Start-Process -FilePath $nodeExe -ArgumentList "`"$linkScript`"" `
       -WorkingDirectory $root -Wait -PassThru -NoNewWindow
@@ -579,7 +691,15 @@ try {
   Remove-Item $backupDir -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item $nmBak -Recurse -Force -ErrorAction SilentlyContinue
   Log 'apply OK'
-  if (-not $quiet) { try { Start-Process $dashUrl } catch {} } else { Log 'quiet: not opening the dashboard' }
+  # Elevated, Start-Process on the URL would start the default browser as
+  # administrator. explorer.exe hands the URL to the already-running, unelevated
+  # desktop shell instead, which opens it with the user's normal rights.
+  if (-not $quiet) {
+    try {
+      if ($isAdmin) { Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath('Windows')) 'explorer.exe') -ArgumentList $dashUrl }
+      else { Start-Process $dashUrl }
+    } catch {}
+  } else { Log 'quiet: not opening the dashboard' }
   exit 0
 }
 catch {

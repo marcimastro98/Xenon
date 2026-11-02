@@ -17,6 +17,7 @@
 // for unit tests (server/test/community-catalog.test.mjs).
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
@@ -45,6 +46,10 @@ const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';
 
 const FETCH_TIMEOUT_MS = 8000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 15000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;   // catalog JSON — generous, rejects absurd payloads
 // One shared code file. 4 MB since v4.11.10 (was 2): a remote-locked bundle carrying a theme
 // with painted backdrop images, a widget AND an Ambient scene lands around 3.5 MB, because
@@ -310,6 +315,7 @@ function fetchText(url, validators, _hops = 0) {
     catch (e) { return reject(e); }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', reject);
+    armDeadline(req, FETCH_DEADLINE_MS);
 
     function onResponse(res) {
       if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }

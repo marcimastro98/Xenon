@@ -13,11 +13,22 @@
 # backend deliberately runs unelevated in the user's session (see the process
 # invariant in .claude/CLAUDE.md), so the prompt is the only way up. Everything it
 # runs is a fixed command - no value from the request reaches a command line.
+#
+# The elevated copy is the text of THIS script as it was already loaded, handed
+# over in -EncodedCommand, never `-File <this path>`: the install folder is
+# writable by the user, and a file swapped between the UAC prompt and the moment
+# the elevated PowerShell opened it would run as administrator with nobody the
+# wiser. The task name travels inside that text as a checked, quoted literal.
 
 param(
   [string]$TaskName = 'Xenon Edge Widget',
   [switch]$Elevated
 )
+
+# Captured first, before any prompt can be shown: this is what the elevated copy
+# will run (see above).
+$selfText = $null
+try { $selfText = $MyInvocation.MyCommand.ScriptBlock.ToString() } catch { }
 
 $ErrorActionPreference = 'Stop'
 
@@ -36,6 +47,41 @@ function Test-Elevated {
   } catch { return $false }
 }
 
+# A value as a PowerShell single-quoted literal. Inside single quotes only the
+# quote character is special, and PowerShell accepts four Unicode quote marks
+# (U+2018 to U+201B) as that character too, so every one of the five is doubled.
+function ConvertTo-PsLiteral([string]$Value) {
+  $quotes = [string]([char]0x27) + [char]0x2018 + [char]0x2019 + [char]0x201A + [char]0x201B
+  $sb = New-Object System.Text.StringBuilder
+  foreach ($ch in $Value.ToCharArray()) {
+    if ($quotes.IndexOf($ch) -ge 0) { [void]$sb.Append($ch) }
+    [void]$sb.Append($ch)
+  }
+  return "'" + $sb.ToString() + "'"
+}
+
+# This script's own text with its comments taken out (the parser decides what a
+# comment is, so nothing inside a string is touched): the encoded command is
+# limited by the 32767-character command line, and comments are most of it.
+function Get-ElevationScriptText([string]$Text) {
+  if (-not $Text) { return $null }
+  $tokens = $null; $errors = $null
+  [void][System.Management.Automation.Language.Parser]::ParseInput($Text, [ref]$tokens, [ref]$errors)
+  if ($errors -and $errors.Count) { return $null }
+  $sb = New-Object System.Text.StringBuilder $Text
+  foreach ($t in @($tokens | Where-Object { $_.Kind -eq 'Comment' } | Sort-Object { $_.Extent.StartOffset } -Descending)) {
+    [void]$sb.Remove($t.Extent.StartOffset, $t.Extent.EndOffset - $t.Extent.StartOffset)
+  }
+  return $sb.ToString()
+}
+
+# Task names are plain: refuse anything else before it goes near a prompt or a
+# schtasks command line.
+if ($TaskName -notmatch '^[A-Za-z0-9 ._()-]{1,128}$') {
+  Out-Result $false 'failed' 'Invalid task name.'
+  return
+}
+
 # Nothing to raise if the task was never registered (a dev/manual `node
 # server/server.js`, or an install that never completed). Say so plainly instead
 # of throwing a UAC prompt that cannot help.
@@ -50,9 +96,20 @@ if (-not $Elevated) {
     # Already admin (rare: the whole hub was started elevated) - do the work here.
   } else {
     $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $body = Get-ElevationScriptText $selfText
+    if (-not $body) {
+      Out-Result $false 'failed' 'The elevated step could not be prepared.'
+      return
+    }
+    $command = "& {`n" + $body + "`n} -TaskName " + (ConvertTo-PsLiteral $TaskName) + ' -Elevated'
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    if ($encoded.Length -gt 30000) {
+      Out-Result $false 'failed' 'The elevated step is too large to start.'
+      return
+    }
     # NOT $args - that is an automatic variable; shadowing it is a trap for the
     # next reader even where it happens to work.
-    $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ("`"$PSCommandPath`""), '-Elevated')
+    $psArgs = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
     try {
       # -Verb RunAs raises the UAC prompt; a decline throws, and is reported as
       # such rather than swallowed - the dashboard must tell "declined" from

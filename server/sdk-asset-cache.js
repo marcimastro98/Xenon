@@ -183,18 +183,63 @@ function createAssetStore(options) {
   // path, so no traversal can be spelled: no dots, no slashes, no separators.
   const validPkg = (pkgId) => PKG_RE.test(String(pkgId || ''));
 
+  // Cache hits used to rewrite the whole index.json on every get() just to
+  // bump one lastUsedAt. A tile grid of map tiles is dozens of hits a second,
+  // each a full atomic rewrite, and concurrent rewrites raced a put() and
+  // could drop the entry it had just added. Hits now record the access time
+  // here, every index read folds them in (so eviction still sees the real
+  // LRU order), and they reach disk with the next index write or, at the
+  // latest, the debounced flush below.
+  const touchFlushMs = Number.isFinite(o.touchFlushMs) ? o.touchFlushMs : 30000;
+  const touches = new Map();   // pkgId → Map(key → lastUsedAt)
+  let flushTimer = null;
+
+  function applyTouches(pkgId, index) {
+    const t = touches.get(pkgId);
+    if (!t) return;
+    for (const [key, at] of t) {
+      const e = index.entries[key];
+      if (e && !(Number(e.lastUsedAt) >= at)) e.lastUsedAt = at;
+    }
+  }
+
+  function scheduleFlush() {
+    if (flushTimer) return;
+    flushTimer = setTimeout(() => { flushTimer = null; flushTouches().catch(() => {}); }, touchFlushMs);
+    if (flushTimer.unref) flushTimer.unref();
+  }
+
+  async function flushTouches() {
+    for (const pkgId of [...touches.keys()]) {
+      const index = await readIndex(pkgId);
+      await writeIndex(pkgId, index).catch(() => {});
+    }
+  }
+
   async function readIndex(pkgId) {
+    let index = { version: 1, entries: {} };
     try {
       const raw = await fs.promises.readFile(indexFile(pkgId), 'utf8');
       const v = JSON.parse(raw);
-      if (v && typeof v === 'object' && v.entries && typeof v.entries === 'object') return v;
+      if (v && typeof v === 'object' && v.entries && typeof v.entries === 'object') index = v;
     } catch { /* absent or unreadable — an empty cache is always a valid answer */ }
-    return { version: 1, entries: {} };
+    applyTouches(pkgId, index);
+    return index;
   }
 
   async function writeIndex(pkgId, index) {
     await fs.promises.mkdir(dirFor(pkgId), { recursive: true, mode: 0o700 });
     await writeFileAtomic(indexFile(pkgId), JSON.stringify({ version: 1, entries: index.entries }));
+    // Forget the touches this write carried. A touch newer than what was
+    // written (a hit that landed mid-write) stays for the next one.
+    const t = touches.get(pkgId);
+    if (t) {
+      for (const [key, at] of t) {
+        const e = index.entries[key];
+        if (!e || Number(e.lastUsedAt) >= at) t.delete(key);
+      }
+      if (!t.size) touches.delete(pkgId);
+    }
   }
 
   // Apply an eviction plan: the index entry AND its file, in that order. The
@@ -225,11 +270,18 @@ function createAssetStore(options) {
       let buffer;
       try { buffer = await fs.promises.readFile(path.join(dirFor(pkgId), e.file)); }
       catch { delete index.entries[key]; await writeIndex(pkgId, index).catch(() => {}); return null; }
-      // Written back so a busy cache does not lose its own access order. Cheap:
-      // the index is small and the write is atomic.
-      e.lastUsedAt = now();
-      writeIndex(pkgId, index).catch(() => {});
+      // Recorded in memory (see `touches`); persisted by the next index write.
+      let t = touches.get(pkgId);
+      if (!t) { t = new Map(); touches.set(pkgId, t); }
+      t.set(key, now());
+      scheduleFlush();
       return { buffer, contentType: e.contentType };
+    },
+
+    /** Persist pending access times now (shutdown, tests). */
+    async flush() {
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      await flushTouches();
     },
 
     /** Store an image and bring the package back under its caps. */

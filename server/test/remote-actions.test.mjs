@@ -118,7 +118,7 @@ test('a device left unused for 90 days stops working', async () => {
 });
 
 test('dangerous file types are not opened, documents and media are', () => {
-  for (const ext of ['msc', 'chm', 'py', 'pyw', 'xll', 'application', 'appinstaller', 'msix', 'sct', 'wsc', 'settingcontent-ms', 'diagcab', 'rdp', 'iso', 'vhdx', 'theme', 'cab', 'psd1']) {
+  for (const ext of ['msc', 'chm', 'py', 'pyw', 'xll', 'application', 'appinstaller', 'msix', 'sct', 'wsc', 'settingcontent-ms', 'diagcab', 'rdp', 'iso', 'vhdx', 'theme', 'cab', 'psd1', 'wsb', 'msu', 'docm', 'xlsm', 'pptm', 'ppsm', 'sldm', 'pyzw', 'msh1xml']) {
     assert.equal(registry.isBlockedOpenPath('C:\\x\\a.' + ext, 'win32'), true, ext);
   }
   for (const ext of ['pdf', 'jpg', 'png', 'mp4', 'mp3', 'docx', 'xlsx', 'txt', 'zip']) {

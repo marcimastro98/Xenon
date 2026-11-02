@@ -137,7 +137,7 @@ test('install-native.ps1 downloads nothing and runs only the hash it was handed'
   assert.doesNotMatch(PS, /Invoke-WebRequest|Invoke-RestMethod|api\.github\.com/, 'the script must not fetch its own, unverified copy');
   assert.match(PS, /param\(\s*[\s\S]*\[string\]\$InstallerPath,\s*[\s\S]*\[string\]\$ExpectedSha256/);
   assert.match(PS, /\$ExpectedSha256 -notmatch '\^\[0-9a-fA-F\]\{64\}\$'/, 'no hash, no install');
-  const hashAt = PS.indexOf('Get-FileHash -LiteralPath $exe -Algorithm SHA256');
+  const hashAt = PS.indexOf('$sha.ComputeHash($lock)');   // hashed through the read lock held until launch
   assert.ok(hashAt > 0);
   for (const launch of ["Start-Process -FilePath $exe -ArgumentList '/S'", "('\"' + $exe + '\" /S /NOBOOTSTRAP')"]) {
     const at = PS.indexOf(launch);

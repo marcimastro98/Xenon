@@ -19,6 +19,7 @@
 // HA normalizes them all to the `camera` domain and does the RTSP transcoding
 // itself, exposing a uniform JPEG snapshot.
 const WebSocket = require('ws');
+const HA_WS_MAX_PAYLOAD = 8 * 1024 * 1024;
 const http = require('http');
 const https = require('https');
 const { normalizeAreaOrder, normalizeTileView } = require('../js/smart-home-order.js');
@@ -688,7 +689,11 @@ function createHomeAssistant(getConfig) {
         if (!url || !token) { done(new Error('ha_not_configured')); return; }
         msgId = 0;
         let sock;
-        try { sock = new WebSocket(url); } catch (e) { done(e); return; }
+        // ws accepts 100 MB frames by default, all buffered in memory. HA's
+        // largest legitimate replies (get_states on a big install) are a few
+        // MB, so 8 MB leaves room while a broken or hostile peer can't make
+        // the server allocate 100 MB per message.
+        try { sock = new WebSocket(url, { maxPayload: HA_WS_MAX_PAYLOAD }); } catch (e) { done(e); return; }
         ws = sock;
         const timer = setTimeout(() => done(new Error('ha_timeout')), 8000);
         sock.on('error', () => { clearTimeout(timer); done(new Error('ha_connect_failed')); });

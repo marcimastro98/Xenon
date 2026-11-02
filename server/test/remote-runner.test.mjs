@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { posix } from 'node:path';
 const require = createRequire(import.meta.url);
 const { mapPkexecResult, osaQuote, UAC_CANCELLED, PKEXEC_DISMISSED } = require('../remote-control/runner.js');
 
@@ -77,4 +78,89 @@ test('macOS: dialogo annullato = stesso codice dell\'UAC annullato', () => {
   assert.equal(failed.code, 1);
 
   assert.equal(mapOsascriptResult(res({ code: 0 })).code, 0);
+});
+
+// ── Only root-owned, non-writable binaries are ever elevated (macOS/Linux) ───
+// A user-owned binary (Homebrew's /opt/homebrew/bin/tailscale) or one under a
+// user-writable directory could be swapped by any process running as the user
+// just before root executes it.
+function fakeFs(entries) {
+  // entries: path -> { uid, mode, type: 'dir'|'file'|'link', target }
+  const get = (p) => {
+    const e = entries[p];
+    if (!e) throw Object.assign(new Error('ENOENT ' + p), { code: 'ENOENT' });
+    return e;
+  };
+  const stats = (e) => ({
+    uid: e.uid, mode: e.mode,
+    isFile: () => e.type === 'file', isDirectory: () => e.type === 'dir', isSymbolicLink: () => e.type === 'link',
+  });
+  const follow = (p, n = 0) => {
+    const parts = p.split('/').filter(Boolean);
+    let cur = '';
+    for (let i = 0; i < parts.length; i++) {
+      cur = cur + '/' + parts[i];
+      const e = get(cur);
+      if (e.type === 'link') {
+        const t = e.target.startsWith('/') ? e.target : cur.slice(0, cur.lastIndexOf('/')) + '/' + e.target;
+        return follow(posix.normalize([t, ...parts.slice(i + 1)].join('/')), n + 1);
+      }
+    }
+    return cur || '/';
+  };
+  return {
+    lstatSync: (p) => stats(get(p)),
+    statSync: (p) => stats(get(follow(p))),
+    readlinkSync: (p) => get(p).target,
+    realpathSync: (p) => follow(p),
+  };
+}
+
+const ROOT_DIRS = {
+  '/': { uid: 0, mode: 0o40755, type: 'dir' },
+  '/usr': { uid: 0, mode: 0o40755, type: 'dir' },
+  '/usr/bin': { uid: 0, mode: 0o40755, type: 'dir' },
+  '/usr/local': { uid: 0, mode: 0o40755, type: 'dir' },
+  '/usr/local/bin': { uid: 0, mode: 0o40755, type: 'dir' },
+  '/opt': { uid: 0, mode: 0o40755, type: 'dir' },
+  '/opt/homebrew': { uid: 501, mode: 0o40755, type: 'dir' },
+  '/opt/homebrew/bin': { uid: 501, mode: 0o40755, type: 'dir' },
+  '/opt/homebrew/bin/tailscale': { uid: 501, mode: 0o100755, type: 'file' },
+  '/usr/bin/tailscale': { uid: 0, mode: 0o100755, type: 'file' },
+  '/usr/bin/sh': { uid: 0, mode: 0o100755, type: 'file' },
+  '/usr/bin/badperm': { uid: 0, mode: 0o100777, type: 'file' },
+  '/usr/local/bin/ts-link': { uid: 0, mode: 0o120777, type: 'link', target: '/opt/homebrew/bin/tailscale' },
+  '/usr/local/bin/ok-link': { uid: 0, mode: 0o120777, type: 'link', target: '../../bin/tailscale' },
+  '/tmpw': { uid: 0, mode: 0o41777, type: 'dir' },
+  '/tmpw/tool': { uid: 0, mode: 0o100755, type: 'file' },
+};
+
+test('checkElevatable: root-owned system binaries pass, user-swappable ones are refused', async () => {
+  const { checkElevatable } = require('../remote-control/runner.js');
+  const fsx = fakeFs(ROOT_DIRS);
+  assert.deepEqual(checkElevatable('/usr/bin/tailscale', fsx), { ok: true, path: '/usr/bin/tailscale' });
+  assert.deepEqual(checkElevatable('sh', fsx), { ok: true, path: '/usr/bin/sh' }, 'bare names resolve in system dirs only');
+  assert.deepEqual(checkElevatable('/usr/local/bin/ok-link', fsx), { ok: true, path: '/usr/local/bin/ok-link' });
+  for (const [f, re] of [
+    ['/opt/homebrew/bin/tailscale', /not owned by root/],
+    ['/usr/local/bin/ts-link', /not owned by root/],     // a root link into a user prefix
+    ['/usr/bin/badperm', /writable by group or others/],
+    ['/tmpw/tool', /writable by group or others/],        // sticky world-writable dir
+    ['brew', /not found in a system directory/],
+    ['./sh', /not found/],
+    ['/usr/bin/missing', /does not exist/],
+  ]) {
+    const r = checkElevatable(f, fsx);
+    assert.equal(r.ok, false, f);
+    assert.match(r.error, re, f);
+  }
+});
+
+test('runElevated refuses an untrusted binary off Windows without prompting', { skip: process.platform === 'win32' }, async () => {
+  const { runElevated, UAC_CANCELLED: CANCELLED } = require('../remote-control/runner.js');
+  const r = await runElevated('/opt/homebrew/bin/tailscale', ['set', '--operator=me'], { fsx: fakeFs(ROOT_DIRS) });
+  assert.notEqual(r.code, 0);
+  assert.notEqual(r.code, CANCELLED, 'a refusal is not "the user said no"');
+  assert.equal(r.refused, 'untrusted_binary');
+  assert.match(r.stderr, /untrusted_binary/);
 });

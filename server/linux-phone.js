@@ -30,10 +30,12 @@
 
 const { spawn } = require('child_process');
 const fs = require('fs');
-const os = require('os');
-const path = require('path');
 
 const { buildBMessage } = require('./phone-messages');
+// SMS/phonebook exchange files go in a per-process 0700 directory with random
+// names (see private-tmp.js): the old predictable /tmp names let another local
+// user pre-create the file and read a phonebook or swap an outgoing SMS.
+const { privateTmpFile } = require('./private-tmp');
 
 const CALL_TIMEOUT_MS = 25000;
 const PULL_TIMEOUT_MS = 45000;
@@ -278,7 +280,7 @@ function createLinuxPhone(opts) {
     const sessionPath = String(dbusValue(session.out) || '');
     if (!sessionPath.startsWith('/')) throw new Error('phonebook_session_failed');
 
-    const target = path.join(os.tmpdir(), `xenon-pb-${process.pid}-${Date.now()}.vcf`);
+    const target = privateTmpFile('xenon-pb-', '.vcf');
     try {
       const select = await userBus(['call', 'org.bluez.obex', sessionPath,
         'org.bluez.obex.PhonebookAccess1', 'Select', 'ss', location, book]);
@@ -467,7 +469,7 @@ function createLinuxPhone(opts) {
         if (!phone) throw new Error('no_paired_messages');
         const folder = FOLDERS[String(a.folder || 'inbox')] ? String(a.folder) : 'inbox';
         const wanted = String(a.handle || '');
-        const target = path.join(os.tmpdir(), `xenon-msg-${process.pid}-${Date.now()}.bmsg`);
+        const target = privateTmpFile('xenon-msg-', '.bmsg');
         try {
           return await withMapSession(phone.address, async (session) => {
             await selectFolder(session, FOLDERS[folder]);
@@ -496,9 +498,11 @@ function createLinuxPhone(opts) {
       case 'send': {
         const phone = pickPhone(await devices(), MAP_UUID);
         if (!phone) throw new Error('no_paired_messages');
-        const source = path.join(os.tmpdir(), `xenon-send-${process.pid}-${Date.now()}.bmsg`);
+        const source = privateTmpFile('xenon-send-', '.bmsg');
         try {
-          await fs.promises.writeFile(source, buildBMessage(String(a.number || ''), String(a.text || '')), 'utf8');
+          // 'wx' + 0600: created fresh and owner-only, so nothing can have
+          // been waiting at this path and nobody else can read the message.
+          await fs.promises.writeFile(source, buildBMessage(String(a.number || ''), String(a.text || '')), { encoding: 'utf8', flag: 'wx', mode: 0o600 });
           return await withMapSession(phone.address, async (session) => {
             const r = await userBus(['call', 'org.bluez.obex', session,
               'org.bluez.obex.MessageAccess1', 'PushMessage', 'ssa{sv}', source, FOLDERS.outbox, '0']);

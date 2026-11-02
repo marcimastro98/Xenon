@@ -68,6 +68,7 @@ function Write-InstallStatus([string]$State, [string]$Err) {
   } catch { }
 }
 
+$lock = $null
 try {
   $dataDir = Join-Path $PSScriptRoot 'data'
   $dlDir = Join-Path $dataDir 'native-installer'
@@ -90,8 +91,17 @@ try {
   # 2) Hash it again immediately before running it. server.js already checked it
   # against the signed manifest, but the file sat on disk in between, and this is
   # the last moment anything can still refuse to execute a substituted binary.
-  $actual = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
+  #
+  # The hash is computed from a handle that is then KEPT OPEN until the installer
+  # has started. It allows other readers (the installer itself opens its own
+  # file) but no writer and no delete or rename, so the bytes that were hashed
+  # are the bytes that run: hashing by path and launching by path left a window
+  # in which the file could be swapped between the two.
+  $lock = [System.IO.File]::Open($exe, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try { $actual = ([System.BitConverter]::ToString($sha.ComputeHash($lock))).Replace('-', '') } finally { $sha.Dispose() }
   if ($actual -ne $ExpectedSha256.ToUpperInvariant()) {
+    $lock.Dispose(); $lock = $null
     Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
     Write-InstallStatus 'error' 'hash_mismatch'; exit 3
   }
@@ -120,6 +130,17 @@ try {
     # /IT = run only when that user is logged on, in their interactive session.
     schtasks /Create /TN $taskName /TR "`"$runner`"" /SC ONCE /ST 00:00 /RU "$user" /IT /F | Out-Null
     schtasks /Run /TN $taskName | Out-Null
+    # The installer starts in the user's session, out of our hands; keep the
+    # hash handle until it is seen running (or give up after a minute), so the
+    # file the task launches is still the one that was hashed.
+    $deadline = (Get-Date).AddSeconds(60)
+    while ((Get-Date) -lt $deadline) {
+      $seen = $null
+      try { $seen = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -eq $exe } | Select-Object -First 1 } catch { }
+      if ($seen) { break }
+      Start-Sleep -Milliseconds 500
+    }
+    $lock.Dispose(); $lock = $null
     # The task self-cleans on the next run of this script; leaving it is harmless.
     # We handed off to the interactive task and can't observe its result from here,
     # so leave the marker on 'installing' - the dashboard's poll times out gently.
@@ -128,7 +149,10 @@ try {
   else {
     # Backend runs in the user session already: install, then start the kiosk
     # (single-instance, so a second launch just refocuses).
-    Start-Process -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -Wait
+    $proc = Start-Process -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -PassThru
+    # Started from the file the hash handle still holds: released only now.
+    $lock.Dispose(); $lock = $null
+    $proc.WaitForExit()
     $appExe = Join-Path $env:LOCALAPPDATA 'Xenon\xenon-native.exe'
     if (Test-Path $appExe) {
       try { Start-Process -FilePath $appExe -WorkingDirectory (Split-Path -Parent $appExe) } catch { }
@@ -147,6 +171,7 @@ try {
   exit 0
 }
 catch {
+  try { if ($lock) { $lock.Dispose() } } catch { }
   Write-InstallStatus 'error' $_.Exception.Message
   Write-Error $_.Exception.Message
   exit 1
