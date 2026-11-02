@@ -2555,6 +2555,13 @@ function normalizeSdkWidgets(value) {
         expand: g.expand === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
       };
+      // The shared store the user approved (manifest `storageGroup`; '' for the
+      // package's own). Left OUT, not blanked, when the stored grant has none:
+      // the server tells a grant that predates the field from one approved with
+      // no group, and fills the first from the installed package once.
+      if (typeof g.storageGroup === 'string' && (g.storageGroup === '' || SDK_SUB_ID_RE.test(g.storageGroup))) {
+        grants[key].storageGroup = g.storageGroup;
+      }
       n++;
     }
   }

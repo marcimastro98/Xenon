@@ -1362,6 +1362,55 @@ function originExportable(origin) {
   return origin === 'creator' || origin === 'local';
 }
 
+// May an install write over a package id that is already installed?
+//
+// Grants are keyed by package id and nothing else. A share code carrying the id
+// of a widget the user already approved used to replace its files silently and
+// run with every permission the user had given the ORIGINAL — the camera feed,
+// the Deck actions, the hosts — without a single question. So writing over an
+// installed id is refused unless one of three things is true:
+//   - it is the user's own build being edited (the Creator, Bit's create_widget):
+//     origin 'creator' over a package the user owns;
+//   - it is the Store updating the same catalog entry it installed (the Update
+//     button, the Store's own install of a newer version): the caller works that
+//     out from the origin record and the catalog, never from the payload alone;
+//   - the user saw "this replaces …" and confirmed (`replace: true`). Then the
+//     old grants go with the old code (`dropGrants`), and the new package asks
+//     for its permissions like any new widget.
+// Pure: every fact is computed by the caller.
+function installOverwrite(o) {
+  const x = o && typeof o === 'object' ? o : {};
+  if (x.exists !== true) return { ok: true, dropGrants: false };
+  if (x.origin === 'creator' && x.own === true) return { ok: true, dropGrants: false };
+  if (x.origin !== 'creator' && x.catalogUpdate === true) return { ok: true, dropGrants: false };
+  if (x.replace === true) return { ok: true, dropGrants: true };
+  return { ok: false, error: 'id_exists' };
+}
+
+// Grants made before the approved `storageGroup` was recorded in them. The
+// group decides WHOSE store a package reads (a shared namespace among siblings),
+// so it is now part of what the user approved: a manifest that adds or changes
+// it asks again. A grant that predates the field is taken as approval of the
+// group the package has NOW, the one the user saw when they approved it, so
+// nobody's working widget turns into a permission prompt on update. Every grant
+// gets the field ('' when the package has no group, or is not installed), so
+// this runs once in effect: a second pass finds nothing to fill.
+// Returns { grants, changed } and never mutates its input.
+function migrateGrantStorageGroups(grants, packages) {
+  const src = grants && typeof grants === 'object' && !Array.isArray(grants) ? grants : {};
+  const byId = new Map((Array.isArray(packages) ? packages : []).filter((p) => p && typeof p.id === 'string').map((p) => [p.id, p]));
+  const out = {};
+  let changed = false;
+  for (const id of Object.keys(src)) {
+    const g = src[id];
+    if (!g || typeof g !== 'object' || typeof g.storageGroup === 'string') { out[id] = g; continue; }
+    const pkg = byId.get(id);
+    out[id] = { ...g, storageGroup: pkg && typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '' };
+    changed = true;
+  }
+  return { grants: changed ? out : src, changed };
+}
+
 // Read an installed package's files into an embeddable payload
 // { id, files:[{ path, data(base64) }] } for a bundle export, or null. Only
 // allowlisted asset files are included and the same caps apply, so a re-import
@@ -1420,4 +1469,6 @@ module.exports = {
   readPackagePayload,
   mergeOrigin,            // unit-tested (redistribution policy)
   originExportable,
+  installOverwrite,       // unit-tested (writing over an installed id)
+  migrateGrantStorageGroups,   // unit-tested (grants that predate the recorded group)
 };
