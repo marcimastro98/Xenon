@@ -8,7 +8,7 @@ It talks only to the Xenon running on your own computer. Nothing goes to the int
 
 ## Add it
 
-Xenon 4.12.0 or newer must be running. In Xenon, **Settings, Widgets & sharing, Build widgets with Claude Code or Codex** has a
+Xenon 5.0.0 or newer must be running. In Xenon, **Settings, Widgets & sharing, Build widgets with Claude Code or Codex** has a
 button for each that does this for you. By hand:
 
 ```sh

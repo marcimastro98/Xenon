@@ -45692,7 +45692,7 @@ Object.assign(i18n.nl, {
   disk_stale_clean: 'Opschonen is weer beschikbaar zodra de index opnieuw is opgebouwd.',
 });
 
-// OpenAI Codex tile (4.12.0): js/codex-widget.js, Settings → Codex, the
+// OpenAI Codex tile (5.0.0): js/codex-widget.js, Settings → Codex, the
 // topbar marker and the `codex` SDK stream label.
 Object.assign(i18n.it, {
   layout_widget_openaicodex: "Codex",
@@ -46652,7 +46652,7 @@ Object.assign(i18n.nl, {
   codex_bar_working: "Codex is aan het werk",
 });
 
-// Ask ChatGPT tile (4.12.0): js/chatgpt-widget.js.
+// Ask ChatGPT tile (5.0.0): js/chatgpt-widget.js.
 Object.assign(i18n.it, {
   layout_widget_chatgpt: "Chiedi a ChatGPT",
   palette_kw_chatgpt: "OpenAI, ChatGPT, chat, chiedi, assistente, domanda, risposta, conversazione, Codex, piano",
@@ -47064,7 +47064,7 @@ Object.assign(i18n.nl, {
   settings_search_recent_tile_hint: 'toont bij een lege zoekopdracht de bestanden die je onlangs vanuit Xenon opende; een gekoppelde telefoon ziet ze ook',
 });
 
-// Codex tile: reading a conversation (4.12.0).
+// Codex tile: reading a conversation (5.0.0).
 Object.assign(i18n.it, {
   codex_thread_unsupported: "Questa copia di Codex non condivide le conversazioni. Aggiornando Codex arriva.",
   codex_thread_failed: "Codex non ha restituito questa conversazione.",
@@ -49592,7 +49592,7 @@ Object.assign(i18n.nl, {
   settings_media_lyrics: 'Songteksten',
   settings_media_lyrics_hint: 'zoekt de tekst op LRCLIB (stuurt titel en artiest)',
 });
-// Home Assistant Deck/SDK options added in 4.12.0 (climate range/fan/swing/preset/humidity, media source/sound/seek/shuffle/repeat/power).
+// Home Assistant Deck/SDK options added in 5.0.0 (climate range/fan/swing/preset/humidity, media source/sound/seek/shuffle/repeat/power).
 Object.assign(i18n.it, {
   deck_opt_heat_cool: 'Caldo/Freddo',
   deck_opt_range: 'Intervallo (min-max)',
@@ -49754,7 +49754,7 @@ Object.assign(i18n.nl, {
   deck_opt_off: 'Uit',
   deck_opt_stop: 'Stop',
 });
-// Smart Home tile room order and Show option, added in 4.12.0.
+// Smart Home tile room order and Show option, added in 5.0.0.
 Object.assign(i18n.it, {
   settings_ha_order: 'Ordine nella tile',
   settings_ha_order_hint: 'Sposta stanze e dispositivi in su o in giù. Un dispositivo aggiunto va in fondo alla sua stanza.',
@@ -49854,7 +49854,7 @@ Object.assign(i18n.nl, {
   settings_ha_view_compact: 'Compact',
   settings_ha_view_hint: 'Automatisch toont de bediening van elk apparaat in de tegel als die past, en anders kaarten die ze openen.',
 });
-// Settings: a Home Assistant dashboard as a Browser tile, added in 4.12.0.
+// Settings: a Home Assistant dashboard as a Browser tile, added in 5.0.0.
 Object.assign(i18n.it, {
   settings_ha_dash_title: "Dashboard di Home Assistant",
   settings_ha_dash_hint: "Mostra una dashboard di Home Assistant in una tile Browser nella pagina attuale. La prima volta accedi dentro la tile. Per nascondere la barra laterale di Home Assistant, attiva nel tuo profilo di Home Assistant l'opzione che la nasconde sempre.",
@@ -49987,7 +49987,7 @@ Object.assign(i18n.nl, {
   settings_ha_dash_bad_path: "Typ een pagina van je Home Assistant, beginnend met /.",
   settings_ha_dash_list_failed: "Je dashboards konden niet worden opgehaald. Het Overzicht en andere pagina's werken nog steeds.",
 });
-// Settings: which sensor feeds each reading, and the SDK `sensors` stream, added in 4.12.0.
+// Settings: which sensor feeds each reading, and the SDK `sensors` stream, added in 5.0.0.
 Object.assign(i18n.it, {
   sensor_src_title: "Sorgenti dei sensori",
   sensor_src_hint: "il sensore dietro ogni lettura, se la tua app di monitoraggio ne mostra un altro",
@@ -50451,7 +50451,7 @@ Object.assign(i18n.nl, {
   sdk_issue_other: "Iets anders dat de sandbox blokkeert",
   sdk_issue_other_fix: "Zie het deel over de sandbox in docs/WIDGET_SDK.md.",
 });
-// Spotify tile: open the closed app and play on the PC, optionally minimized (4.12.0).
+// Spotify tile: open the closed app and play on the PC, optionally minimized (5.0.0).
 Object.assign(i18n.it, {
   spotify_w_open_play: "Apri Spotify e riproduci",
   spotify_w_launch_failed: "Non è stato possibile aprire Spotify sul PC. L'app desktop è installata?",
@@ -62725,7 +62725,7 @@ Object.assign(i18n.nl, {
   lighting_board_hint: "De eigen lampjes van het bord, één stip per lampje. Tik op een stip en geef die een kleur om te zien welk lampje aangaat: sommige bestaan misschien niet op jouw bord. Zet je de besturing door Xenon uit, dan houden ze de laatste kleur tot de pc opnieuw opstart.",
 });
 
-// v4.12.0 — Settings → Support, rebuilt: the card for people who already
+// v5.0.0 — Settings → Support, rebuilt: the card for people who already
 // support (supporter code + perk pack import), and the three price tiles.
 Object.assign(i18n.it, {
   support_have_code_lead: "Con il codice supporter i drop riservati si sbloccano con un tocco. Hai ricevuto un pacchetto? Importalo da qui.",
