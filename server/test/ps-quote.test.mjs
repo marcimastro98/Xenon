@@ -94,3 +94,12 @@ test('the icon lookup refuses network paths and is guarded against other sites',
   const reads = remote.slice(remote.indexOf('const GET_READ_EXCEPTIONS'), remote.indexOf(']);', remote.indexOf('const GET_READ_EXCEPTIONS')));
   assert.ok(reads.includes("'/deck/app-icon'"), 'still readable from a paired phone');
 });
+
+test('the spoken-reply player and the uninstaller quote their paths too', () => {
+  const wav = SERVER.slice(SERVER.indexOf('function _spawnWavPlayer('), SERVER.indexOf('function _playWavFile('));
+  assert.match(wav, /-ArgumentList \$\{psQuote\(wavPath\)\}/);
+  assert.match(wav, /Remove-Item -LiteralPath \$\{psQuote\(wavPath\)\}/);
+  const un = readFileSync(join(SERVER_DIR, 'uninstall.ps1'), 'utf8');
+  assert.match(un, /\$rootEsc {4}= \$root -replace "\(\['\\u2018\\u2019\\u201A\\u201B\]\)", '\$1\$1'/);
+  assert.ok(![...un].some((c) => c.charCodeAt(0) > 127), 'ASCII only: Windows PowerShell 5.1 reads a BOM-less script as ANSI');
+});
