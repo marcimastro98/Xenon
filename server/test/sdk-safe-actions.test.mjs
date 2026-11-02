@@ -1,4 +1,4 @@
-// Three safe action categories for widgets (v4.12.0): `benchmark` (start and
+// Three safe action categories for widgets (v5.0.0): `benchmark` (start and
 // stop, never 'reveal'), `gallery` (open with a filter, never an id) and
 // `layers` (show or hide the widgets on the screen, switch their pages; never
 // place, move or remove). Pinned on both doors (bridge and manifest macro), in

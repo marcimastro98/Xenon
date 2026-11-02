@@ -1,4 +1,4 @@
-// Two reads the single-screen work gave widgets (v4.12.0).
+// Two reads the single-screen work gave widgets (v5.0.0).
 //
 // `placement`: where a widget is drawn (dashboard, desktop, over a game, beside
 // a window) and whether a dashboard is in use, so the same widget can lay
