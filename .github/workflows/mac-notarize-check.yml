@@ -42,7 +42,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Both arches, so one universal binary covers Apple Silicon and Intel and
       # the updater can point BOTH darwin keys at the same payload.

@@ -63,6 +63,8 @@ pub fn open(app: &AppHandle) {
     }
     let (x, y) = place(app);
     let handle = app.clone();
+    let nonce = crate::nav_policy::new_nonce();
+    let nonce_js = crate::nav_policy::nonce_script(&nonce, spotlight_port());
     let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(URL.parse().unwrap()))
         .title("Xenon Search")
         .decorations(false)
@@ -76,8 +78,12 @@ pub fn open(app: &AppHandle) {
         .position(x, y)
         .visible(true)
         .focused(true)
-        .on_navigation(move |url| {
-            if url.scheme() == "xenon-app" {
+        // Its own signal nonce (nav_policy.rs), and no page but Xenon's.
+        .initialization_script(&nonce_js)
+        .on_navigation(move |raw| {
+            if crate::nav_policy::is_signal(raw) {
+                let Some(url) = crate::nav_policy::verified_signal(raw, &nonce) else { return false };
+                if url.scheme() != "xenon-app" { return false; }
                 match url.path() {
                     "spotlight-close" => hide(&handle),
                     "spotlight-expand" => resize(&handle, H_EXPANDED),
@@ -86,7 +92,7 @@ pub fn open(app: &AppHandle) {
                 }
                 return false;
             }
-            true
+            crate::nav_policy::is_own_page(raw, spotlight_port())
         });
     // SAME browser args as the main webview — WebView2 rejects (silently,
     // asynchronously) a second webview whose environment options differ from
@@ -140,4 +146,9 @@ fn resize(app: &AppHandle, h: f64) {
         let _ = win.set_size(LogicalSize::new(w, h));
         let _ = win.set_position(LogicalPosition::new(x - (w - W) / 2.0, y));
     }
+}
+
+/// The backend's port (XENON_PORT, 3030 by default), as the main window reads it.
+fn spotlight_port() -> u16 {
+    std::env::var("XENON_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(3030)
 }

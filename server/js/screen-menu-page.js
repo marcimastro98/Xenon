@@ -84,7 +84,7 @@
     const [what, cat] = String(verb || '').split(':');
     if (!['gallery', 'dashboard', 'settings'].includes(what)) return;
     const q = 'open=' + encodeURIComponent(what) + (what === 'settings' && cat ? '&cat=' + encodeURIComponent(cat) : '');
-    try { window.location.href = 'xenon-app:open-dashboard?' + q; } catch (e) { /* not in the shell */ }
+    try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?' + q); } catch (e) { /* not in the shell */ }
   }
 
   window.addEventListener('keydown', (e) => {

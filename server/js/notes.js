@@ -248,7 +248,7 @@ function _applyNotesState(next) {
   const note = activeNote();
   notesRoots().forEach(root => {
     notesState.notes.forEach(n => {
-      const tab = root.querySelector(`.notes-tab[data-note-id="${n.id}"] .notes-tab-title`);
+      const tab = root.querySelector(`.notes-tab[data-note-id="${cssId(n.id)}"] .notes-tab-title`);
       if (tab) tab.textContent = noteTitle(n.body);
     });
     const count = root.querySelector('[data-notesf="count"]');
@@ -427,7 +427,7 @@ function onNotesInput(srcEl) {
   // Live-update peripheral UI across all instances without touching the editor
   // the user is typing in.
   notesRoots().forEach(root => {
-    const tab = root.querySelector(`.notes-tab[data-note-id="${note.id}"] .notes-tab-title`);
+    const tab = root.querySelector(`.notes-tab[data-note-id="${cssId(note.id)}"] .notes-tab-title`);
     if (tab) tab.textContent = noteTitle(val);
     const count = root.querySelector('[data-notesf="count"]');
     if (count) count.textContent = notesCountLabel(val);
@@ -494,4 +494,11 @@ function scheduleNotesIdleBlur() {
     const ae = document.activeElement;
     if (ae && ae.matches && ae.matches('[data-notesf="area"]')) ae.blur();
   }, NOTES_IDLE_BLUR_MS);
+}
+
+// An id inside a CSS attribute selector: a stray quote (a restored backup)
+// must not make querySelector throw on every tick.
+function cssId(v) {
+  const s = String(v == null ? '' : v);
+  return (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
 }

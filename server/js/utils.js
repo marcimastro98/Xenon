@@ -22,7 +22,7 @@ function isLayerPage() {
 // opens the dashboard there (layers::spec::tile_settings).
 function openSettingsCategory(cat) {
   if (isLayerPage()) {
-    try { window.location.href = 'xenon-app:open-dashboard?open=settings&cat=' + encodeURIComponent(cat || ''); } catch (e) { /* not in the shell */ }
+    try { window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=settings&cat=' + encodeURIComponent(cat || '')); } catch (e) { /* not in the shell */ }
     return;
   }
   if (typeof window.openSettings === 'function') window.openSettings(cat);

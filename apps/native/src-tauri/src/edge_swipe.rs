@@ -30,7 +30,7 @@ const KEY: &str = r"HKLM\SOFTWARE\Policies\Microsoft\Windows\EdgeUI";
 /// the webview instead of being swallowed by the taskbar reveal. Best-effort:
 /// succeeds only when the process is elevated (the installer is the usual owner).
 pub fn disable() {
-    let _ = Command::new("reg")
+    let _ = Command::new(crate::system32_exe("reg.exe"))
         .args([
             "add", KEY, "/v", "AllowEdgeSwipe", "/t", "REG_DWORD", "/d", "0", "/f",
         ])
@@ -42,7 +42,7 @@ pub fn disable() {
 /// when the user explicitly turns the gesture off in Settings — never on exit.
 /// Best-effort: succeeds only when elevated (UNINSTALL.bat covers the rest).
 pub fn restore() {
-    let _ = Command::new("reg")
+    let _ = Command::new(crate::system32_exe("reg.exe"))
         .args(["delete", KEY, "/v", "AllowEdgeSwipe", "/f"])
         .creation_flags(CREATE_NO_WINDOW)
         .status();

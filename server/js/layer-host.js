@@ -384,7 +384,7 @@
     const signal = 'xenon-app:layer-rects?d=' + encodeURIComponent(rectsNow()) + (editing ? '&edit=1' : '');
     if (signal === lastRects) return;
     lastRects = signal;
-    try { window.location.href = signal; } catch (e) { /* not native */ }
+    try { window.location.href = (window.__xenonSignal || String)(signal); } catch (e) { /* not native */ }
   }
 
   function scheduleRects() {

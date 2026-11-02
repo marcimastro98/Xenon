@@ -161,7 +161,7 @@ let hubSettings = {};
     const signal = 'xenon-app:alert-rects?d=' + encodeURIComponent(cardRects());
     if (signal === lastSignal) return;
     lastSignal = signal;
-    try { window.location.href = signal; } catch (e) { /* not native */ }
+    try { window.location.href = (window.__xenonSignal || String)(signal); } catch (e) { /* not native */ }
   }
 
   // Now, and again once the card has moved in or out.
@@ -263,7 +263,7 @@ let hubSettings = {};
     show(AlertToasts.updateAvailable(info, ctx(), openUpdate, () => skipVersion(v)));
   }
   function openUpdate() {
-    window.location.href = 'xenon-app:open-dashboard?open=update';
+    window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=update');
   }
 
   function revealBenchmark() {

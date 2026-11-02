@@ -52,7 +52,7 @@ function closeSettings() { /* no settings panel here */ }
 
   function signal(name) {
     if (!IN_SHELL || !loaded) return false;
-    try { window.location.href = 'xenon-app:' + name; } catch (e) { /* not native */ }
+    try { window.location.href = (window.__xenonSignal || String)('xenon-app:' + name); } catch (e) { /* not native */ }
     return true;
   }
 
