@@ -47,6 +47,8 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
 // answer for an output that is not in the live list, and the registry only
 // passes it on.
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8')
+  // What a paired phone may run (needs_pc, pc_only).
+  + readFileSync(new URL('../remote-actions.js', import.meta.url), 'utf8')
   // A key run from its keyboard shortcut fails here with its own codes.
   + readFileSync(new URL('../deck-shortcut-runner.js', import.meta.url), 'utf8')
   // …and a sound it plays on the PC itself, with its own two.

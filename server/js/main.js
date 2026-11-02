@@ -671,6 +671,20 @@ function postponeAutoUpdate() {
         if (window.Ambient && typeof window.Ambient.onBriefingMoment === 'function') window.Ambient.onBriefingMoment(JSON.parse(e.data));
       } catch {}
     });
+    // A device was just paired. Shown on every open screen of the PC, so a
+    // pairing nobody here asked for does not go unnoticed (the code alone
+    // decides who pairs, and whoever types it first wins).
+    es.addEventListener('remote_paired', e => {
+      try {
+        if (window.__xenonRemote) return;          // a phone does not need to be told about itself
+        const d = JSON.parse(e.data) || {};
+        const tr = (k, fb) => (typeof t === 'function' && t(k)) || fb;
+        if (typeof showHubToast === 'function') {
+          showHubToast('Xenon', tr('ra_paired_toast_title', 'New device paired'),
+            String(d.name || '').slice(0, 60) + '. ' + tr('ra_paired_toast_hint', 'If you did not pair it, remove it in Settings, Phone.'));
+        }
+      } catch {}
+    });
     es.addEventListener('deck', e => {
       // Another open dashboard saved a Deck change — adopt the server copy live,
       // so two clients can never drift apart between reloads.

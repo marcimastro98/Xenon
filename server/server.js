@@ -2912,6 +2912,7 @@ const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
 const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
 const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
 const { psEscape, psQuote } = require('./ps-quote');
+const remoteActions = require('./remote-actions');
 // \\host\share, //host/share, \\?\UNC\host: touching one makes Windows
 // authenticate to that host with the user's credentials.
 function isNetworkPath(p) {
@@ -17062,6 +17063,12 @@ const handleRequest = async (req, res) => {
       if (!appPath || typeof appPath !== 'string') {
         res.writeHead(400); res.end('Missing path'); return;
       }
+      // From a paired phone, only an app the user already chose: a favourite
+      // or a Deck key's app. Otherwise a file sent from the phone could be
+      // started right after it lands.
+      if (isRemote && !remoteActions.remoteMayLaunch(appPath, _serverHubSettings && _serverHubSettings.appFavorites, await readDeckStore())) {
+        json({ ok: false, error: 'needs_pc' }); return;
+      }
       json(await deckRegistry.run({ type: 'openApp', path: appPath }));
     } catch (e) { err500(e.message); }
 
@@ -17394,6 +17401,12 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/actions/run' && req.method === 'POST') {
     try {
       const action = JSON.parse(await readBody(req) || '{}');
+      // A paired phone runs free actions, and anything else only as a key the
+      // user already built (remote-actions.js).
+      if (isRemote) {
+        const verdict = remoteActions.remoteMayRun(action, await readDeckStore());
+        if (!verdict.ok) { json({ ok: false, error: verdict.error }); return; }
+      }
       json(await deckRegistry.run(action));
     } catch (e) { err500(e.message); }
 
@@ -18146,6 +18159,13 @@ const handleRequest = async (req, res) => {
       // or the page a game just switched to. Backup import has its own route.
       if (prev && prev.layers && typeof prev.layers === 'object') {
         incoming.layers = prev.layers;
+      }
+      // PC Control lets the assistant run commands on this PC after a tap on
+      // its card. A phone must not be able to switch it on and then approve
+      // the card itself, so from a paired device the stored choice stands.
+      if (isRemote) {
+        const was = !!(prev && prev.aiFeatures && prev.aiFeatures.pcControl === true);
+        incoming.aiFeatures = { ...(incoming.aiFeatures && typeof incoming.aiFeatures === 'object' ? incoming.aiFeatures : {}), pcControl: was };
       }
       // The layout-version migration reads the INCOMING body, and it is the only
       // check in normalizeHubSettings whose failure mode is losing the single
@@ -19723,6 +19743,11 @@ const handleRequest = async (req, res) => {
             json({ ok: true, rev: current.rev, savedAt: current.savedAt });
             return;
           }
+          // A phone may rearrange and edit keys, but not add one that starts
+          // a program, types or calls out (remote-actions.js).
+          if (isRemote && remoteActions.introduces(current, applied.store)) {
+            json({ ok: false, error: 'needs_pc' }); return;
+          }
           applied.store.rev = current.rev + 1;
           const saved = await writeDeckStore(applied.store);
           // Nudge every other open dashboard to re-sync its decks right away.
@@ -19742,6 +19767,9 @@ const handleRequest = async (req, res) => {
         if (!applied.changed) {
           json({ ok: true, rev: current.rev, savedAt: current.savedAt });
           return;
+        }
+        if (isRemote && remoteActions.introduces(current, applied.store)) {
+          json({ ok: false, error: 'needs_pc' }); return;
         }
         applied.store.rev = current.rev + 1;   // revs are server-assigned — never adopt a client counter
         const saved = await writeDeckStore(applied.store);
@@ -24445,6 +24473,9 @@ const handleRequest = async (req, res) => {
         'Set-Cookie': remoteAccessLib.cookieHeader(r.token, { secure: !!(req.socket && req.socket.encrypted) }),
       });
       res.end(JSON.stringify({ ok: true, device: { id: r.device.id, name: r.device.name } }));
+      // Tell the PC's screens (main.js shows a toast): pairing needs only the
+      // code, so the person at the PC should see every device that gets in.
+      broadcastSSE('remote_paired', { name: r.device.name });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/remote-access/whoami' && req.method === 'GET') {

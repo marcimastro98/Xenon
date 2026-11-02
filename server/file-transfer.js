@@ -327,6 +327,7 @@ async function deliverToInbox(rec, inboxDir, opts) {
     try {
       await fh.close();
       await fsp.copyFile(src, dest);
+      await markFromInternet(dest, o.platform);
       return { ok: true, path: dest };
     } catch (e) {
       try { await fh.close(); } catch { /* already closed */ }
@@ -339,8 +340,20 @@ async function deliverToInbox(rec, inboxDir, opts) {
   const dest = path.join(inboxDir, `${base}-${rec.id}${ext}`);
   try {
     await fsp.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
+    await markFromInternet(dest, o.platform);
     return { ok: true, path: dest };
   } catch { return { ok: false, error: 'write_failed' }; }
+}
+
+// A file that arrived from another device gets the same mark Windows puts on
+// a download (the Zone.Identifier stream, zone 3). Opening it then goes
+// through SmartScreen and Office's Protected View like any file from the
+// internet, instead of running with no question asked. Best effort: a drive
+// that cannot hold the stream (FAT, exFAT, a network share) keeps the file.
+const ZONE_IDENTIFIER = '[ZoneTransfer]\r\nZoneId=3\r\n';
+async function markFromInternet(dest, platform) {
+  if ((platform || process.platform) !== 'win32') return;
+  try { await fsp.writeFile(dest + ':Zone.Identifier', ZONE_IDENTIFIER); } catch { /* no ADS here */ }
 }
 
 /**
@@ -818,6 +831,7 @@ function createFileTransfer(o) {
 }
 
 module.exports = {
+  markFromInternet, ZONE_IDENTIFIER,
   createFileTransfer,
   receiveStream,
   deliverToInbox,

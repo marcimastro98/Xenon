@@ -218,6 +218,18 @@ const REMOTE_DENY = new Set([
   // A tile's choices saved from a widget on the PC's screen (tile-settings.js).
   // A phone has the whole dashboard and saves through /settings.
   '/settings/tile',
+  // Code on the PC, one way or another: PC Control's approved command, and
+  // remote desktop (Sunshine), whose pairing would hand a phone the whole
+  // screen and keyboard. Set up at the PC.
+  '/ai/pc-run',
+  '/remote/pin',
+  '/remote/enable',
+  '/remote/unblock',
+  '/remote/ondemand',
+  '/remote/sunshine/configure',
+  // A backup replaces the Deck, the settings and the stores at once, past
+  // every per-route rule a phone is held to. Restore it at the PC.
+  '/backup/import',
 ]);
 
 // Prefix denials, for routes that carry an id tail.
@@ -962,6 +974,9 @@ function publicDevice(d) {
  * remote request and must not touch the disk. Writes go through
  * writeFileAtomic, like every other durable store.
  */
+// How long a paired device may go unused before its token stops working.
+const IDLE_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
+
 function createRemoteAccess({ dir, now = () => Date.now() } = {}) {
   const file = path.join(String(dir || '.'), STORE_FILENAME);
   let store = { version: STORE_VERSION, devices: [] };
@@ -1063,7 +1078,13 @@ function createRemoteAccess({ dir, now = () => Date.now() } = {}) {
     if (s.length < 16 || s.length > 128) return null;
     const h = hashToken(s);
     for (const d of store.devices) {
-      if (safeEqual(h, d.tokenHash)) return d;
+      if (!safeEqual(h, d.tokenHash)) continue;
+      // A device unused for IDLE_EXPIRY_MS stops working: a phone sold, lost or
+      // forgotten in a drawer should not keep a key to this PC for ever. It
+      // stays listed so the user sees it and can pair it again or remove it.
+      // A device from before lastSeenAt was recorded (0) is not judged on it.
+      if (d.lastSeenAt > 0 && now() - d.lastSeenAt > IDLE_EXPIRY_MS) return null;
+      return d;
     }
     return null;
   }
@@ -1169,7 +1190,7 @@ function createRemoteAccess({ dir, now = () => Date.now() } = {}) {
 module.exports = {
   STORE_VERSION, STORE_FILENAME, COOKIE_NAME, MAX_DEVICES,
   CODE_LENGTH, CODE_TTL_MS, CODE_MAX_ATTEMPTS, DEVICE_NAME_MAX,
-  REMOTE_DENY, REMOTE_ADMIN, DEFAULT_GET_MUTATORS, GET_READ_EXCEPTIONS, PRE_AUTH, useGetMutators,
+  IDLE_EXPIRY_MS, REMOTE_DENY, REMOTE_ADMIN, DEFAULT_GET_MUTATORS, GET_READ_EXCEPTIONS, PRE_AUTH, useGetMutators,
   gateDecision, remotePathAllowed, isOwnAddressHost, isTlsNameHost, originAllowed,
   WIDGET_ASSET_PREFIX, parseWidgetAssetPath,
   ownAddresses, pairingAddresses,

@@ -678,6 +678,16 @@
         const cur = readDirty();
         for (const id of ids) { if (cur[id] === taken[id]) delete cur[id]; }
         writeDirty(cur);
+        // From a paired phone the server refuses a key that would open an app,
+        // type or call out (server/remote-actions.js). Say so, and take the
+        // Deck back to what is saved instead of showing a key that is not.
+        if (data && data.ok === false && data.error === 'needs_pc') {
+          if (typeof showHubToast === 'function') {
+            showHubToast('Xenon', tr('deck_needs_pc_title', 'Change not saved'), tr('deck_needs_pc', 'From a phone or tablet you cannot add keys that open apps, type text, press shortcuts or reach outside services. Set them up on the PC.'));
+          }
+          hydrateDeckFromServer();
+          return;
+        }
         if (data && Number.isFinite(data.rev)) lastServerRev = Math.max(lastServerRev, data.rev);
         if (Object.keys(cur).length) queueDeckFlush();   // something re-dirtied mid-flight — go again
       })

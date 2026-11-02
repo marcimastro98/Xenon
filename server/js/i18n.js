@@ -64701,6 +64701,120 @@ Object.assign(i18n.nl, {
   discord_w_member_deaf: "doof",
 });
 
+// ── Paired phones: what a phone may run on the PC (server/remote-actions.js) ──
+Object.assign(i18n.it, {
+  deck_err_needs_pc: "da telefono o tablet funziona solo come tasto già creato sul PC",
+  deck_err_pc_only: "funziona solo sul PC",
+  deck_needs_pc_title: "Modifica non salvata",
+  deck_needs_pc: "Da telefono o tablet non puoi aggiungere tasti che aprono app, scrivono testo, premono scorciatoie o contattano servizi esterni. Creali sul PC.",
+});
+Object.assign(i18n.en, {
+  deck_err_needs_pc: "from a phone or tablet this works only as a key already set up on the PC",
+  deck_err_pc_only: "this works only on the PC itself",
+  deck_needs_pc_title: "Change not saved",
+  deck_needs_pc: "From a phone or tablet you cannot add keys that open apps, type text, press shortcuts or reach outside services. Set them up on the PC.",
+});
+Object.assign(i18n.es, {
+  deck_err_needs_pc: "desde un teléfono o una tableta solo funciona como una tecla ya creada en el PC",
+  deck_err_pc_only: "solo funciona en el propio PC",
+  deck_needs_pc_title: "Cambio no guardado",
+  deck_needs_pc: "Desde un teléfono o una tableta no puedes añadir teclas que abran apps, escriban texto, pulsen atajos o se conecten a servicios externos. Créalas en el PC.",
+});
+Object.assign(i18n.fr, {
+  deck_err_needs_pc: "depuis un téléphone ou une tablette, cela ne marche qu’avec une touche déjà créée sur le PC",
+  deck_err_pc_only: "cela ne marche que sur le PC lui-même",
+  deck_needs_pc_title: "Modification non enregistrée",
+  deck_needs_pc: "Depuis un téléphone ou une tablette, vous ne pouvez pas ajouter de touches qui ouvrent des apps, saisissent du texte, déclenchent des raccourcis ou contactent des services externes. Créez-les sur le PC.",
+});
+Object.assign(i18n.de, {
+  deck_err_needs_pc: "vom Handy oder Tablet geht das nur als Taste, die schon am PC angelegt wurde",
+  deck_err_pc_only: "das geht nur am PC selbst",
+  deck_needs_pc_title: "Änderung nicht gespeichert",
+  deck_needs_pc: "Vom Handy oder Tablet kannst du keine Tasten hinzufügen, die Apps öffnen, Text eingeben, Tastenkürzel drücken oder externe Dienste ansprechen. Lege sie am PC an.",
+});
+Object.assign(i18n.pt, {
+  deck_err_needs_pc: "a partir de um telemóvel ou tablet só funciona como uma tecla já criada no PC",
+  deck_err_pc_only: "só funciona no próprio PC",
+  deck_needs_pc_title: "Alteração não guardada",
+  deck_needs_pc: "A partir de um telemóvel ou tablet não pode adicionar teclas que abram apps, escrevam texto, premam atalhos ou contactem serviços externos. Crie-as no PC.",
+});
+Object.assign(i18n.nl, {
+  deck_err_needs_pc: "vanaf een telefoon of tablet werkt dit alleen als toets die al op de pc is gemaakt",
+  deck_err_pc_only: "dit werkt alleen op de pc zelf",
+  deck_needs_pc_title: "Wijziging niet opgeslagen",
+  deck_needs_pc: "Vanaf een telefoon of tablet kun je geen toetsen toevoegen die apps openen, tekst typen, sneltoetsen indrukken of externe diensten aanspreken. Maak ze op de pc.",
+});
+Object.assign(i18n.ru, {
+  deck_err_needs_pc: "с телефона или планшета это работает только как клавиша, уже созданная на ПК",
+  deck_err_pc_only: "это работает только на самом ПК",
+  deck_needs_pc_title: "Изменение не сохранено",
+  deck_needs_pc: "С телефона или планшета нельзя добавлять клавиши, которые открывают приложения, вводят текст, нажимают сочетания клавиш или обращаются к внешним сервисам. Создайте их на ПК.",
+});
+Object.assign(i18n.ko, {
+  deck_err_needs_pc: "휴대폰이나 태블릿에서는 PC에서 미리 만든 키로만 작동합니다",
+  deck_err_pc_only: "PC에서만 작동합니다",
+  deck_needs_pc_title: "변경 사항이 저장되지 않았습니다",
+  deck_needs_pc: "휴대폰이나 태블릿에서는 앱을 열거나 텍스트를 입력하거나 단축키를 누르거나 외부 서비스에 연결하는 키를 추가할 수 없습니다. PC에서 만드세요.",
+});
+Object.assign(i18n.ja, {
+  deck_err_needs_pc: "スマホやタブレットからは、PC で作成済みのキーとしてのみ動作します",
+  deck_err_pc_only: "PC 本体でのみ動作します",
+  deck_needs_pc_title: "変更は保存されませんでした",
+  deck_needs_pc: "スマホやタブレットからは、アプリを開く、テキストを入力する、ショートカットを押す、外部サービスに接続するキーは追加できません。PC で作成してください。",
+});
+Object.assign(i18n.zh, {
+  deck_err_needs_pc: "在手机或平板上，只能作为已在电脑上创建的按键使用",
+  deck_err_pc_only: "只能在电脑本机上使用",
+  deck_needs_pc_title: "更改未保存",
+  deck_needs_pc: "在手机或平板上不能添加打开应用、输入文字、按快捷键或连接外部服务的按键。请在电脑上创建。",
+});
+
+// ── Paired phones: a toast on the PC when a device pairs (main.js) ──
+Object.assign(i18n.it, {
+  ra_paired_toast_title: "Nuovo dispositivo abbinato",
+  ra_paired_toast_hint: "Se non l'hai abbinato tu, rimuovilo in Impostazioni, Telefono.",
+});
+Object.assign(i18n.en, {
+  ra_paired_toast_title: "New device paired",
+  ra_paired_toast_hint: "If you did not pair it, remove it in Settings, Phone.",
+});
+Object.assign(i18n.es, {
+  ra_paired_toast_title: "Nuevo dispositivo vinculado",
+  ra_paired_toast_hint: "Si no lo has vinculado tú, quítalo en Ajustes, Teléfono.",
+});
+Object.assign(i18n.fr, {
+  ra_paired_toast_title: "Nouvel appareil associé",
+  ra_paired_toast_hint: "Si ce n’est pas vous qui l’avez associé, retirez-le dans Réglages, Téléphone.",
+});
+Object.assign(i18n.de, {
+  ra_paired_toast_title: "Neues Gerät gekoppelt",
+  ra_paired_toast_hint: "Wenn du es nicht gekoppelt hast, entferne es unter Einstellungen, Telefon.",
+});
+Object.assign(i18n.pt, {
+  ra_paired_toast_title: "Novo dispositivo emparelhado",
+  ra_paired_toast_hint: "Se não foi você que o emparelhou, remova-o em Configurações, Telemóvel.",
+});
+Object.assign(i18n.nl, {
+  ra_paired_toast_title: "Nieuw apparaat gekoppeld",
+  ra_paired_toast_hint: "Heb je het niet zelf gekoppeld? Verwijder het in Instellingen, Telefoon.",
+});
+Object.assign(i18n.ru, {
+  ra_paired_toast_title: "Привязано новое устройство",
+  ra_paired_toast_hint: "Если это сделали не вы, удалите его в разделе Настройки, Телефон.",
+});
+Object.assign(i18n.ko, {
+  ra_paired_toast_title: "새 기기가 연결되었습니다",
+  ra_paired_toast_hint: "직접 연결한 기기가 아니라면 설정 > 휴대폰에서 삭제하세요.",
+});
+Object.assign(i18n.ja, {
+  ra_paired_toast_title: "新しいデバイスがペアリングされました",
+  ra_paired_toast_hint: "心当たりがない場合は、設定の「スマートフォン」から削除してください。",
+});
+Object.assign(i18n.zh, {
+  ra_paired_toast_title: "已配对新设备",
+  ra_paired_toast_hint: "如果不是你配对的，请在 设置 > 手机 中将其移除。",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;
