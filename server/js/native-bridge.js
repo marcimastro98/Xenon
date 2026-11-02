@@ -1072,6 +1072,9 @@
   function onDisplaysChanged() {
     // Widget layers cover a monitor's work area: they move with the screens.
     if (window.LayersShell) window.LayersShell.onDisplays();
+    // A screen coming or going can reset the graphics device and wipe a paused
+    // animated background, which then stays blank (custom-bg.js repaint).
+    if (window.CustomBg && typeof window.CustomBg.repaint === 'function') window.CustomBg.repaint();
     if (window.AiEdgeGlow) window.AiEdgeGlow.refresh();
     if (typeof displayListener === 'function') {
       try { displayListener(displayState()); } catch (e) { /* a listener must not break the shell */ }

@@ -94,6 +94,9 @@ function runFrame(html, drawMs, seconds) {
   const canvas = {
     width: 0, height: 0,
     getContext: () => ({ setTransform() {}, clearRect() {}, fillRect() {} }),
+    // A real canvas is an event target: the frame listens for contextrestored
+    // to repaint a backdrop the graphics device wiped (custom-bg-repaint.test.mjs).
+    addEventListener() {},
   };
   Object.defineProperty(canvas, 'width', { get() { return this._w; }, set(v) { this._w = v; sizes.push(v); } });
   const ctx = {
