@@ -15042,6 +15042,9 @@ function isAllowedRequest(req) {
   return true;
 }
 
+// What a page on another site may do on the loopback door: see cross-site.js.
+const { refusedCrossSite, refusedSocketOrigin } = require('./cross-site');
+
 // ── The second door: paired devices (R1.1) ───────────────────────────────────
 // isAllowedRequest() above is untouched and remains the only judge of LOCAL
 // trust. What follows is a separate, narrower entrance for a phone or tablet the
@@ -16053,6 +16056,14 @@ const handleRequest = async (req, res) => {
   // it to withhold what a phone must not see (see /settings) — it is never used
   // to GRANT anything: authorization is the allowlist's job, not a handler's.
   const isRemote = remote !== null;
+
+  // Requests from other sites: see cross-site.js. Before the OPTIONS reply,
+  // so a refused preflight is refused here too.
+  if (!isRemote && refusedCrossSite(req)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
 
   // CORS headers required for the iCUE widget WebView (opaque origin, qrc:// or file://).
   // Access-Control-Allow-Private-Network is required by Chrome 104+ (Private Network
@@ -24686,6 +24697,8 @@ server.on('upgrade', (req, socket, head) => {
   if (!WS_PATHS.includes(pathname)) { socket.destroy(); return; }
   // Same loopback/Host/Origin guard as every HTTP route — the relay is local-only.
   if (!isAllowedRequest(req)) { socket.destroy(); return; }
+  // Only our own pages, same-origin, open these sockets (cross-site.js).
+  if (refusedSocketOrigin(req)) { socket.destroy(); return; }
   if (pathname === '/api/ai/live') {
     liveWss.handleUpgrade(req, socket, head, (client) => _handleLiveClient(client));
     return;

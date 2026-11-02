@@ -202,6 +202,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **One missed day no longer ends your streak.** Your Vitals streak keeps going if you skip a single day; it starts again only after two days in a row without a refill.
 - **A cleaner Vitals tile.** Easier-to-read text, "Level 3" instead of a small badge, the time you spent at the PC today (time away does not count), and a countdown under the top bar chip before the PC locks.
 
+### 🔒 Security
+- **Stricter checks on requests from other websites.** Xenon now refuses, on every route, requests from another website that would change something, read data or open a connection to it. The dashboard, the iCUE widgets, links from the guides and the tools on your PC (the MCP bridge, the Claude Code hooks, webhooks) work as before. Thanks to jarnix for the report.
+
 ### 🐛 Fixed
 - **No more white background after a KVM switch or a monitor coming and going.** With a custom theme, switching the monitor to another computer and back could leave Xenon on the Edge with a bright white background behind the tiles until it was restarted, dark themes included. Two things met. A theme's animated background is often paused (when nobody touches the screen, during games, and all the time on PCs with two graphics cards), so it is one picture drawn and left alone, and a screen leaving can reset the graphics card, which wipes that picture; nothing drew it again. And behind that empty picture the browser painted plain white instead of the theme's own colour. The background now draws itself again when it is wiped and whenever the screens change, and if it is ever empty, the theme's colour shows behind it, not white. Reported on Discord.
 - **Open Discord works on macOS and Linux.** The button on the Discord widget that starts Discord when it is closed only ever worked on Windows: elsewhere it did nothing. It now starts the app on all three, and on Linux it finds a normal install, a Flatpak or a Snap.
