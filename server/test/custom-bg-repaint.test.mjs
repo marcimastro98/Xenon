@@ -45,3 +45,14 @@ test('the host asks for a repaint after every display change', () => {
   const body = BRIDGE.slice(at, BRIDGE.indexOf('\n  }\n', at));
   assert.match(body, /window\.CustomBg\.repaint\(\)/);
 });
+
+test('an emptied background shows the theme, never white', () => {
+  // Verified in Chromium: on a dark dashboard (root color-scheme: dark, set by
+  // theme-tokens.js) a frame whose document declares no scheme gets an OPAQUE
+  // WHITE backdrop, which shows the moment its canvas is empty. With
+  // color-scheme: normal on the element, the same frame is transparent.
+  assert.match(read('../js/theme-tokens.js'), /root\.style\.colorScheme = palette\.tone;/,
+    'if the root stops carrying a scheme, this guard can be revisited');
+  const mount = SRC.slice(SRC.indexOf('function mount('), SRC.indexOf('frame.srcdoc = buildSrcdoc(', SRC.indexOf('function mount(')));
+  assert.match(mount, /frame\.style\.colorScheme = 'normal';/);
+});

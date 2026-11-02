@@ -371,6 +371,15 @@
       frame.setAttribute('aria-hidden', 'true');
       frame.setAttribute('tabindex', '-1');
       frame.title = '';
+      // Transparent behind the canvas, always. The dashboard's root carries the
+      // theme's color-scheme (theme-tokens.js: dark on a dark theme) and the
+      // frame's document declares none; Chromium paints an OPAQUE WHITE backdrop
+      // behind a frame whose scheme differs from its element's. The canvas hid it
+      // until something emptied the canvas (a graphics reset on a KVM switch,
+      // Discord Nov 2026): then the whole dashboard sat on white instead of the
+      // theme's own colour. `normal` on the element matches the document's
+      // default, so nothing is painted behind it.
+      frame.style.colorScheme = 'normal';
       frame.srcdoc = buildSrcdoc(code, assets, fps, guard);   // buildSrcdoc sanitizes (second guard)
       // Once the frame's script is live, tell it the current pause state (it may
       // have been mounted while already in perf/game mode).
