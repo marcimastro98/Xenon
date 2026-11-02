@@ -426,6 +426,14 @@
           body: JSON.stringify(Object.assign({}, payload, { origin: 'import', catalogVersion: upd.version || '' })),
         });
         const d = await r.json().catch(() => ({}));
+        // The server only updates in place a package the Store itself installed.
+        // One that arrived some other way (a share code with the same id) is a
+        // replacement, which the user confirms in the import review, where the
+        // permissions it had are cleared.
+        if (d && d.error === 'id_exists' && PS()) {
+          PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '' });
+          return false;
+        }
         if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
         if (window.CustomWidget && CustomWidget.refreshPackages) CustomWidget.refreshPackages();
         return true;

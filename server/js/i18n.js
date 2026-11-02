@@ -64862,6 +64862,63 @@ Object.assign(i18n.zh, {
   settings_backup_note: "包含布局、Deck、日历、任务、计时器、便笺、设置、AI 记忆、传感器历史和自定义背景。不包含密码、令牌和 API 密钥，但包含私人日历链接和 Deck Webhook 地址：请妥善保管此文件，不要分享。",
 });
 
+// ── Community widgets: a frame that leaves its page, an import that replaces one ──
+Object.assign(i18n.it, {
+  cw_left_page: "Questo widget ha provato ad aprire un'altra pagina e Xenon l'ha fermato",
+  cw_left_page_hint: "Un widget deve restare nella sua pagina. I permessi che gli hai dato non sono passati all'altra pagina.",
+  preset_widget_replaces: "Sostituisce {name}, un widget che hai già. I permessi che gli avevi dato vengono azzerati e quelli del nuovo li approvi da capo.",
+});
+Object.assign(i18n.en, {
+  cw_left_page: "This widget tried to open another page, so Xenon stopped it",
+  cw_left_page_hint: "Widgets have to stay on their own page. The permissions you gave it were not passed on to the other page.",
+  preset_widget_replaces: "This replaces {name}, a widget you already have. The permissions you gave it are cleared, and you approve the new one's from the start.",
+});
+Object.assign(i18n.ko, {
+  cw_left_page: "이 위젯이 다른 페이지를 열려고 해서 Xenon이 멈췄습니다",
+  cw_left_page_hint: "위젯은 자기 페이지 안에 있어야 합니다. 이 위젯에 승인한 권한은 다른 페이지로 넘어가지 않았습니다.",
+  preset_widget_replaces: "이미 있는 위젯 {name}을(를) 대체합니다. 기존에 승인한 권한은 지워지고, 새 위젯의 권한은 처음부터 다시 승인합니다.",
+});
+Object.assign(i18n.ja, {
+  cw_left_page: "このウィジェットが別のページを開こうとしたため、Xenon が停止しました",
+  cw_left_page_hint: "ウィジェットは自分のページの中にとどまる必要があります。許可した権限は別のページには渡されていません。",
+  preset_widget_replaces: "すでにあるウィジェット {name} を置き換えます。与えていた権限は消去され、新しいウィジェットの権限は最初から承認します。",
+});
+Object.assign(i18n.zh, {
+  cw_left_page: "此小组件试图打开另一个页面，Xenon 已将其停止",
+  cw_left_page_hint: "小组件必须留在自己的页面中。你授予它的权限没有交给另一个页面。",
+  preset_widget_replaces: "这会替换你已有的小组件 {name}。你之前授予它的权限会被清除，新小组件的权限需要重新批准。",
+});
+Object.assign(i18n.es, {
+  cw_left_page: "Este widget intentó abrir otra página, así que Xenon lo detuvo",
+  cw_left_page_hint: "Un widget tiene que quedarse en su propia página. Los permisos que le diste no pasaron a la otra página.",
+  preset_widget_replaces: "Sustituye a {name}, un widget que ya tienes. Los permisos que le diste se borran y los del nuevo los apruebas desde cero.",
+});
+Object.assign(i18n.fr, {
+  cw_left_page: "Ce widget a tenté d'ouvrir une autre page, Xenon l'a donc arrêté",
+  cw_left_page_hint: "Un widget doit rester sur sa propre page. Les permissions que vous lui avez accordées n'ont pas été transmises à l'autre page.",
+  preset_widget_replaces: "Remplace {name}, un widget que vous avez déjà. Les permissions que vous lui aviez accordées sont effacées, et vous approuvez celles du nouveau depuis le début.",
+});
+Object.assign(i18n.de, {
+  cw_left_page: "Dieses Widget wollte eine andere Seite öffnen, deshalb hat Xenon es gestoppt",
+  cw_left_page_hint: "Ein Widget muss auf seiner eigenen Seite bleiben. Die Berechtigungen, die du ihm gegeben hast, wurden nicht an die andere Seite weitergegeben.",
+  preset_widget_replaces: "Ersetzt {name}, ein Widget, das du schon hast. Die Berechtigungen, die du ihm gegeben hast, werden gelöscht, und die des neuen genehmigst du von vorn.",
+});
+Object.assign(i18n.pt, {
+  cw_left_page: "Este widget tentou abrir outra página, por isso o Xenon parou-o",
+  cw_left_page_hint: "Um widget tem de ficar na sua própria página. As permissões que lhe deste não passaram para a outra página.",
+  preset_widget_replaces: "Substitui {name}, um widget que já tens. As permissões que lhe deste são apagadas e as do novo aprovas de raiz.",
+});
+Object.assign(i18n.ru, {
+  cw_left_page: "Этот виджет попытался открыть другую страницу, поэтому Xenon его остановил",
+  cw_left_page_hint: "Виджет должен оставаться на своей странице. Разрешения, которые вы ему дали, не перешли к другой странице.",
+  preset_widget_replaces: "Заменяет {name}, виджет, который у вас уже есть. Выданные ему разрешения сбрасываются, а разрешения нового вы одобряете заново.",
+});
+Object.assign(i18n.nl, {
+  cw_left_page: "Deze widget probeerde een andere pagina te openen, dus Xenon heeft hem gestopt",
+  cw_left_page_hint: "Een widget moet op zijn eigen pagina blijven. De rechten die je hem gaf, zijn niet aan de andere pagina doorgegeven.",
+  preset_widget_replaces: "Vervangt {name}, een widget die je al hebt. De rechten die je hem gaf worden gewist, en die van de nieuwe keur je opnieuw goed.",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

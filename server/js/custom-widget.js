@@ -451,6 +451,11 @@
   // skip them (AmbientMode owns their lifecycle).
   const AMBIENT_INST_ID = '__ambient-scene__';
   const frames = new Map();
+  // Frames stopped for leaving their own page (see guardFrame): tile instance id
+  // or 'svc:'+pkgId → the package id. Kept until the user reloads the widget or
+  // its files change, so the next repaint shows why instead of mounting the same
+  // widget straight back into the same escape.
+  const leftPage = new Map();
   // Bumped on every Rescan / manual reload so a re-mount actually reloads the
   // widget's files. Widget assets are served no-cache+ETag, but the iframe src is
   // otherwise identical across edits, so an already-mounted frame (especially on
@@ -554,6 +559,19 @@
   // Pause/resume one package (Store → Installed). Persists through the normal
   // settings path (cross-surface via SSE) and re-syncs the service frames that
   // updateSdkWidgets' repaint alone would not touch.
+  // Drop what the user approved for one package: its code was replaced by a
+  // different package under the same id (a confirmed share-code import), and
+  // the new code must ask for itself. The server has already dropped it; doing
+  // it here too keeps this surface's next save from writing the old one back.
+  function forgetGrant(pkgId) {
+    if (typeof pkgId !== 'string' || !pkgId) return;
+    const cur = sdk().grants;
+    if (!cur || typeof cur !== 'object' || !Object.prototype.hasOwnProperty.call(cur, pkgId)) return;
+    const grants = { ...cur };
+    delete grants[pkgId];
+    persist({ grants });
+    syncServiceFrames();
+  }
   function setSuspended(pkgId, on) {
     if (typeof pkgId !== 'string' || !pkgId) return;
     const cur = Array.isArray(sdk().suspended) ? sdk().suspended : [];
@@ -607,6 +625,7 @@
   // widget, so the xenon-mcp tools would send its author after fixed bugs.
   function bumpAssets() {
     assetVersion++;
+    leftPage.clear();
     blockedByPkg.clear();
     errorsByPkg.clear();
   }
@@ -858,6 +877,107 @@
     } catch { /* frame mid-teardown */ }
   }
 
+  // ── A frame that leaves its own page loses its place on the bridge ──────────
+  // entryBySource matches a message to its frame by WindowProxy, and a frame
+  // keeps the SAME WindowProxy when the document inside it is replaced. So a
+  // widget that runs `location.href = 'https://…'` used to hand everything it
+  // was granted to whatever page it went to — a page served without our CSP,
+  // so with full network access, still answering as the widget it replaced.
+  //
+  // Two layers. On Chromium (the kiosk, WebView2, the Xeneon Edge, desktop
+  // browsers) the frame REQUIRES the widget CSP of whatever it loads (CSP
+  // Embedded Enforcement): our own widget responses already satisfy it, and a
+  // page elsewhere that does not opt in is refused before it renders. Everywhere,
+  // the frame's `load` events are counted: a second one with the same
+  // WindowProxy means a new document replaced the first, and the entry is torn
+  // down. Moving a tile (another page, a tab group) re-inserts the iframe, which
+  // loads it again in a NEW browsing context with a new WindowProxy: that is a
+  // remount of our own page, not a navigation, and it is left alone. A reload
+  // the host asks for always builds a new iframe element, so it starts at zero.
+  function requiredFrameCsp() {
+    let origin = '';
+    try { origin = window.location.origin; } catch { origin = ''; }
+    // An origin we could not name ('null', file:) would make the policy refuse
+    // our own widgets; better no required policy than a dashboard of dead tiles.
+    if (!/^https?:\/\/[^\s;,'"]+$/.test(origin)) return '';
+    // The widget CSP (server/sdk-widgets.js WIDGET_CSP) with this origin named
+    // where the served header says 'self', and without its `sandbox` directive,
+    // which the iframe attribute already applies. The served header is at least
+    // this strict, so a widget of ours loads exactly as before.
+    return [
+      "default-src 'none'",
+      'script-src ' + origin,
+      "style-src 'unsafe-inline' " + origin,
+      'img-src ' + origin + ' data: blob:',
+      'font-src ' + origin + ' data:',
+      'media-src ' + origin + ' data: blob:',
+      "connect-src 'none'",
+      "form-action 'none'",
+      "base-uri 'none'",
+      "frame-src 'none'",
+      "object-src 'none'",
+    ].join('; ');
+  }
+  // Arm a freshly created SDK frame. Call before it is put in the document, so
+  // its first load is counted. `onLeft` runs once, when it has left its page.
+  function guardFrame(frame, onLeft) {
+    if (!frame || frame._xenonGuarded) return;
+    frame._xenonGuarded = true;
+    // Only a document this server serves can promise to honour the policy. A
+    // frame the page fills some other way (the website demo's blob: previews,
+    // which carry their own stricter <meta> policy) is left without one rather
+    // than refused.
+    let fromHere = false;
+    try {
+      const u = new URL(frame.getAttribute('src') || '', window.location.href);
+      fromHere = u.origin === window.location.origin && /^https?:$/.test(u.protocol);
+    } catch { fromHere = false; }
+    const csp = fromHere ? requiredFrameCsp() : '';
+    if (csp) { try { frame.csp = csp; } catch { /* not Chromium: the load count below still holds */ } }
+    let win = null;
+    let loads = 0;
+    let left = false;
+    // The HOST pointing the same element at a new document (the demo's live
+    // preview re-sets `src`) is ours, not the widget leaving: an attribute
+    // write on the element is something only this page can do.
+    let hostNav = false;
+    try {
+      new MutationObserver(() => { hostNav = true; }).observe(frame, { attributes: true, attributeFilter: ['src', 'srcdoc'] });
+    } catch { /* no MutationObserver: a host re-set then reads as leaving, which only stops the frame */ }
+    frame.addEventListener('load', () => {
+      if (left) return;
+      let now = null;
+      try { now = frame.contentWindow; } catch { now = null; }
+      const hostLoad = hostNav;
+      hostNav = false;
+      if (loads > 0 && now && now === win && !hostLoad) {
+        left = true;
+        try { onLeft(); } catch { /* teardown is best effort; the frame is removed below anyway */ }
+        return;
+      }
+      win = now;
+      loads++;
+    });
+  }
+  // The entry under `key` left its page: off the bridge, out of the document,
+  // and something said where it stood (a tile repaints into its own state).
+  function frameLeftPage(key, frame) {
+    const entry = frames.get(key);
+    if (entry && entry.frame === frame) {
+      entry.ready = false;
+      frames.delete(key);
+      if (window.SdkYouTubePlayer) { try { window.SdkYouTubePlayer.release(entry); } catch { /* nothing borrowed */ } }
+    }
+    try { console.warn('[custom-widget] a widget frame left its own page and was stopped:', key); } catch { /* no console */ }
+  }
+  // A small notice in place of a frame that has no tile to repaint (an Ambient
+  // scene, a canvas element): the frame goes, the space says why.
+  function leftPageNotice(frame) {
+    const box = el('div', 'cw-state cw-state--left');
+    box.appendChild(el('span', 'cw-state-txt', t('cw_left_page', 'This widget tried to open another page, so Xenon stopped it')));
+    try { frame.replaceWith(box); } catch { try { frame.remove(); } catch { /* gone */ } }
+  }
+
   // Tell a widget its tile's pixel box + devicePixelRatio, so it can scale its
   // content to fit (see the "scale to fit" pattern in docs/WIDGET_SDK.md). This is
   // what lets a widget look IDENTICAL on the desktop browser and the Xeneon Edge —
@@ -964,6 +1084,9 @@
       // Addresses the user typed into the package's userHosts slots, keyed by
       // slot id. Raw — resolvedUserHosts() applies the manifest's rules.
       userHosts: (grant && grant.userHosts && typeof grant.userHosts === 'object' && !Array.isArray(grant.userHosts)) ? grant.userHosts : {},
+      // The shared store group approved with the grant ('' = its own store),
+      // null for a grant that predates the field (the server fills those in).
+      storageGroup: (grant && typeof grant.storageGroup === 'string') ? grant.storageGroup : null,
     };
   }
   function actionAllowed(grant, action) {
@@ -2564,6 +2687,8 @@
         // A bar button the user placed must answer a tap with no tile on screen.
         const buttonLive = pkg.topbarButton === true && grant.topbarButton;
         if (!handlersLive && (handlersOnly || (!badgeLive && !islandLive && !miniLive && !buttonLive))) continue;
+        // Stopped for leaving its page: stays down until a reload or new files.
+        if (leftPage.get('svc:' + pkg.id) === pkg.id) continue;
         wanted.set('svc:' + pkg.id, pkg);
         count++;
       }
@@ -2585,6 +2710,12 @@
       frame.title = pkg.name;
       frame.src = sdkAssetBase(pkg.id) + pkg.entry + '?v=' + assetVersion;
       frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
+      // A background frame has no tile to explain itself in: it just stops.
+      guardFrame(frame, () => {
+        leftPage.set(key, pkg.id);
+        frameLeftPage(key, frame);
+        try { frame.remove(); } catch { /* gone */ }
+      });
       serviceHost().appendChild(frame);
     }
   }
@@ -3075,7 +3206,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, ai: wantsAi, accent: wantsAccent, expand: wantsExpand } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, storageGroup: wantsStorage ? storageGroup : '', secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, ai: wantsAi, accent: wantsAccent, expand: wantsExpand } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -3427,6 +3558,9 @@
       || man('hooks').some(h => !g.hooks.includes(h))
       || manHandlers.some(h => !g.handlers.includes(h))
       || (pkg.storage === true && !g.storage)
+      // A shared store group decides whose data the widget reads, so a group
+      // added or changed since the approval is a new permission to ask about.
+      || (typeof pkg.storageGroup === 'string' && pkg.storageGroup !== '' && g.storageGroup !== pkg.storageGroup)
       || (pkg.secrets === true && !g.secrets)
       || (pkg.island === true && !g.island)
       || (pkg.islandDynamic === true && !g.islandDynamic)
@@ -3471,6 +3605,14 @@
     // survives reparenting (extract, page move), so the reference stays valid.
     const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion, tile: tile || null };
     frames.set(instId, entry);
+    // Leaving its page takes it off the bridge; the repaint then shows the
+    // tile's own "stopped" state (paint reads leftPage) instead of remounting it.
+    guardFrame(frame, () => {
+      leftPage.set(instId, pkg.id);
+      frameLeftPage(instId, frame);
+      try { frame.remove(); } catch { /* gone */ }
+      paint();
+    });
     body.replaceChildren(frame);
     observeSize(entry);   // report tile size to the widget on mount + on every resize
   }
@@ -3659,6 +3801,20 @@
           });
         return;
       }
+      // It tried to load another page in its frame and was stopped (guardFrame).
+      // Mounting it again would only repeat that, so it waits for the user.
+      if (leftPage.get(instId) === pkg.id) {
+        const entry = frames.get(instId);
+        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        showState(body, 'cw_left_page', 'This widget tried to open another page, so Xenon stopped it', {
+          hint: ['cw_left_page_hint', 'Widgets have to stay on their own page. The permissions you gave it were not passed on to the other page.'],
+          buttons: [
+            { key: 'browser_reload', fb: 'Reload', primary: true, onClick: () => { leftPage.delete(instId); bumpAssets(); paint(); } },
+            { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } },
+          ],
+        });
+        return;
+      }
       if (wrap) wrap.classList.add('cw-mounted');
       mountFrame(body, instId, pkg, tile);
       if (pkg.shape) wantShapes.set(instId, pkg.shape);
@@ -3770,6 +3926,9 @@
   function registerAmbientFrame(pkgId, frame) {
     unregisterAmbientFrame();
     frames.set(AMBIENT_INST_ID, { frame, pkgId, ready: false, lastAction: 0, ambient: true });
+    // Same rule as a tile (guardFrame): a scene that leaves its page is stopped.
+    // Every caller registers before inserting the frame, so its first load counts.
+    guardFrame(frame, () => { frameLeftPage(AMBIENT_INST_ID, frame); leftPageNotice(frame); });
   }
   function unregisterAmbientFrame() {
     const entry = frames.get(AMBIENT_INST_ID);
@@ -3788,6 +3947,7 @@
     const prev = frames.get(key);
     if (prev) { try { prev.frame.remove(); } catch {} }
     frames.set(key, { frame, pkgId, ready: false, lastAction: 0, ambient: true });
+    guardFrame(frame, () => { frameLeftPage(key, frame); leftPageNotice(frame); });
   }
   function unregisterCanvasFrames() {
     for (const [key, entry] of frames) {
@@ -4031,7 +4191,7 @@
     // Effective on/off (safe mode masks it): the palette offers Store widgets
     // only while a tile could actually run one.
     enabled: () => !!sdk().enabled,
-    getPerfStats, setSuspended, isSuspended, getSandboxIssues, getRuntimeErrors, devLookup, devShow, setLayerAssign,
+    getPerfStats, setSuspended, isSuspended, forgetGrant, getSandboxIssues, getRuntimeErrors, devLookup, devShow, setLayerAssign,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
     // e.g. the tab-group bar — label a custom tile with the real widget name

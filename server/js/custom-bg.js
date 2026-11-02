@@ -386,7 +386,26 @@
       frameEl = frame;
       lastPaused = null;
       slowLevel = 0;
-      frame.addEventListener('load', () => syncPause(true));
+      // A second load in the same browsing context means the snippet replaced
+      // its own document (`location.href = 'https://…'`): the page it went to is
+      // not our srcdoc, has none of its limits and would sit behind the whole
+      // dashboard. The frame goes; `current` stays set, so re-applying the same
+      // settings does not mount the same code straight back into the same escape
+      // (a new or edited background mounts as usual). Moving the layer is not a
+      // concern here: the frame is never re-inserted, only replaced.
+      let loads = 0;
+      let firstWin = null;
+      frame.addEventListener('load', () => {
+        let win = null;
+        try { win = frame.contentWindow; } catch { win = null; }
+        if (loads++ > 0 && win && win === firstWin) {
+          if (frameEl === frame) frameEl = null;
+          try { frame.remove(); } catch { /* gone */ }
+          return;
+        }
+        firstWin = win;
+        syncPause(true);
+      });
       host.replaceChildren(frame);
       current = code;
       currentAssets = Object.assign({}, (assets && typeof assets === 'object') ? assets : {});

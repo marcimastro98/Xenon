@@ -224,9 +224,19 @@ function hostOf(urlStr) {
 // then every package declaring the same `storageGroup` reads/writes one shared
 // namespace (so a set of sibling widgets can share config/cache). Group ids are
 // namespaced ('g:') so they can never collide with a package id.
-function storeNamespace(manifest) {
+//
+// `approvedGroup` is the group recorded in the user's grant. When it is passed,
+// a manifest group is honoured only if it is that group, and anything else
+// answers '' (no namespace: the caller refuses). The manifest alone is not
+// enough, because which widgets' data a package can read is part of what the
+// user approved: an update that switched groups would otherwise walk into
+// another widget set's store on an approval given for its own.
+function storeNamespace(manifest, approvedGroup) {
   const group = manifest && typeof manifest.storageGroup === 'string' ? manifest.storageGroup : '';
-  if (group) return 'g:' + group;
+  if (group) {
+    if (arguments.length >= 2 && approvedGroup !== group) return '';
+    return 'g:' + group;
+  }
   return manifest && manifest.id ? String(manifest.id) : '';
 }
 

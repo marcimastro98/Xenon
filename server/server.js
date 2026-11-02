@@ -2146,6 +2146,11 @@ function sdkGrantsFor(pkgId) {
     hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
     handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
     storage: !!(g && g.storage === true),
+    // The shared store group the user approved ('' = the package's own store;
+    // null = a grant from before the group was recorded, which
+    // migrateSdkGrantGroups fills in at start). /sdk/store opens a group only
+    // when it is this one.
+    storageGroup: (g && typeof g.storageGroup === 'string') ? g.storageGroup : null,
     secrets: !!(g && g.secrets === true),
     // Questions to the AI set for Bit (POST /sdk/ai).
     ai: !!(g && g.ai === true),
@@ -2490,6 +2495,60 @@ async function installWidgetPayload(payload, origin, catalogVersion) {
   } catch {
     return { ok: false, error: 'install_failed' };
   }
+}
+
+// Is this install the Store bringing a widget it installed up to date? The
+// package must have arrived from the catalog (an import stamped with a catalog
+// version, or a pass-trial copy), the caller must say which catalog version it
+// is installing, and the catalog must still list an entry for this very package
+// id. The payload's word alone is never enough: a pasted share code carries no
+// catalog version, and one that claimed one would still need the record.
+async function isCatalogUpdateOf(id, catalogVersion) {
+  if (!catalogVersion) return false;
+  const from = widgetOriginOf(id);
+  if (!((from === 'import' && widgetCatalogVersionOf(id)) || from === 'trial')) return false;
+  try {
+    const cat = await communityCatalog.fetchVisibleCatalog(false);
+    return !!(cat && cat.ok && Array.isArray(cat.entries)
+      && cat.entries.some((e) => e && (e.kind === 'widget' || e.kind === 'ambient') && e.pkgId === id));
+  } catch { return false; }
+}
+
+// Forget what the user approved for a package whose code was just replaced by
+// a different package under the same id: the new code asks for itself.
+// Server-side so it holds even for a surface that never repaints; open
+// dashboards re-read the settings from the broadcast.
+async function dropSdkGrant(id) {
+  const saved = await withHubSettingsLock(async () => {
+    const cur = await readHubSettings().catch(() => null);
+    const sw = cur && cur.sdkWidgets;
+    if (!sw || !sw.grants || typeof sw.grants !== 'object' || !Object.prototype.hasOwnProperty.call(sw.grants, id)) return null;
+    const grants = { ...sw.grants };
+    delete grants[id];
+    const next = await writeHubSettings({ ...cur, sdkWidgets: { ...sw, grants }, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = next;
+    return next;
+  }).catch(() => null);
+  if (saved) broadcastSSE('settings', { rev: saved.rev });
+}
+
+// Record, once, the store group each existing grant was approved with (see
+// sdkWidgets.migrateGrantStorageGroups): from now on a changed group asks again,
+// and a grant from before this release is read as approval of the group its
+// package has today, so nobody's working widget turns into a prompt.
+async function migrateSdkGrantGroups() {
+  const scan = await sdkPackagesCached();
+  const saved = await withHubSettingsLock(async () => {
+    const cur = await readHubSettings().catch(() => null);
+    const sw = cur && cur.sdkWidgets;
+    if (!sw || !sw.grants || typeof sw.grants !== 'object') return null;
+    const m = sdkWidgets.migrateGrantStorageGroups(sw.grants, scan.packages);
+    if (!m.changed) return null;
+    const next = await writeHubSettings({ ...cur, sdkWidgets: { ...sw, grants: m.grants }, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = next;
+    return next;
+  });
+  if (saved) broadcastSSE('settings', { rev: saved.rev });
 }
 
 // ── Widget authors' MCP: what its ops may touch (mcp-dev-tools.js) ─────────
@@ -23731,10 +23790,16 @@ const handleRequest = async (req, res) => {
       const scan = await sdkPackagesCached();
       const pkg = scan.packages.find(p => p.id === pkgId);
       if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      if (pkg.storage !== true || !sdkGrantsFor(pkgId).storage) { json({ ok: false, error: 'not_granted' }); return; }
+      const grant = sdkGrantsFor(pkgId);
+      if (pkg.storage !== true || !grant.storage) { json({ ok: false, error: 'not_granted' }); return; }
+      // A shared group is opened only when it is the group the user approved.
+      // Without this, an update (or a replacement under the same id) could
+      // declare another widget set's group and read that set's stored data on
+      // the strength of a "keep its own settings" approval.
+      if (pkg.storageGroup && grant.storageGroup !== pkg.storageGroup) { json({ ok: false, error: 'not_granted' }); return; }
       const isWrite = body.op && ['set', 'delete', 'clear'].includes(body.op.op);
       if (isWrite && !sdkStoreGateOk(pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
-      const ns = sdkStore.storeNamespace(pkg);
+      const ns = sdkStore.storeNamespace(pkg, grant.storageGroup);
       if (!ns) { json({ ok: false, error: 'bad_namespace' }); return; }
       const r = sdkStore.applyStoreOp(sdkStoreLoad(ns), body.op);
       if (!r.ok) { json({ ok: false, error: r.error }); return; }
@@ -23753,7 +23818,7 @@ const handleRequest = async (req, res) => {
         // regression). Persisting still matters: the data must be there for the
         // next read, it just isn't news to anyone.
         if (!body.quiet) {
-          const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
+          const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p, sdkGrantsFor(p.id).storageGroup) === ns).map(p => p.id);
           broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
         }
       }
@@ -24013,7 +24078,47 @@ const handleRequest = async (req, res) => {
     // caller knows it (the manifest carries its own, unrelated number), and it is
     // what makes 'is there an update' comparable — see recordWidgetOrigin.
     const catalogVersion = (payload && typeof payload.catalogVersion === 'string') ? payload.catalogVersion : '';
+    // Writing over an installed id needs a reason (sdkWidgets.installOverwrite):
+    // a share code must not inherit the grants of the widget it replaces.
+    const v = sdkWidgets.validateWidgetPayload(payload);
+    if (!v.ok) { json({ ok: false, error: v.reason }); return; }
+    const scan = await sdkPackagesCached();
+    const existing = scan.packages.find((p) => p.id === v.id) || null;
+    const exists = !!existing || trialVault.has(v.id)
+      || await fs.promises.access(path.join(SDK_WIDGETS_DIR, v.id)).then(() => true, () => false);
+    const facts = {
+      exists,
+      origin,
+      own: exists && widgetExportable(v.id),
+      catalogUpdate: exists && origin === 'import' && await isCatalogUpdateOf(v.id, catalogVersion),
+    };
+    // The import review asks first, with nothing written: what the SERVER read in
+    // the package (never the share code's own description of itself), and
+    // whether it would replace a widget that is already here.
+    if (payload.dryRun === true) {
+      const m = v.manifest;
+      const decided = sdkWidgets.installOverwrite({ ...facts, replace: false });
+      json({
+        ok: true, dryRun: true, id: v.id, name: m.name, version: m.version || '', surface: m.surface || 'tile',
+        streams: m.streams, actions: m.actions, hosts: m.hosts, hooks: m.hooks,
+        userHosts: Array.isArray(m.userHosts) ? m.userHosts.length : 0,
+        storage: m.storage === true, secrets: m.secrets === true, ai: m.ai === true,
+        exists, replaces: !decided.ok,
+        existingName: existing ? String(existing.name || '') : '',
+        existingVersion: existing ? String(existing.version || '') : '',
+      });
+      return;
+    }
+    const decided = sdkWidgets.installOverwrite({ ...facts, replace: payload.replace === true });
+    if (!decided.ok) {
+      json({ ok: false, error: decided.error, id: v.id, name: existing ? String(existing.name || '') : '' });
+      return;
+    }
     const r = await installWidgetPayload(payload, origin, catalogVersion);
+    if (r.ok && decided.dropGrants) {
+      await dropSdkGrant(v.id);
+      r.replaced = true;
+    }
     json(r);
 
   } else if (reqPath === '/sdk/claim' && req.method === 'POST') {
@@ -25471,7 +25576,10 @@ function _startListen(host) {
     trialVault.init()
       .then(() => trialPass.start())
       .then(() => trialVault.sync())
-      .catch((e) => console.warn('[trial-pass] start failed:', e && e.message));
+      .catch((e) => console.warn('[trial-pass] start failed:', e && e.message))
+      // After the vault, so a pass-trial package is in the scan it reads.
+      .then(() => migrateSdkGrantGroups())
+      .catch((e) => console.warn('[sdk] grant group migration failed:', e && e.message));
     // The logon task that opens the dashboard in a browser outlives the script it
     // points at, and a stale one greets the user with a wscript error box at every
     // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it

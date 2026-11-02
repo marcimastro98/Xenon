@@ -294,7 +294,8 @@ test('the editor, the share sanitizer and the import review read one list of slo
   assert.deepEqual(M.KEY_TRIGGERS, ['tap', 'tapOff', 'double', 'hold', 'press', 'release', 'cycle1', 'cycle2', 'cycle3', 'cycle4', 'cycle5', 'cycle6', 'cycle7']);
   for (const mode of B.MODES) for (const tr of B.triggersFor(mode, M.CYCLE_MAX)) assert.ok(M.KEY_TRIGGERS.includes(tr), mode + ' ' + tr);
   const PS = read('../js/preset-share.js');
-  assert.equal((PS.match(/for \(const name of M\.KEY_TRIGGERS\)/g) || []).length, 3);
+  // sanitizer, SDK package refs, action summary, and the hotkey combos the review names
+  assert.equal((PS.match(/for \(const name of M\.KEY_TRIGGERS\)/g) || []).length, 4);
   assert.ok(!/DECK_TRIGGERS/.test(PS));
   assert.match(read('../js/deck-editor.js'), /const TRIGGERS = DM\.KEY_TRIGGERS;/);
 });

@@ -430,6 +430,49 @@
     return n;
   }
 
+  // A hotkey step in a SHARED profile is a shortcut, never typing. Dropping
+  // typeText was not enough on its own: `hotkey` accepts a bare letter, digit,
+  // space or Enter (server/actions/registry.js normalizeKeys), so a key of
+  // chained one-letter "combos" could spell a command into whatever has focus
+  // and press Enter on it. A combo travels only when it holds a real modifier
+  // (Ctrl, Alt, Win, or the Mac names for them), or when it presses a key that
+  // types nothing: F1 to F24, Esc, the arrows and the page keys. Shift does not
+  // count as a modifier here: Shift plus a letter is just a capital letter.
+  const HOTKEY_HARD_MODS = new Set(['ctrl', 'control', 'alt', 'win', 'cmd', 'command', 'meta', 'super', 'option', 'opt']);
+  const HOTKEY_INERT_KEYS = new Set(['esc', 'escape', 'up', 'down', 'left', 'right', 'home', 'end', 'pageup', 'pagedown', 'insert']);
+  const SHARED_HOTKEY_MAX_STEPS = 3;
+  function hotkeyParts(keys) {
+    return String(keys == null ? '' : keys).toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
+  }
+  function hotkeyTypesText(keys) {
+    const parts = hotkeyParts(keys);
+    if (!parts.length) return true;
+    if (parts.some((p) => HOTKEY_HARD_MODS.has(p))) return false;
+    const main = parts.filter((p) => p !== 'shift');
+    if (main.length !== 1) return true;
+    const k = main[0];
+    if (/^f([1-9]|1[0-9]|2[0-4])$/.test(k)) return false;
+    return !HOTKEY_INERT_KEYS.has(k);
+  }
+  // The distinct combos a (sanitized) profile presses, as written, so the
+  // import review can name them ("ctrl+shift+m") instead of only counting them.
+  function profileHotkeys(profile, deps) {
+    const M = deps && deps.model, A = deps && deps.actions;
+    if (!A || !M) return [];
+    const out = [];
+    eachProfileKey(profile, (key) => {
+      if (key.kind !== 'action' || !key.triggers) return;
+      for (const name of M.KEY_TRIGGERS) {
+        for (const step of A.triggerSteps(key.triggers[name])) {
+          if (step.action.type !== 'hotkey') continue;
+          const combo = hotkeyParts(step.action.keys).join('+');
+          if (combo && !out.includes(combo)) out.push(combo);
+        }
+      }
+    });
+    return out;
+  }
+
   // Rebuild an untrusted deck profile into a clean { name, root } (no id — the
   // importer assigns a fresh one), or null. Everything is rebuilt, never
   // spread: the profile through DeckModel's normalizer (full 8×8 grid so no key
@@ -462,9 +505,17 @@
             // other step keeps its action with the sharer's own paths, numbers
             // and device ids emptied (withoutPersonalParams): they are dead on
             // any other PC and would leak the sharer's user folder or contacts.
-            const steps = A.triggerSteps(rawTriggers[name])
+            let steps = A.triggerSteps(rawTriggers[name])
               .filter((s) => s.action && s.action.type !== 'runScript' && s.action.type !== 'typeText')
+              .filter((s) => s.action.type !== 'hotkey' || !hotkeyTypesText(s.action.keys))
               .map((s) => ({ ...s, action: withoutPersonalParams(s.action, A) }));
+            // typeText by another name: a chain of combos is a macro, and even
+            // with every bare key gone a long one can drive a dialog the user
+            // never meant to open. A shortcut a profile shares is a few keys at
+            // most, so a slot holding more than that loses its combos.
+            if (steps.filter((s) => s.action.type === 'hotkey').length > SHARED_HOTKEY_MAX_STEPS) {
+              steps = steps.filter((s) => s.action.type !== 'hotkey');
+            }
             const t = A.compactTrigger(steps);
             if (t) clean[name] = t;
           }
@@ -2202,20 +2253,33 @@
         // tab's Update button already stamps; without stamping here too, the
         // Store's own install/update path kept the loop. Bundles deliberately
         // do NOT stamp — a bundle's entry version is not its widgets' versions.
-        const catalogVersion = (opts && opts.catalogStamp === true
-          && importSource && importSource.source === 'catalog' && importSource.sourceVersion)
-          ? importSource.sourceVersion : '';
+        const catalogVersion = catalogStampFor(opts);
         // A trial package is already in the local server's vault: this only puts it in place.
+        // `replace` is only ever true after the user read "this replaces your
+        // installed widget" in the review (openWidgetImport): the server refuses
+        // to write over an installed id without it, and clears that widget's
+        // permissions when it does.
         const install = w.payload.trialVault === true
           ? { trialVault: true, id: String(w.payload.id || '') }
-          : Object.assign({}, w.payload, { origin: 'import', catalogVersion });
+          : Object.assign({}, w.payload, { origin: 'import', catalogVersion, replace: !!(opts && opts.replace === true) });
         const res = await fetch('/sdk/install', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(install),
         });
         const d = await res.json().catch(() => ({}));
+        // A bundle, a Deck profile or a canvas scene that ships a widget the user
+        // already has keeps THEIRS: nothing is written, nothing is asked, and the
+        // pages that use it get the installed copy. It is not this import's to
+        // undo either, so it stays out of the transaction. A single widget import
+        // (catalogStamp) asked the user first and reports the refusal instead.
+        if (d && d.error === 'id_exists' && !(opts && opts.catalogStamp === true)) return true;
         const ok = !!(res.ok && d.ok);
         if (ok && tx) addUnique(tx.resources.widgetIds, String(d.id || w.id || (w.payload && w.payload.id) || ''));
+        // The server already dropped the replaced widget's grants; this surface
+        // forgets them too, so its next settings save cannot write them back.
+        if (ok && d.replaced && window.CustomWidget && typeof CustomWidget.forgetGrant === 'function') {
+          try { CustomWidget.forgetGrant(String(d.id || '')); } catch { /* the server copy is already gone */ }
+        }
         // Refresh the shared package list so a freshly installed widget/scene
         // appears in the picker, palette and Ambient list immediately — without a
         // full dashboard reload. Covers every install path (single widget, ambient
@@ -3567,6 +3631,21 @@
       if (skipsPasteStep(prefill, importSource.perfWarning)) importBtn.click();
     }
 
+    // One action chip of an import review: "Media ×3", and for keyboard
+    // shortcuts the combos themselves ("Keyboard shortcut: ctrl+shift+m, f5"),
+    // because "×4" says nothing about which keys a profile will press on this PC.
+    function actionChipLabel(label, type, count, profiles) {
+      if (type === 'hotkey') {
+        const combos = [];
+        (profiles || []).forEach((p) => profileHotkeys(p, deckDeps()).forEach((c) => { if (!combos.includes(c)) combos.push(c); }));
+        if (combos.length) {
+          const shown = combos.slice(0, 8).join(', ') + (combos.length > 8 ? ', …' : '');
+          return label + ': ' + shown;
+        }
+      }
+      return label + (count > 1 ? ' ×' + count : '');
+    }
+
     // Review step for an imported deck profile: shows the name, size and — the
     // part that matters — every ACTION TYPE the keys contain, with a plain-words
     // caution, before the user picks which deck it lands on. `prof` is already
@@ -3619,7 +3698,7 @@
           const spec = DA && DA.actionSpec ? DA.actionSpec(s.type) : null;
           const chipEl = document.createElement('span');
           chipEl.className = 'preset-deck-act';
-          chipEl.textContent = tr(spec && spec.labelKey, s.type) + (s.count > 1 ? ' ×' + s.count : '');
+          chipEl.textContent = actionChipLabel(tr(spec && spec.labelKey, s.type), s.type, s.count, [prof]);
           acts.appendChild(chipEl);
         });
         body.appendChild(acts);
@@ -3844,7 +3923,7 @@
             const spec = DA && DA.actionSpec ? DA.actionSpec(type) : null;
             const chipEl = document.createElement('span');
             chipEl.className = 'preset-deck-act';
-            chipEl.textContent = tr(spec && spec.labelKey, type) + (count > 1 ? ' ×' + count : '');
+            chipEl.textContent = actionChipLabel(tr(spec && spec.labelKey, type), type, count, deckProfiles);
             acts.appendChild(chipEl);
           });
           body.appendChild(acts);
@@ -3966,11 +4045,60 @@
     // Review step for a single imported community widget: its name, what it can
     // do, and the trust caution — before /sdk/install runs. Mirrors the bundle
     // widget review, scoped to one package.
-    function openWidgetImport(name, w) {
-      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
-      if (!w || typeof w !== 'object' || !w.payload) {
-        toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return;
+    // What the SERVER reads in a widget payload, with nothing written: the
+    // validated manifest and whether installing it would replace a widget that is
+    // already here. The review is built from this, never from the share code's
+    // own `actions`/`hosts`/`streams`, which are whatever its author typed and
+    // need not match the package inside. A pass-trial package is already in the
+    // local vault and has no files to send, so it keeps the envelope's summary.
+    async function reviewWidgetPayload(w) {
+      if (!w || typeof w !== 'object' || !w.payload) return null;
+      if (w.payload.trialVault === true) {
+        return { ok: true, trial: true, streams: w.streams, actions: w.actions, hosts: w.hosts, replaces: false };
       }
+      try {
+        const res = await fetch('/sdk/install', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({}, w.payload, {
+            origin: 'import', catalogVersion: catalogStampFor({ catalogStamp: true }), dryRun: true,
+          })),
+        });
+        const d = await res.json().catch(() => null);
+        return (res.ok && d && d.ok && d.dryRun) ? d : null;
+      } catch { return null; }
+    }
+    // The catalog version a single-package install stamps (see applyWidget).
+    function catalogStampFor(opts) {
+      return (opts && opts.catalogStamp === true
+        && importSource && importSource.source === 'catalog' && importSource.sourceVersion)
+        ? importSource.sourceVersion : '';
+    }
+    // "2 data feeds · 3 actions · network", from a reviewed package.
+    function reviewedBits(r) {
+      const bits = [];
+      if (Array.isArray(r.streams) && r.streams.length) bits.push(r.streams.length + ' ' + tr('preset_ambient_streams', 'data feeds'));
+      if (Array.isArray(r.actions) && r.actions.length) bits.push(r.actions.length + ' ' + tr('preset_bundle_actions', 'actions'));
+      if ((Array.isArray(r.hosts) && r.hosts.length) || Number(r.userHosts) > 0) bits.push(tr('preset_bundle_network', 'network'));
+      return bits;
+    }
+    // The line that says an installed widget is about to be replaced, and that
+    // what the user allowed it does not carry over.
+    function appendReplacesNote(body, r) {
+      if (!r || !r.replaces) return;
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc preset-deck-caution';
+      note.textContent = tr('preset_widget_replaces', 'This replaces {name}, a widget you already have. The permissions you gave it are cleared, and you approve the new one\'s from the start.')
+        .replace('{name}', String(r.existingName || r.id || ''));
+      body.appendChild(note);
+    }
+
+    async function openWidgetImport(name, w) {
+      if (!w || typeof w !== 'object' || !w.payload) {
+        toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return;
+      }
+      const review = await reviewWidgetPayload(w);
+      if (!review) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const what = document.createElement('div');
       what.className = 'preset-modal-what';
       const chip = document.createElement('span');
@@ -3979,19 +4107,18 @@
       what.appendChild(chip);
       const nm = document.createElement('span');
       nm.className = 'preset-modal-whatname';
-      nm.textContent = String(name || w.name || w.id || '');
+      nm.textContent = String(review.name || name || w.name || w.id || '');
       what.appendChild(nm);
       body.appendChild(what);
 
-      const bits = [];
-      if (Array.isArray(w.actions) && w.actions.length) bits.push(w.actions.length + ' ' + tr('preset_bundle_actions', 'actions'));
-      if (Array.isArray(w.hosts) && w.hosts.length) bits.push(tr('preset_bundle_network', 'network'));
+      const bits = reviewedBits(review);
       if (bits.length) {
         const meta = document.createElement('p');
         meta.className = 'preset-modal-desc';
         meta.textContent = bits.join(' · ');
         body.appendChild(meta);
       }
+      appendReplacesNote(body, review);
       const caution = document.createElement('p');
       caution.className = 'preset-modal-desc preset-deck-caution';
       caution.textContent = tr('preset_widget_caution', 'This is a community widget: code written by someone else. It runs sandboxed with no network, stays hidden until you approve its permissions, and every action is re-checked by Xenon. Only import widgets from people you trust.');
@@ -4004,12 +4131,12 @@
       go.textContent = tr('preset_import_apply', 'Import');
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
-        const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true }));
+        const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true, replace: review.replaces === true }));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         // The installed widget says where it goes; a scene or a headless widget,
         // which has no tile, just gets the plain confirmation.
-        if (!offerAddToPage([w.id || (w.payload && w.payload.id)])) {
+        if (!offerAddToPage([review.id || w.id || (w.payload && w.payload.id)])) {
           toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
         }
       });
@@ -4020,11 +4147,14 @@
     // Review step for an imported AMBIENT SCENE — the fullscreen screensaver
     // package. Same trust boundary as a widget (/sdk/install, never
     // auto-granted); the extra checkbox sets it as the active scene on success.
-    function openAmbientImport(name, w) {
-      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+    async function openAmbientImport(name, w) {
       if (!w || typeof w !== 'object' || !w.payload) {
-        toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return;
+        toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return;
       }
+      // Same server-read review as a widget (reviewWidgetPayload).
+      const review = await reviewWidgetPayload(w);
+      if (!review) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const what = document.createElement('div');
       what.className = 'preset-modal-what';
       const chip = document.createElement('span');
@@ -4033,20 +4163,18 @@
       what.appendChild(chip);
       const nm = document.createElement('span');
       nm.className = 'preset-modal-whatname';
-      nm.textContent = String(name || w.name || w.id || '');
+      nm.textContent = String(review.name || name || w.name || w.id || '');
       what.appendChild(nm);
       body.appendChild(what);
 
-      const bits = [];
-      if (Array.isArray(w.streams) && w.streams.length) bits.push(w.streams.length + ' ' + tr('preset_ambient_streams', 'data feeds'));
-      if (Array.isArray(w.actions) && w.actions.length) bits.push(w.actions.length + ' ' + tr('preset_bundle_actions', 'actions'));
-      if (Array.isArray(w.hosts) && w.hosts.length) bits.push(tr('preset_bundle_network', 'network'));
+      const bits = reviewedBits(review);
       if (bits.length) {
         const meta = document.createElement('p');
         meta.className = 'preset-modal-desc';
         meta.textContent = bits.join(' · ');
         body.appendChild(meta);
       }
+      appendReplacesNote(body, review);
       const caution = document.createElement('p');
       caution.className = 'preset-modal-desc preset-deck-caution';
       caution.textContent = tr('preset_ambient_caution', 'This is a community Ambient scene: code written by someone else. It runs fullscreen but sandboxed with no network, and it only sees the data you approve. Only import scenes from people you trust.');
@@ -4071,9 +4199,11 @@
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
         const ok = await runTrackedInstall('ambient', name || w.name || w.id, async (tx) => {
-          const installed = await applyWidget(w, tx, { catalogStamp: true });
-          if (installed && setChk.checked && typeof updateAmbientSetting === 'function' && typeof w.id === 'string') {
-            updateAmbientSetting('sceneId', w.id);
+          const installed = await applyWidget(w, tx, { catalogStamp: true, replace: review.replaces === true });
+          // The id the server installed, not the one the envelope claims.
+          const sceneId = typeof review.id === 'string' ? review.id : w.id;
+          if (installed && setChk.checked && typeof updateAmbientSetting === 'function' && typeof sceneId === 'string') {
+            updateAmbientSetting('sceneId', sceneId);
           }
           return installed;
         });
@@ -4729,7 +4859,7 @@
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { ownedUpdateOutcome, encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, keysToFinish, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, skipsPasteStep, makeDraftTracker, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename, themeImportPatch,
-      wallpaperPayload, WALLPAPER_EMBED_MAX,
+      wallpaperPayload, WALLPAPER_EMBED_MAX, hotkeyTypesText, profileHotkeys, SHARED_HOTKEY_MAX_STEPS,
       PRESET_KINDS, THEME_KEYS, MAX_CODE_BYTES, DECK_MAX_FOLDER_DEPTH, BUNDLE_MAX_WIDGETS, BUNDLE_MAX_DECKS, DECK_EMBED_MAX_WIDGETS };
   }
 })();

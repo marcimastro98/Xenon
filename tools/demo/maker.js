@@ -99,7 +99,10 @@
   function makerGrant(pkg) {
     return {
       streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: pkg.hosts.slice(), userHosts: {},
-      hooks: [], handlers: [], storage: pkg.storage === true, secrets: false,
+      hooks: [], handlers: [], storage: pkg.storage === true,
+      // The shared store group the dialog records with the grant.
+      storageGroup: pkg.storage === true && typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '',
+      secrets: false,
       island: false, islandDynamic: false, islandFull: false, badge: false, badgeAction: false,
       // The demo has no AI of the user to ask: a widget that asks gets not_allowed.
       mini: false, topbarButton: false, clipboard: false, ai: false, accent: false, expand: false,
