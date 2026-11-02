@@ -801,7 +801,8 @@
       // the app restarting mid-use is the success signal on these shells.
       setTimeout(() => location.reload(), 25000);
     }
-    try { window.location.href = 'xenon-update:install'; } catch { /* not native */ }
+    // With this launch's nonce, or the shell drops it (see native-bridge.js).
+    try { window.location.href = (window.__xenonSignal || String)('xenon-update:install'); } catch { /* not native */ }
   }
 
   // ── The app catching up with its dashboard ───────────────────────────────────

@@ -130,7 +130,8 @@ let hubSettings = {};
     function onSpotlightHotkey() {
       try {
         fetch(SERVER + '/spotlight/claimed', { method: 'POST', keepalive: true }).catch(() => {});
-        window.location.href = 'xenon-app:spotlight-open';
+        // With this launch's nonce, or the shell drops it (see native-bridge.js).
+        window.location.href = (window.__xenonSignal || String)('xenon-app:spotlight-open');
       } catch (err) { /* the server's own fallback window opens instead */ }
     }
 

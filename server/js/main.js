@@ -844,7 +844,8 @@ function postponeAutoUpdate() {
         // by the shell hook) — a plain fetch could be aborted by that race and
         // the server would open the Edge fallback ON TOP of the native window.
         fetch('/spotlight/claimed', { method: 'POST', keepalive: true }).catch(() => {});
-        window.location.href = 'xenon-app:spotlight-open';
+        // With this launch's nonce, or the shell drops it (see native-bridge.js).
+        window.location.href = (window.__xenonSignal || String)('xenon-app:spotlight-open');
       } catch { /* the Edge fallback fires */ }
     });
     es.addEventListener('speak_start', () => {

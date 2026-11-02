@@ -369,7 +369,8 @@
     login.addEventListener('click', () => {
       openAccount(card, false);
       // Handled by the native shell's navigation hook; never a real page.
-      if (nativeLogin()) window.location.href = 'xenon-app:twitch-login';
+      // With this launch's nonce, or the shell drops it (see native-bridge.js).
+      if (nativeLogin()) window.location.href = (window.__xenonSignal || String)('xenon-app:twitch-login');
     });
     pop.appendChild(login);
     bar.append(now, ctl, pop);

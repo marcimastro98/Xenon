@@ -103,7 +103,8 @@
     } else if (!keepalive) {
       keepalive = setInterval(() => send(true), KEEPALIVE_MS);
     }
-    try { window.location.href = 'xenon-app:ai-glow?d=' + encodeURIComponent(json); } catch (e) { /* not native */ }
+    // With this launch's nonce, or the shell drops it (see native-bridge.js).
+    try { window.location.href = (window.__xenonSignal || String)('xenon-app:ai-glow?d=' + encodeURIComponent(json)); } catch (e) { /* not native */ }
   }
 
   // Coalesce a burst of class changes (thinking → speaking in one tick) into

@@ -939,16 +939,24 @@ function Install-PresentMonIfNeeded {
     try {
       if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
       # Pin the last classic 1.x release: its single-binary CLI (-output_stdout)
       # is what server/fpsmon.js parses. (2.x uses a different service-based CLI.)
-      $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $headers -TimeoutSec 25
-      $asset = $rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\.exe$' } | Select-Object -First 1
-      if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '\.exe$' } | Select-Object -First 1 }
-      if (-not $asset) { throw 'no PresentMon x64 executable in the release assets' }
-      Invoke-DownloadWithSpinner -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -Activity 'Downloading PresentMon'
-      if (Test-Path $exe) { Write-Step "PresentMon installed: $exe"; return }
-      throw 'download did not produce PresentMon.exe'
+      # Pinned to the exact asset AND its SHA-256 (the same pair server.js uses
+      # for the Settings button): the server runs this exe elevated for its ETW
+      # session, so a release asset swapped upstream or a tampered download must
+      # not get that far. Bump $pmUrl and $pmSha together.
+      $pmUrl = 'https://github.com/GameTechDev/PresentMon/releases/download/v1.10.0/PresentMon-1.10.0-x64.exe'
+      $pmSha = 'e57a2f8ee1de1ef1a5516d875f1b115e881943cd729fe9c5a2f88b1dc79a8a3b'
+      $part = "$exe.download"
+      Invoke-DownloadWithSpinner -Uri $pmUrl -OutFile $part -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -Activity 'Downloading PresentMon'
+      if (-not (Test-Path $part)) { throw 'download did not produce PresentMon.exe' }
+      $got = (Get-FileHash -LiteralPath $part -Algorithm SHA256).Hash
+      if ($got -ne $pmSha) {
+        Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
+        throw "PresentMon checksum mismatch (expected $pmSha, got $got)"
+      }
+      Move-Item -LiteralPath $part -Destination $exe -Force
+      Write-Step "PresentMon installed: $exe"; return
     } catch {
       if ($attempt -eq $maxAttempts) {
         Write-Host "PresentMon could not be installed automatically ($($_.Exception.Message)). In-game FPS will fall back to the windowed-only method until PresentMon.exe is placed in server\presentmon\." -ForegroundColor Yellow

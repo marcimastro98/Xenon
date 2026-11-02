@@ -5207,6 +5207,7 @@ name = "xenon-native"
 version = "4.11.13"
 dependencies = [
  "gdk",
+ "getrandom 0.3.4",
  "gtk",
  "objc2",
  "objc2-app-kit",

@@ -30,6 +30,14 @@
     && (window.__XENON_NATIVE__ === true || window.isTauri === true);
   const SERVER = (window.Xenon && window.Xenon.constants && window.Xenon.constants.LOOPBACK_ORIGIN) || '';
 
+  // Every shell signal below goes through `(window.__xenonSignal || String)(url)`.
+  // The native shell only obeys a signal that carries this launch's random nonce
+  // (apps/native/src-tauri/src/nav_policy.rs), because on macOS and Linux its
+  // navigation hook also sees what the sandboxed widget frames navigate to.
+  // __xenonSignal is the shell's initialization script appending that nonce, and
+  // it exists only in this top-level page; everywhere else (a browser, iCUE, a
+  // layer window with its own hook) `String` hands the URL back unchanged.
+  //
   // Shell signals are navigations, and one sent while the page is still loading
   // cancels its `load` event for good: every later "wait for load" never runs.
   // readyState still reaches 'complete' then, and the timer runs after the load
@@ -54,7 +62,7 @@
   // and clears client-side glitches all the same.
   function restartApp() {
     if (isNative) {
-      try { window.location.href = 'xenon-app:restart'; return; } catch (e) { /* fall through to reload */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:restart'); return; } catch (e) { /* fall through to reload */ }
     }
     try { window.location.reload(); } catch (e) { /* nothing else to try */ }
   }
@@ -96,7 +104,7 @@
     // when nothing has to be rebuilt).
     window.__XENON_NATIVE_CAPS__.seeThroughWanted = want === true;
     afterLoad(() => {
-      try { window.location.href = want ? 'xenon-app:see-through-on' : 'xenon-app:see-through-off'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)(want ? 'xenon-app:see-through-on' : 'xenon-app:see-through-off'); } catch (e) { /* not native */ }
     });
     return true;
   }
@@ -175,7 +183,7 @@
         // as the fallback for a cached old update.js without the orchestrator.
         const upd = window.XenonUpdate;
         const legacyInstall = function () {
-          try { window.location.href = 'xenon-update:install'; } catch (e) { /* not native */ }
+          try { window.location.href = (window.__xenonSignal || String)('xenon-update:install'); } catch (e) { /* not native */ }
           try {
             window.XenonToast.show({
               type: 'info',
@@ -259,13 +267,19 @@
     }
 
     // The install is silent (no installer window), so a friendly line for the raw
-    // reason codes install-native.ps1 emits; unknown codes fall through verbatim so
-    // they stay diagnosable.
+    // reason codes the server's verified download and install-native.ps1 emit;
+    // unknown codes fall through verbatim so they stay diagnosable. The integrity
+    // codes all mean the same thing to the user: the file was not run because it
+    // could not be proven to be the one the release signed.
     function reasonText(code) {
+      const unverified = tr('native_promo_err_unverified', 'the download could not be verified, so it was not run');
       const map = {
         no_installer: tr('native_promo_err_no_installer', 'the installer is not on the latest release yet'),
         download_failed: tr('native_promo_err_download', 'the download failed: check your connection'),
         launch_missing: tr('native_promo_err_launch', 'installed, but the app could not be started'),
+        signature_invalid: unverified,
+        integrity_missing: unverified,
+        hash_mismatch: unverified,
       };
       return map[code] || code;
     }
@@ -366,7 +380,7 @@
         if (homeGestureShellSignal === homeGestureEnabled) return;
         homeGestureShellSignal = homeGestureEnabled;
         try {
-          window.location.href = homeGestureEnabled ? 'xenon-home:gesture-on' : 'xenon-home:gesture-off';
+          window.location.href = (window.__xenonSignal || String)(homeGestureEnabled ? 'xenon-home:gesture-on' : 'xenon-home:gesture-off');
         } catch (e) { /* not native */ }
       }, 1500);
     };
@@ -411,7 +425,7 @@
         if (hideOnRdpShellSignal === hideOnRdpEnabled) return;
         hideOnRdpShellSignal = hideOnRdpEnabled;
         try {
-          window.location.href = hideOnRdpEnabled ? 'xenon-home:rdp-on' : 'xenon-home:rdp-off';
+          window.location.href = (window.__xenonSignal || String)(hideOnRdpEnabled ? 'xenon-home:rdp-on' : 'xenon-home:rdp-off');
         } catch (e) { /* not native */ }
       }, 1500);
     };
@@ -490,7 +504,7 @@
         pageZoomSignalTimer = null;
         if (pageZoomShellSignal === currentNativeZoom) return;
         pageZoomShellSignal = currentNativeZoom;
-        try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom; } catch (e) { /* not native */ }
+        try { window.location.href = (window.__xenonSignal || String)('xenon-zoom:set?z=' + currentNativeZoom); } catch (e) { /* not native */ }
       }, 120);
     };
     afterLoad(fire);
@@ -508,7 +522,7 @@
     pageZoomNudgeTimer = setTimeout(() => {
       pageZoomNudgeTimer = null;
       if (currentNativeZoom === 1 || document.readyState !== 'complete') return;
-      try { window.location.href = 'xenon-zoom:set?z=' + currentNativeZoom + '&nudge=1'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-zoom:set?z=' + currentNativeZoom + '&nudge=1'); } catch (e) { /* not native */ }
     }, 200);
   }
 
@@ -686,7 +700,7 @@
     function goHome() {
       if (inHome()) return;
       document.body.classList.add(HOME_CLASS); // show the strip handle before the shrink
-      try { window.location.href = 'xenon-home:go'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-home:go'); } catch (e) { /* not native */ }
     }
     function goBack() {
       if (!inHome()) return;
@@ -704,7 +718,7 @@
       };
       document.addEventListener('click', swallowClick, true);
       setTimeout(() => document.removeEventListener('click', swallowClick, true), 500);
-      try { window.location.href = 'xenon-home:return'; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-home:return'); } catch (e) { /* not native */ }
     }
 
     // A drag that belongs to something else must never fire the gesture: a
@@ -864,7 +878,7 @@
       settleTimer = setTimeout(() => {
         settleTimer = null;
         if (activeTouches !== 0) return;
-        try { window.location.href = 'xenon-cursor:restore'; } catch (err) { /* not native */ }
+        try { window.location.href = (window.__xenonSignal || String)('xenon-cursor:restore'); } catch (err) { /* not native */ }
       }, SETTLE_MS);
     };
     document.addEventListener('pointerup', onTouchEnd, { capture: true, passive: true });
@@ -969,7 +983,7 @@
     let typeEndTimer = null;
 
     function send(signal) {
-      try { window.location.href = 'xenon-focus:' + signal; } catch (e) { /* not native */ }
+      try { window.location.href = (window.__xenonSignal || String)('xenon-focus:' + signal); } catch (e) { /* not native */ }
     }
 
     function isEditable(el) {
@@ -1106,7 +1120,7 @@
         const next = pendingDisplayUrl;
         pendingDisplayUrl = '';
         if (!next) return;
-        try { window.location.href = next; } catch (e) { /* not native */ }
+        try { window.location.href = (window.__xenonSignal || String)(next); } catch (e) { /* not native */ }
       }, 200);
     };
     afterLoad(fire);

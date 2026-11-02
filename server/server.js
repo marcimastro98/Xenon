@@ -394,6 +394,13 @@ const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate, CAPTURE_ASSET, CAPTURE_ASSET_MAC, CAPTURE_ASSET_LINUX } = require('./helper-update');
+const { createNativeInstallerFetch } = require('./native-installer');
+let _nativeInstallInFlight = null; // one verified installer download at a time (POST /api/native/install)
+// PresentMon 1.10.0, the last classic single-binary CLI fpsmon.js parses: the
+// exact asset and the SHA-256 of the reviewed bytes (install.ps1 carries the
+// same pair). Bump both together.
+const PRESENTMON_URL = 'https://github.com/GameTechDev/PresentMon/releases/download/v1.10.0/PresentMon-1.10.0-x64.exe';
+const PRESENTMON_SHA256 = 'e57a2f8ee1de1ef1a5516d875f1b115e881943cd729fe9c5a2f88b1dc79a8a3b';
 const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
@@ -17016,7 +17023,10 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
     // One-click download of the classic single-binary PresentMon CLI (the same
-    // v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
+    // pinned v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
+    // The server runs this exe elevated for an ETW session, so the bytes are held
+    // to a pinned SHA-256 before they take the name fpsmon.js launches: the file
+    // lands as .download, is hashed, and only a match is moved into place.
     try {
       // PresentMon is a Windows ETW tool: there is no build to fetch anywhere
       // else, and the download itself is written in PowerShell. Refusing by name
@@ -17026,21 +17036,19 @@ const handleRequest = async (req, res) => {
       else {
         const ps = [
           "$ErrorActionPreference='Stop';",
-          "$dir=$env:PM_DIR; $exe=Join-Path $dir 'PresentMon.exe';",
+          "$dir=$env:PM_DIR; $exe=Join-Path $dir 'PresentMon.exe'; $part=\"$exe.download\";",
           "if(-not(Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force | Out-Null};",
           '[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;',
-          "$h=@{'User-Agent'='XenonEdgeHub';'Accept'='application/vnd.github+json'};",
-          "$rel=Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $h -TimeoutSec 25;",
-          "$a=$rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\\.exe$' } | Select-Object -First 1;",
-          "if(-not $a){$a=$rel.assets | Where-Object { $_.name -match '\\.exe$' } | Select-Object -First 1};",
-          "if(-not $a){throw 'no PresentMon x64 executable in release assets'};",
-          "Invoke-WebRequest -Uri $a.browser_download_url -OutFile $exe -Headers @{'User-Agent'='XenonEdgeHub'} -TimeoutSec 120 -UseBasicParsing;",
-          "if(-not(Test-Path $exe)){throw 'download did not produce PresentMon.exe'}",
+          "Invoke-WebRequest -Uri $env:PM_URL -OutFile $part -Headers @{'User-Agent'='XenonEdgeHub'} -TimeoutSec 120 -UseBasicParsing;",
+          "if(-not(Test-Path $part)){throw 'download did not produce PresentMon.exe'};",
+          "$got=(Get-FileHash -LiteralPath $part -Algorithm SHA256).Hash;",
+          "if($got -ne $env:PM_SHA){Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue; throw \"checksum mismatch (expected $env:PM_SHA, got $got)\"};",
+          "Move-Item -LiteralPath $part -Destination $exe -Force",
         ].join(' ');
         await new Promise((resolve, reject) =>
           execFile('powershell.exe',
             ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
-            { windowsHide: true, timeout: 180000, env: { ...process.env, PM_DIR: path.join(__dirname, 'presentmon') } },
+            { windowsHide: true, timeout: 180000, env: { ...process.env, PM_DIR: path.join(__dirname, 'presentmon'), PM_URL: PRESENTMON_URL, PM_SHA: PRESENTMON_SHA256 } },
             (psErr) => psErr ? reject(psErr) : resolve()
           )
         );
@@ -17994,10 +18002,13 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/native/install' && req.method === 'POST') {
     // One-click install of the native kiosk app from the dashboard (offered to
-    // iCUE/browser users). Hands off to install-native.ps1, which downloads the
-    // latest signed installer from the GitHub release and launches it in the
-    // interactive user session (needed when we run as the LocalSystem service).
-    // Fire-and-forget + fail-soft: the helper does the heavy lifting on its own.
+    // iCUE/browser users). The installer runs SILENTLY and, under the LocalSystem
+    // service, in the user's session through a scheduled task, so nobody sees what
+    // is executed: it is downloaded HERE and checked against the release's
+    // Ed25519-signed SHA256SUMS with the pinned key (native-installer.js) before
+    // install-native.ps1 is ever started. A download that does not verify is
+    // deleted and reported as an error; nothing runs. The script gets the verified
+    // path and its signed hash and re-checks the hash before launching.
     // Do NOT pass detached:true here — Windows PowerShell (powershell.exe) fails to
     // initialize its host when started with DETACHED_PROCESS (no console), so the
     // script silently never runs (the install button looked like it hung). stdio:
@@ -18007,20 +18018,29 @@ const handleRequest = async (req, res) => {
       if (process.platform !== 'win32') { json({ ok: false, error: 'windows_only' }); return; }
       const script = path.join(__dirname, 'install-native.ps1');
       try { await fs.promises.access(script); } catch { json({ ok: false, error: 'helper_missing' }); return; }
+      // A second tap while a download is in flight joins it rather than starting a
+      // second writer on the same file.
+      if (_nativeInstallInFlight) { json({ ok: true }); return; }
+      const statusFile = path.join(DATA_DIR, 'native-install-status.json');
+      const writeStatus = (state, error) => fs.promises.writeFile(
+        statusFile, JSON.stringify({ state, error: error || '', at: new Date().toISOString() })
+      ).catch(() => { /* non-fatal: the poll just falls back to a timeout */ });
       // Reset the progress marker so the dashboard's poll starts clean and never
-      // reads a stale 'error'/'done' from a previous attempt. The PS script then
-      // advances it: downloading -> installing -> done/error.
-      try {
-        await fs.promises.writeFile(
-          path.join(DATA_DIR, 'native-install-status.json'),
-          JSON.stringify({ state: 'starting', error: '', at: new Date().toISOString() })
-        );
-      } catch { /* non-fatal: the poll just falls back to a timeout */ }
-      const child = spawn('powershell.exe', [
-        '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
-      ], { windowsHide: true, stdio: 'ignore' });
-      child.unref();
+      // reads a stale 'error'/'done' from a previous attempt. The download is now
+      // ours, so we report it; the PS script takes over at installing -> done/error.
+      await writeStatus('downloading', '');
       json({ ok: true });
+      _nativeInstallInFlight = (async () => {
+        const got = await createNativeInstallerFetch({ destDir: path.join(DATA_DIR, 'native-installer') }).fetchVerified();
+        if (!got.ok) { await writeStatus('error', got.error); return; }
+        const child = spawn('powershell.exe', [
+          '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
+          '-InstallerPath', got.path, '-ExpectedSha256', got.sha256,
+        ], { windowsHide: true, stdio: 'ignore' });
+        child.on('error', () => { writeStatus('error', 'helper_missing'); });
+        child.unref();
+      })().catch(() => writeStatus('error', 'download_failed'))
+        .finally(() => { _nativeInstallInFlight = null; });
     } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {
