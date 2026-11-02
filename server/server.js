@@ -955,7 +955,7 @@ function buildCoreAiFunctions() {
         }, required: ['kind', 'name'] } },
         // ── Deck composer + creator ecosystem (v4.4) ──
         { name: 'deck_action_catalog', description: 'Read-only: the FULL Deck action catalog (every action type + its params/options), the live-state sources, live-value sources and slider targets. Call this BEFORE configure_deck when you are unsure of an exact action type or its parameters.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'configure_deck', description: 'Create or extend a Deck (stream-deck) profile with FULL power: any action type from deck_action_catalog (typed actions with their exact params, e.g. {type:"obsScene",scene:"Live"} or {type:"typeText",text:"brb"}), per-key tap/double/hold, live state bindings, live value badges, touch sliders and Smart-Profiles auto-switch rules. Prefer this over genesis_setup_deck when the user asks for anything beyond its basic action list. Every action is re-validated by the app before it is stored or runs. Prefer create_preset kind "deck" for a bigger profile with folders, a styled look, or a code to share.', parameters: { type: 'OBJECT', properties: {
+        { name: 'configure_deck', description: 'Create or extend a Deck (stream-deck) profile with FULL power: any action type from deck_action_catalog (typed actions with their exact params, e.g. {type:"obsScene",scene:"Live"} or {type:"hotkey",keys:"ctrl+shift+m"}; scripts, typed text and webhooks are refused, the user adds those in the Deck editor), per-key tap/double/hold, live state bindings, live value badges, touch sliders and Smart-Profiles auto-switch rules. Prefer this over genesis_setup_deck when the user asks for anything beyond its basic action list. Every action is re-validated by the app before it is stored or runs. Prefer create_preset kind "deck" for a bigger profile with folders, a styled look, or a code to share.', parameters: { type: 'OBJECT', properties: {
           profileName: { type: 'STRING', description: 'Short profile name in the user\'s language, e.g. "Streaming Pro"' },
           cols: { type: 'NUMBER', description: 'Grid columns (1-8)' },
           rows: { type: 'NUMBER', description: 'Grid rows (1-8)' },
@@ -2913,6 +2913,7 @@ const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
 const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
 const { psEscape, psQuote } = require('./ps-quote');
 const remoteActions = require('./remote-actions');
+const aiPcApps = require('./ai-pc-apps');
 // \\host\share, //host/share, \\?\UNC\host: touching one makes Windows
 // authenticate to that host with the user's credentials.
 function isNetworkPath(p) {
@@ -8788,7 +8789,13 @@ async function runAiTool(fnName, fnArgs, deps) {
           'epic': 'com.epicgames.launcher://apps',
           'epic games': 'com.epicgames.launcher://apps',
         };
-        const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
+        // An app by name, a website, or a file that does not run code when it
+        // opens; never a network path, a special link or a script (ai-pc-apps.js).
+        const allowed = aiPcApps.openTarget(rawTarget, PROTOCOL_MAP);
+        if (!allowed.ok) {
+          fnResult = { error: `not allowed (${allowed.error}): this tool opens apps by name, websites and documents on this PC. Scripts, network paths and special links are refused; running commands needs PC Control, which asks the user first.` };
+        } else {
+        const resolved = allowed.target;
         // Every quote PowerShell ends a single-quoted string on (ps-quote.js).
         const psEscaped = psEscape(resolved);
         // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
@@ -8806,6 +8813,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         } catch (launchErr) {
           fnResult = { error: launchErr.message };
         }
+        }
       }
     } else if (fnName === 'close_application') {
       const rawTarget = String(fnArgs.target || '').trim();
@@ -8821,24 +8829,31 @@ async function runAiTool(fnName, fnArgs, deps) {
           'teams': 'teams', 'zoom': 'zoom', 'slack': 'slack',
           'whatsapp': 'whatsapp',
         };
-        const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
+        // One process by its exact name: no wildcards (a target of "*" used to
+        // close everything), never Windows' own processes or Xenon (ai-pc-apps.js).
+        const allowed = aiPcApps.closeTarget(rawTarget, CLOSE_MAP);
+        const procName = allowed.ok ? allowed.name : '';
         const psEsc = psEscape(procName);
-        const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
-        try {
-          await new Promise((resolve, reject) =>
-            execFile('powershell.exe',
-              ['-NoProfile', '-NonInteractive', '-Command', ps],
-              { windowsHide: true, timeout: 10000 },
-              (err) => {
-                if (!err) resolve();
-                else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
-                else reject(err);
-              }
-            )
-          );
-          fnResult = { ok: true, closed: rawTarget };
-        } catch (closeErr) {
-          fnResult = { error: closeErr.message };
+        const ps = `$p=Get-Process -Name '${psEsc}' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
+        if (!allowed.ok) {
+          fnResult = { error: `not allowed (${allowed.error}): name one app by its process name, e.g. "spotify". System processes and Xenon cannot be closed this way.` };
+        } else {
+          try {
+            await new Promise((resolve, reject) =>
+              execFile('powershell.exe',
+                ['-NoProfile', '-NonInteractive', '-Command', ps],
+                { windowsHide: true, timeout: 10000 },
+                (err) => {
+                  if (!err) resolve();
+                  else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
+                  else reject(err);
+                }
+              )
+            );
+            fnResult = { ok: true, closed: rawTarget };
+          } catch (closeErr) {
+            fnResult = { error: closeErr.message };
+          }
         }
       }
     } else if (fnName === 'search_files') {
@@ -8870,7 +8885,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         else fnResult = { error: out.error, revealable: out.revealable === true };
       }
     } else if (fnName === 'phone_lookup' || fnName === 'phone_call' || fnName === 'phone_message') {
-      fnResult = await aiPhoneTool(fnName, fnArgs);
+      fnResult = await aiPhoneTool(fnName, fnArgs, latestUserText);
     } else if (fnName === 'disk_insights') {
       // Read-only by construction: there is no deleteFile action type anywhere
       // (registry, Deck, SDK, AI) — a human tap on the disk widget is the only
@@ -9049,7 +9064,15 @@ async function runAiTool(fnName, fnArgs, deps) {
           service: { type: 'haCallService', service: String(fnArgs.service || ''), entity, data: String(fnArgs.data || '') },
         };
         const act = map[action];
-        fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+        // Locks, alarms, covers, scripts and the like are not Bit's to drive
+        // on its own (ai-pc-apps.js): both the entity's and the service's
+        // domain must be ordinary ones.
+        const service = action === 'service' ? String(fnArgs.service || '') : '';
+        if (act && ((entity && !aiPcApps.haDomainAllowed(entity)) || (service && !aiPcApps.haDomainAllowed(service)))) {
+          fnResult = { error: 'not allowed: locks, alarms, covers, garage doors, scripts and automations are not controlled by the assistant. The user can do it in Home Assistant or with a Deck key.' };
+        } else {
+          fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+        }
       }
     } else if (fnName === 'discord_voice') {
       // Discord voice control. `status` reads the live voice state + joinable
@@ -13024,7 +13047,7 @@ function phoneSettings() {
 // recalled, so `phone_message` refuses anything but a resolved contact — the
 // blast radius of a misheard name becomes "texted the wrong person in your
 // contacts" instead of "texted a number nobody has ever seen".
-async function aiPhoneTool(fnName, args) {
+async function aiPhoneTool(fnName, args, latestUserText = '') {
   const a = args && typeof args === 'object' ? args : {};
   if (phoneSettings().enabled !== true) return { error: 'phone_disabled' };
 
@@ -13064,6 +13087,13 @@ async function aiPhoneTool(fnName, args) {
       }
     }
     if (!number) return { error: 'no_number' };
+    // A number that is not a contact's must be one the user typed or said in
+    // this request. The tool has no confirmation card, and a number the
+    // assistant read somewhere (a web page, a message) could be a premium-rate
+    // line that costs the user money.
+    if (!who && !aiPcApps.numberSaidByUser(number, latestUserText)) {
+      return { error: 'number_not_from_user', note: 'only a contact, or a number the user gave in this request, can be called' };
+    }
     const r = await phone.dial(number);
     return r.ok ? { ok: true, calling: who || number } : { error: r.error || 'dial_failed' };
   }

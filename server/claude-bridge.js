@@ -164,19 +164,32 @@ function projectName(cwd) {
 // A short, human description of what a tool call is about to do. Built from the
 // tool's own input shape; falls back to nothing rather than dumping raw JSON,
 // because this line is what the user reads before tapping Allow.
-function describeTool(toolName, input) {
+// `allFields`: for an approval card. An unknown or MCP tool then shows every
+// argument ("key: value" per line) rather than the first string, whose order
+// the model controls: a card showing a harmless first field while a second
+// one held the real payload asked the user to approve something unseen.
+function describeTool(toolName, input, max = MAX_INPUT_CHARS, allFields = false) {
   const t = str(toolName, 60);
   const i = (input && typeof input === 'object') ? input : {};
-  if (t === 'Bash') return str(i.command, MAX_INPUT_CHARS);
-  if (t === 'Read' || t === 'Write' || t === 'Edit' || t === 'NotebookEdit') return str(i.file_path || i.notebook_path, MAX_INPUT_CHARS);
-  if (t === 'Glob' || t === 'Grep') return str(i.pattern, MAX_INPUT_CHARS);
-  if (t === 'WebFetch') return str(i.url, MAX_INPUT_CHARS);
-  if (t === 'WebSearch') return str(i.query, MAX_INPUT_CHARS);
-  if (t === 'Agent' || t === 'Task') return str(i.description || i.prompt, MAX_INPUT_CHARS);
-  // Unknown/MCP tool: show the first short string field, if any.
+  if (t === 'Bash') return str(i.command, max);
+  if (t === 'Read' || t === 'Write' || t === 'Edit' || t === 'NotebookEdit') return str(i.file_path || i.notebook_path, max);
+  if (t === 'Glob' || t === 'Grep') return str(i.pattern, max);
+  if (t === 'WebFetch') return str(i.url, max);
+  if (t === 'WebSearch') return str(i.query, max);
+  if (t === 'Agent' || t === 'Task') return str(i.description || i.prompt, max);
+  if (allFields) {
+    const lines = [];
+    for (const k of Object.keys(i)) {
+      const v = i[k];
+      if (v == null || v === '') continue;
+      lines.push(k + ': ' + (typeof v === 'string' ? v.trim() : JSON.stringify(v)));
+    }
+    return str(lines.join('\n'), max);
+  }
+  // Unknown/MCP tool, for an activity line: the first short string field, if any.
   for (const k of Object.keys(i)) {
     const v = i[k];
-    if (typeof v === 'string' && v.trim()) return str(v, MAX_INPUT_CHARS);
+    if (typeof v === 'string' && v.trim()) return str(v, max);
   }
   return '';
 }
@@ -1142,8 +1155,16 @@ function createBridge(opts) {
     const d = (data && typeof data === 'object') ? data : {};
     const sessionId = str(d.session_id, 80);
     const tool = str(d.tool_name, 60) || 'tool';
-    const detail = describeTool(tool, d.tool_input);
+    const isPlanTool = tool === 'ExitPlanMode';
     const questions = tool === 'AskUserQuestion' ? describeQuestions(d.tool_input) : null;
+    // What is being approved, in full. When it does not fit on the card, the
+    // card would show a harmless start while the rest ran unseen (an 800
+    // character `echo` followed by `; curl … | sh`), so the decision goes
+    // back to Claude Code's own terminal prompt, which shows all of it. The
+    // risk labels and the hold-to-confirm judge the full text, never the cut.
+    const full = describeTool(tool, d.tool_input, Number.MAX_SAFE_INTEGER, true);
+    if (!isPlanTool && !questions && full.length > MAX_INPUT_CHARS) return null;
+    const detail = full;
 
     // Too many already waiting → refuse to queue another. The caller hands this
     // back to the terminal rather than letting the tile become a backlog.

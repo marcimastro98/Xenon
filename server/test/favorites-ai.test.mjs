@@ -47,14 +47,19 @@ test('a team or a competition is added from the search', async () => {
   assert.equal((await run({ list: 'teams', name: 'Squadra inventata' })).result.error, 'not_found');
 });
 
-test('news: a known source, otherwise a topic; an https feed as it is', async () => {
+test('news: a known source, otherwise a topic; a feed address only from Settings', async () => {
   const src = (await import('../news.js')).default.SOURCES[0];
   const bySource = await run({ list: 'news', name: src.name.toUpperCase() });
   assert.equal(bySource.patch.news.feeds.at(-1).type, 'source');
   const topic = await run({ list: 'news', name: 'intelligenza artificiale' });
   assert.deepEqual(topic.patch.news.feeds.at(-1), { id: topic.patch.news.feeds.at(-1).id, type: 'topic', name: 'intelligenza artificiale', query: 'intelligenza artificiale' });
   assert.equal((await run({ list: 'news', name: 'ai' })).result.already, 'AI');
-  assert.equal((await run({ list: 'news', name: 'https://127.0.0.1/feed.xml' })).result.error, 'bad_feed');
+  // The server fetches a custom feed at once and on every refresh: an address
+  // the assistant was talked into could carry the user's data out in its
+  // query string or host name. The user adds one in Settings, News.
+  for (const url of ['https://127.0.0.1/feed.xml', 'https://evil.example/f?d=notes', 'https://notes-here.evil.example/rss', 'evil.example/rss', 'http://x.example/rss']) {
+    assert.equal((await run({ list: 'news', name: url })).result.error, 'custom_feed_in_settings', url);
+  }
 });
 
 test('remove by words; several matches are listed, none lists what there is', async () => {
