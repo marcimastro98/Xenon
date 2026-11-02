@@ -230,6 +230,9 @@ const REMOTE_DENY = new Set([
   // A backup replaces the Deck, the settings and the stores at once, past
   // every per-route rule a phone is held to. Restore it at the PC.
   '/backup/import',
+  // And the export carries what a phone is never shown on its own: private
+  // calendar links, Deck webhook addresses, every note. Made at the PC.
+  '/backup/export',
 ]);
 
 // Prefix denials, for routes that carry an id tail.

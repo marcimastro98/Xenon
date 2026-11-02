@@ -38,7 +38,7 @@ test('a paired device gets the dashboard, not a view of it', () => {
     ['/api/screenshot', 'POST'],
     ['/sdk/install', 'POST'], ['/sdk/fetch', 'POST'],
     ['/disk/overview', 'GET'], ['/disk/scan', 'POST'],
-    ['/backup/export', 'GET'], ['/background', 'POST'], ['/font', 'POST'],
+    ['/background', 'POST'], ['/font', 'POST'],
     ['/api/community/catalog', 'POST'], ['/icon-pack', 'POST'],
     ['/deck/app-icon', 'GET'], ['/deck/popup/open', 'POST'],
     // The gallery: a phone looks at the captures and downloads them, and makes
@@ -151,6 +151,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // at the PC with the picker, the Slideshow folder-source shape. (The POST
     // is further down: this list is sorted.)
     'GET /api/transfer/settings',
+    // The backup file holds private calendar links, Deck webhooks and notes.
+    'GET /backup/export',
     // The recordings folder on this PC is in the answer; the phone reads the
     // other options from the settings blob, where the folder is blanked.
     'GET /capture/settings',
