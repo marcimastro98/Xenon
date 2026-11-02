@@ -207,12 +207,14 @@ test('run openFile off Windows: the POSIX blocklist applies to the run path too'
   for (const bad of ['/Users/me/evil.command', '/Applications/Thing.app', '/Users/me/x.py', '/Users/me/x.sh']) {
     assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: bad }), { ok: false, error: 'blocked_ext' }, bad);
   }
-  // A document still opens, and the Windows blocklist stays byte-for-byte what
-  // it was: .sh and .py are documents there and have been openable since the
-  // feature shipped.
+  // A document still opens. On Windows .sh is a document; .py is not any more:
+  // with Python installed, opening one runs it, so it belongs to a "Run script"
+  // key (isRunnableScriptPath accepts it), not to "Open file".
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: '/Users/me/notes.txt' }), { ok: true });
   const winDeps = { platform: 'win32', fileExists: () => true, openExternal: () => Promise.resolve() };
-  assert.deepEqual(await reg.createRegistry(winDeps).run({ type: 'openFile', path: 'C:/x/script.py' }), { ok: true });
+  assert.deepEqual(await reg.createRegistry(winDeps).run({ type: 'openFile', path: 'C:/x/notes.sh' }), { ok: true });
+  assert.deepEqual(await reg.createRegistry(winDeps).run({ type: 'openFile', path: 'C:/x/script.py' }), { ok: false, error: 'blocked_ext' });
+  assert.equal(reg.isRunnableScriptPath('C:/x/script.py', 'win32'), true, 'and Run script still takes it');
 });
 
 test('isRunnableScriptPath', () => {
@@ -270,9 +272,10 @@ test('isBlockedOpenPath: openFile blocks one-tap execution on every platform', (
     assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'darwin'), true, ext);
     assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'linux'), true, ext);
   }
-  // …and none of it tightens the Windows boundary, where those names are
-  // documents that have been openable since the feature shipped.
-  for (const ext of ['command', 'app', 'sh', 'py', 'pkg']) {
+  // …and the POSIX list does not tighten the Windows one, where those names are
+  // documents. (.py is blocked on Windows by its own list: opening it runs it
+  // when Python is installed; a "Run script" key is the way to run one.)
+  for (const ext of ['command', 'app', 'sh', 'pkg']) {
     assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), false, ext);
   }
   // Ordinary documents and folders stay openable everywhere.

@@ -273,7 +273,13 @@ function isSteamAppId(s) {
 // Executable / script extensions that must NOT be reachable via openFile (which
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
-const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|pif|reg|msi|msp|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop)$/i;
+// Plus the types that run code the moment they open without being a program
+// on their face: management consoles (.msc, abused as "GrimResource"),
+// compiled help (.chm), Python and Office add-ins, ClickOnce and App Installer
+// manifests, Windows Script Components, PowerShell data and console files,
+// settings shortcuts, troubleshooter packs, Remote Desktop files, themes,
+// cabinets and disk images (which mount and show their own contents).
+const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|psd1|ps1xml|psc1|vbs|vbe|js|jse|wsf|wsh|ws|wsc|sct|hta|scr|pif|reg|msi|msp|mst|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop|msc|chm|py|pyw|pyz|pyc|xll|xlam|ppam|application|appinstaller|msix|msixbundle|appx|appxbundle|xbap|settingcontent-ms|diagcab|rdp|theme|themepack|cab|iso|img|vhd|vhdx|one|msh|mht|mhtml)$/i;
 
 // The same rule, restated for the platforms where `open`/`xdg-open` is the
 // handler. The list above is a Windows vocabulary: none of those extensions

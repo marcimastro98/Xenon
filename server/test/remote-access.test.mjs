@@ -179,6 +179,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // asked to put on screen, and whoever reads it can broadcast to the user's
     // channel — so it stays on the PC rather than crossing the LAN in the clear.
     'GET /stream/youtube/streamkey',
+    // PC Control's approved command: a phone that could reach it could also
+    // ask for the command. Set up and approved at the PC (remote-actions.js).
+    'POST /ai/pc-run',
     // Installers: each downloads something and puts it where it will be run.
     'POST /api/ai-local/whisper-install',
     // Claude Code's own ingest, posted by the `claude` process against a token
@@ -257,6 +260,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // Installs Xenon Helper from Settings: downloads an exe the server then
     // runs. Same class as the other installers, and done at the PC.
     'POST /audio/levels/install-helper',
+    // A backup replaces the Deck, the settings and the stores at once, past every
+    // per-route rule a phone is held to. Restored at the PC.
+    'POST /backup/import',
     // Recording options and the folder dialog: both act on this PC's disk,
     // and the dialog opens on the PC, where only someone at it can answer.
     'POST /capture/settings',
@@ -282,7 +288,14 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // phone is not that shell, and a report from one would offer the AI
     // placements nothing on the PC will draw.
     'POST /layers/host',
+    // Remote desktop (Sunshine): pairing it hands a device the whole screen
+    // and keyboard, so none of it is set up from a phone.
+    'POST /remote/enable',
     'POST /remote/install',
+    'POST /remote/ondemand',
+    'POST /remote/pin',
+    'POST /remote/sunshine/configure',
+    'POST /remote/unblock',
     // Opening or closing the menu over the PC's screen is the PC's own gesture.
     'POST /screen-menu',
     'POST /second-screen/create-display',
@@ -722,14 +735,16 @@ test('revoking a device kills its token immediately', async () => {
 });
 
 test('renaming is bounded and survives a reload from disk', async () => {
-  const { api, dir } = tmpStore();
+  const { api, dir, at } = tmpStore();
   await api.load();
   const r = await api.redeem(api.startPairing().code, { name: 'A' });
   await api.rename(r.device.id, 'x'.repeat(200));
   assert.equal(api.list()[0].name.length, ra.DEVICE_NAME_MAX);
   assert.equal((await api.rename('nope', 'x')).error, 'not_found');
 
-  const reopened = ra.createRemoteAccess({ dir });
+  // Same clock as the store that paired it: a device unused for 90 days
+  // stops working, and the real clock is decades past tmpStore's.
+  const reopened = ra.createRemoteAccess({ dir, now: at });
   await reopened.load();
   assert.equal(reopened.count(), 1);
   assert.ok(reopened.authenticate(r.token), 'the token must survive a restart');
@@ -857,7 +872,7 @@ test('an asset key is minted per device, is not the token, and dies with it', as
 });
 
 test('a device paired before the capability existed is given one on load', async () => {
-  const { dir, api } = tmpStore();
+  const { dir, api, at } = tmpStore();
   await api.load();
   const r = await api.redeem(api.startPairing().code, { name: 'old', ip: '10.0.0.1' });
   assert.ok(r.ok);
@@ -868,7 +883,7 @@ test('a device paired before the capability existed is given one on load', async
   delete raw.devices[0].assetKey;
   fs.writeFileSync(file, JSON.stringify(raw));
 
-  const reopened = ra.createRemoteAccess({ dir });
+  const reopened = ra.createRemoteAccess({ dir, now: at });
   await reopened.load();
   const dev = reopened.authenticate(r.token);
   assert.ok(dev, 'the token must still work');

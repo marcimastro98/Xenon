@@ -14,6 +14,9 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const DECK_ERR_TEXT = Object.freeze({
     not_found: ['deck_err_not_found', 'that path does not exist on this PC'],
+    // A paired phone runs only keys set up on the PC (server/remote-actions.js).
+    needs_pc: ['deck_err_needs_pc', 'from a phone or tablet this works only as a key already set up on the PC'],
+    pc_only: ['deck_err_pc_only', 'this works only on the PC itself'],
     bad_app_path: ['deck_err_bad_app_path', 'that is not something this system can launch'],
     launch_failed: ['deck_err_launch_failed', 'the app would not start'],
     blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
