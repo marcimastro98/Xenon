@@ -18,7 +18,9 @@
 // client save (which never carries the real key) wipes it; preserve without
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
-const AI_PROVIDER_SECRET_KEYS = ['openaiApiKey', 'anthropicApiKey', 'geminiApiKey'];
+// The key list is shared with the dashboard's localStorage mirror (js/settings-secrets.js).
+const { SECRET_KEY_GROUPS } = require('./js/settings-secrets.js');
+const AI_PROVIDER_SECRET_KEYS = SECRET_KEY_GROUPS.ai;
 
 // Carry a persisted key over when an incoming client save omits/empties it, so a
 // routine settings save can never wipe a key the client never received — UNLESS
@@ -39,15 +41,9 @@ function preserveAiProviderCreds(incoming, prev) {
 // boolean so the UI can show a "saved" placeholder. Returns a shallow copy.
 function redactAiProviderCreds(settings) {
   if (!settings || typeof settings !== 'object') return settings;
-  return {
-    ...settings,
-    openaiApiKey: '',
-    openaiApiKeySet: !!settings.openaiApiKey,
-    anthropicApiKey: '',
-    anthropicApiKeySet: !!settings.anthropicApiKey,
-    geminiApiKey: '',
-    geminiApiKeySet: !!settings.geminiApiKey,
-  };
+  const out = { ...settings };
+  for (const key of AI_PROVIDER_SECRET_KEYS) { out[key] = ''; out[key + 'Set'] = !!settings[key]; }
+  return out;
 }
 
 module.exports = { preserveAiProviderCreds, redactAiProviderCreds };

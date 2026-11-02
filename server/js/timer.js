@@ -157,9 +157,9 @@ function _buildTimerCard(timer) {
   let actionBtn = '';
   if (!isDone) {
     if (timer.status === 'running') {
-      actionBtn = `<button class="timer-btn timer-pause-btn" onclick="timerPause('${tid}')" title="${pauseTip}">${SVG_PAUSE}</button>`;
+      actionBtn = `<button class="timer-btn timer-pause-btn" data-timer-action="pause" title="${pauseTip}">${SVG_PAUSE}</button>`;
     } else {
-      actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">${SVG_PLAY}</button>`;
+      actionBtn = `<button class="timer-btn timer-resume-btn" data-timer-action="resume" title="${resumeTip}">${SVG_PLAY}</button>`;
     }
   }
   // Stop is offered only where it would change something: never on a finished
@@ -168,10 +168,10 @@ function _buildTimerCard(timer) {
   // its elapsed reads, because stopping it is the point.
   const atFull = timer.status !== 'running' && (timer.pausedElapsed || 0) < 1;
   const stopBtn = (!isDone && !atFull)
-    ? `<button class="timer-btn timer-stop-btn" onclick="timerStop('${tid}')" title="${stopTip}">${SVG_STOP}</button>`
+    ? `<button class="timer-btn timer-stop-btn" data-timer-action="stop" title="${stopTip}">${SVG_STOP}</button>`
     : '';
-  const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">${SVG_RESTART}</button>`;
-  const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">${SVG_DELETE}</button>`;
+  const resetBtn  = `<button class="timer-btn timer-restart-btn" data-timer-action="restart" title="${resetTip}">${SVG_RESTART}</button>`;
+  const deleteBtn = `<button class="timer-btn timer-delete-btn" data-timer-action="delete" title="${delTip}">${SVG_DELETE}</button>`;
 
   // Use data-timer-arc / data-timer-time so _updateTimerDisplays reaches these
   // elements across all instances (ids get stripped from clones).
@@ -199,7 +199,35 @@ function _buildTimerCard(timer) {
   return card;
 }
 
+// The card buttons carry data-timer-action and the card its data-timer-id; one
+// document-level listener runs them. Inline onclick="timerPause('<id>')" put the
+// id into markup that the browser decodes before running, so a quote in an id
+// (from a restored backup, say) was script. Delegating from the document also
+// covers cloned tiles, whose cards a cloneNode would copy without listeners.
+const TIMER_ACTIONS = {
+  pause: (id) => timerPause(id),
+  resume: (id) => timerResume(id),
+  stop: (id) => timerStop(id),
+  restart: (id) => timerRestart(id),
+  delete: (id) => timerDelete(id),
+};
+let _timerActionsWired = false;
+function _wireTimerActions() {
+  if (_timerActionsWired) return;
+  _timerActionsWired = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('.timer-card [data-timer-action]') : null;
+    if (!btn) return;
+    const card = btn.closest('.timer-card');
+    const id = card && card.dataset.timerId;
+    const action = btn.dataset.timerAction;
+    if (!id || !Object.prototype.hasOwnProperty.call(TIMER_ACTIONS, action)) return;
+    TIMER_ACTIONS[action](id);
+  });
+}
+
 function renderTimers() {
+  _wireTimerActions();
   // Render into every timer instance (primary widget + clones).
   document.querySelectorAll('[data-timerf="list"]').forEach(list => {
     list.innerHTML = '';

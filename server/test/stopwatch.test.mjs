@@ -28,7 +28,9 @@ function load(name, extra = '') {
   return SERVER.slice(start, end + 2) + extra;
 }
 const KINDS = "const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);\n";
-const normalize = new Function(KINDS + load('_normalizeTimer') + '; return _normalizeTimer;')();
+// _normalizeTimer also checks the id's shape and mints a fresh one when needed.
+const ID_RE = SERVER.match(/^const SAFE_ITEM_ID_RE = .*$/m)[0] + '\n';
+const normalize = new Function(KINDS + ID_RE + load('_timerId') + load('_normalizeTimer') + '; return _normalizeTimer;')();
 const remaining = new Function(load('_getTimerRemaining') + '; return _getTimerRemaining;')();
 const elapsed = new Function(load('_getTimerElapsed') + '; return _getTimerElapsed;')();
 

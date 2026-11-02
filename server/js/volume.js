@@ -130,25 +130,42 @@ function appMixDisplayName(app) {
 // The session id (SoundVolumeView CLI id) can contain backslashes and other
 // characters that break inline event handlers, so it lives only in
 // data-app-id and is read back through event delegation (see wireAppMixer).
+//
+// The icon is NOT in the markup: the row carries an empty <img> and
+// renderAppMixerRows sets its src through the DOM, so an icon value can never
+// become an attribute (or markup) of its own. Callers render through that.
 function buildAppMixerRow(app) {
   const display = appMixDisplayName(app);
   const safeName = escHtml(display);
   const initial = (display[0] || 'A').toUpperCase();
-  const iconHtml = app.icon
-    ? `<img class="app-mix-icon" src="${app.icon}" alt="">`
+  const iconHtml = safeImageDataUri(app.icon)
+    ? '<img class="app-mix-icon" alt="">'
     : `<span class="app-mix-icon app-mix-icon-letter">${escHtml(initial)}</span>`;
   const muteClass = app.muted ? ' app-mix-muted' : '';
-  const bg = appMixSliderBg(app.volume);
+  const volume = Math.max(0, Math.min(100, Math.round(Number(app.volume) || 0)));
+  const bg = appMixSliderBg(volume);
   return `
     <div class="app-mix-row${muteClass}" data-app-id="${escHtml(app.id)}" data-app-proc="${escHtml(app.proc || '')}">
       ${iconHtml}
       <span class="app-mix-name" title="${safeName}">${safeName}</span>
-      <input class="app-mix-slider" type="range" min="0" max="100" value="${app.volume}" style="background:${bg}">
-      <span class="app-mix-vol">${app.volume}%</span>
+      <input class="app-mix-slider" type="range" min="0" max="100" value="${volume}" style="background:${bg}">
+      <span class="app-mix-vol">${volume}%</span>
       <button class="app-mix-mute${app.muted ? ' active' : ''}" type="button" title="Mute">
         ${app.muted ? APP_MIX_SVG_MUTED : APP_MIX_SVG_ON}
       </button>
     </div>`;
+}
+
+// Render the mixer rows for `apps` into `host`, then give each row's icon its
+// src through the DOM property (rows and apps share an order).
+function renderAppMixerRows(host, apps) {
+  host.innerHTML = apps.map(buildAppMixerRow).join('');
+  const rows = host.querySelectorAll('.app-mix-row');
+  rows.forEach((row, i) => {
+    const img = row.querySelector('img.app-mix-icon');
+    const src = apps[i] ? safeImageDataUri(apps[i].icon) : '';
+    if (img && src) img.src = src;
+  });
 }
 
 // Both the speaker and mic mixers post to the same per-app endpoints, so a
@@ -235,7 +252,7 @@ function renderSpeakerApps(apps) {
   const key = appMixKey(apps);
   if (key === host.dataset.mixKey && host.querySelector('.app-mix-slider')) { host.hidden = false; return; }
   host.dataset.mixKey = key;
-  host.innerHTML = apps.map(buildAppMixerRow).join('');
+  renderAppMixerRows(host, apps);
   host.hidden = false;
 }
 

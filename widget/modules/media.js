@@ -80,8 +80,16 @@
     // Album art
     if (artEl) {
       if (m.thumbnail) {
-        // Server provided a URL/base64 thumbnail
-        artEl.innerHTML = `<img src="${m.thumbnail}" alt="" class="media-cover-img" loading="lazy">`;
+        // Server provided a URL/base64 thumbnail. Built with the DOM, not markup:
+        // the value comes from whatever app is playing, and a quote in it would
+        // otherwise end the src attribute and start one of its own.
+        const img = document.createElement('img');
+        img.alt = '';
+        img.className = 'media-cover-img';
+        img.loading = 'lazy';
+        img.src = String(m.thumbnail);
+        artEl.textContent = '';   // not replaceChildren: older iCUE WebViews lack it
+        artEl.appendChild(img);
       } else {
         // Show placeholder equalizer animation
         artEl.innerHTML = `<div class="media-placeholder">

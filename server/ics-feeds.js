@@ -447,8 +447,43 @@ function normalizeCalendarFeeds(value, palette) {
   return out;
 }
 
+// A private iCal link ("secret address" in Google Calendar, a published Outlook
+// .ics) IS the credential: anyone holding it reads the whole calendar. So it is
+// handled like the API keys — kept on the server, never sent to the browser.
+// The wire carries the feed's name, the link's host (so the user can still tell
+// feeds apart) and a `urlSet` flag for the "saved" placeholder.
+function redactCalendarFeedUrls(settings) {
+  if (!settings || typeof settings !== 'object' || !Array.isArray(settings.calendarFeeds)) return settings;
+  return {
+    ...settings,
+    calendarFeeds: settings.calendarFeeds.map((f) => {
+      if (!f || typeof f !== 'object') return f;
+      const url = String(f.url || '');
+      return { ...f, url: '', urlSet: !!url, host: url ? _safeHostname(url) : (f.host || '') };
+    }),
+  };
+}
+
+// The other half: a client that only received the redacted list posts each feed
+// back with a blank url. Refill it from the stored feed with the same id, so a
+// routine save (renaming a feed, toggling reminders) never drops the link. A
+// feed whose url the client did fill in keeps the new one. Mutates and returns
+// `incoming`, like the other preserve helpers.
+function preserveCalendarFeedUrls(incoming, prev) {
+  if (!incoming || typeof incoming !== 'object' || !Array.isArray(incoming.calendarFeeds)) return incoming;
+  const prevFeeds = (prev && typeof prev === 'object' && Array.isArray(prev.calendarFeeds)) ? prev.calendarFeeds : [];
+  const byId = new Map();
+  for (const f of prevFeeds) if (f && f.id && f.url) byId.set(String(f.id), f.url);
+  incoming.calendarFeeds = incoming.calendarFeeds.map((f) => {
+    if (!f || typeof f !== 'object' || String(f.url || '').trim()) return f;
+    const saved = byId.get(String(f.id || ''));
+    return saved ? { ...f, url: saved } : f;
+  });
+  return incoming;
+}
+
 module.exports = {
   _unfold, _parseLine, _parseIcsDate, _tzOffsetMs, _zonedWallToUtcMs,
   parseIcs, expandRecurrence, _occurrenceEnd, mapFeedEvents, fetchFeedText, loadFeed,
-  normalizeCalendarFeeds,
+  normalizeCalendarFeeds, redactCalendarFeedUrls, preserveCalendarFeedUrls,
 };

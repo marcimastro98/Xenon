@@ -89,6 +89,19 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// The only kind of image data URI the dashboard shows from stored or helper-fed
+// data (app icons, window previews, mixer icons): a raster type and nothing but
+// base64 after the comma. Checking the `data:image/` prefix alone let anything
+// follow it, quotes included, and a quote is all it takes to leave an attribute.
+// Every helper (windows.ps1, WindowsTool.cs, the mixer's icon extraction)
+// produces PNG. Mirrored by SAFE_IMAGE_DATA_URI_RE in server.js, which tests
+// keep identical.
+const SAFE_IMAGE_DATA_URI_RE = /^data:image\/(png|jpeg|gif|webp|x-icon|bmp);base64,[A-Za-z0-9+/]+={0,2}$/;
+function safeImageDataUri(value) {
+  const v = typeof value === 'string' ? value : '';
+  return SAFE_IMAGE_DATA_URI_RE.test(v) ? v : '';
+}
+
 // Copy text to the clipboard; true only when it actually landed. The legacy
 // textarea path is not vestigial: navigator.clipboard is absent or rejects in
 // some WebView builds, so the async API alone silently drops the copy there.
