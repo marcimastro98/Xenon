@@ -1,4 +1,4 @@
-// Settings → Support, rebuilt for v4.12.0: the ask (pitch, perks, supporter
+// Settings → Support, rebuilt for v5.0.0: the ask (pitch, perks, supporter
 // count, monthly/once links) beside a card for people who already support and
 // the Discord card. These pin what the page needs to stay true and translated.
 import { test } from 'node:test';

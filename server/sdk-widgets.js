@@ -223,7 +223,7 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // A bookmark on the recording that runs is a time on the user's own video:
   // it starts nothing and reads nothing.
   capture: Object.freeze(['screenshot', 'record', 'replay', 'screenText', 'screenPin', 'screenColor', 'screenMeasure', 'captureMarker']),
-  // Start and stop a benchmark of the game in front of the user (v4.12.0). The
+  // Start and stop a benchmark of the game in front of the user (v5.0.0). The
   // CSV stays in the user's folder: the widget gets ok or an error code, never
   // the file, its name or the numbers in it ('reveal', which opens a file
   // manager on the PC, is kept out by SDK_ACTION_LIMITS). Whether a run is going

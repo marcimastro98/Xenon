@@ -104,7 +104,7 @@ test('the permission line in 11 languages, wired in the dialog; the docs say wha
   const i18n = readFileSync(path.join(ROOT, 'js', 'i18n.js'), 'utf8');
   assert.equal((i18n.match(/\bcw_act_capture:/g) || []).length, 11);
   const docs = readFileSync(path.join(ROOT, '..', 'docs', 'WIDGET_SDK.md'), 'utf8');
-  const i = docs.indexOf('`capture` (v4.12.0)');
+  const i = docs.indexOf('`capture` (v5.0.0)');
   assert.ok(i > 0);
   const sec = docs.slice(i, docs.indexOf('\n### ', i));
   assert.match(sec, /never sees one/);

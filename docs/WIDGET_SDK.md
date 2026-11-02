@@ -46,7 +46,7 @@ probe never touches your DOM or globals beyond `window.__xenonPerf`, apart from
 wrapping `console.error` so your error lines reach the author tools (your call
 still runs as before), and you do not need to do anything to support it.
 
-## Building with Claude Code, Codex or another coding assistant (v4.12)
+## Building with Claude Code, Codex or another coding assistant (v5.0)
 
 If you write widget code with a coding assistant, connect it to Xenon and it can
 do the whole loop itself: read this reference, write a starter, install the
@@ -149,14 +149,14 @@ window) does not report errors or pictures yet.
 | `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. `{ "full": true }` requests a third permission on top: activities that span the **whole top bar**. See *Dynamic Island*. |
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. `{ "action": true }` requests a separate permission on top: the chip becomes a **button** and tapping it tells your widget. Host-rendered, grant-gated — see *Persistent badge*. |
 | `mini` | no | `true` → your widget may draw a **mini widget in the top bar's button row**, where the user placed it (Settings → Top bar → bar buttons). Same host-rendered block vocabulary as the Dynamic Island, in a smaller room. See *Mini slot*. |
-| `topbarButton` | no | `true` → your widget may add **one button of its own to the top bar**: a label, an optional short glyph and a tooltip, drawn by Xenon. The user places, hides, renames and recolours it like the built-in buttons. See *Bar button*. (v4.12) |
+| `topbarButton` | no | `true` → your widget may add **one button of its own to the top bar**: a label, an optional short glyph and a tooltip, drawn by Xenon. The user places, hides, renames and recolours it like the built-in buttons. See *Bar button*. (v5.0) |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
-| `ai` | no | `true` → your widget may **ask a question to the AI the user chose for Bit** (Sparks, their own key, Ollama or their Claude/ChatGPT plan) and get the answer as text. One question at a time, a daily number per widget the user chooses, no tools and no history. See *Asking the AI*. (v4.12) |
+| `ai` | no | `true` → your widget may **ask a question to the AI the user chose for Bit** (Sparks, their own key, Ollama or their Claude/ChatGPT plan) and get the answer as text. One question at a time, a daily number per widget the user chooses, no tools and no history. See *Asking the AI*. (v5.0) |
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 | `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
 | `shape` | no | The **silhouette of your own tile**: `{ "preset": "hexagon" }` or your own closed SVG path, `{ "path": "M .5 0 L 1 .5 L .5 1 L 0 .5 Z" }`. Optional `"fit": "fit"` keeps the proportions instead of stretching, and `"inset"` (0–25) is extra safe margin in percent. Not a permission — it cannot reach past your tile — and the user's own shape for that tile always wins. Ignored on an `ambient` package. See *Tile shape*. |
 | `category` | no | Where the "+" panel files your widget (v4.11.11): `"productivity"`, `"media"`, `"system"` or `"streaming"`, the same groups as Xenon's own widgets. Without it the panel uses the category of your widget's Store entry, and failing that it goes under *Other*. Every installed widget is also listed under the panel's **Installed** filter. Not a permission; any other value is dropped. |
-| `size` | no | The shape your widget is drawn for, so a new tile of it starts in that shape instead of the default span: `"small"` (one value at a glance), `"medium"`, `"wide"` (a short strip), `"tall"` (a full-height column) or `"large"` (the main instrument of a page). Xenon turns it into columns and rows from the screen it lands on: on the 2560x720 Xeneon Edge a `wide` tile is about 750x220 px, on a 1920x1080 monitor it takes more columns. The user can still resize it, so the widget must still recompose at every size. Not a permission; any other value is dropped, and Ambient packages ignore it. (v4.12) |
+| `size` | no | The shape your widget is drawn for, so a new tile of it starts in that shape instead of the default span: `"small"` (one value at a glance), `"medium"`, `"wide"` (a short strip), `"tall"` (a full-height column) or `"large"` (the main instrument of a page). Xenon turns it into columns and rows from the screen it lands on: on the 2560x720 Xeneon Edge a `wide` tile is about 750x220 px, on a 1920x1080 monitor it takes more columns. The user can still resize it, so the widget must still recompose at every size. Not a permission; any other value is dropped, and Ambient packages ignore it. (v5.0) |
 | `icon` | no | **Your widget's own glyph** (v4.11.11), shown on its tab in a tab group and on its result in the "+" panel's search, instead of the generic puzzle. SVG path data in a **24×24 box**, drawn the way every built-in widget icon is drawn: a 2 px round stroke in the text colour. A string, or up to 4 paths as an array; `{ "path": …, "fill": true }` draws a solid glyph instead. Not a permission. A malformed icon is dropped and your package still installs, with the puzzle. See *Widget icon*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
@@ -190,7 +190,7 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
 - All data arrives over `postMessage` from the host; all effects go back the
   same way.
 
-## From a web page to a widget (v4.12)
+## From a web page to a widget (v5.0)
 
 A page that works in a normal browser usually shows up as a **blank tile** the
 first time it runs as a widget, because the sandbox refuses the things web pages
@@ -363,7 +363,7 @@ than the manifest requested):
       // alpha as a number. null when unavailable; fall back to surfaceAlt.
       surfaceSoft: 'rgba(22, 25, 26, 0.92)', panelAlpha: 0.92
     },
-    // Optional (v4.12.0): the colours the user picked for THIS tile's buttons
+    // Optional (v5.0.0): the colours the user picked for THIS tile's buttons
     // in Widget style → Controls. null when the tile sets none. See below.
     controls: null
   },
@@ -387,7 +387,7 @@ than the manifest requested):
   // side effects (a badge refresh, a scheduled write) in exactly one of them.
   // See "Background service frames".
   service: false,
-  // Where this frame is drawn, and whether a dashboard is in use (v4.12.0).
+  // Where this frame is drawn, and whether a dashboard is in use (v5.0.0).
   // See "Where your widget is".
   placement: { where: 'dashboard', dashboard: true },
   // Addresses the user typed into your `userHosts` slots, keyed by slot id.
@@ -440,7 +440,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change. **Every event, not the slice the Upcoming tile shows.** That tile has its own count and horizon in Settings → Calendar, and they are display settings for the tile alone: what reaches you here is unfiltered, so filter and sort it yourself rather than assuming a window
 - `battery` — wireless peripheral battery levels (see *Hardware sensors*)
 - `processes` — **which apps are using the CPU, memory and GPU right now**. See *Which apps are busy* below; like `audioLevels`, this one has conditions
-- `sensors` (v4.12.0) — **every hardware sensor by name**: each temperature, fan, power and clock reading the PC exposes. See *Every sensor, and which one the user chose* below
+- `sensors` (v5.0.0) — **every hardware sensor by name**: each temperature, fan, power and clock reading the PC exposes. See *Every sensor, and which one the user chose* below
 
 `wavelink` and these last four are read-only data feeds; you also get the latest
 cached payload replayed right after `init`, so you paint without waiting.
@@ -979,7 +979,7 @@ rate, the same code simply gets fresher values. Never assume an interval — rea
 the payload when it arrives. A widget that treats 5 seconds as a constant will be
 wrong on the machines that care most about it.
 
-### 3c-bis. Every sensor, and which one the user chose — `sensors` (v4.12.0)
+### 3c-bis. Every sensor, and which one the user chose — `sensors` (v5.0.0)
 
 `system` carries one CPU temperature, one GPU temperature and one wattage of
 each. Which physical sensor those come from is now the user's choice, in
@@ -1040,7 +1040,7 @@ if (m.type === 'data' && m.stream === 'sensors') {
    `'missing'`) says why, as it does on `system`.
 5. **`name` and `hw` come from drivers.** Render them with `textContent`.
 
-### 3c-ter. The game you are playing, frame by frame — `perf` (v4.12.0)
+### 3c-ter. The game you are playing, frame by frame — `perf` (v5.0.0)
 
 `system` has one `fps` number every 5 seconds. `perf` is what the Game
 performance tile draws: four readings a second while a game runs, with the lows
@@ -1090,7 +1090,7 @@ if (m.type === 'data' && m.stream === 'perf') {
 4. **`process` and `game` are names from the system.** Render them with
    `textContent`.
 
-### 3c-quater. The games you played — `gameSessions` (v4.12.0)
+### 3c-quater. The games you played — `gameSessions` (v5.0.0)
 
 The list behind Settings → Performance → Games played: one summary per game
 session, newest first, plus the newest against the one before it of the same
@@ -1124,7 +1124,7 @@ if (m.type === 'data' && m.stream === 'gameSessions') {
    `textContent`.
 4. Sessions shorter than two minutes are not kept, and at most 100 are stored.
 
-### 3c-quinquies. Self-care meters — `vitals` (v4.12.0)
+### 3c-quinquies. Self-care meters — `vitals` (v5.0.0)
 
 The Vitals meters (hydration, energy, stamina, focus, posture): how full each
 one that is on is, when it runs out, the self-care level and the daily streak.
@@ -1490,7 +1490,7 @@ window.parent.postMessage({
   xenonSdk: 1, type: 'haQuery', id: 22, op: 'camera', params: { id: 'camera.gate' },
 }, '*');
 
-// A media player's cover art (v4.12.0), when its stream entity has `art: true`.
+// A media player's cover art (v5.0.0), when its stream entity has `art: true`.
 window.parent.postMessage({
   xenonSdk: 1, type: 'haQuery', id: 23, op: 'artwork', params: { id: 'media_player.living_room' },
 }, '*');
@@ -1500,7 +1500,7 @@ addEventListener('message', (e) => {
   if (!m || m.xenonSdk !== 1 || m.type !== 'haQueryResult') return;
   if (m.id === 21 && m.ok) {
     // m.series['sensor.outside_temp'] = { source: 'statistics', points: [{ t, avg, max }, …] }
-    // m.skipped = ids the user no longer has selected (v4.12.0)
+    // m.skipped = ids the user no longer has selected (v5.0.0)
     drawTrace(m.series);
   }
   if (m.id === 22 && m.ok) img.src = m.src;   // a data:image/jpeg URL; m.at = when it was taken
@@ -1513,13 +1513,13 @@ addEventListener('message', (e) => {
   even buckets. On/off style states (`on`, `open`, `home`, `detected`) read as
   1 and their opposites as 0, so a door or a motion sensor draws a trace too.
   Answers are cached for five minutes: ask once when shown, not on a timer.
-  Since v4.12.0 an id the user has since unticked is left out and listed in
+  Since v5.0.0 an id the user has since unticked is left out and listed in
   `skipped`, and the rest of the answer still comes back; only a request with
   no selected id at all answers `not_selected`.
 - **Camera** returns one JPEG (at most 2 MB) as a `data:` URL, the only image
   your frame can show without network. Ask for a new one every few seconds
   while visible, and stop on `visibility: false`.
-- **Artwork** (v4.12.0) returns the cover of what a selected media player is
+- **Artwork** (v5.0.0) returns the cover of what a selected media player is
   playing, at most 2 MB, through Home Assistant's own image proxy. The server
   keeps it until the track changes, so asking again when `title` changes is
   cheap. A player with `art: false` answers `no_artwork`.
@@ -1535,7 +1535,7 @@ have `temperature`, `tempUnit`, `humidity`, `windSpeed`, `windUnit`; sensors
 have `stateClass`; `person.*` and `device_tracker.*` carry only their state
 (`home`, `not_home`, a zone name), never coordinates. Every entity has `changed`, the epoch ms of its last state change (not of every attribute update), so a widget can say "open for 12 minutes".
 
-Since v4.12.0: `climate.*` entities add `targetLow` and `targetHigh` (the two
+Since v5.0.0: `climate.*` entities add `targetLow` and `targetHigh` (the two
 setpoints of `heat_cool`), `targetHumidity`, `minHumidity`, `maxHumidity`;
 `media_player.*` entities add `art` (true when there is cover art to ask for)
 and `group` (the ids of a multiroom group, only when it has two or more). The
@@ -1613,7 +1613,7 @@ Fullscreen is deliberately withheld from the embed (it breaks the kiosk surface)
 so YouTube's own fullscreen button does not appear. Make the player bigger with
 `rect` — or, if the user expanded your tile, with `rect` again at the new size.
 
-### 3h. OpenAI Codex plan usage — `codex` (v4.12)
+### 3h. OpenAI Codex plan usage — `codex` (v5.0)
 
 The same numbers the built-in Codex tile shows about the user's OpenAI Codex
 plan, which Codex shares across the ChatGPT desktop app, the editor extension
@@ -1676,7 +1676,7 @@ Both are `null` on older hosts, or when the tile's tokens can't be read — alwa
 fall back to the solid `surfaceAlt`. Keep using the solid `surfaceAlt` for any
 surface you want to stay opaque no matter what the user sets.
 
-**Follow the user's button colours (optional, v4.12.0).** In Widget style →
+**Follow the user's button colours (optional, v5.0.0).** In Widget style →
 Controls the user can restyle a tile's own buttons, tabs, chips, the selected
 button and text fields. Native tiles change by themselves; your widget runs in
 its own document, so Xenon sends the same choice as `theme.controls`, on `init`
@@ -1973,7 +1973,7 @@ This is **not a permission**: it changes your own entries and nothing else. The
 host never parses it as markup; each path is set with `setAttribute('d', …)` on an
 SVG `<path>`. Older Xenon versions ignore the field.
 
-### 4c-quater. Where your widget is — `placement` (host → widget) (v4.12.0)
+### 4c-quater. Where your widget is — `placement` (host → widget) (v5.0.0)
 
 The same widget can sit on the dashboard, on the desktop, over a game or beside
 another app's window. `init` says which, and a change is pushed:
@@ -2123,7 +2123,7 @@ the same gate Deck keys go through):
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair. |
-| `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. Exact values (v4.11.13), each with a `value` number: `haClimate` mode `temperature` (setpoint), `haLight` mode `kelvin`, `haMedia` cmd `volume_set` (0-100), `haCover` cmd `position` (0-100); an empty or non-numeric `value` refuses. Added in v4.12.0: `haClimate` mode `heat_cool`, `range` (`value` "20-24", sets both setpoints), `humidity` (0-100), `fan_mode` / `swing_mode` / `preset` (`value` must be one the entity lists in `fanModes` / `swingModes` / `presetModes`); `haMedia` cmd `on`, `off`, `source` / `sound_mode` (`value` from the entity's `sources` / `soundModes`), `seek` (seconds), `shuffle` (`on`/`off`, empty flips), `repeat` (`off`/`all`/`one`, empty steps). An unknown `mode` or `cmd`, or a mode the device does not offer, is refused (`bad_ha_action`) instead of falling back to another command. |
+| `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. Exact values (v4.11.13), each with a `value` number: `haClimate` mode `temperature` (setpoint), `haLight` mode `kelvin`, `haMedia` cmd `volume_set` (0-100), `haCover` cmd `position` (0-100); an empty or non-numeric `value` refuses. Added in v5.0.0: `haClimate` mode `heat_cool`, `range` (`value` "20-24", sets both setpoints), `humidity` (0-100), `fan_mode` / `swing_mode` / `preset` (`value` must be one the entity lists in `fanModes` / `swingModes` / `presetModes`); `haMedia` cmd `on`, `off`, `source` / `sound_mode` (`value` from the entity's `sources` / `soundModes`), `seek` (seconds), `shuffle` (`on`/`off`, empty flips), `repeat` (`off`/`all`/`one`, empty steps). An unknown `mode` or `cmd`, or a mode the device does not offer, is refused (`bad_ha_action`) instead of falling back to another command. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
 | `youtubePlayer` | `ytPlayer` — a YouTube player **inside your own widget**, owned by Xenon and driven through validated messages. Not a `/actions/run` action: see [A YouTube player inside your widget](#3g-a-youtube-player-inside-your-widget--youtubeplayer-v4118). Separate from `youtube`, which is about the user's broadcast, and from `watch`, which plays in Xenon's own tile. |
@@ -2328,7 +2328,7 @@ action: { type: 'dashboardPage', page: 'next' }   // 'next' | 'prev' | 'back'
 
 Listed to the user as "Turn the dashboard to another page".
 
-### 5c-ter. Screenshots, recordings and the replay: `capture` (v4.12.0)
+### 5c-ter. Screenshots, recordings and the replay: `capture` (v5.0.0)
 
 The capture keys of the Deck, reachable from a widget: a "clip that" button on a
 game overlay, a timer that saves the replay when a round ends.
@@ -2409,7 +2409,7 @@ Listed to the user as "Take screenshots, start and stop recordings, save the
 replay, copy the text of an area you pick or pin it on the screen (it never
 sees any of it)".
 
-### 5c-quater. Benchmark, gallery and the widgets on the screen (v4.12.0)
+### 5c-quater. Benchmark, gallery and the widgets on the screen (v5.0.0)
 
 Three small categories for the controls a game overlay or a control-room tile
 wants next to the capture buttons. Each is its own line in the permission
@@ -2459,7 +2459,7 @@ action: { type: 'gameCompanion' }                     // Bit's card for the game
   the shortcut). Switching page takes your widget off the screen as well when it
   is not on the new page. `no_pages` means the user made no pages yet; `unavailable`
   means this PC has no widgets on the screen (no Xenon app).
-- **Drawing on the screen** (`screenDraw`, v4.12.0) lays a see-through sheet
+- **Drawing on the screen** (`screenDraw`, v5.0.0) lays a see-through sheet
   over the monitor under the pointer, with a small bar for colour, tool, undo and
   close: for a "Draw" button in a presenting or teaching widget. The strokes show
   in screenshots and recordings; on Windows the bar never does. Your widget gets
@@ -2467,12 +2467,12 @@ action: { type: 'gameCompanion' }                     // Bit's card for the game
   saved. Esc or the bar's x closes it at any time. On macOS and Linux (Beta) it
   opens on the main screen where the app can put windows on the screen; elsewhere
   the answer is `unsupported`.
-- **Xenon menu** (`xenonMenu`, v4.12.0) opens, closes or toggles the menu, like
+- **Xenon menu** (`xenonMenu`, v5.0.0) opens, closes or toggles the menu, like
   its Deck key: over the main screen when the Xenon app draws it there, otherwise
   as a panel on the open dashboards (`where` says which). `section` picks the page
   it opens on. Nothing is read: your widget gets back only where it opened. Every
   row inside the menu is the user's to press.
-- **Game Companion** (`gameCompanion`, v4.12.0) opens Bit's card for the game
+- **Game Companion** (`gameCompanion`, v5.0.0) opens Bit's card for the game
   being played, like its Deck key: on the dashboard, or on the main screen with
   Widgets only. Opening it sends nothing to the AI; the screen goes to Bit only
   when the user taps Analyze screen on the card. Your widget gets back `ok` and
@@ -2739,7 +2739,7 @@ Rules (enforced server-side against your **manifest**, not just your grant):
 - Redirects are **not** followed (you get `status` + `location` and decide).
 - Request headers are limited to `accept`, `accept-language`, `content-type`,
   `authorization` and custom `x-*` names.
-- Responses are capped at 4 MB (1 MB before v4.12); textual bodies arrive as UTF-8 (`encoding:
+- Responses are capped at 4 MB (1 MB before v5.0); textual bodies arrive as UTF-8 (`encoding:
   'utf8'`), everything else as base64 (build a `data:` URI to display images).
 - Rate limit: ~1 request/s per widget instance, plus a per-package floor.
 
@@ -2893,7 +2893,7 @@ Handlers are granted per-id in the permission dialog (like hooks), args are
 re-coerced server-side against your declared params on every press, and
 dispatches are rate-limited (~4/s per handler).
 
-**How the key was pressed (v4.12).** A call that comes from a key press also
+**How the key was pressed (v5.0).** A call that comes from a key press also
 carries `gesture`, so one handler can tell its keys apart:
 
 ```text
@@ -2936,7 +2936,7 @@ packages) so those contributions remain live with no tile on screen. Shown to
 the user in the permission dialog; meaningless (and normalized away) without
 one of those capabilities.
 
-With **Widgets only** (no dashboard on the PC, v4.12) the service frame still
+With **Widgets only** (no dashboard on the PC, v5.0) the service frame still
 runs while one of your handlers is granted, so your Deck keys, their keyboard
 shortcuts, your `state` values and your hooks keep working. Badges, the mini
 slot, the bar button and the island have nowhere to show there, so they alone
@@ -3274,7 +3274,7 @@ a readout the user deliberately parked in their top bar is worth having precisel
 when your tile is not on screen. Without it, your slot is dropped a few seconds
 after your last frame goes away.
 
-### 9e. Bar button — `topbarButton` (widget → host) (v4.12)
+### 9e. Bar button — `topbarButton` (widget → host) (v5.0)
 
 A real button on the top bar, next to Lock and Search, that belongs to your
 package. Reach for it when your widget has one thing worth a single tap from
@@ -3529,7 +3529,7 @@ to the host for a few seconds, so a widget that copied on its own could rewrite
 your clipboard off an unrelated tap. Tying every copy to a fresh host tap the user
 reads removes that entirely.
 
-## Asking the AI: `ai` (v4.12)
+## Asking the AI: `ai` (v5.0)
 
 Declare `"ai": true` and your widget may ask a question to **the AI the user chose
 for Bit**: Sparks when Bit runs on Sparks, otherwise their own key (OpenAI,
