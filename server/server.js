@@ -7878,8 +7878,10 @@ function _spawnWavPlayer(wavPath) {
   if (process.platform === 'linux') {
     return spawn('aplay', ['-q', wavPath]);
   }
-  const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
-             `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
+  // The path is the user's temp folder, which can hold an apostrophe or a
+  // typographic quote (C:\Users\D'Amico, D’Amico): quoted by psQuote().
+  const ps = `(New-Object System.Media.SoundPlayer -ArgumentList ${psQuote(wavPath)}).PlaySync();` +
+             `try { Remove-Item -LiteralPath ${psQuote(wavPath)} -Force -EA SilentlyContinue } catch {}`;
   return spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
 }
 

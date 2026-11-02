@@ -556,8 +556,10 @@ if ($removeFolder) {
     $selfDel = Join-Path $env:TEMP ("xenon-selfdelete-" + [Guid]::NewGuid().ToString('N') + ".ps1")
     # Paths land inside single-quoted literals below - double any apostrophe
     # (C:\Users\D'Amico\...) so the generated script still parses.
-    $rootEsc    = $root.Replace("'", "''")
-    $selfDelEsc = $selfDel.Replace("'", "''")
+    # PowerShell also ends a single-quoted string on the typographic quotes
+    # U+2018..U+201B (a right single quote typed in place of the apostrophe), so double those too.
+    $rootEsc    = $root -replace "(['\u2018\u2019\u201A\u201B])", '$1$1'
+    $selfDelEsc = $selfDel -replace "(['\u2018\u2019\u201A\u201B])", '$1$1'
     $body = @"
 Wait-Process -Id $PID -Timeout 60 -ErrorAction SilentlyContinue
 foreach (`$attempt in 1..30) {
