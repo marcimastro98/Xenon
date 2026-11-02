@@ -75,6 +75,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           # Full history: build-seo.mjs reads each page's last commit date for the
           # sitemap's <lastmod>. A shallow clone has no such date, and the script
           # then ships the entry without one rather than inventing today's.

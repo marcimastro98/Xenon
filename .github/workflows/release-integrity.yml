@@ -41,6 +41,10 @@ concurrency:
 jobs:
   sign:
     runs-on: ubuntu-latest
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     env:
       TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}

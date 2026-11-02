@@ -57,10 +57,15 @@ jobs:
     # runner instead, put windows-latest back here AND unset
     # WINDOWS_SIGN_THUMBPRINT, or the certificate check below fails on purpose.
     runs-on: [self-hosted, windows, xenon-signing]
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Node.js
@@ -74,7 +79,11 @@ jobs:
           toolchain: stable
 
       - name: Install dependencies
-        run: npm ci
+        # No install scripts from dependencies in a job that later holds signing
+        # secrets; the repo's own postinstall is the one step that is needed.
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
 
       - name: Generate app icons
         working-directory: apps/native
@@ -221,6 +230,7 @@ jobs:
       - name: Compose latest.json and stage artifacts
         shell: pwsh
         env:
+          RELEASE_TAG: ${{ inputs.tag }}   # used as $RELEASE_TAG: never interpolated into the script
           GH_TOKEN: ${{ github.token }}   # only to read the tag's existing latest.json
         run: |
           $nsisDir = "apps/native/src-tauri/target/release/bundle/nsis"
@@ -228,14 +238,14 @@ jobs:
           $sig   = Get-ChildItem $nsisDir -Filter *-setup.exe.sig | Select-Object -First 1
           if (-not $setup -or -not $sig) { throw "Installer or signature not found in $nsisDir" }
           $version = (Get-Content apps/native/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $tag = "${{ inputs.tag }}"
+          $tag = $env:RELEASE_TAG
           if (-not $tag) { $tag = "v$version" }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
           # Start from the manifest already published for this tag, so a Windows
           # rebuild keeps the macOS entries intact. A missing/unreadable one just
           # means this is the first manifest for the tag.
           $platforms = [ordered]@{}
-          if ($env:GH_TOKEN -and "${{ inputs.tag }}") {
+          if ($env:GH_TOKEN -and $env:RELEASE_TAG) {
             # A release with no latest.json yet is the NORMAL first case, and gh
             # reports that on stderr. Actions runs pwsh with
             # $ErrorActionPreference='Stop', under which redirected native stderr
@@ -280,9 +290,10 @@ jobs:
       - name: Attach installer + updater manifest to the release
         if: inputs.tag != ''
         env:
+          RELEASE_TAG: ${{ inputs.tag }}   # used as $RELEASE_TAG: never interpolated into the script
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: gh release upload "${{ inputs.tag }}" (Get-ChildItem stage/*) --clobber
+        run: gh release upload "$env:RELEASE_TAG" (Get-ChildItem stage/*) --clobber
 
       - name: Upload as workflow artifacts
         if: inputs.tag == ''
