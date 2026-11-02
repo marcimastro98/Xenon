@@ -168,3 +168,13 @@ test('no site can frame a page of ours, and no answer is ever type-sniffed', () 
   assert.ok(csp < firstRoute && sniff < firstRoute, 'before any route answers');
   assert.match(SERVER, /const err500 = msg {2}=> \{ res\.writeHead\(500, \{ 'Content-Type': 'text\/plain; charset=utf-8' \}\)/);
 });
+
+test('our own page under its other name is still ours', () => {
+  // The dashboard opened at http://localhost:3030 calls http://127.0.0.1:3030
+  // (native-bridge.js): cross-site to the browser, but the Origin is ours.
+  const r = req('GET', { origin: 'http://localhost:3030', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors' });
+  assert.equal(refused(r, '/api/native/status'), false);
+  assert.equal(refused(req('POST', { origin: 'http://localhost:3030', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors' }), '/api/native/install'), false);
+  // Another port under the same name is not.
+  assert.equal(refused(req('GET', { origin: 'http://localhost:8080', 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'cors' }), '/api/native/status'), true);
+});

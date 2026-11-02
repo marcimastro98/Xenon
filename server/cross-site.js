@@ -59,10 +59,14 @@ function isOwnOrigin(origin, port) {
 }
 
 function foreign(req, port) {
+  const origin = header(req, 'origin');
+  // Our own page under another of its names (the dashboard opened at
+  // localhost:3030 calling 127.0.0.1:3030) is still ours: the browser calls
+  // that cross-site, but it sets Origin itself and a page cannot forge it.
+  if (origin !== '' && isOwnOrigin(origin, port)) return false;
   const site = header(req, 'sec-fetch-site');
   if (site === 'cross-site' || site === 'same-site') return true;
-  const origin = header(req, 'origin');
-  return origin !== '' && !isOwnOrigin(origin, port);
+  return origin !== '';
 }
 
 // The files of an installed SDK widget. The widget's page runs sandboxed, so
