@@ -203,11 +203,11 @@
     // asks for rAF: at 30 fps on a 240 Hz panel that is ~2 wake-ups per paint
     // instead of 8. The timer ends RAF_LEAD ms early so a late timer never costs
     // a paint; the early-skip check above still owns the exact cadence.
-    'var raf=0,tmo=0,start=null,step=1000/__fps,last=-1e9,RAF_LEAD=10;',
+    'var raf=0,tmo=0,start=null,step=1000/__fps,last=-1e9,RAF_LEAD=10,lastEl=0;',
     'function next(){var wait=step-RAF_LEAD;if(wait>4){tmo=setTimeout(function(){tmo=0;raf=requestAnimationFrame(frame);},wait);}else raf=requestAnimationFrame(frame);}',
     'function frame(t){raf=0;if(start===null)start=t;',
     'if(t-last<step-1){raf=requestAnimationFrame(frame);return;}',
-    'last=t;var el=(t-start)/1000,t0=G?performance.now():0;',
+    'last=t;var el=(t-start)/1000,t0=G?performance.now():0;lastEl=el;',
     'try{if(draw)draw(ctx,el,innerWidth,innerHeight,assets);}catch(e){report({k:"runtime",m:String(e&&e.message||e)});return;}',
     // Only after the warm-up: the first seconds pay for JIT and image decode.
     'if(G&&warmedUp){var lv=guardStep(G,performance.now()-t0,t0);if(lv>0)degrade(lv);if(still)return;}',
@@ -231,7 +231,17 @@
     'var extPause=false,warmedUp=false;',
     'function sync(){if(!warmedUp)return;(document.hidden||extPause)?stop():play();}',
     'document.addEventListener("visibilitychange",sync);',
-    'window.addEventListener("message",function(e){var d=e&&e.data;if(d&&d.__xbg){extPause=(d.__xbg==="pause");sync();}});',
+    // Paint the current frame once more, whatever the loop is doing. A paused
+    // backdrop (idle, game mode, and for the whole session on a hybrid-GPU PC)
+    // is one picture drawn and then left alone, and the browser can throw that
+    // picture away: when the graphics device resets (a KVM switch or a monitor
+    // unplugged, Discord Nov 2026) the canvas comes back EMPTY, nothing redraws
+    // it, and the theme's base colour, often light, shows until Xenon restarts.
+    // The canvas says so itself (contextrestored), and the host asks too after
+    // a display change, for the device resets that do not.
+    'function repaint(){if(!draw)return;size();try{draw(ctx,lastEl,innerWidth,innerHeight,assets);}catch(e){}}',
+    'canvas.addEventListener("contextrestored",repaint);',
+    'window.addEventListener("message",function(e){var d=e&&e.data;if(!d||!d.__xbg)return;if(d.__xbg==="repaint"){repaint();return;}extPause=(d.__xbg==="pause");sync();});',
     // Compile once every asset is decoded, so the snippet's setup code (and the
     // very first frame) can already drawImage() from the map. A broken data URI
     // is dropped and surfaced as an "asset" status — the rest still render.
@@ -320,6 +330,14 @@
       if (!force && paused === lastPaused) return;
       lastPaused = paused;
       try { frameEl.contentWindow.postMessage({ __xbg: paused ? 'pause' : 'play' }, '*'); } catch { /* frame gone */ }
+    }
+
+    // Ask the frame for one fresh paint (see repaint() inside it). Called by
+    // native-bridge.js when the screens change: a graphics reset during the
+    // change can wipe a paused backdrop without the canvas noticing.
+    function repaint() {
+      if (!frameEl || !frameEl.contentWindow) return;
+      try { frameEl.contentWindow.postMessage({ __xbg: 'repaint' }, '*'); } catch { /* frame gone */ }
     }
 
     function layer() {
@@ -424,7 +442,7 @@
     }
 
     window.CustomBg = {
-      apply, buildSrcdoc, sanitizeBgAssets, sanitizeBgFps,
+      apply, repaint, buildSrcdoc, sanitizeBgAssets, sanitizeBgFps,
       slowLevel: () => slowLevel,
       // Caps + shape rules exported so the settings UI pre-checks (friendly
       // toasts) read the SAME numbers the sanitizer enforces.
