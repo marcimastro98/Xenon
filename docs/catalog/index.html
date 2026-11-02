@@ -1928,6 +1928,9 @@ function applyLang(lang) {
   // parent to trust and no reason to take one.
   if (window.parent !== window) {
     window.addEventListener('message', (ev) => {
+      // Only the hub's admin page previews a layout: any other page that
+      // frames the catalog could otherwise rearrange it.
+      if (ev.origin !== 'https://xenon-supporter-hub.xenonedge.workers.dev') return;
       const d = ev.data;
       if (!d || d.type !== 'xenon-sf-preview' || !Array.isArray(d.blocks)) return;
       PREVIEW_BLOCKS = d.blocks;

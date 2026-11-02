@@ -30,6 +30,19 @@ const SITE = 'https://xenon-app.com';
 const SHOTS = 'https://assets.xenon-app.com/community/shots/';
 const REPO = 'https://github.com/marcimastro98/Xenon';
 const DISCORD = 'https://discord.gg/MBVrw9kZyg';
+// Catalog entries come from the supporter hub, so their links and colours are
+// checked here as the app checks them (server/community-catalog.js): a
+// "reserve" link must be https on Discord, a preview colour a hex value. An
+// esc()'d javascript: URL would still run, and a raw style value could load
+// an outside url().
+const RESERVE_HOSTS = new Set(['discord.gg', 'discord.com', 'www.discord.com']);
+function safeReserve(u) {
+  try {
+    const x = new URL(String(u || ''));
+    return x.protocol === 'https:' && RESERVE_HOSTS.has(x.hostname) ? x.href : DISCORD;
+  } catch { return DISCORD; }
+}
+const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
 // Screenshots are uploaded as .webp with a .png fallback the catalog resolves at
 // runtime (see shotUrl in docs/catalog/index.html). A social scraper cannot do
@@ -373,6 +386,7 @@ function entryPage(e, indexable, live = []) {
   const swatches = e.preview
     ? ['accent', 'bg', 'text']
         .filter((k) => e.preview[k])
+        .filter((k) => HEX_COLOR.test(String(e.preview[k])))
         .map((k) => `<span><i style="background:${esc(e.preview[k])}"></i>${esc(e.preview[k])}</span>`)
         .join('')
     : '';
@@ -389,7 +403,7 @@ function entryPage(e, indexable, live = []) {
     note = `Sold out: all ${esc(limited.total)} copies of this drop are claimed.`;
   } else if (limited) {
     buttons =
-      `<a class="btn fill" href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve on Discord</a>` +
+      `<a class="btn fill" href="${esc(safeReserve(limited.reserveUrl))}" rel="noopener">Reserve on Discord</a>` +
       `<a class="btn" href="${inCatalog}">Open in the catalog</a>`;
     note = `A limited drop: ${esc(limited.total)} copies, ` +
       `${Math.max(0, Number(limited.total) - Number(limited.claimed))} left. ` +
@@ -418,7 +432,7 @@ function entryPage(e, indexable, live = []) {
     );
   } else {
     if (limited) {
-      steps.push(`<a href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve a copy on Discord</a>. ` +
+      steps.push(`<a href="${esc(safeReserve(limited.reserveUrl))}" rel="noopener">Reserve a copy on Discord</a>. ` +
         `Discord verifies your account and sends you a personal access code.`);
     } else if (locked) {
       steps.push(`<a href="${inCatalog}">Open ${esc(e.name)} in the catalog</a> and unlock it with your ` +

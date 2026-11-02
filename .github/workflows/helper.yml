@@ -46,6 +46,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.ref }}
 
       # DOTNET_INSTALL_DIR: on the self-hosted signing machine the default
@@ -90,8 +91,9 @@ jobs:
       - name: Attach exe to the release
         if: inputs.tag != ''
         env:
+          RELEASE_TAG: ${{ inputs.tag }}   # used as $RELEASE_TAG: never interpolated into the script
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" out/xenon-helper.exe --clobber
+        run: gh release upload "$RELEASE_TAG" out/xenon-helper.exe --clobber
 
       - name: Upload as workflow artifact
         if: inputs.tag == ''

@@ -14,10 +14,9 @@ name: macOS notarization check
 # from a branch before it reaches main.
 
 on:
+  # Manual only: it is handed the Apple and updater signing secrets, so a push
+  # to any branch must not be able to start it.
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/mac-notarize-check.yml'
 
 permissions:
   contents: read
@@ -29,10 +28,15 @@ concurrency:
 jobs:
   notarize-check:
     runs-on: macos-latest
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ github.sha }}
 
       - name: Set up Node.js
@@ -48,7 +52,11 @@ jobs:
         run: rustup toolchain install stable --profile minimal --target aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install dependencies
-        run: npm ci
+        # No install scripts from dependencies in a job that later holds signing
+        # secrets; the repo's own postinstall is the one step that is needed.
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
 
       - name: Generate app icons
         working-directory: apps/native

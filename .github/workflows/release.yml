@@ -67,8 +67,10 @@ on:
         description: 'Existing tag to (re)build and stage, e.g. v4.5.1'
         required: true
 
+# Read-only by default; only the publish job, which creates and uploads the
+# release, gets write access (job-level permissions below).
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
@@ -114,6 +116,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       # DOTNET_INSTALL_DIR: on the self-hosted signing machine the default
@@ -176,6 +179,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       # Same PATH trap as the native job: System32's bash.exe is WSL's launcher.
@@ -239,12 +243,17 @@ jobs:
     # runner instead, put windows-latest back here AND unset
     # WINDOWS_SIGN_THUMBPRINT, or the certificate check below fails on purpose.
     runs-on: [self-hosted, windows, xenon-signing]
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     needs: gate
     if: needs.gate.outputs.proceed == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       # `shell: bash` (ours, and inside dtolnay/rust-toolchain) resolves bash
@@ -270,7 +279,11 @@ jobs:
           toolchain: stable
 
       - name: Install dependencies
-        run: npm ci
+        # No install scripts from dependencies in a job that later holds signing
+        # secrets; the repo's own postinstall is the one step that is needed.
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
 
       - name: Generate app icons
         working-directory: apps/native
@@ -416,8 +429,10 @@ jobs:
 
       - name: Stage artifacts and the windows updater fragment
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}   # used as $RELEASE_TAG: never interpolated into the script
         run: |
-          $tag = "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          $tag = $env:RELEASE_TAG
           $nsisDir = "apps/native/src-tauri/target/release/bundle/nsis"
           $setup = Get-ChildItem $nsisDir -Filter *-setup.exe | Select-Object -First 1
           $sig   = Get-ChildItem $nsisDir -Filter *-setup.exe.sig | Select-Object -First 1
@@ -459,12 +474,17 @@ jobs:
 
   native-macos:
     runs-on: macos-latest
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     needs: gate
     if: needs.gate.outputs.proceed == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       - name: Set up Node.js
@@ -481,7 +501,11 @@ jobs:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install dependencies
-        run: npm ci
+        # No install scripts from dependencies in a job that later holds signing
+        # secrets; the repo's own postinstall is the one step that is needed.
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
 
       - name: Generate app icons
         working-directory: apps/native
@@ -795,6 +819,8 @@ jobs:
           case "$ARCHS" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1 ;; esac
 
       - name: Stage artifacts and the macos updater fragment
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}   # used as $RELEASE_TAG: never interpolated into the script
         run: |
           set -euo pipefail
           if [ ! -f stage/MediaRemoteAdapter-macos.tar.gz ]; then
@@ -821,7 +847,7 @@ jobs:
           DMG=$(ls "$BUNDLE"/dmg/*.dmg 2>/dev/null | head -1)
           [ -n "$TARBALL" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/macos"; exit 1; }
           [ -n "$DMG" ] || { echo "dmg missing in $BUNDLE/dmg"; exit 1; }
-          TAG="${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          TAG="$RELEASE_TAG"
           VERSION=$(node -p "require('./apps/native/src-tauri/tauri.conf.json').version")
           URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$(basename "$TARBALL")"
           mkdir -p stage
@@ -867,6 +893,10 @@ jobs:
     # is a deliberate choice about the oldest distro still supported, not a
     # detail — say so in the release notes when it happens.
     runs-on: ubuntu-22.04
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
     needs: gate
     if: needs.gate.outputs.proceed == 'true'
     # Linux is the newest and smallest of the three targets, and its collectors
@@ -878,6 +908,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false   # no token left in .git/config for later steps
           ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       - name: Set up Node.js
@@ -901,7 +932,11 @@ jobs:
             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install dependencies
-        run: npm ci
+        # No install scripts from dependencies in a job that later holds signing
+        # secrets; the repo's own postinstall is the one step that is needed.
+        run: |
+          npm ci --ignore-scripts
+          node tools/link-shared.mjs
 
       - name: Generate app icons
         working-directory: apps/native
@@ -980,6 +1015,8 @@ jobs:
           echo "capture engine: $(file -b "$OUT"), version $("$OUT" --version)"
 
       - name: Stage artifacts and the linux updater fragment
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}   # used as $RELEASE_TAG: never interpolated into the script
         run: |
           set -euo pipefail
           if [ ! -f stage/xenon-capture-linux-x64 ]; then
@@ -1004,7 +1041,7 @@ jobs:
           [ -n "$UPD" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/appimage"; exit 1; }
           [ -n "$APPIMAGE" ] || { echo "AppImage missing in $BUNDLE/appimage"; exit 1; }
           [ -n "$DEB" ] || { echo "deb missing in $BUNDLE/deb"; exit 1; }
-          TAG="${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          TAG="$RELEASE_TAG"
           VERSION=$(node -p "require('./apps/native/src-tauri/tauri.conf.json').version")
           URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$(basename "$UPD")"
           mkdir -p stage
@@ -1040,6 +1077,12 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    # The signing keys live in this Environment (Settings, Environments):
+    # it can require the maintainer's approval and allow only release tags,
+    # so no other branch, workflow or token can use them.
+    environment: release-signing
+    permissions:
+      contents: write
     needs: [gate, helper, capture, native, native-macos, native-linux]
     if: needs.gate.outputs.proceed == 'true'
     env:
