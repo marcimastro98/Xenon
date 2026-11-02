@@ -107,6 +107,33 @@ test('a missing file fails the zip instead of writing half of it', async () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('a read error mid-file fails the zip instead of hanging (deflated entry)', async () => {
+  const dir = tmp();
+  try {
+    const out = path.join(dir, 'r.zip');
+    // A directory stats fine but fails on the first read (EISDIR): the source
+    // errors after the entry has started, which used to leave the deflate
+    // stream waiting forever.
+    const sub = path.join(dir, 'sub.log');
+    fs.mkdirSync(sub);
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('hung')), 3000).unref());
+    await assert.rejects(Promise.race([writeZip(out, [{ name: 'sub.log', file: sub }]), timeout]), (e) => e.message !== 'hung');
+    assert.ok(!fs.existsSync(out));
+    assert.ok(!fs.existsSync(out + '.part'));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a caller cannot raise the cap past what a non-Zip64 archive holds', async () => {
+  const { MAX_TOTAL } = require('../zip-writer.js');
+  assert.ok(MAX_TOTAL <= 0xffffffff);
+  const dir = tmp();
+  try {
+    const out = path.join(dir, 'r.zip');
+    const r = await writeZip(out, [{ name: 'a.txt', data: 'x' }], { maxTotal: 2 ** 40 });
+    assert.equal(r.count, 1);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('the fallback CRC matches the standard one', () => {
   const b = Buffer.from('The quick brown fox jumps over the lazy dog');
   assert.equal(crc32Fallback(b), 0x414fa339);

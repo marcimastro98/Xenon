@@ -18,9 +18,14 @@
 //     one at a time with a short gap.
 
 const https = require('https');
+const { armDeadline } = require('./net-guard');
 
 const API = 'https://lrclib.net/api';
 const FETCH_TIMEOUT_MS = 10000;
+// `timeout` on https.get is an idle timeout only; a server trickling bytes
+// would keep the request (and the refresh it belongs to) open forever. This
+// bounds the whole request.
+const FETCH_DEADLINE_MS = 20000;
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_REQUESTS = 4;            // per track, sequential
 const REQUEST_GAP_MS = 300;        // LRCLIB asks for 200–500 ms between requests
@@ -258,6 +263,7 @@ function request(url, userAgent) {
     });
     req.on('timeout', () => { req.destroy(new Error('timeout')); });
     req.on('error', e => finish(reject, e));
+    armDeadline(req, FETCH_DEADLINE_MS);
   });
 }
 

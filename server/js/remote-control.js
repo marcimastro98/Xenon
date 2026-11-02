@@ -1094,7 +1094,17 @@
   async function enable(btn) {
     if (btn) btn.disabled = true;
     try {
-      await api('/remote/enable', 'POST');
+      const r = await api('/remote/enable', 'POST');
+      if (r && r.ok === false && /^sunshine_/.test(String(r.error || ''))) {
+        // Remote desktop stays off on a Sunshine with known takeover flaws.
+        const tr = (k, fb) => (typeof window.t === 'function' && window.t(k)) || fb;
+        if (typeof showHubToast === 'function') {
+          showHubToast('Xenon', tr('rc_sunshine_old_title', 'Sunshine needs an update'),
+            tr('rc_sunshine_old', 'This version has security flaws and could not be updated automatically. Update Sunshine to the latest version, then try again.'));
+        }
+        if (btn) btn.disabled = false;
+        return;
+      }
       await refreshStatus();
       renderAll();
     } catch {

@@ -155,7 +155,7 @@ test('linux: flatpak senza remote flathub non viene nemmeno tentato', async () =
     'no install against a remote that is not configured');
 });
 
-test('darwin: `brew install` non e\' elevato, il demone si', async () => {
+test('darwin: brew never runs as root — not the install, not the daemon', async () => {
   const runner = posixRunner(['brew']);
   const inst = createInstaller({ runner, platform: 'darwin' });
 
@@ -169,10 +169,122 @@ test('darwin: `brew install` non e\' elevato, il demone si', async () => {
   assert.ok(install && install.args.includes('tailscale'));
   assert.ok(!install.elevated, 'brew install under sudo is rejected by brew itself');
 
-  // ...but a LaunchDaemon is written outside that prefix, so exactly one step is.
-  const elevated = runner.calls.filter((c) => c.elevated);
-  assert.equal(elevated.length, 1);
-  assert.deepEqual(elevated[0].args, ['services', 'start', 'tailscale']);
+  // ...and neither is `brew services`: the Homebrew prefix is user-owned, so
+  // root running brew would run code any user process could have rewritten.
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0, 'brew never elevated');
+  const svc = runner.calls.find((c) => c.file === 'brew' && c.args[0] === 'services');
+  assert.deepEqual(svc.args, ['services', 'start', 'tailscale']);
+});
+
+test('darwin: a daemon that would not start as the user yields the sudo hint, not an elevation', async () => {
+  const runner = posixRunner(['brew'], {
+    'services start tailscale': { code: 1, stdout: '', stderr: 'requires root' },
+  });
+  const inst = createInstaller({ runner, platform: 'darwin' });
+  const r = await inst.install('tailscale');
+  assert.equal(r.code, 0, 'the package is installed either way');
+  assert.equal(r.serviceHint, 'sudo brew services start tailscale');
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0);
+});
+
+// ── Sunshine must be at least v2026.914.233613 (CVE-2026-32253) ─────────────
+test('versionLess compares Sunshine versions field by field', async () => {
+  const { versionLess, SUNSHINE_MIN_VERSION } = require('../remote-control/installer.js');
+  assert.equal(SUNSHINE_MIN_VERSION, '2026.914.233613');
+  assert.equal(versionLess('2025.924.154138', SUNSHINE_MIN_VERSION), true);
+  assert.equal(versionLess('0.23.1', SUNSHINE_MIN_VERSION), true);
+  assert.equal(versionLess('2026.914.233612', SUNSHINE_MIN_VERSION), true);
+  assert.equal(versionLess('2026.914.233613', SUNSHINE_MIN_VERSION), false);
+  assert.equal(versionLess('2026.1001.1', SUNSHINE_MIN_VERSION), false);
+  assert.equal(versionLess('', SUNSHINE_MIN_VERSION), true, 'unknown is never new enough');
+});
+
+// A runner whose answers can change after an upgrade.
+function seqRunner(handler) {
+  return {
+    calls: [],
+    run(file, args) { this.calls.push({ file, args }); return Promise.resolve(handler(file, args, false, this.calls)); },
+    runElevated(file, args) { this.calls.push({ file, args, elevated: true }); return Promise.resolve(handler(file, args, true, this.calls)); },
+  };
+}
+const ok = (stdout = '') => ({ code: 0, stdout, stderr: '' });
+
+test('windows: an old Sunshine is upgraded through winget before remote control is enabled', async () => {
+  let upgraded = false;
+  const runner = seqRunner((file, args, elevated) => {
+    const a = args.join(' ');
+    if (elevated && a.startsWith('upgrade -e --id LizardByte.Sunshine')) { upgraded = true; return ok(); }
+    if (a === 'list -e --id LizardByte.Sunshine') {
+      return ok(`Name     Id                  Version          Available\n----\nSunshine LizardByte.Sunshine ${upgraded ? '2026.914.233613' : '2025.924.154138 2026.914.233613'} winget`);
+    }
+    return ok();
+  });
+  const inst = winInstaller({ runner });
+  const r = await inst.ensureSunshineCurrent();
+  assert.deepEqual(r, { ok: true, installed: true, version: '2026.914.233613', upgraded: true });
+  const up = runner.calls.find((c) => c.elevated);
+  assert.ok(up.args.includes('--silent'));
+});
+
+test('windows: still old after the upgrade → refused with sunshine_outdated', async () => {
+  const runner = seqRunner((file, args) => {
+    if (args.join(' ') === 'list -e --id LizardByte.Sunshine') return ok('Sunshine LizardByte.Sunshine 2025.924.154138 winget');
+    return { code: 1, stdout: '', stderr: 'no applicable upgrade' };
+  });
+  const r = await winInstaller({ runner }).ensureSunshineCurrent();
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'sunshine_outdated');
+  assert.equal(r.version, '2025.924.154138');
+  assert.equal(r.required, '2026.914.233613');
+  assert.match(r.message, /CVE-2026-32253/);
+});
+
+test('windows: a current Sunshine is left alone', async () => {
+  const runner = seqRunner((file, args) => (args.join(' ') === 'list -e --id LizardByte.Sunshine'
+    ? ok('Sunshine LizardByte.Sunshine 2026.1020.1 winget') : ok()));
+  const r = await winInstaller({ runner }).ensureSunshineCurrent();
+  assert.equal(r.ok, true);
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0);
+});
+
+test('darwin: brew upgrade sunshine as the user, never elevated', async () => {
+  let upgraded = false;
+  const runner = seqRunner((file, args) => {
+    const a = args.join(' ');
+    if (a.includes('command -v brew') || a.includes('command -v sunshine')) return ok(`/opt/homebrew/bin/${a.includes('brew') ? 'brew' : 'sunshine'}\n`);
+    if (file === 'brew' && a === 'upgrade sunshine') { upgraded = true; return ok(); }
+    if (file === 'brew' && a === 'list --versions sunshine') return ok(`sunshine ${upgraded ? '2026.914.233613' : '2025.924.154138'}\n`);
+    if (a.includes('command -v')) return { code: 1, stdout: '', stderr: '' };
+    return ok();
+  });
+  const r = await createInstaller({ runner, platform: 'darwin' }).ensureSunshineCurrent();
+  assert.equal(r.ok, true);
+  assert.equal(r.upgraded, true);
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0);
+});
+
+test('linux flatpak: flatpak update, then refuse if the version cannot be read', async () => {
+  const seen = [];
+  const runner = seqRunner((file, args) => {
+    const a = args.join(' ');
+    seen.push(`${file} ${a}`);
+    if (a.includes('command -v flatpak')) return ok('/usr/bin/flatpak\n');
+    if (a.includes('command -v')) return { code: 1, stdout: '', stderr: '' };
+    if (file === 'flatpak' && a === 'info dev.lizardbyte.app.Sunshine') return ok('Sunshine - stream\n\n          ID: dev.lizardbyte.app.Sunshine\n     Version: v2025.924.154138\n');
+    return ok();
+  });
+  const r = await createInstaller({ runner, platform: 'linux' }).ensureSunshineCurrent();
+  assert.ok(seen.includes('flatpak update -y --noninteractive dev.lizardbyte.app.Sunshine'), seen.join('\n'));
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'sunshine_outdated');
+});
+
+test('not installed: nothing to check, nothing upgraded', async () => {
+  const runner = seqRunner((file, args) => (args.join(' ') === 'list -e --id LizardByte.Sunshine'
+    ? { code: 1, stdout: 'No installed package found', stderr: '' } : ok()));
+  const r = await winInstaller({ runner }).ensureSunshineCurrent();
+  assert.deepEqual(r, { ok: true, installed: false, version: '' });
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0);
 });
 
 test('darwin: Sunshine non e\' in homebrew-core, quindi il tap viene prima', async () => {

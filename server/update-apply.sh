@@ -339,7 +339,8 @@ remove_stale_app_files() { # $1 = path to a file holding the staged list
   local candidates="$UPD_DIR/stale-candidates.txt" why
   why="$("$NODE_BIN" -e '
     const fs = require("fs");
-    const [manifestPath, stagedListPath, oldVer, outPath] = process.argv.slice(1);
+    const path = require("path");
+    const [manifestPath, stagedListPath, oldVer, outPath, rootDir] = process.argv.slice(1);
     let mf = null;
     try { mf = JSON.parse(fs.readFileSync(manifestPath, "utf8")); } catch { }
     if (!mf || !Array.isArray(mf.files)) { console.error("manifest unreadable"); process.exit(0); }
@@ -349,9 +350,28 @@ remove_stale_app_files() { # $1 = path to a file holding the staged list
       process.exit(0);
     }
     const staged = new Set(fs.readFileSync(stagedListPath, "utf8").split("\n").filter(Boolean));
-    const stale = mf.files.map((r) => String(r || "").trim()).filter((r) => r && !staged.has(r));
+    // Every entry becomes "$ROOT_DIR/<entry>" for an rm, and the manifest is a
+    // file on disk, not something we can vouch for. Only a plain relative path
+    // that stays inside the install is accepted: no absolute path, no ".." or
+    // "." segment, no backslash, no empty segment, no control characters —
+    // and no entry that would reach through a symlinked directory (server/shared
+    // points at real sources outside the install).
+    const safeRel = (r) => {
+      if (!r || r.length > 4096 || /[\u0000-\u001f\\]/.test(r) || path.isAbsolute(r) || r.startsWith("/")) return false;
+      const segs = r.split("/");
+      if (segs.some((g) => g === "" || g === "." || g === "..")) return false;
+      if (rootDir) {
+        let cur = rootDir;
+        for (const g of segs.slice(0, -1)) {
+          cur = path.join(cur, g);
+          try { if (fs.lstatSync(cur).isSymbolicLink()) return false; } catch { return false; }
+        }
+      }
+      return true;
+    };
+    const stale = mf.files.map((r) => String(r || "").trim()).filter((r) => r && !staged.has(r) && safeRel(r));
     fs.writeFileSync(outPath, stale.join("\n") + (stale.length ? "\n" : ""));
-  ' "$MANIFEST_PATH" "$staged_list" "$OLD_VER" "$candidates" 2>&1 >/dev/null)"
+  ' "$MANIFEST_PATH" "$staged_list" "$OLD_VER" "$candidates" "$ROOT_DIR" 2>&1 >/dev/null)"
   if [ -n "$why" ]; then
     log "skipping stale-file cleanup: $why"
     rm -f "$candidates" 2>/dev/null
@@ -368,6 +388,9 @@ remove_stale_app_files() { # $1 = path to a file holding the staged list
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     is_protected_path "$rel" && continue
+    # Second line of defence behind the Node filter: never an absolute path or
+    # one that climbs out of the install with "..".
+    case "/$rel/" in */../*|*/./*|//*) continue ;; esac
     tgt="$ROOT_DIR/$rel"
     # Plain files only — never follow into directories or symlinks (server/shared
     # is a link that reaches real sources outside the install).

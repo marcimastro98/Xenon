@@ -27,13 +27,26 @@ function _parseLine(line) {
 const _p2 = (n) => String(n).padStart(2, '0');
 const _p4 = (n) => String(n).padStart(4, '0');
 
-// Offset (ms) such that local-in-tzid = utc + offset, evaluated at `date`.
-function _tzOffsetMs(tzid, date) {
-  const dtf = new Intl.DateTimeFormat('en-US', {
+// Building an Intl.DateTimeFormat is far more expensive than using one, and a
+// feed can carry thousands of TZID-qualified DTSTART/EXDATE values, so they
+// are cached per zone (bounded: zone names come from the feed).
+const _dtfCache = new Map();
+function _dtfFor(tzid) {
+  let dtf = _dtfCache.get(tzid);
+  if (dtf) return dtf;
+  dtf = new Intl.DateTimeFormat('en-US', {   // throws RangeError on an unknown zone
     timeZone: tzid, hourCycle: 'h23',
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
+  if (_dtfCache.size >= 64) _dtfCache.clear();
+  _dtfCache.set(tzid, dtf);
+  return dtf;
+}
+
+// Offset (ms) such that local-in-tzid = utc + offset, evaluated at `date`.
+function _tzOffsetMs(tzid, date) {
+  const dtf = _dtfFor(tzid);
   const p = {};
   for (const part of dtf.formatToParts(date)) p[part.type] = part.value;
   const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
@@ -97,6 +110,11 @@ function _finalizeVEvent(raw) {
   };
 }
 
+// A feed is untrusted input parsed on the event loop. Real calendars stay far
+// below these; a hostile one is cut off instead of stalling the server.
+const MAX_EVENTS_PER_FEED = 2000;
+const MAX_EXDATES_PER_EVENT = 500;
+
 function parseIcs(text) {
   if (!text || typeof text !== 'string') return [];
   const lines = _unfold(text).split(/\r?\n/);
@@ -110,14 +128,16 @@ function parseIcs(text) {
     if (line.name === 'END' && line.value === 'VEVENT') {
       if (cur) { const e = _finalizeVEvent(cur); if (e) events.push(e); }
       cur = null;
+      if (events.length >= MAX_EVENTS_PER_FEED) break;
       continue;
     }
     if (!cur) continue;
     if (line.name === 'EXDATE') {
-      String(line.value).split(',').forEach(v => {
+      for (const v of String(line.value).split(',')) {
+        if (cur.exdate.length >= MAX_EXDATES_PER_EVENT) break;
         const d = _parseIcsDate(v, line.params);
         if (d && d.iso) cur.exdate.push(d.iso);
-      });
+      }
     } else if (!cur.props[line.name]) {
       cur.props[line.name] = { value: line.value, params: line.params };
     }
@@ -126,7 +146,11 @@ function parseIcs(text) {
 }
 
 const _WEEKDAY = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
-const _MAX_OCCURRENCES = 750; // hard safety cap regardless of window
+const _MAX_OCCURRENCES = 750;  // hard cap on stepping iterations per event
+const _MAX_EVENT_RESULTS = 500; // occurrences one event may contribute
+const MAX_OCCURRENCES_PER_FEED = 5000;
+const MAX_STEPS_PER_FEED = 200000; // candidate dates examined across a whole feed
+const _DAY_MS = 86400000;
 
 function _parseRRule(text) {
   const out = {};
@@ -158,7 +182,9 @@ function _instantOf(parsed) {
 
 // Returns an array of ISO start strings (same flavour as event.start.iso) for
 // every occurrence that falls within [windowStart, windowEnd].
-function expandRecurrence(event, windowStart, windowEnd) {
+// `budget` ({ steps }) is optional and shared across one feed's events, so a
+// feed full of recurring rules has a fixed total cost, not a per-event one.
+function expandRecurrence(event, windowStart, windowEnd, budget) {
   const baseIso = event.start.iso;
   const isAllDay = !!(event.start && event.start.allDay);
   const winA = windowStart.getTime();
@@ -187,10 +213,18 @@ function expandRecurrence(event, windowStart, windowEnd) {
   const until = untilParsed ? _instantOf(untilParsed) : null;
   // Unknown BYDAY codes are dropped; if none survive, treat BYDAY as absent so
   // WEEKLY falls back to the DTSTART weekday (RFC 5545) instead of looping over
-  // an empty candidate list until the guard cap.
-  const byDaysParsed = rule.BYDAY ? rule.BYDAY.split(',').map(d => _WEEKDAY[d.slice(-2)]).filter(n => n != null) : null;
+  // an empty candidate list until the guard cap. Duplicates are dropped too
+  // ("MO,MO,MO…" would otherwise multiply the work per step), leaving ≤ 7.
+  const byDaysParsed = rule.BYDAY
+    ? [...new Set(rule.BYDAY.split(',').slice(0, 64).map(d => _WEEKDAY[d.slice(-2)]).filter(n => n != null))]
+    : null;
   const byDays = byDaysParsed && byDaysParsed.length ? byDaysParsed : null;
   const exset = new Set(event.exdate || []);
+
+  // YEARLY is MONTHLY with a 12-month stride (same month, same day; a Feb 29
+  // series skips non-leap years, as RFC 5545 requires).
+  const monthly = freq === 'MONTHLY' || freq === 'YEARLY';
+  const monthStride = freq === 'YEARLY' ? 12 * interval : interval;
 
   const base = new Date(baseMs);
   const baseDay = base.getUTCDate();
@@ -198,6 +232,44 @@ function expandRecurrence(event, windowStart, windowEnd) {
   let produced = 0;
   let cursor = new Date(base.getTime());
   let monthStep = 0; // months added past base, for drift-free MONTHLY stepping
+
+  const monthCursor = () => {
+    const idx = base.getUTCFullYear() * 12 + base.getUTCMonth() + monthStep;
+    const ty = Math.floor(idx / 12);
+    const tm = idx % 12;
+    const dim = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(ty, tm, Math.min(baseDay, dim),
+      base.getUTCHours(), base.getUTCMinutes(), base.getUTCSeconds()));
+  };
+
+  // Jump close to the window instead of walking from DTSTART: a daily rule
+  // that began ten years ago would otherwise spend its whole step cap before
+  // reaching today (and show nothing). Whole periods are skipped, so the
+  // pattern stays aligned to DTSTART exactly as if we had stepped. One period
+  // of margin is kept. With COUNT the skipped occurrences must still be
+  // counted, which is only exact when every period yields the same number:
+  // DAILY, WEEKLY, and MONTHLY/YEARLY on a day every month has (≤ 28).
+  if (baseMs < winA && (freq === 'DAILY' || freq === 'WEEKLY' || monthly)) {
+    const perPeriod = freq === 'WEEKLY' && byDays ? byDays.length : 1;
+    const exactCount = count == null || !monthly || baseDay <= 28;
+    if (exactCount) {
+      let k;
+      if (monthly) {
+        const a = new Date(winA);
+        const months = (a.getUTCFullYear() * 12 + a.getUTCMonth()) - (base.getUTCFullYear() * 12 + base.getUTCMonth());
+        k = Math.max(0, Math.floor(months / monthStride) - 1);
+      } else {
+        const periodMs = (freq === 'DAILY' ? 1 : 7) * interval * _DAY_MS;
+        k = Math.max(0, Math.floor((winA - baseMs) / periodMs) - 1);
+      }
+      if (count != null && k * perPeriod >= count) return results; // series ended before the window
+      if (k > 0) {
+        produced = k * perPeriod;
+        if (monthly) { monthStep = k * monthStride; cursor = monthCursor(); }
+        else cursor = new Date(baseMs + k * (freq === 'DAILY' ? 1 : 7) * interval * _DAY_MS);
+      }
+    }
+  }
 
   for (let guard = 0; guard < _MAX_OCCURRENCES; guard++) {
     // Candidate instants for this step. BYDAY expands a weekly step to many
@@ -210,11 +282,16 @@ function expandRecurrence(event, windowStart, windowEnd) {
         c.setUTCDate(c.getUTCDate() + diff);
         return c;
       }).sort((a, b) => a - b);
-    } else if (freq === 'MONTHLY') {
+    } else if (monthly) {
       const dim = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0)).getUTCDate();
       candidates = baseDay <= dim ? [new Date(cursor.getTime())] : []; // skip e.g. Feb for a day-31 series
     } else {
       candidates = [new Date(cursor.getTime())];
+    }
+
+    if (budget) {
+      budget.steps -= candidates.length + 1;
+      if (budget.steps < 0) return results;
     }
 
     for (const c of candidates) {
@@ -224,34 +301,41 @@ function expandRecurrence(event, windowStart, windowEnd) {
       if (count != null && produced >= count) return results;
       produced++;
       const iso = emit(t);
-      if (t >= winA && t <= winB && !exset.has(iso)) results.push(iso);
+      if (t >= winA && t <= winB && !exset.has(iso)) {
+        results.push(iso);
+        if (results.length >= _MAX_EVENT_RESULTS) return results;
+      }
       if (count != null && produced >= count) return results;
     }
 
     // Advance the cursor by one interval of FREQ.
     if (freq === 'DAILY') cursor.setUTCDate(cursor.getUTCDate() + interval);
     else if (freq === 'WEEKLY') cursor.setUTCDate(cursor.getUTCDate() + 7 * interval);
-    else if (freq === 'MONTHLY') {
+    else if (monthly) {
       // Recompute from base by month index so an overflowing month never drags
       // the day forward (Date.setUTCMonth overflows Jan 31 + 1mo → Mar 3).
-      monthStep += interval;
-      const idx = base.getUTCFullYear() * 12 + base.getUTCMonth() + monthStep;
-      const ty = Math.floor(idx / 12);
-      const tm = idx % 12;
-      const dim = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
-      cursor = new Date(Date.UTC(ty, tm, Math.min(baseDay, dim),
-        base.getUTCHours(), base.getUTCMinutes(), base.getUTCSeconds()));
+      monthStep += monthStride;
+      cursor = monthCursor();
     } else return results; // unsupported FREQ → best-effort: only the base candidates above
 
-    if (cursor.getTime() > winB && (until == null || cursor.getTime() > until)) break;
+    // Every later candidate is at or after the cursor, so once it passes the
+    // window end nothing more can land in the window.
+    if (cursor.getTime() > winB) break;
   }
   return results;
 }
 
 const https = require('https');
 
-const FETCH_TIMEOUT_MS = 8000;
-const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB cap per feed
+// A feed the user set up may live on the home network (a Nextcloud, a
+// FreshRSS): the LAN is allowed, this machine and link-local never are.
+const { assertPublicOrLanUrl: assertPublicUrl, publicOrLanLookup: publicLookup, armDeadline } = require('./net-guard');
+
+const FETCH_TIMEOUT_MS = 8000;    // idle socket timeout
+const FETCH_DEADLINE_MS = 20000;  // whole request; a trickling server can't hold it open
+// 1 MB is years of a busy personal calendar; parsing is synchronous, so the
+// cap is also what bounds the event-loop time one feed can take.
+const MAX_BODY_BYTES = 1024 * 1024;
 const WINDOW_DAYS = 90;
 
 // Inclusive end for a single occurrence, in the same string flavour as its
@@ -275,8 +359,10 @@ function _occurrenceEnd(startsAt, allDay, durMs) {
 
 function mapFeedEvents(events, feed, windowStart, windowEnd) {
   const out = [];
+  const budget = { steps: MAX_STEPS_PER_FEED };
   for (const ev of events) {
-    const occurrences = expandRecurrence(ev, windowStart, windowEnd);
+    if (out.length >= MAX_OCCURRENCES_PER_FEED || budget.steps <= 0) break;
+    const occurrences = expandRecurrence(ev, windowStart, windowEnd, budget);
     // Preserve DTSTART→DTEND duration so multi-day events span every day they
     // cover, not just their start day. Recurring occurrences keep that span.
     const allDay = !!(ev.start && ev.start.allDay);
@@ -285,6 +371,7 @@ function mapFeedEvents(events, feed, windowStart, windowEnd) {
     const durMs = (startInstant != null && endInstant != null && endInstant > startInstant)
       ? endInstant - startInstant : 0;
     for (const startsAt of occurrences) {
+      if (out.length >= MAX_OCCURRENCES_PER_FEED) break;
       // `allDay` travels with the event. The parser has always known (VALUE=DATE
       // / a bare YYYYMMDD), then dropped the flag here — and a whole-day event is
       // indistinguishable from a midnight one once it is gone, because a one-day
@@ -307,59 +394,40 @@ function mapFeedEvents(events, feed, windowStart, windowEnd) {
   return out;
 }
 
-// Fetch one feed over HTTPS with a timeout and a body-size cap. `_hops` guards
-// against redirect loops (each hop opens a socket and restarts the timeout).
-function fetchFeedText(url, _hops = 0) {
-  return new Promise((resolve, reject) => {
-    if (_hops > 5) return reject(new Error('too many redirects'));
-    let req;
-    try { req = https.get(url, { timeout: FETCH_TIMEOUT_MS }, onResponse); }
-    catch (e) { return reject(e); }
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', reject);
-
-    function onResponse(res) {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        res.resume();
-        return resolve(fetchFeedText(new URL(res.headers.location, url).toString(), _hops + 1));
-      }
-      if (res.statusCode !== 200) {
-        res.resume();
-        return reject(new Error(`HTTP ${res.statusCode}`));
-      }
-      let size = 0;
-      const chunks = [];
-      res.on('data', (c) => {
-        size += c.length;
-        if (size > MAX_BODY_BYTES) { req.destroy(new Error('feed too large')); return; }
-        chunks.push(c);
-      });
-      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-      res.on('error', reject);
-    }
-  });
+// Fetch one feed over HTTPS with a timeout and a body-size cap. Thin wrapper
+// over the conditional fetch with no validators.
+function fetchFeedText(url) {
+  return fetchFeedConditional(url, null).then(r => (r && r.text) || '');
 }
 
 // Conditional GET variant: sends If-None-Match / If-Modified-Since so an unchanged
 // feed returns 304 with no body, letting loadFeed skip the re-download AND re-parse.
 // Resolves { notModified } on 304, else { notModified:false, text, etag, lastModified }.
+// `_hops` guards against redirect loops (each hop opens a socket and restarts
+// the timeout). The feed URL and every redirect target must be a public https
+// URL, and publicLookup refuses a name that resolves to loopback/LAN space: the
+// URL is user-supplied and the request leaves from the user's PC.
 function fetchFeedConditional(url, validators, _hops = 0) {
   return new Promise((resolve, reject) => {
     if (_hops > 5) return reject(new Error('too many redirects'));
+    try { assertPublicUrl(url); } catch (e) { return reject(e); }
     const headers = {};
     if (validators && validators.etag) headers['If-None-Match'] = validators.etag;
     if (validators && validators.lastModified) headers['If-Modified-Since'] = validators.lastModified;
     let req;
-    try { req = https.get(url, { timeout: FETCH_TIMEOUT_MS, headers }, onResponse); }
+    try { req = https.get(url, { timeout: FETCH_TIMEOUT_MS, headers, lookup: publicLookup }, onResponse); }
     catch (e) { return reject(e); }
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', reject);
+    armDeadline(req, FETCH_DEADLINE_MS);
 
     function onResponse(res) {
       if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        return resolve(fetchFeedConditional(new URL(res.headers.location, url).toString(), validators, _hops + 1));
+        let next;
+        try { next = new URL(res.headers.location, url).toString(); } catch { return reject(new Error('bad redirect')); }
+        return resolve(fetchFeedConditional(next, validators, _hops + 1));
       }
       if (res.statusCode !== 200) {
         res.resume();
@@ -484,6 +552,7 @@ function preserveCalendarFeedUrls(incoming, prev) {
 
 module.exports = {
   _unfold, _parseLine, _parseIcsDate, _tzOffsetMs, _zonedWallToUtcMs,
-  parseIcs, expandRecurrence, _occurrenceEnd, mapFeedEvents, fetchFeedText, loadFeed,
+  parseIcs, expandRecurrence, _occurrenceEnd, mapFeedEvents, fetchFeedText, fetchFeedConditional, loadFeed,
+  MAX_EVENTS_PER_FEED, MAX_OCCURRENCES_PER_FEED,
   normalizeCalendarFeeds, redactCalendarFeedUrls, preserveCalendarFeedUrls,
 };

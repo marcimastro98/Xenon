@@ -57,11 +57,36 @@ async function _renameWithRetry(tmp, file) {
   }
 }
 
+// Temp files are created owner-only (0600) and exclusively ('wx'). These
+// stores hold OAuth tokens, API keys and pairing secrets; the old plain 'w'
+// open with no mode produced a world-readable 0644 file under the usual umask
+// 022 (and the rename then made the real store 0644 too), and 'w' would follow
+// a symlink planted at the predictable `<file>.<pid>.tmp` name and write our
+// data wherever it pointed. The mode is ignored on Windows, where ACLs on the
+// data directory apply instead.
+const _FILE_MODE = 0o600;
+
+async function _openExclusiveTmp(tmp) {
+  try {
+    return await fs.promises.open(tmp, 'wx', _FILE_MODE);
+  } catch (e) {
+    if (e.code !== 'EEXIST') throw e;
+    // A stale temp from a crashed run of a process that happened to reuse our
+    // pid. Same-path writers are serialized by the chain, so nothing live owns
+    // it: unlink (removes a planted symlink itself, never its target) and retry
+    // exactly once. A second EEXIST means someone is racing us — give up.
+    await fs.promises.unlink(tmp);
+    return await fs.promises.open(tmp, 'wx', _FILE_MODE);
+  }
+}
+
 async function _writeTmpAndRename(file, data, encoding) {
   const tmp = `${file}.${process.pid}.tmp`;
   let fh = null;
+  let created = false;
   try {
-    fh = await fs.promises.open(tmp, 'w');
+    fh = await _openExclusiveTmp(tmp);
+    created = true;
     await fh.writeFile(data, encoding);   // encoding is ignored for Buffers
     await fh.sync();
     await fh.close();
@@ -69,7 +94,9 @@ async function _writeTmpAndRename(file, data, encoding) {
     await _renameWithRetry(tmp, file);
   } catch (e) {
     if (fh) { try { await fh.close(); } catch { /* already closing */ } }
-    try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ }
+    // Only remove a temp we created; if the exclusive open lost a race, the
+    // file at that name belongs to someone else.
+    if (created) { try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ } }
     throw e;
   }
 }
@@ -136,7 +163,8 @@ async function openAtomicWriteStream(file) {
   // So the fsync reopens the temp file instead. One extra open per transfer,
   // and the guarantee is unchanged: the data is on the platter before the
   // rename makes it visible.
-  const stream = fs.createWriteStream(tmp, { flags: 'wx' });
+  // Owner-only for the same reason as _FILE_MODE above: uploads are private.
+  const stream = fs.createWriteStream(tmp, { flags: 'wx', mode: _FILE_MODE });
   let settled = false;
 
   // createWriteStream opens lazily, so without this the temp file does not

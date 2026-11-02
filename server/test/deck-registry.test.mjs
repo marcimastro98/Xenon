@@ -286,6 +286,83 @@ test('isBlockedOpenPath: openFile blocks one-tap execution on every platform', (
   }
 });
 
+test('isBlockedOpenPath: Windows types that run on open (macro Office, .wsb, .msu, Monad shells)', () => {
+  for (const ext of ['wsb', 'msu', 'docm', 'dotm', 'xlsm', 'xltm', 'xlsb', 'xlam', 'pptm', 'potm', 'ppsm', 'sldm',
+    'pyzw', 'msh', 'msh1', 'msh2', 'msh1xml', 'msh2xml', 'ps2xml', 'psc2', 'shs', 'adp']) {
+    assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), true, ext);
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'linux'), true, ext);
+  }
+  // Plain Office documents and MATLAB data stay openable.
+  for (const ext of ['docx', 'xlsx', 'pptx', 'ppsx', 'mat']) {
+    assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), false, ext);
+  }
+  // Windows strips trailing dots/spaces and resolves ::$DATA to the file itself.
+  for (const v of ['C:/x/run.bat.', 'C:/x/run.bat. . ', 'C:/x/run.bat::$DATA', 'C:\\x\\run.ps1\\']) {
+    assert.equal(reg.isBlockedOpenPath(v, 'win32'), true, v);
+  }
+});
+
+test('isBlockedOpenPath POSIX: trailing slashes, .tool, executables and bundle-shaped folders', () => {
+  for (const plat of ['darwin', 'linux']) {
+    for (const v of ['/x/Evil.app/', '/x/Evil.app//', '/x/Thing.workflow/', '/x/run.tool', '/x/old.term']) {
+      assert.equal(reg.isBlockedOpenPath(v, plat, () => null), true, `${plat} ${v}`);
+    }
+  }
+  const fake = (table) => (p) => table[p] || null;
+  const file = (mode) => ({ isFile: () => true, isDirectory: () => false, mode });
+  const dir = { isFile: () => false, isDirectory: () => true, mode: 0o40755 };
+  const fsView = fake({
+    '/x/notes': file(0o100755),          // no extension, but executable: `open` runs it in Terminal
+    '/x/readme': file(0o100644),
+    '/x/report.pdf': file(0o100777),     // a document name opens in its viewer even when executable (FAT/exFAT sticks)
+    '/x/payload.xyz': file(0o100755),    // an unknown extension is a Unix executable to `open`
+    '/x/Sneaky': dir,
+    '/x/Sneaky/Contents/Info.plist': file(0o100644),
+    '/x/Photos': dir,
+  });
+  for (const plat of ['darwin', 'linux']) {
+    assert.equal(reg.isBlockedOpenPath('/x/notes', plat, fsView), true, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/report.pdf', plat, fsView), false, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/payload.xyz', plat, fsView), true, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/readme', plat, fsView), false, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/Photos/', plat, fsView), false, plat);
+  }
+  // A folder shaped like an app bundle is launched by LaunchServices on macOS.
+  assert.equal(reg.isBlockedOpenPath('/x/Sneaky', 'darwin', fsView), true);
+  assert.equal(reg.isBlockedOpenPath('/x/Sneaky/', 'darwin', fsView), true);
+  assert.equal(reg.isBlockedOpenPath('/x/Sneaky', 'linux', fsView), false);
+  // Windows never consults the filesystem for this gate.
+  assert.equal(reg.isBlockedOpenPath('C:/x/notes', 'win32', () => file(0o100755)), false);
+});
+
+test('run openFile POSIX uses the injected statPath for the executable check', async () => {
+  const opened = [];
+  const deps = {
+    platform: 'darwin', fileExists: () => true,
+    statPath: (p) => (p === '/Users/me/payload' ? { isFile: () => true, isDirectory: () => false, mode: 0o100755 } : null),
+    openExternal: (p) => { opened.push(p); return Promise.resolve(); },
+  };
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: '/Users/me/payload' }), { ok: false, error: 'blocked_ext' });
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: '/Users/me/Evil.app/' }), { ok: false, error: 'blocked_ext' });
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: '/Users/me/notes.txt' }), { ok: true });
+  assert.deepEqual(opened, ['/Users/me/notes.txt']);
+});
+
+test('isBlockedOpenPath on the host POSIX platform checks the real execute bit', { skip: process.platform === 'win32' }, async () => {
+  const { mkdtempSync, writeFileSync, chmodSync, rmSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const d = mkdtempSync(join(tmpdir(), 'xenon-reg-'));
+  try {
+    const f = join(d, 'payload');
+    writeFileSync(f, 'x');
+    chmodSync(f, 0o644);
+    assert.equal(reg.isBlockedOpenPath(f), false);
+    chmodSync(f, 0o755);
+    assert.equal(reg.isBlockedOpenPath(f), true);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
 test('run returns {ok:false} when an injected effect throws (never propagates)', async () => {
   const deps = { platform: 'win32', fileExists: () => true, openExternal: () => Promise.reject(new Error('boom')) };
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/x/y.exe' }), { ok: false, error: 'boom' });

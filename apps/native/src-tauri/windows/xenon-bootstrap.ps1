@@ -23,10 +23,9 @@
 # Trust model: the source zip is verified against the pinned Ed25519 public key
 # below - the SAME key server/self-update.js and server/helper-update.js pin
 # (rotating the signing key means updating ALL THREE copies; see the rotation
-# checklist in self-update.js). Node.js itself is fetched over TLS only: on a
-# first install there is nothing local to anchor more trust to. That gap is
-# known and accepted until the Authenticode code-signing certificate lands -
-# identical to the INSTALL.bat path users have always used.
+# checklist in self-update.js). Node.js comes from winget, or, failing that,
+# from the official MSI, which is run only with a valid OpenJS Foundation
+# Authenticode signature (see the Node.js step below).
 #
 # This console IS the UI: every failure prints one clear line and pauses.
 # -----------------------------------------------------------------------------
@@ -453,14 +452,54 @@ function Get-NodePath {
   return ($candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
 }
 
+# -- Minimum Node.js version -----------------------------------------------------
+# Xenon's backend is a local HTTP server, so the Node.js running it matters.
+# CVE-2026-111497 ("Node2Shell", a flaw in the Brotli decoder) is fixed in
+# 22.23.4, 24.22.1 and 26.12.1; Node 18 and 20 are end of life and get no fixes
+# at all, and odd-numbered lines (23, 25) are short-lived and end of life too.
+# Anything below that is upgraded rather than used as found. Same rule as
+# install.ps1 (Test-NodeVersionSupported); keep the two in lockstep.
+function Get-NodeVersion([string]$Path) {
+  try {
+    $vi = (Get-Item -LiteralPath $Path).VersionInfo
+    foreach ($raw in @($vi.ProductVersion, $vi.FileVersion)) {
+      if (('' + $raw) -match '^\s*v?(\d+)\.(\d+)\.(\d+)') {
+        return New-Object -TypeName Version -ArgumentList @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
+      }
+    }
+  } catch { }
+  return $null
+}
+
+function Test-NodeVersionSupported([string]$Path) {
+  $v = Get-NodeVersion $Path
+  if (-not $v) { return $false }
+  switch ($v.Major) {
+    22 { return ($v -ge [Version]'22.23.4') }
+    24 { return ($v -ge [Version]'24.22.1') }
+    26 { return ($v -ge [Version]'26.12.1') }
+  }
+  # Below 22, or 23 / 25: unsupported. A future major (27+) is accepted.
+  return ($v.Major -ge 27)
+}
+
 $nodePath = Get-NodePath
-if (-not $nodePath) {
+$nodeUpgrade = $false
+if ($nodePath -and -not (Test-NodeVersionSupported $nodePath)) {
+  $nodeUpgrade = $true
+  Write-Host ''
+  Write-Host "  Node.js $(Get-NodeVersion $nodePath) at $nodePath is too old for Xenon." -ForegroundColor Yellow
+  Write-Host '  It has a known security flaw (CVE-2026-111497) or is end of life. Updating it now...' -ForegroundColor Yellow
+}
+if (-not $nodePath -or $nodeUpgrade) {
   Write-Step 'Installing Node.js LTS (required by Xenon)...'
   $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
   if ($winget) {
+    # upgrade for an existing winget install, install for a fresh one.
+    $verb = if ($nodeUpgrade) { 'upgrade' } else { 'install' }
     for ($attempt = 1; $attempt -le 2; $attempt++) {
       $p = Start-Process -FilePath $winget.Source -ArgumentList @(
-        'install', '--id', 'OpenJS.NodeJS.LTS', '--exact', '--source', 'winget',
+        $verb, '--id', 'OpenJS.NodeJS.LTS', '--exact', '--source', 'winget',
         '--accept-package-agreements', '--accept-source-agreements', '--silent'
       ) -Wait -PassThru
       if ($p.ExitCode -eq 0) { break }
@@ -468,23 +507,51 @@ if (-not $nodePath) {
     }
     $nodePath = Get-NodePath
   }
-  if (-not $nodePath) {
+  if (-not $nodePath -or -not (Test-NodeVersionSupported $nodePath)) {
     # No winget (or it failed): fetch the official LTS MSI directly.
+    #
+    # msiexec runs it ELEVATED, so the MSI is held to more than TLS:
+    #   - it lands in a folder with a random name, not a predictable one under
+    #     %TEMP% that anything running as the user could prepare in advance;
+    #   - it must carry a valid Authenticode signature from the OpenJS
+    #     Foundation (Node.js's publisher), or it is deleted and never run;
+    #   - a read-only handle that denies writers is held from before that check
+    #     until msiexec has finished, so the file that was checked is the file
+    #     that runs.
+    $msiDir = Join-Path $env:TEMP ('xenon-node-' + (New-Guid).Guid)
+    $msiLock = $null
     try {
       Write-Step 'Downloading Node.js LTS from nodejs.org...'
       $index = Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json' -TimeoutSec 30
       $lts = $index | Where-Object { $_.lts } | Select-Object -First 1
       if (-not $lts) { throw 'no LTS entry in the Node.js release index' }
-      $msi = Join-Path $tmp "node-$($lts.version)-x64.msi"
-      Invoke-WebRequest -Uri "https://nodejs.org/dist/$($lts.version)/node-$($lts.version)-x64.msi" -OutFile $msi -TimeoutSec 300 -UseBasicParsing
+      $ltsVer = [string]$lts.version
+      if ($ltsVer -notmatch '^v\d+\.\d+\.\d+$') { throw "unexpected Node.js version '$ltsVer' in the release index" }
+      New-Item -ItemType Directory -Path $msiDir -Force | Out-Null
+      $msi = Join-Path $msiDir "node-$ltsVer-x64.msi"
+      Invoke-WebRequest -Uri "https://nodejs.org/dist/$ltsVer/node-$ltsVer-x64.msi" -OutFile $msi -TimeoutSec 300 -UseBasicParsing
+      $msiLock = [IO.File]::Open($msi, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+      $sig = Get-AuthenticodeSignature -LiteralPath $msi
+      $signer = if ($sig.SignerCertificate) { [string]$sig.SignerCertificate.Subject } else { '' }
+      if ($sig.Status -ne 'Valid' -or $signer -notmatch 'OpenJS Foundation') {
+        throw "the Node.js installer is not validly signed by the OpenJS Foundation (status $($sig.Status))"
+      }
       # Per-machine MSI -> one UAC prompt.
       Start-Process -FilePath (Join-Path $env:WINDIR 'System32\msiexec.exe') -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Verb RunAs -Wait
       $nodePath = Get-NodePath
     } catch {
       Fail "Node.js could not be installed automatically ($($_.Exception.Message)). Install it from https://nodejs.org and run the Xenon setup again."
+    } finally {
+      if ($msiLock) { $msiLock.Dispose() }
+      Remove-DirectoryTree $msiDir
     }
   }
   if (-not $nodePath) { Fail 'Node.js was installed but node.exe was not found yet. Restart Windows, then run the Xenon setup again.' }
+  if (-not (Test-NodeVersionSupported $nodePath)) {
+    Write-Host ''
+    Write-Host "  Node.js at $nodePath is still version $(Get-NodeVersion $nodePath)." -ForegroundColor Yellow
+    Write-Host '  Please update it to the current LTS from https://nodejs.org (22.23.4, 24.22.1 or 26.12.1 or newer).' -ForegroundColor Yellow
+  }
 }
 Write-Step "Node.js: $nodePath"
 

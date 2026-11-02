@@ -376,13 +376,67 @@ function Get-NodePath {
   return $null
 }
 
+# -- Minimum Node.js version -------------------------------------------------
+# The backend is a local HTTP server, so the Node.js running it matters.
+# CVE-2026-111497 ("Node2Shell", a flaw in the Brotli decoder) is fixed in
+# 22.23.4, 24.22.1 and 26.12.1; Node 18 and 20 are end of life and get no fixes
+# at all, and the odd-numbered lines (23, 25) are short-lived and end of life
+# too. A node.exe below that is upgraded instead of being used as found. Same
+# rule as the native app's xenon-bootstrap.ps1; keep the two in lockstep.
+function Get-NodeVersion([string]$Path) {
+  try {
+    $vi = (Get-Item -LiteralPath $Path).VersionInfo
+    foreach ($raw in @($vi.ProductVersion, $vi.FileVersion)) {
+      if (('' + $raw) -match '^\s*v?(\d+)\.(\d+)\.(\d+)') {
+        return New-Object -TypeName Version -ArgumentList @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
+      }
+    }
+  } catch { }
+  return $null
+}
+
+function Test-NodeVersionSupported([string]$Path) {
+  $v = Get-NodeVersion $Path
+  if (-not $v) { return $false }
+  switch ($v.Major) {
+    22 { return ($v -ge [Version]'22.23.4') }
+    24 { return ($v -ge [Version]'24.22.1') }
+    26 { return ($v -ge [Version]'26.12.1') }
+  }
+  # Below 22, or 23 / 25: unsupported. A future major (27+) is accepted.
+  return ($v.Major -ge 27)
+}
+
+# Brings a too-old Node.js up to the current LTS through winget. Returns the
+# node.exe to use afterwards (the same one when nothing could be done: Xenon
+# still runs on it, and the user is told plainly what to update).
+function Update-NodeIfTooOld([string]$NodePath) {
+  if (Test-NodeVersionSupported $NodePath) { return $NodePath }
+  $old = Get-NodeVersion $NodePath
+  Write-Host "Node.js $old at $NodePath is too old: it has a known security flaw (CVE-2026-111497) or is end of life." -ForegroundColor Yellow
+  if (Get-Command winget.exe -ErrorAction SilentlyContinue) {
+    Write-Step 'Updating Node.js to the current LTS...'
+    # upgrade covers a winget-installed Node; install covers one that winget
+    # did not put there (it then adds the LTS beside it).
+    if (-not (Invoke-WingetUpgrade -PackageId 'OpenJS.NodeJS.LTS')) {
+      Invoke-WingetInstall -PackageId 'OpenJS.NodeJS.LTS' | Out-Null
+    }
+    $now = Get-NodePath
+    if ($now) { $NodePath = $now }
+  }
+  if (-not (Test-NodeVersionSupported $NodePath)) {
+    Write-Host "Node.js at $NodePath is still version $(Get-NodeVersion $NodePath). Please update it to the current LTS from https://nodejs.org (22.23.4, 24.22.1 or 26.12.1 or newer)." -ForegroundColor Yellow
+  }
+  return $NodePath
+}
+
 # Silent winget install with automatic retries. winget failures are very often
 # transient (source sync, network hiccup) - and a component that failed on the
 # first pass used to just scroll away as a yellow line, leaving the user to
 # notice and re-run INSTALL.bat by hand (issue #87). Returns $true on success;
 # $false when winget is missing or every attempt failed.
 function Invoke-WingetInstall {
-  param([string]$PackageId, [int]$Attempts = 2)
+  param([string]$PackageId, [int]$Attempts = 2, [string[]]$ExtraArgs = @())
   $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
   if (-not $winget) { return $false }
   $arguments = @(
@@ -393,7 +447,7 @@ function Invoke-WingetInstall {
     '--accept-package-agreements',
     '--accept-source-agreements',
     '--silent'
-  )
+  ) + @($ExtraArgs | Where-Object { $_ })
   for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
     if ($attempt -gt 1) {
       Write-Host "  Retrying $PackageId (attempt $attempt of $Attempts)..." -ForegroundColor Yellow
@@ -410,7 +464,7 @@ function Invoke-WingetInstall {
 # when there was nothing to update (its usual answer) or the update failed,
 # which the caller treats the same: what is installed keeps working as before.
 function Invoke-WingetUpgrade {
-  param([string]$PackageId)
+  param([string]$PackageId, [string[]]$ExtraArgs = @())
   $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
   if (-not $winget) { return $false }
   $arguments = @(
@@ -421,7 +475,7 @@ function Invoke-WingetUpgrade {
     '--accept-package-agreements',
     '--accept-source-agreements',
     '--silent'
-  )
+  ) + @($ExtraArgs | Where-Object { $_ })
   $exitCode = Invoke-ProcessWithSpinner -FilePath $winget.Source -ArgumentList $arguments -Activity "Checking $PackageId for updates"
   return ($exitCode -eq 0)
 }
@@ -429,6 +483,7 @@ function Invoke-WingetUpgrade {
 function Install-NodeIfNeeded {
   $nodePath = Get-NodePath
   if ($nodePath) {
+    $nodePath = Update-NodeIfTooOld $nodePath
     Write-Step "Node.js found: $nodePath"
     return $nodePath
   }
@@ -452,6 +507,7 @@ function Install-NodeIfNeeded {
     throw 'Node.js was installed, but node.exe was not found yet. Restart Windows, then run INSTALL.bat again.'
   }
 
+  $nodePath = Update-NodeIfTooOld $nodePath
   Write-Step "Node.js installed: $nodePath"
   return $nodePath
 }
@@ -823,6 +879,21 @@ function Get-LibreHardwareMonitorPath {
   Refresh-Path
   $candidates = @()
 
+  # Program Files first (writable by administrators only, and the one place the
+  # elevated sensor scripts accept), then winget's machine-wide portable folder
+  # (an install made with --scope machine), then the per-user locations.
+  if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'LibreHardwareMonitor\LibreHardwareMonitor.exe' }
+  $programFilesX86 = ${env:ProgramFiles(x86)}
+  if ($programFilesX86) { $candidates += Join-Path $programFilesX86 'LibreHardwareMonitor\LibreHardwareMonitor.exe' }
+  if ($env:ProgramFiles) {
+    try {
+      foreach ($packageDir in @(Get-ChildItem -Path (Join-Path $env:ProgramFiles 'WinGet\Packages') -Directory -Filter 'LibreHardwareMonitor*' -ErrorAction SilentlyContinue)) {
+        $found = Get-ChildItem -Path $packageDir.FullName -Filter LibreHardwareMonitor.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found) { $candidates += $found.FullName }
+      }
+    } catch { }
+  }
+
   $command = Get-Command LibreHardwareMonitor.exe -ErrorAction SilentlyContinue
   if ($command) { $candidates += $command.Source }
 
@@ -838,9 +909,6 @@ function Get-LibreHardwareMonitorPath {
   }
 
   if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'Programs\LibreHardwareMonitor\LibreHardwareMonitor.exe' }
-  if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'LibreHardwareMonitor\LibreHardwareMonitor.exe' }
-  $programFilesX86 = ${env:ProgramFiles(x86)}
-  if ($programFilesX86) { $candidates += Join-Path $programFilesX86 'LibreHardwareMonitor\LibreHardwareMonitor.exe' }
 
   foreach ($candidate in $candidates | Where-Object { $_ -and (Test-Path $_) }) {
     $libraryPath = Join-Path (Split-Path -Parent $candidate) 'LibreHardwareMonitorLib.dll'
@@ -850,11 +918,66 @@ function Get-LibreHardwareMonitorPath {
   return ($candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1)
 }
 
+# LibreHardwareMonitor before 0.9.5 installs the WinRing0 kernel driver
+# (CVE-2020-14979: any local user can read and write physical memory and MSRs
+# through it) and Microsoft Defender flags it. cpu-temp.ps1 and gpu.ps1 refuse
+# to load a library older than this; here an old install is brought up to date.
+$script:lhmMinVersion = [Version]'0.9.5'
+
+function Get-LibreHardwareMonitorLibVersion([string]$MonitorPath) {
+  try {
+    $lib = Join-Path (Split-Path -Parent $MonitorPath) 'LibreHardwareMonitorLib.dll'
+    if (-not (Test-Path -LiteralPath $lib)) { return $null }
+    $raw = '' + (Get-Item -LiteralPath $lib).VersionInfo.FileVersion
+    if ($raw -match '^\s*(\d+)\.(\d+)(?:\.(\d+))?') {
+      $build = if ($Matches[3]) { [int]$Matches[3] } else { 0 }
+      return New-Object -TypeName Version -ArgumentList @([int]$Matches[1], [int]$Matches[2], $build)
+    }
+  } catch { }
+  return $null
+}
+
+# True when the library sits where only administrators can write: Program Files
+# (and winget's machine-wide Packages folder inside it). cpu-temp.ps1 and gpu.ps1
+# load it ELEVATED only from there.
+function Test-LibreHardwareMonitorPathTrusted([string]$MonitorPath) {
+  foreach ($sf in @([Environment+SpecialFolder]::ProgramFiles, [Environment+SpecialFolder]::ProgramFilesX86)) {
+    $pf = [Environment]::GetFolderPath($sf)
+    if ($pf -and $MonitorPath.StartsWith($pf.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { return $true }
+  }
+  return $false
+}
+
 function Install-LibreHardwareMonitorIfNeeded {
+  # An elevated install registers the startup task at Highest, so the sensor
+  # scripts will run elevated and accept LibreHardwareMonitor only from Program
+  # Files. winget installs this portable package per user unless told otherwise.
+  $scopeArgs = @()
+  if (Test-IsElevated) { $scopeArgs = @('--scope', 'machine') }
   $monitorPath = Get-LibreHardwareMonitorPath
+  if ($monitorPath -and $scopeArgs.Count -and -not (Test-LibreHardwareMonitorPathTrusted $monitorPath)) {
+    Write-Host "LibreHardwareMonitor is installed per user ($monitorPath). Xenon's elevated sensor reader only loads it from Program Files, so a machine-wide copy is added..." -ForegroundColor Yellow
+    if (Invoke-WingetInstall -PackageId $hardwareMonitorPackageId -ExtraArgs $scopeArgs) {
+      $monitorPath = Get-LibreHardwareMonitorPath
+    } else {
+      Write-Host 'The machine-wide copy could not be installed. CPU temperature may stay hidden while Xenon runs with administrator rights.' -ForegroundColor Yellow
+    }
+  }
   if ($monitorPath) {
-    Write-Step "LibreHardwareMonitor found: $monitorPath"
-    return $monitorPath
+    $libVersion = Get-LibreHardwareMonitorLibVersion $monitorPath
+    if (-not $libVersion -or $libVersion -lt $script:lhmMinVersion) {
+      Write-Host "LibreHardwareMonitor $libVersion is older than $($script:lhmMinVersion) and uses the WinRing0 driver (CVE-2020-14979). Updating it..." -ForegroundColor Yellow
+      if (Get-Command winget.exe -ErrorAction SilentlyContinue) { Invoke-WingetUpgrade -PackageId $hardwareMonitorPackageId -ExtraArgs $scopeArgs | Out-Null }
+      $monitorPath = Get-LibreHardwareMonitorPath
+      $libVersion = if ($monitorPath) { Get-LibreHardwareMonitorLibVersion $monitorPath } else { $null }
+      if (-not $libVersion -or $libVersion -lt $script:lhmMinVersion) {
+        Write-Host "LibreHardwareMonitor could not be updated to $($script:lhmMinVersion) or newer. CPU temperature stays hidden until it is updated: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases" -ForegroundColor Yellow
+      }
+    }
+    if ($monitorPath) {
+      Write-Step "LibreHardwareMonitor found: $monitorPath"
+      return $monitorPath
+    }
   }
 
   Write-Step 'LibreHardwareMonitor is missing. Installing it for automatic CPU temperature readings...'
@@ -865,7 +988,7 @@ function Install-LibreHardwareMonitorIfNeeded {
     return $null
   }
 
-  if (-not (Invoke-WingetInstall -PackageId $hardwareMonitorPackageId)) {
+  if (-not (Invoke-WingetInstall -PackageId $hardwareMonitorPackageId -ExtraArgs $scopeArgs)) {
     Write-Host 'LibreHardwareMonitor could not be installed automatically. CPU temperature will stay hidden until it is installed manually.' -ForegroundColor Yellow
     return $null
   }
@@ -996,8 +1119,15 @@ function Install-XenonHelperIfNeeded {
   }
   Write-Step 'Setting up the Xenon Helper (native media/game-mode companion)...'
   $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  # The download is verified in Node (release-asset-cli.js) against the signed
+  # release list, so the script is handed the node.exe this install already
+  # checked. Without one it fails closed, and the server installs the helper
+  # itself, verified, once it runs.
+  $helperArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script, '-InstallIfMissing', '-HelperDir', (Join-Path $filesDir 'helper'))
+  $nodeForHelper = Get-NodePath
+  if ($nodeForHelper) { $helperArgs += @('-NodePath', $nodeForHelper) }
   try {
-    & $psExe -NoProfile -ExecutionPolicy Bypass -File $script -InstallIfMissing -HelperDir (Join-Path $filesDir 'helper')
+    & $psExe @helperArgs
   } catch {
     Write-Host "The Xenon Helper could not be installed automatically ($($_.Exception.Message)). Xenon works fine without it - media and game detection simply use the classic PowerShell path until server\helper\xenon-helper.exe appears." -ForegroundColor Yellow
   }

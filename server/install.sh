@@ -174,6 +174,36 @@ if ! (cd "$ROOT_DIR" && "$NPM_BIN" install --omit=dev --no-audit --no-fund); the
 fi
 
 mkdir -p "$DATA_DIR"
+# server/data holds API keys, OAuth tokens and device pairing secrets. Owner-only,
+# whatever the umask: under the usual 022 it would otherwise be readable by
+# every local account. Re-applied on every run so older installs are tightened.
+chmod 700 "$DATA_DIR" 2>/dev/null || warn "could not restrict $DATA_DIR to your account (chmod 700)."
+
+# ── Verified release downloads ───────────────────────────────────────────────
+# A release binary is only kept when it hashes to its line in the release's
+# Ed25519-signed SHA256SUMS (checked against the public key pinned in
+# self-update.js) — the same chain the updater and helper refresh use. TLS alone
+# is not enough here: the macOS steps below strip Gatekeeper's quarantine flag,
+# so nothing else would ever look at these files before they run.
+# Prints the verified file's path; fails (printing nothing) otherwise.
+fetch_verified_asset() { # $1 = asset name, $2 = absolute destination directory
+  local asset="$1" dest="$2" out parsed want got file
+  out="$("$NODE_BIN" "$SERVER_DIR/release-asset-cli.js" "$asset" "$dest" 2>/dev/null | tail -n 1)" || return 1
+  parsed="$("$NODE_BIN" -e '
+    let j = null; try { j = JSON.parse(process.argv[1]); } catch { }
+    if (!j || j.ok !== true || !/^[0-9a-f]{64}$/.test(String(j.sha256)) || !j.path) process.exit(1);
+    process.stdout.write(j.sha256 + "\n" + j.path);
+  ' "$out" 2>/dev/null)" || return 1
+  want="$(printf '%s\n' "$parsed" | head -n 1)"
+  file="$(printf '%s\n' "$parsed" | tail -n 1)"
+  [ -f "$file" ] || return 1
+  # Hash again right before use: a file swapped after the CLI checked it is refused.
+  if have shasum; then got="$(shasum -a 256 "$file" | awk '{print $1}')"
+  elif have sha256sum; then got="$(sha256sum "$file" | awk '{print $1}')"
+  else return 1; fi
+  [ "$got" = "$want" ] || { rm -f "$file"; return 1; }
+  printf '%s\n' "$file"
+}
 
 # ── 3) Optional extras ───────────────────────────────────────────────────────
 # None of these is required; each one lights up a specific widget or path. They
@@ -229,28 +259,28 @@ fi
 #
 # Optional in the strict sense — the server treats its absence as "nothing is
 # playing" and never retries — so every failure below is a warning, never a
-# fail. Fetched over HTTPS from our own release, with the same TLS-only trust a
-# first install has everywhere else (see the first-install integrity note in
-# docs/MACOS_PORTABILITY.md); nothing here weakens the SIGNED path the updater
-# and the app bootstrap use.
+# fail. Fetched from our own release and verified against its Ed25519-signed
+# SHA256SUMS (fetch_verified_asset above) before it is unpacked, because the
+# quarantine flag is cleared afterwards and nothing else would check it.
 install_media_adapter() {
   [ "$XENON_OS" = 'macos' ] || return 0
   local dir="$SERVER_DIR/mediaremote"
   if [ -d "$dir/MediaRemoteAdapter.framework" ] && [ -f "$dir/mediaremote-adapter.pl" ]; then
     return 0
   fi
-  have curl || { warn 'curl is missing; skipping the now-playing bridge.'; return 0; }
+  # Fetched by node (release-asset-cli.js), so curl is not needed here.
   step 'Installing the macOS now-playing bridge…'
-  local url='https://github.com/marcimastro98/Xenon/releases/latest/download/MediaRemoteAdapter-macos.tar.gz'
-  local tmp
+  local tmp archive
   tmp="$(mktemp -d)" || { warn 'could not create a temporary directory; skipping.'; return 0; }
-  if ! curl -fsSL --retry 3 --max-time 120 -o "$tmp/adapter.tar.gz" "$url"; then
-    warn 'the now-playing bridge could not be downloaded; the media tile will stay empty.'
+  # Downloaded AND checked against the signed SHA256SUMS before anything is
+  # unpacked: the quarantine flag is cleared below, so this is the only gate.
+  if ! archive="$(fetch_verified_asset 'MediaRemoteAdapter-macos.tar.gz' "$tmp")"; then
+    warn 'the now-playing bridge could not be downloaded and verified against the signed release; the media tile will stay empty.'
     rm -rf "$tmp"
     return 0
   fi
   mkdir -p "$dir"
-  if ! tar -xzf "$tmp/adapter.tar.gz" -C "$dir"; then
+  if ! tar -xzf "$archive" -C "$dir"; then
     warn 'the now-playing bridge archive could not be extracted; the media tile will stay empty.'
     rm -rf "$tmp" "$dir"
     return 0
@@ -306,24 +336,25 @@ install_mac_helper() {
     mac_helper_outdated "${cur:-0.0.0}" "$MIN_MAC_HELPER" || return 0
     updating=1
   fi
-  have curl || return 0
+  # Fetched by node (release-asset-cli.js), so curl is not needed here.
   if [ "$updating" = 1 ]; then
     step "Updating the Xenon Helper (${cur:-unknown} → $MIN_MAC_HELPER)…"
   else
     step 'Installing the Xenon Helper…'
   fi
-  local url='https://github.com/marcimastro98/Xenon/releases/latest/download/xenon-helper-macos.tar.gz'
-  local tmp
+  local tmp archive
   tmp="$(mktemp -d)" || return 0
-  if ! curl -fsSL --retry 3 --max-time 180 -o "$tmp/helper.tar.gz" "$url"; then
-    warn 'the Xenon Helper could not be downloaded; the app switcher and the search hotkey will use the fallbacks.'
+  # Verified against the signed SHA256SUMS: the helper runs with the user's
+  # Accessibility/Automation grants and its quarantine flag is stripped below.
+  if ! archive="$(fetch_verified_asset 'xenon-helper-macos.tar.gz' "$tmp")"; then
+    warn 'the Xenon Helper could not be downloaded and verified against the signed release; the app switcher and the search hotkey will use the fallbacks.'
     rm -rf "$tmp"; return 0
   fi
   # Unpacked into a staging directory, never straight over the installed one: an
   # archive that turns out to be truncated must not be able to take a working
   # helper with it, and on an update there IS one to lose.
   mkdir -p "$tmp/stage" "$dir"
-  if ! tar -xzf "$tmp/helper.tar.gz" -C "$tmp/stage" || [ ! -f "$tmp/stage/xenon-helper" ]; then
+  if ! tar -xzf "$archive" -C "$tmp/stage" || [ ! -f "$tmp/stage/xenon-helper" ]; then
     warn 'the Xenon Helper archive could not be extracted.'
     rm -rf "$tmp"; return 0
   fi

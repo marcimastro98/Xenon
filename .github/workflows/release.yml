@@ -1161,6 +1161,10 @@ jobs:
               // Optional while its job may fail: a Mac without it keeps the
               // capture features hidden, it never runs an unverified file.
               ["assets/xenon-capture-macos", "xenon-capture-macos", false],
+              // The macOS helper and the now-playing adapter: install.sh checks
+              // both against this list before using them (never unverified).
+              ["assets/xenon-helper-macos.tar.gz", "xenon-helper-macos.tar.gz", false],
+              ["assets/MediaRemoteAdapter-macos.tar.gz", "MediaRemoteAdapter-macos.tar.gz", false],
               ["assets/xenon-capture-linux-x64", "xenon-capture-linux-x64", false],
               ["assets/Xenon-Linux-x86_64.AppImage", "Xenon-Linux-x86_64.AppImage", false],
               ["assets/Xenon-Linux-x86_64.deb", "Xenon-Linux-x86_64.deb", false],

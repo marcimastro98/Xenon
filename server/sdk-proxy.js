@@ -13,8 +13,10 @@ const http = require('http');
 const https = require('https');
 const dns = require('dns');
 const net = require('net');
+const { embeddedIPv4 } = require('./net-guard');
 
 const PROXY_TIMEOUT_MS = 10000;
+const PROXY_DEADLINE_MS = 20000;   // whole request, headers to last byte
 // Images (map tiles, cached artwork) keep the 1 MB cap the asset cache's disk
 // budget is sized around. Widget API calls get more room: a full scoreboard or
 // feed from a public API routinely passes 1 MB, and the fetch gate already caps
@@ -29,11 +31,10 @@ function isBlockedAddress(ip) {
   const addr = String(ip == null ? '' : ip).toLowerCase();
   if (addr.startsWith('::ffff:')) {
     // IPv4-mapped IPv6. Node's resolver emits these in dotted form
-    // (::ffff:127.0.0.1); classify that as IPv4. The hex form (::ffff:7f00:1)
-    // is abnormal from a resolver — block it rather than risk misclassifying a
-    // mapped loopback/link-local we can't cheaply decode.
-    const mapped = addr.slice(7);
-    if (net.isIPv4(mapped)) return isBlockedV4(mapped);
+    // (::ffff:127.0.0.1) while the URL parser rewrites a literal to hex
+    // (::ffff:7f00:1); decode either spelling and classify it as IPv4.
+    const mapped = net.isIPv6(addr) ? embeddedIPv4(addr) : null;
+    if (mapped) return isBlockedV4(mapped);
     return true;
   }
   if (net.isIPv4(addr)) return isBlockedV4(addr);
@@ -66,10 +67,26 @@ function guardedLookup(hostname, options, callback) {
 // { status, contentType, location, buffer } and rejects with Error whose
 // .code/.message maps to a client-safe error string in the route handler.
 // maxBytes defaults to the image cap; /sdk/fetch passes PROXY_MAX_FETCH_BYTES.
+// Node skips the `lookup` hook entirely when the host is an IP literal, so
+// http://127.0.0.1/ or http://[::ffff:7f00:1]/ would connect without ever
+// meeting guardedLookup. Apply the same rule to the literal here.
+function literalHostBlocked(url) {
+  let host;
+  try { host = new URL(url).hostname; } catch { return true; }
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
+  return net.isIP(host) ? isBlockedAddress(host) : false;
+}
+
 function proxyFetch({ url, method, headers, body, maxBytes = PROXY_MAX_RESPONSE_BYTES }) {
   return new Promise((resolve, reject) => {
     let done = false;
-    const finish = (fn, arg) => { if (!done) { done = true; fn(arg); } };
+    let deadline = null;
+    const finish = (fn, arg) => { if (!done) { done = true; clearTimeout(deadline); fn(arg); } };
+    if (literalHostBlocked(url)) {
+      const e = new Error('blocked_address');
+      e.code = 'EBLOCKED';
+      return finish(reject, e);
+    }
     const mod = url.startsWith('https:') ? https : http;
     const req = mod.request(url, {
       method,
@@ -94,6 +111,10 @@ function proxyFetch({ url, method, headers, body, maxBytes = PROXY_MAX_RESPONSE_
     });
     req.on('timeout', () => { req.destroy(new Error('timeout')); });
     req.on('error', e => finish(reject, e));
+    // `timeout` above only fires after a quiet socket; a server trickling one
+    // byte at a time would hold the request (and a fetch-gate slot) forever.
+    // This caps the whole exchange.
+    deadline = setTimeout(() => req.destroy(new Error('timeout')), PROXY_DEADLINE_MS);
     if (body) req.write(body);
     req.end();
   });
@@ -109,4 +130,4 @@ function isTextualContentType(ct) {
     || v.startsWith('image/svg');
 }
 
-module.exports = { proxyFetch, isBlockedAddress, isTextualContentType, guardedLookup, PROXY_MAX_RESPONSE_BYTES, PROXY_MAX_FETCH_BYTES };
+module.exports = { proxyFetch, isBlockedAddress, literalHostBlocked, isTextualContentType, guardedLookup, PROXY_MAX_RESPONSE_BYTES, PROXY_MAX_FETCH_BYTES };

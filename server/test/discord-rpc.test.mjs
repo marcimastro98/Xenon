@@ -1052,3 +1052,37 @@ test('channelMembers carries each member\'s avatar', () => {
   ] });
   assert.equal(m.avatar, 'https://cdn.discordapp.com/avatars/80351110224678912/a1b2c3d4e5f60718293a4b5c6d7e8f90.png?size=64');
 });
+
+// A discord-ipc-N in a shared /tmp could have been created by another local
+// user to receive our RPC handshake and OAuth token: only our own socket counts.
+test('trustedIpcSocket accepts only a real socket owned by our uid', () => {
+  const st = (over) => ({ isSocket: () => true, uid: 1000, ...over });
+  const getuid = () => 1000;
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => st(), getuid }), true);
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => st({ uid: 1001 }), getuid }), false);
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => st({ isSocket: () => false }), getuid }), false);
+  assert.equal(dc.trustedIpcSocket('/tmp/discord-ipc-0', { lstatSync: () => { throw Object.assign(new Error('x'), { code: 'ENOENT' }); }, getuid }), false);
+});
+
+test('trustedIpcSocket against the real filesystem: our socket yes, a regular file no', { skip: process.platform === 'win32' }, async () => {
+  const net = await import('node:net');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-ipc-'));
+  const sockPath = path.join(dir, 'discord-ipc-0');
+  const server = net.createServer(() => {});
+  await new Promise((r) => server.listen(sockPath, r));
+  try {
+    assert.equal(dc.trustedIpcSocket(sockPath), true);
+    const f = path.join(dir, 'discord-ipc-1');
+    fs.writeFileSync(f, '');
+    assert.equal(dc.trustedIpcSocket(f), false);
+    const l = path.join(dir, 'discord-ipc-2');
+    fs.symlinkSync(sockPath, l);
+    assert.equal(dc.trustedIpcSocket(l), false, 'a symlink is not the socket itself');
+  } finally {
+    await new Promise((r) => server.close(r));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

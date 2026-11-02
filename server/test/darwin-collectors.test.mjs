@@ -511,3 +511,20 @@ test('withCurrentOutput: the current output from SwitchAudioSource wins, when it
     assert.equal(dc.withCurrentOutput(devices, unknown), devices, JSON.stringify(unknown));
   }
 });
+
+test('quitAppArgs passes the app name as argv, never inside the AppleScript text', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  const dc = req('../darwin-collectors.js');
+  const evil = 'Evil" to quit\ndo shell script "touch /tmp/pwned';
+  const args = dc.quitAppArgs('Safari');
+  assert.deepEqual(args, ['-e', 'on run argv', '-e', 'tell application (item 1 of argv) to quit', '-e', 'end run', 'Safari']);
+  // A hostile name never reaches a -e script string.
+  const quoted = dc.quitAppArgs('My "Quoted" App');
+  assert.equal(quoted[quoted.length - 1], 'My "Quoted" App');
+  for (let i = 0; i < quoted.length - 1; i++) assert.ok(!quoted[i].includes('Quoted'));
+  // Option-looking and control-character names are refused outright.
+  assert.equal(dc.quitAppArgs('-e'), null);
+  assert.equal(dc.quitAppArgs(evil), null);
+  assert.equal(dc.quitAppArgs(''), null);
+});
