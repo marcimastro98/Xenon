@@ -438,6 +438,13 @@ const PORT = (() => {
 })();
 aiCli.configure({ port: PORT });   // where the Claude Code / Codex MCP bridge reaches Xenon's tools
 
+// Node.js without current security fixes (node-version.js): said once at
+// startup, where the log and the bug report see it. The installer upgrades it.
+try {
+  const nodeSec = require('./node-version').nodeSecurityStatus();
+  if (nodeSec !== 'ok') console.warn(`[node] Node.js ${process.version} is ${nodeSec === 'outdated' ? 'missing current security fixes' : 'no longer supported'}: update it to the latest LTS (run the Xenon installer again, or winget upgrade OpenJS.NodeJS.LTS).`);
+} catch { /* never block startup on this */ }
+
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
 // "update available" hint in Settings. No token, never auto-downloads, and
@@ -14061,10 +14068,20 @@ function _syncFpsMonitor() {
   }
 }
 
+// A stream whose reader has stopped reading keeps every event in memory. Past
+// this much unsent data it is dropped (the page reconnects on its own when it
+// is alive), so one stuck or hostile client cannot grow the server without end.
+const SSE_MAX_BUFFERED = 1024 * 1024;
+const SSE_MAX_PER_DEVICE = 4;
 function broadcastSSE(event, data) {
   if (sseClients.size === 0) return;
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const res of sseClients) {
+    if (res.writableLength > SSE_MAX_BUFFERED) {
+      sseClients.delete(res);
+      try { res.destroy(); } catch { /* already gone */ }
+      continue;
+    }
     try { res.write(payload); }
     catch { sseClients.delete(res); }
   }
@@ -16223,7 +16240,20 @@ const handleRequest = async (req, res) => {
   //    onto a Deck key or a setting.
   //  · nosniff: a browser never guesses a type, so an answer can never be
   //    taken for a page or a script it was not served as.
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' file: qrc:");
+  //  · frame-src: the frames our pages may load are our own (widgets, scenes,
+  //    backgrounds) and the YouTube and Twitch players. The browser checks it
+  //    on every navigation of a child frame too, before the request leaves,
+  //    so a widget or a background preview that sends its frame to another
+  //    site is stopped there, data in the URL included.
+  //  · object-src, base-uri, form-action: nothing of ours uses plugins, a
+  //    <base> tag or forms posting elsewhere, so none may appear.
+  res.setHeader('Content-Security-Policy', [
+    "frame-ancestors 'self' file: qrc:",
+    "frame-src 'self' https://www.youtube-nocookie.com https://*.youtube-nocookie.com https://www.youtube.com https://*.youtube.com https://player.twitch.tv https://*.twitch.tv https://*.google.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '));
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
   // Requests from other sites: see cross-site.js. Before the OPTIONS reply,
@@ -17145,7 +17175,11 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/media' && req.method === 'GET') {
     try {
-      if (urlObj.searchParams.has('source')) setMediaPreferredSource(urlObj.searchParams.get('source'));
+      // ?source= changes the preferred player. Only from our own pages: this
+      // route also answers JSONP <script> loads, which any site can make.
+      const fetchSite = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+      const foreignPage = fetchSite === 'cross-site' || fetchSite === 'same-site';
+      if (urlObj.searchParams.has('source') && !foreignPage) setMediaPreferredSource(urlObj.searchParams.get('source'));
       json(await getMediaInfo());
     }
     catch (e) { err500(e.message); }
@@ -18320,6 +18354,11 @@ const handleRequest = async (req, res) => {
       if (isRemote) {
         const was = !!(prev && prev.aiFeatures && prev.aiFeatures.pcControl === true);
         incoming.aiFeatures = { ...(incoming.aiFeatures && typeof incoming.aiFeatures === 'object' ? incoming.aiFeatures : {}), pcControl: was };
+        // The app switcher's favourites are what a phone may start on the PC
+        // (/windows/launch, remote-actions.js), so a phone cannot change them:
+        // adding a favourite from the phone would make any program on disk
+        // one it can launch.
+        incoming.appFavorites = prev && Array.isArray(prev.appFavorites) ? prev.appFavorites : [];
       }
       // The layout-version migration reads the INCOMING body, and it is the only
       // check in normalizeHubSettings whose failure mode is losing the single
@@ -21240,7 +21279,10 @@ const handleRequest = async (req, res) => {
           const inBuf = Buffer.from(audioB64, 'base64');
           const ffmpeg = getFfmpegPath();
           const wavBuffer = await new Promise((resolve, reject) => {
-            const ff = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
+            // -protocol_whitelist pipe: the input is whatever the browser (or a
+            // paired phone) sent, and ffmpeg guesses its format; a playlist
+            // format could otherwise make it open files or URLs.
+            const ff = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-protocol_whitelist', 'pipe', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
             const out = [];
             const errBuf = [];
             ff.stdout.on('data', c => out.push(c));
@@ -21952,7 +21994,9 @@ const handleRequest = async (req, res) => {
         'Cache-Control': 'private, no-cache',
         'ETag': etag,
       });
-      fs.createReadStream(hit.abs).pipe(res);
+      // pipeline, not pipe: a client that goes away must close the file too,
+      // or each aborted load leaks a descriptor (and on Windows a lock).
+      require('stream').pipeline(fs.createReadStream(hit.abs), res, () => {});
     } catch (e) {
       if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
       else err500(e.message);
@@ -24805,6 +24849,17 @@ const handleRequest = async (req, res) => {
     });
     res.write(':connected\n\n');
 
+    // A paired device holds a few streams at most (a tab or two); more from
+    // the same device are its oldest ones left open, so the oldest is closed.
+    if (isRemote && remote && remote.device) {
+      res._xenonDevice = remote.device.id;
+      const mine = [...sseClients].filter((c) => c._xenonDevice === remote.device.id);
+      while (mine.length >= SSE_MAX_PER_DEVICE) {
+        const old = mine.shift();
+        sseClients.delete(old);
+        try { old.destroy(); } catch { /* already gone */ }
+      }
+    }
     sseClients.add(res);
     // The registry poll is client-gated, so a dashboard opening after a while
     // would otherwise seed itself from a list up to one interval old — long

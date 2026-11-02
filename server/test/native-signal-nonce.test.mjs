@@ -94,14 +94,12 @@ test('the signal helper exists only in the top-level page of our own origins', (
   assert.equal(runIn('http://127.0.0.1:8080', true, js).__xenonSignal, undefined, 'nor another local port');
 });
 
-// Every signal the MAIN window's pages send must carry the nonce, or the shell
-// drops it and the feature silently stops working. Layer windows and the
-// Spotlight window have hooks of their own and no nonce; their pages are listed.
-const OWN_HOOK_PAGES = new Set([
-  'server/js/layer-host.js', 'server/js/screen-alerts.js', 'server/js/screen-menu-page.js',
-  'server/js/screen-scene.js', 'server/spotlight.html',
-  'server/js/utils.js', // open-dashboard, sent only from a layer page (isLayerPage)
-]);
+// Every signal any shell window's pages send must carry the nonce, or the
+// shell drops it and the feature silently stops working. The layer windows
+// and the Spotlight window check their own nonce too (layers/mod.rs,
+// spotlight_window.rs): on macOS and Linux their hooks also see navigations
+// from the sandboxed widget frames those pages host.
+const OWN_HOOK_PAGES = new Set();
 
 function senders() {
   const files = [];
@@ -130,4 +128,15 @@ test('every main-window signal is sent through the nonce helper', () => {
   const bridge = read('server/js/native-bridge.js');
   assert.match(bridge, /window\.location\.href = \(window\.__xenonSignal \|\| String\)\(next\);/, 'the display signals too');
   assert.match(LIB, /typeof window\.__xenonSignal === 'function' \? window\.__xenonSignal\(sig\) : sig/, 'and F11 from the shim');
+});
+
+test('layer windows and Spotlight require their own nonce', () => {
+  const layers = read('apps/native/src-tauri/src/layers/mod.rs');
+  assert.match(layers, /let nonce = crate::nav_policy::new_nonce\(\);/);
+  assert.match(layers, /\.initialization_script\(&nonce_js\)/);
+  assert.match(layers, /crate::nav_policy::verified_signal\(url, nonce\)/);
+  assert.match(layers, /"http" \| "https" if crate::nav_policy::is_own_page\(url, port\(\)\) => true/, 'own pages on its own port only');
+  const spot = read('apps/native/src-tauri/src/spotlight_window.rs');
+  assert.match(spot, /let Some\(url\) = crate::nav_policy::verified_signal\(raw, &nonce\) else \{ return false \};/);
+  assert.match(spot, /crate::nav_policy::is_own_page\(raw, spotlight_port\(\)\)/);
 });

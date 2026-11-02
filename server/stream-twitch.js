@@ -71,7 +71,8 @@ function createTwitchProvider(deps) {
         ok: true,
         deviceCode: data.device_code,
         userCode: data.user_code,
-        verificationUri: data.verification_uri,
+        // Shown to the user as a link: https only, whatever the service answered.
+        verificationUri: httpsOnly(data.verification_url || data.verification_uri, 'https://www.twitch.tv/activate'),
         interval: data.interval || 5,
         expiresIn: data.expires_in,
       };
@@ -585,3 +586,8 @@ function mergeSearch(q, named, about) {
 }
 
 module.exports = { createTwitchProvider, normalizeStreamTwitch, streamMatches, mergeSearch };
+
+// A link the dashboard shows as-is must be https, never javascript: or data:.
+function httpsOnly(u, fallback) {
+  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
+}

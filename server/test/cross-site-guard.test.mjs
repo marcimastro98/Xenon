@@ -159,7 +159,9 @@ test('the calendar is saved by POST only, never by a link', () => {
 test('no site can frame a page of ours, and no answer is ever type-sniffed', () => {
   // Clickjacking: the dashboard in an invisible frame, a click steered onto a
   // Deck key. Only our own pages and the iCUE widget (a local file) may frame.
-  const csp = SERVER.indexOf(`res.setHeader('Content-Security-Policy', "frame-ancestors 'self' file: qrc:");`);
+  const csp = SERVER.indexOf(`res.setHeader('Content-Security-Policy', [\n    "frame-ancestors 'self' file: qrc:",`);
+  assert.match(SERVER, /"frame-src 'self' https:\/\/www\.youtube-nocookie\.com/, 'frames: ours and the players only');
+  assert.match(SERVER, /"object-src 'none'",/);
   const sniff = SERVER.indexOf(`res.setHeader('X-Content-Type-Options', 'nosniff');`);
   assert.ok(csp > 0 && sniff > 0, 'both headers are set');
   const firstRoute = SERVER.indexOf("if (reqPath === '/' && req.method === 'GET')");

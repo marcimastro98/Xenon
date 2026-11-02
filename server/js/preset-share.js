@@ -444,9 +444,17 @@
   function hotkeyParts(keys) {
     return String(keys == null ? '' : keys).toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
   }
+  // Never shared at all: the Windows key opens the system (Win+R is the Run
+  // box, Win+X the admin menu), and a combo on Enter confirms whatever was put
+  // there (Ctrl+Shift+Enter runs it as administrator). Three such steps,
+  // Win+R, Ctrl+V, Ctrl+Shift+Enter, would run the clipboard. A user who wants
+  // them builds the key in the Deck editor.
+  const HOTKEY_SYSTEM_MODS = new Set(['win']);   // the only name the registry gives the Windows key
   function hotkeyTypesText(keys) {
     const parts = hotkeyParts(keys);
     if (!parts.length) return true;
+    if (parts.some((p) => HOTKEY_SYSTEM_MODS.has(p))) return true;
+    if (parts.includes('enter') || parts.includes('return')) return true;
     if (parts.some((p) => HOTKEY_HARD_MODS.has(p))) return false;
     const main = parts.filter((p) => p !== 'shift');
     if (main.length !== 1) return true;

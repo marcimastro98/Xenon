@@ -48,7 +48,8 @@ function createYouTubeProvider(deps) {
         ok: true,
         deviceCode: data.device_code,
         userCode: data.user_code,
-        verificationUri: data.verification_url || data.verification_uri || 'https://www.google.com/device',
+        // Shown to the user as a link: https only, whatever the service answered.
+        verificationUri: httpsOnly(data.verification_url || data.verification_uri, 'https://www.google.com/device'),
         interval: data.interval || 5,
         expiresIn: data.expires_in,
       };
@@ -771,3 +772,8 @@ function createYouTubeProvider(deps) {
 }
 
 module.exports = { createYouTubeProvider, normalizeStreamYouTube };
+
+// A link the dashboard shows as-is must be https, never javascript: or data:.
+function httpsOnly(u, fallback) {
+  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : fallback; } catch { return fallback; }
+}

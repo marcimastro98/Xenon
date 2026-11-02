@@ -112,6 +112,10 @@
   function fromAddress() {
     const req = parse(window.location.search);
     if (!req) return;
+    // Starting the update from the address is the native app's doing (its
+    // update card opens /?open=update). In a plain browser the address could
+    // come from a link on any site, so it is ignored there.
+    if (req.open === 'update' && !window.__XENON_NATIVE_CAPS__) return;
     const url = new URL(window.location.href);
     PARAMS.forEach((k) => url.searchParams.delete(k));
     try { window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch { /* kept: run() still runs once */ }

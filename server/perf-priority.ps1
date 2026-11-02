@@ -15,6 +15,11 @@ $protected = @('explorer','csrss','winlogon','wininit','services','lsass','smss'
 try {
   if ($verb -ne 'set') { Write-Output '{"ok":false,"error":"bad_verb"}'; exit }
   $n = ($name -replace '\.exe$', '').Trim()
+  # An exact process name only: Get-Process -Name takes wildcards, so "lsas*"
+  # or "*" would slip past the protected list below.
+  if ($n -notmatch '^[A-Za-z0-9._ -]+$') {
+    Write-Output '{"ok":false,"error":"protected"}'; exit
+  }
   if ([string]::IsNullOrWhiteSpace($n) -or ($protected -contains $n.ToLower())) {
     Write-Output '{"ok":false,"error":"protected"}'; exit
   }

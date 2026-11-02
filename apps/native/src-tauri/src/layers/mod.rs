@@ -509,6 +509,8 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
     let alerts = spec::is_alerts(&s.key);
     let menu = spec::is_menu(&s.key);
     let kind = s.kind;
+    let nonce = crate::nav_policy::new_nonce();
+    let nonce_js = crate::nav_policy::nonce_script(&nonce, port());
     let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(layer_url(&s.key)?))
         .title("Xenon widgets")
         .decorations(false)
@@ -524,7 +526,13 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
         .inner_size(1.0, 1.0)
         .position(-32000.0, -32000.0)
         .initialization_script(LAYER_SHIM)
-        .on_navigation(move |url| navigate(&handle, &own, alerts, kind, url));
+        // Its own signal nonce, like the main window (nav_policy.rs): on
+        // macOS and Linux this hook also sees navigations from the sandboxed
+        // widget frames these pages host, and a widget must not be able to
+        // send `xenon-app:layer-rects` (a full-screen input region) or any
+        // other signal of this window.
+        .initialization_script(&nonce_js)
+        .on_navigation(move |url| navigate(&handle, &own, alerts, kind, &nonce, url));
     let builder = if alerts { builder.initialization_script(ALERTS_CAPS) } else { builder };
     // Same arguments as the main webview when they share a profile (see
     // `crate::browser_args`); without the GPU pin when they do not.
@@ -555,10 +563,21 @@ fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
 /// A layer page never leaves the loopback dashboard: its own signals are
 /// handled here, external links go to the OS browser, every other scheme
 /// (native-bridge signals meant for the main window) is dropped.
-fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, url: &tauri::Url) -> bool {
-    let loopback = matches!(url.host_str(), Some("127.0.0.1") | Some("localhost"));
+fn navigate(app: &AppHandle, label: &str, alerts: bool, kind: Kind, nonce: &str, url: &tauri::Url) -> bool {
+    // A signal counts only with this window's nonce, which is then removed so
+    // the handlers below read the query exactly as before.
+    let verified;
+    let url: &tauri::Url = if crate::nav_policy::is_signal(url) {
+        match crate::nav_policy::verified_signal(url, nonce) {
+            Some(u) => { verified = u; &verified }
+            None => return false,
+        }
+    } else {
+        url
+    };
     match url.scheme() {
-        "http" | "https" if loopback => true,
+        // Xenon's own pages, on its own port only.
+        "http" | "https" if crate::nav_policy::is_own_page(url, port()) => true,
         "http" | "https" => {
             use tauri_plugin_opener::OpenerExt;
             let _ = app.opener().open_url(url.as_str(), None::<&str>);

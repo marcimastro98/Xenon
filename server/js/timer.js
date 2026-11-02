@@ -91,11 +91,11 @@ function _updateTimerDisplays() {
     const reading = _getReading(timer);
     // Use data-timer-time / data-timer-arc so updates reach all instances
     // (clones have their IDs stripped by stripCloneFor, but data attrs survive).
-    document.querySelectorAll(`[data-timer-time="${timer.id}"]`).forEach(el => {
+    document.querySelectorAll(`[data-timer-time="${cssId(timer.id)}"]`).forEach(el => {
       el.textContent = _formatTime(reading, sw);
     });
     const r = 20, circ = 2 * Math.PI * r;
-    document.querySelectorAll(`[data-timer-arc="${timer.id}"]`).forEach(arc => {
+    document.querySelectorAll(`[data-timer-arc="${cssId(timer.id)}"]`).forEach(arc => {
       // A stopwatch has no end to draw a fraction of, so its ring sweeps once a
       // minute: a moving second hand rather than a progress bar with no total.
       const pct = sw ? (1 - (reading % 60) / 60) : (1 - (reading / timer.durationSecs));
@@ -462,4 +462,11 @@ function setTimerAddCollapsed(collapsed) {
   if (typeof saveDashboardLayout === 'function' && typeof getDashboardLayout === 'function') {
     saveDashboardLayout({ ...getDashboardLayout(), timerAddCollapsed: want }, { status: false });
   }
+}
+
+// An id inside a CSS attribute selector: a stray quote (a restored backup)
+// must not make querySelector throw on every tick.
+function cssId(v) {
+  const s = String(v == null ? '' : v);
+  return (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
 }

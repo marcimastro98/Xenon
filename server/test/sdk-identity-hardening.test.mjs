@@ -257,8 +257,13 @@ test('hotkeyTypesText: bare and shifted typing keys out, real shortcuts in', () 
   for (const k of ['a', 'Z', '7', 'space', 'enter', 'return', 'tab', 'backspace', 'delete', 'shift+a', 'shift+5', 'Shift+Enter', 'shift', '', ';']) {
     assert.equal(PS.hotkeyTypesText(k), true, k);
   }
-  for (const k of ['ctrl+shift+m', 'Ctrl+C', 'alt+tab', 'win+d', 'cmd+space', 'f5', 'F12', 'shift+f5', 'esc', 'up', 'pagedown', 'ctrl+enter']) {
+  for (const k of ['ctrl+shift+m', 'Ctrl+C', 'alt+tab', 'cmd+space', 'f5', 'F12', 'shift+f5', 'esc', 'up', 'pagedown']) {
     assert.equal(PS.hotkeyTypesText(k), false, k);
+  }
+  // Never shared: the Windows key opens the system (Win+R, Win+X), and a combo
+  // on Enter confirms what was put there (Ctrl+Shift+Enter runs it elevated).
+  for (const k of ['win+d', 'win+r', 'WIN+X', 'ctrl+enter', 'ctrl+shift+enter', 'alt+return']) {
+    assert.equal(PS.hotkeyTypesText(k), true, k);
   }
 });
 
@@ -268,7 +273,7 @@ test('sanitize drops typing hotkeys, keeps shortcuts and the media/OBS steps aro
     { action: { type: 'media', cmd: 'playpause' }, delayMs: 0 },
   ] }), DEPS);
   const steps = tapOf(prof);
-  assert.deepEqual(steps.filter((s) => s.action.type === 'hotkey').map((s) => s.action.keys), ['win+r']);
+  assert.deepEqual(steps.filter((s) => s.action.type === 'hotkey').map((s) => s.action.keys), [], 'win+r is not shared either');
   assert.ok(steps.some((s) => s.action.type === 'media'), 'other steps survive');
   const single = PS.sanitizeDeckProfile(profileWith({ type: 'hotkey', keys: 'ctrl+shift+m' }), DEPS);
   assert.deepEqual(tapOf(single).map((s) => s.action.keys), ['ctrl+shift+m']);

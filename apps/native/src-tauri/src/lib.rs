@@ -26,6 +26,15 @@ mod twitch_login;
 #[cfg(target_os = "linux")]
 mod webview_guard;
 
+/// A Windows system tool by its absolute path in System32. A bare name is
+/// looked up in the app's own folder first, which is per-user and writable,
+/// so a planted schtasks.exe or reg.exe there would run instead.
+#[allow(dead_code)]
+pub(crate) fn system32_exe(name: &str) -> std::path::PathBuf {
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
+    std::path::Path::new(&root).join("System32").join(name)
+}
+
 /// WebView2 browser arguments shared by EVERY webview in this process.
 ///
 /// WebView2 requires all webviews on the same user-data folder to be created
@@ -612,7 +621,7 @@ fn decode_console_bytes(bytes: &[u8]) -> String {
 fn backend_task_state() -> TaskState {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let out = std::process::Command::new("schtasks")
+    let out = std::process::Command::new(system32_exe("schtasks.exe"))
         .args(["/Query", "/TN", BACKEND_TASK, "/XML"])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
@@ -680,7 +689,7 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
         if backend_answers_within(port, tries) {
             return; // backend is up — nothing to heal
         }
-        let _ = std::process::Command::new("schtasks")
+        let _ = std::process::Command::new(system32_exe("schtasks.exe"))
             .args(["/Run", "/TN", BACKEND_TASK])
             .creation_flags(CREATE_NO_WINDOW)
             .status();
@@ -721,7 +730,7 @@ fn start_backend_task(app: &tauri::AppHandle, port: u16) {
         if backend_answers_once(port) {
             return;
         }
-        let started = std::process::Command::new("schtasks")
+        let started = std::process::Command::new(system32_exe("schtasks.exe"))
             .args(["/Run", "/TN", BACKEND_TASK])
             .creation_flags(CREATE_NO_WINDOW)
             .status()
@@ -753,7 +762,7 @@ fn repair_startup_task(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let enabled = std::process::Command::new("schtasks")
+        let enabled = std::process::Command::new(system32_exe("schtasks.exe"))
             .args(["/Change", "/TN", BACKEND_TASK, "/ENABLE"])
             .creation_flags(CREATE_NO_WINDOW)
             .status()
@@ -781,7 +790,7 @@ fn repair_startup_task(app: &tauri::AppHandle) {
             .creation_flags(CREATE_NO_WINDOW)
             .status();
         if enabled {
-            let _ = std::process::Command::new("schtasks")
+            let _ = std::process::Command::new(system32_exe("schtasks.exe"))
                 .args(["/Run", "/TN", BACKEND_TASK])
                 .creation_flags(CREATE_NO_WINDOW)
                 .status();

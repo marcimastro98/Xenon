@@ -21,7 +21,7 @@ tauri-build = { version = "2.6.3", features = [] }
 # opaque WHITE under the page, and the switch that turns that off is a private key
 # wry only compiles in under this feature. It affects macOS builds alone, and
 # Xenon does not ship through the App Store, where private APIs are refused.
-tauri = { version = "2.11.5", features = ["tray-icon", "macos-private-api"] }
+tauri = { version = "2.11.6", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-single-instance = "2.4.2"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-opener = "2.5.4"

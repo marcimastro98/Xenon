@@ -765,7 +765,10 @@ async function localTts(text, lang, ffmpegPath) {
   const outPath = path.join(os.tmpdir(), `xenon-tts-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`);
   try {
     return await new Promise((resolve, reject) => {
-      const ff = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', outPath], { windowsHide: true });
+      // -protocol_whitelist pipe (an input option: the output file is not
+      // affected): the input is untrusted audio whose format ffmpeg guesses,
+      // and a playlist format must not reach local files or URLs.
+      const ff = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-protocol_whitelist', 'pipe', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', outPath], { windowsHide: true });
       const errBuf = [];
       ff.stderr.on('data', c => errBuf.push(c));
       ff.on('error', reject);

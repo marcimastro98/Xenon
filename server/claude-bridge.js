@@ -176,7 +176,12 @@ function describeTool(toolName, input, max = MAX_INPUT_CHARS, allFields = false)
   if (t === 'Glob' || t === 'Grep') return str(i.pattern, max);
   if (t === 'WebFetch') return str(i.url, max);
   if (t === 'WebSearch') return str(i.query, max);
-  if (t === 'Agent' || t === 'Task') return str(i.description || i.prompt, max);
+  // On an approval card a subagent shows its whole brief, not only the short
+  // description: the prompt is what it will act on.
+  if (t === 'Agent' || t === 'Task') {
+    if (allFields) return str([i.description, i.prompt].filter((v) => typeof v === 'string' && v.trim()).join('\n'), max);
+    return str(i.description || i.prompt, max);
+  }
   if (allFields) {
     const lines = [];
     for (const k of Object.keys(i)) {
