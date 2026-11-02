@@ -98,7 +98,7 @@ test('the server applies all of it on the paired-device door', () => {
 });
 
 test('remote desktop, PC Control and backups are set up at the PC', () => {
-  for (const p of ['/ai/pc-run', '/remote/pin', '/remote/enable', '/remote/unblock', '/remote/ondemand', '/remote/sunshine/configure', '/backup/import', '/api/phone/dial', '/api/phone/send']) {
+  for (const p of ['/ai/pc-run', '/remote/pin', '/remote/enable', '/remote/unblock', '/remote/ondemand', '/remote/sunshine/configure', '/backup/import', '/backup/export', '/api/phone/dial', '/api/phone/send']) {
     assert.ok(access.REMOTE_DENY.has(p), p);
   }
 });
