@@ -14685,8 +14685,11 @@ const ALLOWED_HOSTS = new Set([
 // Restrict callback wrapping to the endpoints the iCUE widget actually polls —
 // settings (API keys), stream tokens and deck config must only ever ship as
 // plain JSON, which cross-origin pages cannot read.
+// Not /events: a calendar is personal, and a JSONP answer is readable by any
+// page that adds the <script>. The legacy Hub widget's agenda loses its feed;
+// the current iCUE widget shows the dashboard itself, calendar included.
 const JSONP_PATHS = new Set([
-  '/system', '/network', '/notes', '/events', '/media', '/audio', '/status',
+  '/system', '/network', '/notes', '/media', '/audio', '/status',
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
 ]);
 function isJsonpAllowed(pathname) {
@@ -16069,11 +16072,23 @@ const handleRequest = async (req, res) => {
   // to GRANT anything: authorization is the allowlist's job, not a handler's.
   const isRemote = remote !== null;
 
+  // On every answer, both doors. A route that sends its own CSP (SDK widgets,
+  // icon packs, captures) replaces this one through writeHead, and keeps its
+  // stricter policy.
+  //  · frame-ancestors: only Xenon's own pages and the iCUE widget (a local
+  //    file, file: or qrc:) may show a page of ours in a frame. Without it a
+  //    site could put the dashboard in an invisible frame and steer a click
+  //    onto a Deck key or a setting.
+  //  · nosniff: a browser never guesses a type, so an answer can never be
+  //    taken for a page or a script it was not served as.
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' file: qrc:");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
   // Requests from other sites: see cross-site.js. Before the OPTIONS reply,
   // so a refused preflight is refused here too.
   let reqPathEarly = '';
   try { reqPathEarly = new URL(req.url, 'http://localhost').pathname; } catch { /* refused below as foreign if it matters */ }
-  if (!isRemote && refusedCrossSite(req, PORT, reqPathEarly)) {
+  if (!isRemote && refusedCrossSite(req, PORT, reqPathEarly, { jsonp: isJsonpAllowed })) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
     return;
@@ -16112,14 +16127,18 @@ const handleRequest = async (req, res) => {
     // Local API responses are live state — never let the browser/WebView cache them
     // (a cached /api/lighting/status was masking real changes during diagnosis).
     if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb) && isJsonpAllowed(urlObj.pathname)) {
+      // A JSONP answer can be read by any page that adds the <script>, so it
+      // carries only what the iCUE widgets show: no browser window titles
+      // (audio apps) and no computer name.
+      const shared = JSON.stringify(data, (k, v) => (k === 'win' || k === 'hostname') ? undefined : v);
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(jsonpCb + '(' + body + ');');
+      res.end(jsonpCb + '(' + shared + ');');
     } else {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(body);
     }
   };
-  const err500 = msg  => { res.writeHead(500); res.end(String(msg)); };
+  const err500 = msg  => { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(String(msg)); };
 
   const reqPath = urlObj.pathname;
 
@@ -17687,21 +17706,18 @@ const handleRequest = async (req, res) => {
       json(await saveNotesGuarded(body));
     } catch (e) { err500(e.message); }
 
-  } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
+  } else if (reqPath === '/notes' && req.method === 'GET') {
+    // Read only. A GET that saved (?save=&data=) let any link or <img> replace
+    // every note with one; saving is POST now.
     // Legacy flat-text read (iCUE widget, JSONP). Flatten the structured store.
     readNotes()
       .then(state => json({ notes: notesToText(state) }))
       .catch(e => err500(e.message));
 
-  } else if (reqPath === '/notes' && (req.method === 'POST' || (req.method === 'GET' && urlObj.searchParams.has('save')))) {
+  } else if (reqPath === '/notes' && req.method === 'POST') {
     try {
-      let notes;
-      if (req.method === 'GET') {
-        notes = urlObj.searchParams.get('data') || '';
-      } else {
-        const body = JSON.parse(await readBody(req));
-        notes = typeof body.notes === 'string' ? body.notes : (typeof body.text === 'string' ? body.text : '');
-      }
+      const body = JSON.parse(await readBody(req));
+      const notes = typeof body.notes === 'string' ? body.notes : (typeof body.text === 'string' ? body.text : '');
       // Legacy flat-text save (iCUE widget). Replaces the store with a single note.
       const safe = String(notes).slice(0, NOTE_BODY_MAX);
       writeNotes(textToNotesState(safe))
@@ -19734,18 +19750,15 @@ const handleRequest = async (req, res) => {
       });
     } catch (e) { err500(e.message); }
 
-  } else if (reqPath === '/events' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
+  } else if (reqPath === '/events' && req.method === 'GET') {
+    // Read only. Saving used to be possible as a GET (?save=&data=), which any
+    // link or <img> could fire to replace the whole calendar; it is POST now.
     try { json({ events: await readEvents() }); }
     catch (e) { err500(e.message); }
 
-  } else if (reqPath === '/events' && (req.method === 'POST' || (req.method === 'GET' && urlObj.searchParams.has('save')))) {
+  } else if (reqPath === '/events' && req.method === 'POST') {
     try {
-      let body;
-      if (req.method === 'GET') {
-        body = JSON.parse(urlObj.searchParams.get('data') || '[]');
-      } else {
-        body = JSON.parse(await readBody(req));
-      }
+      const body = JSON.parse(await readBody(req));
       const events = await writeEvents(body.events || body);
       json({ ok: true, events, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
