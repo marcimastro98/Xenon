@@ -129,6 +129,11 @@ body.layout-editing .sdk-yt-frame { pointer-events: none; }
   /* Follows the tile's radius rather than a literal: a widget whose tile was
      given square or heavily rounded corners kept a 10px frame inside it. */
   border: 0; border-radius: var(--radius-tile, 16px); background: transparent;
+  /* A frame whose color-scheme differs from the page's gets an opaque white
+     backdrop in Chromium: the dashboard root is `dark`, a widget page has none,
+     so a transparent widget showed white text on white. Same fix as the
+     animated background (custom-bg.js). */
+  color-scheme: normal;
 }
 
 /* While arranging the layout the guest iframe must be inert: a sandboxed frame

@@ -176,6 +176,13 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
   — you get a host-mediated key/value store instead; see *Persistent storage*.)
 - **Inline `<script>` is blocked** (`script-src 'self'`) — put all JS in files.
   Inline `<style>` is allowed.
+- **Your widget is one page (v5.0.0).** If its frame loads a second document
+  (`location.href = …`, a link, a form, `location.reload()`, even another page
+  of your own package), Xenon stops the widget and shows "This widget tried to
+  open another page", with Reload and Choose another. Build multi-view widgets
+  as a single page that swaps its own content; to refresh, re-render from data
+  instead of reloading. The reason: a page that replaced yours would otherwise
+  inherit your permissions without the user ever approving it.
 - Images/fonts must be bundled in your package or `data:` URIs.
 - **Keyboard events reach you only while your frame has focus.** A `keydown`
   listener inside the iframe hears nothing until the user has clicked or tapped

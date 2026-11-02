@@ -24661,11 +24661,14 @@ const handleRequest = async (req, res) => {
       // this the switch changed a flag and nothing else: the QR advertised
       // http://<lan-ip>:PORT/pair while the socket stayed on 127.0.0.1, and the
       // phone got a connection error with no explanation anywhere.
-      applyBindHost();
       // The HTTPS door serves the paired-device door and nothing else, so it
       // follows it down — and back up, if it was on before.
       _syncRemoteHttps();
       json({ ok: true, enabled: value });
+      // After the answer is out: moving the listener closes every open
+      // connection, this request's included, so doing it first left the
+      // caller with an empty reply.
+      res.once('finish', () => { setImmediate(() => { try { applyBindHost(); } catch { /* stays where it is */ } }); });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/remote-access/https' && req.method === 'POST') {
