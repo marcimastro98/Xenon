@@ -110,7 +110,7 @@ test('server.js: one writer under the settings lock, the toggle read inside it',
   const at = SERVER.indexOf('async function updateDesktopSceneSetting(patch)');
   assert.ok(at > 0);
   const fn = SERVER.slice(at, SERVER.indexOf('\n}\n', at));
-  assert.match(fn, /return withHubSettingsLock\(async \(\) => \{\n\s+const cur = \(await readHubSettings\(\)/);
+  assert.match(fn, /return withHubSettingsLock\(async \(\) => \{\n\s+const cur = await readHubSettingsForUpdate\(\)/);
   assert.match(fn, /if \(patch\.wallpaper === 'toggle'\) ambient\.wallpaper = !ambient\.wallpaper;/);
   assert.match(fn, /ambientMode: normalizeAmbientMode\(ambient\)/, 'normalized like every other save');
   assert.match(fn, /broadcastSSE\('settings', \{ rev: saved\.rev \}\)/, 'the dashboard and the driver re-sync the windows');

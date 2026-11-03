@@ -148,7 +148,7 @@ test('client and server both normalize layers with this one file', () => {
 test('server edits to layers run under the settings lock, bump rev and tell the other surfaces', () => {
   const server = read('../server.js');
   const fn = server.slice(server.indexOf('async function updateLayersSetting'), server.indexOf('async function updateLayersSetting') + 900);
-  assert.match(fn, /withHubSettingsLock\(async \(\) => \{\n\s+const cur = \(await readHubSettings\(\)/, 'prev is read INSIDE the lock');
+  assert.match(fn, /withHubSettingsLock\(async \(\) => \{\n\s+const cur = await readHubSettingsForUpdate\(\)/, 'prev is read INSIDE the lock');
   assert.match(fn, /if \(!res \|\| res\.error \|\| !res\.layers\) return/);
   assert.match(fn, /rev: nextSettingsRev\(cur\.rev\)/);
   assert.match(fn, /broadcastSSE\('settings', \{ rev: saved\.rev \}\)/);
