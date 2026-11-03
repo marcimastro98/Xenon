@@ -57,6 +57,7 @@ const { createStutterWatch } = require('./stutter-why');
 const { createExclusiveHint } = require('./exclusive-hint');
 const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
+const listOps = require('./list-ops');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
 const { createCaptureHost } = require('./capture-host');
 const { createCaptures, VIDEO_KINDS, KINDS: CAPTURE_KINDS } = require('./captures');
@@ -1950,8 +1951,7 @@ async function performAiUndo(entry) {
       return { ok: true, refresh: 'refresh_notes' };
     }
     if (u.kind === 'delete_task') {
-      const tasks = await readTasks();
-      await writeTasks(tasks.filter((t) => t.id !== u.id));
+      await updateTasks((tasks) => ({ next: tasks.filter((t) => t.id !== u.id) }));
       return { ok: true, refresh: 'refresh_tasks' };
     }
     if (u.kind === 'restore_tasks') {
@@ -7118,26 +7118,25 @@ const deckRegistryDeps = {
   // SDK widget (e.g. TTY // TODO) repaint together. Text/id are already trimmed +
   // length-capped by the registry's validateAction before we get here.
   taskAdd: async (text) => {
-    const tasks = await readTasks();
-    tasks.push({ text: String(text || '') });
-    await writeTasks(tasks);   // normalize assigns a fresh id + createdAt
+    // normalizeTask assigns a fresh id + createdAt
+    await updateTasks((tasks) => ({ next: tasks.concat([{ text: String(text || '') }]) }));
     return { ok: true };
   },
   taskToggle: async (id) => {
-    const tasks = await readTasks();
-    const task = tasks.find(t => t.id === id);
-    if (!task) return { ok: false, error: 'not_found' };
-    task.completed = !task.completed;
-    task.completedAt = task.completed ? new Date().toISOString() : null;
-    await writeTasks(tasks);
-    return { ok: true };
+    const r = await updateTasks((tasks) => {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return { found: false };
+      const completed = !task.completed;
+      return { found: true, next: tasks.map(t => (t === task ? { ...t, completed, completedAt: completed ? new Date().toISOString() : null } : t)) };
+    });
+    return r.found ? { ok: true } : { ok: false, error: 'not_found' };
   },
   taskDelete: async (id) => {
-    const tasks = await readTasks();
-    const next = tasks.filter(t => t.id !== id);
-    if (next.length === tasks.length) return { ok: false, error: 'not_found' };
-    await writeTasks(next);
-    return { ok: true };
+    const r = await updateTasks((tasks) => {
+      const next = tasks.filter(t => t.id !== id);
+      return next.length === tasks.length ? { found: false } : { found: true, next };
+    });
+    return r.found ? { ok: true } : { ok: false, error: 'not_found' };
   },
   // Countdown timers from a Deck key — the SAME list the Timers tile and
   // /api/timers manage, addressed by label (case-insensitive). Each mutation
@@ -8750,14 +8749,12 @@ async function runAiTool(fnName, fnArgs, deps) {
       const taskText = String(fnArgs.text || '').trim();
       if (!taskText) { fnResult = { error: 'empty text' }; }
       else {
-        const tasks = await readTasks();
         const newTask = normalizeTask({
           text: taskText,
           priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
           recurrence: 'never',
         });
-        tasks.push(newTask);
-        await writeTasks(tasks);
+        await updateTasks((tasks) => ({ next: tasks.concat([newTask]) }));
         clientActions.push({ action: 'refresh_tasks', args: {} });
         aiActionLog.record({ name: 'create_task', label: `Task creato: "${newTask.text}"`, undo: { kind: 'delete_task', id: newTask.id } });
         fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
@@ -8766,43 +8763,43 @@ async function runAiTool(fnName, fnArgs, deps) {
       const delId = String(fnArgs.id || '').trim();
       if (!delId) { fnResult = { error: 'missing id' }; }
       else {
-        const tasks = await readTasks();
-        const before = tasks.length;
-        const remaining = tasks.filter(t => t.id !== delId);
-        if (remaining.length === before) { fnResult = { error: 'task not found', id: delId }; }
+        const r = await updateTasks((tasks) => {
+          const remaining = tasks.filter(t => t.id !== delId);
+          return remaining.length === tasks.length ? { found: false } : { found: true, next: remaining };
+        });
+        if (!r.found) { fnResult = { error: 'task not found', id: delId }; }
         else {
-          await writeTasks(remaining);
           clientActions.push({ action: 'refresh_tasks', args: {} });
           fnResult = { ok: true, deleted: delId };
         }
       }
     } else if (fnName === 'clear_all_tasks') {
-      const prevTasks = await readTasks();
-      await writeTasks([]);
+      const { prevTasks } = await updateTasks((tasks) => ({ prevTasks: tasks, next: [] }));
       clientActions.push({ action: 'refresh_tasks', args: {} });
       aiActionLog.record({ name: 'clear_all_tasks', label: 'Tutti i task cancellati', undo: { kind: 'restore_tasks', prev: prevTasks } });
       fnResult = { ok: true, deleted: 'all' };
     } else if (fnName === 'edit_task') {
-      const tasks = await readTasks();
-      const { next, result } = AgendaAi.editTask(tasks, fnArgs);
-      if (next) {
-        await writeTasks(next);
+      const r = await updateTasks((tasks) => {
+        const { next, result } = AgendaAi.editTask(tasks, fnArgs);
+        return next ? { next, result, prev: tasks } : { result };
+      });
+      if (r.changed) {
         clientActions.push({ action: 'refresh_tasks', args: {} });
-        aiActionLog.record({ name: 'edit_task', label: `Task modificato: "${result.task.text}"`, undo: { kind: 'restore_tasks', prev: tasks } });
+        aiActionLog.record({ name: 'edit_task', label: `Task modificato: "${r.result.task.text}"`, undo: { kind: 'restore_tasks', prev: r.prev } });
       }
-      fnResult = result;
+      fnResult = r.result;
     } else if (fnName === 'complete_task') {
       const taskId = String(fnArgs.id || '').trim();
       const makeCompleted = fnArgs.completed !== false; // defaults to true
       if (!taskId) { fnResult = { error: 'missing id' }; }
       else {
-        const tasks = await readTasks();
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) { fnResult = { error: 'task not found', id: taskId }; }
+        const r = await updateTasks((tasks) => {
+          const task = tasks.find(t => t.id === taskId);
+          if (!task) return { found: false };
+          return { found: true, next: tasks.map(t => (t === task ? { ...t, completed: makeCompleted, completedAt: makeCompleted ? new Date().toISOString() : null } : t)) };
+        });
+        if (!r.found) { fnResult = { error: 'task not found', id: taskId }; }
         else {
-          task.completed = makeCompleted;
-          task.completedAt = makeCompleted ? new Date().toISOString() : null;
-          await writeTasks(tasks);
           clientActions.push({ action: 'refresh_tasks', args: {} });
           fnResult = { ok: true, id: taskId, completed: makeCompleted };
         }
@@ -8821,7 +8818,6 @@ async function runAiTool(fnName, fnArgs, deps) {
       const evTitle = String(fnArgs.title || '').trim();
       if (!evTitle) { fnResult = { error: 'empty title' }; }
       else {
-        const events = await readEvents();
         const newEvent = {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           title: evTitle.slice(0, 120),
@@ -8831,43 +8827,41 @@ async function runAiTool(fnName, fnArgs, deps) {
           notifiedAt: '',
           createdAt: new Date().toISOString(),
         };
-        events.push(newEvent);
-        await writeEvents(events);
+        await updateEvents((events) => ({ next: events.concat([newEvent]) }));
         clientActions.push({ action: 'refresh_calendar', args: {} });
         fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
       }
     } else if (fnName === 'play_in_tile') {
       fnResult = await playInTile(fnArgs);
     } else if (fnName === 'edit_calendar_event') {
-      const events = await readEvents();
-      const { next, result } = AgendaAi.editEvent(events, fnArgs);
-      if (next) {
-        await writeEvents(next);
+      const r = await updateEvents((events) => {
+        const { next, result } = AgendaAi.editEvent(events, fnArgs);
+        return next ? { next, result, prev: events } : { result };
+      });
+      if (r.changed) {
         clientActions.push({ action: 'refresh_calendar', args: {} });
-        aiActionLog.record({ name: 'edit_calendar_event', label: `Evento modificato: "${result.event.title}"`, undo: { kind: 'restore_events', prev: events } });
+        aiActionLog.record({ name: 'edit_calendar_event', label: `Evento modificato: "${r.result.event.title}"`, undo: { kind: 'restore_events', prev: r.prev } });
       }
-      fnResult = result;
+      fnResult = r.result;
     } else if (fnName === 'delete_calendar_event') {
       const evId = String(fnArgs.id || '').trim();
       if (!evId) { fnResult = { error: 'missing id' }; }
       else {
-        const events = await readEvents();
-        const before = events.length;
-        const remaining = events.filter(e => e.id !== evId);
-        if (remaining.length === before) { fnResult = { error: 'event not found', id: evId }; }
+        const r = await updateEvents((events) => {
+          const remaining = events.filter(e => e.id !== evId);
+          return remaining.length === events.length ? { found: false } : { found: true, next: remaining };
+        });
+        if (!r.found) { fnResult = { error: 'event not found', id: evId }; }
         else {
-          await writeEvents(remaining);
           clientActions.push({ action: 'refresh_calendar', args: {} });
           fnResult = { ok: true, deleted: evId };
         }
       }
     } else if (fnName === 'clear_all_calendar_events') {
-      const events = await readEvents();
-      const removed = events.length;
-      await writeEvents([]);
+      const { prevEvents } = await updateEvents((events) => ({ prevEvents: events, next: [] }));
       clientActions.push({ action: 'refresh_calendar', args: {} });
-      aiActionLog.record({ name: 'clear_all_calendar_events', label: 'Tutti gli eventi cancellati', undo: { kind: 'restore_events', prev: events } });
-      fnResult = { ok: true, deleted: 'all', count: removed };
+      aiActionLog.record({ name: 'clear_all_calendar_events', label: 'Tutti gli eventi cancellati', undo: { kind: 'restore_events', prev: prevEvents } });
+      fnResult = { ok: true, deleted: 'all', count: prevEvents.length };
     } else if (fnName === 'open_application') {
       const rawTarget = String(fnArgs.target || '').trim();
       if (!rawTarget) { fnResult = { error: 'target mancante' }; }
@@ -13677,8 +13671,10 @@ function withEventsWrite(fn) {
 }
 
 async function _saveEvents(safe) {
-  await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe, null, 2));
-  broadcastSSE('agenda', { events: safe });   // live-sync the SDK `agenda` stream (no-op with no listeners)
+  await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe));
+  // Every dashboard repaints its calendar from this, and so does the SDK
+  // `agenda` stream.
+  broadcastSSE('agenda', { events: safe });
   return safe;
 }
 
@@ -13688,6 +13684,24 @@ function writeEvents(events) {
     return _saveEvents(calendarReminders.keepNotified(normalizeEvents(events), prev));
   });
 }
+
+// Read, change and write the events as one step, so nothing else writes in
+// between. `edit(events)` answers { next, ...result } to save `next`, or
+// { ...result } without `next` to leave the file alone. A file that cannot be
+// read fails the edit instead of starting from an empty list.
+function updateEvents(edit) {
+  return withEventsWrite(async () => {
+    const prev = await readEvents();
+    const out = (await edit(prev)) || {};
+    if (!Array.isArray(out.next)) return { ...out, events: prev, changed: false };
+    const events = await _saveEvents(calendarReminders.keepNotified(normalizeEvents(out.next), prev));
+    return { ...out, events, changed: true };
+  });
+}
+
+// What a dashboard may change on one event (list-ops.js). notifiedAt is the
+// server's, set when the reminder rings.
+const EVENT_EDIT_FIELDS = Object.freeze(['title', 'notes', 'startsAt', 'endsAt', 'reminderAt']);
 
 function markEventReminders(now) {
   return withEventsWrite(async () => {
@@ -13729,11 +13743,60 @@ async function readTasks() {
   }
 }
 
-async function writeTasks(tasks) {
+// Every tasks write runs in one queue, and so does every read that a write is
+// built on (updateTasks), so the assistant, a Deck key, the clock that reopens
+// repeating tasks and two dashboards can never base a write on the same old
+// list and drop each other's change.
+let _tasksWriteChain = Promise.resolve();
+function withTasksWrite(fn) {
+  const run = _tasksWriteChain.then(fn, fn);
+  _tasksWriteChain = run.catch(() => {});
+  return run;
+}
+
+async function _writeTasksNow(tasks) {
   const safe = normalizeTasks(tasks);
-  await writeFileAtomic(TASKS_FILE, JSON.stringify(safe, null, 2));
-  broadcastSSE('tasks', { tasks: safe });   // live-sync the SDK `tasks` stream (no-op with no listeners)
+  await writeFileAtomic(TASKS_FILE, JSON.stringify(safe));
+  // Every dashboard repaints its Tasks tile from this, and so does the SDK
+  // `tasks` stream.
+  broadcastSSE('tasks', { tasks: safe });
   return safe;
+}
+
+function writeTasks(tasks) {
+  return withTasksWrite(() => _writeTasksNow(tasks));
+}
+
+// Read, change and write the tasks as one step. `edit(tasks)` answers
+// { next, ...result } to save `next`, or { ...result } without `next` to leave
+// the file alone. A file that cannot be read fails the edit instead of
+// starting from an empty list.
+function updateTasks(edit) {
+  return withTasksWrite(async () => {
+    const cur = await readTasks();
+    const out = (await edit(cur)) || {};
+    if (!Array.isArray(out.next)) return { ...out, tasks: cur, changed: false };
+    const tasks = await _writeTasksNow(out.next);
+    return { ...out, tasks, changed: true };
+  });
+}
+
+// What a dashboard may change on one task (list-ops.js).
+const TASK_EDIT_FIELDS = Object.freeze(['text', 'priority', 'recurrence', 'recurrenceDays', 'completed', 'completedAt']);
+
+// Finished repeating tasks come back on the server's clock, for every screen.
+function reopenDueTasksNow() {
+  return updateTasks((cur) => {
+    const r = listOps.reopenDueTasks(cur);
+    return r.changed ? { next: r.list } : null;
+  });
+}
+let _tasksReopenTimer = null;
+function startTasksReopenClock() {
+  if (_tasksReopenTimer) clearInterval(_tasksReopenTimer);
+  reopenDueTasksNow().catch(() => {});
+  _tasksReopenTimer = setInterval(() => { reopenDueTasksNow().catch(() => {}); }, 60_000);
+  _tasksReopenTimer.unref();
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────────
@@ -20016,8 +20079,23 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/events' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      const events = await writeEvents(body.events || body);
-      json({ ok: true, events, savedAt: Date.now() });
+      // The dashboard sends one edit (list-ops.js), applied to the list on disk.
+      // A whole list is still taken from a page that loaded before this build.
+      if (listOps.isListOp(body)) {
+        let bad = '';
+        const r = await updateEvents((events) => {
+          const o = listOps.applyListOp(events, body, EVENT_EDIT_FIELDS);
+          if (o.error) { bad = o.error; return null; }
+          return o.changed ? { next: o.list } : null;
+        });
+        if (bad) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+          res.end(JSON.stringify({ ok: false, error: bad }));
+        } else json({ ok: true, events: r.events, savedAt: Date.now() });
+      } else {
+        const events = await writeEvents(body.events || body);
+        json({ ok: true, events, savedAt: Date.now() });
+      }
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/external-events' && req.method === 'GET') {
@@ -20043,8 +20121,22 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/tasks' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      const tasks = await writeTasks(body.tasks || body);
-      json({ ok: true, tasks, savedAt: Date.now() });
+      // One edit at a time, as for the events above.
+      if (listOps.isListOp(body)) {
+        let bad = '';
+        const r = await updateTasks((tasks) => {
+          const o = listOps.applyListOp(tasks, body, TASK_EDIT_FIELDS);
+          if (o.error) { bad = o.error; return null; }
+          return o.changed ? { next: o.list } : null;
+        });
+        if (bad) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+          res.end(JSON.stringify({ ok: false, error: bad }));
+        } else json({ ok: true, tasks: r.tasks, savedAt: Date.now() });
+      } else {
+        const tasks = await writeTasks(body.tasks || body);
+        json({ ok: true, tasks, savedAt: Date.now() });
+      }
     } catch (e) { err500(e.message); }
 
   // ── Timers API ────────────────────────────────────────────────────────────
@@ -25686,6 +25778,7 @@ function _startListen(host) {
     // belongs in front of the dashboard coming up.
     setTimeout(() => { _syncRemoteHttps().catch(() => {}); }, 3000);
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
+    startTasksReopenClock();          // finished repeating tasks come back on time
     // PresentMon (real in-game FPS) is NOT started here: it holds an admin ETW
     // tracing session, so it stays paused until the first dashboard connects and
     // is torn down when the last one leaves (see _syncFpsMonitor on the SSE path).

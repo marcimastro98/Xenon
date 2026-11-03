@@ -38,7 +38,7 @@
   const AGENDA = {
     css: ['components/CustomSelect/CustomSelect.css', 'components/CalendarView/CalendarView.css', 'components/DayModal/DayModal.css',
       'components/TasksPanel/TasksPanel.css', 'components/TimerPanel/TimerPanel.css', 'components/NotesPanel/NotesPanel.css'],
-    js: ['js/custom-select.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
+    js: ['js/custom-select.js', 'js/list-sync.js', 'js/calendar.js', 'js/notes.js', 'js/tasks.js', 'js/timer.js'],
   };
 
   const TILES = {

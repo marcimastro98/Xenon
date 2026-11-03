@@ -65011,6 +65011,52 @@ Object.assign(i18n.zh, {
   apps_fav_pc_only: "在手机或平板上可以移除或重新排列收藏，但不能添加：收藏是手机可以在电脑上启动的应用。",
 });
 
+// ── Tasks and calendar: an edit still on its way to the PC (list-sync.js) ──
+Object.assign(i18n.it, {
+  list_save_retry_title: "Non ancora salvato",
+  list_save_retry: "Xenon non riesce a raggiungere il PC in questo momento. Continua a riprovare da solo: lascia aperta questa pagina.",
+});
+Object.assign(i18n.en, {
+  list_save_retry_title: "Not saved yet",
+  list_save_retry: "Xenon can't reach the PC right now. It keeps trying on its own, so leave this page open.",
+});
+Object.assign(i18n.es, {
+  list_save_retry_title: "Aún no se ha guardado",
+  list_save_retry: "Xenon no puede llegar al PC ahora mismo. Sigue intentándolo solo, así que deja esta página abierta.",
+});
+Object.assign(i18n.fr, {
+  list_save_retry_title: "Pas encore enregistré",
+  list_save_retry: "Xenon n'arrive pas à joindre le PC pour le moment. Il continue d'essayer tout seul, alors laissez cette page ouverte.",
+});
+Object.assign(i18n.de, {
+  list_save_retry_title: "Noch nicht gespeichert",
+  list_save_retry: "Xenon erreicht den PC gerade nicht. Es versucht es von selbst weiter, lass diese Seite also offen.",
+});
+Object.assign(i18n.pt, {
+  list_save_retry_title: "Ainda não foi guardado",
+  list_save_retry: "O Xenon não consegue chegar ao PC neste momento. Continua a tentar sozinho, por isso deixe esta página aberta.",
+});
+Object.assign(i18n.nl, {
+  list_save_retry_title: "Nog niet opgeslagen",
+  list_save_retry: "Xenon kan de pc nu niet bereiken. Het blijft het zelf proberen, dus laat deze pagina open.",
+});
+Object.assign(i18n.ru, {
+  list_save_retry_title: "Пока не сохранено",
+  list_save_retry: "Xenon сейчас не может связаться с ПК. Он сам продолжает пытаться, поэтому не закрывайте эту страницу.",
+});
+Object.assign(i18n.ko, {
+  list_save_retry_title: "아직 저장되지 않았습니다",
+  list_save_retry: "지금은 Xenon이 PC에 연결할 수 없습니다. 스스로 계속 다시 시도하니 이 페이지를 열어 두세요.",
+});
+Object.assign(i18n.ja, {
+  list_save_retry_title: "まだ保存されていません",
+  list_save_retry: "今は Xenon が PC に接続できません。自動で再試行を続けるので、このページは開いたままにしてください。",
+});
+Object.assign(i18n.zh, {
+  list_save_retry_title: "尚未保存",
+  list_save_retry: "Xenon 现在连不上电脑。它会自动一直重试，请保持此页面打开。",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;
