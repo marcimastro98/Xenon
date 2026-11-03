@@ -18376,10 +18376,16 @@ const handleRequest = async (req, res) => {
         const was = !!(prev && prev.aiFeatures && prev.aiFeatures.pcControl === true);
         incoming.aiFeatures = { ...(incoming.aiFeatures && typeof incoming.aiFeatures === 'object' ? incoming.aiFeatures : {}), pcControl: was };
         // The app switcher's favourites are what a phone may start on the PC
-        // (/windows/launch, remote-actions.js), so a phone cannot change them:
-        // adding a favourite from the phone would make any program on disk
-        // one it can launch.
-        incoming.appFavorites = prev && Array.isArray(prev.appFavorites) ? prev.appFavorites : [];
+        // (/windows/launch, remote-actions.js). A phone may remove or reorder
+        // them, never add one: a favourite added from the phone would make any
+        // program on disk one it can launch. So only favourites the PC already
+        // has survive, each kept exactly as the PC saved it (its path cannot
+        // be swapped under the same name).
+        const favKey = (f) => String((f && (f.key || f.app)) || '').trim().toLowerCase();
+        const saved = new Map((prev && Array.isArray(prev.appFavorites) ? prev.appFavorites : []).map((f) => [favKey(f), f]));
+        incoming.appFavorites = (Array.isArray(incoming.appFavorites) ? incoming.appFavorites : [])
+          .map((f) => saved.get(favKey(f)))
+          .filter(Boolean);
       }
       // The layout-version migration reads the INCOMING body, and it is the only
       // check in normalizeHubSettings whose failure mode is losing the single

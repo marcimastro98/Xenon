@@ -64965,6 +64965,52 @@ Object.assign(i18n.zh, {
   rc_sunshine_old: "此版本存在安全漏洞，且无法自动更新。请将 Sunshine 更新到最新版本，然后重试。",
 });
 
+// ── App switcher: a phone removes or reorders favourites, never adds one (app-switcher.js) ──
+Object.assign(i18n.it, {
+  apps_fav_pc_only_title: "Aggiungilo dal PC",
+  apps_fav_pc_only: "Da telefono o tablet puoi togliere o riordinare i preferiti, ma non aggiungerne: un preferito è un'app che il telefono può avviare sul PC.",
+});
+Object.assign(i18n.en, {
+  apps_fav_pc_only_title: "Add it on the PC",
+  apps_fav_pc_only: "From a phone or tablet you can remove or reorder favourites, not add them: a favourite is an app the phone can start on the PC.",
+});
+Object.assign(i18n.es, {
+  apps_fav_pc_only_title: "Añádela desde el PC",
+  apps_fav_pc_only: "Desde un teléfono o una tableta puedes quitar o reordenar los favoritos, pero no añadirlos: un favorito es una app que el teléfono puede abrir en el PC.",
+});
+Object.assign(i18n.fr, {
+  apps_fav_pc_only_title: "Ajoutez-la depuis le PC",
+  apps_fav_pc_only: "Depuis un téléphone ou une tablette, vous pouvez retirer ou réorganiser les favoris, mais pas en ajouter : un favori est une app que le téléphone peut lancer sur le PC.",
+});
+Object.assign(i18n.de, {
+  apps_fav_pc_only_title: "Am PC hinzufügen",
+  apps_fav_pc_only: "Vom Handy oder Tablet kannst du Favoriten entfernen oder neu ordnen, aber keine hinzufügen: Ein Favorit ist eine App, die das Handy am PC starten kann.",
+});
+Object.assign(i18n.pt, {
+  apps_fav_pc_only_title: "Adicione-a no PC",
+  apps_fav_pc_only: "A partir de um telemóvel ou tablet pode remover ou reordenar os favoritos, mas não adicioná-los: um favorito é uma app que o telemóvel pode abrir no PC.",
+});
+Object.assign(i18n.nl, {
+  apps_fav_pc_only_title: "Voeg hem toe op de pc",
+  apps_fav_pc_only: "Vanaf een telefoon of tablet kun je favorieten verwijderen of herschikken, maar niet toevoegen: een favoriet is een app die de telefoon op de pc kan starten.",
+});
+Object.assign(i18n.ru, {
+  apps_fav_pc_only_title: "Добавьте на ПК",
+  apps_fav_pc_only: "С телефона или планшета избранное можно удалять и переставлять, но не добавлять: в избранном находятся приложения, которые телефон может запускать на ПК.",
+});
+Object.assign(i18n.ko, {
+  apps_fav_pc_only_title: "PC에서 추가하세요",
+  apps_fav_pc_only: "휴대폰이나 태블릿에서는 즐겨찾기를 삭제하거나 순서를 바꿀 수 있지만 추가할 수는 없습니다. 즐겨찾기는 휴대폰이 PC에서 실행할 수 있는 앱입니다.",
+});
+Object.assign(i18n.ja, {
+  apps_fav_pc_only_title: "PC で追加してください",
+  apps_fav_pc_only: "スマホやタブレットからはお気に入りの削除や並べ替えはできますが、追加はできません。お気に入りは、スマホが PC で起動できるアプリです。",
+});
+Object.assign(i18n.zh, {
+  apps_fav_pc_only_title: "请在电脑上添加",
+  apps_fav_pc_only: "在手机或平板上可以移除或重新排列收藏，但不能添加：收藏是手机可以在电脑上启动的应用。",
+});
+
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
   return (i18n[lang] && i18n[lang][key]) ?? (i18n.en && i18n.en[key]) ?? key;

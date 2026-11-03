@@ -61,7 +61,9 @@ function mount({ position = 'floating', levels = { hydration: 1 }, pet = {}, zer
 }
 
 test('the floating pet is a live Bit, and its mood follows the worst meter', () => {
-  const r = mount({ levels: { hydration: 1, energy: 1 } });
+  // Quiet hours off: at night the pet sleeps whatever the meters say, and the
+  // suite must not depend on the hour it runs at.
+  const r = mount({ levels: { hydration: 1, energy: 1 }, pet: { nightQuiet: false } });
   const player = r.sandbox.BitApp.playerFor(r.sprite());
   assert.ok(player, 'BitApp mounted a player in the pet');
   assert.equal(r.sprite().querySelector('svg').getAttribute('class'), 'xbit');

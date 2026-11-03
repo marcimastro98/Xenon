@@ -9,11 +9,27 @@ const require = createRequire(import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SERVER = read('../server.js');
 
-test('a paired phone cannot add an app favourite, the list /windows/launch trusts', () => {
-  assert.match(SERVER, /incoming\.appFavorites = prev && Array\.isArray\(prev\.appFavorites\) \? prev\.appFavorites : \[\];/);
-  const at = SERVER.indexOf('incoming.appFavorites = prev');
+test('a paired phone removes or reorders app favourites, never adds one', () => {
+  // The list /windows/launch trusts. Run the server's own filter on samples.
+  const at = SERVER.indexOf('const favKey = (f) =>');
   const guard = SERVER.lastIndexOf('if (isRemote) {', at);
-  assert.ok(guard > 0 && at - guard < 900, 'inside the paired-device branch of POST /settings');
+  assert.ok(at > 0 && guard > 0 && at - guard < 1500, 'inside the paired-device branch of POST /settings');
+  const code = SERVER.slice(at, SERVER.indexOf('.filter(Boolean);', at) + '.filter(Boolean);'.length);
+  const run = new Function('prev', 'incoming', code + '; return incoming.appFavorites;');
+  const spotify = { key: 'spotify', app: 'Spotify', path: 'C:\\Users\\me\\Spotify.exe' };
+  const obs = { key: 'obs64', app: 'OBS', path: 'C:\\Program Files\\obs\\obs64.exe' };
+  const prev = { appFavorites: [spotify, obs] };
+  assert.deepEqual(run(prev, { appFavorites: [obs, spotify] }), [obs, spotify], 'reorder');
+  assert.deepEqual(run(prev, { appFavorites: [obs] }), [obs], 'remove');
+  assert.deepEqual(run(prev, { appFavorites: [{ key: 'cmd', app: 'cmd', path: 'C:\\Windows\\System32\\cmd.exe' }, obs] }), [obs], 'a new one is dropped');
+  assert.deepEqual(run(prev, { appFavorites: [{ ...obs, path: 'C:\\Windows\\System32\\cmd.exe' }] }), [obs], 'a swapped path keeps the saved one');
+  // The phone says so instead of showing a star that would vanish.
+  const sw = read('../js/app-switcher.js');
+  assert.match(sw, /if \(existing < 0 && window\.__xenonRemote\) \{/);
+  const I18N = read('../js/i18n.js');
+  for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
+    assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  apps_fav_pc_only_title:`), lang);
+  }
 });
 
 test('the media route changes the preferred player only for our own pages', () => {
