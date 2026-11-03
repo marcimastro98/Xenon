@@ -84,7 +84,7 @@ test('the server recovers before it reads, copies every store, and tells the scr
   assert.match(SERVER, /event: store_recovery/);
   assert.match(MAIN, /es\.addEventListener\('store_recovery'/);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  store_restored_title:[^}]*store_restored: "[^"]*\\{day\\}`), lang);
+    assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  store_set_aside: "[^"]+",\\n  store_restored_title:[^}]*store_restored: "[^"]*\\{day\\}`), lang);
   }
 });
 
@@ -115,4 +115,25 @@ test('a settings update really fails when the file cannot be read', async () => 
   await assert.rejects(forUpdate(), SyntaxError);
   fs.rmSync(SETTINGS_FILE);
   assert.deepEqual(await forUpdate(), { factory: true }, 'a new install still starts from the defaults');
+});
+
+test('a damaged list with no copy is kept aside and starts again; settings are left alone', () => {
+  const d = tmpData();
+  const tasks = d.file('tasks.json');
+  fs.writeFileSync(tasks, '[{"id":');
+  const r = snaps.recoverIfUnreadable(d.dir, tasks, { setAsideIfNoCopy: true });
+  assert.equal(r.state, 'set_aside');
+  assert.equal(fs.existsSync(tasks), false, 'the store starts again empty');
+  assert.equal(fs.readFileSync(path.join(snaps.snapshotsDir(d.dir), r.aside), 'utf8'), '[{"id":', 'nothing is lost');
+  assert.match(SERVER, /const setAsideIfNoCopy = file !== SETTINGS_FILE;/);
+  assert.match(MAIN, /s\.state === 'set_aside'/);
+});
+
+test('the assistant\'s note tools never write over a notes file they could not read', () => {
+  for (const tool of ["fnName === 'edit_note'", "fnName === 'write_notes'"]) {
+    const at = SERVER.indexOf(tool);
+    const body = SERVER.slice(at, at + 1200);
+    assert.match(body, /const prevState = await readNotes\(\);/, tool);
+    assert.doesNotMatch(body, /readNotes\(\)\.catch/, tool);
+  }
 });

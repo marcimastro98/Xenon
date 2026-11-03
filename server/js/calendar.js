@@ -632,18 +632,23 @@ function jumpCalendarToday() {
 let _calendarEventsLoaded = false;
 let _calendarLoadRetry = null;
 let _calendarSyncInst = null;
-let _calendarMissed = false;
+// The number of the newest list shown (the server's `seq`), and a broadcast
+// that arrived while an edit was on its way, held until that edit's answer
+// says which of the two is newer (as in tasks.js).
+let _calendarSeq = 0;
+let _calendarHeld = null;
 function _calendarSync() {
   if (!_calendarSyncInst) {
     _calendarSyncInst = window.ListSync.create({
       url: SERVER + '/events',
       listKey: 'events',
-      // A broadcast skipped while an edit was on its way may hold another
-      // screen's change that this answer does not: ask for the list again.
-      onList: (list) => {
-        if (list && !_calendarMissed) { applyServerEvents(list); return; }
-        _calendarMissed = false;
-        loadCalendarEvents();
+      onList: (list, answer) => {
+        const held = _calendarHeld;
+        _calendarHeld = null;
+        if (!list) { loadCalendarEvents(); return; }   // refused: show what is saved
+        const seq = (answer && Number(answer.seq)) || 0;
+        if (held && held.seq > seq) _showCalendarEvents(held.list, held.seq);
+        else _showCalendarEvents(list, seq);
       },
     });
   }
@@ -657,17 +662,28 @@ function repaintCalendarEvents() {
   renderUpcoming();
 }
 
+// Show a list unless a newer one is already on screen. A list without a
+// number (an older server) is always shown.
+function _showCalendarEvents(list, seq) {
+  if (seq && seq < _calendarSeq) return;
+  if (seq) _calendarSeq = seq;
+  calendarEvents = list;
+  _calendarEventsLoaded = true;
+  calendarLoaded = true;
+  repaintCalendarEvents();
+}
+
 async function loadCalendarEvents() {
   try {
     const res = await fetch(SERVER + '/events');
     if (!res.ok) throw new Error('events unavailable');
     const data = await res.json();
     _calendarEventsLoaded = true;
-    // An edit still on its way would be undone on screen by this older list;
-    // its own answer brings the list in a moment.
-    if (!(_calendarSyncInst && _calendarSyncInst.busy())) calendarEvents = Array.isArray(data.events) ? data.events : [];
     calendarLoaded = true;
-    repaintCalendarEvents();
+    // An edit still on its way would be undone on screen by this list; its
+    // own answer brings the list in a moment.
+    if (!(_calendarSyncInst && _calendarSyncInst.busy())) _showCalendarEvents(Array.isArray(data.events) ? data.events : [], Number(data.seq) || 0);
+    else repaintCalendarEvents();
   } catch {
     // Keep what is on screen and keep asking. An event added meanwhile is
     // safe: it goes to the list on the PC, never over it.
@@ -679,15 +695,16 @@ async function loadCalendarEvents() {
   }
 }
 
-// The events another screen, a phone or the assistant just saved, or the
-// answer to this screen's own edit.
-function applyServerEvents(list) {
+// The events another screen, a phone or the assistant just saved (the
+// `agenda` event, with its `seq`).
+function applyServerEvents(list, seq) {
   if (!Array.isArray(list)) return;
-  if (_calendarSyncInst && _calendarSyncInst.busy()) { _calendarMissed = true; return; }
-  calendarEvents = list;
-  _calendarEventsLoaded = true;
-  calendarLoaded = true;
-  repaintCalendarEvents();
+  const n = Number(seq) || 0;
+  if (_calendarSyncInst && _calendarSyncInst.busy()) {
+    if (!_calendarHeld || n >= _calendarHeld.seq) _calendarHeld = { list, seq: n };
+    return;
+  }
+  _showCalendarEvents(list, n);
 }
 
 let externalEvents = [];

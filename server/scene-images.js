@@ -17,9 +17,9 @@
 //    a backup file still carries them to another PC.
 //  · Sharing a scene already puts /uploads pictures back inside the code
 //    (preset-share.js inlineSceneAssets).
-//  · A picture no scene names any more is removed after KEEP_UNUSED_MS, which
-//    outlasts the daily copies of settings (store-snapshots.js), so putting
-//    back a copy never points at a picture that was swept.
+//  · A picture is removed only when no scene and no daily copy of settings
+//    (store-snapshots.js) names it, so putting back a copy never points at a
+//    picture that was swept.
 //
 // Only PNG, JPEG, WebP and GIF whose bytes match their type are moved. SVG
 // stays inside the scene: as a data: picture it can never run anything, while
@@ -32,7 +32,7 @@ const { writeFileAtomic } = require('./atomic-write');
 
 const PREFIX = 'sceneimg-';
 const MIN_CHARS = 16 * 1024;                     // small pictures cost nothing inline
-const KEEP_UNUSED_MS = 8 * 24 * 60 * 60 * 1000;  // longer than the 7 daily copies
+const KEEP_UNUSED_MS = 2 * 24 * 60 * 60 * 1000;  // grace before the day's copy names it
 const DATA_RE = /^data:image\/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+/]+={0,2})$/;
 const PATH_RE = /^\/uploads\/(sceneimg-[a-f0-9]{32}\.(?:png|jpg|webp|gif))$/;
 const EXT = { png: 'png', jpeg: 'jpg', jpg: 'jpg', webp: 'webp', gif: 'gif' };
@@ -111,10 +111,15 @@ function referencedNames(scenes) {
   return set;
 }
 
-// For a backup: the pictures go back inside the scenes. A picture whose file
-// is missing keeps its path, which the scene schema still accepts.
-async function inlineForBackup(scenes, uploadsDir) {
+// For a backup: the pictures go back inside the scenes, up to the size all
+// scenes together could always hold inside settings (so a backup is never
+// bigger than it used to be). A picture past that, or whose file is missing,
+// keeps its path, which the scene schema still accepts and which still works
+// when the backup goes back onto this PC.
+const BACKUP_INLINE_MAX_CHARS = 24 * 1024 * 1024;
+async function inlineForBackup(scenes, uploadsDir, { maxChars = BACKUP_INLINE_MAX_CHARS } = {}) {
   if (!Array.isArray(scenes)) return [];
+  let total = 0;
   const out = [];
   for (const scene of scenes) {
     if (!pictureSlots(scene).some(([h, k]) => PATH_RE.test(h[k]))) { out.push(scene); continue; }
@@ -124,7 +129,10 @@ async function inlineForBackup(scenes, uploadsDir) {
       if (!m) continue;
       try {
         const buf = await fs.promises.readFile(path.join(uploadsDir, m[1]));
-        holder[key] = `data:${MIME[m[1].split('.').pop()]};base64,${buf.toString('base64')}`;
+        const uri = `data:${MIME[m[1].split('.').pop()]};base64,${buf.toString('base64')}`;
+        if (total + uri.length > maxChars) continue;
+        total += uri.length;
+        holder[key] = uri;
       } catch { /* missing: keep the path */ }
     }
     out.push(copy);
@@ -132,12 +140,33 @@ async function inlineForBackup(scenes, uploadsDir) {
   return out;
 }
 
-// Remove pictures no scene names and nobody has used for KEEP_UNUSED_MS.
+// The pictures named by the daily copies of settings: putting one of those
+// copies back must find its pictures.
+const NAME_IN_TEXT_RE = /sceneimg-[a-f0-9]{32}\.(?:png|jpg|webp|gif)/g;
+async function namesInSnapshots(snapshotsDir) {
+  const set = new Set();
+  if (!snapshotsDir) return set;
+  let files = [];
+  try { files = await fs.promises.readdir(snapshotsDir); } catch { return set; }
+  for (const f of files) {
+    if (!/^settings[-.].*\.json$/.test(f)) continue;
+    try {
+      const text = await fs.promises.readFile(path.join(snapshotsDir, f), 'utf8');
+      for (const m of text.matchAll(NAME_IN_TEXT_RE)) set.add(m[0]);
+    } catch { /* unreadable copy: it names nothing we can keep for it */ }
+  }
+  return set;
+}
+
+// Remove a picture only when no scene names it, no daily copy of settings
+// names it, and it was written more than KEEP_UNUSED_MS ago (a picture added
+// and removed again before the day's copy was taken).
 let _lastSweep = 0;
-async function sweepUnused(uploadsDir, scenes, { now = Date.now(), minIntervalMs = 60 * 60 * 1000 } = {}) {
+async function sweepUnused(uploadsDir, scenes, { now = Date.now(), minIntervalMs = 60 * 60 * 1000, snapshotsDir = '' } = {}) {
   if (now - _lastSweep < minIntervalMs) return [];
   _lastSweep = now;
   const keep = referencedNames(scenes);
+  for (const n of await namesInSnapshots(snapshotsDir)) keep.add(n);
   const removed = [];
   let names = [];
   try { names = await fs.promises.readdir(uploadsDir); } catch { return removed; }
@@ -156,4 +185,4 @@ async function sweepUnused(uploadsDir, scenes, { now = Date.now(), minIntervalMs
 
 function _resetSweepClock() { _lastSweep = 0; }
 
-module.exports = { PREFIX, MIN_CHARS, KEEP_UNUSED_MS, externalize, inlineForBackup, referencedNames, sweepUnused, _resetSweepClock };
+module.exports = { PREFIX, MIN_CHARS, KEEP_UNUSED_MS, BACKUP_INLINE_MAX_CHARS, externalize, inlineForBackup, referencedNames, sweepUnused, _resetSweepClock };

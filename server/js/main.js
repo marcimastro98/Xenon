@@ -623,7 +623,7 @@ function postponeAutoUpdate() {
     es.addEventListener('tasks', e => {
       try {
         const d = JSON.parse(e.data);
-        if (typeof applyServerTasks === 'function' && d && Array.isArray(d.tasks)) applyServerTasks(d.tasks);
+        if (typeof applyServerTasks === 'function' && d && Array.isArray(d.tasks)) applyServerTasks(d.tasks, d.seq);
         if (window.CustomWidget) window.CustomWidget.onData('tasks', d);
       } catch {}
     });
@@ -637,7 +637,7 @@ function postponeAutoUpdate() {
     es.addEventListener('agenda', e => {
       try {
         const d = JSON.parse(e.data);
-        if (typeof applyServerEvents === 'function' && d && Array.isArray(d.events)) applyServerEvents(d.events);
+        if (typeof applyServerEvents === 'function' && d && Array.isArray(d.events)) applyServerEvents(d.events, d.seq);
         if (window.CustomWidget) window.CustomWidget.onData('agenda', d);
       } catch {}
     });
@@ -711,6 +711,8 @@ function postponeAutoUpdate() {
           showHubToast('Xenon', tr('store_restored_title', 'A saved copy was put back'), tr('store_restored', '').replace('{day}', day));
         }
         if (lost) showHubToast('Xenon', tr('store_unreadable_title', 'A file could not be read'), tr('store_unreadable', ''));
+        const aside = d.stores.find((s) => s.state === 'set_aside');
+        if (aside) showHubToast('Xenon', tr('store_unreadable_title', 'A file could not be read'), tr('store_set_aside', ''));
       } catch {}
     });
     es.addEventListener('remote_paired', e => {

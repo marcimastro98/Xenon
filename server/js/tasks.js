@@ -11,22 +11,37 @@ const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 let _tasksLoaded = false;
 let _tasksLoadRetry = null;
 let _tasksSyncInst = null;
-let _tasksMissed = false;
+// The number of the newest list shown (the server's `seq`, higher for every
+// write), and a broadcast that arrived while an edit was on its way, held
+// until that edit's answer says which of the two is newer.
+let _tasksSeq = 0;
+let _tasksHeld = null;
 function _tasksSync() {
   if (!_tasksSyncInst) {
     _tasksSyncInst = window.ListSync.create({
       url: '/tasks',
       listKey: 'tasks',
-      // A broadcast skipped while an edit was on its way may hold another
-      // screen's change that this answer does not: ask for the list again.
-      onList: (list) => {
-        if (list && !_tasksMissed) { applyServerTasks(list); return; }
-        _tasksMissed = false;
-        loadTasks();
+      onList: (list, answer) => {
+        const held = _tasksHeld;
+        _tasksHeld = null;
+        if (!list) { loadTasks(); return; }   // the edit was refused: show what is saved
+        const seq = (answer && Number(answer.seq)) || 0;
+        if (held && held.seq > seq) _showTasks(held.list, held.seq);
+        else _showTasks(list, seq);
       },
     });
   }
   return _tasksSyncInst;
+}
+
+// Show a list unless a newer one is already on screen. A list without a
+// number (an older server) is always shown.
+function _showTasks(list, seq) {
+  if (seq && seq < _tasksSeq) return;
+  if (seq) _tasksSeq = seq;
+  tasksData = list;
+  _tasksLoaded = true;
+  renderTasks();
 }
 
 async function loadTasks() {
@@ -35,10 +50,10 @@ async function loadTasks() {
     if (!res.ok) throw new Error('http ' + res.status);
     const data = await res.json();
     _tasksLoaded = true;
-    // An edit still on its way would be undone on screen by this older list;
-    // its own answer brings the list in a moment.
-    if (!(_tasksSyncInst && _tasksSyncInst.busy())) tasksData = Array.isArray(data.tasks) ? data.tasks : [];
-    renderTasks();
+    // An edit still on its way would be undone on screen by this list; its
+    // own answer brings the list in a moment.
+    if (!(_tasksSyncInst && _tasksSyncInst.busy())) _showTasks(Array.isArray(data.tasks) ? data.tasks : [], Number(data.seq) || 0);
+    else renderTasks();
   } catch {
     renderTasks();
     // Keep asking until the list arrives. An edit made meanwhile is safe: it
@@ -51,13 +66,15 @@ async function loadTasks() {
 }
 
 // The list another screen, a phone, a Deck key or the assistant just saved
-// (the `tasks` event), or the answer to this screen's own edit.
-function applyServerTasks(list) {
+// (the `tasks` event, with its `seq`).
+function applyServerTasks(list, seq) {
   if (!Array.isArray(list)) return;
-  if (_tasksSyncInst && _tasksSyncInst.busy()) { _tasksMissed = true; return; }
-  tasksData = list;
-  _tasksLoaded = true;
-  renderTasks();
+  const n = Number(seq) || 0;
+  if (_tasksSyncInst && _tasksSyncInst.busy()) {
+    if (!_tasksHeld || n >= _tasksHeld.seq) _tasksHeld = { list, seq: n };
+    return;
+  }
+  _showTasks(list, n);
 }
 
 function sendTaskEdit(op) {

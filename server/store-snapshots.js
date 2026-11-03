@@ -15,7 +15,12 @@
 //  · At boot, before anything reads them, a store that exists but does not
 //    parse is moved aside as <name>.unreadable-<time>.json (never deleted: a
 //    person may still get something out of it) and the newest valid copy takes
-//    its place. With no copy to go back to, the file is left exactly as it is.
+//    its place. With no copy to go back to, a list (tasks, calendar, notes,
+//    Deck, timers) is moved aside the same way and starts again empty, so the
+//    app keeps working and the damaged file is still there for a person to
+//    look at. The settings file is left exactly as it is instead: every
+//    settings write then fails rather than writing over it, and the screens
+//    keep showing their own copy.
 //
 // The copies sit next to the stores, with the same owner-only permissions, and
 // hold the same secrets the stores do.
@@ -81,8 +86,8 @@ async function snapshotStores(dataDir, files, { now = Date.now(), keep = KEEP } 
 }
 
 // At boot, before the store is read. Answers what happened, for the log:
-//   { state: 'ok' | 'missing' | 'restored' | 'unrecoverable', from?, aside? }
-function recoverIfUnreadable(dataDir, file, { now = Date.now() } = {}) {
+//   { state: 'ok' | 'missing' | 'restored' | 'set_aside' | 'unrecoverable', from?, aside? }
+function recoverIfUnreadable(dataDir, file, { now = Date.now(), setAsideIfNoCopy = false } = {}) {
   let raw;
   try { raw = fs.readFileSync(file, 'utf8'); }
   catch (e) { return { state: e.code === 'ENOENT' ? 'missing' : 'ok' }; }   // a lock is not damage
@@ -91,9 +96,19 @@ function recoverIfUnreadable(dataDir, file, { now = Date.now() } = {}) {
   for (const s of listSnapshots(dataDir, file)) {
     try { good = { raw: readValid(s.path), from: s.name }; break; } catch { /* that copy is bad too */ }
   }
-  if (!good) return { state: 'unrecoverable' };
   const stamp = new Date(now).toISOString().replace(/[:.]/g, '-');
   const aside = path.join(snapshotsDir(dataDir), `${baseOf(file)}.unreadable-${stamp}.json`);
+  if (!good) {
+    if (!setAsideIfNoCopy) return { state: 'unrecoverable' };
+    try {
+      fs.mkdirSync(snapshotsDir(dataDir), { recursive: true, mode: 0o700 });
+      fs.copyFileSync(file, aside);
+      fs.unlinkSync(file);
+    } catch (e) {
+      return { state: 'unrecoverable', error: e.message };
+    }
+    return { state: 'set_aside', aside: path.basename(aside) };
+  }
   try {
     fs.mkdirSync(snapshotsDir(dataDir), { recursive: true, mode: 0o700 });
     fs.copyFileSync(file, aside);

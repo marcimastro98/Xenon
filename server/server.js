@@ -2675,13 +2675,18 @@ const _storeRecovery = [];
 (function recoverUnreadableStores() {
   for (const file of DURABLE_STORES) {
     let r;
-    try { r = storeSnapshots.recoverIfUnreadable(DATA_DIR, file); } catch (e) { r = { state: 'unrecoverable', error: e.message }; }
-    if (r.state !== 'restored' && r.state !== 'unrecoverable') continue;
+    // Every store but settings starts again empty when there is no copy (see
+    // store-snapshots.js); settings fail closed instead.
+    const setAsideIfNoCopy = file !== SETTINGS_FILE;
+    try { r = storeSnapshots.recoverIfUnreadable(DATA_DIR, file, { setAsideIfNoCopy }); } catch (e) { r = { state: 'unrecoverable', error: e.message }; }
+    if (r.state !== 'restored' && r.state !== 'unrecoverable' && r.state !== 'set_aside') continue;
     const entry = { file: path.basename(file), state: r.state, from: r.from || '', aside: r.aside || '' };
     _storeRecovery.push(entry);
     startupLog.write(r.state === 'restored'
       ? `data: ${entry.file} could not be read; restored ${entry.from}, the damaged file is kept as snapshots/${entry.aside}`
-      : `data: ${entry.file} could not be read and there is no copy to restore; it is left as it is${r.error ? ' (' + r.error + ')' : ''}`);
+      : r.state === 'set_aside'
+        ? `data: ${entry.file} could not be read and there is no copy to restore; it is kept as snapshots/${entry.aside} and starts again empty`
+        : `data: ${entry.file} could not be read and there is no copy to restore; it is left as it is${r.error ? ' (' + r.error + ')' : ''}`);
   }
 })();
 const _storeRecoveryAt = Date.now();
@@ -8737,7 +8742,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       const state = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
       fnResult = { notes: notesToText(state), list: NotesAi.listNotes(normalizeNotesState(state)) };
     } else if (fnName === 'edit_note') {
-      const prevState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
+      const prevState = await readNotes();   // unreadable: the tool fails, never writes over the file
       const { next, result } = NotesAi.planNoteAction(normalizeNotesState(prevState), fnArgs,
         { newId: _noteId, now: Date.now(), bodyMax: NOTE_BODY_MAX, notesMax: NOTES_MAX });
       if (next) {
@@ -8752,7 +8757,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       // The model must use clear_all_tasks-style explicit intent for destructive ops.
       if (safe.trim() === '') { fnResult = { error: 'content is empty: to clear notes, send a single space or ask the user to confirm' }; }
       else {
-        const prevState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
+        const prevState = await readNotes();   // unreadable: the tool fails, never writes over the file
         // Write into the active note (preserving the user's other notes); create
         // one if the store is empty. The model's mental model is a single notepad.
         const next = normalizeNotesState(prevState);
@@ -11926,25 +11931,29 @@ function backupSupersededLayout() {
 }
 
 async function writeHubSettings(settings) {
+  // Large scene pictures go to files of their own (scene-images.js), so a
+  // settings save stops carrying megabytes of pictures. Before the normalizer,
+  // so the scene size limits count what is really stored (a path), and a
+  // backup that carries the pictures inside is not cut down on restore.
+  let moved = null;
+  if (settings && Array.isArray(settings.ambientScenes)) {
+    moved = await sceneImages.externalize(settings.ambientScenes, UPLOADS_DIR).catch(() => null);
+    if (moved && moved.changed) settings = { ...settings, ambientScenes: moved.scenes };
+  }
   const safe = normalizeHubSettings(settings);
   // Mint the store id on the first write that lacks one, which covers a fresh
   // install and an existing one updating into this build. `_settingsStoreId`
   // first, so only a store this process has never seen gets a new value.
   if (!safe.storeId) safe.storeId = _settingsStoreId || crypto.randomBytes(16).toString('hex');
   _settingsStoreId = safe.storeId;
-  // Large scene pictures go to files of their own (scene-images.js), so a
-  // settings save stops carrying megabytes of pictures. The rev moves past the
-  // one the saving screen holds, so that screen also picks up the lighter copy
-  // on the broadcast instead of sending the pictures again with every save.
-  const moved = await sceneImages.externalize(safe.ambientScenes, UPLOADS_DIR).catch(() => null);
-  if (moved && moved.changed) {
-    safe.ambientScenes = moved.scenes;
-    safe.rev = (Number(safe.rev) || 0) + 1;
-  }
+  // The rev moves past the one the saving screen holds, so that screen also
+  // picks up the lighter copy on the broadcast instead of sending the pictures
+  // again with every save.
+  if (moved && moved.changed) safe.rev = (Number(safe.rev) || 0) + 1;
   // Compact: indentation made the file a fifth bigger and every save slower,
   // and nobody reads this file by hand.
   await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe));
-  sceneImages.sweepUnused(UPLOADS_DIR, safe.ambientScenes).catch(() => {});
+  sceneImages.sweepUnused(UPLOADS_DIR, safe.ambientScenes, { snapshotsDir: storeSnapshots.snapshotsDir(DATA_DIR) }).catch(() => {});
   // Reclaim any per-tile decoration images no surviving tile references (grace-
   // windowed so a just-uploaded asset isn't swept before its layout save lands).
   // Saved presets count as references too — inserting one must still find its images.
@@ -13724,6 +13733,7 @@ async function readEvents() {
 // `notifiedAt`) and a save never interleave, and a save from a copy older than
 // the mark keeps it (calendar-reminders.js keepNotified).
 let _eventsWriteChain = Promise.resolve();
+let _eventsSeq = Date.now();   // as _tasksSeq
 function withEventsWrite(fn) {
   const run = _eventsWriteChain.then(fn, fn);
   _eventsWriteChain = run.catch(() => {});
@@ -13732,9 +13742,10 @@ function withEventsWrite(fn) {
 
 async function _saveEvents(safe) {
   await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe));
+  _eventsSeq = _nextListSeq(_eventsSeq);
   // Every dashboard repaints its calendar from this, and so does the SDK
   // `agenda` stream.
-  broadcastSSE('agenda', { events: safe });
+  broadcastSSE('agenda', { events: safe, seq: _eventsSeq });
   return safe;
 }
 
@@ -13753,9 +13764,9 @@ function updateEvents(edit) {
   return withEventsWrite(async () => {
     const prev = await readEvents();
     const out = (await edit(prev)) || {};
-    if (!Array.isArray(out.next)) return { ...out, events: prev, changed: false };
+    if (!Array.isArray(out.next)) return { ...out, events: prev, seq: _eventsSeq, changed: false };
     const events = await _saveEvents(calendarReminders.keepNotified(normalizeEvents(out.next), prev));
-    return { ...out, events, changed: true };
+    return { ...out, events, seq: _eventsSeq, changed: true };
   });
 }
 
@@ -13808,6 +13819,12 @@ async function readTasks() {
 // repeating tasks and two dashboards can never base a write on the same old
 // list and drop each other's change.
 let _tasksWriteChain = Promise.resolve();
+// Every write of the list gets a higher number, sent with the list (broadcast,
+// edit answer, load), so a screen can tell which of two lists is newer and
+// never shows an older one over a newer one. Time-based so it keeps rising
+// across restarts.
+const _nextListSeq = (prev) => Math.max(Date.now(), prev + 1);
+let _tasksSeq = Date.now();
 function withTasksWrite(fn) {
   const run = _tasksWriteChain.then(fn, fn);
   _tasksWriteChain = run.catch(() => {});
@@ -13817,9 +13834,10 @@ function withTasksWrite(fn) {
 async function _writeTasksNow(tasks) {
   const safe = normalizeTasks(tasks);
   await writeFileAtomic(TASKS_FILE, JSON.stringify(safe));
+  _tasksSeq = _nextListSeq(_tasksSeq);
   // Every dashboard repaints its Tasks tile from this, and so does the SDK
   // `tasks` stream.
-  broadcastSSE('tasks', { tasks: safe });
+  broadcastSSE('tasks', { tasks: safe, seq: _tasksSeq });
   return safe;
 }
 
@@ -13835,9 +13853,9 @@ function updateTasks(edit) {
   return withTasksWrite(async () => {
     const cur = await readTasks();
     const out = (await edit(cur)) || {};
-    if (!Array.isArray(out.next)) return { ...out, tasks: cur, changed: false };
+    if (!Array.isArray(out.next)) return { ...out, tasks: cur, seq: _tasksSeq, changed: false };
     const tasks = await _writeTasksNow(out.next);
-    return { ...out, tasks, changed: true };
+    return { ...out, tasks, seq: _tasksSeq, changed: true };
   });
 }
 
@@ -20133,7 +20151,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/events' && req.method === 'GET') {
     // Read only. Saving used to be possible as a GET (?save=&data=), which any
     // link or <img> could fire to replace the whole calendar; it is POST now.
-    try { json({ events: await readEvents() }); }
+    try { const seq = _eventsSeq; json({ events: await readEvents(), seq }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/events' && req.method === 'POST') {
@@ -20151,10 +20169,15 @@ const handleRequest = async (req, res) => {
         if (bad) {
           res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
           res.end(JSON.stringify({ ok: false, error: bad }));
-        } else json({ ok: true, events: r.events, savedAt: Date.now() });
-      } else {
+        } else json({ ok: true, events: r.events, seq: r.seq, savedAt: Date.now() });
+      } else if (Array.isArray(body) || (body && Array.isArray(body.events))) {
         const events = await writeEvents(body.events || body);
         json({ ok: true, events, savedAt: Date.now() });
+      } else {
+        // Neither an edit this build knows nor a list: never read it as an
+        // empty list, which would delete every event.
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ ok: false, error: 'bad_op' }));
       }
     } catch (e) { err500(e.message); }
 
@@ -20175,7 +20198,7 @@ const handleRequest = async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tasks' && req.method === 'GET') {
-    try { json({ tasks: await readTasks() }); }
+    try { const seq = _tasksSeq; json({ tasks: await readTasks(), seq }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tasks' && req.method === 'POST') {
@@ -20192,10 +20215,15 @@ const handleRequest = async (req, res) => {
         if (bad) {
           res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
           res.end(JSON.stringify({ ok: false, error: bad }));
-        } else json({ ok: true, tasks: r.tasks, savedAt: Date.now() });
-      } else {
+        } else json({ ok: true, tasks: r.tasks, seq: r.seq, savedAt: Date.now() });
+      } else if (Array.isArray(body) || (body && Array.isArray(body.tasks))) {
         const tasks = await writeTasks(body.tasks || body);
         json({ ok: true, tasks, savedAt: Date.now() });
+      } else {
+        // Neither an edit this build knows nor a list: never read it as an
+        // empty list, which would delete every task.
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ ok: false, error: 'bad_op' }));
       }
     } catch (e) { err500(e.message); }
 
@@ -25174,8 +25202,8 @@ data: ${JSON.stringify({ ...st, seed: true })}
     // until the user next edits a task/note/event. Same loopback-only stream and
     // same payload shape as the change broadcasts; the custom-widget host forwards
     // each only to a frame that was granted that stream.
-    readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
-    readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    { const seq = _tasksSeq; readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
+    { const seq = _eventsSeq; readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
     readNotes().then(n => { try { if (n) res.write(`event: notes\ndata: ${JSON.stringify(n)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
     // Timers too: timer_update otherwise fires only on mutations/completions, so
     // a reloaded dashboard (or a fresh Virtual Deck popup) would show blank
