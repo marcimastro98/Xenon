@@ -2665,6 +2665,32 @@ async function handleMcpDevRoute(req, res, reqPath, json) {
   }
 })();
 
+// A store that exists but cannot be read is put back from its newest daily
+// copy before anything reads it, and the damaged file is kept aside
+// (store-snapshots.js). Open dashboards are told, once, which copy came back.
+const storeSnapshots = require('./store-snapshots');
+const DURABLE_STORES = [SETTINGS_FILE, DECK_FILE, NOTES_JSON, TASKS_FILE, EVENTS_FILE, TIMERS_FILE];
+const _storeRecovery = [];
+(function recoverUnreadableStores() {
+  for (const file of DURABLE_STORES) {
+    let r;
+    try { r = storeSnapshots.recoverIfUnreadable(DATA_DIR, file); } catch (e) { r = { state: 'unrecoverable', error: e.message }; }
+    if (r.state !== 'restored' && r.state !== 'unrecoverable') continue;
+    const entry = { file: path.basename(file), state: r.state, from: r.from || '', aside: r.aside || '' };
+    _storeRecovery.push(entry);
+    startupLog.write(r.state === 'restored'
+      ? `data: ${entry.file} could not be read; restored ${entry.from}, the damaged file is kept as snapshots/${entry.aside}`
+      : `data: ${entry.file} could not be read and there is no copy to restore; it is left as it is${r.error ? ' (' + r.error + ')' : ''}`);
+  }
+})();
+const _storeRecoveryAt = Date.now();
+// One copy a day of every store, taken at boot and checked every few hours.
+function startStoreSnapshots() {
+  const run = () => storeSnapshots.snapshotStores(DATA_DIR, DURABLE_STORES).catch(() => {});
+  run();
+  setInterval(run, 6 * 60 * 60 * 1000).unref();
+}
+
 // Shared-code bridge: expose packages/core to the browser under server/shared so
 // the existing static handler can serve /shared/* without reaching outside
 // __dirname. Normally created by `npm run link:shared` (postinstall); we re-create
@@ -7396,7 +7422,7 @@ async function editFavorites(args) {
   if (plan.error) return { ok: false, ...plan };
   let result = null;
   await withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const out = FavoritesAi.applyFavorite(cur, plan);
     result = out.result;
     if (out.patch) _serverHubSettings = await writeHubSettings({ ...cur, ...out.patch });
@@ -7412,7 +7438,7 @@ async function changeSetting(args) {
   if (plan.read) return { ok: true, settings: SettingsAi.current(_serverHubSettings) };
   let before = null;
   await withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const out = SettingsAi.apply(normalizeHubSettings(cur), plan);
     before = out.before;
     if (!out.patch) return;
@@ -7432,7 +7458,7 @@ async function saveTileSettings(body) {
   if (plan.error) return { ok: false, ...plan };
   let rev = null;
   await withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const written = await writeHubSettings({ ...cur, ...TileSettings.apply(cur, plan.patch), rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = written;
     rev = written.rev;
@@ -8612,7 +8638,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       if (!sym) { fnResult = { error: 'invalid symbol' }; }
       else {
         await withHubSettingsLock(async () => {        // serialized with every other settings writer
-          const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+          const cur = await readHubSettingsForUpdate();
           const wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
           if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym });
           const saved = await writeHubSettings({ ...cur, stocks: { ...cur.stocks, watchlist: wl } });
@@ -8636,7 +8662,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         fnResult = { ok: false, error: 'bad_args', hint: 'model: haiku, sonnet or opus; effort: low, medium or high.' };
       } else {
         const saved = await withHubSettingsLock(async () => {
-          const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+          const cur = await readHubSettingsForUpdate();
           const next = { ...cur, ...(model ? { xenonModel: model } : {}), ...(effort ? { xenonEffort: effort } : {}), rev: nextSettingsRev(cur.rev) };
           _serverHubSettings = await writeHubSettings(next);
           return _serverHubSettings;
@@ -11216,7 +11242,7 @@ async function noteUsageDay() {
     const cur = _serverHubSettings || {};
     if (cur.lastUsageDay === today) return;               // already counted today
     await withHubSettingsLock(async () => {
-      const prev = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const prev = await readHubSettingsForUpdate();
       if (prev.lastUsageDay === today) return;            // another surface got there first
       const next = {
         ...prev,
@@ -11814,16 +11840,34 @@ function normalizeLightingNative(value) {
 // seen one, i.e. a genuinely new store.
 let _settingsStoreId = '';
 
+// Windows can refuse a read for a moment while another program (an antivirus
+// scan, the search indexer, a second Xenon) holds the file. That is not damage,
+// so it is retried briefly before it counts as a failure.
+const _SETTINGS_READ_BUSY = new Set(['EBUSY', 'EPERM', 'EACCES']);
+
 async function readHubSettings() {
-  try {
-    const raw = await fs.promises.readFile(SETTINGS_FILE, 'utf8');
-    const parsed = normalizeHubSettings(JSON.parse(raw));
-    if (parsed.storeId) _settingsStoreId = parsed.storeId;
-    return parsed;
-  } catch (e) {
-    if (e.code === 'ENOENT') return null;
-    throw e;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const raw = await fs.promises.readFile(SETTINGS_FILE, 'utf8');
+      const parsed = normalizeHubSettings(JSON.parse(raw));
+      if (parsed.storeId) _settingsStoreId = parsed.storeId;
+      return parsed;
+    } catch (e) {
+      if (e.code === 'ENOENT') return null;
+      if (!_SETTINGS_READ_BUSY.has(e.code) || attempt >= 5) throw e;
+      await new Promise((r) => setTimeout(r, 40 * (attempt + 1)));
+    }
   }
+}
+
+// For a read that a write is built on. Only a missing file (a new install)
+// starts from the factory settings. Any other failure, a file that does not
+// parse or a read that keeps failing, fails the write instead: these writers
+// used to start from the factory settings whenever the read failed, and then
+// saved that, which replaced everything the user had built with the default
+// layout, theme and pages. POST /settings has always failed closed this way.
+async function readHubSettingsForUpdate() {
+  return (await readHubSettings()) || { ...DEFAULT_HUB_SETTINGS };
 }
 
 // The server-side half of "the Gemini key never leaves this machine" (see
@@ -11933,7 +11977,7 @@ let _hubSettingsWriteChain = Promise.resolve();
 // a new rev, and every surface told to read the settings again.
 async function updateVitalsSettings(change) {
   const saved = await withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const next = change(cur);
     if (!next) return cur;
     _serverHubSettings = await writeHubSettings({ ...next, rev: nextSettingsRev(cur.rev) });
@@ -11954,7 +11998,7 @@ function withHubSettingsLock(fn) {
 // returns { error }. Open surfaces re-hydrate from the settings broadcast.
 async function updateLayersSetting(edit) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const res = edit(cur.layers);
     if (!res || res.error || !res.layers) return res || { error: 'failed' };
     const keys = _overlayHotkey() + '|' + _menuHotkey();
@@ -11973,7 +12017,7 @@ async function updateLayersSetting(edit) {
 // main dashboard re-hydrates from the broadcast and re-sends the glow.
 async function updateGameSessionsSetting(on) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, gameSessions: { enabled: !!on }, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
@@ -11985,7 +12029,7 @@ async function updateGameSessionsSetting(on) {
 // key. Returns the saved parts.
 async function updatePerfHudSetting(change) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const perfHud = PerfHud.applyPerfHudChange(cur.perfHud, change);
     const saved = await writeHubSettings({ ...cur, perfHud, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
@@ -12001,7 +12045,7 @@ async function updatePerfHudSetting(change) {
 // the default; a key left out keeps its folder.
 async function updateCaptureSettings(change, folders = {}) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const { next } = CaptureSettings.applyCaptureChange(cur.capture, change);
     for (const key of CaptureSettings.FOLDER_KEYS) {
       if (folders && typeof folders[key] === 'string') next[key] = folders[key];
@@ -12084,7 +12128,7 @@ function _menuWakeBit() {
 
 async function updateAiEdgeGlowSetting(mode) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, aiEdgeGlow: mode, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
@@ -12097,7 +12141,7 @@ async function updateAiEdgeGlowSetting(mode) {
 // quick presses never read the same value.
 async function updateDesktopSceneSetting(patch) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const ambient = normalizeAmbientMode(cur.ambientMode);
     if (patch.wallpaper === 'toggle') ambient.wallpaper = !ambient.wallpaper;
     else if (patch.wallpaper === 'on' || patch.wallpaper === 'off') ambient.wallpaper = patch.wallpaper === 'on';
@@ -12114,7 +12158,7 @@ async function updateDesktopSceneSetting(patch) {
 // "Avvisi sullo schermo" (js/screen-alerts.js): the rest of `notifications` stays.
 async function updateScreenAlertsSetting(on) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const notifications = { ...(cur.notifications || {}), onScreen: on === true };
     const saved = await writeHubSettings({ ...cur, notifications, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
@@ -12131,7 +12175,7 @@ async function updateScreenAlertsSetting(on) {
 async function updateNotificationsSetting(change) {
   let masterChanged = false;
   const saved = await withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const before = normalizeNotifications(cur.notifications);
     const notifications = normalizeNotifications({ ...before, ...change });
     if (Object.keys(notifications).every((k) => notifications[k] === before[k])) return before;
@@ -12155,7 +12199,7 @@ async function updateNotificationsSetting(change) {
 // normalized (perf-screen.js stateFrom); the rest of the settings stay.
 async function updatePerformanceSetting(performance) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, performance, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
@@ -12165,7 +12209,7 @@ async function updatePerformanceSetting(performance) {
 
 async function updateUsageModeSetting(mode) {
   return withHubSettingsLock(async () => {
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const saved = await writeHubSettings({ ...cur, usageMode: mode, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
@@ -12443,7 +12487,7 @@ async function _buildBackupWidgetList() {
 }
 
 async function buildBackup() {
-  const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+  const settings = await readHubSettingsForUpdate();
   // The explicit blank is redundant now that redactSettingsSecrets covers the
   // Gemini key too, and it is kept on purpose: it runs BEFORE the redactor, so
   // the exported blob carries `geminiApiKeySet: false`. A backup restored on
@@ -15557,7 +15601,7 @@ const remoteHttpsSetup = remoteHttpsSetupLib.createHttpsSetup({
   log: (m) => console.log(m),
   onSettings: async (value) => {
     await withHubSettingsLock(async () => {
-      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const cur = await readHubSettingsForUpdate();
       const saved = await writeHubSettings({
         ...cur,
         remoteAccess: { ...(cur.remoteAccess || {}), https: value === true },
@@ -18936,7 +18980,7 @@ const handleRequest = async (req, res) => {
     try {
       await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
-      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const cur = await readHubSettingsForUpdate();
       let wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
       const action = String(body.action || '').toLowerCase();
       if (action === 'set' && Array.isArray(body.watchlist)) {
@@ -18978,7 +19022,7 @@ const handleRequest = async (req, res) => {
     try {
       await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
-      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const cur = await readHubSettingsForUpdate();
       const nextWeather = (body && body.weather && typeof body.weather === 'object') ? body.weather : {};
       // Exact same monotonic rule as POST /settings, through the shared helper:
       // re-deriving the rev from the stored copy alone left this endpoint BELOW
@@ -19013,7 +19057,7 @@ const handleRequest = async (req, res) => {
     try {
       await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
-      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const cur = await readHubSettingsForUpdate();
       const patch = { ...(cur.claude && typeof cur.claude === 'object' ? cur.claude : {}) };
       if (body.plan !== undefined) patch.plan = body.plan;
       if (body.weeklyTokenBudget !== undefined) patch.weeklyTokenBudget = body.weeklyTokenBudget;
@@ -19635,7 +19679,7 @@ const handleRequest = async (req, res) => {
     try {
       await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
-      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const cur = await readHubSettingsForUpdate();
       let teams = Array.isArray(cur.football && cur.football.teams) ? cur.football.teams.slice() : [];
       const action = String(body.action || '').toLowerCase();
       if (action === 'set' && Array.isArray(body.teams)) {
@@ -19693,7 +19737,7 @@ const handleRequest = async (req, res) => {
     try {
       await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
-      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const cur = await readHubSettingsForUpdate();
       let feeds = Array.isArray(cur.news && cur.news.feeds) ? cur.news.feeds.slice() : [];
       const action = String(body.action || '').toLowerCase();
       if (action === 'set' && Array.isArray(body.feeds)) {
@@ -24741,7 +24785,7 @@ const handleRequest = async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       const value = body.value === true;
       await withHubSettingsLock(async () => {
-        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+        const cur = await readHubSettingsForUpdate();
         // Spread the stored block rather than replacing it: this endpoint owns
         // ONE field of it. Writing `{ enabled: value }` wholesale is how the
         // sibling flag gets silently reset by an unrelated toggle — the same
@@ -24778,7 +24822,7 @@ const handleRequest = async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       const value = body.value === true;
       await withHubSettingsLock(async () => {
-        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+        const cur = await readHubSettingsForUpdate();
         const saved = await writeHubSettings({
           ...cur,
           remoteAccess: { ...(cur.remoteAccess || {}), https: value },
@@ -25103,6 +25147,11 @@ data: ${JSON.stringify({ ...st, seed: true })}
     // Seed the Codex state (live approvals included, so a card waiting before this
     // dashboard opened is drawn at once).
     try { res.write(`event: codex\ndata: ${JSON.stringify(_codexPayload())}\n\n`); } catch (e) { /* ignore */ }
+    // A store put back from its daily copy at this boot: say so to the screens
+    // that open in the first half hour (each shows it once, main.js).
+    if (_storeRecovery.length && Date.now() - _storeRecoveryAt < 30 * 60 * 1000) {
+      try { res.write(`event: store_recovery\ndata: ${JSON.stringify({ at: _storeRecoveryAt, stores: _storeRecovery.map(({ file, state, from }) => ({ file, state, from })) })}\n\n`); } catch (e) { /* ignore */ }
+    }
     // Seed the SDK data-only streams (tasks/notes/agenda) for custom widgets.
     // Unlike system/media/audio/status these are broadcast ONLY on change, so a
     // sandboxed widget subscribing to one (it can't fetch) would paint nothing
@@ -25779,6 +25828,7 @@ function _startListen(host) {
     setTimeout(() => { _syncRemoteHttps().catch(() => {}); }, 3000);
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
     startTasksReopenClock();          // finished repeating tasks come back on time
+    startStoreSnapshots();            // a copy a day of settings, Deck, notes, tasks, calendar, timers
     // PresentMon (real in-game FPS) is NOT started here: it holds an admin ETW
     // tracing session, so it stays paused until the first dashboard connects and
     // is torn down when the last one leaves (see _syncFpsMonitor on the SSE path).
@@ -25861,7 +25911,7 @@ function _startListen(host) {
       // this identity exists to stop. One write, only when it is missing.
       if (!s || !s.storeId) {
         withHubSettingsLock(async () => {
-          const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+          const cur = await readHubSettingsForUpdate();
           if (cur.storeId) return;                    // another writer got there first
           _serverHubSettings = await writeHubSettings(cur);   // writeHubSettings mints
         }).catch(e => console.error('[settings] store id init failed:', e.message));
@@ -26327,7 +26377,7 @@ async function updateTransferSettings(body) {
   await withHubSettingsLock(async () => {
     // `prev` is read INSIDE the lock: one captured before acquiring it is
     // already stale by the time the write lands.
-    const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+    const cur = await readHubSettingsForUpdate();
     const merged = { ...(cur.fileTransfer || {}) };
     for (const key of ['enabled', 'autoDeliver', 'notifyPhone']) {
       if (typeof body[key] === 'boolean') merged[key] = body[key];

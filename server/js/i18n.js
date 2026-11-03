@@ -65011,6 +65011,74 @@ Object.assign(i18n.zh, {
   apps_fav_pc_only: "在手机或平板上可以移除或重新排列收藏，但不能添加：收藏是手机可以在电脑上启动的应用。",
 });
 
+// ── A store put back from its daily copy at boot (store-snapshots.js, main.js) ──
+Object.assign(i18n.it, {
+  store_restored_title: "Ripristinata una copia salvata",
+  store_restored: "Un file con la tua configurazione non si poteva leggere, quindi Xenon ha rimesso la copia del {day}. Le modifiche fatte dopo quel giorno potrebbero mancare.",
+  store_unreadable_title: "Un file non si può leggere",
+  store_unreadable: "Un file con la tua configurazione non si può leggere e non c'è ancora una copia da rimettere. Xenon lo ha lasciato com'è e non ci salva sopra. Il registro dice quale file è.",
+});
+Object.assign(i18n.en, {
+  store_restored_title: "A saved copy was put back",
+  store_restored: "A file with your setup could not be read, so Xenon put back the copy from {day}. Changes made after that day may be missing.",
+  store_unreadable_title: "A file could not be read",
+  store_unreadable: "A file with your setup could not be read and there is no copy to put back yet. Xenon left it as it is and will not save over it. The log says which file it is.",
+});
+Object.assign(i18n.es, {
+  store_restored_title: "Se ha recuperado una copia guardada",
+  store_restored: "No se podía leer un archivo con tu configuración, así que Xenon ha vuelto a poner la copia del {day}. Puede que falten los cambios hechos después de ese día.",
+  store_unreadable_title: "No se puede leer un archivo",
+  store_unreadable: "No se puede leer un archivo con tu configuración y todavía no hay una copia para recuperar. Xenon lo ha dejado tal cual y no guardará encima. El registro dice qué archivo es.",
+});
+Object.assign(i18n.fr, {
+  store_restored_title: "Une copie enregistrée a été remise",
+  store_restored: "Un fichier de votre configuration ne pouvait pas être lu, Xenon a donc remis la copie du {day}. Les modifications faites après ce jour peuvent manquer.",
+  store_unreadable_title: "Un fichier ne peut pas être lu",
+  store_unreadable: "Un fichier de votre configuration ne peut pas être lu et il n'y a pas encore de copie à remettre. Xenon l'a laissé tel quel et n'enregistrera rien dessus. Le journal indique de quel fichier il s'agit.",
+});
+Object.assign(i18n.de, {
+  store_restored_title: "Eine gespeicherte Kopie wurde wiederhergestellt",
+  store_restored: "Eine Datei mit deiner Einrichtung ließ sich nicht lesen, deshalb hat Xenon die Kopie vom {day} zurückgeholt. Änderungen nach diesem Tag fehlen vielleicht.",
+  store_unreadable_title: "Eine Datei lässt sich nicht lesen",
+  store_unreadable: "Eine Datei mit deiner Einrichtung lässt sich nicht lesen, und es gibt noch keine Kopie zum Zurückholen. Xenon lässt sie, wie sie ist, und speichert nicht darüber. Im Protokoll steht, welche Datei es ist.",
+});
+Object.assign(i18n.pt, {
+  store_restored_title: "Foi reposta uma cópia guardada",
+  store_restored: "Não foi possível ler um ficheiro com a sua configuração, por isso o Xenon repôs a cópia de {day}. As alterações feitas depois desse dia podem faltar.",
+  store_unreadable_title: "Não é possível ler um ficheiro",
+  store_unreadable: "Não é possível ler um ficheiro com a sua configuração e ainda não existe uma cópia para repor. O Xenon deixou-o como está e não vai guardar por cima. O registo indica qual é o ficheiro.",
+});
+Object.assign(i18n.nl, {
+  store_restored_title: "Een opgeslagen kopie is teruggezet",
+  store_restored: "Een bestand met je instellingen kon niet worden gelezen, dus heeft Xenon de kopie van {day} teruggezet. Wijzigingen van na die dag kunnen ontbreken.",
+  store_unreadable_title: "Een bestand kan niet worden gelezen",
+  store_unreadable: "Een bestand met je instellingen kan niet worden gelezen en er is nog geen kopie om terug te zetten. Xenon laat het zoals het is en slaat er niet overheen op. In het logboek staat welk bestand het is.",
+});
+Object.assign(i18n.ru, {
+  store_restored_title: "Восстановлена сохранённая копия",
+  store_restored: "Файл с вашими настройками не удалось прочитать, поэтому Xenon вернул копию от {day}. Изменения, сделанные после этого дня, могут отсутствовать.",
+  store_unreadable_title: "Не удаётся прочитать файл",
+  store_unreadable: "Файл с вашими настройками не удаётся прочитать, а копии для восстановления пока нет. Xenon оставил его как есть и не будет сохранять поверх. В журнале указано, какой это файл.",
+});
+Object.assign(i18n.ko, {
+  store_restored_title: "저장된 사본을 되살렸습니다",
+  store_restored: "설정이 담긴 파일을 읽을 수 없어서 Xenon이 {day} 사본을 되살렸습니다. 그날 이후에 바꾼 내용은 빠져 있을 수 있습니다.",
+  store_unreadable_title: "파일을 읽을 수 없습니다",
+  store_unreadable: "설정이 담긴 파일을 읽을 수 없고, 아직 되살릴 사본도 없습니다. Xenon은 파일을 그대로 두고 그 위에 저장하지 않습니다. 어떤 파일인지는 로그에 있습니다.",
+});
+Object.assign(i18n.ja, {
+  store_restored_title: "保存されたコピーに戻しました",
+  store_restored: "設定のファイルが読めなかったため、Xenon は {day} のコピーに戻しました。その日以降の変更は失われている可能性があります。",
+  store_unreadable_title: "ファイルが読めません",
+  store_unreadable: "設定のファイルが読めず、戻せるコピーもまだありません。Xenon はファイルをそのままにして、上書き保存はしません。どのファイルかはログに書かれています。",
+});
+Object.assign(i18n.zh, {
+  store_restored_title: "已恢复一份保存的副本",
+  store_restored: "有一个保存你设置的文件无法读取，所以 Xenon 恢复了 {day} 的副本。那天之后的更改可能会丢失。",
+  store_unreadable_title: "有文件无法读取",
+  store_unreadable: "有一个保存你设置的文件无法读取，而且还没有可以恢复的副本。Xenon 没有动它，也不会覆盖保存。日志里写明了是哪个文件。",
+});
+
 // ── Tasks and calendar: an edit still on its way to the PC (list-sync.js) ──
 Object.assign(i18n.it, {
   list_save_retry_title: "Non ancora salvato",

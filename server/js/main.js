@@ -689,6 +689,30 @@ function postponeAutoUpdate() {
     // A device was just paired. Shown on every open screen of the PC, so a
     // pairing nobody here asked for does not go unnoticed (the code alone
     // decides who pairs, and whoever types it first wins).
+    // A file with the user's setup could not be read at this boot and was put
+    // back from its daily copy (store-snapshots.js), or could not be put back.
+    // Told once per boot on each screen.
+    es.addEventListener('store_recovery', e => {
+      try {
+        const d = JSON.parse(e.data) || {};
+        const seenKey = 'xenonStoreRecoverySeen';
+        let seen = '';
+        try { seen = localStorage.getItem(seenKey) || ''; } catch { /* storage off: show it */ }
+        if (String(d.at) === seen || !Array.isArray(d.stores) || !d.stores.length) return;
+        try { localStorage.setItem(seenKey, String(d.at)); } catch { /* best effort */ }
+        const tr = (k, fb) => (typeof t === 'function' && t(k)) || fb;
+        const lost = d.stores.find((s) => s.state === 'unrecoverable');
+        const back = d.stores.find((s) => s.state === 'restored');
+        if (typeof showHubToast !== 'function') return;
+        if (back) {
+          const m = String(back.from || '').match(/(\d{4})-(\d{2})-(\d{2})\.json$/);
+          let day = m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+          try { if (m) day = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(tr('locale', undefined) || undefined, { day: 'numeric', month: 'long' }); } catch { /* keep the plain date */ }
+          showHubToast('Xenon', tr('store_restored_title', 'A saved copy was put back'), tr('store_restored', '').replace('{day}', day));
+        }
+        if (lost) showHubToast('Xenon', tr('store_unreadable_title', 'A file could not be read'), tr('store_unreadable', ''));
+      } catch {}
+    });
     es.addEventListener('remote_paired', e => {
       try {
         if (window.__xenonRemote) return;          // a phone does not need to be told about itself
