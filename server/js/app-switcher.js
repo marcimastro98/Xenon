@@ -184,6 +184,16 @@ function toggleAppFavorite(event, id) {
   const key = appWindowKey(win);
   if (!key) return;
   const existing = appFavorites.findIndex(fav => fav.key === key);
+  // From a paired phone or tablet a favourite can be removed or moved, not
+  // added: favourites are what a phone may start on the PC, and the server
+  // keeps only the ones the PC saved (server.js, POST /settings). Say so
+  // instead of showing a star that would vanish on the next sync.
+  if (existing < 0 && window.__xenonRemote) {
+    if (typeof showHubToast === 'function') {
+      showHubToast('Xenon', t('apps_fav_pc_only_title'), t('apps_fav_pc_only'));
+    }
+    return;
+  }
   if (existing >= 0) {
     appFavorites.splice(existing, 1);
   } else {
