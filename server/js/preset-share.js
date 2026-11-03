@@ -2112,6 +2112,11 @@
         if (typeof src !== 'string' || !src.startsWith('/uploads/')) return src;
         try {
           const uri = await _fetchAsDataUri(src);
+          // A picture the scene editor put inside the scene, which the server
+          // keeps in a file of its own (server/scene-images.js): it goes back
+          // exactly as it was, with the limits it always had (the share code
+          // size check below), not the ones for uploaded tile pictures.
+          if (/^\/uploads\/sceneimg-/.test(src)) return uri;
           if (uri.length <= maxChars && total + uri.length <= 3200000) { total += uri.length; return uri; }
           warned = true; return '';
         } catch { warned = true; return ''; }

@@ -58,6 +58,7 @@ const { createExclusiveHint } = require('./exclusive-hint');
 const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
+const sceneImages = require('./scene-images');
 const { createBenchmark, resolveDocumentsDir } = require('./benchmark');
 const { createCaptureHost } = require('./capture-host');
 const { createCaptures, VIDEO_KINDS, KINDS: CAPTURE_KINDS } = require('./captures');
@@ -11931,7 +11932,19 @@ async function writeHubSettings(settings) {
   // first, so only a store this process has never seen gets a new value.
   if (!safe.storeId) safe.storeId = _settingsStoreId || crypto.randomBytes(16).toString('hex');
   _settingsStoreId = safe.storeId;
-  await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe, null, 2));
+  // Large scene pictures go to files of their own (scene-images.js), so a
+  // settings save stops carrying megabytes of pictures. The rev moves past the
+  // one the saving screen holds, so that screen also picks up the lighter copy
+  // on the broadcast instead of sending the pictures again with every save.
+  const moved = await sceneImages.externalize(safe.ambientScenes, UPLOADS_DIR).catch(() => null);
+  if (moved && moved.changed) {
+    safe.ambientScenes = moved.scenes;
+    safe.rev = (Number(safe.rev) || 0) + 1;
+  }
+  // Compact: indentation made the file a fifth bigger and every save slower,
+  // and nobody reads this file by hand.
+  await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe));
+  sceneImages.sweepUnused(UPLOADS_DIR, safe.ambientScenes).catch(() => {});
   // Reclaim any per-tile decoration images no surviving tile references (grace-
   // windowed so a just-uploaded asset isn't swept before its layout save lands).
   // Saved presets count as references too — inserting one must still find its images.
@@ -12498,6 +12511,9 @@ async function buildBackup() {
   // must carry them: there is no "re-enter it" prompt for a calendar after a
   // restore, and the feed would simply vanish (see the section comment above).
   if (Array.isArray(settings.calendarFeeds)) safeSettings.calendarFeeds = settings.calendarFeeds;
+  // Scene pictures live in files (scene-images.js); a backup carries them
+  // inside the scenes, as it always did, so it restores on any PC.
+  safeSettings.ambientScenes = await sceneImages.inlineForBackup(settings.ambientScenes, UPLOADS_DIR);
   const notesState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
   return {
     xenonBackup: BACKUP_FORMAT,
@@ -13955,7 +13971,7 @@ async function writeNotes(state) {
   const safe = normalizeNotesState(state);
   await _ensureNotesRev();
   safe.rev = ++_notesRev;
-  await writeFileAtomic(NOTES_JSON, JSON.stringify(safe, null, 2));
+  await writeFileAtomic(NOTES_JSON, JSON.stringify(safe));
   // Live-sync: the dashboard notes widgets on every surface + granted SDK streams.
   broadcastSSE('notes', safe);
   return safe;
