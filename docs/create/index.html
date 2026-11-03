@@ -934,6 +934,7 @@ setInterval(() =&gt; {
 parent.postMessage({ xenonSdk:1, type:'hello' }, '*');</code></pre>
       </div>
       <p class="muted">Two notes for beginners: the folder name must match the manifest <code>id</code> (<em>neon-clock</em>), and <strong>the code always goes in a <em>.js</em> file of the widget</strong>, loaded with <code>&lt;script src="widget.js"&gt;&lt;/script&gt;</code>. The sandbox refuses a <code>&lt;script&gt;</code> written inside the HTML and attributes like <code>onclick="…"</code>, and the tile stays blank.</p>
+      <p class="muted">One more: <strong>a widget is one page.</strong> If its code loads another page in the tile (setting <code>location.href</code>, following a link, sending a form, calling <code>location.reload()</code>, even opening another HTML file of your own widget), Xenon stops the widget and the tile says it tried to open another page. For a widget with several views, keep one page and show or hide its parts; to refresh, draw again from your data instead of reloading. A page that took the place of yours would get the permissions the user gave your widget without ever being approved.</p>
 
       <h3 id="sdk-install" data-search-title="Install your widget on the dashboard">Put it on your dashboard</h3>
       <ol class="steps">

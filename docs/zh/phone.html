@@ -238,12 +238,12 @@
     <p class="note" data-i18n="ph.cap.note">这些是布局示意图，不是真实截图。真实的仪表盘上会有主人的日历、笔记和文件路径，而这个页面是公开的。</p>
 
     <h2 data-i18n="ph.h.what">能做什么，不能做什么</h2>
-    <p data-i18n="ph.what.p">配对过的设备就算是你自己的设备。除了少数几件事，电脑上仪表盘能做的它都能做。那几件事的原因是同一个：必须有人坐在那台电脑前面。</p>
+    <p data-i18n="ph.what.p">配对过的设备就算是你自己的设备。电脑上仪表盘能做的，它几乎都能做。少数做不了的事有两个原因：有的必须有人坐在那台电脑前面，有的会让落到别人手里的手机做出超出你自己设置的事。</p>
     <div class="yn">
       <div class="can">
         <ul>
           <li><span class="k">✓</span><span data-i18n="ph.can.1">整个仪表盘：传感器、组件、页面和主题</span></li>
-          <li><span class="k">✓</span><span data-i18n="ph.can.2">Deck 按键。它们在电脑上执行，不在手机上</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.2">你自己做的 Deck 按键。它们在电脑上执行，不在手机上</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.3">媒体、音量、麦克风静音和应用切换</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.4">商店：组件、图标包、音效包和主题</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.5">Bit，以及会保存到电脑的设置</span></li>
@@ -256,10 +256,13 @@
           <li><span class="k">✗</span><span data-i18n="ph.cant.2">更新 Xenon。更新会重启手机正连着的那个服务</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.3">系统安装程序（helper、PresentMon、驱动）。每一个都会往硬盘里装东西</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.4">添加或删除已配对的设备。这样一部手机既不能拉别的设备进来，也不能删掉那台能把它踢出去的设备</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.5">新建打开程序或文件、运行脚本、输入文字或发送快捷键的按键。这类按键要在电脑上做。手机可以按它们，也可以移动、改名或删除</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.6">把应用加入收藏。收藏的应用是手机可以在电脑上启动的，所以要在电脑上选。在手机上仍然可以移除收藏或调整顺序</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.7">设置远程桌面、打开电脑控制、创建或载入备份，以及通过与电脑配对的手机打电话或发短信</span></li>
         </ul>
       </div>
     </div>
-    <div class="card"><p data-i18n-html="ph.trade"><strong>开始之前有一件事要知道。</strong> 配对过的设备在你删掉它之前，一直是通向你电脑的一条路。所以手机丢了或者转手了，记得把它删掉。设备列表就是干这个用的：可以只删一台，也可以一键删除全部。被删掉的设备当场就断开。</p></div>
+    <div class="card"><p data-i18n-html="ph.trade"><strong>开始之前有一件事要知道。</strong> 配对过的设备在你删掉它之前，一直是通向你电脑的一条路。所以手机丢了或者转手了，记得把它删掉。设备列表就是干这个用的：可以只删一台，也可以一键删除全部。被删掉的设备当场就断开。超过 90 天没用的设备会停止工作，需要重新配对；每次有新设备配对，电脑上都会出现提示。</p></div>
 
     <h2 data-i18n="ph.h.xfer">把照片和文件传过去</h2>
     <p data-i18n="ph.xfer.p">手机配对后，就可以往电脑发文件，也可以从电脑取文件。在手机上打开 Xenon，点“照片和视频”或“其他文件”，选好要发的内容，它们就会以原来的名字落在电脑的 Download/Xenon 里。反方向也一样：从资源管理器或访达把文件拖到磁贴上，再用手机下载。不经过任何别人的服务器。</p>
@@ -388,7 +391,7 @@
     <p data-i18n="ph.not.1">没有 Xenon 账号，中间没有我们的服务器，仪表盘上的任何内容都不会被上传到任何地方。在自家 Wi-Fi 下这条连接是不加密的，所以面板里会提醒你在信任的网络里使用，而那条安全的路存在的意义就是解决这一点。Tailscale 是你自己选择加进来的第三方公司，适用它自己的隐私条款，而 Xenon 从它那里只取你自己这台机器的地址和证书。</p>
     <p data-i18n-html="ph.not.2">Xenon 还会发送什么、不会发送什么，都写在<a href="/zh/privacy.html">隐私页面</a>上。</p>
 
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">更多指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/single-screen.html" data-xl="f.onescreen">在一块屏幕上使用 Xenon</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul><p class="xg-dl"><a href="/zh/download.html" data-xl="f.download">下载</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -400,7 +403,7 @@
       <p data-xl="tag">一款免费的触控仪表盘，用于电脑旁边的屏幕。支持 Windows，macOS 和 Linux 为 Beta 版。</p>
     </div>
     <div class="xf-col"><h2 data-xl="app">应用</h2><ul><li><a href="/zh/download.html" data-xl="f.download">下载</a></li><li><a href="/demo/" data-xl="f.demo">浏览器演示</a></li><li><a href="/catalog/" data-xl="f.catalog">目录</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">制作小组件</a></li><li><a href="/releases.html" data-xl="f.releases">版本发布</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">指南</h2><ul><li><a href="/zh/xeneon-edge-widgets.html" data-xl="f.edge">在 Xeneon Edge 上使用 Xenon</a></li><li><a href="/zh/tablet-dashboard.html" data-xl="f.tablet">把平板或手机用作仪表盘</a></li><li><a href="/zh/phone.html" data-xl="f.phone">配对手机</a></li><li><a href="/zh/single-screen.html" data-xl="f.onescreen">在一块屏幕上使用 Xenon</a></li><li><a href="/zh/mac.html" data-xl="f.mac">在 Mac 上使用 Xenon</a></li><li><a href="/zh/linux.html" data-xl="f.linux">在 Linux 上使用 Xenon</a></li><li><a href="/zh/widgets.html" data-xl="f.widgets">全部小组件</a></li><li><a href="/zh/deck.html" data-xl="f.deck">Deck 按键</a></li><li><a href="/zh/claude-code.html" data-xl="f.claude">在触摸屏上使用 Claude Code</a></li><li><a href="/zh/codex.html" data-xl="f.codex">在触摸屏上使用 OpenAI Codex</a></li><li><a href="/zh/sensor-panel.html" data-xl="f.sensor">电脑传感器面板</a></li><li><a href="/zh/xenon-exe.html" data-xl="f.exe">安装程序安全吗？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">项目</h2><ul><li><a href="/zh/#support" data-xl="f.support">支持者</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/zh/faq.html" data-xl="f.faq">帮助和常见问题</a></li><li><a href="/zh/privacy.html" data-xl="f.privacy">隐私</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon 是一个独立项目。Xeneon 和 iCUE 是 CORSAIR 的商标。</span></div>
