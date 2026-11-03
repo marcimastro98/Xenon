@@ -101,9 +101,13 @@ const PUBLIC_PREFIXES = [
   '/icon-pack/', '/sound-pack/', '/uploads/', '/font/',
 ];
 const STATIC_EXT = /\.(?:m?js|css|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|mp3|wav|ogg|m4a|mp4|webm)$/i;
+// Ambient scene pictures (scene-images.js) are the user's own photos, moved
+// out of settings where no other page could reach them: they stay that way.
+const PRIVATE_UPLOADS = /^\/uploads\/sceneimg-/;
 function isPublicFile(pathname) {
   const p = String(pathname || '');
   if (p === '/ping') return true;
+  if (PRIVATE_UPLOADS.test(p)) return false;
   if (PUBLIC_PREFIXES.some((pre) => p.startsWith(pre))) return true;
   return STATIC_EXT.test(p) && !p.startsWith('/api/') && !p.startsWith('/stream/');
 }

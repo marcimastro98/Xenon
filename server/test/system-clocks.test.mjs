@@ -118,7 +118,7 @@ test('the agenda stream really is unfiltered, as the guide promises', () => {
   // says so in as many words, and a doc promise nobody enforces is a doc
   // promise that goes stale — so the code is held to it here.
   const server = read('server/server.js');
-  assert.match(server, /broadcastSSE\('agenda', \{ events: safe \}\)/,
+  assert.match(server, /broadcastSSE\('agenda', \{ events: safe, seq: _eventsSeq \}\)/,
     'the agenda broadcast must send the whole list, not a windowed slice');
   assert.ok(!/upcomingLimits/.test(server),
     'the Upcoming limits belong to the tile — filtering the stream by them would silently shrink what every widget sees');

@@ -125,6 +125,13 @@ test('the server takes one edit on both routes and serializes every read it writ
   assert.doesNotMatch(SERVER, /const tasks = await readTasks\(\);[\s\S]{0,400}?await writeTasks\(/);
   assert.doesNotMatch(SERVER, /const events = await readEvents\(\);[\s\S]{0,400}?await writeEvents\(/);
   assert.match(SERVER, /function updateTasks\(edit\) \{\s*return withTasksWrite\(/);
+  // Anything that is neither an edit nor a list is refused, never read as an empty list.
+  for (const [route, key] of [["'/tasks'", 'tasks'], ["'/events'", 'events']]) {
+    const at = SERVER.indexOf(`reqPath === ${route} && req.method === 'POST'`);
+    const body = SERVER.slice(at, at + 2200);
+    assert.match(body, new RegExp(`\\} else if \\(Array\\.isArray\\(body\\) \\|\\| \\(body && Array\\.isArray\\(body\\.${key}\\)\\)\\) \\{`), route);
+    assert.match(body, /error: 'bad_op'/, route);
+  }
   assert.match(SERVER, /function updateEvents\(edit\) \{\s*return withEventsWrite\(/);
 });
 
@@ -137,8 +144,8 @@ test('the tiles send edits, repaint from the broadcast and never treat a failed 
   for (const op of ["op: 'add', item: task", "op: 'delete', id", "op: 'update', id, patch: { completed: true"]) assert.ok(tasks.includes(op), op);
   for (const op of ["op: 'add', item: event", "op: 'delete', id"]) assert.ok(cal.includes(op), op);
   assert.doesNotMatch(cal, /catch \{\s*calendarLoaded = true;\s*calendarEvents = \[\];/, 'a failed load keeps what is on screen');
-  assert.match(main, /applyServerTasks\(d\.tasks\)/);
-  assert.match(main, /applyServerEvents\(d\.events\)/);
+  assert.match(main, /applyServerTasks\(d\.tasks, d\.seq\)/);
+  assert.match(main, /applyServerEvents\(d\.events, d\.seq\)/);
   // Loaded before the code that uses it, on every page that saves.
   const page = read('../index.html');
   assert.ok(page.indexOf('js/list-sync.js') > 0 && page.indexOf('js/list-sync.js') < page.indexOf('js/calendar.js'));
@@ -146,5 +153,29 @@ test('the tiles send edits, repaint from the broadcast and never treat a failed 
   const I18N = read('../js/i18n.js');
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
     assert.match(I18N, new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{\\n  list_save_retry_title:`), lang);
+  }
+});
+
+test('every list carries a number, and a screen never shows an older list over a newer one', async () => {
+  // Server: every write raises the number; broadcasts, answers, loads and the
+  // connect seed all carry it, the load taking it before the read.
+  assert.match(SERVER, /const _nextListSeq = \(prev\) => Math\.max\(Date\.now\(\), prev \+ 1\);/);
+  assert.match(SERVER, /broadcastSSE\('tasks', \{ tasks: safe, seq: _tasksSeq \}\);/);
+  assert.match(SERVER, /broadcastSSE\('agenda', \{ events: safe, seq: _eventsSeq \}\);/);
+  assert.match(SERVER, /const seq = _tasksSeq; json\(\{ tasks: await readTasks\(\), seq \}\);/);
+  assert.match(SERVER, /const seq = _eventsSeq; json\(\{ events: await readEvents\(\), seq \}\);/);
+  // The answer reaches the tile with its number.
+  const { fetchFn } = fakeServer([{ status: 200, body: { tasks: [{ id: 'a' }], seq: 7 } }]);
+  let got = null;
+  const s = ListSync.create({ url: '/tasks', listKey: 'tasks', fetchFn, delay: () => 0, onList: (l, a) => { got = [l, a.seq]; } });
+  await s.send({ op: 'add', item: { id: 'a' } });
+  assert.deepEqual(got, [[{ id: 'a' }], 7]);
+  // The tiles: a broadcast during an edit is held, the newer of the two wins,
+  // an older list never replaces a newer one.
+  for (const [file, show, held] of [['../js/tasks.js', '_showTasks', '_tasksHeld'], ['../js/calendar.js', '_showCalendarEvents', '_calendarHeld']]) {
+    const src = read(file);
+    assert.match(src, new RegExp(`if \\(held && held\\.seq > seq\\) ${show}\\(held\\.list, held\\.seq\\);`), file);
+    assert.match(src, /if \(seq && seq < _(tasks|calendar)Seq\) return;/, file);
+    assert.match(src, new RegExp(`${held} = \\{ list, seq: n \\}`), file);
   }
 });

@@ -28,7 +28,7 @@
   /**
    * @param url      the list's route ('/tasks', '/events')
    * @param listKey  the answer's list field ('tasks', 'events')
-   * @param onList   (list | null) after the last edit in flight is answered;
+   * @param onList   (list | null, answer) after the last edit in flight is answered;
    *                 null means it was refused and the caller should reload
    * @param fetchFn  for tests
    * @param delay    (attempt) => ms before a retry, for tests
@@ -51,7 +51,7 @@
           });
           let data = null;
           try { data = await res.json(); } catch { /* not JSON: treated as a failure below */ }
-          if (res.ok && data && Array.isArray(data[listKey])) { warned = false; return data[listKey]; }
+          if (res.ok && data && Array.isArray(data[listKey])) { warned = false; return data; }
           const s = res.status;
           if (s >= 400 && s < 500 && s !== 408 && s !== 429) return null;
         } catch { /* no answer at all: retry */ }
@@ -62,11 +62,13 @@
 
     function send(op) {
       pending += 1;
-      const run = queue.then(() => post(op)).then((list) => {
+      const run = queue.then(() => post(op)).then((data) => {
         pending -= 1;
+        const list = data ? data[listKey] : null;
         // Only the answer to the last edit is shown: an earlier answer does not
-        // hold the edits still on their way and would briefly undo them.
-        if (pending === 0 && typeof onList === 'function') onList(list);
+        // hold the edits still on their way and would briefly undo them. The
+        // whole answer goes along, for its `seq`.
+        if (pending === 0 && typeof onList === 'function') onList(list, data);
         return list;
       });
       queue = run.catch(() => {});
