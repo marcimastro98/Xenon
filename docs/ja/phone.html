@@ -238,12 +238,12 @@
     <p class="note" data-i18n="ph.cap.note">これは実際のスクリーンショットではなく、レイアウトの図です。本物のダッシュボードには持ち主のカレンダーやメモやファイルのパスが写りますし、このページは公開されています。</p>
 
     <h2 data-i18n="ph.h.what">できること、できないこと</h2>
-    <p data-i18n="ph.what.p">ペアリングした端末は、あなたの端末になります。少しの例外を除いて、PC のダッシュボードにできることは全部できます。その例外はどれも理由が同じで、その PC の前に人がいないと成り立たないことです。</p>
+    <p data-i18n="ph.what.p">ペアリングした端末は、あなたの端末になります。PC のダッシュボードにできることは、ほぼ全部できます。できない少しのことには二つの理由があります。その PC の前に人がいないと成り立たないこと、そしてスマホが他人の手に渡ったとき、あなたが用意した以上のことをさせてしまうことです。</p>
     <div class="yn">
       <div class="can">
         <ul>
           <li><span class="k">✓</span><span data-i18n="ph.can.1">ダッシュボード全部: センサー、ウィジェット、ページ、テーマ</span></li>
-          <li><span class="k">✓</span><span data-i18n="ph.can.2">デッキのキー。スマホではなく PC で実行されます</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.2">あなたが作ったデッキのキー。スマホではなく PC で実行されます</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.3">メディア、音量、マイクのミュート、アプリの切り替え</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.4">ストア: ウィジェット、アイコンパック、サウンドパック、テーマ</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.5">Bit と、PC に保存される設定</span></li>
@@ -256,10 +256,13 @@
           <li><span class="k">✗</span><span data-i18n="ph.cant.2">Xenon の更新。更新はスマホがつないでいるサーバー自体を再起動します</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.3">システムのインストーラー(ヘルパー、PresentMon、ドライバー)。どれもディスクにプログラムを置きます</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.4">ペアリング済み端末の追加と削除。おかげでスマホが別の端末を登録したり、自分を締め出せる端末を消したりはできません</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.5">プログラムやファイルを開く、スクリプトを実行する、文字を入力する、ショートカットを送る新しいキー。これらは PC で作ります。スマホからは押すことと、移動、名前の変更、削除ができます</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.6">お気に入りへのアプリの追加。お気に入りはスマホが PC で起動できるアプリなので、PC で選びます。スマホからでも、お気に入りを外したり並べ替えたりはできます</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.7">リモートデスクトップの設定、PC操作をオンにすること、バックアップの作成と読み込み、そして PC とペアリングしたスマホ経由の通話やメッセージ</span></li>
         </ul>
       </div>
     </div>
-    <div class="card"><p data-i18n-html="ph.trade"><strong>始める前に一つ知っておいてください。</strong> ペアリングした端末は、消すまでずっと PC への入り口のままです。スマホをなくしたり人に渡したりしたら、一覧から消してください。端末一覧はそのためにあります。1台だけ消すことも、ワンタップで全部消すこともできます。消した端末はその場で接続が切れます。</p></div>
+    <div class="card"><p data-i18n-html="ph.trade"><strong>始める前に一つ知っておいてください。</strong> ペアリングした端末は、消すまでずっと PC への入り口のままです。スマホをなくしたり人に渡したりしたら、一覧から消してください。端末一覧はそのためにあります。1台だけ消すことも、ワンタップで全部消すこともできます。消した端末はその場で接続が切れます。90 日使っていない端末は使えなくなり、もう一度ペアリングが必要です。新しい端末がペアリングされるたびに、PC に通知が出ます。</p></div>
 
     <h2 data-i18n="ph.h.xfer">写真やファイルをやり取りする</h2>
     <p data-i18n="ph.xfer.p">スマホを紐づけると、PC にファイルを送ったり PC から受け取ったりできます。スマホで Xenon を開き、「写真とビデオ」か「ほかのファイル」をタップして選ぶと、PC の Download/Xenon に元の名前のまま届きます。逆方向も同じで、エクスプローラーや Finder からタイルにファイルをドロップして、スマホでダウンロードできます。ほかの誰かのサーバーは経由しません。</p>
@@ -388,7 +391,7 @@
     <p data-i18n="ph.not.1">Xenon のアカウントはなく、間に入る自社サーバーもなく、ダッシュボードの中身がどこかにアップロードされることもありません。自宅の Wi-Fi で使う接続は暗号化されていません。パネルが信頼できるネットワークで使うようにと書いているのはそのためで、安全な方法はまさにそこを解決するためにあります。Tailscale はあなたが選んで足す外部の会社なので、そちらのプライバシー規約が適用されます。Xenon がそこから受け取るのは、自分のパソコンのアドレスと証明書だけです。</p>
     <p data-i18n-html="ph.not.2">Xenon が何を送り、何を送らないかは、残りも <a href="/ja/privacy.html">プライバシーのページ</a> にあります。</p>
 
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/single-screen.html" data-xl="f.onescreen">1台の画面でXenonを使う</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -400,7 +403,7 @@
       <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
     </div>
     <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/single-screen.html" data-xl="f.onescreen">1台の画面でXenonを使う</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>
