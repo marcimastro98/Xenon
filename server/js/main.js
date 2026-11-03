@@ -617,7 +617,16 @@ function postponeAutoUpdate() {
     // widgets (the dashboard's own tiles keep their local state). Notes ALSO
     // live-sync the real notes widget: without it a long-lived surface (the
     // Xeneon Edge kiosk) showed its boot-time snapshot forever (GitHub #72).
-    es.addEventListener('tasks', e => { try { if (window.CustomWidget) window.CustomWidget.onData('tasks', JSON.parse(e.data)); } catch {} });
+    // The Tasks tile and the calendar repaint from these too: a task or event
+    // added on a phone, another screen or by the assistant shows up here, and
+    // this screen's next edit no longer works from an old list.
+    es.addEventListener('tasks', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof applyServerTasks === 'function' && d && Array.isArray(d.tasks)) applyServerTasks(d.tasks);
+        if (window.CustomWidget) window.CustomWidget.onData('tasks', d);
+      } catch {}
+    });
     es.addEventListener('notes', e => {
       try {
         const d = JSON.parse(e.data);
@@ -625,7 +634,13 @@ function postponeAutoUpdate() {
         if (window.CustomWidget) window.CustomWidget.onData('notes', d);
       } catch {}
     });
-    es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('agenda', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof applyServerEvents === 'function' && d && Array.isArray(d.events)) applyServerEvents(d.events);
+        if (window.CustomWidget) window.CustomWidget.onData('agenda', d);
+      } catch {}
+    });
     if (need.events && !isLayerPage()) {
       es.addEventListener('calendar_reminder', e => { try { showReminder(JSON.parse(e.data)); } catch {} });
     }

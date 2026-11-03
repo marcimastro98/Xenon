@@ -626,21 +626,68 @@ function jumpCalendarToday() {
   renderCalendar();
 }
 
+// Each change sends one edit, applied by the server to the events it has
+// (js/list-sync.js, server/list-ops.js), and every screen repaints from the
+// list the server broadcasts (the `agenda` event).
+let _calendarEventsLoaded = false;
+let _calendarLoadRetry = null;
+let _calendarSyncInst = null;
+let _calendarMissed = false;
+function _calendarSync() {
+  if (!_calendarSyncInst) {
+    _calendarSyncInst = window.ListSync.create({
+      url: SERVER + '/events',
+      listKey: 'events',
+      // A broadcast skipped while an edit was on its way may hold another
+      // screen's change that this answer does not: ask for the list again.
+      onList: (list) => {
+        if (list && !_calendarMissed) { applyServerEvents(list); return; }
+        _calendarMissed = false;
+        loadCalendarEvents();
+      },
+    });
+  }
+  return _calendarSyncInst;
+}
+
+function repaintCalendarEvents() {
+  if (calendarMode) renderCalendar();
+  const modal = typeof $ === 'function' ? $('day-modal') : null;
+  if (modal && modal.classList.contains('open')) renderDayModalEvents();
+  renderUpcoming();
+}
+
 async function loadCalendarEvents() {
   try {
     const res = await fetch(SERVER + '/events');
     if (!res.ok) throw new Error('events unavailable');
     const data = await res.json();
-    calendarEvents = Array.isArray(data.events) ? data.events : [];
+    _calendarEventsLoaded = true;
+    // An edit still on its way would be undone on screen by this older list;
+    // its own answer brings the list in a moment.
+    if (!(_calendarSyncInst && _calendarSyncInst.busy())) calendarEvents = Array.isArray(data.events) ? data.events : [];
     calendarLoaded = true;
-    if (calendarMode) renderCalendar();
-    renderUpcoming();
+    repaintCalendarEvents();
   } catch {
+    // Keep what is on screen and keep asking. An event added meanwhile is
+    // safe: it goes to the list on the PC, never over it.
     calendarLoaded = true;
-    calendarEvents = [];
-    if (calendarMode) renderCalendar();
-    renderUpcoming();
+    repaintCalendarEvents();
+    if (!_calendarEventsLoaded && !_calendarLoadRetry) {
+      _calendarLoadRetry = setTimeout(() => { _calendarLoadRetry = null; if (!_calendarEventsLoaded) loadCalendarEvents(); }, 5000);
+    }
   }
+}
+
+// The events another screen, a phone or the assistant just saved, or the
+// answer to this screen's own edit.
+function applyServerEvents(list) {
+  if (!Array.isArray(list)) return;
+  if (_calendarSyncInst && _calendarSyncInst.busy()) { _calendarMissed = true; return; }
+  calendarEvents = list;
+  _calendarEventsLoaded = true;
+  calendarLoaded = true;
+  repaintCalendarEvents();
 }
 
 let externalEvents = [];
@@ -667,12 +714,8 @@ function allCalendarEvents() {
   return externalEvents.length ? calendarEvents.concat(externalEvents) : calendarEvents;
 }
 
-async function persistCalendarEvents() {
-  await fetch(SERVER + '/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ events: calendarEvents }),
-  });
+function sendCalendarEdit(op) {
+  return _calendarSync().send(op);
 }
 
 async function saveCalendarEvent() {
@@ -691,7 +734,7 @@ async function saveCalendarEvent() {
     const ends = combineDateTime(endDateVal, $('event-time').value);
     if (ends) endsAt = toLocalDateTimeValue(ends);
   }
-  calendarEvents.push({
+  const event = {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title,
     notes: $('event-notes').value.trim(),
@@ -700,13 +743,14 @@ async function saveCalendarEvent() {
     reminderAt,
     notifiedAt: '',
     createdAt: toLocalDateTimeValue(new Date()),
-  });
+  };
+  calendarEvents.push(event);
   $('event-title').value = '';
   $('event-notes').value = '';
   if ($('event-end-date')) $('event-end-date').value = '';
   selectedCalendarDate = dateValue;
   calendarViewDate = new Date(starts.getFullYear(), starts.getMonth(), 1);
-  await persistCalendarEvents().catch(() => {});
+  sendCalendarEdit({ op: 'add', item: event });
   if (calendarMode) renderCalendar();
   renderDayModalEvents();
   renderUpcoming();
@@ -715,9 +759,9 @@ async function saveCalendarEvent() {
   }
 }
 
-async function deleteCalendarEvent(id) {
+function deleteCalendarEvent(id) {
   calendarEvents = calendarEvents.filter(event => event.id !== id);
-  await persistCalendarEvents().catch(() => {});
+  sendCalendarEdit({ op: 'delete', id });
   if (calendarMode) renderCalendar();
   if ($('day-modal').classList.contains('open')) renderDayModalEvents();
   renderUpcoming();

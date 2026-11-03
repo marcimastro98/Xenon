@@ -1,52 +1,67 @@
 'use strict';
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
-const RECURRENCE_MS = { daily: 86_400_000, weekly: 7 * 86_400_000 };
 
 // ── Persistence ────────────────────────────────────────────────
+//
+// Each tap sends one edit, applied by the server to the list it has
+// (js/list-sync.js, server/list-ops.js), and every screen repaints from the
+// list the server broadcasts. Repeating tasks reopen on the server's clock.
+
+let _tasksLoaded = false;
+let _tasksLoadRetry = null;
+let _tasksSyncInst = null;
+let _tasksMissed = false;
+function _tasksSync() {
+  if (!_tasksSyncInst) {
+    _tasksSyncInst = window.ListSync.create({
+      url: '/tasks',
+      listKey: 'tasks',
+      // A broadcast skipped while an edit was on its way may hold another
+      // screen's change that this answer does not: ask for the list again.
+      onList: (list) => {
+        if (list && !_tasksMissed) { applyServerTasks(list); return; }
+        _tasksMissed = false;
+        loadTasks();
+      },
+    });
+  }
+  return _tasksSyncInst;
+}
 
 async function loadTasks() {
   try {
     const res = await fetch('/tasks');
     if (!res.ok) throw new Error('http ' + res.status);
     const data = await res.json();
-    tasksData = Array.isArray(data.tasks) ? data.tasks : [];
-    if (checkTaskRecurrence()) await saveTasks();
+    _tasksLoaded = true;
+    // An edit still on its way would be undone on screen by this older list;
+    // its own answer brings the list in a moment.
+    if (!(_tasksSyncInst && _tasksSyncInst.busy())) tasksData = Array.isArray(data.tasks) ? data.tasks : [];
     renderTasks();
   } catch {
     renderTasks();
+    // Keep asking until the list arrives. An edit made meanwhile is safe: it
+    // goes to the list on the PC, never over it.
+    if (!_tasksLoaded && !_tasksLoadRetry) {
+      _tasksLoadRetry = setTimeout(() => { _tasksLoadRetry = null; if (!_tasksLoaded) loadTasks(); }, 5000);
+    }
   }
   syncTasksWidgetPlacement();
 }
 
-async function saveTasks() {
-  try {
-    await fetch('/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: tasksData }),
-    });
-  } catch { /* non-critical — next save will retry */ }
+// The list another screen, a phone, a Deck key or the assistant just saved
+// (the `tasks` event), or the answer to this screen's own edit.
+function applyServerTasks(list) {
+  if (!Array.isArray(list)) return;
+  if (_tasksSyncInst && _tasksSyncInst.busy()) { _tasksMissed = true; return; }
+  tasksData = list;
+  _tasksLoaded = true;
+  renderTasks();
 }
 
-// ── Recurrence ────────────────────────────────────────────────
-
-function checkTaskRecurrence() {
-  const now = Date.now();
-  let changed = false;
-  for (const task of tasksData) {
-    if (!task.completed || !task.completedAt) continue;
-    let interval = 0;
-    if (task.recurrence === 'daily') interval = RECURRENCE_MS.daily;
-    else if (task.recurrence === 'weekly') interval = RECURRENCE_MS.weekly;
-    else if (task.recurrence === 'custom') interval = (task.recurrenceDays || 1) * RECURRENCE_MS.daily;
-    if (interval > 0 && now - new Date(task.completedAt).getTime() >= interval) {
-      task.completed = false;
-      task.completedAt = null;
-      changed = true;
-    }
-  }
-  return changed;
+function sendTaskEdit(op) {
+  return _tasksSync().send(op);
 }
 
 // ── Render ─────────────────────────────────────────────────────
@@ -150,33 +165,33 @@ function recurrenceBadgeLabel(task) {
 
 // ── Actions ────────────────────────────────────────────────────
 
-async function tickTask(id) {
+function tickTask(id) {
   const task = tasksData.find(t => t.id === id);
   if (!task) return;
   task.completed = true;
   task.completedAt = new Date().toISOString();
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'update', id, patch: { completed: true, completedAt: task.completedAt } });
 }
 
-async function undoTask(id) {
+function undoTask(id) {
   const task = tasksData.find(t => t.id === id);
   if (!task) return;
   task.completed = false;
   task.completedAt = null;
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'update', id, patch: { completed: false, completedAt: null } });
 }
 
-async function deleteTask(id) {
+function deleteTask(id) {
   const idx = tasksData.findIndex(t => t.id === id);
   if (idx === -1) return;
   tasksData.splice(idx, 1);
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'delete', id });
 }
 
-async function addTask() {
+function addTask() {
   const input = document.getElementById('tasks-new-input');
   const prioritySel = document.getElementById('tasks-priority-select');
   const recurSel = document.getElementById('tasks-recur-select');
@@ -206,7 +221,7 @@ async function addTask() {
   input.value = '';
   onTaskRecurrenceChange();
   renderTasks();
-  await saveTasks();
+  return sendTaskEdit({ op: 'add', item: task });
 }
 
 // ── Input helpers ──────────────────────────────────────────────
