@@ -1010,7 +1010,7 @@
         "totp",
         "passwords",
         "security",
-        "vault"
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "keyring",
@@ -1022,8 +1022,8 @@
       },
       "shots": 4,
       "addedAt": "2026-07-19",
-      "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "thermal-card",
