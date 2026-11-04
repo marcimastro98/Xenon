@@ -19,7 +19,7 @@ community catalog, a cloud AI if you pick one). Every one of those calls is list
 ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-4.11.13-informational)
+![version](https://img.shields.io/badge/version-5.0.0-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 <p align="center">
