@@ -1322,7 +1322,7 @@
         "streaming",
         "script",
         "island",
-        "deck"
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "teleprompter",
@@ -1335,7 +1335,8 @@
       "shots": 2,
       "active": true,
       "addedAt": "2026-07-17",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-04"
     },
     {
       "id": "nova-neon-district",
