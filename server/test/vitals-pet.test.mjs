@@ -269,3 +269,17 @@ test('Bit never says "Windows": Xenon runs on macOS and Linux too', () => {
   const hits = lines.filter((l) => /Windows|윈도우/.test(l));
   assert.deepEqual(hits, []);
 });
+
+test('fitLine: an AI roast longer than the bubble ends on a whole sentence or word, never mid-word', () => {
+  const short = 'Bevi un sorso, dai.';
+  assert.equal(core.fitLine(short, 140), short);
+  const long = "Sono le 21 e hai il serbatoio dell'acqua a zero da un'ora e mezza: ti stai disidratando come un cactus. Bevi qualcosa prima che ti consideri un fossile!";
+  assert.equal(core.fitLine(long, 140), "Sono le 21 e hai il serbatoio dell'acqua a zero da un'ora e mezza: ti stai disidratando come un cactus.");
+  const run = 'parola '.repeat(40).trim();
+  const cut = core.fitLine(run, 140);
+  assert.ok(cut.length <= 140 && cut.endsWith('…'), cut);
+  assert.ok(run.startsWith(cut.slice(0, -1)) && run[cut.length - 1] === ' ', 'cut on a word boundary');
+  const cjk = '水'.repeat(200);
+  assert.equal(core.fitLine(cjk, 140), '水'.repeat(139) + '…');
+  assert.equal(core.fitLine('', 140), '');
+});

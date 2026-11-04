@@ -12,6 +12,8 @@ const P = require('../lighting-native/fusion2-protocol.js');
 const L = require('../lighting-layouts.js');
 const { Fusion2Controller } = require('../lighting-native/fusion2.js');
 const native = require('../lighting-native/index.js');
+const hid = require('../hid/index.js');
+const { udevRule, accessCommand } = require('../lighting-native/linux-access.js');
 
 const RED = { r: 255, g: 0, b: 0 };
 const BLUE = { r: 0, g: 0, b: 255 };
@@ -101,7 +103,18 @@ test('Xenon never sends a flash save or a calibration write', () => {
     ...P.initPackets({ supportFlags: 3 }), P.ledCountPacket([1]), P.effectsOffPacket([0]), P.applyPacket(0x5711),
     ...P.stripPackets(0, [RED], P.byteOrder(0)), P.gen2ScanPackets(0).scan, P.gen2ScanPackets(0).info,
   ];
-  for (const p of all) assert.ok(![0x5E, 0x33].includes(p[1]), `command 0x${p[1].toString(16)}`);
+  for (const p of all) assert.ok(![0x5E, 0x33, 0x47].includes(p[1]), `command 0x${p[1].toString(16)}`);
+});
+
+test('current limit: a chain inside the ceiling is left alone, a brighter one is dimmed to it', () => {
+  const white = { r: 255, g: 255, b: 255 };
+  const fits = new Array(83).fill(white);
+  assert.equal(P.limitCurrent(fits), fits, 'under the limit: the same frame, untouched');
+  const dimmed = P.limitCurrent(new Array(256).fill(white));
+  const milliamps = dimmed.reduce((t, c) => t + c.r + c.g + c.b, 0) * 20 / 255;
+  assert.ok(milliamps <= 5000 && milliamps > 4900, `${milliamps} mA`);
+  const [warm] = P.limitCurrent(new Array(256).fill({ r: 255, g: 128, b: 0 }));
+  assert.ok(warm.r < 255 && Math.abs(warm.r / warm.g - 255 / 128) < 0.05 && warm.b === 0, 'the colour stays the same, only dimmer');
 });
 
 test('Gen2 reply: the LED count of each chained device', () => {
@@ -178,6 +191,183 @@ function fakeController() {
   ctl.orders = [0, 1, 2, 3].map(() => P.byteOrder(0));
   return { ctl, sent };
 }
+
+// A controller opened over a fake USB device. strips = the calibration words of
+// the first two headers; extra = the words of the IT5711's second report, or null
+// when that report comes back unusable.
+function fakeDevice({ productId, strips, extra }) {
+  const sent = [];
+  const reply = (fill) => { const b = Buffer.alloc(64); b[0] = 0xCC; fill(b); return b; };
+  const info = reply((b) => {
+    b[3] = 1; b[11] = 3;
+    strips.forEach((word, i) => b.writeUInt32LE(word, 44 + i * 4));
+    b.writeUInt32LE(((productId << 16) | 1) >>> 0, 56);
+  });
+  const more = extra ? reply((b) => extra.forEach((word, i) => b.writeUInt32LE(word, 4 + i * 4))) : Buffer.alloc(8);
+  const gen2 = reply(() => {});
+  const answers = { 0x60: info, 0x61: more };
+  return {
+    sent,
+    setFeature: async (buf) => { sent.push(buf); },
+    getFeature: async () => answers[sent[sent.length - 1][1]] || gen2,
+    close: async () => {},
+  };
+}
+
+async function openedController(extra, { productId = 0x5711, strips = [0x10002, 0x10002] } = {}) {
+  const dev = fakeDevice({ productId, strips, extra });
+  const realOpen = hid.open;
+  hid.open = async () => dev;
+  try {
+    const ctl = new Fusion2Controller({ productId });
+    await ctl.open();
+    return { ctl, sent: dev.sent };
+  } finally {
+    hid.open = realOpen;
+  }
+}
+
+const ALL_HEADERS = [0x10002, 0x10002, 0x10002, 0x10002];
+const FOURTH_AT_ZERO = [0x10002, 0, 0x10002, 0x10002];   // what a B650E AORUS STEALTH ICE answers
+
+const CHIPS = [
+  { productId: 0x5702, frames: [0x58, 0x59], effects: 0x01 | 0x02, applyHigh: 0x00 },
+  { productId: 0x5711, frames: [0x58, 0x59, 0x62, 0x63], effects: 0x01 | 0x02 | 0x08 | 0x10, applyHigh: 0x07 },
+  { productId: 0x8297, frames: [0x58, 0x59], effects: 0x01 | 0x02, applyHigh: 0x00 },
+  { productId: 0x8950, frames: [0x58, 0x59], effects: 0x01 | 0x02, applyHigh: 0x00 },
+];
+const CALIBRATION_REPLIES = [
+  { name: 'filled in', strips: [0x10002, 0x10002], extra: ALL_HEADERS },
+  { name: 'partly at 0', strips: [0x10002, 0], extra: [0, 0x10002, 0, 0] },
+  { name: 'all at 0', strips: [0, 0], extra: [0, 0, 0, 0] },
+  { name: 'second report unusable', strips: [0x10002, 0x10002], extra: null },
+  { name: 'nonsense', strips: [0xFFFFFFFF, 0x05060708], extra: [0x01010101, 0xFFFFFFFF, 3, 7] },
+];
+
+// Only one of these chips has ever been on a desk here: whatever a board answers,
+// the driver has to take every header, paint it, darken it and give it back.
+for (const chip of CHIPS) {
+  for (const { name, strips, extra } of CALIBRATION_REPLIES) {
+    test(`chip ${chip.productId.toString(16)}, calibration ${name}: every header works`, async () => {
+      const { ctl, sent } = await openedController(extra, { productId: chip.productId, strips });
+      const headers = chip.frames.length;
+      assert.equal(ctl.headers, headers);
+      assert.equal(ctl.orders.length, headers);
+      for (const o of ctl.orders) assert.equal([o.r, o.g, o.b].sort().join(), '0,1,2');
+      assert.equal(sent.some(p => p[1] === 0x61), chip.productId === 0x5711, 'the second report is the IT5711\'s');
+
+      await ctl.write(chip.frames.map(() => [RED]));
+      assert.equal(sent.find(p => p[1] === 0x32)[2], chip.effects);
+      assert.deepEqual([...sent.findLast(p => p[1] === 0x28).subarray(2, 4)], [0xFF, chip.applyHigh]);
+      for (const reg of chip.frames) {
+        const frame = sent.find(p => p[1] === reg);
+        assert.ok(frame, `no frame on 0x${reg.toString(16)}`);
+        assert.equal(frame.subarray(5, 8).reduce((a, b) => a + b, 0), 255, 'one red LED, in whatever order');
+      }
+
+      sent.length = 0;
+      await ctl.blackout(chip.frames.map(() => 1));
+      for (const reg of chip.frames) {
+        assert.equal(sent.find(p => p[1] === reg)?.subarray(5, 8).reduce((a, b) => a + b, 0), 0, 'dark');
+      }
+      await ctl.release();
+      assert.deepEqual(sent.filter(p => p[1] === 0x32).map(p => p[2]), [0], 'given back to the board');
+      assert.ok(!sent.some(p => [0x5E, 0x33, 0x47].includes(p[1])), 'nothing saved on the chip');
+    });
+  }
+
+  test(`chip ${chip.productId.toString(16)}: the Gen2 scan runs only where the chip has one`, async () => {
+    const { ctl, sent } = await openedController(ALL_HEADERS, { productId: chip.productId });
+    sent.length = 0;
+    const found = await ctl.scanGen2([1]);
+    assert.equal(found.length, chip.frames.length);
+    assert.deepEqual(sent.map(p => p[1]), chip.productId === 0x8297 ? [] : [0x3D, 0x3F, 0x34]);
+  });
+}
+
+// The audit of 3 Nov 2026 compared each of these with GIGABYTE's own software and
+// OpenRGB. A new command fails here until the same is done for it.
+test('every command the driver can send is on the audited list', async () => {
+  const audited = [
+    0x60, 0x61, 0x48, 0x31, 0x34, 0x32, 0x28, 0x58, 0x59, 0x62, 0x63,
+    0x20, 0x21, 0x22, 0x23, 0x24, 0x91, 0x92,
+    0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+  ];
+  const { ctl, sent } = await openedController(ALL_HEADERS);
+  await ctl.scanGen2([0, 1, 2, 3]);
+  await ctl.write([[RED], [RED], [RED], [RED]], ctl.zones.map(() => RED));
+  await ctl.blackout([1, 1, 1, 1]);
+  await ctl.release();
+  for (const p of sent) {
+    assert.equal(p.length, 64);
+    assert.equal(p[0], 0xCC);
+    assert.ok(audited.includes(p[1]), `command 0x${p[1].toString(16)} was never audited`);
+  }
+  assert.deepEqual([...new Set(sent.map(p => p[1]))].sort(), [...audited].sort(), 'nothing on the list is stale');
+});
+
+test('controller: a calibration of 0 says nothing about the header, which keeps its output', async () => {
+  const { ctl, sent } = await openedController(FOURTH_AT_ZERO);
+  assert.equal(ctl.headers, 4);
+  assert.deepEqual(ctl.orders[3], ctl.orders[0], 'and takes the colour order of the first header');
+  await ctl.write([[RED], [RED], [RED], [RED]]);
+  assert.ok(sent.some(p => p[1] === 0x63));
+});
+
+test('Gen2 scan: only the headers asked for, LED counts back to zero after each', async () => {
+  const { ctl, sent } = await openedController(ALL_HEADERS);
+  await ctl.write([[RED], null, null]);
+  sent.length = 0;
+  const found = await ctl.scanGen2([1]);
+  assert.deepEqual(sent.map(p => p[1]), [0x3D, 0x3F, 0x34]);
+  assert.deepEqual([...sent[2].subarray(2, 5)], [0, 0, 0]);
+  assert.deepEqual(found, [[], [], [], []]);
+  sent.length = 0;
+  await ctl.write([[RED], null, null]);
+  assert.deepEqual(sent.map(p => p[1]), [0x34, 0x32, 0x58, 0x28], 'the next frame sets the controller up again');
+});
+
+test('Gen2 scan: a failure half way still makes the next frame set everything up', async () => {
+  const { ctl, sent } = await openedController(ALL_HEADERS);
+  await ctl.write([[RED], null, null]);
+  const send = ctl.send;
+  ctl.send = async (buf) => { if (buf[1] === 0x3C) throw new Error('gone'); return send.call(ctl, buf); };
+  await assert.rejects(ctl.scanGen2([0]));
+  ctl.send = send;
+  sent.length = 0;
+  await ctl.write([[RED], null, null]);
+  assert.deepEqual(sent.map(p => p[1]), [0x34, 0x32, 0x58, 0x28]);
+});
+
+test('Gen2 prefill: an output set up during the scan is kept', async () => {
+  await native.configure({ layouts: {} });
+  const mine = { parts: [{ kind: 'piece', count: 5 }] };
+  const ctl = {
+    headers: 2,
+    scanGen2: async () => { native.setLayout('dev', 'h0', mine); return [[8], [8]]; },
+  };
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  const after = native.getLayouts().dev;
+  assert.deepEqual(after.h0.parts.map(p => p.count), [5]);
+  assert.deepEqual(after.h1.parts.map(p => p.count), [8]);
+});
+
+test('Gen2 prefill: only outputs nobody set up are scanned, a finished setup never', async () => {
+  await native.configure({ layouts: { dev: { h0: { parts: [{ kind: 'piece', count: 16 }] }, h1: { empty: true } } } });
+  const asked = [];
+  const ctl = { headers: 3, scanGen2: async (slots) => { asked.push(slots); return [[], [], [8, 8]]; } };
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  assert.deepEqual(asked, [[2]]);
+  assert.deepEqual(native.getLayouts().dev.h2.parts.map(p => p.count), [8, 8]);
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  assert.equal(asked.length, 1, 'every output has an answer now');
+});
+
+test('controller: what reaches the header is the limited frame', async () => {
+  const { ctl, sent } = fakeController();
+  await ctl.write([new Array(256).fill({ r: 255, g: 255, b: 255 }), null, null, null]);
+  assert.equal(sent.find(p => p[1] === 0x58)[5], 83);
+});
 
 test('controller: first write sets counts, takes the headers, paints, applies', async () => {
   const { ctl, sent } = fakeController();
@@ -369,4 +559,88 @@ test('layout name: cleaned, kept on counted outputs, carried into the segments',
   assert.equal(L.outputSegments(0, out.dev.h0)[0].name, 'Ventole');
   const split = L.outputSegments(1, { name: 'Fans', parts: [{ kind: 'piece', count: 4 }, { kind: 'piece', count: 4, name: 'Top' }] });
   assert.deepEqual(split.map(s => s.name), ['Fans · 1', 'Top']);
+});
+
+// Off, the Linux way: SIGTERM follows the blackout, and the shutdown path asks to
+// hand the headers back, which lit them on standby power on the board that reported it.
+async function withNative(run, open) {
+  const dev = fakeDevice({ productId: 0x5711, strips: [0x10002, 0x10002], extra: ALL_HEADERS });
+  const real = { list: hid.list, open: hid.open };
+  hid.list = async () => [{ path: 'node', vendorId: P.VENDOR_ID, productId: 0x5711, usagePage: P.USAGE_PAGE, usage: P.USAGE }];
+  hid.open = open || (async () => dev);
+  try {
+    await native.start();
+    await run(dev);
+  } finally {
+    await native.stop();
+    native.resume();
+    Object.assign(hid, real);
+  }
+}
+
+const takeHeaders = () => native.setPreview(native.devices()[0].id, 0, { whole: true });
+const handedBack = (sent) => sent.some(p => p[1] === P.CMD.EFFECTS_OFF && p[2] === 0);
+
+test('quitting Xenon hands the headers back to the board', async () => {
+  await withNative(async (dev) => {
+    await takeHeaders();
+    assert.equal(handedBack(dev.sent), false);
+    await native.stop();
+    assert.equal(handedBack(dev.sent), true);
+  });
+});
+
+test('a stop after the blackout leaves the headers black', async () => {
+  await withNative(async (dev) => {
+    await takeHeaders();
+    await native.powerDown();
+    const after = dev.sent.length;
+    await native.stop();
+    assert.equal(dev.sent.length, after);
+    assert.equal(native.hasDevices(), false);
+  });
+});
+
+test('a release after the blackout sends nothing, and works again once awake', async () => {
+  await withNative(async (dev) => {
+    await takeHeaders();
+    await native.powerDown();
+    const after = dev.sent.length;
+    await native.release();
+    assert.equal(dev.sent.length, after);
+    native.resume();
+    await takeHeaders();
+    await native.release();
+    assert.equal(handedBack(dev.sent), true);
+  });
+});
+
+test('a device the OS refuses asks for the permission instead of saying nothing was found', async () => {
+  await withNative(async () => {
+    const s = native.status();
+    assert.equal(s.error, 'no-permission');
+    assert.equal(s.accessCommand, accessCommand());
+    assert.equal(s.controllers.length, 0);
+  }, async () => { throw new Error('no-permission'); });
+});
+
+test('any other failure carries no command to paste', async () => {
+  await withNative(async () => {
+    assert.equal(native.status().error, 'could not open the USB device');
+    assert.equal(native.status().accessCommand, '');
+  }, async () => { throw new Error('could not open the USB device'); });
+});
+
+test('the udev rule covers every chip the driver knows, as the kernel names them', () => {
+  for (const id of P.PRODUCT_IDS) assert.ok(udevRule().includes('0003:048D:' + id.toString(16).toUpperCase().padStart(4, '0') + '.*'));
+  assert.match(udevRule(), /^KERNEL=="hidraw\*", KERNELS=="[^"]+", TAG\+="uaccess"$/);
+});
+
+test('the line to paste writes the rule early enough and applies it now, and names no path of this PC', () => {
+  const line = accessCommand();
+  assert.ok(line.includes(udevRule()));
+  const file = /sudo tee (\S+) /.exec(line)[1];
+  assert.match(file, /^\/etc\/udev\/rules\.d\/[0-6]\d-/);
+  assert.match(line, /udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw$/);
+  assert.equal(line.includes(process.cwd()), false);
 });

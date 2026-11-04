@@ -7,7 +7,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
 
+const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(HERE, '..', p), 'utf8');
 
@@ -21,11 +23,12 @@ function slice(src, head) {
 
 function normalizerFrom(file) {
   const src = read(file);
-  const consts = ['VITALS_IDS', 'VITALS_DEFAULT_MIN', 'VITALS_DEFAULT_ON', 'VITALS_PET_STAGES', 'VITALS_PET_DEFAULT_THR']
-    .map((name) => src.match(new RegExp('^const ' + name + ' = .*;$', 'm'))[0]);
+  const consts = ['VITALS_IDS', 'VITALS_DEFAULT_MIN', 'VITALS_DEFAULT_ON', 'VITALS_PET_STAGES', 'VITALS_PET_DEFAULT_THR', 'VITALS_ROAST_SPARKS_CAPS']
+    // The server has no cap list of its own: it calls cleanRoastSparksCap.
+    .map((name) => { const m = src.match(new RegExp('^const ' + name + ' = .*;$', 'm')); return m ? m[0] : ''; });
   const hour = src.match(/^function vitalsHour\(.*\}$/m)[0];
   const code = consts.join('\n') + '\n' + hour + '\n' + slice(src, 'function clampNumber(') + '\n' + slice(src, 'function normalizeVitals(') + '\nthis.normalizeVitals = normalizeVitals;';
-  const box = {};
+  const box = { cleanRoastSparksCap: require('../vitals-roast-sparks.js').cleanRoastSparksCap };
   vm.runInNewContext(code, box);
   return box.normalizeVitals;
 }
@@ -52,6 +55,14 @@ test('Bit\'s quiet window defaults to 23-7 and keeps whole hours from 0 to 23, o
     assert.deepEqual([frac.quietFrom, frac.quietTo], [23, 7], side + ' only whole numeric hours');
     const junk = norm({ pet: { quietFrom: 'late', quietTo: null } }).pet;
     assert.deepEqual([junk.quietFrom, junk.quietTo], [23, 7], side + ' junk reads as the default');
+  }
+});
+
+test('the Sparks a day for Bit\'s roasts: none by default, only the offered numbers, on both sides', () => {
+  for (const [side, norm] of SIDES) {
+    assert.equal(norm({}).pet.roastSparksCap, 0, side + ' default');
+    assert.equal(norm({ pet: { roastSparksCap: 25 } }).pet.roastSparksCap, 25, side + ' kept');
+    for (const junk of [7, -1, 1e6, 'many', null]) assert.equal(norm({ pet: { roastSparksCap: junk } }).pet.roastSparksCap, 0, side + ' ' + junk);
   }
 });
 

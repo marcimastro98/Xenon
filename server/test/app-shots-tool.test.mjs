@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startApp, appFile } from '../../tools/app-shots/serve.mjs';
-import { pickScenes } from '../../tools/app-shots/shoot.mjs';
+import { pickScenes, cropTarget } from '../../tools/app-shots/shoot.mjs';
 import { SCENES } from '../../tools/app-shots/scenes.mjs';
 
 test('"/" is the dashboard and data/ is never served', () => {
@@ -36,4 +36,11 @@ test('scenes are picked by name, an unknown one is an error, none means all', ()
   assert.deepEqual(pickScenes(['sparks-mail', '--out', 'x']), ['sparks-mail']);
   assert.throws(() => pickScenes(['nope']), /unknown scene: nope/);
   for (const [name, s] of Object.entries(SCENES)) assert.equal(typeof s.open, 'function', name);
+});
+
+test('a crop scene is shot as its box, the others as the whole page', () => {
+  assert.equal(cropTarget('bit-chat', '.chat-panel'), '.chat-panel');
+  assert.equal(cropTarget('bit-chat', undefined), null, 'no box named: whole page');
+  assert.equal(cropTarget('sparks-mail', '.bitmail'), null);
+  assert.equal(cropTarget('nope', '.x'), null);
 });

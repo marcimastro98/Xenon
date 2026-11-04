@@ -241,6 +241,34 @@ test('ordinary tools stay on Haiku, and Haiku chosen for creations is never aske
   assert.deepEqual(again.filter((c) => c.path === '/ai/messages').map((c) => c.body.effort), ['medium', 'medium'], "and the user's level on every round");
 });
 
+test('looking up the Deck catalog to run one action stays on Haiku; the creation model still gets the catalog', async () => {
+  const dir = withPass();
+  let round = 0;
+  const calls = hub({
+    '/ai/session': session,
+    '/ai/messages': (body) => {
+      if (body.model !== 'haiku') return reply([{ type: 'text', text: 'Made' }]);
+      round++;
+      if (round === 1) return reply([{ type: 'tool_use', id: 'c1', name: 'deck_action_catalog', input: {} }], 'tool_use');
+      if (round === 2) return reply([{ type: 'tool_use', id: 'r1', name: 'run_deck_action', input: { action: { type: 'hotkey', keys: 'ctrl+c' } } }], 'tool_use');
+      if (round === 3) return reply([{ type: 'text', text: 'Pressed' }]);
+      return reply([{ type: 'tool_use', id: 'k1', name: 'configure_deck', input: {} }], 'tool_use');
+    },
+  });
+  const tools = ['deck_action_catalog', 'run_deck_action', 'configure_deck', 'media_playpause'].map((name) => ({ name, description: 'd', parameters: { type: 'OBJECT', properties: {} } }));
+  const ran = [];
+  const out = await X.chat({ dataDir: dir, model: 'opus', history, systemText: 's', geminiTools: tools,
+    executeTool: async (name) => { ran.push(name); return { fnResult: { ok: true }, clientActions: [] }; } });
+  assert.equal(out.text, 'Pressed');
+  assert.deepEqual(ran, ['deck_action_catalog', 'run_deck_action']);
+  assert.deepEqual(calls.filter((c) => c.path === '/ai/messages').map((c) => c.body.model), ['haiku', 'haiku', 'haiku']);
+  round = 3;
+  const made = hub({ '/ai/session': session, '/ai/messages': (body) => (body.model === 'haiku' ? reply([{ type: 'tool_use', id: 'k1', name: 'configure_deck', input: {} }], 'tool_use') : reply([{ type: 'text', text: 'Made' }])) });
+  await X.chat({ dataDir: dir, model: 'opus', history, systemText: 's', geminiTools: tools, executeTool: async () => ({ fnResult: { ok: true }, clientActions: [] }) });
+  const opus = made.filter((c) => c.path === '/ai/messages' && c.body.model === 'opus');
+  assert.ok(opus.length && opus[0].body.tools.some((t) => t.name === 'deck_action_catalog'), 'configure_deck hands over, with the catalog');
+});
+
 test('every creation tool the router knows is a real Xenon AI tool', () => {
   const server = read('../server.js');
   for (const name of X.CREATION_TOOLS) assert.ok(server.includes(`{ name: '${name}',`), name);
@@ -359,11 +387,16 @@ test('the server routes the provider, keeps the time out of the system text, and
   const body = S.slice(at, S.indexOf('        return;\n      }', at));
   assert.match(body, /SYS_BASE\.slice\(SYS_NOW\.length\)/);
   assert.match(body, /turnNote: SYS_NOW/);
-  assert.match(body, /executeTool: \(fnName, fnArgs\) => executeAiTool\(fnName, fnArgs, \{/);
+  // Tools by group (ai-tool-groups.js): the kit's list goes out, use_tools is answered by the kit.
+  assert.match(body, /geminiTools: AI_TOOLS,/);
+  assert.match(body, /executeTool: \(fnName, fnArgs\) => toolKit\.call\(fnName, fnArgs, \(\) => executeAiTool\(fnName, fnArgs, \{/);
+  assert.match(body, /toolGroups: toolKit\.groups\(\)/);
   assert.match(S, /const SYS_NOW = `Current date and time: /);
   assert.match(S, /const SYS_BASE = SYS_NOW \+/);
+  // Bit's roasts spend Sparks only through the user's daily number.
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));
-  assert.doesNotMatch(roast, /aiXenon/);
+  assert.match(roast, /text = await roastSparks\.spend\(petCfg\.roastSparksCap, async \(\) => \{[\s\S]{0,200}aiXenon\.oneShot\(/);
+  assert.equal(roast.split('aiXenon.').length, 2, 'aiXenon only inside the capped spend');
   for (const route of ["'/api/ai/summarize'", "'/search/ai'", "'/api/disk/advisor'"]) {
     const i = S.indexOf('reqPath === ' + route);
     assert.match(S.slice(i, i + 12000), /aiXenon\.oneShot\(/, route);

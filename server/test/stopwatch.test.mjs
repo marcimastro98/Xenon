@@ -196,10 +196,9 @@ test('a chime fires once per interval, and a sleeping machine wakes to one', () 
 test('resetting the clock resets the chimes with it', () => {
   // Otherwise a stopwatch reset after an hour would sit silent for another
   // hour, waiting to pass a count that belongs to a run that already ended.
-  const patch = SERVER.slice(SERVER.indexOf("} else if (action === 'reset')"));
-  assert.match(patch.slice(0, 700), /t\.chimes = 0/);
-  const stop = SERVER.slice(SERVER.indexOf("} else if (action === 'stop')"));
-  assert.match(stop.slice(0, 300), /t\.chimes = 0/);
+  const actions = readFileSync(new URL('../timer-actions.js', import.meta.url), 'utf8');
+  const branch = actions.slice(actions.indexOf("} else if (action === 'reset' || action === 'stop')"));
+  assert.match(branch.slice(0, 300), /t\.chimes = 0/);
 });
 
 test('one leading character, on a grammar that already existed', () => {

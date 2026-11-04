@@ -295,7 +295,9 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
   const body = S.slice(at, S.indexOf('        return;\n      }', at));
   assert.match(body, /tools: AI_FUNCTIONS,/);
   assert.match(body, /executeTool: \(fnName, fnArgs\) => executeAiTool\(fnName, fnArgs, \{/);
-  assert.match(body, /json\(\{ text: result\.text, clientActions: result\.clientActions, newContent: result\.newContent \}\)/);
+  // The reply's history message carries the tools it ran (ai-turn-record.test.mjs).
+  assert.match(body, /\}\)\.then\(r => turnRecord\.note\(fnName, r\)\)/);
+  assert.match(body, /json\(\{ text: result\.text, clientActions: result\.clientActions, newContent: turnRecord\.message\(result\.text\) \}\)/);
   assert.match(body, /You have no other tools: no shell, no file access/);
   // web_search runs key-free for them, like the other non-Gemini providers.
   assert.match(S, /\(provider === 'ollama' \|\| provider === 'openai' \|\| provider === 'anthropic' \|\| provider === 'xenon' \|\| aiCli\.isCliProvider\(provider\)\)\n\s+\? await aiLocal\.localWebSearch/);
@@ -307,11 +309,10 @@ test('the chat route gives these providers Xenon\'s tools, run by the same execu
 test("Bit's automatic lines never spend the subscription; what the user starts may", () => {
   const S = read('../server.js');
   const roast = S.slice(S.indexOf("reqPath === '/api/vitals/roast'"), S.indexOf("reqPath === '/api/log'"));
-  // Nor the user's Xenon credits.
-  assert.match(roast, /aiCli\.isCliProvider\(provider\) \|\| provider === 'xenon'\) \{[\s\S]*?text = '';/);
-  assert.doesNotMatch(roast, /aiXenon/);
+  // Sparks only within the daily number the user picked (vitals-roast-sparks.test.mjs).
+  assert.match(roast, /\} else if \(aiCli\.isCliProvider\(provider\)\) \{[\s\S]*?text = '';/);
   assert.doesNotMatch(roast, /cliOneShot/);
-  assert.match(read('../js/vitals-pet.js'), /\['xenon', 'claudecode', 'codex'\]\.includes\(_aiProviderCfg\(\)\.provider\)\) return bank\(\);/);
+  assert.match(read('../js/vitals-pet.js'), /if \(\['claudecode', 'codex'\]\.includes\(provider\)\) return bank\(\);/);
   for (const route of ["'/api/ai/summarize'", "'/search/ai'", "'/api/disk/advisor'"]) {
     const at = S.indexOf('reqPath === ' + route);
     assert.ok(at > 0, route);

@@ -6,7 +6,8 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+// A Windows checkout has CRLF: the patterns below cut on "\n".
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const SERVER = read('../server.js');
 
 test('a paired phone removes or reorders app favourites, never adds one', () => {

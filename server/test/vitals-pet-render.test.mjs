@@ -44,6 +44,7 @@ function mount({ position = 'floating', levels = { hydration: 1 }, pet = {}, zer
     openAiPanel: () => opened.push(true),
     normalizeSettings: (s) => s,
     saveHubSettings() {},
+    saveVitalsStateNow() {},
     hubSettings: { vitals: { enabled: true, items: { hydration: { on: true, min: 45 } }, state: { mem }, pet: { enabled: true, position, sounds: false, ...pet } } },
     VitalsWidget: {
       snapshot: () => ({ enabled: true, ids: Object.keys(levels), levels, zeroAt, away: false }),

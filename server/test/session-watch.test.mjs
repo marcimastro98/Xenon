@@ -1,9 +1,10 @@
 // Lights left on, flickering, with the PC switched off. Reported by the
 // maintainer on a GIGABYTE board driven by Xenon's native lighting: Windows
-// never signals node at shutdown, so the headers were never handed back to the
-// board and kept Xenon's last frame on standby power. session-watch tells the
-// server first; these tests pin the protocol, the lifecycle and the lighting
-// side that answers it.
+// never signals node at shutdown, so the headers kept Xenon's last frame on
+// standby power. Handing them back to the board was not enough either (same
+// report, 3 Nov): the board's own effect ran on them with the PC off. Now
+// session-watch tells the server first and every LED goes dark; these tests pin
+// the protocol, the lifecycle and the lighting side that answers it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -47,9 +48,9 @@ test('only the three event words count, whatever the whitespace', () => {
   assert.equal(parseEvent(undefined), null);
 });
 
-test('off Windows nothing is started: a shutdown there sends SIGTERM', () => {
+test('on macOS nothing is started: no controller is driven there', () => {
   const sp = fakeSpawn();
-  const w = createSessionWatch({ onEvent: () => {}, platform: 'linux', spawnFn: sp.fn });
+  const w = createSessionWatch({ onEvent: () => {}, platform: 'darwin', spawnFn: sp.fn });
   w.start();
   assert.equal(sp.spawned.length, 0);
   assert.equal(w.running(), false);
@@ -162,11 +163,44 @@ test('controller: after forget the next frame sets the controller up again', asy
   assert.deepEqual(sent.map(p => p[1]), [0x34, 0x32, 0x58, 0x28], 'counts, take, paint, apply');
 });
 
+test('controller: blackout darkens every header and the board, and keeps them', async () => {
+  const ctl = new Fusion2Controller({ productId: 0x5711 });
+  const sent = [];
+  ctl.dev = { setFeature: async (buf) => { sent.push(buf); } };
+  ctl.orders = [0, 1, 2, 3].map(() => P.byteOrder(0));
+  await ctl.write([[{ r: 255, g: 0, b: 0 }], null, null, null]);
+  sent.length = 0;
+  await ctl.blackout([16, 24, 0, 0]);
+  const regs = [0, 1, 2, 3].map(s => P.stripPackets(s, [{ r: 0, g: 0, b: 0 }], ctl.orders[s])[0][1]);
+  for (const [s, reg] of regs.entries()) {
+    const pkts = sent.filter(p => p[1] === reg);
+    assert.ok(pkts.length, 'header ' + s + ' painted, the empty ones too');
+    assert.ok(pkts.every(p => p.subarray(5, 5 + p[4]).every(b => b === 0)), 'header ' + s + ' all black');
+  }
+  assert.ok(!sent.some(p => p.equals(P.effectsOffPacket([]))), 'never handed back to the board');
+  assert.equal(ctl.taken, true);
+  assert.ok(sent.at(-1)[1] === P.applyPacket(0x5711)[1], 'applied');
+  const darkLeds = (s) => sent.filter(p => p[1] === regs[s]).reduce((n, p) => n + p[4] / 3, 0);
+  assert.deepEqual([0, 1, 2, 3].map(darkLeds), [16, 24, 1, 1], 'as many dark LEDs as each header was asked for');
+});
+
+test('lighting: power down darkens the native controllers instead of releasing them', () => {
+  const nat = read('../lighting-native/index.js');
+  const down = nat.slice(nat.indexOf('async function powerDown()'), nat.indexOf('function resume()'));
+  assert.match(down, /\.blackout\(blackoutLengths\(c\)\)/);
+  assert.doesNotMatch(down, /release\(\)/);
+  const src = read('../lighting.js');
+  const pd = src.slice(src.indexOf('async function powerDown()'), src.indexOf('function powerUp()'));
+  assert.match(pd, /releaseAll\(\{ keepNative: true \}\)/);
+  const rel = src.slice(src.indexOf('async function releaseAll('), src.indexOf('function disconnect()'));
+  assert.match(rel, /if \(!keepNative\) \{\s*try \{ await native\.release\(\);/);
+});
+
 test('server: the Deck "Lights off" key goes dark and the watch follows native lighting', () => {
   const src = read('../server.js');
   const handler = src.slice(src.indexOf("case 'lightPower': {"), src.indexOf("case 'lightColor':"));
   assert.match(handler, /lighting\.setLightsOut\(!on\)/);
-  assert.match(src, /onEvent: \(ev\) => \(ev === 'resume' \? lighting\.powerUp\(\) : lighting\.powerDown\(\)\)/);
+  assert.match(src, /onEvent: \(ev\) => \{[\s\S]*?console\.warn\('\[session-watch\] ' \+ ev\);[\s\S]*?ev === 'resume' \? lighting\.powerUp\(\) : lighting\.powerDown\(\)/);
   assert.match(src, /_sessionWatch\.stop\(\)/, 'stopped in _gracefulShutdown');
   const script = read('../session-watch.ps1');
   for (const msg of ['WM_QUERYENDSESSION', 'WM_ENDSESSION', 'PBT_APMSUSPEND', 'ENDSESSION_CLOSEAPP']) assert.ok(script.includes(msg), msg);

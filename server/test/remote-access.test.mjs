@@ -259,6 +259,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /api/transfer/settings',
     // The same folder from the system dialog, which opens on the PC.
     'POST /api/transfer/settings/pick',
+    // The Vitals state saved from a widget on the PC's screen; a phone saves through /settings.
+    'POST /api/vitals/state',
     // Installs Xenon Helper from Settings: downloads an exe the server then
     // runs. Same class as the other installers, and done at the PC.
     'POST /audio/levels/install-helper',

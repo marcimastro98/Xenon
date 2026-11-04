@@ -159,3 +159,18 @@ test('the Sparks chip reading its balance on start is answered quietly, not with
   assert.ok(read('server', 'js', 'xenon-credits.js').includes("'/api/ai/xenon/balance'"), 'the chip still reads this path');
   assert.ok(quiet.includes("'/api/ai/xenon/balance': () => ok({ ok: false, error: 'no_code' })"));
 });
+
+test('the demo notes carry the field the notes tile reads', async () => {
+  // The tile shows `note.body` (js/notes.js); notes written as {title, text}
+  // drew "undefined" in the public demo.
+  const { runInNewContext } = await import('node:vm');
+  const sandbox = { window: {} };
+  runInNewContext(read('tools', 'demo', 'data.js'), sandbox);
+  const notes = sandbox.window.__XD__.notes.notes;
+  assert.ok(notes.length > 0);
+  for (const n of notes) {
+    assert.equal(typeof n.body, 'string', `note ${n.id} has no body`);
+    assert.ok(n.body.trim(), `note ${n.id} is empty`);
+    assert.ok(!n.body.includes('—'), `note ${n.id} has an em-dash`);
+  }
+});

@@ -54,7 +54,7 @@ test('the picker turns on search, collapsible groups and its texts', () => {
   for (const attr of ['data-cs-search', 'data-cs-collapsible', 'data-cs-search-placeholder', 'data-cs-empty']) {
     assert.ok(fn.includes(`'${attr}'`), attr);
   }
-  assert.match(fn, /csKeywords = \[englishLabel\(a\.labelKey\), a\.type, catEn\]/, 'English names and the type are searchable');
+  assert.match(fn, /csKeywords = \[englishLabel\(a\.labelKey\), a\.type, catEn, o\.dataset\.csInfo \|\| ''\]/, 'English names, the type and the explanation are searchable');
   assert.match(fn, /ready\.concat\(locked\)/, 'categories that need setting up go last');
   assert.match(fn, /data-cs-search-skip/, 'recently used does not repeat results while searching');
 });

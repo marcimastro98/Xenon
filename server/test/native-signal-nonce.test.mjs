@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url';
 // hold the wiring and the page side.
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+// A Windows checkout has CRLF: the patterns below cut on "\n".
+const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8').replace(/\r\n/g, '\n');
 const LIB = read('apps/native/src-tauri/src/lib.rs');
 const POLICY = read('apps/native/src-tauri/src/nav_policy.rs');
 

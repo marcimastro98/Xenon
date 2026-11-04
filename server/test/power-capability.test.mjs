@@ -68,10 +68,10 @@ test('Bit: set_power_mode only where it can work, get_power_status everywhere it
   assert.deepEqual(fn.parameters.properties.mode.enum, ['next', 'saver', 'balanced', 'performance']);
 });
 
-test('catalog: the key sits in the performance group, the status is hidden', () => {
+test('catalog: the key sits in the System group, the status is hidden', () => {
   const key = CAPABILITIES.find((c) => c.type === 'powerMode');
   const st = CAPABILITIES.find((c) => c.type === 'powerStatus');
-  assert.equal(key.group, 'perf');
+  assert.equal(key.group, 'system');
   assert.equal(key.capability.risk, 'safe');
   assert.equal(st.hidden, true);
 });
