@@ -951,7 +951,7 @@
         "forecast",
         "seven-day",
         "precipitation",
-        "open-meteo"
+        "on-screen"
       ],
       "version": "0.1.9",
       "changelog": "Improved Xenon visibility handling, pausing forecast requests while the widget is off-page or hidden and retaining compatibility with older hosts.",
@@ -963,8 +963,8 @@
       },
       "shots": 3,
       "addedAt": "2026-07-29",
-      "codeFile": true,
-      "updatedAt": "2026-07-29"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "dgm-radar-de-tormentas",
