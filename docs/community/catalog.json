@@ -756,7 +756,8 @@
         "stats",
         "docker",
         "nas",
-        "container"
+        "container",
+        "on-screen"
       ],
       "version": "2.0.0",
       "pkgId": "docker-stats",
@@ -767,7 +768,8 @@
       },
       "shots": 2,
       "addedAt": "2026-07-23",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-04"
     },
     {
       "id": "dgm-clasificaci-n",
