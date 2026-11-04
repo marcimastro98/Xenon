@@ -455,7 +455,7 @@
         "monitoring",
         "cpu",
         "gpu",
-        "hardware"
+        "on-screen"
       ],
       "version": "0.1.6",
       "pkgId": "dgm-telemetry",
@@ -466,8 +466,8 @@
       },
       "shots": 3,
       "addedAt": "2026-07-29",
-      "codeFile": true,
-      "updatedAt": "2026-07-29"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "dgm-personal-training",
