@@ -731,7 +731,7 @@
         "focus",
         "time-tracking",
         "privacy",
-        "offline"
+        "on-screen"
       ],
       "version": "1.0.2",
       "pkgId": "daybook",
@@ -743,7 +743,8 @@
       },
       "shots": 2,
       "addedAt": "2026-07-23",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-04"
     },
     {
       "id": "docker-container-stats-display",
