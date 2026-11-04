@@ -173,14 +173,14 @@ log('materialized shared/src from packages/core');
   // 4e. Head metadata. <html lang> is left alone: i18n.js sets it from the
   //     seeded language.
   html = patchOnce(html, '<title>', '<link rel="canonical" href="https://xenon-app.com/demo/">\n'
-    + '<meta name="description" content="Try Xenon in your browser — the full dashboard, running on simulated data. No download.">\n'
+    + '<meta name="description" content="Try Xenon in your browser: the full dashboard, running on simulated data. No download.">\n'
     + '<meta name="theme-color" content="#070808">\n'
-    + '<meta property="og:title" content="Xenon — try the dashboard in your browser">\n'
+    + '<meta property="og:title" content="Xenon demo: try the dashboard in your browser">\n'
     + '<meta property="og:description" content="The full Xenon dashboard, live in your browser on simulated data.">\n'
     + '<meta property="og:url" content="https://xenon-app.com/demo/">\n'
     + '<meta property="og:type" content="website">\n'
     + '<title>', 'head metadata');
-  html = html.replace(/<title>[^<]*<\/title>/, '<title>Xenon — try the dashboard in your browser</title>');
+  html = html.replace(/<title>[^<]*<\/title>/, '<title>Xenon demo: try the dashboard in your browser</title>');
 
   writeFileSync(join(OUT, 'index.html'), html);
   log('wrote index.html');

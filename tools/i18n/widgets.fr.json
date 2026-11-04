@@ -1,7 +1,7 @@
 {
   "fr": {
-    "meta.title": "Xeneon Edge widgets list : les 45 widgets du dashboard Xenon",
-    "meta.desc": "Les 45 widgets Xenon intégrés et la fonction de chacun : moniteur système, multimédia, calendrier, touches du Deck, OBS et plus encore, sur un Xeneon Edge, un moniteur PC ou un écran tactile.",
+    "meta.title": "Liste des widgets Xenon : tous les widgets intégrés",
+    "meta.desc": "Chaque widget intégré à Xenon et son rôle : moniteur système, musique, agenda, Deck, OBS, Home Assistant et plus, avec les widgets du catalogue.",
     "ld.q1": "Combien de widgets Xenon possède-t-il ?",
     "ld.a1": "45 widgets intégrés, répartis en quatre groupes : Productivité, Médias, Système et Streaming. Les widgets du catalogue communautaire et les widgets que vous créez s'exécutent dans la tuile widget personnalisée.",
     "ld.q2": "Les widgets ont-ils besoin d'un Xeneon Edge ?",

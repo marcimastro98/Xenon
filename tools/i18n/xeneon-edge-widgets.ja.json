@@ -1,7 +1,7 @@
 {
   "ja": {
-    "meta.title": "Xeneon Edge のウィジェット: iCUE と無料の Xenon ダッシュボード",
-    "meta.desc": "CORSAIR Xeneon Edge 用の無料ダッシュボード。ドラッグ＆ドロップで作るページ、マイク、オーディオ、メディアの操作、ゲームを邪魔しないタッチ。iCUE があってもなくても動き、アカウントは不要です。",
+    "meta.title": "Xeneon Edgeウィジェットと無料ダッシュボード",
+    "meta.desc": "iCUEがCORSAIR Xeneon Edgeでできることと、Xenonが加えるもの: ウィジェットのページ、マイクと音声の操作、Deckキー。iCUEなしでも使え、アカウント不要。",
     "ld.q1": "Xenon は iCUE の代わりになりますか？",
     "ld.a1": "いいえ。CORSAIR のハードウェアとライティングを動かすのは引き続き iCUE です。Xenon はその横で、独自のウィンドウとして、または iCUE のパネルの中で動き、独自のブリッジを通じて iCUE にライティング効果を送れます。",
     "ld.q2": "Xenon を使うには Xeneon Edge が必要ですか？",

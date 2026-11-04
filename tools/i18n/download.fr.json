@@ -1,7 +1,7 @@
 {
   "fr": {
-    "meta.title": "Télécharger Xenon : dashboard tactile gratuit pour Windows, Mac, Linux",
-    "meta.desc": "Téléchargez la dernière version de Xenon : installateur Windows, application universelle macOS, AppImage Linux, deb ou rpm. Configuration initiale, avertissements SmartScreen, checksums signés.",
+    "meta.title": "Télécharger Xenon pour Windows, macOS et Linux (gratuit)",
+    "meta.desc": "Installateur Xenon pour Windows ou Microsoft Store. App universelle macOS et Linux AppImage, deb, rpm (bêta). Sommes de contrôle signées et premier lancement.",
     "dl.h1": "Télécharger Xenon",
     "dl.lede": "La dernière version pour chaque plateforme, directement depuis GitHub. Gratuit, sans compte, et elle se met à jour automatiquement ensuite.",
     "dl.updated": "Dernière mise à jour : 16 octobre 2026. Chaque lien pointe vers <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la dernière version</a>.",

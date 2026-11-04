@@ -46,17 +46,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>1画面で使う Xenon：ウィジェット、ゲームオーバーレイ、インスタントリプレイ</title>
-<meta name="description" content="デスクトップやゲームの上にウィジェット、FPS オーバーレイ、スクリーンショット、録画、インスタントリプレイ。セカンドモニターもアカウントも不要です。">
+<title>Windows、Mac、Linuxのデスクトップウィジェット</title>
+<meta name="description" content="画面が1台でも、Xenonのウィジェットをデスクトップ、ゲームの上、アプリの横に。天気、音楽、PCの状態、Deckキー。Windows対応、macOSとLinuxはベータ。">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="1画面で使う Xenon：ウィジェット、ゲームオーバーレイ、インスタントリプレイ">
-<meta property="og:description" content="デスクトップやゲームの上にウィジェット、FPS オーバーレイ、スクリーンショット、録画、インスタントリプレイ。セカンドモニターもアカウントも不要です。">
+<meta property="og:title" content="Windows、Mac、Linuxのデスクトップウィジェット">
+<meta property="og:description" content="画面が1台でも、Xenonのウィジェットをデスクトップ、ゲームの上、アプリの横に。天気、音楽、PCの状態、Deckキー。Windows対応、macOSとLinuxはベータ。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://xenon-app.com/ja/single-screen.html">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Windows、Mac、Linuxのデスクトップウィジェット">
+<meta name="twitter:description" content="画面が1台でも、Xenonのウィジェットをデスクトップ、ゲームの上、アプリの横に。天気、音楽、PCの状態、Deckキー。Windows対応、macOSとLinuxはベータ。">
 <link rel="canonical" href="https://xenon-app.com/ja/single-screen.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/single-screen.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/single-screen.html">
@@ -141,12 +143,14 @@
     <p data-i18n-html="os.perf.p1"><strong>ゲームパフォーマンス</strong>タイルは、プレイ中のゲームのフレームレート、1% low と 0.1% low、フレームタイム、そして直近のフレームを示す線を表示します。カクつきはその線のスパイクとして現れ、下には CPU と GPU の負荷が並びます。Bit に「ゲームの上に FPS を出して」と頼めば、ゲームの上に表示されます。Windows では <strong>Ctrl+Shift+F9</strong> でゲーム上のウィジェットを隠したり戻したりできます。</p>
     <p data-i18n="os.perf.p2">Xenon は 2 分以上プレイしたゲームをすべて記録するので、ある晩と次の晩を比べられます。Bit は「なんでゲームがカクつくの？」という質問に、Xenon がすでに測定している内容から答えます。Deck キーで、1 回のプレイのフレームタイムをすべて CSV ファイルに保存できます。</p>
     <p data-i18n="os.perf.p3">Windows では Xenon がすべてのフレームを測定します。Linux でフレームレートを取るには、ゲームを MangoHud 付きで起動する必要があります。macOS ではアプリが別のアプリのフレームレートを測定できず、タイルにもそう表示されます。</p>
+    <p data-i18n-html="os.perf.more">タイル、low、ベンチマークの詳細は <a href="/ja/fps-overlay.html">1% と 0.1% low も出る FPS オーバーレイ</a> へ。</p>
 
     <h2 id="capture" data-i18n="os.h.capture">スクリーンショット、録画、インスタントリプレイ</h2>
     <p data-i18n="os.capture.p1">画面全体、前面のウィンドウ、または静止した画面上でドラッグした範囲をスクリーンショットできます。HDR の画面では、見たままの色で保存されます。画面または 1 つのウィンドウを音声付きの MP4 で録画でき、マイクは選んだときだけ加わります。</p>
     <p data-i18n-html="os.capture.p2"><strong>インスタントリプレイ</strong>は、画面の直近の数分を、15 秒から 60 分まで、メモリではなくディスクに保持します。Windows で <strong>Ctrl+Shift+F10</strong> を押すか、Deck キーをタップするか、「最後の 30 秒を保存して」と言えば、約 1 秒でクリップが保存されます。オンの間は常に録画するため、設定の「キャプチャ」でオンにするまではオフのままです。</p>
     <p data-i18n="os.capture.p3">インスタントリプレイの実行中に瞬間をマークすると、Xenon がその前後のクリップを保存します。ギャラリーはキャプチャを日付とゲームごとにまとめ、再エンコードせずに動画をトリミングし、この PC 上で文字起こしを作り、9:16 の縦型コピーやチャット向けの軽いコピーを作り、ペアリングしたスマートフォンにキャプチャを送ります。</p>
     <p data-i18n="os.capture.p4">Windows と macOS では、システム自身のキャプチャとビデオエンコーダーを使うので、どのグラフィックカードでも動きます。すべてはあなたの PC に残り、何もアップロードされません。</p>
+    <p data-i18n-html="os.capture.more">すべてのキャプチャ機能と Mac・Linux で使えるものは <a href="/ja/screen-recorder.html">画面録画とインスタントリプレイ</a> へ。</p>
 
     <h2 id="phone" data-i18n="os.h.phone">スマートフォンをセカンドスクリーンに</h2>
     <p data-i18n-html="os.phone.p1">モニターが 1 台なら、ポケットのスマートフォンをセカンドスクリーンにできます。Xenon とペアリングすると、あなたの Wi-Fi 経由でダッシュボードが表示されます。FPS を表示するゲームパフォーマンスタイルを置けば、ゲームの上には何も重なりません。Deck キーで PC のリプレイを保存したり、スクリーンショットを撮ったりもできます。<a href="/ja/phone.html">スマートフォンのペアリング方法</a>。</p>
@@ -168,7 +172,7 @@
       <h3 data-i18n="os.cta.h">Xenon をダウンロード</h3>
       <p data-i18n-html="os.cta.p">無料、アカウント不要。<a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows 版 Xenon をダウンロード</a>するか、<a href="/ja/download.html">ダウンロードページ</a>でお使いのシステムを選んでください。</p>
     </div>
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">その他のガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/fps-overlay.html" data-xl="f.fps">FPSオーバーレイ</a></li><li><a href="/ja/screen-recorder.html" data-xl="f.recorder">画面録画</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul><p class="xg-dl"><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -180,7 +184,7 @@
       <p data-xl="tag">PCの横にある画面のための、無料のタッチダッシュボード。Windowsに対応し、macOSとLinuxはベータ版です。</p>
     </div>
     <div class="xf-col"><h2 data-xl="app">アプリ</h2><ul><li><a href="/ja/download.html" data-xl="f.download">ダウンロード</a></li><li><a href="/demo/" data-xl="f.demo">ブラウザデモ</a></li><li><a href="/catalog/" data-xl="f.catalog">カタログ</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">ウィジェットを作る</a></li><li><a href="/releases.html" data-xl="f.releases">リリース</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/single-screen.html" data-xl="f.onescreen">1台の画面でXenonを使う</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">ガイド</h2><ul><li><a href="/ja/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon EdgeでのXenon</a></li><li><a href="/ja/tablet-dashboard.html" data-xl="f.tablet">タブレットやスマートフォンをダッシュボードに</a></li><li><a href="/ja/phone.html" data-xl="f.phone">スマートフォンのペアリング</a></li><li><a href="/ja/single-screen.html" data-xl="f.onescreen">1台の画面でXenonを使う</a></li><li><a href="/ja/fps-overlay.html" data-xl="f.fps">FPSオーバーレイ</a></li><li><a href="/ja/screen-recorder.html" data-xl="f.recorder">画面録画</a></li><li><a href="/ja/mac.html" data-xl="f.mac">MacでのXenon</a></li><li><a href="/ja/linux.html" data-xl="f.linux">LinuxでのXenon</a></li><li><a href="/ja/widgets.html" data-xl="f.widgets">すべてのウィジェット</a></li><li><a href="/ja/deck.html" data-xl="f.deck">Deckキー</a></li><li><a href="/ja/claude-code.html" data-xl="f.claude">タッチスクリーンでClaude Code</a></li><li><a href="/ja/codex.html" data-xl="f.codex">タッチスクリーンで OpenAI Codex</a></li><li><a href="/ja/sensor-panel.html" data-xl="f.sensor">PCのセンサーパネル</a></li><li><a href="/ja/xenon-exe.html" data-xl="f.exe">インストーラーは安全ですか？</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">プロジェクト</h2><ul><li><a href="/ja/#support" data-xl="f.support">サポーター</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ja/faq.html" data-xl="f.faq">ヘルプとよくある質問</a></li><li><a href="/ja/privacy.html" data-xl="f.privacy">プライバシー</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenonは独立したプロジェクトです。XeneonとiCUEはCORSAIRの商標です。</span></div>

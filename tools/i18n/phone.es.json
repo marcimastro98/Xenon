@@ -1,7 +1,7 @@
 {
   "es": {
-    "meta.title": "Usa tu teléfono o tablet como pantalla de Xenon",
-    "meta.desc": "Abre tu panel de Xenon en un teléfono o una tablet por tu propio Wi-Fi, o desde cualquier sitio con Tailscale. Las teclas del Deck actúan en el PC.",
+    "meta.title": "Usa el móvil como panel de control del PC con Xenon",
+    "meta.desc": "Abre el panel de Xenon en el navegador del móvil por tu Wi-Fi, o desde cualquier sitio con Tailscale. Las teclas del Deck actúan en el PC. Sin app que instalar.",
     "ph.title": "Usa tu teléfono como segunda pantalla",
     "ph.beta": "Beta",
     "ph.lede": "Para usar Xenon necesitas una pantalla que puedas dejar encendida todo el día. Un monitor que te sobre, una tablet vieja, un Xeneon Edge. Eso es lo que frena a la mayoría de la gente, no las funciones. Pero ya tienes una pantalla en el bolsillo. Esta página te enseña a usarla.",

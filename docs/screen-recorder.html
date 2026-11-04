@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Free screen recorder with Instant Replay, no account</title>
+<meta name="description" content="Record the screen or a window, save the last minutes with Instant Replay, take screenshots and copy text from the screen. Free, no account, nothing uploaded.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Free screen recorder with Instant Replay, no account">
+<meta property="og:description" content="Record the screen or a window, save the last minutes with Instant Replay, take screenshots and copy text from the screen. Free, no account, nothing uploaded.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/screen-recorder.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Free screen recorder with Instant Replay, no account">
+<meta name="twitter:description" content="Record the screen or a window, save the last minutes with Instant Replay, take screenshots and copy text from the screen. Free, no account, nothing uploaded.">
+<link rel="canonical" href="https://xenon-app.com/screen-recorder.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/screen-recorder.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/screen-recorder.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/screen-recorder.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/screen-recorder.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/screen-recorder.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/screen-recorder.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/screen-recorder.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/screen-recorder.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does Instant Replay need an NVIDIA or AMD card?","acceptedAnswer":{"@type":"Answer","text":"No. On Windows and macOS Xenon records with the capture and video encoders built into the system, not with the graphics card maker’s software."}},{"@type":"Question","name":"Does Xenon record my microphone?","acceptedAnswer":{"@type":"Answer","text":"Only if you choose it. Recordings and Instant Replay record the PC sound by default, and the microphone is off until you pick it in the key or in Settings, Capture."}},{"@type":"Question","name":"Where are my recordings saved?","acceptedAnswer":{"@type":"Answer","text":"Videos go to Videos, Xenon and screenshots to Pictures, Xenon, each in a folder named after the game. You can pick another folder in Settings, Capture."}},{"@type":"Question","name":"Is the screen recorder free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Recording, Instant Replay, screenshots, the gallery and the transcripts are part of the free app, with no account and no watermark."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body>
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk cup" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span class="xh-sr" data-xl="coffee">Buy me a coffee</span></a>
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span class="xh-stars" hidden><span class="xh-star" aria-hidden="true">★</span><span class="n"></span></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>EN</span></summary><ul><li><a href="/screen-recorder.html" hreflang="en" lang="en" aria-current="page">English <span>EN</span></a></li><li><a href="/es/screen-recorder.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/screen-recorder.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/screen-recorder.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/screen-recorder.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/screen-recorder.html" hreflang="ko" lang="ko">한국어 <span>KO</span></a></li><li><a href="/zh/screen-recorder.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">Download</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">Menu</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">Close</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">Demo</a></li><li><a href="/catalog/" data-xl="catalog">Catalog</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">Beta</span></a></li><li><a href="/#support" data-xl="supporters">Supporters</a></li><li><a href="/faq.html" data-xl="help">Help</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/#install" data-xl="install">Install</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">Buy me a coffee</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <div class="wrap">
+    <!-- xenon:crumbs --><nav class="xc" aria-label="Breadcrumb"><ol><li><a href="/" data-xl="home">Home</a></li><li><a href="/screen-recorder.html" aria-current="page" data-xl="f.recorder">Screen recorder</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/"},{"@type":"ListItem","position":2,"name":"Screen recorder","item":"https://xenon-app.com/screen-recorder.html"}]}</script><!-- /xenon:crumbs -->
+    <h1 data-i18n="sr.h1">Screen recorder and Instant Replay</h1>
+    <p class="lede" data-i18n="sr.lede">Xenon records your screen or one window, keeps the last minutes with Instant Replay, takes screenshots and reads text off the screen. Everything is saved on your PC, nothing is uploaded, and there is no account. Free on Windows; on macOS and Linux as a beta.</p>
+    <p class="updated" data-i18n="sr.updated">Last updated: 31 October 2026</p>
+
+    <nav class="jump">
+      <a href="#replay" data-i18n="sr.jump.replay">Instant Replay</a>
+      <a href="#record" data-i18n="sr.jump.record">Record</a>
+      <a href="#shots" data-i18n="sr.jump.shots">Screenshots</a>
+      <a href="#text" data-i18n="sr.jump.text">Copy text</a>
+      <a href="#gallery" data-i18n="sr.jump.gallery">Gallery</a>
+      <a href="#systems" data-i18n="sr.jump.systems">Mac and Linux</a>
+      <a href="#faq" data-i18n="sr.jump.faq">Common questions</a>
+    </nav>
+
+    <h2 id="replay" data-i18n="sr.h.replay">Instant Replay: save what just happened</h2>
+    <p data-i18n-html="sr.replay.p1">Turn on Instant Replay in Settings, Capture, and Xenon keeps the last minutes of your screen. When something happens that you did not plan to record, press <strong>Ctrl+Shift+F10</strong> in any app, tap the Instant Replay key on the Deck, or say <strong>“save the last 30 seconds”</strong> to Bit. The clip is saved as an MP4 in about a second.</p>
+    <p data-i18n="sr.replay.p2">Choose how much it keeps, from 15 seconds to 60 minutes. The page shows how much disk space that takes. The kept minutes wait on the disk, not in memory, and are replaced as new ones arrive. By default it runs only while a game is open; choose Always to keep the desktop too.</p>
+    <p data-i18n="sr.replay.p3">It is off until you turn it on, because while it is on it records all the time. The microphone is never recorded unless you choose it.</p>
+    <p data-i18n="sr.replay.p4">Mark a moment while the replay runs and Xenon saves a clip around it by itself: 15 seconds before the mark to 5 after. On Windows it can also mark the spots where a game suddenly drops frames, so the stutter is easy to find.</p>
+
+    <h2 id="record" data-i18n="sr.h.record">Record the screen, a window or a timelapse</h2>
+    <p data-i18n="sr.record.p1">The Record video key records the whole monitor you are working on or only the window in front, as an MP4 in Videos, Xenon, in a folder named after the game. Recording a window keeps only the sound of that app, with no notifications or music from other apps. Recording the screen keeps everything the PC plays, and your microphone can be added on its own track.</p>
+    <p data-i18n="sr.record.p2">A small pill with the time sits at the top of the screen and never appears in your videos. If Xenon closes or crashes, the part already recorded is kept and plays. In Settings, Capture you choose 60 or 30 frames per second, the size, the quality, the folder and a space limit from 10 to 100 GB.</p>
+    <p data-i18n-html="sr.record.p3">Add your webcam as a round bubble in a corner of the video. For long work, <strong>Timelapse</strong> takes one picture every 1 to 60 seconds and plays them back at 30 frames per second.</p>
+
+    <h2 id="shots" data-i18n="sr.h.shots">Screenshots, pinned pictures and screen tools</h2>
+    <p data-i18n="sr.shots.p1">Take a screenshot of the screen, of the window in front, or of an area you drag over a frozen screen. It is saved as a PNG in Pictures, Xenon and copied, ready to paste. On an HDR screen the picture keeps the colours you see.</p>
+    <p data-i18n="sr.shots.p2">Pin a screenshot on top of your windows to copy from it, edit a screenshot to cover private data before you share it, or draw on the screen during a call. The colour picker and the ruler work on a frozen screen too.</p>
+
+    <h2 id="text" data-i18n="sr.h.text">Copy text from the screen</h2>
+    <p data-i18n="sr.text.p1">Drag over the words in a scanned PDF, a picture, a video or an app that does not let you select, and Xenon puts the text on the clipboard. On Windows it uses the text recognition built into Windows, in the languages you have installed. You can also ask Bit “what does this error say?”.</p>
+
+    <h2 id="gallery" data-i18n="sr.h.gallery">A gallery that trims, shares and transcribes</h2>
+    <p data-i18n="sr.gallery.p1">Every screenshot, recording and replay goes into one gallery, grouped by day and game. Trim a video by dragging two handles: the copy is saved in about a second because nothing is encoded again, and the original stays.</p>
+    <p data-i18n="sr.gallery.p2">Make a 9:16 copy for phones, a lighter copy of 10, 25, 50 or 100 MB for chats, or a GIF. Get a transcript and .srt subtitles made on your PC with Whisper, for videos up to two hours. Send a capture to your paired phone over your own Wi-Fi, or open the gallery from the phone to watch and download.</p>
+
+    <h2 id="systems" data-i18n="sr.h.systems">On a Mac and on Linux</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="sr.os.th0">System</th><th data-i18n="sr.os.th1">Screenshots and recording</th><th data-i18n="sr.os.th2">Instant Replay</th></tr></thead>
+      <tbody>
+        <tr><td data-i18n="sr.os.r0c0">Windows</td><td data-i18n="sr.os.r0c1">Screen, window and area</td><td data-i18n="sr.os.r0c2">Yes</td></tr>
+        <tr><td data-i18n="sr.os.r1c0">macOS (Beta)</td><td data-i18n="sr.os.r1c1">Screen, window and area; the computer’s sound on macOS 13 or later</td><td data-i18n="sr.os.r1c2">macOS 12.3 or later</td></tr>
+        <tr><td data-i18n="sr.os.r2c0">Linux X11 (Beta)</td><td data-i18n="sr.os.r2c1">Screen, window and area, with maim, xdotool and ffmpeg</td><td data-i18n="sr.os.r2c2">With ffmpeg</td></tr>
+        <tr><td data-i18n="sr.os.r3c0">Sway, Hyprland (Beta)</td><td data-i18n="sr.os.r3c1">Screen and area, with grim, slurp and wf-recorder</td><td data-i18n="sr.os.r3c2">With ffmpeg</td></tr>
+        <tr><td data-i18n="sr.os.r4c0">KDE, GNOME on Wayland (Beta)</td><td data-i18n="sr.os.r4c1">Screenshots; screen recording with ffmpeg and GStreamer PipeWire</td><td data-i18n="sr.os.r4c2">No</td></tr>
+      </tbody>
+    </table></div>
+    <p data-i18n="sr.systems.p1">The first time on a Mac, macOS asks you to allow Screen Recording for Xenon. On Linux what you get depends on your desktop and the tools installed, and Settings, Capture says what is missing. Neither has been tried on a real Mac or a real Linux PC yet.</p>
+
+    <h2 id="limits" data-i18n="sr.h.limits">What it does not do</h2>
+    <p data-i18n="sr.limits.p1">Xenon does not upload your captures anywhere and has no cloud library. It does not inject code into games: it records with the capture and video encoders built into the system, not with NVIDIA, AMD or Intel software.</p>
+
+    <h2 id="faq" data-i18n="sr.h.faq">Common questions</h2>
+    <details><summary data-i18n="sr.faq.gpu.q">Does Instant Replay need an NVIDIA or AMD card?</summary><div class="body"><p data-i18n="sr.faq.gpu.a">No. On Windows and macOS Xenon records with the capture and video encoders built into the system, not with the graphics card maker’s software.</p></div></details>
+    <details><summary data-i18n="sr.faq.mic.q">Does Xenon record my microphone?</summary><div class="body"><p data-i18n="sr.faq.mic.a">Only if you choose it. Recordings and Instant Replay record the PC sound by default, and the microphone is off until you pick it in the key or in Settings, Capture.</p></div></details>
+    <details><summary data-i18n="sr.faq.where.q">Where are my recordings saved?</summary><div class="body"><p data-i18n="sr.faq.where.a">Videos go to Videos, Xenon and screenshots to Pictures, Xenon, each in a folder named after the game. You can pick another folder in Settings, Capture.</p></div></details>
+    <details><summary data-i18n="sr.faq.price.q">Is the screen recorder free?</summary><div class="body"><p data-i18n="sr.faq.price.a">Yes. Recording, Instant Replay, screenshots, the gallery and the transcripts are part of the free app, with no account and no watermark.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="sr.cta.h">Download Xenon</h3>
+      <p data-i18n-html="sr.cta.p">Free, with no account. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Download Xenon for Windows</a>, or pick your system on the <a href="/download.html">download page</a>. For the FPS counter over your game, read <a href="/fps-overlay.html">FPS overlay with 1% and 0.1% lows</a>.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">More guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/fps-overlay.html" data-xl="f.fps">FPS overlay</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul><p class="xg-dl"><a href="/download.html" data-xl="f.download">Download</a></p></nav><!-- /xenon:guides -->
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/" aria-label="Xenon"><span class="xh-mark" aria-hidden="true"></span>xenon</a>
+      <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/fps-overlay.html" data-xl="f.fps">FPS overlay</a></li><li><a href="/screen-recorder.html" data-xl="f.recorder">Screen recorder</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "ko": {
-    "meta.title": "Linux용 Xenon: 두 번째 화면 대시보드, AppImage, deb, rpm",
-    "meta.desc": "Linux용 Xenon(베타). 남는 화면 어디에나 띄우는 무료 대시보드입니다. AppImage, .deb, .rpm 다운로드, 첫 실행 설정, X11이 필요한 기능을 정리했습니다.",
+    "meta.title": "Linux용 Xenon 베타: AppImage·deb·rpm",
+    "meta.desc": "Linux용 Xenon(베타): AppImage, deb, rpm, 첫 실행, X11과 Wayland, KDE와 GNOME에서 되는 기능 표.",
     "lx.title": "Linux용 Xenon",
     "lx.lede": "Xenon은 남는 화면 어디에나 띄울 수 있는 무료 대시보드입니다. Linux에서는 베타입니다. 대시보드는 Windows와 같으며, 이 페이지에는 아직 다른 점과 필요한 패키지를 정리했습니다.",
     "lx.updated": "마지막 업데이트: 2026년 9월 26일 · 모든 링크는 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">최신 릴리스</a>를 가리킵니다",

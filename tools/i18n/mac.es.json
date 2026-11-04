@@ -1,7 +1,7 @@
 {
   "es": {
-    "meta.title": "Xenon en Mac (beta): panel para Xeneon Edge o segunda pantalla",
-    "meta.desc": "Xenon en macOS (beta): panel gratis para un Xeneon Edge, un monitor libre o una tablet junto a tu Mac. Qué funciona, primer inicio, permisos, desinstalar.",
+    "meta.title": "Xenon para Mac (beta): panel para segunda pantalla y widgets",
+    "meta.desc": "Xenon en macOS 11 o posterior (beta): un panel para una pantalla extra o un Xeneon Edge, los permisos que pide, primer inicio y cómo desinstalarlo.",
     "mac.h1": "Xenon en macOS",
     "mac.beta": "Beta",
     "mac.lede": "Xenon es un panel táctil gratuito para la pantalla que tienes junto al ordenador. En un Mac funciona el mismo panel que en Windows. Esta página explica qué funciona ahí hoy, qué no, y cómo instalarlo y desinstalarlo.",

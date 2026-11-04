@@ -1,7 +1,7 @@
 {
   "zh": {
-    "meta.title": "Xeneon Edge 小组件列表：Xenon 仪表盘的全部 45 个小组件",
-    "meta.desc": "Xenon 内置的全部 45 个小组件及各自的用途：系统监控、媒体、日历、Deck 按键、OBS 等，可用于 Xeneon Edge、电脑显示器或触摸屏。",
+    "meta.title": "Xenon 小组件列表：全部内置小组件",
+    "meta.desc": "Xenon 每个内置小组件及其用途：系统监控、媒体、日历、Deck、OBS、Home Assistant 等，还有目录中的小组件。",
     "ld.q1": "Xenon 有多少个小组件？",
     "ld.a1": "内置 45 个小组件，分为四组：效率、媒体、系统和直播。社区目录中的小组件和你自己做的小组件在“自定义小组件”磁贴中运行。",
     "ld.q2": "这些小组件一定要有 Xeneon Edge 吗？",

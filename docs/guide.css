@@ -125,6 +125,11 @@ details .body ol { padding-left: 20px; }
 pre { margin: 0 0 16px; padding: 16px 18px; background: var(--g-1); border-radius: var(--r-1); overflow-x: auto; }
 pre code { background: none; padding: 0; font-size: 15px; }
 
+/* A picture of the app inside a guide: never wider than the column, and a tall
+   tile shot capped so it does not fill a whole desktop screen. */
+.shot { margin: 24px 0; max-width: 420px; }
+.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-2); }
+
 @media (max-width: 700px) {
   body { font-size: 17px; }
   .wrap { padding: 0 18px; }

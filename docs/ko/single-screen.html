@@ -46,17 +46,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
-<title>한 화면에서 쓰는 Xenon: 위젯, 게임 오버레이, 인스턴트 리플레이</title>
-<meta name="description" content="두 번째 모니터도 계정도 없이 바탕 화면이나 게임 위에 위젯, FPS 오버레이, 스크린샷, 녹화, 인스턴트 리플레이를 띄웁니다.">
+<title>Windows, Mac, Linux 바탕화면 위젯: Xenon</title>
+<meta name="description" content="화면 하나로 Xenon 위젯을 바탕화면, 게임 위, 앱 옆에 둡니다. 날씨, 음악, PC 상태, Deck 키. Windows, macOS·Linux 베타.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/images/favicon.png">
-<meta property="og:title" content="한 화면에서 쓰는 Xenon: 위젯, 게임 오버레이, 인스턴트 리플레이">
-<meta property="og:description" content="두 번째 모니터도 계정도 없이 바탕 화면이나 게임 위에 위젯, FPS 오버레이, 스크린샷, 녹화, 인스턴트 리플레이를 띄웁니다.">
+<meta property="og:title" content="Windows, Mac, Linux 바탕화면 위젯: Xenon">
+<meta property="og:description" content="화면 하나로 Xenon 위젯을 바탕화면, 게임 위, 앱 옆에 둡니다. 날씨, 음악, PC 상태, Deck 키. Windows, macOS·Linux 베타.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://xenon-app.com/ko/single-screen.html">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Windows, Mac, Linux 바탕화면 위젯: Xenon">
+<meta name="twitter:description" content="화면 하나로 Xenon 위젯을 바탕화면, 게임 위, 앱 옆에 둡니다. 날씨, 음악, PC 상태, Deck 키. Windows, macOS·Linux 베타.">
 <link rel="canonical" href="https://xenon-app.com/ko/single-screen.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/single-screen.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/single-screen.html">
@@ -141,12 +143,14 @@
     <p data-i18n-html="os.perf.p1"><strong>게임 성능</strong> 타일은 지금 하는 게임의 프레임 레이트, 1%와 0.1% 로우, 프레임 타임, 그리고 끊김이 뾰족하게 튀어 보이는 최근 프레임 그래프를 보여 주고, 그 아래에 CPU와 GPU 부하를 표시합니다. Bit에게 “게임 위에 FPS 보여 줘”라고 하면 게임 위에 띄웁니다. Windows에서는 <strong>Ctrl+Shift+F9</strong>로 게임 위의 위젯을 숨겼다가 다시 보이게 합니다.</p>
     <p data-i18n="os.perf.p2">Xenon은 2분 넘게 플레이한 게임을 모두 기억하므로 어느 저녁과 다음 저녁을 비교할 수 있고, Bit은 Xenon이 이미 측정한 데이터로 “게임이 왜 끊겨?”에 답합니다. Deck 키 하나로 플레이 한 번의 모든 프레임 타임을 CSV 파일로 저장합니다.</p>
     <p data-i18n="os.perf.p3">Windows에서는 Xenon이 모든 프레임을 측정합니다. Linux에서는 게임을 MangoHud로 실행해야 프레임 레이트가 나옵니다. macOS에서는 한 앱이 다른 앱의 프레임 레이트를 측정할 수 없으며, 타일에 그렇게 표시됩니다.</p>
+    <p data-i18n-html="os.perf.more">타일, low, 벤치마크에 대한 자세한 내용: <a href="/ko/fps-overlay.html">1%와 0.1% low까지 보는 FPS 오버레이</a>.</p>
 
     <h2 id="capture" data-i18n="os.h.capture">스크린샷, 녹화, 인스턴트 리플레이</h2>
     <p data-i18n="os.capture.p1">화면 전체, 맨 앞의 창, 또는 멈춘 화면 위에서 끌어 지정한 영역의 스크린샷을 찍으세요. HDR 화면에서는 보이는 색 그대로 저장됩니다. 화면이나 창 하나를 소리와 함께 MP4로 녹화하고, 마이크는 직접 고를 때만 추가됩니다.</p>
     <p data-i18n-html="os.capture.p2"><strong>인스턴트 리플레이</strong>는 화면의 마지막 몇 분을 15초부터 60분까지 메모리가 아니라 디스크에 보관합니다. Windows에서 <strong>Ctrl+Shift+F10</strong>을 누르거나, Deck 키를 탭하거나, “방금 30초 저장해 줘”라고 말하면 약 1초 만에 클립이 저장됩니다. 켜져 있는 동안 계속 녹화하므로 설정 → 캡처에서 직접 켜기 전까지는 꺼져 있습니다.</p>
     <p data-i18n="os.capture.p3">인스턴트 리플레이가 실행되는 동안 순간을 표시하면 Xenon이 그 앞뒤로 클립을 저장합니다. 갤러리는 캡처를 날짜와 게임별로 묶고, 동영상을 다시 인코딩하지 않고 자르고, 이 PC에서 받아쓰기를 만들고, 세로 9:16 사본이나 채팅용 가벼운 사본을 만들고, 캡처를 페어링한 휴대폰으로 보냅니다.</p>
     <p data-i18n="os.capture.p4">Windows와 macOS에서는 시스템 자체의 캡처와 동영상 인코더를 쓰므로 어떤 그래픽 카드에서도 작동합니다. 모든 것이 PC에 남으며, 아무것도 업로드되지 않습니다.</p>
+    <p data-i18n-html="os.capture.more">모든 캡처 도구와 Mac, Linux에서 되는 기능: <a href="/ko/screen-recorder.html">화면 녹화와 인스턴트 리플레이</a>.</p>
 
     <h2 id="phone" data-i18n="os.h.phone">두 번째 화면이 되는 휴대폰</h2>
     <p data-i18n-html="os.phone.p1">모니터가 하나라면 주머니 속 휴대폰이 두 번째 화면이 될 수 있습니다. Xenon과 페어링하면 내 Wi-Fi를 통해 대시보드가 표시됩니다. FPS를 보여 주는 게임 성능 타일이 있으니 게임 위에는 아무것도 띄우지 않아도 되고, Deck 키로 PC에서 리플레이를 저장하거나 스크린샷을 찍을 수 있습니다. <a href="/ko/phone.html">휴대폰 페어링 방법</a>.</p>
@@ -168,7 +172,7 @@
       <h3 data-i18n="os.cta.h">Xenon 다운로드</h3>
       <p data-i18n-html="os.cta.p">무료이며 계정이 필요 없습니다. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows용 Xenon 다운로드</a> 또는 <a href="/ko/download.html">다운로드 페이지</a>에서 시스템을 고르세요.</p>
     </div>
-    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
   </div>
 </main>
 
@@ -180,7 +184,7 @@
       <p data-xl="tag">PC 옆 화면을 위한 무료 터치 대시보드. Windows용이며 macOS와 Linux는 베타입니다.</p>
     </div>
     <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다.</span></div>

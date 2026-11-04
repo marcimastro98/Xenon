@@ -1,7 +1,7 @@
 {
   "it": {
-    "meta.title": "Xenon su un solo schermo: widget, overlay e Instant Replay",
-    "meta.desc": "Widget sul desktop o sopra i giochi, un overlay degli FPS, screenshot, registrazioni e Instant Replay, senza un secondo monitor e senza account.",
+    "meta.title": "Widget sul desktop per Windows, Mac e Linux: Xenon",
+    "meta.desc": "Widget di Xenon sul desktop, sopra i giochi o attaccati a un'app, sul tuo unico schermo. Meteo, musica, sensori, tasti Deck. Windows; macOS e Linux Beta.",
     "ld.q1": "Mi serve un secondo monitor per usare Xenon?",
     "ld.a1": "No. Nell’app Xenon i widget possono stare sul desktop o sopra le tue app, e il menu Xenon si apre sopra qualsiasi app con Alt+Shift+X. Un secondo schermo o un telefono abbinato sono facoltativi.",
     "ld.q2": "L’overlay entra nel gioco?",
@@ -33,11 +33,13 @@
     "os.perf.p1": "Il riquadro <strong>Prestazioni del gioco</strong> mostra il frame rate del gioco a cui stai giocando, i minimi all’1% e allo 0,1%, il tempo per frame e una linea degli ultimi frame in cui uno scatto compare come un picco, con il carico di CPU e GPU sotto. Chiedi a Bit “mostrami gli FPS sopra il gioco” per metterlo sopra il gioco. Su Windows, <strong>Ctrl+Shift+F9</strong> nasconde i widget sopra il gioco e li fa ricomparire.",
     "os.perf.p2": "Xenon ricorda ogni gioco a cui giochi per più di due minuti, così puoi confrontare una serata con la successiva, e Bit risponde a “perché il mio gioco scatta?” partendo da quello che Xenon misura già. Un tasto del Deck salva ogni tempo per frame di una sessione in un file CSV.",
     "os.perf.p3": "Su Windows Xenon misura ogni frame. Su Linux, per il frame rate il gioco va avviato con MangoHud. Su macOS un’app non può misurare il frame rate di un’altra, e il riquadro lo dice.",
+    "os.perf.more": "Più dettagli sulla tile, sui low e sul benchmark: <a href=\"/fps-overlay.html\">overlay FPS con 1% e 0,1% low</a>.",
     "os.h.capture": "Screenshot, registrazioni e Instant Replay",
     "os.capture.p1": "Fai uno screenshot dello schermo, della finestra in primo piano o di un’area che trascini sopra lo schermo congelato. Su uno schermo HDR l’immagine mantiene i colori che vedi. Registra lo schermo o una finestra come MP4 con il suo audio, e aggiungi il microfono solo se lo scegli tu.",
     "os.capture.p2": "<strong>Instant Replay</strong> conserva gli ultimi minuti del tuo schermo, da 15 secondi a 60 minuti, sul disco e non in memoria. Premi <strong>Ctrl+Shift+F10</strong> su Windows, tocca un tasto del Deck o di’ “salva gli ultimi 30 secondi” e la clip è salvata in circa un secondo. È spento finché non lo accendi in Impostazioni, Cattura, perché quando è acceso registra di continuo.",
     "os.capture.p3": "Segna un momento mentre Instant Replay è acceso e Xenon salva una clip attorno a quel momento. La galleria raggruppa le tue catture per giorno e per gioco, taglia un video senza ricodificarlo, scrive una trascrizione su questo PC, crea una copia verticale 9:16 o una più leggera per una chat, e manda una cattura al telefono abbinato.",
     "os.capture.p4": "Su Windows e macOS usa la cattura e gli encoder video del sistema, quindi funziona con qualsiasi scheda grafica. Tutto resta sul tuo PC: non viene caricato niente.",
+    "os.capture.more": "Tutti gli strumenti di cattura, e cosa funziona su Mac e Linux: <a href=\"/screen-recorder.html\">registrazione dello schermo e Instant Replay</a>.",
     "os.h.phone": "Il telefono come secondo schermo",
     "os.phone.p1": "Con un solo monitor, il secondo schermo può essere il telefono che hai in tasca. Abbinalo a Xenon e mostra la tua dashboard tramite il tuo Wi-Fi: il riquadro Prestazioni del gioco con i tuoi FPS, così niente sta sopra il gioco, e tasti del Deck che salvano il replay o fanno uno screenshot sul PC. <a href=\"/phone.html\">Come abbinare un telefono</a>.",
     "os.h.systems": "Su un Mac e su Linux",

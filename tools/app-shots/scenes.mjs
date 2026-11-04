@@ -2,9 +2,11 @@
 // page and returns the selector to measure (or null for the whole page).
 // `open` uses the dashboard's globals by their bare names: some are top-level
 // `let`s (hubSettings), which are not properties of window.
-/* global hubSettings, openSettings, XenonCredits, XenonCreditsSettings, CommunityGallery, SparksMail, BitMail */
+/* global hubSettings, openSettings, XenonCredits, XenonCreditsSettings, CommunityGallery, SparksMail, BitMail,
+   setLang, _aiDropWelcome, _aiAppendBubble, updateMediaChatKeyState */
 
 const BALANCE_LOW = { ok: true, balance: 40, included: 40, monthly: 300, topup: 0, email: 'm***@gmail.com' };
+const BALANCE_FULL = { ...BALANCE_LOW, balance: 260, included: 260 };
 
 // A pass trial that ended yesterday, with three real Store entries used, so the
 // end card loads their real pictures, plus Lyrics, which takes the website's.
@@ -60,6 +62,26 @@ export const SCENES = {
       const l = SparksMail.letterFor(XenonCredits.level(), Date.now());
       BitMail.open(l && l.id);
       return '.bitmail';
+    },
+  },
+  // Bit's chat in English, drawn by the chat's own renderer with answers written
+  // here: a check of the chat's look only, never a picture for the site. The
+  // site shows real answers, shot from a real turn on a test server.
+  'bit-chat': {
+    routes: { '/api/ai/xenon/balance': BALANCE_FULL },
+    crop: true,
+    open: async () => {
+      setLang('en');
+      hubSettings.aiProvider = 'xenon';
+      updateMediaChatKeyState();
+      document.querySelector('.tabgroup-tab[data-member="chat"]').click();
+      await new Promise((r) => setTimeout(r, 400));
+      _aiDropWelcome();
+      _aiAppendBubble('user', 'Save the last 42 seconds to my Desktop');
+      _aiAppendBubble('assistant', 'Saved to your Desktop. The replay keeps 30 seconds, so the clip is 30 seconds long. Want me to keep 60 from now on?');
+      _aiAppendBubble('user', 'Why is my game stuttering?');
+      _aiAppendBubble('assistant', 'One CPU core is at 100% and the GPU is waiting for it.');
+      return '.panel.tabgroup:has(.chat-panel)';
     },
   },
   // The pass trial's end card: what was used in pictures, one way to keep it.

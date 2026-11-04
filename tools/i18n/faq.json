@@ -1,8 +1,7 @@
 {
   "en": {
-    "meta.title": "Xenon FAQ: screens, games, widgets and privacy",
-    "meta.desc": "What Xenon is, which screens and systems it runs on, what supporters get, games, widgets, temperatures, backups, Windows warnings and privacy.",
-    "meta.ogtitle": "Frequently asked questions | Xenon",
+    "meta.title": "Xenon FAQ: screens, games, price, privacy and warnings",
+    "meta.desc": "Which screens and systems Xenon runs on, what is free and what supporters get from 5 USD a month, games, temperatures, Windows warnings and privacy.",
     "f.h1": "Frequently asked questions",
     "f.lede": "The questions people ask most, with short answers. If yours is not here, ask on the Discord.",
     "f.updated": "Last updated: 30 October 2026",
@@ -43,13 +42,11 @@
     "f.q.data": "Does it send my data anywhere? Do I need an account?",
     "f.a.data": "<p>Your settings, notes, tasks, events, Deck and file index stay on your PC. There is no analytics SDK, no crash reporter and no behavioural tracking in the app. It does go online for some things: checking for updates, and the services you turn on yourself, like the weather or Spotify. The <a href='privacy.html'>privacy page</a> lists every call it can make and what it sends.</p><p>There is no Xenon account. A supporter code is the only thing you ever enter, and integrations use their own logins.</p>",
     "f.q.help": "Where do I get help?",
-    "f.a.help": "<p>Ask on the <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: it is the fastest, and questions that keep coming back end up on this page. For a bug you can repeat, open a <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a> with your system, what you did and what happened.</p><p>Personal use is free, including on the PC you work on. Selling Xenon or shipping it inside a commercial product needs written permission first: <a href='mailto:marcellomastroeni4@gmail.com'>email me</a>.</p>",
-    "meta.ogdesc": "What Xenon is, which screens and systems it runs on, what supporters get, games, widgets, temperatures, backups, Windows warnings and privacy."
+    "f.a.help": "<p>Ask on the <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: it is the fastest, and questions that keep coming back end up on this page. For a bug you can repeat, open a <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a> with your system, what you did and what happened.</p><p>Personal use is free, including on the PC you work on. Selling Xenon or shipping it inside a commercial product needs written permission first: <a href='mailto:marcellomastroeni4@gmail.com'>email me</a>.</p>"
   },
   "it": {
-    "meta.title": "Domande frequenti su Xenon: schermi, giochi, widget e privacy",
-    "meta.desc": "Cos’è Xenon, su quali schermi e sistemi funziona, cosa ricevono i supporter, giochi, widget, temperature, backup, avvisi di Windows e privacy.",
-    "meta.ogtitle": "Domande frequenti | Xenon",
+    "meta.title": "Domande su Xenon: schermi, giochi, prezzo, privacy, avvisi",
+    "meta.desc": "Su quali schermi e sistemi gira Xenon, cosa è gratis e cosa ricevono i sostenitori da 5 USD al mese, giochi, temperature, avvisi di Windows e privacy.",
     "f.h1": "Domande frequenti",
     "f.lede": "Le domande che arrivano più spesso, con risposte brevi. Se la tua non c’è, chiedi sul Discord.",
     "f.updated": "Ultimo aggiornamento: 30 ottobre 2026",
@@ -90,13 +87,11 @@
     "f.q.data": "Manda i miei dati da qualche parte? Serve un account?",
     "f.a.data": "<p>Impostazioni, note, attività, eventi, Deck e indice dei file restano sul tuo PC. Nell’app non c’è nessun SDK di analisi, nessun invio automatico dei crash e nessun tracciamento del comportamento. Per alcune cose va online: per controllare gli aggiornamenti e per i servizi che attivi tu, come il meteo o Spotify. La <a href='privacy.html'>pagina privacy</a> elenca ogni chiamata che può fare e cosa invia.</p><p>Non esiste un account Xenon. L’unica cosa che inserisci è un codice supporter, e le integrazioni usano i loro login.</p>",
     "f.q.help": "Dove trovo aiuto?",
-    "f.a.help": "<p>Chiedi sul <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: è il modo più veloce, e le domande che tornano spesso finiscono in questa pagina. Per un bug che riesci a ripetere, apri una <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue su GitHub</a> con il tuo sistema, cosa hai fatto e cosa è successo.</p><p>L’uso personale è gratis, anche sul PC con cui lavori. Vendere Xenon o includerlo in un prodotto commerciale richiede prima un permesso scritto: <a href='mailto:marcellomastroeni4@gmail.com'>scrivimi</a>.</p>",
-    "meta.ogdesc": "Cos’è Xenon, su quali schermi e sistemi funziona, cosa ricevono i supporter, giochi, widget, temperature, backup, avvisi di Windows e privacy."
+    "f.a.help": "<p>Chiedi sul <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>: è il modo più veloce, e le domande che tornano spesso finiscono in questa pagina. Per un bug che riesci a ripetere, apri una <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue su GitHub</a> con il tuo sistema, cosa hai fatto e cosa è successo.</p><p>L’uso personale è gratis, anche sul PC con cui lavori. Vendere Xenon o includerlo in un prodotto commerciale richiede prima un permesso scritto: <a href='mailto:marcellomastroeni4@gmail.com'>scrivimi</a>.</p>"
   },
   "ja": {
-    "meta.title": "Xenon のよくある質問: 画面、ゲーム、ウィジェット、プライバシー",
-    "meta.desc": "Xenon とは何か、対応する画面と OS、サポーターの特典、ゲーム、ウィジェット、温度、バックアップ、Windows の警告、プライバシー。",
-    "meta.ogtitle": "よくある質問 | Xenon",
+    "meta.title": "Xenonのよくある質問: 画面、ゲーム、料金、プライバシー",
+    "meta.desc": "Xenonが動く画面とOS、無料の範囲、月5 USDからのサポーター特典、ゲーム、温度、Windowsの警告、プライバシーについて。",
     "f.h1": "よくある質問",
     "f.lede": "よく届く質問と、その短い答えです。ここにない質問は Discord で聞いてください。",
     "f.updated": "最終更新: 2026年10月30日",
@@ -137,13 +132,11 @@
     "f.q.data": "データはどこかに送られる? アカウントは必要?",
     "f.a.data": "<p>設定、メモ、タスク、予定、Deck、ファイルのインデックスは PC の中に残ります。アプリには分析 SDK も、クラッシュの自動送信も、行動の追跡もありません。ネットに接続するのは、更新の確認と、天気や Spotify など自分でオンにしたサービスのときです。どんな通信を行い何を送るかは、すべて<a href='privacy.html'>プライバシーページ</a>に載っています。</p><p>Xenon のアカウントはありません。入力するのはサポーターコードだけで、各連携はそれぞれのログインを使います。</p>",
     "f.q.help": "どこで助けてもらえる?",
-    "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> で質問するのがいちばん早く、よく出る質問はこのページに追加されます。再現できるバグは、システム、行ったこと、起きたことを書いて <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub の Issue</a> を開いてください。</p><p>個人での利用は無料で、仕事に使っている PC でもかまいません。Xenon を販売したり商用製品に組み込んだりするには、事前に書面での許可が必要です。<a href='mailto:marcellomastroeni4@gmail.com'>メールでご連絡ください</a>。</p>",
-    "meta.ogdesc": "Xenon とは何か、対応する画面と OS、サポーターの特典、ゲーム、ウィジェット、温度、バックアップ、Windows の警告、プライバシー。"
+    "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> で質問するのがいちばん早く、よく出る質問はこのページに追加されます。再現できるバグは、システム、行ったこと、起きたことを書いて <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub の Issue</a> を開いてください。</p><p>個人での利用は無料で、仕事に使っている PC でもかまいません。Xenon を販売したり商用製品に組み込んだりするには、事前に書面での許可が必要です。<a href='mailto:marcellomastroeni4@gmail.com'>メールでご連絡ください</a>。</p>"
   },
   "ko": {
-    "meta.title": "Xenon 자주 묻는 질문: 화면, 게임, 위젯, 개인정보",
-    "meta.desc": "Xenon이 무엇인지, 어떤 화면과 시스템에서 실행되는지, 서포터 혜택, 게임, 위젯, 온도, 백업, Windows 경고, 개인정보.",
-    "meta.ogtitle": "자주 묻는 질문 | Xenon",
+    "meta.title": "Xenon FAQ: 화면, 게임, 가격, 개인정보",
+    "meta.desc": "Xenon이 실행되는 화면과 시스템, 무료 범위, 월 5 USD부터의 후원자 혜택, 게임, 온도, Windows 경고, 개인정보에 대한 답변.",
     "f.h1": "자주 묻는 질문",
     "f.lede": "가장 많이 받는 질문과 짧은 답입니다. 원하는 질문이 없다면 Discord에서 물어보세요.",
     "f.updated": "최종 업데이트: 2026년 10월 30일",
@@ -184,13 +177,11 @@
     "f.q.data": "내 데이터를 어딘가로 보내나요? 계정이 필요한가요?",
     "f.a.data": "<p>설정, 메모, 할 일, 일정, Deck, 파일 색인은 PC에 그대로 남습니다. 앱에는 분석 SDK도, 충돌 자동 전송도, 행동 추적도 없습니다. 업데이트 확인과 날씨나 Spotify처럼 직접 켠 서비스를 위해서는 인터넷에 연결합니다. 어떤 요청을 보내고 무엇을 전송하는지는 <a href='privacy.html'>개인정보 페이지</a>에 모두 나와 있습니다.</p><p>Xenon 계정은 없습니다. 입력하는 것은 서포터 코드뿐이며, 각 연동은 해당 서비스의 로그인을 사용합니다.</p>",
     "f.q.help": "도움은 어디서 받나요?",
-    "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>에서 물어보는 것이 가장 빠르고, 자주 나오는 질문은 이 페이지에 추가됩니다. 재현할 수 있는 버그는 시스템, 한 작업, 일어난 일을 적어 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub 이슈</a>를 열어 주세요.</p><p>개인 사용은 무료이며 업무용 PC에서도 됩니다. Xenon을 판매하거나 상업용 제품에 넣으려면 먼저 서면 허가가 필요합니다. <a href='mailto:marcellomastroeni4@gmail.com'>이메일로 문의하세요</a>.</p>",
-    "meta.ogdesc": "Xenon이 무엇인지, 어떤 화면과 시스템에서 실행되는지, 서포터 혜택, 게임, 위젯, 온도, 백업, Windows 경고, 개인정보."
+    "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>에서 물어보는 것이 가장 빠르고, 자주 나오는 질문은 이 페이지에 추가됩니다. 재현할 수 있는 버그는 시스템, 한 작업, 일어난 일을 적어 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub 이슈</a>를 열어 주세요.</p><p>개인 사용은 무료이며 업무용 PC에서도 됩니다. Xenon을 판매하거나 상업용 제품에 넣으려면 먼저 서면 허가가 필요합니다. <a href='mailto:marcellomastroeni4@gmail.com'>이메일로 문의하세요</a>.</p>"
   },
   "zh": {
-    "meta.title": "Xenon 常见问题：屏幕、游戏、小组件与隐私",
-    "meta.desc": "Xenon 是什么、支持哪些屏幕和系统、支持者能得到什么、游戏、小组件、温度、备份、Windows 警告与隐私。",
-    "meta.ogtitle": "常见问题 | Xenon",
+    "meta.title": "Xenon 常见问题：屏幕、游戏、价格与隐私",
+    "meta.desc": "Xenon 支持哪些屏幕和系统，哪些免费，每月 5 USD 起的支持者能得到什么，以及游戏、温度、Windows 警告和隐私。",
     "f.h1": "常见问题",
     "f.lede": "最常被问到的问题和简短的回答。没有找到你的问题，就到 Discord 上问。",
     "f.updated": "最后更新：2026年10月30日",
@@ -231,7 +222,6 @@
     "f.q.data": "会把我的数据发到别处吗？需要账号吗？",
     "f.a.data": "<p>你的设置、笔记、任务、日程、Deck 和文件索引都留在你的电脑上。应用里没有分析 SDK、没有崩溃自动上报，也没有行为追踪。它只在少数情况下联网：检查更新，以及你自己开启的服务，比如天气或 Spotify。<a href='privacy.html'>隐私页面</a>列出了它可能发出的每一个请求以及发送的内容。</p><p>没有 Xenon 账号。你唯一需要输入的是支持者兑换码，各项集成使用它们自己的登录。</p>",
     "f.q.help": "去哪里求助？",
-    "f.a.help": "<p>到 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上提问最快，反复出现的问题会加到这个页面上。能复现的错误，请开一个 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a>，写明你的系统、做了什么以及发生了什么。</p><p>个人使用免费，包括在你工作用的电脑上。出售 Xenon 或把它放进商业产品，需要事先获得书面许可：<a href='mailto:marcellomastroeni4@gmail.com'>给我发邮件</a>。</p>",
-    "meta.ogdesc": "Xenon 是什么、支持哪些屏幕和系统、支持者能得到什么、游戏、小组件、温度、备份、Windows 警告与隐私。"
+    "f.a.help": "<p>到 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 上提问最快，反复出现的问题会加到这个页面上。能复现的错误，请开一个 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a>，写明你的系统、做了什么以及发生了什么。</p><p>个人使用免费，包括在你工作用的电脑上。出售 Xenon 或把它放进商业产品，需要事先获得书面许可：<a href='mailto:marcellomastroeni4@gmail.com'>给我发邮件</a>。</p>"
   }
 }

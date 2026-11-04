@@ -26,6 +26,12 @@ export function pickScenes(args) {
   return names.length ? names : Object.keys(SCENES);
 }
 
+// A scene with `crop` is shot as its measured box alone; otherwise, or when
+// the scene names no box, the whole page.
+export function cropTarget(scene, sel) {
+  return SCENES[scene] && SCENES[scene].crop && sel ? sel : null;
+}
+
 // Runs in the page: the box, the page width, and children wider than their own box.
 function measure(sel) {
   const box = sel ? document.querySelector(sel) : document.body;
@@ -48,7 +54,9 @@ async function shoot(browser, base, scene, v, outDir) {
     const sel = await page.evaluate(SCENES[scene].open);
     await page.waitForTimeout(400);
     const file = path.join(outDir, `${scene}-${v.name}.png`);
-    await page.screenshot({ path: file });
+    const crop = cropTarget(scene, sel);
+    if (crop) await page.locator(crop).first().screenshot({ path: file });
+    else await page.screenshot({ path: file });
     return { scene, size: v.name, file, errors, ...(await page.evaluate(measure, sel)) };
   } finally {
     await ctx.close();

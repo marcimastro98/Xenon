@@ -92,9 +92,10 @@ window.__XD__ = (function () {
     notes: {
       rev: 1, v: 1, activeId: 'n1',
       notes: [
-        { id: 'n1', title: 'Welcome', text: 'This is a live demo of Xenon.\n\nEverything you see is simulated — the CPU load, the music, the weather. Nothing here touches a real PC.\n\nTry it: change the theme, drag the tiles around, open the Store and import a community theme. It all works.', updatedAt: iso(now - 2 * HOUR) },
-        { id: 'n2', title: 'Shopping', text: '- coffee\n- thermal paste\n- a second monitor (apparently)', updatedAt: iso(now - 26 * HOUR) },
-        { id: 'n3', title: 'Stream rundown', text: '1. intro + music\n2. build showcase\n3. Q&A\n4. outro', updatedAt: iso(now - 3 * 24 * HOUR) },
+        // `body` is the note: the tab title is its first line (js/notes.js).
+        { id: 'n1', body: 'Welcome\n\nThis is a live demo of Xenon. Everything you see is simulated: the CPU load, the music, the weather. Nothing here touches a real PC.\n\nTry it: change the theme, drag the tiles around, open the Store and import a community theme. It all works.', updatedAt: iso(now - 2 * HOUR) },
+        { id: 'n2', body: 'Shopping\n\n- coffee\n- thermal paste\n- a second monitor (apparently)', updatedAt: iso(now - 26 * HOUR) },
+        { id: 'n3', body: 'Stream rundown\n\n1. intro + music\n2. build showcase\n3. Q&A\n4. outro', updatedAt: iso(now - 3 * 24 * HOUR) },
       ],
     },
 

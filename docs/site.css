@@ -316,7 +316,7 @@
   src: url('/fonts/sofiasans-sc-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: 'Sofia Fallback'; src: local('Arial'), local('Liberation Sans'), local('Helvetica');
-  size-adjust: 93.6%; ascent-override: 96.2%; descent-override: 32.1%; line-gap-override: 0%; }
+  size-adjust: 94.3%; ascent-override: 96.2%; descent-override: 32.1%; line-gap-override: 0%; }
 @font-face { font-family: 'Sofia SC Fallback'; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('Arial');
   size-adjust: 86.3%; ascent-override: 104.3%; descent-override: 34.8%; line-gap-override: 0%; }
 
@@ -590,6 +590,8 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xh .xh-lang a { display: flex; justify-content: space-between; gap: 16px; padding: 10px 12px; min-height: 40px; box-sizing: border-box; font: 500 15.5px/1.2 var(--sans); color: var(--bone-0); text-decoration: none; }
 .xh .xh-lang a span { color: var(--bone-1); font-weight: 600; }
 .xh .xh-lang a:hover, .xh .xh-lang a[aria-current] { background: var(--g-3); }
+/* On touch the language key and its rows reach 44 px (Apple HIG), as the other link lists. */
+@media (pointer: coarse) { .xh .xh-lang > summary { min-height: 44px; min-width: 44px; justify-content: center; } .xh .xh-lang a { min-height: 44px; align-items: center; } }
 .xh-hint { display: block; max-width: 1440px; margin: 0 auto; padding: 10px 32px; font: 600 15px/1.4 var(--sans); color: var(--bone-0); text-decoration: underline; text-underline-offset: .2em; }
 @media (max-width: 700px) { .xh-hint { padding: 10px 18px; } }
 
@@ -606,6 +608,14 @@ a:hover, button:hover, .card:hover { transform: none; }
 .xg li { break-inside: avoid; padding: 7px 0; font-size: 17px; line-height: 1.4; }
 .xg a { color: var(--bone-0); text-underline-offset: .18em; }
 .xg .xg-dl { margin: 18px 0 0; font-size: 17px; font-weight: 700; }
+/* Both are lists of links, not links in a sentence: at least 24 px tall with a
+   mouse and 44 px on touch (WCAG 2.5.8, Apple HIG). */
+.xc a, .xg a { display: inline-flex; align-items: center; min-height: 24px; }
+@media (pointer: coarse) {
+  .xc ol { margin-bottom: 8px; row-gap: 0; }
+  .xc a, .xg a { min-height: 44px; }
+  .xg li { padding: 0; }
+}
 /* The main action: Bit's green, the one coloured fill (brand-tokens.js). */
 .xh-dl {
   display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 6px;
@@ -698,6 +708,9 @@ html.xh-lock, html.xh-lock body { overflow: hidden; }
 .xf-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; font-size: 15.5px; }
 .xf-col a { color: var(--bone-1); text-decoration: none; }
 .xf-col a:hover { color: var(--bone-0); text-decoration: underline; }
+/* A column of links: 24 px tall with a mouse, 44 px on touch (WCAG 2.5.8, Apple HIG), as .xc and .xg. */
+.xf-col a { display: inline-flex; align-items: center; min-height: 24px; }
+@media (pointer: coarse) { .xf-col ul { gap: 0; } .xf-col a { min-height: 44px; } }
 .xf-bottom { grid-column: 1 / -1; padding-top: 24px; font-size: 15px; color: var(--bone-1); }
 @media (max-width: 1180px) { .xf-brand { grid-column: 1 / -1; } .xf-col { grid-column: span 4; } }
 @media (max-width: 700px) { .xf .xf-w { padding: 0 18px; } .xf-col { grid-column: span 6; } }

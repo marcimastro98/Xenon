@@ -1,7 +1,7 @@
 {
   "ja": {
-    "meta.title": "Mac 版 Xenon（ベータ）: Xeneon Edge やセカンドスクリーンのダッシュボード",
-    "meta.desc": "macOS 版 Xenon（ベータ）は、Mac の横に置く Xeneon Edge、余っているモニター、タブレットのための無料ダッシュボードです。動く機能、初回起動、権限、アンインストールを説明します。",
+    "meta.title": "Mac版Xenon（ベータ）: サブモニター用ダッシュボード",
+    "meta.desc": "macOS 11以降のXenon（ベータ）: 余った画面やXeneon Edge用のダッシュボード、必要な権限、初回起動、アンインストール方法。",
     "mac.h1": "macOS 版 Xenon",
     "mac.beta": "ベータ",
     "mac.lede": "Xenon は、パソコンの横に置いた画面のための無料のタッチダッシュボードです。Mac でも Windows と同じダッシュボードが動きます。このページでは、今 Mac で動くもの、動かないもの、インストールと削除の方法を紹介します。",
