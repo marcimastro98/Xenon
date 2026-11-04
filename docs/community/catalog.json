@@ -922,7 +922,7 @@
         "current",
         "temperature",
         "precipitation",
-        "open-meteo"
+        "on-screen"
       ],
       "version": "0.1.10",
       "changelog": "Improved Xenon visibility handling, pausing weather requests while the widget is off-page or hidden and retaining compatibility with older hosts.",
@@ -935,8 +935,8 @@
       },
       "shots": 2,
       "addedAt": "2026-07-29",
-      "codeFile": true,
-      "updatedAt": "2026-07-29"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "dgm-previsi-n-7-d-as",
