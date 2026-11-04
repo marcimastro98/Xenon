@@ -839,7 +839,7 @@
         "volume",
         "mixer",
         "fader",
-        "scene"
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "mixer",
@@ -852,7 +852,8 @@
       "shots": 2,
       "active": true,
       "addedAt": "2026-07-20",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-04"
     },
     {
       "id": "prayer-times",
