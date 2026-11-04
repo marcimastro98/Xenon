@@ -5,6 +5,7 @@
 
 function backend() {
   if (process.platform === 'win32') return require('./hid-windows.js');
+  if (process.platform === 'linux') return require('./hid-linux.js');
   return null;
 }
 
@@ -12,7 +13,8 @@ const hid = backend();
 
 module.exports = {
   available: !!hid,
-  reason: hid ? '' : 'Direct USB lighting control is available on Windows for now.',
+  beta: !!(hid && hid.beta),
+  reason: hid ? '' : 'Direct USB lighting control works on Windows and Linux.',
   list: (filter) => (hid ? hid.list(filter) : Promise.resolve([])),
   open: (info) => (hid ? hid.open(info) : Promise.reject(new Error('USB lighting control is not available on this OS'))),
 };

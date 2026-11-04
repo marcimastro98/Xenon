@@ -44,6 +44,9 @@
   const DECAY_FULL_MS = 15 * 60000; // from decay onset to full black & white
   const DECAY_BASE = 0.15;          // visible desaturation the instant decay starts
   const AI_ROAST_TIMEOUT_MS = 3500; // AI slower than this → offline bank line
+  // On Sparks the hub charges even when the reply comes late, so wait longer
+  // before throwing a paid line away.
+  const AI_ROAST_SPARKS_TIMEOUT_MS = 8000;
 
   // ── Bit's look: the shared engine (shared/src/bit*.js via js/bit-app.js) ──
   // The pet's moods are the engine's mood clips, so this Bit is the same one
@@ -126,7 +129,7 @@
     if (typeof hubSettings === 'undefined' || typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
     const v = cfg();
     hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...v, state: { ...(v.state || {}), ...patch } } });
-    saveHubSettings();
+    saveVitalsStateNow();
   }
   // One settings write per escalation event: the episode entry plus (optionally)
   // a memory-counter bump ride the same save.
@@ -188,15 +191,19 @@
       const pet = petCfg();
       if (pet.aiRoasts !== true) return bank();
       if (typeof _aiProviderReady !== 'function' || typeof _aiProviderCfg !== 'function' || !_aiProviderReady()) return bank();
-      // Bit speaks up on its own: it never spends Sparks or a Claude Code /
-      // Codex subscription (the server refuses too), so skip the round trip.
-      if (['xenon', 'claudecode', 'codex'].includes(_aiProviderCfg().provider)) return bank();
+      // Bit speaks up on its own: it never spends a Claude Code / Codex
+      // subscription, and Sparks only up to the daily number the user picked
+      // (the server holds both), so skip the round trip when it would say no.
+      const provider = _aiProviderCfg().provider;
+      if (['claudecode', 'codex'].includes(provider)) return bank();
+      const onSparks = provider === 'xenon';
+      if (onSparks && !(Number(pet.roastSparksCap) > 0)) return bank();
       const now = Date.now();
       if (now - lastAiAt < NAG_GLOBAL_GAP_MS) return bank();
       lastAiAt = now;
       const prov = _aiProviderCfg();
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), AI_ROAST_TIMEOUT_MS);
+      const timer = setTimeout(() => ctrl.abort(), onSparks ? AI_ROAST_SPARKS_TIMEOUT_MS : AI_ROAST_TIMEOUT_MS);
       const res = await fetch('/api/vitals/roast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,7 +221,7 @@
       clearTimeout(timer);
       if (res && res.ok) {
         const out = await res.json().catch(() => null);
-        const text = out && typeof out.text === 'string' ? out.text.trim().slice(0, 140) : '';
+        const text = out && typeof out.text === 'string' ? core.fitLine(out.text, 140) : '';
         if (text) return text;
       }
     } catch { /* timeout / offline / provider error — the bank never fails */ }

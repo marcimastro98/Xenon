@@ -2696,6 +2696,18 @@
     return from < to ? h >= from && h < to : h >= from || h < to;
   }
 
+  // An AI roast past the bubble's length (models overshoot the asked limit)
+  // ends on its last whole sentence, else its last whole word plus an ellipsis.
+  function fitLine(text, max) {
+    const s = String(text || '').trim();
+    if (s.length <= max) return s;
+    const head = s.slice(0, max);
+    const stop = Math.max(head.lastIndexOf('. '), head.lastIndexOf('! '), head.lastIndexOf('? '));
+    if (stop >= max / 2) return head.slice(0, stop + 1);
+    const space = head.lastIndexOf(' ', max - 1);
+    return (space >= max / 2 ? head.slice(0, space) : head.slice(0, max - 1)) + '…';
+  }
+
   // ── durable pet-state merge (server POST /settings) ────────────────────────
   // Snooze/mute-today and per-episode escalation bookkeeping are persisted in
   // vitals.state.pet so a reload can't re-fire GAME OVER / minimize / lock and a
@@ -2758,6 +2770,6 @@
   return {
     BANK, TONES, STAGE_AT, REPEAT_MS, langOf, toneTier, pick, stagesFor, repeatDelay, fill,
     AWAY_AFTER_MS, AWAY_EPS_MS, awayCredit, NATURAL_BREAK_IDS, naturalBreak, isNight, NIGHT_FROM, NIGHT_TO,
-    mergePetBookkeeping, mergeVitalsMem,
+    fitLine, mergePetBookkeeping, mergeVitalsMem,
   };
 });

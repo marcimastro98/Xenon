@@ -159,6 +159,25 @@
   display: block; margin-top: 2px;
   font-size: 11px; font-weight: 500; line-height: 1.35; opacity: 0.55;
 }
+/* Opt-in (i) button (data-cs-info): opens what the option does under its name.
+   A 32px hit area inside the 36px row; the negative margin keeps the row height. */
+.cs-option-info {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 32px; height: 32px; margin: -8px -6px -8px 0; padding: 0;
+  border: 0; border-radius: 8px; background: none; cursor: pointer;
+  color: var(--text-dim, #6b7a75);
+}
+.cs-option-info svg { width: 16px; height: 16px; }
+.cs-option-info:hover,
+.cs-option-info[aria-expanded="true"] { color: var(--text, #f0f3f1); background: rgba(255,255,255,0.06); }
+.cs-option-info:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: -2px; }
+.cs-option.cs-info-open { align-items: flex-start; }
+.cs-option-infotext {
+  display: block; margin-top: 4px;
+  font-size: 11px; font-weight: 500; line-height: 1.4;
+  color: var(--text, #f0f3f1); opacity: 0.8;
+  white-space: normal; overflow-wrap: anywhere;
+}
 
 /* Disabled "hint" row (e.g. an unconfigured service): non-selectable, muted,
    no hover affordance and no leading bullet — it reads as guidance, not a choice. */

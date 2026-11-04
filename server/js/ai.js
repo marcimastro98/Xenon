@@ -153,6 +153,9 @@ function _aiLog(msg) {
 let aiPanelOpen = false;
 let aiConversationHistory = [];
 let aiConversationSummary = '';   // rolling summary of older turns folded out of the window
+// The tool groups this conversation loaded (server ai-tool-groups.js), sent back
+// each turn so a group asked for once stays without being asked for again.
+let aiToolGroups = [];
 let _aiSummarizing = false;       // single-flight guard for the background summarize call
 let _aiStickyDocs = null;         // recent non-screenshot attachments, re-sent for a few follow-ups
 let _aiStickyTurns = 0;           // remaining turns the sticky docs carry forward
@@ -242,6 +245,7 @@ function closeAiPanel() {
 function aiClearHistory() {
   aiConversationHistory = [];
   aiConversationSummary = '';
+  aiToolGroups = [];
   _aiStickyDocs = null; _aiStickyAttach = []; _aiStickyTurns = 0;
   const chat = $('ai-chat');
   if (chat) chat.replaceChildren();
@@ -520,6 +524,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         // the model keeps the thread of a long conversation. Empty until the
         // first fold happens.
         ...(aiConversationSummary ? { summary: aiConversationSummary } : {}),
+        ...(aiToolGroups.length ? { toolGroups: aiToolGroups } : {}),
         ...(sentImageParts.length > 0 ? { imageParts: sentImageParts } : {}),
         ...(pictures.some(Boolean) ? { pictures } : {}),
         ...(hasAudio ? { audioParts } : {}),
@@ -539,6 +544,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
     if (running && running.stopped) { _aiAfterStop(turnId); return; }
     // A turn on credits carries the balance left: every chip shows it at once.
     if (window.XenonCredits && Number.isFinite(data.credits)) XenonCredits.set(data.credits);
+    if (Array.isArray(data.toolGroups)) aiToolGroups = data.toolGroups.filter((g) => typeof g === 'string').slice(0, 16);
     if (voiceTurn && voiceGen !== _aiVoiceGen) return; // the session closed while this was thinking
 
     if (!response.ok) {
@@ -828,6 +834,26 @@ function _aiExecuteClientAction(action, args) {
       break;
     case 'confirm_pc_command':
       _aiShowPcConfirm(args || {});
+      break;
+    case 'confirm_deck_action':
+      if (window.AiDeckConfirm) {
+        window.AiDeckConfirm.open(args || {}, {
+          onOpen: () => {
+            // Same guard as the PC card: no listening while the card is up.
+            _aiPcConfirmOpen = true;
+            if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
+            if (aiListening) { try { _aiStopServerRecorder(); } catch {} }
+          },
+          onClose: () => {
+            _aiPcConfirmOpen = false;
+            if (_aiVoiceSessionActive && !aiListening) _aiStartFollowupListen();
+          },
+        });
+      }
+      break;
+    case 'run_deck_client':
+      // A sound or the mixer: only a dashboard can play them (deck.js).
+      if (window.DeckClientRun) window.DeckClientRun(args && args.action);
       break;
     case 'refresh_tasks':
       if (typeof loadTasks === 'function') loadTasks();
@@ -1842,6 +1868,7 @@ async function startVoiceSessionTurnBased() {
   if (!_aiVoiceSessionActive) {
     aiConversationHistory = [];
     aiConversationSummary = '';
+    aiToolGroups = [];
     _aiStickyDocs = null; _aiStickyAttach = []; _aiStickyTurns = 0;
     _aiLog('New voice session: history cleared');
   }

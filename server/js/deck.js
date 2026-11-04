@@ -3854,6 +3854,27 @@
   // DeckActions.validateAction, every key through normalizeDeckConfig, states/
   // live/slider/stateStyle through their normalizers. Returns {ok,...} so the
   // AI can relay an honest outcome.
+  // How an AI key answers a press: a switch (tap on, `off` on the second tap),
+  // a key that acts while held (press/release, or tap repeating), or one that
+  // asks for a second tap first. normalizeKeyBehavior keeps only what fits.
+  const AI_KEY_MODES = ['momentary', 'repeat'];
+  function aiKeyBehavior(k, key, trig, toSteps) {
+    if (AI_KEY_MODES.includes(k.mode)) key.mode = k.mode;
+    else if (k.toggle === true) key.toggle = true;
+    if (k.confirm === true) key.confirm = true;
+    const extra = { tapOff: k.off, press: k.press, release: k.release };
+    for (const [slot, list] of Object.entries(extra)) {
+      const steps = toSteps(list);
+      if (steps.length) trig[slot] = window.DeckActions.compactTrigger(steps);
+    }
+  }
+  // The whole profile's on/off cues (Deck style → Lit keys).
+  const AI_LOOK_FIELDS = ['litRing', 'dimOff'];
+  function aiLookPatch(look) {
+    const patch = {};
+    for (const f of AI_LOOK_FIELDS) if (look && typeof look[f] === 'boolean') patch[f] = look[f];
+    return Object.keys(patch).length ? patch : null;
+  }
   function applyAiDeck(spec) {
     const refusedTypes = new Set();
     const A = window.DeckActions;
@@ -3887,6 +3908,7 @@
         if (tap.length) trig.tap = A.compactTrigger(tap);
         if (dbl.length) trig.double = A.compactTrigger(dbl);
         if (hold.length) trig.hold = A.compactTrigger(hold);
+        aiKeyBehavior(k, key, trig, toSteps);
         if (!Object.keys(trig).length) continue;   // an action key with no valid action is noise
         key.triggers = trig;
         if (k.state && typeof k.state === 'object') key.state = k.state;
@@ -3903,6 +3925,13 @@
         cols: spec.cols, rows: spec.rows,
         keys,
       });
+      const look = applied ? aiLookPatch(spec.look) : null;
+      if (look) {
+        const instanceId = (typeof spec.instance === 'string' && spec.instance) || 'deck';
+        const cfg = getConfig(instanceId);
+        saveConfig(instanceId, M.setProfileLook(cfg, cfg.activeProfile, look));
+        renderAll();
+      }
     }
     // Optional Smart-Profiles rules ride the same call ("switch to it when OBS
     // is focused"). normalizeAutoSwitch re-validates; display-only at runtime.

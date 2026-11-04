@@ -10,16 +10,16 @@
 //             'hidden' (no control: another param's picker sets it).
 
 const ACTION_CATALOG = [
-  { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }, { name: 'args', kind: 'text', optional: true, maxLen: 500, labelKey: 'deck_param_app_args' }] },
-  { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
-  { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
-  { type: 'openStoreApp', group: 'system', requires: 'powershell', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
+  { type: 'openApp',  group: 'launch', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }, { name: 'args', kind: 'text', optional: true, maxLen: 500, labelKey: 'deck_param_app_args' }] },
+  { type: 'openFile', group: 'launch', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
+  { type: 'runScript', group: 'launch', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
+  { type: 'openStoreApp', group: 'launch', requires: 'powershell', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
   // Launch a Steam game by its numeric AppID via the steam://rungameid/<id> deep
   // link (the canonical launcher route — goes through the Steam client/overlay,
   // unlike a raw steam.exe -applaunch, which openApp can't pass args to anyway).
   // The id is validated to digits-only in the server registry before use.
-  { type: 'launchSteamGame', group: 'system', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
-  { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
+  { type: 'launchSteamGame', group: 'launch', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
+  { type: 'openUrl',  group: 'launch', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
   // `keys`, not `powershell`: sending a combo is a CAPABILITY, and since v4.11.0
   // it exists on macOS (helper `keys`) and on X11/ydotool Linux too. Spelling it
   // `powershell` hid a working key on two platforms — the exact trap the
@@ -31,19 +31,19 @@ const ACTION_CATALOG = [
   // The paired phone. `requires: 'phone'` names a CAPABILITY — "is there a
   // phone this machine can dial through" — rather than an OS by proxy, so the
   // key disappears where the answer is no instead of failing when pressed.
-  { type: 'phoneCall', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneCall', params: [{ name: 'number', kind: 'text', maxLen: 40 }] },
-  { type: 'phoneMessage', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneMessage', params: [{ name: 'number', kind: 'text', maxLen: 40 }, { name: 'text', kind: 'text', maxLen: 1000 }] },
+  { type: 'phoneCall', group: 'phone', requires: 'phone', labelKey: 'deck_act_phoneCall', params: [{ name: 'number', kind: 'text', maxLen: 40 }] },
+  { type: 'phoneMessage', group: 'phone', requires: 'phone', labelKey: 'deck_act_phoneMessage', params: [{ name: 'number', kind: 'text', maxLen: 40 }, { name: 'text', kind: 'text', maxLen: 1000 }] },
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   // Turn the dashboard to one of its own pages: a page id, or next / prev / back.
   // Runs in the browser that pressed the key (deck.js) so only THAT screen turns;
   // a surface with no pager (the Virtual Deck window) falls through to the server
   // registry, which relays it to every dashboard like a global page shortcut.
-  { type: 'dashboardPage', group: 'system', labelKey: 'deck_act_dashboardPage', params: [{ name: 'page', kind: 'dashboardPage', maxLen: 64 }] },
+  { type: 'dashboardPage', group: 'xenon', labelKey: 'deck_act_dashboardPage', params: [{ name: 'page', kind: 'dashboardPage', maxLen: 64 }] },
   // A named on/off the Deck itself owns (the same map /state/set writes): keys
   // bound to it light up on every screen, so one key can switch another, and
   // keys sharing a name with different values work as a radio group.
-  { type: 'deckState', group: 'system', labelKey: 'deck_act_deckState', params: [{ name: 'name', kind: 'text', maxLen: 64, labelKey: 'deck_param_state_name' }, { name: 'mode', kind: 'select', options: ['toggle', 'set', 'clear'] }, { name: 'value', kind: 'text', optional: true, maxLen: 200, labelKey: 'deck_param_state_value' }] },
-  { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
+  { type: 'deckState', group: 'xenon', labelKey: 'deck_act_deckState', params: [{ name: 'name', kind: 'text', maxLen: 64, labelKey: 'deck_param_state_name' }, { name: 'mode', kind: 'select', options: ['toggle', 'set', 'clear'] }, { name: 'value', kind: 'text', optional: true, maxLen: 200, labelKey: 'deck_param_state_value' }] },
+  { type: 'webhook',  group: 'launch', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  requires: 'media', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   // SDK-only absolute timeline seek. A separate hidden type keeps the Deck
   // editor's ordinary transport control free of a position field while still
@@ -159,7 +159,7 @@ const ACTION_CATALOG = [
   { type: 'haScript',      group: 'homeassistant', labelKey: 'deck_act_haScript',      params: [{ name: 'entity', kind: 'haEntity', domain: 'script' }] },
   { type: 'haButton',      group: 'homeassistant', labelKey: 'deck_act_haButton',      params: [{ name: 'entity', kind: 'haEntity', domain: 'button' }] },
   { type: 'haCallService', group: 'homeassistant', labelKey: 'deck_act_haCallService', params: [{ name: 'service', kind: 'text' }, { name: 'entity', kind: 'text' }, { name: 'data', kind: 'text' }] },
-  { type: 'windowMove',    group: 'window', requires: 'powershell', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
+  { type: 'windowMove',    group: 'system', requires: 'powershell', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
   { type: 'remoteDisconnect',  group: 'remote', labelKey: 'deck_act_remoteDisconnect',  params: [] },
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },

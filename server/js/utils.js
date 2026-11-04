@@ -47,6 +47,19 @@ async function saveTileSetting(patch) {
   return false;
 }
 
+// The Vitals state (meters, Bit's truce and memory) saved from any page. The
+// dashboard saves the settings as usual; a layer page, whose settings are
+// read-only, posts only vitals.state, which the server merges so a stale
+// copy never rewinds another screen's refill (server/vitals-state.js).
+function saveVitalsStateNow() {
+  if (!isLayerPage()) { if (typeof saveHubSettings === 'function') saveHubSettings(); return; }
+  const state = typeof hubSettings === 'object' && hubSettings && hubSettings.vitals && hubSettings.vitals.state;
+  if (!state) return;
+  fetch(SERVER + '/api/vitals/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state }) })
+    .then((r) => { if (!r.ok) console.warn('[vitals] state not saved:', r.status); })
+    .catch((e) => console.warn('[vitals] state not saved:', e && e.message));
+}
+
 // DOM element factory shared by the widget/settings modules, which alias it
 // locally as `el`. utils.js loads before every module script in index.html.
 function makeEl(tag, cls, text) {

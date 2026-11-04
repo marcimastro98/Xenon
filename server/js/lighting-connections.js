@@ -60,6 +60,21 @@
     return row;
   }
 
+  // Linux keeps the controller for root until a udev rule says otherwise: the chip
+  // is there, so "nothing found" would be false. One line to paste, then Search again.
+  function nativeAccessHelp(body, command) {
+    body.appendChild(UI().hintP('', 'lighting_native_permission'));
+    const row = UI().el('div', 'streaming-copy-row');
+    const code = UI().el('code', 'streaming-copy-val');
+    code.textContent = command;
+    const copy = UI().button('settings-btn streaming-copy-btn', 'streaming_copy', 'Copy', async () => {
+      const ok = await copyText(command);
+      copy.textContent = UI().tr(ok ? 'streaming_copied' : 'streaming_copy', ok ? 'Copied' : 'Copy');
+    });
+    row.append(code, copy);
+    body.appendChild(row);
+  }
+
   // --- Motherboard (controllers Xenon drives itself over USB) --------------------
   // Opt-in: taking the controller means the vendor app and iCUE's motherboard
   // plugin must let go of it, which the hint says before anything happens.
@@ -67,7 +82,7 @@
     const n = status.native || {};
     const card = UI().card('lighting_native_title', 'Scheda madre');
     if (!n.available) {
-      card.body.appendChild(UI().hintP('', 'lighting_native_windows_only'));
+      card.body.appendChild(UI().hintP('', 'lighting_native_unsupported'));
       return card;
     }
     card.body.appendChild(UI().toggleRow('lighting_native_enable', n.enabled, async (on) => {
@@ -75,6 +90,7 @@
       // Opening the controller takes a moment (longer with a Gen2 scan).
       setTimeout(rerender, NATIVE_OPEN_WAIT_MS);
     }, 'lighting_native_enable_hint'));
+    if (n.beta) card.body.appendChild(UI().hintP('', 'lighting_native_beta'));
     if (!n.enabled) return card;
     card.body.appendChild(UI().hintP('', 'lighting_native_conflict'));
     const controllers = n.controllers || [];
@@ -85,9 +101,12 @@
       card.body.appendChild(line);
     });
     if (!n.starting && !controllers.length) {
-      card.body.appendChild(UI().hintP('', 'lighting_native_none'));
-      // The controller's own reason, when it is more than "nothing found".
-      if (n.error && n.error !== 'no-controller') card.body.appendChild(UI().hintP(n.error));
+      if (n.accessCommand) nativeAccessHelp(card.body, n.accessCommand);
+      else {
+        card.body.appendChild(UI().hintP('', 'lighting_native_none'));
+        // The controller's own reason, when it is more than "nothing found".
+        if (n.error && n.error !== 'no-controller') card.body.appendChild(UI().hintP(n.error));
+      }
     }
     const rescan = UI().button('settings-btn', 'lighting_native_rescan', 'Cerca di nuovo', async () => {
       rescan.disabled = true;

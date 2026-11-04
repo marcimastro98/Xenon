@@ -14,6 +14,7 @@
 // client is provider-agnostic.
 
 const aiLocal = require('./ai-local');
+const { follow } = require('./ai-tool-groups');
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 
@@ -128,7 +129,8 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
   const chatModel = sanitizeModel(model);
-  const tools = aiLocal.geminiToolsToOpenAI(geminiTools);
+  // Read each round: use_tools can add a group mid-turn (ai-tool-groups.js).
+  const toolsNow = follow(geminiTools, aiLocal.geminiToolsToOpenAI);
   // GPT-4o class models are multimodal, so forward inline images as image_url parts.
   const messages = [
     { role: 'system', content: systemText },
@@ -140,6 +142,7 @@ async function chat({ apiKey, model, geminiTools, history, systemText, executeTo
   const MAX_ITERS = 8;
   for (let iter = 0; iter < MAX_ITERS; iter++) {
     const payload = { model: chatModel, messages };
+    const tools = toolsNow();
     if (tools.length) { payload.tools = tools; payload.tool_choice = 'auto'; }
     const resp = await _post('/chat/completions', key, payload, 90000);
     const msg = resp && resp.choices && resp.choices[0] && resp.choices[0].message;

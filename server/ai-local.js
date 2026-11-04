@@ -12,6 +12,7 @@ const https = require('https');
 const path = require('path');
 const fs = require('fs');
 const { execFile, spawn } = require('child_process');
+const { follow } = require('./ai-tool-groups');
 
 const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
 
@@ -492,7 +493,9 @@ async function localChat(opts) {
 }
 
 async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText, executeTool }, progress) {
-  const tools = geminiToolsToOpenAI(geminiTools); // native tools share the OpenAI shape
+  // Native tools share the OpenAI shape; read each round, since use_tools can
+  // add a group mid-turn (ai-tool-groups.js).
+  const toolsNow = follow(geminiTools, geminiToolsToOpenAI);
   const supportsVision = await supportsVisionLive(baseUrl, model);
   const messages = [{ role: 'system', content: systemText }, ...geminiHistoryToNative(history, { supportsVision })];
   const clientActions = [];
@@ -535,7 +538,7 @@ async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText
   // slower, so we stay a little below the cloud cap of 8.
   const MAX_ITERS = 6;
   for (let iter = 0; iter < MAX_ITERS; iter++) {
-    const resp = await callModel({ model, messages, tools, stream: false });
+    const resp = await callModel({ model, messages, tools: toolsNow(), stream: false });
     const parsed = parseOllamaNativeResponse(resp);
 
     if (!parsed.functionCall) { finalText = parsed.text; break; }

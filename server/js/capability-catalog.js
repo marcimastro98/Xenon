@@ -129,7 +129,7 @@ const CAPABILITIES = [
   // Never a vendor tool, never TDP or fans. The Deck key needs a machine where
   // the mode can change; macOS needs an administrator, so there it is read only.
   {
-    type: 'powerMode', group: 'perf', labelKey: 'deck_act_powerMode',
+    type: 'powerMode', group: 'system', labelKey: 'deck_act_powerMode',
     params: [{ name: 'mode', kind: 'select', options: ['next', 'saver', 'balanced', 'performance'], optionKeys: { saver: 'power_mode_saver', balanced: 'power_mode_balanced', performance: 'power_mode_performance' } }],
     capability: {
       domain: 'perf', risk: 'safe', requires: 'powerMode',
@@ -661,7 +661,7 @@ const CAPABILITIES = [
   // purpose: this file stays data with no load-order dependency, and a test
   // pins the two copies equal.
   {
-    type: 'layerPlace', group: 'window', hidden: true, labelKey: 'deck_act_layerPlace',
+    type: 'layerPlace', group: 'xenon', hidden: true, labelKey: 'deck_act_layerPlace',
     params: [
       { name: 'widget', kind: 'text', maxLen: 128 },
       { name: 'surface', kind: 'select', options: ['desktop', 'overlay'] },
@@ -689,7 +689,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerAnchor', group: 'window', hidden: true, labelKey: 'deck_act_layerAnchor',
+    type: 'layerAnchor', group: 'xenon', hidden: true, labelKey: 'deck_act_layerAnchor',
     params: [
       { name: 'widget', kind: 'text', maxLen: 128 },
       { name: 'app', kind: 'text', maxLen: 128, optional: true },
@@ -714,7 +714,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerRemove', group: 'window', hidden: true, labelKey: 'deck_act_layerRemove',
+    type: 'layerRemove', group: 'xenon', hidden: true, labelKey: 'deck_act_layerRemove',
     params: [{ name: 'target', kind: 'text', maxLen: 128 }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
@@ -726,7 +726,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerMove', group: 'window', hidden: true, labelKey: 'deck_act_layerMove',
+    type: 'layerMove', group: 'xenon', hidden: true, labelKey: 'deck_act_layerMove',
     params: [
       { name: 'target', kind: 'text', maxLen: 128 },
       { name: 'position', kind: 'select', options: ['keep', 'top-right', 'top-left', 'top', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] },
@@ -756,7 +756,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerGroup', group: 'window', hidden: true, labelKey: 'deck_act_layerGroup',
+    type: 'layerGroup', group: 'xenon', hidden: true, labelKey: 'deck_act_layerGroup',
     params: [
       { name: 'widget', kind: 'text', maxLen: 128 },
       { name: 'with', kind: 'text', maxLen: 128 },
@@ -776,7 +776,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerList', group: 'window', hidden: true, labelKey: 'deck_act_layerList', params: [],
+    type: 'layerList', group: 'xenon', hidden: true, labelKey: 'deck_act_layerList', params: [],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
       ai: {
@@ -787,7 +787,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layersEdit', group: 'window', labelKey: 'deck_act_layersEdit',
+    type: 'layersEdit', group: 'xenon', labelKey: 'deck_act_layersEdit',
     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
@@ -799,7 +799,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layersToggle', group: 'window', labelKey: 'deck_act_layersToggle',
+    type: 'layersToggle', group: 'xenon', labelKey: 'deck_act_layersToggle',
     params: [
       { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] },
       { name: 'surface', kind: 'select', options: ['all', 'overlay', 'desktop'] },
@@ -817,7 +817,7 @@ const CAPABILITIES = [
   // is held only while a widget sits in the overlay, so it costs nothing to
   // people who never put one there.
   {
-    type: 'layersShortcut', group: 'window', hidden: true, labelKey: 'deck_act_layersShortcut',
+    type: 'layersShortcut', group: 'xenon', hidden: true, labelKey: 'deck_act_layersShortcut',
     params: [{ name: 'combo', kind: 'text', maxLen: 40 }, { name: 'key', kind: 'select', options: ['overlay', 'menu', 'pad'] }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
@@ -833,7 +833,7 @@ const CAPABILITIES = [
   // screen (server/layer-pages.js). Switching is a Deck key too; creating and
   // deleting happen by voice or in edit mode.
   {
-    type: 'layerPage', group: 'window', labelKey: 'deck_act_layerPage',
+    type: 'layerPage', group: 'xenon', labelKey: 'deck_act_layerPage',
     params: [{ name: 'page', kind: 'text', maxLen: 40, optional: true, labelKey: 'deck_param_layerPage' }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'layers',
@@ -845,7 +845,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'layerPageEdit', group: 'window', hidden: true, labelKey: 'deck_act_layerPageEdit',
+    type: 'layerPageEdit', group: 'xenon', hidden: true, labelKey: 'deck_act_layerPageEdit',
     params: [
       { name: 'mode', kind: 'select', options: ['create', 'rename', 'delete', 'gaming', 'notGaming', 'desktop'] },
       { name: 'page', kind: 'text', maxLen: 40, optional: true },
@@ -869,7 +869,7 @@ const CAPABILITIES = [
 
   // The edge glow on other screens while a voice chat is on (js/ai-edge-glow.js).
   {
-    type: 'aiEdgeGlow', group: 'window', hidden: true, labelKey: 'deck_act_aiEdgeGlow',
+    type: 'aiEdgeGlow', group: 'xenon', hidden: true, labelKey: 'deck_act_aiEdgeGlow',
     params: [{ name: 'screens', kind: 'select', options: ['auto', 'main', 'second', 'all', 'off'] }],
     capability: {
       domain: 'ai', risk: 'safe', requires: 'aiGlow',
@@ -885,7 +885,7 @@ const CAPABILITIES = [
   // the screen, or both. A Deck key can switch it, so the choice is never
   // buried in Settings.
   {
-    type: 'usageMode', group: 'window', labelKey: 'deck_act_usageMode',
+    type: 'usageMode', group: 'xenon', labelKey: 'deck_act_usageMode',
     params: [{ name: 'mode', kind: 'select', options: ['dashboard', 'widgets', 'both'] }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'usageMode',
@@ -900,7 +900,7 @@ const CAPABILITIES = [
   // a native shell can draw it, otherwise as a panel on the dashboard. Opening
   // it changes nothing; every row inside runs its own capability.
   {
-    type: 'xenonMenu', group: 'window', labelKey: 'deck_act_xenonMenu',
+    type: 'xenonMenu', group: 'xenon', labelKey: 'deck_act_xenonMenu',
     params: [
       { name: 'mode', kind: 'select', options: ['toggle', 'open', 'close'], optionKeys: { open: 'deck_opt_xmenu_open' } },
       { name: 'section', kind: 'select', labelKey: 'deck_param_xmenu_section', options: ['now', 'widgets', 'overlay', 'capture', 'keys', 'look', 'mode'], optionKeys: {
@@ -921,7 +921,7 @@ const CAPABILITIES = [
   // wallpaper behind the desktop icons is a key (on when working, off for a
   // call); the screensaver delay is a Settings choice, so only Bit sets it.
   {
-    type: 'desktopWallpaper', group: 'window', labelKey: 'deck_act_desktopWallpaper',
+    type: 'desktopWallpaper', group: 'xenon', labelKey: 'deck_act_desktopWallpaper',
     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'scene',
@@ -933,7 +933,7 @@ const CAPABILITIES = [
     },
   },
   {
-    type: 'desktopSaver', group: 'window', hidden: true, labelKey: 'deck_act_desktopSaver',
+    type: 'desktopSaver', group: 'xenon', hidden: true, labelKey: 'deck_act_desktopSaver',
     params: [{ name: 'minutes', kind: 'select', options: ['0', '5', '10', '15', '30', '60'], strict: true }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'scene',
@@ -946,7 +946,7 @@ const CAPABILITIES = [
   },
   // The pop-ups of "widgets only" (js/screen-alerts.js). A Settings switch, no key.
   {
-    type: 'screenAlerts', group: 'window', hidden: true, labelKey: 'deck_act_screenAlerts',
+    type: 'screenAlerts', group: 'xenon', hidden: true, labelKey: 'deck_act_screenAlerts',
     params: [{ name: 'alerts', kind: 'select', options: ['on', 'off'] }],
     capability: {
       domain: 'layers', risk: 'safe', requires: 'usageMode',

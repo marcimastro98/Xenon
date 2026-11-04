@@ -13,7 +13,7 @@ const KEYS = Object.freeze({
   efforts: ['low', 'medium', 'high'].map((e) => [e, 'settings_xenon_effort_' + e]),
 });
 const BLOCK_START = /^(?: {2}([a-z]{2}): \{|Object\.assign\(i18n\.([a-z]{2}), \{)\s*$/;
-const ENTRY = /^\s+([a-z0-9_]+): (['"])(.*)\2,?\s*$/;
+const ENTRY = /^\s+([A-Za-z0-9_]+): (['"])(.*)\2,?\s*$/;
 
 let _strings = null; // Promise<{ [lang]: { [key]: text } }>
 
@@ -50,4 +50,14 @@ async function namesFor(lang) {
   return names;
 }
 
-module.exports = { namesFor, parseStrings, nameOf, _reset: () => { _strings = null; } };
+// Every English string whose key starts with `prefix`, keyed by the rest of
+// the key: ('deck_info_') -> { openApp: 'Opens a program…', … }. The assistant
+// reads what each Deck action does from the same text the Deck editor shows.
+async function englishByPrefix(prefix) {
+  const en = (await loadStrings()).en || {};
+  const out = {};
+  for (const [key, text] of Object.entries(en)) if (key.startsWith(prefix)) out[key.slice(prefix.length)] = text;
+  return out;
+}
+
+module.exports = { namesFor, englishByPrefix, parseStrings, nameOf, _reset: () => { _strings = null; } };

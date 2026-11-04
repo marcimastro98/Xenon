@@ -71,7 +71,7 @@
   function saveState(patch) {
     const cur = cfg();
     hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, state: { ...cur.state, ...patch } } });
-    saveHubSettings();
+    saveVitalsStateNow();
   }
   const dayKey = (d) => window.VitalsCore.dayKey(d);
   function todayKey() { return dayKey(new Date()); }

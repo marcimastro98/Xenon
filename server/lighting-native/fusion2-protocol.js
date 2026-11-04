@@ -6,8 +6,11 @@
 // The protocol is public knowledge thanks to the OpenRGB project's reverse
 // engineering; this is Xenon's own implementation of it. Every message is a
 // 64-byte HID feature report starting with report id 0xCC. Xenon only ever sends
-// the commands below: never 0x5E (save to the controller's flash) or 0x33
-// (colour calibration), so nothing it does outlives a power cycle.
+// the commands below, each one also sent by GIGABYTE's own software in the same
+// form (test/lighting-native.test.mjs pins the list). Never 0x5E (save to the
+// controller's flash), 0x33 (colour calibration) or 0x47 (keep the LED settings
+// through power off). The firmware is closed: that nothing outlives a power cycle
+// rests on which commands are sent, not on having read what the chip does.
 
 const VENDOR_ID = 0x048D;
 const PRODUCT_IDS = [0x5702, 0x5711, 0x8297, 0x8950];
@@ -17,6 +20,8 @@ const REPORT_ID = 0xCC;
 const PACKET_BYTES = 64;
 const LEDS_PER_PACKET = 19;
 const MAX_HEADER_LEDS = 256;     // what the IT57xx chips address per ARGB header
+const HEADER_MAX_MA = 5000;      // highest 5 V rating in GIGABYTE's manuals for one ARGB header (see limitCurrent)
+const LED_CHANNEL_MA = 20;       // one colour of an addressable LED at full brightness, worst case
 
 const CMD = {
   INFO: 0x60, INFO_EXTRA: 0x61, LED_COUNT: 0x34, EFFECTS_OFF: 0x32,
@@ -32,6 +37,9 @@ const HEADERS = [
   { reg: 0x63, effectBit: 0x10, scanDelta: 1 },
 ];
 
+// What the chip can drive, not what the board wired: no report says which headers
+// a board has, and a calibration of 0 only means "not set". A header the board
+// lacks shows nothing, the same as an onboard zone it lacks.
 function headerCount(productId) { return productId === 0x5711 ? 4 : 2; }
 
 // The board's own single-colour lights (I/O cover, chipset accent, the 12 V
@@ -108,6 +116,19 @@ function applyPacket(productId) {
   return packet([CMD.APPLY, 0xFF, productId === 0x5711 ? 0x07 : 0x00]);
 }
 
+// A frame that would pull more than any header is rated for, dimmed until it does
+// not. Manuals give 2, 3 or 5 A depending on the board and nothing here says which
+// board this is, so the ceiling is the highest: a lower one would dim chains that
+// are fine on the boards rated above it. The frame's length is all Xenon knows of
+// the chain, so an output nobody counted is judged on its fill.
+function limitCurrent(colors) {
+  const total = colors.reduce((sum, c) => sum + c.r + c.g + c.b, 0);
+  const milliamps = total * LED_CHANNEL_MA / 255;
+  if (!(milliamps > HEADER_MAX_MA)) return colors;
+  const k = HEADER_MAX_MA / milliamps;
+  return colors.map(c => ({ r: Math.floor(c.r * k), g: Math.floor(c.g * k), b: Math.floor(c.b * k) }));
+}
+
 // One header's colours, 19 LEDs per packet: offset and length are in bytes.
 function stripPackets(slot, colors, order) {
   const out = [];
@@ -180,5 +201,5 @@ function parseGen2(buf) {
 module.exports = {
   VENDOR_ID, PRODUCT_IDS, USAGE_PAGE, USAGE, REPORT_ID, MAX_HEADER_LEDS, HEADERS, CMD,
   headerCount, onboardZones, zoneColorPacket, byteOrder, parseInfo, parseInfoExtra, ledCountCode, ledCountPacket, effectsOffPacket,
-  applyPacket, stripPackets, initPackets, gen2Supported, gen2ScanPackets, parseGen2, packet,
+  applyPacket, limitCurrent, stripPackets, initPackets, gen2Supported, gen2ScanPackets, parseGen2, packet,
 };

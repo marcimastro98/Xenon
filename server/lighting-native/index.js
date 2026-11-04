@@ -9,12 +9,14 @@
 const hid = require('../hid');
 const fusion2 = require('./fusion2');
 const layoutsLib = require('../lighting-layouts');
+const { accessCommand } = require('./linux-access');
 
 const UNCONFIGURED_FILL = 120;     // LEDs painted on an output nobody has set up yet
 const PREVIEW_TTL_MS = 15000;      // a setup preview ends by itself if the page goes away
 const PREVIEW_CURRENT = { r: 255, g: 255, b: 255 };
 const PREVIEW_DONE = [{ r: 30, g: 90, b: 255 }, { r: 255, g: 110, b: 20 }];
 const OFF = { r: 0, g: 0, b: 0 };
+const NO_PERMISSION = 'no-permission';   // hid-linux.js: the OS keeps the device node from this user
 
 const state = {
   enabled: false,
@@ -26,7 +28,7 @@ const state = {
   onChange: null,    // persists layouts the controller filled in by itself (Gen2)
   onWriteError: null, // (deviceId, error): a frame painted in the background failed
   cache: null,       // devices() result; apply() asks for it on every frame
-  halted: false,     // the PC is going off or to sleep: the headers stay with the board
+  halted: false,     // the PC is going off or to sleep: the headers hold black until resume()
 };
 
 function setChangeHook(fn) { state.onChange = typeof fn === 'function' ? fn : null; }
@@ -66,10 +68,14 @@ async function start() {
 }
 
 // Gen2 fans and strips report their own LED count: an output they hang on gets
-// its parts without any setup. Only outputs nobody set up are filled in.
+// its parts without any setup. Only outputs nobody set up are scanned, so once
+// every output has an answer the controller is never scanned again.
 async function prefillFromGen2(entry) {
-  const counts = await entry.ctl.scanGen2().catch(() => []);
-  const dev = { ...(state.layouts[entry.id] || {}) };
+  const setUp = state.layouts[entry.id] || {};
+  const unset = Array.from({ length: entry.ctl.headers }, (_, o) => o).filter(o => !setUp['h' + o]);
+  if (!unset.length) return;
+  const counts = await entry.ctl.scanGen2(unset).catch(() => []);
+  const dev = { ...(state.layouts[entry.id] || {}) };   // read after the scan: the user may have set one up meanwhile
   let changed = false;
   counts.forEach((list, output) => {
     const zone = 'h' + output;
@@ -88,7 +94,10 @@ async function stop() {
   const list = state.controllers;
   state.controllers = [];
   state.cache = null;
-  await Promise.all(list.map(c => c.ctl.close().catch(() => {})));
+  // After powerDown() the headers stay black: on Linux SIGTERM follows it, and
+  // handing them back here would light them on standby power after all.
+  const handBack = !state.halted;
+  await Promise.all(list.map(c => c.ctl.close({ handBack }).catch(() => {})));
 }
 
 async function configure({ enabled, layouts }) {
@@ -202,15 +211,27 @@ function clearPreview() {
 
 async function release() {
   clearPreview();
+  if (state.halted) return;   // same reason as stop()
   await Promise.all(state.controllers.map(c => c.ctl.release().catch(() => {})));
 }
 
-// Before the PC goes off or to sleep: the headers go back to the board's own
-// effects and nothing paints them until resume(). The board knows what to show
-// on standby power; a frame of ours left behind does not.
+// LEDs to darken on each output: what the layout says, or the unconfigured fill
+// (an output marked empty may still have something plugged in).
+function blackoutLengths(entry) {
+  const layout = state.layouts[entry.id] || {};
+  return Array.from({ length: entry.ctl.headers }, (_, o) => {
+    const l = layout['h' + o];
+    return (l && !l.empty && layoutsLib.layoutLeds(l)) || UNCONFIGURED_FILL;
+  });
+}
+
+// Before the PC goes off or to sleep: every light dark, and nothing paints until
+// resume(). The headers stay ours, holding black on standby power; given back,
+// the board ran its own effect on them with the PC off.
 async function powerDown() {
   state.halted = true;
-  await release();
+  clearPreview();
+  await Promise.all(state.controllers.map(c => c.ctl.blackout(blackoutLengths(c)).catch(() => {})));
 }
 
 // Awake again (or the shutdown was cancelled). The controller may have lost what
@@ -236,9 +257,11 @@ function status() {
   return {
     available: hid.available,
     reason: hid.available ? '' : hid.reason,
+    beta: hid.beta,
     enabled: state.enabled,
     starting: !!state.starting,
     error: state.error,
+    accessCommand: state.error === NO_PERMISSION ? accessCommand() : '',
     controllers: state.controllers.map(c => ({ id: c.id, name: c.info.name, firmware: c.info.firmware, outputs: c.ctl.headers, frameMs: c.ctl.frameMs })),
     layouts: getLayouts(),
   };
@@ -247,4 +270,5 @@ function status() {
 module.exports = {
   configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, setPreview, clearPreview,
   setLayout, getLayouts, status, setChangeHook, setWriteErrorHook, _previewFrame: previewFrame, _framesFor: framesFor, _zoneColorsFor: zoneColorsFor,
+  _prefillFromGen2: prefillFromGen2,
 };

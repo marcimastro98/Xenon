@@ -1599,6 +1599,18 @@
           <a href="https://xenon-app.com/privacy.html#version-ping" target="_blank" rel="noopener"
              data-i18n="settings_version_ping_link">cosa viene inviato esattamente</a>
         </div>
+        <!-- Both hidden on a paired device: the PC owner's choice (server/usage-stats.js). -->
+        <label class="settings-toggle-row full" id="settings-usage-stats-row">
+          <input class="settings-check" id="settings-usage-stats" type="checkbox" onchange="updateUsageStats(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_usage_stats">Conta quali funzioni usi, in forma anonima</span>
+            <span class="settings-hint" data-i18n="settings_usage_stats_hint">una volta al giorno, quante volte è partita ogni funzione di Xenon e quante volte non ha funzionato. Solo il nome della funzione e un numero, più se qui è salvato un codice sostenitore: nessun identificatore, niente di quello che scrivi o crei, mai il codice</span>
+          </span>
+        </label>
+        <div class="settings-hint settings-sublink" id="settings-usage-stats-link">
+          <a href="https://xenon-app.com/privacy.html#usage-counts" target="_blank" rel="noopener"
+             data-i18n="settings_usage_stats_link">cosa viene contato esattamente</a>
+        </div>
         <label class="settings-toggle-row full">
           <input class="settings-check" id="settings-hub-messages" type="checkbox" onchange="updateHubMessages(this.checked)">
           <span class="settings-label-line">
@@ -2083,6 +2095,15 @@
             <span class="settings-hint" id="settings-vpet-ai-cap" hidden></span>
           </span>
         </label>
+        <div class="settings-vitals-row" id="settings-vpet-sparks-row" hidden>
+          <label class="settings-toggle-row" for="settings-vpet-sparks">
+            <span class="settings-label-line">
+              <span data-i18n="settings_vpet_sparks">Scintille al giorno per le battute</span>
+              <span class="settings-hint" data-i18n="settings_vpet_sparks_hint">arrivato al tetto Bit torna alle sue frasi fino a domani</span>
+            </span>
+          </label>
+          <select class="settings-select" id="settings-vpet-sparks" data-custom-select data-cs-fixed onchange="updateVitalsRoastSparksCap(this.value)"></select>
+        </div>
         <label class="settings-toggle-row full" id="settings-vpet-effects-row">
           <input class="settings-check" id="settings-vpet-effects" type="checkbox" onchange="updateVitalsPetSetting('effects', this.checked)">
           <span class="settings-label-line">
@@ -4995,6 +5016,7 @@
 <script src="js/bit-welcome.js"></script>
 <script src="js/bit-chat-full.js"></script>
 <script src="js/ai.js"></script>
+<script src="js/ai-deck-confirm.js"></script>
 <script src="js/ai-live.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>
 <script src="js/page-target.js"></script>

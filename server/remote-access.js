@@ -218,6 +218,8 @@ const REMOTE_DENY = new Set([
   // A tile's choices saved from a widget on the PC's screen (tile-settings.js).
   // A phone has the whole dashboard and saves through /settings.
   '/settings/tile',
+  // The Vitals state from a widget on the PC's screen (vitals-state.js), same reason.
+  '/api/vitals/state',
   // Code on the PC, one way or another: PC Control's approved command, and
   // remote desktop (Sunshine), whose pairing would hand a phone the whole
   // screen and keyboard. Set up at the PC.

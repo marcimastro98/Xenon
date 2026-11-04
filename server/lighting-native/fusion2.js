@@ -13,7 +13,9 @@ const P = require('./fusion2-protocol');
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const GEN2_SCAN_WAIT_MS = 700;   // the controller needs this long to walk the chain
+const GEN2_SETTLE_MS = 20;       // after a scan, before the next command
 const ZONE_MAX_DEFER_MS = 500;   // board lights keep up at least this often during fast effects
+const BLACK = { r: 0, g: 0, b: 0 };
 
 class Fusion2Controller {
   constructor(hidInfo) {
@@ -60,20 +62,27 @@ class Fusion2Controller {
     return this.info;
   }
 
-  // LED counts of Gen2 devices chained on each header ([] = plain ARGB / nothing).
-  scanGen2() {
+  // LED counts of Gen2 devices chained on the given headers, one list per header
+  // ([] = plain ARGB, nothing plugged in, or not scanned). Ends each header like
+  // GIGABYTE's own scan, with the LED counts back to zero; the next frame sets
+  // the controller up again.
+  scanGen2(slots) {
     return this.run(async () => {
-      const out = [];
-      if (!P.gen2Supported(this.info)) return Array.from({ length: this.headers }, () => []);
-      for (let s = 0; s < this.headers; s++) {
-        const { scan, info } = P.gen2ScanPackets(s);
-        await this.send(scan);
-        await sleep(GEN2_SCAN_WAIT_MS);
-        await this.send(info);
-        out.push(P.parseGen2(await this.dev.getFeature(P.REPORT_ID)));
+      const out = Array.from({ length: this.headers }, () => []);
+      if (!P.gen2Supported(this.info)) return out;
+      try {
+        for (const s of slots) {
+          const { scan, info } = P.gen2ScanPackets(s);
+          await this.send(scan);
+          await sleep(GEN2_SCAN_WAIT_MS);
+          await this.send(info);
+          out[s] = P.parseGen2(await this.dev.getFeature(P.REPORT_ID));
+          await this.send(P.ledCountPacket([]));
+          await sleep(GEN2_SETTLE_MS);
+        }
+      } finally {
+        this.forget();
       }
-      this.counts = [];        // the scan resets the controller's LED counts
-      this.lastFrames = [];
       return out;
     });
   }
@@ -131,8 +140,8 @@ class Fusion2Controller {
       }
       let changed = false;
       for (let s = 0; s < this.headers; s++) {
-        const f = frames[s];
-        if (!f) continue;
+        if (!frames[s]) continue;
+        const f = P.limitCurrent(frames[s]);
         const key = f.map(c => `${c.r},${c.g},${c.b}`).join('|');
         if (this.lastFrames[s] === key) continue;
         for (const pkt of P.stripPackets(s, f, this.orders[s])) await this.send(pkt);
@@ -170,6 +179,20 @@ class Fusion2Controller {
     });
   }
 
+  // Every LED dark, and the headers kept. For the PC going off or to sleep:
+  // handed back to the board instead, the headers ran the board's own effect on
+  // standby power, lit and flickering with the PC off. lengths[s] = LEDs to
+  // darken on header s (at least what it drives now).
+  blackout(lengths) {
+    this.pending = null;
+    if (!this.dev) return Promise.resolve();
+    this.lastFrames = [];
+    this.lastZones = [];
+    const frames = Array.from({ length: this.headers }, (_, s) =>
+      new Array(Math.max(1, lengths[s] || 0, this.counts[s] || 0)).fill(BLACK));
+    return this.write(frames, this.zones.map(() => BLACK));
+  }
+
   // Forget what the controller was told (LED counts, frames, who owns the
   // headers): the next write sets it all up again.
   forget() {
@@ -179,8 +202,12 @@ class Fusion2Controller {
     this.taken = false;
   }
 
-  async close() {
-    try { await this.release(); } catch { /* the device may be gone */ }
+  // handBack false leaves the headers as they are (see Lighting.powerDown).
+  async close({ handBack = true } = {}) {
+    try {
+      if (handBack) await this.release();
+      else await this.queue;
+    } catch { /* the device may be gone */ }
     if (this.dev) await this.dev.close();
     this.dev = null;
   }
