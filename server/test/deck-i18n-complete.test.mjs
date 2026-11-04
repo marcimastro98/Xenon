@@ -22,7 +22,7 @@ function dictionaries() {
 
 const SAME_EVERYWHERE = new Set([
   // Names of products, services and protocols.
-  'Xenon AI', 'Bit', 'Game Companion', 'Claude Code', 'Discord', 'Discord: soundboard', 'OBS', 'OBS: streaming', 'Streamer.bot',
+  'Xenon', 'Xenon AI', 'Bit', 'Game Companion', 'Claude Code', 'Discord', 'Discord: soundboard', 'OBS', 'OBS: streaming', 'Streamer.bot',
   'Streamer.bot: code trigger', 'Code trigger', 'Spotify', 'Spotify: shuffle', 'Spotify: volume', 'Home Assistant',
   'Razer Chroma', 'Chroma Link', 'Wave Link', 'Voicemeeter', 'Twitch', 'YouTube', 'Kick', 'Trovo', 'Webhook', 'URL',
   'GET', 'POST', 'LCD', 'Steam AppID', 'Emoji', 'Push-to-talk', 'Bus (A1, B2…)', 'Arguments (JSON)',

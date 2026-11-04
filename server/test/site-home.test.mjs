@@ -1,18 +1,16 @@
-// The home page (docs/index.html), as the brand plan lays it out: the hero,
-// the screens on one desk line, Bit, four widget cards, three catalog
-// entries, Xenon Maker, Supporters with prices and names, and Download last.
-// Its dictionaries carry the same keys in all 7 site languages, every key the
-// page uses, and no key it no longer uses.
+// The home page (docs/index.html), as the site plan lays it out: the hero, the
+// screens (and one screen), widgets, games, work tools, Bit, the catalog with the
+// Maker, Supporters with prices and names, questions, and Download last. Its
+// dictionaries carry the same keys in all 7 site languages, every key the page
+// uses, and no key it no longer uses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const home = readFileSync(join(root, 'docs', 'index.html'), 'utf8');
-const { LINES, MOMENTS } = createRequire(import.meta.url)('../../packages/core/src/bit-phrases.js');
 const SITE_LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
 
 // The same reading tools/build-i18n.mjs does.
@@ -25,94 +23,97 @@ function tables() {
 }
 const I18N = tables();
 const section = (id) => {
-  const at = home.indexOf(`<section class="sec" id="${id}"`);
+  const at = home.search(new RegExp(`<section class="sec[^"]*" id="${id}"`));
   assert.ok(at >= 0, `no section #${id}`);
   return home.slice(at, home.indexOf('</section>', at));
 };
 
 test('the sections come in the order of the plan, Download last', () => {
   const ids = [...home.matchAll(/<section class="sec[^"]*" id="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(ids, ['screens', 'bit', 'widgets', 'community', 'make', 'support', 'install']);
-  assert.doesNotMatch(home, /id="controls"|id="price"/);
+  assert.deepEqual(ids, ['screens', 'widgets', 'games', 'work', 'bit', 'catalog', 'support', 'faq', 'install']);
+  assert.doesNotMatch(home, /id="controls"|id="price"|id="make"|id="community"/);
 });
 
 test('the hero offers the demo beside Download', () => {
   assert.match(home, /<a class="key-alt for-desk" href="\/demo\/"[^>]*data-i18n="hero\.try">Try it in your browser<\/a>/);
 });
 
-// Physical sizes (inches): 27-inch 16:9 monitor 23.5 x 13.2, the 14.5-inch
-// 32:9 Edge 13.96 x 3.93 lying and 3.93 x 13.96 standing, an 11-inch tablet
-// 9.0 wide, a 6.1-inch phone 2.6 wide.
-test('every screen sits in its device frame on one desk line, the upright Edge among them', () => {
-  const s = section('screens');
-  const units = [...s.matchAll(/<figure class="unit (u-[a-z]+)">/g)].map((m) => m[1]);
-  assert.deepEqual(units, ['u-mon', 'u-edge', 'u-vert', 'u-tab', 'u-ph']);
-  assert.equal((s.match(/<div class="dv">/g) || []).length, 5, 'one frame per screen');
-  assert.match(s, /<figure class="unit u-vert">[\s\S]*?edge-vertical\.webp/);
-  assert.match(s, /<div class="stand"><\/div><div class="foot-base"><\/div>/, 'the monitor stands on its foot');
-  assert.doesNotMatch(home, /<figure class="vert">/, 'no second, separate upright Edge');
-  const css = home.match(/\n\.lineup \{[^}]*\}/)[0];
-  const cols = css.match(/grid-template-columns: ([^;]+);/)[1].split(/\s+(?![^(]*\))/);
-  const cq = (v) => Number(v.replace('cqw', ''));
-  const k = cq(cols[0]) / 23.5;
-  assert.ok(Math.abs(cq(cols[1]) / k - 13.96) < 0.2, 'the Edge to the monitor\'s scale');
-  assert.ok(Math.abs(cq(cols[3]) / k - 9.0) < 0.2, 'the tablet to the monitor\'s scale');
-  const vert = home.match(/\n\.u-vert \.dv-stack \{ width: ([\d.]+)cqw;/);
-  assert.ok(vert && Math.abs(Number(vert[1]) / k - 3.93) < 0.15, 'the upright Edge to the monitor\'s scale');
+test('every picture below the hero is a real file with its size, alt text and lazy loading', () => {
+  const body = home.slice(home.indexOf('<section class="sec"'), home.indexOf('<footer'));
+  const imgs = [...body.matchAll(/<img\b[^>]*>/g)].map((m) => m[0]).filter((t) => !t.includes('data-store-badge') && !/\salt=""/.test(t));
+  assert.ok(imgs.length >= 13, `${imgs.length} pictures`);
+  for (const tag of imgs) {
+    const src = tag.match(/\ssrc="\/([^"]+)"/)[1];
+    assert.ok(existsSync(join(root, 'docs', src)), src);
+    assert.match(tag, /\swidth="\d+" height="\d+"/, src);
+    assert.match(tag, /\sloading="lazy"/, src);
+    assert.match(tag, /\salt="[^"]{8,}" data-i18n-alt="[^"]+"/, src);
+  }
 });
 
-// The card, its moment in bit-phrases.js, the line it quotes.
-const BIT = [['done', 'done', 1], ['hot', 'hotPc', 1], ['err', 'error', 0], ['night', 'night', 0]];
+test('the screens are four real devices and a way in for one screen', () => {
+  const s = section('screens');
+  const figs = [...s.matchAll(/<figure class="(scr-[a-z]+)"><img src="\/images\/home\/([a-z-]+)\.webp"/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(figs, [['scr-edge', 'screen-edge'], ['scr-mon', 'screen-monitor'], ['scr-tab', 'screen-tablet'], ['scr-ph', 'screen-phone']]);
+  for (const href of ['/xeneon-edge-widgets.html', '/tablet-dashboard.html', '/phone.html', '/single-screen.html']) {
+    assert.ok(s.includes(`href="${href}"`), href);
+    assert.ok(existsSync(join(root, 'docs', href.slice(1))), href);
+  }
+  assert.match(readFileSync(join(root, 'server/js/layers-model.js'), 'utf8'), /'alt\+shift\+x'/, 'the menu key the page names');
+  for (const lang of SITE_LANGS) assert.match(I18N[lang]['one.p'], /Alt\+(Shift|Maiusc|Mayús|Maj)\+X/, `${lang} one.p`);
+});
 
-test('Bit says on the page the very lines it says in the app, in every language', () => {
+test('six widget cards, with no count to go stale', () => {
+  const s = section('widgets');
+  const shots = [...s.matchAll(/<div class="wframe"><img src="\/images\/home\/(w-[a-z]+)\.webp"/g)].map((m) => m[1]);
+  assert.deepEqual(shots, ['w-system', 'w-lyrics', 'w-deck', 'w-calendar', 'w-discord', 'w-notes']);
+  for (const lang of SITE_LANGS) assert.doesNotMatch(I18N[lang]['widgets.p'], /\d/, `${lang} widgets.p`);
+  for (const href of ['/widgets.html', '/claude-code.html', '/codex.html']) assert.ok(s.includes(`href="${href}"`), href);
+});
+
+test('games and work list four and six tools, the replay key the app uses', () => {
+  assert.equal((section('games').match(/<li><h3 data-i18n="games\.\d\.t">/g) || []).length, 4);
+  assert.equal((section('work').match(/<li><h3 data-i18n="work\.\d\.t">/g) || []).length, 6);
+  assert.match(readFileSync(join(root, 'server/capture-settings.js'), 'utf8'), /REPLAY_KEY = 'ctrl\+shift\+f10'/);
+  for (const lang of SITE_LANGS) assert.match(I18N[lang]['games.1.p'], /^Ctrl\+(Shift|Maiusc|Mayús|Maj)\+F10/, `${lang} games.1.p`);
+});
+
+test('Bit is a real photo of its chat with four things to ask', () => {
   const s = section('bit');
   assert.match(s, /<h2 id="h-bit">Bit<\/h2>/);
-  for (const [k, moment, i] of BIT) {
-    const card = s.match(new RegExp(`<li class="bit-card"><div class="bit-stage" data-clip="([a-z]+)"></div><b data-i18n="bit\\.${k}\\.t">[^<]+</b><q data-i18n="bit\\.${k}\\.q">([^<]+)</q></li>`));
-    assert.ok(card, `card ${k}`);
-    assert.ok(MOMENTS[moment].clips.includes(card[1]), `${k} plays a clip of ${moment}`);
-    for (const lang of SITE_LANGS) {
-      assert.equal(I18N[lang][`bit.${k}.q`], LINES[lang][moment][i], `${lang} bit.${k}.q`);
-    }
-    assert.equal(card[2], LINES.en[moment][i]);
-  }
-  for (const f of ['bit-clips.js', 'bit.js', 'bit-player.js']) {
-    assert.match(home, new RegExp(`<script src="/demo/shared/src/${f.replace('.', '\\.')}" defer></script>`));
-    assert.equal(readFileSync(join(root, 'docs/demo/shared/src', f), 'utf8'), readFileSync(join(root, 'packages/core/src', f), 'utf8'), `${f} is the app's own`);
-  }
+  assert.match(s, /<img class="bit-im" src="\/images\/home\/bit-chat\.webp"/);
+  assert.equal((s.match(/<li data-i18n="bit\.q\d">/g) || []).length, 4);
+  assert.doesNotMatch(home, /bit-player\.js|class="bit-card"/);
 });
 
-test('widgets and keys are four cards, with no count to go stale', () => {
-  const s = section('widgets');
-  const shots = [...s.matchAll(/<article class="feat"><img src="\/images\/home\/(crop-[a-z]+)\.webp"/g)].map((m) => m[1]);
-  assert.deepEqual(shots, ['crop-system', 'crop-media', 'crop-calendar', 'crop-deck']);
-  for (const lang of SITE_LANGS) assert.doesNotMatch(I18N[lang]['widgets.p'], /\d{2}/, `${lang} widgets.p`);
-  for (const href of ['/widgets.html', '/claude-code.html', '/codex.html', '/create/#widgets']) assert.ok(s.includes(`href="${href}"`), href);
-});
-
-test('the catalog shelf shows three entries', () => {
-  assert.match(home, /pick\.length < 3/);
-  assert.match(home, /pick\.slice\(0, 3\)/);
-});
-
-test('Xenon Maker has its own section, Beta, with a picture of it', () => {
-  const s = section('make');
-  assert.match(s, /<h2 id="h-make"><span data-i18n="make\.h2">Xenon Maker<\/span><span class="beta" data-i18n="beta">Beta<\/span><\/h2>/);
-  assert.match(s, /<a class="key-alt" href="\/maker\/" data-i18n="make\.open">/);
-  assert.match(s, /src="\/images\/home\/maker\.webp"/);
-  assert.ok(existsSync(join(root, 'docs/images/home/maker.webp')));
+test('the catalog ranks free entries by installs, shows supporter drops apart, and leads to the Maker', () => {
+  const s = section('catalog');
+  assert.match(s, /<div class="shelf" id="cat"><\/div>/);
+  assert.match(s, /<div class="shelf" id="cat-sup"><\/div>/);
+  assert.match(s, /<div class="makerbox">[\s\S]*href="\/maker\/"[\s\S]*href="\/submit\/"/);
+  assert.match(home, /\/catalog\/installs\?ids=/);
+  assert.match(home, /MIN_INSTALLS_SHOWN = 10;/, 'a count shows only from 10 installs');
+  assert.match(home, /AbortController/, 'a slow hub falls back to the catalog order');
+  for (const lang of SITE_LANGS) assert.match(I18N[lang]['cat.installs'], /\{n\}/, `${lang} cat.installs`);
 });
 
 test('supporters see the prices in USD beside the names', () => {
   const s = section('support');
   assert.ok(s.indexOf('id="tiers"') < s.indexOf('id="bill"'), 'offers first, then the names');
-  assert.match(s, /<div class="sup-cols">/);
+  assert.match(s, /class="[^"]*\bsup-cols\b/);
   for (const lang of SITE_LANGS) {
     for (const k of ['tier.1.price', 'tier.2.price', 'tier.month.price', 'tier.3.price']) {
       assert.match(I18N[lang][k], /^\d+ USD <small>/, `${lang} ${k}`);
     }
   }
   assert.doesNotMatch(home, /--blue|#008DFF;\s*margin/);
+});
+
+test('the questions are five, each with its answer in every language', () => {
+  const s = section('faq');
+  const qs = [...s.matchAll(/<summary data-i18n="faq\.(\d)\.q">/g)].map((m) => m[1]);
+  assert.deepEqual(qs, ['1', '2', '3', '4', '5']);
+  for (const lang of SITE_LANGS) for (const n of qs) assert.ok(I18N[lang][`faq.${n}.a`], `${lang} faq.${n}.a`);
 });
 
 test('the page ends on Download, the key following the visitor\'s system', () => {
@@ -122,6 +123,15 @@ test('the page ends on Download, the key following the visitor\'s system', () =>
   for (const href of ['/mac.html', '/linux.html', '/download.html', '/privacy.html']) assert.ok(s.includes(`href="${href}"`), href);
   assert.match(home, /document\.querySelectorAll\('\[data-os-icon\] use'\)/, 'both keys take the system\'s mark');
   assert.doesNotMatch(home, /data-os-card/);
+});
+
+test('no copy has an em-dash or a bare dollar amount', () => {
+  for (const lang of SITE_LANGS) {
+    for (const [k, v] of Object.entries(I18N[lang])) {
+      assert.doesNotMatch(v, /—/, `${lang} ${k}`);
+      assert.doesNotMatch(v, /\$\s?\d/, `${lang} ${k}`);
+    }
+  }
 });
 
 test('every language has the same keys, all used by the page', () => {
@@ -187,4 +197,11 @@ test('the assistant paragraph calls Sparks Xenon\'s credits, never Bit\'s, in ev
     assert.doesNotMatch(v, BITS, `${l}: ${v}`);
     assert.match(v, /Xenon/, `${l} names Xenon's credits`);
   }
+});
+
+test('the usage counter watches exactly the home sections', () => {
+  const src = readFileSync(join(root, 'docs/analytics.js'), 'utf8');
+  const watched = /const HOME_SECTIONS = \[([^\]]+)\]/.exec(src)[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
+  const ids = [...home.matchAll(/<section class="sec[^"]*" id="([a-z-]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...watched].sort(), [...ids].sort());
 });

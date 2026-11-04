@@ -78,3 +78,23 @@ test('my_widgets reads nothing that is not the user\'s, and is declared for the 
   assert.match(S, /remove: \{ type: 'ARRAY', description: 'When changing an existing widget/);
   assert.match(S, /To CHANGE a widget the user already has[^']*call my_widgets/);
 });
+
+test('a Maker widget is read as its design: the Maker runtime is listed, not sent', () => {
+  const runtime = 'x'.repeat(W.MAX_READ_CHARS + 10); // bigger than a read: it used to make the whole widget too_large
+  const doc = 'window.XENON_MAKER_DOC={"v":1,"parts":[]};\n';
+  const out = W.readOwn({ id: 'my-clock', files: [
+    { path: 'manifest.json', data: b64('{"api":1}') },
+    { path: 'index.html', data: b64('<script src="doc.js"></script><script src="runtime.js"></script>') },
+    { path: 'doc.js', data: b64(doc) },
+    { path: 'runtime.js', data: b64(runtime) },
+  ] });
+  assert.equal(out.ok, true);
+  assert.equal(out.madeWith, 'maker');
+  assert.match(out.hint, /never rewrite or remove it/);
+  assert.deepEqual(out.files.map((f) => f.path), ['manifest.json', 'index.html', 'doc.js']);
+  assert.deepEqual(out.assets, [{ path: 'runtime.js', bytes: runtime.length }]);
+  // A runtime.js in a hand-written widget is that widget's own code: read as usual.
+  const own = W.readOwn({ id: 'mine', files: [{ path: 'runtime.js', data: b64('let a = 1;') }] });
+  assert.deepEqual(own.files, [{ path: 'runtime.js', content: 'let a = 1;' }]);
+  assert.equal(own.madeWith, undefined);
+});

@@ -97,6 +97,13 @@ test('the server applies all of it on the paired-device door', () => {
   assert.match(SERVER, /if \(isRemote\) \{\s*const was = !!\(prev && prev\.aiFeatures && prev\.aiFeatures\.pcControl === true\);/, 'a phone cannot switch PC Control on');
 });
 
+test('Bit asked from a phone is held to what the phone can run', () => {
+  assert.match(SERVER, /const phoneVerdict = remote && step\.mode && step\.mode !== 'client' \? remoteActions\.remoteMayRun\(step\.action, await readDeckStore\(\)\) : null;/, 'run_deck_action checks a paired device');
+  assert.equal((SERVER.match(/surface: _aiSurface,\s+remote: isRemote,/g) || []).length, (SERVER.match(/surface: _aiSurface,/g) || []).length, 'every chat path says who asks');
+  const route = SERVER.slice(SERVER.indexOf("reqPath === '/ai/deck-run'"), SERVER.indexOf("reqPath === '/ai/deck-cancel'"));
+  assert.match(route, /if \(isRemote\) \{\s*const verdict = remoteActions\.remoteMayRun\(action, await readDeckStore\(\)\);/, 'the approved card is checked too');
+});
+
 test('remote desktop, PC Control and backups are set up at the PC', () => {
   for (const p of ['/ai/pc-run', '/remote/pin', '/remote/enable', '/remote/unblock', '/remote/ondemand', '/remote/sunshine/configure', '/backup/import', '/backup/export', '/api/phone/dial', '/api/phone/send']) {
     assert.ok(access.REMOTE_DENY.has(p), p);

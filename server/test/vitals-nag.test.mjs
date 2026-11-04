@@ -130,27 +130,56 @@ test('Settings copy: every language explains what this PC cannot do, and none sa
   }
 });
 
-test('AI roasts: on Sparks, Claude Code or Codex Settings says Bit keeps to its own lines, in every language', async () => {
+test('AI roasts: on Claude Code or Codex Settings says Bit keeps to its own lines; on Sparks it asks how many a day', async () => {
   const { readFileSync } = await import('node:fs');
   const vm = await import('node:vm');
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const src = read('../js/settings.js');
   const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)) + to.length);
   const el = { textContent: '', hidden: true };
-  const ctx = { hubSettings: {}, $: (id) => (id === 'settings-vpet-ai-cap' ? el : null), t: (k) => k };
+  const row = { hidden: true, classList: { on: false, toggle(_c, v) { this.on = v; } } };
+  const sel = {
+    options: [], value: '', disabled: false, changes: 0,
+    replaceChildren(...opts) { this.options = opts; },
+    dispatchEvent() { this.changes++; },
+  };
+  const ids = { 'settings-vpet-ai-cap': el, 'settings-vpet-sparks-row': row, 'settings-vpet-sparks': sel };
+  const ctx = {
+    hubSettings: {}, $: (id) => ids[id] || null, t: (k) => k,
+    document: { createElement: () => ({ value: '', textContent: '' }) },
+    Event: class { constructor(type) { this.type = type; } },
+  };
   vm.createContext(ctx);
-  vm.runInContext(cut('function vitalsCapLine(', '\n}\n') + cut('const VITALS_AI_BANK_PROVIDERS', '\n}\n') + 'globalThis.sync = syncVitalsAiBank;', ctx);
-  for (const [provider, shown] of [['xenon', true], ['claudecode', true], ['codex', true], ['gemini', false], ['ollama', false], [undefined, false]]) {
+  vm.runInContext(cut('function vitalsCapLine(', '\n}\n') + cut('const VITALS_ROAST_SPARKS_CAPS', ';\n')
+    + cut('const VITALS_AI_BANK_PROVIDERS', '\n}\n') + 'globalThis.sync = syncVitalsAiBank;', ctx);
+  for (const [provider, line, sparksRow] of [['xenon', false, true], ['claudecode', true, false], ['codex', true, false], ['gemini', false, false], ['ollama', false, false], [undefined, false, false]]) {
     ctx.hubSettings = { aiProvider: provider };
     ctx.sync();
-    assert.equal(el.hidden, !shown, String(provider));
-    assert.equal(el.textContent, shown ? 'settings_vpet_ai_bank' : '', String(provider));
+    assert.equal(el.hidden, !line, String(provider));
+    assert.equal(el.textContent, line ? 'settings_vpet_ai_bank_cli' : '', String(provider));
+    assert.equal(row.hidden, !sparksRow, String(provider) + ' sparks row');
   }
+  // The row is live only with Bit and its AI roasts on, and shows the saved number.
+  ctx.hubSettings = { aiProvider: 'xenon', vitals: { pet: { enabled: true, aiRoasts: false, roastSparksCap: 25 } } };
+  ctx.sync();
+  assert.equal(sel.disabled, true);
+  assert.equal(sel.value, '25');
+  assert.deepEqual(sel.options.map((o) => o.textContent), ['settings_vpet_sparks_off', 'settings_vpet_sparks_n', 'settings_vpet_sparks_n', 'settings_vpet_sparks_n', 'settings_vpet_sparks_n']);
+  ctx.hubSettings.vitals.pet.aiRoasts = true;
+  const changes = sel.changes;
+  ctx.sync();
+  assert.equal(sel.disabled, false);
+  assert.equal(row.classList.on, false);
+  assert.equal(sel.changes, changes, 'an unchanged number fires no change, so no save loop');
   assert.match(src, /syncVitalsPcCaps\(\);\n\s*syncVitalsAiBank\(\);/);
+  assert.match(src, /saveHubSettings\(\);\n\s*\/\/ Bit's roast row says what this provider spends\.\n\s*syncVitalsAiBank\(\);/);
   assert.match(read('../index.html'), /id="settings-vpet-ai-cap" hidden/);
   assert.deepEqual(require('../ai-cli.js').isCliProvider('claudecode') && require('../ai-cli.js').isCliProvider('codex'), true, 'the server roast skips the same providers');
   const i18n = { window: {} };
   vm.createContext(i18n);
   vm.runInContext(read('../js/i18n.js') + ';globalThis.__i18n = i18n;', i18n);
-  for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) assert.ok(i18n.__i18n[lang].settings_vpet_ai_bank, lang);
+  for (const lang of ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']) {
+    for (const key of ['settings_vpet_ai_bank_cli', 'settings_vpet_sparks', 'settings_vpet_sparks_hint', 'settings_vpet_sparks_off']) assert.ok(i18n.__i18n[lang][key], lang + ' ' + key);
+    assert.ok(i18n.__i18n[lang].settings_vpet_sparks_n.includes('{n}'), lang);
+  }
 });

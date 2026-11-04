@@ -11,7 +11,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+// A Windows checkout has CRLF: the patterns below cut on "\n".
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const W = read('../js/discord-widget.js');
 const CSS = read('../components/DiscordWidget/DiscordWidget.css');
 const LIGHT = read('../styles/themes-light.css');
