@@ -5204,7 +5204,7 @@ dependencies = [
 
 [[package]]
 name = "xenon-native"
-version = "4.11.13"
+version = "5.0.0"
 dependencies = [
  "gdk",
  "getrandom 0.3.4",

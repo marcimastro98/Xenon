@@ -802,6 +802,7 @@ An opt-in 8-bit tamagotchi (**Settings → Bit**) that lives in a corner of the 
 - **macOS and Linux (Beta)** — the popup shows on the main screen through the Xenon app, or as a system notification; minimizing the windows works on macOS, Linux X11 and KDE, and is hidden with a reason on GNOME Wayland.
 - **Presence-aware and fail-safe** — the PC-invading rungs need *fresh keyboard/mouse input* (a system-idle probe in the persistent PowerShell worker; the touchscreen alone is not proof you're at the desk), every opt-in is re-checked server-side, and hard cooldowns cap the mayhem.
 - **Sleeping hours you choose** — Bit is quiet from 23:00 to 7:00 by default; pick your own hours (for example 18:00 to 9:00 to keep him quiet outside work). **Talk to Bit** in his menu opens the chat.
+- **AI roasts (opt-in)**: Bit asks your Xenon AI for a one-liner about the moment and falls back to his own lines if it does not answer. With Sparks as the AI you pick how many Sparks a day he may spend (none by default); Claude Code and Codex plans are never spent on roasts.
 - **Gamer truce** (default on) — silent and hands-off during games, with a post-match roast if a vital died mid-session. Refills flip him instantly to praise, with a tiny WebAudio chiptune fanfare.
 - Zero new dependencies; with Bit off, not a single timer runs.
 
