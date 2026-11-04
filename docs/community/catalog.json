@@ -868,7 +868,7 @@
         "adhan",
         "islam",
         "salah",
-        "offline"
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "adhan-prayer-times",
@@ -880,8 +880,8 @@
       },
       "shots": 3,
       "addedAt": "2026-07-19",
-      "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "dgm-calidad-del-aire",
