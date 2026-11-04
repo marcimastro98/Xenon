@@ -1035,7 +1035,7 @@
         "vram",
         "sensors",
         "gpu",
-        "cpu"
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "thermal-card",
@@ -1047,8 +1047,8 @@
       },
       "shots": 2,
       "addedAt": "2026-07-18",
-      "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "forest",
