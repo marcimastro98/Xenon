@@ -215,11 +215,11 @@
       "description": "Real-time CPU, GPU, memory, clocks, temperatures, fans and FPS monitoring.\nNo setup required. Uses Xenon native system data and follows Xenon temperature units.\nUses your current Xenon theme by default and can be customized like other widgets.\nFPS appears when a foreground game/application is detect",
       "category": "system",
       "tags": [
-        "monitoring",
         "performance",
         "cpu",
         "gpu",
-        "fps"
+        "fps",
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "tgk-monitor",
@@ -231,7 +231,8 @@
       },
       "shots": 2,
       "addedAt": "2026-09-16",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-11-04"
     },
     {
       "id": "tgk-steam-launcher-battery",
