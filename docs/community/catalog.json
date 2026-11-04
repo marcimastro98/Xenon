@@ -396,7 +396,7 @@
         "task-manager",
         "monitor",
         "cpu",
-        "memory"
+        "on-screen"
       ],
       "version": "1.0.0",
       "pkgId": "workload",
@@ -408,8 +408,8 @@
       },
       "shots": 2,
       "addedAt": "2026-09-28",
-      "codeFile": true,
-      "updatedAt": "2026-09-28"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "aracne",
