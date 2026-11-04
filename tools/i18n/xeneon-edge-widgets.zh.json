@@ -1,7 +1,7 @@
 {
   "zh": {
-    "meta.title": "Xeneon Edge 小组件：iCUE 与免费的 Xenon 仪表盘",
-    "meta.desc": "适用于 CORSAIR Xeneon Edge 的免费仪表盘：拖放式页面，麦克风、音频和媒体控制，不影响游戏的触控。有没有 iCUE 都能运行，无需账号。",
+    "meta.title": "Xeneon Edge 小组件：有无 iCUE 都能用的免费仪表盘",
+    "meta.desc": "iCUE 为 CORSAIR Xeneon Edge 提供什么，Xenon 又增加了什么：多页小组件、麦克风与音频控制、Deck 按键。有无 iCUE 都可用，无需账号。",
     "ld.q1": "Xenon 会取代 iCUE 吗？",
     "ld.a1": "不会。iCUE 仍然负责驱动你的 CORSAIR 硬件和灯光。Xenon 与它并行运行，可以是独立的窗口，也可以放在 iCUE 的一个面板里，还能通过自己的桥接把灯光效果发送给 iCUE。",
     "ld.q2": "使用 Xenon 一定要有 Xeneon Edge 吗？",

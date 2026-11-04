@@ -23,6 +23,8 @@
 
   var STORE_KEY = 'xenon.site.consent';
   var LANG_KEY = 'xenon.site.lang';
+  // Xenon Maker's "already counted today" marker (same origin), kept only with a yes.
+  var MAKER_SEEN_KEY = 'xenon.maker.usage.seen';
   var LANGS = ['en', 'it', 'ko', 'ja', 'zh', 'es', 'fr'];
 
   var STR = {
@@ -122,7 +124,10 @@
   }
 
   function remember(v) {
-    try { localStorage.setItem(STORE_KEY, v); } catch (e) { /* private mode */ }
+    try {
+      localStorage.setItem(STORE_KEY, v);
+      if (v !== 'granted') localStorage.removeItem(MAKER_SEEN_KEY);
+    } catch (e) { /* private mode */ }
   }
 
   var STYLE = [
@@ -257,7 +262,7 @@
 
   // Lets the privacy page offer a "change your choice" affordance.
   window.xenonConsentReset = function () {
-    try { localStorage.removeItem(STORE_KEY); } catch (e) { /* private mode */ }
+    try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(MAKER_SEEN_KEY); } catch (e) { /* private mode */ }
     render();
   };
 })();

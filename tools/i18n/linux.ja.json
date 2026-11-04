@@ -1,7 +1,7 @@
 {
   "ja": {
-    "meta.title": "Linux 版 Xenon: セカンドスクリーン用ダッシュボード、AppImage、deb、rpm",
-    "meta.desc": "Linux 版 Xenon（ベータ）は、余っている画面のための無料ダッシュボードです。AppImage、.deb、.rpm のダウンロード、初回起動のセットアップ、X11 が必要な機能を説明します。",
+    "meta.title": "Linux版Xenon（ベータ）: AppImage、deb、rpm",
+    "meta.desc": "Linux版Xenon（ベータ）: AppImage、deb、rpm、初回起動、X11とWayland、KDEとGNOMEで動く機能の一覧。",
     "lx.title": "Linux 版 Xenon",
     "lx.lede": "Xenon は、余っている画面のための無料ダッシュボードです。Linux 版はベータで、ダッシュボードは Windows 版と同じです。このページでは、まだ違う点と必要なパッケージを紹介します。",
     "lx.updated": "最終更新: 2026年9月26日 · すべてのリンクは<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新リリース</a>を指しています",

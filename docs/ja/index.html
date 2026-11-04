@@ -40,10 +40,6 @@
 <!-- The month's drops, as published from the hub (site-promo.json): the spotlight, the strip
      above the header and the corner card. -->
 <script src="/promo.js" defer></script>
-<!-- Bit, the same files the app draws it with (packages/core/src). -->
-<script src="/demo/shared/src/bit-clips.js" defer></script>
-<script src="/demo/shared/src/bit.js" defer></script>
-<script src="/demo/shared/src/bit-player.js" defer></script>
 <!-- Theme, before the first paint. A deferred script would let a visitor who
      chose dark see a white page flash first; /theme.js only builds the control. -->
 <script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
@@ -56,8 +52,8 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Xenon: Xeneon Edge、モニター、スマートフォン用の無料タッチダッシュボード</title>
-<meta name="description" content="CORSAIR Xeneon Edge、余っているモニター、タブレット、スマートフォンを、PC用のタッチダッシュボードにする無料アプリです。システム情報、メディア、マイク、Deckのキー、音声AIを使えます。">
+<title>Xenon: サブモニター用の無料PCダッシュボード</title>
+<meta name="description" content="余ったモニター、タブレット、スマホ、Xeneon EdgeをPCのタッチダッシュボードに。温度、FPS、メディア、Deckキー。Windows対応、macOSとLinuxはベータ版。">
 <link rel="canonical" href="https://xenon-app.com/ja/">
 <!-- One URL per language, generated from this file by tools/build-i18n.mjs.
      The set is identical on every version, which is what hreflang requires. -->
@@ -78,13 +74,15 @@
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="ja_JP">
 <meta property="og:url" content="https://xenon-app.com/ja/">
-<meta property="og:title" content="Xenon: Xeneon Edge、モニター、スマートフォン用の無料タッチダッシュボード">
-<meta property="og:description" content="CORSAIR Xeneon Edge、余っているモニター、タブレット、スマートフォンを、PC用のタッチダッシュボードにする無料アプリです。システム情報、メディア、マイク、Deckのキー、音声AIを使えます。">
+<meta property="og:title" content="Xenon: サブモニター用の無料PCダッシュボード">
+<meta property="og:description" content="余ったモニター、タブレット、スマホ、Xeneon EdgeをPCのタッチダッシュボードに。温度、FPS、メディア、Deckキー。Windows対応、macOSとLinuxはベータ版。">
 <meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Xenon dashboard on a 2560 × 720 touchscreen">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon: サブモニター用の無料PCダッシュボード">
+<meta name="twitter:description" content="余ったモニター、タブレット、スマホ、Xeneon EdgeをPCのタッチダッシュボードに。温度、FPS、メディア、Deckキー。Windows対応、macOSとLinuxはベータ版。">
 <meta name="twitter:image" content="https://xenon-app.com/images/home/og-card.png">
 
 <!-- The LCP image, handed to the preload scanner before any CSS. The device
@@ -107,21 +105,25 @@
    Download key. Structure has no radius and no rules; the objects that are
    real objects (a screen, a key) get the shape the product gives them.
    ════════════════════════════════════════════════════════════════════════ */
-@font-face { font-family: "Sofia Sans"; font-style: normal; font-weight: 400 800; font-display: swap;
+/* The home's own names for Sofia, declared optional and preloaded: the webfont is
+   used only if it is there for the first paint, so a late font never reflows the
+   hero (web.dev/articles/preload-optional-fonts). site.css keeps swap under the
+   public names for the other pages; distinct names keep its faces out of this match. */
+@font-face { font-family: "Sofia Home"; font-style: normal; font-weight: 400 800; font-display: optional;
   src: url(/fonts/sofiasans-latin.woff2) format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: "Sofia Sans"; font-style: normal; font-weight: 400 800; font-display: swap;
+@font-face { font-family: "Sofia Home"; font-style: normal; font-weight: 400 800; font-display: optional;
   src: url(/fonts/sofiasans-latin-ext.woff2) format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-@font-face { font-family: "Sofia Sans Semi Condensed"; font-style: normal; font-weight: 600 800; font-display: swap;
+@font-face { font-family: "Sofia Home SC"; font-style: normal; font-weight: 600 800; font-display: optional;
   src: url(/fonts/sofiasans-sc-latin.woff2) format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: "Sofia Sans Semi Condensed"; font-style: normal; font-weight: 600 800; font-display: swap;
+@font-face { font-family: "Sofia Home SC"; font-style: normal; font-weight: 600 800; font-display: optional;
   src: url(/fonts/sofiasans-sc-latin-ext.woff2) format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 /* Metric-matched stand-ins, so the swap to the webfont moves nothing. */
 @font-face { font-family: "Sofia Fallback"; src: local("Arial"), local("Liberation Sans"), local("Helvetica");
-  size-adjust: 93.6%; ascent-override: 96.2%; descent-override: 32.1%; line-gap-override: 0%; }
+  size-adjust: 94.3%; ascent-override: 96.2%; descent-override: 32.1%; line-gap-override: 0%; }
 @font-face { font-family: "Sofia SC Fallback"; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arial");
   size-adjust: 86.3%; ascent-override: 104.3%; descent-override: 34.8%; line-gap-override: 0%; }
 
@@ -136,14 +138,15 @@
   --well: #070808; --bezel-hi: rgba(255,255,255,.07); --well-rim: transparent;
   --focus: #141414; --lit: #008DFF;
   --main: #1F8040; --main-hover: #1A6E37; --main-ink: #FFFFFF; --main-text: #145E2C;
-  --f-display: "Sofia Sans Semi Condensed", "Sofia SC Fallback", "Arial Narrow", Arial, sans-serif;
-  --f-text: "Sofia Sans", "Sofia Fallback", Arial, "Liberation Sans", sans-serif;
+  --f-display: "Sofia Home SC", "Sofia SC Fallback", "Arial Narrow", Arial, sans-serif;
+  --f-text: "Sofia Home", "Sofia Fallback", Arial, "Liberation Sans", sans-serif;
   --f-code: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
   --pad: 32px;
   --g-0: #E4E4E4; --g-1: #EFEFEF; --g-2: #D8D8D8; --g-3: #CBCBCB;
   --rule: #C4C4C4; --rule-2: #A3A3A3;
   --bone-0: #141414; --bone-1: #444444; --bone-2: #545454;
   --sans: var(--f-text);
+  --display: var(--f-display);
   color-scheme: light;
 }
 @media (prefers-color-scheme: light) {
@@ -186,9 +189,14 @@
 }
 /* ja / ko / zh keep Sofia for Latin runs and hand the rest to the system's own
    CJK face: no CJK webfont ships, which is the fast and the correct choice. */
-html[lang="ja"] { --f-text: "Sofia Sans", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif; --f-display: "Sofia Sans Semi Condensed", "Hiragino Sans", "Yu Gothic UI", Meiryo, "Noto Sans JP", sans-serif; }
-html[lang="ko"] { --f-text: "Sofia Sans", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; --f-display: "Sofia Sans Semi Condensed", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
-html[lang="zh"] { --f-text: "Sofia Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans SC", sans-serif; --f-display: "Sofia Sans Semi Condensed", "PingFang SC", "Microsoft YaHei UI", "Noto Sans SC", sans-serif; }
+html[lang="ja"] { --f-text: "Sofia Home", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif; --f-display: "Sofia Home SC", "Hiragino Sans", "Yu Gothic UI", Meiryo, "Noto Sans JP", sans-serif; }
+html[lang="ko"] { --f-text: "Sofia Home", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; --f-display: "Sofia Home SC", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+html[lang="zh"] { --f-text: "Sofia Home", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans SC", sans-serif; --f-display: "Sofia Home SC", "PingFang SC", "Microsoft YaHei UI", "Noto Sans SC", sans-serif; }
+
+/* Headings break between phrases, never inside one: auto-phrase for Japanese (Chrome 119+,
+   developer.chrome.com/blog/css-i18n-features), keep-all for Korean, which spaces its words. */
+html[lang="ja"] :is(h1, h2, h3) { word-break: auto-phrase; }
+html[lang="ko"] :is(h1, h2, h3) { word-break: keep-all; }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; }
@@ -213,7 +221,7 @@ a:hover { text-decoration-thickness: 2px; }
 .hd .w { display: flex; align-items: center; gap: 36px; height: 64px; }
 /* The logo, as in site.css (.xh-brand): Bit at 2px a pixel on the baseline of
    "xenon", the x-height half his height; a green per theme. */
-.brand { display: inline-flex; align-items: baseline; gap: 4px; text-decoration: none; font: 800 22.6px/1 "Sofia Sans Semi Condensed", "Sofia SC Fallback", "Sofia Sans", system-ui, sans-serif; letter-spacing: -0.015em; }
+.brand { display: inline-flex; align-items: baseline; gap: 4px; text-decoration: none; font: 800 22.6px/1 "Sofia Home SC", "Sofia SC Fallback", "Sofia Home", system-ui, sans-serif; letter-spacing: -0.015em; }
 .mark { width: 16px; height: 22px; flex: none; background: url(/images/brand/bit.svg) 0 0 / 100% 100% no-repeat; }
 :root[data-theme="light"] .mark { background-image: url(/images/brand/bit-light.svg); }
 @media (prefers-color-scheme: light) {
@@ -307,6 +315,8 @@ h1 {
 .hero-act { grid-column: 9 / span 4; display: grid; gap: 12px; justify-items: start; padding-bottom: 4px; }
 .hero-act .key, .hero-act .key-alt { min-width: min(100%, 330px); }
 .facts { margin: 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+/* The version arrives from GitHub after the first paint: its line is held from the start, so it moves nothing. */
+.facts .ver { display: block; min-height: 1.45em; }
 .act-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 16px; }
 .act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; font-size: 16px; }
 /* Microsoft's badge, unaltered; the ring only separates its dark face from a dark page. */
@@ -358,107 +368,114 @@ h1 {
 .cycle[aria-pressed="true"] .i-pause { display: none; }
 .cap { margin: 0; font-size: 15.5px; color: var(--fg-2); }
 .cap a, .cap button { color: var(--fg); }
+/* The theme walk changes this caption; it keeps the height of its longest version (set by the walk script), so nothing under it moves. */
+#scr-cap { min-height: var(--cap-h, 0px); }
 .linkbtn { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; color: inherit; }
 
 /* ── Sections ───────────────────────────────────────────────────────── */
-.sec { padding-block: clamp(80px, 11vw, 150px) 0; }
-.sec-head { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; margin-bottom: 36px; }
-.sec-head h2 { grid-column: 1 / span 7; margin: 0; font: 760 clamp(32px, 2.2vw + 12px, 48px)/1.02 var(--f-display); letter-spacing: -0.012em; text-wrap: balance; }
-.sec-head p { grid-column: 1 / span 6; margin: 14px 0 0; font-size: 19px; line-height: 1.5; color: var(--fg-2); max-width: 58ch; }
-h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
+.sec { padding-block: clamp(72px, 8vw, 112px) 0; }
+/* Each section: its name and one line on the left, the content on the right;
+   the two stack below 1000px. */
+.spine { display: flex; flex-wrap: wrap; gap: 24px 64px; align-items: flex-start; }
+.spine-head { flex: 1 1 220px; max-width: 300px; min-width: 0; }
+.spine-head h2 { margin: 0; font: 800 clamp(30px, 2.4vw + 10px, 44px)/1.05 var(--f-display); letter-spacing: -0.012em; text-wrap: balance; }
+.spine-head p { margin: 12px 0 0; font-size: 17px; line-height: 1.5; color: var(--fg-2); }
+.spine-head .links { margin-top: 10px; }
+.spine-body { flex: 999 1 560px; min-width: 0; }
+h3 { margin: 0; font: 700 21px/1.2 var(--f-display); letter-spacing: -0.004em; }
 /* A label, not a button: smaller, squarer and unfilled (brand-tokens.js). */
 .beta { display: inline-block; vertical-align: 0.12em; margin-left: 8px; font: 600 13px/1.2 var(--f-text); color: var(--fg-2); border: 1px solid var(--rule-2); border-radius: 4px; padding: 2px 6px; }
+.links { margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 6px 30px; font-size: 17px; }
+.links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--fg); font-weight: 700; text-underline-offset: 0.2em; }
+/* Short text under a picture or a name. */
+.wgrid p, .items p, .work p { margin: 4px 0 0; font-size: 16px; line-height: 1.5; color: var(--fg-2); }
 
-/* Screens drawn to scale on one desk line, at 1.45 cqw per inch: a 27-inch
-   16:9 monitor 23.5 in wide, the 14.5-inch Edge 13.96 in lying and 3.93 in
-   standing, an 11-inch tablet held sideways 9.0 in, a 6.1-inch phone 2.6 in.
-   The upright Edge's and the phone's columns are wider than the devices so
-   their captions have room. Each caption sits in its device's column, on one
-   shared row. */
-.lineup-wrap { container-type: inline-size; }
-.lineup { display: grid; grid-template-columns: 34.1cqw 20.2cqw 11cqw 13.05cqw minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 2.2cqw; row-gap: 20px; }
-.unit { margin: 0; display: grid; grid-row: span 2; grid-template-rows: subgrid; min-width: 0; }
-.dv-stack { align-self: end; }
-.unit .dv { background: var(--well); padding: 6px; border-radius: 8px; box-shadow: inset 0 1px 0 var(--bezel-hi), 0 0 0 1px var(--well-rim), 0 24px 40px -26px rgba(0,0,0,.55); }
-.unit .dv img { display: block; width: 100%; height: auto; border-radius: 3px; }
-.u-mon .dv { padding: 7px; border-radius: 6px; }
-.u-edge .dv { padding: 5px; border-radius: 7px; }
-.u-vert .dv-stack { width: 5.7cqw; min-width: 48px; }
-.u-vert .dv { padding: 4px; border-radius: 7px; }
-.u-tab .dv { padding: 6px; border-radius: 12px; } .u-tab .dv img { border-radius: 7px; }
-.u-ph .dv-stack { width: 3.77cqw; min-width: 44px; }
-.u-ph .dv { padding: 3px; border-radius: 10px; } .u-ph .dv img { border-radius: 7px; }
-.stand { width: 18%; height: 34px; margin: 0 auto; background: linear-gradient(90deg, #1a1c1d, #2a2d2f 50%, #1a1c1d); clip-path: polygon(38% 0, 62% 0, 70% 100%, 30% 100%); }
-.foot-base { width: 32%; height: 6px; margin: -2px auto 0; border-radius: 3px 3px 1px 1px; background: #1c1e1f; }
-.unit figcaption { font-size: 15.5px; line-height: 1.45; color: var(--fg-2); overflow-wrap: break-word; }
-.unit figcaption b { display: block; color: var(--fg); font: 700 18px/1.3 var(--f-text); margin-bottom: 4px; }
-.unit figcaption .beta { margin-left: 6px; }
-.scale-note { margin: 26px 0 0; font-size: 15.5px; color: var(--fg-3); }
+/* Two sections sit in the dark room, light page or dark: games and the
+   download. Same tokens, dark values; in dark mode a step deeper than the
+   page so the band still reads. */
+.band { --room: #232323; --room-2: #2C2C2C; --g-1: #2C2C2C; --fg: #EDEDED; --fg-2: #BDBDBD; --fg-3: #A6A6A6;
+  --rule: #464646; --rule-2: #5C5C5C; --well-rim: #3A3A3A; --focus: #EDEDED; --store-ring: rgba(255,255,255,.22);
+  --main: #6EE787; --main-hover: #8BF0A0; --main-ink: #0B2412; --main-text: #6EE787;
+  color-scheme: dark; margin-top: clamp(72px, 8vw, 112px); padding-block: clamp(64px, 7vw, 96px); background: var(--room); color: var(--fg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .band { --room: #161616; --room-2: #232323; --g-1: #232323; } }
+:root[data-theme="dark"] .band { --room: #161616; --room-2: #232323; --g-1: #232323; }
 
-/* Bit: four moments, the clip it plays and the very line it says in the app. */
-.bits { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 24px; }
-.bit-card { display: grid; align-content: start; gap: 8px; padding: 24px; border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
-.bit-stage { width: 96px; aspect-ratio: 18 / 17; margin-bottom: 10px; }
-.bit-stage svg { display: block; width: 100%; height: 100%; }
-.bit-card b { font: 600 15.5px/1.35 var(--f-text); color: var(--fg-2); }
-.bit-card q { font: 700 20px/1.35 var(--f-display); color: var(--fg); letter-spacing: -0.004em; }
-.bit-more { margin: 28px 0 0; font-size: 17px; line-height: 1.55; color: var(--fg-2); max-width: 70ch; }
+/* Screens: the four shapes side by side at their own proportions on one
+   bottom line, then the one-screen case. */
+.screens { display: grid; grid-template-columns: 124fr 520fr 330fr 139fr; gap: 24px; align-items: end; }
+.screens figure { margin: 0; min-width: 0; }
+.screens img { display: block; width: 100%; height: auto; border-radius: 6px; box-shadow: 0 0 0 1px var(--well-rim); }
+.screens figcaption { margin-top: 10px; font-size: 14px; line-height: 1.35; color: var(--fg-2); }
+.screens .beta { margin-left: 6px; }
+.one { display: flex; flex-wrap: wrap; align-items: center; gap: 24px 40px; margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--rule); }
+.one-tx { flex: 1 1 280px; min-width: 0; }
+.one-tx h3 { font-size: 26px; line-height: 1.15; }
+.one-tx p { margin: 8px 0 0; font-size: 17px; line-height: 1.55; color: var(--fg-2); }
+.one-tx .links { margin-top: 10px; }
+.one-im { flex: 2 1 420px; min-width: 0; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; }
 
-/* Widgets and keys: four real captures, each with its name and one fact. */
-.feats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 24px; }
-.feat { margin: 0; min-width: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
-.feat img { display: block; width: 100%; height: auto; aspect-ratio: 836 / 572; object-fit: cover; object-position: center top; background: var(--well); }
-.feat-tx { padding: 22px 24px 26px; }
-.feat h3 { margin: 0 0 8px; font: 760 clamp(22px, 0.6vw + 16px, 26px)/1.15 var(--f-display); letter-spacing: -0.01em; }
-.feat p { margin: 0; font-size: 17px; line-height: 1.55; color: var(--fg-2); max-width: 52ch; }
-.links { margin: 28px 0 0; display: flex; flex-wrap: wrap; gap: 6px 30px; font-size: 17px; }
-.links a { display: inline-flex; align-items: center; min-height: 40px; color: var(--fg); font-weight: 700; text-underline-offset: 0.2em; }
+/* Widgets: each capture whole on the dark well, its name and one fact. */
+.wgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 40px 24px; }
+.wgrid li { min-width: 0; }
+.wframe { height: 280px; padding: 16px; border-radius: 10px; background: var(--well); display: flex; align-items: center; justify-content: center; }
+.wframe img { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; border-radius: 6px; }
+.wgrid h3 { margin-top: 14px; }
 
-/* Catalog */
-/* The catalog shelf: three entries in one row, the picture first. Strips
-   (32:9 shots) sit whole on the dark ground instead of being cropped. */
-.shelf { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 44px 24px; }
-.shelf .item { margin: 0; min-width: 0; }
-.shelf .th { display: block; aspect-ratio: 2 / 1; border-radius: 10px; overflow: hidden; background: var(--well); box-shadow: 0 0 0 1px var(--well-rim), 0 24px 44px -30px rgba(0,0,0,.6); }
-.shelf .th img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-.shelf .th img.strip { object-fit: contain; object-position: center; }
-.shelf h3 { margin: 16px 0 0; font: 700 20px/1.25 var(--f-text); overflow-wrap: anywhere; }
-.shelf h3 a { color: var(--fg); text-decoration: none; }
-.shelf h3 a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
-.shelf .meta { margin: 6px 0 0; font-size: 16px; line-height: 1.45; color: var(--fg-2); }
-.shelf .meta b { color: var(--fg); font-weight: 700; }
-.shelf .meta b.sup { color: var(--fg); }
+/* Games: the performance tile, then four things it does. */
+.games { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px; }
+.games-im { flex: 1 1 300px; max-width: 440px; margin: 0; min-width: 0; }
+.games-im img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; }
+.games-im figcaption { margin-top: 10px; font-size: 14px; line-height: 1.4; color: var(--fg-3); }
+.items { flex: 1 1 280px; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
 
-/* Xenon Maker: what it makes and the way in on the left, its start screen on
-   the right. */
-.maker { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; row-gap: 32px; align-items: center; }
-.maker-tx { grid-column: 1 / span 5; min-width: 0; }
-.maker h2 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font: 760 clamp(32px, 2.2vw + 12px, 48px)/1.02 var(--f-display); letter-spacing: -0.012em; }
-.maker h2 .beta { margin-left: 0; }
-.maker-tx > p { margin: 14px 0 0; font-size: 19px; line-height: 1.5; color: var(--fg-2); max-width: 46ch; }
-.maker-tx .key-alt { margin-top: 28px; }
-.maker-tx .links { margin-top: 14px; }
-.maker-im { grid-column: 7 / -1; display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 10px; }
+/* Work tools: six short entries, each under a rule. */
+.work { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 28px 32px; }
+.work li { min-width: 0; padding-top: 14px; border-top: 1px solid var(--rule-2); }
 
-/* Supporters: the offers as rows on the left, each closing on a key, the
-   recommended one filled; the names on the right, set like a film poster's
-   billing block, the three largest contributions biggest. Type only. */
-.sup-cols { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: 24px; row-gap: 48px; align-items: start; }
-.sup-offers { grid-column: 1 / span 6; min-width: 0; }
-.sup-cols:has(.bill[hidden]) .sup-offers { grid-column: 1 / span 8; }
-.tiers { display: grid; gap: 12px; }
-.tier { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name go" "price go" "what go" "sparks go"; column-gap: 24px; align-items: center;
-  padding: 22px 24px; border: 1px solid var(--rule); border-radius: 10px; text-decoration: none; color: var(--fg); transition: border-color .15s; }
+/* Bit: a real chat, then what people ask it. */
+.bitrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px 48px; }
+.bit-im { flex: 0 1 360px; width: 360px; max-width: 100%; min-width: 0; height: auto; border-radius: 10px; }
+.bit-tx { flex: 1 1 240px; min-width: 0; }
+.asks { list-style: none; margin: 10px 0 0; padding: 0; }
+.asks li { padding: 10px 0; border-top: 1px solid var(--rule); font-size: 17px; line-height: 1.4; }
+.asks li:last-child { border-bottom: 1px solid var(--rule); }
+.bit-more { margin: 16px 0 0; font-size: 16px; line-height: 1.55; color: var(--fg-2); max-width: 64ch; }
+
+/* Catalog: two rows from catalog.json, the free ones ordered by reported
+   installs. Strips (32:9 shots) sit whole instead of being cropped. */
+.shelf { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 24px; margin-top: 14px; }
+.shelf a { display: block; min-width: 0; color: var(--fg); text-decoration: none; }
+.shelf img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; object-position: center top; border-radius: 6px; background: var(--well); }
+.shelf img.strip { object-fit: contain; object-position: center; }
+.shelf b { display: block; margin-top: 8px; font: 700 17px/1.3 var(--f-text); overflow-wrap: anywhere; }
+.shelf a:hover b { text-decoration: underline; text-underline-offset: 0.18em; }
+.shelf span { display: block; margin-top: 2px; font-size: 14px; line-height: 1.4; color: var(--fg-3); }
+.shelf-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 16px; margin-top: 40px; }
+.shelf-head a { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; color: var(--fg-2); }
+.makerbox { margin-top: 32px; padding: 16px 20px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--g-1); }
+.makerbox p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--fg-2); }
+.makerbox b { color: var(--fg); }
+.makerbox .links { margin-top: 4px; font-size: 16px; }
+
+/* Supporters: four cards, the recommended one outlined in green; the names
+   below, set like a film poster's billing block, the three largest
+   contributions biggest. Type only. */
+.sup-cols { display: block; }
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 16px; }
+.tier { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 20px; background: var(--g-1); border: 1px solid var(--rule); border-radius: 10px;
+  text-decoration: none; color: var(--fg); transition: border-color .15s; }
 .tier:hover { border-color: var(--rule-2); text-decoration: none; }
-.tier.pick { border-color: var(--rule-2); }
-.tier-name { grid-area: name; font: 700 18px/1.3 var(--f-text); }
-.tier-price { grid-area: price; margin-top: 6px; font: 780 32px/1 var(--f-display); letter-spacing: -0.015em; }
-.tier-price small { font: 600 16px/1 var(--f-text); color: var(--fg-2); margin-left: 6px; letter-spacing: 0; }
-.tier-what { grid-area: what; margin-top: 10px; font-size: 15.5px; line-height: 1.5; color: var(--fg-2); max-width: 48ch; }
+.tier.pick { padding: 19px; border: 2px solid var(--main); }
+/* The period ("once", "a month") reads first, above the amount. */
+.tier-price { display: flex; flex-direction: column-reverse; gap: 6px; font: 800 30px/1 var(--f-display); letter-spacing: -0.015em; }
+.tier-price small { font: 600 14px/1.2 var(--f-text); color: var(--fg-3); letter-spacing: 0; }
+.tier.pick .tier-price small { color: var(--main-text); font-weight: 700; }
+.tier-name { margin-top: 14px; font: 700 17px/1.3 var(--f-text); }
+.tier-what { margin-top: 4px; font-size: 15px; line-height: 1.5; color: var(--fg-2); }
 /* The Scintille every plan brings, with the app's own spark (tools/brand/build.mjs). */
-.tier-sparks { grid-area: sparks; display: flex; align-items: center; gap: 8px; margin-top: 8px; font: 600 15px/1.4 var(--f-text); color: var(--fg); }
+.tier-sparks { display: flex; align-items: center; gap: 8px; margin: 10px 0 18px; font: 600 14px/1.4 var(--f-text); color: var(--fg); }
 .tier-sparks img { flex: none; width: 16px; height: 16px; image-rendering: pixelated; }
-.tier-go { grid-area: go; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; min-width: 130px; padding: 0 22px; border-radius: 6px;
+.tier-go { margin-top: auto; align-self: stretch; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 6px;
   font: 700 17px/1 var(--f-display); letter-spacing: 0.004em; color: var(--fg); border: 1.5px solid color-mix(in oklab, var(--fg) 34%, transparent);
   transition: border-color .15s, transform .11s cubic-bezier(.2,.8,.2,1), filter .15s; }
 .tier:hover .tier-go { border-color: var(--fg); }
@@ -468,7 +485,7 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .sup-sparks { display: flex; align-items: flex-start; gap: 8px; }
 .sup-sparks img { flex: none; width: 16px; height: 16px; margin-top: 4px; image-rendering: pixelated; }
 .sup-sparks a { color: var(--fg); }
-.bill { grid-column: 8 / -1; display: grid; row-gap: 24px; align-content: start; min-width: 0; }
+.bill { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--rule); display: grid; row-gap: 24px; align-content: start; min-width: 0; }
 .bill-h { margin: 0; font: 760 clamp(24px, 0.8vw + 17px, 30px)/1.1 var(--f-display); letter-spacing: -0.01em; }
 .bill-tier { display: grid; gap: 6px; min-width: 0; }
 .bill-lab { margin: 0; font: 600 15.5px/1.3 var(--f-text); color: var(--fg-2); letter-spacing: 0; }
@@ -482,17 +499,36 @@ h3 { margin: 0 0 8px; font: 700 21px/1.25 var(--f-text); }
 .bill-you a:hover { color: var(--fg); text-decoration-color: var(--fg); }
 .bill-note { margin: 0; font-size: 15px; line-height: 1.5; color: var(--fg-3); max-width: 60ch; }
 
-/* Download: the key, which follows the visitor's system, then the guides. */
-.fin-act { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; }
-.fin-act .store img { height: 54px; }
-.fin-links { margin-top: 18px; }
+/* Download: the dark band, the words on the left, the key (which follows the
+   visitor's system) and the other ways in on the right. */
+.fin { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 32px 64px; }
+.fin-tx { flex: 1 1 420px; min-width: 0; }
+.fin-tx h2 { margin: 0; font: 800 clamp(34px, 3.6vw + 8px, 56px)/1.02 var(--f-display); letter-spacing: -0.015em; text-wrap: balance; }
+.fin-tx > p { margin: 12px 0 0; font-size: 19px; line-height: 1.5; color: var(--fg-2); max-width: 46ch; }
+.fin-col { flex: 0 1 380px; min-width: 0; display: grid; gap: 12px; }
+.fin-act { display: grid; gap: 12px; justify-items: start; }
+.fin-act .key { width: 100%; }
+.fin-act .store img { height: 48px; }
+.fin-links { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fin-links a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 6px 8px; text-align: center; border: 1px solid var(--rule-2); border-radius: 6px;
+  color: var(--fg); font: 600 15px/1.2 var(--f-text); text-decoration: none; transition: border-color .15s; }
+.fin-links a:hover { border-color: var(--fg); }
 html[data-mobile] .fin-act, html[data-mobile] .fin-links { display: none; }
-.fin-notes { margin-top: 30px; display: grid; gap: 8px; }
-.fin-notes p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--fg-2); max-width: 70ch; }
-.onphone { display: none; margin-top: 22px; padding: 20px 22px; background: var(--room-2); border-radius: 10px; }
+.fin-notes { margin-top: 24px; display: grid; gap: 8px; }
+.fin-notes p { margin: 0; font-size: 15.5px; line-height: 1.5; color: var(--fg-2); max-width: 60ch; }
+.onphone { display: none; padding: 20px 22px; background: var(--room-2); border-radius: 10px; }
 html[data-mobile] .onphone { display: block; }
 .onphone b { display: block; margin-bottom: 4px; }
 .onphone p { margin: 0 0 10px; color: var(--fg-2); font-size: 16px; }
+
+/* Questions: closed but the first; the arrow is the menu's. */
+.faq details { border-top: 1px solid var(--rule); }
+.faq details:last-child { border-bottom: 1px solid var(--rule); }
+.faq summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-height: 44px; padding: 14px 0; box-sizing: border-box; cursor: pointer; list-style: none; font: 700 18px/1.35 var(--f-text); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: ""; flex: none; width: 9px; height: 9px; margin: 0.35em 4px 0 0; border-right: 2px solid var(--fg-2); border-bottom: 2px solid var(--fg-2); transform: rotate(45deg); transition: transform .15s; }
+.faq details[open] summary::after { transform: translateY(4px) rotate(-135deg); }
+.faq details p { margin: 0 0 16px; font-size: 16.5px; line-height: 1.55; color: var(--fg-2); max-width: 64ch; }
 
 /* Footer */
 .ft { margin-top: clamp(96px, 12vw, 170px); padding-block: 56px 72px; background: var(--room-2); }
@@ -510,6 +546,29 @@ html[data-mobile] .onphone { display: block; }
 .ft-bottom .langs a[aria-current] { color: var(--fg); font-weight: 700; }
 .bit { width: 36px; height: 36px; image-rendering: pixelated; }
 .bit-line { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--fg-2); }
+
+/* Targets: at least 24 px with a mouse (WCAG 2.5.8) and 44 px under a finger (WCAG 2.5.5,
+   Apple HIG). With a mouse the hit area grows into the gaps (padding, matching negative
+   margin), so the footer keeps its rhythm; under a finger the rows open up instead, so
+   no two targets overlap. */
+.lang > summary { min-width: 24px; padding-inline: 4px; text-align: center; }
+.ft-col a { display: inline-block; padding-block: 3px; margin-block: -3px; }
+.bill-you a { display: inline-block; padding-block: 2px; margin-block: -2px; }
+@media (pointer: coarse) {
+  .brand { min-height: 44px; align-items: center; }
+  .mk, .cycle { min-width: 44px; min-height: 44px; }
+  .cycle { width: 44px; height: 44px; }
+  .lang > summary { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0 6px; }
+  .lang li a { min-height: 44px; align-items: center; }
+  .hd-dl { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding-block: 0; }
+  .pf { min-height: 44px; }
+  .act-row > a:not(.store) { display: inline-flex; align-items: center; min-height: 44px; }
+  .ft-col ul { gap: 0; }
+  .ft-col a { display: flex; align-items: center; min-height: 44px; padding-block: 8px; margin-block: 0; line-height: 1.3; }
+  .ft-bottom .langs { gap: 0 6px; }
+  .ft-bottom .langs a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding-inline: 4px; }
+  .bill-you a { padding-block: 11px; margin-block: -11px; }
+}
 
 /* ── Tablet ─────────────────────────────────────────────────────────── */
 @media (max-width: 1180px) {
@@ -547,11 +606,13 @@ html[data-mobile] .onphone { display: block; }
   .hd.open .mlist li:nth-child(3) { animation-delay: .11s; } .hd.open .mlist li:nth-child(4) { animation-delay: .145s; }
   .hd.open .mlist li:nth-child(5) { animation-delay: .18s; } .hd.open .mlist li:nth-child(6) { animation-delay: .215s; }
   .hd.open .mlist li:nth-child(7) { animation-delay: .25s; } .hd.open .mlist li:nth-child(8) { animation-delay: .285s; }
+  /* The action column runs longer than the copy here: start both at the top, so the
+     heading sits where the eye lands first (NN/g F-pattern) and not under an empty band. */
+  .hero-grid { align-items: start; }
   .hero-copy { grid-column: 1 / span 7; }
   .hero-act { grid-column: 8 / span 5; }
   .ft-brand { grid-column: 1 / -1; }
   .ft-col { grid-column: span 4; }
-  .sec-head h2, .sec-head p { grid-column: 1 / -1; }
 }
 @keyframes mrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
@@ -559,19 +620,9 @@ html[data-mobile] .onphone { display: block; }
   .hd.open .mlist li { animation: none; }
 }
 
-/* Narrower: the monitor and the lying Edge take the full width, the upright
-   Edge sits beside its caption, the tablet and the phone share a row. Not
-   to scale any more, so the note goes. The two-column blocks stack. */
+/* Narrower: each section's name sits above its content. */
 @media (max-width: 1000px) {
-  .lineup { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px; row-gap: 14px; }
-  .u-mon, .u-edge { grid-column: 1 / -1; }
-  .u-vert { grid-column: 1 / -1; grid-row: auto; grid-template-rows: none; grid-template-columns: 64px minmax(0, 1fr); column-gap: 20px; align-items: center; margin: 14px 0; }
-  .u-vert .dv-stack { width: 64px; }
-  .u-ph .dv-stack { width: 32%; }
-  .scale-note { display: none; }
-  .bits { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .maker-tx, .maker-im { grid-column: 1 / -1; }
-  .sup-offers, .sup-cols:has(.bill[hidden]) .sup-offers, .bill { grid-column: 1 / -1; }
+  .spine-head { flex-basis: 100%; max-width: 680px; }
 }
 
 /* ── Phone: its own logic, not the desktop shrunk ───────────────────── */
@@ -600,28 +651,20 @@ html[data-mobile] .onphone { display: block; }
   .scr { aspect-ratio: 390 / 844; border-radius: 26px; }
   .under { display: none; }
   .scr-tag { display: none; }
-  .sec { padding-block: 76px 0; }
-  .sec-head { margin-bottom: 26px; }
-  .sec-head p { font-size: 17.5px; }
-  .lineup { column-gap: 16px; }
-  .u-vert { grid-template-columns: 56px minmax(0, 1fr); column-gap: 16px; }
-  .u-vert .dv-stack { width: 56px; }
-  .u-ph .dv-stack { width: 42%; }
-  .bits { gap: 12px; }
-  .bit-card { padding: 18px 16px; }
-  .bit-stage { width: 72px; }
-  .bit-card q { font-size: 18px; }
-  .feats { grid-template-columns: 1fr; gap: 16px; }
-  .feat-tx { padding: 18px 18px 22px; }
-  .shelf { grid-template-columns: 1fr; gap: 36px; }
-  .tier { grid-template-columns: minmax(0, 1fr); grid-template-areas: "name" "price" "what" "sparks" "go"; padding: 20px; }
-  .tier-go { justify-self: start; margin-top: 16px; }
+  .sec { padding-block: 64px 0; }
+  .band { margin-top: 64px; padding-block: 56px; }
+  .spine-head h2 { font-size: 32px; }
+  /* The monitor takes the full width, the other three share a row. */
+  .screens { grid-template-columns: 124fr 330fr 139fr; gap: 16px; }
+  .scr-mon { grid-column: 1 / -1; order: -1; }
+  .wframe { height: 240px; }
+  .fin-links { grid-template-columns: 1fr; }
   .ft-col { grid-column: span 6; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dev.on .scr .now { animation: none; }
   .js .dev:not(.on) .scr .now { opacity: 1; }
-  .scr .next, .key, .tier, .tier-go { transition: none; }
+  .scr .next, .key, .tier, .tier-go, .fin-links a, .faq summary::after { transition: none; }
 }
 @media (forced-colors: active) {
   .key, .hd-dl.lit, .mkey { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }
@@ -704,8 +747,8 @@ html[data-mobile] .onphone { display: block; }
       <a class="lang-hint" id="lang-hint" href="/" hidden></a>
       <div class="hero-grid">
         <div class="hero-copy">
-          <h1 id="h1" data-i18n="hero.h1">Xenon、PC用の無料タッチダッシュボード</h1>
-          <p class="lead for-desk" data-i18n="hero.lead">CORSAIR Xeneon Edge、余っているモニター、タブレット、スマートフォンで動作します。システム情報、メディアとマイク、キーを並べたDeck、音声アシスタントを備えています。</p>
+          <h1 id="h1" data-i18n="hero.h1">Xenon、セカンドスクリーンのための PC ダッシュボード</h1>
+          <p class="lead for-desk" data-i18n="hero.lead">無料。温度、FPS、音楽、カレンダー、タッチキーを予備の画面に。今ある画面にウィジェットとして置くこともできます。</p>
           <p class="lead for-phone" data-i18n="hero.lead.phone">XenonはWindows、Mac、LinuxのPCにインストールします。このスマートフォンは、その画面のひとつとして使えます。</p>
         </div>
         <div class="hero-act">
@@ -713,9 +756,9 @@ html[data-mobile] .onphone { display: block; }
             <svg aria-hidden="true" data-os-icon><use href="#os-win"/></svg><span data-dl-label data-i18n="cta.download">Xenonをダウンロード</span>
           </a>
           <a class="key-alt for-desk" href="/demo/" data-track="demo_click" data-track-location="hero" data-i18n="hero.try">ブラウザで試す</a>
-          <p class="facts for-desk" id="hero-facts" data-i18n="fact.win">Windows 10と11、64ビット。署名付きインストーラー。</p>
+          <p class="facts for-desk" id="hero-facts"><span id="hero-os" data-i18n="fact.win">Windows 10と11、64ビット。署名付きインストーラー。</span> <span class="ver" id="hero-ver"></span></p>
           <div class="act-row for-desk">
-            <a class="store" id="hero-store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="hero"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" alt="Get Xenon from the Microsoft Store" data-i18n-alt="store.alt"></a>
+            <a class="store" id="hero-store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="hero"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" alt="Microsoft Store で Xenon を入手" data-i18n-alt="store.alt"></a>
             <a href="#install" data-i18n="hero.alt">MacとLinux（ベータ版）</a>
           </div>
           <p class="proof for-desk" id="proof" aria-live="polite"></p>
@@ -732,7 +775,7 @@ html[data-mobile] .onphone { display: block; }
         <div class="scr" id="scr">
           <picture class="now">
             <source media="(max-width: 700px)" srcset="/images/home/phone.webp" width="780" height="1688">
-            <img id="scr-img" src="/images/home/edge-ocean-1440.webp" srcset="/images/home/edge-ocean-1440.webp 1440w, /images/home/edge-ocean.webp 2560w" sizes="(max-width: 1440px) 96vw, 1376px" width="2560" height="720" fetchpriority="high" decoding="async" alt="The Xenon dashboard on a 2560 × 720 CORSAIR Xeneon Edge: music, calendar and the PC's sensors" data-i18n-alt="scr.alt">
+            <img id="scr-img" src="/images/home/edge-ocean-1440.webp" srcset="/images/home/edge-ocean-1440.webp 1440w, /images/home/edge-ocean.webp 2560w" sizes="(max-width: 1440px) 96vw, 1376px" width="2560" height="720" fetchpriority="high" decoding="async" alt="2560 × 720のCORSAIR Xeneon Edgeに表示したXenonのダッシュボード。音楽、カレンダー、PCのセンサー" data-i18n-alt="scr.alt">
           </picture>
         </div>
         <span class="scr-tag" id="scr-tag" aria-hidden="true">Ambient</span>
@@ -750,101 +793,147 @@ html[data-mobile] .onphone { display: block; }
           <button class="chip" type="button" aria-pressed="false" data-theme-id="retro"><span class="sw" style="background:#050510;--c:#f5c518"></span>Pixel Retro</button>
           <button class="cycle" id="cycle" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" fill="currentColor" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="i-play" fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg><span class="sr" id="cycle-l" data-i18n="themes.pause">テーマを一時停止</span></button>
         </div>
-        <p class="cap" id="scr-cap"><span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean。<a href="/catalog/#deep-ocean">カタログ</a>から無料で入手できます。</span> <span data-i18n="scr.sample">ブラウザデモのサンプルデータです。</span></p>
+        <p class="cap" id="scr-cap"><span data-i18n="scr.sample">ブラウザデモのサンプルデータです。</span> <span id="theme-note" data-i18n-html="theme.ocean">Deep Ocean。<a href="/catalog/#deep-ocean">カタログ</a>から無料で入手できます。</span></p>
       </div>
     </div>
   </section>
 
   <section class="sec" id="screens" aria-labelledby="h-screens">
-    <div class="w">
-      <div class="sec-head">
-        <h2 id="h-screens" data-i18n="screens.h2">Xeneon Edge、モニター、タブレット、スマートフォン</h2>
-        <p data-i18n="screens.p">ひとつのダッシュボードが、画面の形に合わせて配置を変えます。横長の画面では24列のグリッド、縦向きの画面では専用の配置、タブレットでは2列、スマートフォンでは1列になります。</p>
+    <div class="w spine">
+      <div class="spine-head">
+        <h2 id="h-screens" data-i18n="screens.h2">手持ちのすべての画面で</h2>
+        <p data-i18n="screens.p">同じダッシュボードが画面の形に合わせて並び替わります。スマホやタブレットは家のネットワークでコードを使ってペアリングします。</p>
       </div>
-      <div class="lineup-wrap">
-        <div class="lineup">
-          <figure class="unit u-mon"><div class="dv-stack"><div class="dv"><img src="/images/home/monitor.webp" width="1600" height="900" loading="lazy" decoding="async" alt="The dashboard on a 16:9 monitor" data-i18n-alt="screens.mon.alt"></div><div class="stand"></div><div class="foot-base"></div></div>
-            <figcaption><b data-i18n="screens.mon.t">モニター</b><span data-i18n="screens.mon.p">PCにつないだディスプレイなら、タッチ対応でなくても使えます。初回起動時に、どの画面で開くかをXenonが確認します。</span></figcaption></figure>
-          <figure class="unit u-edge"><div class="dv-stack"><div class="dv"><img src="/images/home/edge-ocean-1440.webp" width="1440" height="405" loading="lazy" decoding="async" alt="The dashboard on a Xeneon Edge" data-i18n-alt="screens.edge.alt"></div></div>
-            <figcaption><b data-i18n="screens.edge.t">Xeneon Edge</b><span data-i18n-html="screens.edge.p">2560 × 720。iCUEがあってもなくても動作します。<a href="/ja/xeneon-edge-widgets.html">EdgeでのXenon</a></span></figcaption></figure>
-          <figure class="unit u-vert"><div class="dv-stack"><div class="dv"><img src="/images/home/edge-vertical.webp" width="540" height="1920" loading="lazy" decoding="async" alt="The dashboard on a Xeneon Edge mounted vertically" data-i18n-alt="screens.vert.alt"></div></div>
-            <figcaption><b data-i18n="screens.vert.t">縦置きの Edge</b><span data-i18n="screens.vert.p">同じタイルを上から下へ。</span></figcaption></figure>
-          <figure class="unit u-tab"><div class="dv-stack"><div class="dv"><img src="/images/home/tablet.webp" width="1180" height="820" loading="lazy" decoding="async" alt="The dashboard on a tablet held sideways" data-i18n-alt="screens.tab.alt"></div></div>
-            <figcaption><b><span data-i18n="screens.tab.t">タブレット</span><span class="beta" data-i18n="beta">ベータ</span></b><span data-i18n-html="screens.tab.p">Wi-Fi経由でQRコードからペアリングします。<a href="/ja/tablet-dashboard.html">仕組み</a></span></figcaption></figure>
-          <figure class="unit u-ph"><div class="dv-stack"><div class="dv"><img src="/images/home/phone.webp" width="780" height="1688" loading="lazy" decoding="async" alt="The dashboard on a phone" data-i18n-alt="screens.ph.alt"></div></div>
-            <figcaption><b><span data-i18n="screens.ph.t">スマートフォン</span><span class="beta" data-i18n="beta">ベータ</span></b><span data-i18n-html="screens.ph.p">スマートフォンには何もインストールしません。ファイルは双方向に送れます。<a href="/ja/phone.html">設定方法</a></span></figcaption></figure>
+      <div class="spine-body">
+        <div class="screens">
+          <figure class="scr-edge"><img src="/images/home/screen-edge.webp" width="300" height="1067" loading="lazy" decoding="async" alt="縦置きの Xeneon Edge に表示した Xenon" data-i18n-alt="screens.edge.alt"><figcaption data-i18n="screens.cap.edge">Edge(縦置き)</figcaption></figure>
+          <figure class="scr-mon"><img src="/images/home/screen-monitor.webp" width="1200" height="675" loading="lazy" decoding="async" alt="予備の 16:9 モニターに表示した Xenon" data-i18n-alt="screens.mon.alt"><figcaption data-i18n="screens.cap.mon">予備のモニター</figcaption></figure>
+          <figure class="scr-tab"><img src="/images/home/screen-tablet.webp" width="760" height="528" loading="lazy" decoding="async" alt="横向きのタブレットに表示した Xenon" data-i18n-alt="screens.tab.alt"><figcaption><span data-i18n="screens.cap.tab">タブレット</span><span class="beta" data-i18n="beta">ベータ</span></figcaption></figure>
+          <figure class="scr-ph"><img src="/images/home/screen-phone.webp" width="320" height="693" loading="lazy" decoding="async" alt="スマホに表示した Xenon" data-i18n-alt="screens.ph.alt"><figcaption><span data-i18n="screens.cap.ph">スマホ</span><span class="beta" data-i18n="beta">ベータ</span></figcaption></figure>
         </div>
+        <p class="links"><a href="/ja/xeneon-edge-widgets.html" data-i18n="screens.l.edge">Xeneon Edge で使う</a><a href="/ja/tablet-dashboard.html" data-i18n="screens.l.tab">タブレットの設定</a><a href="/ja/phone.html" data-i18n="screens.l.ph">スマホの設定</a></p>
+        <article class="one">
+          <div class="one-tx">
+            <h3 data-i18n="one.h3">セカンドスクリーンがない? メイン画面で</h3>
+            <p data-i18n="one.p">どのウィジェットも、ウィンドウの下のデスクトップ、ゲームの上、またはアプリのウィンドウに付けて置けます。Alt+Shift+X で Xenon メニューが開きます。</p>
+            <p class="links"><a href="/ja/single-screen.html" data-i18n="one.a">1 画面で使う Xenon</a></p>
+          </div>
+          <img class="one-im" src="/images/home/desktop-widgets.webp" width="1600" height="900" loading="lazy" decoding="async" alt="Xenon の時計の壁紙の上に置いたデスクトップのウィジェット: カレンダー、再生中の音楽、CPU と GPU の値" data-i18n-alt="one.alt">
+        </article>
       </div>
-      <p class="scale-note" data-i18n="screens.scale">実際の比率で描いています。27インチのモニター、横置きと縦置きの14.5インチのEdge、11インチのタブレット、6.1インチのスマートフォンです。</p>
-    </div>
-  </section>
-
-  <section class="sec" id="bit" aria-labelledby="h-bit">
-    <div class="w">
-      <div class="sec-head">
-        <h2 id="h-bit">Bit</h2>
-        <p data-i18n="bit.p">BitはXenonの中にいて、PCを見守っています。何かあると、Bitが短いひと言で知らせます。</p>
-      </div>
-      <ul class="bits">
-        <li class="bit-card"><div class="bit-stage" data-clip="celebrate"></div><b data-i18n="bit.done.t">作業が終わったとき</b><q data-i18n="bit.done.q">できたよ、見てみて。</q></li>
-        <li class="bit-card"><div class="bit-stage" data-clip="overheat"></div><b data-i18n="bit.hot.t">PCが熱いとき</b><q data-i18n="bit.hot.q">CPUが汗かいてる。ぼくもだよ。</q></li>
-        <li class="bit-card"><div class="bit-stage" data-clip="oops"></div><b data-i18n="bit.err.t">何かが失敗したとき</b><q data-i18n="bit.err.q">うまくいかなかった。もう一回やる？</q></li>
-        <li class="bit-card"><div class="bit-stage" data-clip="drowsy"></div><b data-i18n="bit.night.t">夜遅く</b><q data-i18n="bit.night.q">もう遅いよ。ぼくは起きてるけど、君は寝たほうがいいかも。</q></li>
-      </ul>
-      <p class="bit-more" data-i18n="ctl.ai.p">「Hey Bit」と話しかけて質問できます。Gemini、OpenAI、Anthropic、Ollama経由のローカルモデルに対応し、ご自身のサブスクリプションでClaude CodeとCodexも使えます。Xenon のクレジットであるスパークなら、キーの設定も不要です。</p>
     </div>
   </section>
 
   <section class="sec" id="widgets" aria-labelledby="h-widgets">
-    <div class="w">
-      <div class="sec-head">
-        <h2 id="h-widgets" data-i18n="widgets.h2">ウィジェットとキー</h2>
-        <p data-i18n="widgets.p">サイズを変えて好きな場所に置けます。ページは最大8枚まで。</p>
+    <div class="w spine">
+      <div class="spine-head">
+        <h2 id="h-widgets" data-i18n="widgets.h2">ウィジェット</h2>
+        <p data-i18n="widgets.p">ドラッグ、サイズ変更、タブでのグループ化、複数ページへの配置ができます。</p>
       </div>
-      <div class="feats">
-        <article class="feat"><img src="/images/home/crop-system.webp" width="836" height="572" loading="lazy" decoding="async" alt="The System widget: CPU, GPU, memory, disk and network graphs" data-i18n-alt="wg.sys.alt">
-          <div class="feat-tx"><h3 data-i18n="cat.system">システム</h3><p data-i18n="ws.sys.p">CPU、GPU、メモリ、ディスク、ネットワークを履歴つきで。ゲーム内の実際のFPSも。</p></div></article>
-        <article class="feat"><img src="/images/home/crop-media.webp" width="832" height="572" loading="lazy" decoding="async" alt="The Playback widget with the track that is playing" data-i18n-alt="wg.med.alt">
-          <div class="feat-tx"><h3 data-i18n="ws.media.t">メディアと配信</h3><p data-i18n="ws.media.p">どのプレーヤーで再生中の曲もコントロールつきで。Twitch、YouTube、OBSの配信も。</p></div></article>
-        <article class="feat"><img src="/images/home/crop-calendar.webp" width="820" height="572" loading="lazy" decoding="async" alt="The Calendar widget with the next events" data-i18n-alt="wg.cal.alt">
-          <div class="feat-tx"><h3 data-i18n="cat.prod">生産性</h3><p data-i18n="ws.prod.p">カレンダー、タスク、タイマー、メモをひとつのタイルに。さらに天気とニュース。</p></div></article>
-        <article class="feat"><img src="/images/home/crop-deck.webp" width="836" height="572" loading="lazy" decoding="async" alt="The Deck widget with twelve keys: OBS scenes, recording, microphone, Discord, Spotify, playback, a screenshot and the lights" data-i18n-alt="ctl.deck.alt">
-          <div class="feat-tx"><h3 data-i18n="ctl.deck.t">Deck</h3><p data-i18n="ws.deck.p">画面上のキーで、アプリを開き、ショートカットを送り、OBSのシーンを切り替え、Discordやライトを操作できます。</p></div></article>
+      <div class="spine-body">
+        <ul class="wgrid">
+          <li><div class="wframe"><img src="/images/home/w-system.webp" width="506" height="560" loading="lazy" decoding="async" alt="CPU と GPU の負荷と温度を表示したシステムウィジェット" data-i18n-alt="w.sys.alt"></div><h3 data-i18n="w.sys.t">システムモニター</h3><p data-i18n="w.sys.p">CPU と GPU の負荷と温度、RAM、ディスク、ping、ネットワーク。</p></li>
+          <li><div class="wframe"><img src="/images/home/w-lyrics.webp" width="1214" height="560" loading="lazy" decoding="async" alt="アルバムカバーと再生中の曲の歌詞を表示した音楽ウィジェット" data-i18n-alt="w.media.alt"></div><h3 data-i18n="w.media.t">音楽と歌詞</h3><p data-i18n="w.media.p">Spotify と PC が認識するすべてのプレーヤー。サポーターには同期歌詞も。</p></li>
+          <li><div class="wframe"><img src="/images/home/w-deck.webp" width="406" height="560" loading="lazy" decoding="async" alt="アプリ、OBS、Discord 用のタッチキーを並べた Deck ウィジェット" data-i18n-alt="w.deck.alt"></div><h3 data-i18n="w.deck.t">Deck</h3><p data-i18n="w.deck.p">アプリ、OBS、Discord、Home Assistant、マクロ用のタッチキー。それぞれにキーボードショートカットも設定できます。</p></li>
+          <li><div class="wframe"><img src="/images/home/w-calendar.webp" width="335" height="560" loading="lazy" decoding="async" alt="次の予定を表示したカレンダーウィジェット" data-i18n-alt="w.cal.alt"></div><h3 data-i18n="w.cal.t">カレンダーとタスク</h3><p data-i18n="w.cal.p">カレンダーのフィード、リマインダー付きタスク、次の予定。</p></li>
+          <li><div class="wframe"><img src="/images/home/w-discord.webp" width="809" height="560" loading="lazy" decoding="async" alt="ボイスチャンネルとミュート、スピーカーミュートのキーを表示した Discord ウィジェット" data-i18n-alt="w.dc.alt"></div><h3 data-i18n="w.dc.t">Discord</h3><p data-i18n="w.dc.p">話している人、ミュート、スピーカーミュート、チャンネル。ゲームを離れずに。</p></li>
+          <li><div class="wframe"><img src="/images/home/w-notes.webp" width="478" height="560" loading="lazy" decoding="async" alt="タブ付きのメモウィジェット" data-i18n-alt="w.notes.alt"></div><h3 data-i18n="w.notes.t">メモとタイマー</h3><p data-i18n="w.notes.p">タブ付きメモ、集中タイマー、ストップウォッチ。</p></li>
+        </ul>
+        <p class="links"><a href="/ja/widgets.html" data-i18n="ws.all">ウィジェットの一覧</a><a href="/ja/claude-code.html" data-i18n="ctl.claude.more">画面で使う Claude Code</a><a href="/ja/codex.html" data-i18n="ctl.codex.more">画面で使う Codex</a><a href="/create/#widgets" data-i18n="ws.make">ウィジェットを作る</a></p>
       </div>
-      <p class="links"><a href="/ja/widgets.html" data-i18n="ws.all">ウィジェットの一覧</a><a href="/ja/claude-code.html" data-i18n="ctl.claude.more">画面で使う Claude Code</a><a href="/ja/codex.html" data-i18n="ctl.codex.more">画面で使う Codex</a><a href="/create/#widgets" data-i18n="ws.make">ウィジェットを作る</a></p>
     </div>
   </section>
 
-  <section class="sec" id="community" aria-labelledby="h-cat">
-    <div class="w">
-      <div class="sec-head">
+  <section class="sec band" id="games" aria-labelledby="h-games">
+    <div class="w spine">
+      <div class="spine-head">
+        <h2 id="h-games" data-i18n="games.h2">FPS とインスタントリプレイ</h2>
+        <p data-i18n="games.p">Windows で、どのゲームでも、どのメーカーの GPU でも FPS、1% と 0.1% low、フレームタイムを表示。Xenon はゲームにコードを注入しません。</p>
+        <p class="links"><a href="/ja/fps-overlay.html" data-i18n="games.l.fps">1% low も出る FPS オーバーレイ</a><a href="/ja/screen-recorder.html" data-i18n="games.l.rec">画面録画とインスタントリプレイ</a></p>
+      </div>
+      <div class="spine-body games">
+        <figure class="games-im"><img src="/images/home/perf-hud.webp" width="814" height="900" loading="lazy" decoding="async" alt="ゲームパフォーマンスウィジェット: 平均 FPS、1% と 0.1% low、フレームタイムのグラフ、CPU と GPU の負荷" data-i18n-alt="games.alt"><figcaption data-i18n="games.cap">セカンドスクリーンに、またはゲームの上に。</figcaption></figure>
+        <ul class="items">
+          <li><h3 data-i18n="games.1.t">インスタントリプレイ</h3><p data-i18n="games.1.p">Ctrl+Shift+F10 で直前の数秒を保存。秒数は自由に選べます。トリミング、9:16 で書き出し、スマホへ送信。</p></li>
+          <li><h3 data-i18n="games.2.t">カクつく理由</h3><p data-i18n="games.2.p">フレームが落ちたら一文で: CPU コアが 100%、VRAM がいっぱい、ゲームがまだ読み込み中。</p></li>
+          <li><h3 data-i18n="games.3.t">すべてのプレイを記録</h3><p data-i18n="games.3.p">ゲームごとの平均 FPS と low を、前回と比較。</p></li>
+          <li><h3 data-i18n="games.4.t">自動でクリップ</h3><p data-i18n="games.4.p">瞬間をマークすると Xenon がその前後をクリップにします。カクつきも自動でマークできます。</p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="work" aria-labelledby="h-work">
+    <div class="w spine">
+      <div class="spine-head">
+        <h2 id="h-work" data-i18n="work.h2">仕事のツール</h2>
+        <p data-i18n="work.p">オフィス、学校、サポートデスクに。スクリーンショット、テキスト、録画は PC に残ります。</p>
+      </div>
+      <div class="spine-body">
+        <ul class="work">
+          <li><h3 data-i18n="work.1.t">画面から文字を取る</h3><p data-i18n="work.1.p">スキャン、スライド、コピーできないアプリの上をドラッグして文字を貼り付け。</p></li>
+          <li><h3 data-i18n="work.2.t">手順レコーダー</h3><p data-i18n="work.2.p">クリックごとの画像を、手順書のページにまとめます。</p></li>
+          <li><h3 data-i18n="work.3.t">文字起こしとチャプター</h3><p data-i18n="work.3.p">2 分の説明動画を録画: 字幕は PC 上で作成、チャプターは Bit が付けます。</p></li>
+          <li><h3 data-i18n="work.4.t">個人情報を隠す</h3><p data-i18n="work.4.p">スクリーンショット内のメールアドレスや長い番号を見つけ、共有前に隠します。</p></li>
+          <li><h3 data-i18n="work.5.t">スクリーンショットを固定</h3><p data-i18n="work.5.p">画像をウィンドウの上に置いたまま、見ながら書き写せます。</p></li>
+          <li><h3 data-i18n="work.6.t">キー 1 つでバグレポート</h3><p data-i18n="work.6.p">インスタントリプレイがオンなら、ウィンドウの直前の数秒、スクリーンショット、システム情報を 1 つの zip に。</p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="bit" aria-labelledby="h-bit">
+    <div class="w spine">
+      <div class="spine-head">
+        <h2 id="h-bit">Bit</h2>
+        <p data-i18n="bit.p">Xenon に入っているアシスタント。声でも文字でも。</p>
+      </div>
+      <div class="spine-body bitrow">
+        <img class="bit-im" src="/images/home/bit-chat.webp" width="520" height="640" loading="lazy" decoding="async" alt="Xenon の Bit のチャット: 直前の 42 秒をデスクトップに保存するよう頼むとクリップを保存し、FPS を聞くと平均、1% と 0.1% low、最も遅いフレームを答えます" data-i18n-alt="bit.alt">
+        <div class="bit-tx">
+          <h3 data-i18n="bit.ask">頼めること</h3>
+          <ul class="asks">
+            <li data-i18n="bit.q1">天気をデスクトップに置いて</li>
+            <li data-i18n="bit.q2">ゲームがカクつくのはなぜ?</li>
+            <li data-i18n="bit.q3">25 分のタイマーを開始して</li>
+            <li data-i18n="bit.q4">画面の文字をコピーして</li>
+          </ul>
+          <p class="bit-more" data-i18n="ctl.ai.p">「Hey Bit」と話しかけて質問できます。Gemini、OpenAI、Anthropic、Ollama経由のローカルモデルに対応し、ご自身のサブスクリプションでClaude CodeとCodexも使えます。Xenon のクレジットであるスパークなら、キーの設定も不要です。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="catalog" aria-labelledby="h-cat">
+    <div class="w spine">
+      <div class="spine-head">
         <h2 id="h-cat" data-i18n="cat.h2">カタログ</h2>
-        <p id="cat-p" data-i18n="cat.p">Xenon用のテーマ、ウィジェット、シーンです。無料のものとサポーター向けのものがあります。どれもコードからインストールでき、先にプレビューを確認できます。</p>
+        <p data-i18n="cat.p">コミュニティが作ったテーマ、ウィジェット、シーンを、アプリの中からインストール。</p>
+        <p class="links"><a href="/catalog/" data-i18n="cat.open">カタログを開く</a></p>
       </div>
-      <div class="shelf" id="cat"></div>
-      <p class="links"><a href="/catalog/" data-i18n="cat.more">カタログを見る</a><a href="/submit/" data-i18n="cat.submit">作品を公開</a></p>
-    </div>
-  </section>
-
-  <section class="sec" id="make" aria-labelledby="h-make">
-    <div class="w maker">
-      <div class="maker-tx">
-        <h2 id="h-make"><span data-i18n="make.h2">Xenon Maker</span><span class="beta" data-i18n="beta">ベータ</span></h2>
-        <p data-i18n="make.p">ウィジェット、テーマ、アニメーション背景、Ambientシーン、ページ、Deckのキーを、ブラウザでコードなしで作れます。作ったものはXenonに貼り付けるコードになり、カタログに送ることもできます。</p>
-        <a class="key-alt" href="/maker/" data-i18n="make.open">Xenon Makerを開く</a>
-        <p class="links"><a href="/create/" data-i18n="make.guide">作る人のためのガイド</a><a href="/create/#sdk" data-i18n="make.sdk">コードで作るウィジェット</a></p>
+      <div class="spine-body">
+        <h3 data-i18n="cat.free.h">無料、インストール数の多い順</h3>
+        <div class="shelf" id="cat"></div>
+        <div class="shelf-head">
+          <h3 data-i18n="cat.sup.h">サポーター向け</h3>
+          <a href="#support" data-i18n="cat.sup.note">5 USD から含まれます。サポーターを見る</a>
+        </div>
+        <div class="shelf" id="cat-sup"></div>
+        <div class="makerbox">
+          <p><span data-i18n-html="cat.maker"><b>自分で作る。</b>Xenon Maker なら、ブラウザでコードなしにウィジェットやテーマを作れます。</span></p>
+          <p class="links"><a href="/maker/"><span data-i18n="make.open">Xenon Makerを開く</span><span class="beta" data-i18n="beta">ベータ</span></a><a href="/submit/" data-i18n="cat.submit">作品を公開</a></p>
+        </div>
       </div>
-      <img class="maker-im" src="/images/home/maker.webp" width="1600" height="1000" loading="lazy" decoding="async" alt="Xenon Maker: the screen where you pick what to make, from a widget or a theme to Deck keys or a whole package" data-i18n-alt="make.alt">
     </div>
   </section>
 
   <section class="sec" id="support" aria-labelledby="h-sup">
-    <div class="w">
-      <div class="sec-head">
+    <div class="w spine">
+      <div class="spine-head">
         <h2 id="h-sup" data-i18n="sup.h2">サポーター</h2>
-        <p data-i18n="sup.p">Xenonは無料で、1人の開発者が作っています。サポーターには毎月カタログの新作が届き、その支援が開発を支えます。名前はこのページに載ります。</p>
+        <p data-i18n="sup.p">Xenon は無料で、1 人の開発者が作っています。サポーターには毎月の配布、Discord のロール、下に載る名前、そして毎月 300 Sparks が届きます。</p>
       </div>
-      <div class="sup-cols">
+      <div class="spine-body sup-cols">
         <div class="sup-offers">
           <div class="tiers" id="tiers">
             <a class="tier" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_coffee">
@@ -885,27 +974,45 @@ html[data-mobile] .onphone { display: block; }
     </div>
   </section>
 
-  <section class="sec" id="install" aria-labelledby="h-inst">
-    <div class="w">
-      <div class="sec-head">
+  <section class="sec" id="faq" aria-labelledby="h-faq">
+    <div class="w spine">
+      <div class="spine-head">
+        <h2 id="h-faq" data-i18n="faq.h2">よくある質問</h2>
+        <p data-i18n-html="faq.p">詳しくは<a href="/ja/faq.html">ヘルプ</a>へ。<a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a> でも質問できます。</p>
+      </div>
+      <div class="spine-body faq">
+        <details open><summary data-i18n="faq.1.q">セカンドスクリーンは必要?</summary><p data-i18n="faq.1.a">いいえ。ウィジェット、FPS オーバーレイ、キャプチャは今の画面で使えます。スマホもセカンドスクリーンになります。</p></details>
+        <details><summary data-i18n="faq.2.q">ゲームに手を加えますか?</summary><p data-i18n="faq.2.a">いいえ。Xenon は自分のウィンドウに描画し、フレームタイムは Windows から読み取ります。ゲームには何も注入しないので、アンチチートに検知されるものはありません。</p></details>
+        <details><summary data-i18n="faq.3.q">本当に無料?</summary><p data-i18n="faq.3.a">はい。サポーターは毎月の配布と Sparks を受け取り、歌詞と開発者クリーンアップが使えるようになります。</p></details>
+        <details><summary data-i18n="faq.4.q">どの温度と GPU を読み取れますか?</summary><p data-i18n="faq.4.a">Windows では NVIDIA、AMD、Intel の CPU と GPU。macOS と Linux はシステムが公開している値を読み取ります(ベータ)。</p></details>
+        <details><summary data-i18n="faq.5.q">CORSAIR Xeneon Edge で使えますか?</summary><p data-i18n="faq.5.a">はい。横置きでも縦置きでも、Xeneon Edge の上で作られました。ほかのモニター、タブレット、スマホでも使えます。</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec band" id="install" aria-labelledby="h-inst">
+    <div class="w fin">
+      <div class="fin-tx">
         <h2 id="h-inst" data-i18n="inst.h2">Xenonをダウンロード</h2>
-        <p data-i18n="inst.p">無料。Windows 10と11に対応し、MacとLinuxはベータ版です。</p>
+        <p data-i18n="inst.p">無料。Windows 10 と 11 向けの署名付きインストーラー。Mac と Linux はベータです。</p>
+        <div class="fin-notes">
+          <p data-i18n-html="inst.priv">アカウントは不要です。設定、メモ、ファイル、センサーの計測値はPCに残ります。<a href="/ja/privacy.html">オンラインに送られるもの</a></p>
+          <p data-i18n-html="inst.check">各リリースには、署名付きのSHA256チェックサムが<a href="https://github.com/marcimastro98/Xenon/releases/latest">GitHub</a>に掲載されています。<a href="/ja/xenon-exe.html">ダウンロードの確認方法</a></p>
+        </div>
       </div>
-      <div class="fin-act">
-        <a class="key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="final">
-          <svg aria-hidden="true" data-os-icon><use href="#os-win"/></svg><span data-dl-label data-i18n="cta.download">Xenonをダウンロード</span>
-        </a>
-        <a class="store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="final"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" loading="lazy" alt="Get Xenon from the Microsoft Store" data-i18n-alt="store.alt"></a>
-      </div>
-      <p class="links fin-links"><a href="/ja/mac.html" data-i18n="dl.mac.guide">Mac ガイド</a><a href="/ja/linux.html" data-i18n="dl.linux.guide">Linuxガイド</a><a href="/ja/download.html" data-i18n="inst.all">すべてのダウンロード</a></p>
-      <div class="onphone">
-        <b data-i18n="dl.onphone.t">いまスマートフォンで見ています。</b>
-        <p data-i18n="dl.onphone.p">Xenonは、実行するPCにインストールします。リンクを自分に送り、そのあと「設定」&gt;「スマートフォン」&gt;「デバイスを追加」からこのスマートフォンをペアリングしてください。</p>
-        <a href="/ja/phone.html" data-track="phone_guide_click" data-track-location="downloads_mobile" data-i18n="dl.phone.a">ペアリングの仕組み</a>
-      </div>
-      <div class="fin-notes">
-        <p data-i18n-html="inst.priv">アカウントは不要です。設定、メモ、ファイル、センサーの計測値はPCに残ります。<a href="/ja/privacy.html">オンラインに送られるもの</a></p>
-        <p data-i18n-html="inst.check">各リリースには、署名付きのSHA256チェックサムが<a href="https://github.com/marcimastro98/Xenon/releases/latest">GitHub</a>に掲載されています。<a href="/ja/xenon-exe.html">ダウンロードの確認方法</a></p>
+      <div class="fin-col">
+        <div class="fin-act">
+          <a class="key" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="final">
+            <svg aria-hidden="true" data-os-icon><use href="#os-win"/></svg><span data-dl-label data-i18n="cta.download">Xenonをダウンロード</span>
+          </a>
+          <a class="store" href="https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0" rel="noopener" data-track="store_click" data-track-location="final"><img data-store-badge src="/images/store/ms-store-en.svg" width="161" height="44" loading="lazy" alt="Microsoft Store で Xenon を入手" data-i18n-alt="store.alt"></a>
+        </div>
+        <p class="fin-links"><a href="/ja/mac.html" data-i18n="dl.mac.guide">Mac ガイド</a><a href="/ja/linux.html" data-i18n="dl.linux.guide">Linuxガイド</a><a href="/ja/download.html" data-i18n="inst.all">すべてのダウンロード</a></p>
+        <div class="onphone">
+          <b data-i18n="dl.onphone.t">いまスマートフォンで見ています。</b>
+          <p data-i18n="dl.onphone.p">Xenonは、実行するPCにインストールします。リンクを自分に送り、そのあと「設定」&gt;「スマートフォン」&gt;「デバイスを追加」からこのスマートフォンをペアリングしてください。</p>
+          <a href="/ja/phone.html" data-track="phone_guide_click" data-track-location="downloads_mobile" data-i18n="dl.phone.a">ペアリングの仕組み</a>
+        </div>
       </div>
     </div>
   </section>
@@ -961,8 +1068,9 @@ html[data-mobile] .onphone { display: block; }
     {
       "@type": "Person",
       "@id": "https://xenon-app.com/#author",
-      "name": "marcimastro98",
-      "url": "https://github.com/marcimastro98"
+      "name": "Marcello Mastroeni",
+      "url": "https://github.com/marcimastro98",
+      "alternateName": "marcimastro98"
     },
     {
       "@type": "Organization",
@@ -970,8 +1078,14 @@ html[data-mobile] .onphone { display: block; }
       "name": "Xenon",
       "url": "https://xenon-app.com/",
       "logo": "https://xenon-app.com/images/logo-mark.png",
-      "founder": { "@id": "https://xenon-app.com/#author" },
-      "sameAs": ["https://github.com/marcimastro98/Xenon", "https://discord.gg/MBVrw9kZyg"]
+      "founder": {
+        "@id": "https://xenon-app.com/#author"
+      },
+      "sameAs": [
+        "https://github.com/marcimastro98/Xenon",
+        "https://discord.gg/MBVrw9kZyg",
+        "https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0"
+      ]
     },
     {
       "@type": "WebSite",
@@ -980,7 +1094,9 @@ html[data-mobile] .onphone { display: block; }
       "name": "Xenon",
       "alternateName": "xenon-app.com",
       "inLanguage": "ja",
-      "publisher": { "@id": "https://xenon-app.com/#org" }
+      "publisher": {
+        "@id": "https://xenon-app.com/#org"
+      }
     },
     {
       "@type": "SoftwareApplication",
@@ -989,29 +1105,71 @@ html[data-mobile] .onphone { display: block; }
       "url": "https://xenon-app.com/",
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "System monitor and touch dashboard",
-      "operatingSystem": "Windows 10, Windows 11, macOS 11 or later (beta), Linux (beta)",
-      "description": "Xenon turns a CORSAIR Xeneon Edge, a spare monitor, a tablet or a phone into a touch dashboard for a PC: system monitoring, media and microphone control, a Deck of programmable keys, a voice assistant and file transfer.",
-      "downloadUrl": "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe",
-      "installUrl": "https://xenon-app.com/#install",
+      "operatingSystem": "Windows 10, Windows 11, macOS 11 or later (Beta), Linux (Beta)",
+      "description": "Xenon turns a spare monitor, a tablet, a phone or a CORSAIR Xeneon Edge into a touch dashboard for a PC, and puts the same widgets on the desktop or over a game on a single screen: system and game performance, media and microphone control, a Deck of programmable keys, screen recording, a voice assistant and file transfer.",
+      "downloadUrl": [
+        "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe",
+        "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg",
+        "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage",
+        "https://apps.microsoft.com/detail/XPFCJFFQ3DQSK0"
+      ],
+      "installUrl": "https://xenon-app.com/download.html",
       "releaseNotes": "https://github.com/marcimastro98/Xenon/releases/latest",
       "codeRepository": "https://github.com/marcimastro98/Xenon",
       "license": "https://github.com/marcimastro98/Xenon/blob/main/LICENSE",
       "isAccessibleForFree": true,
       "inLanguage": "ja",
-      "author": { "@id": "https://xenon-app.com/#author" },
-      "publisher": { "@id": "https://xenon-app.com/#org" },
-      "screenshot": { "@id": "https://xenon-app.com/#hero-image" },
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock", "url": "https://xenon-app.com/" },
+      "author": {
+        "@id": "https://xenon-app.com/#author"
+      },
+      "publisher": {
+        "@id": "https://xenon-app.com/#org"
+      },
+      "screenshot": [
+        {
+          "@id": "https://xenon-app.com/#hero-image"
+        },
+        {
+          "@type": "ImageObject",
+          "url": "https://xenon-app.com/images/home/desktop-widgets.webp",
+          "width": 1600,
+          "height": 900,
+          "caption": "Xenon widgets on the desktop of a single screen: calendar, music and CPU and GPU readings"
+        },
+        {
+          "@type": "ImageObject",
+          "url": "https://xenon-app.com/images/home/perf-hud.webp",
+          "width": 814,
+          "height": 900,
+          "caption": "The game performance widget: average FPS, 1% and 0.1% lows, frame time graph, CPU and GPU load"
+        },
+        {
+          "@type": "ImageObject",
+          "url": "https://xenon-app.com/images/home/screen-phone.webp",
+          "width": 320,
+          "height": 693,
+          "caption": "The Xenon dashboard on a phone"
+        }
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": "https://xenon-app.com/"
+      },
       "featureList": [
-        "System monitoring: CPU, GPU, memory, storage, network and in-game frame rate",
+        "System monitoring: CPU, GPU, memory, storage and network",
+        "Game performance widget with average FPS, 1% and 0.1% lows and frame time",
+        "Widgets on the desktop, over games or attached to an app window, on a single screen",
+        "Screenshots, screen recording, Instant Replay and a clip gallery",
+        "Copy text from the screen, colour picker and on-screen ruler",
         "Media controls, audio output switching and microphone mute",
         "A Deck of programmable keys for apps, OBS, hotkeys, webhooks, Discord and Voicemeeter",
         "A voice assistant with Gemini, OpenAI, Anthropic, local models, Claude Code and Codex",
-        "Claude Code permission prompts answered from the touchscreen",
         "File transfer between the PC and a paired phone or tablet",
-        "45 widgets on a 24-column grid, up to 8 pages",
-        "Themes, animated backgrounds, Ambient scenes, a community catalog and a widget SDK",
-        "Runs on a CORSAIR Xeneon Edge, a spare monitor, a tablet or a phone"
+        "Themes, animated backgrounds, Ambient scenes, a community catalog, Xenon Maker and a widget SDK",
+        "Runs on a spare monitor, a tablet, a phone or a CORSAIR Xeneon Edge"
       ]
     },
     {
@@ -1027,10 +1185,16 @@ html[data-mobile] .onphone { display: block; }
       "@type": "WebPage",
       "@id": "https://xenon-app.com/#webpage",
       "url": "https://xenon-app.com/ja/",
-      "name": "Xenon: free touch dashboard for Xeneon Edge, monitor, phone",
-      "isPartOf": { "@id": "https://xenon-app.com/#website" },
-      "about": { "@id": "https://xenon-app.com/#app" },
-      "primaryImageOfPage": { "@id": "https://xenon-app.com/#hero-image" },
+      "name": "Xenon: サブモニター用の無料PCダッシュボード",
+      "isPartOf": {
+        "@id": "https://xenon-app.com/#website"
+      },
+      "about": {
+        "@id": "https://xenon-app.com/#app"
+      },
+      "primaryImageOfPage": {
+        "@id": "https://xenon-app.com/#hero-image"
+      },
       "inLanguage": "ja"
     }
   ]
@@ -1044,8 +1208,8 @@ html[data-mobile] .onphone { display: block; }
   const I18N = {};
 
   I18N.en = {
-    "meta.title": "Xenon: free touch dashboard for Xeneon Edge, monitor, phone",
-    "meta.desc": "A free app that turns a CORSAIR Xeneon Edge, a spare monitor, a tablet or your phone into a touch dashboard for your PC: system stats, media, mic, Deck keys and voice AI.",
+    "meta.title": "Xenon: free PC dashboard for a second screen or Xeneon Edge",
+    "meta.desc": "Free app that turns a spare monitor, tablet, phone or Xeneon Edge into a touch PC dashboard: temps, FPS, media, Deck keys. Windows; macOS, Linux Beta.",
     "skip": "Skip to content",
     "nav.catalog": "Catalog",
     "nav.maker": "Maker",
@@ -1058,8 +1222,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "Demo",
     "nav.coffee": "Buy me a coffee",
     "lang.hint": "This page is also in English",
-    "hero.h1": "Xenon, a free touch dashboard for your PC",
-    "hero.lead": "It runs on a CORSAIR Xeneon Edge, a spare monitor, a tablet or your phone: system stats, media and mic, a Deck of keys and a voice assistant.",
+    "hero.h1": "Xenon, the PC dashboard for your second screen",
+    "hero.lead": "Free. Temperatures, FPS, music, calendar and touch keys on a spare screen, or as widgets on the one you already have.",
     "hero.lead.phone": "Xenon installs on a Windows, Mac or Linux PC. This phone can be one of its screens.",
     "cta.download": "Download Xenon",
     "cta.download.os": "Download for {os}",
@@ -1093,53 +1257,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "Shown now: its Ambient screen saver.",
     "themes.pause": "Pause the themes",
     "themes.play": "Play the themes",
-    "screens.h2": "Xeneon Edge, monitor, tablet, phone",
-    "screens.p": "One dashboard that rearranges itself for each shape: a 24-column grid on a wide screen, a layout of its own on a vertical screen, two columns on a tablet, one on a phone.",
-    "screens.mon.alt": "The dashboard on a 16:9 monitor",
-    "screens.edge.alt": "The dashboard on a Xeneon Edge",
-    "screens.tab.alt": "The dashboard on a tablet held sideways",
-    "screens.ph.alt": "The dashboard on a phone",
-    "screens.mon.t": "Monitor",
-    "screens.mon.p": "Any display connected to the PC, touch or not. On first start Xenon asks which one to open on.",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720. Works with or without iCUE. <a href=\"/ja/xeneon-edge-widgets.html\">Xenon on the Edge</a>",
-    "screens.tab.t": "Tablet",
-    "screens.tab.p": "Paired by QR code over your Wi-Fi. <a href=\"/ja/tablet-dashboard.html\">How it works</a>",
-    "screens.ph.t": "Phone",
-    "screens.ph.p": "Nothing to install on it. Files go both ways. <a href=\"/ja/phone.html\">Setup</a>",
-    "screens.scale": "Drawn to scale: a 27-inch monitor, the 14.5-inch Edge lying and standing, an 11-inch tablet and a 6.1-inch phone.",
-    "screens.vert.t": "Edge, upright",
-    "screens.vert.p": "The same tiles, top to bottom.",
-    "screens.vert.alt": "The dashboard on a Xeneon Edge mounted vertically",
+    "screens.h2": "Every screen you have",
+    "screens.p": "The same dashboard rearranges itself for each shape. A phone or tablet pairs with a code on your home network.",
+    "screens.mon.alt": "Xenon on a spare 16:9 monitor",
+    "screens.edge.alt": "Xenon on a Xeneon Edge standing upright",
+    "screens.tab.alt": "Xenon on a tablet held sideways",
+    "screens.ph.alt": "Xenon on a phone",
     "beta": "Beta",
-    "widgets.h2": "Widgets and keys",
-    "widgets.p": "Resize them and place them where you want, across up to 8 pages.",
-    "wg.sys.alt": "The System widget: CPU, GPU, memory, disk and network graphs",
-    "wg.med.alt": "The Playback widget with the track that is playing",
-    "wg.cal.alt": "The Calendar widget with the next events",
-    "ws.media.t": "Media and streaming",
-    "ws.sys.p": "CPU, GPU, memory, disk and network with their history, and the real frame rate inside games.",
-    "ws.media.p": "What is playing in any player, with its controls, and your streams on Twitch, YouTube and OBS.",
-    "ws.prod.p": "Calendar, tasks, timers and notes in one tile, then weather and news.",
+    "widgets.h2": "Widgets",
+    "widgets.p": "Drag them, resize them, group them in tabs and spread them over pages.",
     "ws.make": "Make a widget",
-    "cat.prod": "Productivity",
-    "cat.system": "System",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "The Deck widget with twelve keys: OBS scenes, recording, microphone, Discord, Spotify, playback, a screenshot and the lights",
 
 
 
     "ctl.ai.p": "Ask out loud with \"Hey Bit\". It works with Gemini, OpenAI, Anthropic or a local model through Ollama, with Claude Code and Codex on your own subscription, or with Sparks, Xenon's credits, with no key to set up.",
     "cat.h2": "Catalog",
-    "cat.p": "Themes, widgets and scenes made for Xenon, free or for supporters. Each one installs from a code, with a preview first.",
-    "cat.p.n": "{n} themes, widgets and scenes, free or for supporters, {c} of them by community authors. Each one installs from a code, with a preview first.",
-    "cat.more": "Browse the catalog",
+    "cat.p": "Themes, widgets and scenes made by the community, installed from inside the app.",
     "cat.submit": "Publish yours",
-    "cat.sup": "Supporters",
-    "cat.free": "Free",
     "cat.by": "by {a}",
-    "make.h2": "Xenon Maker",
-    "make.p": "Make widgets, themes, animated backgrounds, Ambient scenes, pages and Deck keys here in the browser, without code. What you make becomes a code to paste into Xenon, and you can send it to the catalog.",
     "kind.theme": "theme",
     "kind.bundle": "pack",
     "kind.widget": "widget",
@@ -1148,7 +1283,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "Deck profile",
     "kind.page": "page",
     "sup.h2": "Supporters",
-    "sup.p": "Xenon is free and made by one developer. Supporters get the monthly catalog drops and keep it going, and their names go on this page.",
+    "sup.p": "Xenon is free and made by one developer. Supporters get the monthly drops, the Discord role, their name below and 300 Sparks a month.",
     "tier.1.price": "5 USD <small>once</small>",
     "tier.1.name": "A coffee",
     "tier.1.what": "One month of supporter drops, the Discord role and your name on this page.",
@@ -1172,7 +1307,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "Updated {d}.",
     "bill.note": "Anyone who supports Xenon appears here within a day, with the first word of their name or a nickname they ask for, and no link. Removed on request.",
     "inst.h2": "Download Xenon",
-    "inst.p": "Free. Windows 10 and 11, with Mac and Linux in beta.",
+    "inst.p": "Free. A signed installer for Windows 10 and 11; Mac and Linux are in beta.",
     "dl.linux.guide": "Linux guide",
     "dl.onphone.t": "You are on a phone right now.",
     "dl.onphone.p": "Xenon installs on the PC it runs from. Send yourself the link, then pair this phone from Settings, Phone, Add device.",
@@ -1210,31 +1345,100 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "OpenAI Codex on a touchscreen",
     "ft.sensor": "A sensor panel for your PC",
     "hero.try": "Try it in your browser",
-    "bit.p": "Bit lives in Xenon and keeps an eye on your PC. When something happens, Bit says so in one short line.",
-    "bit.done.t": "A job is done",
-    "bit.hot.t": "The PC runs hot",
-    "bit.err.t": "Something failed",
-    "bit.night.t": "It is late",
-    "ws.deck.p": "Keys on the screen that open apps, send shortcuts, switch OBS scenes and control Discord and the lights.",
+    "bit.p": "The assistant inside Xenon, by voice or by text.",
     "make.open": "Open Xenon Maker",
-    "make.guide": "The maker’s guide",
-    "make.sdk": "Widgets in code",
-    "make.alt": "Xenon Maker: the screen where you pick what to make, from a widget or a theme to Deck keys or a whole package",
     "sup.unlock": "Supporters also unlock Lyrics and Developer cleanup inside Xenon, and Lyrics can be tried free for 7 days, once per PC.",
     "sup.sparks": "No need to be a supporter: Sparks come in packs of 500, 1050 or 2200 for 5, 10 or 20 USD, and they never expire.",
     "sup.sparks.go": "Extras on Buy Me a Coffee",
     "bill.thanks": "Thank you",
     "inst.all": "All downloads",
     "inst.priv": "No account. Settings, notes, files and sensor readings stay on your PC. <a href=\"/ja/privacy.html\">What goes online</a>",
-    "bit.done.q": "Done, take a look.",
-    "bit.hot.q": "The CPU is sweating. So am I.",
-    "bit.err.q": "That one didn’t work. Try again?",
-    "bit.night.q": "It’s late. I stay on, maybe you shouldn’t.",
+    "screens.cap.edge": "Edge, upright",
+    "screens.cap.mon": "Spare monitor",
+    "screens.cap.tab": "Tablet",
+    "screens.cap.ph": "Phone",
+    "screens.l.edge": "Xenon on the Xeneon Edge",
+    "screens.l.tab": "Tablet setup",
+    "screens.l.ph": "Phone setup",
+    "one.h3": "No second screen? Your main one",
+    "one.p": "Any widget sits on your desktop under your windows, over your game, or follows an app window. Alt+Shift+X opens the Xenon menu.",
+    "one.a": "Xenon on one screen",
+    "one.alt": "Xenon widgets on the desktop, over Xenon's own clock wallpaper: the calendar, the music playing and CPU and GPU readings",
+    "w.sys.t": "System monitor",
+    "w.sys.p": "CPU and GPU load and temperature, RAM, disks, ping and network.",
+    "w.sys.alt": "The System widget with CPU and GPU load and temperature",
+    "w.media.t": "Music and lyrics",
+    "w.media.p": "Spotify and any player your PC knows, plus synced lyrics for supporters.",
+    "w.media.alt": "The music widget with the album cover and the lyrics of the song playing",
+    "w.deck.t": "Deck",
+    "w.deck.p": "Touch keys for apps, OBS, Discord, Home Assistant and macros; each can have a keyboard shortcut.",
+    "w.deck.alt": "The Deck widget with touch keys for apps, OBS and Discord",
+    "w.cal.t": "Calendar and tasks",
+    "w.cal.p": "Your calendar feeds, tasks with reminders, and the next events.",
+    "w.cal.alt": "The calendar widget with the next events",
+    "w.dc.t": "Discord",
+    "w.dc.p": "Who is talking, mute, deafen and channels, without leaving the game.",
+    "w.dc.alt": "The Discord widget with the voice channel and the mute and deafen keys",
+    "w.notes.t": "Notes and timers",
+    "w.notes.p": "Notes in tabs, focus timers and a stopwatch.",
+    "w.notes.alt": "The notes widget with tabs",
+    "games.h2": "FPS and Instant Replay",
+    "games.p": "FPS, 1% and 0.1% lows and frame time for any game, on any GPU brand, on Windows. Xenon never injects code into the game.",
+    "games.alt": "The game performance widget: average FPS, 1% and 0.1% lows, frame time graph and CPU and GPU load",
+    "games.cap": "On a second screen, or over the game itself.",
+    "games.1.t": "Instant Replay",
+    "games.1.p": "Ctrl+Shift+F10 saves the last seconds, as many as you choose. Trim, export 9:16 and send to your phone.",
+    "games.2.t": "Why it stutters",
+    "games.2.p": "One sentence when frames drop: a CPU core at 100%, VRAM full, a game still loading.",
+    "games.3.t": "Every game saved",
+    "games.3.p": "Average FPS and lows per game, compared with the time before.",
+    "games.4.t": "Clips by themselves",
+    "games.4.p": "Mark a moment and Xenon cuts a clip around it. It can mark stutters too.",
+    "work.h2": "Work tools",
+    "work.p": "For the office, school and support desks. Screenshots, text and recordings stay on your PC.",
+    "work.1.t": "Text from the screen",
+    "work.1.p": "Drag over a scan, a slide or a locked app and paste its text.",
+    "work.2.t": "Step recorder",
+    "work.2.p": "A picture of every click, written up as a how-to page.",
+    "work.3.t": "Transcripts and chapters",
+    "work.3.p": "Record a 2 minute explainer: subtitles made on your PC, chapters from Bit.",
+    "work.4.t": "Hide private data",
+    "work.4.p": "Emails and long numbers found in a screenshot and covered before you share it.",
+    "work.5.t": "Pin a screenshot",
+    "work.5.p": "Keep a picture above your windows while you copy from it.",
+    "work.6.t": "Bug report in one key",
+    "work.6.p": "With Instant Replay on, the last seconds of the window, a screenshot and system details in one zip.",
+    "bit.alt": "Bit's chat in Xenon: asked to save the last 42 seconds to the Desktop, it saves the clip there; asked about FPS, it gives the average, the 1% and 0.1% lows and the slowest frame",
+    "bit.ask": "Things to ask",
+    "bit.q1": "Put the weather on my desktop",
+    "bit.q2": "Why is my game stuttering?",
+    "bit.q3": "Start a 25 minute timer",
+    "bit.q4": "Copy the text on my screen",
+    "cat.open": "Open the catalog",
+    "cat.free.h": "Free, most installed",
+    "cat.sup.h": "For supporters",
+    "cat.sup.note": "Included from 5 USD, see Supporters",
+    "cat.maker": "<b>Make your own.<\/b> Xenon Maker builds widgets and themes without code, in your browser.",
+    "cat.installs": "{n} installs",
+    "faq.h2": "Questions",
+    "faq.p": "More in the <a href=\"/ja/faq.html\">help pages<\/a>, or ask on <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a>.",
+    "faq.1.q": "Do I need a second screen?",
+    "faq.1.a": "No. Widgets, the FPS overlay and capture work on the screen you have. A phone works as a second screen too.",
+    "faq.2.q": "Does it touch my games?",
+    "faq.2.a": "No. Xenon draws in its own windows and reads frame times from Windows, so nothing is injected into the game for anti-cheat to flag.",
+    "faq.3.q": "Is it really free?",
+    "faq.3.a": "Yes. Supporters get the monthly drops and Sparks, and unlock Lyrics and Developer cleanup.",
+    "faq.4.q": "Which temperatures and GPUs does it read?",
+    "faq.4.a": "CPU and GPU from NVIDIA, AMD and Intel on Windows. macOS and Linux read what the system exposes (Beta).",
+    "faq.5.q": "Does it work with the CORSAIR Xeneon Edge?",
+    "faq.5.a": "Yes, it was built on one, lying flat or upright. Any monitor, tablet or phone works too.",
+    "games.l.fps": "FPS overlay with 1% lows",
+    "games.l.rec": "Screen recorder and Instant Replay",
   };
 
   I18N.fr = {
-    "meta.title": "Xenon : dashboard tactile gratuit pour Xeneon Edge, moniteur, téléphone",
-    "meta.desc": "Une application gratuite qui transforme un CORSAIR Xeneon Edge, un moniteur de rechange, une tablette ou votre téléphone en dashboard tactile pour votre PC : statistiques système, multimédia, micro, touches du Deck et IA vocale.",
+    "meta.title": "Xenon : tableau de bord PC gratuit pour un second écran",
+    "meta.desc": "App gratuite qui transforme un écran en plus, une tablette, un téléphone ou le Xeneon Edge en tableau de bord tactile du PC : températures, FPS, musique, Deck.",
     "skip": "Aller au contenu",
     "nav.catalog": "Catalogue",
     "nav.maker": "Maker",
@@ -1247,8 +1451,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "Démo",
     "nav.coffee": "Buy me a coffee",
     "lang.hint": "Cette page est également disponible en anglais",
-    "hero.h1": "Xenon, un dashboard tactile gratuit pour votre PC",
-    "hero.lead": "Il fonctionne sur un CORSAIR Xeneon Edge, un moniteur de secours, une tablette ou votre téléphone : statistiques système, médias et micro, un Deck de touches et un assistant vocal.",
+    "hero.h1": "Xenon, le tableau de bord du PC pour ton deuxième écran",
+    "hero.lead": "Gratuit. Températures, FPS, musique, agenda et touches tactiles sur un écran en plus, ou en widgets sur celui que tu as déjà.",
     "hero.lead.phone": "Xenon s'installe sur un PC Windows, Mac ou Linux. Ce téléphone peut servir de l'un de ses écrans.",
     "cta.download": "Télécharger Xenon",
     "cta.download.os": "Télécharger pour {os}",
@@ -1282,53 +1486,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "Affiché actuellement : économiseur d'écran Ambiant.",
     "themes.pause": "Mettre les thèmes en pause",
     "themes.play": "Écouter les thèmes",
-    "screens.h2": "Xeneon Edge, moniteur, tablette, téléphone",
-    "screens.p": "Un dashboard qui se réorganise pour chaque format : une grille de 24 colonnes sur un écran large, une disposition à part sur un écran vertical, deux colonnes sur une tablette et une seule sur un téléphone.",
-    "screens.mon.alt": "Le dashboard sur un moniteur 16:9",
-    "screens.edge.alt": "Le dashboard sur un Xeneon Edge",
-    "screens.tab.alt": "Le dashboard sur une tablette tenue à l'horizontale",
-    "screens.ph.alt": "Le dashboard sur un téléphone",
-    "screens.mon.t": "Moniteur",
-    "screens.mon.p": "Tout écran connecté à l'ordinateur, tactile ou non. Au premier démarrage, Xenon demande lequel ouvrir.",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720. Fonctionne avec ou sans iCUE. <a href=\"/ja/xeneon-edge-widgets.html\">Xenon sur le Xeneon Edge<\/a>",
-    "screens.tab.t": "Tablette",
-    "screens.tab.p": "Appariement par code QR via votre Wi-Fi. <a href=\"/ja/tablet-dashboard.html\">Comment ça fonctionne<\/a>",
-    "screens.ph.t": "Téléphone",
-    "screens.ph.p": "Rien à installer dessus. Les fichiers vont dans les deux sens. <a href=\"/ja/phone.html\">Installation<\/a>",
-    "screens.scale": "Représentation à l'échelle : un moniteur de 27 pouces, le Xeneon Edge de 14,5 pouces à l'horizontale et à la verticale, une tablette de 11 pouces et un téléphone de 6,1 pouces.",
-    "screens.vert.t": "Edge, à la verticale",
-    "screens.vert.p": "Les mêmes tuiles, de haut en bas.",
-    "screens.vert.alt": "Le dashboard sur un Xeneon Edge monté à la verticale",
+    "screens.h2": "Chaque écran que tu as",
+    "screens.p": "Le même tableau de bord se réorganise pour chaque format. Un téléphone ou une tablette s'associe avec un code sur le réseau de la maison.",
+    "screens.mon.alt": "Xenon sur un écran 16:9 en plus",
+    "screens.edge.alt": "Xenon sur un Xeneon Edge à la verticale",
+    "screens.tab.alt": "Xenon sur une tablette à l'horizontale",
+    "screens.ph.alt": "Xenon sur un téléphone",
     "beta": "Beta",
-    "widgets.h2": "Widgets et touches",
-    "widgets.p": "Redimensionnez-les et placez-les où vous voulez, sur 8 pages au maximum.",
-    "wg.sys.alt": "Le widget système : CPU, GPU, graphiques de la mémoire, du disque et du réseau",
-    "wg.med.alt": "Le widget de lecture avec la piste en cours de lecture",
-    "wg.cal.alt": "Le widget du calendrier avec les prochains événements",
-    "ws.media.t": "Médias et streaming",
-    "ws.sys.p": "CPU, GPU, mémoire, disque et réseau avec leur historique, et le nombre réel d'images par seconde dans les jeux.",
-    "ws.media.p": "Ce qui est en lecture dans n'importe quel lecteur, avec ses contrôles, et vos flux sur Twitch, YouTube et OBS.",
-    "ws.prod.p": "Agenda, tâches, minuteries et notes dans une seule tuile, puis la météo et les actualités.",
+    "widgets.h2": "Widgets",
+    "widgets.p": "Déplace-les, redimensionne-les, regroupe-les en onglets et répartis-les sur des pages.",
     "ws.make": "Créer un widget",
-    "cat.prod": "Productivité",
-    "cat.system": "Système",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "Le widget Deck avec douze touches : OBS scènes, enregistrement, micro, Discord, Spotify, lecture, capture d'écran et lumières",
 
 
 
     "ctl.ai.p": "Posez votre question à voix haute avec « Hey Bit ». Il fonctionne avec Gemini, OpenAI, Anthropic ou un modèle local via Ollama, avec Claude Code et Codex sur votre propre abonnement, ou avec les Étincelles, les crédits de Xenon, sans clé à configurer.",
     "cat.h2": "Catalogue",
-    "cat.p": "Thèmes, widgets et scènes créés pour Xenon, gratuits ou réservés aux supporters. Chacun s’installe à partir d’un code, avec un aperçu préalable.",
-    "cat.p.n": "{n} thèmes, widgets et scènes, gratuits ou réservés aux supporters, {c} d'entre eux créés par des auteurs de la communauté. Chacun s'installe à partir d'un code, avec un aperçu préalable.",
-    "cat.more": "Parcourir le catalogue",
+    "cat.p": "Thèmes, widgets et scènes faits par la communauté, installés depuis l'app.",
     "cat.submit": "Publiez le vôtre",
-    "cat.sup": "Supporters",
-    "cat.free": "Gratuit",
     "cat.by": "par {a}",
-    "make.h2": "Xenon Maker",
-    "make.p": "Créez des widgets, des thèmes, des fonds animés, des scènes Ambient, des pages et des touches Deck ici dans le navigateur, sans code. Ce que vous créez devient un code à coller dans Xenon, et vous pouvez l'envoyer au catalogue.",
     "kind.theme": "thème",
     "kind.bundle": "paquet",
     "kind.widget": "widget",
@@ -1337,7 +1512,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "Deck profil",
     "kind.page": "page",
     "sup.h2": "Supporters",
-    "sup.p": "Xenon est gratuit et développé par un seul développeur. Les supporters reçoivent les sorties mensuelles du catalogue, font vivre le projet et leur nom figure sur cette page.",
+    "sup.p": "Xenon est gratuit et fait par un seul développeur. Les supporters reçoivent les sorties de chaque mois, le rôle Discord, leur nom ci-dessous et 300 Étincelles par mois.",
     "tier.1.price": "5 USD <small>une fois</small>",
     "tier.1.name": "Un café",
     "tier.1.what": "Un mois de drops pour les supporters, le rôle Discord et votre nom sur cette page.",
@@ -1361,7 +1536,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "Mis à jour le {d}.",
     "bill.note": "Toute personne qui soutient Xenon apparaît ici dans un délai d'un jour, avec le premier mot de son nom ou un surnom qu'elle demande, et sans lien. Supprimé sur demande.",
     "inst.h2": "Télécharger Xenon",
-    "inst.p": "Gratuit. Windows 10 et 11, avec Mac et Linux en bêta.",
+    "inst.p": "Gratuit. Un installeur signé pour Windows 10 et 11 ; Mac et Linux sont en bêta.",
     "dl.linux.guide": "Guide Linux",
     "dl.onphone.t": "Vous êtes actuellement au téléphone.",
     "dl.onphone.p": "Xenon s'installe sur le PC à partir duquel il est exécuté. Envoyez-vous le lien, puis associez ce téléphone depuis Paramètres, Téléphone, Ajouter un appareil.",
@@ -1399,31 +1574,100 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "OpenAI Codex sur un écran tactile",
     "ft.sensor": "Un panneau de capteurs pour votre PC",
     "hero.try": "Essayez-le dans le navigateur",
-    "bit.p": "Bit vit dans Xenon et garde un œil sur votre PC. Quand quelque chose se passe, Bit le dit en une courte phrase.",
-    "bit.done.t": "Une tâche est terminée",
-    "bit.hot.t": "Le PC chauffe",
-    "bit.err.t": "Quelque chose a échoué",
-    "bit.night.t": "Il est tard",
-    "ws.deck.p": "Des touches à l'écran qui ouvrent des applications, envoient des raccourcis, changent de scène dans OBS et contrôlent Discord et les lumières.",
+    "bit.p": "L'assistant intégré à Xenon, à la voix ou par écrit.",
     "make.open": "Ouvrir Xenon Maker",
-    "make.guide": "Le guide des créateurs",
-    "make.sdk": "Widgets en code",
-    "make.alt": "Xenon Maker : l'écran où vous choisissez quoi créer, d'un widget ou d'un thème jusqu'aux touches Deck ou à un pack complet",
     "sup.unlock": "Les supporters débloquent aussi Paroles et Nettoyage développeur dans Xenon, et Paroles peut s'essayer gratuitement pendant 7 jours, une fois par PC.",
     "sup.sparks": "Pas besoin d’être supporter : les Étincelles existent en packs de 500, 1050 ou 2200 pour 5, 10 ou 20 USD, et elles n’expirent jamais.",
     "sup.sparks.go": "Extras sur Buy Me a Coffee",
     "bill.thanks": "Merci",
     "inst.all": "Tous les téléchargements",
     "inst.priv": "Aucun compte. Paramètres, notes, fichiers et relevés des capteurs restent sur votre PC. <a href=\"/ja/privacy.html\">Ce qui passe en ligne</a>",
-    "bit.done.q": "Fait, jette un œil.",
-    "bit.hot.q": "Le CPU transpire. Moi aussi.",
-    "bit.err.q": "Celle-là, je l’ai ratée. Je réessaie ?",
-    "bit.night.q": "Il est tard. Moi je reste allumé, toi peut-être pas.",
+    "screens.cap.edge": "Edge, à la verticale",
+    "screens.cap.mon": "Écran en plus",
+    "screens.cap.tab": "Tablette",
+    "screens.cap.ph": "Téléphone",
+    "screens.l.edge": "Xenon sur le Xeneon Edge",
+    "screens.l.tab": "Configurer la tablette",
+    "screens.l.ph": "Configurer le téléphone",
+    "one.h3": "Pas de deuxième écran ? L'écran principal",
+    "one.p": "N'importe quel widget se pose sur le bureau sous les fenêtres, par-dessus le jeu, ou suit la fenêtre d'une app. Alt+Maj+X ouvre le menu Xenon.",
+    "one.a": "Xenon sur un seul écran",
+    "one.alt": "Widgets Xenon sur le bureau, sur le fond d'écran horloge de Xenon : le calendrier, la musique en cours et les relevés du processeur et de la carte graphique",
+    "w.sys.t": "Moniteur système",
+    "w.sys.p": "Charge et température du CPU et du GPU, RAM, disques, ping et réseau.",
+    "w.sys.alt": "Le widget Système avec la charge et la température du CPU et du GPU",
+    "w.media.t": "Musique et paroles",
+    "w.media.p": "Spotify et tout lecteur que ton PC connaît, plus les paroles synchronisées pour les supporters.",
+    "w.media.alt": "Le widget musique avec la pochette et les paroles du morceau en cours",
+    "w.deck.t": "Deck",
+    "w.deck.p": "Des touches tactiles pour les apps, OBS, Discord, Home Assistant et les macros ; chacune peut avoir un raccourci clavier.",
+    "w.deck.alt": "Le widget Deck avec des touches tactiles pour les apps, OBS et Discord",
+    "w.cal.t": "Agenda et tâches",
+    "w.cal.p": "Tes agendas, des tâches avec rappels et les prochains événements.",
+    "w.cal.alt": "Le widget agenda avec les prochains événements",
+    "w.dc.t": "Discord",
+    "w.dc.p": "Qui parle, couper le micro, couper le son et les salons, sans quitter le jeu.",
+    "w.dc.alt": "Le widget Discord avec le salon vocal et les touches micro et son",
+    "w.notes.t": "Notes et minuteurs",
+    "w.notes.p": "Des notes en onglets, des minuteurs de concentration et un chronomètre.",
+    "w.notes.alt": "Le widget notes avec ses onglets",
+    "games.h2": "FPS et Instant Replay",
+    "games.p": "FPS, 1 % et 0,1 % low et temps de trame pour tout jeu, avec n'importe quelle marque de GPU, sous Windows. Xenon n'injecte jamais de code dans le jeu.",
+    "games.alt": "Le widget de performances en jeu : FPS moyens, 1 % et 0,1 % low, graphique du temps de trame et charge CPU et GPU",
+    "games.cap": "Sur un deuxième écran, ou par-dessus le jeu lui-même.",
+    "games.1.t": "Instant Replay",
+    "games.1.p": "Ctrl+Maj+F10 enregistre les dernières secondes, autant que tu veux. Coupe, exporte en 9:16 et envoie au téléphone.",
+    "games.2.t": "Pourquoi ça saccade",
+    "games.2.p": "Une phrase quand les images chutent : un cœur du CPU à 100 %, la VRAM pleine, un jeu qui charge encore.",
+    "games.3.t": "Chaque partie gardée",
+    "games.3.p": "FPS moyens et low par jeu, comparés à la fois d'avant.",
+    "games.4.t": "Des clips tout seuls",
+    "games.4.p": "Marque un moment et Xenon en coupe un clip. Il peut aussi marquer les saccades.",
+    "work.h2": "Outils de travail",
+    "work.p": "Pour le bureau, l'école et le support. Captures, textes et enregistrements restent sur ton PC.",
+    "work.1.t": "Texte depuis l'écran",
+    "work.1.p": "Fais glisser sur un scan, une diapo ou une app verrouillée et colle son texte.",
+    "work.2.t": "Enregistreur d'étapes",
+    "work.2.p": "Une image de chaque clic, rédigée en page de mode d'emploi.",
+    "work.3.t": "Transcriptions et chapitres",
+    "work.3.p": "Enregistre une explication de 2 minutes : sous-titres faits sur ton PC, chapitres par Bit.",
+    "work.4.t": "Masque les données privées",
+    "work.4.p": "Les e-mails et les longs numéros trouvés dans une capture et masqués avant de la partager.",
+    "work.5.t": "Épingle une capture",
+    "work.5.p": "Garde une image au-dessus de tes fenêtres pendant que tu en recopies le contenu.",
+    "work.6.t": "Rapport de bug en une touche",
+    "work.6.p": "Avec Instant Replay activé, les dernières secondes de la fenêtre, une capture et les infos système dans un seul zip.",
+    "bit.alt": "Le chat de Bit dans Xenon : quand on lui demande d'enregistrer les 42 dernières secondes sur le Bureau, il y enregistre le clip ; quand on lui demande les FPS, il donne la moyenne, les 1 % et 0,1 % low et l'image la plus lente",
+    "bit.ask": "Quoi demander",
+    "bit.q1": "Mets la météo sur mon bureau",
+    "bit.q2": "Pourquoi mon jeu saccade ?",
+    "bit.q3": "Lance un minuteur de 25 minutes",
+    "bit.q4": "Copie le texte de mon écran",
+    "cat.open": "Ouvrir le catalogue",
+    "cat.free.h": "Gratuits, les plus installés",
+    "cat.sup.h": "Pour les supporters",
+    "cat.sup.note": "Inclus dès 5 USD, voir Supporters",
+    "cat.maker": "<b>Crée les tiens.<\/b> Xenon Maker construit widgets et thèmes sans code, dans ton navigateur.",
+    "cat.installs": "{n} installations",
+    "faq.h2": "Questions",
+    "faq.p": "Plus dans les <a href=\"/fr/faq.html\">pages d'aide<\/a>, ou demande sur <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a>.",
+    "faq.1.q": "Faut-il un deuxième écran ?",
+    "faq.1.a": "Non. Les widgets, l'overlay FPS et la capture marchent sur l'écran que tu as. Un téléphone peut aussi servir de deuxième écran.",
+    "faq.2.q": "Est-ce qu'il touche à mes jeux ?",
+    "faq.2.a": "Non. Xenon dessine dans ses propres fenêtres et lit les temps de trame depuis Windows : rien n'est injecté dans le jeu que l'anti-triche pourrait signaler.",
+    "faq.3.q": "C'est vraiment gratuit ?",
+    "faq.3.a": "Oui. Les supporters reçoivent les sorties de chaque mois et des Étincelles, et débloquent Paroles et Nettoyage développeur.",
+    "faq.4.q": "Quelles températures et quels GPU lit-il ?",
+    "faq.4.a": "CPU et GPU NVIDIA, AMD et Intel sous Windows. macOS et Linux lisent ce que le système expose (bêta).",
+    "faq.5.q": "Est-ce qu'il marche avec le CORSAIR Xeneon Edge ?",
+    "faq.5.a": "Oui, il a été conçu dessus, à plat ou à la verticale. N'importe quel écran, tablette ou téléphone marche aussi.",
+    "games.l.fps": "Overlay FPS avec 1% low",
+    "games.l.rec": "Enregistrer l’écran et Instant Replay",
   };
 
   I18N.it = {
-    "meta.title": "Xenon: dashboard touch gratuita per Xeneon Edge, monitor, telefono",
-    "meta.desc": "Un'app gratuita che trasforma un CORSAIR Xeneon Edge, un monitor in più, un tablet o il telefono in una dashboard touch per il PC: sensori, musica, microfono, tasti Deck e AI vocale.",
+    "meta.title": "Xenon: dashboard PC gratis per secondo schermo o Xeneon Edge",
+    "meta.desc": "App gratis che trasforma un monitor in più, un tablet, il telefono o lo Xeneon Edge in una dashboard touch del PC: temperature, FPS, musica, tasti Deck.",
     "skip": "Vai al contenuto",
     "nav.catalog": "Catalogo",
     "nav.maker": "Maker",
@@ -1436,8 +1680,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "Demo",
     "nav.coffee": "Offrimi un caffè",
     "lang.hint": "Questa pagina c'è anche in italiano",
-    "hero.h1": "Xenon, una dashboard touch gratuita per il tuo PC",
-    "hero.lead": "Gira su un CORSAIR Xeneon Edge, un monitor in più, un tablet o il telefono: sensori del PC, musica e microfono, una Deck di tasti e un assistente vocale.",
+    "hero.h1": "Xenon, la dashboard del PC per il tuo secondo schermo",
+    "hero.lead": "Gratis. Temperature, FPS, musica, calendario e tasti touch su uno schermo in più, o come widget su quello che hai già.",
     "hero.lead.phone": "Xenon si installa su un PC Windows, Mac o Linux. Questo telefono può essere uno dei suoi schermi.",
     "cta.download": "Scarica Xenon",
     "cta.download.os": "Scarica per {os}",
@@ -1471,53 +1715,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "Ora: il suo screensaver Ambient.",
     "themes.pause": "Metti in pausa i temi",
     "themes.play": "Riprendi i temi",
-    "screens.h2": "Xeneon Edge, monitor, tablet, telefono",
-    "screens.p": "Una sola dashboard che si riorganizza per ogni forma: una griglia a 24 colonne su uno schermo largo, una disposizione tutta sua su uno schermo verticale, due colonne su un tablet, una su un telefono.",
-    "screens.mon.alt": "La dashboard su un monitor 16:9",
-    "screens.edge.alt": "La dashboard su uno Xeneon Edge",
-    "screens.tab.alt": "La dashboard su un tablet in orizzontale",
-    "screens.ph.alt": "La dashboard su un telefono",
-    "screens.mon.t": "Monitor",
-    "screens.mon.p": "Qualsiasi schermo collegato al PC, touch o no. Al primo avvio Xenon chiede su quale aprirsi.",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720. Funziona con o senza iCUE. <a href=\"/ja/xeneon-edge-widgets.html\">Xenon sull'Edge</a>",
-    "screens.tab.t": "Tablet",
-    "screens.tab.p": "Si abbina con un codice QR sul tuo Wi-Fi. <a href=\"/ja/tablet-dashboard.html\">Come funziona</a>",
-    "screens.ph.t": "Telefono",
-    "screens.ph.p": "Non ci si installa niente. I file vanno in entrambe le direzioni. <a href=\"/ja/phone.html\">Configurazione</a>",
-    "screens.scale": "Disegnati in scala: un monitor da 27 pollici, l'Edge da 14,5 in orizzontale e in verticale, un tablet da 11 e un telefono da 6,1.",
-    "screens.vert.t": "Edge, in verticale",
-    "screens.vert.p": "Gli stessi riquadri, dall'alto in basso.",
-    "screens.vert.alt": "La dashboard su uno Xeneon Edge montato in verticale",
+    "screens.h2": "Ogni schermo che hai",
+    "screens.p": "La stessa dashboard si risistema per ogni forma. Telefono e tablet si collegano con un codice sulla rete di casa.",
+    "screens.mon.alt": "Xenon su un monitor 16:9 in più",
+    "screens.edge.alt": "Xenon su uno Xeneon Edge in verticale",
+    "screens.tab.alt": "Xenon su un tablet in orizzontale",
+    "screens.ph.alt": "Xenon su un telefono",
     "beta": "Beta",
-    "widgets.h2": "Widget e tasti",
-    "widgets.p": "Li ridimensioni e li metti dove vuoi, fino a 8 pagine.",
-    "wg.sys.alt": "Il widget Sistema: grafici di CPU, GPU, memoria, disco e rete",
-    "wg.med.alt": "Il widget Riproduzione con il brano in ascolto",
-    "wg.cal.alt": "Il widget Calendario con i prossimi eventi",
-    "ws.media.t": "Media e streaming",
-    "ws.sys.p": "CPU, GPU, memoria, disco e rete con lo storico, e gli FPS reali dentro i giochi.",
-    "ws.media.p": "Cosa suona in qualsiasi lettore, con i comandi, e le tue dirette su Twitch, YouTube e OBS.",
-    "ws.prod.p": "Calendario, attività, timer e note in un solo riquadro, e poi meteo e notizie.",
+    "widgets.h2": "Widget",
+    "widgets.p": "Trascinali, ridimensionali, raggruppali in schede e distribuiscili su più pagine.",
     "ws.make": "Crea un widget",
-    "cat.prod": "Produttività",
-    "cat.system": "Sistema",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "Il widget Deck con dodici tasti: scene di OBS, registrazione, microfono, Discord, Spotify, riproduzione, uno screenshot e le luci",
 
 
 
     "ctl.ai.p": "Chiedi a voce con \"Hey Bit\". Funziona con Gemini, OpenAI, Anthropic o un modello locale tramite Ollama, con Claude Code e Codex sul tuo abbonamento, oppure con le Scintille, i crediti di Xenon, senza chiavi da configurare.",
     "cat.h2": "Catalogo",
-    "cat.p": "Temi, widget e scene fatti per Xenon, gratis o per i sostenitori. Ognuno si installa da un codice, con un'anteprima prima.",
-    "cat.p.n": "{n} temi, widget e scene, gratis o per i sostenitori, di cui {c} fatti dalla community. Ognuno si installa da un codice, con un'anteprima prima.",
-    "cat.more": "Sfoglia il catalogo",
+    "cat.p": "Temi, widget e scene fatti dalla community, installati da dentro l'app.",
     "cat.submit": "Pubblica il tuo",
-    "cat.sup": "Sostenitori",
-    "cat.free": "Gratis",
     "cat.by": "di {a}",
-    "make.h2": "Xenon Maker",
-    "make.p": "Crea widget, temi, sfondi animati, scene Ambient, pagine e tasti Deck qui nel browser, senza codice. Quello che fai diventa un codice da incollare in Xenon, e puoi mandarlo al catalogo.",
     "kind.theme": "tema",
     "kind.bundle": "pacchetto",
     "kind.widget": "widget",
@@ -1526,7 +1741,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "profilo Deck",
     "kind.page": "pagina",
     "sup.h2": "Sostenitori",
-    "sup.p": "Xenon è gratis e lo fa uno sviluppatore solo. Chi lo sostiene riceve i drop mensili del catalogo, lo tiene in vita e ha il suo nome su questa pagina.",
+    "sup.p": "Xenon è gratis e lo fa uno sviluppatore solo. I sostenitori ricevono le uscite di ogni mese, il ruolo su Discord, il nome qui sotto e 300 Scintille al mese.",
     "tier.1.price": "5 USD <small>una volta</small>",
     "tier.1.name": "Un caffè",
     "tier.1.what": "Un mese di drop per sostenitori, il ruolo su Discord e il tuo nome in questa pagina.",
@@ -1550,7 +1765,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "Aggiornato il {d}.",
     "bill.note": "Chi sostiene Xenon compare qui entro un giorno, con la prima parola del nome o un soprannome che chiede, e nessun link. Si toglie su richiesta.",
     "inst.h2": "Scarica Xenon",
-    "inst.p": "Gratis. Windows 10 e 11, con Mac e Linux in beta.",
+    "inst.p": "Gratis. Un installer firmato per Windows 10 e 11; Mac e Linux sono in beta.",
     "dl.linux.guide": "Guida Linux",
     "dl.onphone.t": "Ora sei su un telefono.",
     "dl.onphone.p": "Xenon si installa sul PC da cui gira. Mandati il link, poi abbina questo telefono da Impostazioni, Telefono, Aggiungi dispositivo.",
@@ -1588,31 +1803,100 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "OpenAI Codex su uno schermo touch",
     "ft.sensor": "Un pannello sensori per il PC",
     "hero.try": "Provalo nel browser",
-    "bit.p": "Bit vive in Xenon e tiene d'occhio il tuo PC. Quando succede qualcosa, Bit lo dice in una riga breve.",
-    "bit.done.t": "Un lavoro è finito",
-    "bit.hot.t": "Il PC scalda",
-    "bit.err.t": "Qualcosa non è andato",
-    "bit.night.t": "È tardi",
-    "ws.deck.p": "Tasti sullo schermo che aprono app, inviano scorciatoie, cambiano scena in OBS e comandano Discord e le luci.",
+    "bit.p": "L'assistente dentro Xenon, a voce o per iscritto.",
     "make.open": "Apri Xenon Maker",
-    "make.guide": "La guida per chi crea",
-    "make.sdk": "Widget in codice",
-    "make.alt": "Xenon Maker: la schermata in cui scegli cosa creare, da un widget o un tema ai tasti Deck o a un pacchetto intero",
     "sup.unlock": "I sostenitori sbloccano anche Testi delle canzoni e Pulizia sviluppatore dentro Xenon, e Testi delle canzoni si può provare gratis per 7 giorni, una volta per PC.",
     "sup.sparks": "Non serve essere sostenitori: le Scintille arrivano in pacchetti da 500, 1050 o 2200 per 5, 10 o 20 USD, e non scadono mai.",
     "sup.sparks.go": "Extra su Buy Me a Coffee",
     "bill.thanks": "Grazie",
     "inst.all": "Tutti i download",
     "inst.priv": "Nessun account. Impostazioni, note, file e letture dei sensori restano sul tuo PC. <a href=\"/ja/privacy.html\">Cosa va online</a>",
-    "bit.done.q": "Fatto, guarda un po’.",
-    "bit.hot.q": "La CPU suda. Io pure.",
-    "bit.err.q": "Questa non mi è riuscita. Riprovo?",
-    "bit.night.q": "È tardi. Io resto acceso, tu magari no.",
+    "screens.cap.edge": "Edge, in verticale",
+    "screens.cap.mon": "Monitor in più",
+    "screens.cap.tab": "Tablet",
+    "screens.cap.ph": "Telefono",
+    "screens.l.edge": "Xenon sullo Xeneon Edge",
+    "screens.l.tab": "Configura il tablet",
+    "screens.l.ph": "Configura il telefono",
+    "one.h3": "Niente secondo schermo? Il principale",
+    "one.p": "Qualsiasi widget sta sul desktop sotto le finestre, sopra il gioco, o segue la finestra di un'app. Alt+Maiusc+X apre il menu Xenon.",
+    "one.a": "Xenon su un solo schermo",
+    "one.alt": "Widget di Xenon sul desktop, sopra lo sfondo con l'orologio di Xenon: il calendario, la musica in riproduzione e le letture di CPU e GPU",
+    "w.sys.t": "Monitor di sistema",
+    "w.sys.p": "Carico e temperatura di CPU e GPU, RAM, dischi, ping e rete.",
+    "w.sys.alt": "Il widget Sistema con carico e temperatura di CPU e GPU",
+    "w.media.t": "Musica e testi",
+    "w.media.p": "Spotify e qualsiasi player che il PC conosce, più i testi sincronizzati per i sostenitori.",
+    "w.media.alt": "Il widget della musica con la copertina e il testo della canzone in riproduzione",
+    "w.deck.t": "Deck",
+    "w.deck.p": "Tasti touch per app, OBS, Discord, Home Assistant e macro; ognuno può avere una scorciatoia da tastiera.",
+    "w.deck.alt": "Il widget Deck con tasti touch per app, OBS e Discord",
+    "w.cal.t": "Calendario e attività",
+    "w.cal.p": "I tuoi calendari, attività con promemoria e i prossimi eventi.",
+    "w.cal.alt": "Il widget del calendario con i prossimi eventi",
+    "w.dc.t": "Discord",
+    "w.dc.p": "Chi sta parlando, muto, audio off e canali, senza uscire dal gioco.",
+    "w.dc.alt": "Il widget di Discord con il canale vocale e i tasti muto e audio off",
+    "w.notes.t": "Note e timer",
+    "w.notes.p": "Note in schede, timer di concentrazione e un cronometro.",
+    "w.notes.alt": "Il widget delle note con le schede",
+    "games.h2": "FPS e Instant Replay",
+    "games.p": "FPS, 1% e 0,1% low e frame time per qualsiasi gioco e qualsiasi marca di GPU, su Windows. Xenon non inietta mai codice nel gioco.",
+    "games.alt": "Il widget delle prestazioni in gioco: FPS medi, 1% e 0,1% low, grafico del frame time e carico di CPU e GPU",
+    "games.cap": "Su un secondo schermo, o sopra il gioco stesso.",
+    "games.1.t": "Instant Replay",
+    "games.1.p": "Ctrl+Maiusc+F10 salva gli ultimi secondi, quanti ne scegli. Taglia, esporta in 9:16 e manda al telefono.",
+    "games.2.t": "Perché scatta",
+    "games.2.p": "Una frase quando i frame calano: un core della CPU al 100%, VRAM piena, un gioco che sta ancora caricando.",
+    "games.3.t": "Ogni partita salvata",
+    "games.3.p": "FPS medi e low per ogni gioco, confrontati con la volta prima.",
+    "games.4.t": "Clip da sole",
+    "games.4.p": "Segna un momento e Xenon ne ritaglia una clip. Può segnare anche gli scatti.",
+    "work.h2": "Strumenti di lavoro",
+    "work.p": "Per l'ufficio, la scuola e l'assistenza. Screenshot, testi e registrazioni restano sul tuo PC.",
+    "work.1.t": "Testo dallo schermo",
+    "work.1.p": "Trascina su una scansione, una slide o un'app bloccata e incollane il testo.",
+    "work.2.t": "Registratore di passaggi",
+    "work.2.p": "Una foto per ogni clic, scritta come una pagina di istruzioni.",
+    "work.3.t": "Trascrizioni e capitoli",
+    "work.3.p": "Registra una spiegazione di 2 minuti: sottotitoli fatti sul tuo PC, capitoli da Bit.",
+    "work.4.t": "Copri i dati personali",
+    "work.4.p": "Email e numeri lunghi trovati nello screenshot e coperti prima di condividerlo.",
+    "work.5.t": "Fissa uno screenshot",
+    "work.5.p": "Tieni un'immagine sopra le finestre mentre ne copi i dati.",
+    "work.6.t": "Bug report con un tasto",
+    "work.6.p": "Con Instant Replay acceso, gli ultimi secondi della finestra, uno screenshot e i dati del sistema in un solo zip.",
+    "bit.alt": "La chat di Bit in Xenon: alla richiesta di salvare gli ultimi 42 secondi sul Desktop salva lì la clip; alla domanda sugli FPS dà la media, l'1% e lo 0,1% low e il frame più lento",
+    "bit.ask": "Cosa chiedere",
+    "bit.q1": "Metti il meteo sul desktop",
+    "bit.q2": "Perché il gioco scatta?",
+    "bit.q3": "Fai partire un timer di 25 minuti",
+    "bit.q4": "Copia il testo sullo schermo",
+    "cat.open": "Apri il catalogo",
+    "cat.free.h": "Gratis, i più installati",
+    "cat.sup.h": "Per i sostenitori",
+    "cat.sup.note": "Inclusi da 5 USD, vedi Sostenitori",
+    "cat.maker": "<b>Crea i tuoi.<\/b> Xenon Maker costruisce widget e temi senza codice, nel browser.",
+    "cat.installs": "{n} installazioni",
+    "faq.h2": "Domande",
+    "faq.p": "Altro nelle <a href=\"/it/faq.html\">pagine di aiuto<\/a>, o chiedi su <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a>.",
+    "faq.1.q": "Mi serve un secondo schermo?",
+    "faq.1.a": "No. Widget, overlay degli FPS e cattura funzionano sullo schermo che hai. Anche un telefono fa da secondo schermo.",
+    "faq.2.q": "Tocca i miei giochi?",
+    "faq.2.a": "No. Xenon disegna nelle sue finestre e legge i frame time da Windows, quindi nel gioco non entra niente che l'anti-cheat possa segnalare.",
+    "faq.3.q": "È davvero gratis?",
+    "faq.3.a": "Sì. I sostenitori ricevono le uscite di ogni mese e le Scintille, e sbloccano Testi e Pulizia sviluppatore.",
+    "faq.4.q": "Quali temperature e GPU legge?",
+    "faq.4.a": "CPU e GPU NVIDIA, AMD e Intel su Windows. macOS e Linux leggono quello che il sistema mette a disposizione (Beta).",
+    "faq.5.q": "Funziona con il CORSAIR Xeneon Edge?",
+    "faq.5.a": "Sì, è nato su uno Xeneon Edge, in orizzontale o in verticale. Va bene anche qualsiasi monitor, tablet o telefono.",
+    "games.l.fps": "Overlay FPS con 1% low",
+    "games.l.rec": "Registrare lo schermo e Instant Replay",
   };
 
   I18N.es = {
-    "meta.title": "Xenon: panel táctil gratis para Xeneon Edge, monitor o teléfono",
-    "meta.desc": "Una app gratuita que convierte un CORSAIR Xeneon Edge, un monitor extra, una tablet o tu teléfono en un panel táctil para tu PC: estadísticas del sistema, música, micrófono, teclas del Deck e IA por voz.",
+    "meta.title": "Xenon: panel gratis para tu PC en una segunda pantalla",
+    "meta.desc": "App gratis que convierte un monitor extra, una tablet, el móvil o el Xeneon Edge en un panel táctil del PC: temperaturas, FPS, música y teclas del Deck.",
     "skip": "Saltar al contenido",
     "nav.catalog": "Catálogo",
     "nav.maker": "Maker",
@@ -1625,8 +1909,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "Demo",
     "nav.coffee": "Invítame a un café",
     "lang.hint": "Esta página también está en español",
-    "hero.h1": "Xenon, un panel táctil gratis para tu PC",
-    "hero.lead": "Funciona en un CORSAIR Xeneon Edge, un monitor extra, una tablet o tu teléfono: estadísticas del sistema, música y micrófono, un Deck de teclas y un asistente de voz.",
+    "hero.h1": "Xenon, el panel del PC para tu segunda pantalla",
+    "hero.lead": "Gratis. Temperaturas, FPS, música, calendario y teclas táctiles en una pantalla de sobra, o como widgets en la que ya tienes.",
     "hero.lead.phone": "Xenon se instala en un PC con Windows, Mac o Linux. Este teléfono puede ser una de sus pantallas.",
     "cta.download": "Descargar Xenon",
     "cta.download.os": "Descargar para {os}",
@@ -1660,53 +1944,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "Ahora: su salvapantallas Ambient.",
     "themes.pause": "Pausar los temas",
     "themes.play": "Reanudar los temas",
-    "screens.h2": "Xeneon Edge, monitor, tablet, teléfono",
-    "screens.p": "Un solo panel que se reorganiza para cada forma: una cuadrícula de 24 columnas en una pantalla ancha, una disposición propia en una pantalla vertical, dos columnas en una tablet, una en un teléfono.",
-    "screens.mon.alt": "El panel en un monitor 16:9",
-    "screens.edge.alt": "El panel en un Xeneon Edge",
-    "screens.tab.alt": "El panel en una tablet en horizontal",
-    "screens.ph.alt": "El panel en un teléfono",
-    "screens.mon.t": "Monitor",
-    "screens.mon.p": "Cualquier pantalla conectada al PC, táctil o no. En el primer arranque Xenon pregunta en cuál abrirse.",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720. Funciona con o sin iCUE. <a href=\"/ja/xeneon-edge-widgets.html\">Xenon en el Edge</a>",
-    "screens.tab.t": "Tablet",
-    "screens.tab.p": "Se empareja con un código QR a través de tu Wi-Fi. <a href=\"/ja/tablet-dashboard.html\">Cómo funciona</a>",
-    "screens.ph.t": "Teléfono",
-    "screens.ph.p": "No hay que instalar nada en él. Los archivos van en ambos sentidos. <a href=\"/ja/phone.html\">Configuración</a>",
-    "screens.scale": "Dibujados a escala: un monitor de 27 pulgadas, el Edge de 14,5 en horizontal y en vertical, una tablet de 11 y un teléfono de 6,1.",
-    "screens.vert.t": "Edge, en vertical",
-    "screens.vert.p": "Los mismos paneles, de arriba abajo.",
-    "screens.vert.alt": "El panel en un Xeneon Edge montado en vertical",
+    "screens.h2": "Cada pantalla que tienes",
+    "screens.p": "El mismo panel se reorganiza para cada forma. Un móvil o una tableta se vinculan con un código en la red de casa.",
+    "screens.mon.alt": "Xenon en un monitor 16:9 de sobra",
+    "screens.edge.alt": "Xenon en un Xeneon Edge en vertical",
+    "screens.tab.alt": "Xenon en una tableta en horizontal",
+    "screens.ph.alt": "Xenon en un móvil",
     "beta": "Beta",
-    "widgets.h2": "Widgets y teclas",
-    "widgets.p": "Cámbialos de tamaño y colócalos donde quieras, en hasta 8 páginas.",
-    "wg.sys.alt": "El widget Sistema: gráficas de CPU, GPU, memoria, disco y red",
-    "wg.med.alt": "El widget Reproducción con la canción que está sonando",
-    "wg.cal.alt": "El widget Calendario con los próximos eventos",
-    "ws.media.t": "Multimedia y streaming",
-    "ws.sys.p": "CPU, GPU, memoria, disco y red con su historial, y los FPS reales dentro de los juegos.",
-    "ws.media.p": "Lo que suena en cualquier reproductor, con sus controles, y tus directos en Twitch, YouTube y OBS.",
-    "ws.prod.p": "Calendario, tareas, temporizadores y notas en un solo panel, y además el tiempo y las noticias.",
+    "widgets.h2": "Widgets",
+    "widgets.p": "Arrástralos, cambia su tamaño, agrúpalos en pestañas y repártelos en páginas.",
     "ws.make": "Crear un widget",
-    "cat.prod": "Productividad",
-    "cat.system": "Sistema",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "El widget Deck con doce teclas: escenas de OBS, grabación, micrófono, Discord, Spotify, reproducción, una captura y las luces",
 
 
 
     "ctl.ai.p": "Pregunta en voz alta con \"Hey Bit\". Funciona con Gemini, OpenAI, Anthropic o un modelo local a través de Ollama, con Claude Code y Codex con tu propia suscripción, o con Chispas, los créditos de Xenon, sin ninguna clave que configurar.",
     "cat.h2": "Catálogo",
-    "cat.p": "Temas, widgets y escenas hechos para Xenon, gratis o para mecenas. Cada uno se instala desde un código, con una vista previa antes.",
-    "cat.p.n": "{n} temas, widgets y escenas, gratis o para mecenas, {c} de ellos de autores de la comunidad. Cada uno se instala desde un código, con una vista previa antes.",
-    "cat.more": "Explorar el catálogo",
+    "cat.p": "Temas, widgets y escenas hechos por la comunidad, instalados desde la app.",
     "cat.submit": "Publica el tuyo",
-    "cat.sup": "Mecenas",
-    "cat.free": "Gratis",
     "cat.by": "por {a}",
-    "make.h2": "Xenon Maker",
-    "make.p": "Crea widgets, temas, fondos animados, escenas Ambient, páginas y teclas de Deck aquí en el navegador, sin código. Lo que haces se convierte en un código para pegar en Xenon, y puedes enviarlo al catálogo.",
     "kind.theme": "tema",
     "kind.bundle": "pack",
     "kind.widget": "widget",
@@ -1715,7 +1970,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "perfil de Deck",
     "kind.page": "página",
     "sup.h2": "Mecenas",
-    "sup.p": "Xenon es gratis y lo hace un solo desarrollador. Los mecenas reciben los drops mensuales del catálogo, lo mantienen en marcha y su nombre aparece en esta página.",
+    "sup.p": "Xenon es gratis y lo hace un solo desarrollador. Quienes apoyan reciben las novedades de cada mes, el rol en Discord, su nombre abajo y 300 Chispas al mes.",
     "tier.1.price": "5 USD <small>una vez</small>",
     "tier.1.name": "Un café",
     "tier.1.what": "Un mes de drops para mecenas, el rol en Discord y tu nombre en esta página.",
@@ -1739,7 +1994,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "Actualizado el {d}.",
     "bill.note": "Quien apoya Xenon aparece aquí en un día, con la primera palabra de su nombre o un apodo que pida, y sin enlace. Se quita si lo pide.",
     "inst.h2": "Descargar Xenon",
-    "inst.p": "Gratis. Windows 10 y 11, con Mac y Linux en beta.",
+    "inst.p": "Gratis. Un instalador firmado para Windows 10 y 11; Mac y Linux están en beta.",
     "dl.linux.guide": "Guía de Linux",
     "dl.onphone.t": "Ahora mismo estás en un teléfono.",
     "dl.onphone.p": "Xenon se instala en el PC en el que funciona. Envíate el enlace y luego empareja este teléfono desde Ajustes, Teléfono, Añadir dispositivo.",
@@ -1777,31 +2032,100 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "OpenAI Codex en una pantalla táctil",
     "ft.sensor": "Un panel de sensores para tu PC",
     "hero.try": "Pruébalo en el navegador",
-    "bit.p": "Bit vive en Xenon y vigila tu PC. Cuando pasa algo, Bit lo dice en una línea corta.",
-    "bit.done.t": "Una tarea ha terminado",
-    "bit.hot.t": "El PC se calienta",
-    "bit.err.t": "Algo ha fallado",
-    "bit.night.t": "Es tarde",
-    "ws.deck.p": "Teclas en la pantalla que abren apps, envían atajos, cambian escenas de OBS y controlan Discord y las luces.",
+    "bit.p": "El asistente dentro de Xenon, por voz o por texto.",
     "make.open": "Abrir Xenon Maker",
-    "make.guide": "La guía para creadores",
-    "make.sdk": "Widgets con código",
-    "make.alt": "Xenon Maker: la pantalla donde eliges qué crear, desde un widget o un tema hasta teclas de Deck o un paquete completo",
     "sup.unlock": "Los mecenas también desbloquean Letra y Limpieza para desarrolladores dentro de Xenon, y Letra se puede probar gratis durante 7 días, una vez por PC.",
     "sup.sparks": "No hace falta ser mecenas: las Chispas vienen en packs de 500, 1050 o 2200 por 5, 10 o 20 USD, y nunca caducan.",
     "sup.sparks.go": "Extras en Buy Me a Coffee",
     "bill.thanks": "Gracias",
     "inst.all": "Todas las descargas",
     "inst.priv": "Sin cuenta. Ajustes, notas, archivos y lecturas de sensores se quedan en tu PC. <a href=\"/ja/privacy.html\">Qué se conecta a internet</a>",
-    "bit.done.q": "Hecho, échale un vistazo.",
-    "bit.hot.q": "La CPU está sudando. Y yo también.",
-    "bit.err.q": "Esta no me ha salido. ¿Lo intento otra vez?",
-    "bit.night.q": "Es tarde. Yo sigo encendido, tú quizá no deberías.",
+    "screens.cap.edge": "Edge, en vertical",
+    "screens.cap.mon": "Monitor de sobra",
+    "screens.cap.tab": "Tableta",
+    "screens.cap.ph": "Móvil",
+    "screens.l.edge": "Xenon en el Xeneon Edge",
+    "screens.l.tab": "Configurar la tableta",
+    "screens.l.ph": "Configurar el móvil",
+    "one.h3": "¿Sin segunda pantalla? La principal",
+    "one.p": "Cualquier widget se queda en el escritorio bajo las ventanas, sobre el juego, o sigue la ventana de una app. Alt+Mayús+X abre el menú de Xenon.",
+    "one.a": "Xenon en una sola pantalla",
+    "one.alt": "Widgets de Xenon en el escritorio, sobre el fondo con reloj de Xenon: el calendario, la música que suena y las lecturas de CPU y GPU",
+    "w.sys.t": "Monitor del sistema",
+    "w.sys.p": "Carga y temperatura de CPU y GPU, RAM, discos, ping y red.",
+    "w.sys.alt": "El widget Sistema con carga y temperatura de CPU y GPU",
+    "w.media.t": "Música y letras",
+    "w.media.p": "Spotify y cualquier reproductor que tu PC conozca, más letras sincronizadas para quienes apoyan.",
+    "w.media.alt": "El widget de música con la portada y la letra de la canción que suena",
+    "w.deck.t": "Deck",
+    "w.deck.p": "Teclas táctiles para apps, OBS, Discord, Home Assistant y macros; cada una puede tener un atajo de teclado.",
+    "w.deck.alt": "El widget Deck con teclas táctiles para apps, OBS y Discord",
+    "w.cal.t": "Calendario y tareas",
+    "w.cal.p": "Tus calendarios, tareas con recordatorios y los próximos eventos.",
+    "w.cal.alt": "El widget de calendario con los próximos eventos",
+    "w.dc.t": "Discord",
+    "w.dc.p": "Quién habla, silenciar, ensordecer y canales, sin salir del juego.",
+    "w.dc.alt": "El widget de Discord con el canal de voz y las teclas de silenciar y ensordecer",
+    "w.notes.t": "Notas y temporizadores",
+    "w.notes.p": "Notas en pestañas, temporizadores de concentración y un cronómetro.",
+    "w.notes.alt": "El widget de notas con pestañas",
+    "games.h2": "FPS e Instant Replay",
+    "games.p": "FPS, mínimos del 1% y 0,1% y tiempo de fotograma en cualquier juego y cualquier marca de GPU, en Windows. Xenon nunca inyecta código en el juego.",
+    "games.alt": "El widget de rendimiento en juego: FPS medios, mínimos del 1% y 0,1%, gráfica del tiempo de fotograma y carga de CPU y GPU",
+    "games.cap": "En una segunda pantalla, o sobre el propio juego.",
+    "games.1.t": "Instant Replay",
+    "games.1.p": "Ctrl+Mayús+F10 guarda los últimos segundos, los que elijas. Recorta, exporta en 9:16 y envía al móvil.",
+    "games.2.t": "Por qué va a tirones",
+    "games.2.p": "Una frase cuando caen los fotogramas: un núcleo de la CPU al 100%, la VRAM llena, un juego que aún carga.",
+    "games.3.t": "Cada partida guardada",
+    "games.3.p": "FPS medios y mínimos por juego, comparados con la vez anterior.",
+    "games.4.t": "Clips solos",
+    "games.4.p": "Marca un momento y Xenon corta un clip a su alrededor. También puede marcar los tirones.",
+    "work.h2": "Herramientas de trabajo",
+    "work.p": "Para la oficina, la escuela y el soporte técnico. Capturas, textos y grabaciones se quedan en tu PC.",
+    "work.1.t": "Texto de la pantalla",
+    "work.1.p": "Arrastra sobre un escaneo, una diapositiva o una app bloqueada y pega su texto.",
+    "work.2.t": "Grabador de pasos",
+    "work.2.p": "Una imagen de cada clic, redactada como una página de instrucciones.",
+    "work.3.t": "Transcripciones y capítulos",
+    "work.3.p": "Graba una explicación de 2 minutos: subtítulos hechos en tu PC, capítulos de Bit.",
+    "work.4.t": "Oculta los datos privados",
+    "work.4.p": "Correos y números largos encontrados en una captura y tapados antes de compartirla.",
+    "work.5.t": "Fija una captura",
+    "work.5.p": "Mantén una imagen sobre tus ventanas mientras copias de ella.",
+    "work.6.t": "Informe de errores con una tecla",
+    "work.6.p": "Con Instant Replay activo, los últimos segundos de la ventana, una captura y los datos del sistema en un zip.",
+    "bit.alt": "El chat de Bit en Xenon: cuando le piden guardar los últimos 42 segundos en el Escritorio, guarda allí el clip; cuando le preguntan por los FPS, da la media, los mínimos del 1% y 0,1% y el fotograma más lento",
+    "bit.ask": "Qué preguntar",
+    "bit.q1": "Pon el tiempo en mi escritorio",
+    "bit.q2": "¿Por qué va a tirones mi juego?",
+    "bit.q3": "Pon un temporizador de 25 minutos",
+    "bit.q4": "Copia el texto de mi pantalla",
+    "cat.open": "Abrir el catálogo",
+    "cat.free.h": "Gratis, los más instalados",
+    "cat.sup.h": "Para quienes apoyan",
+    "cat.sup.note": "Incluidos desde 5 USD, ver Apoyar",
+    "cat.maker": "<b>Crea los tuyos.<\/b> Xenon Maker construye widgets y temas sin código, en tu navegador.",
+    "cat.installs": "{n} instalaciones",
+    "faq.h2": "Preguntas",
+    "faq.p": "Más en las <a href=\"/es/faq.html\">páginas de ayuda<\/a>, o pregunta en <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a>.",
+    "faq.1.q": "¿Necesito una segunda pantalla?",
+    "faq.1.a": "No. Los widgets, la superposición de FPS y la captura funcionan en la pantalla que tienes. Un móvil también sirve de segunda pantalla.",
+    "faq.2.q": "¿Toca mis juegos?",
+    "faq.2.a": "No. Xenon dibuja en sus propias ventanas y lee los tiempos de fotograma de Windows, así que no se inyecta nada en el juego que el antitrampas pueda marcar.",
+    "faq.3.q": "¿De verdad es gratis?",
+    "faq.3.a": "Sí. Quienes apoyan reciben las novedades de cada mes y Chispas, y desbloquean Letras y Limpieza para desarrolladores.",
+    "faq.4.q": "¿Qué temperaturas y GPU lee?",
+    "faq.4.a": "CPU y GPU de NVIDIA, AMD e Intel en Windows. macOS y Linux leen lo que el sistema ofrece (Beta).",
+    "faq.5.q": "¿Funciona con el CORSAIR Xeneon Edge?",
+    "faq.5.a": "Sí, se creó sobre uno, en horizontal o en vertical. También sirve cualquier monitor, tableta o móvil.",
+    "games.l.fps": "Overlay de FPS con 1% low",
+    "games.l.rec": "Grabar la pantalla e Instant Replay",
   };
 
   I18N.ja = {
-    "meta.title": "Xenon: Xeneon Edge、モニター、スマートフォン用の無料タッチダッシュボード",
-    "meta.desc": "CORSAIR Xeneon Edge、余っているモニター、タブレット、スマートフォンを、PC用のタッチダッシュボードにする無料アプリです。システム情報、メディア、マイク、Deckのキー、音声AIを使えます。",
+    "meta.title": "Xenon: サブモニター用の無料PCダッシュボード",
+    "meta.desc": "余ったモニター、タブレット、スマホ、Xeneon EdgeをPCのタッチダッシュボードに。温度、FPS、メディア、Deckキー。Windows対応、macOSとLinuxはベータ版。",
     "skip": "本文へスキップ",
     "nav.catalog": "カタログ",
     "nav.maker": "Maker",
@@ -1814,8 +2138,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "デモ",
     "nav.coffee": "コーヒーをおごる",
     "lang.hint": "このページは日本語でも読めます",
-    "hero.h1": "Xenon、PC用の無料タッチダッシュボード",
-    "hero.lead": "CORSAIR Xeneon Edge、余っているモニター、タブレット、スマートフォンで動作します。システム情報、メディアとマイク、キーを並べたDeck、音声アシスタントを備えています。",
+    "hero.h1": "Xenon、セカンドスクリーンのための PC ダッシュボード",
+    "hero.lead": "無料。温度、FPS、音楽、カレンダー、タッチキーを予備の画面に。今ある画面にウィジェットとして置くこともできます。",
     "hero.lead.phone": "XenonはWindows、Mac、LinuxのPCにインストールします。このスマートフォンは、その画面のひとつとして使えます。",
     "cta.download": "Xenonをダウンロード",
     "cta.download.os": "{os}版をダウンロード",
@@ -1849,53 +2173,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "表示中: このテーマの Ambient スクリーンセーバー。",
     "themes.pause": "テーマを一時停止",
     "themes.play": "テーマを再生",
-    "screens.h2": "Xeneon Edge、モニター、タブレット、スマートフォン",
-    "screens.p": "ひとつのダッシュボードが、画面の形に合わせて配置を変えます。横長の画面では24列のグリッド、縦向きの画面では専用の配置、タブレットでは2列、スマートフォンでは1列になります。",
-    "screens.mon.alt": "16:9のモニターに表示したダッシュボード",
-    "screens.edge.alt": "Xeneon Edgeに表示したダッシュボード",
-    "screens.tab.alt": "横向きのタブレットに表示したダッシュボード",
-    "screens.ph.alt": "スマートフォンに表示したダッシュボード",
-    "screens.mon.t": "モニター",
-    "screens.mon.p": "PCにつないだディスプレイなら、タッチ対応でなくても使えます。初回起動時に、どの画面で開くかをXenonが確認します。",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720。iCUEがあってもなくても動作します。<a href=\"/ja/xeneon-edge-widgets.html\">EdgeでのXenon</a>",
-    "screens.tab.t": "タブレット",
-    "screens.tab.p": "Wi-Fi経由でQRコードからペアリングします。<a href=\"/ja/tablet-dashboard.html\">仕組み</a>",
-    "screens.ph.t": "スマートフォン",
-    "screens.ph.p": "スマートフォンには何もインストールしません。ファイルは双方向に送れます。<a href=\"/ja/phone.html\">設定方法</a>",
-    "screens.scale": "実際の比率で描いています。27インチのモニター、横置きと縦置きの14.5インチのEdge、11インチのタブレット、6.1インチのスマートフォンです。",
-    "screens.vert.t": "縦置きの Edge",
-    "screens.vert.p": "同じタイルを上から下へ。",
-    "screens.vert.alt": "縦向きに設置したXeneon Edgeに表示したダッシュボード",
+    "screens.h2": "手持ちのすべての画面で",
+    "screens.p": "同じダッシュボードが画面の形に合わせて並び替わります。スマホやタブレットは家のネットワークでコードを使ってペアリングします。",
+    "screens.mon.alt": "予備の 16:9 モニターに表示した Xenon",
+    "screens.edge.alt": "縦置きの Xeneon Edge に表示した Xenon",
+    "screens.tab.alt": "横向きのタブレットに表示した Xenon",
+    "screens.ph.alt": "スマホに表示した Xenon",
     "beta": "ベータ",
-    "widgets.h2": "ウィジェットとキー",
-    "widgets.p": "サイズを変えて好きな場所に置けます。ページは最大8枚まで。",
-    "wg.sys.alt": "システムウィジェット。CPU、GPU、メモリ、ディスク、ネットワークのグラフ",
-    "wg.med.alt": "再生中の曲を表示した再生ウィジェット",
-    "wg.cal.alt": "次の予定を表示したカレンダーウィジェット",
-    "ws.media.t": "メディアと配信",
-    "ws.sys.p": "CPU、GPU、メモリ、ディスク、ネットワークを履歴つきで。ゲーム内の実際のFPSも。",
-    "ws.media.p": "どのプレーヤーで再生中の曲もコントロールつきで。Twitch、YouTube、OBSの配信も。",
-    "ws.prod.p": "カレンダー、タスク、タイマー、メモをひとつのタイルに。さらに天気とニュース。",
+    "widgets.h2": "ウィジェット",
+    "widgets.p": "ドラッグ、サイズ変更、タブでのグループ化、複数ページへの配置ができます。",
     "ws.make": "ウィジェットを作る",
-    "cat.prod": "生産性",
-    "cat.system": "システム",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "12個のキーがあるDeckウィジェット：OBSのシーン、録画、マイク、Discord、Spotify、再生、スクリーンショット、ライト",
 
 
 
     "ctl.ai.p": "「Hey Bit」と話しかけて質問できます。Gemini、OpenAI、Anthropic、Ollama経由のローカルモデルに対応し、ご自身のサブスクリプションでClaude CodeとCodexも使えます。Xenon のクレジットであるスパークなら、キーの設定も不要です。",
     "cat.h2": "カタログ",
-    "cat.p": "Xenon用のテーマ、ウィジェット、シーンです。無料のものとサポーター向けのものがあります。どれもコードからインストールでき、先にプレビューを確認できます。",
-    "cat.p.n": "テーマ、ウィジェット、シーンが{n}件。無料のものとサポーター向けのものがあり、そのうち{c}件はコミュニティの作者によるものです。どれもコードからインストールでき、先にプレビューを確認できます。",
-    "cat.more": "カタログを見る",
+    "cat.p": "コミュニティが作ったテーマ、ウィジェット、シーンを、アプリの中からインストール。",
     "cat.submit": "作品を公開",
-    "cat.sup": "サポーター",
-    "cat.free": "無料",
     "cat.by": "作者: {a}",
-    "make.h2": "Xenon Maker",
-    "make.p": "ウィジェット、テーマ、アニメーション背景、Ambientシーン、ページ、Deckのキーを、ブラウザでコードなしで作れます。作ったものはXenonに貼り付けるコードになり、カタログに送ることもできます。",
     "kind.theme": "テーマ",
     "kind.bundle": "パック",
     "kind.widget": "ウィジェット",
@@ -1904,7 +2199,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "Deckプロファイル",
     "kind.page": "ページ",
     "sup.h2": "サポーター",
-    "sup.p": "Xenonは無料で、1人の開発者が作っています。サポーターには毎月カタログの新作が届き、その支援が開発を支えます。名前はこのページに載ります。",
+    "sup.p": "Xenon は無料で、1 人の開発者が作っています。サポーターには毎月の配布、Discord のロール、下に載る名前、そして毎月 300 Sparks が届きます。",
     "tier.1.price": "5 USD <small>1回</small>",
     "tier.1.name": "コーヒー1杯",
     "tier.1.what": "サポーター向け新作1か月分、Discordのロール、このページへのお名前の掲載。",
@@ -1928,7 +2223,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "{d}更新。",
     "bill.note": "Xenonを支援した人は1日以内にここに載ります。名前の最初の単語か希望のニックネームで、リンクはつきません。希望があれば削除します。",
     "inst.h2": "Xenonをダウンロード",
-    "inst.p": "無料。Windows 10と11に対応し、MacとLinuxはベータ版です。",
+    "inst.p": "無料。Windows 10 と 11 向けの署名付きインストーラー。Mac と Linux はベータです。",
     "dl.linux.guide": "Linuxガイド",
     "dl.onphone.t": "いまスマートフォンで見ています。",
     "dl.onphone.p": "Xenonは、実行するPCにインストールします。リンクを自分に送り、そのあと「設定」>「スマートフォン」>「デバイスを追加」からこのスマートフォンをペアリングしてください。",
@@ -1966,31 +2261,100 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "タッチスクリーンで OpenAI Codex",
     "ft.sensor": "PCのセンサーパネル",
     "hero.try": "ブラウザで試す",
-    "bit.p": "BitはXenonの中にいて、PCを見守っています。何かあると、Bitが短いひと言で知らせます。",
-    "bit.done.t": "作業が終わったとき",
-    "bit.hot.t": "PCが熱いとき",
-    "bit.err.t": "何かが失敗したとき",
-    "bit.night.t": "夜遅く",
-    "ws.deck.p": "画面上のキーで、アプリを開き、ショートカットを送り、OBSのシーンを切り替え、Discordやライトを操作できます。",
+    "bit.p": "Xenon に入っているアシスタント。声でも文字でも。",
     "make.open": "Xenon Makerを開く",
-    "make.guide": "作る人のためのガイド",
-    "make.sdk": "コードで作るウィジェット",
-    "make.alt": "Xenon Maker：ウィジェットやテーマからDeckのキー、パッケージ全体まで、作るものを選ぶ画面",
     "sup.unlock": "サポーターはXenonの「歌詞」と「開発者向けクリーンアップ」も使えるようになります。「歌詞」はPC 1台につき1回、7日間無料で試せます。",
     "sup.sparks": "サポーターでなくても買えます。スパークは 500、1050、2200 のパックで、5、10、20 USD です。期限はありません。",
     "sup.sparks.go": "Buy Me a Coffee のエクストラ",
     "bill.thanks": "ありがとう",
     "inst.all": "すべてのダウンロード",
     "inst.priv": "アカウントは不要です。設定、メモ、ファイル、センサーの計測値はPCに残ります。<a href=\"/ja/privacy.html\">オンラインに送られるもの</a>",
-    "bit.done.q": "できたよ、見てみて。",
-    "bit.hot.q": "CPUが汗かいてる。ぼくもだよ。",
-    "bit.err.q": "うまくいかなかった。もう一回やる？",
-    "bit.night.q": "もう遅いよ。ぼくは起きてるけど、君は寝たほうがいいかも。",
+    "screens.cap.edge": "Edge(縦置き)",
+    "screens.cap.mon": "予備のモニター",
+    "screens.cap.tab": "タブレット",
+    "screens.cap.ph": "スマホ",
+    "screens.l.edge": "Xeneon Edge で使う",
+    "screens.l.tab": "タブレットの設定",
+    "screens.l.ph": "スマホの設定",
+    "one.h3": "セカンドスクリーンがない? メイン画面で",
+    "one.p": "どのウィジェットも、ウィンドウの下のデスクトップ、ゲームの上、またはアプリのウィンドウに付けて置けます。Alt+Shift+X で Xenon メニューが開きます。",
+    "one.a": "1 画面で使う Xenon",
+    "one.alt": "Xenon の時計の壁紙の上に置いたデスクトップのウィジェット: カレンダー、再生中の音楽、CPU と GPU の値",
+    "w.sys.t": "システムモニター",
+    "w.sys.p": "CPU と GPU の負荷と温度、RAM、ディスク、ping、ネットワーク。",
+    "w.sys.alt": "CPU と GPU の負荷と温度を表示したシステムウィジェット",
+    "w.media.t": "音楽と歌詞",
+    "w.media.p": "Spotify と PC が認識するすべてのプレーヤー。サポーターには同期歌詞も。",
+    "w.media.alt": "アルバムカバーと再生中の曲の歌詞を表示した音楽ウィジェット",
+    "w.deck.t": "Deck",
+    "w.deck.p": "アプリ、OBS、Discord、Home Assistant、マクロ用のタッチキー。それぞれにキーボードショートカットも設定できます。",
+    "w.deck.alt": "アプリ、OBS、Discord 用のタッチキーを並べた Deck ウィジェット",
+    "w.cal.t": "カレンダーとタスク",
+    "w.cal.p": "カレンダーのフィード、リマインダー付きタスク、次の予定。",
+    "w.cal.alt": "次の予定を表示したカレンダーウィジェット",
+    "w.dc.t": "Discord",
+    "w.dc.p": "話している人、ミュート、スピーカーミュート、チャンネル。ゲームを離れずに。",
+    "w.dc.alt": "ボイスチャンネルとミュート、スピーカーミュートのキーを表示した Discord ウィジェット",
+    "w.notes.t": "メモとタイマー",
+    "w.notes.p": "タブ付きメモ、集中タイマー、ストップウォッチ。",
+    "w.notes.alt": "タブ付きのメモウィジェット",
+    "games.h2": "FPS とインスタントリプレイ",
+    "games.p": "Windows で、どのゲームでも、どのメーカーの GPU でも FPS、1% と 0.1% low、フレームタイムを表示。Xenon はゲームにコードを注入しません。",
+    "games.alt": "ゲームパフォーマンスウィジェット: 平均 FPS、1% と 0.1% low、フレームタイムのグラフ、CPU と GPU の負荷",
+    "games.cap": "セカンドスクリーンに、またはゲームの上に。",
+    "games.1.t": "インスタントリプレイ",
+    "games.1.p": "Ctrl+Shift+F10 で直前の数秒を保存。秒数は自由に選べます。トリミング、9:16 で書き出し、スマホへ送信。",
+    "games.2.t": "カクつく理由",
+    "games.2.p": "フレームが落ちたら一文で: CPU コアが 100%、VRAM がいっぱい、ゲームがまだ読み込み中。",
+    "games.3.t": "すべてのプレイを記録",
+    "games.3.p": "ゲームごとの平均 FPS と low を、前回と比較。",
+    "games.4.t": "自動でクリップ",
+    "games.4.p": "瞬間をマークすると Xenon がその前後をクリップにします。カクつきも自動でマークできます。",
+    "work.h2": "仕事のツール",
+    "work.p": "オフィス、学校、サポートデスクに。スクリーンショット、テキスト、録画は PC に残ります。",
+    "work.1.t": "画面から文字を取る",
+    "work.1.p": "スキャン、スライド、コピーできないアプリの上をドラッグして文字を貼り付け。",
+    "work.2.t": "手順レコーダー",
+    "work.2.p": "クリックごとの画像を、手順書のページにまとめます。",
+    "work.3.t": "文字起こしとチャプター",
+    "work.3.p": "2 分の説明動画を録画: 字幕は PC 上で作成、チャプターは Bit が付けます。",
+    "work.4.t": "個人情報を隠す",
+    "work.4.p": "スクリーンショット内のメールアドレスや長い番号を見つけ、共有前に隠します。",
+    "work.5.t": "スクリーンショットを固定",
+    "work.5.p": "画像をウィンドウの上に置いたまま、見ながら書き写せます。",
+    "work.6.t": "キー 1 つでバグレポート",
+    "work.6.p": "インスタントリプレイがオンなら、ウィンドウの直前の数秒、スクリーンショット、システム情報を 1 つの zip に。",
+    "bit.alt": "Xenon の Bit のチャット: 直前の 42 秒をデスクトップに保存するよう頼むとクリップを保存し、FPS を聞くと平均、1% と 0.1% low、最も遅いフレームを答えます",
+    "bit.ask": "頼めること",
+    "bit.q1": "天気をデスクトップに置いて",
+    "bit.q2": "ゲームがカクつくのはなぜ?",
+    "bit.q3": "25 分のタイマーを開始して",
+    "bit.q4": "画面の文字をコピーして",
+    "cat.open": "カタログを開く",
+    "cat.free.h": "無料、インストール数の多い順",
+    "cat.sup.h": "サポーター向け",
+    "cat.sup.note": "5 USD から含まれます。サポーターを見る",
+    "cat.maker": "<b>自分で作る。<\/b>Xenon Maker なら、ブラウザでコードなしにウィジェットやテーマを作れます。",
+    "cat.installs": "{n} インストール",
+    "faq.h2": "よくある質問",
+    "faq.p": "詳しくは<a href=\"/ja/faq.html\">ヘルプ<\/a>へ。<a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a> でも質問できます。",
+    "faq.1.q": "セカンドスクリーンは必要?",
+    "faq.1.a": "いいえ。ウィジェット、FPS オーバーレイ、キャプチャは今の画面で使えます。スマホもセカンドスクリーンになります。",
+    "faq.2.q": "ゲームに手を加えますか?",
+    "faq.2.a": "いいえ。Xenon は自分のウィンドウに描画し、フレームタイムは Windows から読み取ります。ゲームには何も注入しないので、アンチチートに検知されるものはありません。",
+    "faq.3.q": "本当に無料?",
+    "faq.3.a": "はい。サポーターは毎月の配布と Sparks を受け取り、歌詞と開発者クリーンアップが使えるようになります。",
+    "faq.4.q": "どの温度と GPU を読み取れますか?",
+    "faq.4.a": "Windows では NVIDIA、AMD、Intel の CPU と GPU。macOS と Linux はシステムが公開している値を読み取ります(ベータ)。",
+    "faq.5.q": "CORSAIR Xeneon Edge で使えますか?",
+    "faq.5.a": "はい。横置きでも縦置きでも、Xeneon Edge の上で作られました。ほかのモニター、タブレット、スマホでも使えます。",
+    "games.l.fps": "1% low も出る FPS オーバーレイ",
+    "games.l.rec": "画面録画とインスタントリプレイ",
   };
 
   I18N.ko = {
-    "meta.title": "Xenon: Xeneon Edge, 모니터, 휴대폰용 무료 터치 대시보드",
-    "meta.desc": "CORSAIR Xeneon Edge, 남는 모니터, 태블릿이나 휴대폰을 PC용 터치 대시보드로 바꾸는 무료 앱입니다. 시스템 상태, 미디어, 마이크, Deck 키, 음성 AI를 지원합니다.",
+    "meta.title": "Xenon: 보조 모니터용 무료 PC 대시보드",
+    "meta.desc": "남는 모니터, 태블릿, 휴대폰, Xeneon Edge를 PC 터치 대시보드로 바꿉니다. 온도, FPS, 미디어, Deck 키. Windows, macOS·Linux 베타.",
     "skip": "본문으로 건너뛰기",
     "nav.catalog": "카탈로그",
     "nav.maker": "Maker",
@@ -2003,8 +2367,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "데모",
     "nav.coffee": "커피 한 잔 사주기",
     "lang.hint": "이 페이지는 한국어로도 볼 수 있습니다",
-    "hero.h1": "Xenon, PC를 위한 무료 터치 대시보드",
-    "hero.lead": "CORSAIR Xeneon Edge, 남는 모니터, 태블릿이나 휴대폰에서 작동합니다. 시스템 상태, 미디어와 마이크, 키로 이루어진 Deck, 음성 비서가 들어 있습니다.",
+    "hero.h1": "Xenon, 보조 화면을 위한 PC 대시보드",
+    "hero.lead": "무료. 온도, FPS, 음악, 캘린더, 터치 키를 남는 화면에, 또는 지금 쓰는 화면에 위젯으로.",
     "hero.lead.phone": "Xenon은 Windows, Mac 또는 Linux PC에 설치합니다. 이 휴대폰은 그 PC의 화면 중 하나가 될 수 있습니다.",
     "cta.download": "Xenon 다운로드",
     "cta.download.os": "{os}용 다운로드",
@@ -2038,53 +2402,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "지금: 이 테마의 Ambient 화면 보호기.",
     "themes.pause": "테마 일시정지",
     "themes.play": "테마 재생",
-    "screens.h2": "Xeneon Edge, 모니터, 태블릿, 휴대폰",
-    "screens.p": "하나의 대시보드가 화면 형태에 맞춰 배치를 바꿉니다. 넓은 화면에서는 24열 그리드, 세로 화면에서는 전용 배치, 태블릿에서는 2열, 휴대폰에서는 1열입니다.",
-    "screens.mon.alt": "16:9 모니터에 표시된 대시보드",
-    "screens.edge.alt": "Xeneon Edge에 표시된 대시보드",
-    "screens.tab.alt": "가로로 놓은 태블릿의 대시보드",
-    "screens.ph.alt": "휴대폰에 표시된 대시보드",
-    "screens.mon.t": "모니터",
-    "screens.mon.p": "PC에 연결된 디스플레이라면 터치 지원 여부와 관계없이 사용할 수 있습니다. 처음 실행하면 Xenon이 어느 화면에서 열지 묻습니다.",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720. iCUE가 있어도 없어도 작동합니다. <a href=\"/ja/xeneon-edge-widgets.html\">Edge에서 쓰는 Xenon</a>",
-    "screens.tab.t": "태블릿",
-    "screens.tab.p": "사용 중인 Wi-Fi에서 QR 코드로 페어링합니다. <a href=\"/ja/tablet-dashboard.html\">작동 방식</a>",
-    "screens.ph.t": "휴대폰",
-    "screens.ph.p": "휴대폰에는 아무것도 설치하지 않습니다. 파일은 양방향으로 주고받을 수 있습니다. <a href=\"/ja/phone.html\">설정 방법</a>",
-    "screens.scale": "27인치 모니터, 가로와 세로로 둔 14.5인치 Edge, 11인치 태블릿, 6.1인치 휴대폰을 실제 비율로 그렸습니다.",
-    "screens.vert.t": "세로로 세운 Edge",
-    "screens.vert.p": "같은 타일을 위에서 아래로.",
-    "screens.vert.alt": "세로로 설치한 Xeneon Edge의 대시보드",
+    "screens.h2": "가지고 있는 모든 화면",
+    "screens.p": "같은 대시보드가 화면 모양에 맞춰 다시 배치됩니다. 휴대폰이나 태블릿은 집 네트워크에서 코드로 연결합니다.",
+    "screens.mon.alt": "남는 16:9 모니터의 Xenon",
+    "screens.edge.alt": "세로로 세운 Xeneon Edge의 Xenon",
+    "screens.tab.alt": "가로로 든 태블릿의 Xenon",
+    "screens.ph.alt": "휴대폰의 Xenon",
     "beta": "베타",
-    "widgets.h2": "위젯과 키",
-    "widgets.p": "크기를 바꿔 원하는 곳에 둘 수 있고, 최대 8개 페이지에 나눌 수 있습니다.",
-    "wg.sys.alt": "시스템 위젯: CPU, GPU, 메모리, 디스크, 네트워크 그래프",
-    "wg.med.alt": "재생 중인 트랙이 표시된 재생 위젯",
-    "wg.cal.alt": "다가오는 일정이 표시된 캘린더 위젯",
-    "ws.media.t": "미디어와 스트리밍",
-    "ws.sys.p": "CPU, GPU, 메모리, 디스크, 네트워크를 기록과 함께 보여 주고, 게임 속 실제 FPS도 보여 줍니다.",
-    "ws.media.p": "어느 플레이어에서 재생 중인 곡이든 컨트롤과 함께 보여 주고, Twitch, YouTube, OBS 방송도 보여 줍니다.",
-    "ws.prod.p": "캘린더, 할 일, 타이머, 메모를 한 타일에. 그 밖에 날씨와 뉴스.",
+    "widgets.h2": "위젯",
+    "widgets.p": "끌어서 옮기고, 크기를 바꾸고, 탭으로 묶고, 여러 페이지에 나눠 둘 수 있습니다.",
     "ws.make": "위젯 만들기",
-    "cat.prod": "생산성",
-    "cat.system": "시스템",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "키 12개가 있는 Deck 위젯: OBS 장면, 녹화, 마이크, Discord, Spotify, 재생, 스크린샷, 조명",
 
 
 
     "ctl.ai.p": "\"Hey Bit\"이라고 부른 뒤 소리 내어 질문하세요. Gemini, OpenAI, Anthropic 또는 Ollama를 통한 로컬 모델로 작동하며, 사용 중인 구독으로 Claude Code와 Codex도 쓸 수 있습니다. Xenon의 크레딧인 스파크를 쓰면 키를 설정할 필요도 없습니다.",
     "cat.h2": "카탈로그",
-    "cat.p": "Xenon용으로 만든 테마, 위젯, 장면입니다. 무료 또는 후원자용이며, 모두 코드로 설치하고 설치 전에 미리 보기를 확인할 수 있습니다.",
-    "cat.p.n": "테마, 위젯, 장면 {n}개가 있으며 무료 또는 후원자용입니다. 그중 {c}개는 커뮤니티 제작자가 만들었습니다. 모두 코드로 설치하고 설치 전에 미리 보기를 확인할 수 있습니다.",
-    "cat.more": "카탈로그 둘러보기",
+    "cat.p": "커뮤니티가 만든 테마, 위젯, 장면을 앱 안에서 설치하세요.",
     "cat.submit": "내 작품 올리기",
-    "cat.sup": "후원자",
-    "cat.free": "무료",
     "cat.by": "{a} 제작",
-    "make.h2": "Xenon Maker",
-    "make.p": "위젯, 테마, 애니메이션 배경, Ambient 장면, 페이지, Deck 키를 브라우저에서 코드 없이 만들 수 있습니다. 만든 것은 Xenon에 붙여 넣을 코드가 되고, 카탈로그에 보낼 수도 있습니다.",
     "kind.theme": "테마",
     "kind.bundle": "팩",
     "kind.widget": "위젯",
@@ -2093,7 +2428,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "Deck 프로필",
     "kind.page": "페이지",
     "sup.h2": "후원자",
-    "sup.p": "Xenon은 무료이며 개발자 한 명이 만듭니다. 후원자는 매달 카탈로그 새 콘텐츠를 받고 개발이 이어지도록 도우며, 이름이 이 페이지에 실립니다.",
+    "sup.p": "Xenon은 무료이며 개발자 한 명이 만듭니다. 후원자는 매달 나오는 팩, Discord 역할, 아래에 실리는 이름, 매달 300 Sparks를 받습니다.",
     "tier.1.price": "5 USD <small>1회</small>",
     "tier.1.name": "커피 한 잔",
     "tier.1.what": "1개월분 후원자 콘텐츠, Discord 역할, 이 페이지에 이름 게시.",
@@ -2117,7 +2452,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "{d} 업데이트.",
     "bill.note": "Xenon을 후원한 사람은 하루 안에 이름의 첫 단어나 원하는 닉네임으로, 링크 없이 여기에 표시됩니다. 요청하면 지웁니다.",
     "inst.h2": "Xenon 다운로드",
-    "inst.p": "무료. Windows 10과 11을 지원하고, Mac과 Linux는 베타입니다.",
+    "inst.p": "무료. Windows 10과 11용 서명된 설치 프로그램. Mac과 Linux는 베타입니다.",
     "dl.linux.guide": "Linux 가이드",
     "dl.onphone.t": "지금 휴대폰에서 보고 있습니다.",
     "dl.onphone.p": "Xenon은 실행할 PC에 설치합니다. 링크를 자신에게 보낸 다음, 설정 → 휴대폰 → 기기 추가에서 이 휴대폰을 페어링하세요.",
@@ -2155,31 +2490,100 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "터치스크린에서 쓰는 OpenAI Codex",
     "ft.sensor": "PC 센서 패널",
     "hero.try": "브라우저에서 체험하기",
-    "bit.p": "Bit은 Xenon 안에 살면서 PC를 지켜봅니다. 무슨 일이 생기면 Bit이 짧은 한 줄로 알려 줍니다.",
-    "bit.done.t": "작업이 끝났을 때",
-    "bit.hot.t": "PC가 뜨거울 때",
-    "bit.err.t": "무언가 실패했을 때",
-    "bit.night.t": "밤늦게",
-    "ws.deck.p": "화면 위의 키로 앱을 열고, 단축키를 보내고, OBS 장면을 바꾸고, Discord와 조명을 제어합니다.",
+    "bit.p": "Xenon 안의 어시스턴트, 음성으로도 글로도.",
     "make.open": "Xenon Maker 열기",
-    "make.guide": "만드는 사람을 위한 안내서",
-    "make.sdk": "코드로 만드는 위젯",
-    "make.alt": "Xenon Maker: 위젯이나 테마부터 Deck 키, 패키지 전체까지 무엇을 만들지 고르는 화면",
     "sup.unlock": "후원자는 Xenon 안의 가사와 개발자 정리도 잠금 해제합니다. 가사는 PC 한 대당 한 번, 7일 동안 무료로 써 볼 수 있습니다.",
     "sup.sparks": "후원자가 아니어도 됩니다. 스파크는 500, 1050, 2200 묶음으로 5, 10, 20 USD에 살 수 있고, 만료되지 않습니다.",
     "sup.sparks.go": "Buy Me a Coffee 엑스트라",
     "bill.thanks": "감사합니다",
     "inst.all": "모든 다운로드",
     "inst.priv": "계정이 필요 없습니다. 설정, 메모, 파일, 센서 측정값은 PC에 남습니다. <a href=\"/ja/privacy.html\">온라인으로 나가는 것</a>",
-    "bit.done.q": "다 됐어, 한번 봐.",
-    "bit.hot.q": "CPU가 땀 흘려. 나도.",
-    "bit.err.q": "이번엔 잘 안 됐어. 다시 해 볼까?",
-    "bit.night.q": "늦었어. 난 계속 켜져 있지만, 넌 자는 게 좋겠어.",
+    "screens.cap.edge": "Edge, 세로",
+    "screens.cap.mon": "남는 모니터",
+    "screens.cap.tab": "태블릿",
+    "screens.cap.ph": "휴대폰",
+    "screens.l.edge": "Xeneon Edge에서",
+    "screens.l.tab": "태블릿 설정",
+    "screens.l.ph": "휴대폰 설정",
+    "one.h3": "보조 화면이 없나요? 메인 화면에서",
+    "one.p": "어떤 위젯이든 창 아래 바탕화면, 게임 위, 또는 앱 창에 붙여 둘 수 있습니다. Alt+Shift+X로 Xenon 메뉴가 열립니다.",
+    "one.a": "화면 하나로 쓰는 Xenon",
+    "one.alt": "Xenon 시계 배경화면 위 바탕화면의 Xenon 위젯: 캘린더, 재생 중인 음악, CPU와 GPU 수치",
+    "w.sys.t": "시스템 모니터",
+    "w.sys.p": "CPU와 GPU 사용률과 온도, RAM, 디스크, 핑, 네트워크.",
+    "w.sys.alt": "CPU와 GPU 사용률과 온도를 보여 주는 시스템 위젯",
+    "w.media.t": "음악과 가사",
+    "w.media.p": "Spotify와 PC가 인식하는 모든 플레이어, 후원자에게는 동기화된 가사도.",
+    "w.media.alt": "앨범 커버와 재생 중인 곡의 가사를 보여 주는 음악 위젯",
+    "w.deck.t": "Deck",
+    "w.deck.p": "앱, OBS, Discord, Home Assistant, 매크로용 터치 키. 키마다 키보드 단축키를 지정할 수 있습니다.",
+    "w.deck.alt": "앱, OBS, Discord용 터치 키가 있는 Deck 위젯",
+    "w.cal.t": "캘린더와 할 일",
+    "w.cal.p": "캘린더 피드, 알림이 있는 할 일, 다음 일정.",
+    "w.cal.alt": "다음 일정을 보여 주는 캘린더 위젯",
+    "w.dc.t": "Discord",
+    "w.dc.p": "누가 말하는지, 마이크 끄기, 헤드셋 끄기, 채널을 게임을 나가지 않고.",
+    "w.dc.alt": "음성 채널과 마이크 끄기, 헤드셋 끄기 키가 있는 Discord 위젯",
+    "w.notes.t": "메모와 타이머",
+    "w.notes.p": "탭으로 나뉜 메모, 집중 타이머, 스톱워치.",
+    "w.notes.alt": "탭이 있는 메모 위젯",
+    "games.h2": "FPS와 인스턴트 리플레이",
+    "games.p": "Windows에서 어떤 게임이든, 어떤 GPU 제조사든 FPS, 1%와 0.1% 로우, 프레임 타임을 보여 줍니다. Xenon은 게임에 코드를 주입하지 않습니다.",
+    "games.alt": "게임 성능 위젯: 평균 FPS, 1%와 0.1% 로우, 프레임 타임 그래프, CPU와 GPU 사용률",
+    "games.cap": "보조 화면에, 또는 게임 화면 위에.",
+    "games.1.t": "인스턴트 리플레이",
+    "games.1.p": "Ctrl+Shift+F10으로 마지막 몇 초를 저장합니다. 길이는 원하는 만큼. 자르고, 9:16으로 내보내고, 휴대폰으로 보내세요.",
+    "games.2.t": "끊기는 이유",
+    "games.2.p": "프레임이 떨어지면 한 문장으로: CPU 코어 100%, VRAM 가득 참, 게임이 아직 로딩 중.",
+    "games.3.t": "모든 게임 기록",
+    "games.3.p": "게임별 평균 FPS와 로우를 지난번과 비교.",
+    "games.4.t": "알아서 만드는 클립",
+    "games.4.p": "순간을 표시하면 Xenon이 그 주변을 클립으로 잘라 줍니다. 끊김도 표시할 수 있습니다.",
+    "work.h2": "업무 도구",
+    "work.p": "사무실, 학교, 지원 데스크를 위해. 스크린샷, 텍스트, 녹화는 PC에 남습니다.",
+    "work.1.t": "화면에서 텍스트",
+    "work.1.p": "스캔, 슬라이드, 복사가 막힌 앱 위를 끌어서 텍스트를 붙여 넣으세요.",
+    "work.2.t": "단계 기록기",
+    "work.2.p": "클릭마다 사진을 찍어 사용법 페이지로 정리합니다.",
+    "work.3.t": "자막과 챕터",
+    "work.3.p": "2분짜리 설명 영상을 녹화하세요. 자막은 PC에서, 챕터는 Bit이 만듭니다.",
+    "work.4.t": "개인 정보 가리기",
+    "work.4.p": "스크린샷 속 이메일과 긴 번호를 찾아 공유하기 전에 가립니다.",
+    "work.5.t": "스크린샷 고정",
+    "work.5.p": "그림을 창 위에 띄워 두고 보면서 옮겨 적으세요.",
+    "work.6.t": "키 하나로 버그 리포트",
+    "work.6.p": "인스턴트 리플레이가 켜져 있으면 창의 마지막 몇 초, 스크린샷, 시스템 정보를 zip 하나로.",
+    "bit.alt": "Xenon의 Bit 채팅: 마지막 42초를 바탕화면에 저장해 달라고 하면 클립을 저장하고, FPS를 물으면 평균, 1%와 0.1% 로우, 가장 느린 프레임을 알려 줍니다",
+    "bit.ask": "이렇게 물어보세요",
+    "bit.q1": "날씨를 바탕화면에 띄워 줘",
+    "bit.q2": "게임이 왜 끊겨?",
+    "bit.q3": "25분 타이머 시작해 줘",
+    "bit.q4": "화면의 글자를 복사해 줘",
+    "cat.open": "카탈로그 열기",
+    "cat.free.h": "무료, 설치 많은 순",
+    "cat.sup.h": "후원자용",
+    "cat.sup.note": "5 USD부터 포함, 후원 보기",
+    "cat.maker": "<b>직접 만들기.<\/b> Xenon Maker로 브라우저에서 코드 없이 위젯과 테마를 만드세요.",
+    "cat.installs": "설치 {n}회",
+    "faq.h2": "자주 묻는 질문",
+    "faq.p": "더 많은 내용은 <a href=\"/ko/faq.html\">도움말<\/a>에 있고, <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a>에서도 물어볼 수 있습니다.",
+    "faq.1.q": "보조 화면이 꼭 있어야 하나요?",
+    "faq.1.a": "아니요. 위젯, FPS 오버레이, 캡처는 지금 쓰는 화면에서 작동합니다. 휴대폰도 보조 화면이 됩니다.",
+    "faq.2.q": "게임에 손을 대나요?",
+    "faq.2.a": "아니요. Xenon은 자체 창에 그리고 프레임 타임은 Windows에서 읽으므로, 안티치트가 문제 삼을 만한 것이 게임에 주입되지 않습니다.",
+    "faq.3.q": "정말 무료인가요?",
+    "faq.3.a": "네. 후원자는 매달 나오는 팩과 Sparks를 받고, 가사와 개발자 정리 기능이 열립니다.",
+    "faq.4.q": "어떤 온도와 GPU를 읽나요?",
+    "faq.4.a": "Windows에서는 NVIDIA, AMD, Intel의 CPU와 GPU. macOS와 Linux는 시스템이 제공하는 값을 읽습니다(베타).",
+    "faq.5.q": "CORSAIR Xeneon Edge에서 작동하나요?",
+    "faq.5.a": "네. 가로든 세로든 Xeneon Edge에서 만들어졌습니다. 다른 모니터, 태블릿, 휴대폰에서도 작동합니다.",
+    "games.l.fps": "1% low까지 보는 FPS 오버레이",
+    "games.l.rec": "화면 녹화와 인스턴트 리플레이",
   };
 
   I18N.zh = {
-    "meta.title": "Xenon：适用于 Xeneon Edge、显示器和手机的免费触控仪表盘",
-    "meta.desc": "一款免费应用，可以把 CORSAIR Xeneon Edge、闲置的显示器、平板或手机变成电脑的触控仪表盘：系统状态、媒体、麦克风、Deck 按键和语音 AI。",
+    "meta.title": "Xenon：免费的副屏电脑仪表盘",
+    "meta.desc": "把闲置显示器、平板、手机或 Xeneon Edge 变成电脑的触控仪表盘：温度、FPS、媒体和 Deck 按键。支持 Windows，macOS 和 Linux 为测试版。",
     "skip": "跳到正文",
     "nav.catalog": "目录",
     "nav.maker": "Maker",
@@ -2192,8 +2596,8 @@ html[data-mobile] .onphone { display: block; }
     "nav.demo": "演示",
     "nav.coffee": "请我喝杯咖啡",
     "lang.hint": "本页面也有中文版",
-    "hero.h1": "Xenon，一款免费的电脑触控仪表盘",
-    "hero.lead": "它可以运行在 CORSAIR Xeneon Edge、闲置的显示器、平板或手机上：系统状态、媒体和麦克风、一组 Deck 按键，以及语音助手。",
+    "hero.h1": "Xenon，为你的第二块屏幕打造的 PC 仪表板",
+    "hero.lead": "免费。温度、FPS、音乐、日历和触控按键，放在一块闲置屏幕上，或作为小组件放在你现有的屏幕上。",
     "hero.lead.phone": "Xenon 安装在 Windows、Mac 或 Linux 电脑上。这部手机可以作为它的一块屏幕。",
     "cta.download": "下载 Xenon",
     "cta.download.os": "下载 {os} 版",
@@ -2227,53 +2631,24 @@ html[data-mobile] .onphone { display: block; }
     "theme.amb": "当前：该主题的 Ambient 屏保。",
     "themes.pause": "暂停主题轮播",
     "themes.play": "继续主题轮播",
-    "screens.h2": "Xeneon Edge、显示器、平板、手机",
-    "screens.p": "同一个仪表盘会按屏幕形状重新排列：宽屏上是 24 列网格，竖屏上有专属排列，平板上是两列，手机上是一列。",
-    "screens.mon.alt": "16:9 显示器上的仪表盘",
-    "screens.edge.alt": "Xeneon Edge 上的仪表盘",
-    "screens.tab.alt": "横放平板上的仪表盘",
-    "screens.ph.alt": "手机上的仪表盘",
-    "screens.mon.t": "显示器",
-    "screens.mon.p": "任何连接到电脑的显示器，是否支持触控都可以。首次启动时，Xenon 会询问要在哪块屏幕上打开。",
-    "screens.edge.t": "Xeneon Edge",
-    "screens.edge.p": "2560 × 720。有没有 iCUE 都能用。<a href=\"/ja/xeneon-edge-widgets.html\">在 Edge 上使用 Xenon</a>",
-    "screens.tab.t": "平板",
-    "screens.tab.p": "在你的 Wi-Fi 网络中通过二维码配对。<a href=\"/ja/tablet-dashboard.html\">工作原理</a>",
-    "screens.ph.t": "手机",
-    "screens.ph.p": "手机上无需安装任何东西。文件可以双向传输。<a href=\"/ja/phone.html\">设置方法</a>",
-    "screens.scale": "按比例绘制：27 英寸显示器、横放和竖放的 14.5 英寸 Edge、11 英寸平板和 6.1 英寸手机。",
-    "screens.vert.t": "竖放的 Edge",
-    "screens.vert.p": "同样的磁贴，从上到下排列。",
-    "screens.vert.alt": "竖向安装的 Xeneon Edge 上的仪表盘",
+    "screens.h2": "你的每一块屏幕",
+    "screens.p": "同一个仪表板会按每种屏幕形状重新排列。手机或平板在家庭网络中用一个代码配对。",
+    "screens.mon.alt": "闲置 16:9 显示器上的 Xenon",
+    "screens.edge.alt": "竖放的 Xeneon Edge 上的 Xenon",
+    "screens.tab.alt": "横放平板上的 Xenon",
+    "screens.ph.alt": "手机上的 Xenon",
     "beta": "Beta",
-    "widgets.h2": "小组件和按键",
-    "widgets.p": "可以调整大小，放在你想要的位置，最多 8 页。",
-    "wg.sys.alt": "系统小组件：CPU、GPU、内存、磁盘和网络图表",
-    "wg.med.alt": "播放小组件，显示正在播放的曲目",
-    "wg.cal.alt": "日历小组件，显示接下来的活动",
-    "ws.media.t": "媒体与直播",
-    "ws.sys.p": "CPU、GPU、内存、磁盘和网络，附带历史记录，还有游戏内的真实帧率。",
-    "ws.media.p": "任何播放器正在播放的内容，带控制按钮；还有你在 Twitch、YouTube 和 OBS 上的直播。",
-    "ws.prod.p": "日历、任务、计时器和笔记放在一个磁贴里；此外还有天气和新闻。",
+    "widgets.h2": "小组件",
+    "widgets.p": "可以拖动、调整大小、分组为标签页，并分布到多个页面。",
     "ws.make": "制作小组件",
-    "cat.prod": "效率",
-    "cat.system": "系统",
-    "ctl.deck.t": "Deck",
-    "ctl.deck.alt": "有十二个按键的 Deck 小组件：OBS 场景、录制、麦克风、Discord、Spotify、播放、截图和灯光",
 
 
 
     "ctl.ai.p": "说“Hey Bit”即可语音提问。支持 Gemini、OpenAI、Anthropic 或通过 Ollama 运行的本地模型，也支持使用你自己订阅的 Claude Code 和 Codex。用 Xenon 的点数“火花”，无需设置任何密钥。",
     "cat.h2": "目录",
-    "cat.p": "为 Xenon 制作的主题、小组件和场景，有免费的，也有面向支持者的。每一项都通过代码安装，安装前可以先预览。",
-    "cat.p.n": "{n} 个主题、小组件和场景，有免费的，也有面向支持者的，其中 {c} 个来自社区作者。每一项都通过代码安装，安装前可以先预览。",
-    "cat.more": "浏览目录",
+    "cat.p": "社区制作的主题、小组件和场景，在应用内直接安装。",
     "cat.submit": "发布你的作品",
-    "cat.sup": "支持者",
-    "cat.free": "免费",
     "cat.by": "作者：{a}",
-    "make.h2": "Xenon Maker",
-    "make.p": "在浏览器里无需代码就能制作小组件、主题、动态背景、Ambient 场景、页面和 Deck 按键。做好的作品会变成一段可粘贴到 Xenon 的代码，也可以提交到目录。",
     "kind.theme": "主题",
     "kind.bundle": "合集",
     "kind.widget": "小组件",
@@ -2282,7 +2657,7 @@ html[data-mobile] .onphone { display: block; }
     "kind.deck": "Deck 配置",
     "kind.page": "页面",
     "sup.h2": "支持者",
-    "sup.p": "Xenon 是免费的，由一位开发者制作。支持者可以获得每月的目录新内容，让项目继续下去，名字也会出现在这个页面上。",
+    "sup.p": "Xenon 免费，由一位开发者制作。支持者每月获得新内容、Discord 身份组、名字列在下方，以及每月 300 Sparks。",
     "tier.1.price": "5 USD <small>一次性</small>",
     "tier.1.name": "一杯咖啡",
     "tier.1.what": "一个月的支持者专属内容、Discord 身份组，以及你的名字会出现在本页。",
@@ -2306,7 +2681,7 @@ html[data-mobile] .onphone { display: block; }
     "bill.when": "更新于 {d}。",
     "bill.note": "支持 Xenon 的人会在一天内出现在这里，显示名字的第一个词或其要求的昵称，不附链接。可应要求删除。",
     "inst.h2": "下载 Xenon",
-    "inst.p": "免费。支持 Windows 10 和 11，Mac 和 Linux 为测试版。",
+    "inst.p": "免费。适用于 Windows 10 和 11 的签名安装程序；Mac 和 Linux 处于测试阶段。",
     "dl.linux.guide": "Linux 指南",
     "dl.onphone.t": "你现在正在使用手机。",
     "dl.onphone.p": "Xenon 安装在运行它的电脑上。先把链接发给自己，然后在“设置”>“手机”>“添加设备”中配对这部手机。",
@@ -2344,26 +2719,95 @@ html[data-mobile] .onphone { display: block; }
     "ft.codex": "在触摸屏上使用 OpenAI Codex",
     "ft.sensor": "电脑传感器面板",
     "hero.try": "在浏览器中试用",
-    "bit.p": "Bit 住在 Xenon 里，替你留意电脑。有事发生时，Bit 会用一句短话告诉你。",
-    "bit.done.t": "任务完成了",
-    "bit.hot.t": "电脑很烫",
-    "bit.err.t": "出了点问题",
-    "bit.night.t": "夜深了",
-    "ws.deck.p": "屏幕上的按键，可以打开应用、发送快捷键、切换 OBS 场景，控制 Discord 和灯光。",
+    "bit.p": "Xenon 内置的助手，语音或文字都可以。",
     "make.open": "打开 Xenon Maker",
-    "make.guide": "创作者指南",
-    "make.sdk": "用代码写小组件",
-    "make.alt": "Xenon Maker：选择要制作什么的界面，从小组件、主题到 Deck 按键或整个包",
     "sup.unlock": "支持者还能在 Xenon 里解锁“歌词”和“开发者清理”。“歌词”每台电脑可免费试用一次，为期 7 天。",
     "sup.sparks": "不必成为支持者：火花以 500、1050 或 2200 的包购买，价格为 5、10 或 20 USD，永不过期。",
     "sup.sparks.go": "Buy Me a Coffee 上的 Extras",
     "bill.thanks": "谢谢",
     "inst.all": "全部下载",
     "inst.priv": "无需账户。设置、笔记、文件和传感器读数都留在你的电脑上。<a href=\"/ja/privacy.html\">哪些内容会联网</a>",
-    "bit.done.q": "好了，看一眼。",
-    "bit.hot.q": "CPU 在冒汗。我也是。",
-    "bit.err.q": "这次没成功。再试一次？",
-    "bit.night.q": "很晚了。我一直开着，你也许该歇了。",
+    "screens.cap.edge": "Edge，竖放",
+    "screens.cap.mon": "闲置显示器",
+    "screens.cap.tab": "平板",
+    "screens.cap.ph": "手机",
+    "screens.l.edge": "在 Xeneon Edge 上使用",
+    "screens.l.tab": "平板设置",
+    "screens.l.ph": "手机设置",
+    "one.h3": "没有第二块屏幕？就用主屏幕",
+    "one.p": "任何小组件都可以放在窗口下方的桌面上、游戏上方，或跟随某个应用窗口。Alt+Shift+X 打开 Xenon 菜单。",
+    "one.a": "单屏使用 Xenon",
+    "one.alt": "桌面上的 Xenon 小组件，背景是 Xenon 自带的时钟壁纸：日历、正在播放的音乐以及 CPU 和 GPU 读数",
+    "w.sys.t": "系统监视",
+    "w.sys.p": "CPU 和 GPU 负载与温度、内存、磁盘、延迟和网络。",
+    "w.sys.alt": "显示 CPU 和 GPU 负载与温度的系统小组件",
+    "w.media.t": "音乐和歌词",
+    "w.media.p": "Spotify 以及电脑识别的任何播放器，支持者还有同步歌词。",
+    "w.media.alt": "显示专辑封面和正在播放歌曲歌词的音乐小组件",
+    "w.deck.t": "Deck",
+    "w.deck.p": "用于应用、OBS、Discord、Home Assistant 和宏的触控按键，每个都可以设置键盘快捷键。",
+    "w.deck.alt": "带有应用、OBS 和 Discord 触控按键的 Deck 小组件",
+    "w.cal.t": "日历和任务",
+    "w.cal.p": "你的日历订阅、带提醒的任务和接下来的日程。",
+    "w.cal.alt": "显示接下来日程的日历小组件",
+    "w.dc.t": "Discord",
+    "w.dc.p": "谁在说话、静音、关闭声音和频道，无需离开游戏。",
+    "w.dc.alt": "显示语音频道以及静音和关闭声音按键的 Discord 小组件",
+    "w.notes.t": "笔记和计时器",
+    "w.notes.p": "分标签的笔记、专注计时器和秒表。",
+    "w.notes.alt": "带标签页的笔记小组件",
+    "games.h2": "FPS 和即时回放",
+    "games.p": "在 Windows 上，任何游戏、任何品牌的 GPU 都能显示 FPS、1% 和 0.1% 低帧以及帧时间。Xenon 从不向游戏注入代码。",
+    "games.alt": "游戏性能小组件：平均 FPS、1% 和 0.1% 低帧、帧时间曲线以及 CPU 和 GPU 负载",
+    "games.cap": "放在第二块屏幕上，或直接叠在游戏上。",
+    "games.1.t": "即时回放",
+    "games.1.p": "Ctrl+Shift+F10 保存最近的几秒，时长由你选。可裁剪、导出 9:16 并发送到手机。",
+    "games.2.t": "为什么卡顿",
+    "games.2.p": "掉帧时用一句话说明：某个 CPU 核心 100%、显存已满、游戏仍在加载。",
+    "games.3.t": "每局都有记录",
+    "games.3.p": "每款游戏的平均 FPS 和低帧，与上一次对比。",
+    "games.4.t": "自动剪辑",
+    "games.4.p": "标记一个瞬间，Xenon 会围绕它剪出片段。也能自动标记卡顿。",
+    "work.h2": "工作工具",
+    "work.p": "适合办公、学习和技术支持。截图、文字和录像都留在你的电脑上。",
+    "work.1.t": "从屏幕提取文字",
+    "work.1.p": "在扫描件、幻灯片或无法复制的应用上拖动，然后粘贴其中的文字。",
+    "work.2.t": "步骤记录器",
+    "work.2.p": "每次点击一张图，整理成一页操作说明。",
+    "work.3.t": "转录和章节",
+    "work.3.p": "录一段 2 分钟的讲解：字幕在你的电脑上生成，章节由 Bit 划分。",
+    "work.4.t": "遮盖隐私信息",
+    "work.4.p": "找出截图中的邮箱和长串数字，在分享前遮住。",
+    "work.5.t": "钉住截图",
+    "work.5.p": "把图片固定在窗口上方，边看边抄。",
+    "work.6.t": "一键生成错误报告",
+    "work.6.p": "开启即时回放后，把窗口最近几秒、一张截图和系统信息打包成一个 zip。",
+    "bit.alt": "Xenon 中 Bit 的聊天：要求把最近 42 秒保存到桌面时，它把片段存到那里；问到 FPS 时，它给出平均值、1% 和 0.1% 低帧以及最慢的一帧",
+    "bit.ask": "可以这样问",
+    "bit.q1": "把天气放到我的桌面上",
+    "bit.q2": "我的游戏为什么卡顿？",
+    "bit.q3": "开一个 25 分钟的计时器",
+    "bit.q4": "复制我屏幕上的文字",
+    "cat.open": "打开目录",
+    "cat.free.h": "免费，安装最多",
+    "cat.sup.h": "支持者专享",
+    "cat.sup.note": "5 USD 起即可获得，查看支持者",
+    "cat.maker": "<b>自己动手。<\/b>Xenon Maker 在浏览器里无需代码就能制作小组件和主题。",
+    "cat.installs": "{n} 次安装",
+    "faq.h2": "常见问题",
+    "faq.p": "更多内容见<a href=\"/zh/faq.html\">帮助页面<\/a>，也可以在 <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord<\/a> 提问。",
+    "faq.1.q": "需要第二块屏幕吗？",
+    "faq.1.a": "不需要。小组件、FPS 叠加层和截录屏都能在你现有的屏幕上使用。手机也可以当第二块屏幕。",
+    "faq.2.q": "它会动我的游戏吗？",
+    "faq.2.a": "不会。Xenon 在自己的窗口中绘制，从 Windows 读取帧时间，不向游戏注入任何东西，反作弊没有可标记的内容。",
+    "faq.3.q": "真的免费吗？",
+    "faq.3.a": "是的。支持者每月获得新内容和 Sparks，并解锁歌词和开发者清理。",
+    "faq.4.q": "能读取哪些温度和 GPU？",
+    "faq.4.a": "Windows 上支持 NVIDIA、AMD 和 Intel 的 CPU 与 GPU。macOS 和 Linux 读取系统提供的数据（测试版）。",
+    "faq.5.q": "支持 CORSAIR Xeneon Edge 吗？",
+    "faq.5.a": "支持，它就是在 Xeneon Edge 上做出来的，横放竖放都行。任何显示器、平板或手机也都能用。",
+    "games.l.fps": "显示 1% low 的 FPS 叠加层",
+    "games.l.rec": "屏幕录制与即时回放",
   };
 
   // Language engine. Every language has a URL of its own, generated by
@@ -2465,7 +2909,7 @@ html[data-mobile] .onphone { display: block; }
       const name = { windows: 'Windows', macos: 'macOS', linux: 'Linux' }[os];
       const tpl = window.XT ? window.XT('cta.download.os') : 'Download for {os}';
       document.querySelectorAll('[data-dl-label]').forEach((el) => { el.textContent = tpl.replace('{os}', name); });
-      const facts = document.getElementById('hero-facts');
+      const facts = document.getElementById('hero-os');
       if (facts && window.XT) facts.textContent = window.XT('fact.' + os);
     }
     label();
@@ -2501,6 +2945,28 @@ html[data-mobile] .onphone { display: block; }
     const chips = document.querySelectorAll('.chip[data-theme-id]');
     const pic = (id, amb) => '/images/home/' + (amb ? 'amb-' : 'edge-') + id;
     let cur = 'ocean', amb = false, busy = null;
+    const cap = document.getElementById('scr-cap');
+    const noteText = (id, ambient) => window.XT(THEMES[id].note) + (ambient ? ' ' + window.XT('theme.amb') : '');
+
+    // A caption that grows by a line during the walk would push the page under
+    // it (a layout shift nobody asked for): measure every version once per
+    // width and language and hold the tallest.
+    let capW = 0;
+    function holdCap(force) {
+      if (!cap || !note || !window.XT) return;
+      const w = cap.clientWidth;
+      if (!w || (w === capW && !force)) return;
+      capW = w;
+      const keep = note.innerHTML;
+      cap.style.removeProperty('--cap-h');
+      let h = 0;
+      ORDER.forEach((id) => [false, true].forEach((a) => { note.innerHTML = noteText(id, a); h = Math.max(h, cap.offsetHeight); }));
+      note.innerHTML = keep;
+      cap.style.setProperty('--cap-h', h + 'px');
+    }
+    holdCap(true);
+    if ('ResizeObserver' in window && cap) new ResizeObserver(() => holdCap(false)).observe(cap);
+    document.addEventListener('xenon:lang', () => { if (note && window.XT) note.innerHTML = noteText(cur, amb); holdCap(true); });
 
     // One picture change: the theme's dashboard or its Ambient scene, faded in
     // over the current one once decoded, so the screen never shows a gap.
@@ -2509,7 +2975,7 @@ html[data-mobile] .onphone { display: block; }
       cur = id; amb = !!ambient;
       chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.themeId === id)));
       document.documentElement.style.setProperty('--lit', t.lit);
-      if (note) note.innerHTML = window.XT(t.note) + (amb ? ' ' + window.XT('theme.amb') : '');
+      if (note) note.innerHTML = noteText(id, amb);
       dev.classList.toggle('amb', amb);
       const base = pic(id, amb);
       const next = new Image();
@@ -2705,7 +3171,7 @@ html[data-mobile] .onphone { display: block; }
   // as soon as it lands; a failure makes the line shorter, never a zero.
   (function () {
     const proof = document.getElementById('proof');
-    const facts = document.getElementById('hero-facts');
+    const ver = document.getElementById('hero-ver');
     const lang = document.documentElement.lang || 'en';
     const REPO = 'https://api.github.com/repos/marcimastro98/Xenon';
     const fmt = (n) => { try { return new Intl.NumberFormat(lang, { useGrouping: true }).format(n); } catch (e) { return String(n); } };
@@ -2742,7 +3208,7 @@ html[data-mobile] .onphone { display: block; }
       });
     }
     cached('xenon.site.v', () => j(REPO + '/releases/latest').then((r) => (r && r.tag_name ? String(r.tag_name).replace(/^v/, '') : null))).then((v) => {
-      if (v && facts) facts.textContent = facts.textContent.replace(/\s*$/, '') + ' ' + window.XT('fact.version').replace('{v}', v);
+      if (v && ver) ver.textContent = window.XT('fact.version').replace('{v}', v);
     });
     cached('xenon.site.stars', () => j(REPO).then((r) => (r && typeof r.stargazers_count === 'number' ? r.stargazers_count : null))).then((n) => {
       if (!n) return;
@@ -2775,76 +3241,68 @@ html[data-mobile] .onphone { display: block; }
 
 <script>
   // The catalog rows: the same catalog.json the app and the catalog page read.
-  // At least one free entry.
+  // Free entries ordered by the installs dashboards reported to the hub (shown
+  // only from 10, like the catalog page), catalog order if the hub is slow or
+  // down; then the newest supporter entries. Names and authors via textContent.
   (async function () {
-    const box = document.getElementById('cat');
-    if (!box) return;
+    const free = document.getElementById('cat');
+    const sup = document.getElementById('cat-sup');
+    if (!free || !sup) return;
+    const HUB = 'https://xenon-supporter-hub.xenonedge.workers.dev';
+    const MIN_INSTALLS_SHOWN = 10;
+    const ROW = 4;
     let data = null;
     try { const r = await fetch('/community/catalog.json', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch (e) {}
     const entries = (data && Array.isArray(data.entries)) ? data.entries : [];
     const now = Date.now();
-    const t = (s) => { const v = Date.parse(s || ''); return isNaN(v) ? null : v; };
-    const visible = (e) => e && e.active !== false && e.id && e.name &&
+    const t = (v) => { const n = Date.parse(v || ''); return isNaN(n) ? null : n; };
+    const visible = (e) => e && e.active !== false && e.id && e.name && (e.shots || 0) > 0 &&
       (t(e.activeFrom) == null || t(e.activeFrom) <= now) && (t(e.activeUntil) == null || t(e.activeUntil) >= now);
     const all = entries.filter(visible);
-    const p = document.getElementById('cat-p');
-    if (p && all.length) {
-      const community = all.filter((e) => !/^xenon$/i.test(String(e.author || '').trim())).length;
-      p.textContent = window.XT('cat.p.n').replace('{n}', all.length).replace('{c}', community);
-    }
-    const KIND = { theme: 'kind.theme', bundle: 'kind.bundle', widget: 'kind.widget', bg: 'kind.bg', ambient: 'kind.ambient', deck: 'kind.deck', page: 'kind.page' };
-    function paint() {
-      const pool = all.filter((e) => (e.shots || 0) > 0);
-      const pick = [];
-      // One the author features, then the community (one look, then one
-      // widget from someone else), then free looks; at least one free entry.
-      const isX = (e) => /^xenon$/i.test(String(e.author || '').trim());
-      const look = (e) => ['bundle', 'theme', 'ambient', 'bg'].includes(e.kind);
-      const add = (e) => { if (e && pick.length < 3 && !pick.includes(e)) pick.push(e); };
-      pool.filter((e) => e.featured).slice(0, 1).forEach(add);
-      const comm = pool.filter((e) => !isX(e));
-      const c1 = comm.find(look) || comm[0];
-      add(c1);
-      add(comm.find((e) => e.kind === 'widget' && (!c1 || e.author !== c1.author)));
-      pool.filter((e) => isX(e) && !e.locked && look(e)).forEach(add);
-      pool.forEach(add);
-      box.textContent = '';
-      pick.slice(0, 3).forEach((e) => {
-        const href = '/catalog/#' + encodeURIComponent(e.id);
-        const a = document.createElement('article'); a.className = 'item';
-        const th = document.createElement('a'); th.className = 'th'; th.href = href;
-        th.setAttribute('aria-hidden', 'true'); th.tabIndex = -1;
-        const im = document.createElement('img'); im.loading = 'lazy'; im.decoding = 'async'; im.alt = ''; im.width = 800; im.height = 450;
-        im.src = 'https://assets.xenon-app.com/community/shots/' + encodeURIComponent(e.id) + '.webp';
-        im.addEventListener('error', () => { if (!im.dataset.f) { im.dataset.f = '1'; im.src = im.src.replace(/\.webp$/, '.png'); } });
-        // A 32:9 strip is shown whole on the dark ground, never cropped to its middle.
-        im.addEventListener('load', () => { if (im.naturalWidth / im.naturalHeight > 2.2) im.classList.add('strip'); });
-        th.appendChild(im);
-        const h = document.createElement('h3');
-        const ln = document.createElement('a'); ln.href = href; ln.textContent = String(e.name).replace(/\s+/g, ' ');
-        ln.setAttribute('data-track', 'catalog_view_item'); ln.setAttribute('data-track-id', e.id); ln.setAttribute('data-track-location', 'home');
-        h.appendChild(ln);
-        const m = document.createElement('p'); m.className = 'meta';
-        const tier = document.createElement('b');
-        if (e.locked) tier.className = 'sup';
-        tier.textContent = window.XT(e.locked ? 'cat.sup' : 'cat.free');
-        m.append(tier, document.createTextNode(', ' + window.XT(KIND[e.kind] || 'kind.bundle') + (e.author ? ' ' + window.XT('cat.by').replace('{a}', e.author) : '')));
-        a.append(th, h, m);
-        box.appendChild(a);
-      });
-    }
-    paint();
-  })();
-</script>
+    const frees = all.filter((e) => !e.locked);
+    const sups = all.filter((e) => e.locked).sort((x, y) => (t(y.addedAt) || 0) - (t(x.addedAt) || 0));
 
-<script>
-  // Bit in its four moments, each card looping the clip the app plays then.
-  // The player pauses off screen and shows a still pose under reduced motion.
-  window.addEventListener('DOMContentLoaded', () => {
-    const player = window.Xenon && window.Xenon.bitPlayer;
-    if (!player) return;
-    document.querySelectorAll('.bit-stage').forEach((h) => player.mount(h, { mood: h.dataset.clip, fidgets: false }));
-  });
+    let counts = {};
+    try {
+      const ids = encodeURIComponent(frees.map((e) => e.id).join(','));
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 2500);
+      const r = await fetch(HUB + '/catalog/installs?ids=' + ids, { signal: ctl.signal });
+      clearTimeout(timer);
+      const d = r.ok ? await r.json() : null;
+      if (d && d.ok && d.counts && typeof d.counts === 'object') counts = d.counts;
+    } catch (e) {}
+    const installs = (e) => { const n = Number(counts[e.id]); return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0; };
+    const ranked = frees.map((e, i) => ({ e, i, n: installs(e) }))
+      .sort((x, y) => (y.n - x.n) || (x.i - y.i)).map((r) => r.e);
+
+    const KIND = { theme: 'kind.theme', bundle: 'kind.bundle', widget: 'kind.widget', bg: 'kind.bg', ambient: 'kind.ambient', deck: 'kind.deck', page: 'kind.page' };
+    const cap = (w) => w.charAt(0).toLocaleUpperCase() + w.slice(1);
+    const nf = new Intl.NumberFormat(document.documentElement.lang || 'en');
+    function card(e) {
+      const a = document.createElement('a');
+      a.href = '/catalog/#' + encodeURIComponent(e.id);
+      a.setAttribute('data-track', 'catalog_view_item'); a.setAttribute('data-track-id', e.id); a.setAttribute('data-track-location', 'home');
+      const im = document.createElement('img'); im.loading = 'lazy'; im.decoding = 'async'; im.alt = ''; im.width = 800; im.height = 450;
+      im.src = 'https://assets.xenon-app.com/community/shots/' + encodeURIComponent(e.id) + '.webp';
+      im.addEventListener('error', () => { if (!im.dataset.f) { im.dataset.f = '1'; im.src = im.src.replace(/\.webp$/, '.png'); } });
+      // A 32:9 strip is shown whole on the dark ground, never cropped to its middle.
+      im.addEventListener('load', () => { if (im.naturalWidth / im.naturalHeight > 2.2) im.classList.add('strip'); });
+      const b = document.createElement('b'); b.textContent = String(e.name).replace(/\s+/g, ' ');
+      let meta = cap(window.XT(KIND[e.kind] || 'kind.bundle'));
+      if (e.author) meta += ' ' + window.XT('cat.by').replace('{a}', String(e.author));
+      const n = e.locked ? 0 : installs(e);
+      if (n >= MIN_INSTALLS_SHOWN) meta += ', ' + window.XT('cat.installs').replace('{n}', nf.format(n));
+      const m = document.createElement('span'); m.textContent = meta;
+      a.append(im, b, m);
+      return a;
+    }
+    free.replaceChildren(...ranked.slice(0, ROW).map(card));
+    sup.replaceChildren(...sups.slice(0, ROW).map(card));
+    // Nothing for supporters right now: no empty heading.
+    const head = sup.previousElementSibling;
+    if (!sup.childElementCount) { sup.hidden = true; if (head && head.classList.contains('shelf-head')) head.hidden = true; }
+  })();
 </script>
 
 <script>

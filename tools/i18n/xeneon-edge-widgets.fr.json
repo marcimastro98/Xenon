@@ -1,7 +1,7 @@
 {
   "fr": {
-    "meta.title": "Xeneon Edge widgets : iCUE et le dashboard Xenon gratuit",
-    "meta.desc": "dashboard gratuit pour le CORSAIR Xeneon Edge : pages par glisser-déposer, contrôles du micro, de l'audio et des médias, tactile compatible jeu. Fonctionne avec ou sans iCUE, sans compte.",
+    "meta.title": "Widgets Xeneon Edge : dashboard gratuit avec ou sans iCUE",
+    "meta.desc": "Ce qu'iCUE offre au CORSAIR Xeneon Edge et ce que Xenon ajoute : pages de widgets, micro et audio, touches Deck. Avec ou sans iCUE, sans compte.",
     "ld.q1": "Xenon remplace-t-il iCUE ?",
     "ld.a1": "Non. iCUE pilote toujours votre matériel et votre éclairage CORSAIR. Xenon fonctionne à ses côtés, en tant que fenêtre distincte ou à l'intérieur d'un panneau iCUE, et peut envoyer des effets d'éclairage à iCUE via son propre pont.",
     "ld.q2": "Ai-je besoin de Xeneon Edge pour utiliser Xenon ?",

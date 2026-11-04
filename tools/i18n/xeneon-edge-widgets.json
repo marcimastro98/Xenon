@@ -1,7 +1,7 @@
 {
   "en": {
-    "meta.title": "Xeneon Edge widgets: iCUE and the free Xenon dashboard",
-    "meta.desc": "Free dashboard for the CORSAIR Xeneon Edge: drag-and-drop pages, mic, audio and media controls, game-safe touch. Runs with or without iCUE, no account.",
+    "meta.title": "Xeneon Edge widgets: free dashboard with or without iCUE",
+    "meta.desc": "What iCUE gives the CORSAIR Xeneon Edge and what Xenon adds: pages of widgets, mic and audio controls, Deck keys. With or without iCUE, no account.",
     "ld.q1": "Does Xenon replace iCUE?",
     "ld.a1": "No. iCUE still drives your CORSAIR hardware and lighting. Xenon runs beside it, as its own window or inside an iCUE panel, and can send lighting effects to iCUE through its own bridge.",
     "ld.q2": "Do I need the Xeneon Edge to use Xenon?",
@@ -52,8 +52,8 @@
     "edge.cta.p": "One installer, no account, and your settings and files stay on your PC. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Download Xenon for Windows</a>, or get the <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">macOS and Linux builds</a>. Questions go to the <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>."
   },
   "es": {
-    "meta.title": "Widgets para Xeneon Edge: iCUE y el panel gratuito Xenon",
-    "meta.desc": "Panel gratis para CORSAIR Xeneon Edge: páginas de arrastrar y soltar, control de audio, micro y música, táctil seguro en juego. Con o sin iCUE, sin cuenta.",
+    "meta.title": "Widgets para Xeneon Edge: panel gratis con o sin iCUE",
+    "meta.desc": "Qué ofrece iCUE en el CORSAIR Xeneon Edge y qué añade Xenon: páginas de widgets, control de micrófono y audio, teclas del Deck. Con o sin iCUE, sin cuenta.",
     "ld.q1": "¿Xenon reemplaza a iCUE?",
     "ld.a1": "No. iCUE sigue controlando tu hardware CORSAIR y la iluminación. Xenon funciona a su lado, en su propia ventana o dentro de un panel de iCUE, y puede enviar efectos de iluminación a iCUE con su propio puente.",
     "ld.q2": "¿Necesito el Xeneon Edge para usar Xenon?",
@@ -104,8 +104,8 @@
     "edge.cta.p": "Un instalador, sin cuenta, y tus ajustes y archivos se quedan en tu PC. <a href=\"https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe\" data-track=\"download_click\" data-track-location=\"seo_page_end\">Descarga Xenon para Windows</a> o consigue las <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">versiones para macOS y Linux</a>. Para preguntas, está el <a href=\"https://discord.gg/MBVrw9kZyg\" rel=\"noopener\">Discord</a>."
   },
   "it": {
-    "meta.title": "Widget per Xeneon Edge: iCUE e la dashboard gratuita Xenon",
-    "meta.desc": "Dashboard gratis per CORSAIR Xeneon Edge: pagine drag-and-drop, comandi audio, microfono e musica, touch sicuro in gioco. Con o senza iCUE, senza account.",
+    "meta.title": "Widget per Xeneon Edge: dashboard gratis con o senza iCUE",
+    "meta.desc": "Cosa dà iCUE al CORSAIR Xeneon Edge e cosa aggiunge Xenon: pagine di widget, controlli di microfono e audio, tasti Deck. Con o senza iCUE, senza account.",
     "ld.q1": "Xenon sostituisce iCUE?",
     "ld.a1": "No. iCUE continua a gestire il tuo hardware CORSAIR e l'illuminazione. Xenon gira accanto, in una finestra sua o dentro un pannello di iCUE, e può mandare effetti di luce a iCUE tramite un bridge proprio.",
     "ld.q2": "Mi serve lo Xeneon Edge per usare Xenon?",

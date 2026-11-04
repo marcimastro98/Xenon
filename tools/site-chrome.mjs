@@ -106,7 +106,7 @@ export function footerHtml() {
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
     ${col('app', 'App', [['/download.html', 'f.download', 'Download'], ['/demo/', 'f.demo', 'Browser demo'], ['/catalog/', 'f.catalog', 'Catalog'], ['/maker/', 'f.maker', 'Xenon Maker'], ['/create/', 'f.create', 'Make widgets'], ['/releases.html', 'f.releases', 'Releases']])}
-    ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
+    ${col('guides', 'Guides', [['/xeneon-edge-widgets.html', 'f.edge', 'Xenon on the Xeneon Edge'], ['/tablet-dashboard.html', 'f.tablet', 'Tablet or phone as a dashboard'], ['/phone.html', 'f.phone', 'Pairing a phone'], ['/single-screen.html', 'f.onescreen', 'Xenon on one screen'], ['/fps-overlay.html', 'f.fps', 'FPS overlay'], ['/screen-recorder.html', 'f.recorder', 'Screen recorder'], ['/mac.html', 'f.mac', 'Xenon on a Mac'], ['/linux.html', 'f.linux', 'Xenon on Linux'], ['/widgets.html', 'f.widgets', 'Every widget'], ['/deck.html', 'f.deck', 'Deck keys'], ['/claude-code.html', 'f.claude', 'Claude Code on a touchscreen'], ['/codex.html', 'f.codex', 'OpenAI Codex on a touchscreen'], ['/sensor-panel.html', 'f.sensor', 'A sensor panel for your PC'], ['/xenon-exe.html', 'f.exe', 'Is the installer safe?']])}
     ${col('project', 'Project', [['/#support', 'f.support', 'Supporters'], ['https://github.com/marcimastro98/Xenon', '', 'GitHub', true], ['https://discord.gg/MBVrw9kZyg', '', 'Discord', true], ['/faq.html', 'f.faq', 'Help and questions'], ['/privacy.html', 'f.privacy', 'Privacy']])}
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>
@@ -125,6 +125,8 @@ export const GUIDES = [
   ['tablet-dashboard.html', 'f.tablet'],
   ['phone.html', 'f.phone'],
   ['single-screen.html', 'f.onescreen'],
+  ['fps-overlay.html', 'f.fps'],
+  ['screen-recorder.html', 'f.recorder'],
   ['mac.html', 'f.mac'],
   ['linux.html', 'f.linux'],
   ['widgets.html', 'f.widgets'],
@@ -203,6 +205,8 @@ const PAGES = [
   { file: 'docs/claude-code.html', lang: false },
   { file: 'docs/codex.html', lang: false },
   { file: 'docs/single-screen.html', lang: false },
+  { file: 'docs/fps-overlay.html', lang: false },
+  { file: 'docs/screen-recorder.html', lang: false },
   { file: 'docs/sensor-panel.html', lang: false },
   { file: 'docs/catalog/index.html', lang: true, oldHeader: /<nav class="top">[\s\S]*?<\/nav>\n/ },
   { file: 'docs/create/index.html', lang: false, oldHeader: /<header class="topbar">[\s\S]*?<\/header>\n/, footerBeforeBody: true },

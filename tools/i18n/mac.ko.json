@@ -1,7 +1,7 @@
 {
   "ko": {
-    "meta.title": "Mac용 Xenon(베타): Xeneon Edge와 두 번째 화면 대시보드",
-    "meta.desc": "macOS용 Xenon(베타). Mac 옆의 Xeneon Edge, 남는 모니터, 태블릿에 띄우는 무료 대시보드입니다. 되는 것, 첫 실행, 권한, 제거 방법을 정리했습니다.",
+    "meta.title": "Mac용 Xenon(베타): 보조 모니터 대시보드와 위젯",
+    "meta.desc": "macOS 11 이상용 Xenon(베타): 남는 화면이나 Xeneon Edge용 대시보드, 필요한 권한, 첫 실행, 제거 방법.",
     "mac.h1": "macOS용 Xenon",
     "mac.beta": "베타",
     "mac.lede": "Xenon은 컴퓨터 옆 화면을 위한 무료 터치 대시보드입니다. Mac에서도 Windows와 같은 대시보드가 실행됩니다. 이 페이지에는 지금 Mac에서 되는 것과 안 되는 것, 그리고 설치하고 제거하는 방법을 정리했습니다.",

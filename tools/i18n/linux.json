@@ -1,7 +1,7 @@
 {
  "en": {
-  "meta.title": "Xenon on Linux: second-screen dashboard, AppImage, deb, rpm",
-  "meta.desc": "Xenon on Linux (beta), a free dashboard for any spare screen: AppImage, .deb and .rpm downloads, the first-launch setup and what needs X11.",
+  "meta.title": "Xenon for Linux (Beta): PC dashboard, AppImage, deb, rpm",
+  "meta.desc": "Xenon on Linux (Beta): AppImage, deb and rpm, first launch, and a table of what works on X11 and Wayland, KDE and GNOME.",
   "lx.title": "Xenon on Linux",
   "lx.lede": "Xenon is a free dashboard for any spare screen. On Linux it is in beta: the dashboard is the same as on Windows, and this page lists what still differs and the packages it needs.",
   "lx.updated": "Last updated: 26 September 2026 · every link points at <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">the latest release</a>",
@@ -64,8 +64,8 @@
   "ld.a4": "Most of it does. The open-applications widget, the app switcher and the AI's screen vision need an X11 session."
  },
  "es": {
-  "meta.title": "Xenon en Linux: panel para segunda pantalla, AppImage y deb",
-  "meta.desc": "Xenon en Linux (beta), un panel gratis para cualquier pantalla extra: descargas AppImage, .deb y .rpm, el primer inicio y qué necesita X11.",
+  "meta.title": "Xenon para Linux (beta): panel del PC, AppImage, deb, rpm",
+  "meta.desc": "Xenon en Linux (beta): AppImage, deb y rpm, primer inicio y una tabla de lo que funciona en X11 y Wayland, KDE y GNOME.",
   "lx.title": "Xenon en Linux",
   "lx.lede": "Xenon es un panel gratuito para cualquier pantalla que tengas de sobra. En Linux está en beta: el panel es el mismo que en Windows, y esta página muestra lo que todavía cambia y los paquetes que necesita.",
   "lx.updated": "Última actualización: 26 de septiembre de 2026 · todos los enlaces apuntan a <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la última versión</a>",
@@ -128,8 +128,8 @@
   "ld.a4": "Casi todo sí. El widget Aplicaciones abiertas, el selector de apps y la visión de pantalla de la IA necesitan una sesión X11."
  },
  "it": {
-  "meta.title": "Xenon su Linux: dashboard per il secondo schermo, AppImage",
-  "meta.desc": "Xenon su Linux (beta), una dashboard gratuita per uno schermo in più: download AppImage, .deb e .rpm, cosa fa il primo avvio e cosa richiede X11.",
+  "meta.title": "Xenon per Linux (Beta): dashboard del PC, AppImage, deb, rpm",
+  "meta.desc": "Xenon su Linux (Beta): AppImage, deb e rpm, primo avvio e una tabella di cosa funziona su X11 e Wayland, KDE e GNOME.",
   "lx.title": "Xenon su Linux",
   "lx.lede": "Xenon è una dashboard gratuita per qualsiasi schermo in più. Su Linux è in beta: la dashboard è la stessa di Windows, e questa pagina elenca cosa cambia ancora e i pacchetti che servono.",
   "lx.updated": "Ultimo aggiornamento: 26 settembre 2026 · ogni link punta all'<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">ultima versione</a>",

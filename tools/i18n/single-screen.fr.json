@@ -1,7 +1,7 @@
 {
   "fr": {
-    "meta.title": "Xenon sur un seul écran : widgets, overlay et Replay instantané",
-    "meta.desc": "Des widgets sur votre bureau ou sur vos jeux, un overlay FPS, des captures d’écran, des enregistrements et le Replay instantané, sans second écran ni compte.",
+    "meta.title": "Widgets de bureau pour Windows, Mac et Linux : Xenon",
+    "meta.desc": "Des widgets Xenon sur le bureau, sur les jeux ou à côté d'une app, sur votre seul écran. Météo, musique, stats du PC, Deck. Windows ; macOS et Linux bêta.",
     "ld.q1": "Faut-il un second écran pour utiliser Xenon ?",
     "ld.a1": "Non. Dans l’application Xenon, les widgets peuvent aller sur votre bureau ou par-dessus vos applications, et le menu Xenon s’ouvre par-dessus n’importe quelle application avec Alt+Shift+X. Un second écran ou un téléphone appairé est facultatif.",
     "ld.q2": "L’overlay entre-t-il dans le jeu ?",
@@ -33,11 +33,13 @@
     "os.perf.p1": "La tuile <strong>Performances en jeu</strong> affiche la fréquence d’images du jeu auquel vous jouez, ses 1 % low et 0,1 % low, le temps de trame et une ligne des dernières images où une saccade apparaît sous forme de pic, avec la charge du CPU et du GPU en dessous. Demandez à Bit « affiche mes FPS sur le jeu » pour la placer par-dessus votre jeu. Sous Windows, <strong>Ctrl+Shift+F9</strong> masque les widgets sur le jeu et les fait revenir.",
     "os.perf.p2": "Xenon se souvient de chaque jeu auquel vous jouez plus de deux minutes, pour que vous puissiez comparer une soirée avec la suivante, et Bit répond à « pourquoi mon jeu saccade ? » à partir de ce que Xenon mesure déjà. Une touche du Deck enregistre chaque temps de trame d’une session dans un fichier CSV.",
     "os.perf.p3": "Sous Windows, Xenon mesure chaque image. Sous Linux, la fréquence d’images nécessite que le jeu soit lancé avec MangoHud. Sous macOS, une application ne peut pas mesurer la fréquence d’images d’une autre, et la tuile l’indique.",
+    "os.perf.more": "Plus de détails sur la tuile, les low et le benchmark : <a href=\"/fps-overlay.html\">overlay FPS avec 1 % et 0,1 % low</a>.",
     "os.h.capture": "Captures d’écran, enregistrements et Replay instantané",
     "os.capture.p1": "Faites une capture de l’écran, de la fenêtre au premier plan ou d’une zone que vous tracez sur un écran figé. Sur un écran HDR, l’image garde les couleurs que vous voyez. Enregistrez l’écran ou une fenêtre en MP4 avec son son, et ajoutez votre micro seulement si vous le choisissez.",
     "os.capture.p2": "Le <strong>Replay instantané</strong> conserve les dernières minutes de votre écran, de 15 secondes à 60 minutes, sur le disque et non en mémoire. Appuyez sur <strong>Ctrl+Shift+F10</strong> sous Windows ou sur une touche du Deck, ou dites « enregistre les 30 dernières secondes », et le clip est enregistré en une seconde environ. Il reste désactivé tant que vous ne l’activez pas dans Réglages, Capture, car lorsqu’il est actif il enregistre en permanence.",
     "os.capture.p3": "Marquez un moment pendant que le Replay instantané tourne et Xenon enregistre un clip autour. La galerie regroupe vos captures par jour et par jeu, coupe une vidéo sans la réencoder, écrit une transcription sur ce PC, crée une copie verticale 9:16 ou une copie plus légère pour une discussion, et envoie une capture à votre téléphone appairé.",
     "os.capture.p4": "Sous Windows et macOS, il utilise la capture et les encodeurs vidéo du système, il fonctionne donc avec n’importe quelle carte graphique. Tout reste sur votre PC : rien n’est mis en ligne.",
+    "os.capture.more": "Tous les outils de capture, et ce qui marche sur Mac et Linux : <a href=\"/screen-recorder.html\">enregistrer l’écran et Instant Replay</a>.",
     "os.h.phone": "Votre téléphone comme second écran",
     "os.phone.p1": "Avec un seul moniteur, le second écran peut être le téléphone dans votre poche. Appairez-le avec Xenon et il affiche votre dashboard sur votre propre Wi-Fi : la tuile Performances en jeu avec vos FPS, pour que rien ne recouvre le jeu, et des touches du Deck qui enregistrent le replay ou font une capture d’écran sur le PC. <a href=\"/phone.html\">Comment appairer un téléphone</a>.",
     "os.h.systems": "Sur un Mac et sous Linux",

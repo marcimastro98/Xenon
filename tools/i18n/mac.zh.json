@@ -1,7 +1,7 @@
 {
   "zh": {
-    "meta.title": "Mac 上的 Xenon（测试版）：Xeneon Edge 和副屏仪表盘",
-    "meta.desc": "macOS 上的 Xenon（测试版）：一款免费仪表盘，可用于 Mac 旁边的 Xeneon Edge、闲置显示器或平板。介绍哪些功能可用、首次启动、权限和卸载。",
+    "meta.title": "Mac 版 Xenon（测试版）：副屏仪表盘与小组件",
+    "meta.desc": "macOS 11 及以上的 Xenon（测试版）：用于闲置屏幕或 Xeneon Edge 的仪表盘，所需权限、首次启动和卸载方法。",
     "mac.h1": "macOS 上的 Xenon",
     "mac.beta": "测试版",
     "mac.lede": "Xenon 是一款免费的触控仪表盘，用于电脑旁边的那块屏幕。在 Mac 上，它运行的是和 Windows 上相同的仪表盘。本页列出目前在 Mac 上哪些功能可用、哪些不可用，以及如何安装和卸载。",

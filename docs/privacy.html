@@ -45,7 +45,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon privacy policy: what the app and website send</title>
-<meta name="description" content="The network calls the Xenon dashboard app makes and when, its two anonymous counters and how to turn them off, and what xenon-app.com collects.">
+<meta name="description" content="The network calls the Xenon dashboard app makes and when, its anonymous counters and how to turn them off, and what xenon-app.com and Xenon Maker collect.">
 <link rel="canonical" href="https://xenon-app.com/privacy.html">
 <link rel="alternate" hreflang="en" href="https://xenon-app.com/privacy.html">
 <link rel="alternate" hreflang="es" href="https://xenon-app.com/es/privacy.html">
@@ -65,11 +65,11 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://xenon-app.com/privacy.html">
 <meta property="og:title" content="Xenon privacy policy: what the app and website send">
-<meta property="og:description" content="The network calls the Xenon dashboard app makes and when, its two anonymous counters and how to turn them off, and what xenon-app.com collects.">
+<meta property="og:description" content="The network calls the Xenon dashboard app makes and when, its anonymous counters and how to turn them off, and what xenon-app.com and Xenon Maker collect.">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Xenon privacy policy: what the app and website send">
-<meta name="twitter:description" content="The network calls the Xenon dashboard app makes and when, its two anonymous counters and how to turn them off, and what xenon-app.com collects.">
+<meta name="twitter:description" content="The network calls the Xenon dashboard app makes and when, its anonymous counters and how to turn them off, and what xenon-app.com and Xenon Maker collect.">
 <meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
 
 <script type="application/ld+json">
@@ -81,7 +81,7 @@
       "@id": "https://xenon-app.com/privacy.html#webpage",
       "url": "https://xenon-app.com/privacy.html",
       "name": "Xenon privacy policy: what the app and website send",
-      "description": "The network calls the Xenon dashboard app makes and when, its two anonymous counters and how to turn them off, and what xenon-app.com collects.",
+      "description": "The network calls the Xenon dashboard app makes and when, its anonymous counters and how to turn them off, and what xenon-app.com and Xenon Maker collect.",
       "inLanguage": "en",
       "isPartOf": { "@id": "https://xenon-app.com/#website" },
       "about": { "@id": "https://xenon-app.com/#app" },
@@ -161,11 +161,12 @@
     <h2 data-i18n="pv.sum.h">Summary</h2>
     <div class="card accent">
       <ul>
-        <li data-i18n-html="pv.sum.track"><strong>The Xenon app does not track how you use it.</strong> There is no account, no profile and no usage log leaving your PC. Two counters exist. One is sent when the app checks for updates and describes the install itself: its version, its system and roughly how old it is. The other adds 1 to a creation&rsquo;s install count when you install it from the Store. Neither says anything about which widgets you open, what you search for or what you do with the dashboard. <strong>On a new install both start switched on</strong>, and you can turn either off in Settings &rarr; General &rarr; Updates; if you were already running Xenon before the version that added one, it stayed off for you. Neither carries an identifier, so neither can be tied back to you or joined to the other.</li>
+        <li data-i18n-html="pv.sum.track"><strong>The Xenon app keeps no account, no profile and no log of what you do.</strong> It has three anonymous counters. One is sent with the update check and describes the install itself: its version, its system and roughly how old it is. One adds 1 to a creation&rsquo;s install count when you install it from the Store. One counts, once a day, how many times each of the app&rsquo;s features ran and how many times it failed. None of them says what you search for, what you type or what you make. <strong>On a new install all three start switched on</strong>, and you can turn each one off in Settings &rarr; General &rarr; Updates; a counter added after you installed Xenon stays off for you until you turn it on. None carries an identifier, so I have nothing to tie them to you or to each other.</li>
         <li data-i18n-html="pv.sum.offline"><strong>The app is not fully offline.</strong> It checks for updates and fetches a short list of announcements on its own; weather, album artwork and the services you connect are contacted only by the features that use them. Those calls are listed below.</li>
         <li data-i18n-html="pv.sum.ga"><strong>This website uses Google Analytics</strong> to see which pages and downloads people reach. In the EEA, UK and Switzerland nothing is stored until you accept the banner.</li>
         <li data-i18n-html="pv.sum.cf"><strong>It also counts pageviews with Cloudflare Web Analytics</strong>, which sets no cookie and builds no profile. It only tells me how many people reached a page.</li>
         <li data-i18n-html="pv.sum.dl"><strong>Pressing a download button adds 1 to a counter on my own server</strong>, with no cookie and no identifier. The download link still points straight at GitHub, so that counter can never get between you and the file.</li>
+        <li data-i18n-html="pv.sum.usage"><strong>This website and Xenon Maker count which of their parts get used</strong>, on my own server: for example how often the demo is opened or a widget is exported. Only the name of the part and a number, with no identifier. <a href="#usage-counts">The details are below</a>.</li>
       </ul>
     </div>
 
@@ -257,9 +258,7 @@
 
     <h2 data-i18n="pv.app.h">The Xenon app</h2>
     <p data-i18n-html="pv.app.p1">
-      The app stores your data on your PC. Settings, notes, tasks, events, decks, AI memory and
-      uploaded backgrounds all live in <code>server/data/</code>. The app does not upload that folder
-      anywhere, and there is no analytics SDK, no crash reporter and no behavioural tracking in it. The two anonymous counters described below are the only reports the app makes about itself, and neither carries an identifier of any kind: what the server keeps is counters, never rows about a machine.
+      The app stores your data on your PC. Settings, notes, tasks, events, decks, AI memory and uploaded backgrounds all live in <code>server/data/</code>. The app does not upload that folder anywhere, and there is no analytics SDK, no crash reporter and no log of what you do in it. The three anonymous counters described below are the only reports the app makes about itself, and none carries an identifier of any kind: what the server keeps is counters, never rows about a machine.
     </p>
     <p data-i18n-html="pv.app.search">
       The local file search and the disk-space widget run on your PC: your search phrases, file names,
@@ -368,6 +367,11 @@
             <td data-i18n-html="pv.t.ping.when"><strong>On by default on installs from v4.8.0</strong>; off on earlier installs unless you switched it on</td>
             <td data-i18n="pv.t.ping.why">Version, system, how old the install is and a first-of-the-week flag, sent at most once a day to the same supporter hub as the rows above. No identifier of any kind. The complete list is in the section below.</td>
           </tr>
+          <tr>
+            <td data-i18n-html="pv.t.use.what">Supporter hub<br><span style="color:var(--dim)">(feature counts)</span></td>
+            <td data-i18n="pv.t.use.when">At most once a day, after the update check, and only if that switch is on</td>
+            <td data-i18n="pv.t.use.why">How many times each of the app's features ran and how many times it failed, and whether a supporter code is saved on this PC. No identifier. The complete list is in the Feature counts section below.</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -467,6 +471,17 @@
       on. Either way the app keeps whatever your settings already say.
     </p>
 
+    <h2 id="usage-counts" data-i18n="pv.use.h">Feature counts</h2>
+    <p data-i18n-html="pv.use.intro">Three parts of Xenon count which of their features get used: the app, this website and Xenon Maker. All three send my own server (the supporter hub) the same kind of message: the name of a feature from a fixed list and a number, such as <code>demo.open: 2</code> or <code>cap.screenshot: 5, 1 failed</code>, and whether the count comes from a supporter. I use it to see which parts are worth improving first, and which ones fail.</p>
+    <h3 data-i18n="pv.use.app.h">In the app</h3>
+    <p data-i18n-html="pv.use.app">Each feature the app can run (the ones a Deck key or Bit can start, such as a screenshot, a recording or placing a widget on your desktop) adds 1 to its own count on your PC, and 1 to its failed count when it did not work. Once a day, right after the update check the app already makes, the counts are sent and then deleted from your PC; until then they wait in <code>usage-stats.json</code> in the app's data folder. The switch is <strong>Count which features I use, anonymously</strong>, in Settings &rarr; General &rarr; Updates. It starts on for new installs; if you installed Xenon before this switch existed, it stays off until you turn it on. Turning it off stops the counting and deletes the counts waiting to be sent. Only the PC can change it: a paired phone does not show it.</p>
+    <h3 data-i18n="pv.use.web.h">On this website and in Xenon Maker</h3>
+    <p data-i18n="pv.use.web">The site counts when the demo is opened, when a link to the demo, to Xenon Maker or to support Xenon is pressed, when a catalog entry is opened, when a download button is pressed, and which sections of the home page came into view. Nothing is written on your device for this. Xenon Maker counts when it is opened, when an editor is opened or first changed, its main tools (adding a layer, a key or an effect, for example), saving, exporting, sending to the catalog, signing in, Bit starting, finishing or failing, and page errors as a number, without their message. The counts stay in the page and are sent when you leave it, or every minute while there is something to send.</p>
+    <p data-i18n-html="pv.use.marker">One more thing in Xenon Maker, and only if you accepted the cookie banner: your browser keeps, under <code>xenon.maker.usage.seen</code>, the list of features you used today, so the Maker can tell the server &ldquo;first use today&rdquo; once per feature. That lets me count people as well as uses, without an identifier. If you rejected the banner, or never answered it, nothing is stored and only uses are counted.</p>
+    <p data-i18n-html="pv.use.not">What is <strong>not</strong> sent: no name, no account, no install UUID, no supporter code, nothing you typed, drew or built, no file or widget name and no error message. Free or supporter is the only split: in the app it means a supporter code is saved on this PC; on the site and in Xenon Maker, that you are signed in to the Maker as a supporter.</p>
+    <p data-i18n-html="pv.use.store">On the server each message only adds to a counter for <em>(day, part, feature, free or supporter)</em>, and the message is then discarded. There are no rows about a person or a machine. To stop one address from sending too many messages, the server keeps a one-way hash of your IP address for up to a day; the IP itself is not stored. The counters are deleted after 400 days.</p>
+    <p data-i18n-html="pv.use.off">To turn it off: in the app, the switch above. On the site and in Xenon Maker, blocking requests to <code>xenon-supporter-hub.xenonedge.workers.dev</code> (most content blockers can do it) stops the counts, and the pages keep working.</p>
+
     <h2 id="pass-trial" data-i18n="pv.trial.h">The 7-day pass trial</h2>
     <p data-i18n="pv.trial.p1">You can try the supporter pass for 7 days. You ask for it on a page of the supporter hub with your email address and one box, unchecked, for news about new drops. That page uses Cloudflare Turnstile to keep bots out. The code arrives by email, sent through Brevo.</p>
     <p data-i18n="pv.trial.p2">What the hub keeps: your address, a keyed one-way hash of it, the code as a hash, a hash of the install the code was first used on (the same one used for supporter codes), the dates the trial was requested, started and ends, whether you asked for news, and whether that address later became a supporter. It sends you the code, one reminder two days before the end and one email when the trial ends.</p>
@@ -509,7 +524,7 @@
       <p data-xl="tag">A free touch dashboard for the screens next to your PC. Windows, with macOS and Linux in beta.</p>
     </div>
     <div class="xf-col"><h2 data-xl="app">App</h2><ul><li><a href="/download.html" data-xl="f.download">Download</a></li><li><a href="/demo/" data-xl="f.demo">Browser demo</a></li><li><a href="/catalog/" data-xl="f.catalog">Catalog</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">Make widgets</a></li><li><a href="/releases.html" data-xl="f.releases">Releases</a></li></ul></div>
-    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">Guides</h2><ul><li><a href="/xeneon-edge-widgets.html" data-xl="f.edge">Xenon on the Xeneon Edge</a></li><li><a href="/tablet-dashboard.html" data-xl="f.tablet">Tablet or phone as a dashboard</a></li><li><a href="/phone.html" data-xl="f.phone">Pairing a phone</a></li><li><a href="/single-screen.html" data-xl="f.onescreen">Xenon on one screen</a></li><li><a href="/fps-overlay.html" data-xl="f.fps">FPS overlay</a></li><li><a href="/screen-recorder.html" data-xl="f.recorder">Screen recorder</a></li><li><a href="/mac.html" data-xl="f.mac">Xenon on a Mac</a></li><li><a href="/linux.html" data-xl="f.linux">Xenon on Linux</a></li><li><a href="/widgets.html" data-xl="f.widgets">Every widget</a></li><li><a href="/deck.html" data-xl="f.deck">Deck keys</a></li><li><a href="/claude-code.html" data-xl="f.claude">Claude Code on a touchscreen</a></li><li><a href="/codex.html" data-xl="f.codex">OpenAI Codex on a touchscreen</a></li><li><a href="/sensor-panel.html" data-xl="f.sensor">A sensor panel for your PC</a></li><li><a href="/xenon-exe.html" data-xl="f.exe">Is the installer safe?</a></li></ul></div>
     <div class="xf-col"><h2 data-xl="project">Project</h2><ul><li><a href="/#support" data-xl="f.support">Supporters</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/faq.html" data-xl="f.faq">Help and questions</a></li><li><a href="/privacy.html" data-xl="f.privacy">Privacy</a></li></ul></div>
     <div class="xf-col" data-theme-switch></div>
     <div class="xf-bottom"><span data-xl="legal">Xenon is an independent project. Xeneon and iCUE are trademarks of CORSAIR.</span></div>

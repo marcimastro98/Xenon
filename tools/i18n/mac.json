@@ -1,7 +1,7 @@
 {
  "en": {
-  "meta.title": "Xenon for Mac (beta): Xeneon Edge, second screen dashboard",
-  "meta.desc": "Xenon on macOS (beta): a free dashboard for a Xeneon Edge, spare monitor or tablet next to your Mac. What works, first launch, permissions, uninstall.",
+  "meta.title": "Xenon for Mac (Beta): second screen dashboard and widgets",
+  "meta.desc": "Xenon on macOS 11 or later (Beta): a dashboard for a spare screen or a Xeneon Edge, the permissions it asks for, first launch and how to uninstall.",
   "mac.h1": "Xenon on macOS",
   "mac.beta": "Beta",
   "mac.lede": "Xenon is a free touch dashboard for the screen next to your computer. On a Mac it runs the same dashboard as on Windows. This page lists what works there today, what does not, and how to install and remove it.",

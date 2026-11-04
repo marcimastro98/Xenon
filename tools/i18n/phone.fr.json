@@ -88,7 +88,7 @@
     "ph.h.not": "Ce que cela ne fait pas",
     "ph.not.1": "Il n'existe aucun compte Xenon, aucun de nos serveurs n'intervient en intermédiaire, et rien concernant votre dashboard n'est uploadé nulle part. Sur votre propre Wi-Fi, la connexion n'est pas chiffrée, c'est pourquoi le panneau vous recommande de l'utiliser sur un réseau auquel vous faites confiance. La méthode sécurisée existe précisément pour résoudre ce problème. Tailscale est une entreprise que vous choisissez d'ajouter, ses propres conditions de confidentialité s'appliquent donc à elle, et Xenon n'en retire rien d'autre que l'adresse et le certificat de votre propre machine.",
     "ph.not.2": "Tout ce que Xenon <a href=\"privacy.html\">envoie et n'envoie pas est indiqué sur la page de confidentialité</a>.",
-    "meta.title": "Utilisez votre téléphone ou votre tablette comme écran Xenon",
-    "meta.desc": "Ouvrez votre dashboard Xenon sur un téléphone ou une tablette via votre propre Wi-Fi, ou depuis n'importe où avec Tailscale. Les touches du Deck fonctionnent sur le PC. Rien à installer sur le téléphone."
+    "meta.title": "Votre téléphone comme panneau de contrôle du PC",
+    "meta.desc": "Ouvrez Xenon dans le navigateur du téléphone via votre Wi-Fi, ou de partout avec Tailscale. Les touches Deck agissent sur le PC. Aucune app à installer."
   }
 }

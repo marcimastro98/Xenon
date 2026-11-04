@@ -1,7 +1,7 @@
 {
   "en": {
-    "meta.title": "Xenon on one screen: widgets, game overlay and Instant Replay",
-    "meta.desc": "Widgets on your desktop or over your games, an FPS overlay, screenshots, recordings and Instant Replay, with no second monitor and no account.",
+    "meta.title": "Desktop widgets for Windows, Mac and Linux: Xenon",
+    "meta.desc": "Put Xenon widgets on your desktop, over games or next to an app, on your only screen. Weather, music, PC stats, Deck keys. Windows; macOS and Linux Beta.",
     "ld.q1": "Do I need a second monitor to use Xenon?",
     "ld.a1": "No. In the Xenon app widgets can go on your desktop or over your apps, and the Xenon menu opens over any app with Alt+Shift+X. A second screen or a paired phone is optional.",
     "ld.q2": "Does the overlay go inside the game?",
@@ -33,11 +33,13 @@
     "os.perf.p1": "The <strong>Game performance</strong> tile shows the frame rate of the game you are playing, its 1% and 0.1% lows, the frame time and a line of the latest frames where a stutter shows up as a spike, with CPU and GPU load underneath. Ask Bit “show my FPS over the game” to put it over your game. On Windows, <strong>Ctrl+Shift+F9</strong> hides the widgets over the game and brings them back.",
     "os.perf.p2": "Xenon remembers every game you play for more than two minutes, so you can compare one evening with the next, and Bit answers “why does my game stutter?” from what Xenon already measures. A Deck key saves every frame time of a run as a CSV file.",
     "os.perf.p3": "On Windows Xenon measures every frame. On Linux the frame rate needs the game started with MangoHud. On macOS one app cannot measure the frame rate of another, and the tile says so.",
+    "os.perf.more": "More on the tile, the lows and the benchmark: <a href=\"/fps-overlay.html\">FPS overlay with 1% and 0.1% lows</a>.",
     "os.h.capture": "Screenshots, recordings and Instant Replay",
     "os.capture.p1": "Take a screenshot of the screen, of the window in front or of an area you drag over a frozen screen. On an HDR screen the picture keeps the colours you see. Record the screen or one window as an MP4 with its sound, and add your microphone only if you choose it.",
     "os.capture.p2": "<strong>Instant Replay</strong> keeps the last minutes of your screen, from 15 seconds to 60 minutes, on the disk and not in memory. Press <strong>Ctrl+Shift+F10</strong> on Windows, tap a Deck key or say “save the last 30 seconds” and the clip is saved in about a second. It is off until you turn it on in Settings, Capture, because while it is on it records all the time.",
     "os.capture.p3": "Mark a moment while Instant Replay runs and Xenon saves a clip around it. The gallery groups your captures by day and game, trims a video without encoding it again, writes a transcript on this PC, makes a vertical 9:16 copy or a lighter one for a chat, and sends a capture to your paired phone.",
     "os.capture.p4": "On Windows and macOS it uses the system’s own capture and video encoders, so it works with any graphics card. Everything stays on your PC: nothing is uploaded.",
+    "os.capture.more": "Every capture tool, and what works on a Mac and on Linux: <a href=\"/screen-recorder.html\">screen recorder and Instant Replay</a>.",
     "os.h.phone": "Your phone as the second screen",
     "os.phone.p1": "With one monitor, the second screen can be the phone in your pocket. Pair it with Xenon and it shows your dashboard over your own Wi-Fi: the Game performance tile with your FPS, so nothing sits over the game, and Deck keys that save the replay or take a screenshot on the PC. <a href=\"/phone.html\">How to pair a phone</a>.",
     "os.h.systems": "On a Mac and on Linux",

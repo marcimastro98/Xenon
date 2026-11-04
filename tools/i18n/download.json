@@ -1,7 +1,7 @@
 {
   "en": {
-    "meta.title": "Download Xenon: free touch dashboard for Windows, Mac, Linux",
-    "meta.desc": "Download the latest Xenon: Windows installer, macOS universal app, Linux AppImage, deb or rpm. First-time setup, SmartScreen warnings, signed checksums.",
+    "meta.title": "Download Xenon for Windows, macOS and Linux (free)",
+    "meta.desc": "Xenon installer for Windows, or the Microsoft Store. macOS universal app and Linux AppImage, deb, rpm (Beta). Signed checksums and first-launch steps.",
     "dl.h1": "Download Xenon",
     "dl.lede": "The newest release for every platform, straight from GitHub. Free, no account, and it updates itself after this.",
     "dl.updated": "Last updated: 16 October 2026. Every link points at <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">the latest release</a>.",
@@ -39,8 +39,8 @@
     "ld.a.update": "Yes. It checks for a new release when it starts and updates itself."
   },
   "es": {
-    "meta.title": "Descarga Xenon: panel táctil gratis para Windows, Mac y Linux",
-    "meta.desc": "Descarga la última versión de Xenon: instalador de Windows, app universal de macOS, AppImage, deb o rpm para Linux. Configuración inicial y verificación.",
+    "meta.title": "Descargar Xenon para Windows, macOS y Linux (gratis)",
+    "meta.desc": "Instalador de Xenon para Windows o Microsoft Store. App universal para macOS y Linux AppImage, deb y rpm (beta). Sumas firmadas y primer inicio paso a paso.",
     "dl.h1": "Descargar Xenon",
     "dl.lede": "La versión más reciente para cada plataforma, directamente desde GitHub. Gratis, sin cuenta, y a partir de aquí se actualiza sola.",
     "dl.updated": "Última actualización: 16 de octubre de 2026. Todos los enlaces apuntan a <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">la versión más reciente</a>.",
@@ -78,8 +78,8 @@
     "ld.a.update": "Sí. Busca una versión nueva al iniciarse y se actualiza solo."
   },
   "it": {
-    "meta.title": "Scarica Xenon: dashboard touch gratis per Windows, Mac, Linux",
-    "meta.desc": "Scarica l'ultima versione di Xenon: installer per Windows, app universale per macOS, AppImage, deb o rpm per Linux. Primo avvio, avvisi e checksum firmati.",
+    "meta.title": "Scarica Xenon per Windows, macOS e Linux (gratis)",
+    "meta.desc": "Installer di Xenon per Windows o Microsoft Store. App universale per macOS e Linux AppImage, deb, rpm (Beta). Checksum firmati e primo avvio passo per passo.",
     "dl.h1": "Scarica Xenon",
     "dl.lede": "L'ultima versione per ogni piattaforma, direttamente da GitHub. Gratis, senza account, e da qui in poi si aggiorna da sola.",
     "dl.updated": "Ultimo aggiornamento: 16 ottobre 2026. Ogni link punta all'<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">ultima release</a>.",
@@ -117,8 +117,8 @@
     "ld.a.update": "Sì. All'avvio controlla se c'è una nuova release e si aggiorna da solo."
   },
   "ja": {
-    "meta.title": "Xenon のダウンロード: Windows、Mac、Linux 用の無料タッチダッシュボード",
-    "meta.desc": "Xenon の最新版をダウンロード。Windows 用インストーラー、macOS ユニバーサルアプリ、Linux 用 AppImage、deb、rpm。初回セットアップ、SmartScreen の警告、署名付きチェックサムも説明します。",
+    "meta.title": "Xenon無料ダウンロード: Windows・macOS・Linux",
+    "meta.desc": "Windows版インストーラーとMicrosoft Store。macOSユニバーサル版とLinuxのAppImage、deb、rpm（ベータ）。署名付きチェックサムと初回起動の手順。",
     "dl.h1": "Xenon のダウンロード",
     "dl.lede": "各プラットフォーム向けの最新リリースを GitHub から直接ダウンロードできます。無料でアカウントも不要。インストール後は自動で更新されます。",
     "dl.updated": "最終更新: 2026年10月16日。すべてのリンクは<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新リリース</a>を指しています。",
@@ -156,8 +156,8 @@
     "ld.a.update": "はい。起動時に新しいリリースを確認し、自動で更新します。"
   },
   "ko": {
-    "meta.title": "Xenon 다운로드: Windows, Mac, Linux용 무료 터치 대시보드",
-    "meta.desc": "Xenon 최신 버전 다운로드. Windows 설치 프로그램, macOS 유니버설 앱, Linux용 AppImage, deb, rpm. 첫 설정, SmartScreen 경고, 서명된 체크섬도 안내합니다.",
+    "meta.title": "Xenon 무료 다운로드 Windows·macOS·Linux",
+    "meta.desc": "Windows 설치 파일 또는 Microsoft Store. macOS 유니버설 앱과 Linux AppImage, deb, rpm(베타). 서명된 체크섬과 첫 실행 방법.",
     "dl.h1": "Xenon 다운로드",
     "dl.lede": "모든 플랫폼용 최신 릴리스를 GitHub에서 바로 받을 수 있습니다. 무료이고 계정도 필요 없으며, 설치한 뒤에는 스스로 업데이트됩니다.",
     "dl.updated": "마지막 업데이트: 2026년 10월 16일. 모든 링크는 <a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">최신 릴리스</a>를 가리킵니다.",
@@ -195,8 +195,8 @@
     "ld.a.update": "네. 시작할 때 새 릴리스를 확인하고 스스로 업데이트합니다."
   },
   "zh": {
-    "meta.title": "下载 Xenon：适用于 Windows、Mac、Linux 的免费触控仪表盘",
-    "meta.desc": "下载 Xenon 最新版：Windows 安装程序、macOS 通用应用、Linux 的 AppImage、deb 或 rpm。另附首次设置、SmartScreen 警告和签名校验和的说明。",
+    "meta.title": "下载 Xenon：Windows、macOS、Linux（免费）",
+    "meta.desc": "Windows 安装程序或 Microsoft Store。macOS 通用版，Linux 有 AppImage、deb、rpm（测试版）。附带签名校验和与首次启动步骤。",
     "dl.h1": "下载 Xenon",
     "dl.lede": "各平台的最新版本，直接来自 GitHub。免费，无需账号，装好之后会自动更新。",
     "dl.updated": "最后更新：2026年10月16日。所有链接都指向<a href=\"https://github.com/marcimastro98/Xenon/releases/latest\" rel=\"noopener\">最新版本</a>。",

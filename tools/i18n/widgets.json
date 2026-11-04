@@ -1,7 +1,7 @@
 {
   "en": {
-    "meta.title": "Xeneon Edge widgets list: all 45 Xenon dashboard widgets",
-    "meta.desc": "All 45 built-in Xenon widgets and what each does: system monitor, media, calendar, Deck keys, OBS and more, on a Xeneon Edge, PC monitor or touchscreen.",
+    "meta.title": "Xenon widget list: every built-in dashboard widget",
+    "meta.desc": "Every built-in Xenon widget and what it does: system monitor, media, calendar, Deck, OBS, Home Assistant and more, plus widgets from the catalog.",
     "ld.q1": "How many widgets does Xenon have?",
     "ld.a1": "45 built-in widgets, in four groups: Productivity, Media, System and Streaming. Widgets from the community catalog and widgets you make run in the Custom widget tile.",
     "ld.q2": "Do the widgets need a Xeneon Edge?",

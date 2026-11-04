@@ -1,8 +1,7 @@
 {
   "fr": {
-    "meta.title": "FAQ Xenon : écrans, jeux, widgets et confidentialité",
-    "meta.desc": "Ce qu’est Xenon, sur quels écrans et systèmes il tourne, ce que reçoivent les supporters, jeux, widgets, températures, sauvegardes, alertes Windows et confidentialité.",
-    "meta.ogtitle": "Questions fréquentes | Xenon",
+    "meta.title": "FAQ Xenon : écrans, jeux, prix, confidentialité, alertes",
+    "meta.desc": "Écrans et systèmes pris en charge, ce qui est gratuit et ce que reçoivent les soutiens dès 5 USD par mois, jeux, températures, alertes Windows, vie privée.",
     "f.h1": "Questions fréquentes",
     "f.lede": "Les questions qui reviennent le plus, avec des réponses courtes. Si la vôtre n’y est pas, posez-la sur le Discord.",
     "f.updated": "Dernière mise à jour : 30 octobre 2026",
@@ -43,7 +42,6 @@
     "f.q.data": "Envoie-t-il mes données quelque part ? Faut-il un compte ?",
     "f.a.data": "<p>Vos réglages, notes, tâches, événements, Deck et index de fichiers restent sur votre PC. L’app n’a ni SDK d’analyse, ni envoi automatique des plantages, ni suivi du comportement. Elle se connecte pour certaines choses : vérifier les mises à jour, et les services que vous activez vous-même, comme la météo ou Spotify. La <a href='privacy.html'>page confidentialité</a> liste chaque appel qu’elle peut faire et ce qu’il envoie.</p><p>Il n’y a pas de compte Xenon. La seule chose que vous saisissez est un code supporter, et les intégrations utilisent leurs propres connexions.</p>",
     "f.q.help": "Où trouver de l’aide ?",
-    "f.a.help": "<p>Demandez sur le <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> : c’est le plus rapide, et les questions qui reviennent finissent sur cette page. Pour un bug que vous pouvez reproduire, ouvrez une <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue sur GitHub</a> avec votre système, ce que vous avez fait et ce qui s’est passé.</p><p>L’usage personnel est gratuit, y compris sur le PC avec lequel vous travaillez. Vendre Xenon ou l’intégrer à un produit commercial demande d’abord une autorisation écrite : <a href='mailto:marcellomastroeni4@gmail.com'>écrivez-moi</a>.</p>",
-    "meta.ogdesc": "Ce qu’est Xenon, sur quels écrans et systèmes il tourne, ce que reçoivent les supporters, jeux, widgets, températures, sauvegardes, alertes Windows et confidentialité."
+    "f.a.help": "<p>Demandez sur le <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> : c’est le plus rapide, et les questions qui reviennent finissent sur cette page. Pour un bug que vous pouvez reproduire, ouvrez une <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue sur GitHub</a> avec votre système, ce que vous avez fait et ce qui s’est passé.</p><p>L’usage personnel est gratuit, y compris sur le PC avec lequel vous travaillez. Vendre Xenon ou l’intégrer à un produit commercial demande d’abord une autorisation écrite : <a href='mailto:marcellomastroeni4@gmail.com'>écrivez-moi</a>.</p>"
   }
 }
