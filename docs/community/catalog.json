@@ -810,7 +810,7 @@
         "scores",
         "fixtures",
         "matches",
-        "sports"
+        "on-screen"
       ],
       "version": "0.5.4",
       "changelog": "Finalized the stable 0.5.4 release candidate and completed live QA, stability and export validation.",
@@ -822,8 +822,8 @@
       },
       "shots": 4,
       "addedAt": "2026-07-29",
-      "codeFile": true,
-      "updatedAt": "2026-07-29"
+      "updatedAt": "2026-11-04",
+      "codeFile": true
     },
     {
       "id": "mixer",
