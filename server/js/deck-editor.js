@@ -2032,14 +2032,23 @@
     // Action picker categories (in display order); each maps an ACTION_CATALOG
     // `group` to a localized header. The `lighting` group carries the visible
     // whole-system light actions (the legacy hidden `lighting` reaction is
-    // filtered out by its `hidden` flag).
+    // filtered out by its `hidden` flag). Built-in features first, then the
+    // services that need an account or an app, then the advanced ones.
     const ACTION_CATEGORIES = [
+      { group: 'launch', labelKey: 'deck_cat_launch' },
       { group: 'system', labelKey: 'deck_cat_system' },
+      { group: 'xenon', labelKey: 'deck_cat_xenon' },
       { group: 'media', labelKey: 'deck_cat_media' },
+      { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'soundboard', labelKey: 'deck_cat_soundboard' },
       { group: 'timer', labelKey: 'deck_cat_timer' },
       { group: 'vitals', labelKey: 'deck_cat_vitals' },
-      { group: 'audio', labelKey: 'deck_cat_audio' },
+      { group: 'capture', labelKey: 'deck_cat_capture' },
+      { group: 'perf', labelKey: 'deck_cat_perf' },
+      { group: 'phone', labelKey: 'deck_cat_phone' },
+      { group: 'ai', labelKey: 'deck_cat_ai' },
+      { group: 'claude', labelKey: 'deck_cat_claude' },
+      { group: 'lighting', labelKey: 'deck_cat_lighting' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
       { group: 'stream', labelKey: 'deck_cat_stream' },
       { group: 'streamerbot', labelKey: 'deck_cat_streamerbot' },
@@ -2049,14 +2058,8 @@
       { group: 'chroma', labelKey: 'deck_cat_chroma' },
       { group: 'wavelink', labelKey: 'deck_cat_wavelink' },
       { group: 'voicemeeter', labelKey: 'deck_cat_voicemeeter' },
-      { group: 'lighting', labelKey: 'deck_cat_lighting' },
-      { group: 'window', labelKey: 'deck_cat_window' },
-      { group: 'perf', labelKey: 'deck_cat_perf' },
-      { group: 'capture', labelKey: 'deck_cat_capture' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'sdk', labelKey: 'deck_cat_sdk' },
-      { group: 'ai', labelKey: 'deck_cat_ai' },
-      { group: 'claude', labelKey: 'deck_cat_claude' },
     ];
     // Per-action inline icons (currentColor). Kept compact; an action with no
     // entry simply shows no icon.
@@ -2212,12 +2215,14 @@
     };
     // One icon per category header, from an action that stands for the group.
     const CATEGORY_ICONS = {
-      system: ACTION_ICONS.openApp, media: ACTION_ICONS.media, soundboard: ACTION_ICONS.playSound,
+      launch: ACTION_ICONS.openApp, system: ACTION_ICONS.hotkey,
+      xenon: ACTION_ICONS.xenonMenu, phone: ACTION_ICONS.phoneCall,
+      media: ACTION_ICONS.media, soundboard: ACTION_ICONS.playSound,
       timer: ACTION_ICONS.timerStart, vitals: ACTION_ICONS.vitalsRefill, audio: ACTION_ICONS.volume, obs: ACTION_ICONS.obsScene,
       stream: ACTION_ICONS.ytBroadcast, streamerbot: ACTION_ICONS.sbDoAction, discord: ACTION_ICONS.discordDeafen,
       spotify: ACTION_ICONS.spotifyPlay, homeassistant: ACTION_ICONS.haToggle, chroma: ACTION_ICONS.chromaColor,
       wavelink: ACTION_ICONS.wlInputVolume, voicemeeter: ACTION_ICONS.vmStripGain, lighting: ACTION_ICONS.lightColor,
-      window: ACTION_ICONS.windowMove, perf: ACTION_ICONS.benchmark, capture: ACTION_ICONS.screenshot,
+      perf: ACTION_ICONS.benchmark, capture: ACTION_ICONS.screenshot,
       remote: ACTION_ICONS.remoteScreenCycle, sdk: ACTION_ICONS.sdkMacro, ai: ACTION_ICONS.ai, claude: ACTION_ICONS.claudeAsk,
     };
     const RECENT_ICON = _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
@@ -2316,10 +2321,19 @@
       try { return (typeof i18n !== 'undefined' && i18n.en && i18n.en[key]) || ''; } catch { return ''; }
     }
 
+    // What an action does, in one or two plain sentences ('' when it has none).
+    function actionInfo(type) {
+      const key = 'deck_info_' + type;
+      const s = t(key);
+      return s && s !== key ? s : '';
+    }
+
     function actionOption(a) {
       const o = document.createElement('option');
       o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
       o.dataset.csIcon = ACTION_ICONS[a.type] || CATEGORY_ICONS[a.group] || ACTION_ICONS.hotkey;
+      const info = actionInfo(a.type);
+      if (info) o.dataset.csInfo = info;
       return o;
     }
 
@@ -2331,6 +2345,7 @@
       sel.setAttribute('data-cs-collapsible', '');
       sel.setAttribute('data-cs-search-placeholder', t('deck_action_search'));
       sel.setAttribute('data-cs-empty', t('deck_action_none_found'));
+      sel.setAttribute('data-cs-info-label', t('deck_info_btn'));
       const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_edit_none'); none.textContent = t('deck_edit_none'); sel.appendChild(none);
 
       const recent = recentActions()
@@ -2375,7 +2390,8 @@
         const catEn = englishLabel(cat.labelKey);
         acts.forEach((a) => {
           const o = actionOption(a);
-          o.dataset.csKeywords = [englishLabel(a.labelKey), a.type, catEn].join(' ');
+          // The explanation is searched too: "liked songs" finds the Spotify save.
+          o.dataset.csKeywords = [englishLabel(a.labelKey), a.type, catEn, o.dataset.csInfo || ''].join(' ');
           og.appendChild(o);
         });
         ready.push(og);
@@ -3346,6 +3362,13 @@
         rm.addEventListener('click', () => { list.splice(i, 1); renderSteps(); updateTrigLabels(); });
         tools.appendChild(up); tools.appendChild(down); tools.appendChild(rm);
         head.appendChild(tools); row.appendChild(head);
+        // The chosen action says what it does, so a key never holds a mystery.
+        const info = step.type ? actionInfo(step.type) : '';
+        if (info) {
+          const hint = document.createElement('div'); hint.className = 'deck-ed-hint deck-ed-action-info';
+          hint.setAttribute('data-i18n', 'deck_info_' + step.type); hint.textContent = info;
+          row.appendChild(hint);
+        }
         const ph = document.createElement('div'); ph.className = 'deck-ed-params';
         stepParams(ph, step); row.appendChild(ph);
         stepsHost.appendChild(row);

@@ -171,7 +171,7 @@ const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand re
 const DEVICE_RESCAN_MS = 30000;                  // slow rescan for devices that registered after the initial enumeration (one SDK call, only while painting)
 const POWER_HOLD_MS = 60000;                     // painting resumes by itself if the PC did not go off after all (a cancelled shutdown)
 const OFF_COLOR = { r: 0, g: 0, b: 0 };
-let poweredDown = false;                         // Windows is shutting down / sleeping: the lights are back with their hardware
+let poweredDown = false;                         // the PC is shutting down / sleeping: the lights are back with their hardware
 let powerHoldTimer = null;
 
 function loadLib() {
@@ -579,7 +579,9 @@ function paintDevices() {
 // room-light providers (Home Assistant, Yeelight, Hue) would keep switching off
 // lights the user just turned back on from their app or wall switch.
 let idleReleased = false;
-async function releaseAll() {
+// keepNative: the native controllers were already darkened (powerDown) and must
+// not be handed back to the board's own effects.
+async function releaseAll({ keepNative = false } = {}) {
   if (connected) {
     for (const dev of devices) {
       try {
@@ -593,7 +595,9 @@ async function releaseAll() {
   }
   try { external.release(); } catch { /* external is best-effort */ }
   // Native controllers go back to the board's own effects (what it showed before).
-  try { await native.release(); } catch (e) { lastError = e.message; }
+  if (!keepNative) {
+    try { await native.release(); } catch (e) { lastError = e.message; }
+  }
   lastWrite.clear();
   idleReleased = true;
 }
@@ -1191,7 +1195,7 @@ function setLightsOut(on) {
 }
 function isLightsOut() { return keyLook.isOut(); }
 
-// Windows is about to shut down, restart, sign out or sleep. Hand every light
+// The PC is about to shut down, restart, sign out or sleep. Hand every light
 // back to its own hardware while this process still runs: a controller left in
 // Xenon's direct mode keeps its last frame on standby power, lit (and flickering)
 // with the PC off. Nothing is painted again until powerUp(), which the wake from
@@ -1203,7 +1207,7 @@ async function powerDown() {
   powerHoldTimer = setTimeout(powerUp, POWER_HOLD_MS);
   if (powerHoldTimer.unref) powerHoldTimer.unref();
   try { await native.powerDown(); } catch (e) { lastError = e.message; }
-  await releaseAll();
+  await releaseAll({ keepNative: true });
 }
 
 function powerUp() {

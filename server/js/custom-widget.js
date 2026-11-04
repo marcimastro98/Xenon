@@ -2223,7 +2223,7 @@
         // apart — so a package with side effects had to guess which copy of
         // itself was speaking. Cheap to send, and it closes that guess.
         service: entry.service === true,
-        // Where the frame is drawn and whether a dashboard is in use (v4.12.0).
+        // Where the frame is drawn and whether a dashboard is in use (v5.0.0).
         placement,
       });
       // History first, then the latest value: a widget building a chart gets the

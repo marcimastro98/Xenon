@@ -1,5 +1,5 @@
 'use strict';
-// Tells the server when Windows is about to shut down, restart, sign out or go
+// Tells the server when the PC is about to shut down, restart, sign out or go
 // to sleep. Node gets no signal for any of these on Windows (libuv maps only
 // Ctrl+C, Ctrl+Break and closing the console), so _gracefulShutdown never runs
 // at a real shutdown, and what it undoes stays as it was on standby power.
@@ -7,11 +7,13 @@
 // Xenon's direct mode kept its last frame, lit and flickering, with the PC off.
 //
 // session-watch.ps1 owns the hidden window Windows asks first; it reports one
-// word per event and holds Windows (bounded) until we answer "done". Windows
-// only: on macOS and Linux a shutdown sends SIGTERM, which is already handled.
+// word per event and holds Windows (bounded) until we answer "done". Linux has its
+// own host behind the same three words (linux-session-watch.js); macOS has nothing
+// to watch, no controller is driven there.
 
 const { spawn } = require('child_process');
 const path = require('path');
+const { createLinuxSessionWatch } = require('./linux-session-watch');
 
 const SCRIPT = path.join(__dirname, 'session-watch.ps1');
 const RESPAWN_MS = 15000;          // a host that died is started again, never in a tight loop
@@ -27,6 +29,7 @@ function parseEvent(line) {
 // onEvent(word) may return a promise; "done" is sent once it settles (the host
 // stops waiting by itself if it never does).
 function createSessionWatch({ onEvent, platform = process.platform, spawnFn = spawn, log = console } = {}) {
+  if (platform === 'linux') return createLinuxSessionWatch({ onEvent, spawnFn, log });
   let proc = null;
   let wanted = false;
   let respawnTimer = null;

@@ -177,7 +177,7 @@ function roundTrip(dataDir, model) {
 const CHAT_MODEL = 'haiku';
 const CREATION_TOOLS = new Set([
   'create_preset', 'preset_reference', 'create_widget', 'sdk_reference',
-  'create_animated_background', 'create_dashboard_style', 'configure_deck', 'deck_action_catalog',
+  'create_animated_background', 'create_dashboard_style', 'configure_deck',
 ]);
 
 function reachesForCreation(resp) {
@@ -190,7 +190,9 @@ function reachesForCreation(resp) {
 // what it cannot write, my_widgets to change one the user has, and any tool
 // this turn already called): the other seventy-odd tools are most of what its
 // cache write costs, and a creation never plays music or sets a timer.
-const CREATION_KIT = new Set([...CREATION_TOOLS, 'marketplace_search', 'my_widgets']);
+// The Deck catalog is read for a creation and to run one action now: only
+// configure_deck, not the lookup, hands the turn over.
+const CREATION_KIT = new Set([...CREATION_TOOLS, 'deck_action_catalog', 'marketplace_search', 'my_widgets']);
 function forCreation(body, effort) {
   const room = { effort, max_tokens: CREATION_MAX_TOKENS[effort] };
   if (!Array.isArray(body.tools)) return { ...body, ...room };

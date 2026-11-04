@@ -56,6 +56,8 @@ const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina
 // Defaults mirror core.STAGE_AT; each is user-tunable in Settings → Bit.
 const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
 const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
+// Sparks a day Bit's AI roasts may spend; mirrors server/vitals-roast-sparks.js.
+const VITALS_ROAST_SPARKS_CAPS = Object.freeze([0, 10, 25, 50, 100]);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -451,6 +453,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // `=== true` like versionPing, not `!== false`: a new outbound report starts
   // on for fresh installs only, never switched on under an existing user.
   catalogStats: true,
+  // Anonymous feature counts (server/usage-stats.js). Same rule as catalogStats:
+  // on for a fresh install, an existing one stays off until its owner chooses.
+  usageStats: true,
   // The two startup cards' "don't show again" — the What's New release id and
   // the Discord invite flag. Mirror of server.js; see the note there for why
   // they stopped being localStorage-only in v4.11.6.
@@ -1843,6 +1848,7 @@ function normalizeSettings(source) {
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     discordCollapsedGuilds: normalizeSnowflakeList(value.discordCollapsedGuilds),
     catalogStats: value.catalogStats === true,
+    usageStats: value.usageStats === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -2393,6 +2399,8 @@ function normalizeVitals(value) {
     // escalates past decay) is on by default.
     position: ['floating', 'topbar', 'both'].includes(petSrc.position) ? petSrc.position : 'floating',
     aiRoasts: petSrc.aiRoasts === true,
+    // With Sparks as the AI, the Sparks a day the roasts may spend (0 = never).
+    roastSparksCap: VITALS_ROAST_SPARKS_CAPS.includes(Number(petSrc.roastSparksCap)) ? Number(petSrc.roastSparksCap) : 0,
     nightQuiet: petSrc.nightQuiet !== false,
     // The quiet window, whole local hours: from (inclusive) to (exclusive),
     // wrapping past midnight when from > to; from === to means no quiet hours.
@@ -4856,6 +4864,14 @@ function syncSettingsControls() {
   if (catDrops) catDrops.checked = hubSettings.monthlyDrops !== false;
   const catStats = $('settings-catalog-stats');
   if (catStats) catStats.checked = hubSettings.catalogStats === true;
+  const usageStatsChk = $('settings-usage-stats');
+  if (usageStatsChk) usageStatsChk.checked = hubSettings.usageStats === true;
+  // The PC owner's choice: a paired device does not show it (the server keeps
+  // the stored value on a save from one anyway).
+  for (const id of ['settings-usage-stats-row', 'settings-usage-stats-link']) {
+    const el = $(id);
+    if (el) el.hidden = !!window.__xenonRemote;
+  }
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -7444,6 +7460,19 @@ function updateVitalsPetQuietHour(field, hour) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// The Sparks a day Bit's AI roasts may spend, chosen when they are turned on
+// with Sparks as the AI. Guarded: the custom-select sync dispatches 'change'.
+function updateVitalsRoastSparksCap(value) {
+  const cur = hubSettings.vitals || {};
+  const next = Number(value);
+  if (!VITALS_ROAST_SPARKS_CAPS.includes(next) || (cur.pet || {}).roastSparksCap === next) return;
+  const pet = { ...(cur.pet || {}), roastSparksCap: next };
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
+  saveHubSettings();
+  syncVitalsControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 // What Bit can do on THIS computer (server/vitals-nag.js): a step that cannot
 // work here is greyed out with the reason, never offered as if it would.
 let vitalsPcCaps = null;
@@ -7493,9 +7522,33 @@ function syncVitalsPcCaps() {
 
 // /api/vitals/roast never spends Sparks or a Claude Code / Codex subscription
 // on its own, so on those providers the roasts are Bit's built-in lines.
-const VITALS_AI_BANK_PROVIDERS = Object.freeze(['xenon', 'claudecode', 'codex']);
+const VITALS_AI_BANK_PROVIDERS = Object.freeze(['claudecode', 'codex']);
+// Claude Code and Codex: Bit never spends the plan, it uses its own lines.
+// Sparks: the roasts spend only the Sparks a day picked in the row below, which
+// shows only with Sparks as the AI.
 function syncVitalsAiBank() {
-  vitalsCapLine('settings-vpet-ai-cap', VITALS_AI_BANK_PROVIDERS.includes(hubSettings.aiProvider) ? t('settings_vpet_ai_bank') : '');
+  vitalsCapLine('settings-vpet-ai-cap', VITALS_AI_BANK_PROVIDERS.includes(hubSettings.aiProvider) ? t('settings_vpet_ai_bank_cli') : '');
+  const pet = (hubSettings.vitals || {}).pet || {};
+  const row = $('settings-vpet-sparks-row');
+  const sel = $('settings-vpet-sparks');
+  if (!row || !sel) return;
+  row.hidden = hubSettings.aiProvider !== 'xenon';
+  const on = (hubSettings.vitals || {}).enabled !== false && pet.enabled === true && pet.aiRoasts === true;
+  row.classList.toggle('is-disabled', !on);
+  sel.disabled = !on;
+  if (sel.options.length !== VITALS_ROAST_SPARKS_CAPS.length) {
+    sel.replaceChildren(...VITALS_ROAST_SPARKS_CAPS.map((n) => {
+      const o = document.createElement('option');
+      o.value = String(n);
+      o.textContent = n === 0 ? t('settings_vpet_sparks_off') : t('settings_vpet_sparks_n').replace('{n}', String(n));
+      return o;
+    }));
+  }
+  const want = String(VITALS_ROAST_SPARKS_CAPS.includes(pet.roastSparksCap) ? pet.roastSparksCap : 0);
+  if (sel.value !== want) {
+    sel.value = want;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 }
 
 function syncVitalsControls() {
@@ -8745,6 +8798,14 @@ function isEmbeddedView() {
   try { return window.top !== window.self; } catch { return true; }
 }
 
+// Where the browser-at-logon task is none of this page's business. The Xenon app
+// counts: it is a top window, but it opens itself at logon, and taking it for a
+// browser registered the task from the app with the default "on", so Chrome
+// opened at every logon beside the app.
+function autoOpenNotOurs() {
+  return isEmbeddedView() || window.__XENON_NATIVE__ === true || window.isTauri === true;
+}
+
 function syncAutoOpenBrowserControl() {
   const row = $('settings-auto-open-row');
   const check = $('settings-auto-open');
@@ -8753,7 +8814,7 @@ function syncAutoOpenBrowserControl() {
   // Use display (not the `hidden` attribute) because the settings category
   // switcher owns `hidden` to show/hide whole category groups — toggling it here
   // would fight that. display:none wins regardless of the category state.
-  const hide = isEmbeddedView() || _autoOpenSupported === false;
+  const hide = autoOpenNotOurs() || _autoOpenSupported === false;
   row.style.display = hide ? 'none' : '';
   check.checked = hubSettings.autoOpenBrowser !== false;
 }
@@ -9264,6 +9325,13 @@ function updateCatalogStats(checked) {
   syncSettingsControls();
 }
 function updateCatalogDrops(checked) { updateAnnouncementPref('catalogDrops', checked); }
+// Anonymous feature counts. A stored preference: the server reads it on each
+// count and on the next update check; switching it off deletes what was waiting.
+function updateUsageStats(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, usageStats: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
 // The month's drops window. No legacy per-device flag: it is a new setting.
 function updateMonthlyDrops(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, monthlyDrops: checked === true });
@@ -9476,7 +9544,7 @@ window.XenonStartupCards = {
 // install never registers a browser-open task (no surprise tab), while a
 // browser user gets auto-open from their first visit onward.
 async function reconcileAutoOpenBrowser() {
-  if (isEmbeddedView()) { syncAutoOpenBrowserControl(); return; }
+  if (autoOpenNotOurs()) { syncAutoOpenBrowserControl(); return; }
   try {
     const res = await fetch('/startup/auto-open', { cache: 'no-store' });
     if (!res.ok) { syncAutoOpenBrowserControl(); return; } // old server / not yet restarted
@@ -11383,6 +11451,8 @@ function persistAiProviderSettings() {
     ollamaUrl: (urlInput && urlInput.value.trim()) || 'http://localhost:11434',
   });
   saveHubSettings();
+  // Bit's roast row says what this provider spends.
+  syncVitalsAiBank();
 }
 
 async function aiLocalScan() {

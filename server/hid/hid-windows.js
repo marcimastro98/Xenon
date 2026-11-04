@@ -5,6 +5,8 @@
 // Every call that touches a device runs on koffi's worker thread (`.async`), so a
 // slow or wedged USB device never blocks the event loop.
 
+const { boundedCall: call } = require('./bounded-call');
+
 const HID_GUID = { Data1: 0x4D1E55B2, Data2: 0xF16F, Data3: 0x11CF, Data4: [0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30] };
 const DIGCF_PRESENT = 0x02;
 const DIGCF_DEVICEINTERFACE = 0x10;
@@ -14,7 +16,6 @@ const OPEN_EXISTING = 3;
 const INVALID_HANDLE = -1;
 const HIDP_STATUS_SUCCESS = 0x00110000;
 const DETAIL_BUF_BYTES = 1024;
-const OP_TIMEOUT_MS = 2000;
 
 let api = null;
 
@@ -47,20 +48,6 @@ function load() {
     getFeature: hid.func('bool __stdcall HidD_GetFeature(intptr, _Inout_ uint8_t *, uint32)'),
   };
   return api;
-}
-
-// koffi async call as a promise, with a ceiling: a USB call that never returns
-// leaves its worker thread busy but frees the caller.
-function call(fn, ...args) {
-  let timer;
-  const guard = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error('HID call timed out')), OP_TIMEOUT_MS);
-    if (timer.unref) timer.unref();
-  });
-  const run = new Promise((resolve, reject) => {
-    fn.async(...args, (err, res) => (err ? reject(err) : resolve(res)));
-  });
-  return Promise.race([run.finally(() => clearTimeout(timer)), guard]);
 }
 
 async function interfacePaths(a) {

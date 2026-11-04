@@ -11,6 +11,8 @@
 // not here. The return shape matches /api/ai's { text, clientActions,
 // newContent } so the client stays provider-agnostic.
 
+const { follow } = require('./ai-tool-groups');
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
 
@@ -189,7 +191,8 @@ async function chat({ apiKey, model, geminiTools, history, systemText, turnNote,
   const send = post || ((body) => _post(key, body));
   const outputTokens = maxTokens || MAX_TOKENS;
   const chatModel = sanitizeModel(model);
-  const tools = geminiToolsToAnthropic(geminiTools);
+  // Read each round: use_tools can add a group mid-turn (ai-tool-groups.js).
+  const toolsNow = follow(geminiTools, geminiToolsToAnthropic);
   const messages = geminiHistoryToAnthropic(history);
   _noteOnLatestUser(messages, turnNote);
   const clientActions = [];
@@ -200,6 +203,7 @@ async function chat({ apiKey, model, geminiTools, history, systemText, turnNote,
   const rounds = async () => {
     for (let iter = 0; iter < MAX_ITERS; iter++) {
       const body = { model: chatModel, max_tokens: outputTokens, system: systemText, messages };
+      const tools = toolsNow();
       if (tools.length) body.tools = tools;
       const resp = await send(body);
       const content = Array.isArray(resp && resp.content) ? resp.content : [];

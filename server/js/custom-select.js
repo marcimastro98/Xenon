@@ -25,6 +25,9 @@ function _csArmGlobal() {
   }, { passive: true, capture: true });
 }
 
+// The (i) on rows that explain themselves (`data-cs-info`). Static markup.
+const CS_INFO_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>';
+
 // Search text compared without case or accents, so "registra" finds "Registrà"
 // and "ecran" finds "Écran".
 function _csFold(s) {
@@ -240,6 +243,35 @@ function initCustomSelect(selectEl) {
       panel.appendChild(searchLi);
     }
 
+    // Opt-in (i) button (`data-cs-info` on the option): a tap opens what the
+    // option does under its name, in place, without picking it. The text is
+    // plain (textContent); the button's name comes from the <select>'s
+    // `data-cs-info-label` so it is read in the user's language.
+    const addInfoButton = (li, txt, info) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cs-option-info';
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', (selectEl.dataset && selectEl.dataset.csInfoLabel) || 'Info');
+      btn.innerHTML = CS_INFO_ICON;
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        let body = txt.querySelector('.cs-option-infotext');
+        if (body) {
+          body.remove();
+        } else {
+          body = document.createElement('span');
+          body.className = 'cs-option-infotext';
+          body.textContent = info;
+          txt.appendChild(body);
+        }
+        const open = !!txt.querySelector('.cs-option-infotext');
+        btn.setAttribute('aria-expanded', String(open));
+        li.classList.toggle('cs-info-open', open);
+      });
+      li.appendChild(btn);
+    };
+
     // One <option> → one row. A row may carry an icon via the option's
     // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
     // `data-cs-keywords` adds words the search also looks at (another language,
@@ -276,6 +308,7 @@ function initCustomSelect(selectEl) {
         txt.appendChild(note);
       }
       li.appendChild(txt);
+      if (opt.dataset && opt.dataset.csInfo) addInfoButton(li, txt, opt.dataset.csInfo);
       li.addEventListener('click', e => {
         e.stopPropagation();
         if (disabled) return;          // hint row: keep the panel open, select nothing
