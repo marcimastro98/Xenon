@@ -1479,20 +1479,21 @@
       "kind": "widget",
       "name": "Nocturne Now Playing",
       "author": "Xenon",
-      "authorSupporter": false,
       "perfWarning": true,
       "description": "A now-playing player: the album cover fills the tile behind the track, artist, a progress bar and play/pause, previous and next controls. Follows your theme accent. Needs media access and control.",
       "category": "media",
       "tags": [
         "media",
         "now-playing",
-        "player"
+        "player",
+        "on-screen"
       ],
-      "pkgId": "nocturne-now",
       "version": "1.2.0",
-      "addedAt": "2026-07-10",
+      "pkgId": "nocturne-now",
       "shots": 1,
-      "codeFile": true
+      "addedAt": "2026-07-10",
+      "codeFile": true,
+      "updatedAt": "2026-11-04"
     },
     {
       "id": "nocturne-hours",
