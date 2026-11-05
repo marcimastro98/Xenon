@@ -149,8 +149,16 @@ pub fn build(app: &App) -> tauri::Result<()> {
     menu.append(&restart)?;
     menu.append(&quit)?;
 
-    // The check items are toggled from inside the event handler, so they need their
+    // The check items are set from inside the event handler, so they need their
     // own clones (menu-item handles are cheap, reference-counted clones).
+    //
+    // What a click on one of them means is read from the SAVED preference, never
+    // from the item. muda flips a check item itself before it reports the click
+    // (Windows and macOS; GTK flips it natively), so the item already shows the
+    // new state when the handler runs. Reading it and flipping it again undid
+    // every click: the switch could never be turned off or on from the tray.
+    // The preference is the one truth on every platform; the checkmark is then
+    // set to what was really saved, so the two can never drift apart.
     let fullscreen_toggle = fullscreen.clone();
     #[cfg(windows)]
     let cursor_guard_toggle = cursor_guard.clone();
@@ -175,21 +183,22 @@ pub fn build(app: &App) -> tauri::Result<()> {
                     }
                 }
                 "fullscreen" => {
-                    let next = !fullscreen_toggle.is_checked().unwrap_or(false);
+                    let next = toggled(prefs::load(app).fullscreen);
                     monitor::set_fullscreen_pref(app, next);
-                    let _ = fullscreen_toggle.set_checked(next);
+                    // Refused on the Edge panel and in phone mode: show what stands.
+                    let _ = fullscreen_toggle.set_checked(prefs::load(app).fullscreen);
                 }
                 #[cfg(windows)]
                 "cursor-guard" => {
-                    let next = !cursor_guard_toggle.is_checked().unwrap_or(true);
+                    let next = toggled(prefs::load(app).cursor_guard);
                     crate::cursor_guard::set_enabled(app, next);
-                    let _ = cursor_guard_toggle.set_checked(next);
+                    let _ = cursor_guard_toggle.set_checked(prefs::load(app).cursor_guard);
                 }
                 #[cfg(windows)]
                 "focus-guard" => {
-                    let next = !focus_guard_toggle.is_checked().unwrap_or(true);
+                    let next = toggled(prefs::load(app).focus_guard);
                     crate::focus_guard::set_enabled(app, next);
-                    let _ = focus_guard_toggle.set_checked(next);
+                    let _ = focus_guard_toggle.set_checked(prefs::load(app).focus_guard);
                 }
                 // Recorded only: the GPU pin is a WebView2 environment option fixed
                 // when this process created its first webview, so there is nothing
@@ -197,9 +206,9 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 // it at the next launch.
                 #[cfg(windows)]
                 "gpu-pin" => {
-                    let next = !gpu_pin_toggle.is_checked().unwrap_or(true);
+                    let next = toggled(prefs::load(app).gpu_pin);
                     prefs::update(app, |p| p.gpu_pin = next);
-                    let _ = gpu_pin_toggle.set_checked(next);
+                    let _ = gpu_pin_toggle.set_checked(prefs::load(app).gpu_pin);
                 }
                 "place-auto" => monitor::set_placement(app, Placement::Auto, false),
                 // Not applied now: the tray item is reached FROM the window, so
@@ -254,4 +263,34 @@ pub fn build(app: &App) -> tauri::Result<()> {
 
     builder.build(app)?;
     Ok(())
+}
+
+/// What one click on a tray switch asks for: the opposite of what is saved.
+/// A function of its own so the rule is stated once and tested.
+fn toggled(saved: bool) -> bool {
+    !saved
+}
+
+#[cfg(test)]
+mod tests {
+    use super::toggled;
+
+    #[test]
+    fn a_click_flips_the_saved_state_whatever_the_item_shows() {
+        // Off and saved off: one click turns it on, a second click turns it off.
+        let mut saved = false;
+        saved = toggled(saved);
+        assert!(saved);
+        saved = toggled(saved);
+        assert!(!saved);
+    }
+
+    #[test]
+    fn no_handler_reads_the_item_to_decide() {
+        // muda flips a check item before the click arrives, so a handler that
+        // reads is_checked() and negates it undoes the click.
+        let src = include_str!("tray.rs");
+        let handler = &src[src.find(".on_menu_event(").unwrap()..src.find("builder.build(app)").unwrap()];
+        assert!(!handler.contains(".is_checked()"), "decide from the saved preference");
+    }
 }
