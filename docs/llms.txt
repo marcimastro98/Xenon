@@ -42,7 +42,7 @@ CORSAIR Xeneon Edge (a 2560×720 touch strip) and works on any screen.
   window or any browser. On Windows an optional native helper speeds up media
   and game detection; sensors are read through PowerShell and
   LibreHardwareMonitor.
-- Maker: an independent project by one developer
+- Maker: an independent project by one developer, Marcello Mastroeni
   (@marcimastro98). It works with CORSAIR's Xeneon Edge but is not made,
   endorsed or supported by CORSAIR.
 
