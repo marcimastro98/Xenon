@@ -1033,7 +1033,6 @@ if (typeof window !== 'undefined') (function () {
           ? t('sharecard_shot_fail', 'Screenshot not available')
           : t('save_file_failed', 'Could not save the file'), '', 'error'));
     });
-    row.appendChild(dl);
 
     if (navigator.clipboard && typeof window.ClipboardItem === 'function') {
       const copy = el('button', 'settings-btn', t('sharecard_copy_image', 'Copy image'));
@@ -1068,6 +1067,7 @@ if (typeof window !== 'undefined') (function () {
       });
       row.appendChild(share);
     }
+    row.appendChild(dl);
     modal.body.appendChild(row);
   }
 

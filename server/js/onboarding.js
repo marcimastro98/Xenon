@@ -35,6 +35,7 @@
   let active = false;
   let onResize = null;
   let onRailMoved = null;
+  let letGo = null;       // gives the keyboard back to the page
 
   // Translate via the global t() with a literal fallback (t returns the key when
   // it has no translation, so we never render a raw key to the user).
@@ -111,6 +112,7 @@
 
     card = document.createElement('div');
     card.className = 'onb-card';
+    card.tabIndex = -1;
     overlay.appendChild(card);
 
     // A tap on the dimmed surround advances — but never on the card itself.
@@ -123,12 +125,14 @@
     document.addEventListener('transitionend', onRailMoved);
 
     document.body.appendChild(overlay);
+    letGo = window.DialogFocus.hold(card, { onEsc: finish });
   }
 
   function onKey(e) {
     if (!active) return;
-    if (e.key === 'Escape') { e.preventDefault(); finish(); }
-    else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); next(); }
+    // Enter on a key is that key: Skip must not turn the page.
+    if (e.key === 'Enter' && e.target && e.target.closest && e.target.closest('.onb-btn')) return;
+    if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); next(); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
   }
 
@@ -277,6 +281,7 @@
     if (onRailMoved) document.removeEventListener('transitionend', onRailMoved);
     onResize = onRailMoved = null;
     holdRails(false);
+    if (letGo) { letGo(); letGo = null; }
     if (overlay) { overlay.remove(); overlay = null; }
     spot = card = null;
   }
@@ -306,27 +311,12 @@
     show();
   }
 
-  // Auto-start once on first run. Called after settings hydrate so the persisted
-  // seenVersion is authoritative. Defers until any greeting splash has cleared.
-  // Runs in BOTH the iCUE/Edge embedded host (the device's primary surface) and a
-  // standalone browser tab — seenVersion is server-backed, so dismissing it in one
-  // surface stops it auto-starting in the other.
-  function maybeStart() {
-    if (typeof isLayerPage === 'function' && isLayerPage()) return;   // the tour runs on the main dashboard
+  // Bit offers the tour until it has been taken. It never starts by itself: people came
+  // for the app, and those who read a tour find the app no easier (NN/g, 2023).
+  function unseen() {
     const seen = (typeof window.getOnboardingSeen === 'function') ? window.getOnboardingSeen() : 0;
-    if (seen >= ONBOARDING_VERSION) return;
-    const greetingUp = () => !!document.querySelector('.greeting-splash');
-    let waited = 0;
-    const tick = () => {
-      if (active) return;
-      if (greetingUp() && waited < 8000) { waited += 400; setTimeout(tick, 400); return; }
-      start();
-      // Mark seen as soon as it auto-starts, so a reload mid-tour (or closing the
-      // page) never re-triggers it. Replaying from Settings is always available.
-      if (active) markSeen();
-    };
-    setTimeout(tick, 1200);
+    return seen < ONBOARDING_VERSION;
   }
 
-  window.Onboarding = { start, maybeStart, isActive: () => active, version: ONBOARDING_VERSION };
+  window.Onboarding = { start, unseen, isActive: () => active, version: ONBOARDING_VERSION };
 })();

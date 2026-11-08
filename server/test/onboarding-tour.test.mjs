@@ -63,7 +63,9 @@ function runTour(targets, extraWindow = {}) {
     addEventListener: (type, fn) => { docListeners[type] = fn; },
     removeEventListener: (type) => { delete docListeners[type]; },
   };
-  const window = { innerWidth: 1440, innerHeight: 900, addEventListener() {}, removeEventListener() {}, ...extraWindow };
+  let endOnEsc = null;
+  const DialogFocus = { hold: (root, { onEsc }) => { endOnEsc = onEsc; return () => { endOnEsc = null; }; } };
+  const window = { innerWidth: 1440, innerHeight: 900, addEventListener() {}, removeEventListener() {}, DialogFocus, ...extraWindow };
   const ctx = { window, document, requestAnimationFrame: (fn) => fn(), setTimeout, t: (k) => IT[k] || '<' + k + '>' };
   vm.createContext(ctx);
   vm.runInContext(TOUR, ctx);
@@ -76,8 +78,9 @@ function runTour(targets, extraWindow = {}) {
   };
   // Advancing goes through the keyboard path the tour already listens on.
   const next = () => docListeners.keydown({ key: 'ArrowRight', preventDefault() {} });
-  const escape = () => docListeners.keydown({ key: 'Escape', preventDefault() {} });
-  return { window, overlay, state, next, escape, docListeners };
+  const escape = () => endOnEsc();
+  const enter = (target) => docListeners.keydown({ key: 'Enter', target, preventDefault() {} });
+  return { window, overlay, state, next, escape, enter, docListeners, held: () => !!endOnEsc };
 }
 
 const SHOWN = [100, 100, 58, 58];
@@ -93,6 +96,22 @@ function fullBar() {
     '.qbtn-settings': target(SHOWN),
   };
 }
+
+test('Enter turns the page, unless it is on one of the keys', () => {
+  const tour = runTour(fullBar());
+  const first = tour.state().title;
+  tour.enter({ closest: (sel) => (sel === '.onb-btn' ? {} : null) });
+  assert.equal(tour.state().title, first, 'Enter on Skip or Back belongs to that key');
+  tour.enter({ closest: () => null });
+  assert.notEqual(tour.state().title, first);
+});
+
+test('the keyboard stays in the card for the tour and comes back when it ends', () => {
+  const tour = runTour(fullBar());
+  assert.equal(tour.held(), true);
+  tour.escape();
+  assert.equal(tour.held(), false);
+});
 
 test('every step shows on the full top bar, and the last card names the real place of the replay', () => {
   const tour = runTour(fullBar());

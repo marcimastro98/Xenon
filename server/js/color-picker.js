@@ -87,8 +87,13 @@
     let [h, s, v] = rgbToHsv(...(hexToRgb(o.value) || hexToRgb('#1ed760')));
     let committed = rgbToHex(...hsvToRgb(h, s, v));
 
+    // One recent per visit: the colour it ended on, not each stop on the way.
+    const first = committed;
+    cleanupFns.push(() => { if (committed !== first) saveRecent(committed); });
+
     pop = document.createElement('div');
     pop.className = 'cp-pop';
+    pop.tabIndex = -1;
     pop.innerHTML =
       '<div class="cp-sv"><div class="cp-sv-white"></div><div class="cp-sv-black"></div><div class="cp-knob cp-sv-knob"></div></div>' +
       '<div class="cp-hue"><div class="cp-knob cp-hue-knob"></div></div>' +
@@ -110,7 +115,7 @@
     const addSwatch = (row, c) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'cp-swatch'; b.style.background = c; b.title = c;
-      b.addEventListener('click', () => { [h, s, v] = rgbToHsv(...hexToRgb(c)); paint(); commit(); });
+      b.addEventListener('click', () => { [h, s, v] = rgbToHsv(...hexToRgb(c)); paint(); commit(); close(); });
       row.appendChild(b);
     };
     SWATCHES.forEach(c => addSwatch(swatchRow, c));
@@ -132,7 +137,7 @@
     // off-screen.
     pop.style.visibility = 'hidden';
     const place = () => {
-      if (!pop) return;
+      if (!pop || !anchor.isConnected) return;   // a caller may redraw its row on a pick
       const pad = 8;
       const vw = window.innerWidth, vh = window.innerHeight;
       pop.style.maxWidth = Math.max(160, vw - pad * 2) + 'px';
@@ -145,7 +150,13 @@
       pop.style.top = Math.max(pad, Math.min(top, vh - ph - pad)) + 'px';
       pop.style.visibility = '';
     };
-    requestAnimationFrame(place);
+    const mine = pop;
+    requestAnimationFrame(() => {
+      place();
+      // After place(): a hidden popover cannot take the focus. Esc belongs to it, and
+      // the page answers first: it would close what is under the popover.
+      if (pop === mine && window.DialogFocus) cleanupFns.push(window.DialogFocus.hold(pop, { onEsc: close }));
+    });
     window.addEventListener('resize', place);
     cleanupFns.push(() => window.removeEventListener('resize', place));
 
@@ -162,15 +173,13 @@
       hexInput.classList.remove('invalid');
     }
 
+    // A drag or a typed value shows on the page at once and the popover stays: the
+    // hue and then the shade are one visit. A swatch is a whole answer and closes it.
     function commit() {
       const hex = rgbToHex(...hsvToRgb(h, s, v));
       if (hex === committed) return;
       committed = hex;
-      saveRecent(hex);
       try { o.onPick(hex); } catch { /* caller's problem */ }
-      // Auto-close after every committed pick so the caller's form never gets a
-      // stray click on the "no colour" swatch when the user dismisses the popover.
-      close();
     }
 
     // Shared drag handler: pointer capture so the drag survives leaving the box.
@@ -212,14 +221,21 @@
 
     // Close on outside tap / Escape. Deferred so the opening tap doesn't
     // immediately re-close it.
-    const onDocDown = (ev) => { if (pop && !pop.contains(ev.target) && ev.target !== anchor && !anchor.contains(ev.target)) close(); };
+    const onDocDown = (ev) => {
+      if (!pop || pop.contains(ev.target) || ev.target === anchor || anchor.contains(ev.target)) return;
+      if (document.activeElement === hexInput) hexInput.blur();   // a typed colour counts
+      close();
+    };
     const onKey = (ev) => { if (ev.key === 'Escape') close(); };
     setTimeout(() => {
       if (!pop) return;
       document.addEventListener('pointerdown', onDocDown, true);
       document.addEventListener('keydown', onKey);
+      // A layer window takes no taps outside its tiles: leaving it is the tap outside.
+      window.addEventListener('blur', close);
       cleanupFns.push(() => document.removeEventListener('pointerdown', onDocDown, true));
       cleanupFns.push(() => document.removeEventListener('keydown', onKey));
+      cleanupFns.push(() => window.removeEventListener('blur', close));
     }, 0);
 
     paint();

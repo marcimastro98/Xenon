@@ -5,8 +5,8 @@
 // settings (window.UsageMode), the server's normalizer and route `/` (require),
 // the capability and the tests all read this file.
 //
-// '' = not asked yet. It behaves like 'dashboard', so an existing user sees
-// exactly what they saw before; the first-run question sets a real value.
+// '' = not set yet. It behaves like 'dashboard', so nothing moves: a new install
+// answers the first-run question, someone updating gets 'both' without being asked.
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -29,5 +29,13 @@
     return normalize(value) !== 'dashboard';
   }
 
-  return Object.freeze({ MODES, normalize, widgetsOnly, mainScreenOn });
+  // The answer the first-run question recommends. The dashboard earns its place where it
+  // has a screen of its own, an Edge or a second monitor; a PC whose only screen is the
+  // Edge has no desktop to put widgets on.
+  function recommended({ screens = 0, edge = false } = {}) {
+    if (edge && screens === 1) return 'dashboard';
+    return edge || screens >= 2 ? 'both' : 'widgets';
+  }
+
+  return Object.freeze({ MODES, normalize, widgetsOnly, mainScreenOn, recommended });
 });

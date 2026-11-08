@@ -145,7 +145,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
-    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'agenda']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
@@ -218,18 +218,26 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
 // styles). '' in a profile means "don't touch lighting"; 'none' turns it off.
 const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
 
+// What a saved layout with no `groups` gets: the tabs every install had before 5.0.0,
+// when the chat shared the media tile and the Agenda had a tile of its own.
+const LEGACY_SEEDED_GROUPS = Object.freeze({
+  'media-group': Object.freeze({ ...DEFAULT_DASHBOARD_LAYOUT.groups['media-group'], members: Object.freeze(['media', 'chat']) }),
+});
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
   autoPalette: false, // true only after selecting Auto; manual colour edits freeze the palette
-  // Dashboard style language. 'glass' = the Liquid Glass default; 'retro' swaps
-  // the whole dashboard to the opt-in Pixel Retro-gaming skin (themes-retro.css,
-  // keyed off :root[data-style="retro"]). Scanlines are a retro-only sub-toggle.
-  styleMode: 'glass', // 'glass' | 'retro'
+  // Dashboard style language. 'liquid' = Liquid Glass, the look of a new install:
+  // every tile is real glass over the wallpaper (themes-liquid.css). 'glass' = the
+  // Classic look every install from before 5.0.0 keeps, because its saved settings
+  // say so. 'retro' swaps the whole dashboard to the opt-in Pixel Retro-gaming skin
+  // (themes-retro.css, keyed off :root[data-style="retro"]). Scanlines are a
+  // retro-only sub-toggle.
+  styleMode: 'liquid', // 'liquid' | 'glass' | 'retro' | 'comic'
   retroScanlines: true,
   // 'full' keeps the classic glass bar; 'minimal' docks the quick actions into
   // collapsible edge rails and shrinks clock/date/weather/page-dots into one
   // compact island pill (see js/topbar-minimal.js).
-  topbarStyle: 'full', // 'full' | 'minimal'
+  topbarStyle: 'minimal', // 'full' | 'minimal'
   // Minimal-mode edge-rail drawer positions (true = collapsed). Server-synced (not
   // browser-local) so the kiosk remembers the choice across launches / storage
   // resets; both default closed so the rails never open on their own.
@@ -300,7 +308,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // wanted to read the date across a room.
   clockScale: 1,
   clockDateScale: 1,
-  clockDateFormat: 'full', // 'full' | 'medium' | 'short' — how much of the date the top bar spells out
+  clockDateFormat: 'medium', // 'full' | 'medium' | 'short' — how much of the date the top bar spells out
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   // What the Upcoming list shows. There was never a two-week rule, which is how
   // it read from outside: the list took the next five events and their dates
@@ -313,9 +321,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
   audioSetCommunications: true, // Windows: switching a device also moves the calls default (server setDefaultAudioDevice)
   nativeZoom: 1, // native app: interface scale, 0.6–2.5 (Settings slider; native-bridge.js)
-  accent: '#1ed760',
+  accent: '#6ee787',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
-  background: '#070808',
+  background: '#14181c',
   // Semantic surfaces. Null means "derive from background"; explicit values
   // travel with themes and let one palette recolour every panel/control.
   surface: null,
@@ -335,7 +343,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // bakes the visible variant in and drops the pair (see freezePaletteVariants).
   paletteVariants: null,
   contrastGuard: true,
-  panelAlpha: 0.94,
+  panelAlpha: 0.54,
   bgDim: 0.48,
   bgBlur: 0,
   // Pause the aurora/grid + decorative loops after a minute of no interaction to
@@ -359,8 +367,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // machines and on the browser surface, where the class is never set.
   hybridGpuAnimationPause: true,
   // Extended theme tokens (full Aspetto editor). All part of a saved theme; the
-  // defaults reproduce the stock Liquid Glass look exactly, and they apply inline
-  // only under glass (retro owns its own geometry/material).
+  // defaults reproduce the stock look exactly, and they apply inline only under
+  // the glass styles (retro owns its own geometry/material).
   uiRoundness: 1, // corner-radius multiplier 0..2 (1 = stock 8/10/16/20px)
   glassBlur: 22, // --glass-blur px, 0..40
   glassSaturate: 160, // --glass-saturate %, 100..220
@@ -453,13 +461,19 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // `=== true` like versionPing, not `!== false`: a new outbound report starts
   // on for fresh installs only, never switched on under an existing user.
   catalogStats: true,
+  // Bit may ask for a vote on something in real use (server/rating-votes.js).
+  ratingAsks: true,
   // Anonymous feature counts (server/usage-stats.js). Same rule as catalogStats:
   // on for a fresh install, an existing one stays off until its owner chooses.
   usageStats: true,
+  // Mirror of server.js: asking devices on a dongle for their charge.
+  batteryAskDevices: true,
   // The two startup cards' "don't show again" — the What's New release id and
   // the Discord invite flag. Mirror of server.js; see the note there for why
   // they stopped being localStorage-only in v4.11.6.
   whatsNewSeen: '',
+  releaseNotesSeen: '',
+  updateFailSeen: '',
   discordInviteSeen: false,
   // Voice channels pinned to the top of the Discord widget. Mirror of server.js;
   // see the note there for why this one is NOT per-device.
@@ -529,9 +543,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   contentInstalls: Object.freeze([]),
   geminiApiKey: '',
   geminiApiKeySet: false,
-  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'localapi' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
+  localApiUrl: LocalServerFields.DEFAULT_URL,
+  localApiModel: 'auto',
+  localApiKey: '',
+  localApiKeySet: false,
+  localApiVision: false,
   // ChatGPT (OpenAI) + Claude (Anthropic). Keys are SERVER-ONLY: the server
   // redacts them on the wire and sends only the *Set booleans, so the browser
   // never holds them. The model tags are user-overridable.
@@ -590,8 +609,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   sensorHistory: Object.freeze({ enabled: false }),
   // Game sessions log (Settings → Performance): ON unless explicitly turned off.
   gameSessions: Object.freeze({ enabled: true }),
-  // What the Game performance tile shows besides the FPS (js/perf-hud.js): all on.
-  perfHud: Object.freeze({ low1: true, low01: true, frame: true, graph: true, hw: true }),
+  // What the Game performance tile shows (js/perf-hud.js).
+  perfHud: Object.freeze(window.PerfHud ? window.PerfHud.normalizePerfHud() : {}),
   // User-given fan names for the Fans widget, keyed "<kind>|<sensor name>"
   // ("mb|Fan #3" → "Radiatore alto"). The board only reports header numbers —
   // the user is the one who knows what's plugged where. Empty = no renames;
@@ -661,11 +680,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
   // a perspective neon grid scrolling toward a glowing horizon.
-  bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
-  bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
+  bgAurora: Object.freeze({ enabled: false, intensity: 55, speed: 50 }),
+  bgGrid: Object.freeze({ enabled: false, color: '#6ee787', intensity: 45, speed: 50 }),
   // Static premium background (0 animations). Alternative to the animated aurora
-  // for a rich look at near-zero render cost. style: none|nebulosa|prisma|halo.
-  bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
+  // for a rich look at near-zero render cost. style: none|nebulosa|prisma|halo|dusk.
+  bgStatic: Object.freeze({ style: 'dusk', intensity: 100 }),
   // Code-defined animated background: a user snippet (or one carried in a shared
   // theme/package) run inside a locked-down sandboxed iframe (see js/custom-bg.js).
   // Off by default; when enabled it owns the backdrop like a static bg does.
@@ -784,16 +803,29 @@ const SETTINGS_PRESETS = Object.freeze([
 ]);
 
 // The Aspetto → Temi gallery has two tiers:
-//  • Built-in STYLES (below) — Liquid Glass and Pixel Retro. Ocean/Ember/… were
-//    dropped: they were just Liquid Glass with different colours, and colours are
-//    edited in the Colori section. Selecting a style changes ONLY the skin and
-//    keeps your colours/font (glass card previews your live palette; retro shows
-//    the CRT palette, which themes-retro.css forces anyway).
+//  • Built-in STYLES (below) — Liquid Glass, Classic and Pixel Retro. Ocean/Ember/…
+//    were dropped: they were just the same style with different colours, and colours
+//    are edited in the Colori section. Selecting a style puts back that style's stock
+//    look (see applyThemeById), so the look a new install had before 5.0.0 stays one
+//    tap away: Classic declares every value that was the factory default then.
 //  • Imported/saved THEMES (hubSettings.customThemes) — a full snapshot of the
 //    visual identity (THEME_SETTING_KEYS), applied as one look and switchable.
+const CLASSIC_BACKDROP = Object.freeze({
+  panelAlpha: 0.94,
+  bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
+  bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
+  bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
+});
 const BUILTIN_THEMES = Object.freeze([
-  Object.freeze({ id: 'glass', nameKey: 'settings_style_glass', skin: 'glass', live: true }),
-  Object.freeze({ id: 'retro', nameKey: 'settings_style_retro', skin: 'retro', accent: '#f5c518', background: '#050510', text: '#e8f6ff' }),
+  Object.freeze({
+    id: 'liquid', nameKey: 'settings_style_liquid', skin: 'liquid',
+    accent: DEFAULT_HUB_SETTINGS.accent, background: DEFAULT_HUB_SETTINGS.background, text: DEFAULT_HUB_SETTINGS.text,
+  }),
+  Object.freeze({
+    id: 'glass', nameKey: 'settings_style_glass', skin: 'glass',
+    accent: '#1ed760', background: '#070808', text: '#f0f3f1', ...CLASSIC_BACKDROP,
+  }),
+  Object.freeze({ id: 'retro', nameKey: 'settings_style_retro', skin: 'retro', accent: '#f5c518', background: '#050510', text: '#e8f6ff', ...CLASSIC_BACKDROP }),
   // 'comic' is a real skin (themes-comic.css) but deliberately NOT a permanent
   // gallery card: it isn't a general-purpose console like Retro, it's the
   // companion look for a comic-styled theme/background. It's reached only by a
@@ -802,11 +834,11 @@ const BUILTIN_THEMES = Object.freeze([
   // normStyleMode below keeps 'comic' valid everywhere it's applied.
 ]);
 
-// The dashboard style languages (skins). 'glass' is the default; 'retro' and
-// 'comic' are full skins, each a themes-<skin>.css keyed off
-// :root[data-style="<skin>"]. 'retro' has a built-in card; 'comic' is only
-// selected by a theme (above). Anything else normalizes back to 'glass'.
-const STYLE_MODES = Object.freeze(['glass', 'retro', 'comic']);
+// The dashboard style languages (skins). 'liquid' is the default of a new install;
+// 'liquid', 'retro' and 'comic' each have a themes-<skin>.css keyed off
+// :root[data-style="<skin>"]. 'comic' is only selected by a theme (above). Anything
+// else normalizes back to 'glass', the one look a saved value can always mean.
+const STYLE_MODES = Object.freeze(['liquid', 'glass', 'retro', 'comic']);
 const normStyleMode = (v) => (STYLE_MODES.includes(v) ? v : 'glass');
 
 // The settings that make up a "theme": the whole visual identity of the Aspetto
@@ -831,7 +863,7 @@ const THEME_SETTING_KEYS = Object.freeze([
 // read these at module init, so they must not be in the temporal dead zone when
 // settings hydrate.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
-const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo'];
+const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo', 'dusk'];
 // normalizeAmbientMode() also runs during that init, so its lookup tables must be
 // initialized up here too — not further down the file. They previously sat below
 // loadHubSettings() and threw "Cannot access 'AMBIENT_IDLE_MINUTES' before
@@ -841,6 +873,7 @@ const AMBIENT_IDLE_MINUTES = [0, 1, 2, 5, 10, 15, 30];
 // sceneId is 'builtin' or an SDK package id (same charset as WIDGET_ID_RE in
 // server/sdk-widgets.js — folder-name safe, never traverses).
 const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;
 // normalizeBgCustom() also runs during that init. Bounded even though the code
 // only ever runs sandboxed — a huge snippet would bloat every settings save,
 // theme snapshot and share code. Generous enough for an elaborate hand-drawn
@@ -864,7 +897,7 @@ const BG_CUSTOM_CODE_MAX = 60000;
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
 // Every provider id Xenon AI knows, mirrored from ai-local.js AI_PROVIDERS.
 // Up here because normalizeSettings reads them at load (see SURFACE_KINDS).
-const AI_PROVIDER_IDS = ['gemini', 'ollama', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'];
+const AI_PROVIDER_IDS = ['gemini', 'ollama', 'localapi', 'openai', 'anthropic', 'claudecode', 'codex', 'xenon'];
 const AI_CLI_PROVIDERS = ['claudecode', 'codex'];
 // How often the sensor readings refresh, in ms. Mirrors SENSOR_RATE_MS in
 // server.js — the server clamps to this same set, so an out-of-range value
@@ -919,7 +952,7 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // The daily numbers of AI questions a widget may get (server: sdk-ai.js DAILY_CAPS).
 const SDK_AI_DAILY_CAPS = Object.freeze([20, 50, 100, 200]);
 const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'vitals', 'soundboard', 'browser', 'watch', 'pages', 'capture', 'benchmark', 'gallery', 'layers']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'wavelinkOutput', 'voicemeeter', 'spotify', 'steam', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'youtubePlayer', 'streamerbot', 'url', 'tasks', 'vitals', 'soundboard', 'browser', 'watch', 'pages', 'capture', 'benchmark', 'gallery', 'layers', 'timers']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -1016,12 +1049,13 @@ function normalizeAmbientMode(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
   const idle = Number(source.idleMinutes);
-  // sceneId is 'builtin', an SDK package id, or a "canvas:<id>" reference into
-  // hubSettings.ambientScenes (a native canvas scene). Anything else resets to
-  // the default so a stale reference can't strand the picker.
+  // sceneId is 'builtin', an SDK package id, a "canvas:<id>" reference into
+  // hubSettings.ambientScenes (a native canvas scene) or a "theme:<id>" one into
+  // customThemes. Anything else resets to the default so a stale reference can't
+  // strand the picker.
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
   const isCanvas = typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(raw) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(raw);
-  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || isCanvas) ? raw : defaults.sceneId;
+  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || isCanvas || AMBIENT_THEME_REF_RE.test(raw)) ? raw : defaults.sceneId;
   // The scene behind the desktop icons and the screensaver of the screens
   // without the dashboard (js/screen-scene-model.js). Both off by default.
   const saverMinutes = (v) => ([0, 5, 10, 15, 30, 60].includes(Number(v)) ? Number(v) : 0);
@@ -1031,6 +1065,10 @@ function normalizeAmbientMode(value) {
     sceneId,
     wallpaper: source.wallpaper === true,
     saverMinutes: saverMinutes(source.saverMinutes),
+    // None chosen: the screens without the dashboard (js/screen-scene-model.js).
+    screens: Array.isArray(source.screens)
+      ? [...new Set(source.screens.filter((id) => typeof id === 'string' && /^[\x20-\x7e]{1,64}$/.test(id)))].slice(0, 8)
+      : [],
     openOnStartup: source.openOnStartup === true,
   };
 }
@@ -1094,7 +1132,7 @@ function normalizeBgAurora(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.bgAurora;
   return {
-    enabled: source.enabled !== false,
+    enabled: source.enabled == null ? defaults.enabled : source.enabled !== false,
     intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
     speed: clampNumber(source.speed, 0, 100, defaults.speed),
   };
@@ -1104,7 +1142,7 @@ function normalizeBgGrid(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.bgGrid;
   return {
-    enabled: source.enabled !== false,
+    enabled: source.enabled == null ? defaults.enabled : source.enabled !== false,
     color: normalizeHex(source.color, defaults.color),
     intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
     speed: clampNumber(source.speed, 0, 100, defaults.speed),
@@ -1444,10 +1482,11 @@ function normalizeDashboardLayout(value) {
   });
   // Extra placements (duplicated widgets). Validated against known widgets/pages.
   layout.copies = normalizeDashboardCopies(source.copies, layout.widgets, pageIds);
-  // Fall back to the seeded default groups when the source has none (e.g. reset,
-  // or a pre-groups saved layout) — otherwise the welcome media-group is lost.
+  // Fall back to the seeded groups when the source has none, otherwise the
+  // welcome media-group is lost. A reset takes today's; a saved layout from
+  // before groups existed keeps the chat where its owner always had it.
   layout.groups = normalizeDashboardGroups(
-    source.groups !== undefined ? source.groups : DEFAULT_DASHBOARD_LAYOUT.groups,
+    source.groups !== undefined ? source.groups : (source.widgets ? LEGACY_SEEDED_GROUPS : DEFAULT_DASHBOARD_LAYOUT.groups),
     layout.widgets, pageIds, layout.copies);
 
   layout.tabs = normalizeDashboardTabs(source.tabs);
@@ -1560,7 +1599,6 @@ function normalizeTopbarActions(value) {
     { id: 'ambient', side: 'left', hidden: false },
     { id: 'xenon', side: 'left', hidden: false },
     { id: 'search', side: 'left', hidden: false },
-    { id: 'mail', side: 'left', hidden: false },
     { id: 'mini', side: 'left', hidden: false },
     { id: 'layout', side: 'right', hidden: false },
     { id: 'settings', side: 'right', hidden: false },
@@ -1618,6 +1656,8 @@ function normalizeCustomThemes(list) {
     // settings use and keyed identically (styleMode, not skin) so applyThemeById
     // can hand it straight to normalizeSettings. Defaults fill any missing field,
     // so all cards carry the complete THEME_SETTING_KEYS set and compare cleanly.
+    // The backdrop is the exception: a card that says nothing of it is older than the
+    // new look, and the promise is that an old look stays as it was.
     const theme = {
       id: String(raw.id || '').trim().slice(0, 40)
         || ('ct_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
@@ -1640,7 +1680,7 @@ function normalizeCustomThemes(list) {
       paletteVariants: normalizePaletteVariants(raw.paletteVariants),
       contrastGuard: raw.contrastGuard !== false,
       dynamicAlbumTheme: raw.dynamicAlbumTheme !== false,
-      panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, D.panelAlpha),
+      panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, CLASSIC_BACKDROP.panelAlpha),
       panelBorderStrength: clampNumber(raw.panelBorderStrength, 0, 2, D.panelBorderStrength),
       tileShadowStrength: clampNumber(raw.tileShadowStrength, 0, 2, D.tileShadowStrength),
       uiRoundness: clampNumber(raw.uiRoundness, 0, 2, D.uiRoundness),
@@ -1650,9 +1690,9 @@ function normalizeCustomThemes(list) {
       lineColor: normalizeHex(raw.lineColor, null),
       bgDim: clampNumber(raw.bgDim, 0.05, 0.9, D.bgDim),
       bgBlur: clampNumber(raw.bgBlur, 0, 24, D.bgBlur),
-      bgAurora: normalizeBgAurora(raw.bgAurora),
-      bgGrid: normalizeBgGrid(raw.bgGrid),
-      bgStatic: normalizeBgStatic(raw.bgStatic),
+      bgAurora: normalizeBgAurora(raw.bgAurora ?? CLASSIC_BACKDROP.bgAurora),
+      bgGrid: normalizeBgGrid(raw.bgGrid ?? CLASSIC_BACKDROP.bgGrid),
+      bgStatic: normalizeBgStatic(raw.bgStatic ?? CLASSIC_BACKDROP.bgStatic),
       bgCustom: normalizeBgCustom(raw.bgCustom),
       uiFont: sanitizeUiFont(raw.uiFont),
     };
@@ -1749,9 +1789,9 @@ function normalizeSettings(source) {
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
     autoPalette: value.autoPalette === true || (value.autoPalette == null && value.appearance === 'auto'),
-    styleMode: normStyleMode(value.styleMode),
+    styleMode: value.styleMode == null ? DEFAULT_HUB_SETTINGS.styleMode : normStyleMode(value.styleMode),
     retroScanlines: value.retroScanlines !== false,
-    topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
+    topbarStyle: ['full', 'minimal'].includes(value.topbarStyle) ? value.topbarStyle : DEFAULT_HUB_SETTINGS.topbarStyle,
     topbarRails: normalizeTopbarRails(value.topbarRails),
     topbarRailsAutoHide: value.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(value.topbarClock, value),
@@ -1833,6 +1873,8 @@ function normalizeSettings(source) {
     monthlyDrops: value.monthlyDrops !== false,
     // Mirror of normalizeHubSettings in server.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
+    releaseNotesSeen: typeof value.releaseNotesSeen === 'string' ? value.releaseNotesSeen.trim().slice(0, 32) : '',
+    updateFailSeen: typeof value.updateFailSeen === 'string' ? value.updateFailSeen.trim().slice(0, 64) : '',
     discordInviteSeen: value.discordInviteSeen === true,
     // Usage history, server-owned (server.js counts the days; POST /settings
     // keeps its own values). Round-tripped here for the same reason as every
@@ -1848,7 +1890,9 @@ function normalizeSettings(source) {
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     discordCollapsedGuilds: normalizeSnowflakeList(value.discordCollapsedGuilds),
     catalogStats: value.catalogStats === true,
+    ratingAsks: value.ratingAsks !== false,
     usageStats: value.usageStats === true,
+    batteryAskDevices: value.batteryAskDevices !== false,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -1899,6 +1943,11 @@ function normalizeSettings(source) {
     geminiModelPro: normalizeModelChoice(value.geminiModelPro),
     geminiModelTts: normalizeModelChoice(value.geminiModelTts),
     geminiModelLive: normalizeModelChoice(value.geminiModelLive),
+    localApiUrl: LocalServerFields.sanitizeUrl(value.localApiUrl),
+    localApiModel: LocalServerFields.sanitizeModel(value.localApiModel),
+    localApiKey: String(value.localApiKey || '').trim().slice(0, 200),
+    localApiKeySet: value.localApiKeySet === true || !!String(value.localApiKey || '').trim(),
+    localApiVision: value.localApiVision === true,
     ollamaUrl: (typeof value.ollamaUrl === 'string'
       && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(value.ollamaUrl))
       ? value.ollamaUrl.replace(/\/+$/, '') : 'http://localhost:11434',
@@ -1916,7 +1965,7 @@ function normalizeSettings(source) {
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
     gameSessions: { enabled: !(value.gameSessions && value.gameSessions.enabled === false) },
-    perfHud: window.PerfHud ? window.PerfHud.normalizePerfHud(value.perfHud) : { low1: true, low01: true, frame: true, graph: true, hw: true },
+    perfHud: window.PerfHud ? window.PerfHud.normalizePerfHud(value.perfHud) : {},
     fanLabels: normalizeFanLabels(value.fanLabels),
     proactive: normalizeProactive(value.proactive),
     notifications: normalizeNotifications(value.notifications),
@@ -3643,19 +3692,19 @@ async function _hydrateHubSettingsImpl() {
     // Bring the logon "open in browser" task in line with the saved intent —
     // a no-op inside the Edge iframe, so pure-Edge installs never get a tab.
     reconcileAutoOpenBrowser();
-    // The two first-run surfaces, now that the persisted state is authoritative:
-    // first "where do you want Xenon" (asked once), then the tutorial — in that
-    // order, so the tour is about a dashboard already sitting where the user
-    // wants it. When the picker takes the screen the tour waits for the next
-    // load rather than stacking two overlays on top of each other.
+    // The first-run question, now that the persisted state is authoritative: one,
+    // never two in a row. The app that draws widgets asks how Xenon is used, and
+    // that answer says where the dashboard goes too; the browser and other shells
+    // have only the screen to ask about. No tour: nobody asked for one yet, so it
+    // waits a tap away, in Settings and among Bit's starters.
     //
     // DEFERRED, and what it waits for is the SCRIPT TAGS, not the page. This
     // function is started at the bottom of settings.js — a script tag ~80 tags
-    // EARLIER in the document than surface-picker.js and onboarding.js — and it
+    // EARLIER in the document than usage-ask.js and surface-picker.js — and it
     // resumes from a fetch to loopback that can answer in single-digit
-    // milliseconds. Whoever wins that race decided whether the two globals
-    // existed yet: when the fetch won, `window.Onboarding` was still undefined
-    // here and the tutorial silently never ran. Measured, not theorised.
+    // milliseconds. Whoever wins that race decided whether the globals existed
+    // yet: when the fetch won, they were still undefined here and the question
+    // silently never ran. Measured, not theorised.
     //
     // `DOMContentLoaded`, NOT `load`. Every classic script in the document has
     // executed by then, so the race above is closed just as completely — while
@@ -3664,31 +3713,28 @@ async function _hydrateHubSettingsImpl() {
     // long after the dashboard was on screen and looking finished. There is
     // nothing in either surface that needs a decoded image.
     const runFirstRunSurfaces = () => {
-      // A machine that has never answered the screen question is a fresh
-      // install, and a fresh install has no "what's new" to be told about: there
-      // is no version it is coming from. Said here because this is the one place
-      // that knows it, and before the picker opens so the modal cannot slip in
-      // between (update.js also re-reads the flag after its own network wait).
-      if (!getSurfaceChoice().asked && window.XenonWhatsNew
-        && typeof window.XenonWhatsNew.suppressForFreshInstall === 'function') {
+      // A fresh install has no "what's new" to be told about: there is no version
+      // it is coming from. Said here because this is the one place that knows it,
+      // and before the picker opens so the modal cannot slip in between (update.js
+      // also re-reads the flag after its own network wait).
+      const cards = window.XenonStartupCards;
+      const fresh = window.XenonReleaseNotice && cards && window.XenonReleaseNotice.freshInstall({
+        asked: getSurfaceChoice().asked,
+        canAsk: !!(window.SurfacePicker && window.SurfacePicker.shouldAsk()),
+        whatsNewSeen: cards.whatsNewSeen(),
+        notesSeen: cards.releaseNotesSeen(),
+        tourSeen: getOnboardingSeen(),
+      });
+      if (fresh && window.XenonWhatsNew && typeof window.XenonWhatsNew.suppressForFreshInstall === 'function') {
         window.XenonWhatsNew.suppressForFreshInstall();
       }
-      const askedSurface = window.SurfacePicker && typeof window.SurfacePicker.maybeStart === 'function'
-        && window.SurfacePicker.maybeStart();
-      // "How do you want to use Xenon?" comes right after the screen question
-      // (never over the phone pairing guide), and before the tour, which is
-      // pointless when the answer hides the dashboard.
-      const startTour = () => {
-        if (window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
-      };
-      const askUsage = (then) => !!(window.UsageAsk && typeof window.UsageAsk.maybeStart === 'function'
-        && window.UsageAsk.maybeStart(then));
-      if (askedSurface) {
-        window.addEventListener('surface-picker-done', (e) => {
-          if (!(e.detail && e.detail.phone)) askUsage();
-        }, { once: true });
-      } else if (!askUsage((mode) => { if (mode !== 'widgets') startTour(); })) {
-        startTour();
+      const returning = !!window.XenonReleaseNotice && !!cards && window.XenonReleaseNotice.returningUser({
+        asked: getSurfaceChoice().asked, notesSeen: cards.releaseNotesSeen(), tourSeen: getOnboardingSeen(),
+      });
+      const asked = !!(window.UsageAsk && typeof window.UsageAsk.maybeStart === 'function'
+        && window.UsageAsk.maybeStart({ returning }));
+      if (!asked && window.SurfacePicker && typeof window.SurfacePicker.maybeStart === 'function') {
+        window.SurfacePicker.maybeStart();
       }
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runFirstRunSurfaces, { once: true });
@@ -4022,7 +4068,7 @@ function setAppearance(mode) {
   if (mode === 'auto') refreshOsTheme();   // fetch the current OS scheme right away
 }
 
-// ── Dashboard style (Liquid Glass / Pixel Retro / Comic) ─────────
+// ── Dashboard style (Liquid Glass / Classic / Pixel Retro / Comic) ─────────
 function setStyleMode(mode) {
   if (!STYLE_MODES.includes(mode)) return;
   hubSettings.styleMode = mode;
@@ -4119,6 +4165,15 @@ function applyAccentColor() {
 function getEffectiveThemePalette() {
   return _effectiveThemePalette || deriveEffectiveThemePalette();
 }
+
+// True when nothing but a colour lies behind the tiles, so glass has nothing to show.
+function backdropIsPlain() {
+  if (seeThroughWindowOn() || hubSettings.backgroundMedia) return false;
+  const custom = normalizeBgCustom(hubSettings.bgCustom);
+  if (custom.enabled && custom.code) return false;
+  return normalizeBgStatic(hubSettings.bgStatic).style === 'none' && !normalizeBgAurora(hubSettings.bgAurora).enabled;
+}
+if (typeof window !== 'undefined') window.backdropIsPlain = backdropIsPlain;
 if (typeof window !== 'undefined') window.getEffectiveThemePalette = getEffectiveThemePalette;
 
 // Called by media.js on every media update (source 'album', the default) and by
@@ -4242,8 +4297,11 @@ function applyHubSettings() {
 
   // Dashboard style language (Retro, Comic or glass): js/theme-tokens.js, which
   // the light layer page shares so a layer tile wears the same skin.
+  const styleBefore = root.dataset.style;
   const skin = ThemeTokens.applySkin(root, hubSettings);
   const { safe, retro } = skin;
+  // Liquid Glass lives on the tiles themselves (applyTileEffects), so they follow a change.
+  if (root.dataset.style !== styleBefore && typeof applyAllTileStyles === 'function') applyAllTileStyles(null, { colorsOnly: true });
   document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
 
   // Idle animation auto-pause (ambient-idle.js runs independently; push the
@@ -4475,7 +4533,7 @@ function themeSignature(src) {
 
 // Exactly one card is highlighted: the saved theme whose full snapshot matches
 // the live look, or — if none does (you're on a bare style with your own
-// colours) — the current style (Liquid Glass / Pixel Retro).
+// colours) — the current style.
 // The bar's share of a look. A theme without one matches any bar: it does not
 // change the bar when applied, so the bar cannot tell it apart either.
 function themeBarSignature(src) {
@@ -4489,7 +4547,7 @@ function themeMatchesLive(theme) {
 function findActiveThemeId() {
   const match = getCustomThemes().find(themeMatchesLive);
   if (match) return match.id;
-  return hubSettings.styleMode === 'retro' ? 'retro' : 'glass';
+  return BUILTIN_THEMES.some(x => x.id === hubSettings.styleMode) ? hubSettings.styleMode : 'glass';
 }
 
 // Copy the live look (every THEME_SETTING_KEYS field) into a plain object.
@@ -4501,9 +4559,9 @@ function snapshotCurrentTheme() {
   return snap;
 }
 
-// Apply a gallery card. A built-in STYLE changes only the skin and keeps your
-// colours/surface/font; a saved THEME applies its whole snapshot. Routed through
-// normalizeSettings + applyHubSettings, exactly like the manual controls.
+// Apply a gallery card. A built-in STYLE resets to its stock look; a saved THEME
+// applies its whole snapshot. Routed through normalizeSettings + applyHubSettings,
+// exactly like the manual controls.
 function applyThemeById(id) {
   const builtin = BUILTIN_THEMES.find(x => x.id === id);
   let patch;
@@ -4561,6 +4619,7 @@ function addThemeCard(snapshot, name, opts) {
 // prompt()/confirm() unreliable and clumsy on a touchscreen, so we render a small
 // modal reusing the shared .preset-modal styling. Returns a Promise resolving to
 // the entered string (text mode) or true (confirm mode), or null when cancelled.
+let settingsPromptSeq = 0;
 function settingsPrompt(opts) {
   const o = opts || {};
   const isConfirm = o.type === 'confirm';
@@ -4569,6 +4628,9 @@ function settingsPrompt(opts) {
     overlay.className = 'preset-modal-overlay';
     const modal = document.createElement('div');
     modal.className = 'preset-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', o.title || '');
     const head = document.createElement('div');
     head.className = 'preset-modal-head';
     const h = document.createElement('h3');
@@ -4613,24 +4675,31 @@ function settingsPrompt(opts) {
     modal.appendChild(head); modal.appendChild(body);
     overlay.appendChild(modal);
 
+    const freezeToken = 'settings-prompt:' + (++settingsPromptSeq);
     let done = false;
     const finish = (val) => {
       if (done) return; done = true;
-      document.removeEventListener('keydown', onKey);
       overlay.remove();
+      letGo();
+      if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, false);
       resolve(val);
     };
-    const onKey = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); finish(null); }
-      else if (e.key === 'Enter' && input) { e.preventDefault(); finish(input.value); }
-    };
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); finish(input.value); }
+      });
+    }
     x.addEventListener('click', () => finish(null));
     cancel.addEventListener('click', () => finish(null));
     ok.addEventListener('click', () => finish(input ? input.value : true));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
-    document.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
-    if (input) { input.focus(); input.select(); } else (o.danger === true ? cancel : ok).focus();
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, true);
+    const letGo = window.DialogFocus.hold(modal, {
+      start: input || (o.danger === true ? cancel : ok),
+      onEsc: () => finish(null),
+    });
+    if (input) input.select();
   });
 }
 
@@ -4702,10 +4771,10 @@ function removeCustomTheme(id) {
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: next });
   saveHubSettings();
   if (wasActive && typeof applyThemeById === 'function') {
-    // Deleting the theme you're using drops you back to the stock Liquid Glass
-    // look — there's no saved card left to sit on. applyThemeById re-renders the
-    // gallery itself; refresh the other theme consumers too.
-    applyThemeById('glass');
+    // Deleting the theme you're using drops you back to the stock look: there's no
+    // saved card left to sit on. applyThemeById re-renders the gallery itself;
+    // refresh the other theme consumers too.
+    applyThemeById(DEFAULT_HUB_SETTINGS.styleMode);
   } else {
     renderThemeGallery();
   }
@@ -4720,17 +4789,13 @@ function makeThemeCard(theme, activeId, isCustom) {
   const card = document.createElement('button');
   card.type = 'button';
   const retro = (theme.styleMode || theme.skin || 'glass') === 'retro';
-  card.className = 'theme-card' + (theme.id === activeId ? ' active' : '') + (retro ? ' theme-card--retro' : '');
+  card.className = 'theme-card' + (theme.id === activeId ? ' active' : '') + (retro ? ' theme-card--retro' : '')
+    + (theme.id === 'liquid' ? ' theme-card--liquid' : '');
   card.setAttribute('aria-pressed', theme.id === activeId ? 'true' : 'false');
   card.setAttribute('aria-label', themeName(theme));
-  // The Liquid Glass style card previews your live palette (it keeps your
-  // colours); the retro style and saved themes preview their own stored colours.
-  const preview = theme.live
-    ? { accent: hubSettings.accent, background: hubSettings.background, text: hubSettings.text }
-    : { accent: theme.accent, background: theme.background, text: theme.text };
-  card.style.setProperty('--tc-bg', preview.background);
-  card.style.setProperty('--tc-accent', preview.accent);
-  card.style.setProperty('--tc-text', preview.text);
+  card.style.setProperty('--tc-bg', theme.background);
+  card.style.setProperty('--tc-accent', theme.accent);
+  card.style.setProperty('--tc-text', theme.text);
   card.addEventListener('click', () => applyThemeById(theme.id));
 
   const swatch = document.createElement('span');
@@ -4843,7 +4908,10 @@ function syncSettingsControls() {
   const codexAppr = $('settings-codex-approvals');
   if (codexAppr) codexAppr.checked = codexCfg.approvals;
   const codexWait = $('settings-codex-wait');
-  if (codexWait) codexWait.value = String(codexCfg.waitSec);
+  if (codexWait) {
+    codexWait.value = String(codexCfg.waitSec);
+    codexWait._csSync?.();
+  }
 
   const hybridGpuPause = $('settings-hybrid-gpu-pause');
   if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;
@@ -4864,11 +4932,15 @@ function syncSettingsControls() {
   if (catDrops) catDrops.checked = hubSettings.monthlyDrops !== false;
   const catStats = $('settings-catalog-stats');
   if (catStats) catStats.checked = hubSettings.catalogStats === true;
+  const ratingAsks = $('settings-rating-asks');
+  if (ratingAsks) ratingAsks.checked = hubSettings.ratingAsks !== false;
   const usageStatsChk = $('settings-usage-stats');
   if (usageStatsChk) usageStatsChk.checked = hubSettings.usageStats === true;
+  const batteryAskChk = $('settings-battery-ask');
+  if (batteryAskChk) batteryAskChk.checked = hubSettings.batteryAskDevices !== false;
   // The PC owner's choice: a paired device does not show it (the server keeps
   // the stored value on a save from one anyway).
-  for (const id of ['settings-usage-stats-row', 'settings-usage-stats-link']) {
+  for (const id of ['settings-usage-stats-row', 'settings-usage-stats-link', 'settings-battery-ask-row']) {
     const el = $(id);
     if (el) el.hidden = !!window.__xenonRemote;
   }
@@ -5261,6 +5333,8 @@ function setSettingsCardAvailable(card, ok) {
 }
 
 function settingsSetCategory(cat) {
+  // One page holds both now; links and deep links may still name the old one.
+  if (cat === 'codex') cat = 'claude';
   _settingsCat = cat;
   if (window.SettingsSearch) SettingsSearch.leave();
   if (cat === 'appearance') refreshMediaVizStatus();
@@ -5272,10 +5346,13 @@ function settingsSetCategory(cat) {
     });
     content.scrollTop = 0;
   }
-  // The footer's Supporta button is the Sostieni Xenon category's entry too.
-  document.querySelectorAll('.settings-nav-btn, .settings-nav-support-btn[data-settings-cat]').forEach(b => {
-    b.classList.toggle('active', b.dataset.settingsCat === cat);
+  document.querySelectorAll('.settings-nav-btn').forEach(b => {
+    const on = b.dataset.settingsCat === cat;
+    b.classList.toggle('active', on);
+    // A link from a tile can land on a page whose row is below the fold of the rail.
+    if (on) b.scrollIntoView({ block: 'nearest' });
   });
+  paintSettingsPageTitle(cat);
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
   if (cat === 'slideshow') renderSlideshowSettings();
   if (cat === 'island') renderDynamicIslandSources();
@@ -5283,6 +5360,7 @@ function settingsSetCategory(cat) {
   if (cat === 'search') renderSearchDiskSettings();
   if ((cat === 'capture' || cat === 'performance') && window.CaptureSettingsPane) CaptureSettingsPane.show();
   if (cat === 'performance' && window.SensorSourcesPage) window.SensorSourcesPage.show();
+  if (cat === 'performance') syncExpanderSummaries();
   // The monitor list is live: rendered on open, and re-rendered by the shell's
   // push when a display is plugged in or out while the panel is on screen.
   if (cat === 'display') renderSurfaceSection();
@@ -5300,13 +5378,25 @@ function settingsSetCategory(cat) {
   packSettingsColumns();
 }
 
+// The page is named by its row in the rail, so the two never disagree, and the same i18n
+// key means a change of language reaches it.
+function paintSettingsPageTitle(cat) {
+  const title = $('settings-page-title');
+  if (!title) return;
+  const row = Array.from(document.querySelectorAll('#settings-nav .settings-nav-btn')).find(b => b.dataset.settingsCat === cat);
+  const label = row && (row.querySelector('[data-i18n]') || row);
+  if (label && label.dataset.i18n) title.dataset.i18n = label.dataset.i18n;
+  else delete title.dataset.i18n;
+  title.textContent = label ? label.textContent.trim() : '';
+}
+
 // ── Two-column pages pack like a mosaic ─────────────────────────────────────
 // A CSS grid places cards in rows: a short card beside a tall one leaves a
 // hole under it. With 1px row tracks and each card spanning its own height,
 // auto-placement puts every card in the first free room instead. Re-run when
 // a card changes height (a section unfolds, a list grows) and on resize;
 // setting a span never changes the card's own size, so there is no loop.
-const PACK_GAP = 10;
+const PACK_GAP = 28;
 let _packRaf = 0;
 let _packObserver = null;
 function packSettingsColumns() {
@@ -5361,7 +5451,7 @@ async function syncSupporterCodeBox() {
   const saved = pass || wallet;
   state.textContent = pass
     ? t('settings_supporter_saved')
-    : wallet ? t('settings_sparks_code_saved') : t('settings_supporter_none');
+    : wallet ? t('settings_sparks_code_saved') : '';
   forget.dataset.which = pass ? 'pass' : 'sparks';
   forget.hidden = !saved;
   // A saved code is a STATE: "Code saved" and Remove, nothing to type. An empty
@@ -5375,6 +5465,11 @@ async function syncSupporterCodeBox() {
   if (save) save.hidden = saved;
   const savedLine = $('settings-supporter-saved');
   if (savedLine) savedLine.hidden = !saved;
+  // What the box is for goes with the box: the saved line says the rest.
+  ['settings-supporter-lead', 'settings-supporter-sparks-note'].forEach((id) => {
+    const note = $(id);
+    if (note) note.hidden = saved;
+  });
 }
 
 // "Enter your code" on the Support page: the box lives with the other sharing
@@ -5382,7 +5477,7 @@ async function syncSupporterCodeBox() {
 function openSupporterCode() {
   settingsSetCategory('sdk');
   const field = $('settings-supporter-code');
-  const row = field && field.closest('.settings-subcard');
+  const row = field && field.closest('.settings-section');
   if (!row) return;
   row.scrollIntoView({ block: 'center', behavior: 'smooth' });
   if (!field.hidden) field.focus({ preventScroll: true });
@@ -5400,18 +5495,23 @@ async function saveSupporterCode() {
   // the server moves its Sparks onto the pass.
   const isSparks = code.toUpperCase().replace(/[^A-Z0-9]/g, '').startsWith('XC');
   let out = null;
+  let status = 0;
   try {
     const res = await fetch(isSparks ? '/api/community/sparks/save' : '/api/community/supporter/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
     });
+    status = res.status;
     out = await res.json();
   } catch { out = null; }
   if (btn) btn.disabled = false;
   if (out && out.ok) {
     field.value = '';
     setSettingsStatus('settings_supporter_stored', 'ok');
+  } else if (status === 403) {
+    // A paired device: what the PC pays with is changed on the PC.
+    setSettingsStatus('settings_supporter_save_pc_only', 'error');
   } else if (out && out.error === 'bad_code') {
     // Shape, not validity: the hub is the only thing that can say whether a
     // well-formed code works, and it answers that against a specific drop.
@@ -6829,6 +6929,7 @@ function syncPerfHudControls() {
     const el = $(`settings-perfhud-${k}`);
     if (el) el.checked = parts[k];
   }
+  syncExpanderSummaries();
 }
 
 let _gameSessionsProbe = null;
@@ -6925,33 +7026,7 @@ function syncSdkWidgetsControls() {
 // community-gallery.js (CommunityGallery.findUpdates) — ONE implementation for
 // the gallery, the installed manager and this toast, so the surfaces can never
 // disagree about whether an update exists.
-let _sdkUpdatesCache = null;   // pkgId → catalog entry with a newer version
-let _sdkUpdatesInflight = null;   // shared promise so concurrent cold calls fetch the catalog once
-async function _sdkCatalogUpdates(force) {
-  if (_sdkUpdatesCache && !force) return _sdkUpdatesCache;
-  if (!_sdkUpdatesInflight || force) {
-    _sdkUpdatesInflight = (async () => {
-      const out = new Map();
-      try {
-        const cat = await fetch('/api/community/catalog').then((r) => r.json());
-        const updates = (window.CommunityGallery && window.CommunityGallery.findUpdates)
-          ? await window.CommunityGallery.findUpdates((cat && cat.entries) || [])
-          : [];
-        // findUpdates now also returns receipt-matched NON-pkgId content
-        // (themes, decks, packs) — those surface in the gallery's "Updates for
-        // your content" section. This map is the SDK-package manager + the
-        // "{n} widgets" daily toast, so keep ONLY pkgId-bearing entries (a
-        // non-pkgId entry would land under the key `undefined`, collapse
-        // several into one, and inflate the widget count with unactionable rows).
-        for (const entry of updates) if (entry.pkgId) out.set(entry.pkgId, entry);
-      } catch { /* offline → no update hints */ }
-      _sdkUpdatesCache = out;
-      _sdkUpdatesInflight = null;
-      return out;
-    })();
-  }
-  return _sdkUpdatesInflight;
-}
+
 // Once-a-day update check, client-driven (no server timer): on load, when
 // anything from the catalog is installed, one catalog GET (absorbed by the
 // server's 45-min TTL cache) surfaces available updates as a gentle toast.
@@ -6974,7 +7049,6 @@ async function checkSdkUpdatesDaily() {
     // must not burn the day's slot and hide a real update until tomorrow.
     const updates = await window.CommunityGallery.findUpdates(entries);
     localStorage.setItem(KEY, String(Date.now()));
-    _sdkUpdatesCache = null;   // the package manager re-derives its pkgId view lazily
     if (!updates.length || !window.XenonToast) return;
     // Name the thing when there is only one — "1 aggiornamento" is a riddle,
     // "Aggiornamento per Nocturne" is an answer.
@@ -7016,9 +7090,9 @@ function syncStocksTickerControls() {
   // API keys are server-only (redacted on the wire): show a filled placeholder
   // when one is saved and keep the field blank, mirroring the OBS-password UX.
   const td = $('settings-stocks-twelvedata');
-  if (td) { td.value = ''; td.placeholder = hubSettings.twelveDataKeySet ? '••••••••' : '—'; }
+  if (td) { td.value = ''; td.placeholder = hubSettings.twelveDataKeySet ? '••••••••' : ''; }
   const fh = $('settings-stocks-finnhub');
-  if (fh) { fh.value = ''; fh.placeholder = hubSettings.finnhubKeySet ? '••••••••' : '—'; }
+  if (fh) { fh.value = ''; fh.placeholder = hubSettings.finnhubKeySet ? '••••••••' : ''; }
   // Football (Calcio)
   const f = hubSettings.football || {};
   setVal('settings-football-refresh', f.refreshSec != null ? f.refreshSec : 120);
@@ -7027,13 +7101,13 @@ function syncStocksTickerControls() {
   setChk('settings-football-results', ft.results !== false);
   setChk('settings-football-standings', ft.standings !== false);
   const sk = $('settings-football-sportsdb');
-  if (sk) { sk.value = ''; sk.placeholder = hubSettings.sportsDbKeySet ? '••••••••' : '—'; }
+  if (sk) { sk.value = ''; sk.placeholder = hubSettings.sportsDbKeySet ? '••••••••' : ''; }
   // News
   const nw = hubSettings.news || {};
   setVal('settings-news-refresh', nw.refreshSec != null ? nw.refreshSec : 600);
   setChk('settings-news-images', (nw.tile || {}).images !== false);
   const nk = $('settings-news-newsdata');
-  if (nk) { nk.value = ''; nk.placeholder = hubSettings.newsDataKeySet ? '••••••••' : '—'; }
+  if (nk) { nk.value = ''; nk.placeholder = hubSettings.newsDataKeySet ? '••••••••' : ''; }
   setChk('settings-ticker-enabled', tk.enabled);
   setVal('settings-ticker-position', tk.position || 'bottom');
   setVal('settings-ticker-speed', tk.speed != null ? tk.speed : 50);
@@ -7190,10 +7264,10 @@ function syncNotificationsControls() {
 // here rather than fetched: the list is the same closed table the server ships
 // (call-detect.js DEFAULT_APPS), and a Settings panel that cannot draw its own
 // switches until a request lands is a panel that flickers on every open.
-const CALL_APP_IDS = ['discord', 'teams', 'zoom', 'phonelink', 'whatsapp', 'slack', 'meet'];
+const CALL_APP_IDS = ['discord', 'teams', 'zoom', 'phonelink', 'whatsapp', 'signal', 'slack', 'meet'];
 const CALL_APP_NAMES = {
   discord: 'Discord', teams: 'Microsoft Teams', zoom: 'Zoom',
-  phonelink: 'Phone Link', whatsapp: 'WhatsApp', slack: 'Slack', meet: 'Google Meet',
+  phonelink: 'Phone Link', whatsapp: 'WhatsApp', signal: 'Signal', slack: 'Slack', meet: 'Google Meet',
 };
 // What the server last said this machine can do. Filled by the /api/calls read
 // below; until then the note stays hidden rather than guessing.
@@ -7498,11 +7572,10 @@ function vitalsCapLine(id, text) {
 }
 
 function blockVitalsStep(id, can) {
-  if (can) return;
   const box = $(id);
-  if (box) box.disabled = true;
+  if (box && !can) box.disabled = true;
   const row = $(id + '-row');
-  if (row) row.classList.add('is-disabled');
+  if (row) row.classList.toggle('is-blocked', !can);
 }
 
 function syncVitalsPcCaps() {
@@ -7613,6 +7686,8 @@ function syncVitalsControls() {
   }
   const posRow = $('settings-vpet-position-row');
   if (posRow) posRow.classList.toggle('is-disabled', !petOn);
+  const timing = $('settings-vpet-timing');
+  if (timing) timing.classList.toggle('is-disabled', !petOn);
   // Escalation-timing selects (decay / gameover / overlay / minimize / lock).
   const thresholds = pet.thresholds || {};
   VITALS_PET_STAGES.forEach((stage) => {
@@ -7916,17 +7991,19 @@ function syncContextProfileControls() {
   const rev = $('settings-ctxprof-revert');
   if (rev) rev.checked = c.revertOnExit;
   const wrap = $('settings-ctxprof-options');
-  if (wrap) wrap.classList.toggle('is-disabled', !c.enabled);
+  if (wrap) wrap.hidden = !c.enabled;
   renderContextProfileRows(c);
 }
 
-// One row per detectable activity, each with a Page / Lighting / Deck / Style
-// dropdown. Options come from the live layout + deck instances, so they always
-// match what the user has. Native <select data-custom-select> for consistent style.
+// One closed row per detectable activity, with a Page / Lighting / Deck / Style
+// list inside. Options come from the live layout + deck instances, so they always
+// match what the user has. Saving re-renders nothing, but a settings sync does:
+// what was open stays open.
 function renderContextProfileRows(c) {
   const mount = $('settings-ctxprof-rows');
   if (!mount) return;
   const tr = (k) => (typeof t === 'function' ? t(k) : k);
+  const open = new Set(Array.from(mount.querySelectorAll('details[open]'), d => d.dataset.activity));
   const pages = (hubSettings.dashboardLayout && Array.isArray(hubSettings.dashboardLayout.pages))
     ? hubSettings.dashboardLayout.pages : [];
   const pageLabel = (p) => p.name || (p.nameKey ? tr(p.nameKey) : '') || p.id;
@@ -7940,42 +8017,100 @@ function renderContextProfileRows(c) {
   mount.textContent = '';
   for (const act of PERF_ACTIVITIES) {
     const entry = (c.map && c.map[act]) || { page: '', lighting: '', deck: '' };
-    const row = document.createElement('div');
-    row.className = 'settings-ctxprof-row';
-
-    const label = document.createElement('span');
-    label.className = 'settings-ctxprof-act';
-    label.setAttribute('data-i18n', 'settings_perf_act_' + act);
-    label.textContent = tr('settings_perf_act_' + act);
-    row.appendChild(label);
-
-    const selects = document.createElement('div');
-    selects.className = 'settings-ctxprof-selects';
-    selects.appendChild(buildContextSelect(act, 'page', entry.page,
-      [{ value: '', label: tr('context_none') }].concat(pages.map(p => ({ value: p.id, label: pageLabel(p) })))));
-    selects.appendChild(buildContextSelect(act, 'lighting', entry.lighting,
-      lightingOpts.map(([value, key]) => ({ value, label: tr(key) }))));
-    selects.appendChild(buildContextSelect(act, 'deck', entry.deck,
-      [{ value: '', label: tr('context_none') }].concat(deckProfiles.map(n => ({ value: n, label: n })))));
+    const row = contextExpander(act, tr('settings_perf_act_' + act));
+    row.open = open.has(act);
+    const grid = row.querySelector('.settings-grid');
+    grid.appendChild(contextRow('settings_ctxprof_col_page', buildContextSelect(act, 'page', entry.page,
+      [{ value: '', label: tr('context_none') }].concat(pages.map(p => ({ value: p.id, label: pageLabel(p) }))))));
+    grid.appendChild(contextRow('settings_ctxprof_col_light', buildContextSelect(act, 'lighting', entry.lighting,
+      lightingOpts.map(([value, key]) => ({ value, label: tr(key) })))));
+    grid.appendChild(contextRow('settings_ctxprof_col_deck', buildContextSelect(act, 'deck', entry.deck,
+      [{ value: '', label: tr('context_none') }].concat(deckProfiles.map(n => ({ value: n, label: n }))))));
     // Base styles PLUS every saved custom theme, so a profile can switch to a
     // full look (e.g. "when gaming → Cyberpunk"), not just the Glass/Retro skin.
-    selects.appendChild(buildContextSelect(act, 'style', entry.style, [
+    grid.appendChild(contextRow('settings_ctxprof_col_style', buildContextSelect(act, 'style', entry.style, [
       { value: '', label: tr('context_none') },
+      { value: 'liquid', label: tr('settings_style_liquid') },
       { value: 'glass', label: tr('settings_style_glass') },
       { value: 'retro', label: tr('settings_style_retro') },
-    ].concat(getCustomThemes().map(th => ({ value: th.id, label: themeName(th) })))));
-    row.appendChild(selects);
+    ].concat(getCustomThemes().map(th => ({ value: th.id, label: themeName(th) }))))));
+    syncContextSummary(row);
     mount.appendChild(row);
   }
   if (typeof initAllCustomSelects === 'function') initAllCustomSelects(mount);
 }
 
+function contextExpander(activity, name) {
+  const details = document.createElement('details');
+  details.className = 'settings-expander';
+  details.dataset.activity = activity;
+  const summary = document.createElement('summary');
+  const line = document.createElement('span');
+  line.className = 'settings-label-line';
+  const title = document.createElement('span');
+  title.setAttribute('data-i18n', 'settings_perf_act_' + activity);
+  title.textContent = name;
+  const picked = document.createElement('span');
+  picked.className = 'settings-hint';
+  line.appendChild(title);
+  line.appendChild(picked);
+  summary.appendChild(line);
+  details.appendChild(summary);
+  const grid = document.createElement('div');
+  grid.className = 'settings-grid';
+  details.appendChild(grid);
+  return details;
+}
+
+function contextRow(labelKey, select) {
+  const row = document.createElement('div');
+  row.className = 'settings-row full';
+  const line = document.createElement('span');
+  line.className = 'settings-label-line';
+  const name = document.createElement('span');
+  name.setAttribute('data-i18n', labelKey);
+  name.textContent = typeof t === 'function' ? t(labelKey) : labelKey;
+  select.setAttribute('aria-label', name.textContent);
+  line.appendChild(name);
+  row.appendChild(line);
+  row.appendChild(select);
+  return row;
+}
+
+// The line under a closed activity: what it switches to, read off its lists.
+function syncContextSummary(details) {
+  const line = details.querySelector('summary .settings-hint');
+  if (!line) return;
+  line.textContent = Array.from(details.querySelectorAll('select'))
+    .filter(sel => sel.value)
+    .map(sel => sel.options[sel.selectedIndex].textContent)
+    .join(', ');
+}
+
+// A closed list of switches still says which are on.
+function syncExpanderSummary(details) {
+  const line = details.querySelector('summary .settings-hint');
+  if (!line) return;
+  line.textContent = Array.from(details.querySelectorAll('input.settings-check'))
+    .filter(box => box.checked)
+    .map(box => box.closest('label').querySelector('[data-i18n]').textContent.trim())
+    .join(', ');
+}
+
+function syncExpanderSummaries() {
+  document.querySelectorAll('#settings-content details[data-on-summary]').forEach(syncExpanderSummary);
+}
+
+document.addEventListener('change', (e) => {
+  const details = e.target.closest && e.target.closest('details[data-on-summary]');
+  if (details) syncExpanderSummary(details);
+});
+
 function buildContextSelect(activity, dim, current, options) {
   const sel = document.createElement('select');
-  sel.className = 'settings-ctxprof-select';
+  sel.className = 'settings-select';
   sel.setAttribute('data-custom-select', '');
   sel.setAttribute('data-cs-fixed', ''); // Settings body scrolls; anchor the panel
-  sel.setAttribute('aria-label', dim);
   let hasCurrent = false;
   for (const o of options) {
     const opt = document.createElement('option');
@@ -7991,7 +8126,10 @@ function buildContextSelect(activity, dim, current, options) {
     opt.value = current; opt.textContent = current; opt.selected = true;
     sel.appendChild(opt);
   }
-  sel.addEventListener('change', () => updateContextMap(activity, dim, sel.value));
+  sel.addEventListener('change', () => {
+    updateContextMap(activity, dim, sel.value);
+    syncContextSummary(sel.closest('details'));
+  });
   return sel;
 }
 
@@ -8158,13 +8296,13 @@ function renderPerformanceTriggerApps() {
     addRow.className = 'perf-app-add';
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'perf-app-input';
+    input.className = 'settings-text-input perf-app-input';
     input.placeholder = t('settings_perf_app_add') || 'app.exe';
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addPerformanceTriggerApp(activity, input); } });
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'settings-btn perf-app-add-btn';
-    btn.textContent = '+';
+    btn.className = 'settings-btn';
+    btn.textContent = t('add');
     btn.addEventListener('click', () => addPerformanceTriggerApp(activity, input));
     addRow.appendChild(input);
     addRow.appendChild(btn);
@@ -8213,6 +8351,26 @@ function updatePerformancePauseStreams(enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// Core Shield: busy apps move off the game's cores when the PC runs out of them.
+function updatePerformanceShield(enabled) {
+  _savePerformance({ opts: { shield: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Whether a PC can run it depends on its cores and OS tools, so the server says, once.
+let _shieldAvailable = null;
+async function syncPerformanceShieldRow() {
+  if (_shieldAvailable === null) {
+    try {
+      const res = await fetch(SERVER + '/api/performance/shield');
+      const d = await res.json();
+      _shieldAvailable = !!(d && d.ok && d.available);
+    } catch { return; }
+  }
+  const row = $('settings-perf-shield-row');
+  if (row) row.hidden = !_shieldAvailable;
+}
+
 function optimizePerformanceNow() {
   if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
 }
@@ -8251,10 +8409,12 @@ function syncPerformanceControls() {
     if (typeof t === 'function') modeHint.textContent = t(key);
   }
   for (const act of PERF_ACTIVITIES) setChecked('settings-perf-act-' + act, p.autoActivities[act]);
-  // Activities (and their trigger-app editor) only matter when an automatic
-  // mode is active; hide the whole block in manual mode.
-  const actRow = $('settings-perf-activities');
-  if (actRow) actRow.hidden = (mode === 'manual');
+  // Activities and their trigger apps only matter when an automatic mode is
+  // active; both rows go in manual mode.
+  for (const id of ['settings-perf-activities', 'settings-perf-apps']) {
+    const row = $(id);
+    if (row) row.hidden = (mode === 'manual');
+  }
   renderPerformanceTriggerApps();
   setChecked('settings-perf-baralways', p.barAlways);
   setChecked('settings-perf-useai', p.useAi);
@@ -8263,9 +8423,12 @@ function syncPerformanceControls() {
   setChecked('settings-perf-manageapps', p.opts.manageApps);
   setChecked('settings-perf-priority', p.opts.priorityBoost);
   setChecked('settings-perf-pausestreams', p.opts.pauseStreams);
-  // Grey out the detail rows while the master toggle is off.
+  setChecked('settings-perf-shield', p.opts.shield);
+  // The options mean nothing while the mode is off.
   const wrap = $('settings-perf-options');
-  if (wrap) wrap.classList.toggle('is-disabled', !p.enabled);
+  if (wrap) wrap.hidden = !p.enabled;
+  if (p.enabled) syncPerformanceShieldRow();
+  syncExpanderSummaries();
 }
 
 // ── Second-screen capture settings ────────────────────────────────
@@ -8513,18 +8676,7 @@ function syncAmbientSettings() {
   // and nothing said so: the choice that overrode his wallpaper was three rows
   // above, made days earlier. Same note the background colour row has carried
   // for the same reason.
-  const sceneNote = $('settings-ambient-scene-note');
-  if (sceneNote) {
-    const covers = cfg.sceneId !== 'builtin';
-    sceneNote.hidden = !covers;
-    if (covers) {
-      sceneNote.setAttribute('data-i18n', 'ambient_scene_covers');
-      sceneNote.textContent = t('ambient_scene_covers');
-    } else {
-      sceneNote.removeAttribute('data-i18n');
-      sceneNote.textContent = '';
-    }
-  }
+  syncAmbientSceneNote(cfg);
   // A disabled mode also retires its topbar button.
   const topBtn = $('ambient-topbtn');
   if (topBtn) topBtn.hidden = !cfg.enabled;
@@ -8558,6 +8710,14 @@ function syncAmbientScenePicker(cfg) {
     opt.textContent = pkg.name;
     options.push(opt);
   });
+  // The animated backgrounds of the saved themes (value "theme:<id>").
+  const themes = themesWithBackground(hubSettings.customThemes);
+  themes.forEach(theme => {
+    const opt = document.createElement('option');
+    opt.value = THEME_SCENE_PREFIX + theme.id;
+    opt.textContent = theme.name || t('ambient_editor_untitled');
+    options.push(opt);
+  });
   select.replaceChildren(...options);
   // Keep the saved choice selected even while its package list hasn't loaded
   // yet — never silently rewrite the persisted sceneId from a sync pass. Canvas
@@ -8565,7 +8725,8 @@ function syncAmbientScenePicker(cfg) {
   const isCanvasSel = typeof AmbientScene !== 'undefined' && AmbientScene.isCanvasRef(cfg.sceneId);
   const known = cfg.sceneId === 'builtin'
     || packages.some(p => p.id === cfg.sceneId)
-    || (isCanvasSel && scenes.some(s => s && 'canvas:' + s.id === cfg.sceneId));
+    || (isCanvasSel && scenes.some(s => s && 'canvas:' + s.id === cfg.sceneId))
+    || themes.some(theme => THEME_SCENE_PREFIX + theme.id === cfg.sceneId);
   if (!known) {
     const ghost = document.createElement('option');
     ghost.value = cfg.sceneId;
@@ -8584,11 +8745,32 @@ function syncAmbientScenePicker(cfg) {
   }
 }
 
+function syncAmbientSceneNote(cfg) {
+  const sceneNote = $('settings-ambient-scene-note');
+  if (!sceneNote) return;
+  const waiting = ambientSceneWaiting(cfg.sceneId);
+  const approve = $('settings-ambient-scene-approve');
+  if (approve) approve.hidden = !waiting;
+  const covers = cfg.sceneId !== 'builtin';
+  sceneNote.hidden = !covers;
+  if (covers) {
+    sceneNote.setAttribute('data-i18n', waiting ? 'ambient_scene_wait' : 'ambient_scene_covers');
+    sceneNote.textContent = t(waiting ? 'ambient_scene_wait' : 'ambient_scene_covers');
+  } else {
+    sceneNote.removeAttribute('data-i18n');
+    sceneNote.textContent = '';
+  }
+}
+
 // Re-list the ambient scenes whenever the SDK package set changes (an install or
 // removal), so a freshly imported scene appears in the dropdown with no page
 // reload. No-op when the picker isn't in the DOM (settings closed).
 window.addEventListener('xenon:sdk-packages', () => {
-  try { syncAmbientScenePicker(normalizeAmbientMode(hubSettings.ambientMode)); } catch { /* settings not ready */ }
+  try {
+    const cfg = normalizeAmbientMode(hubSettings.ambientMode);
+    syncAmbientScenePicker(cfg);
+    syncAmbientSceneNote(cfg); // the list lands after Settings first draws
+  } catch { /* settings not ready */ }
 });
 
 // The animated wallpaper and the PC's screensaver (js/screen-scene-model.js):
@@ -8616,6 +8798,21 @@ function syncAmbientPcSettings(cfg) {
 
 const AMBIENT_SETTING_KEYS = Object.freeze(['enabled', 'idleMinutes', 'sceneId', 'openOnStartup', 'wallpaper', 'saverMinutes']);
 
+// A package scene runs only once it is approved and community widgets are on;
+// until then every surface shows the built-in scene (js/ambient-resolve.js).
+function ambientSceneWaiting(sceneId) {
+  if (!window.CustomWidget || sceneId === 'builtin' || String(sceneId).startsWith('canvas:')) return false;
+  const pkg = CustomWidget.cachedPackages().find((p) => p && p.id === sceneId);
+  if (!pkg) return false;
+  return !CustomWidget.packageGranted(pkg) || !(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true);
+}
+
+function approveAmbientScene() {
+  const id = normalizeAmbientMode(hubSettings.ambientMode).sceneId;
+  const pkg = window.CustomWidget && CustomWidget.cachedPackages().find((p) => p && p.id === id);
+  if (pkg) CustomWidget.requestGrant(pkg, syncAmbientSettings);
+}
+
 function updateAmbientSetting(key, value) {
   if (!AMBIENT_SETTING_KEYS.includes(key)) return;
   const cur = normalizeAmbientMode(hubSettings.ambientMode);
@@ -8639,7 +8836,7 @@ function updateAmbientSetting(key, value) {
   const isCanvas = typeof AmbientScene !== 'undefined' && AmbientScene.isCanvasRef(next.sceneId);
   if (key === 'sceneId' && next.sceneId !== 'builtin' && !isCanvas && window.CustomWidget) {
     const pkg = CustomWidget.cachedPackages().find(p => p && p.id === next.sceneId);
-    if (pkg && !CustomWidget.packageGranted(pkg)) CustomWidget.requestGrant(pkg);
+    if (pkg && ambientSceneWaiting(next.sceneId)) CustomWidget.requestGrant(pkg);
   }
   setSettingsStatus('settings_saved', 'ok');
 }
@@ -9324,11 +9521,20 @@ function updateCatalogStats(checked) {
   saveHubSettings();
   syncSettingsControls();
 }
-function updateCatalogDrops(checked) { updateAnnouncementPref('catalogDrops', checked); }
+function updateRatingAsks(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, ratingAsks: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
 // Anonymous feature counts. A stored preference: the server reads it on each
 // count and on the next update check; switching it off deletes what was waiting.
 function updateUsageStats(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, usageStats: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
+function updateBatteryAsk(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, batteryAskDevices: checked === true });
   saveHubSettings();
   syncSettingsControls();
 }
@@ -9397,6 +9603,19 @@ function rememberWhatsNewSeen(id) {
   if (hubSettings && hubSettings.whatsNewSeen === want) return;   // nothing to save
   hubSettings = normalizeSettings({ ...hubSettings, whatsNewSeen: want });
   saveHubSettings();
+}
+
+// The server owns these two (POST /update/notice-seen): the alerts window of
+// "widgets only" cannot save settings, and every surface must agree on them.
+// The local copy moves at once so the same page does not ask twice.
+function rememberUpdateNotice(seen) {
+  const local = {};
+  if (seen.notes) local.releaseNotesSeen = seen.notes;
+  if (seen.failedAt) local.updateFailSeen = String(seen.failedAt);
+  hubSettings = normalizeSettings({ ...hubSettings, ...local });
+  return fetch(SERVER + '/update/notice-seen', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(seen),
+  }).catch(() => { /* the server is restarting: the notice simply comes back */ });
 }
 
 function discordInviteDismissed() {
@@ -9514,6 +9733,9 @@ function flushStartupCardWaiters() {
 
 function whenStartupCardsReady(fn) {
   if (typeof fn !== 'function') return;
+  // A startup card belongs to the dashboard: in a layer or the menu's window it
+  // sat over whatever the person had just opened.
+  if (typeof isLayerPage === 'function' && isLayerPage()) return;
   if (_hubHydratedFromServer) { fn(); return; }
   _startupCardWaiters.push(fn);
   if (!_startupCardTimer) _startupCardTimer = setTimeout(flushStartupCardWaiters, STARTUP_CARD_WAIT_MS);
@@ -9526,6 +9748,10 @@ window.XenonStartupCards = {
   whenReady: whenStartupCardsReady,
   whatsNewDismissed,
   rememberWhatsNew: rememberWhatsNewSeen,
+  whatsNewSeen: () => (hubSettings && hubSettings.whatsNewSeen) || legacyCardFlag('whatsNewSeen'),
+  releaseNotesSeen: () => (hubSettings && hubSettings.releaseNotesSeen) || '',
+  updateFailSeen: () => (hubSettings && hubSettings.updateFailSeen) || '',
+  rememberUpdateNotice,
   discordInviteDismissed,
   rememberDiscordInvite: rememberDiscordInviteSeen,
   supportAskDismissed,
@@ -9650,8 +9876,7 @@ function syncWeatherSettingsControls() {
   const cityInput = $('settings-weather-city');
   if (cityInput) {
     cityInput.value = weather.city;
-    cityInput.disabled = weather.mode !== 'manual';
-    cityInput.classList.toggle('disabled', weather.mode !== 'manual');
+    cityInput.closest('.settings-row').hidden = weather.mode !== 'manual';
   }
   const unit = hubSettings.tempUnit === 'f' ? 'f' : 'c';
   document.querySelectorAll('.settings-temp-unit[data-temp-unit]').forEach(btn => {
@@ -9910,7 +10135,7 @@ function syncTopbarStyleControls() {
   const alignRow = document.getElementById('topbar-align-personalize');
   if (alignRow) alignRow.hidden = style !== 'minimal';
   const railsRow = document.getElementById('topbar-rails-personalize');
-  if (railsRow) railsRow.hidden = style === 'full';
+  setSettingsCardAvailable(railsRow, style !== 'full');
   syncTopbarRailsAutoHide();
 }
 
@@ -9986,7 +10211,7 @@ const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', w
 // (js/settings.js and its server.js twin) — pinned by test/topbar-island-sync.
 const TOPBAR_ACTION_LABELS = {
   lock: 'topbar_btn_lock', ambient: 'topbar_btn_ambient', xenon: 'topbar_btn_xenon',
-  search: 'topbar_btn_search', mail: 'topbar_btn_mail', mini: 'topbar_btn_mini', layout: 'topbar_btn_layout',
+  search: 'topbar_btn_search', mini: 'topbar_btn_mini', layout: 'topbar_btn_layout',
   settings: 'topbar_btn_settings', apps: 'topbar_btn_apps', favorites: 'topbar_btn_favorites',
 };
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
@@ -11009,7 +11234,7 @@ function renderPlatformBeta(platform) {
   link.href = PLATFORM_BETA_DOC[platform];
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.textContent = (typeof t === 'function' ? t('settings_platform_beta_link') : 'What works where →');
+  link.textContent = (typeof t === 'function' ? t('settings_platform_beta_link') : 'What works where');
 
   box.append(head, note, link);
 }
@@ -11027,6 +11252,17 @@ function shellVersionSuffix(version) {
   return ' · ' + t('settings_version_app').replace('{v}', shell);
 }
 
+// The mirror needs a reader and not every system has one: the server says which.
+// Where there is none, its two switches have nothing to turn on.
+async function syncNotifMirrorSupport() {
+  const d = await apiJson('/notifications/windows');
+  if (!d || d.supported !== false) return;
+  for (const id of ['settings-winnotif-row', 'settings-winnotif-hide-row']) {
+    const row = $(id);
+    if (row) row.hidden = true;
+  }
+}
+
 async function initSettingsVersion() {
   const out = document.getElementById('settings-version');
   if (!out) return;
@@ -11035,6 +11271,7 @@ async function initSettingsVersion() {
     if (version) out.textContent = `Xenon v${version}${shellVersionSuffix(version)}`;
     if (platform) applyPlatformGating(platform);
   } catch { /* leave blank — no version indicator is better than a broken one */ }
+  syncNotifMirrorSupport();
   // The update pill, the red notification dots and the "Check for updates"
   // button visibility are all driven by js/update.js (XenonUpdate.refresh()),
   // so there is a single source of truth for "is an update available".
@@ -11348,8 +11585,8 @@ function _aiUpdateModelDownloadState() {
   // download button; only offer "Scarica modello" when the model is missing.
   if (installedEl) {
     installedEl.textContent = installed
-      ? `${t('ai_model_in_use')} ${tag} ✓`
-      : `${tag} — ${t('ai_model_not_installed')}`;
+      ? `${t('ai_model_in_use')} ${tag}`
+      : `${tag}, ${t('ai_model_not_installed')}`;
   }
   if (pullBtn) {
     pullBtn.hidden = installed;
@@ -11363,6 +11600,7 @@ function _aiUpdateModelDownloadState() {
 function _reflectAiProviderRows(provider) {
   const show = (id, on) => { const el = $(id); if (el) el.hidden = !on; };
   show('ai-local-panel', provider === 'ollama');
+  show('settings-localapi-panel', provider === 'localapi');
   show('settings-gemini-setup', provider === 'gemini');
   // Live voice is Gemini Live; on any other provider voice is turn-based.
   show('settings-ai-live-row', provider === 'gemini');
@@ -11396,7 +11634,8 @@ function syncAiProviderControls() {
   const aKey = $('settings-anthropic-key'); if (aKey) { aKey.value = ''; aKey.placeholder = cfg.anthropicApiKeySet ? savedPh : 'sk-ant-…'; }
   const oReset = $('settings-openai-reset'); if (oReset) oReset.hidden = !cfg.openaiApiKeySet;
   const aReset = $('settings-anthropic-reset'); if (aReset) aReset.hidden = !cfg.anthropicApiKeySet;
-  if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') _aiLoadProviderModels(provider);
+  if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini' || provider === 'localapi') _aiLoadProviderModels(provider);
+  if (window.LocalServerSettings) window.LocalServerSettings.sync();
   if (AI_CLI_PROVIDERS.includes(provider)) aiCliRefresh(provider, false);
   // The credits card at the top shows the balance on Xenon AI and the offer
   // otherwise, so it is painted for every provider.
@@ -11526,8 +11765,10 @@ async function aiLocalSyncAutostart() {
   const cb = $('ai-ollama-autostart');
   if (!cb) return;
   try {
-    const { enabled } = await (await fetch('/api/ai-local/ollama-autostart')).json();
+    const { enabled, supported } = await (await fetch('/api/ai-local/ollama-autostart')).json();
     cb.checked = !!enabled;
+    // On Linux Ollama's own installer sets up the service: nothing for Xenon to switch.
+    cb.closest('.ai-autostart-row').hidden = supported === false;
   } catch { /* ignore */ }
 }
 
@@ -11779,6 +12020,8 @@ const AI_MODEL_CONTROLS = [
   { provider: 'openai', role: 'stt', key: 'openaiSttModel', sel: 'settings-openai-stt-model' },
   { provider: 'openai', role: 'tts', key: 'openaiTtsModel', sel: 'settings-openai-tts-model' },
   { provider: 'anthropic', role: 'chat', key: 'anthropicModel', sel: 'settings-anthropic-model' },
+  // A local server's names carry slashes and colons no cloud id has.
+  { provider: 'localapi', role: 'chat', key: 'localApiModel', sel: 'settings-localapi-model', normalize: LocalServerFields.sanitizeModel },
 ];
 
 // Last answer per provider, so re-rendering one row does not re-fetch the list.
@@ -11802,7 +12045,7 @@ function _aiPopulateModelSelect(ctl, data) {
   if (!sel) return;
   const cust = $(ctl.sel + '-custom');
   const used = $(ctl.sel + '-used');
-  const saved = normalizeModelChoice(hubSettings[ctl.key]);
+  const saved = (ctl.normalize || normalizeModelChoice)(hubSettings[ctl.key]);
   const spec = (data && data.roles && data.roles[ctl.role]) || { kind: 'chat', family: '' };
   const all = (data && Array.isArray(data.models)) ? data.models : [];
   const list = all.filter(m => m && m.kind === spec.kind);
@@ -11862,9 +12105,10 @@ async function _aiLoadProviderModels(provider, opts) {
   // Render from what we already have (or from nothing) first, so the panel is
   // never empty while the request is in flight.
   _aiRenderProviderControls(provider);
-  const keySet = provider === 'openai' ? hubSettings.openaiApiKeySet
-    : provider === 'anthropic' ? hubSettings.anthropicApiKeySet
-      : hubSettings.geminiApiKeySet;
+  const keySet = provider === 'localapi' ? true // its key is optional
+    : provider === 'openai' ? hubSettings.openaiApiKeySet
+      : provider === 'anthropic' ? hubSettings.anthropicApiKeySet
+        : hubSettings.geminiApiKeySet;
   if (!keySet) return; // no key yet → nothing to fetch
   try {
     const r = await fetch('/api/ai/models?provider=' + provider + ((opts && opts.force) ? '&refresh=1' : ''));
@@ -11872,8 +12116,12 @@ async function _aiLoadProviderModels(provider, opts) {
     if (d && Array.isArray(d.models)) {
       _aiModelCatalog[provider] = d;
       _aiRenderProviderControls(provider);
+      if (provider === 'localapi' && window.LocalServerSettings) window.LocalServerSettings.showState(d.state || 'offline', d.models.length, d.found);
     }
-  } catch { /* offline — keep whatever the last render showed */ }
+  } catch {
+    // offline — keep whatever the last render showed
+    if (provider === 'localapi' && window.LocalServerSettings) window.LocalServerSettings.showState('offline');
+  }
 }
 
 // After a key is entered, the /api/ai/models endpoint reads it from the SERVER
@@ -11889,10 +12137,10 @@ function _aiScheduleModelRefresh(provider) {
 // One handler for every dropdown: persist the choice, then re-render so the
 // "in use" line follows immediately instead of waiting for the next hydrate.
 function updateAiModelChoice(key, value) {
-  const next = normalizeModelChoice(value);
+  const ctl = AI_MODEL_CONTROLS.find(c => c.key === key);
+  const next = ((ctl && ctl.normalize) || normalizeModelChoice)(value);
   hubSettings = normalizeSettings({ ...hubSettings, [key]: next });
   saveHubSettings();
-  const ctl = AI_MODEL_CONTROLS.find(c => c.key === key);
   if (ctl) _aiRenderProviderControls(ctl.provider);
 }
 
@@ -11955,6 +12203,7 @@ async function aiCliRefresh(provider, fresh) {
   if (st && st.loggedIn === true && st.plan) detail = t('settings_cli_plan').replace('{plan}', String(st.plan));
   statusEl.textContent = _aiCliText(k, info, { version: (st && st.version) || '' });
   statusEl.dataset.state = state;
+  if (guide) guide.hidden = state === 'ok';
   if (detailEl) { detailEl.textContent = detail; detailEl.hidden = !detail; }
 }
 // `models` null = still loading. Each entry is { id, label, version?, resolved? }
@@ -12241,15 +12490,30 @@ function syncLayersWhy(caps) {
 // How this PC uses Xenon (js/usage-mode.js). Only the native app can drop the
 // dashboard window for the widgets, so elsewhere the row is hidden; where the
 // app cannot draw them, a line says why instead.
+function syncMenuKeyHint() {
+  const el = $('settings-menu-key');
+  if (!el || !window.DeckShortcuts) return;
+  const key = window.DeckShortcuts.formatShortcut(window.LayersModel.normalize(hubSettings.layers).menuKey);
+  el.textContent = t('xmenu_key_opens').replace('{key}', key);
+}
+
 function syncUsageModeControl() {
   const group = $('settings-usage-mode-group');
   const caps = window.__XENON_NATIVE_CAPS__ || {};
   setSettingsCardAvailable(group, window.__XENON_NATIVE__ === true && caps.layers === true);
   syncLayersWhy(caps);
+  syncMenuKeyHint();
   const el = $('settings-usage-mode');
   if (!el) return;
   el.value = window.UsageMode.normalize(hubSettings.usageMode) || 'dashboard';
   if (typeof el._csSync === 'function') el._csSync();
+}
+
+// The row sits beside the mode above, so it exists only where the app draws the menu.
+function openXenonMenu() {
+  fetch(SERVER + '/screen-menu', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true }),
+  }).catch((e) => console.warn('[settings] the Xenon menu did not open', e));
 }
 
 async function updateUsageMode(value) {
@@ -12287,6 +12551,8 @@ async function renderAiMemoryList() {
   } catch { /* offline — leave the list as-is */ return; }
   list.textContent = '';
   if (empty) empty.hidden = facts.length > 0;
+  const clear = $('settings-ai-memory-clear');
+  if (clear) clear.hidden = facts.length === 0;
   for (const fact of facts) {
     const li = document.createElement('li');
     li.className = 'settings-memory-item';
@@ -12457,15 +12723,9 @@ function appendFeedHelpLine(listEl, key) {
 
 function renderCalendarFeeds(container) {
   const feeds = Array.isArray(hubSettings.calendarFeeds) ? hubSettings.calendarFeeds.slice() : [];
+  // A save re-renders this block: an open expander stays open.
+  const opened = new Set(Array.from(container.querySelectorAll('details[open]')).map(d => d.dataset.help));
   container.textContent = '';
-
-  const heading = document.createElement('h3');
-  heading.textContent = t('external_calendars');
-  const desc = document.createElement('p');
-  desc.className = 'settings-hint';
-  desc.textContent = t('external_calendars_desc');
-  container.appendChild(heading);
-  container.appendChild(desc);
 
   const list = document.createElement('div');
   list.className = 'feed-list';
@@ -12493,7 +12753,7 @@ function renderCalendarFeeds(container) {
     // sends its host + `urlSet`. A blank field therefore means "keep the saved
     // link"; typing a new one replaces it.
     urlInput.placeholder = feed.urlSet && !feed.url
-      ? (feed.host ? feed.host + ' · ' : '') + t('settings_key_saved')
+      ? (feed.host ? feed.host + ', ' : '') + t('settings_key_saved')
       : t('feed_url');
     urlInput.value = feed.url || '';
     urlInput.addEventListener('change', () => { feed.url = urlInput.value.trim(); commit(); });
@@ -12519,21 +12779,19 @@ function renderCalendarFeeds(container) {
     remLabel.className = 'feed-toggle';
     const remCb = document.createElement('input');
     remCb.type = 'checkbox';
+    remCb.className = 'settings-check';
     remCb.checked = feed.reminders !== false;
     remCb.addEventListener('change', () => { feed.reminders = remCb.checked; commit(); });
-    const remText = document.createTextNode(' ' + t('feed_reminders'));
-    remLabel.appendChild(remCb);
-    remLabel.appendChild(remText);
+    remLabel.append(remCb, t('feed_reminders'));
 
     const enLabel = document.createElement('label');
     enLabel.className = 'feed-toggle';
     const enCb = document.createElement('input');
     enCb.type = 'checkbox';
+    enCb.className = 'settings-check';
     enCb.checked = feed.enabled !== false;
     enCb.addEventListener('change', () => { feed.enabled = enCb.checked; commit(); });
-    const enText = document.createTextNode(' ' + t('feed_enabled'));
-    enLabel.appendChild(enCb);
-    enLabel.appendChild(enText);
+    enLabel.append(enCb, t('feed_enabled'));
 
     const status = document.createElement('span');
     status.className = 'feed-status';
@@ -12556,8 +12814,8 @@ function renderCalendarFeeds(container) {
 
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
-  addBtn.className = 'feed-add';
-  addBtn.textContent = '+ ' + t('add_feed');
+  addBtn.className = 'settings-btn';
+  addBtn.textContent = t('add_feed');
   addBtn.addEventListener('click', () => {
     feeds.push({
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -12572,8 +12830,8 @@ function renderCalendarFeeds(container) {
   // of waiting for the 15-min scheduler (useful because provider .ics links lag).
   const refreshBtn = document.createElement('button');
   refreshBtn.type = 'button';
-  refreshBtn.className = 'feed-refresh';
-  refreshBtn.textContent = '↻ ' + t('refresh_feeds');
+  refreshBtn.className = 'settings-btn feed-refresh';
+  refreshBtn.textContent = t('refresh_feeds');
   refreshBtn.disabled = feeds.length === 0;
   refreshBtn.addEventListener('click', async () => {
     refreshBtn.disabled = true;
@@ -12592,37 +12850,24 @@ function renderCalendarFeeds(container) {
   actions.append(addBtn, refreshBtn);
   container.appendChild(actions);
 
-  // Help + warnings block — two visually separated groups so the wall of
-  // warnings is scannable instead of overwhelming.
-  const help = document.createElement('div');
-  help.className = 'feed-help';
-
-  const stepsGroup = document.createElement('div');
-  stepsGroup.className = 'feed-help-group';
-  const stepsTitle = document.createElement('h4');
-  stepsTitle.className = 'feed-help-title';
-  stepsTitle.textContent = t('feed_help_title');
-  stepsGroup.appendChild(stepsTitle);
-  const stepsList = document.createElement('ul');
-  stepsList.className = 'feed-help-steps';
-  ['feed_help_google', 'feed_help_outlook'].forEach(key => appendFeedHelpLine(stepsList, key));
-  stepsGroup.appendChild(stepsList);
-  help.appendChild(stepsGroup);
-
-  const warnGroup = document.createElement('div');
-  warnGroup.className = 'feed-help-group is-warn';
-  const warnTitle = document.createElement('h4');
-  warnTitle.className = 'feed-help-title';
-  warnTitle.textContent = '⚠ ' + t('feed_warn_title');
-  warnGroup.appendChild(warnTitle);
-  const warnList = document.createElement('ul');
-  warnList.className = 'feed-help-warnings';
-  ['feed_warn_readonly', 'feed_warn_lag', 'feed_warn_dupes', 'feed_warn_privacy', 'feed_warn_recurrence']
-    .forEach(key => appendFeedHelpLine(warnList, key));
-  warnGroup.appendChild(warnList);
-  help.appendChild(warnGroup);
-
-  container.appendChild(help);
+  // How to get the link, and what to expect: read once, so closed until asked for.
+  const helpBlock = (titleKey, keys) => {
+    const box = document.createElement('details');
+    box.className = 'settings-expander';
+    box.dataset.help = titleKey;
+    box.open = opened.has(titleKey);
+    const title = document.createElement('summary');
+    title.textContent = t(titleKey);
+    const lines = document.createElement('ul');
+    lines.className = 'settings-expander-list';
+    keys.forEach(key => appendFeedHelpLine(lines, key));
+    box.append(title, lines);
+    return box;
+  };
+  container.append(
+    helpBlock('feed_help_title', ['feed_help_google', 'feed_help_outlook']),
+    helpBlock('feed_warn_title', ['feed_warn_readonly', 'feed_warn_lag', 'feed_warn_dupes', 'feed_warn_privacy', 'feed_warn_recurrence']),
+  );
 
   loadExternalFeedStatus(list, feeds);
 }
@@ -12670,15 +12915,14 @@ function _initCalendarFeedsSection() {
   // Calendar icon (same style as the other nav icons)
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
   const btnLabel = document.createElement('span');
-  btnLabel.setAttribute('data-i18n', 'external_calendars'); // live-retranslates on language switch
-  btnLabel.textContent = t('external_calendars');
+  btnLabel.setAttribute('data-i18n', 'settings_calendar'); // live-retranslates on language switch
+  btnLabel.textContent = t('settings_calendar');
   btn.appendChild(btnLabel);
-  // Insert at the end of the "Widget" sidebar section (right before the
-  // Integrazioni label) so the calendar sits with the other widget categories
+  // In the "Widget" sidebar section, after the feeds, so the calendar sits with the other widget categories
   // instead of dangling at the bottom of the list.
   const navScroll = document.getElementById('settings-nav-scroll') || nav;
-  const integrationsLabel = document.getElementById('settings-nav-label-integrations');
-  if (integrationsLabel && integrationsLabel.parentElement === navScroll) navScroll.insertBefore(btn, integrationsLabel);
+  const next = navScroll.querySelector('.settings-nav-btn[data-settings-cat="slideshow"]');
+  if (next) navScroll.insertBefore(btn, next);
   else navScroll.appendChild(btn);
 
   // Section container (matches existing settings-group pattern)
@@ -12686,9 +12930,19 @@ function _initCalendarFeedsSection() {
   section.className = 'settings-group';
   section.dataset.settingsCat = 'calendar';
   section.hidden = true; // settingsSetCategory controls visibility
+  const head = document.createElement('div');
+  head.className = 'settings-group-head';
+  const title = document.createElement('span');
+  title.dataset.i18n = 'external_calendars';
+  title.textContent = t('external_calendars');
+  const desc = document.createElement('span');
+  desc.className = 'settings-hint';
+  desc.dataset.i18n = 'external_calendars_desc';
+  desc.textContent = t('external_calendars_desc');
+  head.append(title, desc);
   const hub = document.createElement('div');
   hub.id = 'settings-calendar-feeds-hub';
-  section.appendChild(hub);
+  section.append(head, hub);
   content.appendChild(section);
 
   _calendarFeedsSectionReady = true;

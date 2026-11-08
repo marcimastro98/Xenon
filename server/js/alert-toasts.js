@@ -169,6 +169,17 @@
     return out;
   }
 
+  // Bit, on the screen with no dashboard, was asked for something only the
+  // dashboard does: it says so out loud, and this is the way there.
+  function needsDashboard(ctx, onOpen) {
+    return {
+      type: 'info',
+      title: 'Bit',
+      message: tr(ctx, 'screen_needs_dash_msg', 'This needs the dashboard.'),
+      actions: [{ label: tr(ctx, 'xmenu_mode', 'How you use Xenon'), primary: true, onClick: onOpen }],
+    };
+  }
+
   // A benchmark started or ended. `onReveal` (optional) is the "Show the file"
   // button; without it the saved toast has no button.
   function benchmark(d, ctx, onReveal) {
@@ -177,7 +188,7 @@
     const num = (v) => (v == null || !Number.isFinite(Number(v)) ? '--' : String(Math.round(Number(v))));
     // The game names the toast; the title already says it is a benchmark.
     const kicker = String((d.running ? d.game : r.game) || '').replace(/\.exe$/i, '') || tr(ctx, 'deck_act_benchmark', 'Benchmark');
-    if (d.running) return { type: 'info', kicker, title: tr(ctx, 'bench_running', 'Benchmark running') };
+    if (d.running) return { type: 'info', kicker, title: tr(ctx, 'bench_running', 'Benchmark running'), important: true };
     if (r.ok) {
       let message = tr(ctx, 'bench_saved_msg', '{avg} FPS average, 1% low {low}')
         .replace('{avg}', num(r.avgFps)).replace('{low}', num(r.low1Fps));
@@ -227,6 +238,7 @@
       title: stutterLabel(d.reason, d, ctx),
       message: fill(tr(ctx, 'why_' + d.reason + '_tip', STUTTER_FALLBACK[d.reason][1]), d),
       duration: fine ? 6000 : 12000,
+      important: true, // the answer to a press, in the game it was asked about
     };
   }
 
@@ -235,7 +247,7 @@
   function exclusiveHint(d, ctx) {
     if (!d || typeof d !== 'object') return null;
     return {
-      type: 'info',
+      type: 'warning', // said in a game by definition: an 'info' card is silenced there
       kicker: String(d.process || '').replace(/\.exe$/i, '').slice(0, 40) || tr(ctx, 'layout_widget_perf', 'Game performance'),
       title: tr(ctx, 'excl_title', 'Widgets cannot show over this game'),
       message: tr(ctx, 'excl_msg', 'In the game\'s display settings, pick borderless or windowed.'),
@@ -261,7 +273,7 @@
     perf_auto_off: 'Activity ended: performance settings restored',
   });
 
-  // What an optimize or restore did: { key, activity, freed }.
+  // What an optimize or restore did: { key, activity, freed, moved }.
   function perfNoteText(note, ctx) {
     const n = note && typeof note === 'object' ? note : {};
     const key = Object.prototype.hasOwnProperty.call(PERF_NOTE_KEYS, n.key) ? n.key : 'perf_status_optimized';
@@ -270,35 +282,30 @@
       const a = String(n.activity || '');
       text = text.replace('{a}', tr(ctx, 'settings_perf_act_' + a, a));
     }
-    if (n.freed) text += ' · ' + tr(ctx, 'perf_freed_ram', '~{x} of RAM freed').replace('{x}', String(n.freed));
     return text;
   }
 
   function perfNote(note, kind, ctx) {
-    return { type: kind === 'error' ? 'error' : 'success', kicker: 'Xenon', title: perfNoteText(note, ctx), important: true };
+    const freed = note && note.freed ? tr(ctx, 'perf_freed_ram', '~{x} of RAM freed').replace('{x}', String(note.freed)) : '';
+    const moved = note && note.moved ? tr(ctx, 'perf_shield_moved', "Apps moved out of the game's way: {n}").replace('{n}', String(note.moved)) : '';
+    return { type: kind === 'error' ? 'error' : 'success', kicker: 'Xenon', title: perfNoteText(note, ctx), message: freed || moved, important: true };
   }
 
-  // The suggestion, with no dashboard to put the banner on. `onAnswer(choice)`
-  // gets 'optimize' or 'never'; closing the card is "Ignore". It shows during a
-  // game, which is when it is asked, and only to who turned the suggestion on.
+  // The suggestion: the words and keys of a question on Bit's card (XenonBitCard.ask),
+  // on the dashboard and, with no dashboard, in the alerts window. `onAnswer(choice)`
+  // gets 'optimize', 'ignore' or 'never'. It shows during a game, which is when it is
+  // asked, and only to who turned the suggestion on.
   function perfPrompt(activity, ctx, onAnswer) {
     const key = PERF_PROMPT_KEYS[activity];
     if (!key) return null;
-    const out = {
-      type: 'info',
-      kicker: 'Xenon',
+    const answer = (labelKey, label, choice) => ({ label: tr(ctx, labelKey, label), run: () => onAnswer(choice) });
+    return {
       title: tr(ctx, key, 'Optimize performance?'),
-      duration: 20000,
-      important: true,
+      off: answer('perf_banner_never', "Don't ask again", 'never'),
+      quiet: answer('perf_banner_ignore', 'Ignore', 'ignore'),
+      go: answer('perf_banner_optimize', 'Optimize', 'optimize'),
     };
-    if (typeof onAnswer === 'function') {
-      out.actions = [
-        { label: tr(ctx, 'perf_banner_optimize', 'Optimize'), primary: true, onClick: () => onAnswer('optimize') },
-        { label: tr(ctx, 'perf_banner_never', "Don't ask again"), onClick: () => onAnswer('never') },
-      ];
-    }
-    return out;
   }
 
-  return { popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS };
+  return { needsDashboard, popupsAllowed, stocks, football, unifi, unifiLabel, UNIFI_KINDS, guardian, guardianText, vitals, timerDone, timerChime, reminder, autoUpdate, updateAvailable, benchmark, stutterWhy, stutterLabel, exclusiveHint, STUTTER_REASONS, clock, perfNoteText, perfNote, perfPrompt, PERF_PROMPT_KEYS };
 });

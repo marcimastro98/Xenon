@@ -22,7 +22,7 @@
     stocks: Object.freeze(['twelveDataKey', 'finnhubKey']),
     football: Object.freeze(['sportsDbKey']),
     news: Object.freeze(['newsDataKey']),
-    ai: Object.freeze(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey']),
+    ai: Object.freeze(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey', 'localApiKey']),
   });
 
   const TOP_LEVEL_SECRET_KEYS = Object.freeze(

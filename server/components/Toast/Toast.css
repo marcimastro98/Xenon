@@ -31,6 +31,19 @@
 }
 :root[data-appearance="light"] :is(.xtoast-stack, .xisland) { --xt-fill: 0.8; }
 
+/* A card holding the top centre (CENTRE_TAKEN in toast.js): the notifications
+   wait beside it, narrower beside the wide ones (520 px, 16 px apart). A phone has
+   that card at the bottom, so nothing moves there. */
+@media (min-width: 561px) {
+  body:has(> .rn-corner, > .bm-card:not(.is-face), > .wn-look) .xtoast-stack { top: 16px; left: auto; right: 16px; transform: none; }
+  body:has(> .bm-card.is-open, > .bm-card.is-poll, > .wn-look) .xtoast-stack { width: min(400px, calc(50vw - 276px)); }
+}
+/* Too narrow for both side by side (a 420 px card, 400 px notifications): the
+   bottom corner, since a card can be any height. */
+@media (min-width: 561px) and (max-width: 1260px) {
+  :root body:has(> .rn-corner, > .bm-card:not(.is-face), > .wn-look) .xtoast-stack { top: auto; bottom: 16px; width: min(400px, calc(100vw - 32px)); }
+}
+
 .xtoast-stack {
   position: fixed;
   left: 50%;
@@ -290,6 +303,10 @@ body[data-topbar-align="right"] .xisland-slot { left: auto; right: 12px; margin:
   object-fit: cover;
   border-radius: inherit;
 }
+/* The picture just taken stands in for the tile: the card shows what it took. */
+.xtoast--shot { grid-template-columns: 72px minmax(0, 1fr) auto; }
+.xtoast-icon--shot { width: 72px; height: 46px; border-radius: 4px; }
+.xtoast-icon--shot img { object-fit: contain; }
 /* The tile springs into place as the card arrives, and a success draws its
    tick once the tile has landed: the one moment that says "done". */
 .xtoast-in > .xtoast-icon { animation: xtoast-pop 0.42s var(--xt-spring) 0.08s backwards; }

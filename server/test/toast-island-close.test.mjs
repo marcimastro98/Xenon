@@ -97,7 +97,7 @@ test('the pill copy is inert, unannounced and carries no duplicate ids', () => {
 
 test('the copy is dropped when news catches the glass on its way home, and goes with the layer', () => {
   assert.match(SRC, /if \(homing\) \{ homing = false; dropGhost\(\);/);
-  assert.match(fnSource('function release(fromFling)'), /root = bg = slot = pillSkin = ghost = target = null/);
+  assert.match(fnSource('function release(fromFling)'), /root = bg = slot = pillSkin = ghost = target = rolling = null/);
 });
 
 test('the copy is shown over body.xtoast-island, faces only, never clickable', () => {

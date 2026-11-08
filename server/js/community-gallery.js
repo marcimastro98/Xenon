@@ -11,16 +11,17 @@
 // the same sandboxed iframe the import preview uses (CustomBg.buildSrcdoc),
 // created lazily while the card is on screen and torn down when it leaves.
 //
-// The presentation is a proper storefront: a cinematic hero spotlight, an
-// icon category rail, and premium product cards — but every install still
-// funnels through the one import boundary. Only the STATIC icon markup below
-// is ever assigned via innerHTML; all catalog-supplied text stays textContent.
+// The presentation is a storefront at full screen: a rail of views on the left,
+// a spotlight and shelves on the right, and one page per entry. Every install
+// still funnels through the one import boundary. Only the STATIC icon markup
+// below is ever assigned via innerHTML; all catalog-supplied text stays textContent.
 (function () {
   const t = (k, fb) => {
     const v = (typeof window.t === 'function') ? window.t(k) : k;
     return (v === k && fb != null) ? fb : v;
   };
   const el = makeEl; // shared DOM factory from utils.js
+  const MAKER_URL = 'https://xenon-app.com/maker/';
   // Descriptions are a small Markdown subset (shared/src/rich-text.js): the
   // detail view formats it, clamped cards and the hero show it as plain text.
   // Without the shared module the raw text shows, as before.
@@ -98,8 +99,8 @@
   // has already unlocked — so a user who changes machine is still entitled and
   // needs somewhere to type it. This used to sit inside the claim buttons, so
   // it vanished at exactly the moment it became the only thing that helps.
-  function haveCodeButton() {
-    const have = el('button', 'cgal-btn cgal-havecode');
+  function haveCodeButton(cls) {
+    const have = el('button', cls || 'cgal-btn cgal-havecode');
     have.type = 'button';
     have.appendChild(icon('lock'));
     have.appendChild(el('span', null, t('gallery_have_code', 'I have a code')));
@@ -118,7 +119,7 @@
   function appendUnavailable(parent, entry) {
     const group = el('div', 'cgal-limited-buttons');
     group.appendChild(unavailableLabel(entry));
-    group.appendChild(haveCodeButton(entry));
+    group.appendChild(haveCodeButton());
     parent.appendChild(group);
   }
 
@@ -172,12 +173,12 @@
       upd.addEventListener('click', async () => {
         if (!owner || !window.PresetShare || !PresetShare.updateOwned) return;
         upd.disabled = true;
-        await PresetShare.updateOwned('', { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
+        await PresetShare.updateOwned('', { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, official: isOfficial(entry), owner });
         upd.disabled = false;
       });
       group.appendChild(upd);
     }
-    group.appendChild(haveCodeButton(entry));
+    group.appendChild(haveCodeButton());
     parent.appendChild(group);
   }
 
@@ -198,7 +199,15 @@
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let overlayEl = null;
-  let detailEl = null;          // stacked detail overlay (a card opened up close)
+  let infoEl = null;            // the "how it works" sheet over the Store
+  let mainEl = null;            // the scrolling side of the Store
+  let viewEl = null;            // what the rail chose: home, a list, Installed, Sparks
+  let pageEl = null;            // one entry's page, shown in place of the view
+  let detailEntry = null;       // the entry on that page
+  let detailCta = null;         // its keys, redrawn when an install lands
+  let viewScroll = 0;           // where the view was when the page opened
+  let rail = null;              // { list, own, search } while the Store is open
+  let catalogAll = [];          // the entries of the last load
   let zoomEl = null;            // fullscreen screenshot zoom (over everything)
   let previewObserver = null;   // IntersectionObserver for lazy bg previews
   // Screenshot sidecars are served from a Cloudflare R2 bucket (assets.xenon-app.com)
@@ -208,10 +217,21 @@
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   // Kind display order for the grouped ("browse all") view.
-  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds', 'topbar'];
-  const PAGE = 9;              // load-more page size for flat (filtered) views
-  const SECTION_PREVIEW = 4;   // cards per kind before "See all"
+  const KIND_ORDER = ['widget', 'bundle', 'theme', 'bg', 'ambient', 'deck', 'page', 'icons', 'sounds', 'topbar'];
+  // Set at review on what is handy on the screen by itself, not only in a dashboard.
+  const ON_SCREEN_TAG = 'on-screen';
+  const PAGE = 24;             // load-more page size for lists
+  const SHELF_MAX = 12;        // cards on a shelf before "See all"
+  const SEE_ALL_FROM = 5;      // fewer than this fit on the shelf itself
+  const WIDE_SHOT = 2.1;       // a picture wider than this cannot be shown whole on a card
+  // Most of the catalog's pictures are the whole of a wide screen and a card shows less
+  // than half of one. A look fills the screen around its middle; a widget or a pack
+  // starts on the left, where its name and its numbers are.
+  const CENTRED_KINDS = new Set(['theme', 'bg', 'ambient']);
+  const HERO_CONTRAST = 4.5;   // the pack's own paper and ink, when they can be read
   const JUST_ADDED_MAX = 8;    // default cap for the "Just added" block
+  const KIND_SHELF_MIN = 3;    // a kind with fewer shares the "More" shelf
+  const INSTALLS_WAIT_MS = 500; // how long a first paint waits for the install counts
 
   /* ── The storefront layout ────────────────────────────────────────────────
      Which sections the Store shows, in what order and in what shape. It is
@@ -242,10 +262,7 @@
   let activeKind = '';
   let sortBy = 'feat';
   let shown = PAGE;
-  let limitedOnly = false;   // dedicated "Limited edition" entry point
   let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine) | 'sparks' (the Sparks shop)
-  // Switches the open Store to a tab; set by open(), null while it is closed.
-  let showTab = null;
   // Set to a repaint fn while the Store is open, cleared on close. Lets an install
   // committed elsewhere (preset-share.js) re-render the open Store so a card flips
   // to "Installed" — the finishing half of keeping the Store open across an
@@ -284,38 +301,38 @@
   // Set while the Store is open: refreshes the red update-count badge on the
   // Installed tab when an install/update lands (so the number drops as you update).
   let refreshInstalledBadge = null;
+  let stopCredits = null;     // leaves XenonCredits.onChange when the Store closes
+  let searchTimer = null;
+  let renderTurn = 0;         // a load that lost its turn draws nothing
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
-  // Lucide-style 24px stroke glyphs so the rail and section heads read premium
-  // and consistent instead of emoji. currentColor inherits the element colour.
-  const S0 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">';
+  // Solid 24px glyphs, currentColor. The Installed tab draws from the same set.
+  const solid = (d) => '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="' + d + '"/></svg>';
   const ICONS = {
-    store: S0 + '<path d="M3 9l1.6-4.5A1 1 0 0 1 5.5 4h13a1 1 0 0 1 .95.7L21 9"/><path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13.5V20h14v-6.5"/><path d="M9.5 20v-4h5v4"/></svg>',
-    all: S0 + '<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
-    theme: S0 + '<path d="M12 3c-4.9 0-9 3.6-9 8.4 0 3 2.3 5.1 5.1 5.1H10a1.8 1.8 0 0 1 1.4 3 1.6 1.6 0 0 0 1.3.6c4.6-.3 8.3-4.2 8.3-8.9C21 6.4 16.9 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16.5" cy="11" r="1"/></svg>',
-    bg: S0 + '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 16l4.5-4.5a1.5 1.5 0 0 1 2 0L16 18"/><path d="M14 15l1.8-1.8a1.5 1.5 0 0 1 2 0L21 16"/><circle cx="8" cy="9.5" r="1.4"/></svg>',
-    page: S0 + '<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 8.5h17"/><path d="M8.5 8.5V20"/></svg>',
-    widget: S0 + '<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M8 15.5a4 4 0 0 1 8 0"/><path d="M12 15.5V12"/></svg>',
-    deck: S0 + '<rect x="3.5" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="9.9" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="16.3" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="3.5" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="9.9" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="16.3" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="3.5" y="17.5" width="4.3" height="2.3" rx="1.1"/><rect x="9.9" y="17.5" width="10.7" height="2.3" rx="1.1"/></svg>',
-    ambient: S0 + '<path d="M20.5 14.3A8 8 0 1 1 9.7 3.5a6.3 6.3 0 0 0 10.8 10.8z"/></svg>',
-    bundle: S0 + '<path d="M21 8.5l-9-5-9 5 9 5 9-5z"/><path d="M3 8.5V16l9 5 9-5V8.5"/><path d="M12 13.5V21"/></svg>',
-    topbar: S0 + '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M6.5 6.5h3"/><path d="M15.5 6.5h2"/></svg>',
-    new: S0 + '<path d="M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z"/></svg>',
-    limited: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
-    supporters: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z"/></svg>',
-    // Archive: a closed box, deliberately the least eye-catching glyph in here —
-    // the shelf it heads is history, not stock.
-    archive: S0 + '<path d="M3.5 7.5h17v3.2h-17z"/><path d="M5 10.7V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8.3"/><path d="M10 14.2h4"/></svg>',
-    search: S0 + '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></svg>',
-    check: S0 + '<path d="M20 6.5L9.2 17.3 4 12.1"/></svg>',
-    update: S0 + '<path d="M12 4v10"/><path d="M8 8l4-4 4 4"/><path d="M5 18a7 7 0 0 0 14 0"/></svg>',
-    refresh: S0 + '<path d="M20 11a8 8 0 1 0-1.8 6.3"/><path d="M20 5.5V11h-5.5"/></svg>',
-    close: S0 + '<path d="M6 6l12 12M18 6L6 18"/></svg>',
-    back: S0 + '<path d="M15 5l-7 7 7 7"/></svg>',
-    expand: S0 + '<path d="M9 4H5a1 1 0 0 0-1 1v4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M15 20h4a1 1 0 0 0 1-1v-4"/></svg>',
-    lock: S0 + '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
-    star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3l2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2L6.1 19.2l1.4-6-4.6-4 6.1-.6z"/></svg>',
-    discord: S0 + '<path d="M21 12a8 8 0 0 1-8 8H8l-5 2 1.6-4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>',
+    store: solid('M4 4h16l1 5a3 3 0 0 1-2 2.8V20H5v-8.2A3 3 0 0 1 3 9l1-5Zm5 16h6v-5H9v5Z'),
+    home: solid('M12 3 3 10.5V21h6.5v-6h5v6H21V10.5L12 3Z'),
+    theme: solid('M12 3a9 9 0 0 0 0 18c1.4 0 2.2-1 2.2-2.1 0-.6-.3-1-.6-1.4-.3-.4-.6-.8-.6-1.3 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.4 17 3 12 3ZM7 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z'),
+    bg: solid('M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 12.5V18h14v-3l-4-4-5 5-2-2-3 2.5ZM8.5 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z'),
+    page: solid('M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 5v9h4V9H5Zm6 0v9h8V9h-8Z'),
+    widget: solid('M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z'),
+    deck: solid('M4 4h4.5v4.5H4V4Zm5.8 0h4.4v4.5H9.8V4Zm5.7 0H20v4.5h-4.5V4ZM4 9.8h4.5v4.4H4V9.8Zm5.8 0h4.4v4.4H9.8V9.8Zm5.7 0H20v4.4h-4.5V9.8ZM4 15.5h4.5V20H4v-4.5Zm5.8 0h4.4V20H9.8v-4.5Zm5.7 0H20V20h-4.5v-4.5Z'),
+    ambient: solid('M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7v2h3v2H8v-2h3v-2H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'),
+    bundle: solid('m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 2.3L6 7.6l6 3.3 6-3.3-6-3.3ZM5 9.3v6.5l6 3.3v-6.5L5 9.3Zm14 0-6 3.3v6.5l6-3.3V9.3Z'),
+    topbar: solid('M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 6v8h14v-8H5Z'),
+    new: solid('m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z'),
+    limited: solid('M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z'),
+    supporters: solid('M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z'),
+    search: solid('M10.5 3a7.5 7.5 0 1 0 4.6 13.4l4.2 4.2 1.3-1.3-4.2-4.2A7.5 7.5 0 0 0 10.5 3Zm0 1.9a5.6 5.6 0 1 1 0 11.2 5.6 5.6 0 0 1 0-11.2Z'),
+    check: solid('M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.5 8l-1.4-1.4L9.5 16.2Z'),
+    update: solid('m12 3 5 5-1.4 1.4L13 6.8V15h-2V6.8L8.4 9.4 7 8l5-5ZM4 14h2v4h12v-4h2v6H4v-6Z'),
+    refresh: solid('M12 4a8 8 0 1 0 7.7 10h-2.1A6 6 0 1 1 12 6c1.7 0 3.1.7 4.2 1.8L13 11h8V3l-3.4 3.4A8 8 0 0 0 12 4Z'),
+    close: solid('m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z'),
+    back: solid('M15.4 4.6 8 12l7.4 7.4 1.4-1.4-6-6 6-6-1.4-1.4Z'),
+    next: solid('M8.6 4.6 16 12l-7.4 7.4L7.2 18l6-6-6-6 1.4-1.4Z'),
+    expand: solid('M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z'),
+    lock: solid('M12 2a5 5 0 0 1 5 5v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1V7a5 5 0 0 1 5-5Zm3 8V7a3 3 0 0 0-6 0v3h6Z'),
+    star: solid('m12 3 2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17.2l-5.6 3.1 1.2-6.3L3 9.6l6.3-.8L12 3Z'),
+    discord: solid('M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z'),
   };
   function icon(name, cls) {
     const s = el('span', 'cgal-ic' + (cls ? ' ' + cls : ''));
@@ -333,18 +350,22 @@
     resizeTimer = setTimeout(() => {
       if (!overlayEl) return;
       overlayEl.querySelectorAll('.cgal-media canvas').forEach((cv) => { if (cv._cgEntry) drawPreview(cv, cv._cgEntry); });
+      syncRows();
     }, 150);
   }
 
   function close() {
     if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
     if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; }
+    if (searchTimer) { clearTimeout(searchTimer); searchTimer = null; }
     window.removeEventListener('resize', onResize);
+    document.removeEventListener('keydown', onStoreKey, true);
     closeZoom();
-    // The detail scrim lives inside overlayEl, so it's removed with the store —
-    // just drop its document-level Escape listener and the reference.
-    if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl = null; }
+    closeInfo();
+    if (stopCredits) { stopCredits(); stopCredits = null; }
     if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+    mainEl = null; viewEl = null; pageEl = null; rail = null;
+    detailEntry = null; detailCta = null;
     repaintStore = null;
     regrid = null;
     refreshInstalledBadge = null;
@@ -354,9 +375,24 @@
     try { refreshStoreDot(); } catch { /* defined below; hoisted */ }
   }
 
+  // Esc walks back one step: the sheet, the entry's page, then the Store. Taken in
+  // the capture phase so nothing under the Store also reacts to it; whatever sits
+  // above the Store (a dropdown, the zoom, a dialog) keeps its own Esc.
+  function onStoreKey(e) {
+    if (e.key !== 'Escape' || !overlayEl || zoomEl) return;
+    if (document.querySelector('.cs-wrap.cs-open')) return;
+    if (document.querySelectorAll('.preset-modal-overlay').length > 1) return;
+    e.preventDefault(); e.stopPropagation();
+    if (infoEl) closeInfo();
+    else if (detailEntry) closeDetail();
+    else close();
+  }
+
   function kindLabel(kind) {
     return t('gallery_kind_' + kind, t('preset_kind_' + kind, kind));
   }
+  // The rail names what a view holds, so in the plural.
+  function railLabel(kind) { return t('gallery_rail_' + kind, kindLabel(kind)); }
 
   // ── Anonymous star ratings (proxied: /api/community/ratings|rate) ──────────
   // Aggregates load once per gallery render (batched ids, TTL-cached by the
@@ -364,7 +400,7 @@
   // show only once an entry reaches the server's minimum vote count, so a
   // single vote can't dress up as consensus.
   let ratingsMap = {};
-  let ratingsMin = 3;
+  let ratingsMin = 5;
   async function loadRatings(entries) {
     const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
     if (!ids.length) return;
@@ -383,10 +419,15 @@
     if (!r || !Number.isFinite(Number(r.avg)) || (Number(r.count) || 0) < ratingsMin) return '';
     return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
   }
+  // The card has room for the score alone; the page says how many voted.
+  function starsShort(r) {
+    return starsText(r) ? '★ ' + Number(r.avg).toFixed(1) : '';
+  }
   function paintStars() {
     if (!overlayEl) return;
     overlayEl.querySelectorAll('.cgal-stars[data-id]').forEach((slot) => {
-      slot.textContent = starsText(ratingsMap[slot.dataset.id]);
+      const r = ratingsMap[slot.dataset.id];
+      slot.textContent = slot.dataset.short ? starsShort(r) : starsText(r);
     });
   }
 
@@ -441,57 +482,60 @@
   // The detail view's interactive vote row: current average + five tap targets.
   // Fetched with mine=1 (the local server attaches the install id) so the
   // user's own vote is highlighted; a tap posts and repaints optimistically.
+  // The vote on this entry, as far as this PC can tell (server/rating-votes.js). The
+  // average stays out of the way of someone about to vote.
+  function ratingLine(state) {
+    if (state.state === 'none') return t('gallery_rate_install');
+    if (state.state === 'off') return t('gallery_rate_off');
+    if (state.state === 'used') return t('gallery_rate_used');
+    if (state.state === 'locked') return t('gallery_rate_locked');
+    if (state.state === 'voted') {
+      if (!state.stars) return t('gallery_rate_voted_any');
+      return t(state.stars === 1 ? 'gallery_rate_voted_one' : 'gallery_rate_voted').replace('{n}', state.stars);
+    }
+    const days = Math.max(1, Math.ceil(((state.ripeAt || 0) - Date.now()) / (24 * 3600 * 1000)));
+    return days === 1 ? t('gallery_rate_wait_one') : t('gallery_rate_wait').replace('{n}', days);
+  }
+
   function ratingBoxInto(host, entry) {
     const box = el('div', 'cgal-rate');
-    const avg = el('span', 'cgal-rate-avg');
-    const row = el('div', 'cgal-rate-row');
-    row.setAttribute('role', 'radiogroup');
-    row.setAttribute('aria-label', t('gallery_rate_title', 'Rate this'));
-    box.appendChild(row); box.appendChild(avg);
     host.appendChild(box);
-    let mine = 0;
-    let voted = false;   // the user has cast a vote in this session
-    const paint = () => {
-      avg.textContent = starsText(ratingsMap[entry.id]) || t('gallery_rate_first', 'Be among the first to rate this');
-      row.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i < mine));
+    const showScore = (extra) => {
+      const row = el('div', 'cgal-rate-score');
+      if (extra) row.appendChild(extra);
+      const avg = starsText(ratingsMap[entry.id]);
+      if (avg) row.appendChild(el('span', 'cgal-rate-avg', avg));
+      if (row.firstChild) box.appendChild(row);
     };
-    for (let n = 1; n <= 5; n++) {
-      const b = el('button', 'cgal-rate-star', '★');
-      b.type = 'button';
-      b.setAttribute('aria-label', n + '/5');
-      b.addEventListener('click', async () => {
-        const prev = mine;
-        mine = n; voted = true; paint();
-        const out = await api('/api/community/rate', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entryId: entry.id, stars: n }),
+    const draw = (state) => {
+      box.replaceChildren();
+      if (state.state === 'open') {
+        window.XenonRatingCard.voter(box, {
+          tr: t,
+          vote: (stars, why) => api('/api/community/rate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entryId: entry.id, stars, why }),
+          }),
+          voted: async (stars) => {
+            if (window.XenonToast) XenonToast.show({ type: 'success', title: t('rate_done'), important: true });
+            const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id));
+            if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
+            draw({ state: 'voted', stars });
+          },
+          failed: (out) => {
+            if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error'), important: true });
+            load(out);
+          },
         });
-        if (out && out.ok) {
-          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks: rating saved!'), important: true });
-          // Refresh the aggregate so the average reflects the new vote.
-          const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1');
-          if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
-          paint();
-        } else {
-          mine = prev; paint();
-          if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error', 'Couldn’t save the rating: try again later.') });
-        }
-      });
-      row.appendChild(b);
-    }
-    paint();
-    api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1').then((out) => {
-      if (out && out.ok && out.ratings) {
-        Object.assign(ratingsMap, out.ratings);
-        // Don't let this late-resolving read stomp a vote the user already cast
-        // (a slow hub + a fast tap would otherwise "undo" the saved vote).
-        if (!voted) {
-          const r = ratingsMap[entry.id];
-          if (r && Number.isFinite(Number(r.mine))) mine = Number(r.mine);
-        }
-        paint();
+        return;
       }
-    }).catch(() => { /* offline — the control still works for a later tap */ });
+      showScore(state.state === 'voted' && state.stars ? window.XenonRatingCard.given(state.stars) : null);
+      box.appendChild(el('p', 'cgal-rate-say', ratingLine(state)));
+    };
+    const load = () => api('/api/community/rating-state?id=' + encodeURIComponent(entry.id))
+      .then((state) => { if (state && state.ok) draw(state); })
+      .catch(() => { /* offline: the card's average is still there */ });
+    load();
   }
 
   // Lazy live preview for 'bg' entries: mount the sandboxed iframe only while
@@ -539,6 +583,12 @@
   // ── Generated preview (fallback when an entry ships no screenshot) ──────────
   // Colours come only from the server-validated preview swatches (hex), used as
   // canvas fills — so a card is never an empty box.
+  // What the purchase sheet shows of an entry (js/buy-sheet.js checks it again).
+  function saleCard(entry) {
+    const shots = entry.shots || (entry.screenshot ? 1 : 0);
+    const shot = (ext) => SHOTS_BASE + encodeURIComponent(entry.id) + '.' + ext;
+    return { kind: kindLabel(entry.kind), line: descPlain(entry.description || ''), preview: entry.preview || null, art: shots > 0 ? [shot('webp'), shot('png')] : [] };
+  }
   function catColors(entry) { const p = entry.preview || {}; return { a: p.accent || '#1ed760', b: p.bg || '#0a0f0d', t: p.text || '#e9f2ee' }; }
   function rgbaOf(c, al) { c = String(c || '#888').replace('#', ''); if (c.length === 3) c = c.split('').map((x) => x + x).join(''); if (c.length > 6) c = c.slice(0, 6); const n = parseInt(c, 16) || 0; return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + (al == null ? 1 : al) + ')'; }
   function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
@@ -579,44 +629,49 @@
     }
   }
 
-  // ── Media area (screenshot › live bg preview › generated canvas) ──────────
-  // Shared by product cards and the hero spotlight. Always ends up filled.
-  function buildMedia(entry, opts) {
-    opts = opts || {};
-    const media = el('div', 'cgal-media' + (opts.hero ? ' cgal-media-hero' : ''));
-    const shotCount = entry.shots || (entry.screenshot ? 1 : 0);
-    if (shotCount > 0) {
-      const strip = el('div', 'cgal-shots');
-      const shotUrl = (i, ext) => SHOTS_BASE + encodeURIComponent(entry.id) + (i === 1 ? '' : '-' + i) + '.' + ext;
-      for (let i = 1; i <= shotCount; i++) {
-        const shot = document.createElement('img');
-        shot.className = 'cgal-shot'; shot.loading = 'lazy'; shot.alt = '';
-        let triedPng = false;
-        shot.addEventListener('error', () => {
-          if (!triedPng) { triedPng = true; shot.src = shotUrl(i, 'png'); return; }
-          shot.remove();
-          if (!strip.querySelector('img')) {
-            const cv = document.createElement('canvas'); cv._cgEntry = entry; media.insertBefore(cv, strip); strip.remove();
-            requestAnimationFrame(() => drawPreview(cv, entry));
-          }
-        });
-        shot.src = shotUrl(i, 'webp');
-        strip.appendChild(shot);
-      }
-      media.appendChild(strip);
-      if (shotCount > 1) { const dots = el('div', 'cgal-shotdots'); for (let i = 0; i < shotCount; i++) dots.appendChild(el('span', 'cgal-shotdot' + (i === 0 ? ' on' : ''))); media.appendChild(dots); }
+  // ── The picture of an entry (screenshot › live bg preview › generated canvas) ──
+  // One picture, always filled. The rest of the shots are on the entry's page.
+  function previewCanvas(entry) {
+    const cv = document.createElement('canvas'); cv._cgEntry = entry;
+    requestAnimationFrame(() => drawPreview(cv, entry));
+    return cv;
+  }
+  function buildMedia(entry) {
+    const media = el('div', 'cgal-media');
+    // Server-validated hex: what shows behind a picture that does not fill the frame.
+    if (entry.preview && entry.preview.bg) media.style.setProperty('--cst-sheet', entry.preview.bg);
+    if (entry.shots || entry.screenshot) {
+      const pic = document.createElement('img');
+      pic.loading = 'lazy'; pic.alt = '';
+      let triedPng = false;
+      pic.addEventListener('error', () => {
+        if (triedPng) { pic.replaceWith(previewCanvas(entry)); return; }
+        triedPng = true; pic.src = shotUrl(entry.id, 1, 'png');
+      });
+      pic.addEventListener('load', () => {
+        const wide = pic.naturalWidth / pic.naturalHeight > WIDE_SHOT;
+        media.classList.toggle('is-wide', wide);
+        media.classList.toggle('from-left', wide && !CENTRED_KINDS.has(entry.kind));
+      });
+      pic.src = shotUrl(entry.id, 1, 'webp');
+      media.appendChild(pic);
     } else if (entry.kind === 'bg' && entry.code) {
       // Live animated bg preview (sandboxed iframe, lazily mounted on screen).
       const prev = el('div', 'cgal-preview');
       media.appendChild(prev);
       armPreview(prev, entry);
     } else {
-      const cv = document.createElement('canvas'); cv._cgEntry = entry;
-      media.appendChild(cv);
-      requestAnimationFrame(() => drawPreview(cv, entry));
+      media.appendChild(previewCanvas(entry));
     }
-    media.appendChild(el('div', 'cgal-media-veil'));
     return media;
+  }
+
+  // A drop Xenon publishes itself: author "xenon", no outside publisher. Entries
+  // reach the catalog through review. This changes the words of the install
+  // dialog and nothing else: sandbox and permission approval stay.
+  function isOfficial(entry) {
+    const author = entry && typeof entry.author === 'string' ? entry.author.trim().toLowerCase() : '';
+    return author === 'xenon' && !(entry.publisher && entry.publisher.handle);
   }
 
   // Publisher / author byline (publisher v2 wins; its link renders only because
@@ -632,16 +687,6 @@
       } else { host.appendChild(document.createTextNode('@' + entry.publisher.handle)); }
     } else { host.appendChild(document.createTextNode(entry.author || '—')); }
     if (entry.authorSupporter) { host.appendChild(document.createTextNode(' ')); const st = icon('star', 'cgal-authorstar'); st.title = t('gallery_supporter_badge', 'Xenon supporter'); host.appendChild(st); }
-  }
-
-  // Amber "may use more resources" chip — stamped by the catalog's audit
-  // (entry.perfWarning). Informational, never blocking: the user still installs
-  // with the normal preview, and the import dialog repeats the note.
-  function perfChip(entry) {
-    if (entry.perfWarning !== true) return null;
-    const chip = el('span', 'cgal-perfchip', t('gallery_perf_warning', 'May use more resources'));
-    chip.title = t('gallery_perf_warning_long', 'This item runs heavier animations or frequent updates. On small devices it can use noticeable CPU or GPU.');
-    return chip;
   }
 
   // The import button — normal + supporter (locked) both funnel through the one
@@ -688,46 +733,42 @@
     // the card flips to "Installed".
     const owner = isUpdate && entry.locked === true ? ownedTargetFor(entry) : null;
     if (owner && window.PresetShare && PresetShare.updateOwned) {
-      PresetShare.updateOwned(code, { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, owner });
+      PresetShare.updateOwned(code, { source: 'catalog', sourceId: owner.entryId, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, official: isOfficial(entry), owner });
       return;
     }
-    if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, trialEligible: trialCovers(entry), supporterDrop: !entry.limited && !sparksOnly(entry) && (entry.locked === true || entry.supportersOnly === true), sparks: entry.limited ? 0 : (entry.sparks || 0), sparksOnly: sparksOnly(entry), name: entry.name || '' });
+    if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true, official: isOfficial(entry), trialEligible: trialCovers(entry), supporterDrop: !entry.limited && !sparksOnly(entry) && (entry.locked === true || entry.supportersOnly === true), sparks: entry.limited ? 0 : (entry.sparks || 0), sparksOnly: sparksOnly(entry), sale: saleCard(entry), name: entry.name || '' });
   }
 
-  // "Become a supporter" — the warm heart CTA shown beside a locked entry's
-  // "Unlock with a code", for someone who doesn't have a code yet. Same button as
-  // the Supporters "how it works" panel; links to the membership page.
-  // `cls` overrides the default (compact) classes where the button leads the row.
-  function becomeSupporterButton(cls) {
-    const a = document.createElement('a');
-    a.className = cls || 'cgal-btn cgal-info-bmc cgal-support-cta';
-    a.href = supportHref('store-locked'); a.target = '_blank'; a.rel = 'noopener noreferrer';
-    a.appendChild(icon('supporters'));
-    a.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
+  // "Become a supporter": the way to the membership page for someone without a code.
+  function becomeSupporterButton(cls, source) {
+    const a = el('a', cls, t('gallery_supporters_join', 'Become a supporter'));
+    a.href = supportHref(source || 'store-locked'); a.target = '_blank'; a.rel = 'noopener noreferrer';
     return a;
   }
 
-  // The CTA pair on a locked entry (hero + detail view). For someone who has not
-  // installed it, conversion leads: the gold "Become a supporter" first, with
-  // "Unlock with a code" beside it for people who already hold a code. Once the
-  // entry IS installed, the join pitch steps back behind the Installed/Update
-  // control — no point selling a membership to an owner.
+  // The keys of a locked entry on its page: one green key, the rest quiet. For
+  // someone who has not installed it the free week leads when the entry is in it,
+  // then the membership, then the way in for people who already hold a code. Once
+  // it IS installed the pitch steps back: nobody sells a membership to an owner.
   function appendLockedButtons(cta, entry) {
     // Sold only for Sparks: a membership does not open it, so there is nothing to join.
     if (sparksOnly(entry)) {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', unlockLabel(entry), 'lock'));
+      cta.appendChild(importButton(entry, 'cst-key is-wide', unlockLabel(entry), 'lock'));
       return;
     }
-    const unlock = importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock' + (supporterSaved ? ' is-saved' : ''), unlockLabel(entry, true), 'lock');
-    if (supporterSaved) { cta.appendChild(unlock); return; }
-    if (entryInstallState(entry) === 'none') {
-      cta.appendChild(becomeSupporterButton('cgal-btn cgal-btn-hero cgal-info-bmc'));
-      if (!trialUsed && trialCovers(entry)) cta.appendChild(tryTrialButton());
-      cta.appendChild(unlock);
-    } else {
-      cta.appendChild(unlock);
-      cta.appendChild(becomeSupporterButton());
+    if (supporterSaved) {
+      cta.appendChild(importButton(entry, 'cst-key is-wide', unlockLabel(entry, true), 'lock'));
+      return;
     }
+    if (entryInstallState(entry) !== 'none') {
+      cta.appendChild(importButton(entry, 'cst-key is-wide', unlockLabel(entry, true), 'lock'));
+      cta.appendChild(becomeSupporterButton('cst-plain'));
+      return;
+    }
+    const trial = !trialUsed && trialCovers(entry);
+    cta.appendChild(trial ? tryTrialButton('cst-key is-wide') : becomeSupporterButton('cst-key is-wide'));
+    if (trial) cta.appendChild(becomeSupporterButton('cst-plain'));
+    cta.appendChild(importButton(entry, 'cst-plain', unlockLabel(entry, true)));
   }
 
   // ── Fullscreen screenshot zoom (opened from the detail gallery) ─────────────
@@ -834,49 +875,99 @@
     return gal;
   }
 
-  // ── Detail view: full gallery + complete info + the one CTA ─────────────────
-  // A stacked overlay inside the store (closes back to the grid). Same import
-  // boundary — the CTA still funnels through PresetShare.openImport.
+  // ── The entry's page: all its pictures, what it is, the keys ─────────────────
+  // It takes the place of the view, inside the Store, and the rail stays. Back
+  // returns to the same scroll. Same import boundary: the keys still funnel
+  // through PresetShare.openImport.
   function openDetail(entry) {
     if (!overlayEl) return;
-    if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl.remove(); detailEl = null; }
-    const limited = !!entry.limited;
-    const locked = !limited && !!(entry.locked || entry.supportersOnly);
-    const scrim = el('div', 'cgal-detail-scrim');
-    const modal = el('div', 'cgal-detail' + (limited ? ' is-limited' : locked ? ' is-sup' : ''));
-    const closeDetail = () => { if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl.remove(); detailEl = null; } };
+    closeInfo();
+    if (!detailEntry) viewScroll = mainEl.scrollTop;
+    detailEntry = entry;
+    drawDetail(entry);
+    viewEl.hidden = true; pageEl.hidden = false;
+    mainEl.scrollTop = 0;
+  }
+  function closeDetail() {
+    if (!detailEntry) return;
+    detailEntry = null; detailCta = null;
+    pageEl.hidden = true; pageEl.replaceChildren();
+    viewEl.hidden = false;
+    mainEl.scrollTop = viewScroll;
+    syncRows();
+  }
 
-    const head = el('div', 'cgal-detail-head');
-    const back = el('button', 'cgal-iconbtn'); back.type = 'button'; back.title = t('gallery_back', 'Back'); back.appendChild(icon('back'));
-    const x = el('button', 'cgal-iconbtn'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close'));
-    back.addEventListener('click', closeDetail); x.addEventListener('click', closeDetail);
-    head.appendChild(back); head.appendChild(el('div', 'cgal-detail-htitle', entry.name)); head.appendChild(x);
+  function limitedMeter(entry) {
+    const { total, left } = limitedStock(entry.limited);
+    const meter = el('div', 'cst-meter');
+    const bar = el('div', 'cst-meter-bar'); const fill = el('div', 'cst-meter-fill');
+    fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meter.appendChild(bar);
+    meter.appendChild(el('span', 'cst-meter-left', limitedLeftText(entry)));
+    return meter;
+  }
+  function limitedLeftText(entry) {
+    const { total, left } = limitedStock(entry.limited);
+    return t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(left)).replace('{t}', String(total));
+  }
 
-    const body = el('div', 'cgal-detail-body');
-    body.appendChild(buildGallery(entry));
+  // The keys of the page, on their own so an install can flip them in place.
+  function drawDetailCta() {
+    const entry = detailEntry;
+    if (!entry || !detailCta) return;
+    const cta = detailCta;
+    cta.replaceChildren();
+    if (entry.limited) {
+      if (dropUnavailable(entry)) appendUnavailable(cta, entry);
+      else { cta.appendChild(limitedMeter(entry)); appendLimitedButtons(cta, entry); }
+    } else if (entry.locked || entry.supportersOnly) {
+      appendLockedButtons(cta, entry);
+    } else {
+      cta.appendChild(importButton(entry, 'cst-key is-wide', t('gallery_import', 'Install')));
+    }
+    if (entry.needsNewerApp) cta.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
+  }
 
-    const info = el('div', 'cgal-detail-info');
-    const tier = el('div', 'cgal-detail-tier');
-    if (limited) { tier.classList.add('t-limited'); tier.appendChild(icon('limited')); tier.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
-    else if (locked) { tier.classList.add('t-sup'); lockedTierInto(tier, entry, t('gallery_locked_badge', 'Supporters'), true); }
-    else { tier.appendChild(kindIcon(entry.kind)); tier.appendChild(el('span', null, kindLabel(entry.kind))); }
-    info.appendChild(tier);
+  function detailFacts(entry) {
+    const facts = el('dl', 'cst-facts');
+    const fact = (label, value) => {
+      const row = el('div', 'cst-fact');
+      row.appendChild(el('dt', null, label)); row.appendChild(value);
+      facts.appendChild(row);
+    };
+    if (entry.version) fact(t('gallery_fact_version', 'Version'), el('dd', null, entry.version));
+    const installs = el('dd', 'cgal-installs', installsText(entry.id));
+    installs.dataset.id = entry.id;
+    fact(t('gallery_fact_installs', 'Installs'), installs);
+    if (entry.category) fact(t('gallery_fact_category', 'Category'), el('dd', null, t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
+    return facts;
+  }
 
-    info.appendChild(el('h3', 'cgal-detail-name', entry.name));
-    const by = el('div', 'cgal-detail-by'); bylineInto(by, entry); info.appendChild(by);
-
-    const meta = el('div', 'cgal-detail-meta');
-    if (entry.version) meta.appendChild(el('span', 'cgal-metachip', 'v' + entry.version));
-    if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
-    const detPerf = perfChip(entry); if (detPerf) meta.appendChild(detPerf);
-    if (meta.childElementCount) info.appendChild(meta);
-    const detUntil = untilLabel(entry, 'cgal-until-big'); if (detUntil) info.appendChild(detUntil);
-    // The detail view has room for the full sentence, not just the chip.
+  function detailWords(entry) {
+    const words = el('div', 'cst-detail-words');
+    words.appendChild(el('div', 'cst-kind', kindLabel(entry.kind)));
+    words.appendChild(el('h1', 'cst-name', entry.name));
+    const by = el('div', 'cst-by'); bylineInto(by, entry); words.appendChild(by);
+    if (entry.limited) {
+      const tier = el('div', 'cst-tier');
+      tier.appendChild(icon('limited')); tier.appendChild(el('span', null, t('gallery_limited_badge', 'Limited')));
+      words.appendChild(tier);
+    } else if (entry.locked || entry.supportersOnly) {
+      const tier = el('div', 'cst-tier');
+      lockedTierInto(tier, entry, t('gallery_locked_badge', 'Supporters'), true);
+      words.appendChild(tier);
+      // The price where the decision is made: next to the key, for whoever would pay it.
+      const price = !supporterSaved && !sparksOnly(entry) && entryInstallState(entry) === 'none' ? memberLine() : '';
+      if (price) words.appendChild(el('p', 'cst-offer-line', price));
+    }
+    const until = untilLabel(entry); if (until) words.appendChild(until);
+    detailCta = el('div', 'cgal-detail-cta');
+    words.appendChild(detailCta);
+    drawDetailCta();
+    if (entry.description) words.appendChild(descInto(el('div', 'cgal-detail-desc'), entry.description));
     if (entry.perfWarning === true) {
-      info.appendChild(el('p', 'cgal-detail-perfnote',
+      words.appendChild(el('p', 'cgal-detail-perfnote',
         t('gallery_perf_warning_long', 'This item runs heavier animations or frequent updates. On small devices it can use noticeable CPU or GPU.')));
     }
-
     // What the current version changed. Shown to everyone, but it earns its
     // place hardest for someone looking at an "Update…" button and deciding
     // whether a permission re-approval is worth it.
@@ -885,102 +976,67 @@
       cl.appendChild(el('span', 'cgal-changelog-label',
         t('gallery_changelog', 'Novità in v{ver}').replace('{ver}', entry.version || '')));
       cl.appendChild(el('span', 'cgal-changelog-text', entry.changelog));
-      info.appendChild(cl);
+      words.appendChild(cl);
     }
-
-    // Star rating: live average + this install's own vote (five tap targets).
-    // Only for content the user can actually have installed — a locked
-    // supporter drop or a limited/sold-out entry can't be tried without
-    // unlocking, so rating it would be a non-owner vote; those show no control
-    // (their cards still display the aggregate where one exists).
-    if (!locked && !limited) ratingBoxInto(info, entry);
-
-    if (entry.description) info.appendChild(descInto(el('div', 'cgal-detail-desc'), entry.description));
-
-    if (entry.preview && (entry.preview.accent || entry.preview.bg || entry.preview.text)) {
-      const sw = el('div', 'cgal-detail-swatches');
-      for (const key of ['accent', 'bg', 'text']) {
-        const v = entry.preview[key]; if (!v) continue;
-        const row = el('div', 'cgal-detail-sw');
-        const dot = el('span', 'preset-swatch-dot'); dot.style.background = v; row.appendChild(dot);
-        row.appendChild(el('span', 'cgal-detail-sw-hex', v));
-        sw.appendChild(row);
-      }
-      if (sw.childElementCount) info.appendChild(sw);
-    }
-
-    if (Array.isArray(entry.tags) && entry.tags.length) {
-      const tags = el('div', 'cgal-tags');
-      entry.tags.forEach((tag) => tags.appendChild(el('span', 'cgal-tag', '#' + tag)));
-      info.appendChild(tags);
-    }
-
-    const cta = el('div', 'cgal-detail-cta');
-    if (limited) {
-      const lim = entry.limited;
-      if (dropUnavailable(entry)) appendUnavailable(cta, entry);
-      else {
-        const { total, left } = limitedStock(lim);
-        const meterWrap = el('div', 'cgal-hero-meter');
-        const bar = el('div', 'cgal-hero-bar'); const fill = el('div', 'cgal-hero-barfill');
-        fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meterWrap.appendChild(bar);
-        meterWrap.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(left)).replace('{t}', String(total))));
-        cta.appendChild(meterWrap);
-        appendLimitedButtons(cta, entry);
-      }
-    } else if (locked) {
-      appendLockedButtons(cta, entry);
-    } else {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
-    }
-    if (entry.needsNewerApp) cta.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
-    info.appendChild(cta);
-
-    body.appendChild(info);
-    modal.appendChild(head); modal.appendChild(body);
-    scrim.appendChild(modal);
-    scrim.addEventListener('click', (ev) => { if (ev.target === scrim) closeDetail(); });
-    scrim._onKey = (e) => { if (e.key === 'Escape' && !zoomEl) closeDetail(); };
-    document.addEventListener('keydown', scrim._onKey);
-    overlayEl.appendChild(scrim);
-    detailEl = scrim;
+    words.appendChild(detailFacts(entry));
+    // The vote: who may give it is decided by the ticket on this PC, not here, so a
+    // locked entry shows it to its owners and "install it first" to everyone else.
+    ratingBoxInto(words, entry);
+    return words;
   }
 
-  // More Scintille for a supporter: what they are, and the way to the Sparks tab,
-  // where the packs are sold.
-  function sparkPacks() {
-    const box = el('div', 'cgal-info-sparks');
-    const head = el('p', 'cgal-info-sparks-head');
-    head.appendChild(el('b', null, t('xai_packs_title', 'Buy Sparks')));
-    head.appendChild(el('span', null, t('gallery_sparks_what', "Xenon's credits, the ones you buy never expire")));
-    box.appendChild(head);
-    const go = el('button', 'cgal-btn', t('sparks_shop_open', 'See the packs'));
-    go.type = 'button';
-    go.addEventListener('click', () => openSparks());
-    box.appendChild(go);
-    return box;
+  function drawDetail(entry) {
+    const page = el('div', 'cst-detail');
+    const back = el('button', 'cst-back'); back.type = 'button';
+    back.appendChild(icon('back')); back.appendChild(el('span', null, viewName()));
+    back.addEventListener('click', closeDetail);
+    page.appendChild(back);
+    const grid = el('div', 'cst-detail-grid');
+    if (entry.preview && hexRgb(entry.preview.bg)) grid.style.setProperty('--cst-paper', entry.preview.bg);
+    grid.appendChild(buildGallery(entry));
+    grid.appendChild(detailWords(entry));
+    page.appendChild(grid);
+    const more = el('div', 'cst-detail-more');
+    page.appendChild(more);
+    pageEl.replaceChildren(page);
+    (catalogAll.length ? Promise.resolve(catalogAll) : catalogEntries()).then((all) => {
+      if (detailEntry !== entry) return;
+      const like = all.filter((e) => e && e.kind === entry.kind && e.id !== entry.id).slice(0, SHELF_MAX);
+      if (like.length) more.appendChild(shelf(t('gallery_more_like', 'More like this'), like, { more: entry.kind }));
+    }).catch(() => { /* offline: the page stands on its own */ });
   }
 
-  // "How it works" for the Supporters tier — a compact perks panel (what you
-  // get, how long it lasts, the Discord role) with the two CTAs. Kept out of the
-  // shelf itself so the dense Store stays glanceable; opened on demand.
+  // Supporters, for a PC with no code: real packs on top, what a month costs, what
+  // it buys, one green key. A PC that keeps a code never sees it: it has the
+  // membership, and the Supporters list is where it goes.
+  function closeInfo() { if (infoEl) { infoEl.remove(); infoEl = null; } }
+  function infoPictures() {
+    const packs = catalogAll
+      .filter((e) => !e.limited && !sparksOnly(e) && (e.locked || e.supportersOnly) && (e.shots || e.screenshot))
+      .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')))
+      .slice(0, 3);
+    if (!packs.length) return null;
+    const strip = el('div', 'cst-info-shots');
+    packs.forEach((e) => strip.appendChild(buildMedia(e)));
+    return strip;
+  }
   function openSupporterInfo() {
-    if (!overlayEl) return;
-    if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl.remove(); detailEl = null; }
+    if (!overlayEl || supporterSaved) return;
+    closeInfo();
     const scrim = el('div', 'cgal-detail-scrim');
-    const modal = el('div', 'cgal-info is-sup');
-    const closeIt = () => { if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl.remove(); detailEl = null; } };
-    const head = el('div', 'cgal-detail-head');
-    const mark = el('div', 'cgal-info-mark'); mark.appendChild(icon('supporters'));
-    head.appendChild(mark);
-    head.appendChild(el('div', 'cgal-detail-htitle', t('gallery_supporters_section', 'Supporters')));
-    const x = el('button', 'cgal-iconbtn'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close')); x.addEventListener('click', closeIt);
-    head.appendChild(x);
-    const body = el('div', 'cgal-info-body');
-    body.appendChild(el('p', 'cgal-info-lead', supporterSaved
-      ? t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')
-      : t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters: become one to unlock them.')));
-    const ul = el('ul', 'cgal-info-perks');
+    const modal = el('div', 'cst-info');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'cst-info-name');
+    const shots = infoPictures();
+    if (shots) modal.appendChild(shots);
+    const body = el('div', 'cst-info-body');
+    const name = el('h2', 'cst-info-name', t('gallery_supporters_section', 'Supporters'));
+    name.id = 'cst-info-name';
+    body.appendChild(name);
+    const line = memberLine();
+    if (line) body.appendChild(el('p', 'cst-info-line', line));
+    const ul = el('ul', 'cst-info-perks');
     // perk4 is the yearly tier's commissioned theme: it sits after perk3,
     // which sets up "more money buys more time", because the theme is the one
     // thing money buys that is not time. The code note stays last: it is
@@ -989,118 +1045,107 @@
     ['gallery_sup_perk1', 'support_perk_sparks', 'gallery_sup_perk2', 'gallery_sup_perk3', 'gallery_sup_perk4', 'gallery_sup_code_note'].forEach((k) => {
       const li = document.createElement('li');
       const sparks = k === 'support_perk_sparks' && window.XenonCredits;
-      li.appendChild(sparks ? window.XenonCredits.offerMark() : icon('check', 'cgal-info-tick'));
+      li.appendChild(sparks ? window.XenonCredits.offerMark() : icon('check', 'cst-info-tick'));
       li.appendChild(el('span', null, t(k, '')));
       ul.appendChild(li);
     });
     body.appendChild(ul);
-    // A supporter can buy more Scintille right here: the packs reach the saved code.
-    if (supporterSaved && window.XenonCredits) body.appendChild(sparkPacks());
-    // Codes now arrive automatically by email (supporter hub); Discord/email
-    // stays as the didn't-get-it fallback, with the address right there.
-    const note = el('div', 'cgal-info-note');
-    note.appendChild(el('span', null, t('gallery_sup_register', 'Your personal code arrives by email right after you support. Didn’t get it? Reach us on Discord or at')));
-    const mail = document.createElement('a');
-    mail.className = 'cgal-info-mail'; mail.href = 'mailto:' + SUPPORT_EMAIL; mail.textContent = SUPPORT_EMAIL;
-    note.appendChild(mail);
-    // Someone whose code is already saved has had it: the where-is-my-code note is noise.
-    if (!supporterSaved) body.appendChild(note);
-    const cta = el('div', 'cgal-info-cta');
-    // A PC that keeps a code is a supporter's: it gets the saved state and the
-    // way back to the entries, not the membership pitch.
-    if (supporterSaved) {
-      const saved = el('span', 'cgal-btn cgal-installed');
-      saved.appendChild(icon('check'));
-      saved.appendChild(el('span', null, t('gallery_supporter_saved', 'Supporter code saved')));
-      const browse = el('button', 'cgal-btn cgal-info-bmc'); browse.type = 'button';
-      browse.appendChild(icon('supporters'));
-      browse.appendChild(el('span', null, t('gallery_supporters_browse', 'See supporter entries')));
-      browse.addEventListener('click', () => { closeIt(); open('__supporters'); });
-      cta.appendChild(browse); cta.appendChild(saved);
-    } else {
-      const bmc = document.createElement('a'); bmc.className = 'cgal-btn cgal-info-bmc'; bmc.href = supportHref('store-info'); bmc.target = '_blank'; bmc.rel = 'noopener noreferrer'; bmc.appendChild(icon('supporters')); bmc.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
-      cta.appendChild(bmc);
+    const keys = el('div', 'cst-info-keys');
+    if (!trialUsed && window.TrialPass) {
+      keys.appendChild(tryTrialButton('cst-key'));
+      keys.appendChild(becomeSupporterButton('cst-plain', 'store-info'));
+    } else keys.appendChild(becomeSupporterButton('cst-key', 'store-info'));
+    keys.appendChild(haveCodeButton('cst-plain'));
+    body.appendChild(keys);
+    // Codes arrive by email (supporter hub); Discord and the mail stay as the
+    // didn't-get-it fallback, with the address right there.
+    const note = el('p', 'cst-info-note');
+    const [before, ...after] = t('gallery_sup_register', 'Your personal code arrives by email right after you support. Didn’t get it? Reach us on Discord or at').split('Discord');
+    note.appendChild(document.createTextNode(before));
+    if (after.length) {
+      const disc = el('a', null, 'Discord');
+      disc.href = DISCORD_URL; disc.target = '_blank'; disc.rel = 'noopener noreferrer';
+      note.appendChild(disc);
+      note.appendChild(document.createTextNode(after.join('Discord')));
     }
-    const disc = document.createElement('a'); disc.className = 'cgal-btn'; disc.href = DISCORD_URL; disc.target = '_blank'; disc.rel = 'noopener noreferrer'; disc.textContent = t('gallery_sup_discord', 'Join the Discord');
-    cta.appendChild(disc);
-    body.appendChild(cta);
-    modal.appendChild(head); modal.appendChild(body);
+    note.appendChild(document.createTextNode(' '));
+    const mail = el('a', null, SUPPORT_EMAIL);
+    mail.href = 'mailto:' + SUPPORT_EMAIL;
+    note.appendChild(mail);
+    body.appendChild(note);
+    modal.appendChild(body);
+    const x = el('button', 'cst-close');
+    x.type = 'button'; x.title = t('gallery_close', 'Close'); x.setAttribute('aria-label', x.title);
+    x.appendChild(icon('close'));
+    x.addEventListener('click', closeInfo);
+    modal.appendChild(x);
     scrim.appendChild(modal);
-    scrim.addEventListener('click', (ev) => { if (ev.target === scrim) closeIt(); });
-    scrim._onKey = (e) => { if (e.key === 'Escape' && !zoomEl) closeIt(); };
-    document.addEventListener('keydown', scrim._onKey);
+    scrim.addEventListener('click', (ev) => { if (ev.target === scrim) closeInfo(); });
     overlayEl.appendChild(scrim);
-    detailEl = scrim;
+    infoEl = scrim;
+    x.focus({ preventScroll: true });
   }
 
-  // Open the detail view from a card/hero click, unless the tap landed on an
-  // actual control (Import/Reserve button, a byline link) — those act directly.
+  // Open the entry's page from a card or the hero, unless the tap landed on an
+  // actual control (the hero's key) — that acts directly.
   function wireCardOpen(node, entry) {
     node.classList.add('cgal-clickable');
     node.tabIndex = 0; node.setAttribute('role', 'button');
-    node.addEventListener('click', (ev) => { if (ev.target.closest('.cgal-card-actions, .cgal-hero-cta, a, button')) return; openDetail(entry); });
+    node.addEventListener('click', (ev) => { if (ev.target.closest('a, button')) return; openDetail(entry); });
     node.addEventListener('keydown', (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === node) { ev.preventDefault(); openDetail(entry); } });
   }
 
-  // ── Cinematic hero spotlight for the "browse all" view ──────────────────────
-  // Features the top limited drop (else the featured browse entry). Big media,
-  // exclusivity treatment, a single decisive CTA.
+  // ── The hero: one entry on its own paper ───────────────────────────────────
+  // The pack's own colours, when the catalog's pair can be read. They come from the
+  // server's hex check and only ever reach a CSS variable.
+  function hexRgb(c) {
+    let h = String(c || '').replace('#', '');
+    if (h.length === 3) h = h.split('').map((x) => x + x).join('');
+    if (!/^[0-9a-f]{6}/i.test(h)) return null;
+    const n = parseInt(h.slice(0, 6), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function luminance(rgb) {
+    const [r, g, b] = rgb.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function readablePair(preview) {
+    const paper = hexRgb(preview && preview.bg), ink = hexRgb(preview && preview.text);
+    if (!paper || !ink) return false;
+    const [hi, lo] = [luminance(paper), luminance(ink)].sort((a, b) => b - a);
+    return (hi + 0.05) / (lo + 0.05) >= HERO_CONTRAST;
+  }
+  const firstSentence = (text) => {
+    const m = /^[\s\S]*?(?:[.!?](?:\s|$)|[。！？])/.exec(text);
+    return (m ? m[0] : text).trim();
+  };
+
+  // One key: an entry that installs by itself installs from here, any other opens
+  // its page, where the choices fit.
+  function heroKey(entry) {
+    if (!entry.limited && !entry.locked && !entry.supportersOnly) return importButton(entry, 'cst-hero-key', t('gallery_import', 'Install'));
+    const b = el('button', 'cst-hero-key', t('gallery_open_item', 'See it'));
+    b.type = 'button';
+    b.addEventListener('click', () => openDetail(entry));
+    return b;
+  }
+
   function heroBanner(entry) {
-    const limited = !!entry.limited;
-    const locked = !limited && !!(entry.locked || entry.supportersOnly);
-    const hero = el('div', 'cgal-hero' + (limited ? ' is-limited' : locked ? ' is-sup' : ''));
-
-    const media = buildMedia(entry, { hero: true });
-    // Theme swatches float over the media so a theme hero reads its palette.
-    if (entry.preview && (entry.preview.accent || entry.preview.bg || entry.preview.text)) {
-      const sw = el('div', 'cgal-swatches');
-      for (const key of ['accent', 'bg', 'text']) { const v = entry.preview[key]; if (!v) continue; const dot = el('span', 'preset-swatch-dot'); dot.style.background = v; sw.appendChild(dot); }
-      if (sw.childElementCount) media.appendChild(sw);
+    const hero = el('div', 'cst-hero');
+    if (readablePair(entry.preview)) {
+      hero.classList.add('is-paper');
+      hero.style.setProperty('--cst-paper', entry.preview.bg);
+      hero.style.setProperty('--cst-ink', entry.preview.text);
     }
-    hero.appendChild(media);
-
-    const info = el('div', 'cgal-hero-info');
-    const eyebrow = el('div', 'cgal-hero-eyebrow');
-    if (limited) { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_limited_section', 'Limited edition'))); }
-    else if (locked) lockedTierInto(eyebrow, entry, t('gallery_supporters_section', 'Supporters'));
-    else { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_sort_feat', 'Featured'))); }
-    eyebrow.appendChild(el('span', 'cgal-hero-kind', kindLabel(entry.kind)));
-    info.appendChild(eyebrow);
-
-    info.appendChild(el('h4', 'cgal-hero-title', entry.name));
-    const by = el('div', 'cgal-hero-by'); bylineInto(by, entry);
-    info.appendChild(by);
-    const heroUntil = untilLabel(entry, 'cgal-until-big'); if (heroUntil) info.appendChild(heroUntil);
-    if (entry.description) info.appendChild(el('p', 'cgal-hero-desc', descPlain(entry.description)));
-
-    if (Array.isArray(entry.tags) && entry.tags.length) {
-      const tags = el('div', 'cgal-tags');
-      entry.tags.slice(0, 4).forEach((tag) => tags.appendChild(el('span', 'cgal-tag', '#' + tag)));
-      info.appendChild(tags);
-    }
-
-    const cta = el('div', 'cgal-hero-cta');
-    if (limited) {
-      const lim = entry.limited;
-      if (dropUnavailable(entry)) {
-        appendUnavailable(cta, entry);
-      } else {
-        const { total, left } = limitedStock(lim);
-        const meter = el('div', 'cgal-hero-meter');
-        const bar = el('div', 'cgal-hero-bar'); const fill = el('div', 'cgal-hero-barfill');
-        fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meter.appendChild(bar);
-        meter.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(left)).replace('{t}', String(total))));
-        info.appendChild(meter);
-        appendLimitedButtons(cta, entry);
-      }
-    } else if (locked) {
-      appendLockedButtons(cta, entry);
-    } else {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
-    }
-    if (entry.needsNewerApp) cta.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
-    info.appendChild(cta);
-    hero.appendChild(info);
+    const words = el('div', 'cst-hero-words');
+    words.appendChild(el('div', 'cst-hero-kind', kindLabel(entry.kind)));
+    words.appendChild(el('h1', 'cst-name', entry.name));
+    if (entry.description) words.appendChild(el('p', 'cst-hero-line', firstSentence(descPlain(entry.description))));
+    const until = untilLabel(entry); if (until) words.appendChild(until);
+    if (entry.limited && !dropUnavailable(entry)) words.appendChild(limitedMeter(entry));
+    words.appendChild(heroKey(entry));
+    hero.appendChild(words);
+    hero.appendChild(buildMedia(entry));
     wireCardOpen(hero, entry);
     return hero;
   }
@@ -1134,66 +1179,16 @@
     return { main, side: [] };
   }
 
-  // One featured entry beside the hero: thumbnail, tier, name, one action. Small
-  // enough that three stack against the hero's height without scrolling.
-  function spotCard(entry) {
-    const limited = !!entry.limited;
-    const locked = !limited && !!(entry.locked || entry.supportersOnly);
-    const card = el('div', 'cgal-spotcard' + (limited ? ' is-limited' : locked ? ' is-sup' : ''));
-    card.id = 'cgal-' + entry.id;
-    wireCardOpen(card, entry);
-    card.appendChild(buildMedia(entry));
-
-    const body = el('div', 'cgal-spotcard-body');
-    const eyebrow = el('div', 'cgal-spotcard-eyebrow');
-    if (limited) { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
-    else if (locked) lockedTierInto(eyebrow, entry, t('gallery_locked_badge', 'Supporters'));
-    else { eyebrow.appendChild(kindIcon(entry.kind)); eyebrow.appendChild(el('span', null, kindLabel(entry.kind))); }
-    body.appendChild(eyebrow);
-    body.appendChild(el('div', 'cgal-spotcard-title', entry.name));
-
-    // Keeps .cgal-card-actions so wireCardOpen ignores taps in here — the count
-    // text is not a button, and a tap on it must not open the detail view.
-    const row = el('div', 'cgal-card-actions cgal-spotcard-cta');
-    if (limited) {
-      const lim = entry.limited;
-      if (dropUnavailable(entry)) appendUnavailable(row, entry);
-      else {
-        appendLimitedButtons(row, entry);
-        const stock = limitedStock(lim);
-        row.appendChild(el('span', 'cgal-limcount',
-          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(stock.left)).replace('{t}', String(stock.total))));
-      }
-    } else {
-      // The side column is too narrow for "Unlock with a code" on one line; the
-      // short label is enough here, the unlock dialog says how to get a code.
-      row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get',
-        locked ? t('gallery_unlock_saved', 'Unlock') : t('gallery_import', 'Import…'), locked ? 'lock' : null));
-    }
-    body.appendChild(row);
-    card.appendChild(body);
-    return card;
-  }
-
-  // Hero + column. With a single featured entry there is no column and the hero
-  // keeps the whole width, which is the layout the Store has always had. With
-  // exactly TWO, the column is skipped as well: a lone side card stretched to
-  // the hero's full height read as broken (a 128px-wide media sliver, crushed
-  // text) — instead both entries get the full hero treatment, upright and side
-  // by side at equal width (the duo, all CSS via .is-duo).
+  // The hero and, beside it, the other featured entries as small cards. Alone it
+  // keeps the whole width.
   function spotlightBlock(main, side) {
-    if (!side.length) return heroBanner(main);
-    if (side.length === 1) {
-      const duo = el('div', 'cgal-spot is-duo');
-      duo.appendChild(heroBanner(main));
-      duo.appendChild(heroBanner(side[0]));
-      return duo;
-    }
-    const wrap = el('div', 'cgal-spot');
+    const wrap = el('div', 'cst-spot' + (side.length ? '' : ' is-solo'));
     wrap.appendChild(heroBanner(main));
-    const col = el('div', 'cgal-spot-side');
-    side.forEach((entry) => col.appendChild(spotCard(entry)));
-    wrap.appendChild(col);
+    if (side.length) {
+      const col = el('div', 'cst-side');
+      side.forEach((entry) => { const c = renderCard(entry); c.classList.add('cst-side-item'); col.appendChild(c); });
+      wrap.appendChild(col);
+    }
     return wrap;
   }
 
@@ -1216,7 +1211,8 @@
   function untilLabel(entry, cls) {
     if (!entry || !entry.activeUntil || !(entry.limited || entry.locked || entry.supportersOnly)) return null;
     const ts = Date.parse(entry.activeUntil);
-    if (!Number.isFinite(ts)) return null;
+    // An entry brought back by hand outlives its date: the line would no longer be true.
+    if (!Number.isFinite(ts) || ts < Date.now()) return null;
     const l = t('locale', '');
     const loc = /^[a-z]{2}(-[A-Za-z0-9]{2,8})*$/.test(l) ? l : undefined;
     let d;
@@ -1225,87 +1221,76 @@
     return el('div', 'cgal-until' + (cls ? ' ' + cls : ''), t('gallery_until', 'Disponibile fino al {d}').replace('{d}', d));
   }
 
-  // One uniform product card. `noId` skips the DOM id for a card whose entry is
-  // ALSO rendered elsewhere in the same view (spotlight + tier shelf + Novità
-  // can now all show the same entry) — ids must stay unique; the star/install
-  // slots key on data-id and are filled by querySelectorAll, so duplicates of
-  // those are fine by construction.
-  function renderCard(entry, noId) {
-    const locked = !!(entry.locked || entry.supportersOnly);
-    const limited = !!entry.limited;
-    const card = el('div', 'cgal-card' + (limited ? ' is-limited' : locked ? ' is-sup' : '') + (dropUnavailable(entry) ? ' dim' : ''));
-    if (!noId) card.id = 'cgal-' + entry.id;
+  // What an entry costs or where it stands, in a few words, for the card's line.
+  function priceInto(node, entry, quiet) {
+    const state = entryInstallState(entry);
+    const says = (text) => { node.textContent = text; };
+    if (state === 'current') return says(t('gallery_installed', 'Installed'));
+    if (state === 'update') return says(t('gallery_update', 'Update…').replace(/\s*(…|\.\.\.)$/, ''));
+    if (entry.needsNewerApp) return says(t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin);
+    if (entry.limited) {
+      if (dropUnavailable(entry)) return says(dropSoldOut(entry) ? t('gallery_limited_soldout', 'Sold out') : t('gallery_limited_closed', 'Claims closed'));
+      return says(limitedLeftText(entry));
+    }
+    if (sparksOnly(entry)) {
+      if (window.XenonCredits) node.appendChild(window.XenonCredits.spark({ still: true }));
+      node.appendChild(document.createTextNode(String(entry.sparks)));
+      return undefined;
+    }
+    if (entry.locked || entry.supportersOnly) return quiet ? undefined : says(t('gallery_locked_badge', 'Supporters'));
+    return says(t('gallery_price_free', 'Free'));
+  }
+
+  // One uniform card: the picture, the name, a line of kind and price. No key:
+  // the whole card opens the entry's page, where the choice is made. `quiet` drops
+  // the price word on a shelf where every card has the same one.
+  function renderCard(entry, opts) {
+    const card = el('div', 'cst-card' + (dropUnavailable(entry) || entry.needsNewerApp ? ' dim' : ''));
     wireCardOpen(card, entry);
+    card.appendChild(buildMedia(entry));
+    card.appendChild(el('div', 'cst-card-name', entry.name));
+    const line = el('div', 'cst-card-line');
+    const left = el('span', 'cst-card-kind');
+    left.appendChild(el('span', null, kindLabel(entry.kind)));
+    // Async-filled slot (paintStars): empty until the aggregates land, and stays
+    // empty below the minimum vote count.
+    const stars = el('span', 'cgal-stars', starsShort(ratingsMap[entry.id]));
+    stars.dataset.id = entry.id; stars.dataset.short = '1';
+    left.appendChild(stars);
+    line.appendChild(left);
+    const price = el('span', 'cst-card-price');
+    priceInto(price, entry, opts && opts.quiet === true);
+    line.appendChild(price);
+    card.appendChild(line);
+    return card;
+  }
 
-    const media = buildMedia(entry);
-    // Tier pill (top-left) — the loudest signal on the card.
-    const tier = el('div', 'cgal-tier');
-    if (limited) { tier.classList.add('t-limited'); tier.appendChild(icon('limited')); tier.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
-    else if (locked) { tier.classList.add('t-sup'); lockedTierInto(tier, entry, t('gallery_locked_badge', 'Supporters')); }
-    else { tier.appendChild(kindIcon(entry.kind)); tier.appendChild(el('span', null, kindLabel(entry.kind))); }
-    media.appendChild(tier);
-    // "New since your last visit" flag (top-right, opposite the tier pill) — #5.
-    if (isNewEntry(entry)) media.appendChild(el('div', 'cgal-new', t('gallery_new_badge', 'NEW')));
-    // Theme swatches (server-validated hex — used only as CSS background).
-    if (entry.preview && (entry.preview.accent || entry.preview.bg || entry.preview.text)) {
-      const sw = el('div', 'cgal-swatches');
-      for (const key of ['accent', 'bg', 'text']) { const v = entry.preview[key]; if (!v) continue; const dot = el('span', 'preset-swatch-dot'); dot.style.background = v; sw.appendChild(dot); }
-      if (sw.childElementCount) media.appendChild(sw);
+  // A supporter pack on the Discover page: its own paper and ink, the picture large,
+  // the name large, one sentence. Same words a hero has, at a size that fits three
+  // across, because these are what the membership opens.
+  function renderPoster(entry) {
+    const card = el('div', 'cst-poster' + (dropUnavailable(entry) || entry.needsNewerApp ? ' dim' : ''));
+    if (readablePair(entry.preview)) {
+      card.classList.add('is-paper');
+      card.style.setProperty('--cst-paper', entry.preview.bg);
+      card.style.setProperty('--cst-ink', entry.preview.text);
     }
-    // No lock over the art: a supporter pack is the best work in the Store and
-    // has to look like it. The gold tier pill and the Unlock button say it is
-    // reserved; a padlock and a dark veil across the picture only made it look
-    // worse than the free cards beside it.
-    card.appendChild(media);
-
-    const body = el('div', 'cgal-body');
-    // The version lives in the detail view; on a card it was noise next to the name.
-    body.appendChild(el('div', 'cgal-name', entry.name));
-    const by = el('div', 'cgal-author'); bylineInto(by, entry);
-    if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cgal-catlabel', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category))); }
-    // Async-filled star slot (paintStars) — empty until the aggregates land,
-    // and stays empty below the minimum vote count.
-    const stars = el('span', 'cgal-stars', starsText(ratingsMap[entry.id]));
-    stars.dataset.id = entry.id;
-    by.appendChild(stars);
-    // Same async-slot treatment: blank until the counts land, and blank below
-    // the display floor.
-    const installs = el('span', 'cgal-installs', installsText(entry.id));
-    installs.dataset.id = entry.id;
-    by.appendChild(installs);
-    // The "may use more resources" note is shown in the detail view and repeated
-    // by the import dialog, where it informs a decision. On every card it was an
-    // amber alarm on half the Store.
-    body.appendChild(by);
-    const cardUntil = untilLabel(entry); if (cardUntil) body.appendChild(cardUntil);
-    if (entry.description) body.appendChild(el('div', 'cgal-desc', descPlain(entry.description)));
-    if (Array.isArray(entry.tags) && entry.tags.length) {
-      const tags = el('div', 'cgal-tags');
-      entry.tags.slice(0, 3).forEach((tag) => tags.appendChild(el('span', 'cgal-tag', '#' + tag)));
-      body.appendChild(tags);
+    wireCardOpen(card, entry);
+    card.appendChild(buildMedia(entry));
+    const words = el('div', 'cst-poster-words');
+    const line = el('div', 'cst-poster-line');
+    line.appendChild(el('span', null, kindLabel(entry.kind)));
+    const price = el('span', 'cst-card-price');
+    priceInto(price, entry, true);
+    if (!price.firstChild && entry.sparks > 0) {
+      if (window.XenonCredits) price.appendChild(window.XenonCredits.spark({ still: true }));
+      price.appendChild(document.createTextNode(String(entry.sparks)));
     }
-
-    const row = el('div', 'cgal-card-actions');
-    if (limited) {
-      const lim = entry.limited;
-      if (dropUnavailable(entry)) {
-        appendUnavailable(row, entry);
-      } else {
-        appendLimitedButtons(row, entry);
-        const stock = limitedStock(lim);
-        row.appendChild(el('span', 'cgal-limcount',
-          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(stock.left)).replace('{t}', String(stock.total))));
-      }
-      body.appendChild(row); card.appendChild(body);
-      return card;
-    }
-    // A free card's button is the quiet one. A bright accent button on every
-    // free card made free content the loudest thing in the Store, louder than
-    // the supporter packs; the accent is kept for an update, which asks you to act.
-    row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn cgal-get', locked ? unlockLabel(entry) : t('gallery_import', 'Import…'), locked ? 'lock' : null));
-    if (entry.needsNewerApp) row.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
-    body.appendChild(row);
-    card.appendChild(body);
+    line.appendChild(price);
+    words.appendChild(line);
+    words.appendChild(el('h3', 'cst-poster-name', entry.name));
+    if (entry.description) words.appendChild(el('p', 'cst-poster-text', firstSentence(descPlain(entry.description))));
+    card.appendChild(words);
     return card;
   }
 
@@ -1398,8 +1383,8 @@
       node.appendChild(el('span', null, t('gallery_or_sparks', 'or {price}').replace('{price}', sparksPriceText(entry.sparks, withUsd))));
     }
   }
-  function tryTrialButton() {
-    const b = el('button', 'cgal-btn cgal-btn-hero cgal-try');
+  function tryTrialButton(cls) {
+    const b = el('button', cls);
     b.type = 'button';
     b.appendChild(el('span', null, t('trial_try_btn', 'Try 7 days free')));
     b.addEventListener('click', () => { if (window.TrialPass) window.TrialPass.openTry(); });
@@ -1560,96 +1545,241 @@
 
   // Shimmer skeleton so the first paint reads as a loading store, not a blank box.
   function skeleton(n) {
-    const wrap = el('div', 'cgal-grid');
-    for (let i = 0; i < (n || 6); i++) {
-      const c = el('div', 'cgal-card cgal-skel');
+    const wrap = el('div', 'cst-grid');
+    for (let i = 0; i < n; i++) {
+      const c = el('div', 'cst-card cgal-skel');
       c.appendChild(el('div', 'cgal-media cgal-skel-media'));
-      const b = el('div', 'cgal-body');
-      b.appendChild(el('div', 'cgal-skel-line w70'));
-      b.appendChild(el('div', 'cgal-skel-line w40'));
-      b.appendChild(el('div', 'cgal-skel-line w90'));
-      b.appendChild(el('div', 'cgal-skel-btn'));
-      c.appendChild(b); wrap.appendChild(c);
+      c.appendChild(el('div', 'cgal-skel-line w70'));
+      c.appendChild(el('div', 'cgal-skel-line w40'));
+      wrap.appendChild(c);
     }
     return wrap;
   }
 
-  async function render(body, filterKind, force) {
+  const catalogEntries = async () => {
+    const out = await api('/api/community/catalog');
+    return out && out.ok && Array.isArray(out.entries) ? out.entries : [];
+  };
+
+  // ── Shelves ────────────────────────────────────────────────────────────────
+  // Previous and next keys appear only when the row has more than it shows.
+  function shelfKeys(row) {
+    const keys = el('div', 'cst-keys');
+    const key = (name, dir) => {
+      const b = el('button', 'cst-step'); b.type = 'button'; b.appendChild(icon(name));
+      b.title = t(dir < 0 ? 'gallery_row_back' : 'gallery_row_next', dir < 0 ? 'Back' : 'Next');
+      b.setAttribute('aria-label', b.title);
+      b.addEventListener('click', () => {
+        const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        row.scrollBy({ left: dir * row.clientWidth, behavior: calm ? 'auto' : 'smooth' });
+      });
+      keys.appendChild(b);
+      return b;
+    };
+    const prev = key('back', -1), next = key('next', 1);
+    row._cstSync = () => {
+      const room = row.scrollWidth - row.clientWidth;
+      keys.hidden = room <= 1;
+      prev.disabled = row.scrollLeft <= 1;
+      next.disabled = row.scrollLeft >= room - 1;
+    };
+    row.addEventListener('scroll', row._cstSync, { passive: true });
+    requestAnimationFrame(row._cstSync);
+    return keys;
+  }
+  function syncRows() {
+    if (overlayEl) overlayEl.querySelectorAll('.cst-row').forEach((r) => { if (r._cstSync) r._cstSync(); });
+  }
+
+  // A named shelf. opts.more is the view "See all" leads to, opts.lead one line
+  // under the name, opts.quiet a shelf that is history rather than stock, and
+  // opts.grid the layout's form 'grid': every card at once, not a row. opts.card
+  // draws each item instead of the plain card. opts.seeAll keeps the way to the
+  // whole list on a short shelf that does not hold all of it.
+  function shelf(titleText, items, opts) {
+    const o = opts || {};
+    const wrap = el('section', 'cst-shelf' + (o.history ? ' is-history' : ''));
+    const draw = o.card || ((e) => renderCard(e, { quiet: o.quiet }));
+    const head = el('div', 'cst-shelf-head');
+    head.appendChild(el('h2', null, titleText));
+    const row = el('div', o.grid ? 'cst-grid' : 'cst-row');
+    items.forEach((e) => row.appendChild(draw(e)));
+    if (!o.grid) head.appendChild(shelfKeys(row));
+    if (o.more && (o.seeAll || items.length >= SEE_ALL_FROM)) {
+      const all = el('button', 'cst-more', t('gallery_seeall', 'See all').replace(/\s*→\s*$/, ''));
+      all.type = 'button';
+      all.addEventListener('click', () => goView(o.more));
+      head.appendChild(all);
+    }
+    wrap.appendChild(head);
+    if (o.lead) wrap.appendChild(el('p', 'cst-shelf-lead', o.lead));
+    wrap.appendChild(row);
+    return wrap;
+  }
+
+  // What a month costs and buys, in one line.
+  function memberLine() {
+    const plan = window.SparksStore;
+    if (!plan) return '';
+    return t('gallery_band_line', '{usd} USD a month: every supporter pack, and {n} Sparks each month.')
+      .replace('{usd}', String(plan.MEMBER_USD)).replace('{n}', String(plan.MONTHLY));
+  }
+
+  // The offer over the posters. A PC that keeps a code has the membership: it is told
+  // so in one line, with nothing to buy.
+  function supporterBand() {
+    const band = el('div', 'cst-offer');
+    if (supporterSaved) {
+      band.appendChild(el('p', null, t('gallery_supporters_lead_saved', 'Themes and packs reserved for Xenon supporters. Your saved code unlocks them.')));
+      return band;
+    }
+    const line = memberLine();
+    if (line) band.appendChild(el('p', null, line));
+    const keys = el('div', 'cst-band-keys');
+    const how = el('button', 'cst-plain', t('gallery_sup_how', 'How it works'));
+    how.type = 'button';
+    how.addEventListener('click', openSupporterInfo);
+    keys.appendChild(how);
+    keys.appendChild(!trialUsed && window.TrialPass ? tryTrialButton('cst-key') : becomeSupporterButton('cst-key', 'store-section'));
+    band.appendChild(keys);
+    return band;
+  }
+
+  // Sparks beside the membership, a sheet of their own: the spark large, what they
+  // do, what they cost. It leads to the Sparks view, the one place they are sold.
+  function sparksBand() {
+    const C = window.XenonCredits;
+    if (!window.SparksStore || !C) return null;
+    const band = el('button', 'cst-sparks-band');
+    band.type = 'button';
+    band.appendChild(C.offerMark());
+    const words = el('span', 'cst-sparks-words');
+    words.appendChild(el('b', null, t('xai_balance_unit', 'Sparks')));
+    words.appendChild(el('span', null, t('sparks_shop_sub_bit', "Xenon's credits. With Sparks Bit makes widgets, themes and pages for you: you ask in words, Bit builds it.")));
+    band.appendChild(words);
+    const packs = el('span', 'cst-sparks-packs');
+    C.PACKS.forEach((p) => {
+      const pack = el('span', 'cst-sparks-pack');
+      const amount = el('b');
+      amount.appendChild(C.spark({ still: true }));
+      amount.appendChild(document.createTextNode(C.format(p.credits)));
+      pack.appendChild(amount);
+      pack.appendChild(el('span', null, t('xai_pack_price', '{n} USD').replace('{n}', String(p.usd))));
+      packs.appendChild(pack);
+    });
+    band.appendChild(packs);
+    band.appendChild(el('span', 'cst-sparks-go', t('sparks_shop_open', 'See the packs')));
+    band.addEventListener('click', () => goView('__sparks'));
+    return band;
+  }
+
+  // A search that found nothing: what was typed can still become something. The words
+  // go into Bit's box as a draft and wait there; only the person sends them, because
+  // an answer spends Sparks.
+  function askBitBlock() {
+    const box = el('div', 'cst-ask');
+    const plan = window.SparksStore;
+    if (plan && window.BitApp) {
+      const face = el('span', 'cst-ask-face');
+      face.innerHTML = window.BitApp.icon('idle'); // the engine's own SVG, no catalog text
+      box.appendChild(face);
+    }
+    box.appendChild(el('h3', null, t('gallery_no_results', 'No results')));
+    if (!plan) return box;
+    box.appendChild(el('p', null, t('gallery_ask_bit_line', 'Not in the Store? Bit can build it for you.')));
+    const typed = overlayEl.querySelector('.cst-search');
+    const words = typed ? typed.value.trim() : '';
+    const ask = el('button', 'cst-key', t('gallery_ask_bit_key', 'Ask Bit'));
+    ask.type = 'button';
+    ask.addEventListener('click', () => plan.openBit(close, t('gallery_ask_bit_draft', 'Make me this: {q}').replace('{q}', () => words)));
+    box.appendChild(ask);
+    return box;
+  }
+
+  // What the current view is called: the head of a list, and Back on a page.
+  function viewName() {
+    if (activeTab === 'installed') return t('gallery_tab_installed', 'Installed');
+    if (activeTab === 'sparks') return t('xai_balance_unit', 'Sparks');
+    if (searchQuery) return t('gallery_results', 'Results');
+    const names = {
+      '': t('gallery_tab_browse', 'Discover'),
+      __new: t('gallery_new_filter', 'New'),
+      __added: t('gallery_justadded', 'Just added'),
+      __screen: t('gallery_for_screen', 'For the screen'),
+      __supporters: t('gallery_supporters_section', 'Supporters'),
+      __limited: t('gallery_limited_section', 'Limited edition'),
+    };
+    return activeKind in names ? names[activeKind] : railLabel(activeKind);
+  }
+
+  // No catalog and no saved copy: what happened, and the one thing to do about it.
+  function catalogFailed(body) {
+    const block = el('div', 'cst-ask');
+    block.appendChild(el('p', null, t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
+    const retry = el('button', 'cst-key', t('gallery_retry', 'Try again'));
+    retry.type = 'button';
+    retry.addEventListener('click', () => render(body));
+    block.appendChild(retry);
+    return block;
+  }
+
+  async function render(body, force, keep) {
+    const turn = ++renderTurn;
     // A re-render (↻) replaces every card — release the old ones from the
     // preview observer or refreshed grids pile up detached nodes + bg code.
     if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
-    // #4 — don't flash to skeletons on a ↻ refresh. The grid is already on
-    // screen, so keep it visible through the fetch and swap it atomically for the
-    // fresh one below; the blank-then-rebuild also made the modal visibly jump
-    // height. A cold open or a tab switch (empty / other-tab content) still shows
-    // the skeleton so there is never a blank pause with nothing on screen.
-    const keepDuringRefresh = force === true && !!body.firstChild;
-    if (!keepDuringRefresh) body.replaceChildren(skeleton(6));
+    // #4 — don't flash to skeletons on a ↻ refresh or a repaint. The grid is already
+    // on screen, so keep it visible through the fetch and swap it atomically for
+    // the fresh one below. A cold open or a tab switch still shows the skeleton so
+    // there is never a blank pause with nothing on screen.
+    const keepOnScreen = (force === true || keep === true) && !!body.firstChild;
+    if (!keepOnScreen) body.replaceChildren(skeleton(10));
     const [out] = await Promise.all([
       api('/api/community/catalog' + (force ? '?refresh=1' : '')),
       refreshSupporterSaved(),
     ]);
-    if (!overlayEl) return;   // closed while loading
+    if (!overlayEl || turn !== renderTurn) return;   // closed, or another view asked meanwhile
     if (!out || !out.ok) {
       // Keep the catalog that's already on screen on a failed ↻; only a cold open
       // with nothing to show falls back to the full error message (#7). The server
       // now disk-backs the catalog, so this path is reached only truly offline.
-      if (!keepDuringRefresh) body.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
+      if (!keepOnScreen) body.replaceChildren(catalogFailed(body));
       return;
     }
-    const all = Array.isArray(out.entries) ? out.entries : [];
+    const all = (Array.isArray(out.entries) ? out.entries : []).filter(Boolean);
     const LAYOUT = storefrontLayout(out.layout);
     await hydrateLimitedStatus(all);
-    if (!overlayEl) return;
-    all.forEach((e, i) => { if (e) e._i = i; });
+    if (!overlayEl || turn !== renderTurn) return;
+    all.forEach((e, i) => { e._i = i; });
+    catalogAll = all;
+    fillRail(all);
     // Everything now on screen counts as seen from the NEXT open onwards;
     // this render keeps flagging against the snapshot taken at open().
     markCatalogSeen(all);
     // Two special tiers get their own treatment; everything else is the browse set.
-    const limited = all.filter((e) => e && e.limited);
-    const supporters = all.filter((e) => e && !e.limited && (e.locked || e.supportersOnly));
-    const browse = all.filter((e) => e && !e.limited && !(e.locked || e.supportersOnly));
-    if (filterKind && filterKind !== '__limited') activeKind = filterKind;
-
-    // Dedicated limited-only view (opened from the Settings entry point).
-    if (limitedOnly) {
-      const frag = document.createDocumentFragment();
-      const lim = sortList(limited);
-      if (lim.length) { frag.appendChild(heroBanner(lim[0])); if (lim.length > 1) { const lgrid = el('div', 'cgal-grid'); lim.slice(1).forEach((e) => lgrid.appendChild(renderCard(e))); frag.appendChild(lgrid); } }
-      else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now: check back soon.')));
-      body.replaceChildren(frag);
-      return;
-    }
+    const limited = all.filter((e) => e.limited);
+    const supporters = all.filter((e) => !e.limited && (e.locked || e.supportersOnly));
+    const browse = all.filter((e) => !e.limited && !(e.locked || e.supportersOnly));
+    const forScreen = all.filter((e) => Array.isArray(e.tags) && e.tags.includes(ON_SCREEN_TAG));
+    if (activeKind === '__screen' && !forScreen.length) activeKind = '';
 
     // Not drawn in Browse any more (see paintGrid): run for the install index the
-    // card buttons read, so an owned entry says Installed or Update.
-    await findUpdates(browse);
-    if (!overlayEl) return;
+    // card lines read, so an owned entry says Installed or Update.
+    //
+    // The shelves are ordered by what people really install, so a first open waits a
+    // moment for the counts. A late answer only fills the numbers: what is already
+    // on screen does not move.
+    const counts = loadInstalls(all).catch(() => { /* offline: catalog order */ });
+    const countsWait = Object.keys(installsMap).length ? null : Promise.race([counts, new Promise((go) => { setTimeout(go, INSTALLS_WAIT_MS); })]);
+    await Promise.all([findUpdates(browse), countsWait]);
+    if (!overlayEl || turn !== renderTurn) return;
 
-    // ── Toolbar: search + sort select + kind rail ──
-    // No category filter: `category` says what a creation is ABOUT, `kind` says
-    // what it IS, and the two taxonomies collided on "Deck" — the same single
-    // entry answered both, so the dropdown read as a duplicate of the rail. It
-    // earned little else: most entries carry `style` and some carry nothing.
-    // The category survives as a label on the card; only the filter is gone.
-    const bar = el('div', 'cgal-toolbar');
-    const searchRow = el('div', 'cgal-searchrow');
-    const searchBox = el('div', 'cgal-searchbox');
-    searchBox.appendChild(icon('search', 'cgal-search-ic'));
-    const search = document.createElement('input');
-    search.type = 'search';
-    search.className = 'cgal-search';
-    search.placeholder = t('gallery_search_ph', 'Search name, author, #tag…');
-    search.value = searchQuery;
-    let searchTimer = null;
-    search.addEventListener('input', () => {
-      searchQuery = search.value.trim().toLowerCase(); shown = PAGE;
-      if (searchTimer) clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => paintGrid(), 150);
-    });
-    searchBox.appendChild(search);
-    searchRow.appendChild(searchBox);
-
+    // The head of a list: its name, and how it is ordered. No category filter:
+    // `category` says what a creation is ABOUT, `kind` says what it IS; the
+    // category stays as a fact on the entry's page.
+    const listHead = el('div', 'cst-listhead');
+    const listTitle = el('h2', null);
+    listHead.appendChild(listTitle);
     const sortWrap = el('div', 'cgal-select');
     const selSort = document.createElement('select'); selSort.className = 'cgal-select-el'; selSort.setAttribute('data-cs-fixed', '');
     [['feat', t('gallery_sort_feat', 'Featured')], ['new', t('gallery_sort_new', 'Newest')],
@@ -1658,151 +1788,17 @@
       .forEach(([v, label]) => { const o = document.createElement('option'); o.value = v; o.textContent = label; selSort.appendChild(o); });
     selSort.value = sortBy;
     selSort.addEventListener('change', () => { sortBy = selSort.value; paintGrid(); });
-    sortWrap.appendChild(selSort); searchRow.appendChild(sortWrap);
+    sortWrap.appendChild(selSort); listHead.appendChild(sortWrap);
     if (window.initCustomSelect) initCustomSelect(selSort);
-    bar.appendChild(searchRow);
 
-    // The kinds in one menu beside the sort: as a rail of chips they took two
-    // rows of a wide screen. Each option keeps its icon (the static set).
-    const kindWrap = el('div', 'cgal-select cgal-kind');
-    const selKind = document.createElement('select'); selKind.className = 'cgal-select-el'; selKind.setAttribute('data-cs-fixed', '');
-    const addKind = (v, label, iconName) => {
-      const o = document.createElement('option'); o.value = v; o.textContent = label;
-      o.setAttribute('data-cs-icon', ICONS[iconName] || ICONS.widget);
-      selKind.appendChild(o);
-    };
-    addKind('all', t('gallery_all', 'All'), 'all');
-    if (limited.length) addKind('__limited', t('gallery_limited_badge', 'Limited'), 'limited');
-    if (supporters.length) addKind('__supporters', t('gallery_supporters_section', 'Supporters'), 'supporters');
-    KIND_ORDER.filter((k) => browse.some((e) => e.kind === k)).forEach((k) => addKind(k, kindLabel(k), k));
-    selKind.addEventListener('change', () => { activeKind = selKind.value === 'all' ? '' : selKind.value; shown = PAGE; syncControls(); paintGrid(); });
-    kindWrap.appendChild(selKind); searchRow.insertBefore(kindWrap, sortWrap);
-    if (window.initCustomSelect) initCustomSelect(selKind);
-    // "Novità" stays a button in the row while something IS new since the last
-    // visit (#5), its count on it, so what is waiting is seen without a menu.
-    const newCount = all.filter(isNewEntry).length;
-    let newBtn = null;
-    if (newCount) {
-      newBtn = el('button', 'cgal-railbtn is-new'); newBtn.type = 'button';
-      newBtn.appendChild(icon('new'));
-      newBtn.appendChild(el('span', 'cgal-railtxt', t('gallery_new_filter', 'Novità')));
-      newBtn.appendChild(el('span', 'cgal-rail-cnt', newCount > 99 ? '99+' : String(newCount)));
-      newBtn.addEventListener('click', () => { activeKind = activeKind === '__new' ? '' : '__new'; shown = PAGE; syncControls(); paintGrid(); });
-      searchRow.appendChild(newBtn);
-    }
-    if (window.XenonCredits) bar.appendChild(quickSparks());
-
-    function syncControls() {
-      const k = activeKind && activeKind !== '__new' && selKind.querySelector('option[value="' + activeKind + '"]') ? activeKind : 'all';
-      selKind.value = k;
-      if (selKind._csSync) selKind._csSync();
-      if (newBtn) newBtn.classList.toggle('active', activeKind === '__new');
-      selSort.value = sortBy;
-      if (selSort._csSync) selSort._csSync();
-    }
-
-    const host = el('div', 'cgal-gridhost');
+    const host = el('div', 'cst-host');
     const stale = out.stale ? el('div', 'cgal-status cgal-stale', t('gallery_stale', 'Offline: showing the last saved copy.')) : null;
 
-    // ── View builders ──
-    // The one place a card grid is built. A section holding a SINGLE entry gets
-    // `.is-solo`, which lays that card out wide (media left, details right) the
-    // way the website catalog does. Without it the lone 232px card sat at the
-    // left edge of a full-width shelf with the rest of the row empty, and its
-    // description stayed clipped to two lines while there was room to spare.
-    function cardGrid(items, limit, noId) {
-      const list = typeof limit === 'number' ? items.slice(0, limit) : items;
-      const grid = el('div', 'cgal-grid' + (list.length === 1 ? ' is-solo' : ''));
-      list.forEach((e) => grid.appendChild(renderCard(e, noId)));
-      return grid;
-    }
-    function section(k, items, iconName, titleText, noId) {
-      const wrap = el('div', 'cgal-kblock');
-      const head = el('div', 'cgal-khead');
-      const l = el('div', 'cgal-khead-l');
-      l.appendChild(icon(iconName || k, 'cgal-khead-ic'));
-      l.appendChild(el('span', 'cgal-khead-title', titleText || kindLabel(k)));
-      l.appendChild(el('span', 'cgal-khead-cnt', String(items.length)));
-      head.appendChild(l);
-      if (items.length > SECTION_PREVIEW) {
-        const sa = el('button', 'cgal-seeall'); sa.type = 'button';
-        // The label ends in its own arrow in every language; drop it so the
-        // count sits before the one arrow ("See all 26 →", not "See all → 26 →").
-        sa.appendChild(el('span', null, t('gallery_seeall', 'See all').replace(/\s*→\s*$/, ''))); sa.appendChild(document.createTextNode(' ' + items.length + ' →'));
-        sa.addEventListener('click', () => { activeKind = k; shown = PAGE; syncControls(); paintGrid(); });
-        head.appendChild(sa);
-      }
-      wrap.appendChild(head);
-      wrap.appendChild(cardGrid(items, SECTION_PREVIEW, noId));
-      return wrap;
-    }
-    // A plain shelf: a head and the cards, all of them. Deliberately NOT
-    // section(): that one previews 4 and its "See all" sets activeKind, which
-    // only works for a real kind or a pseudo-kind paintGrid handles. A block
-    // whose own `max` decides how many cards it shows would then say "See all 8"
-    // and filter the grid down to nothing.
-    function plainBlock(titleText, iconName, items, noId) {
-      const wrap = el('div', 'cgal-kblock');
-      const head = el('div', 'cgal-khead');
-      const l = el('div', 'cgal-khead-l');
-      l.appendChild(icon(iconName, 'cgal-khead-ic'));
-      l.appendChild(el('span', 'cgal-khead-title', titleText));
-      l.appendChild(el('span', 'cgal-khead-cnt', String(items.length)));
-      head.appendChild(l);
-      wrap.appendChild(head);
-      wrap.appendChild(cardGrid(items, null, noId));
-      return wrap;
-    }
-    // A premium "shelf" for the two exclusive tiers (Limited and Supporters) —
-    // deliberately on par: a tinted bordered container, a lead line (or, on the
-    // Supporters shelf, the membership plan card) and the tier's own cards.
-    // Same footprint so neither reads as the poor cousin of the other.
-    function featureSection(opts) {
-      const wrap = el('div', 'cgal-kblock cgal-feat-block ' + (opts.cls || ''));
-      const head = el('div', 'cgal-khead');
-      const l = el('div', 'cgal-khead-l');
-      l.appendChild(icon(opts.iconName, 'cgal-khead-ic'));
-      l.appendChild(el('span', 'cgal-khead-title', opts.title));
-      // No "0" when the whole tier is up in the spotlight — the block is then
-      // just its explainer and its join button, and a zero would read as empty.
-      if (opts.items.length) l.appendChild(el('span', 'cgal-khead-cnt', String(opts.items.length)));
-      head.appendChild(l);
-      // No "See all" here: the shelf already holds its whole tier on a rail, so
-      // the link only led to the same cards again (and the rail chip does that).
-      const actions = el('div', 'cgal-khead-actions');
-      if (opts.onInfo) {
-        const info = el('button', 'cgal-seeall cgal-feat-how'); info.type = 'button';
-        info.appendChild(el('span', null, t('gallery_sup_how', 'How it works')));
-        info.addEventListener('click', opts.onInfo);
-        actions.appendChild(info);
-      }
-      if (actions.childElementCount) head.appendChild(actions);
-      wrap.appendChild(head);
-      if (opts.plan) wrap.appendChild(opts.plan);
-      else if (opts.lead) wrap.appendChild(el('p', 'cgal-feat-lead', opts.lead));
-      // The shelf carries its tier minus what the spotlight already shows (the
-      // rule the website and the hub's layout preview follow).
-      // More cards than fit the width scroll horizontally with a finger swipe
-      // (.cgal-hrail, native overflow-x pan); nothing is cut to a preview count.
-      // A single entry keeps the wide solo card instead of a lonely rail.
-      // `compact` (the layout's form: 'grid') draws the ordinary card grid instead
-      // of the wide shelf. A tier of wide cards costs a screenful, which is the
-      // whole reason the form control exists — same choice as the website catalog.
-      if (opts.compact) {
-        wrap.appendChild(cardGrid(opts.items, null, false));
-      } else if (opts.items.length === 1) {
-        wrap.appendChild(cardGrid(opts.items, 1, false));
-      } else if (opts.items.length) {
-        const rail = el('div', 'cgal-hrail');
-        opts.items.forEach((e) => rail.appendChild(renderCard(e, false)));
-        wrap.appendChild(rail);
-      }
-      return wrap;
-    }
-    function flatInto(frag, list) {
-      list = sortList(list);
-      if (!list.length) { frag.appendChild(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet: new community creations will appear as they are published.'))); return; }
-      frag.appendChild(cardGrid(list, shown));
+    function flatInto(frag, list, emptyText, draw) {
+      if (!list.length) { frag.appendChild(el('div', 'cgal-status', emptyText || t('gallery_empty', 'Nothing here yet: new community creations will appear as they are published.'))); return; }
+      const grid = el('div', 'cst-grid');
+      list.slice(0, shown).forEach((e) => grid.appendChild((draw || renderCard)(e)));
+      if (draw) { const stage = el('div', 'cst-stage'); stage.appendChild(grid); frag.appendChild(stage); } else frag.appendChild(grid);
       if (list.length > shown) {
         const lm = el('div', 'cgal-loadmore');
         const b = el('button', 'cgal-btn cgal-loadmore-btn', t('gallery_loadmore', 'Show more ({n})').replace('{n}', String(list.length - shown))); b.type = 'button';
@@ -1810,328 +1806,378 @@
         lm.appendChild(b); frag.appendChild(lm);
       }
     }
+    const newestFirst = (list) => list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
+
+    function paintList(frag) {
+      if (searchQuery) {
+        const found = sortList(all.filter(matchesBrowse));
+        if (found.length) return flatInto(frag, found);
+        frag.appendChild(askBitBlock());
+        return undefined;
+      }
+      if (activeKind === '__limited') return flatInto(frag, sortList(limited), t('gallery_limited_empty', 'No limited drops right now: check back soon.'), renderPoster);
+      if (activeKind === '__supporters') {
+        const band = supporterBand(); if (band) frag.appendChild(band);
+        flatInto(frag, sortList(supporters), undefined, renderPoster);
+        const sparks = sparksBand(); if (sparks) frag.appendChild(sparks);
+        return undefined;
+      }
+      if (activeKind === '__screen') return flatInto(frag, sortList(forScreen));
+      if (activeKind === '__new') return flatInto(frag, newestFirst(all.filter(isNewEntry)));
+      if (activeKind === '__added') return flatInto(frag, newestFirst(browse));
+      return flatInto(frag, sortList(all.filter((e) => e.kind === activeKind)));
+    }
+
+    function paintHome(frag) {
+      if (!all.length) { frag.appendChild(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet: new community creations will appear as they are published.'))); return undefined; }
+      // What leads the Store: the admin's spotlight when the catalog sets one,
+      // else the automatic ladder (see spotlightPick). Every shelf below skips
+      // whatever the spotlight shows, as the website and the hub's layout
+      // preview do: the same pack twice on one screen reads as filler. Only
+      // the Novità shelf repeats cards by design.
+      const spot = spotlightPick(limited, supporters, browse);
+      const heroEntry = spot.main;
+      const spotIds = new Set(spot.side.map((e) => e.id));
+      if (heroEntry) spotIds.add(heroEntry.id);
+
+      // Updates are not a shelf: they live on Installed, whose red count (and the
+      // Store dot) says one is waiting, and whose Update all handles them in one go.
+      //
+      // "Novità": everything published since THIS user's last visit, newest
+      // first, whatever its tier, minus what this machine already has (a thing
+      // you installed is not news to you). It sits below the supporter shelf,
+      // never above it: it is placed where the layout's `new` block is, or before
+      // the kind shelves when that block is off. Distinct from the `new` block
+      // itself, which is catalog recency and the same for everyone.
+      const freshAll = newestFirst(all.filter(isNewEntry).filter((e) => entryInstallState(e) === 'none'));
+      let freshDone = !freshAll.length;
+      const putFresh = () => {
+        if (freshDone) return;
+        freshDone = true;
+        frag.appendChild(shelf(t('gallery_new_filter', 'Novità'), freshAll.slice(0, SHELF_MAX), { more: '__new' }));
+      };
+
+      // How the limited tier divides between its own shelf and the Archive.
+      // Shared with the website catalog and the hub admin (splitLimited): the
+      // three cases had already drifted here, and 'auto-all' with the Archive on
+      // rendered the same drop in BOTH sections. Whatever the split, turning the
+      // Archive off can never put a drop out of reach. A drop the hub has CLOSED is
+      // finished exactly like a sold-out one, so the predicate is dropUnavailable.
+      const split = (window.Xenon && window.Xenon.storefront)
+        ? window.Xenon.storefront.splitLimited(limited, LAYOUT, dropUnavailable)
+        : { shelf: limited, archive: [] };
+      const shelfLimited = sortList(split.shelf);
+      const archive = sortList(split.archive);
+
+      // ── ONE pass over the admin's order ────────────────────────────────────
+      // Every block only decides whether it has anything to say; the order and
+      // the shape are data. A block with an empty list renders nothing, so the
+      // Store never shows an empty shelf just because it is enabled.
+      const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
+      const notSpot = (e) => !spotIds.has(e.id);
+      // "Just added" is decided once, so the shelves by kind do not show the same cards
+      // again right under it.
+      const newBlock = LAYOUT.find((b) => b.on && b.type === 'new');
+      const justAdded = newBlock ? newestFirst(browse.filter(notSpot)).slice(0, newBlock.max > 0 ? newBlock.max : JUST_ADDED_MAX) : [];
+      const justAddedIds = new Set(justAdded.map((e) => e.id));
+      const byInstalls = (list) => list.slice().sort((a, b) => (installCount(b) - installCount(a)) || (a._i - b._i));
+      LAYOUT.forEach((b) => {
+        if (!b.on) return;
+        const grid = b.form === 'grid';
+        if (b.type === 'spotlight') {
+          if (heroEntry) frag.appendChild(spotlightBlock(heroEntry, spot.side));
+        } else if (b.type === 'limited') {
+          const items = cap(shelfLimited.filter(notSpot), b);
+          if (items.length) {
+            const stage = el('div', 'cst-stage');
+            stage.appendChild(shelf(t('gallery_limited_section', 'Limited edition'), items, {
+              grid, card: renderPoster, more: '__limited', lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide: reserved on Discord.'),
+            }));
+            frag.appendChild(stage);
+          }
+        } else if (b.type === 'supporters') {
+          // Renders whenever the tier EXISTS, even with every entry up in the
+          // spotlight: the offer under it is the whole way in.
+          const items = cap(sortList(supporters.filter(notSpot)), b);
+          if (!supporters.length) return;
+          const stage = el('div', 'cst-stage');
+          const offer = supporterBand();
+          if (items.length) {
+            const posters = shelf(t('gallery_supporters_section', 'Supporters'), items, { grid, card: renderPoster, more: '__supporters' });
+            if (offer) posters.insertBefore(offer, posters.lastElementChild);
+            stage.appendChild(posters);
+          } else if (offer) stage.appendChild(offer);
+          const sparks = sparksBand();
+          if (sparks) stage.appendChild(sparks);
+          frag.appendChild(stage);
+        } else if (b.type === 'new') {
+          putFresh();
+          // "Just added": catalog recency, identical on every machine.
+          if (justAdded.length) frag.appendChild(shelf(t('gallery_justadded', 'Just added'), justAdded, { more: '__added' }));
+        } else if (b.type === 'archive') {
+          const items = cap(archive.filter(notSpot), b);
+          if (items.length) frag.appendChild(shelf(t('gallery_archive_section', 'Archive'), items, {
+            grid, history: true, lead: t('gallery_archive_lead', 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.'),
+          }));
+        } else if (b.type === 'kinds') {
+          putFresh();
+          // A kind with one or two cards would leave most of its row empty: those share
+          // one shelf, and the rail still has each kind on its own.
+          const fewer = [];
+          KIND_ORDER.forEach((k) => {
+            const items = byInstalls(browse.filter((e) => e.kind === k && notSpot(e) && !justAddedIds.has(e.id)));
+            if (items.length >= KIND_SHELF_MIN) frag.appendChild(shelf(railLabel(k), items.slice(0, SHELF_MAX), { more: k, seeAll: true }));
+            else fewer.push(...items);
+          });
+          if (fewer.length) frag.appendChild(shelf(t('gallery_more_shelf', 'More'), fewer));
+        }
+      });
+      putFresh();
+      return undefined;
+    }
 
     function paintGrid() {
       if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
       const frag = document.createDocumentFragment();
-      if (activeKind === '__limited') {
-        const lim = sortList(limited.filter(matchesBrowse));
-        if (lim.length) { frag.appendChild(heroBanner(lim[0])); if (lim.length > 1) frag.appendChild(cardGrid(lim.slice(1))); }
-        else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now: check back soon.')));
-        host.replaceChildren(frag); return;
-      }
-      if (activeKind === '__supporters') { flatInto(frag, supporters.filter(matchesBrowse)); host.replaceChildren(frag); return; }
-      // "Novità": every kind/tier published since the last visit, newest first (#5).
-      if (activeKind === '__new') {
-        const prevSort = sortBy; sortBy = 'new';
-        flatInto(frag, browse.concat(limited, supporters).filter(matchesBrowse).filter(isNewEntry));
-        sortBy = prevSort;
-        host.replaceChildren(frag); return;
-      }
-
-      let pool = browse.filter(matchesBrowse);
-      if (activeKind) pool = pool.filter((e) => e.kind === activeKind);
-
-      const browsingAll = !activeKind && !searchQuery;
-      // Filtered views must keep the exclusive tiers findable: a search or a
-      // kind filter includes matching limited + supporters entries in
-      // the results (each card carries its own tier badge and CTA). Without
-      // this, searching a locked theme's name says "Nothing here yet" even
-      // though the entry exists — the tier shelves render only in browse-all.
-      if (!browsingAll) {
-        let tierPool = limited.concat(supporters).filter(matchesBrowse);
-        if (activeKind) tierPool = tierPool.filter((e) => e.kind === activeKind);
-        pool = pool.concat(tierPool);
-      }
-      if (browsingAll) {
-        // What leads the Store: the admin's spotlight when the catalog sets one,
-        // else the automatic ladder (see spotlightPick). Every shelf below skips
-        // whatever the spotlight shows, as the website and the hub's layout
-        // preview do: the same pack twice on one screen reads as filler. Only
-        // the Novità shelf repeats cards by design (noId).
-        const spot = spotlightPick(limited, supporters, pool);
-        const heroEntry = spot.main;
-        const spotIds = new Set(spot.side.map((e) => e.id));
-        if (heroEntry) spotIds.add(heroEntry.id);
-
-        // ── Updates are not a Browse shelf ───────────────────────────────────
-        // They used to lead the Store, above the storefront, so opening it to
-        // look around showed you your own old stuff first. They live on the
-        // Installed tab, whose red count (and the Store dot) says one is
-        // waiting, and whose Update all handles them in one go.
-        //
-        // "Novità": everything published since THIS user's last visit, newest
-        // first, whatever its tier, minus what this machine already has (a
-        // thing you installed is not news to you). It sits below the supporter
-        // shelf, never above it: it is placed where the layout's `new` block
-        // is, or before the kind sections when that block is off. Cards here
-        // duplicate their tier/kind entries by design → noId. Distinct from the
-        // `new` block itself, which is catalog recency and the same for everyone.
-        const freshAll = browse.concat(limited, supporters).filter(isNewEntry)
-          .filter((e) => entryInstallState(e) === 'none')
-          .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
-        let freshDone = !freshAll.length;
-        const putFresh = () => {
-          if (freshDone) return;
-          freshDone = true;
-          frag.appendChild(section('__new', freshAll, 'new', t('gallery_new_filter', 'Novità'), true));
-        };
-
-        // How the limited tier divides between its own shelf and the Archive.
-        // Shared with the website catalog and the hub admin (splitLimited): the
-        // three cases had already drifted here, and 'auto-all' with the Archive on
-        // rendered the same drop in BOTH sections — one entry, two cards, a
-        // duplicated DOM id. Whatever the split, turning the Archive off can never
-        // put a drop out of reach.
-        // A drop the hub has CLOSED is finished exactly like a sold-out one, so
-        // the predicate is dropUnavailable — the same one every card in this file
-        // already dims and labels with.
-        const soldOut = (e) => dropUnavailable(e);
-        const split = (window.Xenon && window.Xenon.storefront)
-          ? window.Xenon.storefront.splitLimited(limited, LAYOUT, soldOut)
-          : { shelf: limited, archive: [] };
-        const shelfLimited = sortList(split.shelf);
-        const archive = sortList(split.archive);
-
-        // ── ONE pass over the admin's order ──────────────────────────────────
-        // Every block only decides whether it has anything to say; the order and
-        // the shape are data. A block with an empty list renders nothing, so the
-        // Store never shows an empty shelf just because it is enabled.
-        const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
-        const notSpot = (e) => !spotIds.has(e.id);
-        LAYOUT.forEach((b) => {
-          if (!b.on) return;
-          if (b.type === 'spotlight') {
-            if (heroEntry) frag.appendChild(spotlightBlock(heroEntry, spot.side));
-          } else if (b.type === 'limited') {
-            // Two exclusive shelves, on par with each other.
-            const items = cap(shelfLimited.filter(notSpot), b);
-            if (items.length) frag.appendChild(featureSection({
-              items, compact: b.form === 'grid', iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
-              title: t('gallery_limited_section', 'Limited edition'),
-              lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide: reserved on Discord.'),
-            }));
-          } else if (b.type === 'supporters') {
-            // Renders whenever the tier EXISTS, even with every entry up in the
-            // spotlight: it carries the membership plan and the "how it works"
-            // panel, which are the whole conversion path. The plan is the same
-            // card the Sparks tab shows (SparksStore.plan).
-            if (supporters.length) frag.appendChild(featureSection({
-              items: cap(sortList(supporters.filter(notSpot)), b), compact: b.form === 'grid', iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
-              title: t('gallery_supporters_section', 'Supporters'),
-              plan: window.SparksStore.plan({ supporter: supporterSaved, href: supportHref('store-section'), icon }),
-              onInfo: openSupporterInfo,
-            }));
-          } else if (b.type === 'new') {
-            putFresh();
-            // "Just added" — catalog recency, identical on every machine. noId
-            // because these cards also appear in their kind section below.
-            const items = cap(
-              browse.filter((e) => !spotIds.has(e.id))
-                .slice().sort((x, y) => String(y.addedAt || '').localeCompare(String(x.addedAt || ''))),
-              b.max > 0 ? b : { max: JUST_ADDED_MAX },
-            );
-            if (items.length) frag.appendChild(plainBlock(t('gallery_justadded', 'Just added'), 'new', items, true));
-          } else if (b.type === 'archive') {
-            if (archive.length) frag.appendChild(featureSection({
-              items: cap(archive.filter(notSpot), b), compact: b.form === 'grid', iconName: 'archive', cls: 'is-archive', seeAllKind: '__limited',
-              title: t('gallery_archive_section', 'Archive'),
-              lead: t('gallery_archive_lead', 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.'),
-            }));
-          } else if (b.type === 'kinds') {
-            putFresh();
-            KIND_ORDER.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k && !spotIds.has(e.id))); if (items.length) frag.appendChild(section(k, items)); });
-          }
-        });
-        putFresh();
-        host.replaceChildren(frag);
-        return;
-      }
-      flatInto(frag, pool);
+      const home = !activeKind && !searchQuery;
+      listHead.hidden = home;
+      listTitle.textContent = viewName();
+      sortWrap.hidden = activeKind === '__new' || activeKind === '__added';
+      if (selSort.value !== sortBy) { selSort.value = sortBy; if (selSort._csSync) selSort._csSync(); }
+      if (home) paintHome(frag); else paintList(frag);
       host.replaceChildren(frag);
     }
 
     const shell = document.createDocumentFragment();
-    shell.appendChild(bar); shell.appendChild(host); if (stale) shell.appendChild(stale);
+    shell.appendChild(listHead); if (stale) shell.appendChild(stale); shell.appendChild(host);
     body.replaceChildren(shell);
-    syncControls();
     regrid = paintGrid;   // async ratings/installs can re-sort this grid in place
     paintGrid();
     // Star aggregates: best-effort async fill (a hub hiccup just leaves the
     // slots empty — the gallery never waits on it). paintGrid rebuilds cards
     // from the already-loaded map, so one load per render is enough.
     loadRatings(all).catch(() => { /* offline — slots stay empty */ });
-    loadInstalls(all).catch(() => { /* offline — slots stay empty */ });
+    counts.then(paintInstalls);
   }
 
-  // filterKind doubles as a deep-link: a real kind ('widget', 'ambient', …)
-  // preselects the browse rail, while '__limited' / '__installed' open a whole
-  // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
+  function paintTab(force, keep) {
+    viewEl.classList.toggle('is-own', activeTab !== 'browse');
+    if (activeTab === 'browse') return render(viewEl, force, keep);
+    renderTurn += 1;
+    regrid = null;
+    // Leaving the catalog: drop the lazy bg-preview observer so the browse grid's
+    // sandboxed preview frames stop running behind the view.
+    if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
+    if (activeTab === 'sparks') {
+      return window.SparksStore.render(viewEl, { catalog: catalogEntries, renderCard, icon, supportHref, close });
+    }
+    if (window.InstalledManager) return InstalledManager.render(viewEl, force);
+    viewEl.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
+    return undefined;
+  }
+
+  // ── The rail: every view of the Store, always in sight ─────────────────────
+  function syncRail() {
+    if (!rail) return;
+    const here = activeTab === 'installed' ? '__installed' : activeTab === 'sparks' ? '__sparks' : (searchQuery ? null : activeKind);
+    overlayEl.querySelectorAll('.cst-railrow').forEach((row) => {
+      const on = row.dataset.view === here;
+      row.classList.toggle('on', on);
+      if (on) row.setAttribute('aria-current', 'page'); else row.removeAttribute('aria-current');
+    });
+  }
+  function goView(id) {
+    if (!overlayEl) return;
+    closeInfo(); closeDetail();
+    const tab = id === '__installed' ? 'installed' : id === '__sparks' ? 'sparks' : 'browse';
+    const inPlace = tab === 'browse' && activeTab === 'browse' && !!regrid;
+    activeTab = tab;
+    if (tab === 'browse') activeKind = id;
+    shown = PAGE;
+    searchQuery = '';
+    if (rail) rail.search.value = '';
+    syncRail();
+    mainEl.scrollTop = 0;
+    if (inPlace) regrid(); else paintTab(false);
+  }
+  function railRow(id, label, mark, count) {
+    const row = el('button', 'cst-railrow'); row.type = 'button'; row.dataset.view = id;
+    row.appendChild(mark);
+    row.appendChild(el('span', 'cst-railrow-name', label));
+    row.appendChild(el('b', 'cst-railrow-count', count || ''));
+    row.addEventListener('click', () => goView(id));
+    return row;
+  }
+  const shortCount = (n) => (n > 99 ? '99+' : String(n));
+  function fillRail(entries) {
+    if (!rail) return;
+    const has = (test) => entries.some((e) => e && test(e));
+    const fresh = entries.filter((e) => e && isNewEntry(e)).length;
+    const rows = [railRow('', t('gallery_tab_browse', 'Discover'), icon('home'))];
+    if (fresh) rows.push(railRow('__new', t('gallery_new_filter', 'New'), icon('new'), shortCount(fresh)));
+    KIND_ORDER.filter((k) => has((e) => e.kind === k)).forEach((k) => rows.push(railRow(k, railLabel(k), kindIcon(k))));
+    if (has((e) => Array.isArray(e.tags) && e.tags.includes(ON_SCREEN_TAG))) rows.push(railRow('__screen', t('gallery_for_screen', 'For the screen'), icon('topbar')));
+    if (has((e) => !e.limited && (e.locked || e.supportersOnly))) rows.push(railRow('__supporters', t('gallery_supporters_section', 'Supporters'), icon('supporters')));
+    if (has((e) => e.limited)) rows.push(railRow('__limited', t('gallery_limited_section', 'Limited edition'), icon('limited')));
+    rail.list.replaceChildren(...rows);
+    syncRail();
+  }
+  function paintSparksRow(row) {
+    const state = window.XenonCredits.state;
+    row.querySelector('.cst-railrow-count').textContent = state.status === 'ok' ? window.XenonCredits.format(state.balance) : '';
+  }
+  // Red count of available updates on Installed: you open it to update. Async
+  // (findUpdates joins the catalog against the install index); refreshed on open
+  // and whenever an install/update lands (via refreshInstalledBadge).
+  function paintInstalledRow(row) {
+    countUpdates().then((n) => {
+      const count = row.querySelector('.cst-railrow-count');
+      count.textContent = n > 0 ? shortCount(n) : '';
+      count.classList.toggle('is-update', n > 0);
+    }).catch(() => { /* best-effort — no count is fine */ });
+  }
+  function onSearch(input) {
+    searchQuery = input.value.trim().toLowerCase(); shown = PAGE;
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchTimer = null;
+      closeInfo(); closeDetail();
+      const inPlace = activeTab === 'browse' && !!regrid;
+      activeTab = 'browse';
+      syncRail();
+      mainEl.scrollTop = 0;
+      if (inPlace) regrid(); else paintTab(false);
+    }, 150);
+  }
+  function buildRail() {
+    const aside = el('aside', 'cst-rail');
+    const top = el('div', 'cst-rail-top');
+    top.appendChild(el('h3', 'cst-rail-title', t('ui_store', 'Store')));
+    const refresh = el('button', 'cgal-iconbtn cst-refresh'); refresh.type = 'button'; refresh.title = t('gallery_refresh', 'Refresh'); refresh.appendChild(icon('refresh'));
+    refresh.addEventListener('click', () => paintTab(true));
+    top.appendChild(refresh);
+    aside.appendChild(top);
+    const find = el('label', 'cst-find');
+    find.appendChild(icon('search'));
+    const search = document.createElement('input');
+    search.type = 'search'; search.className = 'cst-search';
+    search.placeholder = t('ui_search', 'Search');
+    search.setAttribute('aria-label', t('gallery_search_ph', 'Search name, author, #tag…'));
+    search.addEventListener('input', () => onSearch(search));
+    find.appendChild(search);
+    aside.appendChild(find);
+    const list = el('nav', 'cst-rail-list');
+    const own = el('nav', 'cst-rail-list cst-rail-own');
+    const installed = railRow('__installed', t('gallery_tab_installed', 'Installed'), icon('check'));
+    own.appendChild(installed);
+    refreshInstalledBadge = () => paintInstalledRow(installed);
+    refreshInstalledBadge();
+    if (window.SparksStore && window.XenonCredits) {
+      const mark = el('span', 'cgal-ic');
+      mark.appendChild(XenonCredits.spark({ still: true }));
+      const sparks = railRow('__sparks', t('xai_balance_unit', 'Sparks'), mark);
+      own.appendChild(sparks);
+      paintSparksRow(sparks);
+      stopCredits = XenonCredits.onChange(() => paintSparksRow(sparks));
+      XenonCredits.refresh(false);
+    }
+    aside.appendChild(list);
+    aside.appendChild(own);
+    // Next to everything people can install, the place to make their own.
+    const maker = el('a', 'cst-rail-make', t('ambient_create_maker', 'Create in Xenon Maker'));
+    maker.href = MAKER_URL; maker.target = '_blank'; maker.rel = 'noopener noreferrer';
+    aside.appendChild(maker);
+    rail = { list, own, search };
+    return aside;
+  }
+
+  // filterKind doubles as a deep-link: a real kind ('widget', 'ambient', …) or a
+  // view ('__limited', '__supporters', '__installed', '__sparks').
   function open(filterKind) {
     close();
     // Capture the seen-id set as it was BEFORE this visit — that snapshot is
     // what this render flags as new; render() then persists the full current
     // catalog as seen, so everything clears on the NEXT open (#5).
     storeSeenPrev = readSeenIds();
-    // Same freeze the Settings/update overlays use: the store is a full-viewport
-    // frosted overlay, so stop the dashboard animating (and re-blurring) under it.
+    // Same freeze the Settings/update overlays use: the Store fills the screen,
+    // so stop the dashboard animating (and re-blurring) under it.
     // Shared token is safe — close() above runs synchronously before this refreeze.
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', true);
-    searchQuery = ''; activeKind = ''; sortBy = 'feat'; shown = PAGE;
-    limitedOnly = (filterKind === '__limited');
+    searchQuery = ''; sortBy = 'feat'; shown = PAGE; viewScroll = 0;
     activeTab = (filterKind === '__installed') ? 'installed' : (filterKind === '__sparks' && window.SparksStore) ? 'sparks' : 'browse';
-    const browseKind = (filterKind === '__limited' || filterKind === '__installed' || filterKind === '__sparks') ? undefined : filterKind;
+    activeKind = (activeTab === 'browse' && filterKind !== '__sparks' && filterKind) || '';
     if (window.InstalledManager) InstalledManager.reset();
-    const bd = el('div', 'preset-modal-overlay cgal-overlay');
-    const modal = el('div', 'preset-modal cgal-modal');
-
-    // Storefront header: brand mark + title, actions on the right. The plain
-    // Store says nothing under its name: the tabs and the shelves say it.
-    const head = el('div', 'cgal-topbar');
-    const brand = el('div', 'cgal-brand');
-    brand.appendChild(icon(limitedOnly ? 'limited' : 'store', 'cgal-brand-mark'));
-    const brandTxt = el('div', 'cgal-brand-txt');
-    brandTxt.appendChild(el('h3', 'cgal-brand-title', limitedOnly ? t('gallery_limited_section', 'Limited edition') : t('ui_store', 'Store')));
-    if (limitedOnly) brandTxt.appendChild(el('p', 'cgal-brand-sub', t('gallery_limited_lead_short', 'A fixed number of copies worldwide: reserved on Discord.')));
-    brand.appendChild(brandTxt);
-    head.appendChild(brand);
-
-    const controls = el('div', 'cgal-head-actions');
-    // The Sparks, always in view: the balance, or the way to buy them. A tap
-    // opens the Sparks tab (the chip's own handler, XenonCredits.openShop,
-    // finds this Store open).
-    if (window.XenonCredits) {
-      controls.appendChild(XenonCredits.chip({ always: true }));
-      XenonCredits.sync();
-    }
-    const refresh = el('button', 'cgal-iconbtn'); refresh.type = 'button'; refresh.title = t('gallery_refresh', 'Refresh'); refresh.appendChild(icon('refresh'));
-    const x = el('button', 'cgal-iconbtn'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close'));
-    x.addEventListener('click', close);
-    controls.appendChild(refresh); controls.appendChild(x);
-    head.appendChild(controls);
-    modal.appendChild(head);
-
-    // Two tabs: the catalog, and what this machine already has. The limited-only
-    // deep link stays a single dedicated view — it has no "installed" half.
-    let tabsEl = null;
-    if (!limitedOnly) {
-      tabsEl = el('div', 'cgal-tabs');
-      const mkTab = (id, label, iconName) => {
-        const b = el('button', 'cgal-tab'); b.type = 'button'; b.dataset.tab = id;
-        b.appendChild(icon(iconName));
-        b.appendChild(el('span', 'cgal-tab-txt', label));
-        b.addEventListener('click', () => { if (activeTab === id) return; activeTab = id; syncTabs(); paintTab(false); });
-        return b;
-      };
-      tabsEl.appendChild(mkTab('browse', t('gallery_tab_browse', 'Browse'), 'store'));
-      tabsEl.appendChild(mkTab('installed', t('gallery_tab_installed', 'Installed'), 'check'));
-      if (window.SparksStore && window.XenonCredits) {
-        const sparksTab = mkTab('sparks', t('xai_balance_unit', 'Sparks'), 'none');
-        sparksTab.querySelector('.cgal-ic').replaceChildren(XenonCredits.spark({ still: true }));
-        tabsEl.appendChild(sparksTab);
-      }
-      modal.appendChild(tabsEl);
-    }
-    // Red count of available updates on the Installed tab — you open it to update.
-    // Async (findUpdates joins the catalog against the install index); refreshed on
-    // open and whenever an install/update lands (via refreshInstalledBadge).
-    function refreshInstalledTabBadge() {
-      if (!tabsEl) return;
-      const tab = tabsEl.querySelector('.cgal-tab[data-tab="installed"]');
-      if (!tab) return;
-      countUpdates().then((n) => {
-        let b = tab.querySelector('.cgal-tab-badge');
-        if (n > 0) { if (!b) { b = el('span', 'cgal-tab-badge'); tab.appendChild(b); } b.textContent = n > 99 ? '99+' : String(n); }
-        else if (b) { b.remove(); }
-      }).catch(() => { /* best-effort — no badge is fine */ });
-    }
-    refreshInstalledBadge = refreshInstalledTabBadge;
-    refreshInstalledTabBadge();
-    function syncTabs() {
-      if (!tabsEl) return;
-      tabsEl.querySelectorAll('.cgal-tab').forEach((b) => {
-        const on = b.dataset.tab === activeTab;
-        b.classList.toggle('active', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-    }
-    function paintTab(force) {
-      if (activeTab === 'sparks') {
-        if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
-        window.SparksStore.render(body, {
-          catalog: async () => { const out = await api('/api/community/catalog'); return out && out.ok && Array.isArray(out.entries) ? out.entries : []; },
-          renderCard, icon, supportHref, close,
-        });
-        return;
-      }
-      if (activeTab === 'installed') {
-        // Leaving the catalog: drop the lazy bg-preview observer so the browse
-        // grid's sandboxed preview frames stop running behind the tab.
-        if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
-        if (window.InstalledManager) InstalledManager.render(body, force);
-        else body.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
-        return;
-      }
-      render(body, browseKind, force);
-    }
-
-    const body = el('div', 'cgal-scroll');
-    modal.appendChild(body);
-    bd.appendChild(modal);
-    bd.addEventListener('click', (ev) => { if (ev.target === bd) close(); });
-    refresh.addEventListener('click', () => paintTab(true));
-    document.body.appendChild(bd);
+    const bd = el('div', 'preset-modal-overlay cgal-overlay cst-overlay');
+    const store = el('div', 'preset-modal cgal-modal cst');
+    store.setAttribute('role', 'dialog'); store.setAttribute('aria-modal', 'true');
+    store.setAttribute('aria-label', t('ui_store', 'Store'));
     overlayEl = bd;
+    store.appendChild(buildRail());
+    mainEl = el('div', 'cgal-scroll cst-main');
+    viewEl = el('div', 'cst-view');
+    pageEl = el('div', 'cst-page'); pageEl.hidden = true;
+    mainEl.appendChild(viewEl); mainEl.appendChild(pageEl);
+    store.appendChild(mainEl);
+    const x = el('button', 'cst-close'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close'));
+    x.addEventListener('click', close);
+    store.appendChild(x);
+    bd.appendChild(store);
+    document.body.appendChild(bd);
     window.addEventListener('resize', onResize);
-    syncTabs();
-    // While open, an install committed elsewhere repaints this Store — guarded to
-    // the grid view so it never yanks a detail card or zoom the user is reading.
-    repaintStore = () => { if (overlayEl && !detailEl && !zoomEl) paintTab(false); };
-    showTab = (id) => {
-      if (!tabsEl || !tabsEl.querySelector('.cgal-tab[data-tab="' + id + '"]')) return false;
-      if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl.remove(); detailEl = null; }
-      activeTab = id; syncTabs(); paintTab(false);
-      return true;
+    document.addEventListener('keydown', onStoreKey, true);
+    // The rail lists the catalog whichever view opens first.
+    catalogEntries().then((entries) => { if (overlayEl === bd) fillRail(entries); }).catch(() => { /* render says so */ });
+    syncRail();
+    // While open, an install committed elsewhere repaints the Store and flips the
+    // keys of the entry on screen, without moving the view under them.
+    repaintStore = async () => {
+      if (!overlayEl || zoomEl || infoEl) return;
+      await paintTab(false, true);
+      if (detailEntry) { await refreshInstallIndex(); drawDetailCta(); }
     };
     paintTab(false);
   }
 
-  // The Sparks under the Store's search: the three packs as small tiles that
-  // open the shop page straight away, and the way to the Sparks tab, which says
-  // what they are for.
-  // The three packs under the search, nothing else: each tile already says
-  // its Sparks and its price, and the Sparks tab explains the rest.
-  function quickSparks() {
-    const row = el('div', 'cgal-quick');
-    row.appendChild(window.XenonCredits.packList('cgal-quick-pack'));
-    return row;
-  }
-
-  // The Sparks tab, from anywhere: every "Buy Sparks" in the app lands here.
-  // An open Store switches to it; a closed one opens on it.
+  // The Sparks view, from anywhere: every "Buy Sparks" in the app lands here. An
+  // open Store switches to it; a closed one opens on it.
   function openSparks() {
-    if (overlayEl && showTab && showTab('sparks')) return;
+    if (overlayEl && window.SparksStore) { goView('__sparks'); return; }
     open('__sparks');
   }
 
   // Open the Store straight onto one entry's detail view — used by the "new
   // drop" modal so its CTA lands the user on the real purchase/reserve context
-  // (same import boundary; openDetail just stacks over the freshly-opened store).
+  // (same import boundary; openDetail shows it in the freshly-opened Store).
   // The saved-code check runs first: on a cold open the detail would otherwise
   // be drawn before the Store knows about the code, and sell the membership to
   // someone who already holds it.
   async function openEntry(entry) {
     if (!entry) { open(); return; }
     open(entry.limited ? '__limited' : undefined);
-    await refreshSupporterSaved();
+    await Promise.all([refreshSupporterSaved(), refreshInstallIndex()]);
     if (!overlayEl) return;   // closed meanwhile
     openDetail(entry);
   }
-  // Open the Store and surface the Supporters "how it works" perks panel — the
-  // donate/convert path for the supporter drop modal.
+  // The same from an id: a creation retired since then opens the plain Store.
+  async function openEntryById(id) {
+    let entry = null;
+    try {
+      const cat = await apiJson('/api/community/catalog');
+      if (cat && cat.ok && Array.isArray(cat.entries)) entry = cat.entries.find((e) => e && e.id === id) || null;
+    } catch { /* the plain Store below */ }
+    await openEntry(entry);
+  }
+  // Open the Store on the membership: the Supporters sheet for a PC with no code, the
+  // Supporters list for one that keeps a code.
   async function openSupporters() {
     open();
     await refreshSupporterSaved();
+    if (!overlayEl) return;
+    if (supporterSaved) { goView('__supporters'); return; }
+    if (!catalogAll.length) { // the pictures on the sheet are the catalog's
+      const all = await catalogEntries().catch(() => []);
+      if (!catalogAll.length) catalogAll = all;
+    }
     if (overlayEl) openSupporterInfo();
   }
   // "Unlock" from outside the Store (the new-drop card) for a PC that keeps a
@@ -2185,7 +2231,7 @@
     // The Settings entry points to the Store, plus the topbar Settings gear —
     // the gear is what you see WITHOUT opening anything, so the count reaches
     // you on the dashboard itself and clears once the Store is opened.
-    const btns = document.querySelectorAll('.settings-store-pill, .settings-store-hero-cta, .qbtn-settings');
+    const btns = document.querySelectorAll('.settings-nav-store, .settings-store-open, .qbtn-settings');
     if (!btns.length) return;
     Promise.all([countUpdates(), newSinceLastVisit()]).then(([updates, fresh]) => {
       const n = updates > 0 ? updates : fresh;
@@ -2217,5 +2263,5 @@
   // is SWR-cached, so this is cheap and usually instant).
   try { setTimeout(() => { try { refreshStoreDot(); } catch { /* ignore */ } }, 4000); } catch { /* no timers */ }
 
-  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, openSparks, unlockEntry, kindIcon, shotUrl, refreshStoreDot };
+  window.CommunityGallery = { open, close, findUpdates, isOfficial, openEntry, openEntryById, openSupporters, openSparks, unlockEntry, kindIcon, shotUrl, refreshStoreDot };
 })();

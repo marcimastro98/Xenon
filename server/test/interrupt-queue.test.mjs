@@ -33,18 +33,16 @@ function makeDoc(state) {
 function harness(opts) {
   const o = opts || {};
   const state = { classes: o.classes || [], overlays: o.overlays || [] };
-  const clock = { t: o.now || 1_000_000 };
   const storage = makeStorage(o.seed);
   const iq = IQ.create({
     doc: makeDoc(state),
     storage,
-    now: () => clock.t,
     // Timers are inert: tests drive the poller through _tick() so ordering is
     // deterministic and no test depends on wall-clock time.
     setInterval: () => 1,
     clearInterval: () => {},
   });
-  return { iq, state, clock, storage };
+  return { iq, state, storage };
 }
 
 // ── busy() ─────────────────────────────────────────────────────────────────
@@ -163,6 +161,25 @@ test('a waiter gives up after maxTries instead of polling forever', () => {
   assert.equal(ran, false, 'it expired rather than firing late');
 });
 
+test('a waiter with no limit outlasts a long game and fires when it ends', () => {
+  const { iq, state } = harness({ classes: ['game-mode'] });
+  let ran = false;
+  iq.whenIdle(() => { ran = true; }, { maxTries: Infinity });
+  for (let i = 0; i < 1000; i++) iq._tick();
+  assert.equal(iq._waiting(), 1, 'an hour of game does not lose it');
+  assert.equal(ran, false);
+  state.classes = [];
+  iq._tick();
+  assert.equal(ran, true);
+});
+
+test('a waiter with no stated limit still gives up', () => {
+  const { iq } = harness({ overlays: ['.upd-overlay'] });
+  iq.whenIdle(() => {});
+  for (let i = 0; i < 201; i++) iq._tick();
+  assert.equal(iq._waiting(), 0);
+});
+
 test('cancel removes a queued waiter', () => {
   const { iq, state } = harness({ overlays: ['.upd-overlay'] });
   let ran = false;
@@ -184,57 +201,13 @@ test('a throwing channel does not stall the queue', () => {
   assert.deepEqual(order, ['survivor']);
 });
 
-// ── Daily budget ───────────────────────────────────────────────────────────
-test('claimDaily grants one interruption per day across all channels', () => {
-  const { iq, clock } = harness();
-  assert.equal(iq.budgetSpent(), false);
-  assert.equal(iq.claimDaily('hub-messages'), true);
-  assert.equal(iq.budgetSpent(), true);
-  assert.equal(iq.claimDaily('other-channel'), false, 'the budget is shared, not per channel');
-
-  clock.t += IQ.DAY - 1;
-  assert.equal(iq.claimDaily('hub-messages'), false, 'still inside the window');
-  clock.t += 2;
-  assert.equal(iq.budgetSpent(), false);
-  assert.equal(iq.claimDaily('hub-messages'), true);
-});
-
-test('a blocked localStorage still allows the interruption', () => {
-  // Losing the budget shows one extra modal; refusing shows the user nothing ever.
-  const iq = IQ.create({
-    doc: makeDoc({ classes: [], overlays: [] }),
-    storage: { getItem: () => null, setItem: () => { throw new Error('QuotaExceeded'); } },
-    setInterval: () => 1,
-    clearInterval: () => {},
-  });
-  assert.equal(iq.claimDaily('hub-messages'), true);
-});
-
-// ── Shared announced-id set ────────────────────────────────────────────────
-test('markSeen/hasSeen share one set so a drop is never announced twice', () => {
-  const { iq } = harness();
-  assert.equal(iq.hasSeen('neon-pack'), false);
-  iq.markSeen(['neon-pack']);
-  assert.equal(iq.hasSeen('neon-pack'), true);
-  iq.markSeen(['neon-pack', 'retro-pack']);
-  assert.deepEqual(iq.readSeen(), ['neon-pack', 'retro-pack'], 'no duplicate on re-mark');
-});
-
-test('the seen set reads the key catalog-drop.js already wrote, and stays bounded', () => {
-  // Existing installs must not lose their history when ownership moved here.
+// ── What this device was already told ──────────────────────────────────────
+test('the seen list reads the key catalog-drop.js wrote, for the inbox to import once', () => {
   const { iq } = harness({ seed: { [IQ.K_SEEN]: JSON.stringify(['legacy-entry']) } });
-  assert.equal(iq.hasSeen('legacy-entry'), true);
-
-  const many = Array.from({ length: 300 }, (_, i) => 'e' + i);
-  iq.markSeen(many);
-  const set = iq.readSeen();
-  assert.equal(set.length, 250);
-  assert.equal(set[set.length - 1], 'e299', 'keeps the most recent');
-  assert.equal(iq.hasSeen('legacy-entry'), false, 'oldest fall off the cap');
+  assert.deepEqual(iq.readSeen(), ['legacy-entry']);
 });
 
 test('corrupt stored state degrades to empty instead of throwing', () => {
-  const { iq } = harness({ seed: { [IQ.K_SEEN]: '{not json', [IQ.K_BUDGET]: 'nope' } });
+  const { iq } = harness({ seed: { [IQ.K_SEEN]: '{not json' } });
   assert.deepEqual(iq.readSeen(), []);
-  assert.equal(iq.budgetSpent(), false);
 });

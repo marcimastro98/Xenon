@@ -18,14 +18,14 @@
 
 .day-modal-card {
   position: relative;
-  width: min(440px, 100%);
+  width: min(480px, 100%);
   max-height: 85vh;
   overflow: auto;
   border-radius: 18px;
   border: 1px solid rgba(var(--accent-rgb),0.18);
   background: var(--surface);
   box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 38px rgba(var(--accent-rgb),0.08);
-  padding: 18px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -44,29 +44,20 @@
   gap: 12px;
 }
 
-.day-modal-kicker {
-  color: var(--green);
-  font-size: 10.5px;
-  font-weight: 900;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-}
-
 .day-modal-title {
-  margin-top: 3px;
   color: var(--text);
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1.15;
-  text-transform: capitalize;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .day-modal-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #283333;
-  background: var(--control-bg);
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px 0 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
   color: var(--muted-text);
   cursor: pointer;
   display: grid;
@@ -74,24 +65,23 @@
   flex-shrink: 0;
   transition: color 0.18s, background 0.18s;
 }
-.day-modal-close:hover { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.34); }
-.day-modal-close svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.day-modal-close:hover { color: var(--text); background: var(--hover-bg); }
+.day-modal-close svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 .day-modal-events {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   max-height: 38vh;
   overflow: auto;
-  padding-right: 2px;
 }
 
 .day-modal-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
 }
 
 .day-modal-form .form-row-time {
@@ -100,32 +90,20 @@
   gap: 8px;
 }
 
-.event-delete svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.event-delete:hover { color: var(--color-danger); border-color: rgba(var(--danger-rgb),0.34); }
-
-.event-composer {
-  padding: 11px;
-  border-radius: 20px;
-  border: 1px solid rgba(var(--accent-rgb),0.12);
-  background: radial-gradient(120% 140% at 0% 100%, rgba(var(--accent-rgb),0.10), transparent 50%), var(--surface-alt);
-}
-
-.event-form-row { gap: 8px; margin-bottom: 8px; }
-.event-form-row:last-child { margin-bottom: 0; }
-
 .event-input,
 .event-select {
   min-width: 0;
   width: 100%;
+  height: 44px;
   border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--input-bg);
   color: var(--text);
   outline: none;
   font: inherit;
-  font-size: 12.5px;
-  font-weight: 750;
-  padding: 9px 10px;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 12px;
   color-scheme: dark;
 }
 
@@ -158,14 +136,16 @@
   color: var(--text);
 }
 
-.event-input[type="time"] {
-  padding-right: 34px;
-}
-
-.event-input[type="time"]::-webkit-calendar-picker-indicator {
-  opacity: 0.9;
-  cursor: pointer;
-  filter: invert(1) brightness(1.45) saturate(0.8);
+/* The reminder's custom list stands beside the time, so it takes the same field. */
+.day-modal-form .cs-wrap { display: flex; min-width: 0; }
+.day-modal-form .cs-trigger {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .day-modal-form .form-row-end {
@@ -175,18 +155,17 @@
 }
 .form-row-end .event-end-label {
   flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dim-text);
+  padding-left: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted-text);
   white-space: nowrap;
 }
-.event-input[type="date"] { padding-right: 34px; }
+/* color-scheme already draws this icon for the field's tone; a filter on top turned it black. */
 .event-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0.9;
+  margin: 0;
+  opacity: 0.7;
   cursor: pointer;
-  filter: invert(1) brightness(1.45) saturate(0.8);
 }
 
 /* ── Custom time picker ─────────────────────────────────────── */
@@ -201,14 +180,15 @@
   justify-content: space-between;
   gap: 6px;
   width: 100%;
+  height: 44px;
   border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--input-bg);
   color: var(--text);
   font: inherit;
-  font-size: 12.5px;
-  font-weight: 750;
-  padding: 9px 10px;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 12px;
   cursor: pointer;
   text-align: left;
   transition: border-color 0.18s;
@@ -289,72 +269,72 @@
 .event-select:focus { border-color: rgba(var(--accent-rgb),0.45); }
 .event-input::placeholder { color: var(--dim-text); }
 
+.day-modal-keys { display: flex; justify-content: flex-end; padding-top: 6px; }
+
 .event-save {
-  height: 36px;
-  padding: 0 14px;
+  min-width: 120px;
+  height: 44px;
+  padding: 0 18px;
   border: 0;
-  border-radius: 13px;
+  border-radius: 10px;
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 12.5px;
-  font-weight: 950;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(var(--accent-rgb),0.20);
   white-space: nowrap;
 }
 
-.event-list {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-height: 42px;
-  max-height: 118px;
-  overflow: auto;
-  padding-right: 2px;
-}
-
+/* Time, then what, then the key: the times line up down the day, and a note reads under
+   its name. */
 .event-item {
-  padding: 9px 10px;
-  border-radius: 15px;
-  border: 1px solid rgba(255,255,255,0.075);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 48px;
+  padding: 2px 2px 2px 12px;
+  border-radius: 10px;
   background: var(--surface-alt);
 }
 
-.event-item-top { justify-content: space-between; gap: 10px; }
+.event-item-top { display: contents; }
 
 .event-name {
   min-width: 0;
   color: var(--text);
-  font-size: 13.5px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .event-time {
-  color: var(--green);
-  font-size: 12.5px;
-  font-weight: 900;
+  color: var(--muted-text);
+  font-size: 14px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
+.event-item .event-source-badge { margin-right: 18px; }
+
 .event-meta {
-  margin-top: 3px;
+  grid-column: 2 / -1;
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: center;
+  gap: 2px;
+  margin-top: -6px;
 }
 
 .event-note-text {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--muted-text);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -375,8 +355,8 @@
 
 .event-note-copy {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  width: 44px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -388,21 +368,24 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.event-note-copy svg { width: 13px; height: 13px; }
+.event-note-copy svg { width: 16px; height: 16px; }
 .event-note-copy:hover { background: var(--hover-bg); color: var(--text); }
 .event-note-copy.is-copied { color: var(--accent); }
 
 .event-delete {
-  margin-left: 6px;
-  width: 24px;
-  height: 24px;
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 9px;
-  background: var(--surface-alt);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
   color: var(--muted-text);
   cursor: pointer;
   flex-shrink: 0;
 }
+.event-delete svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.event-delete:hover { color: var(--color-danger); background: var(--danger-bg); }
 
 .event-empty {
   padding: 10px;
@@ -412,4 +395,16 @@
   font-size: 12.5px;
   font-weight: 800;
   text-align: center;
+}
+.day-modal-events .event-empty {
+  padding: 2px 0;
+  border: 0;
+  color: var(--muted-text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .event-save { flex: 1 1 auto; }
 }

@@ -31,9 +31,16 @@ async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, updat
   const intervals = [];
   const classes = new Set();
   let afterLoad = null;
+  let release = null;
+  let releaseChecks = 0;
+  let messages = null;
+  let messageChecks = 0;
+  const sheets = [];
   const location = { reload() {} };
   Object.defineProperty(location, 'href', { set: (v) => signals.push(v), get: () => '' });
   const window = {
+    ScreenRelease: { start(deps) { release = deps; }, check() { releaseChecks += 1; } },
+    BitMessages: { start(deps) { messages = deps; }, check() { messageChecks += 1; }, openSheet: (req) => sheets.push(req) },
     location,
     devicePixelRatio: dpr,
     __XENON_LAYER_SHELL__: shell,
@@ -48,8 +55,8 @@ async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, updat
   };
   const document = {
     documentElement: { lang: 'en' },
-    body: { classList: { toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) } },
-    querySelectorAll: (sel) => (sel.startsWith('.xtoast-stack > .xtoast, .call-overlay > .call-card') ? cards : []),
+    body: { classList: { toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), contains: (c) => classes.has(c) } },
+    querySelectorAll: (sel) => (sel.startsWith('.xtoast-stack > .xtoast:not(.xtoast-out, .xtoast-leaving), .call-overlay > .call-card') ? cards : []),
     addEventListener() {},
   };
   class EventSource {
@@ -92,8 +99,8 @@ async function boot({ settings = {}, shell = true, dpr = 2, sounds = true, updat
   const emit = (type, data) => listeners[type]({ data: JSON.stringify(data) });
   const load = () => afterLoad && afterLoad();
   const settle = () => { while (frames.length) frames.shift()(); while (timers.length) timers.shift()(); };
-  const addCard = (r) => cards.push({ getBoundingClientRect: () => r });
-  return { shown, dismissed, store, posts, signals, captures, classes, emit, load, settle, addCard, cards, listeners, window, callLists, intervals, seeds: () => seeds };
+  const addCard = (r, rolling = false) => cards.push({ getBoundingClientRect: () => r, closest: () => (rolling ? {} : null) });
+  return { release: () => release, releaseChecks: () => releaseChecks, messages: () => messages, messageChecks: () => messageChecks, shown, dismissed, store, posts, signals, sheets, captures, classes, emit, load, settle, addCard, cards, listeners, window, callLists, intervals, seeds: () => seeds };
 }
 
 test('routine alerts follow the Notifiche switches, the alerts switch covers everything', async () => {
@@ -263,6 +270,12 @@ test('the automatic update last minute: one card, "In an hour" postpones, any ot
   assert.equal(off.shown.length, 0);
 });
 
+test('the Sparks shop is not in this window: Recharge opens it in the menu\'s window', async () => {
+  const b = await boot();
+  b.window.CommunityGallery.openSparks();
+  assert.equal(JSON.stringify(b.sheets), '[{"open":"sparks"}]');
+});
+
 test('a newer Xenon: one card per version, it opens the dashboard on the update screen, a skip holds', async () => {
   const b = await boot({ update: { updateAvailable: true, latest: 'v4.12.0', current: '4.11.13' } });
   assert.equal(b.shown.length, 1, 'checked at boot');
@@ -330,6 +343,16 @@ test('a Deck shortcut\'s "talk to Xenon AI" step is claimed here and wakes Bit; 
   assert.equal(off.posts.length, 0, 'alerts off: the dashboard, or nobody');
 });
 
+test('when Bit needs the dashboard the card leads to the menu, where the choice is', async () => {
+  const b = await boot();
+  b.emit('needs_dashboard', {});
+  const card = b.shown.at(-1);
+  assert.equal(card.title, 'Bit');
+  await card.actions[0].onClick();
+  assert.equal(b.signals.at(-1), undefined, 'never the dashboard itself');
+  assert.deepEqual(b.posts.at(-1).body, { open: true, section: 'mode' });
+});
+
 test("with the dashboard up the window shows Bit's vitals popup and leaves every other alert to the dashboard", async () => {
   const up = await boot({ widgetsOnly: false });
   up.emit('stocks_alert', { symbol: 'AAPL', dir: 'up', changePct: 5 });
@@ -337,4 +360,58 @@ test("with the dashboard up the window shows Bit's vitals popup and leaves every
   assert.equal(up.shown.length, 0, 'the dashboard shows these itself');
   up.emit('vitals_nag', { id: 'n1', text: 'Drink some water!', until: Date.now() + 8000 });
   assert.deepEqual(up.shown.map((s) => [s.kicker, s.title]), [['Bit', 'Drink some water!']]);
+});
+
+test('with the menu open its window says the result: no second card on the screen', async () => {
+  const on = await boot();
+  on.emit('screen_menu', { open: true, section: 'now' });
+  on.emit('capture', { kind: 'screenshot', id: 'a' });
+  on.emit('capture_marker', { at: 3 });
+  on.emit('xenon_menu_failed', { error: 'failed' });
+  on.emit('stutter_why', { verdict: 'smooth' });
+  assert.equal(on.captures.length, 0);
+  assert.equal(on.shown.length, 0);
+  on.emit('screen_menu', { open: false, section: 'now' });
+  on.emit('capture', { kind: 'screenshot', id: 'b' });
+  assert.equal(on.captures.length, 1, 'closed, the screen says it again');
+});
+
+test('nothing about an update opens before the first status says whether a game runs', async () => {
+  const page = await boot({ widgetsOnly: true });
+  const before = page.releaseChecks();
+  assert.equal(page.release().ready(), false, 'a game may already be running');
+  page.emit('status', { gaming: true });
+  assert.equal(page.releaseChecks(), before + 1, 'the first status asks, whatever it says');
+  assert.equal(page.release().ready(), false, 'and a running game still holds it back');
+  page.emit('status', { gaming: false });
+  assert.equal(page.releaseChecks(), before + 2, 'a game that closed asks again');
+  assert.equal(page.release().ready(), true);
+  page.emit('status', { gaming: false });
+  assert.equal(page.releaseChecks(), before + 2, 'an ordinary status asks nothing');
+});
+
+test("Bit's messages wait here for the same moment as the update cards, and a new one is looked at", async () => {
+  const page = await boot();
+  assert.equal(page.messages().ready(), false, 'no status yet: a game may be running');
+  page.emit('status', { gaming: false });
+  assert.equal(page.messages().ready(), true);
+  const before = page.messageChecks();
+  page.listeners['bit-messages']();
+  assert.equal(page.messageChecks(), before + 1);
+  page.emit('status', { gaming: true });
+  assert.equal(page.messages().ready(), false, 'never over a game');
+});
+
+test('a card on the see-through window has no blur to fade out', () => {
+  const css = readFileSync(new URL('../components/ScreenAlerts/ScreenAlerts.css', import.meta.url), 'utf8');
+  const rule = css.slice(css.indexOf('html[data-screen-alerts] .xtoast-stack > .xtoast,'));
+  assert.match(rule.slice(0, rule.indexOf('}')), /backdrop-filter: none;/);
+});
+
+test('a card closing under the shell is out of the cut the page reports', async () => {
+  const b = await boot({ dpr: 1 });
+  b.load();
+  b.addCard({ left: 100, top: 16, width: 300, height: 80 }, true);
+  b.settle();
+  assert.ok(b.signals.every((s) => s === 'xenon-app:alert-rects?d='), 'the shell closes what is left of it');
 });

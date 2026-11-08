@@ -1,6 +1,7 @@
 /* ── Update modal ──────────────────────────────────────────────────────────
    Polished "what's new" dialog shown at startup when a newer release exists,
-   and from the manual "Check for updates" button. Liquid-Glass / Bento language. */
+   and from the manual "Check for updates" button. On Liquid the sheet itself comes
+   from styles/liquid-sheets.css; the layout here serves every skin. */
 
 .upd-overlay {
   position: fixed;
@@ -45,7 +46,7 @@
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.07);
   color: inherit;
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s;
@@ -60,40 +61,29 @@
   margin-bottom: 14px;
 }
 
-.upd-badge {
-  flex: 0 0 auto;
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  border-radius: 13px;
-  background: rgba(var(--accent-rgb), 0.18);
-  border: 1px solid rgba(var(--accent-rgb), 0.34);
-}
+.upd-badge { flex: 0 0 auto; width: 44px; height: 44px; }
+.upd-badge:empty { display: none; }
+.upd-badge svg { display: block; width: 100%; height: 100%; }
 
 .upd-title {
-  font-size: 1.18em;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .upd-ver {
   margin-top: 2px;
-  font-size: 0.84em;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   color: rgb(var(--accent-rgb));
   opacity: 0.92;
 }
 
 .upd-notes-title {
-  font-size: 0.74em;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  opacity: 0.55;
-  margin: 2px 0 8px;
+  opacity: 0.72;
+  margin: 2px 0 6px;
 }
 
 .upd-notes {
@@ -185,40 +175,6 @@ video.upd-media-el { cursor: default; }
   border-radius: 4px;
 }
 
-/* ── What's New — curated highlights for the running version ────────────────── */
-.upd-hl-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.upd-hl { display: block; }
-.upd-hl .upd-media { margin: 0 0 10px; }
-
-.upd-hl-title {
-  font-size: 1.02em;
-  font-weight: 700;
-  letter-spacing: 0.005em;
-  margin-bottom: 4px;
-}
-
-.upd-hl-body {
-  font-size: 0.92em;
-  line-height: 1.55;
-  opacity: 0.85;
-}
-
-/* Closing invite under the highlights (open Settings / read full notes). */
-.upd-hl-footer {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(var(--accent-rgb), 0.10);
-  border: 1px solid rgba(var(--accent-rgb), 0.22);
-  font-size: 0.9em;
-  line-height: 1.5;
-}
-
 /* ── Lightbox (tap a screenshot to view it fullscreen) ─────────────────────── */
 .upd-lightbox {
   position: fixed;
@@ -261,9 +217,11 @@ video.upd-media-el { cursor: default; }
 }
 .upd-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
 
+/* The main key closes the row, the quiet ones wait at the other end. */
 .upd-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 16px;
   padding-top: 14px;
@@ -287,17 +245,25 @@ video.upd-media-el { cursor: default; }
 
 .upd-btn.primary {
   background: rgb(var(--accent-rgb));
-  color: #08090c;
+  color: var(--on-accent, #08090c);
   font-weight: 700;
 }
 .upd-btn.primary:hover { filter: brightness(1.08); background: rgb(var(--accent-rgb)); }
 
 .upd-btn.ghost {
-  margin-left: auto;
+  padding-inline: 10px;
   background: transparent;
-  opacity: 0.6;
+  opacity: 0.72;
 }
+.upd-btn.ghost:first-child { margin-left: -10px; }
+.upd-btn.ghost:has(+ .upd-btn:not(.ghost)) { margin-right: auto; }
 .upd-btn.ghost:hover { background: rgba(255, 255, 255, 0.08); opacity: 1; }
+
+/* On a phone the quiet word takes a row of its own and the two keys stay side by side. */
+@media (max-width: 480px) {
+  .upd-btn.ghost:has(+ .upd-btn:not(.ghost)) { flex: 1 0 100%; margin-right: 0; text-align: left; }
+  .upd-actions > .upd-btn:not(.ghost) { flex: 1 1 0; }
+}
 
 .upd-status {
   margin-top: 12px;

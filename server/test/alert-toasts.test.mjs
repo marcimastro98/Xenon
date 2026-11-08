@@ -114,7 +114,7 @@ test('"why does it stutter?": every server reason is worded, in all 11 languages
   assert.equal(A.stutterWhy({ ok: true, reason: 'nope' }, ctx()), null);
   assert.equal(A.stutterLabel('nope', {}, ctx()), '');
   // Both places that show alerts listen for it.
-  assert.match(read('../js/screen-alerts.js'), /stutter_why: \(d\) => show\(AlertToasts\.stutterWhy\(d, ctx\(\)\)\)/);
+  assert.match(read('../js/screen-alerts.js'), /stutter_why: unlessMenu\(\(d\) => show\(AlertToasts\.stutterWhy\(d, ctx\(\)\)\)\)/);
   assert.match(read('../js/main.js'), /addEventListener\('stutter_why'[\s\S]{0,120}PerfWidget\.onStutterWhy/);
 });
 
@@ -127,4 +127,10 @@ test("Bit's vitals popup: its line, for as long as the server says, never past i
   assert.equal(A.vitals({ text: '  ', until: now + 9000 }, now), null);
   assert.equal(A.vitals({ text: 'x', until: 'soon' }, now), null);
   assert.equal(A.vitals(null, now), null);
+});
+
+test('a press in a game is answered there: Do not disturb lets both cards through', () => {
+  assert.equal(A.benchmark({ running: true, game: 'Game.exe' }, ctx()).important, true);
+  assert.equal(A.exclusiveHint({ process: 'game.exe' }, ctx()).type, 'warning', 'an info card is silenced during a game');
+  assert.equal(A.stutterWhy({ ok: true, reason: 'smooth', fps: 240 }, ctx()).important, true);
 });

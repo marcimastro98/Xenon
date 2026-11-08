@@ -29,7 +29,7 @@ const tapOf = (k) => DeckActions.triggerSteps(k.triggers.tap).map((s) => s.actio
 test('app and file paths leave empty, the key keeps its title and action', () => {
   const [app, file] = sharedKeys([
     key('Photoshop', { type: 'openApp', path: 'E:\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe' }),
-    key('Spotify', { type: 'openFile', path: 'C:\\Users\\hope_\\AppData\\Roaming\\Spotify' }),
+    key('Spotify', { type: 'openFile', path: 'C:\\Users\\anna_\\AppData\\Roaming\\Spotify' }),
   ]);
   assert.equal(app.title, 'Photoshop');
   assert.deepEqual(tapOf(app), [{ type: 'openApp', path: '' }]);

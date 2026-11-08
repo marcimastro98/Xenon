@@ -25,9 +25,8 @@ test('the 7-day offer needs no saved code and no running trial', () => {
 
 test('with a saved code the field stays out of the way until asked for', () => {
   assert.match(dialog, /const useSaved = remote && emptyOk\(\) && !typingOther;/);
-  assert.match(dialog, /const quiet = useSaved \|\| savedPays;/);
-  assert.match(dialog, /unlockLabel\.hidden = quiet;/);
-  assert.match(dialog, /unlockNote\.hidden = !remote \|\| quiet;/);
+  assert.match(dialog, /unlockLabel\.hidden = useSaved;/);
+  assert.match(dialog, /unlockNote\.hidden = !remote \|\| useSaved;/);
   assert.match(dialog, /typingOther = true;/);
 });
 
@@ -48,7 +47,7 @@ test('no code and no trial: the dialog says how to get one, never to a supporter
 });
 
 test('on a phone the detail actions stay pinned under the description', () => {
-  assert.match(css, /\.cgal-detail-cta:not\(:empty\) \{\s*\/\*[^*]*\*\/\s*position: sticky; bottom: -20px;/);
+  assert.match(read('components/CommunityStore/CommunityStore.css'), /\.cst-detail \.cgal-detail-cta:not\(:empty\) \{\s*position: sticky; bottom: -24px;/);
 });
 
 test('the new lines exist in all 11 languages and the retired ones are gone', () => {
@@ -61,30 +60,37 @@ test('the new lines exist in all 11 languages and the retired ones are gone', ()
   }
 });
 
-test('a drop sold for Sparks: bought after a confirmation, then opened with the key the buy returned', () => {
-  // Two presses, the price then "Confirm", because it spends.
-  assert.match(dialog, /if \(!confirmBuy\) \{ confirmBuy = true; confirmAt = Date\.now\(\); syncBuy\(\); \(sparksOnly \? importBtn : buyBtn\)\.focus\(\); return; \}/);
-  // A double tap on a touch screen is one tap, not a price and a confirmation.
-  assert.match(dialog, /if \(Date\.now\(\) - confirmAt < CONFIRM_GAP_MS\) return;/);
-  assert.match(share, /const CONFIRM_GAP_MS = 600;/);
-  // Typing another code takes the confirmation back: it was given for the old one.
-  assert.match(dialog, /unlockField\.addEventListener\('input', \(\) => \{\s*if \(!confirmBuy && !sparksOnly\) return;\s*confirmBuy = false;\s*syncBuy\(\);/);
+test('a drop sold for Sparks: bought with the box ticked, then opened with the key the buy returned', () => {
+  // Nothing spends without the box: it starts empty and a press only points at it.
+  assert.match(dialog, /if \(!again && !buyBox\.checked\) \{\s*sale\.askTick\(\);\s*return;\s*\}/);
+  assert.doesNotMatch(dialog, /buyBox\.checked = true|defaultChecked/);
+  // One tick is one buy, and the hub gets the version of the box that was ticked.
+  assert.match(dialog, /buyBox\.checked = false;\s*buyBtn\.disabled = true;/);
+  assert.match(dialog, /consent: again \? undefined : BUY_CONSENT \}/);
+  assert.match(share, /const BUY_CONSENT = 'item-2026-11';/);
+  // Typing another code takes the tick back: it was given for the old one.
+  assert.match(dialog, /unlockField\.addEventListener\('input', \(\) => \{\s*if \(!sale\) return;\s*buyBox\.checked = false;\s*syncUnlockVisibility\(\);/);
+  // The two-tap confirmation is gone; the button says what it does.
+  assert.doesNotMatch(share, /confirmBuy|CONFIRM_GAP_MS/);
+  assert.match(dialog, /buyBtn\.textContent = tr\('sparks_buy_now', 'Buy now'\);/);
+  // A hub that wants the box says so in the same words.
+  assert.match(dialog, /err === 'consent_required'\) \{\s*toast\(tr\('sparks_tick_first'/);
   assert.match(dialog, /fetch\('\/api\/community\/buy'/);
   // Only a pass or Sparks code typed in the field is sent; empty = what this PC remembers.
   assert.match(dialog, /code: \/\^X\[CS\]\/\.test\(typed\) \? unlockField\.value : ''/);
-  assert.match(share, /if \(locked\.remote && boughtCek\) \{\s*\/\/[^\n]*\n\s*inner = await unlockWithCek\(locked, boughtCek\);/);
+  assert.match(share, /if \(locked\.remote && boughtCek\) \{\s*\/\/[^\n]*\n\s*importBtn\.disabled = true;\s*inner = await unlockWithCek\(locked, boughtCek\);\s*importBtn\.disabled = false;/);
   // A Sparks-only drop is never "opened by your saved code": the pass and the trial do not open it.
   // A pass the hub just called expired no longer opens it either.
   assert.match(dialog, /const emptyOk = \(\) => !sparksOnly && \(\(savedPass && !passLapsed\) \|\| trialActive\(\)\);/);
   // With a pass saved, a supporters-or-Sparks drop shows no buy line, until the
   // hub says the pass is past its window: then the price comes back.
-  assert.match(dialog, /buyRow\.hidden = !\(remote && sparksPrice && !boughtCek && !useRedeem && !\(savedPass && !sparksOnly && !passLapsed\)\);/);
+  assert.match(dialog, /selling: remote && !boughtCek && !useRedeem && !\(savedPass && !sparksOnly && !passLapsed\),/);
   assert.match(share, /\} else if \(err === 'expired'\) \{\s*passLapsed = true;\s*syncUnlockVisibility\(\);/);
   // "included" hands over to redeem once, so Import cannot loop back into a buy.
   assert.match(dialog, /if \(err === 'included'\) \{\s*useRedeem = true;/);
 });
 
-test('Import on a Sparks-only drop, or with a Sparks code typed, goes through the same confirmation', () => {
+test('Import on a Sparks-only drop, or with a Sparks code typed, goes through the same box', () => {
   assert.match(share, /if \(locked\.remote && sparksPrice && !boughtCek && !useRedeem && !typedItem && \(sparksOnly \|\| typedSparks\)\) \{\s*syncUnlockVisibility\(\);\s*buyWithSparks\(locked\);\s*return;/);
   // An XL copy typed in the field is redeemed: never charged over, never refused.
   assert.match(share, /const typedItem = canonCode\(unlockField\.value\)\.startsWith\('XL'\);/);
@@ -101,19 +107,26 @@ test('the Store passes the price and never offers a membership for a Sparks-only
   assert.match(css, /\.preset-unlock-forget\[hidden\] \{ display: none; \}/);
 });
 
-test('sold only for Sparks: one main action, the price, never a second buy button', () => {
-  // The row's own button steps aside and Import carries the price and the confirmation.
-  assert.match(dialog, /buyBtn\.hidden = sparksOnly;/);
-  assert.match(dialog, /if \(importBtnRef\) importBtnRef\.textContent = \(boughtCek \|\| typedItem\) \? tr\('preset_import_apply', 'Import'\) : label;/);
-  assert.match(share, /importBtnRef = importBtn;\s*if \(sparksOnly\) syncBuy\(\);/);
-  // The price comes first, the field is for "your Sparks code".
-  assert.match(dialog, /if \(sparksOnly\) unlockWrap\.insertBefore\(buyRow, unlockLabel\); else unlockWrap\.appendChild\(buyRow\);/);
+test('sold for Sparks: the sheet takes the dialog over and the rules stay here', () => {
+  // Only a remote-locked Store entry has a sale, so every other import keeps its dialog.
+  assert.match(dialog, /const sparksPrice = window\.BuySheet && sealed && sealed\.remote && Number\.isInteger\(source\.sparks\) && source\.sparks > 0 \? source\.sparks : 0;/);
+  // It draws the dialog's own controls, so the checks on them still apply.
+  assert.match(share, /sale = window\.BuySheet\.mount\(\{/);
+  assert.match(share, /box: buyBox, buy: buyBtn, more: buyMore, other: otherBtn,/);
+  assert.match(share, /code: unlockLabel, codeNote: unlockNote, open: importBtn, note: perfNote,/);
+  // Closing the window stops what the sheet started.
+  assert.match(dialog, /buildModal\(importTitle\(\), \(\) => \{ if \(sale\) sale\.destroy\(\); \}\)/);
+  // The field is for "your Sparks code".
   assert.match(dialog, /unlockText\.textContent = sparksOnly \? tr\('sparks_code_label'/);
-  // A saved code pays: one line says which, with "Use another code" beside it.
-  assert.match(dialog, /const savedPays = remote && sparksOnly && \(savedWallet \|\| savedPass\) && !typingOther;/);
-  assert.match(dialog, /savedRow\.hidden = !quiet;/);
-  // Nothing here can pay: where to get Sparks shows before the first tap.
-  assert.match(dialog, /if \(passKnown && !savedCanBuy\) buyMore\.hidden = false;/);
+  // A buy that fell short shows what this code really holds.
+  assert.match(dialog, /err === 'no_sparks'\) \{\s*sale\.setHeld\(r\.balance\);/);
+  // A saved code the hub no longer knows stops paying, a typed one says nothing about it.
+  assert.match(dialog, /if \(err === 'bad_code' && !canonCode\(unlockField\.value\)\) savedCanBuy = false;/);
+  // The sheet says the outcome; closed meanwhile, it is paid for, so a toast does.
+  assert.match(dialog, /const shown = await sale\.finish\(\{ bought: r\.bought === true, balance, emailed: r\.emailed === true \}\);/);
+  assert.match(dialog, /if \(shown \|\| again\) return;\s*\/\/[^\n]*\n\s*const done = r\.bought/);
+  // Back takes the tick and the typed code with it.
+  assert.match(share, /onBack: \(\) => \{\s*typingOther = false;\s*buyBox\.checked = false;\s*unlockField\.value = '';/);
 });
 
 test('the Store names the Sparks way in next to the supporter one', () => {
@@ -127,11 +140,15 @@ test('the Store names the Sparks way in next to the supporter one', () => {
 
 test('the Sparks lines exist in all 11 languages, each price line in USD', () => {
   const i18n = read('js/i18n.js');
-  for (const k of ['gallery_sparks_price', 'gallery_unlock_sparks', 'sparks_buy_line_only', 'sparks_buy_line_or', 'sparks_buy_btn',
-    'sparks_buy_confirm', 'sparks_buy_more', 'sparks_bought', 'sparks_owned', 'sparks_left', 'sparks_err_included', 'sparks_err_no_code',
+  for (const k of ['gallery_sparks_price', 'gallery_unlock_sparks', 'sparks_buy_now',
+    'sparks_buy_consent', 'sparks_buy_seller', 'sparks_tick_first', 'sparks_pack_note', 'sparks_buy_more', 'sparks_bought', 'sparks_owned', 'sparks_left', 'sparks_err_included', 'sparks_err_no_code',
     'sparks_err_short', 'sparks_err_short_plain', 'sparks_err_not_for_sale', 'sparks_err_sold_out', 'sparks_err_revoked',
-    'gallery_or_sparks', 'gallery_unlock_code_or_sparks', 'sparks_code_label', 'sparks_saved_pays', 'sparks_saved_pays_pass']) {
+    'gallery_or_sparks', 'gallery_unlock_code_or_sparks', 'sparks_code_label']) {
     assert.equal((i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length, 11, k);
   }
-  for (const line of i18n.match(/sparks_buy_line_(?:only|or): "[^"]*"/g)) assert.match(line, /\{usd\} USD/, line);
+  for (const line of i18n.match(/sparks_sheet_(?:join_note|pass_line): "[^"]*"/g)) assert.match(line, /\{usd\} USD/, line);
+  assert.doesNotMatch(i18n, /\bsparks_buy_(?:btn|confirm|line_only|line_or):|\bsparks_saved_pays/);
+  // Every language names the seller, and the pack note says where to write.
+  for (const line of i18n.match(/sparks_(?:buy_seller|pack_note): "[^"]*"/g)) assert.match(line, /Xenon/, line);
+  for (const line of i18n.match(/sparks_pack_note: "[^"]*"/g)) assert.match(line, /\{mail\}.*14|14.*\{mail\}/, line);
 });

@@ -162,8 +162,14 @@
       if (h && h.height > 0 && h.right > h.left) {
         return { left: h.left, top: h.top, width: h.right - h.left, height: h.height, radius: h.radius, pill: h.kind === 'pill' };
       }
+      // Hidden, the island has no layout and the slot reads 0: the glass would fly in
+      // from the corner of the screen instead of opening over the card.
+      const wasHidden = root.hidden;
+      root.hidden = false;
       const w = 120, ht = 36;
-      return { left: slot.offsetLeft + (slot.offsetWidth - w) / 2, top: slot.offsetTop, width: w, height: ht, radius: ht / 2, pill: false, none: true };
+      const box = { left: slot.offsetLeft + (slot.offsetWidth - w) / 2, top: slot.offsetTop, width: w, height: ht, radius: ht / 2, pill: false, none: true };
+      root.hidden = wasHidden;
+      return box;
     }
 
     // Worth flying back to only if it will be on screen when the glass lands. The
@@ -361,7 +367,7 @@
     function release(fromFling) {
       listListeners(false);
       if (root) root.remove();
-      root = bg = slot = pillSkin = ghost = target = null;
+      root = bg = slot = pillSkin = ghost = target = rolling = null;
       held = homing = flinging = false;
       host.sync();
       const pill = pillEl();
@@ -412,10 +418,24 @@
       return morphBox(to, VANISH_MS, EASE_OUT);
     }
 
+    // On the Windows alerts window nothing fades or moves: something white showed
+    // behind a card there as it closed. The card stays, the shell closes over it.
+    const atOnce = () => !!host.leavesAtOnce && host.leavesAtOnce();
+    let rolling = null;
+
     // The text leaves as the glass starts to move, not before it: waiting for the
     // fade left an empty card standing still for a beat.
     async function close(g) {
       if (!held) { release(false); return; }
+      if (atOnce()) {
+        rolling = rolling || host.rollAway(root);
+        if (rolling) {
+          await rolling.done;
+          if (g !== gen) return;
+        }
+        release(false);
+        return;
+      }
       const cur = currentContent();
       if (cur) fade(cur, 0, CONTENT_OUT_MS).then(() => { if (cur.parentNode === slot) detach(cur); });
       const home = homeBox();
@@ -439,6 +459,7 @@
       const kind = wanted();
       listListeners(kind === 'list');
       if (!kind) { if (root) await close(g); return; }
+      if (rolling) { rolling.cancel(); rolling = null; } // news caught it closing
       if (homing) { homing = false; dropGhost(); host.sync(); } // news caught it on the way home
       syncTimers(kind);
       const opening = !held;
@@ -517,7 +538,7 @@
       if (shownId === id) shownId = order[0] || 0;
       // A list down to one card is that card again, with its countdown running.
       if (order.length < 2) view = 'card';
-      if (dir && wasShown && !reduced() && root) { fling(dir); return; }
+      if (dir && wasShown && !reduced() && !atOnce() && root) { fling(dir); return; }
       // Without the fling nothing else takes back the swipe's offset.
       if (dir && wasShown && root) root.style.transform = '';
       render();

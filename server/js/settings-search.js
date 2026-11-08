@@ -20,7 +20,8 @@
   const RECENT_KEY = 'xeneonedge.settingsSearchRecent.v1';
   const RECENT_MAX = 5;
   const RESULT_LIMIT = 40;
-  const ROW_SEL = '.settings-toggle-row, .settings-row, .settings-vitals-row, .settings-subcard-head, .settings-ambient-row, .settings-supporter-row';
+  const ROW_SEL = '.settings-toggle-row, .settings-row, .settings-vitals-row, .settings-ambient-row, .settings-supporter-row';
+  const PLACE_SEL = 'details, .settings-section';
   const LABEL_MAX = 90;
   const VALUE_SEL = 'option[data-i18n], .settings-seg-btn[data-i18n], .settings-seg [data-i18n], button[data-i18n]';
 
@@ -57,17 +58,37 @@
   }
 
   // A row the user cannot see on this machine is not a result: a Windows-only
-  // row on macOS, or a row hidden because the thing it configures is off (the
-  // Pixel Retro sub-toggle, the other AI providers' panels). Only [hidden]
-  // BELOW the card counts, because the cards themselves are hidden by the
-  // category switch.
+  // row on macOS, or a row hidden because it does not apply right now (the Pixel
+  // Retro sub-toggle, the other AI providers' panels). Only what is hidden BELOW
+  // the card counts, because the cards themselves are hidden by the category
+  // switch. A block marked data-behind-switch stays findable: it goes away with
+  // a switch of its own, and reveal() lands on that switch.
   function reachable(el, card) {
     const off = window.XenonPlatform && window.XenonPlatform !== 'win32';
     if (off && el.closest('[data-settings-win-only]')) return false;
     for (let n = el; n && n !== card; n = n.parentElement) {
-      if (n.hidden) return false;
+      if (n.hasAttribute('data-behind-switch')) continue;
+      if (n.hidden || n.style.display === 'none') return false;
     }
     return true;
+  }
+
+  // The name of a section, or of a row that opens.
+  function placeKey(place) {
+    const name = place.matches('details')
+      ? place.querySelector(':scope > summary [data-i18n]:not(.settings-hint)')
+      : place.querySelector(':scope > .settings-section-title[data-i18n], :scope > .settings-section-title > [data-i18n]');
+    return keyOf(name);
+  }
+
+  // What a row sits under, nearest first: the row that opens, the section, the
+  // head of its card.
+  function placeOf(row, card, headKey) {
+    for (let n = row.parentElement; n && n !== card; n = n.parentElement) {
+      const key = n.matches(PLACE_SEL) ? placeKey(n) : '';
+      if (key) return key;
+    }
+    return headKey;
   }
 
   function build() {
@@ -102,22 +123,20 @@
       if (window.XenonPlatform && window.XenonPlatform !== 'win32' && card.closest('[data-settings-win-only]')) continue;
       const catFields = fieldsFor(catKeys[cat], 0.3, { mainOnly: true });
       const headEl = card.querySelector('.settings-group-head [data-i18n]:not(.settings-hint)');
-      const cardKey = keyOf(headEl);
-      const cardHint = keyOf(card.querySelector('.settings-group-head .settings-hint[data-i18n]'));
-      const cardFields = fieldsFor(cardKey, 0.6, { mainOnly: true });
-      if (cardKey) {
+      const headKey = keyOf(headEl);
+      const headHint = keyOf(card.querySelector('.settings-group-head .settings-hint[data-i18n]'));
+      if (headKey) {
         list.push({
-          id: cat + '|' + cardKey, kind: 'card', cat, labelKey: cardKey, hintKey: cardHint, el: card,
-          fields: [...fieldsFor(cardKey, 1, { fuzzy: true }), ...fieldsFor(cardHint, 0.4), ...catFields],
+          id: cat + '|' + headKey, kind: 'card', cat, labelKey: headKey, hintKey: headHint, el: card,
+          fields: [...fieldsFor(headKey, 1, { fuzzy: true }), ...fieldsFor(headHint, 0.4), ...catFields],
         });
       }
       const rows = card.querySelectorAll(ROW_SEL);
       const inRow = new Set();
       rows.forEach((row) => {
-        inRow.add(row);
         if (!reachable(row, card)) return;
         const labelKey = labelKeyOf(row);
-        if (!labelKey || labelKey === cardKey) return;
+        if (!labelKey || labelKey === headKey) return;
         // A row nested in another row with the same label (a toggle-row used as
         // the caption of a vitals-row) is one setting, not two results.
         const outer = row.parentElement && row.parentElement.closest(ROW_SEL);
@@ -128,6 +147,9 @@
         let id = cat + '|' + labelKey;
         for (let n = 2; seen.has(id); n++) id = cat + '|' + labelKey + '#' + n;
         seen.add(id);
+        inRow.add(row);
+        const cardKey = placeOf(row, card, headKey);
+        const cardFields = fieldsFor(cardKey, 0.6, { mainOnly: true });
         const hintKey = keyOf(row.querySelector('.settings-hint[data-i18n]'));
         const values = [];
         row.querySelectorAll(VALUE_SEL).forEach((v) => { values.push(...fieldsFor(keyOf(v), 0.5)); });
@@ -140,16 +162,29 @@
           fields: [...fieldsFor(labelKey, 1, { fuzzy: true }), ...fieldsFor(hintKey, 0.4), ...values, ...cardFields, ...catFields],
         });
       });
-      // Actions that are not part of a row: "Import theme…", "Export backup".
+      // Actions that are not part of a named row: "Import theme…", "Export backup".
       card.querySelectorAll('.settings-btn[data-i18n]').forEach((btn) => {
         if ([...inRow].some((r) => r.contains(btn)) || !reachable(btn, card)) return;
         const labelKey = keyOf(btn);
         const id = cat + '|' + labelKey;
         if (seen.has(id)) return;
         seen.add(id);
+        const cardKey = placeOf(btn, card, headKey);
         list.push({
           id, kind: 'action', cat, labelKey, cardKey, el: btn,
-          fields: [...fieldsFor(labelKey, 0.9, { fuzzy: true }), ...cardFields, ...catFields],
+          fields: [...fieldsFor(labelKey, 0.9, { fuzzy: true }), ...fieldsFor(cardKey, 0.6, { mainOnly: true }), ...catFields],
+        });
+      });
+      // A section, or a row that opens, is found by its own name too.
+      card.querySelectorAll(PLACE_SEL).forEach((place) => {
+        const labelKey = placeKey(place);
+        const id = cat + '|' + labelKey;
+        if (!labelKey || seen.has(id) || labelKey === headKey || !reachable(place, card)) return;
+        seen.add(id);
+        const hintKey = keyOf(place.querySelector(':scope > summary .settings-hint[data-i18n]'));
+        list.push({
+          id, kind: 'card', cat, labelKey, hintKey, el: place,
+          fields: [...fieldsFor(labelKey, 1, { fuzzy: true }), ...fieldsFor(hintKey, 0.4), ...catFields],
         });
       });
     }
@@ -296,6 +331,27 @@
   }
 
   // ── Going to the row ──
+  function onScreen(el) {
+    return el.getClientRects().length > 0;
+  }
+
+  // A row behind a switch that is off is not on screen: the switch is the way in.
+  // A block names its own; otherwise it is the row before, up through the parents.
+  function landing(el) {
+    const root = content();
+    if (onScreen(el)) return el;
+    const gate = el.closest('[data-behind-switch]');
+    const named = gate && document.getElementById(gate.dataset.behindSwitch);
+    if (named && onScreen(named)) return named.closest(ROW_SEL) || named;
+    for (let n = el; n && n !== root; n = n.parentElement) {
+      if (onScreen(n)) return n;
+      for (let s = n.previousElementSibling; s; s = s.previousElementSibling) {
+        if (onScreen(s) && (s.matches(ROW_SEL) || s.querySelector(ROW_SEL))) return s;
+      }
+    }
+    return null;
+  }
+
   function reveal(entry, fromKeyboard) {
     if (!entry) return;
     pushRecent(entry.id);
@@ -304,10 +360,12 @@
     // On a phone the category list may be open over the content: the choice
     // is made, fold it away like a category tap does.
     document.getElementById('settings-nav')?.classList.remove('is-open');
-    const el = entry.el && entry.el.isConnected ? entry.el : null;
-    if (!el) return;
-    const details = el.closest('details');
+    const target = entry.el && entry.el.isConnected ? entry.el : null;
+    if (!target) return;
+    const details = target.closest('details');
     if (details && !details.open) details.open = true;
+    const el = landing(target);
+    if (!el) return;
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // After settingsSetCategory's column packing has placed the cards.
     requestAnimationFrame(() => {

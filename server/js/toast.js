@@ -37,6 +37,11 @@
 
   // Minimal chrome puts notifications on the clock island, one at a time
   // (js/toast-island.js); everywhere else they stack here.
+  // Only on the Windows alerts window (js/alert-roll.js): null everywhere else.
+  function rollAway(el) {
+    return window.XenonAlertRoll ? window.XenonAlertRoll.away(el) : null;
+  }
+
   const island = window.XenonToastIsland ? window.XenonToastIsland.create({
     toasts,
     arm: (id) => arm(id),
@@ -44,6 +49,8 @@
     dismiss: (id) => dismiss(id),
     dismissAll: () => dismissAll(),
     sync: () => syncIsland(),
+    leavesAtOnce: () => !!window.XenonAlertRoll,
+    rollAway,
     t: (key, fallback) => {
       const v = typeof window.t === 'function' ? window.t(key) : '';
       return v && v !== key ? v : fallback;
@@ -129,12 +136,17 @@
   // there is nothing for the toast to grow out of — fall back to the normal stack.
   // The same when the user chose a fixed place for notifications (Settings → Top
   // bar → Notifications sets data-tb-toast-place, js/topbar-look.js).
+  // The alerts window of "widgets only" has no top bar and always uses the island.
+  // A card that holds the top centre (a call, What's New, Bit's message) sends the
+  // notifications to the stack beside it: on the island they would sit under it.
+  const CENTRE_TAKEN = '.call-overlay, .rn-corner, .bm-card:not(.is-face), .wn-look';
   function isMinimalChrome() {
     const body = document.body;
-    return body.classList.contains('topbar-minimal')
+    return (body.classList.contains('topbar-minimal') || document.documentElement.hasAttribute('data-screen-alerts'))
       && !body.classList.contains('topbar-noisland')
       && !body.dataset.panel
-      && !document.documentElement.hasAttribute('data-tb-toast-place');
+      && !document.documentElement.hasAttribute('data-tb-toast-place')
+      && !document.querySelector(CENTRE_TAKEN);
   }
   function syncIsland() {
     const body = document.body;
@@ -180,6 +192,8 @@
   function quietSuppressed(type, opts) {
     if (opts && opts.important === true) return false;
     if (QUIET_EXEMPT.has(type)) return false;
+    // The first question of a new install: nothing talks over it.
+    if (document.body.classList.contains('first-run-asking')) return true;
     const n = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) ? hubSettings.notifications : null;
     const mode = (n && (n.quiet === 'off' || n.quiet === 'always')) ? n.quiet : 'auto';
     if (mode === 'off') return false;
@@ -221,6 +235,11 @@
       return;
     }
     syncIsland();
+    const roll = rollAway(rec.el);
+    if (roll) {
+      roll.done.then(() => glide(() => rec.el.remove()));
+      return;
+    }
     leaveStack(rec.el);
     if (dir) {
       rec.el.classList.remove('is-dragging');
@@ -260,6 +279,11 @@
     syncIsland();
   }
 
+  // Those cards are children of the body, and one may arrive under a card on the island.
+  if (island && document.body) {
+    new MutationObserver(() => { if (island.holding() && !isMinimalChrome()) refresh(); }).observe(document.body, { childList: true });
+  }
+
   // Cards slide to their new place when one arrives or leaves, instead of jumping.
   // `mutate` changes the stack; each remaining card is then played from where it
   // was. The animation is additive, so two changes in one frame (a new card and the
@@ -294,7 +318,7 @@
   function show(opts) {
     // A layer window shows no toasts (LayerHost.css hides them) and must not
     // play their sound: the main dashboard already shows the same one.
-    if (typeof isLayerPage === 'function' && isLayerPage()) return 0;
+    if (typeof isLayerPage === 'function' && isLayerPage() && !isSheetPage()) return 0;
     const o = opts || {};
     const type = TYPES[o.type] ? o.type : 'info';
     const cfg = TYPES[type];
@@ -313,12 +337,16 @@
     el.setAttribute('role', type === 'error' || type === 'reminder' || type === 'timer' ? 'alert' : 'status');
 
     // A caller may supply the source app's own icon (a data:image/ URI only — no
-    // remote loads); otherwise fall back to the type's line-icon.
-    if (typeof o.iconUrl === 'string' && o.iconUrl.startsWith('data:image/')) {
+    // remote loads), or the picture just taken, so the card shows what it talks
+    // about; otherwise fall back to the type's line-icon.
+    const shot = typeof o.image === 'string' && o.image.startsWith('/captures/thumb?') ? o.image : '';
+    const appIcon = typeof o.iconUrl === 'string' && o.iconUrl.startsWith('data:image/') ? o.iconUrl : '';
+    if (shot || appIcon) {
       const wrapImg = document.createElement('span');
-      wrapImg.className = 'xtoast-icon xtoast-icon--img';
+      wrapImg.className = 'xtoast-icon xtoast-icon--img' + (shot ? ' xtoast-icon--shot' : '');
+      if (shot) el.classList.add('xtoast--shot');
       const img = document.createElement('img');
-      img.alt = ''; img.src = o.iconUrl;
+      img.alt = ''; img.src = shot || appIcon;
       wrapImg.appendChild(img);
       el.appendChild(wrapImg);
     } else {

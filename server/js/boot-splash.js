@@ -36,6 +36,7 @@
   let rememberTimer = 0;
   let helloTimer = 0;
   let leaving = false;
+  const whenLeft = [];
 
   function readLook() {
     try {
@@ -52,6 +53,13 @@
 
   function remove() {
     if (el && el.isConnected) el.remove();
+    whenLeft.splice(0).forEach((run) => run());
+  }
+
+  // For what would go unseen under the splash, like Bit waving on the first question.
+  function whenGone(run) {
+    if (el && el.isConnected) whenLeft.push(run);
+    else run();
   }
 
   function leave() {
@@ -104,7 +112,7 @@
     }, REMEMBER_DELAY_MS);
   }
 
-  window.BootSplash = { ready, remember };
+  window.BootSplash = { ready, remember, whenGone };
   if (done) return;
 
   const look = readLook();

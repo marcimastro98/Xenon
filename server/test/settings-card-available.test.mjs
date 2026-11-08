@@ -61,3 +61,9 @@ test('probed cards start unavailable and their probes go through the helper', ()
   const search = readFileSync(path.join(DIR, 'js', 'settings-search.js'), 'utf8');
   assert.match(search, /card\.dataset\.unavailable === '1'\) continue;/);
 });
+
+test('"Barre laterali" stays in its category: the top bar style only says if it exists', () => {
+  const sync = SETTINGS.match(/const railsRow = [^\n]*\n[^\n]*/)[0];
+  assert.match(sync, /setSettingsCardAvailable\(railsRow, style !== 'full'\)/);
+  assert.doesNotMatch(sync, /railsRow\.hidden/);
+});

@@ -16,11 +16,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 
 const CLIENT = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 const UPDATE = readFileSync(new URL('../js/update.js', import.meta.url), 'utf8');
 const DISCORD = readFileSync(new URL('../js/discord-invite.js', import.meta.url), 'utf8');
+const NATIVE = readFileSync(new URL('../js/native-bridge.js', import.meta.url), 'utf8');
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 // The accessors are a self-contained block in js/settings.js — a browser file
@@ -241,8 +243,52 @@ test('promotion is wired to hydration, not to load', () => {
 // What's New is once per release id: it is remembered the moment it is put on
 // screen, not by a button the user has to find. Closing it any other way used to
 // bring it back at every startup, and the paid drops window queued behind it.
-test("What's New is remembered when it opens, and the version label re-opens it", () => {
-  assert.match(UPDATE, /rememberWhatsNew\(wn\.id\);\s*openWhatsNew\(wn\);/);
+test("What's New is remembered when it is closed, and the version label re-opens it", () => {
+  assert.match(UPDATE, /onClose: \(\) => \{[\s\S]{0,120}rememberWhatsNew\(wn\.id\);/);
   assert.doesNotMatch(UPDATE, /dismissBtn/, 'there is no "don\'t show again" button any more');
-  assert.match(UPDATE, /getElementById\('settings-version'\)[\s\S]{0,400}addEventListener\('click', open\)/);
+  assert.match(UPDATE, /getElementById\('settings-version'\)[\s\S]{0,400}addEventListener\('click', reopenWhatsNew\)/);
+});
+
+// ── What a new install no longer has to close ──────────────────────────
+// The invite is run for real here: the rule is about when it stays away.
+function inviteShown(usage) {
+  const added = [];
+  let later = null;
+  const sandbox = {
+    document: {
+      readyState: 'complete',
+      querySelectorAll: () => [],
+      getElementById: () => null,
+      createElement: () => ({ classList: { add() {} }, appendChild() {}, append() {}, addEventListener() {}, setAttribute() {} }),
+      body: { appendChild: (n) => added.push(n) },
+    },
+    requestAnimationFrame: () => {},
+    setTimeout: (fn) => { later = fn; },
+    XenonStartupCards: {
+      whenReady: (fn) => fn(),
+      discordInviteDismissed: () => false,
+      rememberDiscordInvite() {},
+      usageHistory: () => usage,
+    },
+  };
+  sandbox.window = sandbox;
+  runInNewContext(DISCORD, sandbox);
+  if (later) later();
+  return added.length;
+}
+
+test('the Discord card waits for the second day of use', () => {
+  assert.equal(inviteShown({ usageDays: 0 }), 0, 'a new install');
+  assert.equal(inviteShown({ usageDays: 1 }), 0, 'still the first day');
+  assert.equal(inviteShown({ usageDays: 2 }), 1);
+  assert.equal(inviteShown(null), 0, 'history not known yet: the next launch can ask again');
+});
+
+test('the gesture hint waits for a finger, and is not said over the first question', () => {
+  const at = NATIVE.indexOf('hintOnFirstTouch');
+  assert.ok(at > 0);
+  const block = NATIVE.slice(at - 200, at + 500);
+  assert.match(block, /e\.pointerType !== 'touch'/);
+  assert.match(block, /contains\('first-run-asking'\)\) return;/);
+  assert.doesNotMatch(block, /setTimeout/);
 });

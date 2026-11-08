@@ -101,7 +101,7 @@ test('My scenes says where scenes come from', () => {
   assert.match(mine, /href="https:\/\/xenon-app\.com\/maker\/" target="_blank" rel="noopener noreferrer" data-i18n="ambient_create_maker"/);
   assert.match(mine, /PresetShare\.openImport\(\)" data-i18n="ambient_import_code"/);
   assert.match(mine, /CommunityGallery\.open\('ambient'\)" data-i18n="ambient_gallery"/);
-  assert.match(CSS, /\.settings-ambient-scenes-acts a\.settings-btn \{[^}]*text-decoration: none;/);
+  assert.match(SETTINGS_CSS, /^a\.settings-btn \{[^}]*text-decoration: none;/m);
 });
 
 test('gallery scenes are listed, named safely, with no Edit to offer', () => {

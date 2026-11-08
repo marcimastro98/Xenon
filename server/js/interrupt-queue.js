@@ -9,19 +9,18 @@
 // already been interrupted today, so a release landing on the same day as a
 // limited drop stacked two modals back to back.
 //
-// This module owns three things and nothing else:
+// This module owns two things and nothing else:
 //   1. busy()      — one source of truth for "the user is mid-flow, don't intrude"
 //   2. whenIdle()  — ONE shared poller, priority-ordered, instead of one per channel
-//   3. claimDaily()— an opt-in interruption budget shared across channels
+// The one-a-day limit on Bit's messages lives in server/bit-messages.js.
 //
 // Deliberately NOT a policy change for existing surfaces. What's New / update
 // (`.upd-overlay`) still opens immediately and answers to no one, and the paid
 // drop modal keeps its own once-a-day rule and its own "always waits for What's
 // New" behaviour. Both simply ask this module instead of carrying their own copy.
-// New channels are the ones that take a budget slot.
 //
-// Written as a factory over injected doc/storage/timers so the queue ordering and
-// budget rules are unit-testable without a DOM (see test/interrupt-queue.test.mjs).
+// Written as a factory over injected doc/storage/timers so the queue ordering is
+// unit-testable without a DOM (see test/interrupt-queue.test.mjs).
 // UMD like sdk-perf.js / theme-palette.js. Node gets the factory namespace; a
 // real browser additionally gets the live instance on window. The DOM check is
 // the honest browser test — an instance without a document could never answer
@@ -33,15 +32,12 @@
     root.XenonInterrupts = api.create();
   }
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  const DAY = 24 * 3600 * 1000;
   const TICK_MS = 1500;
   const DEFAULT_MAX_TRIES = 200;   // ~5 min, then give up until the next page load
-  const SEEN_CAP = 250;
 
-  // Same storage key catalog-drop.js has always used, so existing installs carry
-  // their announced-id history over untouched.
+  // The drops this device was already told about. Nothing writes it any more: the
+  // inbox imports it once, so nobody hears about an old drop again.
   const K_SEEN = 'xeneonedge.catalogSeen';
-  const K_BUDGET = 'xeneonedge.interruptBudget';
 
   // Immersive/full-screen states where an interruption is never acceptable.
   const BUSY_CLASSES = [
@@ -69,18 +65,25 @@
     // dialog. They are listed above everything else because they outrank it.
     '.sp-overlay',             // "Where do you want Xenon?" (first run)
     '.onb-overlay',            // the guided tour that follows it
-    '.upd-overlay',            // What's New / update available
+    '.upd-overlay',            // update available
+    '.wn-stage',               // What's New of a major, full screen
+    '.rn-overlay',             // what a release fixed, or a failed update
     '.preset-modal-overlay',   // preset import/export
     '.cgal-overlay',           // Store / community gallery
     '.cw-perm-backdrop',       // SDK grant request
     '.cw-clip-backdrop',       // SDK clipboard confirmation
     '.cw-ext-backdrop',        // SDK open-external confirmation
-    // Claude Code is BLOCKED behind this one: a tool call on the user's machine
-    // is waiting on the tap. The three above are SDK dialogs and were mistaken
-    // for it more than once because of the shared prefix — this is the widget's
-    // own fullscreen approval, and it outranks anything promotional by the same
-    // argument as the first-run surfaces above.
-    '.cw-overlay',
+    // Codex or Claude Code is BLOCKED behind this one: a tool call on the user's
+    // machine is waiting on the tap. The three above are SDK dialogs, not this — this
+    // is the agents' own fullscreen request, and it outranks anything promotional by
+    // the same argument as the first-run surfaces above.
+    '.ask-overlay',
+    '.xm-scrim',               // the Xenon menu on the dashboard: it sits above any card
+    '.widget-palette-overlay', // the "+" gallery: someone is choosing a widget
+    '.deck-ed-backdrop',       // the Deck's key editor and Smart Profiles: work in progress
+    '.deck-mix-backdrop',      // the Deck's mixer
+    '.deck-style-modal',       // the Deck's look
+    '.xfer-sheet-backdrop',    // Send to PC
   ];
 
   // Priority ladder, named so channels don't hardcode magic numbers. Limited
@@ -98,7 +101,6 @@
     const d = deps || {};
     const doc = d.doc || (typeof document !== 'undefined' ? document : null);
     const store = d.storage || (typeof localStorage !== 'undefined' ? localStorage : null);
-    const now = d.now || Date.now;
     const setT = d.setInterval || ((fn, ms) => setInterval(fn, ms));
     const clearT = d.clearInterval || ((h) => clearInterval(h));
 
@@ -126,43 +128,10 @@
         return (v === null || v === undefined) ? fallback : v;
       } catch { return fallback; }
     }
-    function writeJSON(key, value) {
-      if (!store) return;
-      try { store.setItem(key, JSON.stringify(value)); } catch { /* full/blocked */ }
-    }
 
-    // ── Shared announced-id set ──────────────────────────────────────────────
-    // Lives here because two channels can describe the same catalog entry (a paid
-    // drop and a hub announcement about it), and the second must not re-announce
-    // what the first already showed.
     function readSeen() {
       const a = readJSON(K_SEEN, []);
       return Array.isArray(a) ? a : [];
-    }
-    function markSeen(ids) {
-      if (!ids || !ids.length) return;
-      const set = readSeen();
-      for (const id of ids) if (id && !set.includes(id)) set.push(id);
-      // Keep the most recent ids only — an unbounded list would grow forever.
-      writeJSON(K_SEEN, set.slice(-SEEN_CAP));
-    }
-    const hasSeen = (id) => !!id && readSeen().includes(id);
-
-    // ── Daily interruption budget ────────────────────────────────────────────
-    // Opt-in: a channel that calls claimDaily() agrees to stay silent for the rest
-    // of the day if another budgeted channel got there first. Existing surfaces do
-    // not call it, so their cadence is unchanged.
-    function budgetSpent() {
-      const b = readJSON(K_BUDGET, null);
-      if (!b || typeof b.at !== 'number') return false;
-      return (now() - b.at) < DAY;             // older than a day → unspent again
-    }
-    function claimDaily(channel) {
-      if (budgetSpent()) return false;
-      // A blocked storage means the claim isn't remembered; allow anyway. A lost
-      // budget shows one extra modal, a lost message is never seen at all.
-      writeJSON(K_BUDGET, { at: now(), channel: String(channel || '') });
-      return true;
     }
 
     // ── The single poller ────────────────────────────────────────────────────
@@ -202,7 +171,7 @@
         fn,
         priority: Number.isFinite(o.priority) ? o.priority : 0,
         tries: 0,
-        maxTries: Number.isFinite(o.maxTries) ? o.maxTries : DEFAULT_MAX_TRIES,
+        maxTries: Number.isFinite(o.maxTries) || o.maxTries === Infinity ? o.maxTries : DEFAULT_MAX_TRIES,
       };
       // Immediate path: an open gap right now should not cost a 1.5s delay. Only
       // when nothing is already queued, or a late low-priority caller would jump
@@ -224,16 +193,12 @@
       busy,
       whenIdle,
       registerOverlay,
-      claimDaily,
-      budgetSpent,
       readSeen,
-      markSeen,
-      hasSeen,
       PRIORITY,
       _tick: tick,               // test seam: drive the poller without real timers
       _waiting: () => waiters.length,
     };
   }
 
-  return { create, PRIORITY, DAY, TICK_MS, K_SEEN, K_BUDGET };
+  return { create, PRIORITY, TICK_MS, K_SEEN };
 });

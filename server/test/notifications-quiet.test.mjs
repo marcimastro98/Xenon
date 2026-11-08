@@ -57,6 +57,12 @@ test('toast.js never lets do-not-disturb swallow a failure or a user alarm', () 
   assert.deepEqual(exempt, ['error', 'reminder', 'timer', 'warning']);
 });
 
+test('while the first question is open only a failure or an alarm may speak', () => {
+  // A stock alert from a watchlist nobody chose went up over the first thing a new install asks.
+  const gate = TOAST.slice(TOAST.indexOf('if (QUIET_EXEMPT.has(type)) return false;'));
+  assert.match(gate.slice(0, 200), /classList\.contains\('first-run-asking'\)\) return true;/);
+});
+
 test('the important escape hatch is strict — only a literal true bypasses', () => {
   // `important` exists for the RESULT of something the user just tapped, which
   // do-not-disturb was swallowing. A loose check would turn any truthy field

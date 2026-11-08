@@ -1,14 +1,21 @@
-// The month's drops (js/catalog-drop.js) as letters in Bit's mail, run against
-// DOM stubs with a clock the test moves.
+// The month's drops (js/catalog-drop.js) as Bit's messages, run against DOM stubs
+// with a clock the test moves, through the real client (js/bit-messages.js) and the
+// real inbox (bit-messages.js).
 //
 // The rules: the catalog is read once per session; every paid drop of the last
-// 30 days that the user does not already have becomes ONE letter, once ever
-// (publish A: A; publish B: B); nothing opens on screen, Bit's note decides
-// when to say so (js/bit-mail.js); off only through the monthlyDrops switch,
-// which starts ON for everybody (decided 2026-09-28).
+// 30 days that the user does not already have becomes ONE message, once ever
+// (publish A: A; publish B: B); nothing opens on screen when it is filed, the inbox
+// decides when it is its turn; off only through the monthlyDrops switch, which
+// starts ON for everybody (decided 2026-09-28).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { createBitMessages } = require('../bit-messages.js');
 
 const read = (rel) => readFileSync(new URL('../' + rel, import.meta.url), 'utf8');
 const DAY = 24 * 3600 * 1000;
@@ -21,8 +28,12 @@ function limitedStockSource() {
   return src.slice(start, src.indexOf('\n}', start) + 2);
 }
 
-// One "session": a fresh sessionStorage; localStorage and the settings persist.
-function dashboard({ hubSettings = {}, packages = [], local } = {}) {
+function inboxFile() {
+  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'catalog-drop-')), 'bit-messages.json');
+}
+
+// One "session": a fresh sessionStorage; the inbox and the settings persist.
+function dashboard({ hubSettings = {}, packages = [], file = inboxFile() } = {}) {
   let clock = NOW;
   class FakeDate extends Date {
     constructor(...a) { super(...(a.length ? a : [clock])); }
@@ -33,98 +44,92 @@ function dashboard({ hubSettings = {}, packages = [], local } = {}) {
     setItem: (k, v) => map.set(k, String(v)),
     removeItem: (k) => map.delete(k),
   });
-  const localMap = local || new Map();
   const sessionMap = new Map();
-  const el = (tag) => ({
-    tag, className: '', type: '', textContent: '', title: '', children: [], dataset: {},
-    style: { setProperty() {} },
-    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
-    appendChild(c) { this.children.push(c); return c; },
-    addEventListener() {}, setAttribute() {}, remove() {}, focus() {},
-  });
-  let busy = false;
   const opened = [];
-  const body = { classList: { contains: () => false }, appendChild(n) { opened.push(n); } };
+  const body = { classList: { contains: () => false }, append(n) { opened.push(n); } };
   const document = {
-    body, hidden: false, documentElement: { lang: 'en' }, createElement: el,
-    querySelector: () => (busy ? {} : null), getElementById: () => null,
+    body, hidden: false, createElement: () => ({}),
+    documentElement: { lang: 'en', hasAttribute: () => false },
+    querySelector: () => null, getElementById: () => null,
     addEventListener() {}, removeEventListener() {},
   };
+  const inbox = createBitMessages({ file, now: () => clock, log: { warn() {} } });
   let catalog = [];
-  const letters = [];
+  let down = false;
   let asks = 0;
   const timeouts = [];
-  let ticker = null;
   const window = {
-    CommunityGallery: { openEntry() {}, openSupporters() {}, open() {} },
-    // Filed through the real store (js/bit-mail-core.js), on this dashboard's localStorage.
-    BitMail: { post(l) { if (!window.BitMailCore.post(l)) return false; letters.push(l); return true; }, register() {} },
+    CommunityGallery: {},
     CustomWidget: { getPackages: async () => ({ packages }), cachedPackages: () => packages },
+    addEventListener() {},
   };
   const g = {
-    window, document, localStorage: mk(localMap), sessionStorage: mk(sessionMap), Date: FakeDate,
+    window, document, localStorage: mk(new Map()), sessionStorage: mk(sessionMap), Date: FakeDate,
     hubSettings, requestAnimationFrame: (fn) => fn(),
-    makeEl: (t, c, x) => { const n = el(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; },
     apiJson: async (url) => { if (url === '/api/community/catalog') { asks++; return { ok: true, entries: catalog }; } return { ok: false }; },
+    fetch: async (url, opts) => {
+      if (down) return { ok: false };
+      assert.equal(url, '/bit/messages/file');
+      await inbox.post(JSON.parse(opts.body));
+      return { ok: true, json: async () => ({ ok: true }) };
+    },
     setTimeout: (fn, ms) => { timeouts.push(ms); if (ms < 1000) setTimeout(fn, 0); return 0; },
-    setInterval: (fn) => { ticker = fn; return 1; },
-    clearInterval: () => { ticker = null; },
+    clearTimeout() {},
   };
   const load = (src) => { const n = Object.keys(g); new Function(...n, src)(...n.map((k) => g[k])); };
-  load(read('js/interrupt-queue.js'));
-  g.XenonInterrupts = window.XenonInterrupts;
-  load(read('js/bit-mail-core.js'));
+  load(read('js/bit-messages.js'));
   load(limitedStockSource() + '\n' + read('js/catalog-drop.js'));
 
+  const stored = () => {
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')).messages; } catch { return []; }
+  };
   return {
-    timeouts, localMap, letters, opened,
+    timeouts, opened, file, inbox, stored,
     set catalog(v) { catalog = v; },
+    set down(v) { down = v; },
     get asks() { return asks; },
-    set busy(v) { busy = v; },
     advance(ms) { clock += ms; },
-    // The ids of the letters this start filed.
+    // The ids this start added to the inbox.
     async start() {
-      const before = letters.length;
+      const before = new Set(stored().map((m) => m.id));
       await window.CatalogDrop.checkOnStart();
-      await new Promise((r) => setTimeout(r, 5));
-      if (ticker) ticker();
-      return letters.slice(before).map((l) => l.id);
+      return stored().map((m) => m.id).filter((id) => !before.has(id));
     },
   };
 }
 
 const pack = (id, daysAgo, extra) => Object.assign({ id, kind: 'bundle', name: id, locked: true, addedAt: iso(daysAgo) }, extra);
 
-test('publish A: a letter about A. Publish B: a letter about B, and A is not sent twice', async () => {
+test('publish A: a message about A. Publish B: a message about B, and A is not sent twice', async () => {
   const d = dashboard();
-  d.catalog = [pack('a', 2)];
+  d.catalog = [pack('a', 2, { description: 'A pack about things' })];
   assert.deepEqual(await d.start(), ['drop:a']);
-  const l = d.letters[0];
-  assert.equal(l.kind, 'drop');
-  assert.equal(l.title, 'a');
-  assert.deepEqual(l.data, { entryId: 'a' });
-  assert.match(l.note, /^a is out/, 'Bit names the drop in its one sentence');
+  const m = d.stored()[0];
+  assert.equal(m.kind, 'drop');
+  assert.equal(m.title, 'a');
+  assert.equal(m.body, 'A pack about things');
+  assert.equal(m.entryId, 'a');
+  assert.equal(m.action.type, 'store', 'its button opens the entry in the Store, it never buys');
+  assert.equal(m.media.url, 'https://assets.xenon-app.com/community/shots/a.webp', 'the picture comes from the id');
 });
 
-test('across sessions each drop is one letter, ever', async () => {
-  const local = new Map();
-  let d = dashboard({ local });
+test('across sessions each drop is one message, ever', async () => {
+  const file = inboxFile();
+  let d = dashboard({ file });
   d.catalog = [pack('a', 2)];
   assert.deepEqual(await d.start(), ['drop:a']);
-  // A new session re-reads the catalog; the mailbox (same localStorage) refuses the repeat.
-  d = dashboard({ local });
+  d = dashboard({ file });
   d.catalog = [pack('a', 3), pack('b', 0)];
   assert.deepEqual(await d.start(), ['drop:b']);
-  d = dashboard({ local });
+  d = dashboard({ file });
   d.catalog = [pack('a', 4), pack('b', 1)];
   assert.deepEqual(await d.start(), [], 'both already filed');
 });
 
-test('nothing opens on screen: no window, no overlay, whatever is going on', async () => {
+test('filing opens nothing on screen, and limited editions go first', async () => {
   const d = dashboard();
   d.catalog = [pack('a', 1), pack('lim', 1, { locked: false, limited: { dropId: 'lim', total: 50, claimed: 3 } })];
-  d.busy = true;
-  assert.deepEqual(await d.start(), ['drop:lim', 'drop:a'], 'filed at once, limited editions first');
+  assert.deepEqual(await d.start(), ['drop:lim', 'drop:a']);
   assert.equal(d.opened.length, 0, 'nothing was added to the page');
   const src = read('js/catalog-drop.js');
   assert.doesNotMatch(src, /xdrop-overlay|aria-modal|whenIdle/, 'the full-screen card is gone');
@@ -139,6 +144,15 @@ test('once per session: a second look in the same session asks nothing', async (
   assert.equal(d.asks, 1, 'and the catalog is not even asked');
 });
 
+test('a look the inbox could not take is tried again in the same session', async () => {
+  const d = dashboard();
+  d.catalog = [pack('a', 1)];
+  d.down = true;
+  assert.deepEqual(await d.start(), []);
+  d.down = false;
+  assert.deepEqual(await d.start(), ['drop:a']);
+});
+
 test('only the last 30 days, and nothing already over', async () => {
   const d = dashboard();
   d.catalog = [
@@ -146,7 +160,7 @@ test('only the last 30 days, and nothing already over', async () => {
     pack('ended', 5, { activeUntil: new Date(NOW - 3600 * 1000).toISOString() }),
     pack('free', 1, { locked: false }),
   ];
-  assert.deepEqual(await d.start(), [], 'nothing current and paid: no letter');
+  assert.deepEqual(await d.start(), [], 'nothing current and paid: no message');
 });
 
 test('what the user already has is left out', async () => {
@@ -162,22 +176,31 @@ test('what the user already has is left out', async () => {
   assert.deepEqual(await d.start(), [], 'every current drop is already theirs');
 });
 
-test('the old switch and the old per-device mute do not stop it; the new switch does', async () => {
-  const local = new Map([['xeneonedge.catalogDropsMuted', '1']]);
-  let d = dashboard({ hubSettings: { catalogDrops: false }, local });
+test('a drop bought or sold out before its turn is taken back', async () => {
+  const file = inboxFile();
+  let d = dashboard({ file });
+  d.catalog = [pack('a', 1)];
+  await d.start();
+  d = dashboard({ file, hubSettings: { contentInstalls: [{ source: 'catalog', sourceId: 'a' }] } });
+  d.catalog = [pack('a', 1)];
+  await d.start();
+  assert.deepEqual(d.stored().map((m) => m.id), [], 'unread and no longer true: gone');
+});
+
+test('an id that does not look like an id never reaches a URL', async () => {
+  const d = dashboard();
+  d.catalog = [pack('../../evil', 1)];
+  assert.deepEqual(await d.start(), []);
+});
+
+test('the old switch does not stop it; the new switch does', async () => {
+  let d = dashboard({ hubSettings: { catalogDrops: false } });
   d.catalog = [pack('a', 1)];
   assert.deepEqual(await d.start(), ['drop:a'], 'on by default, whatever was chosen for the old window');
 
-  d = dashboard({ hubSettings: { monthlyDrops: false }, local });
+  d = dashboard({ hubSettings: { monthlyDrops: false } });
   d.catalog = [pack('a', 1)];
-  assert.deepEqual(await d.start(), [], 'off in Settings: no letters');
-});
-
-test('the drop is marked seen for the hub channel, so an announcement about it is not a repeat', async () => {
-  const d = dashboard();
-  d.catalog = [pack('a', 1)];
-  await d.start();
-  assert.deepEqual(JSON.parse(d.localMap.get('xeneonedge.catalogSeen')), ['a']);
+  assert.deepEqual(await d.start(), [], 'off in Settings: nothing filed');
 });
 
 test('the retry chain stops once the session has had its check', () => {

@@ -10,9 +10,14 @@ html[data-screen-alerts] body {
   overflow: hidden;
 }
 
-/* Top right, where Windows and the game overlays people know put theirs, and
-   clear of a game's centre. The window covers the work area, so this sits
-   just under the screen's top edge. */
+/* Notifications open on the island, the dashboard's one (js/toast-island.js), at
+   the top centre: a small capsule that grows into the card and draws back in. The
+   window covers the work area, so this sits just under the screen's top edge, low
+   enough for the 10 px the window keeps around a card. */
+html[data-screen-alerts] .xisland-slot { top: 12px; }
+
+/* With a card holding the top centre (CENTRE_TAKEN in toast.js) they wait beside
+   it: top right, where Windows and the game overlays people know put theirs. */
 html[data-screen-alerts] .xtoast-stack {
   top: 16px;
   left: auto;
@@ -21,10 +26,25 @@ html[data-screen-alerts] .xtoast-stack {
 }
 
 /* Nothing behind the window is part of the page, so the card's blur has
-   nothing to soften: a denser fill keeps two lines readable over a game. */
-html[data-screen-alerts] .xtoast {
+   nothing to soften: a denser fill keeps two lines readable over a game. The
+   blur itself goes too: it draws nothing here, and it is the first suspect for
+   the white seen behind a card fading out on a see-through window. */
+/* Closing under the cut (js/alert-roll.js): it stays as it is, but takes no more clicks. */
+html[data-screen-alerts] .is-rolling { pointer-events: none; }
+
+html[data-screen-alerts] .xtoast-stack > .xtoast,
+html[data-screen-alerts] .xisland-skin--card,
+html[data-screen-alerts] .xisland-skin--pill {
   background: linear-gradient(rgba(var(--panel-rgb), 0.86) 0 0), var(--floating-ui-bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--panel-highlight-alpha));
 }
+
+/* The window is cut 10 px around a card, so a shadow outside it ends in a straight
+   edge and reads as a dark box behind the card. :root to outweigh the light theme. */
+:root[data-screen-alerts] .call-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09); }
+:root[data-screen-alerts] .gc-card { box-shadow: none; }
 
 /* An incoming call: the dashboard's call card, without the backdrop that dims
    the dashboard behind it. Top centre, apart from the cards on the right and
@@ -78,6 +98,12 @@ html[data-screen-alerts] .gc-card {
   background: linear-gradient(rgba(var(--panel-rgb), 0.92) 0 0), var(--floating-ui-bg);
 }
 
-/* "Ask out loud" takes the row of the typed question (the window gets no
-   keyboard), so it reads as the second action under "Analyze screen". */
-html[data-screen-alerts] .gc-ask-voice { order: 1; }
+/* Two keys here: the price takes the line above them, and they stay together. */
+html[data-screen-alerts] .gc-cost { flex-basis: 100%; }
+
+/* A game started under a card: it waits, it does not stay on top. The performance
+   question stays: the game starting is what it asks about. */
+body.game-mode .rn-corner,
+body.game-mode .wn-stage,
+body.game-mode .bm-card:not(.bm-ask),
+body.game-mode .bm-stage { display: none; }

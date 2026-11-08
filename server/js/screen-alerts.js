@@ -33,6 +33,7 @@ let hubSettings = {};
   let osDark = null;
   let settingsTimer = null;
   let gaming = false;
+  let gameKnown = false;   // nothing about an update opens before the first status says
 
   const tt = (key, fallback) => {
     const v = t(key);
@@ -141,27 +142,64 @@ let hubSettings = {};
   let loaded = false;
 
   // The cards that take the screen: pop-ups, an incoming call, Bit talking,
-  // the Game Companion.
-  const CARDS = '.xtoast-stack > .xtoast, .call-overlay > .call-card, body.ai-voice-mode .ai-voice-stage, .gc-overlay:not([hidden]) > .gc-card';
+  // the Game Companion. The island counts twice: the card in its slot has the
+  // final size from the first frame, so the glass grows inside the cut, and the
+  // glass itself is what is left to show while it closes with the card gone.
+  const CARDS = '.xtoast-stack > .xtoast:not(.xtoast-out, .xtoast-leaving), .call-overlay > .call-card, body.ai-voice-mode .ai-voice-stage, .gc-overlay:not([hidden]) > .gc-card, .rn-corner, .wn-stage:not([hidden]), .bm-card, .bm-stage, .xisland-slot > *, .xisland-bg';
+
+  function cutBox(card) {
+    const r = card.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return '';
+    const dpr = window.devicePixelRatio || 1;
+    const box = [r.left - SHADOW_PAD, r.top - SHADOW_PAD, r.width + 2 * SHADOW_PAD, r.height + 2 * SHADOW_PAD];
+    return box.map((v) => Math.round(v * dpr)).join(',');
+  }
+
+  // A card sliding into a gap would be clipped by a cut that waits for it to stop.
+  let moving = false;
 
   function cardRects() {
-    const dpr = window.devicePixelRatio || 1;
     const out = [];
+    moving = false;
     document.querySelectorAll(CARDS).forEach((card) => {
-      const r = card.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) return;
-      const box = [r.left - SHADOW_PAD, r.top - SHADOW_PAD, r.width + 2 * SHADOW_PAD, r.height + 2 * SHADOW_PAD];
-      out.push(box.map((v) => Math.round(v * dpr)).join(','));
+      if (card.closest('.is-rolling')) return;
+      const box = cutBox(card);
+      if (!box) return;
+      out.push(box);
+      if (card.getAnimations && card.getAnimations().some((a) => a.playState === 'running')) moving = true;
     });
     return out.join(';');
   }
 
+  const cutSignal = () => 'xenon-app:alert-rects?d=' + encodeURIComponent(cardRects());
+  function signalShell(signal) {
+    try { window.location.href = (window.__xenonSignal || String)(signal); } catch (e) { /* not native */ }
+  }
+
   function report() {
     frame = 0;
-    const signal = 'xenon-app:alert-rects?d=' + encodeURIComponent(cardRects());
+    const signal = cutSignal();
+    if (moving) frame = requestAnimationFrame(report);
     if (signal === lastSignal) return;
     lastSignal = signal;
-    try { window.location.href = (window.__xenonSignal || String)(signal); } catch (e) { /* not native */ }
+    signalShell(signal);
+  }
+
+  // Windows only, and never for someone who asked for less motion: js/toast.js
+  // and js/toast-island.js then leave a card to the shell (js/alert-roll.js).
+  const rollsCards = inShell && window.__XENON_ROLL_CARDS__ === true;
+  const calm = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if (rollsCards) {
+    const cards = (el) => (el.matches(CARDS) ? [el] : Array.from(el.querySelectorAll(CARDS)));
+    const roll = window.AlertRoll.create({
+      rectsOf: (el) => cards(el).map(cutBox).filter(Boolean),
+      send: (rects) => {
+        lastSignal = cutSignal();
+        signalShell(lastSignal + '&roll=' + encodeURIComponent(rects));
+      },
+      changed: () => scheduleReport(),
+    });
+    window.XenonAlertRoll = { away: (el) => (calm() ? null : roll.away(el)) };
   }
 
   // Now, and again once the card has moved in or out.
@@ -173,7 +211,7 @@ let hubSettings = {};
   }
 
   function watchCards() {
-    new MutationObserver(scheduleReport).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(scheduleReport).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
     window.addEventListener('resize', scheduleReport);
     document.addEventListener('transitionend', scheduleReport, true);
     window.XenonNative.afterLoad(() => { loaded = true; scheduleReport(); });
@@ -262,9 +300,17 @@ let hubSettings = {};
     updateShownFor = v;
     show(AlertToasts.updateAvailable(info, ctx(), openUpdate, () => skipVersion(v)));
   }
-  function openUpdate() {
-    window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=update');
-  }
+  const openDashboard = (page) => {
+    window.location.href = (window.__xenonSignal || String)('xenon-app:open-dashboard?open=' + page);
+  };
+  const openUpdate = () => openDashboard('update');
+  // The Store is not in this window: "Recharge" opens its Sparks where a hub
+  // message opens the Store (js/bit-messages.js), never a browser window here.
+  window.CommunityGallery = { openSparks: () => window.BitMessages.openSheet({ open: 'sparks' }) };
+  // "Widgets only" means no dashboard: what needs one is a choice, made in the menu.
+  const openMode = () => fetch(SERVER + '/screen-menu', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: true, section: 'mode' }),
+  }).catch(() => { /* the server is restarting */ });
 
   function revealBenchmark() {
     fetch(SERVER + '/actions/run', {
@@ -274,12 +320,14 @@ let hubSettings = {};
   }
 
   // Performance Mode runs in the hidden driver page (js/driver-perf.js) and shows
-  // itself here: the suggestion as a card whose buttons answer it, and what an
-  // optimize or restore did. One suggestion card at a time.
-  let perfPromptId = 0;
+  // itself here: the suggestion as Bit's question, whose keys answer it, and what an
+  // optimize or restore did. One question at a time, and not for long: the game is
+  // in front of it, so unlike the dashboard's it cannot just stay.
+  const PERF_PROMPT_MS = 20000;
+  let closePrompt = null;
   function closePerfPrompt() {
-    if (perfPromptId) window.XenonToast.dismiss(perfPromptId);
-    perfPromptId = 0;
+    if (closePrompt) closePrompt();
+    closePrompt = null;
   }
   function answerPerf(choice) {
     closePerfPrompt();
@@ -287,10 +335,18 @@ let hubSettings = {};
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'answer', choice }),
     }).catch(() => {});
   }
+  function askPerf(activity) {
+    const parts = onScreen() ? AlertToasts.perfPrompt(activity, ctx(), answerPerf) : null;
+    if (!parts) return;
+    closePrompt = window.XenonBitCard.ask(parts, {
+      bit: window.XenonReleaseNotes.bit,
+      lasts: { ms: PERF_PROMPT_MS, over: closePerfPrompt },
+    });
+  }
   function perfScreen(d) {
     if (d.kind === 'prompt') {
       closePerfPrompt();
-      if (d.activity) perfPromptId = show(AlertToasts.perfPrompt(d.activity, ctx(), answerPerf));
+      if (d.activity) askPerf(d.activity);
     } else if (d.kind === 'toast') {
       show(AlertToasts.perfNote(d.note, d.tone, ctx()));
     } else if (d.kind === 'answer') {
@@ -328,8 +384,21 @@ let hubSettings = {};
     } catch (e) { /* none, or the server is restarting: SSE vitals_nag brings the next */ }
   }
 
-  // Every event but Bit's vitals popup is for the window of "widgets only".
-  const ALWAYS = Object.freeze({ vitals_nag: vitalsPopup });
+  // The menu's window says these itself, on its result line.
+  let menuUp = false;
+  const unlessMenu = (handle) => (d) => { if (!menuUp) handle(d); };
+  const onMenu = (d) => { menuUp = !!d && d.open === true && !d.sheet; };
+
+  async function readMenu() {
+    try {
+      const res = await fetch(SERVER + '/screen-menu', { cache: 'no-store' });
+      if (res.ok) onMenu(await res.json());
+    } catch (e) { /* the server is restarting: SSE screen_menu brings the next */ }
+  }
+
+  // Every event but Bit's vitals popup and the menu's state is for the window of
+  // "widgets only".
+  const ALWAYS = Object.freeze({ vitals_nag: vitalsPopup, screen_menu: onMenu });
 
   const HANDLERS = Object.freeze({
     stocks_alert: (d) => { if (popups()) show(AlertToasts.stocks(d, ctx())); },
@@ -339,18 +408,22 @@ let hubSettings = {};
     timer_done: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerDone(d && d.label, ctx())); },
     timer_chime: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerChime(d && d.label, d && d.every, ctx())); },
     calendar_reminder: reminder,
-    update_auto: autoUpdate,
+    update_auto: (d) => {
+      autoUpdate(d);
+      if (d.phase === 'done' || d.phase === 'failed') window.ScreenRelease.check();
+    },
     benchmark: (d) => show(AlertToasts.benchmark(d, ctx(), revealBenchmark)),
-    stutter_why: (d) => show(AlertToasts.stutterWhy(d, ctx())),
+    stutter_why: unlessMenu((d) => show(AlertToasts.stutterWhy(d, ctx()))),
     exclusive_hint: (d) => { if (onScreen()) show(AlertToasts.exclusiveHint(d, ctx())); },
     deck_shortcut_failed: (d) => show(DeckErrorText.shortcutFailed(d, tt)),
+    xenon_menu_failed: unlessMenu((d) => show(DeckErrorText.menuFailed(d, tt))),
     // The whole ringing list (calls.js): an empty one closes the card.
     calls: (d) => { if (window.CallModal) window.CallModal.onCalls(onScreen() ? d : { calls: [] }); },
-    capture: (d) => { if (onScreen()) CaptureToast.onCapture(d); },
+    capture: unlessMenu((d) => { if (onScreen()) CaptureToast.onCapture(d); }),
     recording: (d) => { if (onScreen()) CaptureToast.onRecording(d); },
     steps: (d) => { if (onScreen()) CaptureToast.onSteps(d); },
     replay: (d) => { if (onScreen()) CaptureToast.onReplay(d); },
-    capture_marker: (d) => { if (onScreen()) CaptureToast.onMarker(d); },
+    capture_marker: unlessMenu((d) => { if (onScreen()) CaptureToast.onMarker(d); }),
     capture_export: (d) => { if (onScreen()) CaptureToast.onExport(d); },
     // "Hey Xenon": the server arms it here only while this window is on.
     wake: () => { if (onScreen() && window.ScreenBit) window.ScreenBit.wake(); },
@@ -360,6 +433,7 @@ let hubSettings = {};
     deck_shortcut: claimDeckStep,
     // A Deck key, its shortcut or the voice opened the Game Companion card.
     game_companion: (d) => { if (window.ScreenCompanion) window.ScreenCompanion.open(d); },
+    needs_dashboard: () => show(AlertToasts.needsDashboard(ctx(), openMode)),
     perf_screen: perfScreen,
   });
 
@@ -367,8 +441,15 @@ let hubSettings = {};
     const d = parse(e);
     // Only a full payload says whether a game runs (see main.js).
     if (!d || (d.gaming == null && d.gameRunning == null)) return;
+    const wasGaming = gaming;
+    const first = !gameKnown;
+    gameKnown = true;
     gaming = !!d.gaming;
     applyGameClass();
+    if (first || (wasGaming && !gaming)) {
+      window.ScreenRelease.check();
+      window.BitMessages.check();
+    }
   }
 
   function connect() {
@@ -385,7 +466,12 @@ let hubSettings = {};
     es.addEventListener('status', onStatus);
     es.addEventListener('settings', onSettingsEvent);
     // SSE has no replay: a save made while the stream was down is read on reconnect.
-    es.addEventListener('open', onSettingsEvent);
+    es.addEventListener('open', () => {
+      onSettingsEvent();
+      window.ScreenRelease.check();
+      window.BitMessages.check();
+    });
+    es.addEventListener('bit-messages', () => window.BitMessages.check());
   }
 
   async function boot() {
@@ -400,13 +486,26 @@ let hubSettings = {};
     watchCards();
     connect();
     readVitalsPopup();
+    readMenu();
     checkUpdate();
     setInterval(checkUpdate, UPDATE_CHECK_MS);
+    window.ScreenRelease.start({
+      server: SERVER,
+      ready: () => gameKnown && routine() && onScreen() && !document.body.classList.contains('game-mode'),
+      tr: (key) => tt(key, key),
+      seen: () => ({ whatsNew: hubSettings.whatsNewSeen, notes: hubSettings.releaseNotesSeen, updateFail: hubSettings.updateFailSeen }),
+      openUpdate,
+      openDashboard,
+    });
+    window.BitMessages.start({
+      ready: () => gameKnown && routine() && onScreen() && !document.body.classList.contains('game-mode'),
+      tr: (key) => tt(key, key),
+    });
   }
 
   // screen-bit.js reloads this page to give Bit's memory back, never under a
   // card someone is reading or a call that rings.
-  const ALERT_CARDS = '.xtoast-stack > .xtoast, .call-overlay > .call-card, .gc-overlay:not([hidden]) > .gc-card';
+  const ALERT_CARDS = '.xtoast-stack > .xtoast, .call-overlay > .call-card, .gc-overlay:not([hidden]) > .gc-card, .rn-corner, .wn-stage, .bm-card, .bm-stage, .xisland-slot > *';
   window.ScreenAlerts = Object.freeze({
     busy: () => [...document.querySelectorAll(ALERT_CARDS)].some((c) => c.getBoundingClientRect().width > 0),
   });

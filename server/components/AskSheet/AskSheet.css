@@ -1,0 +1,155 @@
+/* The window a Codex or a Claude Code request opens over the whole screen when it cannot
+   wait: who is asking and what for, what it would do, then what happens if nobody answers
+   and the keys. It is the tile's own card dressed for this room (.ask-sheet, built by
+   js/approval-keys.js). Its colours are the theme's roles, so it reads on every skin;
+   Liquid turns it into glass in styles/liquid-sheets.css. The questions the host puts
+   itself (a widget's permissions, a copy, a site, a pairing) use it too. */
+
+.ask-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(10px, 3vh, 28px); box-sizing: border-box;
+  /* No blur here: a full-screen blur is a per-frame cost on the Edge's integrated GPU. */
+  background: rgba(6, 7, 9, 0.72);
+  color: var(--text);
+  outline: none;
+  animation: ask-fade 0.18s ease-out;
+}
+@keyframes ask-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ask-overlay { animation: none; }
+}
+
+/* Two classes: this has to beat the card's own box whichever stylesheet loads last. */
+.ask-overlay .ask-sheet {
+  box-sizing: border-box; width: min(680px, 100%); max-height: 100%;
+  display: flex; flex-direction: column; gap: 16px; padding: 22px; overflow-y: auto;
+  background: var(--surface, rgb(var(--panel-rgb, 17, 19, 20)));
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-modal);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.ask-head { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; min-width: 0; }
+.ask-mark { flex: 0 0 48px; height: 44px; display: grid; place-items: center; }
+/* The sprite at three screen pixels per sprite pixel: nothing lands between pixels. */
+.ask-mark .cw-clawd { width: 48px; height: 36px; }
+.ask-mark .cw-clawd-svg { width: 48px; height: 36px; }
+.ask-mark .cx-tb-mark { width: 40px; height: 30px; stroke-width: 1.5; }
+.ask-words { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ask-title { font-size: 22px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.ask-line { font-size: 15px; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere; }
+.ask-who { margin-right: 0.35em; font-weight: 700; color: var(--text); }
+.ask-bit { display: block; width: 44px; height: 44px; }
+.ask-bit svg { display: block; width: 100%; height: 100%; }
+.ask-mark > svg { width: 32px; height: 32px; }
+
+/* A question: the head and the keys stay on screen, what is between them scrolls. */
+.ask-overlay .ask-sheet.is-question { width: min(600px, 100%); overflow: hidden; }
+.ask-overlay .ask-sheet.is-small { width: min(520px, 100%); }
+.ask-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* The body gives way before the keys do, and a long command scrolls inside its well. The
+   floor is what is being asked: past it the sheet scrolls, it never hides the question. */
+.ask-sheet .cw-dec-body, .ask-sheet .cx-dec-body { gap: 12px; min-height: 96px; }
+.ask-sheet .cw-dec-cmd, .ask-sheet .cx-dec-cmd, .ask-sheet .cw-dec-plan {
+  flex: 0 1 auto; min-height: 3.2em; max-height: none; padding: 12px 14px;
+  font-size: 15px; border-radius: var(--radius-control);
+}
+.ask-sheet .cw-dec-plan { line-height: 1.5; gap: 8px; }
+.ask-sheet .cw-md-h { font-size: 16px; }
+.ask-sheet .cw-md-bullet { font-size: 14px; min-width: 18px; }
+.ask-sheet .cw-md-code { font-size: 14px; }
+.ask-sheet .cw-md-pre { font-size: 14px; }
+.ask-sheet .cx-dec-note { font-size: 14px; color: var(--muted-text); }
+.ask-sheet .cw-dec-risks, .ask-sheet .cx-dec-risks { gap: 5px 18px; font-size: 14px; }
+.ask-sheet .cw-risk::before, .ask-sheet .cx-risk::before { display: none; }
+
+.ask-sheet .cw-dec-qs { gap: 14px; }
+.ask-sheet .cw-dec-qtext { font-size: 17px; }
+.ask-sheet .cw-dec-qnote { font-size: 14px; }
+.ask-sheet .cw-opt { min-height: 52px; padding: 12px 14px; }
+.ask-sheet .cw-opt-label { font-size: 15px; }
+.ask-sheet .cw-opt-desc { font-size: 14px; }
+.ask-sheet .cw-dec-input { min-height: 48px; font-size: 15px; }
+
+.ask-foot {
+  flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+  padding-top: 16px; border-top: 1px solid var(--divider);
+}
+.ask-note {
+  flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  font-size: 14px; line-height: 1.35; color: var(--muted-text);
+}
+.ask-note .cw-dec-timer, .ask-note .cx-dec-timer { margin: 0; color: var(--text); font-weight: 700; }
+
+/* Long words send the keys to a row of their own: the main one stays at the right. */
+.ask-foot .cw-dec-acts, .ask-foot .cx-dec-acts { flex: 0 1 auto; margin-left: auto; gap: 10px; }
+.ask-sheet .cw-key, .ask-sheet .cx-key {
+  flex: 0 0 auto; min-height: 52px; min-width: 120px; padding: 0 20px;
+  font-size: 16px; border-radius: var(--radius-control);
+}
+/* The keys of a question: the quiet one a well, the main one the theme's. */
+.ask-keys { flex: 0 1 auto; margin-left: auto; display: flex; gap: 10px; }
+.ask-key {
+  flex: 0 0 auto; min-height: 52px; min-width: 120px; padding: 0 20px;
+  border: 0; border-radius: var(--radius-control); cursor: pointer;
+  font: inherit; font-size: 16px; font-weight: 700;
+  background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text);
+}
+.ask-key:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
+.ask-key.is-main, .ask-key.is-main:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.ask-key:disabled { opacity: 0.4; cursor: default; }
+.ask-key:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* A key that cannot be undone: a red word on a well. White on the theme's red reads under
+   3:1, so the red only fills while it is held. */
+.ask-sheet .cw-key.is-hold, .ask-sheet .cx-key.is-hold {
+  background: color-mix(in srgb, var(--text) 13%, transparent);
+  box-shadow: none;
+  color: var(--color-danger);
+}
+:root[data-appearance="light"] .ask-sheet .cw-key.is-hold,
+:root[data-appearance="light"] .ask-sheet .cx-key.is-hold { color: color-mix(in srgb, var(--color-danger) 65%, var(--text)); }
+.ask-sheet .cw-key.is-hold.is-holding, .ask-sheet .cx-key.is-hold.is-holding { color: #fff; }
+
+/* Outside the tile no container query reaches it, so a phone has its own rules. */
+@media (max-width: 520px) {
+  .ask-overlay .ask-sheet { padding: 16px; }
+  .ask-foot .cw-dec-acts, .ask-foot .cx-dec-acts { flex: 1 1 100%; flex-wrap: wrap; }
+  .ask-foot .cw-key, .ask-foot .cx-key { flex: 1 1 0; min-width: 0; padding: 0 12px; }
+  .ask-foot .cx-key.is-quiet { order: 3; flex-basis: 100%; }
+  .ask-keys { flex: 1 1 100%; }
+  .ask-key { flex: 1 1 0; min-width: 0; padding: 0 12px; }
+}
+@media (max-height: 560px) {
+  .ask-overlay .ask-sheet { gap: 11px; padding: 15px 18px; }
+  .ask-mark { flex-basis: 32px; height: 28px; }
+  .ask-mark .cw-clawd { width: 32px; height: 28px; }
+  .ask-mark .cw-clawd-svg { width: 32px; height: 24px; }
+  .ask-mark .cx-tb-mark { width: 28px; height: 21px; }
+  .ask-bit { width: 28px; height: 28px; }
+  .ask-mark > svg { width: 24px; height: 24px; }
+  .ask-title { font-size: 18px; }
+  .ask-line { font-size: 14px; }
+  .ask-foot { padding-top: 11px; }
+  .ask-sheet .cw-dec-cmd, .ask-sheet .cx-dec-cmd, .ask-sheet .cw-dec-plan { font-size: 14px; padding: 10px 12px; }
+  .ask-sheet .cw-key, .ask-sheet .cx-key, .ask-key { min-height: 44px; font-size: 15px; }
+  .ask-sheet .cw-opt { min-height: 44px; padding: 9px 12px; }
+}
+/* A tile's own window can be this small: the keys share a row and the words about what
+   comes next give their line to the request. */
+@media (max-height: 420px) {
+  .ask-overlay { padding: 6px; }
+  .ask-after { display: none; }
+  .ask-sheet .cw-dec-body, .ask-sheet .cx-dec-body { gap: 8px; }
+  .ask-sheet .cw-dec-cmd, .ask-sheet .cx-dec-cmd { min-height: 0; }
+  .ask-foot .cw-key, .ask-foot .cx-key { flex: 1 1 auto; padding: 0 10px; }
+  .ask-foot .cx-key.is-quiet { order: 0; flex-basis: auto; }
+  .ask-keys { flex: 1 1 auto; }
+  .ask-key { flex: 1 1 auto; min-width: 0; padding: 0 10px; }
+}

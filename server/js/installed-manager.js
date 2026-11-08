@@ -362,6 +362,8 @@
   // Everything else goes back through PresetShare.openImport — the same full
   // preview + approval a first install gets. Neither path ever swaps content
   // silently, which is the property that makes a one-click update safe to offer.
+  const isOfficialDrop = (entry) => !!(window.CommunityGallery && window.CommunityGallery.isOfficial && window.CommunityGallery.isOfficial(entry));
+
   // What the HUB knows this install by, and what is installed: a numbered copy is
   // 'vanguard-50-01' on the hub while the catalog lists 'vanguard-50', so the
   // receipt's own id wins over the entry's. `have` is the catalog version stamped at
@@ -392,7 +394,7 @@
     }
     await PresetShare.updateOwned(code, {
       source: 'catalog', sourceId: ownedTarget(upd, row).entryId, sourceVersion: upd.version || '',
-      perfWarning: upd.perfWarning === true, owner: ownedTarget(upd, row),
+      perfWarning: upd.perfWarning === true, official: isOfficialDrop(upd), owner: ownedTarget(upd, row),
     });
     return true;
   }
@@ -408,7 +410,7 @@
       // straight to the import dialog: it unlocks with this PC's saved supporter
       // pass, or asks for the code once and saves it.
       if (PS() && typeof PS().peekLocked === 'function' && PS().peekLocked(codeRes.code)) {
-        PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '' });
+        PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '', official: isOfficialDrop(upd) });
         return false;
       }
       const env = PS() ? PS().decodePreset(codeRes.code) : null;
@@ -431,7 +433,7 @@
         // replacement, which the user confirms in the import review, where the
         // permissions it had are cleared.
         if (d && d.error === 'id_exists' && PS()) {
-          PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '' });
+          PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '', official: isOfficialDrop(upd) });
           return false;
         }
         if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
@@ -442,7 +444,7 @@
       // A theme/deck/pack update is an import: it opens the normal dialog, which
       // owns the outcome from here (including the receipt that clears the badge).
       if (!PS()) throw new Error('no_import');
-      PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '' });
+      PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '', official: isOfficialDrop(upd) });
       return false;
     } catch {
       toast(t('settings_sdk_update_failed', 'Aggiornamento non riuscito'), '', 'error');
@@ -564,7 +566,7 @@
 
     const btns = el('div', 'inst-row-btns');
     if (upd) {
-      const b = el('button', 'settings-btn primary', t('settings_sdk_update', 'Aggiorna') + ' → v' + upd.version);
+      const b = el('button', 'settings-btn primary', t('settings_sdk_update', 'Aggiorna') + ' v' + upd.version);
       b.type = 'button';
       b.addEventListener('click', async () => {
         b.disabled = true;

@@ -22,8 +22,9 @@ function languages() {
 }
 
 test('the Create card links to Xenon Maker in a new tab', () => {
-  const link = HTML.match(/<a [^>]*data-i18n="settings_maker_link"[^>]*>/);
-  assert.ok(link, 'no Maker link in the Create card');
+  const row = HTML.slice(HTML.indexOf('data-i18n="settings_maker_link"'));
+  const link = row.match(/<a [^>]*>/);
+  assert.ok(link, 'no Maker link in the Create section');
   assert.match(link[0], /href="https:\/\/xenon-app\.com\/maker\/"/);
   assert.match(link[0], /target="_blank"/);
   assert.match(link[0], /rel="noopener noreferrer"/);

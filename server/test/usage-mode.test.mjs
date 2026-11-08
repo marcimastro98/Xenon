@@ -20,6 +20,13 @@ const recorder = () => {
   return { writes, settings: { setUsageMode: async (m) => { writes.push(m); return m; } } };
 };
 
+test('Settings opens the Xenon menu from the row of the mode, so it shows only where the app draws it', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url));
+  const at = html.indexOf('id="settings-usage-mode-group"');
+  assert.ok(html.indexOf('onclick="openXenonMenu()"', at) > at);
+  assert.match(CLIENT, /function openXenonMenu\(\) \{[^}]*'\/screen-menu'/);
+});
+
 test('only the three modes survive; anything else means "not asked yet"', () => {
   assert.deepEqual([...UsageMode.MODES], ['dashboard', 'widgets', 'both']);
   for (const m of UsageMode.MODES) assert.equal(UsageMode.normalize(m), m);

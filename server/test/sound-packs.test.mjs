@@ -36,7 +36,7 @@ test('clipLooksValid accepts real formats and rejects a renamed exe', () => {
 // ---------------------------------------------------------------------------
 
 const okPayload = (over = {}) => Object.assign({
-  manifest: { id: 'stingers', name: 'Stingers', author: 'Marci', version: '1.0.0' },
+  manifest: { id: 'stingers', name: 'Stingers', author: 'Luca', version: '1.0.0' },
   clips: [
     { id: 'airhorn', label: 'Air horn', ext: 'mp3', data: MP3_ID3.toString('base64') },
     { id: 'tada_1', ext: 'wav', data: WAV.toString('base64') },
@@ -127,7 +127,7 @@ test('sanitizeDeckProfile keeps pack-relative playSound files and blanks the res
   assert.ok(JSON.stringify(keep).includes('packs/stingers/airhorn.mp3'), 'pack ref survives');
 
   for (const bad of [
-    'C:\\Users\\marci\\clip.mp3',
+    'C:\\Users\\luca\\clip.mp3',
     'packs/../../etc/passwd.mp3',
     'packs/UPPER/clip.mp3',
     'packs/stingers/clip.exe',

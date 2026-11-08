@@ -153,6 +153,9 @@ test('the page wires it first, and the app tells it when it is ready', () => {
   assert.match(settings, /_hubHydratedFromServer = true;\n {2}if \(window\.BootSplash\) window\.BootSplash\.ready\('settings'\);/);
   assert.match(settings, /if \(window\.BootSplash\) window\.BootSplash\.remember\(\);/);
   assert.match(read('../js/main.js'), /applySystem\(d\);\n\s*if \(window\.BootSplash\) window\.BootSplash\.ready\('data'\);/);
+  // The first reading can come from either door: without this one the splash sat
+  // out all of SETTLE_MS with the data already on screen.
+  assert.match(read('../js/system.js'), /applySystem\(data\);\n(\s*\/\/.*\n)*\s*if \(window\.BootSplash\) window\.BootSplash\.ready\('data'\);/);
 });
 
 test('the setting is kept the same way on both sides, on by default', () => {
