@@ -1,10 +1,14 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-sq-'));
+after(() => rmSync(TMP_DIR, { recursive: true, force: true }));
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -22,7 +26,7 @@ const { createSpotifyProvider } = require('../stream-spotify.js');
 /** A connected provider wired to a fake fetch, so the paths it builds can be
  *  read back. Same shape as stream-spotify.test.mjs: a live token on disk. */
 function probe(onUrl, status = 200, body = { ok: 1 }, seen = null) {
-  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
   }));
@@ -46,7 +50,7 @@ function probe(onUrl, status = 200, body = { ok: 1 }, seen = null) {
 /** Same, but the fetch does not answer until `gate` resolves — for the two
  *  callers that have to fold into one upstream call. */
 function probeSlow(onUrl, gate, status = 200, body = { ok: 1 }) {
-  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
   }));
@@ -65,7 +69,7 @@ function probeSlow(onUrl, gate, status = 200, body = { ok: 1 }) {
  *  whose `match` is in the URL and whose `method` and `when(body)`, if set,
  *  agree. Every request lands in `seen` as { url, method, body }. */
 function probeRoutes(routes, seen) {
-  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
   }));

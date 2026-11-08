@@ -1,10 +1,14 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-spq-'));
+after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 
 // Picking a track out of Up Next.
 //
@@ -31,7 +35,7 @@ const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 // route can answer differently on the retry.
 function provider(routes) {
   const seen = [];
-  const file = path.join(os.tmpdir(), `xe-spq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = path.join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
   const p = createSpotifyProvider({
     clientId: 'cid',

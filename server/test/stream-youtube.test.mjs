@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -8,8 +8,12 @@ const require = createRequire(import.meta.url);
 const { createYouTubeProvider, normalizeStreamYouTube } = require('../stream-youtube.js');
 const { createRegistry } = require('../actions/registry.js');
 
+// One folder for this file's token files, removed when the file's tests end.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-yt-'));
+after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
+
 function tmpTokens() {
-  return path.join(os.tmpdir(), `xe-yt-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  return path.join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
 }
 function stubFetch(routes) {
   return async (url) => {

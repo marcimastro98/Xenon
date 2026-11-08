@@ -12,13 +12,17 @@
 //   · Xenon's compact rows, not Google's raw objects. These are the same rows the
 //     built-in tile draws, so one place stays responsible for Google's shape.
 //   · Paging by opaque token, because a YouTube library does not fit in a page.
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = mkdtempSync(join(tmpdir(), 'xe-yq-'));
+after(() => rmSync(TMP_DIR, { recursive: true, force: true }));
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -29,7 +33,7 @@ const CH = 'UCuAXFkgsw1L7xaCfnd5JJOw';   // a real-shaped channel id
 
 /** A connected provider whose fetch records every URL and answers from `routes`. */
 function probe(routes, seen = []) {
-  const file = join(tmpdir(), `xe-yq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     youtube: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, channel: 'C', channelId: 'UC' },
   }));

@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test \"server/test/*.test.mjs\" \"packages/core/test/*.test.mjs\" \"packages/mcp/test/*.test.mjs\"",
+    "test": "node tools/run-tests.mjs \"server/test/*.test.mjs\" \"packages/core/test/*.test.mjs\" \"packages/mcp/test/*.test.mjs\"",
     "dev": "node tools/dev.mjs",
     "demo": "node tools/build-demo.mjs && node tools/preview-docs.cjs",
     "demo:build": "node tools/build-demo.mjs",

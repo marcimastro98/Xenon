@@ -1,15 +1,19 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+
+// One folder for this file's temp token files, removed when its tests end.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xe-sp-'));
+after(() => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
 const { createSpotifyProvider, normalizeStreamSpotify } = require('../stream-spotify.js');
 const { createRegistry } = require('../actions/registry.js');
 
 function tmpTokens() {
-  return path.join(os.tmpdir(), `xe-sp-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  return path.join(TMP_DIR, `tokens-${Math.random().toString(36).slice(2)}.json`);
 }
 // Match by URL substring, in array order (put the more specific path first). A
 // route may set `status` (204 → no JSON body, like most Spotify control calls).
