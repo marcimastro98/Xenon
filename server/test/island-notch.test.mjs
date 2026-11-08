@@ -81,3 +81,74 @@ test('the line along the cutout carries on the tile border, and a tile without o
   // The Deck's bare frame: border 0, and its computed colour is the white of the text.
   assert.deepEqual(N.edgeLine({ borderLeftWidth: '0px', borderLeftColor: 'rgb(255, 255, 255)' }), { width: 0, color: 'transparent' });
 });
+
+// A tab strip beside the cutout. The strip in base's tile: 16px in from the item's
+// left, at most to 584, and the content under it starting 53px down.
+const strip = { left: 16, right: 584, need: 120, under: 53 };
+
+test('a strip that fits beside the cutout stays where it is, one ring from the wall', () => {
+  // The island takes the tile's right corner: the room is on the left.
+  const g = N.geometry({ ...base, pill: { left: 400, right: 700, bottom: 46, height: 44 } });
+  assert.equal(g.openRight, true);
+  const b = N.besideBar(g, strip);
+  assert.equal(b.shift, 0);
+  assert.equal(b.max, g.left - N.GAP - strip.left);
+  // Exactly the room fits; a pixel more does not, and the content then starts under the cutout.
+  assert.ok(N.besideBar(g, { ...strip, need: g.left - N.GAP - strip.left }));
+  assert.equal(N.besideBar(g, { ...strip, need: g.left - N.GAP - strip.left + 1 }), null);
+});
+
+test('a strip moves past a cutout that takes the tile corner it starts at', () => {
+  const g = N.geometry({ ...base, pill: { left: -100, right: 150, bottom: 46, height: 44 } });
+  assert.equal(g.openLeft, true);
+  const b = N.besideBar(g, strip);
+  assert.equal(b.shift, g.right + N.GAP - strip.left);
+  assert.equal(b.max, strip.right - (g.right + N.GAP));
+});
+
+test('a cutout in the middle: the left side first, else the right, else none', () => {
+  const g = N.geometry(base); // walls at 192 and 408: 168px of room on each side
+  assert.equal(N.besideBar(g, strip).shift, 0);
+  const narrowLeft = N.geometry({ ...base, pill: { left: 120, right: 300, bottom: 46, height: 44 } });
+  assert.equal(N.besideBar(narrowLeft, { ...strip, need: 150 }).shift, narrowLeft.right + N.GAP - strip.left);
+  assert.equal(N.besideBar(g, { ...strip, need: 200 }), null);
+});
+
+test('the content moves down only as far as the cutout reaches', () => {
+  const g = N.geometry({ ...base, pill: { left: 400, right: 700, bottom: 46, height: 44 } });
+  assert.equal(N.besideBar(g, strip).under, Math.ceil(g.bottom - strip.under));
+  assert.equal(N.besideBar(g, { ...strip, under: g.bottom + 30 }).under, 0);
+});
+
+test('no strip beside an island that covers the whole tile top, or without a strip', () => {
+  const g = N.geometry({ ...base, pill: { left: -50, right: 700, bottom: 46, height: 44 } });
+  assert.equal(N.besideBar(g, strip), null);
+  assert.equal(N.besideBar(N.geometry(base), null), null);
+  assert.equal(N.besideBar(null, strip), null);
+  assert.equal(N.besideBar(N.geometry(base), { ...strip, need: 0 }), null);
+});
+
+// The wiring the browser check (tools/island-tabs-check) exercises on the demo.
+const { readFileSync } = await import('node:fs');
+const TOPBAR_JS = readFileSync(new URL('../js/topbar-minimal.js', import.meta.url), 'utf8');
+const TOPBAR_CSS = readFileSync(new URL('../components/TopbarMinimal/TopbarMinimal.css', import.meta.url), 'utf8');
+
+test('strips are read only on a shown page outside editing, and their place is part of the cutout key', () => {
+  assert.match(TOPBAR_JS, /const readable = !editing && !grid\.closest\('\.pager-page\.is-parked'\);/);
+  assert.match(TOPBAR_JS, /if \(!readable\) return barRooms\.get\(item\) \|\| null;/);
+  assert.match(TOPBAR_JS, /const inset = bar \? parseFloat\(cs\.borderLeftWidth\) \|\| 0 : geo\.inset;/);
+  assert.match(TOPBAR_JS, /\+ '\|' \+ clearance \+ '\|' \+ beside;/);
+});
+
+test('a tile the island leaves gives its strip back', () => {
+  const body = (name) => TOPBAR_JS.slice(TOPBAR_JS.indexOf(`function ${name}(`), TOPBAR_JS.indexOf('\n  }\n', TOPBAR_JS.indexOf(`function ${name}(`)));
+  assert.match(body('dropNotch'), /setBar\(item, null\);/);
+  assert.match(body('releaseNotch'), /setBar\(item, null\);/);
+});
+
+test('the strip moves and the content under it moves down, on the cutout clock', () => {
+  assert.match(TOPBAR_CSS, /\.island-clear > \.grid-stack-item-content > \.tabgroup > \.tabgroup-bar \{\s*translate: var\(--island-bar-shift, none\);\s*transition: translate var\(--island-notch-ms, 360ms\)/);
+  assert.match(TOPBAR_CSS, /\.island-beside > \.grid-stack-item-content > \.tabgroup > \.tabgroup-bar \{\s*max-width: var\(--island-bar-max, none\);/);
+  assert.match(TOPBAR_CSS, /\.tabgroup > \.tabgroup-body \{\s*padding-top: var\(--island-under, 0px\);\s*transition: padding-top var\(--island-notch-ms, 360ms\)/);
+  assert.match(TOPBAR_CSS, /@media \(prefers-reduced-motion: reduce\) \{\s*body\.topbar-minimal \{ --island-notch-ms: 0ms; \}/);
+});

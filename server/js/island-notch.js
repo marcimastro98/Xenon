@@ -128,7 +128,33 @@
     return border > 0 ? { width: Math.max(1, border), color: style.borderLeftColor } : { width: 0, color: 'transparent' };
   }
 
-  const api = { geometry, collapsed, clipPath, surfaceClipPath, edgePath, edgeLine, GAP };
+  // A tab strip that fits beside the cutout stays at the tile top. Starting the
+  // whole tile under the cutout left an empty band as deep as the island across
+  // a tile the island only bit a corner of, with the tabs floating under it.
+  // in: g from geometry(); bar: { left, right, need, under } in item-local px:
+  //     where the strip starts and may end with nothing cut, the width its tabs
+  //     need, and where the content under it starts.
+  // out: null when it fits on neither side of the cutout, else how far to move
+  //     the strip (`shift`), its widest (`max`), and how far the content under it
+  //     moves down (`under`) to start below the cutout.
+  // The strip keeps one ring (GAP) from the cutout's wall, as from the tile edge.
+  // A side the cutout runs off has its wall past the tile edge, so no room there.
+  function besideBar(g, bar) {
+    if (!g || !bar || !(bar.need > 0) || !(bar.right > bar.left)) return null;
+    const runs = [
+      [bar.left, Math.min(bar.right, g.left - GAP)],
+      [Math.max(bar.left, g.right + GAP), bar.right],
+    ];
+    const run = runs.find(([from, to]) => to - from >= bar.need);
+    if (!run) return null;
+    return {
+      shift: r1(run[0] - bar.left),
+      max: Math.floor(run[1] - run[0]),
+      under: Math.max(0, Math.ceil(g.bottom - bar.under)),
+    };
+  }
+
+  const api = { geometry, collapsed, clipPath, surfaceClipPath, edgePath, edgeLine, besideBar, GAP };
   if (typeof window !== 'undefined') window.IslandNotch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

@@ -586,12 +586,49 @@
     path.setAttribute('stroke-width', String(line.width));
   }
 
+  // A tab strip with room beside the cutout keeps its place at the tile top
+  // (island-notch.js besideBar); only what is under the strip moves down.
+  const BAR_PROPS = ['--island-bar-shift', '--island-bar-max', '--island-under'];
+  function setBar(item, bar) {
+    item.classList.toggle('island-beside', !!bar);
+    BAR_PROPS.forEach(p => item.style.removeProperty(p));
+    if (!bar) return;
+    if (bar.shift) item.style.setProperty('--island-bar-shift', bar.shift + 'px');
+    item.style.setProperty('--island-bar-max', bar.max + 'px');
+    if (bar.under) item.style.setProperty('--island-under', bar.under + 'px');
+  }
+
+  // Where a group's tab strip may sit and what it needs, in the item's own px.
+  // Read only on a shown page outside editing: a rect read on a parked page
+  // renders the very subtree the parking skips, and while editing the content
+  // sits lower. A tile that cannot be read keeps what was read last.
+  const barRooms = new WeakMap(); // item -> { left, right, need, under }
+  function tabBarRoom(item, surface, cs, tile, top, readable) {
+    if (!surface.classList.contains('tabgroup')) return null;
+    if (!readable) return barRooms.get(item) || null;
+    const bar = surface.querySelector(':scope > .tabgroup-bar');
+    const body = surface.querySelector(':scope > .tabgroup-body');
+    if (!bar || !body) return null;
+    const px = (v) => parseFloat(v) || 0;
+    const bs = getComputedStyle(bar);
+    const border = px(cs.borderLeftWidth); // the top border's width once the strip stays up
+    const room = {
+      left: tile.margin + border + px(cs.paddingLeft) + px(bs.marginLeft),
+      right: tile.width - tile.margin - px(cs.borderRightWidth) - px(cs.paddingRight) - px(bs.marginRight),
+      need: bar.scrollWidth + 1,
+      under: body.getBoundingClientRect().top - top - (px(cs.borderTopWidth) - border),
+    };
+    barRooms.set(item, room);
+    return room;
+  }
+
   function dropNotch(item) {
     const st = notchState.get(item);
     if (st && st.leaving) clearTimeout(st.leaving);
     notchState.delete(item);
     item.classList.remove('island-clear');
     ['--island-clear', '--island-inset', '--island-notch', '--island-notch-surface', '--island-notch-ms'].forEach(p => item.style.removeProperty(p));
+    setBar(item, null);
     const svg = item.querySelector(':scope > .island-notch-edge');
     if (svg) svg.remove();
   }
@@ -609,6 +646,7 @@
     st.key = '';
     item.style.setProperty('--island-notch-ms', NOTCH_MS + 'ms'); // closes on its own clock while the box follows
     item.style.setProperty('--island-inset', st.line.width + 'px');
+    setBar(item, null);
     drawNotch(item, window.IslandNotch.collapsed(st.geo), st.line);
   }
 
@@ -758,9 +796,11 @@
       const cols = (window.DashboardGrid && window.DashboardGrid.GRID_COLUMNS) || 24;
       const colWidth = g.width / cols;
       const N = window.IslandNotch;
+      const editing = document.body.classList.contains('layout-editing');
       let margin = null;
-      const want = new Map(); // item -> { geo, line, inset }
+      const want = new Map(); // item -> { geo, line, inset, bar }
       grids.forEach(grid => {
+        const readable = !editing && !grid.closest('.pager-page.is-parked');
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
           const n = item.gridstackNode;
           if (!n || (n.y || 0) !== 0) return;            // mounted, top row only
@@ -775,7 +815,9 @@
           const local = (b) => ({ left: b.left - g.left - left, right: b.right - g.left - left, bottom: b.bottom - g.top, height: b.height, radius: b.radius });
           const geo = N.geometry({ ...tile, pill: local(pill) });
           if (!geo) return;
-          want.set(item, { geo, line: N.edgeLine(cs), inset: geo.inset });
+          const bar = N.besideBar(geo, tabBarRoom(item, surface, cs, tile, g.top, readable));
+          const inset = bar ? parseFloat(cs.borderLeftWidth) || 0 : geo.inset;
+          want.set(item, { geo, line: N.edgeLine(cs), inset, bar });
         });
       });
       // Writes. Reconcile idempotently: fitGridHeights re-runs on every
@@ -788,17 +830,19 @@
       // wrap nothing: it closes into its centre and the tiles are whole again
       // (body.xtoast-fold, js/toast.js; it lifts as the card heads home). The inset
       // stays, so their content does not move for a notification.
-      const folded = document.body.classList.contains('xtoast-fold') && !document.body.classList.contains('layout-editing');
-      want.forEach(({ geo, line, inset }, item) => {
+      const folded = document.body.classList.contains('xtoast-fold') && !editing;
+      want.forEach(({ geo, line, inset, bar }, item) => {
         const prev = notchState.get(item);
         const shape = folded ? N.collapsed(geo) : geo;
-        const key = N.clipPath(shape) + '|' + inset + '|' + line.width + '|' + line.color + '|' + clearance;
+        const beside = bar ? bar.shift + ',' + bar.max + ',' + bar.under : '';
+        const key = N.clipPath(shape) + '|' + inset + '|' + line.width + '|' + line.color + '|' + clearance + '|' + beside;
         if (prev && !prev.leaving && prev.key === key && item.classList.contains('island-clear')) return;
         if (prev && prev.leaving) { clearTimeout(prev.leaving); prev.leaving = 0; }
         const fresh = !prev || !item.classList.contains('island-clear');
         item.style.removeProperty('--island-notch-ms');
         item.style.setProperty('--island-clear', clearance + 'px');
         item.style.setProperty('--island-inset', inset + 'px');
+        setBar(item, bar);
         notchState.set(item, { geo, line, key, leaving: 0 });
         item.classList.add('island-clear');
         if (fresh && animate && !follow.pos && !folded) {

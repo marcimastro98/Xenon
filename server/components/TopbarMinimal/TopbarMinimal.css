@@ -88,6 +88,21 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-s
   background-origin: border-box;
   transition: border-top-width var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
 }
+/* A group whose tabs fit beside the cutout keeps them at the tile top
+   (.island-beside, js/island-notch.js besideBar): the strip moves sideways out of
+   the cutout if it has to, and only the open member starts below it. Without
+   room the whole tile starts under the cutout, as above. */
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-bar {
+  translate: var(--island-bar-shift, none);
+  transition: translate var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-beside > .grid-stack-item-content > .tabgroup > .tabgroup-bar {
+  max-width: var(--island-bar-max, none);
+}
+body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .grid-stack-item-content > .tabgroup > .tabgroup-body {
+  padding-top: var(--island-under, 0px);
+  transition: padding-top var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
+}
 /* A mounted SDK widget draws its own look edge to edge (CustomWidget.css,
    .cw-mounted), so the band above would be the host card showing through: a
    flat strip across the top of the art with the island sitting in it, which
@@ -115,10 +130,11 @@ body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island
 body.topbar-minimal:not(.layout-editing) .grid-stack-item.island-clear > .island-notch-edge path {
   transition: d var(--island-notch-ms, 360ms) cubic-bezier(.32, .72, 0, 1);
 }
+/* Every cutout transition above runs on this one clock, so reduced motion stops
+   them all at once (a list of `transition: none` rules lost to their :not() on
+   specificity, and the glass surfaces were never on it). */
 @media (prefers-reduced-motion: reduce) {
-  body.topbar-minimal .grid-stack-item.island-clear,
-  body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content > :is(.panel, .dashboard-widget),
-  body.topbar-minimal .grid-stack-item.island-clear > .island-notch-edge path { transition: none; }
+  body.topbar-minimal { --island-notch-ms: 0ms; }
 }
 
 /* ── Island pill — floating capsule, top centre ───────────────
