@@ -30,14 +30,16 @@
     volume: ['volume', 'appVolume', 'appMute'],
     audioDevice: ['audioDevice', 'audioDeviceToggle', 'audioDeviceFirst'],
     mic: ['micMute'],
-    lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart'],
+    lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice', 'lightPart', 'signalRgbEffect'],
     chroma: ['chromaColor', 'chromaOff'],
-    wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
+    wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlMixVolume', 'wlMixMute', 'wlEffect', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
+    wavelinkOutput: ['wlOutputDevice'],
+    timers: ['timerStart', 'stopwatchStart', 'timerToggle', 'timerCancel'],
     voicemeeter: ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro'],
     steam: ['launchSteamGame'],
     spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyPlayUri', 'spotifyDevice'],
     obs: ['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume'],
-    discord: ['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard'],
+    discord: ['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordOpenChat', 'discordAudioToggle', 'discordSoundboard'],
     homeassistant: ['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton'],
     twitch: ['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode'],
     youtube: ['ytBroadcast'],
@@ -66,6 +68,7 @@
     screenPin: { source: ['region'], id: [] },
     benchmark: { mode: ['toggle', 'start', 'stop'] },
     gallery: { filter: ['all', 'video', 'screenshot'], id: [] },
+    stopwatchStart: { everyMinutes: [] },
   };
   // What a widget learns back from an action besides ok/error (WIDGET_SDK §5c):
   // counts and yes/no, never a text, a colour, a size, a file, a name or an id.
@@ -217,6 +220,8 @@
     lighting: ['cw_act_lighting', 'Control the RGB lighting'],
     chroma: ['cw_act_chroma', 'Control Razer Chroma lighting'],
     wavelink: ['cw_act_wavelink', 'Control the Wave Link mixer'],
+    wavelinkOutput: ['cw_act_wavelinkOutput', 'Change the Wave Link output device'],
+    timers: ['cw_act_timers', 'Start its own timers and stopwatches'],
     voicemeeter: ['cw_act_voicemeeter', 'Control the Voicemeeter mixer'],
     steam: ['cw_act_steam', 'Launch a Steam game'],
     spotify: ['cw_act_spotify', 'Control Spotify playback'],
@@ -292,6 +297,7 @@
       if (!d || typeof d !== 'object') return { ok: false, interfaces: [] };
       return {
         ok: true,
+        loss: d.loss ?? null,
         downloadBps: d.downloadBps ?? null,
         uploadBps: d.uploadBps ?? null,
         ping: d.ping ?? null,
@@ -489,7 +495,8 @@
   // A layer window shows its slots only: the dashboard pages it also boots stay
   // hidden, and mounting their widgets cost memory and ran their Deck states twice.
   function tiles() {
-    const scope = window.LayerHost && window.LayerHost.active ? '.layer-slot' : '.pager-page, .layer-slot';
+    const layerOnly = (window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
+    const scope = layerOnly ? '.layer-slot' : '.pager-page, .layer-slot';
     return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest(scope));
   }
 
@@ -551,6 +558,18 @@
   }
   function persist(patch) {
     if (typeof updateSdkWidgets === 'function') updateSdkWidgets(patch);
+  }
+  // A screen's page saves no settings of its own: the approval goes to the server,
+  // and shows at once here. Refused, the tile asks again rather than pretending.
+  function approveFromScreen(pkg, patch, userHosts) {
+    const before = hubSettings.sdkWidgets;
+    hubSettings.sdkWidgets = { ...before, ...patch };
+    api('/sdk/grant', { method: 'POST', body: JSON.stringify({ id: pkg.id, userHosts, enabled: patch.enabled === true }) })
+      .then((saved) => {
+        if (saved && saved.ok) return;
+        hubSettings.sdkWidgets = before;
+        paint();
+      });
   }
   function isSuspended(pkgId) {
     const s = sdk().suspended;
@@ -676,9 +695,11 @@
       return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? 'light' : 'dark';
     } catch { return document.documentElement.getAttribute('data-appearance') || 'dark'; }
   }
-  // Which SKIN the dashboard is wearing — 'glass' or 'retro'. The palette alone
-  // cannot carry this: the Pixel Retro skin differs from Liquid Glass in shape
-  // language (square corners, hard edges, no translucency), not only in colour,
+  // Which SKIN the dashboard is wearing: 'glass' or 'retro'. Liquid Glass and Classic
+  // both answer 'glass': they share one shape language, and a widget written before
+  // Liquid Glass must not fall through a check it has never heard of. The palette alone
+  // cannot carry this: the Pixel Retro skin differs from them in shape language
+  // (square corners, hard edges, no translucency), not only in colour,
   // so a widget following the palette faithfully still looked like a glass tile
   // sitting in a pixel dashboard. Read-only, no permission: it says nothing about
   // the user and grants nothing.
@@ -1089,6 +1110,25 @@
       storageGroup: (grant && typeof grant.storageGroup === 'string') ? grant.storageGroup : null,
     };
   }
+  // A widget may fire without a gesture, so it never rewrites the clipboard: only
+  // the area the user drags is copied (the same rule as screenText).
+  // A timer is stamped with its widget here, over anything the widget sent, so
+  // it can only ever name its own (server/actions/widget-timers.js).
+  function widgetRunAction(entry, action) {
+    if (ACTION_CATEGORIES.timers.includes(action.type)) return { ...action, owner: entry.pkgId };
+    if (action.type !== 'screenshot' || action.target === 'region') return action;
+    return { ...action, clipboard: 'off' };
+  }
+
+  // An action that throws on the server answers with the exception's own text,
+  // which can name a folder under the user's home. A widget gets codes only.
+  const ACTION_ERROR_CODE = /^[a-z0-9_]{1,40}$/;
+  const widgetActionError = (d) => {
+    if (!d) return 'offline';
+    if (d.ok) return undefined;
+    return ACTION_ERROR_CODE.test(String(d.error)) ? d.error : 'failed';
+  };
+
   function actionAllowed(grant, action) {
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') return false;
     const limits = ACTION_LIMITS[action.type];
@@ -1535,9 +1575,9 @@
     const d = await api('/actions/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(msg.action),
+      body: JSON.stringify(widgetRunAction(entry, msg.action)),
     });
-    post(entry, { type: 'action_result', id: reqId, ok: !!(d && d.ok), error: (d && d.error) || (d ? undefined : 'offline'), ...actionResultExtras(msg.action.type, d) });
+    post(entry, { type: 'action_result', id: reqId, ok: !!(d && d.ok), error: widgetActionError(d), ...actionResultExtras(msg.action.type, d) });
   }
 
   // Proxied fetch: the sandboxed frame has no network (CSP), so the host relays
@@ -2225,6 +2265,9 @@
         service: entry.service === true,
         // Where the frame is drawn and whether a dashboard is in use (v5.0.0).
         placement,
+        // On a paired phone or tablet (v5.0.0). Some actions only make sense on the
+        // PC itself and are refused from there, so a widget hides those buttons.
+        remote: !!(window.RemoteSurface && typeof window.RemoteSurface.isRemote === 'function' && window.RemoteSurface.isRemote()),
       });
       // History first, then the latest value: a widget building a chart gets the
       // past and then the present, in order.
@@ -2295,6 +2338,11 @@
       // posts 'hello', and those decorative packages are exactly the ones the
       // resource accounting exists to expose.
       onBridgePerf(entry, d);
+    } else if (d.type === 'scheme') {
+      // Same probe. The element has to match the page's scheme or the page gets
+      // an opaque canvas, the black box behind a "no background" widget. Not
+      // gated on entry.ready either: a pure HTML/CSS widget never says hello.
+      entry.frame.classList.toggle('cw-frame--dark', d.dark === true);
     } else if (d.type === 'blocked') {
       // Same probe, same reasoning: not gated on entry.ready, because a widget
       // whose inline script was refused never got to say 'hello'.
@@ -2662,7 +2710,7 @@
     const wanted = new Map();   // 'svc:'+pkgId → pkg
     // A layer window shows its own tiles only: the main dashboard already runs
     // the background frames, and a second copy would answer every Deck key twice.
-    const layerSurface = !!(window.LayerHost && window.LayerHost.active);
+    const layerSurface = !!(window.LayerHost && window.LayerHost.active) || (typeof isSheetPage === 'function' && isSheetPage());
     // The hidden widget host of "widgets only" (sdk-service.html) has no bar,
     // badge or island to feed: there, only granted Deck actions justify a frame.
     const handlersOnly = document.documentElement.hasAttribute('data-sdk-service');
@@ -2774,21 +2822,20 @@
   // Exactly ONE dialog exists at a time: a request arriving while one is open
   // QUEUES instead of superseding. The old supersede path ran the closed
   // dialog's onClose (the requestGrants queue's `next`) synchronously in the
-  // middle of the interrupting openPermDialog, which appended a second backdrop
-  // — and every close targets the FIRST '.cw-perm-backdrop' in the DOM, so
-  // Allow/Cancel on the visible dialog tore down the other one and grants could
-  // land on the wrong dialog's buttons.
+  // middle of the interrupting openPermDialog, which stacked a second window, and
+  // grants could land on the wrong dialog's buttons. The open one is held here
+  // rather than found in the page, so nothing else on screen can pass for it.
   const pendingPermRequests = [];
+  let permOpen = null;   // { sheet, onClose }
   function closePermDialog() {
-    const bd = document.querySelector('.cw-perm-backdrop');
-    if (!bd) return;
-    const after = bd._onClose;
-    bd._onClose = null;
-    bd.remove();
-    if (typeof after === 'function') { try { after(); } catch { /* queue teardown is best-effort */ } }
+    if (!permOpen) return;
+    const { sheet, onClose } = permOpen;
+    permOpen = null;
+    sheet.close();
+    if (typeof onClose === 'function') { try { onClose(); } catch { /* queue teardown is best-effort */ } }
     // Drain a parked request only if the onClose above (a requestGrants `next`)
     // didn't already open the following dialog itself.
-    if (!document.querySelector('.cw-perm-backdrop') && pendingPermRequests.length) {
+    if (!permOpen && pendingPermRequests.length) {
       const req = pendingPermRequests.shift();
       openPermDialog(req.pkg, req.instId, req.onAllow, req.onClose);
     }
@@ -2801,14 +2848,14 @@
   // unambiguously the user approving THIS copy — never an unrelated tap the widget
   // rode. Resolves the onBridgeClipboard promise: true = copied, false = declined/
   // superseded/timed out. Only one prompt exists at a time.
-  let clipCloseTimer = null;
+  let clipOpen = null;   // { sheet, resolve, timer }
   function closeClipConfirm(result) {
-    const bd = document.querySelector('.cw-clip-backdrop');
-    if (!bd) return;
-    const resolve = bd._resolve;
-    bd.remove();
-    if (clipCloseTimer) { clearTimeout(clipCloseTimer); clipCloseTimer = null; }
-    if (typeof resolve === 'function') resolve(result === true);
+    if (!clipOpen) return;
+    const { sheet, resolve, timer } = clipOpen;
+    clipOpen = null;
+    clearTimeout(timer);
+    sheet.close();
+    resolve(result === true);
   }
   /* ── External-open confirmation ────────────────────────────────────────────
      A widget with the `url` grant can ask the host to open any address it likes,
@@ -2825,15 +2872,15 @@
      always surfaces. Session-scoped on purpose: nothing is written to settings,
      so this cannot become another stale-surface write, and a restart re-asks. */
   const approvedExternalHosts = new Set();
-  let extCloseTimer = null;
+  let extOpen = null;   // { sheet, resolve, timer }
 
   function closeExternalConfirm(result) {
-    const bd = document.querySelector('.cw-ext-backdrop');
-    if (!bd) return;
-    const resolve = bd._resolve;
-    bd.remove();
-    if (extCloseTimer) { clearTimeout(extCloseTimer); extCloseTimer = null; }
-    if (typeof resolve === 'function') resolve(result === true);
+    if (!extOpen) return;
+    const { sheet, resolve, timer } = extOpen;
+    extOpen = null;
+    clearTimeout(timer);
+    sheet.close();
+    resolve(result === true);
   }
 
   /**
@@ -2843,53 +2890,30 @@
     closeExternalConfirm(false);   // a fresh request supersedes any pending one
     return new Promise((resolve) => {
       const pkg = packageById(pkgId);
-      const who = (pkg && pkg.name) ? pkg.name : t('cw_clip_widget', 'A widget');
-      // Its own backdrop class, deliberately: closeClipConfirm() closes by
-      // querying '.cw-clip-backdrop', and sharing that class would let either
-      // dialog tear down the other and resolve the wrong promise.
-      const bd = el('div', 'cw-ext-backdrop');
-      bd._resolve = resolve;
-      const panel = el('div', 'cw-clip');
-      panel.appendChild(el('div', 'cw-clip-title', t('cw_ext_title', 'Open this site?')));
-
-      const whatLine = el('div', 'cw-clip-what');
-      whatLine.appendChild(el('span', 'cw-clip-who', who));
-      panel.appendChild(whatLine);
-
       // The host is the decision, so it is the biggest thing on the panel; the
       // rest of the URL is shown under it, truncated, because a long path can
       // push the domain out of sight — which is exactly how a lookalike link
       // gets approved.
-      const preview = el('div', 'cw-clip-preview cw-ext-preview');
-      const box = el('div', 'cw-ext-urlbox');
+      const box = el('div', 'cw-well cw-ext-urlbox');
       box.appendChild(el('div', 'cw-ext-host', url.hostname));
       const rest = (url.pathname || '') + (url.search || '');
       if (rest && rest !== '/') {
         box.appendChild(el('div', 'cw-ext-path', rest.length > 120 ? rest.slice(0, 120) + '…' : rest));
       }
-      preview.appendChild(box);
-      panel.appendChild(preview);
-
-      panel.appendChild(el('div', 'cw-clip-note',
-        t('cw_ext_note', 'This opens in your default browser, outside Xenon. Xenon will not ask again for this site while it is running.')));
-
-      const row = el('div', 'cw-clip-actions');
-      const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
-      cancel.type = 'button';
-      cancel.addEventListener('click', () => closeExternalConfirm(false));
-      const go = el('button', 'cw-btn cw-btn--primary', t('cw_ext_open', 'Open'));
-      go.type = 'button';
-      go.addEventListener('click', () => closeExternalConfirm(true));
-      row.append(cancel, go);
-      panel.appendChild(row);
-
-      bd.appendChild(panel);
-      bd.addEventListener('click', (ev) => { if (ev.target === bd) closeExternalConfirm(false); });
-      document.body.appendChild(bd);
-      // Cancel is focused, not Open: a prompt the user did not expect should not
-      // turn a stray Enter into an approved navigation.
-      setTimeout(() => { try { cancel.focus(); } catch (_) { /* focus is best-effort */ } }, 0);
-      extCloseTimer = setTimeout(() => closeExternalConfirm(false), 20000);
+      // Nothing is focused when it opens: a prompt the user did not expect should
+      // not turn a stray Enter into an approved navigation.
+      const sheet = window.ApprovalKeys.question({
+        className: 'cw-ext-backdrop',
+        freeze: 'sdk-ext',
+        small: true,
+        mark: window.ApprovalKeys.hostMark(packageIconEl(pkg)),
+        title: t('cw_ext_title', 'Open this site?'),
+        who: (pkg && pkg.name) ? pkg.name : t('cw_clip_widget', 'A widget'),
+        body: [box, el('div', 'cw-perm-note', t('cw_ext_note', 'This opens in your default browser, outside Xenon. Xenon will not ask again for this site while it is running.'))],
+        no: { label: t('cw_cancel', 'Cancel'), press: () => closeExternalConfirm(false) },
+        yes: { label: t('cw_ext_open', 'Open'), press: () => closeExternalConfirm(true) },
+      });
+      extOpen = { sheet, resolve, timer: setTimeout(() => closeExternalConfirm(false), 20000) };
     });
   }
 
@@ -2926,20 +2950,11 @@
     return new Promise((resolve) => {
       const pkg = packageById(pkgId);
       const who = (pkg && pkg.name) ? pkg.name : t('cw_clip_widget', 'A widget');
-      const bd = el('div', 'cw-clip-backdrop');
-      bd._resolve = resolve;
-      const panel = el('div', 'cw-clip');
-      panel.appendChild(el('div', 'cw-clip-title', t('cw_clip_title', 'Copy to clipboard?')));
-
-      const whatLine = el('div', 'cw-clip-what');
-      whatLine.appendChild(el('span', 'cw-clip-who', who));
-      if (label) whatLine.appendChild(el('span', 'cw-clip-label', label));
-      panel.appendChild(whatLine);
 
       // Preview. A secret (password) is masked by default; the user can reveal it —
       // it is their own value and they are about to copy it. A non-secret (a TOTP
       // code the widget flagged secret:false) shows in full so they can sanity-check.
-      const preview = el('div', 'cw-clip-preview');
+      const preview = el('div', 'cw-well');
       const val = el('span', 'cw-clip-val');
       const maskText = () => '•'.repeat(Math.min(Math.max(text.length, 4), 24));
       val.textContent = secret ? maskText() : text;
@@ -2953,18 +2968,10 @@
         paint();
         preview.appendChild(eye);
       }
-      panel.appendChild(preview);
-      panel.appendChild(el('div', 'cw-clip-note', t('cw_clip_note', 'Xenon puts this on your clipboard only when you tap Copy. It can never read your clipboard.')));
 
-      const row = el('div', 'cw-clip-actions');
-      const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
-      cancel.type = 'button';
-      cancel.addEventListener('click', () => closeClipConfirm(false));
-      const copy = el('button', 'cw-btn cw-btn--primary', t('cw_clip_copy', 'Copy'));
-      copy.type = 'button';
-      copy.addEventListener('click', async () => {
-        if (copy.disabled) return;
-        copy.disabled = true;
+      const copy = async () => {
+        if (sheet.main.disabled) return;
+        sheet.main.disabled = true;
         // Inside a real user gesture → the clipboard write is permitted.
         const ok = await copyText(text);
         closeClipConfirm(ok);
@@ -2973,16 +2980,21 @@
           // disturb must not swallow the only confirmation it happened.
           try { XenonToast.show({ type: 'success', title: t('cw_clip_done', 'Copied'), message: label || who, duration: 2200, important: true }); } catch (_) { /* toast is optional */ }
         }
+      };
+      const sheet = window.ApprovalKeys.question({
+        className: 'cw-clip-backdrop',
+        freeze: 'sdk-clip',
+        small: true,
+        mark: window.ApprovalKeys.hostMark(packageIconEl(pkg)),
+        title: t('cw_clip_title', 'Copy to clipboard?'),
+        who,
+        line: label,
+        body: [preview, el('div', 'cw-perm-note', t('cw_clip_note', 'Xenon puts this on your clipboard only when you tap Copy. It can never read your clipboard.'))],
+        no: { label: t('cw_cancel', 'Cancel'), press: () => closeClipConfirm(false) },
+        yes: { label: t('cw_clip_copy', 'Copy'), press: copy },
       });
-      row.append(cancel, copy);
-      panel.appendChild(row);
-
-      bd.appendChild(panel);
-      bd.addEventListener('click', (ev) => { if (ev.target === bd) closeClipConfirm(false); });
-      document.body.appendChild(bd);
-      setTimeout(() => { try { copy.focus(); } catch (_) { /* focus is best-effort */ } }, 0);
       // A forgotten prompt resolves (declined) rather than pinning the widget forever.
-      clipCloseTimer = setTimeout(() => closeClipConfirm(false), 20000);
+      clipOpen = { sheet, resolve, timer: setTimeout(() => closeClipConfirm(false), 20000) };
     });
   }
   // instId assigns the package to a tile on Allow; pass instId = null (with an
@@ -2992,29 +3004,26 @@
     // One dialog at a time: park this request until the open one resolves (see
     // closePermDialog). Never supersede — that re-entered this function mid-
     // construction and stacked two backdrops.
-    if (document.querySelector('.cw-perm-backdrop')) {
+    if (permOpen) {
       pendingPermRequests.push({ pkg, instId, onAllow, onClose });
       return;
     }
-    const bd = el('div', 'cw-perm-backdrop');
-    bd._onClose = typeof onClose === 'function' ? onClose : null;
-    const panel = el('div', 'cw-perm');
-    panel.appendChild(el('div', 'cw-perm-title', t('cw_perm_title', 'Allow this widget?')));
-    const who = el('div', 'cw-perm-pkg');
-    who.appendChild(el('span', 'cw-perm-name', pkg.name));
-    const meta = [pkg.author ? t('cw_by', 'by').replace('{a}', pkg.author) : '', pkg.version ? 'v' + pkg.version : ''].filter(Boolean).join(' · ');
-    if (meta) who.appendChild(el('span', 'cw-perm-meta', meta));
-    panel.appendChild(who);
-    if (pkg.description) panel.appendChild(el('div', 'cw-perm-desc', pkg.description));
+    const meta = [pkg.author ? t('cw_by', 'by').replace('{a}', pkg.author) : '', pkg.version ? 'v' + pkg.version : ''].filter(Boolean).join(', ');
+    const body = [];
+    if (pkg.description) body.push(el('div', 'cw-perm-desc', pkg.description));
 
+    // One line of what it asks for, then the plain list. Every permission stays in
+    // sight: this is what the person is agreeing to.
     const addSection = (labelKey, labelFb, ids, labels) => {
-      panel.appendChild(el('div', 'cw-perm-sec', t(labelKey, labelFb)));
-      const box = el('div', 'cw-perm-chips');
+      const sec = el('div', 'cw-perm-sec');
+      sec.appendChild(el('div', 'cw-perm-lead', t(labelKey, labelFb)));
+      const list = el('ul', 'cw-perm-items');
       ids.forEach(id => {
         const lb = labels[id];
-        box.appendChild(el('span', 'cw-perm-chip', lb ? t(lb[0], lb[1]) : id));
+        list.appendChild(el('li', '', lb ? t(lb[0], lb[1]) : id));
       });
-      panel.appendChild(box);
+      sec.appendChild(list);
+      body.push(sec);
     };
     // Manifest extensions (all optional): declared proxy hosts, local webhook
     // ids, and Deck contributions. Untrusted manifest text → textContent only.
@@ -3049,7 +3058,8 @@
     // doubles as the editor when a NAS changes address.
     const userHostFields = [];
     if (userHostSlots.length) {
-      panel.appendChild(el('div', 'cw-perm-sec', t('cw_perm_userhosts', 'Addresses you provide:')));
+      const sec = el('div', 'cw-perm-sec');
+      sec.appendChild(el('div', 'cw-perm-lead', t('cw_perm_userhosts', 'Addresses you provide:')));
       const box = el('div', 'cw-perm-fields');
       const saved = grantsFor(pkg.id).userHosts || {};
       userHostSlots.forEach(slot => {
@@ -3067,8 +3077,11 @@
         box.appendChild(field);
         userHostFields.push({ slot, input, err });
       });
-      panel.appendChild(box);
-      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_userhosts_note', 'This widget needs an address only you know. Xenon will let it reach exactly what you type here and nothing else: never this PC itself.')));
+      sec.append(box, el('div', 'cw-perm-note', t('cw_perm_userhosts_note', 'This widget needs an address only you know. Xenon will let it reach exactly what you type here and nothing else: never this PC itself.')));
+      body.push(sec);
+    }
+    if (hosts.length || userHostSlots.length) {
+      body.push(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon: never directly from the widget.')));
     }
     if (hooks.length) addSection('cw_perm_hooks', 'It can receive local events:', hooks, {});
     if (deckNames.length) addSection('cw_perm_deck', 'It adds to the Deck:', deckNames, {});
@@ -3155,25 +3168,27 @@
           : wantsTopbarButton
           ? t('cw_perm_background_topbar_button', 'This widget can keep running hidden in the background, so its button stays in the top bar and answers a tap even with no tile on screen.')
           : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
-      panel.appendChild(el('div', 'cw-perm-note', note));
+      body.push(el('div', 'cw-perm-note', note));
     }
-    // Every capability that produced a section above must appear here too, or a
-    // widget asking for only that one is announced as "Nothing". `accent` was
-    // already missing; `expand` joins the list in the same breath.
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsMini && !wantsTopbarButton && !wantsClipboard && !wantsAccent && !wantsExpand) {
-      panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing: it only draws its own content')));
+    // Counted, not listed again: a capability missing from a second list was
+    // announced as "Nothing" under its own line.
+    if (!body.some(n => n.classList.contains('cw-perm-sec'))) {
+      body.push(el('div', 'cw-perm-lead cw-perm-nothing', t('cw_perm_none', 'Nothing: it only draws its own content')));
     }
-    panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
-    if (hosts.length || userHostSlots.length) {
-      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon: never directly from the widget.')));
-    }
+    body.push(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
 
-    const row = el('div', 'cw-perm-actions-row');
-    const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
-    cancel.type = 'button';
-    cancel.addEventListener('click', closePermDialog);
-    const allow = el('button', 'cw-btn cw-btn--primary', t('cw_allow', 'Allow'));
-    allow.type = 'button';
+    // The stored flag, not sdk(): safe mode masks it and must stay as it is. Allow is
+    // the person's yes to running this widget, and with the switch off it would run
+    // nothing, so the same press turns it on, and the dialog says so first.
+    const stored = (typeof hubSettings === 'object' && hubSettings && hubSettings.sdkWidgets) || {};
+    const turnsOn = stored.enabled !== true;
+    const notes = [];
+    if (turnsOn) notes.push(t('cw_perm_turns_on', 'This also turns on community widgets, which are off right now.'));
+    // A phone cannot give a widget permissions: the server drops the answer
+    // (remote-actions.js keepGrants), so Allow is not offered there.
+    const atPc = !!window.__xenonRemote;
+    if (atPc) notes.push(t('cw_perm_at_pc', 'Approve it on the PC: a phone or tablet cannot give a widget permissions.'));
+
     // Every declared slot must hold a usable address before Allow means anything
     // — granting with a blank field would mount a widget that can only fail.
     const UH_ERRORS = {
@@ -3198,10 +3213,8 @@
       }
       return { ok, values };
     };
-    const refresh = () => { allow.disabled = !readUserHosts().ok; };
-    userHostFields.forEach(f => f.input.addEventListener('input', refresh));
-    if (userHostFields.length) refresh();
-    allow.addEventListener('click', () => {
+    const refresh = () => { sheet.main.disabled = atPc || !readUserHosts().ok; };
+    const allow = () => {
       const uh = readUserHosts();
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
@@ -3209,17 +3222,29 @@
         grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, storageGroup: wantsStorage ? storageGroup : '', secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, topbarButton: wantsTopbarButton, clipboard: wantsClipboard, ai: wantsAi, accent: wantsAccent, expand: wantsExpand } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
-      persist(patch);
+      if (turnsOn) patch.enabled = true;
+      if (typeof isLayerPage === 'function' && isLayerPage()) approveFromScreen(pkg, patch, uh.values);
+      else persist(patch);
       closePermDialog();
       paint();
       syncServiceFrames();   // a fresh handler grant may want a background frame
       if (typeof onAllow === 'function') onAllow();
+    };
+    const sheet = window.ApprovalKeys.question({
+      className: 'cw-perm-backdrop',
+      freeze: 'sdk-perm',
+      mark: window.ApprovalKeys.hostMark(packageIconEl(pkg)),
+      title: t('cw_perm_title', 'Allow this widget?'),
+      who: pkg.name,
+      line: meta,
+      body,
+      note: notes.join(' '),
+      no: { label: t('cw_cancel', 'Cancel'), press: closePermDialog },
+      yes: { label: t('cw_allow', 'Allow'), press: allow },
     });
-    row.append(cancel, allow);
-    panel.appendChild(row);
-    bd.appendChild(panel);
-    bd.addEventListener('click', (ev) => { if (ev.target === bd) closePermDialog(); });
-    document.body.appendChild(bd);
+    permOpen = { sheet, onClose };
+    userHostFields.forEach(f => f.input.addEventListener('input', refresh));
+    if (userHostFields.length || atPc) refresh();
   }
 
   // ── Tile rendering ───────────────────────────────────────────────

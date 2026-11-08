@@ -501,10 +501,11 @@ test('a question is a question, never a permission, and never seizes the screen'
   });
   const [a] = bridge.snapshot().approvals;
   assert.equal(a.kind, 'question');
-  // Blocking Claude is not a reason to take over the display: it is not
-  // destructive, and the same question is sitting in the terminal.
-  advance(cb.URGENT_AFTER_MS * 10);
+  // Not at once: the tile gets the grace window first. Then it takes the
+  // screen, because the terminal shows nothing while the hook holds it.
   assert.equal(bridge.snapshot().approvals[0].urgent, false);
+  advance(cb.URGENT_AFTER_MS);
+  assert.equal(bridge.snapshot().approvals[0].urgent, true);
   // Allow/Deny cannot settle it. Routing a question through the permission path
   // is exactly the card that could not do what it showed.
   assert.equal(bridge.decide(q.id, 'allow'), false);
@@ -1291,4 +1292,39 @@ test('/model and /effort without a value are refused, not sent as a message', ()
   bridge.applyMod({ v: 1, sessionId: 's1', kind: 'hello', version: '0.6.2' });
   assert.equal(bridge.queueFollowUp('s1', '/model').error, 'needs_value');
   assert.equal(bridge.queueFollowUp('s1', '/effort ').error, 'needs_value');
+});
+
+test('a question that went to the terminal still reads as a question until the tool runs', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  const q = bridge.askQuestion({
+    session_id: 's1', tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: 'Rewrite history?', options: [{ label: 'Yes' }, { label: 'No' }] }] },
+  });
+  assert.equal(bridge.skipQuestion(q.id), true);
+  const wait = () => bridge.snapshot().sessions.find((s) => s.id === 's1').waitFor;
+  assert.deepEqual([wait().kind, wait().text, wait().inTerminal], ['question', 'Rewrite history?', true]);
+  // Claude Code then raises its own generic notification: the question stays.
+  bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', message: 'Claude needs your permission' });
+  assert.equal(wait().kind, 'question');
+  // Answered in the terminal: the tool returns and the wait is over.
+  bridge.applyHook({ hook_event_name: 'PostToolUse', session_id: 's1', tool_name: 'AskUserQuestion', tool_input: {} });
+  assert.equal(wait(), null);
+});
+
+test('a question left unanswered on the tile moves to the terminal when its time runs out', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  const q = bridge.askQuestion({
+    session_id: 's1', tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: 'Which?', options: [{ label: 'A' }, { label: 'B' }] }] },
+  });
+  t.mock.timers.tick(9 * 60 * 1000);
+  assert.equal((await q.promise).verdict, 'skip');
+  assert.equal(bridge.snapshot().approvals.length, 0);
+  const s = bridge.snapshot().sessions.find((x) => x.id === 's1');
+  assert.deepEqual([s.waitFor.kind, s.waitFor.inTerminal], ['question', true]);
+  bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'Bash', tool_input: { command: 'ls' } });
+  assert.equal(bridge.snapshot().sessions.find((x) => x.id === 's1').waitFor, null, 'another tool starting ends it too');
 });

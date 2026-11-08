@@ -21,6 +21,9 @@ const SERVER = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8')
 const DECK = fs.readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const MAIN = fs.readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
 const I18N = fs.readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const SMART_HOME = fs.readFileSync(new URL('../js/smart-home.js', import.meta.url), 'utf8');
+const WIDGETS = fs.readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+const CLAUDE_TILE = fs.readFileSync(new URL('../js/claude-widget.js', import.meta.url), 'utf8');
 
 const OBS = { type: 'openApp', path: 'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe' };
 const STORE = {
@@ -104,10 +107,103 @@ test('Bit asked from a phone is held to what the phone can run', () => {
   assert.match(route, /if \(isRemote\) \{\s*const verdict = remoteActions\.remoteMayRun\(action, await readDeckStore\(\)\);/, 'the approved card is checked too');
 });
 
+test('no tool of Bit reaches the registry past the phone rules', () => {
+  const start = SERVER.indexOf('async function runAiTool(');
+  const body = SERVER.slice(start, SERVER.indexOf("} else if (fnName === 'run_deck_action') {", start));
+  // The one call left is the gate's own: every other tool goes through runAction.
+  assert.equal((body.match(/deckRegistry\.run\(/g) || []).length, 1, 'a tool calls the registry directly');
+  assert.match(body, /const verdict = remote \? remoteActions\.remoteMayRun\(action, await readDeckStore\(\)\) : null;/);
+  assert.ok((body.match(/await runAction\(|\? await runAction\(/g) || []).length >= 9, 'the tools lost the gate');
+  assert.match(body, /if \(remote && remoteActions\.PC_ONLY_TOOLS\.has\(fnName\)\) \{\s*return \{ fnResult: phoneRefusal\('pc_only'\)/);
+  assert.match(body, /remote && !remoteActions\.remoteMayLaunch\(rawTarget, /, 'open_application follows /windows/launch');
+  for (const tool of ['phone_call', 'phone_message', 'run_pc_command']) assert.ok(ra.PC_ONLY_TOOLS.has(tool), tool);
+  assert.equal(ra.PC_ONLY_TOOLS.has('phone_lookup'), false, 'reading the phonebook is the dashboard being the dashboard');
+});
+
+test('a phone starts no Claude run, and still answers one started at the PC', () => {
+  assert.ok(access.REMOTE_DENY.has('/api/claude/run'));
+  assert.equal(access.remotePathAllowed('/api/claude/run', 'POST'), false);
+  for (const p of ['/api/claude/decide', '/api/claude/reply', '/api/claude/run/stop', '/api/codex/decide']) {
+    assert.equal(access.remotePathAllowed(p, 'POST'), true, p);
+  }
+  assert.match(CLAUDE_TILE, /case 'remote_denied': return t\('claude_run_at_pc'/, 'the tile says why');
+});
+
+test('from the Smart Home tile a phone drives lights and comfort, not doors', () => {
+  const may = ra.remoteMayCallHa;
+  assert.equal(may('homeassistant', 'toggle', 'light.kitchen'), true, 'the tile sends every switch this way');
+  assert.equal(may('light', 'turn_on', 'light.kitchen', { brightness: 120 }), true);
+  assert.equal(may('climate', 'set_temperature', 'climate.home', { temperature: 21 }), true);
+  assert.equal(may('media_player', 'media_play_pause', 'media_player.tv'), true);
+  assert.equal(may('scene', 'turn_on', 'scene.movie'), true);
+
+  assert.equal(may('lock', 'unlock', 'lock.front'), false);
+  assert.equal(may('cover', 'open_cover', 'cover.garage'), false);
+  assert.equal(may('alarm_control_panel', 'alarm_disarm', 'alarm_control_panel.home'), false);
+  assert.equal(may('script', 'turn_on', 'script.anything'), false);
+  assert.equal(may('homeassistant', 'toggle', 'lock.front'), false, 'toggle maps onto unlock');
+  assert.equal(may('homeassistant', 'restart', ''), false);
+  assert.equal(may('homeassistant', 'restart', 'light.kitchen'), false, 'only the switch services');
+  assert.equal(may('homeassistant', 'turn_on', ''), false, 'no entity, no target to judge');
+  assert.equal(may('switch', 'turn_on', 'lock.front'), false);
+  assert.equal(may('light', 'turn_on', 'light.kitchen', { entity_id: 'lock.front' }), false, 'a target hidden in the data');
+  assert.equal(may('light', 'turn_on', '', { area_id: 'garage' }), false);
+
+  const route = SERVER.slice(SERVER.indexOf("reqPath === '/api/homeassistant/service'"), SERVER.indexOf("reqPath === '/api/unifiprotect/state'"));
+  assert.match(route, /if \(isRemote && !remoteActions\.remoteMayCallHa\(body\.domain, body\.service, body\.entityId, data\)\) \{\s*json\(\{ ok: false, error: 'needs_pc' \}\); return;/);
+  assert.ok(route.indexOf('remoteMayCallHa') < route.indexOf('deckHa.callService'), 'checked before the call');
+  assert.match(SMART_HOME, /out\.error === 'needs_pc'[\s\S]{0,160}smarthome_needs_pc/, 'the tile says why');
+});
+
+test('a phone can take a widget permission away, never give one', () => {
+  const before = {
+    enabled: true,
+    grants: {
+      clock: { streams: ['system'], actions: [], hosts: [] },
+      door: { streams: [], actions: ['media'], hosts: [] },
+    },
+  };
+  const widened = {
+    enabled: true,
+    assign: { 3: 'clock' },
+    grants: {
+      clock: { streams: ['system', 'media'], actions: ['haLock'], hosts: ['evil.example'] },
+      fresh: { streams: [], actions: ['haLock'], hosts: ['evil.example'] },
+    },
+  };
+  const out = ra.keepGrants(before, widened);
+  assert.deepEqual(out.grants, { clock: before.grants.clock }, 'nothing new, and the kept one exactly as saved');
+  assert.deepEqual(out.assign, widened.assign, 'placing a widget already approved stays open');
+  assert.deepEqual(ra.keepGrants(null, widened).grants, {}, 'a PC with no grants gains none');
+  assert.deepEqual(ra.keepGrants(before, { enabled: true }).grants, {}, 'a save without grants asks for none');
+  assert.equal(ra.keepGrants(before, undefined), undefined, 'a save without the block is left alone');
+  assert.ok(Object.hasOwn(ra.keepGrants(before, { grants: { door: {} } }).grants, 'door'));
+  assert.equal(Object.hasOwn(ra.keepGrants(before, { grants: JSON.parse('{"__proto__":{"actions":["haLock"]}}') }).grants, '__proto__'), false);
+
+  assert.match(SERVER, /incoming\.sdkWidgets = remoteActions\.keepGrants\(prev && prev\.sdkWidgets, incoming\.sdkWidgets\);/);
+  assert.match(WIDGETS, /const atPc = !!window\.__xenonRemote;/);
+  assert.match(WIDGETS, /\.main\.disabled = atPc \|\| /, 'Allow is not offered where it cannot work');
+});
+
 test('remote desktop, PC Control and backups are set up at the PC', () => {
   for (const p of ['/ai/pc-run', '/remote/pin', '/remote/enable', '/remote/unblock', '/remote/ondemand', '/remote/sunshine/configure', '/backup/import', '/backup/export', '/api/phone/dial', '/api/phone/send']) {
     assert.ok(access.REMOTE_DENY.has(p), p);
   }
+});
+
+test('a phone cannot sign the PC in to Tailscale, nor read the link that does', () => {
+  assert.equal(access.remotePathAllowed('/remote/tailscale/login', 'POST'), false);
+  assert.equal(access.remotePathAllowed('/remote/status', 'GET'), true, 'Deck keys still read the state');
+
+  const state = { ready: false, tailscale: { connected: false, ip: '', authUrl: 'https://login.tailscale.com/a/abc' } };
+  const seen = access.withoutLoginLink(state);
+  assert.equal(seen.tailscale.authUrl, '');
+  assert.equal(seen.ready, false);
+  assert.equal(state.tailscale.authUrl, 'https://login.tailscale.com/a/abc', 'the shared status keeps it for the PC');
+  assert.equal(access.withoutLoginLink(null), null);
+
+  const server = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(server, /reqPath === '\/remote\/status'[\s\S]{0,200}isRemote \? remoteAccessLib\.withoutLoginLink\(state\) : state/);
 });
 
 test('a device left unused for 90 days stops working', async () => {
@@ -154,7 +250,7 @@ test('the phone explains a refusal and the PC sees every new pairing, in every l
   const text = require('../js/deck-error-text.js');
   assert.ok(text);
   for (const lang of ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh']) {
-    for (const key of ['deck_err_needs_pc', 'deck_err_pc_only', 'deck_needs_pc_title', 'deck_needs_pc', 'ra_paired_toast_title', 'ra_paired_toast_hint']) {
+    for (const key of ['deck_err_needs_pc', 'cw_perm_at_pc', 'smarthome_needs_pc', 'claude_run_at_pc', 'deck_err_pc_only', 'deck_needs_pc_title', 'deck_needs_pc', 'ra_paired_toast_title', 'ra_paired_toast_hint']) {
       const re = new RegExp(`Object\\.assign\\(i18n\\.${lang}, \\{[^}]*\\b${key}:`);
       assert.match(I18N, re, `${lang}.${key}`);
     }

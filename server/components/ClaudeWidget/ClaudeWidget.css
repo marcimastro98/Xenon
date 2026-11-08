@@ -143,7 +143,7 @@
 
 .cw-rail-list {
   display: flex; flex-direction: row; gap: 6px; min-width: 0;
-  overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; scrollbar-width: thin;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-y: contain; scrollbar-width: thin;
   padding-bottom: 2px;
 }
 @container cw (min-width: 620px) {
@@ -279,6 +279,12 @@
 /* ── decisions ── */
 .cw-decs { flex: 0 0 auto; min-height: 0; max-height: 64cqh; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
 .cw-decs-more { font-size: 12.5px; color: var(--cw-2); padding-left: 2px; }
+.cw-decs-stacked { display: none; }
+/* Stacked, the second card falls out of the tile or crushes the first: one card, whole, and how many follow. */
+@container cw (max-width: 859px) {
+  .cw-decs.is-pair > .cw-dec ~ .cw-dec, .cw-decs.is-pair > .cw-decs-more:not(.cw-decs-stacked) { display: none; }
+  .cw-decs-stacked { display: block; }
+}
 /* Two decisions on a wide tile sit side by side: stacked, the second one pushed
    the sessions off a 720px-tall Edge. */
 @container cw (min-width: 860px) {
@@ -308,7 +314,8 @@
   background: var(--cw-code); border-radius: 8px; padding: 8px 10px;
   white-space: pre-wrap; word-break: break-word; max-height: 7.2em; overflow-y: auto;
 }
-.cw-dec-plan { font-family: inherit; max-height: 11em; }
+/* The plan is read as markdown (markdownInto), so the space comes from its blocks. */
+.cw-dec-plan { display: flex; flex-direction: column; gap: 5px; font-family: inherit; white-space: normal; max-height: 11em; }
 .cw-dec-risks { display: flex; flex-wrap: wrap; gap: 5px 14px; font-size: 12.5px; font-weight: 650; }
 .cw-risk { display: inline-flex; align-items: center; gap: 6px; }
 .cw-risk::before { content: ''; width: 7px; height: 7px; border-radius: 1.5px; background: currentColor; }
@@ -330,14 +337,14 @@
 .cw-key:active:not(:disabled) { transform: translateY(1px); }
 .cw-key:disabled { opacity: 0.42; cursor: default; }
 .cw-key:focus-visible, .cw-opt:focus-visible { outline: 2px solid var(--cw-ink); outline-offset: 2px; }
-.cw-key-label { position: relative; }
+.cw-key-label, .cw-key .ak-label { position: relative; }
 /* Hold to allow: the key fills while it is held; letting go early cancels. */
 .cw-key.is-hold {
   background: color-mix(in srgb, var(--cw-crit) 16%, transparent); color: var(--cw-ink);
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cw-crit) 70%, transparent);
 }
-.cw-key-fill { position: absolute; inset: 0; background: var(--cw-crit); transform: scaleX(0); transform-origin: left center; }
-.cw-key.is-holding .cw-key-fill { transform: scaleX(1); transition: transform 900ms linear; }
+.cw-key .ak-fill { position: absolute; inset: 0; background: var(--cw-crit); transform: scaleX(0); transform-origin: left center; }
+.cw-key.is-holding .ak-fill { transform: scaleX(1); transition: transform var(--ak-hold, 900ms) linear; }
 .cw-key.is-holding { color: #fff; }
 /* Arming: the card is on screen but not yet taking taps. */
 .cw-dec.is-arming .cw-key, .cw-dec.is-arming .cw-opt { opacity: 0.5; }
@@ -393,47 +400,9 @@
   .cw-overlay .cw-dec-back { flex-direction: column; }
 }
 
-/* ── the escalation: one decision, full screen ── */
-.cw-overlay {
-  position: fixed; inset: 0; z-index: 9000;
-  display: flex; align-items: center; justify-content: center;
-  padding: clamp(10px, 3vh, 28px); box-sizing: border-box;
-  /* No backdrop blur: a full-screen blur is a per-frame cost on the Edge's
-     integrated GPU, and a dark scrim already takes the dashboard out of focus. */
-  background: rgba(6, 7, 9, 0.86);
-  animation: cw-fade 0.18s ease-out;
-  color: var(--cw-ink);
-}
-.cw-dec.is-big {
-  width: min(880px, 100%); max-height: 100%;
-  gap: 16px; padding: 22px 26px; border-radius: 18px;
-  background:
-    linear-gradient(color-mix(in srgb, var(--cw-dec) 9%, transparent), color-mix(in srgb, var(--cw-dec) 9%, transparent)),
-    rgba(16, 18, 21, 0.98);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 0 1px color-mix(in srgb, var(--cw-dec) 55%, transparent);
-}
-.cw-dec.is-big .cw-dec-head { font-size: 14px; }
-.cw-dec.is-big .cw-dec-what { font-size: clamp(20px, 3.2vh + 8px, 30px); }
-.cw-dec.is-big .cw-dec-cmd { font-size: 15.5px; max-height: 38vh; padding: 12px 14px; }
-.cw-dec.is-big .cw-dec-plan { font-size: 14.5px; max-height: 44vh; }
-.cw-dec.is-big .cw-dec-risks { font-size: 14px; }
-.cw-dec.is-big .cw-dec-qtext { font-size: 19px; }
-.cw-dec.is-big .cw-opt { min-height: 56px; padding: 12px 14px; }
-.cw-dec.is-big .cw-opt-label { font-size: 15px; }
-.cw-dec.is-big .cw-opt-desc { font-size: 13px; }
-.cw-dec.is-big .cw-key { min-height: 60px; font-size: 18px; border-radius: 12px; }
-.cw-dec.is-big .cw-dec-input { font-size: 16px; min-height: 52px; }
-.cw-dec.is-big.is-plan .cw-dec-plan { max-height: 34vh; }
-@media (max-height: 560px) {
-  .cw-dec.is-big { gap: 11px; padding: 15px 18px; border-radius: 15px; }
-  .cw-dec.is-big .cw-dec-what { font-size: 19px; }
-  .cw-dec.is-big .cw-dec-cmd { font-size: 14px; max-height: 30vh; }
-  .cw-dec.is-big .cw-key { min-height: 48px; font-size: 16px; }
-}
-
 /* ── Usage ── */
 .cw-usage {
-  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start;
   /* Rows as tall as what they hold: the face scrolls instead. An auto row
      would shrink to its item's min-height (0 for the quota) and stack it under
@@ -505,13 +474,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 .cw-hist-proj { max-width: 44%; text-overflow: ellipsis; }
+/* The themed dropdown that replaces it, sized like the keys beside it. */
+.cw-hist-head .cs-wrap { flex: 0 1 auto; min-width: 0; max-width: 44%; }
+.cw-hist-head .cs-trigger {
+  min-height: 36px; padding: 0 10px 0 12px; border: 0; border-radius: 9px;
+  font-size: 12.5px; font-weight: 650; color: var(--cw-ink);
+  background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
+}
+.cw-hist-head .cs-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-hist-icon { min-width: 36px; padding: 0; font-size: 15px; }
 .cw-hist-btn:disabled, .cw-hist-icon:disabled { opacity: 0.45; cursor: default; }
 .cw-hist-btn.is-danger { color: var(--on-danger, #fff); background: var(--cw-crit); box-shadow: none; }
 .cw-hist-note { margin: 0; font-size: 12.5px; color: var(--cw-2); }
 .cw-hist-note.is-error { color: var(--cw-crit); }
 .cw-hist-list {
-  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
   margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;
 }
 .cw-hist-row { display: flex; align-items: center; gap: 10px; min-height: 48px; box-shadow: inset 0 -1px 0 var(--cw-line); }
@@ -550,10 +527,6 @@
 }
 
 @keyframes cw-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-@keyframes cw-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .cw-overlay { animation: none; }
-}
 
 /* ── Clawd, in the session's colour ─────────────────────────────────────────
    The same sprite as the topbar marker (claude-clawd.js), moved by the state
@@ -655,7 +628,7 @@ body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none
    tool log beside it when there is room, and the prompt at the bottom. */
 .cw-console {
   min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 9px;
-  padding: 12px; border-radius: 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  padding: 12px; border-radius: 14px; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
   background: var(--cw-well); box-shadow: inset 0 0 0 1px var(--cw-line);
   container-type: inline-size; container-name: cwc;
 }
@@ -852,6 +825,21 @@ body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none
 @container cw (max-height: 300px) {
   .cw-aside-strip { display: none; }
   .cw-cs-body.has-strip { display: flex; }
+}
+/* A short tile with a decision waiting is that decision, whole: the session's head, the thread
+   and the message box would only push its keys out of the tile. The card names the project.
+   After the layouts above, which it hides. */
+@container cw (max-height: 420px) {
+  .cw-console:has(> .cw-decs) > .cw-cs-head, .cw-console > .cw-decs ~ * { display: none; }
+  .cw-console > .cw-decs { flex: 1 1 0; max-height: none; }
+  .cw-console > .cw-decs.is-pair { grid-template-rows: minmax(0, 1fr) auto; align-items: stretch; }
+  .cw-console > .cw-decs .cw-dec { flex: 1 1 auto; max-height: none; }
+  .cw-console .cw-dec-acts { margin-top: auto; }
+}
+/* Narrow as well: the session list sits above the card there, and gives way too. */
+@container cw (max-height: 420px) and (max-width: 619px) {
+  .cw-mc:has(> .cw-console > .cw-decs) { grid-template-rows: minmax(0, 1fr); }
+  .cw-mc:has(> .cw-console > .cw-decs) > .cw-side { display: none; }
 }
 
 .cw-aside-full { margin-top: 4px; }
@@ -1067,7 +1055,7 @@ body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none
 /* The "/" picker: the commands and skills that match what is typed, under
    the prompt, as Claude Code lists them (a floating list would be clipped by the console). */
 .cw-slash {
-  display: flex; flex-direction: column; gap: 2px; max-height: 214px; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 2px; max-height: 214px; overflow-y: auto; overscroll-behavior-y: contain;
   scrollbar-width: thin; padding: 4px; border-radius: 9px; background: var(--cw-well);
   box-shadow: inset 0 0 0 1px var(--cw-line);
 }
@@ -1170,7 +1158,7 @@ body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none
    half-visible row. Now the list yields and scrolls inside itself instead. */
 .cw-run-list {
   flex: 0 1 auto; min-height: 0; max-height: 40%;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
   display: flex; flex-direction: column; gap: 8px;
 }
 .cw-run {
@@ -1199,7 +1187,7 @@ body.game-mode .cw-breathing, body.low-power-gpu .cw-breathing { animation: none
    scroller rather than an ellipsis. */
 .cw-run-out {
   font-size: 12.5px; line-height: 1.55; color: var(--text, #f0f3f1); opacity: 0.85;
-  max-height: 108px; overflow-y: auto; overscroll-behavior: contain;
+  max-height: 108px; overflow-y: auto; overscroll-behavior-y: contain;
   white-space: pre-wrap; word-break: break-word;
   padding: 9px 11px; border-radius: 10px;
   background: rgba(0,0,0,0.24); border: 1px solid rgba(255,255,255,0.06);

@@ -10,13 +10,13 @@ const M = require('../js/deck-model.js');
 
 const JS = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
-function loadBinder() {
+function loadBinder(trigger) {
   const start = JS.indexOf('  function bindActionKey(');
   const end = JS.indexOf('\n  }\n', start) + 4;
   assert.ok(start > 0 && end > start, 'bindActionKey not found');
   const fired = [];
   const own = [];
-  const make = new Function('fired', 'own', 'window', `
+  const make = new Function('fired', 'own', 'window', 'trigger', `
     const bindPressFeedback = () => {};
     const fireFeedback = () => {};
     const runAction = () => {};
@@ -28,11 +28,11 @@ function loadBinder() {
     const scheduleAutoOff = () => {};
     const cancelAutoOff = () => {};
     const stateSnapshot = {};
-    const runTrigger = (t) => { fired.push(t.name); return Promise.resolve(true); };
+    const runTrigger = trigger || ((t) => { fired.push(t.name); return Promise.resolve(true); });
     ${JS.slice(start, end)}
     return bindActionKey;
   `);
-  return { bindActionKey: make(fired, own, { DeckModel: M }), fired, own };
+  return { bindActionKey: make(fired, own, { DeckModel: M }, trigger), fired, own };
 }
 
 function fakeNode(on) {
@@ -95,4 +95,27 @@ test('a confirm key arms on the first tap and runs on the second', async () => {
   tap(node); await settle();
   assert.deepEqual(fired, ['shutdown']);
   assert.equal(node.classList.contains('is-arming'), false);
+});
+
+// A key whose first step turned the lights off and whose second failed: going
+// back to "on" left a key that lied, and its next tap ran the off action again.
+async function tapSwitch(on, trigger) {
+  const { bindActionKey, own } = loadBinder(trigger);
+  const node = fakeNode(on);
+  const key = { id: 'k', toggle: true, triggers: { tap: { name: 'tap' }, tapOff: { name: 'off' } } };
+  bindActionKey(node, key, {});
+  tap(node);
+  await settle();
+  await settle();
+  return own;
+}
+
+test('switch: a step worked and a later one failed, the key stays where it moved', async () => {
+  const own = await tapSwitch(true, (t, g, tally) => { tally.ran = true; return Promise.resolve(false); });
+  assert.deepEqual(own, [['deck.k', false]]);
+});
+
+test('switch: nothing worked, the key goes back', async () => {
+  const own = await tapSwitch(true, () => Promise.resolve(false));
+  assert.deepEqual(own, [['deck.k', false], ['deck.k', true]]);
 });

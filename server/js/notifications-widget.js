@@ -288,7 +288,7 @@
       // No reader on this OS at all is a different thing from a Windows build
       // too old for the listener, and saying the wrong one reads as a bug.
       if (!supported) showState(list, 'wn_unsupported_os', 'Notification mirroring is not available on this system');
-      else showState(list, 'wn_unavailable', 'Not available on this Windows version');
+      else showState(list, 'wn_unavailable', 'Not available on this PC');
       return;
     }
     if (items === null || srvState === 'starting' || srvState === 'off') {

@@ -56,7 +56,7 @@
     };
     if (!opts || opts.allowNone !== false) {
       const none = document.createElement('button');
-      none.type = 'button'; none.className = 'deck-ed-swatch deck-ed-swatch-none'; none.dataset.c = ''; none.textContent = '✕'; none.title = '—';
+      none.type = 'button'; none.className = 'deck-ed-swatch deck-ed-swatch-none'; none.dataset.c = ''; none.innerHTML = window.DeckIcons.CLOSE_MARK; none.title = '—';
       none.addEventListener('click', () => { setVal(''); refresh(); });
       row.appendChild(none);
     }
@@ -473,6 +473,7 @@
   function close() {
     const m = document.getElementById('deck-editor-backdrop');
     if (!m) return;
+    if (m.letGo) m.letGo();
     if (m.stopShortcut) m.stopShortcut();
     if (m.stopFitRows) m.stopFitRows();
     m.remove();
@@ -889,6 +890,8 @@
     backdrop.className = 'deck-ed-backdrop';
     const modal = document.createElement('div');
     modal.className = 'deck-ed-modal';
+    // A macro from the Xenon menu: no tile to dress, so name, actions and shortcut come first.
+    if (opts && opts.simple) modal.classList.add('deck-ed-modal--simple');
 
     // ── Shell: header / (side rail + tabbed main) / footer. The side rail keeps
     // the live preview always in view (also on the Xeneon touchscreen, where the
@@ -937,12 +940,14 @@
 
     const h = document.createElement('h3');
     h.className = 'deck-ed-title';
-    h.setAttribute('data-i18n', 'deck_edit_title');
-    h.textContent = t('deck_edit_title');
+    const titleKey = (opts && opts.titleKey) || 'deck_edit_title';
+    h.setAttribute('data-i18n', titleKey);
+    h.textContent = t(titleKey);
     edHead.appendChild(h);
     const edClose = document.createElement('button');
     edClose.type = 'button'; edClose.className = 'deck-ed-close';
-    edClose.title = t('deck_edit_cancel'); edClose.textContent = '×';
+    edClose.title = t('deck_edit_cancel'); edClose.setAttribute('aria-label', edClose.title);
+    edClose.innerHTML = window.DeckIcons.CLOSE_MARK;
     edClose.addEventListener('click', close);
     edHead.appendChild(edClose);
     modal.appendChild(edHead);
@@ -972,7 +977,7 @@
         });
         const del = document.createElement('span');
         del.className = 'deck-ed-preset-del'; del.setAttribute('role', 'button');
-        del.title = t('preset_delete'); del.textContent = '×';
+        del.title = t('preset_delete'); del.innerHTML = window.DeckIcons.CLOSE_MARK;
         del.addEventListener('click', (e) => {
           e.stopPropagation();
           if (window.Deck && typeof window.Deck.deleteKeyPreset === 'function') window.Deck.deleteKeyPreset(ps.id);
@@ -1175,7 +1180,7 @@
     const bgImgBtn = document.createElement('button'); bgImgBtn.type = 'button'; bgImgBtn.className = 'deck-ed-btn';
     bgImgBtn.setAttribute('data-i18n', 'deck_edit_image'); bgImgBtn.textContent = t('deck_edit_image');
     const bgImgPrev = document.createElement('img'); bgImgPrev.className = 'deck-ed-imgprev'; bgImgPrev.alt = '';
-    const bgImgDel = document.createElement('button'); bgImgDel.type = 'button'; bgImgDel.className = 'deck-ed-btn deck-ed-imgdel'; bgImgDel.textContent = '×';
+    const bgImgDel = document.createElement('button'); bgImgDel.type = 'button'; bgImgDel.className = 'deck-ed-btn deck-ed-imgdel'; bgImgDel.innerHTML = window.DeckIcons.CLOSE_MARK;
     bgImgDel.title = t('preset_delete');
     bgImgBtn.addEventListener('click', () => bgImgFile.click());
     bgImgFile.addEventListener('change', () => {
@@ -1386,7 +1391,7 @@
       if (pcCustom) pcCustom.classList.toggle('sel', pressColorTouched && isCustomColor(pressColor));
     }
     const pcNone = document.createElement('button');
-    pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.textContent = '✕'; pcNone.title = '—';
+    pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.innerHTML = window.DeckIcons.CLOSE_MARK; pcNone.title = '—';
     pcNone.addEventListener('click', () => { pressColorTouched = false; pressColor = ''; markPressColor(); });
     pcSwatches.appendChild(pcNone);
     DECK_SWATCHES.forEach((c) => {
@@ -1838,6 +1843,23 @@
     const shortcut = window.DeckEditorShortcut.buildCard({ t, section }, existing);
     paneAction.appendChild(shortcut.el);
 
+    // The same key as a small button that stays on the screen.
+    const onScreen = window.DeckEditorPlace.buildCard({ t, section }, existing, serverCaps);
+    if (onScreen) paneAction.appendChild(onScreen);
+
+    [fKind, behavior.el, fTrig, fConfirm].forEach((n) => n.classList.add('deck-ed-advanced'));
+    if (opts && opts.simple) {
+      const btnMore = document.createElement('button');
+      btnMore.type = 'button'; btnMore.className = 'deck-ed-btn deck-ed-more';
+      btnMore.setAttribute('data-i18n', 'deck_edit_more'); btnMore.textContent = t('deck_edit_more');
+      btnMore.addEventListener('click', () => {
+        opts.simple = false;   // a preset or paste reopens the editor from opts
+        modal.classList.remove('deck-ed-modal--simple');
+        btnMore.remove();
+      });
+      paneAction.appendChild(btnMore);
+    }
+
     // ── LED reaction: an optional lighting consequence attached to THIS key. ──
     const existingLight = existing && existing.light;
     const fLight = field('deck_light_title');
@@ -2099,6 +2121,7 @@
       steps: _ai('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/><path d="M15 12l2 2 2-2"/>'),
       screenDraw: _ai('<path d="M3 17c3-4 5-4 6.5-1.5S13 19 15.5 15"/><path d="M14.5 7.5l3-3 2 2-3 3z"/><path d="M14.5 7.5L11 11l-.5 2.5 2.5-.5 3.5-3.5"/>'),
       xenonMenu: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M12.5 9h5M12.5 12h5M12.5 15h3"/>'),
+      xenonScreen: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M12 12v5M9.5 14.5h5"/>'),
       gameCompanion: _ai('<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="15.5" cy="11.5" r="1" fill="currentColor"/><circle cx="17.5" cy="13.5" r="1" fill="currentColor"/>'),
       exportCapture: _ai('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 7v7M9 11l3 3 3-3"/>'),
       sendCapture: _ai('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 15V8M9 11l3-3 3 3M11 19h2"/>'),
@@ -3146,7 +3169,7 @@
         main = tok; inp.value = tok; commit();
       });
       const clear = document.createElement('button');
-      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '✕'; clear.title = t('deck_hotkey_clear');
+      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.innerHTML = window.DeckIcons.CLOSE_MARK; clear.title = t('deck_hotkey_clear');
       clear.addEventListener('click', () => {
         mods.clear(); main = ''; inp.value = '';
         modRow.querySelectorAll('.deck-ed-hotkey-mod.active').forEach((x) => x.classList.remove('active'));
@@ -3358,7 +3381,7 @@
         up.addEventListener('click', () => { list.splice(i - 1, 0, list.splice(i, 1)[0]); renderSteps(); });
         const down = document.createElement('button'); down.type = 'button'; down.className = 'deck-ed-stepbtn'; down.textContent = '↓'; down.disabled = i === list.length - 1;
         down.addEventListener('click', () => { list.splice(i + 1, 0, list.splice(i, 1)[0]); renderSteps(); });
-        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'deck-ed-stepbtn danger'; rm.textContent = '✕';
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'deck-ed-stepbtn danger'; rm.innerHTML = window.DeckIcons.CLOSE_MARK;
         rm.addEventListener('click', () => { list.splice(i, 1); renderSteps(); updateTrigLabels(); });
         tools.appendChild(up); tools.appendChild(down); tools.appendChild(rm);
         head.appendChild(tools); row.appendChild(head);
@@ -3374,7 +3397,7 @@
         stepsHost.appendChild(row);
       });
       const add = document.createElement('button'); add.type = 'button'; add.className = 'deck-ed-addstep';
-      add.setAttribute('data-i18n', 'deck_add_action'); add.textContent = '+ ' + t('deck_add_action');
+      add.setAttribute('data-i18n', 'deck_add_action'); add.textContent = t('deck_add_action');
       add.addEventListener('click', () => { list.push({ type: '', params: {}, delayMs: 0 }); renderSteps(); updateTrigLabels(); });
       stepsHost.appendChild(add);
       enhanceSelects(stepsHost);   // upgrade the freshly-built action/param dropdowns
@@ -3445,20 +3468,24 @@
     const actions = document.createElement('div');
     actions.className = 'deck-ed-actions';
     const btnSave = document.createElement('button'); btnSave.type = 'button'; btnSave.className = 'deck-ed-btn primary'; btnSave.setAttribute('data-i18n', 'deck_edit_save'); btnSave.textContent = t('deck_edit_save');
-    const btnSavePreset = document.createElement('button'); btnSavePreset.type = 'button'; btnSavePreset.className = 'deck-ed-btn'; btnSavePreset.setAttribute('data-i18n', 'deck_key_save_preset'); btnSavePreset.textContent = t('deck_key_save_preset');
+    const btnSavePreset = document.createElement('button'); btnSavePreset.type = 'button'; btnSavePreset.className = 'deck-ed-btn deck-ed-preset-save'; btnSavePreset.setAttribute('data-i18n', 'deck_key_save_preset'); btnSavePreset.textContent = t('deck_key_save_preset');
     const btnCancel = document.createElement('button'); btnCancel.type = 'button'; btnCancel.className = 'deck-ed-btn'; btnCancel.setAttribute('data-i18n', 'deck_edit_cancel'); btnCancel.textContent = t('deck_edit_cancel');
-    actions.appendChild(btnSave);
-    actions.appendChild(btnSavePreset);
+    styleTools.appendChild(btnSavePreset);
     if (existing && opts.onDelete) {
       const btnDel = document.createElement('button'); btnDel.type = 'button'; btnDel.className = 'deck-ed-btn danger'; btnDel.setAttribute('data-i18n', 'deck_edit_delete'); btnDel.textContent = t('deck_edit_delete');
       btnDel.addEventListener('click', () => { close(); opts.onDelete(); });
       actions.appendChild(btnDel);
     }
     actions.appendChild(btnCancel);
+    actions.appendChild(btnSave);
     modal.appendChild(actions);
 
     btnCancel.addEventListener('click', close);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    // A press beside the window is often a slip: it closes only what has nothing to lose.
+    let pristine = '';
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop && JSON.stringify(collectKey(true)) === pristine) close();
+    });
 
     // Read the current form into a raw key object. `forPreset` omits the durable
     // id so a key placed/loaded from a preset always gets a fresh one on save.
@@ -3555,6 +3582,8 @@
     }
 
     btnSave.addEventListener('click', () => {
+      // Keys lists only keys with a shortcut: without one this macro could never run.
+      if (opts.needsShortcut && !shortcut.ask()) return;
       const key = collectKey(false);
       // A slider whose target needs a pick (app/entity/source) would be DROPPED
       // by normalizeSlider → the key silently vanishes on save. Block instead.
@@ -3660,10 +3689,22 @@
     // long language: they step to an even grid instead (DeckPanel.css).
     backdrop.stopShortcut = shortcut.dispose;
     if (window.FitRow) backdrop.stopFitRows = window.FitRow.watchWithin(modal, '.deck-ed-seg-text', 1);
-    if (typeof applyTranslations === 'function') applyTranslations();
+    if (typeof translateStatic === 'function') translateStatic(backdrop);
     enhanceSelects(modal);
     updatePreview();
-    inTitle.focus();
+    pristine = JSON.stringify(collectKey(true));
+    modal.tabIndex = -1;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', h.textContent);
+    // A touch keyboard would cover the form, so a finger starts on the window itself.
+    const touch = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+    backdrop.letGo = window.DialogFocus.hold(modal, {
+      start: touch ? modal : inTitle,
+      onEsc: close,
+      // Both fields take Tab and Esc as keys of the combination.
+      leavesKeys: () => shortcut.recording() || !!(document.activeElement && document.activeElement.classList.contains('deck-ed-hotkey-input')),
+    });
   }
 
   window.DeckEditor = { open, close };

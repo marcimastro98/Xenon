@@ -5,6 +5,7 @@
 // real action execution arrives in a later phase.
 (function () {
   const STORE_KEY = 'deck.config.v1';        // { [instanceId]: fullDeckConfig } — each instance owns its config
+  const MACRO_DECK = 'keys';                  // the Xenon menu's keys (server/menu-functions.js KEYS_INSTANCE)
   const DIRTY_KEY = 'deck.dirty.v1';         // outbox: { [instanceId | '__presets']: seq } — local changes not yet acked by the server
   const PRESETS_KEY = 'deck.presets.v1';     // saved profile presets [{ id, name, profile }]
   const KEYPRESETS_KEY = 'deck.keypresets.v1'; // saved single-key presets [{ id, name, key }]
@@ -63,6 +64,7 @@
     off: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63Zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71ZM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3ZM12 4 9.91 6.09 12 8.18V4Z"/></svg>',
   };
   // Faceplate icons: pencil (edit) and check (done).
+  const MAKER_URL = 'https://xenon-app.com/maker/';
   const EDIT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/></svg>';
   const DONE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>';
   // Bookmark glyph: "save this profile as a reusable preset".
@@ -144,6 +146,11 @@
   // auto-fit override (use getConfig for the rendered grid).
   function durableConfig(instanceId, all) {
     return window.DeckStore.instanceConfig(window.DeckModel, all || readStore(), instanceId);
+  }
+  // Whether a key on any Deck shows one of these live states, in view or not.
+  function usesState(sources) {
+    const all = readStore();
+    return Object.keys(all).some((id) => window.DeckStore.isInstanceKey(id) && window.DeckModel.deckUsesState(all[id], sources));
   }
   function getConfig(instanceId) {
     // A live auto-fit override (render grid adapted to the tile) takes precedence
@@ -925,6 +932,7 @@
       // The output, the mute or the volume just changed: ask now rather than
       // wait for the next audio tick, so the key's face follows the press
       // instead of trailing it.
+      if (data && data.ok) tellDone(action, data);
       if (data && data.ok && AUDIO_ACTION_TYPES.includes(action.type)) pollAudioState();
       if (data && data.ok && action.type === 'lightPower') pollLightState();
       return !!(data && data.ok);
@@ -936,7 +944,7 @@
   // it: the step goes to the dashboard (or the screen's Bit) through the server.
   function handsOff(action) {
     if (action.type === 'ai') return !(window.startVoiceSession || window.openMediaChat || window.openAiPanel || window.aiAsk);
-    return action.type === 'appMixer' && typeof isLayerPage === 'function' && isLayerPage();
+    return action.type === 'appMixer' && typeof isLayerPage === 'function' && isLayerPage() && !isSheetPage();
   }
   async function handOffStep(action) {
     try {
@@ -957,17 +965,18 @@
   let _lastDeckErr = { msg: '', at: 0 };
   function reportActionError(code) {
     if (!window.XenonToast) return;
+    if (code === 'no_steps' && window.CaptureToast) return;  // its card already says it
     const msg = describeDeckError(code);
     if (!msg) return;
     const now = Date.now();
     if (msg === _lastDeckErr.msg && now - _lastDeckErr.at < 3000) return;
     _lastDeckErr = { msg, at: now };
-    window.XenonToast.show({
-      type: 'error',
-      title: tt('deck_err_title', 'This key could not run'),
-      message: msg,
-      duration: 3600,
-    });
+    window.XenonToast.show(window.DeckErrorText.keyToast(code, msg, tt));
+  }
+  // A key whose effect cannot be seen says what it did (js/deck-done-text.js).
+  function tellDone(action, data) {
+    const note = window.XenonToast && window.DeckDoneText ? window.DeckDoneText.note(action, data, tt) : null;
+    if (note) window.XenonToast.show(note);
   }
   function tt(key, fallback) {
     return (typeof window.t === 'function' && window.t(key)) || fallback;
@@ -976,6 +985,11 @@
   window.DeckShortcutFailed = (info) => {
     if (!window.XenonToast || !info) return;
     window.XenonToast.show(window.DeckErrorText.shortcutFailed(info, tt));
+  };
+  // A row of the Xenon menu failed after the menu closed (main.js SSE).
+  window.XenonMenuFailed = (info) => {
+    if (!window.XenonToast || !info) return;
+    window.XenonToast.show(window.DeckErrorText.menuFailed(info, tt));
   };
   // Briefly flash a key red to surface a failed action (path not found, OBS
   // offline, …) — actions must not fail silently.
@@ -998,13 +1012,16 @@
   // is one zero-delay step. Sequencing/delays are client-side; each step POSTs.
   // `gesture` ({type, state?}) tells a widget's handler how the key was pressed;
   // only a handler step carries it, and the server checks it again.
-  async function runTrigger(trigger, gesture) {
+  // `tally.ran` turns true once any step worked, so a switch can tell a key that
+  // did nothing from one where only a later step failed.
+  async function runTrigger(trigger, gesture, tally) {
     const steps = window.DeckActions.triggerSteps(trigger);
     let ok = true;
     for (const step of steps) {
       if (step.delayMs) await new Promise((r) => setTimeout(r, step.delayMs));
       const action = gesture && step.action.type === 'sdkHandler' ? Object.assign({}, step.action, { gesture }) : step.action;
-      if (!(await runAction(action))) ok = false;   // run every step; report if any failed
+      if (await runAction(action)) { if (tally) tally.ran = true; }
+      else ok = false;                              // run every step; report if any failed
     }
     return ok;
   }
@@ -1233,7 +1250,8 @@
       const own = key.state && key.state.source ? '' : M.toggleStateName(key);
       if (own) setOwnState(own, false);
       const trig = (key.triggers || {}).tapOff || (key.triggers || {}).tap;
-      if (trig) runTrigger(trig, { type: 'tapOff' }).then((ok) => { if (!ok && own) setOwnState(own, true); });
+      const tally = { ran: false };
+      if (trig) runTrigger(trig, { type: 'tapOff' }, tally).then((ok) => { if (!ok && !tally.ran && own) setOwnState(own, true); });
     }, key.autoOff * 1000));
   }
 
@@ -1299,10 +1317,12 @@
         // action (state-mode reactions are handled on state edges in applyKeyStates).
         if (key.light && key.light.when === 'press') runAction(lightingAction(key.light, true));
       }
-      (trig ? runTrigger(trig, gesture) : Promise.resolve(true))
+      const tally = { ran: false };
+      (trig ? runTrigger(trig, gesture, tally) : Promise.resolve(true))
         .then((ok) => {
           if (ok) return;
           if (!repeating) flashError(node);
+          if (tally.ran) return;                            // a step worked: the key did move
           setMoved(false);                                  // the action failed: the key did not move
           if (flip && !wasOn) cancelAutoOff(key);
         })
@@ -1892,10 +1912,10 @@
   // of the deck and its music bar so colour/gradient choices are visible while you
   // pick them. Every change saves + re-renders the real deck AND rebuilds the modal.
   let deckStyleOverlay = null;
-  let deckStyleKeydown = null;
+  let deckStyleLetGo = null;
   let deckStyleCtx = null;   // { tile, instanceId } — the deck to repaint on close
   function closeDeckStyleModal() {
-    if (deckStyleKeydown) { document.removeEventListener('keydown', deckStyleKeydown); deckStyleKeydown = null; }
+    if (deckStyleLetGo) { deckStyleLetGo(); deckStyleLetGo = null; }
     if (deckStyleOverlay) { deckStyleOverlay.remove(); deckStyleOverlay = null; }
     // The deck behind the modal was left un-repainted while editing (it's hidden);
     // repaint it once now so it reflects the saved changes.
@@ -1956,6 +1976,19 @@
     root.appendChild(device);
     return root;
   }
+  // A full-width labelled switch row, for the deck-wide on/off choices.
+  function switchRow(labelKey, labelFb, on, onChange) {
+    const row = el('button', 'deck-ed-switchrow'); row.type = 'button';
+    row.setAttribute('role', 'switch');
+    row.appendChild(el('span', 'deck-ed-switchtxt', tr(labelKey, labelFb)));
+    row.appendChild(el('span', 'deck-ed-switch'));
+    let state = !!on;
+    const paint = () => row.setAttribute('aria-checked', state ? 'true' : 'false');
+    row.addEventListener('click', () => { state = !state; paint(); onChange(state); });
+    paint();
+    return row;
+  }
+
   function openDeckStyleModal(tile, instanceId, profileId) {
     closeDeckStyleModal();
     const M = window.DeckModel;
@@ -1966,7 +1999,9 @@
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) closeDeckStyleModal(); });
     const dialog = el('div', 'deck-style-dialog');
     dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-label', tr('deck_style_title', 'Aspetto Deck'));
+    dialog.tabIndex = -1;
     overlay.appendChild(dialog);
 
     // Live preview host — swapped on every change so colour/gradient/theme picks
@@ -2046,18 +2081,6 @@
       paint();
       return { el: b, get: () => state };
     };
-    // A full-width labelled switch row, for the deck-wide on/off cues.
-    const switchRow = (labelKey, labelFb, on, onChange) => {
-      const row = el('button', 'deck-ed-switchrow'); row.type = 'button';
-      row.setAttribute('role', 'switch');
-      row.appendChild(el('span', 'deck-ed-switchtxt', tr(labelKey, labelFb)));
-      row.appendChild(el('span', 'deck-ed-switch'));
-      let state = !!on;
-      const paint = () => row.setAttribute('aria-checked', state ? 'true' : 'false');
-      row.addEventListener('click', () => { state = !state; paint(); onChange(state); });
-      paint();
-      return row;
-    };
     const colorInput = (value) => {
       const c = el('input'); c.type = 'color'; c.className = 'deck-decor-swatch'; c.value = value;
       if (window.ColorPicker) window.ColorPicker.bind(c);
@@ -2092,7 +2115,8 @@
       grp.appendChild(el('span', 'deck-style-cap', tr(capKey, capFb)));
       const file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
       const btn = el('button', 'deck-pill'); btn.type = 'button';
-      const clr = el('button', 'deck-step', '✕'); clr.type = 'button'; clr.title = tr('deck_decor_remove', 'Rimuovi');
+      const clr = el('button', 'deck-step'); clr.type = 'button'; clr.title = tr('deck_decor_remove', 'Rimuovi');
+      clr.setAttribute('aria-label', clr.title); clr.innerHTML = window.DeckIcons.CLOSE_MARK;
       const refreshBtn = () => {
         const has = getHasImg();
         btn.textContent = tr(has ? 'deck_decor_change' : 'deck_decor_add', has ? 'Cambia' : 'Carica');
@@ -2123,7 +2147,8 @@
     // Header
     const head = el('div', 'deck-style-head');
     head.appendChild(el('span', 'deck-style-title', tr('deck_style_title', 'Aspetto Deck')));
-    const close = el('button', 'deck-style-close', '✕'); close.type = 'button'; close.title = tr('deck_style_done', 'Fine');
+    const close = el('button', 'deck-style-close'); close.type = 'button'; close.title = tr('deck_style_done', 'Fine');
+    close.setAttribute('aria-label', close.title); close.innerHTML = window.DeckIcons.CLOSE_MARK;
     close.addEventListener('click', closeDeckStyleModal);
     head.appendChild(close);
     dialog.appendChild(head);
@@ -2215,10 +2240,9 @@
       }));
     dialog.appendChild(body);
 
-    deckStyleKeydown = (e) => { if (e.key === 'Escape') closeDeckStyleModal(); };
-    document.addEventListener('keydown', deckStyleKeydown);
     document.body.appendChild(overlay);
     deckStyleOverlay = overlay;
+    deckStyleLetGo = window.DialogFocus.hold(dialog, { onEsc: closeDeckStyleModal });
     deckStyleCtx = { tile, instanceId, flush: () => { if (livePending) { const f = livePending; livePending = null; f(); } } };
   }
 
@@ -3103,6 +3127,9 @@
         openAutoSwitchDialog(tile, instanceId);
       });
       menu.appendChild(smart);
+      const maker = el('a', 'deck-pmenu-add deck-pmenu-maker', tr('ambient_create_maker', 'Crea in Xenon Maker'));
+      maker.href = MAKER_URL; maker.target = '_blank'; maker.rel = 'noopener noreferrer';
+      menu.appendChild(maker);
     }
 
     // Virtual Deck: open this deck as its own always-on-top window on the PC
@@ -3262,6 +3289,21 @@
         render(tile, instanceId);
       },
     });
+  }
+
+  // A key made from the Xenon menu: it lives on the `keys` Deck, which no page draws
+  // (server/menu-functions.js), so the editor opens with no tile under it. This page
+  // has just loaded: the server's copy comes first, or a save would lose its keys.
+  async function openMacro(keyId) {
+    if (!window.DeckEditor) return;
+    await hydrateDeckFromServer();
+    const M = window.DeckModel;
+    const cfg = M.normalizeDeckConfig(getConfig(MACRO_DECK));
+    const found = keyId ? M.findTopKey(cfg, keyId) : null;
+    const spot = found ? { config: cfg, ...found } : M.firstFreeSlot(cfg);
+    const profile = spot.config.profiles.find((p) => p.id === spot.nav.profileId);
+    const put = (rawKey) => saveConfig(MACRO_DECK, M.setKeyAt(spot.config, spot.nav, spot.slot, rawKey));
+    window.DeckEditor.open({ key: profile.root.pages[spot.nav.pageIndex].keys[spot.slot] || null, look: {}, simple: true, needsShortcut: true, tab: 'actions', titleKey: keyId ? 'xmenu_key_edit' : 'xmenu_key_new', onSave: put, onDelete: () => put(null) });
   }
 
   // Render every deck tile in the DOM. The base tile has no instance attribute;
@@ -3537,7 +3579,7 @@
       const res = await fetch((typeof SERVER !== 'undefined' ? SERVER : '') + '/api/lighting/status');
       const d = await res.json();
       if (!d || typeof d.enabled !== 'boolean') return;
-      refreshStates({ lightsOn: d.enabled });
+      refreshStates({ lightsOn: d.enabled && !d.lightsOut });
     } catch { /* offline: keep the last known face */ }
   }
   function setLightWatch(wanted) {
@@ -3602,8 +3644,9 @@
   // Small self-contained modal: enable toggle, revert behaviour, rule rows
   // (exe + profile) with an app suggestion list from the open-windows endpoint.
   // Saves through the normal ops outbox (normalizeAutoSwitch re-validates).
+  let closeAutoSwitch = null;
   function openAutoSwitchDialog(tile, instanceId) {
-    document.querySelectorAll('.deck-asw-backdrop').forEach((n) => n.remove());
+    if (closeAutoSwitch) closeAutoSwitch();
     const cfg = getConfig(instanceId);
     const model = {
       enabled: !!(cfg.autoSwitch && cfg.autoSwitch.enabled),
@@ -3611,16 +3654,35 @@
       rules: ((cfg.autoSwitch && cfg.autoSwitch.rules) || []).map((r) => ({ exe: r.exe, profile: r.profile })),
     };
     const backdrop = el('div', 'deck-asw-backdrop deck-ed-backdrop');
-    const modal = el('div', 'deck-asw deck-ed');
-    modal.appendChild(el('div', 'deck-ed-title', tr('deck_autoswitch_title', 'Profili smart')));
-    modal.appendChild(el('div', 'deck-ed-hint', tr('deck_autoswitch_hint', "Cambia profilo da solo quando un'app va in primo piano.")));
+    const modal = el('div', 'deck-asw');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', tr('deck_autoswitch_title', 'Profili smart'));
+    modal.tabIndex = -1;
+    let letGo = null;
+    closeAutoSwitch = () => {
+      closeAutoSwitch = null;
+      if (letGo) letGo();
+      backdrop.remove();
+    };
+    const head = el('div', 'deck-asw-head');
+    const words = el('div', 'deck-asw-words');
+    words.appendChild(el('div', 'deck-ed-title', tr('deck_autoswitch_title', 'Profili smart')));
+    words.appendChild(el('div', 'deck-ed-hint', tr('deck_autoswitch_hint', "Cambia profilo da solo quando un'app va in primo piano.")));
+    head.appendChild(words);
+    const x = el('button', 'deck-asw-close'); x.type = 'button'; x.title = tr('deck_edit_cancel', 'Annulla');
+    x.setAttribute('aria-label', x.title); x.innerHTML = window.DeckIcons.CLOSE_MARK;
+    x.addEventListener('click', closeAutoSwitch);
+    head.appendChild(x);
+    modal.appendChild(head);
     // Enable toggle
-    const enRow = el('label', 'deck-asw-row deck-asw-enable');
-    const enChk = el('input', ''); enChk.type = 'checkbox'; enChk.checked = model.enabled;
-    enChk.addEventListener('change', () => { model.enabled = enChk.checked; });
-    enRow.appendChild(enChk);
-    enRow.appendChild(el('span', '', tr('deck_autoswitch_enable', 'Attiva il cambio automatico')));
-    modal.appendChild(enRow);
+    modal.appendChild(switchRow('deck_autoswitch_enable', 'Attiva il cambio automatico', model.enabled, (on) => { model.enabled = on; }));
+    // The shared dropdown: it floats, the list of rules scrolls.
+    const dropdown = (sel) => {
+      if (typeof window.initCustomSelect !== 'function') return;
+      sel.setAttribute('data-cs-fixed', '');
+      window.initCustomSelect(sel);
+    };
     // Revert behaviour
     const revRow = el('div', 'deck-asw-row');
     revRow.appendChild(el('span', 'deck-ed-label', tr('deck_autoswitch_revert', 'Quando nessuna regola corrisponde')));
@@ -3632,16 +3694,18 @@
     revSel.addEventListener('change', () => { model.revert = revSel.value; });
     revRow.appendChild(revSel);
     modal.appendChild(revRow);
+    dropdown(revSel);
     // Rules list
     const rulesHost = el('div', 'deck-asw-rules');
     const profileNames = cfg.profiles.map((p) => p.name);
     // App suggestions (running windows) — best-effort; free-typed exe always works.
-    let appOptions = [];
+    const appList = document.createElement('datalist'); appList.id = 'deck-asw-apps';
+    modal.appendChild(appList);
     fetch(deckBase() + '/windows').then((r) => r.json()).then((d) => {
       const seen = new Set();
-      appOptions = ((d && d.windows) || []).map((w) => String(w.app || '').toLowerCase().replace(/\.exe$/, ''))
-        .filter((p) => p && !seen.has(p) && seen.add(p));
-      paintRules();
+      appList.replaceChildren(...((d && d.windows) || []).map((w) => String(w.app || '').toLowerCase().replace(/\.exe$/, ''))
+        .filter((p) => p && !seen.has(p) && seen.add(p))
+        .map((p) => { const o = document.createElement('option'); o.value = p; return o; }));
     }).catch(() => {});
     function paintRules() {
       rulesHost.replaceChildren();
@@ -3662,21 +3726,17 @@
         rule.profile = profSel.value;
         profSel.addEventListener('change', () => { rule.profile = profSel.value; });
         row.appendChild(profSel);
-        const rm = el('button', 'deck-pmenu-tool danger', '✕'); rm.type = 'button';
+        const rm = el('button', 'deck-asw-remove'); rm.type = 'button'; rm.title = tr('deck_edit_delete', 'Elimina');
+        rm.setAttribute('aria-label', rm.title); rm.innerHTML = window.DeckIcons.CLOSE_MARK;
         rm.addEventListener('click', () => { model.rules.splice(idx, 1); paintRules(); });
         row.appendChild(rm);
         rulesHost.appendChild(row);
+        dropdown(profSel);
       });
-      // Shared datalist of running apps for the exe inputs.
-      let dl = document.getElementById('deck-asw-apps');
-      if (!dl) { dl = document.createElement('datalist'); dl.id = 'deck-asw-apps'; document.body.appendChild(dl); }
-      dl.replaceChildren();
-      appOptions.forEach((p) => { const o = document.createElement('option'); o.value = p; dl.appendChild(o); });
     }
     paintRules();
     modal.appendChild(rulesHost);
-    const addRule = el('button', 'deck-pmenu-add'); addRule.type = 'button';
-    addRule.textContent = '＋ ' + tr('deck_autoswitch_add', 'Aggiungi regola');
+    const addRule = el('button', 'deck-ed-addstep', tr('deck_autoswitch_add', 'Aggiungi regola')); addRule.type = 'button';
     addRule.addEventListener('click', () => {
       if (model.rules.length >= 16) return;
       model.rules.push({ exe: '', profile: profileNames[0] || '' });
@@ -3686,14 +3746,14 @@
     // Actions
     const actions = el('div', 'deck-ed-actions');
     const cancel = el('button', 'deck-ed-btn', tr('deck_edit_cancel', 'Annulla')); cancel.type = 'button';
-    cancel.addEventListener('click', () => backdrop.remove());
+    cancel.addEventListener('click', closeAutoSwitch);
     const save = el('button', 'deck-ed-btn primary', tr('deck_edit_save', 'Salva')); save.type = 'button';
     save.addEventListener('click', () => {
       const cur = getConfig(instanceId);
       const next = window.DeckModel.cloneConfig(cur);
       next.autoSwitch = { enabled: model.enabled, revert: model.revert, rules: model.rules };
       saveConfig(instanceId, window.DeckModel.normalizeDeckConfig(next));
-      backdrop.remove();
+      closeAutoSwitch();
       // Re-evaluate right away against the current foreground app.
       lastForegroundProc = null;
       render(tile, instanceId);
@@ -3701,8 +3761,13 @@
     actions.append(cancel, save);
     modal.appendChild(actions);
     backdrop.appendChild(modal);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+    // A press beside the window is often a slip: it closes only what has nothing to lose.
+    const pristine = JSON.stringify(model);
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop && JSON.stringify(model) === pristine) closeAutoSwitch();
+    });
     document.body.appendChild(backdrop);
+    letGo = window.DialogFocus.hold(modal, { onEsc: closeAutoSwitch });
   }
 
   // ── Smart Profiles: foreground-app → profile auto-switch ───────────────
@@ -3955,12 +4020,12 @@
   // mid-drag (appMixBusy) so it never fights an in-progress gesture. Self-stopping:
   // the poll is cleared on close, keeping it lightweight.
   let deckMixTimer = null;
-  function deckMixEsc(e) { if (e.key === 'Escape') closeDeckMixer(); }
+  let deckMixLetGo = null;
   function closeDeckMixer() {
     if (deckMixTimer) { clearInterval(deckMixTimer); deckMixTimer = null; }
+    if (deckMixLetGo) { deckMixLetGo(); deckMixLetGo = null; }
     const bd = document.getElementById('deck-mix-backdrop');
     if (bd) bd.remove();
-    document.removeEventListener('keydown', deckMixEsc);
   }
   async function renderDeckMixApps() {
     const host = document.getElementById('deck-mix-apps');
@@ -3987,9 +4052,14 @@
     closeDeckMixer();
     const backdrop = el('div', 'deck-mix-backdrop'); backdrop.id = 'deck-mix-backdrop';
     const modal = el('div', 'deck-mix-modal');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', tr('deck_mix_title', 'App volume'));
+    modal.tabIndex = -1;
     const head = el('div', 'deck-mix-head');
     head.appendChild(el('h3', 'deck-mix-title', tr('deck_mix_title', 'App volume')));
-    const x = el('button', 'deck-mix-close', '✕'); x.type = 'button'; x.setAttribute('aria-label', tr('close', 'Close'));
+    const x = el('button', 'deck-mix-close'); x.type = 'button'; x.setAttribute('aria-label', tr('close', 'Close'));
+    x.innerHTML = window.DeckIcons.CLOSE_MARK;
     x.addEventListener('click', closeDeckMixer);
     head.appendChild(x);
     modal.appendChild(head);
@@ -4010,7 +4080,7 @@
     apps.addEventListener('input', (e) => { const s = e.target.closest('.app-mix-slider'); if (s && typeof handleAppMixInput === 'function') handleAppMixInput(s); });
     apps.addEventListener('click', (e) => { const b = e.target.closest('.app-mix-mute'); if (b && typeof handleAppMixMute === 'function') handleAppMixMute(b); });
     document.body.appendChild(backdrop);
-    document.addEventListener('keydown', deckMixEsc);
+    deckMixLetGo = window.DialogFocus.hold(modal, { onEsc: closeDeckMixer });
     renderDeckMixApps();
     deckMixTimer = setInterval(renderDeckMixApps, 2500);
     requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('visible')));
@@ -4041,7 +4111,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, listImportedResources, removeImportedResources, onForegroundProcess, applyAiDeck, showView, independentDecks: true };
+    window.Deck = { openMacro, render, renderAll, refreshStates, usesState, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, listImportedResources, removeImportedResources, onForegroundProcess, applyAiDeck, showView, independentDecks: true };
     // First paint from the fast local copy, then adopt the server copy (the source
     // of truth — restores keys after a WebView storage wipe). Any outbox entries
     // left from a previous session are flushed right away. Once the layout is up,

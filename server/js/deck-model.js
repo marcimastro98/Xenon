@@ -555,7 +555,9 @@ function normalizeDeckConfig(raw) {
   //  plate    — chassis faceplate finish (graphite / carbon / steel / midnight / none)
   const capStyle = CAP_STYLES.includes(src.capStyle) ? src.capStyle : 'lcd';
   const keyShape = KEY_SHAPES.includes(src.keyShape) ? src.keyShape : 'rounded';
-  const plate = PLATE_STYLES.includes(src.plate) ? src.plate : 'graphite';
+  //  A Deck nothing was saved for is a new one and wears the dashboard's own tile; a saved
+  //  config from before faceplates existed keeps the graphite it has always shown.
+  const plate = PLATE_STYLES.includes(src.plate) ? src.plate : (src.profiles ? 'graphite' : 'theme');
   //  transparency — how much of the dashboard shows through the chassis and the
   //  key well, 0 (solid device, the look every existing deck has) to 100 (only
   //  the caps remain). The caps themselves are deliberately never faded: a
@@ -1050,6 +1052,34 @@ function addPageAt(config, nav) {
   return normalizeDeckConfig(cfg);
 }
 
+// The first empty slot of the active profile's top pages, for a key made outside
+// a grid (the Xenon menu's keys): a full grid gets a new page, so a key always
+// has a place. → { config, nav, slot }; `config` is new only when it grew.
+function firstFreeSlot(config) {
+  const cfg = normalizeDeckConfig(config);
+  const profileId = cfg.activeProfile;
+  const nav = (pageIndex) => ({ profileId, path: [], pageIndex });
+  const pages = folderAtPath(cfg, profileId, []).pages;
+  for (let i = 0; i < pages.length; i++) {
+    const slot = pages[i].keys.findIndex((key) => !key);
+    if (slot >= 0) return { config: cfg, nav: nav(i), slot };
+  }
+  return { config: addPageAt(cfg, nav(0)), nav: nav(pages.length), slot: 0 };
+}
+
+// Where a key sits among the top pages of a profile. → { nav, slot } or null.
+function findTopKey(config, keyId) {
+  const cfg = normalizeDeckConfig(config);
+  for (const profile of cfg.profiles) {
+    const pages = profile.root.pages;
+    for (let i = 0; i < pages.length; i++) {
+      const slot = pages[i].keys.findIndex((key) => key && key.id === keyId);
+      if (slot >= 0) return { nav: { profileId: profile.id, path: [], pageIndex: i }, slot };
+    }
+  }
+  return null;
+}
+
 // Remove the page at pageIndex from the resolved folder, keeping at least one.
 // Returns a NEW normalized config.
 function removePageAt(config, nav, pageIndex) {
@@ -1365,6 +1395,22 @@ function keyStateBinding(key) {
   return name ? { source: 'scriptState', name } : null;
 }
 
+// Whether any key, on any profile, page or folder, shows one of these live states.
+// Read on stored configs, which are not normalized, so it trusts no shape; depth
+// is capped as in rawMaxOccupiedIndex.
+function deckUsesState(config, sources) {
+  const wanted = new Set(sources);
+  const inFolder = (folder, depth) => {
+    if (!folder || !Array.isArray(folder.pages) || depth > 8) return false;
+    return folder.pages.some((page) => page && Array.isArray(page.keys) && page.keys.some((key) => {
+      const binding = keyStateBinding(key);
+      if (binding && wanted.has(binding.source)) return true;
+      return !!key && key.kind === 'folder' && inFolder(key.folder, depth + 1);
+    }));
+  };
+  return !!config && Array.isArray(config.profiles) && config.profiles.some((p) => inFolder(p && p.root, 0));
+}
+
 // The hold and double-tap windows a key waits for, in ms.
 function keyTiming(key) {
   const t = (key && key.timing) || {};
@@ -1397,7 +1443,7 @@ function cycleTriggerName(index) {
   return index > 0 ? 'cycle' + index : 'tap';
 }
 
-const DECK_MODEL_API = { recordingStates, toggleStateName, keyStateBinding, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_VITALS_METERS, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { recordingStates, toggleStateName, keyStateBinding, deckUsesState, keyTiming, keyRepeat, cycleIndexOf, cycleTriggerName, KEY_MODES, KEY_TRIGGERS, CYCLE_MAX, KEY_TIMING, KEY_REPEAT, AUTO_OFF_MAX_S, STATE_ANIMS, uniqueProfileName, normalizeStateIcon, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, firstFreeSlot, findTopKey, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_VITALS_METERS, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

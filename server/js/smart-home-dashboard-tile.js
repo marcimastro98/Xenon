@@ -50,12 +50,18 @@
 
   function build(opts) {
     const { el, t, api, haUrl } = opts;
-    const node = el('div', 'sh-set-dash');
+    const node = el('section', 'settings-section sh-set-dash');
     node.append(
-      el('div', 'sh-set-picker-title', t('settings_ha_dash_title', 'Home Assistant dashboard')),
+      el('div', 'settings-section-title', t('settings_ha_dash_title', 'Home Assistant dashboard')),
       el('div', 'sh-set-hint', t('settings_ha_dash_hint', 'Shows a Home Assistant dashboard in a Browser tile on the current page. Sign in inside the tile the first time. To hide the Home Assistant sidebar, turn on the option that always hides it in your Home Assistant profile.')));
 
-    const select = el('select', 'sh-set-input');
+    const pickRow = el('div', 'sh-set-row');
+    pickRow.appendChild(el('span', 'sh-set-label', t('settings_ha_dash_pick', 'Dashboard')));
+    const select = el('select', 'settings-select');
+    select.setAttribute('data-custom-select', '');
+    select.setAttribute('data-cs-fixed', '');
+    select.setAttribute('aria-label', t('settings_ha_dash_pick', 'Dashboard'));
+    pickRow.appendChild(select);
     const loading = el('option', '', t('settings_ha_connecting', 'Connecting…'));
     select.appendChild(loading); select.disabled = true;
     const other = el('option', '', t('settings_ha_dash_other', 'Other page…')); other.value = '';
@@ -66,11 +72,12 @@
     pathRow.hidden = true;
 
     const actions = el('div', 'sh-set-actions');
-    const add = el('button', 'ui-btn ui-btn--secondary'); add.type = 'button'; add.textContent = t('settings_ha_dash_add', 'Add as a tile');
+    const add = el('button', 'settings-btn'); add.type = 'button'; add.textContent = t('settings_ha_dash_add', 'Add as a tile');
     const status = el('span', 'sh-set-status');
     status.setAttribute('role', 'status');
     actions.append(add, status);
-    node.append(select, pathRow, actions);
+    node.append(pickRow, pathRow, actions);
+    if (typeof window.initCustomSelect === 'function') window.initCustomSelect(select);
 
     const say = (cls, text) => { status.className = 'sh-set-status' + (cls ? ' ' + cls : ''); status.textContent = text; };
     select.addEventListener('change', () => { pathRow.hidden = select.value !== ''; if (!pathRow.hidden) path.focus(); });

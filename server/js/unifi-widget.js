@@ -711,17 +711,17 @@
 
   // A labelled segmented control: [ Auto | 1 | 2 | … ]. onPick gets the raw value.
   function buildSegment(labelText, options, current, onPick) {
-    const row = el('div', 'sh-set-row up-seg-row');
+    const row = el('div', 'sh-set-row');
     row.appendChild(el('span', 'sh-set-label', labelText));
-    const seg = el('div', 'up-seg');
+    const seg = el('div', 'settings-segmented');
     const btns = [];
     options.forEach((o) => {
-      const b = el('button', 'up-seg-btn', o.label);
+      const b = el('button', 'settings-segment-btn', o.label);
       b.type = 'button';
-      if (String(o.value) === String(current)) b.classList.add('is-active');
+      if (String(o.value) === String(current)) b.classList.add('active');
       b.addEventListener('click', () => {
-        btns.forEach((x) => x.classList.remove('is-active'));
-        b.classList.add('is-active');
+        btns.forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
         onPick(o.value);
       });
       btns.push(b);
@@ -732,8 +732,8 @@
   }
 
   function buildLayoutSection(u) {
-    const wrap = el('div', 'up-layout');
-    wrap.appendChild(el('div', 'sh-set-picker-title', t('unifi_layout', 'Layout')));
+    const wrap = el('section', 'settings-section');
+    wrap.appendChild(el('div', 'settings-section-title', t('unifi_layout', 'Layout')));
     wrap.appendChild(buildSegment(
       t('unifi_columns', 'Columns'),
       [{ value: 0, label: t('unifi_auto', 'Auto') }, { value: 1, label: '1' }, { value: 2, label: '2' }, { value: 3, label: '3' }, { value: 4, label: '4' }],
@@ -780,24 +780,30 @@
     NOTIFY_KINDS.forEach(([k]) => { cur.types[k] = srcTypes[k] === true; });
     const save = () => { if (window.setUnifiSettings) window.setUnifiSettings({ notify: { enabled: cur.enabled, types: { ...cur.types }, cooldownSec: cur.cooldownSec } }); };
 
-    const wrap = el('div', 'up-layout up-notify');
-    wrap.appendChild(el('div', 'sh-set-picker-title', t('unifi_notify', 'Notifications')));
+    const wrap = el('section', 'settings-section');
+    wrap.appendChild(el('div', 'settings-section-title', t('unifi_notify', 'Notifications')));
 
-    const body = el('div', 'up-notify-body');
-    const syncDisabled = () => body.classList.toggle('is-disabled', !cur.enabled);
+    // What to tell about shows only while telling is on.
+    const body = el('div', 'settings-toggle-grid');
+    const toggle = (text, hint, checked, onChange) => {
+      const row = el('label', 'settings-toggle-row');
+      const cb = el('input', 'settings-check'); cb.type = 'checkbox'; cb.checked = checked;
+      const line = el('span', 'settings-label-line');
+      line.appendChild(el('span', '', text));
+      if (hint) line.appendChild(el('span', 'settings-hint', hint));
+      row.append(cb, line);
+      cb.addEventListener('change', () => onChange(cb.checked));
+      return row;
+    };
 
-    const enRow = el('label', 'sh-set-check up-notify-master');
-    const enCb = el('input'); enCb.type = 'checkbox'; enCb.checked = cur.enabled;
-    enRow.append(enCb, el('span', 'sh-set-check-name', t('unifi_notify_enable', 'Notify me on camera activity')));
-    enCb.addEventListener('change', () => { cur.enabled = enCb.checked; syncDisabled(); save(); });
-    wrap.appendChild(enRow);
+    wrap.appendChild(toggle(t('unifi_notify_enable', 'Notify me on camera activity'), t('unifi_notify_hint', 'Needs a camera with smart detections. Pop-ups also follow the global Notifications switch.'), cur.enabled, (on) => {
+      cur.enabled = on;
+      body.hidden = !on;
+      save();
+    }));
 
     NOTIFY_KINDS.forEach(([k, key, fb]) => {
-      const row = el('label', 'sh-set-check');
-      const cb = el('input'); cb.type = 'checkbox'; cb.checked = cur.types[k];
-      row.append(cb, el('span', 'sh-set-check-name', t(key, fb)));
-      cb.addEventListener('change', () => { cur.types[k] = cb.checked; save(); });
-      body.appendChild(row);
+      body.appendChild(toggle(t(key, fb), '', cur.types[k], (on) => { cur.types[k] = on; save(); }));
     });
     body.appendChild(buildSegment(
       t('unifi_notify_cooldown', 'Min. gap'),
@@ -805,42 +811,44 @@
       cur.cooldownSec,
       (v) => { cur.cooldownSec = Number(v) || 45; save(); }
     ));
-    syncDisabled();
+    body.hidden = !cur.enabled;
     wrap.appendChild(body);
-    wrap.appendChild(el('div', 'sh-set-hint', t('unifi_notify_hint', 'Needs a camera with smart detections. Pop-ups also follow the global Notifications switch.')));
     return wrap;
   }
 
   function buildSettingsCard(u) {
     const card = el('div', 'sh-set-card');
-    card.appendChild(el('div', 'sh-set-desc', t('unifi_settings_desc', 'Show your UniFi Protect cameras on the dashboard. Use a local Protect account (Viewer role, no 2-factor).')));
+    const link = el('section', 'settings-section');
+    card.appendChild(link);
+    link.appendChild(el('div', 'sh-set-desc', t('unifi_settings_desc', 'Show your UniFi Protect cameras on the dashboard. Use a local Protect account (Viewer role, no 2-factor).')));
 
     const hostRow = el('label', 'sh-set-row');
-    hostRow.appendChild(el('span', 'sh-set-label', t('unifi_host', 'Console address')));
+    const hostName = el('span', 'sh-set-label', t('unifi_host', 'Console address'));
+    hostName.appendChild(el('span', 'sh-set-help', t('unifi_help', 'Enter the console’s local IP or hostname. A dedicated local account with the Viewer role and 2-factor turned off works best.')));
+    hostRow.appendChild(hostName);
     const hostIn = el('input', 'sh-set-input'); hostIn.type = 'text'; hostIn.placeholder = '192.168.1.1'; hostIn.value = u.host || '';
     hostRow.appendChild(hostIn);
-    card.appendChild(hostRow);
+    link.appendChild(hostRow);
 
     const userRow = el('label', 'sh-set-row');
     userRow.appendChild(el('span', 'sh-set-label', t('unifi_username', 'Username')));
     const userIn = el('input', 'sh-set-input'); userIn.type = 'text'; userIn.autocomplete = 'off'; userIn.value = u.username || '';
     userRow.appendChild(userIn);
-    card.appendChild(userRow);
+    link.appendChild(userRow);
 
     const passRow = el('label', 'sh-set-row');
     passRow.appendChild(el('span', 'sh-set-label', t('unifi_password', 'Password')));
     const passIn = el('input', 'sh-set-input'); passIn.type = 'password'; passIn.autocomplete = 'off';
     passIn.placeholder = u.passwordSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
     passRow.appendChild(passIn);
-    card.appendChild(passRow);
-    card.appendChild(el('div', 'sh-set-help', t('unifi_help', 'Enter the console’s local IP or hostname. A dedicated local account with the Viewer role and 2-factor turned off works best.')));
+    link.appendChild(passRow);
 
     const actions = el('div', 'sh-set-actions');
-    const connect = el('button', 'ui-btn ui-btn--primary', t('settings_ha_connect', 'Connect'));
+    const connect = el('button', 'settings-btn primary', t('settings_ha_connect', 'Connect'));
     connect.type = 'button';
     const status = el('span', 'sh-set-status');
     actions.append(connect, status);
-    card.appendChild(actions);
+    link.appendChild(actions);
 
     const picker = el('div', 'sh-set-picker');
     card.appendChild(picker);
@@ -885,7 +893,6 @@
     });
 
     if (u.host && u.passwordSet) renderPicker(picker);
-    else picker.appendChild(el('div', 'sh-set-hint', t('unifi_connect_first', 'Connect to pick which cameras to show.')));
 
     return card;
   }
@@ -904,12 +911,15 @@
   const ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10l6 6 6-6"/></svg>';
 
   async function renderPicker(host) {
-    host.replaceChildren(el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')));
+    const wait = el('section', 'settings-section');
+    wait.appendChild(el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')));
+    host.replaceChildren(wait);
     const items = await fetchCamerasForPicker();
     if (!settingsMount()) return;                 // Settings closed while awaiting
-    host.replaceChildren();
-    host.appendChild(el('div', 'sh-set-picker-title', t('unifi_pick', 'Cameras to show')));
-    if (!items.length) { host.appendChild(el('div', 'sh-set-hint', t('unifi_no_cameras', 'No cameras found'))); return; }
+    const box = el('section', 'settings-section');
+    host.replaceChildren(box);
+    box.appendChild(el('div', 'settings-section-title', t('unifi_pick', 'Cameras to show')));
+    if (!items.length) { box.appendChild(el('div', 'sh-set-hint', t('unifi_no_cameras', 'No cameras found'))); return; }
 
     const u = window.getUnifiSettings ? window.getUnifiSettings() : { cameras: [], order: [] };
     // Empty selection means "show all" — reflect that as every box checked.
@@ -919,9 +929,9 @@
     let ordered = orderCameras(items, Array.isArray(u.order) ? u.order : []).slice();
     const naturalIds = items.map((c) => c.id).join(',');
 
-    host.appendChild(el('div', 'sh-set-hint', t('unifi_reorder_hint', 'Use the arrows to change the order cameras appear in.')));
+    box.appendChild(el('div', 'sh-set-hint', t('unifi_reorder_hint', 'Use the arrows to change the order cameras appear in.')));
     const listWrap = el('div', 'sh-set-list');
-    host.appendChild(listWrap);
+    box.appendChild(listWrap);
 
     function persistSelection() {
       // If every camera is checked, save an empty list (the "show all" default) so
@@ -981,11 +991,9 @@
   // HA is connected once in Smart Home settings; here the user just opts specific
   // HA cameras into the Cameras tile. The selection array IS the display order.
   function buildHaCamerasSection() {
-    const wrap = el('div', 'up-layout up-ha-cams');
-    const host = el('div', 'sh-set-picker');
-    wrap.appendChild(host);
+    const host = el('section', 'settings-section');
     renderHaPicker(host);
-    return wrap;
+    return host;
   }
 
   function openHaSettings() {
@@ -996,19 +1004,21 @@
 
   async function renderHaPicker(host) {
     host.replaceChildren(
-      el('div', 'sh-set-picker-title', t('unifi_ha_pick', 'Home Assistant cameras')),
+      el('div', 'settings-section-title', t('unifi_ha_pick', 'Home Assistant cameras')),
       el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')),
     );
     const d = await api('/api/ha/cameras');
     if (!settingsMount()) return;                 // Settings closed while awaiting
     host.replaceChildren();
-    host.appendChild(el('div', 'sh-set-picker-title', t('unifi_ha_pick', 'Home Assistant cameras')));
+    host.appendChild(el('div', 'settings-section-title', t('unifi_ha_pick', 'Home Assistant cameras')));
     if (!d || !d.configured) {
-      host.appendChild(el('div', 'sh-set-hint', t('unifi_ha_connect_first', 'Connect Home Assistant in Smart Home settings to add its cameras.')));
-      const btn = el('button', 'ui-btn', t('unifi_ha_open_smart_home', 'Open Smart Home settings'));
+      const row = el('div', 'sh-set-row');
+      row.appendChild(el('span', 'sh-set-label sh-set-label--plain', t('unifi_ha_connect_first', 'Connect Home Assistant in Smart Home settings to add its cameras.')));
+      const btn = el('button', 'settings-btn', t('unifi_ha_open_smart_home', 'Open Smart Home settings'));
       btn.type = 'button';
       btn.addEventListener('click', openHaSettings);
-      host.appendChild(btn);
+      row.appendChild(btn);
+      host.appendChild(row);
       return;
     }
     const items = Array.isArray(d.cameras) ? d.cameras : [];

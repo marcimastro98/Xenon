@@ -301,17 +301,6 @@ function syncNotesWidgetPlacement() {
   }
 }
 
-// First agenda tab still living inside the hub (its widget isn't extracted).
-// Maps 1:1 to the calendar/tasks/timer/notes widget ids. Used to choose a
-// sensible active tab after an item is pulled out or put back.
-function firstInHubAgendaTab() {
-  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
-  if (!layout) return 'calendar';
-  const inHub = ['calendar', 'tasks', 'timer', 'notes']
-    .filter(id => !(layout.widgets[id] && layout.widgets[id].visible));
-  return inHub[0] || null;
-}
-
 // Calendar lives as the "Calendario" tab inside the Agenda hub by default; when
 // extracted (calendar widget visible) its content moves into the standalone
 // calendar panel and the tab button hides. The active-tab fallback is handled

@@ -27,8 +27,8 @@ const USER_HOOK = { type: 'command', command: 'python3 ~/.codex/hooks/notes.py',
 
 test('hookCommand: cmd /C form on Windows, single-quoted on POSIX, spaces and accents survive', () => {
   assert.equal(
-    link.hookCommand('win32', 'C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\x\\Marci Progetti\\città\\server\\codex-hook.js', 'permission'),
-    '"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\x\\Marci Progetti\\città\\server\\codex-hook.js" permission');
+    link.hookCommand('win32', 'C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\x\\Miei Progetti\\città\\server\\codex-hook.js', 'permission'),
+    '"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\x\\Miei Progetti\\città\\server\\codex-hook.js" permission');
   assert.equal(
     link.hookCommand('darwin', '/opt/homebrew/bin/node', "/Users/o'neil/Xenon App/server/codex-hook.js", 'event'),
     "'/opt/homebrew/bin/node' '/Users/o'\\''neil/Xenon App/server/codex-hook.js' event");

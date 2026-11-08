@@ -21,6 +21,7 @@
 (function () {
   const el = makeEl;        // shared DOM factory (utils.js)
   const api = apiJson;      // fetch → JSON, null on failure (utils.js)
+  const AK = window.ApprovalKeys;
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
   let payload = null;       // { usage, live, budget, tile } — null until seeded
@@ -32,7 +33,6 @@
   let linkPanel = false;    // link panel open?
   const deciding = new Set(); // approval ids with a decision in flight
   let ticker = null;        // 1s interval, only while something counts down
-  let overlay = null;       // fullscreen approval overlay element
   let pressing = false;     // a pointer is down on the widget (see onSSE)
   let pressTimer = 0;
   let renderDeferred = false;
@@ -551,6 +551,7 @@
   function key(cls, label, onTap, a) {
     const b = el('button', 'cw-key ' + cls); b.type = 'button';
     b.appendChild(el('span', 'cw-key-label', label));
+    b.dataset.keep = 'k-' + a.id + '-' + cls;
     b.disabled = deciding.has(a.id);
     b.addEventListener('click', () => { if (isArmed(a)) onTap(); });
     return b;
@@ -559,38 +560,19 @@
   // Allow for an irreversible request: hold for HOLD_MS. A keyboard has no
   // "hold" the page can rely on, so there it is two presses within 3 seconds.
   function holdKey(a) {
-    const b = el('button', 'cw-key is-allow is-hold'); b.type = 'button';
-    b.appendChild(el('span', 'cw-key-fill'));
-    const label = el('span', 'cw-key-label', t('claude_hold_allow', 'Hold to allow'));
-    b.appendChild(label);
-    b.disabled = deciding.has(a.id);
-    let timer = 0;
-    const stop = () => { clearTimeout(timer); timer = 0; b.classList.remove('is-holding'); };
-    b.addEventListener('pointerdown', (e) => {
-      if (!isArmed(a) || b.disabled) return;
-      try { b.setPointerCapture(e.pointerId); } catch { /* not all pointers capture */ }
-      b.classList.add('is-holding');
-      timer = setTimeout(() => { timer = 0; b.classList.remove('is-holding'); decide(a.id, 'allow'); }, HOLD_MS);
+    return AK.holdButton({
+      className: 'cw-key is-allow is-hold', label: t('claude_hold_allow', 'Hold to allow'),
+      pressAgain: t('claude_press_again', 'Press again to allow'), holdMs: HOLD_MS, keep: 'k-' + a.id + '-hold',
+      disabled: deciding.has(a.id), isArmed: () => isArmed(a), onConfirm: () => decide(a.id, 'allow'),
     });
-    b.addEventListener('pointerup', stop);
-    b.addEventListener('pointercancel', stop);
-    b.addEventListener('lostpointercapture', stop);
-    let keyAt = 0;
-    b.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      e.preventDefault();
-      if (!isArmed(a)) return;
-      if (Date.now() - keyAt < 3000) { decide(a.id, 'allow'); return; }
-      keyAt = Date.now();
-      label.textContent = t('claude_press_again', 'Press again to allow');
-    });
-    return b;
   }
 
-  // One numbered row, the shape the terminal's own lists have.
-  function optRow(n, label, desc, picked, disabled, onTap) {
+  // One numbered row, the shape the terminal's own lists have. `keep` names it
+  // across rebuilds, so the keyboard stays on it.
+  function optRow(n, label, desc, picked, disabled, onTap, keep) {
     const btn = el('button', 'cw-opt' + (picked ? ' is-picked' : ''));
     btn.type = 'button';
+    btn.dataset.keep = keep;
     btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
     btn.disabled = disabled;
     btn.appendChild(el('span', 'cw-opt-n', String(n)));
@@ -629,15 +611,16 @@
     return input;
   }
 
-  function questionKeys(a, onInput) {
+  // On the sheet a lone question is already the title of the window.
+  function questionKeys(a, onInput, big) {
     const wrap = el('div', 'cw-dec-qs');
     const cur = qsel.get(a.id) || a.questions.map(() => []);
     const busy = deciding.has(a.id);
     const ph = t('claude_q_other_ph', 'Type your answer');
     a.questions.forEach((q, qi) => {
       const box = el('div', 'cw-dec-q');
-      if (q.header) box.appendChild(el('div', 'cw-dec-qhead', q.header));
-      box.appendChild(el('div', 'cw-dec-qtext', q.question));
+      if (q.header && !big) box.appendChild(el('div', 'cw-dec-qhead', q.header));
+      if (!big || a.questions.length > 1) box.appendChild(el('div', 'cw-dec-qtext', q.question));
       if (q.kind === 'text' || q.kind === 'number') {
         box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, {
           number: q.kind === 'number', min: q.min, max: q.max, step: q.step,
@@ -654,14 +637,14 @@
       const row = cur[qi] || [];
       (q.options || []).forEach((o, oi) => {
         list.appendChild(optRow(oi + 1, o.label, o.description, row.indexOf(o.label) !== -1, busy,
-          () => { if (isArmed(a)) pickOption(a, qi, o.label, !!q.multiSelect); }));
+          () => { if (isArmed(a)) pickOption(a, qi, o.label, !!q.multiSelect); }, 'o-' + a.id + '-' + qi + '-' + oi));
       });
       // The terminal adds this row to every choice question; the card showed
       // the same question without it, so an answer that was none of the
       // options could only be given at the keyboard.
       const other = row.indexOf(OTHER) !== -1;
       list.appendChild(optRow((q.options || []).length + 1, t('claude_q_other', 'Other'), stacked ? ph : '', other, busy,
-        () => { if (isArmed(a)) pickOption(a, qi, OTHER, !!q.multiSelect); }));
+        () => { if (isArmed(a)) pickOption(a, qi, OTHER, !!q.multiSelect); }, 'o-' + a.id + '-' + qi + '-other'));
       box.appendChild(list);
       if (other) box.appendChild(typedBox(a, qi, 'q-' + a.id + '-' + qi, { placeholder: ph, onInput }));
       wrap.appendChild(box);
@@ -685,7 +668,7 @@
     choices.forEach((mode, i) => {
       const label = PLAN_CHOICE_LABEL[mode] ? PLAN_CHOICE_LABEL[mode]() : mode;
       list.appendChild(optRow(i + 1, label, '', false, busy,
-        () => { if (isArmed(a)) decide(a.id, 'allow', { mode }); }));
+        () => { if (isArmed(a)) decide(a.id, 'allow', { mode }); }, 'p-' + a.id + '-' + mode));
     });
     box.appendChild(list);
     const back = el('div', 'cw-dec-back');
@@ -696,6 +679,81 @@
     return box;
   }
 
+  function timerOf(a) {
+    const left = el('span', 'cw-dec-timer');
+    // "8:42" alone reads as a time of day; the template says it is what is left.
+    left.dataset.expiresAt = String(Date.now() + (a.expiresInMs || 0));
+    left.dataset.tpl = t('claude_dec_left', '{t} left');
+    left.textContent = left.dataset.tpl.replace('{t}', mmss(a.expiresInMs));
+    return left;
+  }
+
+  function tileHead(a) {
+    const head = el('div', 'cw-dec-head');
+    head.appendChild(el('span', 'cw-dec-kind', a.kind === 'question' ? t('claude_question', 'Question')
+      : a.kind === 'plan' ? t('claude_xp_kind', 'Plan') : t('claude_permission', 'Permission')));
+    const where = el('span', 'cw-dec-where');
+    where.textContent = [a.project, prettyModel(a.model)].filter(Boolean).join(' · ');
+    head.appendChild(where);
+    const left = timerOf(a);
+    left.title = t('claude_dec_expires', 'After this the terminal asks instead');
+    head.appendChild(left);
+    return head;
+  }
+
+  function askedBy(a) {
+    if (!a.project) return t('claude_asking', 'Claude is asking');
+    return t('claude_asking_in', 'Claude is asking in {project}').replace('{project}', () => a.project);
+  }
+
+  function sheetTitle(a) {
+    if (a.kind === 'plan') return t('claude_xp_what', 'Ready to code?');
+    if (a.kind !== 'question') return toolIntent(a.tool);
+    return a.questions.length === 1 ? a.questions[0].question : t('claude_question', 'Question');
+  }
+
+  // Still, and in the session's own colour: the same one the rail gives it.
+  function sheetHead(a) {
+    const who = window.ClaudeIdent.describe(sessionById(a.sessionId) || { id: a.sessionId, project: a.project }, titles());
+    const mark = el('span', 'cw-clawd is-s' + who.slot);
+    mark.appendChild(window.ClaudeClawd.make('cw-clawd-svg'));
+    return AK.sheetHead({ mark, title: sheetTitle(a), line: askedBy(a) });
+  }
+
+  function sheetFoot(a, keys) {
+    const others = approvals().filter((x) => x.urgent).length - 1;
+    return AK.sheetFoot({
+      timer: timerOf(a),
+      after: t('claude_dec_expires', 'After this the terminal asks instead'),
+      more: others > 0 ? t('claude_more_waiting', '{n} more waiting').replace('{n}', String(others)) : '',
+      keys,
+    });
+  }
+
+  function planText(plan) {
+    const box = el('div', 'cw-dec-plan');
+    markdownInto(box, plan);
+    return box;
+  }
+
+  function decisionBody(a, big, risks, onInput) {
+    const body = el('div', 'cw-dec-body');
+    if (a.kind === 'question') {
+      body.appendChild(questionKeys(a, onInput, big));
+      return body;
+    }
+    const isPlan = a.kind === 'plan';
+    if (!big) body.appendChild(el('div', 'cw-dec-what', isPlan ? t('claude_xp_what', 'Ready to code?') : toolIntent(a.tool)));
+    if (a.plan) body.appendChild(planText(a.plan));
+    else if (a.detail && !isPlan) body.appendChild(el('div', 'cw-dec-cmd', a.detail));
+    if (risks.length && !isPlan) {
+      const line = el('div', 'cw-dec-risks');
+      risks.forEach((r) => { if (RISK_LABEL[r]) line.appendChild(el('span', 'cw-risk is-' + r, RISK_LABEL[r]())); });
+      body.appendChild(line);
+    }
+    return body;
+  }
+
   function decisionCard(a, big) {
     const isAsk = a.kind === 'question';
     const isPlan = a.kind === 'plan';
@@ -703,47 +761,20 @@
     const irreversible = risks.indexOf('irreversible') !== -1;
     const armed = isArmed(a);
     const card = el('section', 'cw-dec is-' + (isAsk ? 'question' : isPlan ? 'plan' : 'permission')
-      + (big ? ' is-big' : '') + (irreversible ? ' is-risky' : '') + (armed ? '' : ' is-arming'));
+      + (big ? ' is-big ask-sheet' : '') + (irreversible ? ' is-risky' : '') + (armed ? '' : ' is-arming'));
     card.setAttribute('aria-live', 'polite');
-
-    const head = el('div', 'cw-dec-head');
-    head.appendChild(el('span', 'cw-dec-kind', isAsk ? t('claude_question', 'Question')
-      : isPlan ? t('claude_xp_kind', 'Plan') : t('claude_permission', 'Permission')));
-    const where = el('span', 'cw-dec-where');
-    where.textContent = [a.project, prettyModel(a.model)].filter(Boolean).join(' · ');
-    head.appendChild(where);
-    const left = el('span', 'cw-dec-timer');
-    // "8:42" alone reads as a time of day; the template says it is what is left.
-    left.dataset.expiresAt = String(Date.now() + (a.expiresInMs || 0));
-    left.dataset.tpl = t('claude_dec_left', '{t} left');
-    left.textContent = left.dataset.tpl.replace('{t}', mmss(a.expiresInMs));
-    left.title = t('claude_dec_expires', 'After this the terminal asks instead');
-    head.appendChild(left);
-    card.appendChild(head);
+    card.appendChild(big ? sheetHead(a) : tileHead(a));
 
     // Typing never repaints, so the Answer key's enabled state is updated here.
     let send = null;
     const refreshSend = () => { if (send) send.disabled = deciding.has(a.id) || !answerReady(a); };
+    card.appendChild(decisionBody(a, big, risks, refreshSend));
 
-    const body = el('div', 'cw-dec-body');
-    if (isAsk) {
-      body.appendChild(questionKeys(a, refreshSend));
-    } else if (isPlan) {
-      body.appendChild(el('div', 'cw-dec-what', t('claude_xp_what', 'Ready to code?')));
-      if (a.plan) body.appendChild(el('div', 'cw-dec-plan', a.plan));
-    } else {
-      body.appendChild(el('div', 'cw-dec-what', toolIntent(a.tool)));
-      if (a.plan) body.appendChild(el('div', 'cw-dec-plan', a.plan));
-      else if (a.detail) body.appendChild(el('div', 'cw-dec-cmd', a.detail));
-      if (risks.length) {
-        const line = el('div', 'cw-dec-risks');
-        risks.forEach((r) => { if (RISK_LABEL[r]) line.appendChild(el('span', 'cw-risk is-' + r, RISK_LABEL[r]())); });
-        body.appendChild(line);
-      }
+    if (isPlan) {
+      card.appendChild(planKeys(a));
+      if (big) card.appendChild(sheetFoot(a));
+      return card;
     }
-    card.appendChild(body);
-
-    if (isPlan) { card.appendChild(planKeys(a)); return card; }
     const acts = el('div', 'cw-dec-acts');
     if (isAsk) {
       acts.appendChild(key('is-quiet', t('claude_q_terminal', 'In the terminal'), () => sendAnswer(a, true), a));
@@ -754,8 +785,17 @@
       acts.appendChild(key('is-deny', t('claude_deny', 'Deny'), () => decide(a.id, 'deny'), a));
       acts.appendChild(irreversible ? holdKey(a) : key('is-allow', t('claude_allow', 'Allow'), () => decide(a.id, 'allow'), a));
     }
-    card.appendChild(acts);
+    card.appendChild(big ? sheetFoot(a, acts) : acts);
     return card;
+  }
+
+  // Esc is the answer that starts nothing, as it is in the terminal: a request is
+  // refused, a question goes back to the terminal, a plan stays a plan.
+  function answerNothing(a) {
+    if (deciding.has(a.id) || !isArmed(a)) return;
+    if (a.kind === 'question') sendAnswer(a, true);
+    else if (a.kind === 'plan') decide(a.id, 'deny', { feedback: String(typedFor(a)[0] || '') });
+    else decide(a.id, 'deny');
   }
 
   // The escalation: an urgent request takes the whole display. Rendered outside
@@ -763,33 +803,8 @@
   function syncOverlay() {
     if (pressing) { renderDeferred = true; return; }
     const urgent = approvals().filter(a => a.urgent)[0];
-    if (!urgent) { closeOverlay(); return; }
-    if (!overlay) {
-      overlay = el('div', 'cw-overlay');
-      overlay.setAttribute('role', 'dialog');
-      overlay.setAttribute('aria-modal', 'true');
-      document.body.appendChild(overlay);
-      // This is a full-screen backdrop-filter, and it was in none of the three
-      // registries every other one joins. Two real consequences: a Store promo
-      // card could draw itself over an unanswered permission prompt (the worst
-      // possible moment to be asked to dismiss something), and the blur kept
-      // every dashboard animation running underneath it, which is exactly the
-      // per-frame cost ambientFreeze exists to remove.
-      if (typeof window.ambientFreeze === 'function') window.ambientFreeze('claude-approval', true);
-    }
-    // Rebuilt on every push like the tile, so it keeps the reader's place in a
-    // long plan and the focus of a box being typed into, the same way.
-    const focus = keepFocus(overlay);
-    const kept = keepScroll(overlay);
-    overlay.replaceChildren(decisionCard(urgent, true));
-    restoreScroll(overlay, kept);
-    focus();
-  }
-  function closeOverlay() {
-    if (!overlay) return;
-    overlay.remove();
-    overlay = null;
-    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('claude-approval', false);
+    if (!urgent) { sheet.close(); return; }
+    sheet.paint(decisionCard(urgent, true), { label: askedBy(urgent), esc: () => answerNothing(urgent) });
   }
 
   // ── live sessions ──────────────────────────────────────────────────────────
@@ -1526,6 +1541,7 @@
   // touchscreen is a dead end — the user cannot open a log to find out more.
   function runErrorText(code) {
     switch (code) {
+      case 'remote_denied': return t('claude_run_at_pc', 'A new session starts from the PC. From here you can answer the ones already running.');
       case 'claude_not_found': return t('claude_run_e_notfound', 'Claude Code was not found on this PC.');
       case 'too_many_runs': return t('claude_run_e_busy', 'Another run is already going. Wait for it or stop it.');
       case 'unknown_project': return t('claude_run_e_project', 'That project is no longer available.');
@@ -2282,7 +2298,10 @@
     const box = el('div', 'cw-decs');
     if (list.length > 1) box.classList.add('is-pair');
     list.slice(0, 2).forEach((a) => box.appendChild(decisionCard(a, false)));
-    if (list.length > 2) box.appendChild(el('div', 'cw-decs-more', t('claude_more_waiting', '{n} more waiting').replace('{n}', String(list.length - 2))));
+    const more = (n) => t('claude_more_waiting', '{n} more waiting').replace('{n}', String(n));
+    if (list.length > 2) box.appendChild(el('div', 'cw-decs-more', more(list.length - 2)));
+    // Stacked, the tile holds only the first card (CSS), so its count starts one earlier.
+    if (list.length > 1) box.appendChild(el('div', 'cw-decs-more cw-decs-stacked', more(list.length - 1)));
     return box;
   }
 
@@ -3031,7 +3050,7 @@
       // was already there.
       const prevThread = mount.querySelector('.cw-thread');
       const keepThread = prevThread ? prevThread.scrollTop : 0;
-      const focus = keepFocus(mount);
+      const focus = AK.keepFocus(mount);
       mount.replaceChildren(build());
       restoreScroll(mount, kept);
       focus();
@@ -3054,27 +3073,10 @@
     laterTimer = setTimeout(() => { laterTimer = null; paint(); }, HELD_PAINT_MS);
   }
 
-  // A text box inside a rebuilt subtree is a NEW element, so typing into one
-  // while a session works lost focus on the next push, several times a second.
-  // Boxes that carry `data-keep` get focus and caret back after the rebuild;
-  // their text survives because it is held in state, not in the DOM.
-  function keepFocus(root) {
-    const a = document.activeElement;
-    const k = a && root.contains(a) && a.dataset ? a.dataset.keep : '';
-    if (!k) return () => {};
-    let s = null, e = null;
-    try { s = a.selectionStart; e = a.selectionEnd; } catch { /* a number input has no selection */ }
-    return () => {
-      const n = Array.from(root.querySelectorAll('[data-keep]')).find((x) => x.dataset.keep === k);
-      if (!n || n.disabled) return;
-      try { n.focus({ preventScroll: true }); } catch { return; }
-      if (s !== null) { try { n.setSelectionRange(s, e); } catch { /* not a text field */ } }
-    };
-  }
-
   // The rail scrolls sideways on a narrow tile, so both axes are kept.
   const HELD_PAINT_MS = 400;
   const SCROLLERS = ['.cw-rail-list', '.cw-cs-aside', '.cw-console', '.cw-usage', '.cw-hist-list', '.cw-decs', '.cw-dec-body', '.cw-dec-plan', '.cw-dec-cmd'];
+  const sheet = AK.createSheet({ className: 'cw-overlay', freeze: 'claude-approval', scrollers: SCROLLERS });
   function keepScroll(root) {
     return SCROLLERS.map((sel) => Array.from(root.querySelectorAll(sel), (n) => [n.scrollTop, n.scrollLeft]));
   }
@@ -3107,7 +3109,7 @@
       stopTicker();
       // The overlay deliberately survives: a pending approval must stay
       // answerable even after the user pages away from the widget.
-      if (!approvals().length) closeOverlay();
+      if (!approvals().length) sheet.close();
       return;
     }
     paint();
@@ -3326,7 +3328,7 @@
   // reappears the moment cards are turned back on, without waiting for the next
   // SSE push.
   function onSettingsChanged() {
-    if (!approvalsOn()) closeOverlay();
+    if (!approvalsOn()) sheet.close();
     topbarSig = '';
     syncTopbar();
     paint();

@@ -129,12 +129,13 @@ body.layout-editing .sdk-yt-frame { pointer-events: none; }
   /* Follows the tile's radius rather than a literal: a widget whose tile was
      given square or heavily rounded corners kept a 10px frame inside it. */
   border: 0; border-radius: var(--radius-tile, 16px); background: transparent;
-  /* A frame whose color-scheme differs from the page's gets an opaque white
-     backdrop in Chromium: the dashboard root is `dark`, a widget page has none,
-     so a transparent widget showed white text on white. Same fix as the
-     animated background (custom-bg.js). */
+  /* A frame whose color-scheme differs from its page's gets an opaque backdrop in
+     Chromium, white or black. The dashboard root is `dark`, so the element starts
+     from none, as most pages declare none (same fix as custom-bg.js); a page that
+     settles on dark is matched by the class, from the probe in sdk-widgets.js. */
   color-scheme: normal;
 }
+.cw-frame--dark { color-scheme: dark; }
 
 /* While arranging the layout the guest iframe must be inert: a sandboxed frame
    fills the whole tile and would otherwise swallow the pointer, leaving only the
@@ -167,6 +168,7 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
 }
 .cw-btn--primary:hover { background: rgba(var(--accent-rgb), 0.26); }
 .cw-btn--ghost { padding: 7px 12px; opacity: 0.85; }
+.cw-btn:disabled { opacity: 0.4; pointer-events: none; }
 /* "Create a widget" affordance at the foot of the picker list. */
 .cw-pick-create { flex: 0 0 auto; display: flex; justify-content: center; padding: 8px 2px 2px; margin-top: 2px; border-top: 1px dashed rgba(255, 255, 255, 0.12); }
 
@@ -263,139 +265,65 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
   overflow-wrap: anywhere;
 }
 
-/* ── Permission dialog (solid background — must stay readable at any
-      glass transparency, like the preset share/import dialogs) ───── */
-/* Above .preset-modal-overlay (2000). A grant prompt is raised BY those dialogs —
-   an import installing a package asks right after — so anything lower renders
-   behind the modal that triggered it and reads as "the permission dialog didn't
-   appear". Every host-drawn decision below shares this floor for the same reason. */
-.cw-perm-backdrop {
-  position: fixed; inset: 0; z-index: 2100;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.55); padding: 18px;
-}
-/* A coding assistant asking to pair is waiting on this tap, like Claude's own
-   approval (.cw-overlay), so it sits at the same level: above the first-run
-   screen question, which would otherwise hide it on a fresh install. */
-.cw-perm-backdrop.cw-perm-backdrop--pair { z-index: 9000; }
-.cw-perm {
-  width: min(440px, 94vw); max-height: 86vh; overflow-y: auto;
-  border-radius: 16px; padding: 18px 18px 16px;
-  background: rgb(var(--panel-rgb, 17, 19, 20));
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.5);
-  display: flex; flex-direction: column; gap: 8px;
-}
-:root[data-appearance="light"] .cw-perm { background: #f4f6f8; border-color: rgba(0,0,0,0.1); }
-.cw-perm-title { font-size: 0.95rem; font-weight: 800; }
-.cw-perm-pkg { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.cw-perm-name { font-size: 0.85rem; font-weight: 800; color: rgba(var(--accent-rgb), 1); }
-.cw-perm-meta { font-size: 0.7rem; font-weight: 700; opacity: 0.6; }
-.cw-perm-desc { font-size: 0.75rem; font-weight: 600; opacity: 0.8; line-height: 1.4; overflow-wrap: anywhere; }
-.cw-perm-sec { margin-top: 4px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
-.cw-perm-nothing { text-transform: none; letter-spacing: 0; font-weight: 700; opacity: 0.75; }
-.cw-perm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.cw-perm-chip {
-  font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;
-  color: rgba(var(--accent-rgb), 1); background: rgba(var(--accent-rgb), 0.12);
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-}
-.cw-perm-note {
-  margin-top: 6px; font-size: 0.71rem; font-weight: 600; line-height: 1.45; opacity: 0.65;
-  padding: 8px 10px; border-radius: 9px;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
-}
-:root[data-appearance="light"] .cw-perm-note { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+/* ── The questions the host puts for a widget ─────────────────────────
+   Their window is the request window (components/AskSheet, question() in
+   js/approval-keys.js): it reads as Xenon asking, not as the widget's own UI, and
+   it sits above whatever raised it. Here is only what goes inside. */
+.cw-perm-desc { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.cw-perm-sec { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cw-perm-lead { font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.cw-perm-items { margin: 0; padding: 0; list-style: none; }
+.cw-perm-items li { font-size: 15px; line-height: 1.4; color: var(--muted-text); overflow-wrap: anywhere; }
+.cw-perm-note { font-size: 14px; line-height: 1.4; color: var(--muted-text); overflow-wrap: anywhere; }
 /* User-filled host slots: the address fields a package's `userHosts` declares.
    Sized for the Xeneon Edge touchscreen (44px rows), and the error line is
    reserved space rather than inserted on demand so a message never reflows the
    dialog under the finger that's typing. */
-.cw-perm-fields { display: flex; flex-direction: column; gap: 10px; }
+.cw-perm-fields { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .cw-perm-field { display: flex; flex-direction: column; gap: 4px; }
-.cw-perm-field-label { font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+.cw-perm-field-label { font-size: 14px; color: var(--muted-text); }
 .cw-perm-input {
-  min-height: 44px; padding: 8px 12px; border-radius: 9px;
-  font: inherit; font-size: 0.78rem; font-weight: 600;
-  color: inherit; background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
+  min-height: 44px; padding: 8px 12px; box-sizing: border-box;
+  border: 1px solid transparent; border-radius: var(--radius-control);
+  font: inherit; font-size: 15px;
+  color: inherit; background: color-mix(in srgb, var(--text) 8%, transparent);
 }
-.cw-perm-input::placeholder { opacity: 0.4; }
-.cw-perm-input:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
-.cw-perm-input--bad { border-color: rgba(var(--danger-rgb),0.7); }
-.cw-perm-field-err {
-  min-height: 0.95rem; font-size: 0.68rem; font-weight: 600; line-height: 1.2;
-  color: rgba(var(--danger-rgb),1);
-}
-:root[data-appearance="light"] .cw-perm-input { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.14); }
-.cw-perm-actions-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-/* Allow stays disabled until every declared address field holds a usable value
-   — it must not read as pressable while it does nothing. */
-.cw-btn:disabled { opacity: 0.4; pointer-events: none; }
+.cw-perm-input::placeholder { color: var(--muted-text); opacity: 0.7; }
+.cw-perm-input:focus-visible { outline: none; border-color: var(--accent); }
+.cw-perm-input--bad { border-color: var(--color-danger); }
+.cw-perm-field-err { min-height: 18px; font-size: 13px; line-height: 18px; color: var(--color-danger); }
+:root[data-appearance="light"] .cw-perm-field-err { color: color-mix(in srgb, var(--color-danger) 65%, var(--text)); }
 
-/* ── Clipboard copy confirmation — Widget SDK `clipboard` capability ──
-   The host-drawn gate a widget's copy request must pass through. Same modal
-   language as the permission dialog (shared .cw-btn), so it reads as a Xenon
-   decision the user is making, not the widget's own UI. */
-.cw-clip-backdrop {
-  position: fixed; inset: 0; z-index: 2110;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.55); padding: 18px;
+/* What is about to be copied, or the site about to open: the one thing to read. */
+.cw-well {
+  display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px 16px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
 }
-.cw-clip {
-  width: min(400px, 94vw); border-radius: 16px; padding: 18px 18px 16px;
-  background: rgb(var(--panel-rgb, 17, 19, 20));
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.5);
-  display: flex; flex-direction: column; gap: 10px;
-}
-:root[data-appearance="light"] .cw-clip { background: #f4f6f8; border-color: rgba(0,0,0,0.1); }
-.cw-clip-title { font-size: 0.95rem; font-weight: 800; }
-.cw-clip-what { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.cw-clip-who { font-size: 0.82rem; font-weight: 800; color: rgba(var(--accent-rgb), 1); }
-.cw-clip-label { font-size: 0.78rem; font-weight: 600; opacity: 0.85; overflow-wrap: anywhere; }
-.cw-clip-preview {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px; border-radius: 10px;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
-}
-:root[data-appearance="light"] .cw-clip-preview { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
 .cw-clip-val {
   flex: 1 1 auto; min-width: 0;
   font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em;
-  overflow-wrap: anywhere;
+  font-size: 17px; font-weight: 700; overflow-wrap: anywhere;
 }
 .cw-clip-eye {
-  flex: 0 0 auto; padding: 4px 9px; border-radius: 7px;
-  border: 1px solid rgba(255,255,255,0.14); background: transparent;
-  color: inherit; font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.05em; cursor: pointer; opacity: 0.8;
+  flex: 0 0 auto; min-height: 44px; min-width: 68px; padding: 0 12px;
+  border: 0; border-radius: var(--radius-control); cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 700;
+  background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text);
 }
-.cw-clip-eye:hover { opacity: 1; }
-.cw-clip-note {
-  font-size: 0.72rem; font-weight: 600; line-height: 1.4; opacity: 0.7;
-}
-.cw-clip-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.cw-clip-eye:hover { background: color-mix(in srgb, var(--text) 16%, transparent); }
+.cw-clip-eye:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-.cw-ext-backdrop {
-  position: fixed; inset: 0; z-index: 2110;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.55); padding: 18px;
-}
-
-/* External-open confirmation — reuses the clipboard modal shell. The domain is
-   the decision the user is making, so it is the one thing set at full size;
-   the path sits under it, dimmed and truncated, and can never push it out of
-   view. */
-.cw-ext-preview { align-items: flex-start; }
-.cw-ext-urlbox { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+/* The domain is the decision the user is making, so it is the one thing set large;
+   the path sits under it, dimmed and truncated, and can never push it out of view. */
+.cw-ext-urlbox { flex-direction: column; align-items: stretch; gap: 4px; }
 .cw-ext-host {
   font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-  font-size: 0.98rem; font-weight: 800; letter-spacing: 0.01em; overflow-wrap: anywhere;
+  font-size: 20px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere;
 }
 .cw-ext-path {
   font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-  font-size: 0.72rem; font-weight: 600; opacity: 0.62; overflow-wrap: anywhere;
+  font-size: 14px; font-weight: 400; line-height: 1.35; color: var(--muted-text); overflow-wrap: anywhere;
 }
 
 /* ── SDK badge chips — Widget SDK `badge` capability (js/sdk-badges.js) ──

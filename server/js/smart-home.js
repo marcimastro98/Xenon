@@ -180,10 +180,16 @@
   }
 
   async function callService(domain, service, entityId, data) {
-    return api('/api/homeassistant/service', {
+    const out = await api('/api/homeassistant/service', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ domain, service, entityId, data: data || {} }),
     });
+    // A paired phone stops at locks, alarms and doors (remote-actions.js). Said
+    // out loud, or the switch it just flipped would only fall back at the next read.
+    if (out && out.error === 'needs_pc' && typeof showHubToast === 'function') {
+      showHubToast('Xenon', (entityById(entityId) || { name: 'Home Assistant' }).name, t('smarthome_needs_pc', 'Locks, alarms and doors are controlled from the PC, or from a Deck key made there.'));
+    }
+    return out;
   }
 
   // ── Tile ─────────────────────────────────────────────────────────────────────
@@ -1200,40 +1206,47 @@
       renderPicker(picker, {
         key: 'energyEntities',
         filter: isEnergySource,
-        title: t('power_sources_pick', 'Power & energy sensors to show'),
+        title: t('power_sources_title', 'Energy widget: sources'),
         hint: t('power_sources_hint', 'Smart plugs, solar production, home meter, UPS: shown in the Energy widget.'),
         empty: t('power_sources_none', 'No power or energy sensors found in Home Assistant.'),
       });
-    } else {
-      host.appendChild(el('div', 'sh-set-hint', t('settings_ha_select_first', '')));
     }
   }
 
   function buildSettingsCard(ha) {
     const card = el('div', 'sh-set-card');
-    card.appendChild(el('div', 'sh-set-desc', t('settings_ha_desc', '')));
+    const link = el('section', 'settings-section');
+    card.appendChild(link);
+    link.appendChild(el('div', 'sh-set-desc', t('settings_ha_desc', '')));
 
     // Address + token inputs.
     const urlRow = el('label', 'sh-set-row');
     urlRow.appendChild(el('span', 'sh-set-label', t('settings_ha_url', 'Address (URL)')));
     const url = el('input', 'sh-set-input'); url.type = 'text'; url.placeholder = 'http://homeassistant.local:8123'; url.value = ha.url || '';
     urlRow.appendChild(url);
-    card.appendChild(urlRow);
+    link.appendChild(urlRow);
 
     const tokRow = el('label', 'sh-set-row');
-    tokRow.appendChild(el('span', 'sh-set-label', t('settings_ha_token', 'Access token')));
+    const tokName = el('span', 'sh-set-label', t('settings_ha_token', 'Access token'));
+    tokName.appendChild(el('span', 'sh-set-help', t('settings_ha_token_help', '')));
+    tokRow.appendChild(tokName);
     const token = el('input', 'sh-set-input'); token.type = 'password'; token.autocomplete = 'off';
     token.placeholder = ha.tokenSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
     tokRow.appendChild(token);
-    card.appendChild(tokRow);
-    card.appendChild(el('div', 'sh-set-help', t('settings_ha_token_help', '')));
+    link.appendChild(tokRow);
 
     // Connect button + status line.
     const actions = el('div', 'sh-set-actions');
-    const connect = el('button', 'ui-btn ui-btn--primary'); connect.type = 'button'; connect.textContent = t('settings_ha_connect', 'Connect');
+    const connect = el('button', 'settings-btn primary'); connect.type = 'button'; connect.textContent = t('settings_ha_connect', 'Connect');
     const status = el('span', 'sh-set-status');
     actions.append(connect, status);
-    card.appendChild(actions);
+    link.appendChild(actions);
+
+    // How the tile shows devices: nothing to show until Home Assistant is linked.
+    const view = el('section', 'settings-section');
+    view.appendChild(buildViewRow());
+    view.hidden = !(ha.url && ha.tokenSet);
+    card.appendChild(view);
 
     // Device picker (rendered after a successful connection / when configured).
     const picker = el('div', 'sh-set-picker');
@@ -1265,6 +1278,7 @@
         // Use the entity list returned by /test directly — the settings save is
         // debounced, so a fresh GET /entities could still read the pre-save config.
         allEntities = (Array.isArray(r.entities) && r.entities.length) ? r.entities : null;
+        view.hidden = false;
         renderPicker(picker);
         showDashboard(url.value.trim());
         // The Energy-sources picker gates on url+tokenSet too — refresh it now
@@ -1275,11 +1289,8 @@
       }
     });
 
-    card.insertBefore(buildViewRow(), picker);   // above the long device list
-
     // If already configured, show the picker straight away.
     if (ha.url && ha.tokenSet) { renderPicker(picker); showDashboard(ha.url); }
-    else picker.appendChild(el('div', 'sh-set-hint', t('settings_ha_select_first', '')));
 
     return card;
   }
@@ -1324,7 +1335,7 @@
   // Settings → Smart Home: the chosen devices as the tile will show them, rooms
   // and devices each movable up or down. Hidden until there are two things to order.
   function buildOrderSection(items, getSelected, setSelected) {
-    const node = el('div', 'sh-set-order');
+    const node = el('section', 'settings-section sh-set-order');
     const byId = new Map(items.map((x) => [x.id, x]));
     const areaOf = (id) => (byId.get(id) && byId.get(id).area) || '~';
     const keyOf = (id) => (byId.get(id) && byId.get(id).device) || id;
@@ -1339,7 +1350,7 @@
       const unitCount = Array.from(groups.values()).reduce((n, ents) => n + groupUnits(ents).length, 0);
       node.hidden = movable.length < 2 && unitCount < 2;
       if (node.hidden) return;
-      node.appendChild(el('div', 'sh-set-picker-title', t('settings_ha_order', 'Order on the tile')));
+      node.appendChild(el('div', 'settings-section-title', t('settings_ha_order', 'Order on the tile')));
       node.appendChild(el('div', 'sh-set-hint', t('settings_ha_order_hint', 'Move rooms and devices up or down. A device you add goes to the end of its room.')));
       const list = el('div', 'sh-ord');
       node.appendChild(list);
@@ -1378,9 +1389,14 @@
 
   // Settings → Smart Home → Show: how the tile lays out devices.
   function buildViewRow() {
-    const row = el('label', 'sh-set-row');
-    row.appendChild(el('span', 'sh-set-label', t('settings_ha_view', 'Show devices')));
-    const select = el('select', 'sh-set-input');
+    const row = el('div', 'sh-set-row');
+    const name = el('span', 'sh-set-label', t('settings_ha_view', 'Show devices'));
+    name.appendChild(el('span', 'sh-set-help', t('settings_ha_view_hint', 'Automatic shows each device\'s controls on the tile when they fit, and cards that open them when they don\'t.')));
+    row.appendChild(name);
+    const select = el('select', 'settings-select');
+    select.setAttribute('data-custom-select', '');
+    select.setAttribute('data-cs-fixed', '');
+    select.setAttribute('aria-label', t('settings_ha_view', 'Show devices'));
     [['auto', 'settings_ha_view_auto', 'Automatic'], ['open', 'settings_ha_view_open', 'Always open'], ['compact', 'settings_ha_view_compact', 'Compact']].forEach(([v, key, fb]) => {
       const o = el('option', '', t(key, fb)); o.value = v; select.appendChild(o);
     });
@@ -1391,7 +1407,8 @@
       if (window.setHomeAssistantSettings) window.setHomeAssistantSettings({ tileView: v });
       applyLocally({ tileView: v });
     });
-    row.append(select, el('span', 'sh-set-help', t('settings_ha_view_hint', 'Automatic shows each device\'s controls on the tile when they fit, and cards that open them when they don\'t.')));
+    row.appendChild(select);
+    if (typeof window.initCustomSelect === 'function') window.initCustomSelect(select);
     return row;
   }
 
@@ -1420,14 +1437,16 @@
   async function renderPicker(host, opts) {
     const cfg = opts || {};
     const key = cfg.key || 'entities';
-    host.replaceChildren(el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')));
+    const wait = el('section', 'settings-section');
+    wait.appendChild(el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')));
+    host.replaceChildren(wait);
     let items = await fetchEntities();
     if (cfg.filter) items = items.filter(cfg.filter);
     if (!settingsMount()) return;                // Settings closed while awaiting
-    host.replaceChildren();
-    const title = el('div', 'sh-set-picker-title', cfg.title || t('settings_ha_entities', 'Devices to show'));
-    host.append(title, el('div', 'sh-set-hint', cfg.hint || t('settings_ha_entities_hint', '')));
-    if (!items.length) { host.appendChild(el('div', 'sh-set-hint', cfg.empty || t('settings_ha_select_first', ''))); return; }
+    const box = el('section', 'settings-section');
+    host.replaceChildren(box);
+    box.append(el('div', 'settings-section-title', cfg.title || t('settings_ha_entities', 'Devices to show')), el('div', 'sh-set-hint', cfg.hint || t('settings_ha_entities_hint', '')));
+    if (!items.length) { box.appendChild(el('div', 'sh-set-hint', cfg.empty || t('settings_ha_select_first', ''))); return; }
 
     const ha = window.getHomeAssistantSettings ? window.getHomeAssistantSettings() : { entities: [] };
     // The selection array is also the order of devices inside a room.
@@ -1444,12 +1463,12 @@
     }) : null;
 
     // The order of what is already chosen comes first, above the long list.
-    if (order) host.insertBefore(order.node, title);
+    if (order) host.insertBefore(order.node, box);
     const search = el('input', 'sh-set-input'); search.type = 'search'; search.placeholder = t('settings_ha_search', 'Search…');
-    host.appendChild(search);
+    box.appendChild(search);
 
     const listWrap = el('div', 'sh-set-list');
-    host.appendChild(listWrap);
+    box.appendChild(listWrap);
 
     const rows = [];
     // A row = checkbox + name + a TYPE badge (Media player / Remote / Button…) so

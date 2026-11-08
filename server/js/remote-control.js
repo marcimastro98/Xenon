@@ -72,14 +72,14 @@
   // ── Render dispatcher ─────────────────────────────────────────────────────
   // Branches to the control panel (feature already configured) or the setup
   // wizard (first-time / incomplete setup).
+  function toolsInstalled(status) {
+    return !!(status && status.installed && status.installed.sunshine && status.installed.tailscale);
+  }
+
+  // The setup stays on screen until it is closed: the two tools being installed
+  // is only its first step, and the panel has no way to sign in or pair.
   function render(host, status) {
-    const configured = !!(
-      status &&
-      status.installed &&
-      status.installed.sunshine &&
-      status.installed.tailscale
-    );
-    if (configured) {
+    if (toolsInstalled(status) && !_wizardOpen) {
       renderControlPanel(host, status);
     } else {
       renderWizard(host, status);
@@ -97,10 +97,10 @@
 
     // ── Section: Stato ────────────────────────────────────────────────────
     const statoBox = document.createElement('div');
-    statoBox.className = 'remote-panel-section';
+    statoBox.className = 'remote-panel-section settings-section';
 
     const statoTitle = document.createElement('div');
-    statoTitle.className = 'remote-section-title';
+    statoTitle.className = 'remote-section-title settings-section-title';
     statoTitle.setAttribute('data-i18n', 'remote.panel_status');
     statoTitle.textContent = 'Stato';
     statoBox.appendChild(statoTitle);
@@ -151,11 +151,7 @@
       const name = typeof first === 'string' ? first : (first && first.name) || null;
       clientVal.className = 'remote-ready-val ok';
       if (name) {
-        const prefix = document.createTextNode('Connesso: ');
-        const nameSpan = document.createElement('strong');
-        nameSpan.textContent = name; // dynamic → textContent
-        clientVal.appendChild(prefix);
-        clientVal.appendChild(nameSpan);
+        clientVal.textContent = name; // dynamic → textContent
       } else {
         clientVal.setAttribute('data-i18n', 'remote.panel_connected');
         clientVal.textContent = 'Connesso';
@@ -187,18 +183,7 @@
       statoBox.appendChild(ipRow);
     }
 
-    page.appendChild(statoBox);
-
-    // ── Section: Selettore schermo ────────────────────────────────────────
-    const screenBox = document.createElement('div');
-    screenBox.className = 'remote-panel-section';
-
-    const screenTitle = document.createElement('div');
-    screenTitle.className = 'remote-section-title';
-    screenTitle.setAttribute('data-i18n', 'remote.screen_label');
-    screenTitle.textContent = 'Schermo';
-    screenBox.appendChild(screenTitle);
-
+    // Selettore schermo
     const screenRow = document.createElement('div');
     screenRow.className = 'remote-panel-screen-row';
 
@@ -236,7 +221,7 @@
     }).catch(() => {
       screenSelect.disabled = true;
       const opt = document.createElement('option');
-      opt.textContent = 'Errore caricamento monitor';
+      opt.textContent = t('remote.monitors_failed');
       screenSelect.appendChild(opt);
     });
 
@@ -257,23 +242,23 @@
         screenSelect.disabled = false;
         screenStatus.hidden = false;
         screenStatus.className = 'remote-status error';
-        screenStatus.textContent = 'Cambio schermo non riuscito: riprova.';
+        screenStatus.textContent = t('remote.screen_failed');
       });
     });
 
     screenRow.appendChild(screenLabel);
     screenRow.appendChild(screenSelect);
-    screenBox.appendChild(screenRow);
-    screenBox.appendChild(screenStatus);
+    statoBox.appendChild(screenRow);
+    statoBox.appendChild(screenStatus);
 
-    page.appendChild(screenBox);
+    page.appendChild(statoBox);
 
     // ── Section: Azioni ───────────────────────────────────────────────────
     const actionsBox = document.createElement('div');
-    actionsBox.className = 'remote-panel-section';
+    actionsBox.className = 'remote-panel-section settings-section';
 
     const actionsTitle = document.createElement('div');
-    actionsTitle.className = 'remote-section-title';
+    actionsTitle.className = 'remote-section-title settings-section-title';
     actionsTitle.setAttribute('data-i18n', 'remote.panel_actions');
     actionsTitle.textContent = 'Azioni';
     actionsBox.appendChild(actionsTitle);
@@ -291,7 +276,7 @@
       if (btn) btn.disabled = false;
       actionStatus.hidden = false;
       actionStatus.className = 'remote-status error';
-      actionStatus.textContent = 'Errore di rete: riprova.';
+      actionStatus.textContent = t('remote.network_error');
     };
 
     // Disconnetti ora
@@ -346,19 +331,16 @@
     killBtn.type = 'button';
     killBtn.className = 'remote-btn danger';
     killBtn.setAttribute('data-i18n', 'remote.kill_btn');
-    killBtn.textContent = 'Kill-switch';
     killBtn.addEventListener('click', () => {
       killBtn.disabled = true;
       actionStatus.hidden = true;
       api('/remote/kill', 'POST').then(() => refreshStatus()).then(() => renderAll())
         .catch(actionFailed(killBtn));
     });
-    secondaryRow.appendChild(killBtn);
-
     // Riconfigura credenziali
     const reconfigBtn = document.createElement('button');
     reconfigBtn.type = 'button';
-    reconfigBtn.className = 'remote-btn remote-btn-secondary';
+    reconfigBtn.className = 'remote-btn';
     reconfigBtn.setAttribute('data-i18n', 'remote.reconfigure');
     reconfigBtn.textContent = 'Riconfigura credenziali';
 
@@ -370,24 +352,33 @@
       reconfigBtn.disabled = true;
       reconfigStatus.hidden = false;
       reconfigStatus.className = 'remote-status';
-      reconfigStatus.textContent = 'Riconfigurazione in corso…';
+      reconfigStatus.textContent = t('remote.reconfiguring');
       api('/remote/sunshine/configure', 'POST').then(res => {
         if (res && res.ok) {
           reconfigStatus.className = 'remote-status ok';
-          reconfigStatus.textContent = 'Credenziali rigenerate con successo.';
+          reconfigStatus.textContent = t('remote.reconfigured');
           return refreshStatus().then(() => renderAll());
         } else {
           reconfigStatus.className = 'remote-status error';
-          reconfigStatus.textContent = 'Errore: ' + ((res && res.error) || 'configurazione fallita');
+          reconfigStatus.textContent = configureError(res);
           reconfigBtn.disabled = false;
         }
       }).catch(() => {
         reconfigStatus.className = 'remote-status error';
-        reconfigStatus.textContent = 'Errore di rete: verifica che Sunshine sia in esecuzione.';
+        reconfigStatus.textContent = configureError();
         reconfigBtn.disabled = false;
       });
     });
     secondaryRow.appendChild(reconfigBtn);
+
+    // Signing in and pairing live in the setup, and the setup lives in Settings.
+    if (host.closest('#settings-overlay')) {
+      secondaryRow.appendChild(button('settings-btn' + (isReady || isBlocked ? '' : ' primary'), 'remote.setup_open', () => {
+        _wizardOpen = true;
+        renderAll();
+      }));
+    }
+    secondaryRow.appendChild(killBtn);
 
     actionsBox.appendChild(secondaryRow);
     actionsBox.appendChild(reconfigStatus);
@@ -406,570 +397,301 @@
     const page = document.createElement('div');
     page.className = 'remote-page';
 
-    // 1. Intro
-    page.appendChild(buildIntro());
-
-    // 2. Warnings
-    page.appendChild(buildWarnings());
-
-    // 3. Consent button (always visible if wizard not open)
-    if (!_wizardOpen) {
-      const row = document.createElement('div');
-      row.className = 'remote-consent-row';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'remote-consent-btn';
-      btn.setAttribute('data-i18n', 'remote.consent_btn');
-      btn.textContent = 'Ho capito, configura';
-      btn.addEventListener('click', () => {
-        _wizardOpen = true;
-        renderAll();
-      });
-      row.appendChild(btn);
-      page.appendChild(row);
-    }
-
-    // 4. Wizard (visible after consent)
     if (_wizardOpen) {
       page.appendChild(buildWizard(status));
-    }
-
-    // 5. Controls (kill-switch / disable / enable) — shown if wizard open
-    if (_wizardOpen) {
-      page.appendChild(buildControls(status));
+      // Nothing to enable or disable until the tools are on this PC.
+      if (toolsInstalled(status)) page.appendChild(buildControls(status));
+    } else {
+      page.append(buildIntro(), buildWarnings());
     }
 
     host.appendChild(page);
     localizeSubtree(host);
   }
 
-  // ── Intro section ─────────────────────────────────────────────────────────
-  function buildIntro() {
-    const box = document.createElement('div');
-    box.className = 'remote-intro';
+  // ── Pieces of a Settings page (SettingsPage.css) ──────────────────────────
+  function el(tag, className, key) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (key) node.setAttribute('data-i18n', key);
+    return node;
+  }
 
-    const title = document.createElement('div');
-    title.className = 'remote-intro-title';
-    title.setAttribute('data-i18n', 'remote.intro_title');
-    title.textContent = 'Controllo remoto sicuro del PC';
-    box.appendChild(title);
-
-    const body = document.createElement('div');
-    body.className = 'remote-intro-body';
-
-    const lines = [
-      { key: 'remote.intro_p1', text: 'Permette di accedere al desktop del PC da smartphone o tablet tramite la rete privata Tailscale (VPN peer-to-peer). Lo streaming video è gestito da Sunshine, il ricevitore gratuito Moonlight gira sul telefono.' },
-      // Where the software comes from, named honestly per platform. Telling a
-      // Linux user their packages arrive "via winget, Microsoft's official
-      // package manager" is worse than saying nothing: it describes a machine
-      // they are not sitting at.
-      { key: platformKey('remote.intro_p2'), text: 'Sunshine e Tailscale vengono installati con winget (gestore pacchetti ufficiale Microsoft) direttamente dai repository ufficiali.' },
-      { key: 'remote.intro_p3', text: 'Il server del dashboard NON viene mai esposto a internet. La connessione passa interamente dentro la tua rete Tailscale.' },
-    ];
-    lines.forEach(({ key, text }) => {
-      const p = document.createElement('p');
-      p.setAttribute('data-i18n', key);
-      p.textContent = text;
-      body.appendChild(p);
-    });
-
-    box.appendChild(body);
+  function section(titleKey) {
+    const box = el('section', 'settings-section');
+    box.appendChild(el('div', 'settings-section-title', titleKey));
     return box;
   }
 
-  // ── Warnings section ──────────────────────────────────────────────────────
+  function button(className, key, onClick) {
+    const btn = el('button', className, key);
+    btn.type = 'button';
+    btn.addEventListener('click', () => onClick(btn));
+    return btn;
+  }
+
+  function keyRow(...keys) {
+    const row = el('div', 'settings-row settings-row-keys');
+    row.append(...keys);
+    return row;
+  }
+
+  function statusLine() {
+    const line = el('div', 'remote-status');
+    line.hidden = true;
+    return line;
+  }
+
+  // The cause rides along when the server has one: a generic line alone would
+  // hide the real failure.
+  function configureError(res) {
+    return t('remote.configure_failed') + (res && res.error ? ' (' + res.error + ')' : '');
+  }
+
+  // ── What this is, and the consent ─────────────────────────────────────────
+  function buildIntro() {
+    const box = section('remote.intro_title');
+    // Where the software comes from, named honestly per platform. Telling a
+    // Linux user their packages arrive "via winget, Microsoft's official
+    // package manager" is worse than saying nothing: it describes a machine
+    // they are not sitting at.
+    for (const key of ['remote.intro_p1', platformKey('remote.intro_p2'), 'remote.intro_p3']) {
+      box.appendChild(el('p', 'settings-note', key));
+    }
+    return box;
+  }
+
   function buildWarnings() {
-    const box = document.createElement('div');
-    box.className = 'remote-warnings';
-
-    const title = document.createElement('div');
-    title.className = 'remote-warnings-title';
-    title.setAttribute('data-i18n', 'remote.warnings_title');
-    title.textContent = 'Prima di procedere';
-    box.appendChild(title);
-
-    const ul = document.createElement('ul');
-    const items = [
-      // "Windows will ask for a UAC confirmation" is true on one platform out of
-      // three. The prompt itself is universal — pkexec on Linux, the admin
-      // dialog on macOS — so the sentence names the moment, not the vendor.
-      { key: 'remote.warn_elevate', text: 'Ti verrà chiesta un\'autorizzazione (la password del PC) durante l\'installazione.' },
-      { key: 'remote.warn_tailscale', text: 'Dovrai accedere con il tuo account Tailscale (gratuito per uso personale).' },
-      { key: 'remote.warn_pin', text: 'Moonlight mostrerà un PIN di abbinamento da inserire qui.' },
-      { key: 'remote.warn_controllable', text: 'Una volta configurato, il PC potrà essere controllato remotamente.' },
-    ];
+    const box = section('remote.warnings_title');
+    const list = el('ul', 'remote-warn-list');
+    // "Windows will ask for a UAC confirmation" is true on one platform out of
+    // three. The prompt itself is universal — pkexec on Linux, the admin
+    // dialog on macOS — so the sentence names the moment, not the vendor.
+    const items = ['remote.warn_elevate', 'remote.warn_tailscale', 'remote.warn_pin', 'remote.warn_controllable'];
     // macOS only, and stated up front rather than discovered later: upstream
     // marks its own macOS build experimental, and gamepads do not work there.
     // Someone setting this up to play with a controller should learn that here.
-    if (platform() === 'darwin') {
-      items.push({ key: 'remote.warn_macos_experimental', text: 'Su macOS Sunshine è dichiarato sperimentale dai suoi autori e i gamepad non funzionano.' });
-    }
-    items.forEach(({ key, text }) => {
-      const li = document.createElement('li');
-      li.setAttribute('data-i18n', key);
-      li.textContent = text;
-      ul.appendChild(li);
-    });
-    box.appendChild(ul);
-
+    if (platform() === 'darwin') items.push('remote.warn_macos_experimental');
+    for (const key of items) list.appendChild(el('li', null, key));
+    box.appendChild(list);
+    box.appendChild(keyRow(button('settings-btn primary', 'remote.consent_btn', () => {
+      _wizardOpen = true;
+      renderAll();
+    })));
     return box;
   }
 
-  // ── Wizard ────────────────────────────────────────────────────────────────
+  // ── Setup ─────────────────────────────────────────────────────────────────
+  function stepsDone(status) {
+    const s = status || {};
+    return [
+      toolsInstalled(s),
+      !!(s.tailscale && s.tailscale.connected),
+      !!s.sunshineResponding,
+      Array.isArray(s.connectedClients) && s.connectedClients.length > 0,
+    ];
+  }
+
+  // The first step not done yet holds the page's one main action, and the steps
+  // after it wait with their names only: their controls could not work yet.
   function buildWizard(status) {
-    const wizard = document.createElement('div');
-    wizard.className = 'remote-wizard';
-
-    const sectionTitle = document.createElement('div');
-    sectionTitle.className = 'remote-section-title';
-    sectionTitle.setAttribute('data-i18n', 'remote.wizard_title');
-    sectionTitle.textContent = 'Configurazione guidata';
-    wizard.appendChild(sectionTitle);
-
-    wizard.appendChild(buildStep1(status));
-    wizard.appendChild(buildStep2(status));
-    wizard.appendChild(buildStep3(status));
-    wizard.appendChild(buildStep4(status));
-    wizard.appendChild(buildStep5(status));
-
+    const done = stepsDone(status);
+    const current = done.indexOf(false);
+    const wizard = el('div', 'remote-wizard');
+    const head = el('div', 'settings-steps-head');
+    head.appendChild(el('div', 'settings-section-title', 'remote.wizard_title'));
+    if (toolsInstalled(status)) {
+      head.appendChild(button('settings-btn', 'remote.setup_close', () => {
+        _wizardOpen = false;
+        renderAll();
+      }));
+    }
+    const steps = el('div', 'settings-steps');
+    [buildStep1, buildStep2, buildStep3, buildStep4].forEach((build, i) => {
+      const step = build(status, done[i], i === current);
+      step.querySelector('.settings-step-body').hidden = current >= 0 && i > current;
+      steps.appendChild(step);
+    });
+    wizard.append(head, steps);
     return wizard;
   }
 
   // Step 1 — Install tools
-  function buildStep1(status) {
+  function buildStep1(status, done, current) {
     const installed = (status && status.installed) || {};
-    const sunshineOk = !!installed.sunshine;
-    const tailscaleOk = !!installed.tailscale;
-    const allDone = sunshineOk && tailscaleOk;
+    const step = buildStepShell('1', 'remote.step1_title', done, current);
+    const body = step.querySelector('.settings-step-body');
 
-    const step = buildStepShell('1', 'remote.step1_title', 'Installa gli strumenti', allDone);
-    const body = step.querySelector('.remote-step-body');
+    body.appendChild(buildInstallRow('Sunshine', 'remote.sunshine_status_installed', 'remote.sunshine_status_missing',
+      !!installed.sunshine, current, () => installTool('sunshine')));
+    body.appendChild(buildInstallRow('Tailscale', 'remote.tailscale_status_installed', 'remote.tailscale_status_missing',
+      !!installed.tailscale, current && !!installed.sunshine, () => installTool('tailscale')));
 
-    // Sunshine row
-    body.appendChild(buildInstallRow(
-      'Sunshine',
-      'remote.sunshine_status_installed', 'remote.sunshine_status_missing',
-      '✓ Installato', 'Non installato',
-      sunshineOk,
-      () => installTool('sunshine'),
-    ));
-
-    // Tailscale row
-    body.appendChild(buildInstallRow(
-      'Tailscale',
-      'remote.tailscale_status_installed', 'remote.tailscale_status_missing',
-      '✓ Installato', 'Non installato',
-      tailscaleOk,
-      () => installTool('tailscale'),
-    ));
-
-    if (!allDone) {
-      const hint = document.createElement('div');
-      hint.className = 'remote-hint';
-      hint.setAttribute('data-i18n', 'remote.step1_hint');
-      hint.textContent = 'Potrebbe comparire una richiesta di autorizzazione: confermala per procedere.';
-      body.appendChild(hint);
-    }
-
+    if (!done) body.appendChild(el('p', 'settings-note', 'remote.step1_hint'));
     return step;
   }
 
-  function buildInstallRow(toolName, okKey, missingKey, okFallback, missingFallback, isInstalled, onInstall) {
-    const row = document.createElement('div');
-    row.className = 'remote-install-row';
+  function buildInstallRow(toolName, okKey, missingKey, isInstalled, main, onInstall) {
+    const row = el('div', 'settings-row');
+    const words = el('span', 'settings-label-line');
+    const name = el('span');
+    name.textContent = toolName;
+    const statusEl = el('span', 'settings-hint', isInstalled ? okKey : missingKey);
+    words.append(name, statusEl);
+    row.appendChild(words);
+    if (isInstalled) return row;
 
-    const labelWrap = document.createElement('div');
-    const label = document.createElement('div');
-    label.className = 'remote-tool-label';
-    label.textContent = toolName;
-    labelWrap.appendChild(label);
-
-    const statusEl = document.createElement('div');
-    if (isInstalled) {
-      statusEl.className = 'remote-tool-ok';
-      statusEl.setAttribute('data-i18n', okKey);
-      statusEl.textContent = okFallback;
-    } else {
-      statusEl.className = 'remote-tool-status';
-      statusEl.setAttribute('data-i18n', missingKey);
-      statusEl.textContent = missingFallback;
-    }
-    labelWrap.appendChild(statusEl);
-    row.appendChild(labelWrap);
-
-    if (!isInstalled) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'remote-btn';
-      btn.setAttribute('data-i18n', 'remote.install_btn');
-      btn.textContent = 'Installa';
-      btn.addEventListener('click', () => {
-        btn.disabled = true;
-        // winget can legitimately take minutes and the elevated window doesn't
-        // report progress here — tick the elapsed time so the row visibly stays
-        // alive instead of looking hung.
-        const startedAt = Date.now();
-        const tick = () => {
-          const secs = Math.round((Date.now() - startedAt) / 1000);
-          statusEl.textContent = secs < 20
-            ? 'Installazione in corso…'
-            : `Installazione in corso… (${secs}s: può richiedere qualche minuto)`;
-        };
-        tick();
-        const ticker = setInterval(tick, 5000);
-        const fail = () => {
-          clearInterval(ticker);
-          btn.disabled = false;
-          statusEl.textContent = 'Errore: riprova';
-        };
-        // /remote/install replies {ok:false} (HTTP 500) when the post-install
-        // verify fails — a resolved promise is NOT success by itself.
-        onInstall().then((res) => {
-          if (!res || res.ok !== true) { fail(); return; }
-          clearInterval(ticker);
-          refreshStatus().then(renderAll);
-        }).catch(fail);
-      });
-      row.appendChild(btn);
-    }
-
+    row.appendChild(button('settings-btn' + (main ? ' primary' : ''), 'remote.install_btn', (btn) => {
+      btn.disabled = true;
+      // An install can legitimately take minutes and the elevated window doesn't
+      // report progress here — tick the elapsed time so the row visibly stays
+      // alive instead of looking hung.
+      const startedAt = Date.now();
+      const tick = () => {
+        const secs = Math.round((Date.now() - startedAt) / 1000);
+        statusEl.textContent = secs < 20 ? t('remote.installing') : t('remote.installing_long').replace('{s}', secs);
+      };
+      tick();
+      const ticker = setInterval(tick, 5000);
+      const fail = () => {
+        clearInterval(ticker);
+        btn.disabled = false;
+        statusEl.textContent = t('remote.try_again');
+      };
+      // /remote/install replies {ok:false} (HTTP 500) when the post-install
+      // verify fails — a resolved promise is NOT success by itself.
+      onInstall().then((res) => {
+        if (!res || res.ok !== true) { fail(); return; }
+        clearInterval(ticker);
+        refreshStatus().then(renderAll);
+      }).catch(fail);
+    }));
     return row;
   }
 
   // Step 2 — Tailscale login
-  function buildStep2(status) {
+  function buildStep2(status, done, current) {
     const ts = (status && status.tailscale) || {};
-    const connected = !!ts.connected;
+    const step = buildStepShell('2', 'remote.step2_title', done, current);
+    const body = step.querySelector('.settings-step-body');
 
-    const step = buildStepShell('2', 'remote.step2_title', 'Accedi a Tailscale', connected);
-    const body = step.querySelector('.remote-step-body');
-
-    if (connected) {
-      const ok = document.createElement('div');
-      ok.className = 'remote-status ok';
-      ok.setAttribute('data-i18n', 'remote.tailscale_connected');
-      ok.textContent = 'Tailscale connesso';
-      if (ts.ip) {
-        ok.textContent = '';
-        const connText = document.createTextNode('Tailscale connesso: ');
-        const ipSpan = document.createElement('strong');
-        ipSpan.textContent = ts.ip; // dynamic data → textContent
-        ok.appendChild(connText);
-        ok.appendChild(ipSpan);
-      }
+    if (done) {
+      const ok = el('p', 'settings-note');
+      ok.textContent = t('remote.tailscale_connected') + (ts.ip ? ', ' + ts.ip : ''); // dynamic → textContent
       body.appendChild(ok);
-    } else {
-      const hint = document.createElement('div');
-      hint.className = 'remote-hint';
-      hint.setAttribute('data-i18n', 'remote.step2_hint');
-      hint.textContent = 'Verrà aperta una pagina nel browser per autenticarsi. Torna qui quando è fatto.';
-      body.appendChild(hint);
+      return step;
+    }
 
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'remote-btn primary';
-      btn.setAttribute('data-i18n', 'remote.tailscale_login_btn');
-      btn.textContent = 'Apri pagina di login';
-
-      const statusEl = document.createElement('div');
-      statusEl.className = 'remote-status';
-      statusEl.hidden = true;
-
-      btn.addEventListener('click', () => {
+    const statusEl = statusLine();
+    body.append(
+      el('p', 'settings-note', 'remote.step2_hint'),
+      button('settings-btn' + (current ? ' primary' : ''), 'remote.tailscale_login_btn', (btn) => {
         btn.disabled = true;
         statusEl.hidden = false;
         statusEl.className = 'remote-status';
-        statusEl.textContent = 'In attesa di autenticazione…';
+        statusEl.textContent = t('remote.login_waiting');
         tailscaleLogin(statusEl, btn);
-      });
-
-      body.appendChild(btn);
-      body.appendChild(statusEl);
-    }
-
+      }),
+      statusEl,
+    );
     return step;
   }
 
   // Step 3 — Configure Sunshine
-  function buildStep3(status) {
-    const sunshineOk = !!(status && status.sunshineResponding);
-    const step = buildStepShell('3', 'remote.step3_title', 'Configura Sunshine', sunshineOk);
-    const body = step.querySelector('.remote-step-body');
+  function buildStep3(status, done, current) {
+    const step = buildStepShell('3', 'remote.step3_title', done, current);
+    const body = step.querySelector('.settings-step-body');
 
-    if (sunshineOk) {
-      const ok = document.createElement('div');
-      ok.className = 'remote-status ok';
-      ok.setAttribute('data-i18n', 'remote.sunshine_configured');
-      ok.textContent = 'Sunshine configurato e in ascolto';
-      body.appendChild(ok);
-    } else {
-      const hint = document.createElement('div');
-      hint.className = 'remote-hint';
-      hint.setAttribute('data-i18n', 'remote.step3_hint');
-      hint.textContent = 'Avvia Sunshine e aggiorna le impostazioni di rete per renderlo raggiungibile da Moonlight.';
-      body.appendChild(hint);
+    if (done) {
+      body.appendChild(el('p', 'settings-note', 'remote.sunshine_configured'));
+      return step;
+    }
 
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'remote-btn primary';
-      btn.setAttribute('data-i18n', 'remote.sunshine_configure_btn');
-      btn.textContent = 'Configura Sunshine';
-
-      const statusEl = document.createElement('div');
-      statusEl.className = 'remote-status';
-      statusEl.hidden = true;
-
-      btn.addEventListener('click', () => {
+    const statusEl = statusLine();
+    body.append(
+      el('p', 'settings-note', 'remote.step3_hint'),
+      button('settings-btn' + (current ? ' primary' : ''), 'remote.sunshine_configure_btn', (btn) => {
         btn.disabled = true;
         statusEl.hidden = false;
         statusEl.className = 'remote-status';
-        statusEl.textContent = 'Configurazione in corso…';
+        statusEl.textContent = t('remote.configuring');
         configureSunshine(statusEl, btn);
-      });
-
-      body.appendChild(btn);
-      body.appendChild(statusEl);
-    }
-
+      }),
+      statusEl,
+    );
     return step;
   }
 
   // Step 4 — Pairing PIN
-  function buildStep4(status) {
-    const paired = !!(status && Array.isArray(status.connectedClients) && status.connectedClients.length > 0);
-    const step = buildStepShell('4', 'remote.step4_title', 'Abbinamento Moonlight', paired);
-    const body = step.querySelector('.remote-step-body');
+  function buildStep4(status, done, current) {
+    const step = buildStepShell('4', 'remote.step4_title', done, current);
+    const body = step.querySelector('.settings-step-body');
 
-    const hint = document.createElement('div');
-    hint.className = 'remote-hint';
-    hint.setAttribute('data-i18n', 'remote.step4_hint');
-    hint.textContent = 'Apri Moonlight sul telefono, seleziona questo PC e inserisci il PIN che appare sullo schermo del telefono.';
-    body.appendChild(hint);
-
-    const pinRow = document.createElement('div');
-    pinRow.className = 'remote-pin-row';
-
-    const pinInput = document.createElement('input');
+    const pinInput = el('input', 'settings-text-input remote-pin-input');
     pinInput.type = 'text';
-    pinInput.className = 'remote-pin-input';
     pinInput.maxLength = 8;
     pinInput.setAttribute('inputmode', 'numeric');
     pinInput.setAttribute('autocomplete', 'off');
     pinInput.setAttribute('spellcheck', 'false');
     pinInput.setAttribute('data-i18n-placeholder', 'remote.pin_placeholder');
-    pinInput.placeholder = '1234';
 
-    const pinBtn = document.createElement('button');
-    pinBtn.type = 'button';
-    pinBtn.className = 'remote-btn primary';
-    pinBtn.setAttribute('data-i18n', 'remote.pin_send_btn');
-    pinBtn.textContent = 'Abbina';
-
-    const statusEl = document.createElement('div');
-    statusEl.className = 'remote-status';
-    statusEl.hidden = true;
-
-    pinBtn.addEventListener('click', () => {
+    const statusEl = statusLine();
+    const pinBtn = button('settings-btn' + (current ? ' primary' : ''), 'remote.pin_send_btn', (btn) => {
       const pin = pinInput.value.trim();
       if (!pin) return;
-      pinBtn.disabled = true;
+      btn.disabled = true;
       statusEl.hidden = false;
       statusEl.className = 'remote-status';
-      statusEl.textContent = 'Invio PIN…';
-      sendPin(pin, statusEl, pinBtn, pinInput);
+      statusEl.textContent = t('remote.pin_sending');
+      sendPin(pin, statusEl, btn, pinInput);
     });
-
     pinInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') pinBtn.click();
     });
 
-    pinRow.appendChild(pinInput);
-    pinRow.appendChild(pinBtn);
-    body.appendChild(pinRow);
-    body.appendChild(statusEl);
-
+    const pinRow = el('div', 'remote-pin-row');
+    pinRow.append(pinInput, pinBtn);
+    body.append(el('p', 'settings-note', 'remote.step4_hint'), pinRow, statusEl);
     return step;
   }
 
-  // Step 5 — Ready / status summary
-  function buildStep5(status) {
-    const ready = !!(status && status.ready);
-    const step = buildStepShell('5', 'remote.step5_title', 'Stato', ready);
-    const body = step.querySelector('.remote-step-body');
-
-    body.appendChild(buildStatusSummary(status));
-
-    return step;
-  }
-
-  // Aggregated status grid
-  function buildStatusSummary(status) {
-    const grid = document.createElement('div');
-    grid.className = 'remote-ready-grid';
-
-    const ts = (status && status.tailscale) || {};
-    const installed = (status && status.installed) || {};
-    const clients = (status && Array.isArray(status.connectedClients)) ? status.connectedClients : [];
-
-    const rows = [
-      { labelKey: 'remote.status_sunshine', labelFallback: 'Sunshine', val: installed.sunshine ? '✓' : '—', ok: !!installed.sunshine },
-      { labelKey: 'remote.status_tailscale', labelFallback: 'Tailscale', val: ts.connected ? '✓' : '—', ok: !!ts.connected },
-      { labelKey: 'remote.status_tailscale_ip', labelFallback: 'IP Tailscale', val: ts.ip || '—', ok: !!ts.ip },
-      { labelKey: 'remote.status_sunshine_responding', labelFallback: 'Sunshine in ascolto', val: status && status.sunshineResponding ? '✓' : '—', ok: !!(status && status.sunshineResponding) },
-      { labelKey: 'remote.status_ready', labelFallback: 'Pronto', val: status && status.ready ? '✓ Pronto' : 'Non pronto', ok: !!(status && status.ready) },
-    ];
-
-    rows.forEach(({ labelKey, labelFallback, val, ok }) => {
-      const row = document.createElement('div');
-      row.className = 'remote-ready-row';
-
-      const lbl = document.createElement('span');
-      lbl.className = 'remote-ready-label';
-      lbl.setAttribute('data-i18n', labelKey);
-      lbl.textContent = labelFallback;
-
-      const valEl = document.createElement('span');
-      valEl.className = 'remote-ready-val' + (ok ? ' ok' : '');
-      valEl.textContent = val; // dynamic data → textContent (IPs, status strings)
-
-      row.appendChild(lbl);
-      row.appendChild(valEl);
-      grid.appendChild(row);
-    });
-
-    // Connected clients
-    const clientRow = document.createElement('div');
-    clientRow.className = 'remote-ready-row';
-
-    const clientLbl = document.createElement('span');
-    clientLbl.className = 'remote-ready-label';
-    clientLbl.setAttribute('data-i18n', 'remote.status_clients');
-    clientLbl.textContent = 'Client connessi';
-
-    const clientVal = document.createElement('span');
-    clientVal.className = 'remote-ready-val' + (clients.length > 0 ? ' ok' : '');
-    clientVal.textContent = String(clients.length); // count → textContent
-
-    clientRow.appendChild(clientLbl);
-    clientRow.appendChild(clientVal);
-    grid.appendChild(clientRow);
-
-    if (clients.length > 0) {
-      const list = document.createElement('div');
-      list.className = 'remote-clients-list';
-      clients.forEach(c => {
-        const item = document.createElement('div');
-        item.textContent = typeof c === 'string' ? c : (c && c.name) || String(c);
-        list.appendChild(item);
-      });
-      grid.appendChild(list);
-    }
-
-    return grid;
-  }
-
-  // ── Controls (kill-switch, disable, enable) ───────────────────────────────
+  // ── Controls (remove devices, disable, enable) ────────────────────────────
   function buildControls(status) {
-    const box = document.createElement('div');
-    box.className = 'remote-controls';
-
-    const title = document.createElement('div');
-    title.className = 'remote-controls-title';
-    title.setAttribute('data-i18n', 'remote.controls_title');
-    title.textContent = 'Controlli';
-    box.appendChild(title);
-
-    const row = document.createElement('div');
-    row.className = 'remote-controls-row';
-
-    // Kill-switch
-    const killBtn = document.createElement('button');
-    killBtn.type = 'button';
-    killBtn.className = 'remote-btn danger';
-    killBtn.setAttribute('data-i18n', 'remote.kill_btn');
-    killBtn.textContent = 'Kill-switch (disconnetti subito)';
-    killBtn.addEventListener('click', () => killSwitch(killBtn));
-    row.appendChild(killBtn);
-
-    // Disable
-    const disableBtn = document.createElement('button');
-    disableBtn.type = 'button';
-    disableBtn.className = 'remote-btn';
-    disableBtn.setAttribute('data-i18n', 'remote.disable_btn');
-    disableBtn.textContent = 'Disabilita';
-    disableBtn.addEventListener('click', () => disable(disableBtn));
-    row.appendChild(disableBtn);
-
-    // Enable
-    const enableBtn = document.createElement('button');
-    enableBtn.type = 'button';
-    enableBtn.className = 'remote-btn primary';
-    enableBtn.setAttribute('data-i18n', 'remote.enable_btn');
-    enableBtn.textContent = 'Abilita';
-    enableBtn.addEventListener('click', () => enable(enableBtn));
-    row.appendChild(enableBtn);
-
-    box.appendChild(row);
+    const box = section('remote.controls_title');
+    box.appendChild(keyRow(
+      button('settings-btn', 'remote.enable_btn', enable),
+      button('settings-btn', 'remote.disable_btn', disable),
+      button('settings-btn danger', 'remote.kill_btn', killSwitch),
+    ));
     box.appendChild(buildOnDemandToggle(status));
-
     return box;
   }
 
-  // On-demand startup toggle (shared by the wizard controls and the ready panel):
-  // keeps Sunshine/Tailscale from auto-starting with Windows. Returns a fragment.
+  // On-demand startup (shared by the setup controls and the panel): keeps
+  // Sunshine/Tailscale from auto-starting with the system.
   function buildOnDemandToggle(status) {
-    const frag = document.createDocumentFragment();
-    const onDemand = !!(status && status.onDemand);
-
-    const odRow = document.createElement('div');
-    odRow.className = 'remote-controls-row remote-ondemand-row';
-
-    const odBtn = document.createElement('button');
-    odBtn.type = 'button';
-    odBtn.className = 'remote-btn remote-ondemand-btn' + (onDemand ? ' active' : '');
-    odBtn.setAttribute('aria-pressed', onDemand ? 'true' : 'false');
-    odBtn.setAttribute('data-i18n', onDemand ? 'remote.ondemand_on' : 'remote.ondemand_off');
-    odBtn.textContent = onDemand ? 'Avvio su richiesta: ON' : 'Avvio su richiesta: OFF';
-    odBtn.addEventListener('click', () => setOnDemand(!onDemand, odBtn));
-    odRow.appendChild(odBtn);
-    frag.appendChild(odRow);
-
-    const odHint = document.createElement('div');
-    odHint.className = 'remote-ondemand-hint';
+    const row = el('label', 'settings-toggle-row');
+    const input = el('input', 'settings-check');
+    input.type = 'checkbox';
+    input.checked = !!(status && status.onDemand);
+    input.addEventListener('change', () => setOnDemand(input.checked, input));
+    const words = el('span', 'settings-label-line');
     // Off Windows this manages Sunshine ALONE, as a user service — no password,
     // and deliberately not the user's VPN (see remote-control/service.js). Two
     // different promises, so two different sentences.
-    odHint.setAttribute('data-i18n', platformKey('remote.ondemand_hint'));
-    odHint.textContent = 'Se attivo, Sunshine e Tailscale non si avviano con Windows e partono solo quando abiliti il controllo remoto. Richiede un’autorizzazione amministratore (UAC).';
-    frag.appendChild(odHint);
-
-    return frag;
+    words.append(el('span', null, 'remote.ondemand_label'), el('span', 'settings-hint', platformKey('remote.ondemand_hint')));
+    row.append(input, words);
+    return row;
   }
 
   // ── Step shell builder ────────────────────────────────────────────────────
-  function buildStepShell(num, titleKey, titleFallback, done) {
-    const step = document.createElement('div');
-    step.className = 'remote-step';
-
-    const head = document.createElement('div');
-    head.className = 'remote-step-head' + (done ? ' done' : '');
-
-    const numEl = document.createElement('span');
-    numEl.className = 'remote-step-num';
+  function buildStepShell(num, titleKey, done, current) {
+    const step = el('div', 'settings-step' + (done ? ' done' : '') + (current ? ' current' : ''));
+    const head = el('div', 'settings-step-head');
+    const numEl = el('span', 'settings-step-num');
     numEl.textContent = done ? '✓' : num;
-
-    const titleEl = document.createElement('span');
-    titleEl.setAttribute('data-i18n', titleKey);
-    titleEl.textContent = titleFallback;
-
-    head.appendChild(numEl);
-    head.appendChild(titleEl);
-    step.appendChild(head);
-
-    const body = document.createElement('div');
-    body.className = 'remote-step-body';
-    step.appendChild(body);
-
+    head.append(numEl, el('span', 'settings-step-title', titleKey));
+    step.append(head, el('div', 'settings-step-body'));
     return step;
   }
 
@@ -994,7 +716,7 @@
       if (!res.ok) throw new Error('login failed');
     } catch {
       statusEl.className = 'remote-status error';
-      statusEl.textContent = 'Errore avvio login. Riprova.';
+      statusEl.textContent = t('remote.try_again');
       if (btn) btn.disabled = false;
       return;
     }
@@ -1009,21 +731,20 @@
         const ts = (s && s.tailscale) || {};
         if (ts.connected) {
           statusEl.className = 'remote-status ok';
-          statusEl.textContent = 'Connesso!';
+          statusEl.textContent = t('remote.panel_connected');
           renderAll();
           return;
         }
         if (attempts >= POLL_MAX_ATTEMPTS) {
           statusEl.className = 'remote-status error';
-          statusEl.textContent = 'Timeout: verifica di aver completato il login nel browser.';
+          statusEl.textContent = t('remote.login_timeout');
           if (btn) btn.disabled = false;
           return;
         }
-        statusEl.textContent = `In attesa di autenticazione… (${attempts})`;
         _pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
       }).catch(() => {
         statusEl.className = 'remote-status error';
-        statusEl.textContent = 'Errore di connessione: riprova.';
+        statusEl.textContent = t('remote.network_error');
         if (btn) btn.disabled = false;
       });
     }
@@ -1036,17 +757,17 @@
       const res = await api('/remote/sunshine/configure', 'POST');
       if (!res.ok) {
         statusEl.className = 'remote-status error';
-        statusEl.textContent = 'Errore: ' + (res.error || 'configurazione fallita');
+        statusEl.textContent = configureError(res);
         if (btn) btn.disabled = false;
         return;
       }
       statusEl.className = 'remote-status ok';
-      statusEl.textContent = 'Sunshine configurato';
+      statusEl.textContent = t('remote.sunshine_configured');
       await refreshStatus();
       renderAll();
     } catch {
       statusEl.className = 'remote-status error';
-      statusEl.textContent = 'Errore: verifica che Sunshine sia in esecuzione.';
+      statusEl.textContent = configureError();
       if (btn) btn.disabled = false;
     }
   }
@@ -1059,23 +780,23 @@
         // Distinguo l'errore reale: 401 = problema di credenziali/servizio
         // Sunshine (non un PIN sbagliato); altri status = rifiuto generico.
         if (res.status === 401) {
-          statusEl.textContent = 'Autenticazione Sunshine fallita (401): riavvia Sunshine e riprova "Configura Sunshine".';
+          statusEl.textContent = t('remote.pin_401');
         } else if (res.status) {
-          statusEl.textContent = 'Sunshine ha rifiutato la richiesta (HTTP ' + res.status + '). Verifica che Sunshine sia in esecuzione.';
+          statusEl.textContent = t('remote.pin_refused').replace('{code}', res.status);
         } else {
-          statusEl.textContent = 'PIN errato o scaduto: riprova da Moonlight.';
+          statusEl.textContent = t('remote.pin_wrong');
         }
         if (btn) btn.disabled = false;
         return;
       }
       statusEl.className = 'remote-status ok';
-      statusEl.textContent = 'Abbinamento riuscito!';
+      statusEl.textContent = t('remote.pin_ok');
       if (pinInput) pinInput.value = '';
       await refreshStatus();
       renderAll();
     } catch {
       statusEl.className = 'remote-status error';
-      statusEl.textContent = 'Errore di rete: riprova.';
+      statusEl.textContent = t('remote.network_error');
       if (btn) btn.disabled = false;
     }
   }
@@ -1157,12 +878,7 @@
     // trigger the /remote/screens probe.
     const tiles = Array.from(document.querySelectorAll('[data-dashboard-widget="remote"]')).filter(el => el.closest('.pager-page, .layer-slot'));
     if (!tiles.length) return;
-    const configured = !!(
-      _status &&
-      _status.installed &&
-      _status.installed.sunshine &&
-      _status.installed.tailscale
-    );
+    const configured = toolsInstalled(_status);
     tiles.forEach(tile => {
       const mount = tile.querySelector('.remote-widget-mount');
       if (!mount) return;
@@ -1247,7 +963,7 @@
     init,
     isMounted: () => _mounted,
     getStatus: () => _status,
-    isConfigured: () => !!(_status && _status.installed && _status.installed.sunshine && _status.installed.tailscale),
+    isConfigured: () => toolsInstalled(_status),
     refreshStatus,
     renderControlPanel,
     renderWidgets,

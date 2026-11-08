@@ -2,6 +2,7 @@
 
 const os = require('node:os');
 const defaultRunner = require('./runner');
+const { SUNSHINE_SERVICE, TAILSCALE_SERVICE } = require('./service');
 
 // The account the server runs as, which is the one that needs to be able to
 // drive tailscaled. Sanitised to the shell-safe shape a username has anyway,
@@ -12,6 +13,9 @@ function currentUser() {
   try { name = os.userInfo().username || ''; } catch { name = process.env.USER || ''; }
   return /^[A-Za-z0-9._-]+$/.test(name) ? name : '';
 }
+
+// The Windows service each tool registers when it installs.
+const WIN_SERVICES = { sunshine: SUNSHINE_SERVICE, tailscale: TAILSCALE_SERVICE };
 
 const PACKAGES = {
   sunshine: 'LizardByte.Sunshine',
@@ -187,12 +191,20 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
     const id = resolveId(name);
     const hit = installedCache.get(name);
     if (hit && (hit.value || Date.now() - hit.at < NOT_INSTALLED_TTL_MS)) return hit.value;
-    const value = isWin ? await installedWin(id) : await installedPosix(name);
+    const value = isWin ? await installedWin(name, id) : await installedPosix(name);
     installedCache.set(name, { value, at: Date.now() });
     return value;
   }
 
-  async function installedWin(id) {
+  // Both tools register a service when they install. Reading the service list costs a
+  // few ms where `winget list` costs a second of CPU, so winget is left to answer only
+  // for what the list does not show.
+  async function installedWin(name, id) {
+    const service = WIN_SERVICES[name];
+    if (service) {
+      const s = await runner.run('sc.exe', ['query', service]).catch(() => null);
+      if (s && s.code === 0) return true;
+    }
     const r = await runner.run('winget', ['list', '-e', '--id', id]);
     return r.code === 0 && r.stdout.includes(id);
   }

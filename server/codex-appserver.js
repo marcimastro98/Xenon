@@ -335,7 +335,7 @@ function cleanUserText(raw) {
     files = (head.match(/^## [^\n]+$/gm) || []).length;
     s = req >= 0 ? s.slice(req + '## My request for Codex:'.length) : '';
   }
-  // The target may contain spaces ("Marci Progetti"): a local path is not a URL.
+  // The target may contain spaces ("My Projects"): a local path is not a URL.
   s = s.replace(/\[([^\]\n]{1,120})\]\(([^)\n]{1,600})\)/g, (m, label, target) => (/^https?:\/\//i.test(target.trim()) ? m : label));
   return { text: s.trim(), files };
 }

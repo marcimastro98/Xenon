@@ -59,7 +59,7 @@
   let lastReport = null;
   let advisorModal = null;
   let advisorAiRequest = 0;
-  let advisorKeyHandler = null;
+  let advisorLetGo = null;
 
   const CAT_META = {
     temp: {
@@ -385,6 +385,7 @@
     if (fileSystem) titleParts.push(fileSystem);
     return {
       primary,
+      details,
       secondary: details.join(' · ') || pathValue,
       title: titleParts.filter(Boolean).join(' · '),
     };
@@ -706,7 +707,7 @@
   function advisorAiReady() {
     const settings = typeof hubSettings !== 'undefined' && hubSettings ? hubSettings : {};
     const provider = settings.aiProvider || 'gemini';
-    if (provider === 'ollama') return true;
+    if (provider === 'ollama' || provider === 'localapi') return true;
     if (provider === 'claudecode' || provider === 'codex' || provider === 'xenon') return true;
     if (provider === 'openai') return settings.openaiApiKeySet === true;
     if (provider === 'anthropic') return settings.anthropicApiKeySet === true;
@@ -724,19 +725,20 @@
 
   function closeAdvisorModal() {
     advisorAiRequest++;
-    if (advisorKeyHandler) document.removeEventListener('keydown', advisorKeyHandler);
-    advisorKeyHandler = null;
+    if (advisorLetGo) advisorLetGo();
+    advisorLetGo = null;
     if (advisorModal) advisorModal.remove();
     advisorModal = null;
     document.body.classList.remove('diskw-advisor-open');
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('disk-advisor', false);
   }
 
   function advisorStat(label, value, detail) {
-    const card = el('div', 'diskw-modal-stat');
-    card.appendChild(el('span', '', label));
-    card.appendChild(el('strong', '', value));
-    card.appendChild(el('small', '', detail));
-    return card;
+    const stat = el('div', 'diskw-modal-stat');
+    stat.appendChild(el('span', '', label));
+    stat.appendChild(el('strong', '', value));
+    if (detail) stat.appendChild(el('small', '', detail));
+    return stat;
   }
 
   function advisorFact(label, text) {
@@ -838,7 +840,7 @@
     output.replaceChildren();
     const busy = el('div', 'diskw-modal-ai-busy');
     busy.appendChild(XenonLoader.create({ size: 'sm' }));
-    busy.appendChild(el('div', '', tr('disk_ai_working', 'Xenon sta collegando categorie, cartelle, app e possibili effetti…')));
+    busy.appendChild(el('div', '', tr('disk_ai_working', 'Bit sta leggendo categorie, cartelle e app…')));
     output.appendChild(busy);
     const controller = new AbortController();
     const uiLang = typeof lang !== 'undefined' ? lang : 'en';
@@ -851,10 +853,10 @@
     output.replaceChildren();
     if (out && out.ok && out.text) {
       const meta = el('div', 'diskw-modal-ai-meta');
-      meta.appendChild(el('span', '', '✦ ' + tr('disk_ai_report', 'Rapporto AI')));
+      meta.appendChild(el('strong', '', tr('disk_ai_report', 'Rapporto di Bit')));
       meta.appendChild(el('span', '', out.fullContext
-        ? tr('disk_ai_full_badge', 'contesto PC autorizzato')
-        : tr('disk_ai_snapshot_badge', 'solo fotografia selezionata')));
+        ? tr('disk_ai_full_badge', 'Contesto PC autorizzato')
+        : tr('disk_ai_snapshot_badge', 'Solo fotografia selezionata')));
       output.appendChild(meta);
       const body = el('div', 'diskw-modal-ai-text');
       renderAiMarkdown(body, out.text);
@@ -862,12 +864,197 @@
     } else {
       const code = out && out.error;
       const message = code === 'no_provider'
-        ? tr('disk_ai_no_provider', 'Configura un provider in Impostazioni → Assistente Bit. L’analisi locale qui sopra resta completa e disponibile.')
+        ? tr('disk_ai_no_provider', 'Configura un provider in Impostazioni → Bit. L’analisi locale qui sopra resta completa e disponibile.')
         : code === 'timeout'
           ? tr('disk_ai_timeout', 'Il provider ha impiegato troppo. Nessun dato è stato modificato: puoi riprovare.')
-          : tr('disk_ai_failed', 'L’approfondimento AI non è riuscito. L’analisi locale resta disponibile e nessun file è stato toccato.');
+          : tr('disk_ai_failed', 'Bit non è riuscito a rispondere. L’analisi qui sopra resta disponibile e nessun file è stato toccato.');
       output.appendChild(el('div', 'diskw-modal-ai-error', message));
     }
+  }
+
+  function advisorHead() {
+    const head = el('header', 'diskw-modal-head');
+    const bit = el('span', 'diskw-modal-bit');
+    if (window.BitApp) window.BitApp.showIcon(bit, 'idle');
+    head.appendChild(bit);
+    const heading = el('div', 'diskw-modal-heading');
+    const title = el('h2', '', tr('disk_modal_title', 'Analisi del disco'));
+    title.id = 'diskw-advisor-modal-title';
+    heading.appendChild(title);
+    const selectedRoot = (status && status.roots || []).find((root) => root.i === selRoot);
+    const rootInfo = drivePresentation(selectedRoot || { path: overview.root });
+    heading.appendChild(el('p', '', [rootInfo.primary, ...rootInfo.details].join(', ')));
+    head.appendChild(heading);
+    head.appendChild(btn('diskw-modal-close', '×', closeAdvisorModal, tr('disk_close', 'Chiudi')));
+    return head;
+  }
+
+  function advisorStats(a) {
+    const percent = (value) => (value != null ? Math.round(value) + '%' : '');
+    const stats = el('div', 'diskw-modal-stats');
+    stats.appendChild(advisorStat(tr('disk_used_space', 'Spazio usato'), fmtSize(a.used), percent(a.usedPercent)));
+    stats.appendChild(advisorStat(tr('disk_free_space', 'Spazio libero'), fmtSize(a.free), percent(a.freePercent)));
+    stats.appendChild(advisorStat(
+      tr('disk_recommended_cleanup', 'Pulizia consigliata'),
+      fmtSize(a.safeBytes),
+      tr('disk_recommended_cleanup_hint', 'cache e temporanei rigenerabili')));
+    stats.appendChild(advisorStat(
+      tr('disk_personal_decision', 'Scelta personale'),
+      fmtSize(a.reviewBytes + a.duplicateBytes),
+      tr('disk_personal_decision_hint', 'Xenon non decide al posto tuo')));
+    return stats;
+  }
+
+  function advisorSection(title, intro) {
+    const section = el('section', 'diskw-modal-section');
+    section.appendChild(el('h3', '', title));
+    if (intro) section.appendChild(el('p', 'diskw-modal-section-intro', intro));
+    return section;
+  }
+
+  function advisorRiskWords(risk) {
+    if (risk === 'safe') return tr('disk_risk_recommended', 'Consigliata, con conferma');
+    if (risk === 'permanent') return tr('disk_risk_permanent', 'Definitiva');
+    return tr('disk_risk_your_choice', 'Decidi tu');
+  }
+
+  // The heading of a row that opens, and all there is of one with nothing more to say.
+  function advisorRowHead(tag, item, total) {
+    const head = el(tag, 'diskw-modal-cat-head');
+    head.appendChild(el('strong', 'diskw-modal-cat-name', item.label));
+    head.appendChild(el('strong', 'diskw-modal-cat-size', fmtSize(item.bytes)));
+    head.appendChild(el('span', 'diskw-modal-cat-risk', advisorRiskWords(item.risk)));
+    if (item.count) {
+      head.appendChild(el('span', 'diskw-modal-cat-count', fmtNumber(item.count) + ' ' + tr('disk_items', 'elementi')));
+    }
+    const bar = el('span', 'diskw-modal-cat-bar');
+    const fill = el('span');
+    fill.style.width = Math.max(2, Math.min(100, item.bytes / total * 100)) + '%';
+    bar.appendChild(fill);
+    head.appendChild(bar);
+    return head;
+  }
+
+  function advisorCategory(item, total) {
+    const meta = CAT_META[item.id] || { desc: ['', ''] };
+    const guide = CATEGORY_GUIDE[item.id] || {};
+    const row = el('details', 'diskw-modal-cat diskw-risk-' + item.risk);
+    row.setAttribute('name', 'diskw-cat');   // one open at a time: the list stays a list
+    const head = advisorRowHead('summary', item, total);
+    head.appendChild(el('span', 'diskw-modal-caret'));
+    row.appendChild(head);
+    const body = el('div', 'diskw-modal-cat-body');
+    body.appendChild(advisorFact(tr('disk_what_is_it', 'Cos’è e a cosa serve'), tr(meta.desc[0], meta.desc[1])));
+    if (guide.after) {
+      body.appendChild(advisorFact(tr('disk_after_cleaning', 'Cosa succede dopo'), tr(guide.after[0], guide.after[1])));
+    }
+    if (guide.prevent) {
+      body.appendChild(advisorFact(tr('disk_reduce_recurrence', 'Come farlo tornare meno'), tr(guide.prevent[0], guide.prevent[1])));
+    }
+    body.appendChild(btn('diskw-modal-review', item.id === 'recycleBin'
+      ? tr('disk_review_bin', 'Controlla il Cestino')
+      : tr('disk_review_items', 'Rivedi gli elementi'), () => {
+      closeAdvisorModal();
+      activeView = 'clean';
+      beginReview(item.id);
+    }));
+    row.appendChild(body);
+    return row;
+  }
+
+  function advisorRecoveryItems(a) {
+    const items = a.categories
+      .filter((category) => category.bytes > 0 || category.count > 0)
+      .map((category) => ({ ...category, label: categoryName(category.id) }));
+    if (a.duplicateBytes > 0) {
+      items.push({ label: tr('disk_verified_copies', 'Copie identiche verificate'), bytes: a.duplicateBytes, risk: 'review' });
+    }
+    return items.sort((left, right) => right.bytes - left.bytes);
+  }
+
+  function advisorRecovery(a) {
+    const items = advisorRecoveryItems(a);
+    const title = tr('disk_recovery_map', 'Spazio che puoi liberare');
+    if (!items.length) {
+      const empty = advisorSection(title);
+      empty.appendChild(el('p', 'diskw-modal-empty',
+        tr('disk_no_cleanup_candidates', 'Non risultano candidati di pulizia in questa fotografia.')));
+      return empty;
+    }
+    const section = advisorSection(title, tr('disk_recovery_map_hint', 'Apri una voce per sapere cos’è e cosa succede dopo.'));
+    const total = Math.max(1, items.reduce((sum, item) => sum + item.bytes, 0));
+    const list = el('div', 'diskw-modal-cats');
+    for (const item of items) {
+      if (item.id) {
+        list.appendChild(advisorCategory(item, total));
+        continue;
+      }
+      const row = el('div', 'diskw-modal-cat diskw-risk-' + item.risk);
+      row.appendChild(advisorRowHead('div', item, total));
+      list.appendChild(row);
+    }
+    section.appendChild(list);
+    return section;
+  }
+
+  function advisorLargestRow(name, path, size) {
+    const row = el('div', 'diskw-modal-largest-row');
+    const copy = el('div');
+    copy.appendChild(el('strong', '', name));
+    copy.appendChild(el('span', '', ltrPath(path)));
+    row.appendChild(copy);
+    row.appendChild(el('b', '', fmtSize(size)));
+    return row;
+  }
+
+  function advisorLargest() {
+    const section = advisorSection(tr('disk_largest_not_delete', 'Gli elementi più grandi'),
+      tr('disk_largest_not_delete_hint', 'Questi elementi spiegano il disco; non entrano nella pulizia automatica. Disinstalla app e giochi dal loro gestore quando possibile.'));
+    const rootPath = String(overview.root || '').replace(/\\+$/, '').toLowerCase();
+    const folders = (overview.tree || []).filter((item) =>
+      String(item.p || '').replace(/\\+$/, '').toLowerCase() !== rootPath).slice(0, 6);
+    const files = (overview.topFiles || []).slice(0, 6);
+    const list = el('div', 'diskw-modal-largest');
+    folders.forEach((item) => list.appendChild(advisorLargestRow(pathLeaf(item.p), item.p, item.s)));
+    files.forEach((item) => list.appendChild(advisorLargestRow(item.n || pathLeaf(item.p), item.p, item.s)));
+    if (!folders.length && !files.length) {
+      list.appendChild(el('p', 'diskw-modal-empty', tr('disk_no_large_items', 'Nessun elemento grande disponibile.')));
+    }
+    section.appendChild(list);
+    const guard = el('div', 'diskw-modal-do-not-touch');
+    guard.appendChild(el('strong', '', tr('disk_never_auto_title', 'Xenon non decide mai su questi dati')));
+    guard.appendChild(el('p', '', tr('disk_never_auto_detail',
+      'Documenti, foto, video, cartelle delle app, file di sistema, dati riservati e copie identiche restano fuori dalla pulizia consigliata finché una regola chiusa e le protezioni non dicono il contrario.')));
+    section.appendChild(guard);
+    return section;
+  }
+
+  function advisorAi() {
+    const section = el('section', 'diskw-modal-section');
+    const head = el('div', 'diskw-modal-ai-head');
+    const copy = el('div');
+    copy.appendChild(el('h3', '', tr('disk_ai_deep_title', 'Analisi di Bit')));
+    copy.appendChild(el('p', 'diskw-modal-section-intro', advisorFullContext()
+      ? tr('disk_ai_share_full', 'Su tua autorizzazione, il provider riceve nomi e pesi di questa fotografia più profilo hardware, app installate, cartelle frequenti e aperture recenti. Mai il contenuto dei file.')
+      : tr('disk_ai_share_snapshot', 'Solo se premi il pulsante, il provider riceve nomi, percorsi, pesi e categorie di questa fotografia. Mai il contenuto dei file.')));
+    head.appendChild(copy);
+    const ready = advisorAiReady();
+    const output = el('div', 'diskw-modal-ai-output');
+    const key = btn('diskw-modal-ask', ready ? tr('disk_ai_deepen', 'Chiedi a Bit') : tr('disk_ai_configure', 'Configura Bit'), () => {
+      if (ready) {
+        runAdvisorAi(key, output);
+        return;
+      }
+      closeAdvisorModal();
+      openSettingsCategory('ai');   // was a toggle: with Settings open it closed them
+    });
+    head.appendChild(key);
+    output.appendChild(el('p', 'diskw-modal-ai-note', ready
+      ? tr('disk_ai_optional', 'Facoltativo: l’analisi locale sopra funziona già senza inviare nulla.')
+      : tr('disk_ai_not_enabled', 'Bit non è ancora configurato. Tutto quello che vedi qui sopra funziona anche senza.')));
+    section.appendChild(head);
+    section.appendChild(output);
+    return section;
   }
 
   function openAdvisorModal() {
@@ -877,217 +1064,26 @@
     if (!a) return;
     const overlay = el('div', 'diskw-advisor-modal');
     const dialog = el('section', 'diskw-advisor-dialog');
+    dialog.tabIndex = -1;
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'diskw-advisor-modal-title');
-
-    const head = el('div', 'diskw-modal-head');
-    const heading = el('div', 'diskw-modal-heading');
-    heading.appendChild(el('span', 'diskw-modal-mark', '✦'));
-    const headingCopy = el('div');
-    const modalTitle = el('h2', '', tr('disk_modal_title', 'Xenon Storage Advisor'));
-    modalTitle.id = 'diskw-advisor-modal-title';
-    headingCopy.appendChild(modalTitle);
-    const selectedRoot = (status && status.roots || []).find((root) => root.i === selRoot);
-    const rootInfo = drivePresentation(selectedRoot || { path: overview.root });
-    headingCopy.appendChild(el('p', '', rootInfo.primary + ' · ' + rootInfo.secondary));
-    heading.appendChild(headingCopy);
-    head.appendChild(heading);
-    head.appendChild(btn('diskw-modal-close', '×', closeAdvisorModal, tr('disk_close', 'Chiudi')));
-    dialog.appendChild(head);
-
-    const localNotice = el('div', 'diskw-modal-local');
-    localNotice.appendChild(el('strong', '', '✓ ' + tr('disk_local_analysis', 'Analisi locale pronta')));
-    localNotice.appendChild(el('span', '', tr('disk_local_analysis_detail', 'Questa prima analisi nasce sul PC e non usa né richiede l’AI.')));
-    dialog.appendChild(localNotice);
-
-    const stats = el('div', 'diskw-modal-stats');
-    stats.appendChild(advisorStat(
-      tr('disk_used_space', 'Spazio usato'),
-      fmtSize(a.used),
-      tr('disk_used_space_hint', 'capacità meno spazio libero')));
-    stats.appendChild(advisorStat(
-      tr('disk_free_space', 'Spazio libero'),
-      fmtSize(a.free),
-      a.freePercent != null ? Math.round(a.freePercent) + '%' : '—'));
-    stats.appendChild(advisorStat(
-      tr('disk_recommended_cleanup', 'Pulizia consigliata'),
-      fmtSize(a.safeBytes),
-      tr('disk_recommended_cleanup_hint', 'cache e temporanei rigenerabili')));
-    stats.appendChild(advisorStat(
-      tr('disk_personal_decision', 'Scelta personale'),
-      fmtSize(a.reviewBytes + a.duplicateBytes),
-      tr('disk_personal_decision_hint', 'Xenon non decide al posto tuo')));
-    dialog.appendChild(stats);
-
-    const present = a.categories.filter((category) => category.bytes > 0 || category.count > 0);
-    const chartSection = el('section', 'diskw-modal-section');
-    chartSection.appendChild(el('h3', '', tr('disk_recovery_map', 'Dove si trova il possibile recupero')));
-    chartSection.appendChild(el('p', 'diskw-modal-section-intro',
-      tr('disk_recovery_map_hint', 'Il colore indica il tipo di decisione, non un’autorizzazione a cancellare automaticamente.')));
-    const chartTotal = Math.max(1, present.reduce((sum, category) => sum + category.bytes, 0) + a.duplicateBytes);
-    const chart = el('div', 'diskw-modal-chart');
-    const chartRows = [...present.map((category) => ({
-      label: categoryName(category.id),
-      bytes: category.bytes,
-      risk: category.risk,
-    }))];
-    if (a.duplicateBytes > 0) {
-      chartRows.push({
-        label: tr('disk_verified_copies', 'Copie identiche verificate'),
-        bytes: a.duplicateBytes,
-        risk: 'review',
-      });
-    }
-    chartRows.sort((left, right) => right.bytes - left.bytes);
-    if (!chartRows.length) {
-      chart.appendChild(el('div', 'diskw-modal-empty',
-        tr('disk_no_cleanup_candidates', 'Non risultano candidati di pulizia in questa fotografia.')));
-    }
-    for (const item of chartRows) {
-      const row = el('div', 'diskw-modal-chart-row diskw-risk-' + item.risk);
-      const rowHead = el('div');
-      rowHead.appendChild(el('span', '', item.label));
-      rowHead.appendChild(el('strong', '', fmtSize(item.bytes)));
-      row.appendChild(rowHead);
-      const bar = el('div', 'diskw-modal-chart-track');
-      const fill = el('span', '');
-      fill.style.width = Math.max(2, Math.min(100, item.bytes / chartTotal * 100)) + '%';
-      bar.appendChild(fill);
-      row.appendChild(bar);
-      chart.appendChild(row);
-    }
-    chartSection.appendChild(chart);
-    dialog.appendChild(chartSection);
-
-    const guideSection = el('section', 'diskw-modal-section');
-    guideSection.appendChild(el('h3', '', tr('disk_cleanup_encyclopedia', 'Cosa sono, cosa succede, come limitarli')));
-    guideSection.appendChild(el('p', 'diskw-modal-section-intro',
-      tr('disk_cleanup_encyclopedia_hint', 'Ogni voce è spiegata prima che tu debba prendere una decisione.')));
-    const guides = el('div', 'diskw-modal-guides');
-    for (const category of present) {
-      const meta = CAT_META[category.id] || { icon: '•', desc: ['', ''] };
-      const guide = CATEGORY_GUIDE[category.id] || {};
-      const card = el('article', 'diskw-modal-guide diskw-risk-' + category.risk);
-      const cardHead = el('div', 'diskw-modal-guide-head');
-      cardHead.appendChild(el('span', 'diskw-cat-icon', meta.icon));
-      const cardTitle = el('div');
-      cardTitle.appendChild(el('strong', '', categoryName(category.id)));
-      cardTitle.appendChild(el('small', '', category.risk === 'safe'
-        ? tr('disk_risk_recommended', 'Consigliata, con conferma')
-        : category.risk === 'permanent'
-          ? tr('disk_risk_permanent', 'Definitiva')
-          : tr('disk_risk_your_choice', 'Decidi tu')));
-      cardHead.appendChild(cardTitle);
-      const amount = el('div', 'diskw-modal-guide-size');
-      amount.appendChild(el('strong', '', fmtSize(category.bytes)));
-      amount.appendChild(el('small', '', fmtNumber(category.count) + ' ' + tr('disk_items', 'elementi')));
-      cardHead.appendChild(amount);
-      card.appendChild(cardHead);
-      card.appendChild(advisorFact(
-        tr('disk_what_is_it', 'Cos’è e a cosa serve'),
-        tr(meta.desc[0], meta.desc[1])));
-      if (guide.after) {
-        card.appendChild(advisorFact(
-          tr('disk_after_cleaning', 'Cosa succede dopo'),
-          tr(guide.after[0], guide.after[1])));
-      }
-      if (guide.prevent) {
-        card.appendChild(advisorFact(
-          tr('disk_reduce_recurrence', 'Come farlo tornare meno'),
-          tr(guide.prevent[0], guide.prevent[1])));
-      }
-      card.appendChild(btn('diskw-modal-review', category.id === 'recycleBin'
-        ? tr('disk_review_bin', 'Controlla il Cestino')
-        : tr('disk_review_items', 'Rivedi gli elementi'), () => {
-        closeAdvisorModal();
-        activeView = 'clean';
-        beginReview(category.id);
-      }));
-      guides.appendChild(card);
-    }
-    if (!present.length) {
-      guides.appendChild(el('div', 'diskw-modal-empty',
-        tr('disk_already_clean', 'Non ci sono categorie di pulizia attive: il valore del widget è soprattutto capire dove si trova lo spazio.')));
-    }
-    guideSection.appendChild(guides);
-    dialog.appendChild(guideSection);
-
-    const largestSection = el('section', 'diskw-modal-section');
-    largestSection.appendChild(el('h3', '', tr('disk_largest_not_delete', 'Più grandi non significa eliminabili')));
-    largestSection.appendChild(el('p', 'diskw-modal-section-intro',
-      tr('disk_largest_not_delete_hint', 'Questi elementi spiegano il disco; non entrano nella pulizia automatica. Disinstalla app e giochi dal loro gestore quando possibile.')));
-    const largest = el('div', 'diskw-modal-largest');
-    const rootPath = String(overview.root || '').replace(/\\+$/, '').toLowerCase();
-    const folders = (overview.tree || []).filter((item) =>
-      String(item.p || '').replace(/\\+$/, '').toLowerCase() !== rootPath).slice(0, 6);
-    const files = (overview.topFiles || []).slice(0, 6);
-    for (const item of [...folders.map((entry) => ({ ...entry, kind: 'folder' })),
-      ...files.map((entry) => ({ ...entry, kind: 'file' }))]) {
-      const row = el('div', 'diskw-modal-largest-row');
-      row.appendChild(el('span', 'diskw-path-icon', item.kind === 'folder' ? '▰' : '▤'));
-      const copy = el('div');
-      copy.appendChild(el('strong', '', item.kind === 'folder'
-        ? pathLeaf(item.p)
-        : (item.n || pathLeaf(item.p))));
-      copy.appendChild(el('span', '', ltrPath(item.p)));
-      row.appendChild(copy);
-      row.appendChild(el('b', '', fmtSize(item.s)));
-      largest.appendChild(row);
-    }
-    if (!folders.length && !files.length) {
-      largest.appendChild(el('div', 'diskw-modal-empty', tr('disk_no_large_items', 'Nessun elemento grande disponibile.')));
-    }
-    largestSection.appendChild(largest);
-    const guard = el('div', 'diskw-modal-do-not-touch');
-    guard.appendChild(el('strong', '', tr('disk_never_auto_title', 'Xenon non decide mai su questi dati')));
-    guard.appendChild(el('p', '', tr('disk_never_auto_detail',
-      'Documenti, foto, video, cartelle delle app, file di sistema, dati riservati e copie identiche restano fuori dalla pulizia consigliata finché una regola chiusa e le protezioni non dicono il contrario.')));
-    largestSection.appendChild(guard);
-    dialog.appendChild(largestSection);
-
-    const aiSection = el('section', 'diskw-modal-section diskw-modal-ai');
-    const aiHead = el('div', 'diskw-modal-ai-head');
-    const aiCopy = el('div');
-    aiCopy.appendChild(el('h3', '', tr('disk_ai_deep_title', 'Approfondimento con la tua AI')));
-    const fullContext = advisorFullContext();
-    aiCopy.appendChild(el('p', '', fullContext
-      ? tr('disk_ai_share_full', 'Su tua autorizzazione, il provider riceve nomi e pesi di questa fotografia più app installate, cartelle frequenti e aperture recenti. Mai il contenuto dei file.')
-      : tr('disk_ai_share_snapshot', 'Solo se premi il pulsante, il provider riceve nomi, percorsi, pesi e categorie di questa fotografia. Mai il contenuto dei file.')));
-    aiHead.appendChild(aiCopy);
-    const aiButton = btn('diskw-ai-btn', tr('disk_ai_deepen', 'Approfondisci con AI'), () => {});
-    aiHead.appendChild(aiButton);
-    aiSection.appendChild(aiHead);
-    const aiOutput = el('div', 'diskw-modal-ai-output');
-    if (advisorAiReady()) {
-      aiOutput.appendChild(el('div', 'diskw-modal-ai-ready',
-        tr('disk_ai_optional', 'Facoltativo: l’analisi locale sopra funziona già senza inviare nulla.')));
-      aiButton.addEventListener('click', () => runAdvisorAi(aiButton, aiOutput));
-    } else {
-      aiButton.textContent = tr('disk_ai_configure', 'Configura Bit');
-      aiButton.addEventListener('click', () => {
-        closeAdvisorModal();
-        openSettingsCategory('ai');   // was a toggle: with Settings open it closed them
-      });
-      aiOutput.appendChild(el('div', 'diskw-modal-ai-ready',
-        tr('disk_ai_not_enabled', 'Nessuna AI configurata: non c’è alcun errore. Tutti i numeri e le spiegazioni locali restano disponibili.')));
-    }
-    aiSection.appendChild(aiOutput);
-    dialog.appendChild(aiSection);
-
+    dialog.appendChild(advisorHead());
+    const body = el('div', 'diskw-advisor-body');
+    body.appendChild(advisorStats(a));
+    body.appendChild(advisorRecovery(a));
+    body.appendChild(advisorLargest());
+    body.appendChild(advisorAi());
+    dialog.appendChild(body);
     overlay.appendChild(dialog);
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) closeAdvisorModal();
     });
-    advisorKeyHandler = (event) => {
-      if (event.key !== 'Escape' || !advisorModal) return;
-      closeAdvisorModal();
-    };
-    document.addEventListener('keydown', advisorKeyHandler);
     advisorModal = overlay;
     document.body.appendChild(overlay);
     document.body.classList.add('diskw-advisor-open');
-    dialog.querySelector('.diskw-modal-close').focus();
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('disk-advisor', true);
+    if (window.DialogFocus) advisorLetGo = window.DialogFocus.hold(dialog, { onEsc: closeAdvisorModal });
   }
 
   function childrenOf(rootPath) {
@@ -1580,11 +1576,8 @@
     const meta = CAT_META[cat] || { risk: 'review' };
     const box = el('section', 'diskw-confirm diskw-risk-' + meta.risk);
     const head = el('div', 'diskw-confirm-head');
-    const title = el('div');
-    title.appendChild(el('span', 'diskw-confirm-kicker', riskLabel(meta.risk)));
-    title.appendChild(el('h3', '', categoryName(cat)));
-    head.appendChild(title);
-    head.appendChild(btn('diskw-icon-btn', '×', () => { confirmCat = null; selectedIds.clear(); renderAll(); }, tr('disk_cancel', 'Annulla')));
+    head.appendChild(el('h3', '', categoryName(cat)));
+    head.appendChild(el('span', 'diskw-confirm-risk', riskLabel(meta.risk)));
     box.appendChild(head);
 
     if (cat === 'recycleBin') {
@@ -1614,7 +1607,7 @@
         label.appendChild(check);
         const copy = el('span', 'diskw-confirm-copy');
         copy.appendChild(el('span', 'diskw-confirm-path', ltrPath(item.p)));
-        copy.appendChild(el('small', '', (item.kind === 'dir' ? tr('disk_folder', 'Cartella') : tr('disk_file', 'File')) + ' · ' + fmtSize(item.s)));
+        copy.appendChild(el('small', '', (item.kind === 'dir' ? tr('disk_folder', 'Cartella') : tr('disk_file', 'File')) + ', ' + fmtSize(item.s)));
         label.appendChild(copy);
         list.appendChild(label);
       }
@@ -1632,8 +1625,8 @@
       cleaning ? tr('disk_cleaning', 'Pulizia…') : (cat === 'recycleBin' ? tr('disk_confirm_empty', 'Svuota definitivamente') : tr('disk_confirm_move', 'Sposta nel Cestino')),
       () => runClean(cat));
     confirm.disabled = cleaning || (cat !== 'recycleBin' && summary.count === 0);
-    actions.appendChild(confirm);
     actions.appendChild(btn('diskw-btn', tr('disk_cancel', 'Annulla'), () => { confirmCat = null; selectedIds.clear(); renderAll(); }));
+    actions.appendChild(confirm);
     box.appendChild(actions);
     return box;
   }
@@ -1650,8 +1643,6 @@
     const hero = el('div', 'diskw-clean-loader-hero');
     hero.appendChild(XenonLoader.create({ size: 'lg' }));
     const copy = el('div', 'diskw-clean-loader-copy');
-    copy.appendChild(el('span', 'diskw-clean-loader-kicker',
-      tr('disk_clean_operation', 'Operazione protetta')));
     const title = refreshing
       ? tr('disk_clean_refresh_title', 'Aggiorno la mappa del disco')
       : permanent

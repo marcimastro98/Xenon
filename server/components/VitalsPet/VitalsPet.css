@@ -319,7 +319,6 @@ body.overlay-frozen .vpet-go-coin { animation-play-state: paused; }
 }
 
 /* Settings: small visual break before the Bit sub-section inside the Vitals card. */
-.vpet-settings-head { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) {
   .vpet-go-title, .vpet-go-coin { animation: none; }

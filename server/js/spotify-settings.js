@@ -35,18 +35,28 @@
     const st = (await api(BASE + '/status')) || {};
     if (!mount()) return;                 // closed while awaiting
     host.replaceChildren(buildCard(st));
+    // The steps are open only while they are the next thing to do.
+    const steps = document.getElementById('settings-spotify-steps');
+    if (steps) steps.open = !st.configured && !st.connected;
+  }
+
+  // A name on the left and its key on the right, like every Settings row.
+  function keyRow(text, key, cls) {
+    const row = el('div', 'settings-row');
+    const line = el('span', 'settings-label-line');
+    line.appendChild(el('span', cls, text));
+    row.append(line, key);
+    return row;
   }
 
   function buildCard(st) {
     const card = el('div', 'streaming-card');
     card.dataset.provider = 'spotify';
-    const head = el('div', 'streaming-card-head');
-    head.appendChild(el('span', 'streaming-card-title', 'Spotify'));
-    head.appendChild(el('span', 'streaming-dot' + (st.connected ? ' on' : '')));
-    card.appendChild(head);
 
     if (st.connected) {
-      card.appendChild(el('p', 'streaming-connected', t('streaming_connected_as', 'Connected as') + ' ' + (st.login || '')));
+      const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
+      out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(BASE + '/logout', { method: 'POST' }); render(); });
+      card.appendChild(keyRow(t('streaming_connected_as', 'Connected as') + ' ' + (st.login || ''), out, 'streaming-connected'));
       // A connected token with no display name usually means Spotify didn't confirm
       // the account (approved with a different account than the one that owns the
       // app, or the app is in Development Mode and the account isn't added under
@@ -60,16 +70,13 @@
       }
       // Only where the app can start minimized (not the Linux client).
       if (st.canStartMinimized) card.appendChild(buildStartMinimizedRow());
-      const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
-      out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(BASE + '/logout', { method: 'POST' }); render(); });
-      card.appendChild(out);
       if (st.configured) card.appendChild(buildCredActions());
       return card;
     }
     if (!st.configured) { card.appendChild(buildSetupForm()); return card; }
     const btn = el('button', 'settings-btn primary', t('streaming_connect', 'Connect'));
     btn.addEventListener('click', () => startLogin(card, btn));
-    card.appendChild(btn);
+    card.appendChild(keyRow(t('streaming_spotify_account', 'Your Spotify account'), btn));
     card.appendChild(buildCredActions());
     return card;
   }
@@ -102,8 +109,8 @@
   // (empty string, which saveStreamConfig accepts) and drops any token, returning
   // the card to first-time setup. Mirrors the generic Streaming hub cards.
   function buildCredActions() {
-    const box = el('div', 'streaming-cred-actions');
-    const edit = el('button', 'settings-btn settings-btn-ghost', t('streaming_edit_creds', 'Edit credentials'));
+    const box = el('div', 'settings-row settings-row-keys streaming-cred-actions');
+    const edit = el('button', 'settings-btn', t('streaming_edit_creds', 'Edit credentials'));
     edit.addEventListener('click', () => { edit.remove(); box.parentNode.insertBefore(buildSetupForm(), box); });
     box.appendChild(edit);
     const reset = el('button', 'settings-btn danger', t('streaming_reset_creds', 'Reset credentials'));
@@ -123,16 +130,18 @@
   function buildSetupForm() {
     const box = el('div', 'streaming-setup');
     box.appendChild(buildCopyRow(t('streaming_spotify_redirect', 'Redirect URI (add this to your Spotify app)'), redirectUri()));
-    const link = el('a', 'streaming-setup-link', t('streaming_open_console', 'Open developer console'));
-    link.href = 'https://developer.spotify.com/dashboard'; link.target = '_blank'; link.rel = 'noopener';
-    box.appendChild(link);
-    const field = el('label', 'streaming-field');
-    field.appendChild(el('span', 'streaming-field-label', t('streaming_field_clientid', 'Client ID')));
+    const field = el('label', 'settings-row');
+    const name = el('span', 'settings-label-line');
+    name.appendChild(el('span', null, t('streaming_field_clientid', 'Client ID')));
+    field.appendChild(name);
     const inp = document.createElement('input');
-    inp.type = 'text'; inp.className = 'settings-text-input streaming-input';
+    inp.type = 'text'; inp.className = 'settings-text-input';
     inp.spellcheck = false; inp.autocomplete = 'off';
     field.appendChild(inp);
     box.appendChild(field);
+    const keys = el('div', 'settings-row settings-row-keys');
+    const link = el('a', 'settings-btn', t('streaming_open_console', 'Open developer console'));
+    link.href = 'https://developer.spotify.com/dashboard'; link.target = '_blank'; link.rel = 'noopener';
     const save = el('button', 'settings-btn primary', t('streaming_save', 'Save'));
     save.addEventListener('click', async () => {
       const v = inp.value.trim();
@@ -141,15 +150,18 @@
       await api('/stream/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spotifyClientId: v }) });
       render();   // now configured → Connect button
     });
-    box.appendChild(save);
+    keys.append(save, link);
+    box.appendChild(keys);
     return box;
   }
 
   // A read-only value with a one-tap Copy button — used for the redirect URI so the
   // user can paste it into Spotify without re-typing it exactly.
   function buildCopyRow(labelText, value) {
-    const wrap = el('div', 'streaming-field streaming-copy');
-    wrap.appendChild(el('span', 'streaming-field-label', labelText));
+    const wrap = el('div', 'settings-row streaming-copy');
+    const name = el('span', 'settings-label-line');
+    name.appendChild(el('span', null, labelText));
+    wrap.appendChild(name);
     const row = el('div', 'streaming-copy-row');
     const code = el('code', 'streaming-copy-val', value);
     const btn = el('button', 'settings-btn streaming-copy-btn', t('streaming_copy', 'Copy'));

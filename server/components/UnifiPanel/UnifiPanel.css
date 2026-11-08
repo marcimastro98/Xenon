@@ -139,9 +139,6 @@
 @keyframes up-alert-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 /* ── Settings: Notifications sub-section ──────────────────────────── */
-.up-notify-master { font-weight: 700; }
-.up-notify-body { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; transition: opacity 140ms ease; }
-.up-notify-body.is-disabled { opacity: 0.4; pointer-events: none; }
 
 /* ── Setup / empty state ─────────────────────────────────────────── */
 .up-setup {
@@ -203,24 +200,6 @@
 .up-overlay-close { margin-left: 2px; }
 
 /* ── Settings: Layout controls + camera reorder ──────────────────── */
-.up-layout { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-.up-seg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.up-seg {
-  display: inline-flex; gap: 2px; padding: 3px; flex: 0 0 auto;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
-}
-.up-seg-btn {
-  min-width: 36px; padding: 6px 11px;
-  border: 0; border-radius: 7px; cursor: pointer;
-  background: transparent; color: rgba(255,255,255,0.66);
-  font-size: 0.78rem; font-weight: 700; font-family: inherit;
-  transition: background 140ms ease, color 140ms ease;
-}
-.up-seg-btn:hover { color: #fff; }
-.up-seg-btn.is-active { background: rgba(var(--accent-rgb), 0.9); color: #fff; }
-.up-seg-btn:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 2px; }
 
 .up-reorder-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -244,7 +223,4 @@
 :root[data-style="retro"] .up-overlay-frame { border-radius: 4px; }
 :root[data-style="retro"] .up-cam-alert { border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
 :root[data-style="retro"] .up-cam-name { text-transform: uppercase; letter-spacing: 0.04em; }
-:root[data-style="retro"] .up-seg,
-:root[data-style="retro"] .up-seg-btn,
 :root[data-style="retro"] .up-move-btn { border-radius: 4px; }
-:root[data-style="retro"] .up-seg-btn { text-transform: uppercase; letter-spacing: 0.03em; }

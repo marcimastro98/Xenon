@@ -64,8 +64,29 @@ test('a key that never lights up can be made a switch from its On face', () => {
   assert.match(read('../components/DeckPanel/DeckPanel.css'), /\.deck-ed-facebtns \{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; \}/);
 });
 
-test('on a phone the save bar is two rows of two, never wider than the screen', () => {
+test('on a phone the keys share one row, never wider than the screen', () => {
   const css = read('../components/DeckPanel/DeckPanel.css');
-  assert.match(css, /@media \(max-width: 520px\) \{\n  \.deck-ed-actions \{ display: grid; grid-template-columns: 1fr 1fr; \}/);
-  assert.match(css, /\.deck-ed-actions > \.deck-ed-btn:last-child:nth-child\(odd\) \{ grid-column: 1 \/ -1; \}/);
+  const phone = css.slice(css.indexOf('@media (max-width: 520px) {\n  .deck-ed-actions'));
+  assert.match(phone.slice(0, phone.indexOf('\n}\n')), /\.deck-ed-actions > \.deck-ed-btn \{ flex: 1 1 0; min-width: 0;/);
+});
+
+test('a macro from the Xenon menu opens on name, actions and shortcut, the rest behind More options', () => {
+  const deck = read('../js/deck.js');
+  const open = deck.slice(deck.indexOf('async function openMacro'), deck.indexOf('// Render every deck tile'));
+  assert.match(open, /simple: true/);
+  assert.match(open, /needsShortcut: true/);
+  assert.match(open, /tab: 'actions'/, 'a saved macro opens on what it does, not on its look');
+  assert.match(open, /titleKey: keyId \? 'xmenu_key_edit' : 'xmenu_key_new'/);
+  assert.match(ED, /\[fKind, behavior\.el, fTrig, fConfirm\]\.forEach\(\(n\) => n\.classList\.add\('deck-ed-advanced'\)\);/);
+  const css = read('../components/DeckPanel/DeckPanel.css');
+  for (const sel of ['.deck-ed-side', '.deck-ed-tabs', '.deck-ed-advanced']) assert.ok(css.includes('.deck-ed-modal--simple ' + sel), sel);
+  assert.match(ED, /opts\.simple = false;/, 'a reopen after More options stays open');
+  for (const k of ['deck_edit_more', 'xmenu_key_edit', 'deck_shortcut_needed']) {
+    assert.equal((I18N.match(new RegExp('^ +"?' + k + '"?: ', 'gm')) || []).length, 11, k);
+  }
+});
+
+test('a macro cannot be saved without a shortcut: Keys lists only keys that have one', () => {
+  assert.match(ED, /if \(opts\.needsShortcut && !shortcut\.ask\(\)\) return;/);
+  assert.match(read('../js/deck-editor-shortcut.js'), /ask\(\) \{ if \(!value\) say\('deck_shortcut_needed', true\); return !!value; \}/);
 });

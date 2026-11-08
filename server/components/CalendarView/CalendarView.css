@@ -39,8 +39,6 @@
 
 .calendar-top,
 .calendar-nav,
-.event-form-row,
-.event-item-top,
 .calendar-mini-player {
   display: flex;
   align-items: center;
@@ -177,15 +175,26 @@
   border: 1px solid rgba(255,255,255,0.10);
   background: var(--surface-alt);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  container-type: inline-size;
 }
 
-.calendar-nav { justify-content: space-between; gap: 10px; }
+/* In a narrow tile the buttons take a line of their own instead of running off the card. */
+.calendar-nav { justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; }
 
 .calendar-month {
   color: var(--text);
   font-size: 15.5px;
   font-weight: 900;
   text-transform: capitalize;
+  white-space: nowrap;
+}
+
+/* The app's Zoom halves a tile's CSS width at 200%: the short name keeps month and
+   buttons on one line, and the line saved goes to the events. */
+.calendar-month-short { display: none; }
+@container (max-width: 280px) {
+  .calendar-month-long { display: none; }
+  .calendar-month-short { display: inline; }
 }
 
 .calendar-nav-actions { display: flex; gap: 6px; }
@@ -226,16 +235,19 @@
   letter-spacing: 0.4px;
 }
 
+/* A week row never falls under the digit inside it: a grid row does not clip its item,
+   so in a short tile the numbers were drawn through their neighbours. */
 .calendar-days {
   min-height: 0;
-  grid-template-rows: repeat(var(--calendar-weeks, 5), minmax(0, 1fr));
-  grid-auto-rows: minmax(0, 1fr);
+  grid-template-rows: repeat(var(--calendar-weeks, 5), minmax(24px, 1fr));
+  grid-auto-rows: minmax(24px, 1fr);
 }
 
+/* The bottom padding is the dots' lane, on every day so that a row's numbers line up. */
 .day-cell {
   min-width: 0;
   min-height: 0;
-  padding: 0;
+  padding: 0 0 4px;
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 8px;
   background: var(--surface-alt);
@@ -266,7 +278,7 @@
 .day-dots {
   position: absolute;
   left: 50%;
-  bottom: 3px;
+  bottom: 2px;
   display: flex;
   gap: 3px;
   transform: translateX(-50%);
@@ -437,7 +449,11 @@
 
 .cal-pane[hidden] { display: none; }
 
-.cal-pane .calendar-card { flex: 1; }
+/* The month keeps its height and fills what the events leave; the pane scrolls whatever
+   does not fit, so no event is lost in a short tile. */
+.cal-pane .calendar-card { flex: 1 0 auto; }
+.cal-pane[data-calpane="calendar"] { overflow-y: auto; }
+.cal-pane[data-calpane="calendar"] .upcoming-block { flex: 0 0 auto; }
 
 /* tasks pane inherits TasksPanel.css selectors — just reset outer padding */
 .cal-pane .tasks-add-row,
@@ -454,7 +470,7 @@
 /* Standalone Calendar widget (extracted from the Agenda hub) */
 .calendar-panel {
   padding: 16px;
-  overflow: hidden;
+  overflow: hidden auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -462,7 +478,4 @@
 /* The moved .calendar-card must FILL the tile (like it does via flex:1 inside the
    hub's .cal-pane), otherwise the month grid collapses to its minimum and the
    days render tiny instead of filling the available box. */
-.calendar-panel > .calendar-card {
-  flex: 1 1 auto;
-  min-height: 0;
-}
+.calendar-panel > .calendar-card { flex: 1 0 auto; }

@@ -76,15 +76,15 @@
   }
 
   function optionText(entry) {
-    return S().plausible(entry.type, entry.value) ? entry.name + ' · ' + formatValue(entry) : entry.name;
+    return S().plausible(entry.type, entry.value) ? entry.name + ', ' + formatValue(entry) : entry.name;
   }
 
   function fillSelect(select, metric, sensors, autoName) {
     const type = S().SENSOR_METRICS[metric];
-    // "Automatic · Core (Tctl/Tdie)": the closed list says which sensor the
+    // "Automatic, Core (Tctl/Tdie)": the closed list says which sensor the
     // automatic pick is reading, where the collector knows it.
     const autoLabel = t('sensor_src_auto', 'Automatic');
-    const auto = el('option', '', autoName ? autoLabel + ' · ' + autoName : autoLabel);
+    const auto = el('option', '', autoName ? autoLabel + ', ' + autoName : autoLabel);
     auto.value = 'auto';
     const frag = [auto];
     const groups = new Map();
@@ -122,14 +122,15 @@
       const row = el('div', 'settings-row');
       const label = el('span', 'settings-label-line');
       label.appendChild(el('span', '', t(key, fb)));
-      const select = el('select', 'sensor-src-select');
+      const select = el('select', 'settings-select');
       select.setAttribute('aria-label', t(key, fb));
       select.setAttribute('data-custom-select', '');
       select.setAttribute('data-cs-fixed', '');
       select.addEventListener('change', () => save(metric, select.value));
-      const note = el('span', 'settings-note');
+      const note = el('span', 'settings-hint');
       note.hidden = true;
-      row.append(label, select, note);
+      label.appendChild(note);
+      row.append(label, select);
       grid.appendChild(row);
       rows[metric] = { select, note };
     }

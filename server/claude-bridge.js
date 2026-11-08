@@ -80,12 +80,13 @@ const APPROVAL_TTL_MS = 9 * 60 * 1000;
 // An unanswered request older than this escalates from the tile to a fullscreen
 // overlay: at that point the user plainly hasn't noticed the tile.
 const URGENT_AFTER_MS = 25 * 1000;
-// A question waits like a permission does — Claude Code is genuinely blocked on
-// it — but shorter, because the same question is also sitting in the terminal
-// and the user may well answer it there. When this runs out we return no
-// decision, which lets the tool proceed and ask in the terminal exactly as it
+// A question waits as long as a permission does. Claude Code is blocked on it,
+// and the terminal draws nothing while the hook holds it (PreToolUse runs
+// before the prompt), so the tile is the only place it can be answered; "In
+// the terminal" on the card hands it over sooner. When this runs out we return
+// no decision, which lets the tool proceed and ask in the terminal exactly as it
 // would have without us.
-const QUESTION_TTL_MS = 4 * 60 * 1000;
+const QUESTION_TTL_MS = APPROVAL_TTL_MS;
 // A follow-up typed on the dashboard is delivered when the current turn ends.
 // If that turn never ends (the session was killed, or it went quiet without a
 // Stop) the text must not sit in a queue forever pretending to be on its way.
@@ -580,6 +581,16 @@ function createBridge(opts) {
     s.waitFor = null;
     if (s.state === 'waiting') s.state = 'running';
   }
+  // A question that left the tile unanswered (time ran out, or "In the
+  // terminal") is now drawn in the terminal, and the session is still blocked
+  // on it. Keep saying so, with the question, until the tool runs: the
+  // Notification Claude Code raises next says only "needs your permission".
+  function waitInTerminal(s, rec) {
+    if (!s) return;
+    const q = rec.questions && rec.questions[0];
+    setWait(s, 'question', q && q.question);
+    s.waitFor.inTerminal = true;
+  }
 
   function pushActivity(s, entry) {
     if (!s) return;
@@ -859,6 +870,7 @@ function createBridge(opts) {
         // settled by their own path, and clearing them here would un-block a
         // session that is still blocked.
         clearWait(s, 'notification');
+        if (s.waitFor && s.waitFor.inTerminal) clearWait(s, 'question');
         if (tool === 'ExitPlanMode') {
           const plan = str(d.tool_input && d.tool_input.plan, MAX_PLAN_CHARS);
           if (plan) { s.plan = plan; s.planAt = now(); }
@@ -880,6 +892,7 @@ function createBridge(opts) {
       case 'PostToolUseFailure': {
         const tool = str(d.tool_name, 60);
         const s = touchSession(id, { tool: '', toolDetail: '' });
+        if (tool === 'AskUserQuestion' && s.waitFor && s.waitFor.inTerminal) clearWait(s, 'question');
         // TodoWrite is not an action to log, it IS the plan. Read it here rather
         // than on PreToolUse so the lane only ever shows a list that was really
         // written.
@@ -927,6 +940,7 @@ function createBridge(opts) {
         // sessions were actually working. An idle session is idle.
         const s = touchSession(id, {});
         if (s && s.turnOver) break;
+        if (s && s.waitFor && s.waitFor.inTerminal) break;
         setWait(s, 'notification', d.message);
         break;
       }
@@ -1270,10 +1284,9 @@ function createBridge(opts) {
       model: (s && s.model) || '',
       createdAt,
       expiresAt: createdAt + QUESTION_TTL_MS,
-      // A question never seizes the whole screen. It blocks Claude, but it is
-      // not destructive and it is also sitting in the terminal — hijacking the
-      // display over a choice of approach is out of proportion.
-      urgentAt: Infinity,
+      // Unanswered after the grace window, it takes the screen like a
+      // permission does: nowhere else shows it while the hook holds it.
+      urgentAt: createdAt + URGENT_AFTER_MS,
       resolve: null,
       timer: null,
     };
@@ -1282,7 +1295,7 @@ function createBridge(opts) {
     rec.timer = setTimeout(() => {
       if (pending.get(id) !== rec) return;
       pending.delete(id);
-      clearWait(s, 'question');
+      waitInTerminal(sessions.get(rec.sessionId), rec);
       rec.resolve({ verdict: 'skip' });
       emit();
     }, QUESTION_TTL_MS);
@@ -1324,7 +1337,7 @@ function createBridge(opts) {
     if (!rec || rec.kind !== 'question') return false;
     pending.delete(rec.id);
     if (rec.timer) clearTimeout(rec.timer);
-    clearWait(sessions.get(rec.sessionId), 'question');
+    waitInTerminal(sessions.get(rec.sessionId), rec);
     rec.resolve({ verdict: 'skip' });
     emit();
     return true;
@@ -1561,7 +1574,7 @@ function createBridge(opts) {
         toolForMs: s.toolAt ? t - s.toolAt : null,
         state: s.state,
         // Why it is waiting, when it is — never a bare "waiting".
-        waitFor: s.waitFor ? { kind: s.waitFor.kind, text: s.waitFor.text, forMs: t - s.waitFor.at } : null,
+        waitFor: s.waitFor ? { kind: s.waitFor.kind, text: s.waitFor.text, forMs: t - s.waitFor.at, inTerminal: s.waitFor.inTerminal === true } : null,
         todos: s.todos,
         plan: s.plan,
         planAt: s.planAt,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 // Pure-logic tests for the stock-market (Borsa) data module — no network. Covers
 // the config normalizer (bounds + dedup + symbol cleaning) and the alert tracker
@@ -46,6 +47,24 @@ test('normalizeStocks uses the default watchlist when none is given', () => {
   const n = stocks.normalizeStocks({});
   assert.ok(n.watchlist.length >= 1);
   assert.ok(n.watchlist.some(w => w.symbol === 'FTSEMIB.MI'));
+});
+
+test('a list nobody chose is told apart from one of their own', () => {
+  const base = stocks.normalizeStocks({}).watchlist;
+  assert.equal(stocks.isDefaultWatchlist(base), true);
+  assert.equal(stocks.isDefaultWatchlist([...base].reverse()), true, 'order is not a choice');
+  assert.equal(stocks.isDefaultWatchlist(base.slice(1)), false);
+  assert.equal(stocks.isDefaultWatchlist([...base, { symbol: 'AAPL' }]), false);
+  assert.equal(stocks.isDefaultWatchlist([{ ...base[0], symbol: 'AAPL' }, ...base.slice(1)]), false);
+  assert.equal(stocks.isDefaultWatchlist([]), false, 'an emptied list is a choice');
+  assert.equal(stocks.isDefaultWatchlist(null), false);
+});
+
+test('stock alerts need someone who asked for stocks', () => {
+  const code = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const fn = code.slice(code.indexOf('function _stocksAlertsWanted(cfg)'));
+  assert.match(fn.slice(0, 400), /onTicker \|\| _widgetPlaced\('stocks'\) \|\| !stocks\.isDefaultWatchlist\(cfg\.watchlist\)/);
+  assert.match(code, /const alerts = _stocksAlertsWanted\(cfg\) \? _stocksAlerts\.evaluate\(quotes, cfg\.alertPercent, dayKey\) : \[\];/);
 });
 
 test('alert tracker fires once per symbol/direction/day, resets on a new day', () => {

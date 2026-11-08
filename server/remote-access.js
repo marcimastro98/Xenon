@@ -185,6 +185,9 @@ const REMOTE_DENY = new Set([
   '/deck/shortcut-claim',
   // A Deck key's AI chat or mixer handed to the PC's dashboard: it opens there.
   '/deck/client-step',
+  // A key placed on the PC's screen is pressed there, by a hand at that PC. A phone
+  // has the Deck itself, under its own rules (remote-actions.js).
+  '/deck/press',
   // Same for what Bit plays in a tile: it belongs on the PC's screens.
   '/tiles/play-claim',
   // The hidden page that keeps the widget windows in sync in "widgets only"
@@ -215,20 +218,28 @@ const REMOTE_DENY = new Set([
   // own dashboard; one that answered here would start a session on the PC.
   '/api/performance/screen',
   '/api/performance/state',
+  // Allow pressed on a widget on the PC's screen (sdk-grant.js). A phone cannot
+  // approve a widget, here or through /settings (keepGrants, remote-actions.js).
+  '/sdk/grant',
   // A tile's choices saved from a widget on the PC's screen (tile-settings.js).
   // A phone has the whole dashboard and saves through /settings.
   '/settings/tile',
   // The Vitals state from a widget on the PC's screen (vitals-state.js), same reason.
   '/api/vitals/state',
-  // Code on the PC, one way or another: PC Control's approved command, and
-  // remote desktop (Sunshine), whose pairing would hand a phone the whole
-  // screen and keyboard. Set up at the PC.
+  // Code on the PC, one way or another: PC Control's approved command, a new
+  // Claude Code run (any prompt, then a phone could approve its own commands:
+  // the raw form of the claudeAsk key it may not invent), and remote desktop
+  // (Sunshine), whose pairing would hand a phone the whole screen and keyboard.
+  // Set up at the PC. Answering a card of a run started there stays open.
   '/ai/pc-run',
+  '/api/claude/run',
   '/remote/pin',
   '/remote/enable',
   '/remote/unblock',
   '/remote/ondemand',
   '/remote/sunshine/configure',
+  // Whoever opens the Tailscale sign-in link puts this PC on their own network.
+  '/remote/tailscale/login',
   // A backup replaces the Deck, the settings and the stores at once, past
   // every per-route rule a phone is held to. Restore it at the PC.
   '/backup/import',
@@ -262,6 +273,11 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/macos/fda-settings',
   // "Postpone the automatic update" is allowed from a phone, by POST only.
   '/update/auto/postpone',
+  // So is saying the release notes were read.
+  '/update/notice-seen',
+  // A phone shows Bit's card like any screen: GET /bit/messages reads the inbox,
+  // and these file, spend and read what is in it, by POST only.
+  '/bit/messages/file', '/bit/messages/import', '/bit/messages/shown', '/bit/messages/read',
   // Answering a call IS reachable from a paired device — a phone showing the
   // ringing card is the whole point — but only by POST. Answering focuses
   // another app and presses keys into it, so a top-level GET navigation to this
@@ -298,14 +314,14 @@ const DEFAULT_GET_MUTATORS = new Set([
   // (/api/community/trial) is deliberately absent, like the supporter boolean.
   '/api/community/trial/check',
   '/api/community/trial/tried',
-  '/api/community/rate', '/icon-pack', '/sound-pack', '/sdk/install', '/api/lighting/sdk-install',
+  '/api/community/rate', '/api/community/rating-close', '/icon-pack', '/sound-pack', '/sdk/install', '/api/lighting/sdk-install',
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
   '/api/claude/unlink', '/api/claude/run', '/api/claude/run/stop', '/api/claude/attach',
   '/api/claude/folder', '/api/claude/history/delete',
   '/api/codex/event', '/api/codex/permission', '/api/codex/decide', '/api/codex/link', '/api/codex/unlink',
   '/api/chatgpt/ask', '/api/chatgpt/cancel', '/api/chatgpt/delete',
-  '/search/open', '/search/reveal', '/search/ai',
+  '/search/open', '/search/reveal',
   // A widget's question to the user's AI spends Sparks, a key's money or plan quota.
   '/sdk/ai',
   // Widget authors' MCP: tokens and installs.
@@ -313,7 +329,7 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/mcp/dev/report', '/api/mcp/dev/revoke', '/api/mcp/dev/connect',
   '/disk/scan', '/disk/scan/cancel', '/disk/clean', '/disk/clean/cancel', '/disk/reveal', '/api/disk/advisor',
   '/api/devclean/run', '/api/devclean/compact', '/api/features/devclean/unlock',
-  '/spotlight/claimed', '/deck/shortcut-claim', '/deck/client-step', '/tiles/play-claim', '/layers/host', '/layers/desk', '/api/screenshot', '/api/screenshot/monitor',
+  '/spotlight/claimed', '/deck/shortcut-claim', '/deck/client-step', '/deck/press', '/tiles/play-claim', '/layers/host', '/layers/desk', '/api/screenshot', '/api/screenshot/monitor',
   '/api/remote-access/enable', '/api/remote-access/pair', '/api/remote-access/pair/cancel',
   '/api/remote-access/redeem', '/api/remote-access/rename', '/api/remote-access/revoke',
   '/api/remote-access/revoke-all',
@@ -428,6 +444,11 @@ const REMOTE_ADMIN = new Set([
   // can put it back, so only they may remove it. The Sparks code the same.
   '/api/community/supporter/forget',
   '/api/community/sparks/forget',
+  // Saving one replaces what the PC pays with, and buying spends it: Sparks are
+  // money, and a paired phone can be lost or lent.
+  '/api/community/supporter/save',
+  '/api/community/sparks/save',
+  '/api/community/buy',
   // Widens where Claude Code may start work on this PC: the person at the PC decides.
   '/api/claude/folder',
 ]);
@@ -509,6 +530,14 @@ function remotePathAllowed(pathname, method) {
   if (pathname.startsWith(WIDGET_ASSET_PREFIX) && m !== 'GET' && m !== 'HEAD') return false;
   if ((m === 'GET' || m === 'HEAD') && _getMutators.has(pathname) && !GET_READ_EXCEPTIONS.has(pathname)) return false;
   return true;
+}
+
+// What a paired device reads of /remote/status. It keeps the state its Deck keys show, without the
+// Tailscale sign-in link: that link is the same door as the route refused above, and it stays in
+// the status for as long as a sign-in at the PC is waiting. A copy, because the status is shared.
+function withoutLoginLink(state) {
+  if (!state || !state.tailscale) return state;
+  return { ...state, tailscale: { ...state.tailscale, authUrl: '' } };
 }
 
 // ── The gate ─────────────────────────────────────────────────────────────────
@@ -1196,7 +1225,7 @@ module.exports = {
   STORE_VERSION, STORE_FILENAME, COOKIE_NAME, MAX_DEVICES,
   CODE_LENGTH, CODE_TTL_MS, CODE_MAX_ATTEMPTS, DEVICE_NAME_MAX,
   IDLE_EXPIRY_MS, REMOTE_DENY, REMOTE_ADMIN, DEFAULT_GET_MUTATORS, GET_READ_EXCEPTIONS, PRE_AUTH, useGetMutators,
-  gateDecision, remotePathAllowed, isOwnAddressHost, isTlsNameHost, originAllowed,
+  gateDecision, remotePathAllowed, withoutLoginLink, isOwnAddressHost, isTlsNameHost, originAllowed,
   WIDGET_ASSET_PREFIX, parseWidgetAssetPath,
   ownAddresses, pairingAddresses,
   hashToken, newToken, newAssetKey, newCode, canonicalCode, formatCode, safeEqual,

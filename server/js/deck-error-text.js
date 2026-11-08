@@ -2,7 +2,8 @@
 //
 // Sentences for the reasons a person can act on; anything else still shows its
 // raw code, because an unexplained code is what gets pasted into a report and
-// swallowing it is what made this invisible. The code is appended either way.
+// swallowing it is what made this invisible. A sentence stands alone: next to
+// one, a code is noise.
 //
 // Shared by deck.js (the dashboard and the Virtual Deck popup) and the
 // on-screen alerts window of "Solo widget" (screen-alerts.js), which shows a
@@ -14,6 +15,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const DECK_ERR_TEXT = Object.freeze({
     not_found: ['deck_err_not_found', 'that path does not exist on this PC'],
+    bad_when: ['deck_err_bad_when', 'that is not a situation Xenon knows'],
+    name_taken: ['deck_err_name_taken', 'another page already has that name'],
     // A paired phone runs only keys set up on the PC (server/remote-actions.js).
     needs_pc: ['deck_err_needs_pc', 'from a phone or tablet this works only as a key already set up on the PC'],
     pc_only: ['deck_err_pc_only', 'this works only on the PC itself'],
@@ -24,22 +27,38 @@
     vitals_off: ['deck_err_vitals_off', 'Vitals is off: turn it on in Settings'],
     vital_off: ['deck_err_vital_off', 'that meter is off in Settings'],
     bad_page: ['deck_err_bad_page', 'this screen has no such page, pick another for this key'],
+    unknown_page: ['deck_err_bad_page', 'this screen has no such page, pick another for this key'],
+    no_pages: ['deck_err_no_pages', 'There is only one widget page: add another in the Xenon menu, Widgets'],
+    over_exclusive: ['deck_err_over_exclusive', 'This cannot open over this game: in its display settings, pick borderless or windowed'],
+    no_widgets: ['deck_err_no_widgets', 'There are no widgets yet: add one in the Xenon menu, Widgets'],
     no_dashboard: ['deck_err_no_dashboard', 'this step needs the Xenon dashboard open on this PC'],
     no_action: ['deck_err_no_action', 'this key has nothing to do on a tap'],
+    no_key: ['deck_err_no_key', 'that key is not in the Deck'],
     not_set_up: ['deck_err_not_set_up', 'this key is not set up yet: pick its app, file or device in the Deck editor'],
     unknown_device: ['deck_err_unknown_device', 'that output device is not connected right now'],
     none_connected: ['deck_err_none_connected', 'none of these outputs is connected right now'],
+    // A key pointing at one light that Xenon does not drive right now.
+    bad_part: ['deck_err_light_missing', 'that light is not available right now'],
+    bad_device: ['deck_err_light_missing', 'that light is not available right now'],
     // Screenshot and recording keys.
     no_window: ['deck_err_no_window', 'no window in front'],
     no_encoder: ['deck_err_no_encoder', 'this Windows has no video encoder'],
     disk_full: ['deck_err_disk_full', 'the disk is full'],
     too_short: ['deck_err_too_short', 'nothing was recorded yet, try again in a moment'],
+    save_failed: ['deck_err_save_failed', 'the clip could not be saved, try again'],
     no_file: ['deck_err_no_file', 'nothing has been saved yet'],
+    no_steps: ['steps_none', 'No clicks, nothing saved'],
     // One package (or copy) at a time; a write that failed (bug-report.js).
     busy: ['deck_err_busy', 'one is already being made, wait for it to finish'],
     bad_shortcut: ['deck_err_bad_shortcut', 'Xenon cannot use that combination: hold two of Ctrl, Alt and Shift with a key, or one of them with an F key'],
     reserved: ['deck_err_reserved', 'the system or another app already uses that combination: pick another'],
     in_use: ['deck_err_in_use', 'another Xenon shortcut already uses that combination: pick another'],
+    // Keys for widgets (capabilities/widget-key.js).
+    not_placed: ['deck_err_not_placed', 'that widget is not on the screen: add it first in the Xenon menu, Widgets'],
+    no_widget: ['deck_err_no_widget', 'no installed widget has that function'],
+    no_function: ['deck_err_no_function', 'that widget has no such function'],
+    needs_settings: ['deck_err_needs_settings', 'this function asks for settings: put it on a Deck key, where you choose them'],
+    not_granted: ['deck_err_not_granted', 'you did not allow this function when you installed the widget'],
     not_a_picture: ['deck_err_not_a_picture', 'that one is a video, not a picture: pick a screenshot'],
     too_big: ['deck_err_too_big', 'the package would be over 4 GB: try fewer seconds of video'],
     write_failed: ['deck_err_write_failed', 'the file could not be written: check the folder'],
@@ -61,7 +80,8 @@
     no_ocr_language: ['deck_err_no_ocr_language', 'Windows has no text recognition for your language: add it in Settings, Time & language, Language'],
     // Instant Replay keys (server/replay.js).
     off: ['deck_err_replay_off', 'Instant Replay is off: turn it on in Settings, Capture'],
-    no_game: ['deck_err_no_game', 'Instant Replay runs only in games, and none is open'],
+    // Also the benchmark and the frame reads, so it names no feature.
+    no_game: ['deck_err_no_game', 'Open a game first'],
     not_running: ['deck_err_replay_starting', 'Instant Replay is starting, try again in a moment'],
     saving: ['deck_err_saving', 'a clip is already being saved'],
     bad_seconds: ['deck_err_bad_seconds', 'the length on this key is not a number of seconds'],
@@ -77,7 +97,7 @@
     sound_format: ['deck_err_sound_format', 'this PC cannot play this kind of file without the dashboard: use mp3, wav, m4a or flac'],
     sound_failed: ['deck_err_sound_failed', 'the sound file would not open: it may be damaged'],
     // The Game Companion key while the opt-in switch is off (capabilities/game-companion.js).
-    companion_off: ['deck_err_companion_off', 'Game Companion is off: turn it on in Settings, Advanced AI features'],
+    companion_off: ['deck_err_companion_off', 'Game Companion is off: turn it on in Settings, Bit, Advanced AI features'],
     screen_alerts_off: ['deck_err_screen_alerts_off', 'on-screen alerts are off: turn them on in Settings, Notifications'],
     // Voicemeeter. Every one of these is something the person holding the
     // machine can fix — install it, start it, pick a strip their edition has —
@@ -95,14 +115,28 @@
     voicemeeter_bad_value: ['deck_err_vm_bad_value', 'Voicemeeter will not take that value'],
   });
 
-  // The sentence plus the code, or the bare code when there is no sentence:
-  // an unexplained code is what gets pasted into a report, never nothing.
-  // `tt(key, fallback)` is the caller's translator.
+  // Nothing is wrong with the key or the PC: it just cannot happen right now.
+  const NOTICES = new Set([
+    'no_game', 'no_frames', 'too_soon', 'too_short', 'no_file', 'no_steps', 'no_pages', 'no_widgets', 'over_exclusive', 'not_recording',
+    'no_marks', 'whole_video', 'already_small', 'no_webcam', 'no_phone', 'transfer_off', 'send_busy',
+    'off', 'not_running', 'saving', 'busy', 'vitals_off', 'vital_off', 'companion_off', 'screen_alerts_off',
+  ]);
+
+  // The sentence, or the bare code when there is none: an unexplained code is
+  // what gets pasted into a report, never nothing. `tt(key, fallback)` is the
+  // caller's translator.
   function describe(code, tt) {
     const c = String(code || '');
     const known = Object.prototype.hasOwnProperty.call(DECK_ERR_TEXT, c) ? DECK_ERR_TEXT[c] : null;
     const said = known ? tt(known[0], known[1]) : '';
-    return said ? (c ? said + ' (' + c + ')' : said) : c;
+    return said ? said.charAt(0).toUpperCase() + said.slice(1) : c;
+  }
+
+  // The toast for a key just pressed. `important`: the person is waiting for an
+  // answer, so a note gets through Do not disturb the way an error does.
+  function keyToast(code, msg, tt) {
+    if (NOTICES.has(code)) return { type: 'info', important: true, title: msg, duration: 3600 };
+    return { type: 'error', title: tt('deck_err_title', 'This key could not run'), message: msg, duration: 3600 };
   }
 
   // A key's keyboard shortcut failed on the PC (SSE deck_shortcut_failed).
@@ -110,11 +144,24 @@
     const d = info && typeof info === 'object' ? info : {};
     return {
       type: 'error',
-      title: tt('deck_shortcut_failed_title', 'A keyboard shortcut could not run') + (d.title ? ': ' + String(d.title).slice(0, 60) : ''),
+      title: (d.via === 'button'
+        ? tt('deck_key_failed_title', 'A key on your screen could not run')
+        : tt('deck_shortcut_failed_title', 'A keyboard shortcut could not run')) + (d.title ? ': ' + String(d.title).slice(0, 60) : ''),
       message: describe(d.error, tt),
       duration: 4200,
     };
   }
 
-  return { DECK_ERR_TEXT, describe, shortcutFailed };
+  // A row of the Xenon menu failed after the menu closed (SSE xenon_menu_failed).
+  function menuFailed(info, tt) {
+    const d = info && typeof info === 'object' ? info : {};
+    return {
+      type: 'error',
+      title: tt('xmenu_failed_title', 'The Xenon menu could not do that'),
+      message: describe(d.error, tt),
+      duration: 4200,
+    };
+  }
+
+  return { DECK_ERR_TEXT, describe, keyToast, shortcutFailed, menuFailed };
 });

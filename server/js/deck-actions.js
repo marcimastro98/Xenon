@@ -132,6 +132,9 @@ const ACTION_CATALOG = [
   // roster carries and a Deck key saved days earlier does not.
   { type: 'discordUserVol',  group: 'discord', hidden: true, labelKey: 'deck_act_discordUserVol',  params: [{ name: 'user', kind: 'text', maxLen: 25 }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'discordUserMute', group: 'discord', hidden: true, labelKey: 'deck_act_discordUserMute', params: [{ name: 'user', kind: 'text', maxLen: 25 }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
+  // Show one conversation in the Discord app on this PC. SDK-only (hidden) for the
+  // same reason: a mirrored message carries the channel id, a Deck key would not.
+  { type: 'discordOpenChat', group: 'discord', hidden: true, labelKey: 'deck_act_discordOpenChat', params: [{ name: 'channel', kind: 'text', maxLen: 25 }] },
   { type: 'discordAudioToggle', group: 'discord', labelKey: 'deck_act_discordAudioToggle', params: [{ name: 'feature', kind: 'select', options: ['noise_suppression', 'echo_cancellation', 'automatic_gain_control', 'qos'] }] },
   { type: 'discordSoundboard',  group: 'discord', labelKey: 'deck_act_discordSoundboard',  params: [{ name: 'sound', kind: 'discordSound' }] },
   { type: 'spotifyPlay',     group: 'spotify', labelKey: 'deck_act_spotifyPlay',     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'play', 'pause'] }] },
@@ -323,11 +326,17 @@ function validateAction(raw) {
   for (const p of spec.params) {
     let v = raw[p.name];
     if (p.kind === 'select') {
+      // An `optional` select left out stays out: the action reads "not said", which
+      // is not the same as its first option.
+      if (p.optional && (v == null || v === '')) continue;
       // `strict`: an unknown value makes the whole action invalid instead of
       // falling back to the first option. For a thermostat that option is 'off',
       // and a typo or a newer client's mode must never switch the heating off.
-      if (p.strict && !(typeof v === 'string' && p.options.includes(v))) return null;
-      v = (typeof v === 'string' && p.options.includes(v)) ? v : p.options[0];
+      // `keeps`: values the server's own actions may carry and nobody is offered:
+      // not in the Deck editor, not in the AI's list, not in a widget's limits.
+      const known = typeof v === 'string' && (p.options.includes(v) || (p.keeps || []).includes(v));
+      if (p.strict && !known) return null;
+      v = known ? v : p.options[0];
     } else {
       v = String(v == null ? '' : v);
       if (p.kind === 'path') v = unquotePath(v);

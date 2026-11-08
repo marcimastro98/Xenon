@@ -62,6 +62,15 @@ function normalizeShortcut(combo) {
   return MODIFIERS.filter((m) => mods.has(m)).concat(key).join('+');
 }
 
+// The keys that type a character with AltGr on this PC's keyboards (the
+// server reads them: altgr-keys-windows.js; a page gets them from the status it
+// loads). Until then, or where they cannot be read, every Ctrl+Alt letter and
+// digit counts as AltGr, since on many layouts it is.
+let altGrTyping = null;
+function useAltGrKeys(list) {
+  altGrTyping = Array.isArray(list) ? new Set(list.map((k) => String(k).toLowerCase()).filter((k) => ALTGR_KEY_RE.test(k))) : null;
+}
+
 // Who already uses a valid combo ('system', 'nvidia', 'gamebar', 'apps',
 // 'altgr'), or '' when it is free as far as we know.
 function reservedBy(combo) {
@@ -69,7 +78,8 @@ function reservedBy(combo) {
   if (!c) return '';
   for (const [owner, list] of Object.entries(RESERVED)) if (list.includes(c)) return owner;
   const { mods, key } = parts(c);
-  if (mods.size === 2 && mods.has('ctrl') && mods.has('alt') && ALTGR_KEY_RE.test(key)) return 'altgr';
+  const altGr = mods.size === 2 && mods.has('ctrl') && mods.has('alt') && ALTGR_KEY_RE.test(key);
+  if (altGr && (!altGrTyping || altGrTyping.has(key))) return 'altgr';
   return '';
 }
 
@@ -93,6 +103,36 @@ function comboFromKeyEvent(e) {
   if (e.shiftKey) mods.push('shift');
   if (e.metaKey) mods.push('win');
   return mods.concat(key).join('+');
+}
+
+// A combination something on the PC registered system-wide (Xenon's own keys,
+// a GPU overlay, a game launcher) never reaches the page as a keydown: Windows
+// turns it into that app's hotkey. Its keyup still arrives, with the modifiers
+// held, so a keyup whose keydown never came names it. `downs` holds the codes
+// of the keydowns seen while recording.
+function keyupWithoutKeydown(e, downs) {
+  if (!e || e.type !== 'keyup' || !downs || downs.has(String(e.code || ''))) return null;
+  return normalizeShortcut(comboFromKeyEvent(e) || '') || null;
+}
+
+// Ctrl+Alt alone is AltGr to Windows, and the dashboard's window gives no keydown
+// for Ctrl+Alt+R on a keyboard that types nothing there, though the combination
+// is free (seen 8 Nov 2026, Italian + US keyboards). Its keyup is the press.
+const altGrOnly = (combo) => {
+  const { mods } = parts(combo);
+  return mods.size === 2 && mods.has('ctrl') && mods.has('alt');
+};
+
+function swallowedCombo(e, downs) {
+  const c = keyupWithoutKeydown(e, downs);
+  return c && !altGrOnly(c) ? c : null;
+}
+
+// The Ctrl+Alt combination a keyup stands in for, or null: the recorders take it
+// as if it had been pressed, and reservedBy still decides whether it may be used.
+function keyupPress(e, downs) {
+  const c = keyupWithoutKeydown(e, downs);
+  return c && altGrOnly(c) ? c : null;
 }
 
 // "Ctrl + Shift + F9" (or the macOS names) for showing a combo to a person.
@@ -145,13 +185,15 @@ function collectShortcuts(configs) {
   return { list, duplicates };
 }
 
-// What a one-step key does, as { type, mode }, so the Xenon menu can show the
-// shortcut next to the same action (server/xenon-menu.js); null for macros.
+// What a one-step key does, as { type, mode, target, screen }, so the Xenon menu
+// can show the shortcut next to the same action (server/menu-functions.js); null
+// for macros.
 function singleAction(key) {
   const t = shortcutTrigger(key);
   const step = t && Array.isArray(t.steps) ? (t.steps.length === 1 ? t.steps[0] && t.steps[0].action : null) : t;
   if (!step || typeof step.type !== 'string') return null;
-  return { type: step.type, mode: typeof step.mode === 'string' ? step.mode : '' };
+  const text = (v) => (typeof v === 'string' ? v : '');
+  return { type: step.type, mode: text(step.mode), target: text(step.target), screen: text(step.screen), page: text(step.page) };
 }
 
 // Fits the Deck shortcuts after the bindings already in the helper's table
@@ -196,7 +238,7 @@ function shortcutTrigger(key) {
 
 const DECK_SHORTCUTS_API = Object.freeze({
   MODIFIERS, RESERVED, CLIENT_ACTIONS, MAX_SHORTCUTS,
-  normalizeShortcut, reservedBy, comboFromKeyEvent, formatShortcut,
+  normalizeShortcut, reservedBy, useAltGrKeys, comboFromKeyEvent, swallowedCombo, keyupPress, formatShortcut,
   eachConfigKey, collectShortcuts, planBindings, findKey, shortcutTrigger,
 });
 if (typeof window !== 'undefined') window.DeckShortcuts = DECK_SHORTCUTS_API;

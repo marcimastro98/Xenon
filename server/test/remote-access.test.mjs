@@ -123,6 +123,14 @@ test('junk, traversal and exotic methods are refused', () => {
 // that is the intent. What must stay reviewed is the other side: the exact set
 // of real routes it cannot. A route that quietly joins this list (or drops off
 // it) fails here instead of changing the product silently.
+test("a phone reads Bit's inbox by GET and changes it by POST only", () => {
+  assert.equal(ra.remotePathAllowed('/bit/messages', 'GET'), true);
+  for (const p of ['/bit/messages/file', '/bit/messages/import', '/bit/messages/shown', '/bit/messages/read']) {
+    assert.equal(ra.remotePathAllowed(p, 'GET'), false, p);
+    assert.equal(ra.remotePathAllowed(p, 'POST'), true, p);
+  }
+});
+
 test('the refused surface matches an explicit, reviewed list', () => {
   const src = fs.readFileSync(path.join(HERE, '..', 'server.js'), 'utf8');
   const routes = new Set();
@@ -157,6 +165,8 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // other options from the settings blob, where the folder is blanked.
     'GET /capture/settings',
     // The drawing sheet (macOS, Linux) lays over this PC's screen.
+    // A key placed on the PC's screen: what it does, and pressing it, stay at the PC.
+    'GET /deck/press',
     'GET /draw',
     // The Xenon menu over this PC's screen, and whether it is open: a phone opens
     // the same menu as a panel (GET /xenon-menu stays reachable).
@@ -204,16 +214,23 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // feature. What the phone DOES get is /api/claude/answer and /reply, which
     // are the same actions taken by a person the hub has already authenticated.
     'POST /api/claude/question',
+    // A new run: any prompt, and then a phone could approve its own commands.
+    // Answering a card of a run started at the PC stays open.
+    'POST /api/claude/run',
     'POST /api/claude/turn-end',
     // The OpenAI Codex twins: posted by codex-hook.js, which Codex runs, against
     // a token minted on the PC. A phone answers a Codex card through
     // /api/codex/decide, like any other dashboard.
     'POST /api/codex/event',
     'POST /api/codex/permission',
+    // Paying, and below replacing what the PC pays with: Sparks are money.
+    'POST /api/community/buy',
     // Forgetting the PC's saved Sparks code, same reason as the pass below.
     'POST /api/community/sparks/forget',
+    'POST /api/community/sparks/save',
     // Forgetting the PC's saved pass: the phone cannot type it back.
     'POST /api/community/supporter/forget',
+    'POST /api/community/supporter/save',
     // Dev cleanup: compaction raises a UAC prompt on the PC, and the unlock
     // spends one of the supporter pass's three device slots. Both are decided
     // by whoever sits at the PC; pruning and the overview stay open.
@@ -284,6 +301,7 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /captures/spots',
     // A Deck shortcut's sound/AI/mixer step is for a dashboard on the PC.
     'POST /deck/client-step',
+    'POST /deck/press',
     'POST /deck/shortcut-claim',
     'POST /embedded-browser/adblock/install',
     // The shell says which virtual desktop is shown; a phone would switch pages.
@@ -299,9 +317,13 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /remote/ondemand',
     'POST /remote/pin',
     'POST /remote/sunshine/configure',
+    // The Tailscale sign-in: whoever opens its link puts the PC on their own network.
+    'POST /remote/tailscale/login',
     'POST /remote/unblock',
     // Opening or closing the menu over the PC's screen is the PC's own gesture.
     'POST /screen-menu',
+    // Allow pressed on a widget on the PC's screen; a phone approves through /settings.
+    'POST /sdk/grant',
     'POST /second-screen/create-display',
     'POST /second-screen/install',
     'POST /second-screen/remove-display',

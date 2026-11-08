@@ -64,7 +64,7 @@ test('every Deck string is translated in all 11 languages', () => {
 // guard is on phrases: three or more words left in English is a miss, unless it
 // is a name, a code or a menu path of another program.
 const PHRASES_KEPT = new Set([
-  'disk_modal_title', 'tab_system_sub', 'preset_redeem_placeholder', 'preset_redeem_placeholder2', 'settings_wl_title',
+  'tab_system_sub', 'preset_redeem_placeholder', 'preset_redeem_placeholder2', 'settings_wl_title',
   'settings_sb_host_desc', 'settings_obs_host_hint', 'feed_url', 'settings_bg_image_loaded', 'settings_ai_live',
   'deck_act_sbCodeTrigger', 'desktop_title',
 ]);

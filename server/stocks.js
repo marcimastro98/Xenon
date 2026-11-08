@@ -75,6 +75,14 @@ const DEFAULT_STOCKS = Object.freeze({
   tile: Object.freeze({ chart: true, sparklines: true }),
 });
 
+// True while the person has not chosen what to watch: same symbols as a new install.
+function isDefaultWatchlist(list) {
+  const symbols = (entries) => entries.map((w) => w && w.symbol).sort();
+  const mine = symbols(Array.isArray(list) ? list : []);
+  const base = symbols(DEFAULT_STOCKS.watchlist);
+  return mine.length === base.length && mine.every((s, i) => s === base[i]);
+}
+
 function normalizeStocks(value) {
   const src = value && typeof value === 'object' ? value : {};
   const provider = PROVIDERS.has(src.provider) ? src.provider : DEFAULT_STOCKS.provider;
@@ -411,6 +419,7 @@ module.exports = {
   MAX_SYMBOLS,
   RANGES,
   DEFAULT_STOCKS,
+  isDefaultWatchlist,
   normalizeStocks,
   normalizeWatchlist,
   cleanSymbol,

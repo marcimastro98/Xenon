@@ -2,8 +2,8 @@
 
 // ── Smart context profiles ──────────────────────────────────────────────────
 // Automatically switch dashboard state — which PAGE is shown, the LIGHTING
-// effect, the active DECK profile, and the dashboard STYLE (Liquid Glass /
-// Pixel Retro) — when the foreground activity changes (gaming / coding /
+// effect, the active DECK profile, and the dashboard STYLE (Liquid Glass, Classic,
+// Pixel Retro, Comic) — when the foreground activity changes (gaming / coding /
 // writing / streaming / creating / meeting), and put it back when the activity
 // ends. It REUSES Performance Mode's single activity concept
 // (performance.js classifies the foreground app through the user's custom lists

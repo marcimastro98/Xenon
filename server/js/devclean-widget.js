@@ -82,10 +82,16 @@
 
   // ── data ──────────────────────────────────────────────────────────────────
 
+  // The grid renders in bursts while the page starts, and until the first answer each render
+  // would send its own question.
+  let stateLoading = false;
   async function loadState() {
+    if (stateLoading) return;
+    stateLoading = true;
     const out = await api('/api/features/devclean');
     unlocked = !!(out && out.unlocked);
     if (!unlocked) await loadCodeSaved();
+    stateLoading = false;
     renderWidgets();
   }
 
@@ -184,7 +190,8 @@
     const out = await api('/api/community/supporter/save', { code });
     if (!out || !out.ok) {
       unlocking = false;
-      unlockError = out && out.error === 'bad_code'
+      if (out && out.error === 'remote_denied') unlockError = tr('settings_supporter_save_pc_only', 'The code can only be saved on the PC');
+      else unlockError = out && out.error === 'bad_code'
         ? tr('devclean_code_format', 'Il codice ha la forma XS-XXXX-XXXX-XXXX. Controllalo nell’email che hai ricevuto.')
         : tr('devclean_unlock_network', 'Non riesco a contattare il server dei sostenitori.');
       renderAll();

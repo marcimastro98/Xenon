@@ -122,7 +122,7 @@ test('Windows: sensors.ps1 is worker-only and opens no LHM session of its own', 
 
 test('the server applies the choice in getSystemInfo and persists it on both sides', () => {
   const server = read('server/server.js');
-  const sys = server.slice(server.indexOf('async function getSystemInfo()'));
+  const sys = server.slice(server.indexOf('async function getSystemInfo('));
   assert.match(sys.slice(0, sys.indexOf('\n}\n') > 0 ? sys.indexOf('\n}\n') : 9000), /SensorSources\.applySensorSources\(info, sources, readings/);
   assert.match(server, /sensorSources: SensorSources\.normalizeSensorSources\(source\.sensorSources\)/);
   assert.match(read('server/js/settings.js'), /sensorSources: window\.SensorSources \? window\.SensorSources\.normalizeSensorSources\(value\.sensorSources\) : \{\}/);

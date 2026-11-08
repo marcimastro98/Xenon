@@ -210,7 +210,8 @@
 .is-phone .topbar .clock-sdkbadges,
 .is-phone .topbar .clock-claude,
 .is-phone .topbar .clock-codex,
-.is-phone .topbar .clock-date { display: none; }
+.is-phone .topbar .clock-date,
+.is-phone .topbar .clock-meta-sep { display: none; }
 .is-phone .topbar .quickbar,
 .is-phone .topbar .top-actions { gap: 4px; flex-wrap: nowrap; }
 .is-phone .topbar .topbtn { min-width: 34px; height: 34px; padding: 0 8px; font-size: 12px; }
@@ -447,14 +448,15 @@
   justify-content: center;
   gap: 3px;
   position: relative;         /* the mirrored indicator anchors to this */
-  /* Share the row evenly and shrink together, so one long caption cannot make
-     its own button wider than its neighbours. The max keeps a dock with only
-     two buttons from stretching them across half the screen. */
-  flex: 1 1 0;
+  /* Each key starts from its caption and they share what is left: "Bit" gives
+     up room to "Приложения" or "Einstellungen", which an even row cut at 360px.
+     The max keeps a dock with only two buttons from stretching them across half
+     the screen. */
+  flex: 1 1 auto;
   min-width: 44px;
   max-width: 84px;
   height: 52px;
-  padding: 5px 3px 4px;
+  padding: 5px 2px 4px;
 }
 .ph-ico {
   display: flex;
@@ -549,14 +551,17 @@
    by its height), so everything lifted here climbs over it too. */
 .is-phone body { --ph-bottom-lift: 0px; }
 .is-phone body.xe-has-ticker.xe-ticker-bottom { --ph-bottom-lift: var(--xe-ticker-h, 34px); }
+.is-phone .bm-card,
 .is-phone .discord-invite,
 .is-phone .gc-pill,
-.is-phone .event-toast,
 .is-phone .deck-toast,
-.is-phone .perf-banner,
-.is-phone .perf-toast,
+.is-phone .wn-look,
 .is-phone .vpet {
   bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 12px);
+}
+/* TopbarMinimal.css pins the layout bar with state selectors a list entry cannot outweigh. */
+.is-phone body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
+  bottom: calc(var(--ph-dock-h, 64px) + var(--ph-bottom-lift, 0px) + 12px) !important;
 }
 /* The "Customize bar" sheet rises from the bottom too; it stays under the top
    bar's own height instead of its usual 82vh. */

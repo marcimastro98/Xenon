@@ -425,7 +425,6 @@ body.overlay-frozen .sh-item--media.is-playing .sh-media-art::after { animation-
 .sh-set-status.err { color: var(--color-danger); }
 
 .sh-set-picker { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-.sh-set-picker-title { font-size: 0.82rem; font-weight: 800; color: var(--text, #e7e9ee); }
 .sh-set-list { display: flex; flex-direction: column; gap: 3px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
 .sh-set-list::-webkit-scrollbar { width: 6px; }
 .sh-set-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }

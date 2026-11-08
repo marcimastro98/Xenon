@@ -13,7 +13,10 @@
   async function readStatus() {
     try {
       const r = await fetch(base() + '/pages/hotkey-status');
-      return r.ok ? await r.json() : null;
+      const status = r.ok ? await r.json() : null;
+      // This PC's AltGr keys: a Ctrl+Alt letter none of its keyboards types is allowed.
+      if (status && S()) S().useAltGrKeys(status.altGrKeys);
+      return status;
     } catch { return null; }
   }
 
@@ -49,13 +52,14 @@
     const saved = value;
     let status = null;
     let recording = false;
+    const downs = new Set();   // keydowns seen while recording (swallowedCombo)
 
     const el = section('deck_shortcut_title');
     const row = document.createElement('div'); row.className = 'deck-ed-hotkey-row';
     const rec = document.createElement('button'); rec.type = 'button';
     rec.className = 'deck-ed-btn deck-ed-shortcut-rec';
     const clear = document.createElement('button'); clear.type = 'button';
-    clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '×';
+    clear.className = 'deck-ed-hotkey-clear'; clear.innerHTML = window.DeckIcons.CLOSE_MARK;
     clear.setAttribute('aria-label', t('deck_shortcut_clear')); clear.title = t('deck_shortcut_clear');
     row.appendChild(rec); row.appendChild(clear);
     const line = document.createElement('div'); line.className = 'deck-ed-hint deck-ed-shortcut-state';
@@ -89,27 +93,46 @@
     function stop() {
       recording = false;
       window.removeEventListener('keydown', onKey, true);
-      window.removeEventListener('keyup', swallow, true);
+      window.removeEventListener('keyup', onKeyUp, true);
+      downs.clear();
       paint();
     }
 
-    // Window, capture phase: ahead of the editor's own keys (Esc closes it).
+    // Window, capture phase: ahead of the page. The window's own keys wait for `recording`.
     function swallow(e) { e.preventDefault(); e.stopImmediatePropagation(); }
+
+    // A keyup with no keydown: something else on the PC holds that combination.
+    function onKeyUp(e) {
+      swallow(e);
+      const pressed = S().keyupPress(e, downs);
+      if (pressed) { takeCombo(pressed); return; }
+      const combo = S().swallowedCombo(e, downs);
+      if (!combo) return;
+      const why = refusal(combo, keyId, status);
+      stop();
+      sayRefusal(why || { key: 'deck_shortcut_held' }, combo);
+    }
+
+    function sayRefusal(why, combo) {
+      const found = why.key === 'deck_shortcut_used_key' && status
+        ? (status.deck || []).find((d) => d.combo === S().normalizeShortcut(combo)) : null;
+      // A key with no title is still another key: say so without a name.
+      say(why.key === 'deck_shortcut_used_key' && !(found && found.title) ? 'deck_shortcut_st_duplicate' : why.key, true, found ? found.title : '');
+    }
 
     function onKey(e) {
       swallow(e);
+      downs.add(String(e.code || ''));
       if (e.key === 'Escape') { stop(); sayState(); return; }
       const combo = S().comboFromKeyEvent(e);
       if (!combo) return;   // still holding modifiers, or a key no registrar can name
+      takeCombo(combo);
+    }
+
+    function takeCombo(combo) {
       const why = refusal(combo, keyId, status);
       stop();
-      if (why) {
-        const found = why.key === 'deck_shortcut_used_key' && status
-          ? (status.deck || []).find((d) => d.combo === S().normalizeShortcut(combo)) : null;
-        // A key with no title is still another key: say so without a name.
-        say(why.key === 'deck_shortcut_used_key' && !(found && found.title) ? 'deck_shortcut_st_duplicate' : why.key, true, found ? found.title : '');
-        return;
-      }
+      if (why) { sayRefusal(why, combo); return; }
       value = S().normalizeShortcut(combo);
       paint();
       sayState();
@@ -120,7 +143,7 @@
       recording = true;
       say('deck_shortcut_press_hint', false);
       window.addEventListener('keydown', onKey, true);
-      window.addEventListener('keyup', swallow, true);
+      window.addEventListener('keyup', onKeyUp, true);
       paint();
     });
     clear.addEventListener('click', () => { value = ''; paint(); sayState(); });
@@ -133,6 +156,10 @@
       el,
       // Write the shortcut into the key being saved (normalizeKey re-checks it).
       collect(key) { if (value) key.shortcut = value; },
+      // Saving needs a shortcut: says so under the button when there is none.
+      ask() { if (!value) say('deck_shortcut_needed', true); return !!value; },
+      // Every key belongs to the recording, Esc and Tab included.
+      recording: () => recording,
       // The editor closed: let go of the keyboard.
       dispose() { if (recording) stop(); },
     };

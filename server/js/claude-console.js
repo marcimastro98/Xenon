@@ -59,6 +59,8 @@
       line.appendChild(h.el('span', 'cw-cs-word', w.kind === 'question' ? h.t('claude_wait_q', 'Waiting for your answer')
         : w.kind === 'error' ? h.t('claude_wait_err', 'The turn ended on an error')
           : h.t('claude_wait_perm', 'Waiting for your approval')));
+      // The tile can no longer answer it: say where it can be.
+      if (w.inTerminal) line.appendChild(h.el('span', 'cw-cs-detail', h.t('claude_q_terminal', 'In the terminal')));
       if (w.text) line.appendChild(h.el('span', 'cw-cs-detail', w.text));
       if (w.forMs != null) line.appendChild(h.ageNode('cw-cs-for', w.forMs, ''));
       return line;

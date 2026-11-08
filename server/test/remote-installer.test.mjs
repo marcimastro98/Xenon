@@ -28,8 +28,35 @@ function fakeRunner(map) {
   };
 }
 
+const NO_SERVICE = { code: 1060, stdout: '', stderr: '' };
+
+test('isInstalled: the service list answers and winget never starts', async () => {
+  const runner = fakeRunner({
+    'query SunshineService': { code: 0, stdout: 'SERVICE_NAME: SunshineService', stderr: '' },
+    'query Tailscale': { code: 0, stdout: 'SERVICE_NAME: Tailscale', stderr: '' },
+  });
+  const inst = winInstaller({ runner });
+  assert.equal(await inst.isInstalled('sunshine'), true);
+  assert.equal(await inst.isInstalled('tailscale'), true);
+  assert.deepEqual(runner.calls.map((c) => c.file), ['sc.exe', 'sc.exe']);
+});
+
+test('isInstalled: a package with no service still goes through winget', async () => {
+  const runner = fakeRunner({ 'list -e --id VirtualDrivers.Virtual-Display-Driver': { code: 0, stdout: 'VirtualDrivers.Virtual-Display-Driver 1', stderr: '' } });
+  assert.equal(await winInstaller({ runner }).isInstalled('vdd'), true);
+  assert.deepEqual(runner.calls.map((c) => c.file), ['winget']);
+});
+
+test('isInstalled: a service list that cannot be read falls back on winget', async () => {
+  const runner = fakeRunner({ 'list -e --id Tailscale.Tailscale': { code: 0, stdout: 'Tailscale.Tailscale 1.2', stderr: '' } });
+  const run = runner.run.bind(runner);
+  runner.run = (file, args) => (file === 'sc.exe' ? Promise.reject(new Error('blocked')) : run(file, args));
+  assert.equal(await winInstaller({ runner }).isInstalled('tailscale'), true);
+});
+
 test('isInstalled true quando winget list trova il pacchetto', async () => {
   const runner = fakeRunner({
+    'query SunshineService': NO_SERVICE,
     'list -e --id LizardByte.Sunshine': { code: 0, stdout: 'LizardByte.Sunshine 0.23.1', stderr: '' },
   });
   const inst = winInstaller({ runner });
@@ -38,6 +65,7 @@ test('isInstalled true quando winget list trova il pacchetto', async () => {
 
 test('isInstalled false quando winget esce con codice non-zero', async () => {
   const runner = fakeRunner({
+    'query Tailscale': NO_SERVICE,
     'list -e --id Tailscale.Tailscale': { code: 1, stdout: 'No installed package found', stderr: '' },
   });
   const inst = winInstaller({ runner });
@@ -280,7 +308,7 @@ test('linux flatpak: flatpak update, then refuse if the version cannot be read',
 });
 
 test('not installed: nothing to check, nothing upgraded', async () => {
-  const runner = seqRunner((file, args) => (args.join(' ') === 'list -e --id LizardByte.Sunshine'
+  const runner = seqRunner((file, args) => (file === 'sc.exe' || args.join(' ') === 'list -e --id LizardByte.Sunshine'
     ? { code: 1, stdout: 'No installed package found', stderr: '' } : ok()));
   const r = await winInstaller({ runner }).ensureSunshineCurrent();
   assert.deepEqual(r, { ok: true, installed: false, version: '' });

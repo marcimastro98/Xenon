@@ -101,19 +101,21 @@ function createDeckShortcutRunner(deps) {
     catch { return { ok: false, error: 'failed' }; }
   }
 
-  // The shortcut `combo` of key `keyId` was pressed. Re-read from the store, so
-  // a key edited (or its shortcut changed) since the combo was registered does
-  // what it says now, or nothing.
-  async function press(keyId, combo) {
+  // Plays key `keyId` from a fresh read of the store. `refuse(key, steps)` sees
+  // that same read, so what it checked is what runs; it answers what to return
+  // instead, or nothing. `via` says where the press came from.
+  async function fire(keyId, refuse, via) {
     if (running.has(keyId)) return { ok: false, error: 'busy' };   // a held repeat, or a slow macro
     running.add(keyId);
     try {
       const found = S.findKey(await d.readConfigs(), keyId);
-      if (!found || S.normalizeShortcut(found.key.shortcut) !== combo) return { ok: false, error: 'gone' };
+      if (!found) return { ok: false, error: 'gone' };
       const title = String(found.key.title || '');
       const list = d.steps(S.shortcutTrigger(found.key)).slice(0, MAX_STEPS);
+      const refused = refuse(found.key, list);
+      if (refused) return refused;
       if (!list.length) {
-        d.broadcast('deck_shortcut_failed', { title, error: 'no_action' });
+        d.broadcast('deck_shortcut_failed', { title, error: 'no_action', ...via });
         return { ok: false, error: 'no_action' };
       }
       let error = '';
@@ -122,13 +124,24 @@ function createDeckShortcutRunner(deps) {
         const r = await runStep(step.action);
         if (r && r.ok === false && !error) error = r.error || 'failed';   // run every step, report the first failure
       }
-      if (error) d.broadcast('deck_shortcut_failed', { title, error });
+      if (error) d.broadcast('deck_shortcut_failed', { title, error, ...via });
       return error ? { ok: false, error } : { ok: true };
     } catch {
       return { ok: false, error: 'failed' };
     } finally {
       running.delete(keyId);
     }
+  }
+
+  // The shortcut `combo` of key `keyId` was pressed: a key edited (or its shortcut
+  // changed) since the combo was registered does what it says now, or nothing.
+  function press(keyId, combo) {
+    return fire(keyId, (key) => (S.normalizeShortcut(key.shortcut) !== combo ? { ok: false, error: 'gone' } : null));
+  }
+
+  // The button of a key placed on the screen was pressed (deck-press.js).
+  function pressKey(keyId, refuse) {
+    return fire(keyId, refuse, { via: 'button' });
   }
 
   function stop() {
@@ -139,7 +152,7 @@ function createDeckShortcutRunner(deps) {
     if (d.soundPlayer) d.soundPlayer.stop();
   }
 
-  return { press, claim, handOff, stop };
+  return { press, pressKey, claim, handOff, stop };
 }
 
 module.exports = { createDeckShortcutRunner, MAX_STEPS, CLAIM_MS };

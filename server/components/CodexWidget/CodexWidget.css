@@ -28,7 +28,7 @@
   color: var(--cx-ink);
 }
 .cx-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
-.cx-state { flex: 1 1 auto; display: grid; place-items: center; text-align: center; font-size: 13px; line-height: 1.5; color: var(--cx-2); padding: 0 18px; }
+.cx-state { flex: 1 1 auto; display: grid; place-items: center; text-align: center; text-wrap: balance; font-size: 13px; line-height: 1.5; color: var(--cx-2); padding: 0 18px; }
 .cx-muted { font-size: 12.5px; line-height: 1.45; color: var(--cx-2); }
 .cx-notice { flex: 0 0 auto; padding: 7px 12px; border-radius: 9px; background: var(--cx-well); font-size: 12.5px; line-height: 1.4; }
 .cx-notice.is-warn { color: var(--cx-warn); }
@@ -43,10 +43,8 @@
 }
 .cx-name:hover { background: var(--cx-well); }
 .cx-name-t { white-space: nowrap; font-size: 14px; font-weight: 700; }
-.cx-link-mark { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
-.cx-link-mark.is-on { background: var(--cx-go); }
-.cx-link-mark.is-untrusted, .cx-link-mark.is-unknown { background: var(--cx-warn); }
-.cx-link-mark.is-off { box-shadow: inset 0 0 0 1.5px var(--cx-3); }
+/* The hooks are written but not trusted yet: one step left. */
+.cx-link-word { font-size: 12.5px; font-weight: 650; color: var(--cx-warn); }
 
 .cx-faces { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--cx-well); box-shadow: inset 0 0 0 1px var(--cx-line); }
 .cx-face {
@@ -72,24 +70,25 @@
 .cx-sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; min-width: 0; }
 .cx-sec-title { font-size: 12.5px; font-weight: 650; color: var(--cx-2); white-space: nowrap; }
 .cx-sec-sum { margin-left: auto; font-size: 12.5px; color: var(--cx-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cx-sub-title { margin: 10px 0 2px; font-size: 12px; font-weight: 650; color: var(--cx-3); }
+.cx-sub-title { margin: 10px 0 4px; font-size: 12.5px; font-weight: 650; color: var(--cx-2); }
+.cx-sub-title:first-child { margin-top: 0; }
 
 /* ── Live: sessions beside the plan on a wide tile, above it on a narrow one ── */
 .cx-livegrid {
   flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
 }
 @container cx (min-width: 620px) {
   .cx-livegrid { grid-template-columns: minmax(0, 1fr) clamp(220px, 34cqw, 340px); align-content: stretch; gap: 18px; overflow: hidden; }
   .cx-livegrid.is-single { grid-template-columns: minmax(0, 1fr); }
   .cx-limits { padding-left: 16px; box-shadow: inset 1px 0 0 var(--cx-line); overflow-y: auto; }
   .cx-sessions { display: flex; flex-direction: column; min-height: 0; }
-  .cx-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .cx-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; }
 }
 .cx-list { display: flex; flex-direction: column; gap: 4px; }
 .cx-row {
-  display: flex; align-items: flex-start; gap: 10px; padding: 7px 8px; border-radius: 9px; min-width: 0; width: 100%;
-  appearance: none; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 9px; min-width: 0; width: 100%;
+  appearance: none; border: 0; background: var(--cx-well); color: inherit; font: inherit; text-align: left; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 .cx-row:hover { background: color-mix(in srgb, var(--cx-ink) 8%, transparent); }
@@ -97,11 +96,9 @@
 .cx-row-main, .cx-row-title, .cx-row-sub { display: block; }
 .cx-unlinked { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cx-unlinked .cx-muted { flex: 1 1 200px; }
-.cx-row:not(.is-thread) { background: var(--cx-well); }
-.cx-dot { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--cx-3); }
-.cx-row.is-running .cx-dot, .cx-row.is-active .cx-dot { background: var(--cx-go); box-shadow: none; }
-.cx-row.is-waiting .cx-dot { background: var(--cx-warn); box-shadow: none; }
-.cx-row.is-ended .cx-dot { opacity: 0.5; }
+.cx-row-state { flex: 0 0 auto; font-size: 12.5px; font-weight: 650; color: var(--cx-2); }
+.cx-row.is-running .cx-row-state, .cx-row.is-active .cx-row-state { color: var(--cx-go); }
+.cx-row.is-waiting .cx-row-state { color: var(--cx-warn); }
 .cx-row-main { min-width: 0; flex: 1 1 auto; }
 .cx-row-title { font-size: 13.5px; font-weight: 650; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-row-sub { margin-top: 2px; font-size: 12px; color: var(--cx-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -126,14 +123,26 @@
 .cx-gauge-reset { font-size: 12.5px; color: var(--cx-2); font-variant-numeric: tabular-nums; }
 
 /* ── Usage ── */
-.cx-usage { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: flex; flex-direction: column; gap: 14px; }
+.cx-usage { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; display: flex; flex-direction: column; gap: 14px; }
 .cx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; }
 .cx-stat { padding: 10px 12px; border-radius: 10px; background: var(--cx-well); }
 .cx-stat-v { font-size: clamp(18px, 6cqh, 28px); font-weight: 760; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .cx-stat-k { margin-top: 3px; font-size: 12px; color: var(--cx-2); }
-.cx-days { display: flex; align-items: flex-end; gap: 3px; height: clamp(60px, 26cqh, 150px); }
-.cx-day { flex: 1 1 0; min-width: 2px; border-radius: 2px 2px 0 0; background: var(--cx-go); }
+.cx-days { flex: 1 1 clamp(60px, 26cqh, 150px); min-height: 60px; max-height: 240px; display: flex; align-items: flex-end; gap: 3px; }
+.cx-day { flex: 1 1 0; min-width: 2px; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--cx-ink) 30%, transparent); }
 .cx-day.is-zero { background: color-mix(in srgb, var(--cx-ink) 12%, transparent); }
+.cx-day.is-today { background: var(--cx-go); }
+/* Four numbers on a narrow tile: two rows of two, never three and one left over. */
+@container cx (max-width: 400px) {
+  .cx-stats:has(> :nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* A wide tile keeps the numbers beside the days. */
+@container cx (min-width: 860px) {
+  .cx-usage { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 10px 18px; }
+  .cx-usage > :is(.cx-state, .cx-muted) { grid-column: 1 / -1; }
+  .cx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+  .cx-days { max-height: none; }
+}
 
 /* ── link panel ── */
 .cx-panel { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; overflow-y: auto; }
@@ -148,7 +157,7 @@
 .cx-thread-head { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .cx-thread-head .cx-row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-thread {
-  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
   display: flex; flex-direction: column; gap: 8px; padding-right: 2px;
 }
 .cx-msg { display: flex; }
@@ -162,7 +171,7 @@
 .cx-thread-note { align-self: center; font-size: 12px; color: var(--cx-warn); }
 /* What Codex says while it works: quieter than an answer, and gone once the turn ends. */
 .cx-thread-progress { max-width: min(88%, 760px); padding: 0 12px; font-size: 12.5px; line-height: 1.45; color: var(--cx-2); white-space: pre-wrap; overflow-wrap: anywhere; }
-.cx-thread-note.is-running { color: var(--cx-2); }
+.cx-thread-note.is-running { align-self: flex-start; padding: 0 12px; color: var(--cx-2); }
 .cx-thread-foot { flex: 0 0 auto; }
 
 /* ── decisions ── */
@@ -229,33 +238,31 @@
   .cx-dec-acts { flex-wrap: wrap; }
   .cx-dec-acts .cx-key.is-quiet { order: 3; flex-basis: 100%; }
 }
-
-/* ── the escalation: one decision, full screen ── */
-.cx-overlay {
-  position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center;
-  padding: clamp(10px, 3vh, 28px); box-sizing: border-box;
-  /* No backdrop blur: a full-screen blur is a per-frame cost on the Edge's iGPU. */
-  background: rgba(6, 7, 9, 0.86);
-  color: var(--cx-ink);
+/* Stacked, the second card falls out of the tile or crushes the first: one card, whole, and how many follow. */
+.cx-decs-stacked { display: none; }
+@container cx (max-width: 859px) {
+  .cx-decs.is-pair > .cx-dec ~ .cx-dec, .cx-decs.is-pair > .cx-muted:not(.cx-decs-stacked) { display: none; }
+  .cx-decs-stacked { display: block; }
 }
-.cx-dec.is-big {
-  width: min(880px, 100%); max-height: 100%; gap: 16px; padding: 22px 26px; border-radius: 18px;
-  background: linear-gradient(color-mix(in srgb, var(--cx-dec) 9%, transparent), color-mix(in srgb, var(--cx-dec) 9%, transparent)), rgba(16, 18, 21, 0.98);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 0 1px color-mix(in srgb, var(--cx-dec) 55%, transparent);
+/* A short tile is the decision and nothing else: under it a row would only be cut, and the
+   card itself would be cut before its keys. */
+@container cx (max-height: 420px) {
+  .cx-decs { flex: 1 1 0; max-height: none; }
+  .cx-decs.is-pair { grid-template-rows: minmax(0, 1fr) auto; align-items: stretch; }
+  .cx-decs ~ * { display: none; }
+  .cx-dec { flex: 1 1 auto; max-height: none; }
+  .cx-dec-acts { margin-top: auto; }
 }
-.cx-dec.is-big .cx-dec-head { font-size: 14px; }
-.cx-dec.is-big .cx-dec-what { font-size: clamp(20px, 3.2vh + 8px, 30px); }
-.cx-dec.is-big .cx-dec-cmd { font-size: 15.5px; max-height: 38vh; padding: 12px 14px; }
-.cx-dec.is-big .cx-key { min-height: 60px; font-size: 17px; border-radius: 12px; }
-@media (max-width: 520px) {
-  .cx-dec.is-big { padding: 16px; }
-  .cx-dec.is-big .cx-dec-acts { flex-wrap: wrap; }
-  .cx-dec.is-big .cx-key.is-quiet { order: 3; flex-basis: 100%; }
-}
-@media (max-height: 560px) {
-  .cx-dec.is-big { gap: 11px; padding: 15px 18px; }
-  .cx-dec.is-big .cx-dec-cmd { font-size: 14px; max-height: 30vh; }
-  .cx-dec.is-big .cx-key { min-height: 48px; font-size: 15.5px; }
+/* Room beside it: the keys stand next to what they decide, the main one first. */
+@container cx (min-width: 860px) {
+  .cx-decs:not(.is-pair) .cx-dec {
+    display: grid; grid-template-columns: minmax(0, 1fr) clamp(180px, 22cqw, 260px);
+    grid-template-rows: auto minmax(0, 1fr); gap: 10px 16px;
+  }
+  .cx-decs:not(.is-pair) .cx-dec-head { grid-column: 1 / -1; }
+  .cx-decs:not(.is-pair) .cx-dec-acts { flex-direction: column; justify-content: flex-end; margin-top: 0; }
+  .cx-decs:not(.is-pair) .cx-key { flex: 0 0 auto; }
+  .cx-decs:not(.is-pair) .cx-key.is-allow { order: -1; }
 }
 
 /* ── the topbar marker ── */

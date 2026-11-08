@@ -323,9 +323,9 @@ test('grantOperator: un solo comando elevato, e rifiuta nomi che non sono nomi',
     exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
   });
 
-  assert.deepEqual(await ts.grantOperator('marcello'), { ok: true });
+  assert.deepEqual(await ts.grantOperator('alex'), { ok: true });
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].args, ['set', '--operator=marcello']);
+  assert.deepEqual(calls[0].args, ['set', '--operator=alex']);
 
   // This value is interpolated into an ELEVATED command line. Anything that is
   // not the shape of a username is refused outright rather than escaped, and
@@ -347,7 +347,7 @@ test('grantOperator: dialogo chiuso = cancelled, non un fallimento', async () =>
     },
     exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
   });
-  assert.equal((await ts.grantOperator('marcello')).reason, 'cancelled');
+  assert.equal((await ts.grantOperator('alex')).reason, 'cancelled');
 });
 
 test('grantOperator: su Windows non esiste e non spawna', async () => {
@@ -360,7 +360,7 @@ test('grantOperator: su Windows non esiste e non spawna', async () => {
     },
     exists: () => true, platform: 'win32', exe: 'C:\\tailscale.exe',
   });
-  assert.deepEqual(await ts.grantOperator('marcello'), { ok: false, reason: 'not_applicable' });
+  assert.deepEqual(await ts.grantOperator('alex'), { ok: false, reason: 'not_applicable' });
   assert.equal(spawned, 0);
 });
 

@@ -96,7 +96,10 @@
     return svg;
   }
 
+  // The X of a window or a row: drawn, so every font shows the same mark.
+  const CLOSE_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
   if (typeof window !== 'undefined') {
-    window.DeckIcons = { CATEGORIES, has, el, ids: () => Object.keys(PATHS) };
+    window.DeckIcons = { CATEGORIES, has, el, ids: () => Object.keys(PATHS), CLOSE_MARK };
   }
 })();

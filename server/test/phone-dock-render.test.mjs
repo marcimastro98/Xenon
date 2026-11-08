@@ -312,9 +312,9 @@ function bottomFixedSelectors() {
       if (/(?:^|;|\s)top:\s*0/.test(body) && bottom[1].trim() === '0') continue;
       for (const sel of m[1].split(',')) {
         const s = sel.trim().replace(/\s+/g, ' ');
-        // Only ever the element's own class, so a state variant does not need
-        // its own entry in the phone-view list.
-        const cls = s.match(/\.[a-z][\w-]*/i);
+        // Only ever the element's own class, the last part of the selector, so a
+        // state variant does not need its own entry in the phone-view list.
+        const cls = s.split(' ').pop().match(/\.[a-z][\w-]*/i);
         if (cls && !found.has(cls[0])) found.set(cls[0], basename(file));
       }
     }
@@ -402,4 +402,12 @@ test('no static icon in the page still draws a sparkle for Bit', () => {
   const html = readFileSync(join(HERE, '..', 'index.html'), 'utf8');
   assert.equal(html.includes('M12 0 C12.7 6.1 17.9 11.3 24 12'), false, 'the four-point sparkle is back');
   assert.doesNotMatch(SRC, /glyph: '✦'/);
+});
+
+test('a key starts from its caption, so a long word is not cut beside a short one', () => {
+  const css = readFileSync(join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8').replace(/\r\n/g, '\n');
+  const key = css.slice(css.indexOf('.ph-btn.ph-act {'), css.indexOf('.ph-ico {'));
+  assert.match(key, /flex: 1 1 auto;/);
+  assert.match(key, /min-width: 44px;/, 'never under a thumb');
+  assert.match(key, /max-width: 84px;/);
 });

@@ -73,7 +73,7 @@
 .nw-empty-add:hover { background: rgba(255,255,255,0.09); }
 
 .nw-item {
-  display: flex; align-items: stretch; gap: 11px; width: 100%; min-width: 0; padding: 9px 11px; min-height: 56px; overflow: hidden; box-sizing: border-box;
+  flex: 0 0 auto; display: flex; align-items: stretch; gap: 11px; width: 100%; min-width: 0; padding: 9px 11px; min-height: 56px; overflow: hidden; box-sizing: border-box;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
   border-radius: 12px; cursor: pointer; text-align: left; color: inherit; text-decoration: none;
   transition: background 0.14s, border-color 0.14s;

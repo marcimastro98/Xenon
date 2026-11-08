@@ -108,6 +108,38 @@ test('a second verifier answers from the saved cache without reading, until a fi
   } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
 });
 
+test('a hold that starts after the edges reads no whole file', async () => {
+  const f = fixture();
+  try {
+    const { fs: cfs, stats } = countingFs();
+    let asked = 0;
+    const v = createDupeVerifier({ fs: cfs, dataDir: f.dir, held: () => ++asked > 2 });
+    const out = await v.verify([{ s: SIZE, paths: [f.a, f.b] }]);
+    assert.equal(stats.ranged, EDGE_BYTES * 2 * 2, 'both edges were read');
+    assert.equal(stats.streamed, 0);
+    assert.equal(out.pending, 1);
+    await v.stop();
+  } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
+});
+
+test('a hold reads nothing more, and the next pass continues', async () => {
+  const f = fixture();
+  try {
+    const { fs: cfs, stats } = countingFs();
+    let holding = true;
+    const v = createDupeVerifier({ fs: cfs, dataDir: f.dir, held: () => holding });
+    const group = [{ s: SIZE, paths: [f.a, f.b] }];
+    const first = await v.verify(group);
+    assert.equal(stats.streamed + stats.ranged, 0, 'not a byte read during the game');
+    assert.equal(first.pending, 1);
+    holding = false;
+    const second = await v.verify(group);
+    assert.equal(second.pending, 0);
+    assert.equal(second.groups.length, 1);
+    await v.stop();
+  } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
+});
+
 test('the read budget bounds a pass and leaves the rest pending', async () => {
   const f = fixture();
   try {

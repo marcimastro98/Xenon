@@ -276,3 +276,51 @@ test('a toggle stops the clip the PC is playing instead of offering it', async (
   assert.equal(events.length, 0);
   runner.stop();
 });
+
+test('a combination held system-wide is named by its keyup, never by one whose keydown came', () => {
+  const up = (code, mods = {}) => ({ type: 'keyup', code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
+  // Ctrl+Shift+K: the keydown went to another app's hotkey, only the keyup arrived.
+  assert.equal(S.swallowedCombo(up('KeyK', { ctrlKey: true, shiftKey: true }), new Set()), 'ctrl+shift+k');
+  assert.equal(S.swallowedCombo(up('F10', { ctrlKey: true, shiftKey: true }), new Set(['ControlLeft'])), 'ctrl+shift+f10');
+  // Its keydown was seen: an ordinary release.
+  assert.equal(S.swallowedCombo(up('KeyK', { ctrlKey: true, shiftKey: true }), new Set(['KeyK'])), null);
+  // The modifiers let go first, or a lone key: not a combination Xenon could take.
+  assert.equal(S.swallowedCombo(up('KeyK'), new Set()), null);
+  assert.equal(S.swallowedCombo(up('ShiftLeft', { ctrlKey: true }), new Set()), null);
+  assert.equal(S.swallowedCombo({ type: 'keydown', code: 'KeyK', ctrlKey: true, shiftKey: true }, new Set()), null);
+  assert.equal(S.swallowedCombo(up('KeyK', { ctrlKey: true, shiftKey: true }), null), null);
+});
+
+test('a Ctrl+Alt letter is free once this PC\'s keyboards are known not to type it with AltGr', () => {
+  try {
+    assert.equal(S.reservedBy('ctrl+alt+r'), 'altgr');
+    S.useAltGrKeys(['e', '5']);   // an Italian and a US keyboard
+    assert.equal(S.reservedBy('ctrl+alt+r'), '');
+    assert.equal(S.reservedBy('ctrl+alt+e'), 'altgr');
+    assert.equal(S.reservedBy('ctrl+alt+5'), 'altgr');
+    assert.equal(S.reservedBy('ctrl+alt+f9'), '');
+    assert.equal(S.reservedBy('ctrl+shift+t'), 'apps');
+    S.useAltGrKeys(['E', 'bad', 7]);
+    assert.equal(S.reservedBy('ctrl+alt+e'), 'altgr');
+    assert.equal(S.reservedBy('ctrl+alt+r'), '');
+    // Not read (another OS, a failed read, an old server): every one stays refused.
+    S.useAltGrKeys(undefined);
+    assert.equal(S.reservedBy('ctrl+alt+r'), 'altgr');
+  } finally {
+    S.useAltGrKeys(null);
+  }
+});
+
+test('Ctrl+Alt+letter arriving as a keyup alone is a press, not a combination held elsewhere', () => {
+  const up = (code, mods = {}) => ({ type: 'keyup', code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
+  const ctrlAlt = up('KeyR', { ctrlKey: true, altKey: true });
+  assert.equal(S.keyupPress(ctrlAlt, new Set(['ControlLeft', 'AltLeft'])), 'ctrl+alt+r');
+  assert.equal(S.swallowedCombo(ctrlAlt, new Set()), null);
+  // Its keydown came: the press was already taken from it.
+  assert.equal(S.keyupPress(ctrlAlt, new Set(['KeyR'])), null);
+  // Three modifiers, or Ctrl+Shift: still another app's hotkey.
+  const three = up('KeyR', { ctrlKey: true, altKey: true, shiftKey: true });
+  assert.equal(S.keyupPress(three, new Set()), null);
+  assert.equal(S.swallowedCombo(three, new Set()), 'ctrl+alt+shift+r');
+  assert.equal(S.keyupPress(up('KeyK', { ctrlKey: true, shiftKey: true }), new Set()), null);
+});

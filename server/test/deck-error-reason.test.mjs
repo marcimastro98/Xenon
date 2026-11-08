@@ -16,6 +16,8 @@ const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const ERR_TEXT_SRC = readFileSync(new URL('../js/deck-error-text.js', import.meta.url), 'utf8');
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 const REGISTRY = readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+// The page rules answer the menu and the Deck with their own codes.
+const LAYER_PAGES = readFileSync(new URL('../layer-pages.js', import.meta.url), 'utf8');
 // The registry dispatches to provider modules, and a provider names its own
 // failures — the registry only passes them through (`r.error || '…_failed'`).
 // Voicemeeter was the first entry in the table whose codes live entirely in a
@@ -37,6 +39,8 @@ const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
   + readFileSync(new URL('../capture-gallery.js', import.meta.url), 'utf8')
   // "Why does it stutter?" answers no_frames / too_soon before it has a reading.
   + readFileSync(new URL('../stutter-why.js', import.meta.url), 'utf8')
+  // A steps recording stopped before any click answers no_steps.
+  + readFileSync(new URL('../steps-recorder.js', import.meta.url), 'utf8')
   // The power mode key passes on what the OS backend says it cannot do.
   + readdirSync(new URL('../power/', import.meta.url))
     .filter((f) => f.endsWith('.js'))
@@ -66,7 +70,7 @@ const KEYS = [
   'deck_err_vm_bad_param', 'deck_err_vm_bad_macro', 'deck_err_vm_bad_value',
   // Screenshot and recording keys.
   'deck_err_no_window', 'deck_err_no_encoder', 'deck_err_disk_full',
-  'deck_err_no_frames', 'deck_err_too_soon',
+  'deck_err_over_exclusive', 'deck_err_no_frames', 'deck_err_too_soon', 'deck_err_no_game', 'deck_err_no_pages', 'deck_err_no_widgets', 'deck_err_save_failed',
 ];
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
@@ -92,7 +96,7 @@ test('every explained code is one the registry emits', () => {
     // deck.js may raise one itself before posting (a key still to set up).
     const quoted = new RegExp("'" + code + "'");
     const raisedHere = DECK.includes("reportActionError('" + code + "')");
-    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS) || quoted.test(SERVER) || raisedHere,
+    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS) || quoted.test(SERVER) || quoted.test(LAYER_PAGES) || raisedHere,
       `${code} is explained on screen but no dispatcher or provider emits it`);
   }
 });
@@ -103,8 +107,8 @@ test('an unrecognised code is shown rather than swallowed', async () => {
   const { describe, shortcutFailed } = (await import('../js/deck-error-text.js')).default;
   const tt = (_key, fallback) => fallback;
   assert.equal(describe('weird_code', tt), 'weird_code', 'no sentence falls back to the bare code, never to nothing');
-  assert.equal(describe('not_found', tt), 'that path does not exist on this PC (not_found)');
-  assert.equal(describe('already_small', tt), 'It is already smaller than that: send it as it is (already_small)', 'an export key says why');
+  assert.equal(describe('not_found', tt), 'That path does not exist on this PC', 'a sentence stands alone and starts as one');
+  assert.equal(describe('already_small', tt), 'It is already smaller than that: send it as it is', 'an export key says why');
   assert.equal(describe('', tt), '');
   assert.equal(describe('__proto__', tt), '__proto__', 'only own entries count');
   // deck.js goes through the shared describer for both toasts.
@@ -114,7 +118,44 @@ test('an unrecognised code is shown rather than swallowed', async () => {
   const t = shortcutFailed({ error: 'no_dashboard', title: 'x'.repeat(80) }, tt);
   assert.equal(t.type, 'error');
   assert.ok(t.title.endsWith(': ' + 'x'.repeat(60)), 'the key name is capped');
-  assert.match(t.message, /\(no_dashboard\)$/);
+  assert.equal(t.message, 'This step needs the Xenon dashboard open on this PC');
+});
+
+// Found by pressing every new key: the sentence for a replay key was the answer
+// to a benchmark key too, and two ordinary answers had no sentence at all.
+test('the sentence fits every key that can get the code', async () => {
+  const { describe } = (await import('../js/deck-error-text.js')).default;
+  const tt = (_key, fallback) => fallback;
+  assert.equal(describe('no_game', tt), 'Open a game first', 'benchmark, replay and frame reads all answer no_game');
+  assert.equal(describe('no_steps', tt), 'No clicks, nothing saved');
+  assert.equal(describe('save_failed', tt), 'The clip could not be saved, try again', 'a raw code under the red title says nothing');
+  assert.match(describe('no_pages', tt), /only one widget page/);
+  assert.match(describe('no_widgets', tt), /no widgets yet/);
+  assert.match(describe('unknown_page', tt), /no such page/);
+});
+
+// "This key could not run" over "open a game first" reads as a broken key.
+test('a normal situation is a note, a real failure stays an error', async () => {
+  const { keyToast } = (await import('../js/deck-error-text.js')).default;
+  const tt = (_key, fallback) => fallback;
+  for (const code of ['no_game', 'no_file', 'no_frames', 'not_recording', 'no_marks', 'whole_video', 'no_steps', 'no_pages', 'no_widgets', 'no_phone', 'companion_off']) {
+    const note = keyToast(code, 'Open a game first', tt);
+    assert.equal(note.type, 'info', code);
+    assert.equal(note.title, 'Open a game first', code);
+    assert.equal(note.message, undefined, code);
+    assert.equal(note.important, true, code + ': a key just pressed answers even under Do not disturb');
+  }
+  for (const code of ['launch_failed', 'disk_full', 'write_failed', 'weird_code']) {
+    const bad = keyToast(code, 'why', tt);
+    assert.equal(bad.type, 'error', code);
+    assert.equal(bad.title, 'This key could not run', code);
+    assert.equal(bad.message, 'why', code);
+  }
+});
+
+test('a stopped steps recording is told once on a page with the capture cards', () => {
+  const fn = DECK.slice(DECK.indexOf('function reportActionError(code)'));
+  assert.match(fn.slice(0, fn.indexOf('\n  }')), /code === 'no_steps' && window\.CaptureToast/);
 });
 
 test('every page that loads deck.js loads the sentences first', () => {
@@ -122,6 +163,8 @@ test('every page that loads deck.js loads the sentences first', () => {
     const html = readFileSync(new URL('../' + page, import.meta.url), 'utf8');
     const a = html.indexOf('js/deck-error-text.js'), b = html.indexOf('js/deck.js"');
     assert.ok(a > 0 && a < b, page);
+    const c = html.indexOf('js/deck-done-text.js');
+    assert.ok(c > 0 && c < b, page + ' loads the done notes too');
   }
 });
 

@@ -200,10 +200,25 @@ function calendarWeekStart() {
   return (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.weekStart === 'sun') ? 0 : 1;
 }
 
+// One span per length; the card's width picks which one shows (CalendarView.css).
+function _monthLabelSpan(locale, format, className) {
+  const label = new Intl.DateTimeFormat(locale, format).format(calendarViewDate);
+  const span = document.createElement('span');
+  span.className = className;
+  span.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  return span;
+}
+
 function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
   const locale = t('locale');
-  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(calendarViewDate);
-  if (monthEl) monthEl.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+  if (monthEl) {
+    // The short name drops this year's number: with it "Aujourd'hui" still wrapped.
+    const thisYear = calendarViewDate.getFullYear() === new Date().getFullYear();
+    monthEl.replaceChildren(
+      _monthLabelSpan(locale, { month: 'long', year: 'numeric' }, 'calendar-month-long'),
+      _monthLabelSpan(locale, thisYear ? { month: 'short' } : { month: 'short', year: 'numeric' }, 'calendar-month-short'),
+    );
+  }
 
   const weekStart = calendarWeekStart();
   if (weekdaysEl) {
@@ -482,6 +497,8 @@ function renderUpcoming() {
   document.querySelectorAll('[data-calf="upcoming-list"]').forEach(list => _buildUpcomingInto(list));
 }
 
+let dayModalLetGo = null;
+
 function updateDayModalTitle() {
   if (!modalDateValue) return;
   const formatted = new Intl.DateTimeFormat(t('locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(modalDateValue + 'T00:00:00'));
@@ -502,13 +519,28 @@ function openDayModal(dateValue) {
   const endEl = $('event-end-date');
   if (endEl) { endEl.value = ''; endEl.min = dateValue; }
   $('day-modal').classList.add('open');
-  setTimeout(() => $('event-title').focus(), 80);
+  holdDayModal();
   if (calendarMode) renderCalendar();
+}
+
+// The time list is a step inside the window: Esc takes that back first.
+function dayModalEsc() {
+  if ($('time-picker-dropdown').classList.contains('open')) toggleTimePicker();
+  else closeDayModal();
+}
+
+function holdDayModal() {
+  if (dayModalLetGo) return;
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('day-modal', true);
+  dayModalLetGo = window.DialogFocus.hold($('day-modal'), { start: $('event-title'), onEsc: dayModalEsc });
 }
 
 function closeDayModal() {
   $('day-modal').classList.remove('open');
   modalDateValue = null;
+  if (typeof window.ambientFreeze === 'function') window.ambientFreeze('day-modal', false);
+  if (dayModalLetGo) dayModalLetGo();
+  dayModalLetGo = null;
 }
 
 function renderDayModalEvents() {
@@ -541,9 +573,7 @@ function renderDayModalEvents() {
       const badgeColor = eventDotColor(event, _calendarFeedsNow());
       if (badgeColor) badge.style.background = badgeColor;
       badge.title = t('external_event');
-      top.appendChild(name);
-      top.appendChild(time);
-      top.appendChild(badge);
+      top.append(time, name, badge);
     } else {
       const del = document.createElement('button');
       del.type = 'button';
@@ -551,9 +581,7 @@ function renderDayModalEvents() {
       del.title = t('delete_event');
       del.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
       del.onclick = () => deleteCalendarEvent(event.id);
-      top.appendChild(name);
-      top.appendChild(time);
-      top.appendChild(del);
+      top.append(time, name, del);
     }
     item.appendChild(top);
     if (event.notes) {
@@ -607,11 +635,6 @@ function flashEventNoteCopied(btn) {
     btn.title = t('event_note_copy');
     btn._resetTimer = null;
   }, 1400);
-}
-
-function selectCalendarDate(dateValue) {
-  selectedCalendarDate = dateValue;
-  renderCalendar();
 }
 
 function moveCalendarMonth(delta) {
@@ -739,7 +762,7 @@ async function saveCalendarEvent() {
   const title = $('event-title').value.trim();
   const dateValue = modalDateValue || selectedCalendarDate;
   const starts = combineDateTime(dateValue, $('event-time').value);
-  if (!title || !starts) return;
+  if (!title || !starts) { $('event-title').focus(); return; }
   const reminderMinutes = Number($('event-reminder').value);
   const reminderAt = reminderMinutes >= 0 ? toLocalDateTimeValue(new Date(starts.getTime() - reminderMinutes * 60000)) : '';
   // Optional multi-day: an end date later than the start day makes the event
