@@ -153,7 +153,7 @@ if [ -z "$NODE_BIN" ]; then
   if [ "$XENON_OS" = 'macos' ]; then
     fail "Node.js is required and was not found. Install it with 'brew install node' or from https://nodejs.org, then run this script again."
   fi
-  fail "Node.js 18+ is required and was not found. Install it with your package manager (apt install nodejs npm / dnf install nodejs / pacman -S nodejs npm) or from https://nodejs.org, then run this script again."
+  fail "Node.js is required and was not found. Install it with your package manager (apt install nodejs npm / dnf install nodejs / pacman -S nodejs npm) or from https://nodejs.org, then run this script again."
 fi
 
 NODE_MAJOR="$("$NODE_BIN" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
@@ -310,7 +310,7 @@ install_media_adapter
 # so re-running the installer is the whole update path and it has to be able to
 # move the version. Bump this with helper-mac/…/Version.swift whenever a mode
 # is added or its answers change.
-MIN_MAC_HELPER='0.6.0'
+MIN_MAC_HELPER='0.7.0'
 
 # Compare dotted versions without sort -V, which BSD sort does not have.
 mac_helper_outdated() {

@@ -42,6 +42,7 @@ const nativeCollectors =
 // render. See runPowerShellScript / runPowerShellCommand.
 const POWERSHELL_SUPPORTED = process.platform === 'win32';
 const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
+const { createFpsDemand } = require('./fps-demand');
 // Single-screen capabilities (js/capability-catalog.js): one declaration, run
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
@@ -49,12 +50,32 @@ const layersHost = require('./layers-host').createLayersHost();
 // Edit mode of the layer windows (layers-edit.js): runtime only, told to every
 // open window over SSE `layers-edit`.
 const DeckShortcuts = require('./js/deck-shortcuts.js');
+const AltGrKeys = require('./altgr-keys-windows.js');
+// What this PC's keyboards type with AltGr: a Ctrl+Alt letter none of them types
+// is a shortcut like any other. Read again at most once a minute (altgr-keys-windows.js).
+function _altGrKeys() {
+  const list = AltGrKeys.altGrKeys();
+  DeckShortcuts.useAltGrKeys(list);
+  return list;
+}
+_altGrKeys();
 const { createDeckShortcutRunner } = require('./deck-shortcut-runner');
+const { createDeckPress } = require('./deck-press');
+const LayerKey = require('./capabilities/layer-key');
 const { createDeckSoundPlayer } = require('./deck-sound-player');
 const LayerPages = require('./layer-pages');
+const { createSituations } = require('./situations');
+const { createWidgetKeys } = require('./widget-keys');
+const { readFailed, heardApp, heardMedia, reportedApps, nothingHeard, createHeardPlayer, createMusicFact, afterPress, PRESS_HOLDS_MS, cacheLife, cachedReadUsable } = require('./media-read');
+const { pressMediaKey, tellApp, createMediaSender } = require('./media-key.js');
+const micUse = require('./mic-use');
+const { isOwnApp } = require('./capabilities/layer-anchor');
 const { createPerfStream } = require('./perf-stream');
+const { createPacketLoss } = require('./packet-loss');
+const { createPerfNet } = require('./perf-net');
 const { createStutterWatch } = require('./stutter-why');
 const { createExclusiveHint } = require('./exclusive-hint');
+const { overExclusive } = require('./capabilities/over-screen');
 const { createGameSessions, widgetSnapshot: widgetGameSessions } = require('./game-sessions');
 const calendarReminders = require('./calendar-reminders');
 const listOps = require('./list-ops');
@@ -69,6 +90,7 @@ const NotesAi = require('./notes-ai');
 const AgendaAi = require('./agenda-ai'); // edit_task / edit_calendar_event: find by words, change only what is named
 const TimerActions = require('./timer-actions'); // pause/resume/reset/stop rules shared by the tile and Bit
 const PageTarget = require('./js/page-target.js'); // which page "go to Streaming" means (shared with the pager)
+const TileMaterial = require('./js/tile-material.js'); // the materials style_tile may name (shared with the style window)
 const TilePlay = require('./tile-play'); // play_in_tile: a channel, video or page into its tile, claimed by one surface
 const FavoritesAi = require('./favorites-ai'); // edit_favorites: stocks, teams, news sources and topics by name
 const SettingsAi = require('./settings-ai'); // change_setting: the allowlisted Settings switches
@@ -106,6 +128,11 @@ const layersEdit = require('./layers-edit').createLayersEdit({
       return { layers: { ...now, hidden } };
     }).catch(() => { /* the widgets stay shown: still usable */ });
   },
+  onOff: (byHand) => screenMenu.holdEnded(byHand),
+});
+// The widget whose screen is open in the menu shows whatever its rule says (layers-peek.js).
+const layersPeek = require('./layers-peek').createLayersPeek({
+  broadcast: (id) => broadcastSSE('layers-peek', { id }),
 });
 // Drawing on the screen through the shell where the engine has no sheet (macOS,
 // Linux): open or not, told to the pages over SSE `screen_draw`.
@@ -117,22 +144,50 @@ const drawShell = require('./screen-draw-shell').createScreenDrawShell({
 // the same menu as a panel (SSE `xenon_menu_panel`).
 const screenMenu = require('./screen-menu').createScreenMenu({
   host: layersHost,
-  broadcast: (state) => broadcastSSE('screen_menu', state),
+  broadcast: (state) => {
+    if (!state.open) layersPeek.set(null);
+    broadcastSSE('screen_menu', state);
+  },
   panel: (state) => broadcastSSE('xenon_menu_panel', state),
+  run: (action) => deckRegistry.run(action),
+  failed: (error) => broadcastSSE('xenon_menu_failed', { error }),
+  capturing: () => _recorder.status().on === true || _replay.status().on === true,
+  holding: () => layersEdit.get(),
 });
 const XenonMenu = require('./xenon-menu');
+const MenuWidgets = require('./menu-widgets');
 // Tiles that make no sense alone on the desktop: the bare custom shell (a Store
 // widget is placed by its package instead) and the second-screen mirror.
 const LAYER_TILE_EXCLUDED = new Set(['custom', 'secondscreen', 'screen']);
 async function _layerCatalog() {
+  const all = ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
+    .map(p => ({ id: p.id, name: p.name, description: p.description, surface: p.surface, category: p.category }));
   return {
     tiles: DASHBOARD_WIDGET_IDS.filter(id => !LAYER_TILE_EXCLUDED.has(id)),
-    packages: ((await sdkPackagesCached().catch(() => null)) || { packages: [] }).packages
-      .map(p => ({ id: p.id, name: p.name })),
+    // A scene fills a whole screen: it is chosen as the wallpaper, never placed as a widget.
+    packages: all.filter(p => p.surface !== 'ambient'),
+    scenes: all.filter(p => p.surface === 'ambient'),
   };
+}
+// The functions installed Store widgets offer to keys (capabilities/widget-key.js),
+// with whether the person allowed each one when the widget was installed, and the
+// combinations their creators suggest (only offered in the menu, never set).
+async function _sdkWidgetKeys() {
+  if (!sdkFeatureEnabled()) return [];
+  const scan = await sdkPackagesCached();
+  return scan.packages.map((p) => {
+    const granted = sdkGrantsFor(p.id).handlers;
+    const list = (p.deck && Array.isArray(p.deck.handlers)) ? p.deck.handlers : [];
+    return {
+      id: p.id, name: p.name || p.id, ...(p.key ? { key: p.key } : {}),
+      handlers: list.map((h) => ({ id: h.id, name: h.name, params: h.params || [], granted: granted.includes(h.id), ...(h.key ? { key: h.key } : {}) })),
+    };
+  });
 }
 const capabilityRunner = capabilities.createCapabilities({
   fps: fpsMonitor,
+  // What this machine can tell a widget's rule (the menu hides the rest and says why).
+  situations: { call: () => micUse.available(), front: () => frontAppKnown() },
   // The PC's battery and the system power mode (power/index.js picks the OS backend).
   power: require('./power'),
   layersHost,
@@ -146,11 +201,13 @@ const capabilityRunner = capabilities.createCapabilities({
     setUsageMode: (mode) => updateUsageModeSetting(mode),
     setScreenAlerts: (on) => updateScreenAlertsSetting(on),
     setDesktopScene: (patch) => updateDesktopSceneSetting(patch),
+    desktopScenes: async () => ({ packages: (await _layerCatalog()).scenes, canvases: (_serverHubSettings || {}).ambientScenes, themes: (_serverHubSettings || {}).customThemes }),
   },
   layers: {
     get: () => _serverHubSettings && _serverHubSettings.layers,
     update: (edit) => updateLayersSetting(edit),
     catalog: () => _layerCatalog(),
+    shots: () => _storeShots(),
   },
   // The log of games played (game-sessions.js) and its on/off setting.
   sessions: {
@@ -205,6 +262,7 @@ const capabilityRunner = capabilities.createCapabilities({
       ...(Number.isInteger(e.covered) && e.covered > 0 ? { covered: e.covered } : {}),
       // The toast's "Pin": only where the shell can draw it on the screen.
       ...(e.kind === 'screenshot' && layersHost.available() ? { pinnable: true } : {}),
+      ...(e.kind === 'screenshot' && e.width > 0 && e.height > 0 ? { width: e.width, height: e.height } : {}),
     }),
     onNothingCovered: () => broadcastSSE('capture', { kind: 'cover', covered: 0 }),
     // The line over the area picker, in the language the dashboard shows.
@@ -245,11 +303,15 @@ const capabilityRunner = capabilities.createCapabilities({
       return true;
     },
   },
+  // The functions installed Store widgets offer to keys (capabilities/widget-key.js),
+  // with whether the person allowed each one when the widget was installed.
+  sdkHandlers: () => _sdkWidgetKeys(),
   // Global shortcuts need the Helper (Windows/macOS) or GNOME's keybindings (Linux).
   shortcutsAvailable: () => process.platform === 'linux' || fs.existsSync(HELPER_EXE),
   deck: {
     update: (edit) => updateDeckConfigs(edit),
     status: () => _deckShortcutStatus(),
+    configs: () => readDeckConfigs(),
     takenByOthers: () => (_hotkey.bindings || []).filter((b) => !b.keyId)
       .map((b) => DeckShortcuts.normalizeShortcut(b.combo) || String(b.combo || '').toLowerCase()),
     heldBy: (combo, except) => _comboHeldBy(combo, except),
@@ -258,10 +320,13 @@ const capabilityRunner = capabilities.createCapabilities({
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
+const { lowerPriority } = require('./child-priority');
+const { createMountedDisks } = require('./mounted-disks');
 const calls = require('./calls');
 const callDetect = require('./call-detect');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
+const SdkGrant = require('./sdk-grant.js');
 const sdkProxy = require('./sdk-proxy');
 const sdkStore = require('./sdk-store');
 const signalrgb = require('./signalrgb');
@@ -274,10 +339,17 @@ gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 // rather than by requiring across, because these two modules already read each
 // other and a require cycle is how that ends badly.
 try { fpsMonitor.setForegroundPid(() => gameDetect.getForegroundPid()); } catch { /* platform without one */ }
+// …and which game it found, whose frames count even when Windows composes them.
+try {
+  fpsMonitor.setTrackedGame(() => {
+    const { gamePid, gameProc } = gameDetect.getGameDiag();
+    return { pid: gamePid, name: gameProc };
+  });
+} catch { /* platform without one */ }
 const lighting = require('./lighting');
 const { createSessionWatch } = require('./session-watch');
 const { normalizeLedColors } = require('./lighting-led-colors');
-const { normalizeLayouts: normalizeLightingLayouts } = require('./lighting-layouts');
+const { normalizeLayouts: normalizeLightingLayouts, normalizeScanned: normalizeLightingScanned } = require('./lighting-layouts');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsAiTools = require('./vitals-ai-tools'); // Bit reads, refills and pauses Vitals (get_vitals, refill_vital, set_vitals)
@@ -298,6 +370,7 @@ const { createPhone } = require('./phone');                    // the paired pho
 const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
+const { createFirstReading, createFactReader } = require('./first-reading');
 const SensorSources = require('./js/sensor-sources.js'); // which sensor feeds each headline reading (shared with Settings + tests)
 const SensorSourceAi = require('./sensor-source-ai.js'); // Bit picks one (sensor_source)
 const AmbientScene = require('./js/ambient-scene.js'); // the Ambient scene store limits (shared with the import)
@@ -305,6 +378,8 @@ const TopbarLook = require('./js/topbar-look.js'); // the top bar's look, one se
 const LayersModel = require('./js/layers-model.js'); // widgets on the desktop / overlay / anchored (shared with the client + tests)
 const LayerI18n = require('./layer-strings.js'); // one language for the light layer page
 const LayerPage = require('./layer-page.js'); // the light layer page plus its tiles' files
+const assetVersion = require('./asset-version.js'); // a version on every page's CSS/JS URLs
+const { seedReadings } = require('./sse-seed.js'); // what a new feed client starts from
 const UsageMode = require('./js/usage-mode.js'); // dashboard / widgets only / both (shared with the client)
 const PerfHud = require('./js/perf-hud.js'); // what the Game performance tile shows (shared with the client)
 const ScreenSceneModel = require('./js/screen-scene-model.js'); // wallpaper + saver settings (shared with the client)
@@ -312,14 +387,19 @@ const themePalette = require('./js/theme-palette.js'); // single owner of the se
 const SdkDiagnostics = require('./js/sdk-diagnostics.js'); // what the widget sandbox refuses, for a widget's author (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
+const aiLocalServer = require('./ai-local-server');
 const aiAnthropic = require('./ai-anthropic');
 const aiXenon = require('./ai-xenon-credits');
+const welcomeSparks = require('./welcome-sparks');
 const aiCreationLabels = require('./ai-creation-labels');
 const aiTurns = require('./ai-turns');
 const aiMyWidgets = require('./ai-my-widgets');
 const { externalizeInlineScripts } = require('./ai-widget-scripts');
 const aiCli = require('./ai-cli');   // Claude Code / Codex: the user's own subscription
 const aiGemini = require('./ai-gemini');
+const { withThinking, applyThinking } = require('./ai-gemini-thinking');
+const { hasVoice, wavPcm, transcriptionPrompt, geminiTranscript } = require('./stt-voice-gate');
+const { aiLangName } = require('./ai/prompt-language.js');
 const aiModels = require('./ai-models');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
 const { createGuardian } = require('./guardian');
@@ -335,6 +415,8 @@ const icsFeeds = require('./ics-feeds.js');
 // results, and the transfer widget's received files.
 const { createRegistry, resolveOutputDevice, pickToggleDevice, pickFirstConnected, isBlockedOpenPath } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
+const { createPerfSession } = require('./perf-session');
+const { shieldWish } = require('./perf-session/shield-wish');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, haSameDestination, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
@@ -386,6 +468,7 @@ const aiSurface = require('./ai-surface');  // Bit on the main screen with no da
 const AiToolGroups = require('./ai-tool-groups'); // Bit's tools: a core + groups on demand (use_tools)
 const aiTurnRecord = require('./ai-turn-record');  // what Bit really did in a reply, kept in the chat history
 const aiDeckRun = require('./ai-deck-run');  // Bit presses a Deck action (run_deck_action)
+const aiRateStore = require('./ai-rate-store');  // Bit votes on a Store entry, after a card
 const _deckConfirms = aiDeckRun.createConfirmStore();
 const perfScreen = require('./perf-screen');  // Performance Mode with no dashboard (widgets only)
 const screenAlertsPage = require('./screen-alerts-page');  // the alerts window, with Bit's voice panel
@@ -405,6 +488,7 @@ const remoteAccessLib = require('./remote-access');
 const webPushLib = require('./web-push');
 const remoteHttpsLib = require('./remote-https');
 const remoteHttpsSetupLib = require('./remote-https-setup');
+const { runGuarded } = require('./http/request-boundary.js');
 const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
@@ -430,6 +514,9 @@ const { createLyricsOffsets } = require('./lyrics-offsets');
 const { createLyricsTranslator, cleanCap: cleanLyricsTranslateCap } = require('./lyrics-translator');
 const { createSdkAi, cleanDailyCap: cleanSdkAiDailyCap } = require('./sdk-ai');
 const { createRoastSparks, cleanRoastSparksCap } = require('./vitals-roast-sparks.js');
+const { createBitMessages } = require('./bit-messages.js');
+const { createRatingVotes, ASKS_PER_ENTRY } = require('./rating-votes.js');
+const { createPcId } = require('./pc-id.js');
 const { createMcpDev } = require('./mcp-dev');        // Claude Code / Codex building widgets: pairing + dashboard questions
 const mcpDevTools = require('./mcp-dev-tools');      // ...and what each of their tools does
 const lyricsPrices = require('./lyrics-translate-price');
@@ -585,14 +672,14 @@ async function checkLatestRelease(force) {
 // the remote release notes). This announces the headline features of the version
 // the user is ALREADY on. Content is authored by hand in server/whatsnew.json and
 // shipped with the build, so it always matches the running version and works
-// offline. The client shows it at every startup until the user dismisses its
-// `id`, and it only reappears when a later build ships a NEW `id` — a pure bugfix
-// release keeps the previous `id` (or empties it) and so never re-nags. Text
-// fields may be a plain string OR a { <lang>: string } map; the client picks the
+// offline. The client shows it until the user closes its `id`, and it only
+// reappears when a later build ships a NEW `id`: patches and minors keep the `id`
+// and tell their fixes through `releases` (js/release-notice.js). Text fields may be a plain string OR a { <lang>: string } map; the client picks the
 // UI language with an English fallback. Media is GitHub-hosted only (same
 // allowlist as the release-notes media).
 const WHATSNEW_FILE = path.join(__dirname, 'whatsnew.json');
 const WHATSNEW_TEXT_MAX = 2000;
+const releaseNotes = require('./release-notes.js');
 let _whatsNewCache = null;   // { at, data } — re-read from disk at most once a minute
 
 function normalizeWhatsNewText(v) {
@@ -610,24 +697,21 @@ function normalizeWhatsNewText(v) {
 // Rebuild from known keys only (never spread untrusted input — prototype-pollution
 // safe, and drops anything unrecognised like the "_note" author comment).
 function normalizeWhatsNew(raw) {
-  if (!raw || typeof raw !== 'object') return { id: '', title: '', url: '', footer: '', highlights: [] };
-  const highlights = (Array.isArray(raw.highlights) ? raw.highlights : []).slice(0, 20).map((h) => {
-    const media = (h && typeof h.media === 'string' && isAllowedMediaUrl(h.media)) ? h.media : '';
-    let mediaType = String((h && h.mediaType) || '').toLowerCase();
-    if (mediaType !== 'image' && mediaType !== 'video') mediaType = media ? 'image' : '';
-    return {
-      title: normalizeWhatsNewText(h && h.title),
-      body: normalizeWhatsNewText(h && h.body),
-      media,
-      mediaType: media ? mediaType : '',
-    };
-  }).filter((h) => h.title || h.body || h.media);
+  if (!raw || typeof raw !== 'object') return { id: '', title: '', url: '', highlights: [] };
+  const highlights = (Array.isArray(raw.highlights) ? raw.highlights : []).slice(0, 20).map((h) => ({
+    title: normalizeWhatsNewText(h && h.title),
+    body: normalizeWhatsNewText(h && h.body),
+    ...releaseNotes.normalizeMedia(h, isAllowedMediaUrl),
+    ...releaseNotes.normalizeSheet(h),
+  })).filter((h) => h.title || h.body || h.media);
   return {
     id: String(raw.id || '').slice(0, 64),
     title: normalizeWhatsNewText(raw.title),
     url: (typeof raw.url === 'string' && /^https:\/\//i.test(raw.url)) ? raw.url : '',
-    footer: normalizeWhatsNewText(raw.footer),
+    intro: normalizeWhatsNewText(raw.intro),
     highlights,
+    more: releaseNotes.normalizeMore(raw.more, normalizeWhatsNewText),
+    releases: releaseNotes.normalizeReleases(raw.releases, normalizeWhatsNewText),
   };
 }
 
@@ -645,7 +729,7 @@ async function readPwshJson(filePath) {
 async function loadWhatsNew() {
   const now = Date.now();
   if (_whatsNewCache && now - _whatsNewCache.at < 60 * 1000) return _whatsNewCache.data;
-  let data = { id: '', title: '', url: '', footer: '', highlights: [] };
+  let data = { id: '', title: '', url: '', highlights: [] };
   try {
     data = normalizeWhatsNew(JSON.parse(await fs.promises.readFile(WHATSNEW_FILE, 'utf8')));
   } catch { /* missing/invalid → empty: the modal simply won't show */ }
@@ -661,7 +745,6 @@ let cachedMicLabel    = null; // friendly name (F.NAME) used to match DirectShow
 let _lastSpeakerVolume = 50;  // updated by getAudioInfo — used for duck/restore
 let _duckActive        = false;
 let _duckSavedVolume   = null;
-let _aiFocusedScreen   = null; // last monitor the AI captured — its "focus" for follow-ups
 
 // ── AI model ids ─────────────────────────────────────────────────────────────
 // `chat` is the Gemini model for chat / function-calling / STT / web-search;
@@ -717,6 +800,11 @@ function providerModelFor(provider, role, settings) {
 // their own conversation. Automatic background ones never come here; the two
 // exceptions, lyrics translation and a widget granted `ai`, are each the user's
 // explicit opt-in under a cap, on the plan's small model (completeWithUserAi).
+// One plain answer from the server the user runs on this PC (ai-local-server.js).
+function localServerOneShot(settings, systemText, userText, maxTokens) {
+  return aiLocalServer.oneShot({ config: aiLocalServer.configFrom(settings), systemText, userText, maxTokens });
+}
+
 async function cliOneShot(provider, systemText, userText, settings) {
   const s = settings || (await readHubSettings().catch(() => null)) || {};
   const model = provider === 'claudecode' ? s.claudeCodeModel : s.codexModel;
@@ -750,7 +838,7 @@ function buildCoreAiFunctions() {
         // ── System ──
         { name: 'lock_pc', description: 'Lock the computer: its normal lock screen, the user logs back in', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats, plus fan speeds (fans[]) and power draw in watts (power.cpu/gpu/psu/total)', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset: Corsair via iCUE and Bluetooth devices). Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset: Corsair via iCUE, Bluetooth devices, and mice, keyboards, headsets and controllers of many brands on their USB dongle; a device with no known protocol is not listed; if the result has access, the OS must allow the read first: say what it needs, on Linux the access.command line). A device with lastReadMinutesAgo is asleep or off: its percent is that old, say so. Two of one model read "Name" and "Name (2)". Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_energy_status', description: 'Get the full energy picture: the PC\'s power draw in watts (CPU/GPU/PSU) plus the user\'s Home Assistant power/energy readings (solar production, smart plugs, home meter, UPS). Use for "how much power is the PC using", "quanto sta producendo il fotovoltaico", "consumo di casa".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
         // ── Stock market (Borsa) ──
@@ -830,6 +918,8 @@ function buildCoreAiFunctions() {
         { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'open_whats_new', description: "Open What's New: the full-screen sheets of the version running now. Use when the user asks what changed, what is new, or to see the news of this version again.", parameters: { type: 'object', properties: {} } },
+        { name: 'open_store_entry', description: "Open one creation in the Store by its entry id. Use when the user wants to see something Bit told them about: the conversation memory gives the entry id. It only opens the page; installing and buying stay with the user there.", parameters: { type: 'OBJECT', properties: { entryId: { type: 'STRING', description: 'The Store entry id' } }, required: ['entryId'] } },
         { name: 'open_sparks_shop', description: "Open the Store's Sparks tab: where Sparks (Xenon's credits) are bought, with what they are for. Use when the user wants to buy or top up Sparks, or asks where to get them.", parameters: { type: 'OBJECT', properties: {} } },
         { name: 'start_ambient_mode', description: 'Open the Ambient/screensaver mode (fullscreen scene with clock, media, weather: the old focus lock screen)', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'stop_ambient_mode', description: 'Close the Ambient/screensaver mode if it is showing', parameters: { type: 'OBJECT', properties: {} } },
@@ -837,7 +927,7 @@ function buildCoreAiFunctions() {
         { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
         // ── Performance Mode ──
         { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, put back the apps moved out of the game\'s way, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
         // ── Timers ──
         { name: 'start_timer', description: 'Start a new countdown timer ("set a timer for 5 minutes", "remind me in 30 seconds") or a stopwatch that counts up ("start a stopwatch", with kind stopwatch and no duration).', parameters: { type: 'OBJECT', properties: {
           label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
@@ -917,9 +1007,9 @@ function buildCoreAiFunctions() {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
         }, required: ['profile'] } },
         // ── Appearance & preferences (fine-grained dashboard customization) ──
-        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (glass/retro/comic), or exact semantic colours for the app canvas, panels, nested surfaces, controls, text, borders, accent and UI states. Use this (not change_theme) for any specific-colour request. Applies live, contrast-checks by default and persists.', parameters: { type: 'OBJECT', properties: {
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (liquid/glass/retro/comic), or exact semantic colours for the app canvas, panels, nested surfaces, controls, text, borders, accent and UI states. Use this (not change_theme) for any specific-colour request. Applies live, contrast-checks by default and persists.', parameters: { type: 'OBJECT', properties: {
           preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
-          style: { type: 'STRING', description: 'Optional base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
+          style: { type: 'STRING', description: 'Optional base skin: "liquid" (Liquid Glass, real blur over the wallpaper), "glass" (Classic), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
           accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
           background: { type: 'STRING', description: 'Optional app canvas/background colour as #RRGGBB' },
@@ -936,9 +1026,14 @@ function buildCoreAiFunctions() {
           info_color: { type: 'STRING', description: 'Optional informational state colour as #RRGGBB' },
           contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
         } } },
+        { name: 'style_tile', description: 'Dress ONE tile, as the Material tab of its style window does: what it is made of and the colour of the glass. Use it when the user names a single tile ("clear glass on the music tile", "make the chat violet"); for the whole dashboard use customize_appearance. Works on every skin. Pass tile and at least one of material and tint. Applies live and saves with the layout. Its shape, pictures and frames stay in the style window: open layout mode for those.', parameters: { type: 'OBJECT', properties: {
+          tile: { type: 'STRING', description: 'The tile: its id when you know it (media is the music player; chat, calendar, agenda, tasks, notes, system, audio, mic, timer, weather) or just its name as shown on screen, in the user\'s language' },
+          material: { type: 'STRING', description: 'One of: liquid (Liquid Glass), clear (nearly see-through), frosted (thick blur), solid (nothing shows through), none (no panel, only the content over the background), theme (back to what the theme gives)' },
+          tint: { type: 'STRING', description: 'Colour of the glass as #RRGGBB, or "none" for the colour of the theme. On a dark look use a deep colour, so light text stays readable' },
+        }, required: ['tile'] } },
         { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset: every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato"). Prefer create_preset kind "theme" when the theme needs its own light AND dark palettes, or when the user wants a code to share or to review before applying.', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short theme name for the gallery card (e.g. "Cyberpunk Viola")' },
-          skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
+          skin: { type: 'STRING', description: 'Base skin: "liquid" (Liquid Glass, real blur over the wallpaper), "glass" (Classic), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           base_appearance: { type: 'STRING', description: 'Base mode: "light" or "dark"' },
           accent: { type: 'STRING', description: 'Accent/brand colour #RRGGBB' },
           background: { type: 'STRING', description: 'App canvas/background colour #RRGGBB' },
@@ -975,7 +1070,7 @@ function buildCoreAiFunctions() {
             clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
           } },
         } } },
-        { name: 'set_creation_model', description: 'Sparks (Bit credits) only: change which model makes creations (widgets, themes, backgrounds, scenes, Decks) and how much it reasons before creating. Pass only what the user asked to change. Saved in Settings → Bit assistant, and a creation asked in the same message already uses it. Use for "usa Opus", "use Sonnet", "ragiona di più", "think less", "fallo più curato". Per widget at the Normal level: Haiku about 3 Sparks, Sonnet about 50, Opus about 150; Thorough costs about twice Normal, Light stays close to Normal.', parameters: { type: 'OBJECT', properties: {
+        { name: 'set_creation_model', description: 'Sparks (Bit credits) only: change which model makes creations (widgets, themes, backgrounds, scenes, Decks) and how much it reasons before creating. Pass only what the user asked to change. Saved in Settings → Bit, and a creation asked in the same message already uses it. Use for "usa Opus", "use Sonnet", "ragiona di più", "think less", "fallo più curato". Per widget at the Normal level: Haiku about 3 Sparks, Sonnet about 50, Opus about 150; Thorough costs about twice Normal, Light stays close to Normal.', parameters: { type: 'OBJECT', properties: {
           model: { type: 'STRING', description: 'haiku (fast, simplest), sonnet (balanced) or opus (most accurate)' },
           effort: { type: 'STRING', description: 'low (Light: little reasoning, for simple requests), medium (Normal, recommended) or high (Thorough: more polished, about twice the credits and time)' },
         } } },
@@ -989,6 +1084,12 @@ function buildCoreAiFunctions() {
         }, required: ['kind', 'name'] } },
         // ── Deck composer + creator ecosystem (v4.4) ──
         { name: 'deck_action_catalog', description: 'Read-only: the FULL Deck action catalog (every action type + its params/options), the live-state sources, live-value sources and slider targets. Call this BEFORE configure_deck when you are unsure of an exact action type or its parameters.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'rate_store_item', description: 'Vote on something the user installed from the Store, when they say how many stars they give it. Never guess the stars and never vote on your own. It does not vote yet: the user sees a confirmation card, because a vote is final and cannot be changed. It can be voted three days after install. If the name is not found the answer lists what is installed.', parameters: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'The name of the widget, theme or pack as the user said it.' },
+          stars: { type: 'NUMBER', description: 'Whole stars from 1 to 5, as the user said.' },
+          why: { type: 'STRING', enum: ['breaks', 'slow', 'dislike', 'useless'], description: 'Only for 1 to 3 stars and only if the user said it: it breaks, it is slow, they do not like it, they do not need it.' },
+          description: { type: 'STRING', description: 'Short line in the user\'s language shown on the card, saying the vote is final.' },
+        }, required: ['name', 'stars'] } },
         { name: 'run_deck_action', description: 'Run ONE Deck action now, exactly as if the user pressed a key that does it: any type from deck_action_catalog with its params, e.g. {type:"wlInputMute",mixId:"..."}, {type:"vmStripMute",strip:"0"}, {type:"obsMute",source:"Mic"}, {type:"lightColor",color:"#ff0000"}, {type:"webhook",url:"..."}, {type:"typeText",text:"ciao"} (types into the window in front), {type:"hotkey",keys:"ctrl+shift+m"}. Use it for what no other tool covers (Wave Link, Voicemeeter, OBS sources, Streamer.bot, Razer Chroma and other lighting, Deck states, Steam games, window moves, the soundboard, SDK widget actions...): when a dedicated tool exists, use that one. Actions that run code, type or press keys, call or message, post to a stream or a chat, lock the PC, or unlock or call a smart-home service do NOT run yet: the user gets a confirmation card, so say it is waiting on the card, never that it is done. Replies with the action\'s own result, e.g. {ok:false,error:"obs_offline"}.', parameters: { type: 'OBJECT', properties: {
           action: { type: 'OBJECT', description: 'The typed action, e.g. {"type":"vmBusMute","bus":"0","mode":"toggle"}', properties: { type: { type: 'STRING' } } },
           description: { type: 'STRING', description: 'Short plain-language line in the user\'s language saying what it does, shown on the confirmation card when one is needed.' },
@@ -1019,7 +1120,7 @@ function buildCoreAiFunctions() {
           look: { type: 'OBJECT', description: 'Optional, the on/off cues of the new profile: {"litRing":true} rings every lit key, {"dimOff":true} dims the keys that are off', properties: { litRing: { type: 'BOOLEAN' }, dimOff: { type: 'BOOLEAN' } } },
           autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
         } } },
-        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup: the sandbox has NO direct network). Put the JavaScript in .js files and attach events with addEventListener: the sandbox CSP allows script files only, so inline on* attributes never run. Set manifest "size" to the shape you designed for (small, medium, wide, tall or large): the widget is put on the current page in that shape, and most tiles on the 2560x720 panel are wide and short (about 750x220 px), so lay out in a row when the tile is much wider than tall. Fill the tile: html, body and the root at height 100% with container-type: size on the root and type sized in cqmin, so the content covers most of the box with no empty band and nothing sunk to one edge. files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear), use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "ai":true to ask one plain question at a time to the AI the user set for Bit, the same one you run on (type:"ai" with prompt, optional system, maxTokens, json; the answer comes back in ai_result as text, render it with textContent): no tools, no history, a daily number per widget the user sets, so ask on a tap or a new item, never on a timer; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key); "shape" to give the widget\'s OWN tile a silhouette instead of a rectangle ({"preset":"hexagon"}, also squircle, circle, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob, or your own closed SVG path in a 0-to-1 square, {"path":"M .5 0 L 1 .5 L .5 1 L 0 .5 Z"}), which needs no permission and sends the widget {type:"shape",safe:{t,r,b,l}} so it can keep its content clear of the cut edges. Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message: it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything. Use create_preset (kind "widget" or "ambient") only when the user wants a share code or a package; this tool is the direct install. To CHANGE a widget the user already has (made by you or by them, even days ago), call my_widgets to find it and read its files, then call this tool with its id and ONLY the files you change: the files you leave out stay as they are, and "remove" drops the ones the new version no longer uses. Raise the manifest "version". A widget from the Store or a share code belongs to someone else and cannot be changed: make a new one with a new id instead. For a brand-new widget pick an id that my_widgets does not list.', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). It can also live in the top bar with no tile on screen: for a small readout there (a mouse battery, a counter) declare "mini": true and "background": true and read sdk_reference section "mini" first; "badge", "island" and "topbarButton" are its other places. Write self-contained files (no external URLs in markup: the sandbox has NO direct network). Put the JavaScript in .js files and attach events with addEventListener: the sandbox CSP allows script files only, so inline on* attributes never run. Set manifest "size" to the shape you designed for (small, medium, wide, tall or large): the widget is put on the current page in that shape, and most tiles on the 2560x720 panel are wide and short (about 750x220 px), so lay out in a row when the tile is much wider than tall. Fill the tile: html, body and the root at height 100% with container-type: size on the root and type sized in cqmin, so the content covers most of the box with no empty band and nothing sunk to one edge. files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream":"battery","data":{...}} messages: the payload is in .data, and the manifest must list the stream. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear), use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "ai":true to ask one plain question at a time to the AI the user set for Bit, the same one you run on (type:"ai" with prompt, optional system, maxTokens, json; the answer comes back in ai_result as text, render it with textContent): no tools, no history, a daily number per widget the user sets, so ask on a tap or a new item, never on a timer; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key); "shape" to give the widget\'s OWN tile a silhouette instead of a rectangle ({"preset":"hexagon"}, also squircle, circle, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob, or your own closed SVG path in a 0-to-1 square, {"path":"M .5 0 L 1 .5 L .5 1 L 0 .5 Z"}), which needs no permission and sends the widget {type:"shape",safe:{t,r,b,l}} so it can keep its content clear of the cut edges. Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message: it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything. Use create_preset (kind "widget" or "ambient") only when the user wants a share code or a package; this tool is the direct install. To CHANGE a widget the user already has (made by you or by them, even days ago), call my_widgets to find it and read its files, then call this tool with its id and ONLY the files you change: the files you leave out stay as they are, and "remove" drops the ones the new version no longer uses. Raise the manifest "version". A widget from the Store or a share code belongs to someone else and cannot be changed: make a new one with a new id instead. For a brand-new widget pick an id that my_widgets does not list.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
           files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
             path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
@@ -1069,7 +1170,7 @@ function buildCoreAiFunctions() {
 // array each call.
 function buildMemoryFunctions() {
   return [
-    { name: 'remember_fact', description: 'Save a durable fact about the USER to your persistent memory so you recall it in future conversations (their name, hardware, preferences, favourite teams, routines, how they like things). Write it as a short third-person statement, e.g. "The user\'s name is Marcello", "The user has an RTX 4090", "The user supports Napoli". Call this whenever the user shares something worth remembering. Do NOT store secrets/passwords or one-off task details, and do NOT store something you already remember.', parameters: { type: 'OBJECT', properties: {
+    { name: 'remember_fact', description: 'Save a durable fact about the USER to your persistent memory so you recall it in future conversations (their name, hardware, preferences, favourite teams, routines, how they like things). Write it as a short third-person statement, e.g. "The user\'s name is Anna", "The user has an RTX 4090", "The user supports Napoli". Call this whenever the user shares something worth remembering. Do NOT store secrets/passwords or one-off task details, and do NOT store something you already remember.', parameters: { type: 'OBJECT', properties: {
       fact: { type: 'STRING', description: 'The fact to remember, as a short third-person statement.' },
     }, required: ['fact'] } },
     { name: 'forget_fact', description: 'Remove something from your persistent memory when the user asks you to forget it or corrects an outdated fact. Pass the fact text (or a distinctive part of it) to remove.', parameters: { type: 'OBJECT', properties: {
@@ -1081,6 +1182,7 @@ function buildMemoryFunctions() {
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const svvText = require('./svv-text'); // SoundVolumeView's CSV, read in the encoding it was written in
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
+const MEDIA_KEY_SCRIPT = path.join(__dirname, 'media-key.ps1');
 // Xenon Helper — optional native companion exe (built from helper/, or shipped
 // with the release). When present it replaces the persistent PowerShell hosts
 // module by module; when absent everything runs on the PS scripts as before.
@@ -1165,6 +1267,39 @@ const sdkAi = createSdkAi({
 });
 // Bit's AI roasts on Sparks, under the daily Sparks the user allowed.
 const roastSparks = createRoastSparks({ dataDir: DATA_DIR });
+// What Bit has to tell the person, one inbox for every screen (bit-messages.js).
+const bitMessages = createBitMessages({
+  file: path.join(DATA_DIR, 'bit-messages.json'),
+  settings: () => _serverHubSettings,
+  onChange: () => broadcastSSE('bit-messages', {}),
+});
+const BIT_MESSAGE_BODY_MAX = 256 * 1024;
+
+// Votes on Store entries (rating-votes.js): tickets, real use, and Bit's one ask.
+const ratingVotes = createRatingVotes({
+  file: path.join(DATA_DIR, 'rating-votes.json'),
+  pcId: createPcId({
+    collectors: nativeCollectors,
+    fallback: () => supporterRedeem.getInstallId(DATA_DIR),
+  }),
+  scopedId: () => supporterRedeem.getScopedId(DATA_DIR, supporterRedeem.SCOPE_RATINGS),
+  hub: (pathname, body) => supporterRedeem.hubPost(pathname, body),
+  redeemSaved: (entryId) => supporterRedeem.redeem({ entryId, code: '', dataDir: DATA_DIR, allowTrial: false }),
+  fileAsk: (msg) => bitMessages.post({ messages: [msg] }),
+  settings: () => _serverHubSettings,
+  watching: () => sseClients.size > 0,
+  onVoted: (entryId) => {
+    communityRatings.forget(entryId);
+    for (let n = 1; n <= ASKS_PER_ENTRY; n++) bitMessages.read(`rate:${entryId}:${n}`).catch(() => {});
+  },
+});
+supporterRedeem.useRatingVotes(ratingVotes);
+const BIT_MESSAGE_ROUTES = {
+  '/bit/messages/file': (body) => bitMessages.post(body),
+  '/bit/messages/import': (body) => bitMessages.importLetters(body),
+  '/bit/messages/shown': (body) => bitMessages.shown(body.id),
+  '/bit/messages/read': (body) => bitMessages.read(body.id, body.answer),
+};
 // Claude Code / Codex building widgets through the xenon-mcp bridge
 // (packages/mcp): the paired tools and the questions to the open dashboard.
 const mcpDev = createMcpDev({
@@ -1307,9 +1442,12 @@ async function launchInstalledApp(app) {
 // was false for ever: search had no backend at all, while Spotlight still told
 // the user to add a folder in Settings to switch one on. linux-index.js does the
 // walk in Node and makes that sentence true.
+// Walking every file is the heaviest thing Xenon does and nothing needs it while
+// the PC is starting. Search and the disk map already read "still building".
+const INDEX_START_DELAY_MS = 90 * 1000;
 const livingIndex = process.platform === 'linux'
-  ? createLinuxIndex()
-  : createLivingIndex({ helperExe: HELPER_EXE });
+  ? createLinuxIndex({ startDelayMs: INDEX_START_DELAY_MS })
+  : createLivingIndex({ helperExe: HELPER_EXE, startDelayMs: INDEX_START_DELAY_MS });
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
@@ -1327,7 +1465,7 @@ const fileSearch = createFileSearch({
 // opens/refocuses the /spotlight Edge app-mode window on the main PC. State is
 // surfaced to Settings via GET /search/hotkey-status; 'taken' means another
 // app (PowerToys Run on Alt+Space, typically) owns the combo.
-const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, bindings: [], slots: {} };
+const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, failures: 0, bindings: [], slots: {} };
 
 // The table the helper is handed, in the order it is handed it: the helper
 // addresses a combo by its POSITION, so this array IS the wire format and the
@@ -1339,6 +1477,12 @@ const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, bi
 // the search shortcut still works and the page ones are simply absent, rather
 // than the whole feature failing.
 const MAX_HOTKEY_BINDINGS = 16;
+// The keys placed widgets show or hide with (widget-keys.js). What they hide
+// leaves with the rules' answer in the status, pushed at once.
+const _widgetKeys = createWidgetKeys({
+  layers: () => _serverHubSettings && _serverHubSettings.layers,
+  onChange: () => broadcastStatusNow(),
+});
 function _hotkeyBindings() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
   const out = [];
@@ -1355,6 +1499,8 @@ function _hotkeyBindings() {
   // shortcut out of the table, and one on the same combo is refused.
   const base = out.filter((b) => b.combo);
   const table = base.concat(DeckShortcuts.planBindings(base, _deckShortcuts.list, MAX_HOTKEY_BINDINGS).bindings);
+  // The widgets' keys next, by the same rule: never on a combo already taken.
+  table.push(..._widgetKeys.bindings(table.map((b) => b.combo), MAX_HOTKEY_BINDINGS - table.length));
   // The overlay's ready-made shortcut goes last, so a combo the user chose
   // always wins over it, and only while a widget is in the overlay.
   const overlay = _overlayHotkey();
@@ -1386,9 +1532,13 @@ function _comboHeldBy(combo, except) {
   const search = hs.searchSettings || {};
   if (search.hotkeyEnabled === true && same(search.hotkeyCombo || 'alt+space')) return 'search';
   if ((Array.isArray(hs.pageHotkeys) ? hs.pageHotkeys : []).some((b) => b && same(b.combo))) return 'page';
-  const key = _deckShortcuts.list.find((k) => same(k.combo));
+  const key = _deckShortcuts.list.find((k) => k.keyId !== except && same(k.combo));
   if (key) return key.title || 'deck';
   const layers = LayersModel.normalize(hs.layers);
+  // A widget's key: `except` is a widget id when its own box is being set.
+  const mine = layers.widgets.find((w) => w.id === except);
+  const ownBox = (w) => w.id === except || !!(mine && mine.group && w.group === mine.group);
+  if (layers.widgets.some((w) => w.key && !ownBox(w) && same(w.key.combo))) return 'widget';
   if (except !== 'overlay' && layers.overlayKey !== 'off' && same(layers.overlayKey)) return 'overlay';
   if (except !== 'menu' && layers.menuKey !== 'off' && same(layers.menuKey)) return 'menu';
   const o = captureOptions();
@@ -1464,15 +1614,30 @@ function routePageHotkey(binding) {
   broadcastSSE('page_hotkey', { target: binding.target, at: Date.now() });
 }
 
+// A shortcut has no key to answer on: over a game in exclusive full screen
+// (capabilities/over-screen.js) the card says why nothing opened.
+function saysOverExclusive() {
+  if (!overExclusive(fpsMonitor)) return false;
+  broadcastSSE('xenon_menu_failed', { error: 'over_exclusive' });
+  return true;
+}
+
 function routeHotkeyIndex(index) {
   const binding = _hotkey.bindings[index];
   if (!binding) return;
-  if (binding.slot === 'spotlight') routeSpotlightHotkey();
+  if (binding.slot === 'spotlight') { if (!saysOverExclusive()) routeSpotlightHotkey(); }
   else if (binding.slot === 'overlay') capabilityRunner.run({ type: 'layersToggle', mode: 'toggle', surface: 'overlay' }).catch(() => {});
   else if (binding.slot === 'replay') _pressReplayHotkey();
-  else if (binding.slot === 'menu') screenMenu.toggle();
+  else if (binding.slot === 'menu') { if (screenMenu.get().open || !saysOverExclusive()) screenMenu.toggle(); }
   else if (binding.keyId) deckShortcutRunner.press(binding.keyId, binding.combo).catch(() => {});
+  else if (binding.widgetId) _widgetKeys.press(binding.widgetId);
   else routePageHotkey(binding);
+}
+
+// The keys of a press let go (Xenon Helper's `release`): a widget held into view goes.
+function routeHotkeyRelease(index) {
+  const binding = _hotkey.bindings[index];
+  if (binding && binding.widgetId) _widgetKeys.release(binding.widgetId);
 }
 const _spotlightPopupPids = new Set();
 
@@ -1540,13 +1705,15 @@ function routeSpotlightHotkey() {
 // global shortcut until the user re-saved settings or restarted the app:
 // refreshHotkeyListener() is only called from POST /settings and at boot.
 const HOTKEY_RETRY_MS = 15000;
+const HOTKEY_RETRY_MAX_MS = 5 * 60 * 1000;
 let _hotkeyRetryTimer = null;
 function _scheduleHotkeyRetry(ms) {
   if (_hotkeyRetryTimer) return;   // cancelled in _gracefulShutdown
+  const pause = Math.min(HOTKEY_RETRY_MS * (2 ** _hotkey.failures), HOTKEY_RETRY_MAX_MS);
   _hotkeyRetryTimer = setTimeout(() => {
     _hotkeyRetryTimer = null;
     try { refreshHotkeyListener(); } catch { /* next save will retry */ }
-  }, Math.max(1000, ms || HOTKEY_RETRY_MS));
+  }, Math.max(1000, ms || pause));
   _hotkeyRetryTimer.unref();
 }
 function _cancelHotkeyRetry() {
@@ -1596,6 +1763,7 @@ function refreshLinuxHotkey(want, combo, pages) {
     combo: b.combo,
     // The name the desktop's keyboard settings list it under.
     name: b.slot === 'overlay' ? 'Xenon overlay' : b.slot === 'replay' ? 'Xenon replay' : b.slot === 'menu' ? 'Xenon menu'
+      : b.widgetId ? 'Xenon widget ' + (pages.filter((x) => x.widgetId).indexOf(b) + 1)
       : (b.keyId ? 'Xenon shortcut ' : 'Xenon page ') + (Number(b.slot.split('-')[1]) + 1),
     // The index is the binding's position in the WHOLE table, not among the
     // pages, so the press routes through the same _hotkey.bindings the helper
@@ -1624,15 +1792,19 @@ function refreshHotkeyListener() {
   // Set BEFORE dispatching: both paths read it to resolve a press, and the
   // Linux one derives each slot's route from the index into this table.
   const changed = combos.join('\u0000') !== _hotkey.combos;
+  if (changed) _hotkey.failures = 0;
   _hotkey.bindings = bindings;
   _hotkey.combos = combos.join('\u0000');
   if (_linuxHotkey) {
+    // A desktop shortcut runs a command on the press only: no release to wait for.
+    _widgetKeys.setRelease(false);
     refreshLinuxHotkey(spotlightWanted, combo, bindings.filter((b) => b.slot !== 'spotlight'));
     return;
   }
   if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; _hotkey.slots = {}; return; }
   if (_hotkey.proc && !changed) return;   // already right
   _stopHotkeyListener();
+  _widgetKeys.setRelease(false);
   let helperOk = false;
   try { helperOk = fs.existsSync(HELPER_EXE); } catch {}
   if (!helperOk) { _hotkey.state = 'helper_missing'; return; }
@@ -1648,7 +1820,7 @@ function refreshHotkeyListener() {
   }
   let proc;
   try { proc = spawn(HELPER_EXE, ['hotkey-serve', ...combos], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] }); }
-  catch { _hotkey.state = 'error'; _hotkey.diedAt = Date.now(); _scheduleHotkeyRetry(); return; }
+  catch { _hotkey.state = 'error'; _hotkey.diedAt = Date.now(); _hotkey.failures++; _scheduleHotkeyRetry(); return; }
   _hotkey.proc = proc;
   _hotkey.combo = combo;
   _hotkey.state = 'starting';
@@ -1674,6 +1846,9 @@ function refreshHotkeyListener() {
       const slot = bindings[at] && bindings[at].slot;
       if (ev.event === 'ready') {
         _hotkey.state = 'listening';
+        _hotkey.failures = 0;
+        // A helper that reports the keys let go says so here; an older one never will.
+        _widgetKeys.setRelease(ev.release === true);
         const held = Array.isArray(ev.registered) ? ev.registered : [0];
         for (const b of bindings) _hotkey.slots[b.slot] = 'taken';
         for (const i of held) {
@@ -1686,6 +1861,8 @@ function refreshHotkeyListener() {
         }
       } else if (ev.event === 'hotkey') {
         try { routeHotkeyIndex(at); } catch {}
+      } else if (ev.event === 'release') {
+        try { routeHotkeyRelease(at); } catch {}
       } else if (ev.event === 'error') {
         const state = ev.error === 'hotkey_taken' ? 'taken' : 'error';
         if (slot) _hotkey.slots[slot] = state;
@@ -1698,15 +1875,18 @@ function refreshHotkeyListener() {
   proc.on('error', () => {
     if (_hotkey.proc !== proc) return;
     _hotkey.proc = null; _hotkey.state = 'error'; _hotkey.diedAt = Date.now();
+    _hotkey.failures++;
     _scheduleHotkeyRetry();
   });
   proc.on('exit', () => {
     if (_hotkey.proc !== proc) return;
     _hotkey.proc = null;
+    _widgetKeys.setRelease(false);
     if (_hotkey.state === 'listening' || _hotkey.state === 'starting') _hotkey.state = 'error';
     _hotkey.diedAt = Date.now();
-    // 'taken' means another app owns the combo — retrying on a cadence is
-    // still right (that app can close), it just stays cheap at 15 s.
+    _hotkey.failures++;
+    // 'taken' means another app owns the combo: that app can close, so looking
+    // again is right, but it can also stay for days and each look is a process.
     _scheduleHotkeyRetry();
   });
   proc.unref();
@@ -1948,6 +2128,7 @@ const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const TASKS_MAX = 100;
 const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
+const { SCOPED_LABEL_MAX } = require('./actions/widget-timers');
 const TIMERS_MAX = 20;
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 // Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
@@ -2714,6 +2895,9 @@ const _storeRecovery = [];
   }
 })();
 const _storeRecoveryAt = Date.now();
+// Read here, after the legacy move and the recovery above and before anything
+// can write settings: from the next line on, a new user and an old one look alike.
+const FRESH_INSTALL = welcomeSparks.isFreshDataDir([...DURABLE_STORES, path.join(DATA_DIR, 'install-id.json')], storeSnapshots.snapshotsDir(DATA_DIR));
 // One copy a day of every store, taken at boot and checked every few hours.
 function startStoreSnapshots() {
   const run = () => storeSnapshots.snapshotStores(DATA_DIR, DURABLE_STORES).catch(() => {});
@@ -3180,6 +3364,11 @@ async function reconcileBrowserAutoOpenTask() {
 // Any worker problem falls back transparently to runPowerShellScript, so
 // behaviour degrades to the one-shot model and never breaks.
 const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
+// The .NET default lets this small host grow far past the 20 MB it really uses.
+// Hex, 16 MB: measured 180 to 125 MB private at the same CPU; 4 MB saves little more
+// and costs 20% more CPU. Not on Microsoft's list of GC settings: if a runtime ignores
+// it, nothing changes.
+const PWSH_WORKER_GC_BUDGET = '1000000';
 const _worker = { proc: null, buf: '', nextId: 1, pending: new Map() };
 
 function _workerReject(id, err) {
@@ -3205,8 +3394,9 @@ function _ensureWorker() {
   try {
     proc = spawn('powershell.exe',
       ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PWSH_WORKER_SCRIPT],
-      { windowsHide: true });
+      { windowsHide: true, env: { ...process.env, COMPlus_GCgen0MaxBudget: PWSH_WORKER_GC_BUDGET } });
   } catch { return null; }
+  lowerPriority(proc.pid);
   _worker.proc = proc;
   _worker.buf = '';
   proc.stdout.setEncoding('utf8');
@@ -3283,6 +3473,7 @@ const batteryMonitor = createBatteryMonitor({
   runScript: runPowerShellScript,
   lighting,
   systemBattery: async () => { const r = await require('./power').read(); return r && r.battery; },
+  peripherals: () => require('./device-battery').read({ ask: !_serverHubSettings || _serverHubSettings.batteryAskDevices !== false }),
 });
 
 // ── Persistent SMTC media host ────────────────────────────────────────────────
@@ -3363,6 +3554,7 @@ function _ensureMediaHost() {
           { windowsHide: true });
   } catch { return null; }
   _mediaHost.proc = proc;
+  lowerPriority(proc.pid);
   _mediaHost.isHelper = useHelper;
   _mediaHost.bornAt = Date.now();
   _mediaHost.buf = '';
@@ -3455,12 +3647,16 @@ function _onMediaChangedPush() {
 // empties, at most once a minute, only until the helper first proves it can see
 // a session, and only a few times per host lifetime.
 async function _guardHelperMediaBlindSpot(out) {
+  // The read failed: the helper is not blind, and PowerShell would hang on the same service.
+  if (readFailed(out)) return out;
   const empty = !out || (out.active === false && (!Array.isArray(out.sessions) || out.sessions.length === 0));
   // A session (playing OR paused) proves the helper can see SMTC on this machine
   // and reopens the detection budget: if it later goes blind mid-session (broker
   // wedge), the next run of empties is cross-checked again rather than trusted.
   if (!empty) { _mediaHost.emptyStreak = 0; _mediaHost.crossChecks = 0; return out; }
   if (++_mediaHost.emptyStreak < MEDIA_BLIND_STREAK) return out;
+  // Each look is a whole PowerShell, and a blind helper can wait for the end of a game.
+  if (backgroundHeld()) return out;
   // Rate-limit the PS cross-check with an escalating interval instead of a hard
   // lifetime cap. A hard cap (the old MEDIA_CROSSCHECK_MAX) was exhausted by the
   // agreed-empty cross-checks a machine racks up while merely idle at startup, so
@@ -3723,6 +3919,17 @@ function _sttLooksLikeSpeech(stats) {
 
 let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
+// A stuck media service answers only after its full timeout, and each try leaves another
+// call open inside it: ask again in a while, not on every tick.
+const MEDIA_READER_REST_MS = 30000;
+let mediaReaderRestUntil = 0;
+let mediaListProbe = null;
+let mediaHoldUntil = 0;
+// Each read of the sound rows is a process on Windows.
+const SOUND_ROWS_REUSE_MS = 2500;
+let _soundRows = { rows: null, at: 0 };
+const heardPlayer = createHeardPlayer(F);
+const musicNow = createMusicFact();
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
 // The forecast cache must stay STRICTLY below the shortest client refresh the user
 // can pick (Settings → Meteo → 10 min). If it equals the poll interval, the small
@@ -4909,29 +5116,6 @@ async function getWeather(lang = 'en', requestedLocation = null) {
   return promise;
 }
 
-function splitMediaTitle(rawTitle, appName) {
-  const title = (rawTitle || '').trim();
-  if (!title) return { title: '', artist: '' };
-  if (/spotify/i.test(appName) && title.includes(' - ')) {
-    const parts = title.split(' - ');
-    if (parts.length >= 2) {
-      return { artist: parts.shift().trim(), title: parts.join(' - ').trim() };
-    }
-  }
-  return { title, artist: '' };
-}
-
-function displayAppName(name) {
-  if (/spotify/i.test(name || '')) return 'Spotify';
-  if (/chrome|edge|firefox|brave|opera|youtube/i.test(name || '')) return 'YouTube';
-  if (/zunemusic|zunevideo|microsoftmediaplayer|windowsmediaplayer/i.test(name || '')) return 'Lettore Multimediale';
-  if (!name) return 'Media';
-  // Strip Windows package format: Publisher.Name_hash!AppId → Name
-  const pkg = (name || '').match(/^(?:[^.]+\.)+([^._!]+)[_!]/);
-  if (pkg) return pkg[1];
-  return name;
-}
-
 function liveMediaSnapshot(data, ageMs) {
   if (!data) return data;
   const snapshot = { ...data };
@@ -5232,7 +5416,10 @@ async function getDiskDetails() {
   // Started first so it is already in flight while the volumes read blocks, and
   // never awaited: nothing on screen waits for the name of a disk.
   const models = diskModels();
-  const volumes = await volumeDetails();
+  return joinDiskDetails(await volumeDetails(), models);
+}
+
+function joinDiskDetails(volumes, models) {
   const out = {};
   Object.keys(volumes).forEach(drive => {
     out[drive] = { ...volumes[drive], model: models[drive] || '' };
@@ -5260,10 +5447,14 @@ function diskModels() {
 let _diskLettersCache = { letters: null, at: 0 };
 const DISK_LETTERS_TTL = 60 * 1000;
 
-async function getAllDisksInfo() {
-  if (nativeCollectors) return nativeCollectors.disks();
+const mountedDisks = nativeCollectors ? createMountedDisks(() => nativeCollectors.disks()) : null;
+
+async function getAllDisksInfo({ waitForDetails = true } = {}) {
+  if (mountedDisks) return mountedDisks();
   const drives = [];
-  const details = await getDiskDetails();
+  const details = waitForDetails
+    ? await getDiskDetails()
+    : joinDiskDetails(volumeDetailsProbe.data || {}, diskModelsProbe.data || {});
   // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
   // letters change rarely. Cache the set that resolved for 60s and probe only
   // those; a stale (or empty) cache triggers a full A–Z re-scan so a newly
@@ -5308,9 +5499,9 @@ async function getAllDisksInfo() {
   return drives.length ? drives : null;
 }
 
-let ramInfoCache = null;
-async function getRamInfo() {
-  if (ramInfoCache) return ramInfoCache;
+const RAM_INFO_RETRY_MS = 60 * 1000;
+const ramInfo = createFactReader(readRamInfo, { retryMs: RAM_INFO_RETRY_MS });
+async function readRamInfo() {
   const command = `
     $types = @{ 20='DDR'; 21='DDR2'; 22='DDR2 FB'; 24='DDR3'; 26='DDR4'; 34='DDR5' }
     $modules = @(Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop | ForEach-Object {
@@ -5361,25 +5552,33 @@ async function getRamInfo() {
     } | ConvertTo-Json -Depth 4 -Compress
   `;
 
-  try {
-    const data = await runPowerShellCommand(command, 5000);
-    ramInfoCache = data.ram || null;
-  } catch {
-    ramInfoCache = null;
-  }
-  return ramInfoCache;
+  const data = await runPowerShellCommand(command, 5000);
+  return data.ram || null;
 }
 
-async function getSystemInfo() {
-  const [gpu, disks, ramInfo, cpuTemp, mem] = await Promise.all([
-    getGpuInfo(), getAllDisksInfo(), getRamInfo(), getCpuTemp(),
+const firstSystemReading = createFirstReading();
+
+// What getSystemInfo can say without waiting for a source that has not answered yet.
+function knownSystemSources() {
+  return Promise.all([
+    gpuCache, getAllDisksInfo({ waitForDetails: false }), ramInfo.known(), cpuTempCache.cpuTemp,
+    nativeCollectors ? nativeCollectors.memory() : null,
+  ]);
+}
+
+// `partialOk` is for a page that is painting: until the first full read lands it gets
+// what is known now, marked `partial`, and the feed brings the rest. Everyone else
+// waits, because a reading that is missing must not read as a sensor that is gone.
+async function getSystemInfo({ partialOk = false } = {}) {
+  const { value: [gpu, disks, ramDetail, cpuTemp, mem], partial } = await firstSystemReading(Promise.all([
+    getGpuInfo(), getAllDisksInfo(), ramInfo.get(), getCpuTemp(),
     // os.freemem() is ullAvailPhys on Windows — already "what a new workload
     // could get" — but only the truly free pages on macOS and Linux, where the
     // OS keeps that near zero on purpose. Same call, different meaning, so the
     // seam answers it per platform (see each collector's `memory()`); Windows
     // keeps the os module it always used.
     nativeCollectors ? nativeCollectors.memory() : null,
-  ]);
+  ]), partialOk ? knownSystemSources : null);
   const totalMem = (mem && mem.total) || os.totalmem();
   const usedMem = mem ? mem.used : totalMem - os.freemem();
 
@@ -5436,8 +5635,8 @@ async function getSystemInfo() {
       total: totalMem,
       percent: Math.round((usedMem / totalMem) * 100),
     },
-    ramName: ramInfo && ramInfo.name ? ramInfo.name : null,
-    ramDetail: ramInfo,
+    ramName: ramDetail && ramDetail.name ? ramDetail.name : null,
+    ramDetail,
     gpu: gpu.gpu,
     gpuName: gpu.gpuName,
     gpuTemp: gpu.gpuTemp,
@@ -5475,7 +5674,9 @@ async function getSystemInfo() {
   // choice without knowing it exists. `sensorSources` says per metric where
   // the number came from.
   const sources = SensorSources.normalizeSensorSources(_serverHubSettings && _serverHubSettings.sensorSources);
-  const readings = Object.keys(sources).length ? await readChosenSensors(sources) : [];
+  if (partial) info.partial = true;
+  const unread = partial ? null : [];
+  const readings = !partial && Object.keys(sources).length ? await readChosenSensors(sources) : unread;
   return SensorSources.applySensorSources(info, sources, readings, { cpuTemp: cpuTempCache.cpuTempSource });
 }
 
@@ -5488,6 +5689,7 @@ let _netPrev = null; // { rx, tx, t }
 // that sees a new virtual adapter per container.
 let _netPrevIfaces = new Map();  // id -> { rx, tx, t }
 let _netPending = null;
+const _packetLoss = createPacketLoss();
 
 // Bytes-per-second from two cumulative readings. Returns null rather than 0 for
 // everything that is not a real measurement — no previous sample, no elapsed
@@ -5500,12 +5702,20 @@ function bytesPerSec(now, prev, dtSec) {
   if (!(d >= 0)) return null;
   return Math.round(d / dtSec);
 }
+// Each surface polls on its own clock and every reading is a collector run with
+// three pings, so whoever asks just after someone else shares that reading. Under
+// the 3 s poll of the System tile, which still gets a new one each time.
+const NETWORK_FRESH_MS = 2500;
+let _netLast = null;
 async function getNetworkInfo() {
+  if (_netLast && Date.now() - _netLast.at < NETWORK_FRESH_MS) return _netLast.reading;
   // In-flight dedup: with two dashboards open the 3s polls interleave, and two
   // concurrent runs would both rewrite _netPrev — corrupting the bandwidth
   // delta — while doubling the collector work. Latecomers share the result.
   if (_netPending) return _netPending;
-  _netPending = _getNetworkInfoRaw().finally(() => { _netPending = null; });
+  _netPending = _getNetworkInfoRaw()
+    .then((reading) => { _netLast = { at: Date.now(), reading }; return reading; })
+    .finally(() => { _netPending = null; });
   return _netPending;
 }
 async function _getNetworkInfoRaw() {
@@ -5515,6 +5725,7 @@ async function _getNetworkInfoRaw() {
   let skipFps = false;
   try { skipFps = fpsMonitor.isAvailable(); } catch { skipFps = false; }
   const data = nativeCollectors ? await nativeCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
+  _packetLoss.add(data.pingSent, data.pingLost);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -5589,6 +5800,8 @@ async function _getNetworkInfoRaw() {
   return {
     ping: data.ping ?? null,
     latency: data.latency ?? null,
+    // Share of the newest echoes to 1.1.1.1 that never came back (packet-loss.js).
+    loss: _packetLoss.percent(),
     fps,
     presentFps: (detail && detail.presentFps != null) ? detail.presentFps : null,
     displayFps: (detail && detail.displayFps != null) ? detail.displayFps : null,
@@ -5732,32 +5945,56 @@ function applyStickyThumb(data) {
 }
 
 async function getMediaInfo(force = false) {
+  if (!force && Date.now() < mediaHoldUntil) return mediaCache.data;
   const age = Date.now() - mediaCache.updatedAt;
-  if (!force && mediaCache.data && age < MEDIA_CACHE_MS) return liveMediaSnapshot(mediaCache.data, age);
+  if (!force && mediaCache.data && age < cacheLife(mediaCache.data, MEDIA_CACHE_MS)) return liveMediaSnapshot(mediaCache.data, age);
   if (mediaPending) return mediaPending;
   mediaPending = (async () => {
   try {
-    const data = normalizeMedia(await runMediaRequest('info', 12000));
+    if (mediaListDown()) { probeMediaList(); return await mediaStandIn('media reader resting'); }
+    const read = normalizeMedia(await runMediaRequest('info', 12000));
+    if (readFailed(read)) throw new Error(read.error);
+    const data = (await heardInsteadOf(read)) || read;
     // Aged from when the host answered: an online cover lookup can take seconds.
     const readAt = Date.now();
     const hydrated = applyStickyThumb(await hydrateArtwork(data));
     mediaCache = { data: hydrated, updatedAt: readAt };
-    mediaPending = null;
     return liveMediaSnapshot(hydrated, Date.now() - readAt);
   } catch (e) {
-    if (mediaCache.data) {
-      mediaPending = null;
-      // Aged like a cache hit: the raw copy carries a position seconds old,
-      // which the lyrics would read as a seek back.
-      return liveMediaSnapshot(mediaCache.data, Date.now() - mediaCache.updatedAt);
-    }
-    const fallback = applyStickyThumb(await hydrateArtwork(normalizeMedia(await getMediaFallback(e.message))));
-    mediaCache = { data: fallback, updatedAt: Date.now() };
-    mediaPending = null;
-    return fallback;
+    mediaReaderRestUntil = Date.now() + MEDIA_READER_REST_MS;
+    return mediaStandIn(e.message);
   }
-  })();
+  })().finally(() => { mediaPending = null; });
   return mediaPending;
+}
+
+const mediaListDown = () => mediaReaderRestUntil > 0;
+
+// A list that failed is asked again on the side: a wedged one answers after its whole
+// timeout, and a song starting meanwhile must not wait for that to be seen.
+function probeMediaList() {
+  if (mediaListProbe || Date.now() < mediaReaderRestUntil) return;
+  mediaListProbe = runMediaRequest('info', 12000)
+    .then((read) => {
+      if (readFailed(normalizeMedia(read))) throw new Error(read.error);
+      mediaReaderRestUntil = 0;
+      mediaCache.updatedAt = 0;
+    })
+    .catch(() => { mediaReaderRestUntil = Date.now() + MEDIA_READER_REST_MS; })
+    .finally(() => { mediaListProbe = null; });
+}
+
+async function mediaStandIn(error) {
+  if (cachedReadUsable(mediaCache, Date.now())) {
+    // Aged like a cache hit: the raw copy carries a position seconds old,
+    // which the lyrics would read as a seek back.
+    return liveMediaSnapshot(mediaCache.data, Date.now() - mediaCache.updatedAt);
+  }
+  const fallback = applyStickyThumb(await hydrateArtwork(normalizeMedia(await getMediaFallback(error))));
+  // Begun before a press, this read has not heard it.
+  if (Date.now() < mediaHoldUntil) return mediaCache.data;
+  mediaCache = { data: fallback, updatedAt: Date.now() };
+  return fallback;
 }
 
 // The album-art thumbnail is a ~50-100KB base64 data URI. Re-sending it on every
@@ -5783,54 +6020,53 @@ function mediaForBroadcast(info) {
   return info;
 }
 
-function getMediaFallback(error) {
-  return new Promise(resolve => {
-    readSoundVolumeRows().then(rows => {
-        try {
-          const app = rows.find(f =>
-            f[F.TYPE] === 'Application' &&
-            f[F.DIR] === 'Render' &&
-            f[F.STATE] === 'Active' &&
-            f[F.NAME] &&
-            !/windows|system sounds|operating system/i.test(`${f[F.NAME]} ${f[F.WINDOW_TITLE] || ''}`) &&
-            (f[F.WINDOW_TITLE] || /spotify|chrome|edge|firefox|browser|youtube/i.test(f[F.NAME]))
-          );
-
-          if (!app) {
-            resolve({ active: false, app: '', source: '', title: '', artist: '', album: '', playbackStatus: 'Unavailable', thumbnail: null, position: 0, duration: 0, error });
-            return;
-          }
-
-          const appName = displayAppName(app[F.NAME]);
-          const rawTitle = app[F.WINDOW_TITLE] || app[F.NAME] || 'Media attivo';
-          const split = splitMediaTitle(rawTitle, appName);
-
-          resolve({
-            active: true,
-            app: appName,
-            source: appName,
-            title: split.title || rawTitle,
-            artist: split.artist || '',
-            album: '',
-            playbackStatus: 'Unknown',
-            thumbnail: null,
-            position: 0,
-            duration: 0,
-            fallback: true,
-            error,
-          });
-        } catch {
-          resolve({ active: false, app: '', source: '', title: '', artist: '', album: '', playbackStatus: 'Unavailable', thumbnail: null, position: 0, duration: 0, error });
-        }
-      }).catch(() => {
-        resolve({ active: false, app: '', source: '', title: '', artist: '', album: '', playbackStatus: 'Unavailable', thumbnail: null, position: 0, duration: 0, error });
-      });
-    });
+function readSoundingRows() {
+  if (!nativeCollectors) return readSoundVolumeRows();
+  // macOS rows name devices only: there is no per-app sound to read there.
+  return nativeCollectors.soundingRows ? nativeCollectors.soundingRows() : Promise.resolve([]);
 }
 
+async function soundingRows() {
+  if (_soundRows.rows && Date.now() - _soundRows.at < SOUND_ROWS_REUSE_MS) return _soundRows.rows;
+  const rows = await readSoundingRows();
+  _soundRows = { rows, at: Date.now() };
+  return rows;
+}
+
+// Who is making sound right now, or paused a moment ago, as a media read; null until an
+// app is heard twice.
+async function heardNow(skip = []) {
+  const rows = await soundingRows();
+  const left = [gameDetect.getGameProcess(), ...skip];
+  return heardPlayer.read(rows, heardApp(rows, F, left), left);
+}
+
+// A read saying nothing plays may only mean the player never told the OS. Asked only while
+// a rule needs the answer: nobody else should pay for a process every few seconds.
+async function heardInsteadOf(read) {
+  if (read.playbackStatus === 'Playing' || !_situations.needs('music')) return null;
+  try { return await heardNow(reportedApps(read)); } catch { return null; }
+}
+
+async function getMediaFallback(error) {
+  try { return (await heardNow()) || nothingHeard(error); } catch { return nothingHeard(error); }
+}
+
+const runMediaKeyScript = (args) => runPowerShellScript(MEDIA_KEY_SCRIPT, args, 5000);
+const sendMediaCommand = createMediaSender({
+  request: (action) => runMediaRequest(action, 5000),
+  tell: (action) => tellApp(action, heardPlayer.name(), runMediaKeyScript),
+  press: (action) => pressMediaKey(action, runMediaKeyScript),
+  // A read from the sound names a player the list does not know: it would reach another.
+  listResting: () => mediaListDown() || (mediaCache.data && mediaCache.data.fallback === true),
+});
+
 async function mediaAction(action) {
-  const data = await runMediaRequest(action, 5000);
-  mediaCache.updatedAt = 0;
+  const data = await (nativeMedia ? runMediaRequest(action, 5000) : sendMediaCommand(action));
+  const pressed = data && data.told && action === 'playpause' ? afterPress(mediaCache.data) : null;
+  mediaCache = pressed ? { data: pressed, updatedAt: Date.now() } : { ...mediaCache, updatedAt: 0 };
+  if (pressed) mediaHoldUntil = Date.now() + PRESS_HOLDS_MS;
+  _soundRows.at = 0;
   return data;
 }
 
@@ -5891,7 +6127,8 @@ async function getCurrentLyrics() {
   if (!media || !media.active || !String(media.title || '').trim()) return { ok: true, state: 'idle' };
   const key = lyrics.trackKey(media);
   if (!key) return { ok: true, state: 'idle' };
-  if (!lyrics.validDuration(media)) return lyricsReply(media, key, { state: 'live' });
+  // A read from the sound has no duration either, but it is a song, not a stream.
+  if (!lyrics.validDuration(media) && media.fallback !== true) return lyricsReply(media, key, { state: 'live' });
   const cached = await lyricsCache.get(key);
   const result = cached
     || (Date.now() < _lyricsCooldownUntil ? { state: 'busy' } : await lookupLyricsOnce(media, key));
@@ -5961,6 +6198,10 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
       executeTool: async () => ({ fnResult: {}, clientActions: [] }),
     });
     text = result && result.text;
+  } else if (provider === 'localapi') {
+    text = await aiLocalServer.oneShot({
+      config: aiLocalServer.configFrom(settings), systemText: system, userText: user, maxTokens, onUsage, image,
+    });
   } else if (aiCli.isCliProvider(provider)) {
     if (image) { const e = new Error('this AI cannot see pictures'); e.code = 'no_vision'; throw e; }
     text = await aiCli.oneShot({
@@ -5980,15 +6221,7 @@ async function completeWithUserAi({ system, user, maxTokens, json = false, tempe
   } else if (provider === 'gemini') {
     const apiKey = await geminiKeyFor('');
     const opts = { model: await smallTaskModel(provider, settings), temperature, json, onUsage };
-    // Measured: 3.x Flash-Lite rejects a zero thinking budget and wants a level;
-    // the Flash fallback rejects the "minimal" level and takes the budget. A
-    // rejected request is a 400 that is not billed, so one retry costs nothing.
-    try {
-      text = await _geminiOneShot(apiKey, parts, system, maxTokens, { ...opts, thinkingLevel: 'minimal' });
-    } catch (e) {
-      if (!/invalid argument|thinking/i.test(String(e && e.message))) throw e;
-      text = await _geminiOneShot(apiKey, parts, system, maxTokens, opts);
-    }
+    text = await _geminiOneShot(apiKey, parts, system, maxTokens, opts);
   } else {
     throw new Error('provider not supported');
   }
@@ -6020,13 +6253,15 @@ async function userAiBlocker() {
 }
 
 // userAiBlocker(), then 'no_vision' when that AI cannot look at a picture: a
-// plan run through its own program, or an Ollama model without eyes.
+// plan run through its own program, an Ollama model without eyes, or a local
+// server whose model the user has not said can see.
 async function userAiVisionBlocker() {
   const blocked = await userAiBlocker();
   if (blocked) return blocked;
   const settings = await readHubSettings().catch(() => null) || {};
   const provider = aiLocal.sanitizeProvider(settings.aiProvider);
   if (aiCli.isCliProvider(provider)) return 'no_vision';
+  if (provider === 'localapi' && !aiLocalServer.configFrom(settings).vision) return 'no_vision';
   if (provider === 'ollama') {
     const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings.ollamaModel), settings.hardwareScan);
     const sees = await aiLocal.supportsVisionLive(aiLocal.sanitizeOllamaUrl(settings.ollamaUrl), model).catch(() => false);
@@ -6400,14 +6635,51 @@ async function captureScenePreview() {
   } catch (e) { /* keep the last image on a failed/again-later capture */ }
 }
 
+// A foreground app seen once proves the probe works here: macOS without the helper
+// and some Wayland desktops never name one.
+let _frontAppSeen = false;
+function frontAppKnown() {
+  if (!_frontAppSeen) { try { _frontAppSeen = !!gameDetect.getForegroundProcess(); } catch { /* not yet */ } }
+  return _frontAppSeen;
+}
+// The facts behind the rules on placed widgets and pages. Each closure runs on the
+// status tick, long after every source below has been declared.
+const _situations = createSituations({
+  layers: () => _serverHubSettings && _serverHubSettings.layers,
+  isOwnApp,
+  read: {
+    game: () => gameDetect.isGameRunning(),
+    live: () => obsState.obsStreaming === true,
+    recording: () => obsState.obsRecording === true || _recorder.status().on === true,
+    timer: () => _timers.some((t) => t.status === 'running'),
+    dnd: () => !!(_serverHubSettings.notifications && _serverHubSettings.notifications.quiet === 'always'),
+    cpu: () => getCpuUsage(),
+    idleSec: () => ((_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null),
+    front: () => gameDetect.getForegroundProcess(),
+    music: async () => musicNow((await getMediaInfo()).playbackStatus),
+    call: async () => calls.current().length > 0 || (await micUse.read({ ownMic: wakeWordWanted() })) === true,
+    open: async () => ((await runWindowsTool(['list'], 8000)).windows || []).map((w) => w.app),
+    battery: async () => (await require('./power').read()).battery,
+  },
+  onChange: () => broadcastStatusNow(),
+  onPlan: () => { refreshObsWatch().catch(() => {}); },
+  onFacts: (facts) => _whenPageSync(facts),
+  warn: (msg) => console.warn(msg),
+});
+
 async function refreshObsWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
-  const want = (!!s.obsHost || obsLocalWanted) && sseClients.size > 0;
-  if (want && !obsStopWatch) {
-    obsStopWatch = deckObs.watch(applyObsPartial);
-    if (!obsPreviewTimer) obsPreviewTimer = setInterval(captureScenePreview, 5000);
+  const tile = !!s.obsHost || obsLocalWanted;
+  const want = (tile || _situations.needs('live') || _situations.needs('recording')) && sseClients.size > 0;
+  if (want && !obsStopWatch) obsStopWatch = deckObs.watch(applyObsPartial);
+  // A rule only asks whether OBS is live: no picture of the scene every 5 s for it.
+  if (want && tile && !obsPreviewTimer) {
+    obsPreviewTimer = setInterval(captureScenePreview, 5000);
     captureScenePreview();                    // one immediate capture so the thumbnail appears fast
-  } else if (!want && obsStopWatch) {
+  } else if (want && !tile && obsPreviewTimer) {
+    clearInterval(obsPreviewTimer); obsPreviewTimer = null;
+  }
+  if (!want && obsStopWatch) {
     obsStopWatch(); obsStopWatch = null;
     if (obsPreviewTimer) { clearInterval(obsPreviewTimer); obsPreviewTimer = null; }
     obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
@@ -6967,7 +7239,7 @@ function revealInFileManager(p, dir) {
   // explorer.exe does NOT parse its command line with CommandLineToArgvW: it
   // wants the quotes around the PATH, not around the whole `/select,` token.
   // Node quotes any argument containing a space, so `'/select,' + target`
-  // reached it as "/select,C:\Users\...\Marci Progetti\..." — which explorer
+  // reached it as "/select,C:\Users\...\My Projects\..." — which explorer
   // gives up on and answers by opening the DEFAULT folder (Documents), with no
   // error anywhere. That is not the edge case: almost every real path has a
   // space in it, so "show in folder" opened an unrelated window for most users,
@@ -7199,6 +7471,7 @@ const deckRegistryDeps = {
   // persists atomically and broadcasts `timer_update`, so tile, key faces and
   // other dashboards stay in sync. secs is already clamped by the registry.
   timers: {
+    labels: () => _timers.map((t) => t.label),
     start: async (label, secs) => {
       const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
       if (idx >= 0) {
@@ -7377,7 +7650,7 @@ const deckRegistryDeps = {
     if (!sdkWidgets.macroCategories(macro).every(cat => granted.includes(cat))) return null;
     // Defense in depth: re-filter to the SDK type allowlist even though the
     // manifest normalizer already enforced it.
-    return macro.steps.filter(s => sdkWidgets.SDK_ACTION_TYPES.includes(s.action.type));
+    return macro.steps.filter(s => sdkWidgets.SDK_MACRO_ACTION_TYPES.includes(s.action.type));
   },
   // SDK handler action: "pkg/handlerId" pressed on a deck key → validate the
   // declaration + per-handler grant, coerce the key's stored args against the
@@ -7521,6 +7794,21 @@ async function saveTileSettings(body) {
   if (plan.patch.windowsNotifications) { refreshWinNotifWatch(); winNotif.applyExclusions(); }
   return { ok: true, rev };
 }
+// POST /sdk/grant: Allow pressed on a widget on the PC's screen (sdk-grant.js).
+async function saveSdkGrant(body) {
+  const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
+  const plan = SdkGrant.plan(body, scan.packages);
+  if (plan.error) return { ok: false, ...plan };
+  let rev = null;
+  await withHubSettingsLock(async () => {
+    const cur = await readHubSettingsForUpdate();
+    const written = await writeHubSettings({ ...cur, ...SdkGrant.apply(cur, plan), rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = written;
+    rev = written.rev;
+    broadcastSSE('settings', { rev });
+  });
+  return { ok: true, rev };
+}
 // POST /api/vitals/state: the Vitals widget's state saved from a layer page,
 // merged like the /settings save. Same lock, rev bump and broadcast.
 async function saveVitalsState(body) {
@@ -7562,8 +7850,9 @@ async function playInTile(args) {
   return { ok: true, tile: want.tile, playing: want.value, ...(title ? { title } : {}) };
 }
 
+const readDeckConfigs = async () => (await readDeckStore()).configs;
 const deckShortcutRunner = createDeckShortcutRunner({
-  readConfigs: async () => (await readDeckStore()).configs,
+  readConfigs: readDeckConfigs,
   steps: require('./js/deck-actions.js').triggerSteps,
   run: (action) => deckRegistry.run(action),
   broadcast: (event, data) => broadcastSSE(event, data),
@@ -7575,6 +7864,13 @@ const deckShortcutRunner = createDeckShortcutRunner({
     spawn,
   }),
   serverFirst: () => UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode),
+});
+
+// The Deck keys placed on the screen (js/layer-key.js).
+const deckPress = createDeckPress({
+  layers: { get: () => _serverHubSettings && _serverHubSettings.layers, update: (edit) => updateLayersSetting(edit) },
+  readConfigs: readDeckConfigs,
+  runner: deckShortcutRunner,
 });
 
 // A soundboard clip the PC may play: the same two shapes /deck/sound accepts (a
@@ -7594,6 +7890,14 @@ async function findFfplay() {
   try { await fs.promises.access(candidate); return candidate; } catch { return ''; }
 }
 
+const perfSession = createPerfSession({ collectors: nativeCollectors, dataDir: DATA_DIR });
+
+// The sheet's numbers from the process table. PowerShell only answers when the table
+// cannot be read.
+async function perfStats() {
+  return (await perfSession.stats()) || runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000);
+}
+
 // Performance Mode runner: guided, reversible app management. Side-effects are
 // injected so the allowlist/validation stays the only execution path. The
 // window helper does the graceful close and protected-process refusal.
@@ -7602,7 +7906,10 @@ const perfRegistry = createPerfRegistry({
   openExternal: (p, args) => openExternalPath(p, args),
   launchApp: process.platform === 'linux' ? (p, args) => launchLinuxApp(p, args) : undefined,
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
-  setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
+  setPriority: (name, level) => (perfSession.table.available()
+    ? perfSession.priority.set(name, level)
+    : runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000)),
+  isRunning: (name) => perfSession.priority.isRunning(name),
 });
 
 // Default body cap for JSON/text routes. Generous enough for the largest legit
@@ -8005,17 +8312,26 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
 // advanced features (Game Companion, Guardian) for single fire-and-forget
 // analyses. `parts` follows the Gemini content-part shape (text / inlineData).
 // `opts` (all optional): `model` overrides the chat model, `temperature`,
-// `json` asks for a JSON reply, `onUsage(totalTokens, { input, output })` reports what it cost,
-// `thinkingLevel` replaces the zero thinking budget: Gemini 3.x Flash-Lite
-// answers 400 "invalid argument" to `thinkingBudget: 0` and takes a level instead.
+// `json` asks for a JSON reply, `onUsage(totalTokens, { input, output })` reports what it cost.
 function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
+  const model = opts.model || AI_MODELS.chat;
+  return _withGeminiModel(model, apiKey, (id, thinking) => _geminiOneShotOnce(apiKey, parts, systemText, maxTokens, opts, id, thinking));
+}
+
+// A pinned model can be closed to the user's key. The chat has its own, longer
+// fallback; everything else that asks Gemini once comes through here.
+function _withGeminiModel(model, apiKey, send) {
+  const alternatives = () => [aiModels.resolve('gemini', 'chat', 'auto', apiKey), aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey)];
+  return aiGemini.withFallbackModel(model, alternatives, (id) => withThinking(id, (thinking) => send(id, thinking)));
+}
+
+function _geminiOneShotOnce(apiKey, parts, systemText, maxTokens, opts, model, thinking) {
   return new Promise((resolve, reject) => {
-    const generationConfig = {
+    const generationConfig = applyThinking({
       temperature: Number.isFinite(opts.temperature) ? opts.temperature : 0.7,
       maxOutputTokens: maxTokens, candidateCount: 1,
-      thinkingConfig: opts.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : { thinkingBudget: 0 },
       ...(opts.json ? { responseMimeType: 'application/json' } : {}),
-    };
+    }, thinking);
     const payload = JSON.stringify({
       ...(systemText ? { system_instruction: { parts: [{ text: String(systemText) }] } } : {}),
       contents: [{ role: 'user', parts }],
@@ -8023,7 +8339,7 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512, opts = {}) {
     });
     const gReq = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${encodeURIComponent(opts.model || AI_MODELS.chat)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (gRes) => {
@@ -8119,11 +8435,11 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     const clean = String(text || '').slice(0, 2000);
     if (!clean) return resolve();
 
-    // Voice output per provider: Ollama and Claude (no speech API) use the free
+    // Voice output per provider: Ollama, a local server and Claude (no speech API) use the free
     // local Edge neural TTS; ChatGPT uses OpenAI TTS (its server-only key comes
     // from settings); Gemini uses Gemini TTS with the request's key.
     // Claude Code / Codex bring no speech of their own either, so they share it.
-    const useLocal = provider === 'ollama' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider);
+    const useLocal = provider === 'ollama' || provider === 'localapi' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider);
     const useOpenai = provider === 'openai';
     let openaiKey = '';
     if (useOpenai) { const s = await readHubSettings().catch(() => null); openaiKey = String((s && s.openaiApiKey) || '').trim(); }
@@ -8326,18 +8642,34 @@ async function runAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
+  // Asked from a paired phone, Bit can do what the phone can (remote-actions.js):
+  // no tool may hand the registry an action the phone could not run itself.
+  const phoneRefusal = (error) => ({ ok: false, error, hint: 'A paired device cannot run this: say it has to be done at the PC, or from a Deck key the user set up there.' });
+  const runAction = async (action) => {
+    const verdict = remote ? remoteActions.remoteMayRun(action, await readDeckStore()) : null;
+    return verdict && !verdict.ok ? phoneRefusal(verdict.error) : deckRegistry.run(action);
+  };
+  if (remote && remoteActions.PC_ONLY_TOOLS.has(fnName)) {
+    return { fnResult: phoneRefusal('pc_only'), clientActions, pendingScreenImage };
+  }
+
   // show_lock_screen is the pre-v4.4 name for start_ambient_mode — kept as an
   // alias so old AI memories/prompts keep working.
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'open_sparks_shop', 'open_store_entry', 'open_whats_new', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'style_tile', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
-    const refused = aiSurface.clientActionRefusal(fnName, surface);
-    if (refused) return { fnResult: refused, clientActions, pendingScreenImage };
-    const miss = fnName === 'go_to_page' ? goToPageMiss(fnArgs) : null;
+    const widgetsOnly = UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode);
+    const refused = aiSurface.clientActionRefusal(fnName, surface, widgetsOnly);
+    if (refused) {
+      if (surface === 'screen') broadcastSSE('needs_dashboard', {});
+      return { fnResult: refused, clientActions, pendingScreenImage };
+    }
+    const miss = fnName === 'go_to_page' ? goToPageMiss(fnArgs)
+      : fnName === 'style_tile' ? TileMaterial.requestMiss(fnArgs) : null;
     if (miss) return { fnResult: miss, clientActions, pendingScreenImage };
     // No dashboard: the driver page's Performance Mode does it (js/driver-perf.js)
     // and its card on the screen says how it went.
-    const perfChoice = aiSurface.screenPerfChoice(fnName, surface);
+    const perfChoice = aiSurface.screenPerfChoice(fnName, surface, widgetsOnly);
     if (perfChoice) {
       broadcastSSE('perf_screen', perfScreen.screenEvent({ kind: 'answer', choice: perfChoice }));
       return { fnResult: { ok: true }, clientActions, pendingScreenImage };
@@ -8354,7 +8686,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       // validateWidgetPayload boundary (installWidgetPayload is the ONE writer).
       // Never grants, never assigns — the user approves permissions on first use.
       if (!sdkFeatureEnabled()) {
-        fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Settings → Widget e condivisione first.' };
+        fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Settings → Widgets & sharing first.' };
       } else {
         // A file whose content is "attached:N" becomes that attached picture.
         const placed = aiPictures.resolvePictures(Array.isArray(fnArgs.files) ? fnArgs.files.slice(0, 40) : [], pictures);
@@ -8423,7 +8755,7 @@ async function runAiTool(fnName, fnArgs, deps) {
     } else if (capabilities.aiAction(fnName, fnArgs)) {
       // A catalog capability: the call becomes its Deck action and runs through
       // the same allowlisted registry as a key press.
-      fnResult = await deckRegistry.run(capabilities.aiAction(fnName, fnArgs));
+      fnResult = await runAction(capabilities.aiAction(fnName, fnArgs));
       // The text read off the screen reaches the AI only: screen-text.js keeps
       // it out of the action's result, which a paired phone can receive.
       // "picking": a picker is already open, so any text kept is an older read's.
@@ -8590,7 +8922,6 @@ async function runAiTool(fnName, fnArgs, deps) {
         } else {
           const target = screens.length === 1 ? screens[0]
             : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
-          _aiFocusedScreen = target;
           try {
             pendingScreenImage = await captureScreenshot(target);
             fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
@@ -8690,7 +9021,9 @@ async function runAiTool(fnName, fnArgs, deps) {
       fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
     } else if (fnName === 'get_battery_status') {
       const bat = await batteryMonitor.getDevices().catch(() => null);
-      fnResult = bat || { devices: [], sources: { corsair: false, bluetooth: false } };
+      fnResult = bat
+        ? { ...bat, devices: bat.devices.map(({ lastSeen, ...d }) => (lastSeen ? { ...d, lastReadMinutesAgo: Math.round((Date.now() - lastSeen) / 60000) } : d)) }
+        : { devices: [], sources: { corsair: false, bluetooth: false, peripherals: false } };
     } else if (fnName === 'get_energy_status') {
       const sys = await getSystemInfo().catch(() => null);
       const ha = await buildHaState().catch(() => null);
@@ -8736,7 +9069,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       const model = fnArgs.model == null || fnArgs.model === '' ? null : String(fnArgs.model).toLowerCase();
       const effort = fnArgs.effort == null || fnArgs.effort === '' ? null : String(fnArgs.effort).toLowerCase();
       if (provider !== 'xenon') {
-        fnResult = { ok: false, error: 'not_on_credits', hint: 'The creation model and reasoning level belong to Sparks, Bit credits. Tell the user they apply when Sparks is the provider in Settings → Bit assistant.' };
+        fnResult = { ok: false, error: 'not_on_credits', hint: 'The creation model and reasoning level belong to Sparks, Bit credits. Tell the user they apply when Sparks is the provider in Settings → Bit.' };
       } else if ((!model && !effort) || (model && !aiXenon.MODELS.includes(model)) || (effort && !aiXenon.EFFORTS.includes(effort))) {
         fnResult = { ok: false, error: 'bad_args', hint: 'model: haiku, sonnet or opus; effort: low, medium or high.' };
       } else {
@@ -8805,7 +9138,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       // searches key-free via DuckDuckGo. Use an explicit non-Gemini allowlist:
       // the Gemini main tool loop calls executeAiTool WITHOUT a `provider` dep, so
       // `provider` is undefined there and must fall to the grounded branch.
-      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider))
+      const searchRes = (provider === 'ollama' || provider === 'localapi' || provider === 'openai' || provider === 'anthropic' || provider === 'xenon' || aiCli.isCliProvider(provider))
         ? await aiLocal.localWebSearch(fnArgs.query)
         : await _geminiWebSearch(fnArgs.query, apiKey);
       fnResult = searchRes.error
@@ -8987,7 +9320,11 @@ async function runAiTool(fnName, fnArgs, deps) {
         // An app by name, a website, or a file that does not run code when it
         // opens; never a network path, a special link or a script (ai-pc-apps.js).
         const allowed = aiPcApps.openTarget(rawTarget, PROTOCOL_MAP);
-        if (!allowed.ok) {
+        // From a paired phone, what /windows/launch allows and nothing else: a
+        // file sent from the phone could otherwise be started right after it lands.
+        if (remote && !remoteActions.remoteMayLaunch(rawTarget, _serverHubSettings && _serverHubSettings.appFavorites, await readDeckStore())) {
+          fnResult = phoneRefusal('needs_pc');
+        } else if (!allowed.ok) {
           fnResult = { error: `not allowed (${allowed.error}): this tool opens apps by name, websites and documents on this PC. Scripts, network paths and special links are refused; running commands needs PC Control, which asks the user first.` };
         } else {
         const resolved = allowed.target;
@@ -9163,7 +9500,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         toggle_mute: { type: 'appMute', app, mode: 'toggle' },
       };
       const act = map[action];
-      fnResult = !app ? { error: 'no_app' } : (act ? await deckRegistry.run(act) : { error: 'bad_action' });
+      fnResult = !app ? { error: 'no_app' } : (act ? await runAction(act) : { error: 'bad_action' });
     } else if (fnName === 'obs_control') {
       // Route through the same allowlisted deck registry that Deck keys use, so
       // validation/normalisation lives in one place. A missing OBS connection
@@ -9179,7 +9516,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         next_scene: { type: 'obsSceneNext' },
       };
       const action = map[String(fnArgs.action || '')];
-      fnResult = action ? await deckRegistry.run(action) : { error: 'bad_action' };
+      fnResult = action ? await runAction(action) : { error: 'bad_action' };
     } else if (fnName === 'twitch_action') {
       const value = String(fnArgs.value || '');
       const map = {
@@ -9193,12 +9530,12 @@ async function runAiTool(fnName, fnArgs, deps) {
         run_ad: { type: 'twitchAd', length: value || '60' },
       };
       const action = map[String(fnArgs.action || '')];
-      fnResult = action ? await deckRegistry.run(action) : { error: 'bad_action' };
+      fnResult = action ? await runAction(action) : { error: 'bad_action' };
     } else if (fnName === 'youtube_broadcast') {
-      fnResult = await deckRegistry.run({ type: 'ytBroadcast', mode: String(fnArgs.mode || 'toggle') });
+      fnResult = await runAction({ type: 'ytBroadcast', mode: String(fnArgs.mode || 'toggle') });
     } else if (fnName === 'streamerbot_action') {
       const act = String(fnArgs.action || '').trim();
-      fnResult = act ? await deckRegistry.run({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
+      fnResult = act ? await runAction({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
     } else if (fnName === 'spotify_control') {
       // Full Spotify control. Transport/shuffle/repeat/like/volume/seek/device
       // route through the allowlisted registry; play/queue-by-name and the status
@@ -9234,7 +9571,7 @@ async function runAiTool(fnName, fnArgs, deps) {
           device: { type: 'spotifyDevice', device: query },
         };
         const act = map[action];
-        fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+        fnResult = act ? await runAction(act) : { error: 'bad_action' };
       }
     } else if (fnName === 'home_assistant') {
       // Smart-home control. `list` reads the entity roster (so the model can match
@@ -9266,7 +9603,7 @@ async function runAiTool(fnName, fnArgs, deps) {
         if (act && ((entity && !aiPcApps.haDomainAllowed(entity)) || (service && !aiPcApps.haDomainAllowed(service)))) {
           fnResult = { error: 'not allowed: locks, alarms, covers, garage doors, scripts and automations are not controlled by the assistant. The user can do it in Home Assistant or with a Deck key.' };
         } else {
-          fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+          fnResult = act ? await runAction(act) : { error: 'bad_action' };
         }
       }
     } else if (fnName === 'discord_voice') {
@@ -9287,7 +9624,7 @@ async function runAiTool(fnName, fnArgs, deps) {
           const chans = await discordRpc.listVoiceChannels().catch(() => []);
           const match = (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase() === name)
             || (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase().includes(name));
-          fnResult = match ? await deckRegistry.run({ type: 'discordJoin', channel: match.id }) : { error: 'channel_not_found' };
+          fnResult = match ? await runAction({ type: 'discordJoin', channel: match.id }) : { error: 'channel_not_found' };
         }
       } else {
         const mode = String(fnArgs.mode || '') === 'down' ? 'down' : 'up';
@@ -9304,7 +9641,7 @@ async function runAiTool(fnName, fnArgs, deps) {
           audio_toggle: { type: 'discordAudioToggle', feature: String(fnArgs.feature || '') },
         };
         const act = map[action];
-        fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+        fnResult = act ? await runAction(act) : { error: 'bad_action' };
       }
     } else if (fnName === 'list_audio_devices') {
       // Report the available output/input devices so the model can pick one by
@@ -9342,11 +9679,23 @@ async function runAiTool(fnName, fnArgs, deps) {
           }
         }
       }
+    } else if (fnName === 'rate_store_item') {
+      const refused = aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));
+      if (refused && surface === 'screen') broadcastSSE('needs_dashboard', {});
+      const step = refused ? null : await aiRateStore.plan(fnArgs, { settings: () => _serverHubSettings, stateOf: ratingVotes.stateOf });
+      if (!step || !step.ok) {
+        fnResult = refused || step;
+      } else {
+        const nonce = _deckConfirms.issue(step.action);
+        clientActions.push({ action: 'confirm_deck_action', args: { nonce, type: step.action.type, params: aiRateStore.cardParams(step.action), description: aiDeckRun.purposeOf(fnArgs) } });
+        fnResult = { status: 'pending_confirmation', message: 'The vote is NOT in yet: the user sees a confirmation card and it counts only if they approve. Tell them to confirm on the card.' };
+      }
     } else if (fnName === 'run_deck_action') {
       // A key press, by Bit: same validator, same registry. Risky types wait on
       // a card (ai-deck-run.js), sound and mixer steps play in the chat's page.
       const step = aiDeckRun.plan(fnArgs.action);
-      const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface);
+      const refused = step.mode && step.mode !== 'run' && aiSurface.clientActionRefusal('run_deck_action', surface, UsageMode.widgetsOnly(_serverHubSettings && _serverHubSettings.usageMode));
+      if (refused && surface === 'screen') broadcastSSE('needs_dashboard', {});
       // Asked from a paired phone, Bit can do what the phone can (remote-actions.js).
       const phoneVerdict = remote && step.mode && step.mode !== 'client' ? remoteActions.remoteMayRun(step.action, await readDeckStore()) : null;
       if (!step.mode || refused) {
@@ -9367,7 +9716,7 @@ async function runAiTool(fnName, fnArgs, deps) {
       // Consent-gated generic PC control. NEVER executes here — proposes a
       // command that runs only after the user approves the confirmation card.
       if (!_pcControlEnabled()) {
-        fnResult = { error: 'pc_control_disabled', message: 'PC command control is off. Tell the user to enable "Controllo PC" in Settings → Funzioni AI first.' };
+        fnResult = { error: 'pc_control_disabled', message: 'PC command control is off. Tell the user to enable "PC control" in Settings → Bit → Advanced AI features first.' };
       } else {
         const command = String(fnArgs.command || '').trim().slice(0, 2000);
         const purpose = String(fnArgs.description || fnArgs.purpose || '').trim().slice(0, 300);
@@ -9548,7 +9897,6 @@ const DashboardInstances = require('./js/dashboard-instances.js');
 const DashboardPortrait = require('./js/dashboard-portrait.js'); // the vertical layout's geometry rules (shared with the client + tests)
 
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'openaicodex', 'chatgpt', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'devclean', 'lyrics', 'transfer', 'phone', 'perf', 'screen', 'custom']);
-const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
@@ -9562,7 +9910,6 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   youtube: ['player', 'library'],
   youtubelive: ['info', 'actions', 'chat'],
 });
-const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
 // 24 columns (with half-height rows) = fine-grained, near-free tile placement.
 // Layouts saved on the old 12-column grid are scaled ×2 once — keyed on
@@ -9634,7 +9981,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
-    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'agenda']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
@@ -9722,14 +10069,19 @@ function normalizeSensorRate(value) {
   return SENSOR_RATE_MS.includes(n) ? n : 5000;
 }
 
+// What a saved layout with no `groups` gets: the tabs every install had before 5.0.0,
+// when the chat shared the media tile and the Agenda had a tile of its own.
+const LEGACY_SEEDED_GROUPS = Object.freeze({
+  'media-group': Object.freeze({ ...DEFAULT_DASHBOARD_LAYOUT.groups['media-group'], members: Object.freeze(['media', 'chat']) }),
+});
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
   autoPalette: false,
-  styleMode: 'glass', // 'glass' | 'retro' | 'comic' — dashboard style language (Pixel Retro / Comic Book skins)
+  styleMode: 'liquid', // 'liquid' | 'glass' | 'retro' | 'comic' — dashboard style language; a saved 'glass' stays Classic
   retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
-  accent: '#1ed760',
+  accent: '#6ee787',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
-  background: '#070808',
+  background: '#14181c',
   surface: null,
   surfaceAlt: null,
   controlColor: null,
@@ -9740,20 +10092,20 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   dangerColor: null,
   infoColor: null,
   contrastGuard: true,
-  panelAlpha: 0.94,
+  panelAlpha: 0.54,
   bgDim: 0.48,
   bgBlur: 0,
   idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
   bootSplash: true, // the Xenon mark while the dashboard loads (client-applied)
   hybridGpuAnimationPause: true, // freeze ambient FX + animated bg + Deck decor on a hybrid-GPU native session (client-applied)
   // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
-  // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
+  // look; the client applies them (glass styles only). Mirror of settings.js.
   uiRoundness: 1,
   glassBlur: 22,
   glassSaturate: 160,
   clockScale: 1,
   clockDateScale: 1,
-  clockDateFormat: 'full',
+  clockDateFormat: 'medium',
   panelBorderStrength: 1,
   tileShadowStrength: 0,   // off, and renamed on purpose; see the client twin in js/settings.js
   mutedText: null,
@@ -9793,7 +10145,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Stage: the widget fills the screen while music plays on its page.
   lyricsStage: false,
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
-  topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
+  topbarStyle: 'minimal', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
   // Minimal-mode edge-rail drawer positions (true = collapsed). Persisted here —
   // not browser-local — so the kiosk remembers the choice across launches and a
   // WebView storage reset; both default closed so the rails never open on their own.
@@ -9906,12 +10258,17 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // one stays off until its owner chooses. Turning it on for everyone during an
   // update is the move that costs trust.
   catalogStats: true,
+  // Bit may ask for a vote on something in real use (rating-votes.js).
+  ratingAsks: true,
   // Anonymous feature counts (server/usage-stats.js): which built-in features
   // run, as counters with no identifier, at most one report a day. Same posture
   // as catalogStats: `=== true`, so a fresh install starts on and an existing
   // one stays off until its owner chooses. Changed only from the PC itself (the
   // settings save below keeps the stored value for a paired device).
   usageStats: true,
+  // Reading the charge of a device on a dongle means sending it a request. Same rule
+  // as usageStats for a paired device: this is the PC owner's choice.
+  batteryAskDevices: true,
   // The two startup cards' "don't show again": the What's New modal (the release
   // id the user dismissed) and the Discord invite card (a plain flag).
   //
@@ -9927,6 +10284,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // promoteLegacySeenFlags in js/settings.js), so an existing user does not have
   // to answer either card a second time.
   whatsNewSeen: '',
+  releaseNotesSeen: '',
+  updateFailSeen: '',
   discordInviteSeen: false,
   // Voice channels pinned to the top of the Discord widget's Channels tab, as
   // Discord channel ids. Server-side rather than per-device on purpose: which
@@ -9966,9 +10325,15 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
-  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'localapi' | 'openai' | 'anthropic' | 'claudecode' | 'codex' | 'xenon' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
+  // A server the user runs on this PC (ai-local-server.js). The key is optional
+  // and SERVER-ONLY, like the cloud ones below.
+  localApiUrl: aiLocalServer.DEFAULT_URL,
+  localApiModel: 'auto',
+  localApiKey: '',
+  localApiVision: false,
   // ChatGPT (OpenAI) + Claude (Anthropic): server-mediated cloud providers. Keys
   // are SERVER-ONLY (redacted on the wire; see ai-provider-creds.js), unlike the
   // browser-shipped geminiApiKey. Models are user-overridable.
@@ -10059,10 +10424,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false, recentInTile: false }),
   pageHotkeys: Object.freeze([]),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
-  bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
-  bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
-  // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
-  bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
+  bgAurora: Object.freeze({ enabled: false, intensity: 55, speed: 50 }),
+  bgGrid: Object.freeze({ enabled: false, color: '#6ee787', intensity: 45, speed: 50 }),
+  // Static premium background (0 animations). style: none|nebulosa|prisma|halo|dusk.
+  bgStatic: Object.freeze({ style: 'dusk', intensity: 100 }),
   // Code-defined animated background (sandboxed iframe on the client). Off by default.
   bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
   lighting: Object.freeze({
@@ -10276,14 +10641,16 @@ function normalizeLockWidgets(value) {
 const AMBIENT_IDLE_MINUTES = new Set([0, 1, 2, 5, 10, 15, 30]);
 const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const AMBIENT_CANVAS_REF_RE = /^canvas:[a-z0-9][a-z0-9-]{1,40}$/;
+const AMBIENT_THEME_REF_RE = /^theme:[A-Za-z0-9_-]{1,40}$/;
 function normalizeAmbientMode(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
   const idle = Number(source.idleMinutes);
-  // sceneId is 'builtin', an SDK package id, or a "canvas:<id>" reference into
-  // ambientScenes — anything else resets to the default.
+  // sceneId is 'builtin', an SDK package id, a "canvas:<id>" reference into
+  // ambientScenes or a "theme:<id>" one into customThemes — anything else resets
+  // to the default.
   const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
-  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || AMBIENT_CANVAS_REF_RE.test(raw))
+  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || AMBIENT_CANVAS_REF_RE.test(raw) || AMBIENT_THEME_REF_RE.test(raw))
     ? raw : defaults.sceneId;
   // The scene behind the desktop icons and the screensaver of the screens
   // without the dashboard (js/screen-scene-model.js). Both off by default.
@@ -10294,6 +10661,10 @@ function normalizeAmbientMode(value) {
     sceneId,
     wallpaper: source.wallpaper === true,
     saverMinutes: saverMinutes(source.saverMinutes),
+    // None chosen: the screens without the dashboard (js/screen-scene-model.js).
+    screens: Array.isArray(source.screens)
+      ? [...new Set(source.screens.filter((id) => typeof id === 'string' && /^[\x20-\x7e]{1,64}$/.test(id)))].slice(0, 8)
+      : [],
     // Mirror of js/settings.js — dropped here, the toggle would snap back off
     // on the next hydrate.
     openOnStartup: source.openOnStartup === true,
@@ -10350,12 +10721,12 @@ function normalizeBgAurora(value) {
   };
 }
 
-const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo'];
+const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo', 'dusk'];
 function normalizeBgStatic(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.bgStatic;
   return {
-    style: BG_STATIC_STYLES.includes(source.style) ? source.style : defaults.style,
+    style: BG_STATIC_STYLES.includes(source.style) ? source.style : 'none',
     intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
   };
 }
@@ -10652,10 +11023,11 @@ function normalizeDashboardLayout(value) {
   // Extra placements (duplicated widgets). Validated against known widgets/pages.
   layout.copies = DashboardInstances.normalizeCopies(source.copies, layout.widgets, pageIds);
 
-  // Fall back to the seeded default groups when the source has none (e.g. reset,
-  // or a pre-groups saved layout) — otherwise the welcome media-group is lost.
+  // Fall back to the seeded groups when the source has none, otherwise the
+  // welcome media-group is lost. A reset takes today's; a saved layout from
+  // before groups existed keeps the chat where its owner always had it.
   layout.groups = normalizeDashboardGroups(
-    source.groups !== undefined ? source.groups : DEFAULT_DASHBOARD_LAYOUT.groups,
+    source.groups !== undefined ? source.groups : (source.widgets ? LEGACY_SEEDED_GROUPS : DEFAULT_DASHBOARD_LAYOUT.groups),
     layout.widgets, pageIds, layout.copies);
 
   layout.tabs = normalizeDashboardTabs(source.tabs);
@@ -11024,10 +11396,10 @@ function normalizeSearchSettings(value, defaultRoot) {
     ...(roots ? { indexRoots: roots } : {}),
     hotkeyEnabled: v.hotkeyEnabled === true,
     hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
-    // AI full context ("the brain"): enriches explicit AI search / Disk Advisor
-    // requests with installed-app names, index roots, frequent folders and
-    // recent opens. Privacy-touching → strict opt-in, anything not literally
-    // true stays off (same rule as the wake word).
+    // AI full context ("the brain"): enriches a Disk Advisor request the user
+    // pressed for with the hardware profile and the names of the largest items.
+    // Privacy-touching → strict opt-in, anything not literally true stays off
+    // (same rule as the wake word).
     aiFullContext: v.aiFullContext === true,
     // The Search TILE listing recently opened files when its box is empty. Off
     // unless literally true: the tile sits on a dashboard others can see.
@@ -11167,7 +11539,6 @@ const TOPBAR_ACTION_DEFAULTS = [
   { id: 'ambient', side: 'left', hidden: false },
   { id: 'xenon', side: 'left', hidden: false },
   { id: 'search', side: 'left', hidden: false },
-  { id: 'mail', side: 'left', hidden: false },
   { id: 'mini', side: 'left', hidden: false },
   { id: 'layout', side: 'right', hidden: false },
   { id: 'settings', side: 'right', hidden: false },
@@ -11372,7 +11743,7 @@ function normalizeHubSettings(value) {
   return {
     appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
     autoPalette: source.autoPalette === true || (source.autoPalette == null && source.appearance === 'auto'),
-    styleMode: ['glass', 'retro', 'comic'].includes(source.styleMode) ? source.styleMode : 'glass',
+    styleMode: ['liquid', 'glass', 'retro', 'comic'].includes(source.styleMode) ? source.styleMode : 'glass',
     retroScanlines: source.retroScanlines !== false,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     // Album-art accent toggle. Must be round-tripped here (mirrors the client's
@@ -11405,7 +11776,7 @@ function normalizeHubSettings(value) {
     glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
     clockScale: clampNumber(source.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
     clockDateScale: clampNumber(source.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
-    clockDateFormat: ['full', 'medium', 'short'].includes(source.clockDateFormat) ? source.clockDateFormat : DEFAULT_HUB_SETTINGS.clockDateFormat,
+    clockDateFormat: ['full', 'medium', 'short'].includes(source.clockDateFormat) ? source.clockDateFormat : 'full',
     panelBorderStrength: clampNumber(source.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
     tileShadowStrength: clampNumber(source.tileShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.tileShadowStrength),
     mutedText: normalizeHex(source.mutedText, null),
@@ -11459,13 +11830,17 @@ function normalizeHubSettings(value) {
     autoUpdate: source.autoUpdate !== false,
     autoUpdateWidgets: source.autoUpdateWidgets !== false,
     catalogStats: source.catalogStats === true,
+    ratingAsks: source.ratingAsks !== false,
     usageStats: source.usageStats === true,
+    batteryAskDevices: source.batteryAskDevices !== false,
     // The release id the What's New modal was dismissed for, and the Discord
     // card's flag. Both `=== true`/bounded-string rather than `!== false`: an
     // absent key means "never dismissed", which is the honest reading of a blob
     // written before v4.11.6 — the client promotes the legacy localStorage value
     // over it on first hydrate when there is one.
     whatsNewSeen: typeof source.whatsNewSeen === 'string' ? source.whatsNewSeen.trim().slice(0, 64) : '',
+    releaseNotesSeen: typeof source.releaseNotesSeen === 'string' ? source.releaseNotesSeen.trim().slice(0, 32) : '',
+    updateFailSeen: typeof source.updateFailSeen === 'string' ? source.updateFailSeen.trim().slice(0, 64) : '',
     discordInviteSeen: source.discordInviteSeen === true,
     // Usage history. Server-owned; the POST guard below keeps a client save from
     // touching them. Bounded so a hand-edited file cannot make the ask unreachable
@@ -11518,6 +11893,10 @@ function normalizeHubSettings(value) {
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
+    localApiUrl: aiLocalServer.sanitizeUrl(source.localApiUrl),
+    localApiModel: aiLocalServer.sanitizeModel(source.localApiModel),
+    localApiKey: String(source.localApiKey || '').trim().slice(0, 200),
+    localApiVision: source.localApiVision === true,
     // ChatGPT (OpenAI) + Claude (Anthropic). Keys are server-only secrets
     // (preserve-on-save + redact-on-wire, see the secrets chain below); models
     // are validated by each provider module.
@@ -11916,6 +12295,7 @@ function normalizeLighting(value) {
   }
   return {
     enabled: v.enabled === true,
+    lightsOut: v.lightsOut === true,
     brightness: clampNumber(v.brightness, 0, 1, d.brightness),
     pauseDuringGame: v.pauseDuringGame !== false,
     devices,
@@ -11937,7 +12317,7 @@ function normalizeLighting(value) {
 }
 function normalizeLightingNative(value) {
   const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled === true, layouts: normalizeLightingLayouts(v.layouts) };
+  return { enabled: v.enabled === true, layouts: normalizeLightingLayouts(v.layouts), scanned: normalizeLightingScanned(v.scanned) };
 }
 
 // The store id this process has seen on disk. Held so that a write which
@@ -12118,22 +12498,39 @@ function withHubSettingsLock(fn) {
   return run;
 }
 
+// What the person has read of an update, from any surface (POST /update/notice-seen).
+async function saveNoticeSeen(seen) {
+  await withHubSettingsLock(async () => {
+    const cur = await readHubSettingsForUpdate();
+    const saved = await writeHubSettings({ ...cur, ...seen, rev: nextSettingsRev(cur.rev) });
+    _serverHubSettings = saved;
+    broadcastSSE('settings', { rev: saved.rev });
+  });
+}
+
 // One read-modify-write of hubSettings.layers for the capability runner (AI,
 // Deck keys): the edit sees the committed value, and nothing is written when it
 // returns { error }. Open surfaces re-hydrate from the settings broadcast.
+// The shortcuts the layers own: the overlay's, the menu's and the widgets' keys.
+function _layerHotkeys() {
+  return [_overlayHotkey(), _menuHotkey(), ..._widgetKeys.bindings().map((b) => b.widgetId + '=' + b.combo)].join('|');
+}
+
 async function updateLayersSetting(edit) {
   return withHubSettingsLock(async () => {
     const cur = await readHubSettingsForUpdate();
     const res = edit(cur.layers);
     if (!res || res.error || !res.layers) return res || { error: 'failed' };
-    const keys = _overlayHotkey() + '|' + _menuHotkey();
+    const keys = _layerHotkeys();
     const saved = await writeHubSettings({ ...cur, layers: res.layers, rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     layersEdit.touch();
+    // A rule just written acts now, not on the next tick.
+    setImmediate(broadcastStatusNow);
     // The first overlay widget arms the overlay shortcut, the last one frees it;
     // a new menu shortcut takes the place of the old one.
-    if (_overlayHotkey() + '|' + _menuHotkey() !== keys) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
+    if (_layerHotkeys() !== keys) { try { refreshHotkeyListener(); } catch { /* the next save retries */ } }
     return { ...res, layers: saved.layers };
   });
 }
@@ -12216,39 +12613,86 @@ function captureOptions() {
   return CaptureSettings.normalizeCaptureSettings(_serverHubSettings && _serverHubSettings.capture);
 }
 
+// Per-app volume: macOS has no per-process mixer (docs/MACOS_PORTABILITY.md).
+async function _appAudioAvailable() {
+  if (process.platform === 'darwin') return false;
+  return nativeCollectors ? nativeCollectors.audioAvailable() : fs.promises.access(SVV).then(() => true, () => false);
+}
+
 // What the Xenon menu shows (xenon-menu.js): read from the settings and the
 // runtime state, never a path, a window title or a file name.
+// The Store pictures come from the kept catalog; a first fetch that is slow must not
+// hold the menu back, so the cards then show their initials until the next opening.
+const MENU_CATALOG_WAIT_MS = 500;
+async function _storeShots() {
+  const wait = new Promise((done) => { setTimeout(done, MENU_CATALOG_WAIT_MS, null).unref(); });
+  const out = await Promise.race([communityCatalog.fetchVisibleCatalog(false).catch(() => null), wait]);
+  return out && out.ok ? MenuWidgets.storeShots(out.entries) : {};
+}
+
+// A widget key with no row in the hotkey table lost it: to a combination already
+// held by another key, or to a full table.
+function _widgetKeyStates(held) {
+  const table = _hotkeyBindings();
+  const out = {};
+  for (const { lead } of LayersModel.boxes(LayersModel.normalize((_serverHubSettings || {}).layers).widgets)) {
+    if (!lead.key) continue;
+    const slot = 'widget-' + lead.id;
+    out[slot] = table.some((b) => b.slot === slot) ? held(slot)
+      : table.some((b) => b.combo === lead.key.combo) ? 'clash' : 'full';
+  }
+  return out;
+}
+
 async function _xenonMenuState() {
   const hs = _serverHubSettings || {};
   const catalog = await _layerCatalog();
+  const shots = await _storeShots();
   const last = await _captures.last(null).catch(() => null);
   const slots = _hotkey.slots || {};
   const held = (slot) => slots[slot] || (_hotkey.bindings.some((b) => b.slot === slot) ? (_hotkey.state || 'off') : 'off');
   const deckState = new Map(_deckShortcutStatus().map((x) => [x.keyId, x.state]));
+  const searchCfg = hs.searchSettings || {};
+  const pageKeys = (Array.isArray(hs.pageHotkeys) ? hs.pageHotkeys : []).map((b) => ({ combo: String(b.combo || ''), target: String(b.target || '') }));
   return XenonMenu.compose({
-    probes: capabilityRunner.probes(),
+    probes: { ...capabilityRunner.probes(), appAudio: await _appAudioAvailable() },
     layers: hs.layers,
+    monitors: layersHost.monitors(),
+    layerNow: { whenOff: _situations.hidden(), keyOff: _widgetKeys.hidden(), keyPeek: !_widgetKeys.holdsRelease(), gaming: gameDetect.isGameRunning() },
+    layerSteps: layersEdit.steps(),
+    perfHud: hs.perfHud,
     tiles: catalog.tiles,
     packages: catalog.packages,
+    shots,
+    deckKeys: LayerKey.choices(await readDeckConfigs()),
+    scenes: catalog.scenes,
     capture: captureOptions(),
+    // Whole paths, read only by the section; the rows carry the last two names.
+    captureFolders: {
+      videos: captureOptions().folder || await defaultCaptureFolder('recording'),
+      shots: captureOptions().shotFolder || await defaultCaptureFolder('screenshot'),
+    },
     replay: _captureHost.has('replay') ? _replay.status() : null,
+    recording: _recorder.status().on === true,
     last: last ? { createdAt: last.createdAt, seconds: last.seconds || 0 } : null,
     now: Date.now(),
     keys: { menu: _menuHotkey(), overlay: _overlayHotkey(), replay: _replayHotkey() },
-    keyStates: { menu: held('menu'), overlay: held('overlay'), replay: held('replay') },
-    deck: _deckShortcuts.list.map((x) => ({ keyId: x.keyId, combo: x.combo, title: x.title, does: x.does, state: deckState.get(x.keyId) || 'off' })),
+    keyStates: {
+      menu: held('menu'), overlay: held('overlay'), replay: held('replay'), spotlight: held('spotlight'),
+      ...Object.fromEntries(pageKeys.map((_, i) => ['page-' + i, held('page-' + i)])),
+      ..._widgetKeyStates(held),
+    },
+    widgetKeys: await _sdkWidgetKeys().catch(() => []),
+    searchKey: { on: searchCfg.hotkeyEnabled === true, combo: String(searchCfg.hotkeyCombo || 'alt+space') },
+    pageKeys,
+    deck: _deckShortcuts.list.map((x) => ({ keyId: x.keyId, instance: x.instance, combo: x.combo, title: x.title, does: x.does, state: deckState.get(x.keyId) || 'off' })),
     usageMode: UsageMode.normalize(hs.usageMode) || '',
-    scene: ScreenSceneModel.settingsOf(hs),
+    scene: { ...ScreenSceneModel.settingsOf(hs), id: (hs.ambientMode || {}).sceneId, parts: normalizeLockWidgets(hs.lockWidgets), canvases: hs.ambientScenes, themes: hs.customThemes, waiting: require('./capabilities/desktop-scene').sceneWaiting(hs, catalog.scenes) },
     alertsOn: !(hs.notifications && hs.notifications.onScreen === false),
+    quiet: hs.notifications && hs.notifications.quiet,
+    companionOn: !!(hs.aiFeatures && hs.aiFeatures.enabled === true && hs.aiFeatures.gameCompanion === true),
     power: await require('./power').read().catch(() => null),
   });
-}
-
-// "Ask Bit" from the menu over the screen: the same wake as "Hey Xenon", which
-// the dashboards answer, or the alerts window in "widgets only" (screen-bit.js).
-function _menuWakeBit() {
-  screenMenu.close();
-  broadcastSSE('wake', { at: Date.now() });
 }
 
 async function updateAiEdgeGlowSetting(mode) {
@@ -12271,7 +12715,10 @@ async function updateDesktopSceneSetting(patch) {
     if (patch.wallpaper === 'toggle') ambient.wallpaper = !ambient.wallpaper;
     else if (patch.wallpaper === 'on' || patch.wallpaper === 'off') ambient.wallpaper = patch.wallpaper === 'on';
     if (patch.saverMinutes != null) ambient.saverMinutes = patch.saverMinutes;
-    const saved = await writeHubSettings({ ...cur, ambientMode: normalizeAmbientMode(ambient), rev: nextSettingsRev(cur.rev) });
+    if (patch.sceneId) ambient.sceneId = patch.sceneId;
+    if (patch.screens) ambient.screens = patch.screens;
+    const lockWidgets = normalizeLockWidgets(patch.lockWidgets || cur.lockWidgets);
+    const saved = await writeHubSettings({ ...cur, lockWidgets, ambientMode: normalizeAmbientMode(ambient), rev: nextSettingsRev(cur.rev) });
     _serverHubSettings = saved;
     broadcastSSE('settings', { rev: saved.rev });
     return saved.ambientMode;
@@ -12545,6 +12992,7 @@ function _backupSecretFlags(settings, tokens) {
     gemini: !!s.geminiApiKey,
     openai: !!s.openaiApiKey,
     anthropic: !!s.anthropicApiKey,
+    localApi: !!s.localApiKey,
     obs: !!s.obsPassword,
     streamerbot: !!s.streamerbotPassword,
     homeAssistant: !!(s.homeAssistant && s.homeAssistant.token),
@@ -12813,6 +13261,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
       // The anonymous feature counts are the PC owner's choice, as on POST
       // /settings: a backup posted from a paired device keeps the stored value.
       if (remote) incoming.usageStats = !!(prev && prev.usageStats === true);
+      if (remote) incoming.batteryAskDevices = !prev || prev.batteryAskDevices !== false;
       // Bump rev past the current copy so every client's hydrate (which keeps the
       // newer rev) adopts the imported settings instead of clobbering them back.
       incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
@@ -12825,6 +13274,7 @@ async function applyBackup(bundle, { remote = false } = {}) {
       // not read per request — without this they stay at the pre-import values.
       try { _applyTransferLimits(); }
       catch (e) { console.error('Backup transfer limits apply failed:', e.message); }
+      batteryMonitor.peripheralsChanged();
       // A backup with the anonymous counts off deletes what was waiting, as the switch does.
       if (prev && prev.usageStats === true && settings.usageStats !== true) usageStats.clear().catch(() => {});
       refreshExternalFeeds().catch(() => {});
@@ -13175,6 +13625,12 @@ let discordRpc = createDiscordProvider({
 // the current-state reads). Reads `discordRpc` at call time so a re-created
 // provider is picked up automatically.
 deckRegistryDeps.discord = (action) => discordRpc.runAction(action);
+// "Reply" on a mirrored DM or mention, from the built-in widget and from SDK ones.
+const openDiscordChat = (channelId) => discordLaunch.openConversation(channelId, {
+  launch: () => discordLaunch.launchDiscord(),
+  select: (id) => discordRpc.openTextChannel(id),
+});
+deckRegistryDeps.discordOpenChat = openDiscordChat;
 
 // Live Discord voice state pushed to the dashboard widget over SSE. The provider
 // SUBSCRIBEs to voice events and calls us on each change (mute/deaf/volume, channel
@@ -13505,8 +13961,11 @@ setInterval(announceAudioLevelsProblem, 5000).unref();
 //     process snapshots — the failure would show up as the CPU tile going
 //     sluggish, with nothing pointing here.
 const PROCESSES_POLL_MS = 2000;
+// The dearest read in the worker: through a game the list follows three times slower.
+const PROCESSES_POLL_GAME_MS = 6000;
 const PROCESSES_TOP = 8;          // per metric; the collector sends the union of the three
 let _processesBusy = false;
+let _processesPolledAt = 0;
 let _processesProblemSaid = '';
 // The last five minutes of readings, so a widget that draws history opens with
 // it already drawn (GET /api/processes/history, replayed by the SDK host as a
@@ -13585,6 +14044,8 @@ setInterval(async () => {
   if (sseClients.size === 0) return;
   if (!processesWanted()) return;
   if (_processesBusy) return;
+  if (backgroundHeld() && Date.now() - _processesPolledAt < PROCESSES_POLL_GAME_MS) return;
+  _processesPolledAt = Date.now();
   _processesBusy = true;
   try {
     let raw = null;
@@ -13689,7 +14150,11 @@ function _sttDeviceLabel() {
 }
 wakeWord.init({
   getFfmpegPath,
-  getInputArgs: () => (_sttDeviceReady ? _sttInputArgs() : null),
+  getInputArgs: () => {
+    if (_sttDeviceReady) return _sttInputArgs();
+    _startSttDevice();
+    return null;
+  },
   // Whisper hint follows the persisted UI language ('' → auto-detect); the
   // matcher is fuzzy enough to catch accented renderings either way.
   transcribe: (wav) => aiLocal.localStt(wav, (_serverHubSettings && _serverHubSettings.language) || 'auto', __dirname),
@@ -14145,7 +14610,7 @@ function _normalizeTimer(item) {
   const given       = String(item && item.id || '').slice(0, 80);
   // SAFE_ITEM_ID_RE: see _noteId. A malformed id is replaced, not escaped.
   const id          = SAFE_ITEM_ID_RE.test(given) ? given : _timerId();
-  const label       = String(item && item.label || 'Timer').trim().slice(0, 40);
+  const label       = String(item && item.label || 'Timer').trim().slice(0, SCOPED_LABEL_MAX);
   const kind        = TIMER_KINDS.includes(item && item.kind) ? item.kind : 'countdown';
   // A stopwatch has no duration. Storing 0 rather than a fake 60 keeps every
   // "is this a countdown" test honest, including in a settings file somebody
@@ -14315,27 +14780,17 @@ _calendarReminders.start();
 
 const sseClients = new Set();
 
-// PresentMon runs an admin ETW tracing session, so it should only run while a
-// dashboard is actually connected (nobody watches FPS / game-mode with no client
-// open). Tie its lifecycle to the SSE client set, matching the SSE-timer gating
-// pattern. A short grace before pausing survives quick page reloads on the
-// Xeneon Edge (its WebView reconnects almost immediately), so the ETW session
-// isn't torn down and rebuilt on every refresh.
-let _fpsPauseTimer = null;
-const FPS_PAUSE_GRACE_MS = 45000;
-// A recording with automatic markers reads the frames too (holdFpsForMarkers).
-let _fpsHeldByCapture = false;
+// PresentMon runs an ETW tracing session, so it reads only while a dashboard is
+// connected or a recording marks stutters (holdFpsForMarkers), and pauses 45 s
+// after the last one goes: the grace survives a page reload on the screen. A game
+// keeps a running reader, since some games refuse every new trace session until
+// they close. The rules are in fps-demand.js.
+const _fpsDemand = createFpsDemand({
+  resume: () => { try { fpsMonitor.resumeFpsMonitor(); } catch { /* PresentMon absent → no-op */ } },
+  pause: () => { try { fpsMonitor.pauseFpsMonitor(); } catch { /* no-op */ } },
+});
 function _syncFpsMonitor() {
-  if (sseClients.size > 0 || _fpsHeldByCapture) {
-    if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; }
-    try { fpsMonitor.resumeFpsMonitor(); } catch { /* PresentMon absent → no-op */ }
-  } else if (!_fpsPauseTimer) {
-    _fpsPauseTimer = setTimeout(() => {
-      _fpsPauseTimer = null;
-      if (sseClients.size === 0) { try { fpsMonitor.pauseFpsMonitor(); } catch { /* no-op */ } }
-    }, FPS_PAUSE_GRACE_MS);
-    _fpsPauseTimer.unref();
-  }
+  _fpsDemand.clients(sseClients.size);
 }
 
 // A stream whose reader has stopped reading keeps every event in memory. Past
@@ -14363,7 +14818,7 @@ function broadcastSSE(event, data) {
 // shape fails OPEN (fetch) — this gate may only ever save work, never hide data.
 // Used for news + claude; stocks/football are deliberately NOT gated because
 // their fetch also drives user-facing alerts (price moves, goals) that must
-// keep working with the widget hidden.
+// keep working with the widget hidden (see _stocksAlertsWanted).
 function _feedWidgetInUse(widgetId, tickerSource) {
   const s = _serverHubSettings;
   if (!s || typeof s !== 'object') return true;
@@ -14420,6 +14875,16 @@ function _stocksProviderOpts() {
   };
 }
 
+// A price alert is for someone who chose what to watch or can see the market. A new
+// install watches a default list nobody picked, and the first thing it ever said was
+// a toast about an index, on top of the first question. Strict on purpose: an unknown
+// layout is what a new install has, so it must not count as the tile being there.
+function _stocksAlertsWanted(cfg) {
+  const ticker = _serverHubSettings && _serverHubSettings.ticker;
+  const onTicker = !!ticker && ticker.enabled === true && !!ticker.sources && ticker.sources.stocks !== false;
+  return onTicker || _widgetPlaced('stocks') || !stocks.isDefaultWatchlist(cfg.watchlist);
+}
+
 async function refreshStocks() {
   if (_stocksRefreshing) return _stocksCache;
   _stocksLastFetch = Date.now();
@@ -14436,7 +14901,7 @@ async function refreshStocks() {
     if (quotes.length) _stocksCache = { quotes, provider: stocks.resolveProvider(opts), refreshedAt: Date.now() };
     // Alerts: one per symbol per direction per day (the tracker dedupes on dayKey).
     const dayKey = new Date().toISOString().slice(0, 10);
-    const alerts = _stocksAlerts.evaluate(quotes, cfg.alertPercent, dayKey);
+    const alerts = _stocksAlertsWanted(cfg) ? _stocksAlerts.evaluate(quotes, cfg.alertPercent, dayKey) : [];
     for (const a of alerts) broadcastSSE('stocks_alert', a);
     // LED reaction (same lighting notification effect the other feeds use),
     // gated by the master Notifiche switch — mirrors the client toast gating.
@@ -15111,18 +15576,14 @@ const ALLOWED_HOSTS = new Set([
 // JSONP responses are readable by any page that can inject a <script> tag:
 // script loads send no Origin header, so the Origin layer below never sees
 // them, and the request still comes from loopback (the user's own browser).
-// Restrict callback wrapping to the endpoints the iCUE widget actually polls —
-// settings (API keys), stream tokens and deck config must only ever ship as
-// plain JSON, which cross-origin pages cannot read.
-// Not /events: a calendar is personal, and a JSONP answer is readable by any
-// page that adds the <script>. The legacy Hub widget's agenda loses its feed;
-// the current iCUE widget shows the dashboard itself, calendar included.
-const JSONP_PATHS = new Set([
-  '/system', '/network', '/notes', '/media', '/audio', '/status',
-  '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
-]);
+// So one route answers it: the iCUE widget's check that Xenon is on, and all it
+// learns is that (see /status). The widget shows the dashboard itself, in a
+// frame. Everything else ships only as plain JSON, which a page on another site
+// cannot read: what plays, your notes, your apps and your PC's numbers are not
+// for any site you happen to visit.
+const JSONP_PATHS = new Set(['/status']);
 function isJsonpAllowed(pathname) {
-  return JSONP_PATHS.has(pathname) || pathname.startsWith('/media/');
+  return JSONP_PATHS.has(pathname);
 }
 
 // State-mutating endpoints that also accept GET so the iCUE widget can reach
@@ -15131,6 +15592,8 @@ function isJsonpAllowed(pathname) {
 // sends no Origin, so the loopback/Origin checks below can't catch it. They are
 // guarded by the Sec-Fetch-Site check in the request handler.
 const CSRF_MUTATION_PATHS = new Set([
+  // Allow pressed on a widget on the screen (sdk-grant.js).
+  '/sdk/grant',
   // A tile's own choices saved from a widget on the screen (tile-settings.js).
   '/settings/tile',
   // The Vitals widget's state saved from a widget on the screen (vitals-state.js).
@@ -15143,6 +15606,15 @@ const CSRF_MUTATION_PATHS = new Set([
   // an install, but a page on another site has no business holding updates
   // back for the user either.
   '/update/auto/postpone',
+  // Marks What's New and the fixes of a release as read. A page on another site
+  // could otherwise make sure the user never hears about an update.
+  '/update/notice-seen',
+  // Bit's messages: filing one, or spending the day's on a page nobody sees, is
+  // not something another site may do for the user.
+  '/bit/messages/file',
+  '/bit/messages/import',
+  '/bit/messages/shown',
+  '/bit/messages/read',
   // Raises a UAC prompt and changes the startup task's run level. POST-only, but
   // guarded here too: a cross-site drive-by must not be able to make the local
   // server throw an administrator prompt at the user.
@@ -15176,9 +15648,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // Runs PowerShell on a path taken from the query string (an icon lookup).
   // Read-only, but no page on another site may aim it.
   '/deck/app-icon',
-  // The iCUE widget saves notes via GET (?save=1&data=) over JSONP <script>. That
-  // same shape is a cross-site drive-by that could REPLACE the whole notes store
-  // with one note — so it must be Sec-Fetch-Site-guarded like the other controls.
+  // A GET that once saved notes: guarded like the other controls so no page on
+  // another site can reach it.
   '/notes',
   '/media/source', '/media/playpause', '/media/next', '/media/previous',
   // GET but not purely read-only: ?refresh=1 busts the catalog TTL cache and
@@ -15267,6 +15738,7 @@ const CSRF_MUTATION_PATHS = new Set([
   // a drive-by must be able to do neither.
   '/api/community/ratings',
   '/api/community/rate',
+  '/api/community/rating-close',
   // POST-only pack installs (the 'icons' / 'sounds' preset kinds) and the
   // widget package install. Belt-and-suspenders like /api/community/redeem: an
   // Origin:null frame must not be able to write a pack or widget folder behind
@@ -15339,9 +15811,6 @@ const CSRF_MUTATION_PATHS = new Set([
   // ids. POST-only already; listed as belt-and-suspenders.
   '/search/open',
   '/search/reveal',
-  // /search/ai spends the user's AI quota on an outbound provider call —
-  // never reachable from a drive-by or an Origin:null sandboxed iframe.
-  '/search/ai',
   // A question from a widget to the AI set for Bit spends Sparks, the money of
   // a key or plan quota, so the same: POST-only, listed so a navigation is refused.
   '/sdk/ai',
@@ -15384,6 +15853,8 @@ const CSRF_MUTATION_PATHS = new Set([
   '/deck/shortcut-claim',
   // A Deck key's AI/mixer step, handed from a window that cannot run it.
   '/deck/client-step',
+  // A key placed on the screen: it runs what the key does.
+  '/deck/press',
   '/tiles/play-claim',
   // The native shell says whether it draws widget layers and which monitors it
   // sees; a drive-by must not be able to switch the placement tools of the AI on.
@@ -15724,8 +16195,8 @@ const remoteHttps = remoteHttpsLib.createRemoteHttps({
   tailscale: remoteControlTailscale.createTailscale({}),
   dataDir: DATA_DIR,
   // Deliberately not `server`'s inline handler: the function, so both listeners
-  // run the identical application.
-  handler: (req, res) => handleRequest(req, res),
+  // run the identical application, behind the same error boundary.
+  handler: (req, res) => runGuarded(handleRequest, req, res),
   log: (m) => console.log(m),
 });
 
@@ -16170,7 +16641,19 @@ async function _initSttDevice() {
   _sttDeviceWaiters.splice(0).forEach(cb => cb());
 }
 
+// Looking for the microphone costs a few ffmpeg runs and nothing needs it in the first
+// seconds, so it waits for the start to settle. By then the default mic is known too,
+// which saves the rebind round a look at the very start used to trigger.
+const STT_DEVICE_DELAY_MS = 30 * 1000;
+let _sttDeviceStarted = false;
+function _startSttDevice() {
+  if (_sttDeviceStarted) return;
+  _sttDeviceStarted = true;
+  _initSttDevice();
+}
+
 function _sttDeviceWhenReady() {
+  _startSttDevice();
   return new Promise(resolve => {
     if (_sttDeviceReady) resolve();
     else _sttDeviceWaiters.push(resolve);
@@ -16218,49 +16701,70 @@ function pcmToWav(pcmBytes, sampleRate = 24000, channels = 1, bitsPerSample = 16
   return buf;
 }
 
-const STT_LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+// Any clip the browser or a paired phone recorded → 16 kHz mono WAV.
+function _audioToWav16k(inBuf) {
+  return new Promise((resolve, reject) => {
+    // -protocol_whitelist pipe: the input is whatever the browser (or a
+    // paired phone) sent, and ffmpeg guesses its format; a playlist
+    // format could otherwise make it open files or URLs.
+    const ff = spawn(getFfmpegPath(), ['-hide_banner', '-loglevel', 'error', '-protocol_whitelist', 'pipe', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
+    const out = [];
+    const errBuf = [];
+    ff.stdout.on('data', c => out.push(c));
+    ff.stderr.on('data', c => errBuf.push(c));
+    ff.on('error', reject);
+    ff.on('close', code => {
+      if (code === 0 && out.length) resolve(Buffer.concat(out));
+      else reject(new Error('ffmpeg wav transcode failed: ' + Buffer.concat(errBuf).toString().slice(0, 200)));
+    });
+    ff.stdin.on('error', () => {}); // ignore EPIPE if ffmpeg exits early
+    ff.stdin.write(inBuf);
+    ff.stdin.end();
+  });
+}
+
+// Thinking models took over 15 s on a short clip (Flash, 3.1 Pro), the same as the chat allows.
+const STT_GEMINI_TIMEOUT_MS = 30000;
 
 function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
   const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
-  const safeLang = String(lang || 'en').toLowerCase().slice(0, 2);
-  const langName = STT_LANG_NAMES[safeLang] || 'English';
-  // Build a language-aware transcription prompt. The user may mix the UI language
-  // with English proper nouns (app names, brand names) — keep them as separate words.
-  const mixExample = safeLang === 'it'
-    ? 'e.g. "apri Steam" not "apristim"; "apri Spotify" not "aprispot"'
-    : 'e.g. "open Steam" not "opensteam"; "open Spotify" not "openspotify"';
-  const sttPrompt = `Transcribe this audio exactly as spoken in ${langName}. Output only the transcribed text, nothing else: no explanations, no punctuation beyond what was said. The user may mix ${langName} commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (${mixExample}). The recording may begin with a short notification chime or activation tone: ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.`;
+  const sttPrompt = transcriptionPrompt(aiLangName(lang));
+  const model = AI_MODELS.chat;
+  return _withGeminiModel(model, apiKey, (id, thinking) => _transcribeAudioOnce(sttPrompt, safeMime, audioB64, apiKey, id, thinking));
+}
+
+function _transcribeAudioOnce(sttPrompt, safeMime, audioB64, apiKey, model, thinking) {
   const payload = JSON.stringify({
     contents: [{ parts: [
       { text: sttPrompt },
       { inline_data: { mime_type: safeMime, data: audioB64 } },
     ] }],
-    generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+    generationConfig: applyThinking({ temperature: 0, maxOutputTokens: 256, candidateCount: 1 }, thinking),
   });
   return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (geminiRes) => {
       let d = '';
       geminiRes.on('data', c => { d += c; });
       geminiRes.on('end', () => {
-        process.stdout.write(`[STT] Gemini status=${geminiRes.statusCode} body=${d.slice(0, 400)}\n`);
+        process.stdout.write(`[STT] Gemini status=${geminiRes.statusCode}\n`);
         try {
           const parsed = JSON.parse(d);
           if (parsed.error) {
             reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
             return;
           }
-          resolve(((parsed?.candidates?.[0]?.content?.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || '');
-        } catch { reject(new Error('Gemini invalid JSON: ' + d.slice(0, 120))); }
+          resolve(geminiTranscript(parsed));
+        } catch (e) { reject(e instanceof SyntaxError ? new Error('Gemini invalid JSON') : e); }
       });
     });
     req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.setTimeout(STT_GEMINI_TIMEOUT_MS, () => { req.destroy(); reject(new Error('timeout')); });
     req.write(payload);
     req.end();
   });
@@ -16300,18 +16804,24 @@ function _parseLeakedToolCall(text, validNames) {
 // responses). Returns a short grounded answer plus source URLs. On any failure
 // resolves with an { error } object so the caller can degrade gracefully.
 function _geminiWebSearch(query, apiKey) {
-  return new Promise((resolve) => {
-    const q = String(query || '').trim().slice(0, 500);
-    if (!q) return resolve({ error: 'empty query' });
+  const q = String(query || '').trim().slice(0, 500);
+  if (!q) return Promise.resolve({ error: 'empty query' });
+  const model = AI_MODELS.chat;
+  return _withGeminiModel(model, apiKey, (id, thinking) => _geminiWebSearchOnce(q, apiKey, id, thinking))
+    .catch((e) => ({ error: e.message }));
+}
+
+function _geminiWebSearchOnce(q, apiKey, model, thinking) {
+  return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: q }] }],
       tools: [{ google_search: {} }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 700, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: applyThinking({ temperature: 0.2, maxOutputTokens: 700, candidateCount: 1 }, thinking),
     });
     const t0 = Date.now();
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (r) => {
@@ -16321,7 +16831,7 @@ function _geminiWebSearch(query, apiKey) {
         process.stdout.write(`[WebSearch] Gemini HTTP ${r.statusCode} in ${Date.now() - t0}ms\n`);
         try {
           const parsed = JSON.parse(d);
-          if (parsed.error) return resolve({ error: parsed.error.message || 'search error' });
+          if (parsed.error) return reject(new Error(parsed.error.message || 'search error'));
           const cand = parsed?.candidates?.[0];
           const text = (cand?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
           // Collect grounding source URLs/titles when present
@@ -16331,11 +16841,11 @@ function _geminiWebSearch(query, apiKey) {
             .filter(Boolean).slice(0, 5);
           if (!text) return resolve({ error: 'no result' });
           resolve({ answer: text, sources });
-        } catch { resolve({ error: 'invalid JSON' }); }
+        } catch { reject(new Error('invalid JSON')); }
       });
     });
-    req.on('error', (e) => resolve({ error: e.message }));
-    req.setTimeout(20000, () => { req.destroy(); resolve({ error: 'search timeout' }); });
+    req.on('error', reject);
+    req.setTimeout(20000, () => { req.destroy(); reject(new Error('search timeout')); });
     req.write(payload);
     req.end();
   });
@@ -16349,10 +16859,8 @@ function _geminiWebSearch(query, apiKey) {
 // own toggles, and the result is re-validated against the actually-open apps so
 // the model can never name something that isn't there. Returns null on any
 // failure so the client falls back to the deterministic (manual) flow.
-const PERF_LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
-
 function _perfPlanPrompt(activity, appNames, opts, lang, stats) {
-  const langName = PERF_LANG_NAMES[String(lang || 'en').slice(0, 2)] || 'English';
+  const langName = aiLangName(lang, 'English');
   const levers = [];
   if (opts.pauseAnimations) levers.push('pausing the dashboard animations');
   if (opts.powerPlan && opts.powerPlan !== 'none') levers.push('switching Windows to a high-performance power plan');
@@ -16384,14 +16892,20 @@ function _perfPlanPrompt(activity, appNames, opts, lang, stats) {
 }
 
 function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
-  return new Promise((resolve) => {
+  const model = AI_MODELS.chat;
+  return _withGeminiModel(model, apiKey, (id, thinking) => _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, id, thinking))
+    .catch(() => null);
+}
+
+function _geminiGenerateJSONOnce(prompt, apiKey, timeoutMs, model, thinking) {
+  return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 500, candidateCount: 1, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: applyThinking({ temperature: 0.2, maxOutputTokens: 500, candidateCount: 1, responseMimeType: 'application/json' }, thinking),
     });
     const r = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (resp) => {
@@ -16400,13 +16914,13 @@ function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
       resp.on('end', () => {
         try {
           const parsed = JSON.parse(d);
-          if (parsed.error) return resolve(null);
+          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
           resolve((parsed?.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || null);
-        } catch { resolve(null); }
+        } catch (e) { reject(e); }
       });
     });
-    r.on('error', () => resolve(null));
-    r.setTimeout(timeoutMs, () => { r.destroy(); resolve(null); });
+    r.on('error', reject);
+    r.setTimeout(timeoutMs, () => { r.destroy(); reject(new Error('gemini timeout')); });
     r.write(payload);
     r.end();
   });
@@ -16447,6 +16961,11 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
       });
       return _normalizePerfPlan(r && r.text, names);
     }
+    if (provider === 'localapi') {
+      const settings = await readHubSettings().catch(() => null);
+      const text = await localServerOneShot(settings, 'You output only a single JSON object, never prose or markdown.', prompt, 500);
+      return _normalizePerfPlan(text, names);
+    }
     if (provider === 'openai' || provider === 'anthropic') {
       // Server-only key comes from settings, not the request (unlike Gemini).
       const settings = await readHubSettings().catch(() => null);
@@ -16477,6 +16996,164 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
 // remote-https.js serves the identical application — same routes, same handlers,
 // same gate — over TLS on the Tailscale address. One handler, so the two
 // transports can never drift into two behaviours.
+// One client of the live feed, on HTTP (`/sse`) or on a socket (`/sse/socket`,
+// sse-socket.js): it joins `sseClients` and is seeded with the current state.
+function openSseClient(req, res, isRemote, remote) {
+  res.write(':connected\n\n');
+
+  // A paired device holds a few streams at most (a tab or two); more from
+  // the same device are its oldest ones left open, so the oldest is closed.
+  if (isRemote && remote && remote.device) {
+    res._xenonDevice = remote.device.id;
+    const mine = [...sseClients].filter((c) => c._xenonDevice === remote.device.id);
+    while (mine.length >= SSE_MAX_PER_DEVICE) {
+      const old = mine.shift();
+      sseClients.delete(old);
+      try { old.destroy(); } catch { /* already gone */ }
+    }
+  }
+  sseClients.add(res);
+  // The registry poll is client-gated, so a dashboard opening after a while
+  // would otherwise seed itself from a list up to one interval old — long
+  // enough to draw a session that has already been closed.
+  _claudeSyncRegistry();
+  _syncFpsMonitor(); // a dashboard is watching → run PresentMon (if installed)
+  refreshObsWatch();
+  refreshDiscordWatch();
+  refreshHaWatch();
+  refreshSbWatch();
+  refreshWlWatch();
+  refreshVoicemeeterWatch();
+  refreshUnifiEventsWatch();
+  refreshWinNotifWatch();
+  refreshWakeWordWatch();
+  refreshAudioLevelsWatch();
+  _syncCodexDemand();
+  req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); _syncCodexDemand(); });
+
+  // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
+  noteUsageDay();
+  // Push current state immediately so the client doesn't wait for the first tick.
+  seedReadings(res, [
+    { event: 'system', read: getSystemInfo },
+    { event: 'media', read: getMediaInfo },
+    { event: 'audio', read: getAudioInfo, fallback: { unavailable: true } },
+  ]).then(() => {
+    // Full status payload — a partial {muted}-only seed read as "no game" on the
+    // client, hiding the Companion pill on every SSE (re)connect.
+    res.write(`event: status\ndata: ${JSON.stringify(statusPayload())}\n\n`);
+  }).catch(() => {});
+  // The Voicemeeter mixer as last read: the poll only broadcasts a change, so a
+  // widget opening later would otherwise wait for someone to move a fader.
+  if (vmLastJson) { try { res.write(`event: voicemeeter\ndata: ${vmLastJson}\n\n`); } catch (e) { /* ignore */ } }
+  // A benchmark already recording: lights its Deck key, no toast (seed).
+  try {
+    const bench = _benchmark.status();
+    if (bench.running) res.write(`event: benchmark\ndata: ${JSON.stringify({ running: true, game: bench.game, seed: true })}\n\n`);
+  } catch (e) { /* ignore */ }
+  // A recording already going: lights its Deck key and shows the "Recording" card.
+  try {
+    const rec = _recorder.status();
+    if (rec.on) res.write(`event: recording\ndata: ${JSON.stringify({ ...rec, seed: true })}\n\n`);
+  } catch (e) { /* ignore */ }
+  // The steps recorder running: lights its Deck key and shows its card.
+  try {
+    const st = _stepsRecorder.status();
+    if (st.on) res.write(`event: steps
+data: ${JSON.stringify({ ...st, seed: true })}
+
+`);
+  } catch (e) { /* ignore */ }
+  // Instant Replay on: lights its Deck key, no "replay on" card (seed).
+  try {
+    const rp = _replay.status();
+    if (rp.enabled) res.write(`event: replay\ndata: ${JSON.stringify({ ...rp, seed: true })}\n\n`);
+  } catch (e) { /* ignore */ }
+  // Seed a ringing call. A dashboard that opens (or a phone that unlocks)
+  // mid-ring must show the card immediately: the whole point of the feature is
+  // the ~40 seconds a call lasts, and waiting for the next broadcast would
+  // spend most of them. Empty is the normal case and costs one line.
+  try {
+    const ringing = calls.current();
+    if (ringing.length) res.write(`event: calls\ndata: ${JSON.stringify({ calls: ringing })}\n\n`);
+  } catch (e) { /* ignore */ }
+  // Seed the phone's live state for the same reason, one level down: the
+  // widget shows "in chiamata" while a call is up, and a dashboard opened
+  // during one would otherwise look idle until the call ended.
+  try {
+    if (phone.enabled()) res.write(`event: phone\ndata: ${JSON.stringify(phone.state())}\n\n`);
+  } catch (e) { /* ignore */ }
+  // Seed the transfer list. A phone that opens the dashboard while a file is
+  // still going up must see both the list and the upload in progress at once,
+  // rather than an empty widget until something next changes. The path to the
+  // delivered copy is included only for the PC — see transferState.
+  try { res.write(`event: transfer\ndata: ${JSON.stringify(transferState(!isRemote))}\n\n`); } catch (e) { /* ignore */ }
+  // Seed the just-connected client with the current OBS state (if watching).
+  if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
+  if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
+  // Seed the just-connected client with the current Home Assistant state.
+  buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+  // Seed the just-connected client with the current Streamer.bot globals.
+  buildSbState().then((st) => { try { res.write(`event: streamerbot\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+  // Seed the current peripheral battery. The 'battery' tick is 90s, and unlike
+  // the builtin tile (which fetches GET /api/battery on mount) a sandboxed SDK
+  // widget has no seed endpoint of its own — it can only wait for the stream,
+  // so without this it sits on "Looking for devices…" for up to a minute and a
+  // half after every reload. getDevices() is TTL-cached and dedups concurrent
+  // callers, so several surfaces connecting at once still cost one read.
+  // Gated like the tick: nothing that shows a battery, nothing to seed.
+  batteryWanted()
+    .then((wanted) => (wanted ? batteryMonitor.getDevices() : null))
+    .then((payload) => { if (payload) { try { res.write(`event: battery\ndata: ${JSON.stringify(payload)}\n\n`); } catch (e) { /* ignore */ } } })
+    .catch(() => {});
+  // Seed the current stock quotes (paint immediately), then kick a refresh if
+  // the cache is empty/stale so a freshly opened dashboard fills in fast.
+  try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
+  if (!_stocksCache.quotes.length || Date.now() - _stocksCache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
+  // Seed the current football fixtures/results, then kick a refresh if stale.
+  try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballPayload())}\n\n`); } catch (e) { /* ignore */ }
+  if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
+  // Seed the current news headlines, then kick a refresh if empty/stale
+  // (display-only feed: only when the widget/ticker actually uses it).
+  try { if (_newsCache.items.length) res.write(`event: news\ndata: ${JSON.stringify(_newsCache)}\n\n`); } catch (e) { /* ignore */ }
+  if (_feedWidgetInUse('news', 'news') && (!_newsCache.items.length || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000)) refreshNews().catch(() => {});
+  // Seed the current Claude Code usage aggregate, then refresh if empty/stale
+  // (display-only feed: only when the widget is on the dashboard).
+  try { res.write(`event: claude\ndata: ${JSON.stringify(_claudeFresh())}\n\n`); } catch (e) { /* ignore */ }
+  if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
+  // Seed the Codex state (live approvals included, so a card waiting before this
+  // dashboard opened is drawn at once).
+  try { res.write(`event: codex\ndata: ${JSON.stringify(_codexPayload())}\n\n`); } catch (e) { /* ignore */ }
+  // A store put back from its daily copy at this boot: say so to the screens
+  // that open in the first half hour (each shows it once, main.js).
+  if (_storeRecovery.length && Date.now() - _storeRecoveryAt < 30 * 60 * 1000) {
+    try { res.write(`event: store_recovery\ndata: ${JSON.stringify({ at: _storeRecoveryAt, stores: _storeRecovery.map(({ file, state, from }) => ({ file, state, from })) })}\n\n`); } catch (e) { /* ignore */ }
+  }
+  // Seed the SDK data-only streams (tasks/notes/agenda) for custom widgets.
+  // Unlike system/media/audio/status these are broadcast ONLY on change, so a
+  // sandboxed widget subscribing to one (it can't fetch) would paint nothing
+  // until the user next edits a task/note/event. Same loopback-only stream and
+  // same payload shape as the change broadcasts; the custom-widget host forwards
+  // each only to a frame that was granted that stream.
+  { const seq = _tasksSeq; readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
+  { const seq = _eventsSeq; readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
+  readNotes().then(n => { try { if (n) res.write(`event: notes\ndata: ${JSON.stringify(n)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+  // Timers too: timer_update otherwise fires only on mutations/completions, so
+  // a reloaded dashboard (or a fresh Virtual Deck popup) would show blank
+  // countdown faces and unlit timerRunning keys for the rest of a running timer.
+  try { res.write(`event: timer_update\ndata: ${JSON.stringify({ timers: _timers })}\n\n`); } catch (e) { /* ignore */ }
+  // And the relayed SDK deck states, so a fresh Virtual Deck popup paints its
+  // sdkState keys without waiting for the next widget state change.
+  try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
+  // Same reason: a surface that connects AFTER a script set a state would
+  // otherwise draw its key dark until the next change, which for a state that
+  // changes twice a day is most of the day. Sent even when the map is EMPTY,
+  // unlike the relayed SDK states above: a widget granted the `scriptStates`
+  // stream has no other way to tell "nothing is set" from "not told yet", and
+  // an empty map is one short line per connection.
+  try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
+}
+
 const handleRequest = async (req, res) => {
   // Which listener this arrived on. Read from the SOCKET, never from a header:
   // it decides whether a certificate name is an acceptable Host and which scheme
@@ -16513,7 +17190,10 @@ const handleRequest = async (req, res) => {
   //  · nosniff: a browser never guesses a type, so an answer can never be
   //    taken for a page or a script it was not served as.
   //  · frame-src: the frames our pages may load are our own (widgets, scenes,
-  //    backgrounds) and the YouTube and Twitch players. The browser checks it
+  //    backgrounds) and the YouTube and Twitch players, with Google's sign-in
+  //    page, the one Google host a player may need. Never a wildcard on
+  //    google.com: script.google.com and docs.google.com hand whatever is in
+  //    the URL to whoever wrote the page. The browser checks it
   //    on every navigation of a child frame too, before the request leaves,
   //    so a widget or a background preview that sends its frame to another
   //    site is stopped there, data in the URL included.
@@ -16521,7 +17201,7 @@ const handleRequest = async (req, res) => {
   //    <base> tag or forms posting elsewhere, so none may appear.
   res.setHeader('Content-Security-Policy', [
     "frame-ancestors 'self' file: qrc:",
-    "frame-src 'self' https://www.youtube-nocookie.com https://*.youtube-nocookie.com https://www.youtube.com https://*.youtube.com https://player.twitch.tv https://*.twitch.tv https://*.google.com",
+    "frame-src 'self' https://www.youtube-nocookie.com https://*.youtube-nocookie.com https://www.youtube.com https://*.youtube.com https://player.twitch.tv https://*.twitch.tv https://accounts.google.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -16571,18 +17251,21 @@ const handleRequest = async (req, res) => {
     // Local API responses are live state — never let the browser/WebView cache them
     // (a cached /api/lighting/status was masking real changes during diagnosis).
     if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb) && isJsonpAllowed(urlObj.pathname)) {
-      // A JSONP answer can be read by any page that adds the <script>, so it
-      // carries only what the iCUE widgets show: no browser window titles
-      // (audio apps) and no computer name.
-      const shared = JSON.stringify(data, (k, v) => (k === 'win' || k === 'hostname') ? undefined : v);
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(jsonpCb + '(' + shared + ');');
+      res.end(jsonpCb + '(' + body + ');');
     } else {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(body);
     }
   };
   const err500 = msg  => { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(String(msg)); };
+  // Every dashboard page leaves through here: asset-version.js puts a version on
+  // what it lists, so the load asks nothing for a file the browser already has.
+  const sendPage = async (html) => {
+    const page = await assetVersion.stamp(html, __dirname, APP_VERSION);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(page);
+  };
 
   const reqPath = urlObj.pathname;
 
@@ -16648,8 +17331,7 @@ const handleRequest = async (req, res) => {
       const lite = await fs.promises.readFile(path.join(__dirname, 'layer-lite.html'), 'utf8');
       const tiles = LayersModel.liteTilesFor(_serverHubSettings.layers, layerKey);
       const dashboard = LayerPage.needsDashboardHtml(tiles) ? await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8') : '';
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(LayerPage.compose(lite, tiles, dashboard));
+      await sendPage(LayerPage.compose(lite, tiles, dashboard));
       return;
     }
     let html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
@@ -16684,10 +17366,9 @@ const handleRequest = async (req, res) => {
     }
     // Never let the WebView serve a stale entry document: index.html carries the
     // early boot-scale recovery script, so a cached copy would pin an old fix.
-    // The doc is tiny and loopback-served, so no-store costs nothing. (CSS/JS
-    // already revalidate via no-cache + ETag below.)
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    // The doc is tiny and loopback-served, so no-store costs nothing, and it is
+    // what makes the versioned CSS/JS URLs in it safe to keep.
+    await sendPage(html);
 
   } else if (reqPath === '/pair' && req.method === 'GET') {
     // The pairing page — the ONE document reachable before a device has a
@@ -16749,17 +17430,13 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/shell-driver' && req.method === 'GET') {
     // The hidden page of "widgets only" (js/shell-driver.js). Denied to a paired
     // device in remote-access.js; loopback only, like '/'.
-    const html = await fs.promises.readFile(path.join(__dirname, 'shell-driver.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    await sendPage(await fs.promises.readFile(path.join(__dirname, 'shell-driver.html'), 'utf8'));
 
   } else if (reqPath === '/sdk-service' && req.method === 'GET') {
     // "Widgets only": the hidden page that runs the Store widgets' background
     // frames (js/sdk-service.js), held by the driver page. Denied to a paired
     // device in remote-access.js; loopback only, like '/'.
-    const html = await fs.promises.readFile(path.join(__dirname, 'sdk-service.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    await sendPage(await fs.promises.readFile(path.join(__dirname, 'sdk-service.html'), 'utf8'));
 
   } else if (reqPath === '/screen-alerts' && req.method === 'GET') {
     // "Widgets only": the small click-through window that shows the dashboard's
@@ -16770,8 +17447,7 @@ const handleRequest = async (req, res) => {
       fs.promises.readFile(path.join(__dirname, 'screen-alerts.html'), 'utf8'),
       fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8').catch(() => ''),
     ]);
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(screenAlertsPage.compose(page, dashboard));
+    await sendPage(screenAlertsPage.compose(page, dashboard));
 
   } else if (reqPath === '/scene' && req.method === 'GET') {
     // The desktop scene (js/screen-scene.js): the Ambient scene as the animated
@@ -16782,31 +17458,24 @@ const handleRequest = async (req, res) => {
       fs.promises.readFile(path.join(__dirname, 'scene.html'), 'utf8'),
       fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8').catch(() => ''),
     ]);
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(scenePage.compose(page, dashboard));
+    await sendPage(scenePage.compose(page, dashboard));
 
   } else if (reqPath === '/draw' && req.method === 'GET') {
     // The drawing sheet on macOS and Linux (js/screen-draw-page.js), shown by
     // the shell while drawing is on (screen-draw-shell.js). Denied to a paired
     // device in remote-access.js.
-    const html = await fs.promises.readFile(path.join(__dirname, 'draw.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    await sendPage(await fs.promises.readFile(path.join(__dirname, 'draw.html'), 'utf8'));
 
   } else if (reqPath === '/menu' && req.method === 'GET') {
     // The Xenon menu over the main screen (js/screen-menu-page.js), shown by the
     // shell while it is open (screen-menu.js). Denied to a paired device in
     // remote-access.js.
-    const html = await fs.promises.readFile(path.join(__dirname, 'menu.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    await sendPage(await fs.promises.readFile(path.join(__dirname, 'menu.html'), 'utf8'));
 
   } else if (reqPath === '/deck-popup' && req.method === 'GET') {
     // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
     // no-store so the popup never boots from a stale entry document.
-    const html = await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    await sendPage(await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8'));
 
   } else if (reqPath === '/layer-i18n.js' && req.method === 'GET') {
     // The light layer page's strings: the saved language and the browser's, plus
@@ -16825,9 +17494,12 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/spotlight' && req.method === 'GET') {
     // Spotlight popup document (main-PC window, opened by the global hotkey).
     // Same loopback trust as '/'; no-store like /deck-popup.
-    const html = await fs.promises.readFile(path.join(__dirname, 'spotlight.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(html);
+    // Bit's chat in that window is the dashboard's panel, cut from index.html.
+    const [html, dashboard] = await Promise.all([
+      fs.promises.readFile(path.join(__dirname, 'spotlight.html'), 'utf8'),
+      fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8'),
+    ]);
+    await sendPage(screenAlertsPage.compose(html, dashboard));
 
   } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {
     // Open the Virtual Deck as an Edge app-mode window on the main PC (shared
@@ -16850,14 +17522,10 @@ const handleRequest = async (req, res) => {
     res.end(gif);
 
   } else if (reqPath === '/status' && req.method === 'GET') {
-    // The exact app version stays off the JSONP-readable shape: ?cb= responses
-    // are readable cross-site by design (script-tag transport), and the version
-    // would make a drive-by fingerprint needlessly precise. The plain GET and
-    // the SSE broadcast keep it (loopback/Origin-guarded) — it drives the
-    // stale-page reload fence in main.js.
-    const st = statusPayload();
-    if (jsonpCb) delete st.version;
-    json(st);
+    // Any site can read a ?cb= answer, so it says Xenon is on and nothing else:
+    // the full status names the game and the app in front. The plain GET and
+    // the SSE broadcast keep it (loopback/Origin-guarded).
+    json(jsonpCb ? { ok: true } : statusPayload());
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
     // The OS colour scheme, for the "Auto" appearance. The embedded WebView's
@@ -16882,7 +17550,7 @@ const handleRequest = async (req, res) => {
     catch { json({ unavailable: true }); }
 
   } else if (reqPath === '/system' && req.method === 'GET') {
-    try   { json(await getSystemInfo()); }
+    try   { json(await getSystemInfo({ partialOk: true })); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/system/sensors' && req.method === 'GET') {
@@ -16978,26 +17646,32 @@ const handleRequest = async (req, res) => {
     // Read-only system snapshot for Performance Mode: memory pressure + the top
     // processes by RAM with a CPU% estimate. Feeds the optimization sheet (per-app
     // memory chips), the deterministic preselect, and the AI planner.
-    try   { json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000)); }
+    try   { json(await perfStats()); }
     catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {
     // Performance Mode: read the active Windows power scheme so the client can
     // remember it before switching, then restore it on exit. Fully reversible.
-    try   { json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['get'], 6000)); }
+    try   { json(perfSession.plan ? await perfSession.plan.get() : { ok: false, error: 'unsupported_platform' }); }
     catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/performance/powerplan' && req.method === 'POST') {
     // Switch to a known high-performance plan ('high'/'ultimate') or restore a
-    // previously-saved scheme by GUID. The .ps1 rejects anything else.
+    // previously-saved scheme by GUID. Anything else is rejected here and in power-plan.js.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       const value = String(body.value || '').trim();
       const isPreset = value === 'high' || value === 'ultimate';
       const isGuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
       if (!isPreset && !isGuid) { res.writeHead(400); res.end('Invalid power plan'); return; }
-      json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['set', value], 8000));
+      json(perfSession.plan ? await perfSession.plan.set(value) : { ok: false, error: 'unsupported_platform' });
     } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/performance/shield' && req.method === 'GET') {
+    // Read-only: whether Core Shield can run on this PC, for the sheet and Settings,
+    // and which apps it moved this session, for the note at the end.
+    try   { json({ ok: true, ...(await perfSession.shield.status()) }); }
+    catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/performance/screen' && req.method === 'POST') {
     // "Widgets only": the hidden driver page runs Performance Mode and the
@@ -17014,6 +17688,15 @@ const handleRequest = async (req, res) => {
     try { body = JSON.parse(await readBody(req) || '{}'); } catch (e) { body = null; }
     try {
       const out = await saveTileSettings(body);
+      if (!out.ok) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); return; }
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/sdk/grant' && req.method === 'POST') {
+    let body = null;
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch (e) { body = null; }
+    try {
+      const out = await saveSdkGrant(body);
       if (!out.ok) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); return; }
       json(out);
     } catch (e) { err500(e.message); }
@@ -17049,7 +17732,7 @@ const handleRequest = async (req, res) => {
       const opts = (body.opts && typeof body.opts === 'object') ? body.opts : {};
       // Measure here (server-side) so the plan reasons on real RAM/CPU numbers;
       // a failed probe degrades to the old name-only prompt.
-      const stats = await runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000).catch(() => null);
+      const stats = await perfStats().catch(() => null);
       const plan = await _aiPerformancePlan({
         activity: String(body.activity || 'other'),
         appNames: Array.isArray(body.apps) ? body.apps : [],
@@ -17456,8 +18139,7 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/media' && req.method === 'GET') {
     try {
-      // ?source= changes the preferred player. Only from our own pages: this
-      // route also answers JSONP <script> loads, which any site can make.
+      // ?source= changes the preferred player. Only from our own pages.
       const fetchSite = String(req.headers['sec-fetch-site'] || '').toLowerCase();
       const foreignPage = fetchSite === 'cross-site' || fetchSite === 'same-site';
       if (urlObj.searchParams.has('source') && !foreignPage) setMediaPreferredSource(urlObj.searchParams.get('source'));
@@ -17896,6 +18578,7 @@ const handleRequest = async (req, res) => {
       const { nonce } = JSON.parse(await readBody(req) || '{}');
       const action = _deckConfirms.take(nonce);
       if (!action) { json({ ok: false, error: 'expired' }); return; }
+      if (action.type === aiRateStore.TYPE) { json(await ratingVotes.vote(action)); return; }
       if (isRemote) {
         const verdict = remoteActions.remoteMayRun(action, await readDeckStore());
         if (!verdict.ok) { json({ ok: false, error: verdict.error }); return; }
@@ -18200,7 +18883,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/notes' && req.method === 'GET') {
     // Read only. A GET that saved (?save=&data=) let any link or <img> replace
     // every note with one; saving is POST now.
-    // Legacy flat-text read (iCUE widget, JSONP). Flatten the structured store.
+    // Legacy flat-text read. Flatten the structured store.
     readNotes()
       .then(state => json({ notes: notesToText(state) }))
       .catch(e => err500(e.message));
@@ -18227,7 +18910,36 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/whatsnew' && req.method === 'GET') {
     // Curated highlights for the running version (see loadWhatsNew). Static and
     // shipped with the build; the client gates display on the `id`.
-    try { json(await loadWhatsNew()); } catch (e) { err500(e.message); }
+    try { json({ ...(await loadWhatsNew()), version: APP_VERSION }); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/notice-seen' && req.method === 'POST') {
+    // The person read What's New, the fixes of a release or a failed update. The
+    // alerts window of "widgets only" only views the settings, and the two
+    // versions must hold on every surface, so the server writes them.
+    try {
+      const seen = releaseNotes.cleanSeen(JSON.parse(await readBody(req, 1024) || '{}'));
+      if (Object.keys(seen).length) await saveNoticeSeen(seen);
+      json({ ok: true });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+    }
+
+  } else if (reqPath === '/bit/messages' && req.method === 'GET') {
+    // The inbox behind Bit's card: what has been said, and the one message this
+    // screen may show now. `surface=screen` is the alerts window of "widgets only".
+    try { json(await bitMessages.view(urlObj.searchParams.get('surface'))); } catch (e) { err500(e.message); }
+
+  } else if (BIT_MESSAGE_ROUTES[reqPath] && req.method === 'POST') {
+    // Filed, imported from the old mail, shown, read. Everything is rebuilt in
+    // bit-messages.js; all four are in CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, BIT_MESSAGE_BODY_MAX) || '{}');
+      json({ ok: await BIT_MESSAGE_ROUTES[reqPath](body) });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+    }
 
   } else if (reqPath === '/update/check' && req.method === 'GET') {
     // Latest released version vs the running one (probed at most daily,
@@ -18675,6 +19387,8 @@ const handleRequest = async (req, res) => {
         incoming.appFavorites = (Array.isArray(incoming.appFavorites) ? incoming.appFavorites : [])
           .map((f) => saved.get(favKey(f)))
           .filter(Boolean);
+        // And a widget's permissions the same way (remote-actions.js keepGrants).
+        incoming.sdkWidgets = remoteActions.keepGrants(prev && prev.sdkWidgets, incoming.sdkWidgets);
       }
       // The layout-version migration reads the INCOMING body, and it is the only
       // check in normalizeHubSettings whose failure mode is losing the single
@@ -18720,6 +19434,11 @@ const handleRequest = async (req, res) => {
         // Browser-owned too, and just as one-way: the first day stamped stays,
         // and the appeal year only moves forward.
         if (prev.supportAskSeenDay) incoming.supportAskSeenDay = prev.supportAskSeenDay;
+        // POST /update/notice-seen owns these two. whatsNewSeen has two writers, so
+        // a mirror that has not heard yet can never empty it.
+        incoming.releaseNotesSeen = prev.releaseNotesSeen || '';
+        incoming.updateFailSeen = prev.updateFailSeen || '';
+        if (prev.whatsNewSeen && !incoming.whatsNewSeen) incoming.whatsNewSeen = prev.whatsNewSeen;
         if (Number(prev.supportAppealYear) > (Number(incoming.supportAppealYear) || 0)) {
           incoming.supportAppealYear = prev.supportAppealYear;
         }
@@ -18745,6 +19464,7 @@ const handleRequest = async (req, res) => {
       // The anonymous feature counts are the PC owner's choice: a paired device
       // can neither switch them on nor off, its save keeps the stored value.
       if (isRemote) incoming.usageStats = !!(prev && prev.usageStats === true);
+      if (isRemote) incoming.batteryAskDevices = !prev || prev.batteryAskDevices !== false;
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       return { prev, settings };
@@ -18755,6 +19475,7 @@ const handleRequest = async (req, res) => {
       if ((prev && prev.autoUpdateWidgets !== false) !== (settings.autoUpdateWidgets !== false)) {
         try { widgetAutoUpdater.settingsChanged(); } catch { /* next tick reads it anyway */ }
       }
+      if ((prev && prev.batteryAskDevices !== false) !== (settings.batteryAskDevices !== false)) batteryMonitor.peripheralsChanged();
       // Counts switched off: what was waiting to be sent is deleted, not kept.
       if (prev && prev.usageStats === true && settings.usageStats !== true) {
         usageStats.clear().catch(() => {});
@@ -18916,10 +19637,13 @@ const handleRequest = async (req, res) => {
     try {
       const out = await communityMessages.fetchVisibleMessages(urlObj.searchParams.has('refresh'));
       // `context` is what THIS install is, handed to the client so it can match
-      // locally: the browser has no reliable read of either, and the os token has
+      // locally: the browser has no reliable read of any of it, and the os token has
       // to come from the same vocabulary version-ping.js uses or a filter written
       // against one would silently miss the other. It travels inward only.
-      json({ ...out, context: { version: APP_VERSION, os: process.platform } });
+      // `supporter` is the boolean /api/community/supporter already answers, never
+      // the code; left out when the pass cannot be read, and hub-match.js fails closed.
+      const pass = await supporterRedeem.savedStatus(DATA_DIR).catch(() => null);
+      json({ ...out, context: { version: APP_VERSION, os: process.platform, supporter: pass ? pass.saved : undefined } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/code' && req.method === 'GET') {
@@ -19005,13 +19729,18 @@ const handleRequest = async (req, res) => {
     // In CSRF_MUTATION_PATHS.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      json(await sparksWallet.buy({ entryId: body.entryId, code: body.code, kv: body.kv, dataDir: DATA_DIR }));
+      json(await sparksWallet.buy({ entryId: body.entryId, code: body.code, kv: body.kv, consent: body.consent, dataDir: DATA_DIR }));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/sparks' && req.method === 'GET') {
     // Can this PC pay with Sparks, and with a pass or a Sparks code. Booleans
     // only, never a code: readable from a paired phone like /api/community/supporter.
     try { json(await sparksWallet.walletStatus(DATA_DIR)); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/sparks/owned' && req.method === 'GET') {
+    // Is this drop already yours? A boolean, never a code; the hub only reads. The
+    // buy sheet asks so a copy already bought goes straight to Install.
+    try { json(await sparksWallet.owned({ entryId: urlObj.searchParams.get('entryId'), dataDir: DATA_DIR })); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/sparks/save' && req.method === 'POST') {
     // The XC Sparks code typed in Settings or the Store. Shape only, like the
@@ -19053,28 +19782,31 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {
     // Star-rating aggregates for gallery entries, proxied from the hub with a
-    // TTL cache + in-flight dedup (community-ratings.js). ?mine=1 additionally
-    // attaches THIS install's id server-side so the vote control can highlight
-    // the current choice — the browser never supplies the id. In
-    // CSRF_MUTATION_PATHS (a cache miss triggers an outbound fetch).
+    // TTL cache + in-flight dedup (community-ratings.js). In CSRF_MUTATION_PATHS
+    // (a cache miss triggers an outbound fetch).
     try {
-      json(await communityRatings.fetchRatings({
-        ids: urlObj.searchParams.get('ids'),
-        mine: urlObj.searchParams.has('mine'),
-        dataDir: DATA_DIR,
-      }));
+      json(await communityRatings.fetchRatings({ ids: urlObj.searchParams.get('ids') }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/rating-state' && req.method === 'GET') {
+    // Can this PC vote on this entry, and what did it give (rating-votes.js). Local
+    // only, no hub call; the phone shows the same Store.
+    try { json(await ratingVotes.stateOf(urlObj.searchParams.get('id'))); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/rating-close' && req.method === 'POST') {
+    // The X on Bit's card: no more asks about this entry. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await ratingVotes.close(body.entryId));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
-    // Cast/replace this install's 1–5 star vote on a catalog entry. Shape is
-    // validated here, the install id attached server-side, and the hub
-    // re-validates + rate-limits. In CSRF_MUTATION_PATHS (drive-by pages must
-    // not pump the hub or forge votes), never JSONP.
+    // This PC's one final vote on a catalog entry. The ticket stays on this server
+    // and the hub re-validates. In CSRF_MUTATION_PATHS (drive-by pages must not
+    // pump the hub or forge votes), never JSONP.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      json(await communityRatings.submitRating({
-        entryId: body.entryId, stars: body.stars, dataDir: DATA_DIR,
-      }));
+      json(await ratingVotes.vote({ entryId: body.entryId, stars: body.stars, why: body.why }));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {
@@ -20074,6 +20806,9 @@ const handleRequest = async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       const target = body.entityId ? { entity_id: String(body.entityId) } : null;
       const data = (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) ? body.data : {};
+      if (isRemote && !remoteActions.remoteMayCallHa(body.domain, body.service, body.entityId, data)) {
+        json({ ok: false, error: 'needs_pc' }); return;
+      }
       json(await deckHa.callService(String(body.domain || ''), String(body.service || ''), target, data));
     } catch (e) {
       // A fixed code: a failed HA call's message can carry the HA host and port.
@@ -20416,8 +21151,7 @@ const handleRequest = async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       const blocked = await userAiVisionBlocker();
       if (blocked) { companionFail(400, blocked); return; }
-      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch' };
-      const langName = LANG_NAMES[String(body.lang || '').toLowerCase().slice(0, 2)] || 'English';
+      const langName = aiLangName(body.lang, 'English');
       const question = String(body.question || '').trim().slice(0, 300);
       let fgProc = '';
       try { fgProc = gameDetect.getForegroundProcess() || ''; } catch {}
@@ -20462,8 +21196,7 @@ const handleRequest = async (req, res) => {
       // to answer in English when the turn carries an image or audio (little text to
       // infer from), which breaks an otherwise Italian conversation.
       const _uiLang2 = String(aiBody.lang || '').toLowerCase().slice(0, 2);
-      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
-      const langName = LANG_NAMES[_uiLang2] || '';
+      const langName = aiLangName(_uiLang2);
 
       const provider = aiLocal.sanitizeProvider(aiBody.provider);
       const ollModel = aiLocal.sanitizeModel(aiBody.model);
@@ -20500,7 +21233,7 @@ const handleRequest = async (req, res) => {
       // The same pictures fitted to go inside a creation (ai-attached-pictures.js),
       // with a line telling the model how to name them.
       const _aiPictures = aiPictures.picturesFrom(aiBody.pictures);
-      const _aiSurface = aiSurface.surfaceOf(aiBody);
+      const _aiSurface = aiSurface.surfaceOf(aiBody, req.headers.referer);
       const picturesNote = aiPictures.picturesNote(_aiPictures);
 
       // Inject images + audio into the last user message (current turn only — not stored in history)
@@ -20685,7 +21418,7 @@ const handleRequest = async (req, res) => {
         '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
         '  • RGB lighting: set a manual colour, clear it, enable/disable reactive effects, configure event-flash effects, and turn the whole lighting bridge on/off.' +
         '  • System & apps: read live CPU/GPU/RAM/disk stats and individual sensors (e.g. CPU temp), open or close any app/website/file on Windows, lock the PC, and turn Performance Mode on/off.' +
-        '  • Appearance: change the theme/skin by name OR set exact semantic hex colours for the app canvas, panels, nested surfaces, controls, primary/muted text, borders, accent foreground and success/warning/error/info states via customize_appearance; Light/Dark/Auto seed a coherent palette and unsafe contrast is repaired by default.' +
+        '  • Appearance: change the theme/skin by name OR set exact semantic hex colours for the app canvas, panels, nested surfaces, controls, primary/muted text, borders, accent foreground and success/warning/error/info states via customize_appearance; Light/Dark/Auto seed a coherent palette and unsafe contrast is repaired by default. One tile on its own: style_tile sets its material (Liquid Glass, clear, frosted, solid, no panel, or back to the theme) and the colour of its glass, on any skin.' +
         '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
         '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
@@ -20713,6 +21446,7 @@ const handleRequest = async (req, res) => {
 
         // ── Other rules ─────────────────────────────────────────────────────
         aiTurnRecord.SYSTEM_NOTE +
+        aiDeckRun.TOOL_TEXT_NOTE +
         ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks): anything you write as text is shown and spoken to the user verbatim.' +
         ' Always reply in the same language as the user.' +
         ' IMPORTANT. Speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
@@ -20733,6 +21467,7 @@ const handleRequest = async (req, res) => {
       // [[answer]] lines become one-tap rows in the chat (js/ai-reply-choices.js): the
       // answers to Bit's own question, or up to 2 next steps after it did something.
       const SYS_TEXT = ' Be concise but complete; replies may be read aloud.' +
+        ' When the request can really go different ways and a wrong guess would waste the work (it points at something you cannot see, it needs a fact only the user has, or it can mean two very different things), do not guess: ask one question and offer 2 to 4 real alternatives, the one you would pick first, each alone on its own last line as [[answer | what it means]], at most 12 words after the bar. Use the bar only for real alternatives, never for a yes or no and never to confirm an action. Never ask what you can decide yourself (colours, layout, names). If the user tells you to decide, pick and go on without asking again.' +
         ' When you ask the user something (rule 7, data collection, or a question about any topic that needs more detail) and the answer is one of a few likely options, end your reply with 2 to 4 short answers, each alone on its own last line as [[answer]] (e.g. [[Sì]] / [[No]], or [[Piccolo]] [[Medio]] [[Grande]]), in the user\'s language, at most 6 words each. They show as buttons the user taps to reply; the user can still type anything else. Only add them to a real question, never to a statement, and do not ask just to offer buttons: ask only when the answer changes what you do.' +
         ' After you actually DID something for the user (changed the dashboard, a setting, a page, or made a widget), you may instead end with at most 2 concrete next steps they are likely to want, in the same [[...]] format, phrased as what the user would say (e.g. [[Rendilo più grande]] [[Mettilo nella pagina Giochi]]). Never generic ones (no [[Altro?]] or [[Serve altro?]]), never after a plain answer, a fact or small talk.';
       // Strong language lock — placed LAST so it overrides any tendency to drift to
@@ -20748,12 +21483,13 @@ const handleRequest = async (req, res) => {
       const _reasonSettings = (await readHubSettings().catch(() => null)) || {};
       let chatModel = (_reasonSettings.aiProReasoning === true && !isVoice && !hasAudio)
         ? AI_MODELS.chatPro : AI_MODELS.chat;
-      const callGemini = (msgs) => new Promise((resolve, reject) => {
+      const callGemini = (msgs) => withThinking(chatModel, (thinking) => callGeminiOnce(msgs, thinking));
+      const callGeminiOnce = (msgs, thinking) => new Promise((resolve, reject) => {
         const payload = JSON.stringify({
           system_instruction: { parts: [{ text: SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + (hasAudio ? SYS_AUDIO : '') + SYS_LANG }] },
           tools: [{ functionDeclarations: AI_TOOLS }],
           contents: msgs,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+          generationConfig: applyThinking({ temperature: 0.7, maxOutputTokens: 1024, candidateCount: 1 }, thinking),
         });
         const aiReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
@@ -20831,6 +21567,36 @@ const handleRequest = async (req, res) => {
           if (aiStoppedReply(e, json)) return;
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
+      if (provider === 'localapi') {
+        // A server the user runs on this PC. Its URL and key come from the
+        // settings, never the request. Same tools and reply shape as ChatGPT;
+        // a turn can sit on a slow model for minutes, so stop cuts it at once.
+        const settings = await readHubSettings().catch(() => null);
+        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
+        try {
+          const result = await aiLocalServer.chat({
+            config: aiLocalServer.configFrom(settings), geminiTools: AI_TOOLS,
+            history: currentMessages, systemText, signal: aiTurns.signal(),
+            executeTool: (fnName, fnArgs) => toolKit.call(fnName, fnArgs, () => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              pictures: _aiPictures,
+              surface: _aiSurface,
+              remote: isRemote,
+              provider,
+            }).then(r => turnRecord.note(fnName, r)).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage }))),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: turnRecord.message(result.text), toolGroups: toolKit.groups(), toolsOff: result.toolsOff });
+        } catch (e) {
+          if (aiStoppedReply(e, json)) return;
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message, detail: e.detail, clientActions: aiTurns.madeSoFar() }));
         }
         return;
       }
@@ -20961,25 +21727,22 @@ const handleRequest = async (req, res) => {
       // dead id forever. That is the difference between a fallback and a repair:
       // `gemini-3.5-pro` had been retired and every advanced-reasoning turn paid
       // a failed request before falling back, with nothing saying so.
-      const isMissingModel = (err) => /not found|is not found|not supported|no longer available|NOT_FOUND|404/i.test(String((err && err.message) || ''));
       const isBusyModel = (err) => /timed out|high demand|overloaded|UNAVAILABLE|503/i.test(String((err && err.message) || ''));
       const callGeminiWithFallback = async (msgs) => {
         try {
           return await callGemini(msgs);
         } catch (err) {
-          if (isMissingModel(err)) aiModels.markMissing('gemini', chatModel);
+          if (aiGemini.isMissingModel(err)) aiModels.markMissing('gemini', chatModel);
           const fast = AI_MODELS.chat;
           if (chatModel !== fast) { chatModel = fast; return await callGemini(msgs); }
           // The fast model is a pin Google has since retired ("no longer available to
           // new users"), or it timed out / is overloaded: markMissing() cannot repair
-          // a pin, so try what `auto` picks, or its lighter sibling when that is the
-          // model that just failed. One retry, then the real error.
-          if (isMissingModel(err) || isBusyModel(err)) {
-            const alt = [aiModels.resolve('gemini', 'chat', 'auto', apiKey), aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey)]
-              .find(id => id && id !== chatModel);
-            if (alt) { chatModel = alt; return await callGemini(msgs); }
-          }
-          throw err;
+          // a pin, so try what `auto` picks, then its lighter sibling, then the real error.
+          const canMoveOn = (e) => aiGemini.isMissingModel(e) || isBusyModel(e);
+          if (!canMoveOn(err)) throw err;
+          const others = [aiModels.resolve('gemini', 'chat', 'auto', apiKey), aiModels.resolve('gemini', 'chat', 'auto:flash-lite', apiKey)]
+            .filter(id => id !== chatModel);
+          return await aiGemini.tryOtherModels(others, (id) => { chatModel = id; return callGemini(msgs); }, err, canMoveOn);
         }
       };
 
@@ -21062,8 +21825,7 @@ const handleRequest = async (req, res) => {
       const prev = String(body.prevSummary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
       const turns = Array.isArray(body.messages) ? body.messages.slice(0, 60) : [];
       const uiLang = String(body.lang || '').toLowerCase().slice(0, 2);
-      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
-      const langName = LANG_NAMES[uiLang] || 'English';
+      const langName = aiLangName(uiLang, 'English');
       // Flatten the turns to plain "Role: text" lines (text parts only — images
       // and audio are not carried in history anyway).
       const transcript = turns.map((m) => {
@@ -21086,6 +21848,10 @@ const handleRequest = async (req, res) => {
           executeTool: async () => ({ fnResult: {}, clientActions: [] }),
         }).catch(() => null);
         if (result && result.text) summary = String(result.text).trim().slice(0, 2000);
+      } else if (provider === 'localapi') {
+        const settings = await readHubSettings().catch(() => null);
+        const out = await localServerOneShot(settings, sysText, userText, 400).catch(() => '');
+        if (out) summary = String(out).trim().slice(0, 2000);
       } else if (provider === 'openai' || provider === 'anthropic') {
         const settings = await readHubSettings().catch(() => null);
         const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
@@ -21131,8 +21897,7 @@ const handleRequest = async (req, res) => {
       // before it goes anywhere near a prompt.
       const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
       const uiLang = clean(body.lang, 5).toLowerCase().slice(0, 2);
-      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch' };
-      const langName = LANG_NAMES[uiLang] || 'English';
+      const langName = aiLangName(uiLang, 'English');
       const tone = ['soft', 'spicy', 'savage'].includes(body.tone) ? body.tone : 'spicy';
       const TONE_DESC = {
         soft: 'a gentle, warm nudge',
@@ -21177,6 +21942,9 @@ const handleRequest = async (req, res) => {
           executeTool: async () => ({ fnResult: {}, clientActions: [] }),
         }).catch(() => null);
         if (result && result.text) text = String(result.text);
+      } else if (provider === 'localapi') {
+        const settings = await readHubSettings().catch(() => null);
+        text = await localServerOneShot(settings, sysText, userText, 100).catch(() => '');
       } else if (provider === 'openai' || provider === 'anthropic') {
         const settings = await readHubSettings().catch(() => null);
         const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
@@ -21461,7 +22229,7 @@ const handleRequest = async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
       }
-      if (clipStats.rms > 0 && !_sttLooksLikeSpeech(clipStats)) {
+      if (!_sttLooksLikeSpeech(clipStats) || !hasVoice(wavPcm(wavData))) {
         process.stdout.write(`[STT] Below speech floor (rms=${clipStats.rms.toFixed(1)}, peak=${clipStats.peak.toFixed(1)}) → empty\n`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
@@ -21491,7 +22259,7 @@ const handleRequest = async (req, res) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ text: '', error: e.message })); return;
         }
-      } else if (sttProvider === 'ollama' || sttProvider === 'anthropic' || sttProvider === 'xenon' || aiCli.isCliProvider(sttProvider)) {
+      } else if (sttProvider === 'ollama' || sttProvider === 'localapi' || sttProvider === 'anthropic' || sttProvider === 'xenon' || aiCli.isCliProvider(sttProvider)) {
         process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
         try {
           sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
@@ -21574,6 +22342,12 @@ const handleRequest = async (req, res) => {
         json({ models: [], catalog: aiModels.ollamaCatalog() });
         return;
       }
+      if (prov === 'localapi') {
+        // Whatever the server on this PC says it has, right now: the panel's
+        // status line and model list both come from this answer.
+        json(await aiLocalServer.catalog(aiLocalServer.configFrom(s)));
+        return;
+      }
       const keyFor = { gemini: s.geminiApiKey, openai: s.openaiApiKey, anthropic: s.anthropicApiKey };
       const apiKey = String(keyFor[prov] || '').trim();
       if (apiKey) {
@@ -21597,15 +22371,26 @@ const handleRequest = async (req, res) => {
       const tProvider = aiLocal.sanitizeProvider(tBody.provider);
       const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
       const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
-      const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
-      const safeMime = ALLOWED_AUDIO.has(rawMime) ? rawMime : 'audio/webm';
       const safeLang = String(tBody.lang || 'auto').toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'auto';
+
+      // A clip with no voice stops here, for every provider. Without ffmpeg it
+      // cannot be measured, and the model's own NO_SPEECH answer is what is left.
+      let wavBuffer = null;
+      let decodeError = null;
+      if (audioB64) {
+        try { wavBuffer = await _audioToWav16k(Buffer.from(audioB64, 'base64')); }
+        catch (e) { decodeError = e; console.warn('[STT] clip not measured:', e.message); }
+      }
+      if (wavBuffer && !hasVoice(wavPcm(wavBuffer))) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ text: '' })); return;
+      }
 
       // Non-Gemini STT: decode → transcode to 16kHz mono WAV via ffmpeg, then
       // transcribe. Ollama and Claude (no speech API) use local whisper.cpp;
       // ChatGPT uses OpenAI Whisper with its server-only key. No Gemini key
       // required. Errors degrade gracefully (HTTP 200, empty text).
-      if (tProvider === 'ollama' || tProvider === 'anthropic' || tProvider === 'xenon' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
+      if (tProvider === 'ollama' || tProvider === 'localapi' || tProvider === 'anthropic' || tProvider === 'xenon' || tProvider === 'openai' || aiCli.isCliProvider(tProvider)) {
         if (!audioB64) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'missing_params' })); return;
@@ -21617,26 +22402,7 @@ const handleRequest = async (req, res) => {
           if (!openaiKey) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ text: '', error: 'no_key' })); return; }
         }
         try {
-          const inBuf = Buffer.from(audioB64, 'base64');
-          const ffmpeg = getFfmpegPath();
-          const wavBuffer = await new Promise((resolve, reject) => {
-            // -protocol_whitelist pipe: the input is whatever the browser (or a
-            // paired phone) sent, and ffmpeg guesses its format; a playlist
-            // format could otherwise make it open files or URLs.
-            const ff = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-protocol_whitelist', 'pipe', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
-            const out = [];
-            const errBuf = [];
-            ff.stdout.on('data', c => out.push(c));
-            ff.stderr.on('data', c => errBuf.push(c));
-            ff.on('error', reject);
-            ff.on('close', code => {
-              if (code === 0 && out.length) resolve(Buffer.concat(out));
-              else reject(new Error('ffmpeg wav transcode failed: ' + Buffer.concat(errBuf).toString().slice(0, 200)));
-            });
-            ff.stdin.on('error', () => {}); // ignore EPIPE if ffmpeg exits early
-            ff.stdin.write(inBuf);
-            ff.stdin.end();
-          });
+          if (!wavBuffer) throw decodeError;
           const text = tProvider === 'openai'
             ? await aiOpenai.stt({ apiKey: openaiKey, wavBuffer, lang: safeLang, model: providerModelFor('openai', 'stt') })
             : await aiLocal.localStt(wavBuffer, safeLang, __dirname);
@@ -21652,34 +22418,7 @@ const handleRequest = async (req, res) => {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_params' })); return;
       }
-      const tPayload = JSON.stringify({
-        contents: [{ parts: [
-          { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else: no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). The recording may begin with a short notification chime or activation tone: ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.' },
-          { inline_data: { mime_type: safeMime, data: audioB64 } },
-        ] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1 },
-      });
-      const tText = await new Promise((resolve, reject) => {
-        const geminiReq = https.request({
-          hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'Xenon/2.0' },
-        }, (gRes) => {
-          let d = '';
-          gRes.on('data', c => { d += c; });
-          gRes.on('end', () => {
-            try {
-              const parsed = JSON.parse(d);
-              resolve(((parsed?.candidates?.[0]?.content?.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || '');
-            } catch { reject(new Error('invalid JSON')); }
-          });
-        });
-        geminiReq.on('error', reject);
-        geminiReq.setTimeout(15000, () => { geminiReq.destroy(); reject(new Error('timeout')); });
-        geminiReq.write(tPayload);
-        geminiReq.end();
-      });
+      const tText = await _transcribeAudio(audioB64, rawMime, apiKey, safeLang);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ text: tText }));
     } catch (e) {
@@ -21704,7 +22443,7 @@ const handleRequest = async (req, res) => {
       // Non-Gemini providers return a ready WAV. Ollama and Claude use the free
       // local Edge neural TTS, and so do Xenon credits; ChatGPT uses OpenAI TTS
       // (server-only key).
-      if (ttsProvider === 'ollama' || ttsProvider === 'anthropic' || ttsProvider === 'xenon' || ttsProvider === 'openai' || aiCli.isCliProvider(ttsProvider)) {
+      if (ttsProvider === 'ollama' || ttsProvider === 'localapi' || ttsProvider === 'anthropic' || ttsProvider === 'xenon' || ttsProvider === 'openai' || aiCli.isCliProvider(ttsProvider)) {
         try {
           let wavBuf;
           if (ttsProvider === 'openai') {
@@ -21934,7 +22673,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {
     try {
       const enabled = await aiLocal.getOllamaAutostart();
-      json({ enabled });
+      json({ enabled, supported: aiLocal.ollamaAutostartSupported() });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
@@ -22441,124 +23180,6 @@ const handleRequest = async (req, res) => {
       json({ ok: !!icon, icon: icon || null });
     } catch { json({ ok: false, icon: null }); }
 
-  } else if (reqPath === '/search/ai' && req.method === 'POST') {
-    // AI search mode: the typed phrase goes to the user's configured Xenon AI
-    // provider (settings are the authority — no key travels in this request),
-    // which translates it into the SAME structured filter the offline parser
-    // produces. filesearch.searchStructured re-validates every field at the
-    // boundary (untrusted model output) and runs the normal engine, so the AI
-    // names terms and bounds, never a path, and sees nothing of the disk.
-    // Any failure answers { ok:false } so the client degrades to the offline
-    // parser with a visible notice. In CSRF_MUTATION_PATHS: it spends quota.
-    try {
-      const body = JSON.parse(await readBody(req) || '{}');
-      const phrase = String(body.q || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 300);
-      if (!phrase) { json({ ok: false, error: 'empty' }); return; }
-      const settings = await readHubSettings().catch(() => null);
-      const provider = aiLocal.sanitizeProvider(settings && settings.aiProvider);
-      const d = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const fmtDay = (x) => x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate());
-      const todayStr = fmtDay(d);
-      const yesterdayStr = fmtDay(new Date(d.getTime() - 86400000));
-      const lastYear = d.getFullYear() - 1;
-      // The "full brain" (strict opt-in in Settings → Ricerca): bounded LOCAL
-      // knowledge — app names, index roots, frequent folders, recent opens —
-      // so vague references ("the app for the lights", "the file I opened
-      // yesterday") resolve to concrete terms. Names only, never contents;
-      // with the toggle off the provider gets the phrase and today's date.
-      let contextText = '';
-      if (settings && settings.searchSettings && settings.searchSettings.aiFullContext === true) {
-        const clip = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
-        const parts = [];
-        const apps = await getInstalledApps().catch(() => []);
-        if (apps.length) {
-          // Store apps first: they are the consumer apps a purpose-phrase
-          // means ("the music app" → Spotify), while the Start Menu side is
-          // diluted by dev-tool entries; the cap must not cut them off.
-          const ordered = [...apps].sort((a, b) =>
-            ((a.kind === 'store' ? 0 : 1) - (b.kind === 'store' ? 0 : 1))
-            || String(a.name).localeCompare(String(b.name)));
-          parts.push('Installed applications: ' + ordered.slice(0, 150).map((a) => clip(a.name, 40)).filter(Boolean).join(', ') + '.');
-        }
-        const roots = (settings.searchSettings.indexRoots || []).map((r) => clip(r, 80)).filter(Boolean);
-        if (roots.length) parts.push('Indexed drives and folders: ' + roots.join(', ') + '.');
-        const snap = await fileSearch.usageSnapshot().catch(() => null);
-        if (snap && snap.folders.length) parts.push('Folders the user opens results from most: ' + snap.folders.map((f) => clip(f, 120)).filter(Boolean).join(' ; ') + '.');
-        if (snap && snap.opens.length) {
-          const fmtLast = (ms) => fmtDay(new Date(ms));
-          parts.push('Recently opened from search: ' + snap.opens.map((o) => clip(o.name, 60) + ' (' + fmtLast(o.last) + ')').join(' ; ') + '.');
-        }
-        if (parts.length) {
-          contextText = 'Local context the user opted in to sharing: ' + parts.join(' ')
-            + ' When the request names an application by PURPOSE ("the music app", "the program for the lights"), find the matching '
-            + 'installed application above and put ITS name in terms with "app": true. When it references a recent open '
-            + '("the file I opened yesterday"), put that file\'s name words in terms. Ignore the context when the request is already explicit. ';
-        }
-      }
-      // The examples matter more than the rules for small models: they pin
-      // the two mistakes seen live (type words leaking into terms, and
-      // "executable/program" collapsing onto kind:document because the kind
-      // list has no such entry — executables are an exts+app question).
-      const sysText = 'You translate a natural-language file-search request into ONE JSON object, nothing else. '
-        + 'Fields (omit any that do not apply): '
-        + '"terms": array of distinctive words expected in the file NAME itself, lowercase. NEVER include words that merely '
-        + 'describe the type, date or size ("documents", "photos", "files", "recent", "big"); may be empty. '
-        + '"kind": one of image|video|audio|document|archive. '
-        + '"exts": array of file extensions without dots, whenever the request implies formats the kinds do not cover: '
-        + 'executable/program/eseguibile -> ["exe"], installer -> ["exe","msi"], shortcut -> ["lnk"], '
-        + 'spreadsheet -> ["xlsx","xls","csv"], code -> the languages named. '
-        + 'Screenshots: Windows names them "Screenshot ...", so use {"terms":["screenshot"],"kind":"image"} plus any date. '
-        + 'The engine matches file names, dates, sizes and text inside documents: NEVER what an image or video shows; '
-        + 'drop visual-content descriptions ("that shows a mixer") instead of turning them into name terms. '
-        + '"app": true when the user is looking for an installed application or program (to launch or locate). '
-        + '"after" and "before": modified-date bounds, YYYY-MM-DD. "minBytes" and "maxBytes": file size bounds in bytes. '
-        + 'Today is ' + todayStr + '. The request may be in any language; keep terms in the language of the request. '
-        + contextText
-        + 'Examples: '
-        + '"l eseguibile dell applicativo steam" -> {"terms":["steam"],"exts":["exe"],"app":true} ; '
-        + '"le foto di natale dell anno scorso" -> {"terms":["natale"],"kind":"image","after":"' + lastYear + '-01-01","before":"' + lastYear + '-12-31"} ; '
-        + '"big videos" -> {"kind":"video","minBytes":104857600} ; '
-        + '"il pdf che ho scannerizzato ieri" -> {"exts":["pdf"],"after":"' + yesterdayStr + '"}. '
-        + 'Respond with the JSON object only, no prose, no markdown fences.';
-      const userText = 'Request: ' + phrase;
-      let text = '';
-      if (provider === 'ollama') {
-        const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
-        const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings && settings.ollamaModel), settings && settings.hardwareScan);
-        const result = await aiLocal.localChat({
-          baseUrl, model, geminiTools: [],
-          history: [{ role: 'user', parts: [{ text: userText }] }],
-          systemText: sysText,
-          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
-        }).catch(() => null);
-        text = result && result.text ? String(result.text) : '';
-      } else if (provider === 'openai' || provider === 'anthropic') {
-        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
-        const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-        const provModel = providerModelFor(provider, 'chat', settings);
-        if (!provKey) { json({ ok: false, error: 'no_provider' }); return; }
-        text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
-      } else if (provider === 'xenon') {
-        text = await aiXenon.oneShot({ dataDir: DATA_DIR, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
-      } else if (aiCli.isCliProvider(provider)) {
-        text = await cliOneShot(provider, sysText, userText, settings).catch(() => '');
-      } else {
-        const key = settings && settings.geminiApiKey;
-        if (!key) { json({ ok: false, error: 'no_provider' }); return; }
-        text = await _geminiGenerateJSON(sysText + '\n\n' + userText, key) || '';
-      }
-      let spec = null;
-      if (text) {
-        // Tolerate prose or fences around the object; the strict validation
-        // of its CONTENT happens in searchStructured.
-        const m = /\{[\s\S]*\}/.exec(String(text));
-        if (m) { try { spec = JSON.parse(m[0]); } catch { spec = null; } }
-      }
-      if (!spec) { json({ ok: false, error: 'ai_failed' }); return; }
-      json(await fileSearch.searchStructured(spec));
-    } catch (e) { err500(e.message); }
-
   } else if (reqPath === '/index/status' && req.method === 'GET') {
     // Living Index state for Settings + the disk widget: on/off, building
     // progress, file count, resident RAM, roots. Read-only.
@@ -22595,6 +23216,16 @@ const handleRequest = async (req, res) => {
     _spotlightClaimed = true;
     json({ ok: true });
 
+  } else if (reqPath === '/deck/press' && req.method === 'GET') {
+    json(await deckPress.read(urlObj.searchParams.get('id')));
+  } else if (reqPath === '/deck/press' && req.method === 'POST') {
+    // Only a layer page's real press lands here: same origin, never a phone, never
+    // a widget (connect-src 'none'), and no capability reaches it. `accept` is the
+    // person agreeing to what the key does now, the fingerprint they were shown.
+    try {
+      const body = JSON.parse(await readBody(req, 1024) || '{}');
+      json(typeof body.accept === 'string' ? await deckPress.accept(body.id, body.accept) : await deckPress.press(body.id));
+    } catch { json({ ok: false, error: 'failed' }); }
   } else if (reqPath === '/deck/client-step' && req.method === 'POST') {
     // The Virtual Deck window or a Deck on a widget layer cannot open the AI
     // chat or the mixer: a dashboard (or the screen, in "widgets only") claims
@@ -22625,7 +23256,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/layers/edit' && req.method === 'GET') {
     // A layer window opened (or reconnected) during edit mode reads it here;
     // later changes arrive over SSE `layers-edit`. Read-only.
-    json({ on: layersEdit.get() });
+    json({ on: layersEdit.get(), peek: layersPeek.get() });
 
   } else if (reqPath === '/screen-draw' && req.method === 'GET') {
     // Whether the drawing sheet is open (screen-draw-shell.js), for a page that
@@ -22638,11 +23269,23 @@ const handleRequest = async (req, res) => {
     json(screenMenu.get());
 
   } else if (reqPath === '/screen-menu' && req.method === 'POST') {
-    // The menu page closes itself (Esc, a click outside, a row that closes it)
-    // or wakes Bit. In CSRF_MUTATION_PATHS, denied to paired devices.
+    // The menu page closes itself (Esc, a click outside, a row that closes it,
+    // whose action `run` goes through the registry like POST /actions/run; with
+    // `aside` the menu stays open and comes back when the action ended). In
+    // CSRF_MUTATION_PATHS, denied to paired devices.
     try {
-      const body = JSON.parse(await readBody(req, 1024) || '{}');
-      if (body && body.bit === true) _menuWakeBit();
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      if (body && body.run) { json({ ok: true, where: body.aside === true ? screenMenu.stepAside(body.run) : screenMenu.closeThenRun(body.run) }); return; }
+      if (body && body.takeAsk === true) { json({ ok: true, ask: screenMenu.takeAsk() }); return; }
+      // The page keeps asking while it is minimized: only the shell knows it is out of sight.
+      if (body && 'peek' in body) { json({ ok: true, peek: layersPeek.set(screenMenu.isBehind() ? null : body.peek) }); return; }
+      if (body && typeof body.behind === 'boolean') {
+        screenMenu.setBehind(body.behind);
+        if (screenMenu.isBehind()) layersPeek.set(null);
+        json({ ok: true });
+        return;
+      }
+      if (body && body.sheet) { json({ ok: true, where: screenMenu.showSheet(body.sheet, body.ask) }); return; }
       json({ ok: true, where: body && body.open === true ? screenMenu.show({ section: body.section }) : screenMenu.close() });
     } catch {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -22652,7 +23295,7 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/xenon-menu' && req.method === 'GET') {
     // The menu's sections (xenon-menu.js), the same for the screen and the
     // dashboard panel (a paired phone's too). Read-only, never a path.
-    try { json(await _xenonMenuState()); } catch (e) { err500(e.message); }
+    try { json({ ...(await _xenonMenuState()), altGrKeys: _altGrKeys() }); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/layers/host' && req.method === 'POST') {
     // The native shell reports what it can draw (layers-host.js); the `layers`
@@ -22723,6 +23366,8 @@ const handleRequest = async (req, res) => {
         state: _hotkey.state,
         deck: _deckShortcutStatus(),
         taken: (_hotkey.bindings || []).map((b) => ({ combo: b.combo, keyId: b.keyId || '', slot: b.slot })),
+        // The keys this PC types with AltGr, for the recorders' own check (null: all).
+        altGrKeys: _altGrKeys(),
       });
     } catch (e) { err500(e.message); }
 
@@ -22802,11 +23447,6 @@ const handleRequest = async (req, res) => {
       const settings = await readHubSettings().catch(() => null);
       const provider = aiLocal.sanitizeProvider(settings && settings.aiProvider);
       const uiLang = String(body.lang || 'en').toLowerCase().slice(0, 2);
-      const langNames = {
-        it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese',
-        zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German',
-        pt: 'Portuguese', ru: 'Russian', nl: 'Dutch',
-      };
       const fullContext = !!(settings && settings.searchSettings &&
         settings.searchSettings.aiFullContext === true);
       const optedContext = {};
@@ -22831,7 +23471,7 @@ const handleRequest = async (req, res) => {
       }
       const sysText = 'You are Xenon Storage Advisor, a read-only expert embedded in a Windows disk-cleanup interface. ' +
         'Use ONLY the supplied local snapshot; never invent a file, application, age, purpose or saving. Clearly label any inference. ' +
-        'You cannot delete or run commands. Write a thorough but practical report in ' + (langNames[uiLang] || 'English') + '. ' +
+        'You cannot delete or run commands. Write a thorough but practical report in ' + aiLangName(uiLang, 'English') + '. ' +
         'Cover: (1) diagnosis of capacity, free/used/indexed space and any unexplained difference; ' +
         '(2) a priority cleanup plan with exact sizes/counts; (3) for every present category, what creates it, what it is for, ' +
         'why cleaning may or may not be sensible, what is recreated afterwards and practical ways to reduce recurrence; ' +
@@ -22852,6 +23492,8 @@ const handleRequest = async (req, res) => {
           executeTool: async () => ({ fnResult: {}, clientActions: [] }),
         }).catch(() => null);
         text = result && result.text ? String(result.text).trim() : '';
+      } else if (provider === 'localapi') {
+        text = await localServerOneShot(settings, sysText, userText, 1500).catch(() => '');
       } else if (provider === 'openai' || provider === 'anthropic') {
         const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
         const key = provider === 'openai'
@@ -22912,8 +23554,7 @@ const handleRequest = async (req, res) => {
 
   } else if (reqPath === '/api/lyrics' && req.method === 'GET') {
     // Lyrics for the song playing now. No parameters: the server reads its own
-    // media session, so nothing from the page reaches the LRCLIB query. Kept
-    // out of /media/ on purpose: that prefix is JSONP-readable by any site.
+    // media session, so nothing from the page reaches the LRCLIB query.
     try { json(await getCurrentLyrics()); }
     catch (e) { json({ ok: false, state: 'error', error: String((e && e.message) || e) }); }
 
@@ -23615,19 +24256,27 @@ const handleRequest = async (req, res) => {
       // application/octet-stream a browser still renders it, but it logs a MIME
       // complaint and any future font-src CSP would have nothing to allow.
       '.woff2': 'font/woff2', '.woff': 'font/woff',
+      '.mp4': 'video/mp4',
     };
     const mime = STATIC_MIME[ext] || 'application/octet-stream';
-    if (ext === '.css' || ext === '.js') {
-      // CSS/JS: revalidate on every load (no-cache) but skip the transfer when the
-      // file is unchanged. The ETag is derived from size+mtime, so a local edit
-      // produces a new tag and shows on refresh — the 304 only fires byte-identical.
+    if (ext === '.mp4') {
+      // A <video> asks for byte ranges: WebKit will not play a file served whole.
+      fs.promises.stat(abs)
+        .then(stat => serveFileRange(req, res, abs, stat, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=86400' }))
+        .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    } else if (ext === '.css' || ext === '.js') {
+      // CSS/JS: a URL with the version of the file as it is now stays in the cache
+      // (asset-version.js). Any other revalidates on every load but skips the
+      // transfer when the file is unchanged: the ETag comes from size+mtime, so a
+      // local edit produces a new tag and shows on refresh.
       fs.promises.stat(abs).then(stat => {
         const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+        const cacheControl = assetVersion.cacheControl(urlObj.searchParams.get('v'), stat, APP_VERSION);
         if (req.headers['if-none-match'] === etag) {
-          res.writeHead(304, { 'Cache-Control': 'no-cache', 'ETag': etag }); res.end(); return;
+          res.writeHead(304, { 'Cache-Control': cacheControl, 'ETag': etag }); res.end(); return;
         }
         return fs.promises.readFile(abs).then(data => {
-          res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'ETag': etag });
+          res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': cacheControl, 'ETag': etag });
           res.end(data);
         });
       }).catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
@@ -24565,6 +25214,7 @@ const handleRequest = async (req, res) => {
       await recordWidgetOrigin(id, 'forget');   // drop the origin record with the files
       if (trialVault.has(id)) await trialVault.remove(id);
       refreshSdkScan();
+      await updateLayersSetting((cur) => LayersModel.removePackage(cur, id));
       json({ ok: true });
     } catch (e) { err500(e.message); }
 
@@ -24587,59 +25237,61 @@ const handleRequest = async (req, res) => {
     // the two from one place is the point: a divergence would mean a widget
     // behaves differently depending on which screen it is on.
     const keyed = remoteAccessLib.parseWidgetAssetPath(reqPath);
-    // The CSP for THIS response, with the serving origin named alongside
-    // 'self'. A sandboxed document's origin is opaque, and on a WebKit engine
+    // The CSP for THIS response, with scripts limited to this widget's folder
+    // and the serving origin named beside 'self' for the rest. A sandboxed
+    // document's origin is opaque, and on a WebKit engine
     // 'self' then matches nothing — which blocked every widget's own stylesheet
     // and script on iPhone and iPad while Chromium was fine. The Host has
     // already passed the loopback allowlist or the paired-device gate before it
     // gets here, and widgetCspFor validates it again before writing it into a
     // header. Secure is read from the socket, never from a header.
-    const widgetCsp = sdkWidgets.widgetCspFor(req.headers.host, !!(req.socket && req.socket.encrypted));
+    const widgetCsp = sdkWidgets.widgetCspFor(req.headers.host, !!(req.socket && req.socket.encrypted), sdkWidgets.widgetAssetRoot(reqPath));
     const assetPath = keyed ? '/sdk/widget/' + keyed.rest : reqPath;
     const m = /^\/sdk\/widget\/([^/]+)\/(.+)$/.exec(assetPath);
-    // Reserved probe asset: served from server memory, BEFORE resolveAsset (which
-    // refuses the name so a package file can never shadow it from disk). Same
-    // headers as every widget asset — the probe runs under the identical sandbox.
+    // Reserved host scripts: served from server memory, BEFORE resolveAsset (which
+    // refuses the names so a package file can never shadow them from disk). Same
+    // headers as every widget asset — they run under the identical sandbox.
     let probePath = null;
     try { probePath = m ? decodeURIComponent(m[2]) : null; } catch { probePath = null; }
     // A trial package is served from the vault's memory, and only while the
     // trial runs; an installed copy of the same id is served from disk instead.
-    const trialPkg = m && probePath !== sdkWidgets.PERF_PROBE_FILENAME
+    const reservedAsset = sdkWidgets.isReservedAsset(probePath);
+    const trialPkg = m && !reservedAsset
       && (await sdkPackagesCached()).packages.some((p) => p.id === m[1] && p.trial === true);
     const trialFile = trialPkg ? await trialVault.asset(m[1], m[2]) : null;
-    const abs = (m && !trialPkg && probePath !== sdkWidgets.PERF_PROBE_FILENAME)
+    const abs = (m && !trialPkg && !reservedAsset)
       ? sdkWidgets.resolveAsset(SDK_WIDGETS_DIR, m[1], m[2]) : null;
     if (trialFile) {
       res.writeHead(200, {
         'Content-Type': trialFile.mime,
         'Cache-Control': 'no-store',
-        'Content-Security-Policy': widgetCsp,
+        'Content-Security-Policy': sdkWidgets.assetCsp(widgetCsp, trialFile.mime),
         'X-Content-Type-Options': 'nosniff',
       });
       res.end(trialFile.mime.startsWith('text/html')
-        ? sdkWidgets.injectPerfProbe(trialFile.bytes.toString('utf8')) : trialFile.bytes);
-    } else if (m && probePath === sdkWidgets.PERF_PROBE_FILENAME) {
+        ? sdkWidgets.prepareWidgetHtml(trialFile.bytes.toString('utf8'), sdkWidgets.widgetAssetRoot(reqPath)) : trialFile.bytes);
+    } else if (m && reservedAsset) {
       res.writeHead(200, {
         'Content-Type': 'text/javascript; charset=utf-8',
         'Cache-Control': 'no-cache',
         'Content-Security-Policy': widgetCsp,
         'X-Content-Type-Options': 'nosniff',
       });
-      res.end(sdkWidgets.PERF_PROBE_SOURCE);
+      res.end(probePath === sdkWidgets.FRAME_GUARD_FILENAME ? sdkWidgets.FRAME_GUARD_SOURCE : sdkWidgets.PERF_PROBE_SOURCE);
     } else if (!abs) { res.writeHead(404); res.end(); }
     else {
       try {
         const data = await fs.promises.readFile(abs);
         const mime = sdkWidgets.mimeFor(abs);
-        // Widget HTML gets the perf-probe <script> injected at serve time; every
-        // other asset streams verbatim.
+        // Widget HTML gets the host scripts injected at serve time; every other
+        // asset streams verbatim.
         const payload = mime.startsWith('text/html')
-          ? sdkWidgets.injectPerfProbe(data.toString('utf8'))
+          ? sdkWidgets.prepareWidgetHtml(data.toString('utf8'), sdkWidgets.widgetAssetRoot(reqPath))
           : data;
         res.writeHead(200, {
           'Content-Type': mime,
           'Cache-Control': 'no-cache',
-          'Content-Security-Policy': widgetCsp,
+          'Content-Security-Policy': sdkWidgets.assetCsp(widgetCsp, mime),
           'X-Content-Type-Options': 'nosniff',
         });
         res.end(payload);
@@ -24672,10 +25324,7 @@ const handleRequest = async (req, res) => {
     // reaches Discord's own connection, checked as a snowflake there and here.
     let body = {};
     try { body = JSON.parse((await readBody(req, 4096)) || '{}'); } catch { body = {}; }
-    json(await discordLaunch.openConversation(body && body.channelId, {
-      launch: () => discordLaunch.launchDiscord(),
-      select: (id) => discordRpc.openTextChannel(id),
-    }));
+    json(await openDiscordChat(body && body.channelId));
 
   // ── Spotify integration (Authorization Code + PKCE — redirect flow) ──────────
   // Responses never include tokens — only { connected, login, configured } or the
@@ -24817,8 +25466,10 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/remote/status' && req.method === 'GET') {
-    try { json(await remoteControl.status()); }
-    catch (e) { err500(e.message); }
+    try {
+      const state = await remoteControl.status();
+      json(isRemote ? remoteAccessLib.withoutLoginLink(state) : state);
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/remote/install' && req.method === 'POST') {
     try {
@@ -25195,190 +25846,45 @@ const handleRequest = async (req, res) => {
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
-    res.write(':connected\n\n');
-
-    // A paired device holds a few streams at most (a tab or two); more from
-    // the same device are its oldest ones left open, so the oldest is closed.
-    if (isRemote && remote && remote.device) {
-      res._xenonDevice = remote.device.id;
-      const mine = [...sseClients].filter((c) => c._xenonDevice === remote.device.id);
-      while (mine.length >= SSE_MAX_PER_DEVICE) {
-        const old = mine.shift();
-        sseClients.delete(old);
-        try { old.destroy(); } catch { /* already gone */ }
-      }
-    }
-    sseClients.add(res);
-    // The registry poll is client-gated, so a dashboard opening after a while
-    // would otherwise seed itself from a list up to one interval old — long
-    // enough to draw a session that has already been closed.
-    _claudeSyncRegistry();
-    _syncFpsMonitor(); // a dashboard is watching → run PresentMon (if installed)
-    refreshObsWatch();
-    refreshDiscordWatch();
-    refreshHaWatch();
-    refreshSbWatch();
-    refreshWlWatch();
-    refreshVoicemeeterWatch();
-    refreshUnifiEventsWatch();
-    refreshWinNotifWatch();
-    refreshWakeWordWatch();
-    refreshAudioLevelsWatch();
-    _syncCodexDemand();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); _syncCodexDemand(); });
-
-    // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
-    noteUsageDay();
-    // Push current state immediately so the client doesn't wait for the first tick.
-    Promise.all([
-      getSystemInfo().catch(() => null),
-      getMediaInfo().catch(() => null),
-      getAudioInfo().catch(() => null),
-    ]).then(([sys, media, audio]) => {
-      // Full status payload — a partial {muted}-only seed read as "no game" on the
-      // client, hiding the Companion pill on every SSE (re)connect.
-      const now = `event: status\ndata: ${JSON.stringify(statusPayload())}\n\n`;
-      if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
-      if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
-      if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
-      else res.write('event: audio\ndata: {"unavailable":true}\n\n');
-      res.write(now);
-    }).catch(() => {});
-    // The Voicemeeter mixer as last read: the poll only broadcasts a change, so a
-    // widget opening later would otherwise wait for someone to move a fader.
-    if (vmLastJson) { try { res.write(`event: voicemeeter\ndata: ${vmLastJson}\n\n`); } catch (e) { /* ignore */ } }
-    // A benchmark already recording: lights its Deck key, no toast (seed).
-    try {
-      const bench = _benchmark.status();
-      if (bench.running) res.write(`event: benchmark\ndata: ${JSON.stringify({ running: true, game: bench.game, seed: true })}\n\n`);
-    } catch (e) { /* ignore */ }
-    // A recording already going: lights its Deck key and shows the "Recording" card.
-    try {
-      const rec = _recorder.status();
-      if (rec.on) res.write(`event: recording\ndata: ${JSON.stringify({ ...rec, seed: true })}\n\n`);
-    } catch (e) { /* ignore */ }
-    // The steps recorder running: lights its Deck key and shows its card.
-    try {
-      const st = _stepsRecorder.status();
-      if (st.on) res.write(`event: steps
-data: ${JSON.stringify({ ...st, seed: true })}
-
-`);
-    } catch (e) { /* ignore */ }
-    // Instant Replay on: lights its Deck key, no "replay on" card (seed).
-    try {
-      const rp = _replay.status();
-      if (rp.enabled) res.write(`event: replay\ndata: ${JSON.stringify({ ...rp, seed: true })}\n\n`);
-    } catch (e) { /* ignore */ }
-    // Seed a ringing call. A dashboard that opens (or a phone that unlocks)
-    // mid-ring must show the card immediately: the whole point of the feature is
-    // the ~40 seconds a call lasts, and waiting for the next broadcast would
-    // spend most of them. Empty is the normal case and costs one line.
-    try {
-      const ringing = calls.current();
-      if (ringing.length) res.write(`event: calls\ndata: ${JSON.stringify({ calls: ringing })}\n\n`);
-    } catch (e) { /* ignore */ }
-    // Seed the phone's live state for the same reason, one level down: the
-    // widget shows "in chiamata" while a call is up, and a dashboard opened
-    // during one would otherwise look idle until the call ended.
-    try {
-      if (phone.enabled()) res.write(`event: phone\ndata: ${JSON.stringify(phone.state())}\n\n`);
-    } catch (e) { /* ignore */ }
-    // Seed the transfer list. A phone that opens the dashboard while a file is
-    // still going up must see both the list and the upload in progress at once,
-    // rather than an empty widget until something next changes. The path to the
-    // delivered copy is included only for the PC — see transferState.
-    try { res.write(`event: transfer\ndata: ${JSON.stringify(transferState(!isRemote))}\n\n`); } catch (e) { /* ignore */ }
-    // Seed the just-connected client with the current OBS state (if watching).
-    if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
-    if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
-    // Seed the just-connected client with the current Home Assistant state.
-    buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
-    // Seed the just-connected client with the current Streamer.bot globals.
-    buildSbState().then((st) => { try { res.write(`event: streamerbot\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
-    // Seed the current peripheral battery. The 'battery' tick is 90s, and unlike
-    // the builtin tile (which fetches GET /api/battery on mount) a sandboxed SDK
-    // widget has no seed endpoint of its own — it can only wait for the stream,
-    // so without this it sits on "Looking for devices…" for up to a minute and a
-    // half after every reload. getDevices() is TTL-cached and dedups concurrent
-    // callers, so several surfaces connecting at once still cost one read.
-    // Gated like the tick: nothing that shows a battery, nothing to seed.
-    batteryWanted()
-      .then((wanted) => (wanted ? batteryMonitor.getDevices() : null))
-      .then((payload) => { if (payload) { try { res.write(`event: battery\ndata: ${JSON.stringify(payload)}\n\n`); } catch (e) { /* ignore */ } } })
-      .catch(() => {});
-    // Seed the current stock quotes (paint immediately), then kick a refresh if
-    // the cache is empty/stale so a freshly opened dashboard fills in fast.
-    try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
-    if (!_stocksCache.quotes.length || Date.now() - _stocksCache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
-    // Seed the current football fixtures/results, then kick a refresh if stale.
-    try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballPayload())}\n\n`); } catch (e) { /* ignore */ }
-    if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
-    // Seed the current news headlines, then kick a refresh if empty/stale
-    // (display-only feed: only when the widget/ticker actually uses it).
-    try { if (_newsCache.items.length) res.write(`event: news\ndata: ${JSON.stringify(_newsCache)}\n\n`); } catch (e) { /* ignore */ }
-    if (_feedWidgetInUse('news', 'news') && (!_newsCache.items.length || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000)) refreshNews().catch(() => {});
-    // Seed the current Claude Code usage aggregate, then refresh if empty/stale
-    // (display-only feed: only when the widget is on the dashboard).
-    try { res.write(`event: claude\ndata: ${JSON.stringify(_claudeFresh())}\n\n`); } catch (e) { /* ignore */ }
-    if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
-    // Seed the Codex state (live approvals included, so a card waiting before this
-    // dashboard opened is drawn at once).
-    try { res.write(`event: codex\ndata: ${JSON.stringify(_codexPayload())}\n\n`); } catch (e) { /* ignore */ }
-    // A store put back from its daily copy at this boot: say so to the screens
-    // that open in the first half hour (each shows it once, main.js).
-    if (_storeRecovery.length && Date.now() - _storeRecoveryAt < 30 * 60 * 1000) {
-      try { res.write(`event: store_recovery\ndata: ${JSON.stringify({ at: _storeRecoveryAt, stores: _storeRecovery.map(({ file, state, from }) => ({ file, state, from })) })}\n\n`); } catch (e) { /* ignore */ }
-    }
-    // Seed the SDK data-only streams (tasks/notes/agenda) for custom widgets.
-    // Unlike system/media/audio/status these are broadcast ONLY on change, so a
-    // sandboxed widget subscribing to one (it can't fetch) would paint nothing
-    // until the user next edits a task/note/event. Same loopback-only stream and
-    // same payload shape as the change broadcasts; the custom-widget host forwards
-    // each only to a frame that was granted that stream.
-    { const seq = _tasksSeq; readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
-    { const seq = _eventsSeq; readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev, seq })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {}); }
-    readNotes().then(n => { try { if (n) res.write(`event: notes\ndata: ${JSON.stringify(n)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
-    // Timers too: timer_update otherwise fires only on mutations/completions, so
-    // a reloaded dashboard (or a fresh Virtual Deck popup) would show blank
-    // countdown faces and unlit timerRunning keys for the rest of a running timer.
-    try { res.write(`event: timer_update\ndata: ${JSON.stringify({ timers: _timers })}\n\n`); } catch (e) { /* ignore */ }
-    // And the relayed SDK deck states, so a fresh Virtual Deck popup paints its
-    // sdkState keys without waiting for the next widget state change.
-    try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
-    // Same reason: a surface that connects AFTER a script set a state would
-    // otherwise draw its key dark until the next change, which for a state that
-    // changes twice a day is most of the day. Sent even when the map is EMPTY,
-    // unlike the relayed SDK states above: a widget granted the `scriptStates`
-    // stream has no other way to tell "nothing is set" from "not told yet", and
-    // an empty map is one short line per connection.
-    try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
-
+    openSseClient(req, res, isRemote, remote);
   } else {
     res.writeHead(404); res.end();
   }
 };
 
-const server = http.createServer(handleRequest);
+const { trackSockets } = require('./listener-sockets.js');
+// A route that throws past its own try still gets an answer (http/request-boundary.js).
+const server = http.createServer((req, res) => runGuarded(handleRequest, req, res));
+const listenerSockets = trackSockets(server);
 
 // ── Embedded-browser relay WebSocket ──────────────────────────────────────────
 // The Browser widget streams CDP screencast frames over this loopback-only socket
 // and sends pointer/keyboard input back. Each client owns its tiles and they are
 // closed when it disconnects (which lets the headless Edge idle-shut-down).
 const { WebSocketServer } = require('ws');
+const sseSocket = require('./sse-socket');
 const embeddedWss = new WebSocketServer({ noServer: true });
 const liveWss = new WebSocketServer({ noServer: true });
+// The feed only speaks: a window has nothing to send, so nothing big is accepted.
+const feedWss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 1024 });
 let _embConnSeq = 0;
 
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
-  const WS_PATHS = ['/embedded-browser/ws', '/second-screen/ws', '/api/ai/live'];
+  const WS_PATHS = ['/embedded-browser/ws', '/second-screen/ws', '/api/ai/live', '/sse/socket'];
   if (!WS_PATHS.includes(pathname)) { socket.destroy(); return; }
   // Same loopback/Host/Origin guard as every HTTP route — the relay is local-only.
   if (!isAllowedRequest(req)) { socket.destroy(); return; }
   // Only our own pages, same-origin, open these sockets (cross-site.js).
   if (refusedSocketOrigin(req, PORT)) { socket.destroy(); return; }
+  if (pathname === '/sse/socket') {
+    feedWss.handleUpgrade(req, socket, head, (client) => {
+      client.on('error', () => { /* the close that follows drops it */ });
+      openSseClient(sseSocket.socketRequest(client), sseSocket.socketResponse(client), false, null);
+    });
+    return;
+  }
   if (pathname === '/api/ai/live') {
     liveWss.handleUpgrade(req, socket, head, (client) => _handleLiveClient(client));
     return;
@@ -25722,9 +26228,8 @@ function _handleLiveClient(client) {
       if (aborted) { endClient('aborted'); return; }
       if (!_sttInputArgs()) { reject('no_mic', 'No microphone available'); return; }
 
-      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
       uiLang = String(m.lang || '').toLowerCase().slice(0, 2);
-      langName = LANG_NAMES[uiLang] || '';
+      langName = aiLangName(uiLang);
       const summary = String(m.summary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
 
       _liveActive = true;
@@ -25963,9 +26468,40 @@ const BIND_HOST = BIND_HOST_ENV || BIND_LOOPBACK;
 // The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
 // same stack (see the error handler below).
 let _listenHost = BIND_HOST;
+let _bootStarted = false;
 let _eaddrinuseRetries = 0;
 const EADDRINUSE_MAX_RETRIES = 15;   // ~15 s of retrying before giving up
 const EADDRINUSE_RETRY_MS = 1000;
+
+// A new install starts on Bit, with the trial Sparks waiting for its first
+// message (welcome-sparks.js), on the model they can pay for: a widget on the
+// default one costs more than the trial holds, and would stop halfway. Only
+// here, before the first request: an update keeps the AI its owner chose.
+async function seedFreshInstall() {
+  if (!FRESH_INSTALL) return;
+  await withHubSettingsLock(async () => {
+    if (await readHubSettings()) return;
+    await writeHubSettings({ ...DEFAULT_HUB_SETTINGS, aiProvider: 'xenon', xenonModel: 'haiku' });
+    await welcomeSparks.markPending(DATA_DIR);
+    startupLog.write('settings: new install, starting on Bit');
+  });
+}
+
+// Scheduled tasks that only matter at the next sign-in, so nobody waits for them.
+const LEFTOVER_TASKS_DELAY_MS = 60 * 1000;
+function tidyLeftoverTasks() {
+  // The logon task that opens the dashboard in a browser outlives the script it
+  // points at, and a stale one greets the user with a wscript error box at every
+  // sign-in (see reconcileBrowserAutoOpenTask). It reads one scheduled task, and
+  // only writes when something is out of step.
+  reconcileBrowserAutoOpenTask().catch(() => {});
+  // OpenRGB was removed from the product. Tear down anything a previous version
+  // may have left so it never launches itself again: drop the auto-start
+  // scheduled task (one fire-and-forget call, silent if absent).
+  if (POWERSHELL_SUPPORTED) {
+    try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
+  }
+}
 
 function _startListen(host) {
   _listenHost = host;
@@ -25975,10 +26511,19 @@ function _startListen(host) {
     // and "did it ever reach listening?" is the question that splits a start
     // that failed from one that started and then died.
     startupLog.write('listening on http://' + host + ':' + PORT);
+    // A listener moved by applyBindHost() comes back through here, and so does the
+    // IPv6 fallback: everything below belongs to the process, not to the listener.
+    if (_bootStarted) return;
+    _bootStarted = true;
+    // The slow readings start now rather than at the page's first ask: the window is
+    // still opening, and this is the wait the dashboard would otherwise show as "--".
+    getSystemInfo().catch(() => {});
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
     setTimeout(() => { try { ensureCaptureEngine(); } catch { /* ignore */ } }, 12000);
+    // After the engine's first look, so what it can do is known. Not there yet = next start.
+    setTimeout(() => { capabilityRunner.seedKeys().catch((e) => console.warn('[keys] defaults failed:', e && e.message)); }, 20000);
     // Its first look is two minutes in: the dashboard's own startup comes first.
     autoUpdater.start().catch((e) => console.warn('[auto-update] start failed:', e && e.message));
     widgetAutoUpdater.start().catch((e) => console.warn('[widget-auto-update] start failed:', e && e.message));
@@ -25989,18 +26534,14 @@ function _startListen(host) {
       // After the vault, so a pass-trial package is in the scan it reads.
       .then(() => migrateSdkGrantGroups())
       .catch((e) => console.warn('[sdk] grant group migration failed:', e && e.message));
-    // The logon task that opens the dashboard in a browser outlives the script it
-    // points at, and a stale one greets the user with a wscript error box at every
-    // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it
-    // reads one scheduled task, and only writes when something is out of step.
-    setTimeout(() => { reconcileBrowserAutoOpenTask().catch(() => {}); }, 6000);
+    setTimeout(tidyLeftoverTasks, LEFTOVER_TASKS_DELAY_MS).unref();
     getAudioInfo().then(info => {
       if (info && info.mic && typeof info.mic.muted === 'boolean') isMuted = info.mic.muted;
       console.log('Speaker cache:', cachedSpeakerId);
       console.log('Mic cache:   ', cachedMicId);
       console.log('Mic muted:   ', isMuted);
     }).catch(e => console.error('Audio init failed:', e.message));
-    _initSttDevice(); // Enumerate DirectShow audio devices in background
+    setTimeout(_startSttDevice, STT_DEVICE_DELAY_MS).unref();
     // The T2 HTTPS door, when the user asked for it. Deferred and fire-and-forget:
     // it shells out to tailscale and may fetch a certificate, neither of which
     // belongs in front of the dashboard coming up.
@@ -26008,9 +26549,10 @@ function _startListen(host) {
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
     startTasksReopenClock();          // finished repeating tasks come back on time
     startStoreSnapshots();            // a copy a day of settings, Deck, notes, tasks, calendar, timers
+    ratingVotes.start();              // tickets for Store entries, real use, Bit's one ask
     // PresentMon (real in-game FPS) is NOT started here: it holds an admin ETW
     // tracing session, so it stays paused until the first dashboard connects and
-    // is torn down when the last one leaves (see _syncFpsMonitor on the SSE path).
+    // is torn down after the last one leaves (fps-demand.js, from the SSE path).
     try { gameDetect.startGameDetect(); } catch (e) { console.error('Game detect init failed:', e.message); } // Game mode via foreground full-screen detection
     try { guardian.start(); } catch (e) { console.error('Guardian init failed:', e.message); } // Opt-in sensor history (no-op while disabled)
     // Lighting ↔ Home Assistant bridge: the HA lighting provider rides the shared
@@ -26107,12 +26649,6 @@ function _startListen(host) {
       // Layouts a Gen2 controller fills in by itself are saved like the user's own.
       lighting.setNativeChangeHook(() => { _persistLighting(); });
       try { lighting.applyConfig((s || _serverHubSettings).lighting); _syncSessionWatch(); } catch (e) { console.error('Lighting init failed:', e.message); }
-      // OpenRGB was removed from the product. Tear down anything a previous
-      // version may have left so it never launches itself again: drop the
-      // auto-start scheduled task (one fire-and-forget call, silent if absent).
-      if (POWERSHELL_SUPPORTED) {
-        try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
-      }
       // Spotlight: start the global-hotkey listener if enabled, and rebuild the
       // crawler index for the user's extra search folders (both no-op/cheap
       // when off; delayed so they never compete with boot).
@@ -26204,16 +26740,19 @@ server.on('error', err => {
 // settings have not been read yet at this point, so widening here would mean
 // guessing. applyBindHost() below runs once they load and opens it then — a
 // listener that starts closed and opens a moment later is the safe order.
-_startListen(BIND_HOST);
+// A new install's settings go down first, so its first screen already reads them.
+seedFreshInstall()
+  .catch((e) => startupLog.write('settings: could not prepare the new install: ' + (e && e.message)))
+  .finally(() => _startListen(BIND_HOST));
 
 /**
  * Re-bind when paired access is switched on or off. No-op when the wanted host
  * is already the one in use, so it is safe to call on every settings write.
  *
- * `closeAllConnections` is what makes this finish: close() alone waits for
- * every open connection to end, and the dashboard holds an SSE stream open
- * forever — so without it the rebind would never complete and the phone would
- * still find nothing listening. The dashboard reconnects its own stream.
+ * `dropAll` is what makes this finish: close() alone waits for every open
+ * connection to end, and the dashboard holds an SSE stream and WebSockets open
+ * forever, so without it the rebind would never complete and nothing could
+ * reach the server. Every client reconnects by itself.
  */
 let _rebinding = false;
 function applyBindHost() {
@@ -26227,7 +26766,7 @@ function applyBindHost() {
       try { _startListen(want); } catch { /* the 'error' handler above owns retries */ }
       _rebinding = false;
     });
-    if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+    listenerSockets.dropAll();
   } catch {
     _rebinding = false;
   }
@@ -26273,7 +26812,8 @@ function idleProbeWanted() {
   // on the clock alone, which spends the morning greeting on an empty room.
   const f = _serverHubSettings && _serverHubSettings.aiFeatures;
   if (f && f.enabled === true && f.ambient === true) return true;
-  return false;
+  // A widget or a page ruled by "the PC is idle" (situations.js).
+  return _situations.needs('idle');
 }
 // Adaptive cadence: 15s while the user is active (presence changes slowly),
 // 5s once the PC looks unattended — dismissing the Ambient screensaver and the
@@ -26342,7 +26882,9 @@ function statusPayload() {
   // version rides along so a page left open across a self-update can detect
   // the server changed under it and reload onto the matching client JS
   // (main.js) — a stale client's normalizers can corrupt shared state on save.
-  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, bootAt: _serverBootAt, version: APP_VERSION };
+  // whenOff: opaque ids of the widgets whose rule or key hides them now, never why.
+  const whenOff = [...new Set([..._situations.hidden(), ..._widgetKeys.hidden()])];
+  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, whenOff, bootAt: _serverBootAt, version: APP_VERSION };
 }
 
 // Broadcast only when the payload actually changed (plus a slow heartbeat).
@@ -26367,15 +26909,30 @@ const _deskPageSync = LayerPages.createDeskPageSync({
   update: (edit) => updateLayersSetting(edit),
   warn: (msg) => console.warn(msg),
 });
+// A widget page with a situation comes forward while it holds (situations.js).
+const _whenPageSync = LayerPages.createWhenPageSync({
+  current: () => _serverHubSettings && _serverHubSettings.layers,
+  update: (edit) => updateLayersSetting(edit),
+  warn: (msg) => console.warn(msg),
+});
 // The Game performance tile's feed: only while a game runs and a tile shows it.
 function perfWanted() {
   if (_feedWidgetInUse('perf')) return true;
   // A tile on a hidden surface draws nothing, so it wants no feed.
   const layers = LayersModel.normalize(_serverHubSettings && _serverHubSettings.layers);
-  if (layers.enabled && layers.widgets.some(w => w.kind === 'tile' && w.widget === 'perf' && !layers.hidden.includes(w.surface))) return true;
+  if (layers.enabled && layers.widgets.some(w => w.kind === 'tile' && w.widget === 'perf' && !w.off && !layers.hidden.includes(w.surface))) return true;
   // A Store widget granted the `perf` stream (sdk-widgets.js), like `processes`.
   return sdkStreamGranted('perf');
 }
+// Ping and packet loss for the same tile, only when someone chose to see them.
+const _perfNet = createPerfNet({
+  read: getNetworkInfo,
+  wanted: () => {
+    const hud = PerfHud.normalizePerfHud(_serverHubSettings && _serverHubSettings.perfHud);
+    return (hud.ping || hud.loss) && perfWanted();
+  },
+  broadcast: (d) => broadcastSSE('perf_net', d),
+});
 // One summary per game played (game-sessions.js). Fed by the status tick, so it
 // adds no timer of its own; the system tick adds the CPU/GPU averages.
 const _gameSessions = createGameSessions({
@@ -26507,7 +27064,7 @@ const _transcripts = createCaptureTranscripts({
   spawn: (exe, args) => spawn(exe, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }),
   clean: aiLocal.cleanTranscript,
   speedArgs: aiLocal.whisperSpeedArgs,
-  lowPriority: (pid) => { try { os.setPriority(pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch { /* gone or not allowed */ } },
+  lowPriority: lowerPriority,
   readFile: (p, enc) => fs.promises.readFile(p, enc),
   writeFileAtomic,
   unlink: (p) => fs.promises.unlink(p),
@@ -26594,13 +27151,10 @@ const _captureMarkers = createCaptureMarkers({
   autoMarks: () => captureOptions().autoMarks !== false,
   onAdd: (m) => _autoClips.onMark(m),
 });
-// PresentMon pauses with no dashboard connected (_syncFpsMonitor); a recording
+// PresentMon pauses with no dashboard connected (fps-demand.js); a recording
 // that marks stutters keeps it reading, or the video gets none.
 function holdFpsForMarkers() {
-  const hold = captureRunning() && captureOptions().autoMarks !== false;
-  if (hold === _fpsHeldByCapture) return;
-  _fpsHeldByCapture = hold;
-  _syncFpsMonitor();
+  _fpsDemand.capture(captureRunning() && captureOptions().autoMarks !== false);
 }
 // A screen or window recording (recorder.js). Start and end go to every
 // dashboard over SSE `recording` (the Deck key, the "Recording" card); the
@@ -26747,23 +27301,56 @@ const _perfStream = createPerfStream({
   // A game that runs but draws no readable frames is named, not "start a game".
   game: () => (gameDetect.isGameRunning() ? gameDetect.getGameProcess() : ''),
 });
+// With Game Mode on, or in a Performance Mode session, the background work that can
+// wait does, for as long as a game runs. Everything that answers a person keeps answering.
+function backgroundHeld() {
+  const wanted = _serverHubSettings?.gameMode !== false || _serverHubSettings?.performance?.active === true;
+  return wanted && gameDetect.isGameRunning();
+}
+
+function syncBackgroundHold() {
+  const on = backgroundHeld();
+  livingIndex.hold(on);
+  diskSpace.hold(on);
+  // A ringing call stays as quick as ever, that switch is why the reader may be running.
+  winNotif.setPace(on && !_serverHubSettings?.calls?.enabled);
+}
+
+// What a game session records, on every path of the status tick.
+function gameSessionFacts(running, game) {
+  return { running, game, perf: { active: _serverHubSettings?.performance?.active === true, moved: perfSession.shield.movedCount() } };
+}
+
+function syncCoreShield() {
+  perfSession.shield.sync(shieldWish(_serverHubSettings?.performance, {
+    running: gameDetect.isGameRunning(),
+    pid: gameDetect.getGameDiag().gamePid,
+    name: gameDetect.getGameProcess(),
+    foregroundPid: gameDetect.getForegroundPid(),
+  }));
+}
+
 function broadcastStatusNow() {
+  try { syncBackgroundHold(); } catch {}
+  try { syncCoreShield(); } catch {}
   // Instant Replay follows the game with or without a dashboard open; this
   // tick also settles a backup import or a missed game event.
   try { _replay.sync(); } catch {}
   try { holdFpsForMarkers(); } catch {}
+  try { _fpsDemand.game(gameDetect.isGameRunning()); } catch {}
   if (sseClients.size === 0) {
     _perfStream.setGaming(false);
     // A session still ends when its game does, and a recording marks its
     // stutters, dashboard open or not.
     if (_gameSessions.isOpen()) {
-      try { _gameSessions.tick({ running: gameDetect.isGameRunning(), game: gameDetect.getGameProcess() }); } catch {}
+      try { _gameSessions.tick(gameSessionFacts(gameDetect.isGameRunning(), gameDetect.getGameProcess())); } catch {}
     }
     try { _captureMarkers.tick({ running: gameDetect.isGameRunning(), game: gameDetect.getGameProcess() }); } catch {}
     return;
   }
+  try { _situations.tick(); } catch (e) { console.warn('situations: ' + e.message); }
   const st = statusPayload();
-  try { _gameSessions.tick({ running: st.gameRunning, game: st.gameProcess }); } catch {}
+  try { _gameSessions.tick(gameSessionFacts(st.gameRunning, st.gameProcess)); } catch {}
   try { _captureMarkers.tick({ running: st.gameRunning, game: st.gameProcess }); } catch {}
   try { _perfStream.setGaming(st.gaming && perfWanted()); } catch {}
   try { lighting.onStatus({ gaming: st.gaming }); } catch {}
@@ -26777,6 +27364,9 @@ function broadcastStatusNow() {
 }
 
 setInterval(broadcastStatusNow, 3000).unref();
+
+// Apps a crashed server left moved go back before the first tick decides anything.
+perfSession.shield.recover();
 
 // Game-mode flips ride the foreground probe's instant push lines: broadcast
 // right away so entering/leaving a game doesn't wait for the next 3s tick.
@@ -26822,6 +27412,7 @@ async function _systemTick() {
     try {
       const sys = await getSystemInfo();
       broadcastSSE('system', sys);
+      _perfNet.tick();
       lighting.onSystem(sys);
       try { briefing.onSystemSample(sys); } catch {}
       try { _gameSessions.onSystem(sys); } catch {}
@@ -26853,11 +27444,17 @@ async function batteryWanted() {
   } catch { return true; }
 }
 
+// Each read is a PowerShell and a process asking the dongles. Through a game five
+// minutes still keeps a low mouse on screen, and stays inside battery.js STALE_MS.
+const BATTERY_POLL_GAME_MS = 5 * 60 * 1000;
+let _batteryPolledAt = 0;
 let _lastBatteryJson = '';
 setInterval(async () => {
   if (sseClients.size === 0) return;
+  if (backgroundHeld() && Date.now() - _batteryPolledAt < BATTERY_POLL_GAME_MS) return;
   try {
     if (!(await batteryWanted())) return;
+    _batteryPolledAt = Date.now();
     const payload = await batteryMonitor.getDevices();
     const j = JSON.stringify(payload);
     if (j === _lastBatteryJson) return;
@@ -26895,10 +27492,15 @@ function audioPollWanted() {
   if (sdkStreamGranted('audio')) return true;
   return Date.now() - _audioWatchedAt < AUDIO_WATCH_WINDOW_MS;
 }
+// Each look is a process on Windows: through a game the mixer follows, four times slower.
+const AUDIO_POLL_GAME_MS = 32000;
+let _audioPolledAt = 0;
 let _lastAudioJson = '';
 setInterval(async () => {
   if (sseClients.size === 0) return;
   if (!audioPollWanted()) return;
+  if (backgroundHeld() && Date.now() - _audioPolledAt < AUDIO_POLL_GAME_MS) return;
+  _audioPolledAt = Date.now();
   try {
     const a = await getAudioInfo();
     lighting.onAudio(a);   // no-op today; kept as the seam a future audio effect binds to
@@ -26956,6 +27558,7 @@ function _gracefulShutdown() {
   try { autoUpdater.stop(); } catch {}
   try { widgetAutoUpdater.stop(); } catch {}
   layersEdit.stop();
+  layersPeek.stop();
   _perfStream.stop();
   _calendarReminders.stop();
   deckShortcutRunner.stop();
@@ -26966,6 +27569,8 @@ function _gracefulShutdown() {
   // in progress is closed and saved the same way.
   let shutdownFlush = Promise.resolve();
   try { shutdownFlush = _flushLightingPersist().catch(() => {}); } catch {}
+  // The apps Core Shield moved go back while this process can still reach them.
+  try { shutdownFlush = Promise.all([shutdownFlush, perfSession.shield.stop()]).catch(() => {}); } catch {}
   try { const sessions = _gameSessions.flush(); shutdownFlush = Promise.all([shutdownFlush, sessions]).catch(() => {}); } catch {}
   try { const bench = _benchmark.flush(); shutdownFlush = Promise.all([shutdownFlush, bench]).catch(() => {}); } catch {}
   // Cache access times kept in memory since the last periodic write (sdk-asset-cache.js).
@@ -26992,6 +27597,7 @@ function _gracefulShutdown() {
   // Write the debounced lyrics cache now rather than lose the last few songs.
   try { shutdownFlush = shutdownFlush.then(() => lyricsCache.flush()).catch(() => {}); } catch {}
   try { shutdownFlush = shutdownFlush.then(() => usageStats.flush()).catch(() => {}); } catch {}
+  try { ratingVotes.stop(); shutdownFlush = shutdownFlush.then(() => ratingVotes.flush()).catch(() => {}); } catch {}
   try { shutdownFlush = shutdownFlush.then(() => lyricsOffsets.flush()).catch(() => {}); } catch {}
   try { shutdownFlush = shutdownFlush.then(() => lyricsTranslator.flush()).catch(() => {}); } catch {}
   // The T2 listener holds its own sockets — including SSE streams, which never
@@ -27024,7 +27630,7 @@ function _gracefulShutdown() {
   // Stop the PresentMon FPS reader (holds an admin ETW tracing session) and the
   // foreground game probe. Both spawn long-lived children with no job object, so
   // without an explicit stop process.exit orphans them across every restart.
-  try { if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; } } catch {}
+  try { _fpsDemand.stop(); } catch {}
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
   try { winNotif.stop(); } catch {}
@@ -27098,6 +27704,7 @@ function _gracefulShutdown() {
   // Unregister the global Spotlight hotkey (and cancel a pending respawn, so a
   // retry can't spawn a helper on the way out) and close its popup windows.
   try { _cancelHotkeyRetry(); _stopHotkeyListener(); } catch {}
+  try { _widgetKeys.stop(); } catch {}
   for (const pid of _spotlightPopupPids) { try { process.kill(pid); } catch {} }
   _spotlightPopupPids.clear();
   // Close any Virtual Deck popup windows we spawned — they have no job object,

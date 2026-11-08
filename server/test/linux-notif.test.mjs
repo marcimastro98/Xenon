@@ -20,7 +20,7 @@ const NOTIFY = `method call time=1784500000.123456 sender=:1.84 -> destination=:
    string "Thunderbird"
    uint32 0
    string "mail-unread"
-   string "Marcello"
+   string "Luca"
    string "Ci vediamo alle 18"
    array [
       string "default"
@@ -47,7 +47,7 @@ const CLOSED = `signal time=1784500002.000000 sender=:1.12 -> destination=:1.84 
 test('parseNotifyBlock: the four positional strings land in the right fields', () => {
   const item = ln.parseNotifyBlock(NOTIFY);
   assert.equal(item.app, 'Thunderbird');
-  assert.equal(item.title, 'Marcello');           // summary, NOT the icon name
+  assert.equal(item.title, 'Luca');           // summary, NOT the icon name
   assert.equal(item.body, 'Ci vediamo alle 18');
   // The icon name is the second string and must never be read as the title.
   assert.notEqual(item.title, 'mail-unread');

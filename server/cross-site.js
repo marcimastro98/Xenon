@@ -21,14 +21,14 @@
 //  · A <script>, <img>, stylesheet or font (mode `no-cors`) loads only public
 //    files: the dashboard's static files, an installed widget's files, icon
 //    and sound packs, uploaded wallpapers and fonts, the /ping probe, and the
-//    JSONP routes the iCUE widgets poll. Any other route is refused, so a page
-//    elsewhere can never trigger a route with side effects with an <img>.
+//    one JSONP route that says Xenon is on. Any other route is refused, so a
+//    page elsewhere can never trigger a route with side effects with an <img>.
 //
 // What stays allowed, and why:
 //  · The dashboard and every page of ours: same-origin.
-//  · The iCUE widgets (file:// or qrc:// in Qt WebEngine): <script> JSONP on
-//    the JSONP routes, an <img> probe of /ping, and the dashboard in an iframe
-//    (a navigation to /).
+//  · The iCUE widget (file:// or qrc:// in Qt WebEngine): <script> JSONP on
+//    /status, an <img> probe of /ping, and the dashboard in an iframe (a
+//    navigation to /).
 //  · SDK widgets (sandboxed, opaque origin): their own files, including module
 //    scripts and fonts, which are cors-mode loads.
 //  · The native app's splash: a no-cors fetch of /ping, then a navigation to /.
@@ -116,7 +116,7 @@ function isPublicFile(pathname) {
  * @param req       the incoming request
  * @param port      this server's port (XENON_PORT)
  * @param pathname  the request path
- * @param opts.jsonp  (pathname) => true for the routes the iCUE widgets poll
+ * @param opts.jsonp  (pathname) => true for the route the iCUE widget polls
  */
 function refusedCrossSite(req, port = 3030, pathname = '', opts = {}) {
   if (!foreign(req, port)) return false;

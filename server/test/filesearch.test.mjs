@@ -199,67 +199,6 @@ test('applications tier: name-matching apps pinned, launched via launchApp, neve
   fsr.stop();
 });
 
-test('searchStructured: validates untrusted AI output at the boundary, then runs the engine', async () => {
-  const { fsr } = make([]);
-  let seen = null;
-  fsr._setHostRunner(async (q) => {
-    seen = q;
-    return [{ p: 'C:\\Users\\u\\Documents\\contratto.pdf', n: 'contratto.pdf', s: 1000, m: NOW }];
-  });
-  const out = await fsr.searchStructured({
-    terms: ['contratto', 42, '  x  '],   // non-string and too-short entries drop
-    kind: 'document',
-    exts: null,
-    after: '2026-01-01',
-    before: '2026-02-01',
-    minBytes: 'lots',                    // garbage drops to null, never throws
-    maxBytes: -5,
-    unknownField: 'ignored',
-  }, { now: NOW });
-  assert.equal(out.ok, true);
-  assert.deepEqual(seen.terms, ['contratto']);
-  assert.ok(seen.exts.includes('pdf'), 'kind resolved to its extension set');
-  assert.equal(seen.after, new Date(2026, 0, 1).getTime(), 'YYYY-MM-DD is local midnight');
-  assert.equal(seen.before, new Date(2026, 1, 1).getTime() + 86400000, 'a date-string before means through that day');
-  assert.equal(seen.minBytes, null);
-  assert.equal(seen.maxBytes, null);
-  assert.ok(out.chips.some((c) => c.type === 'kind' && c.kind === 'document'));
-  assert.ok(out.chips.some((c) => c.type === 'date' && c.key === 'range'));
-  assert.deepEqual(out.terms, ['contratto'], 'the surviving terms travel back for highlighting');
-  assert.equal(out.results.length, 1);
-  assert.equal((out.apps || []).length, 0, 'a kind filter keeps the apps tier out');
-  fsr.stop();
-});
-
-test('searchStructured: app:true forces the Applications tier past an exts filter', async () => {
-  const { fsr } = make([], {
-    appsProvider: async () => [{ name: 'Xenon', kind: 'lnk', target: 'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Xenon.lnk' }],
-    launchApp: async () => {},
-  });
-  // "the executable of the xenon app": exts would normally read as
-  // files-only, but the AI marked it as an application request.
-  const out = await fsr.searchStructured({ terms: ['xenon'], exts: ['exe'], app: true }, { now: NOW });
-  assert.equal(out.apps.length, 1);
-  assert.equal(out.apps[0].name, 'Xenon');
-  // Anything other than boolean true never flips the tier on.
-  const out2 = await fsr.searchStructured({ terms: ['xenon'], exts: ['exe'], app: 'yes' }, { now: NOW });
-  assert.equal((out2.apps || []).length, 0);
-  fsr.stop();
-});
-
-test('searchStructured: garbage specs are inert, host never called', async () => {
-  let called = 0;
-  const { fsr } = make([]);
-  fsr._setHostRunner(async () => { called++; return []; });
-  for (const spec of ['not an object', null, [], { kind: 'nonsense', exts: [123, '.!!'], terms: 'string-not-array' }]) {
-    const out = await fsr.searchStructured(spec, { now: NOW });
-    assert.equal(out.ok, true);
-    assert.deepEqual(out.results, []);
-  }
-  assert.equal(called, 0);
-  fsr.stop();
-});
-
 test('iconTarget: resolves only known opaque ids, exposing path + ext read-only', async () => {
   const { fsr } = make([
     { p: 'C:\\Program Files (x86)\\Steam\\steam.exe', n: 'steam.exe', s: 5_500_000, m: NOW },

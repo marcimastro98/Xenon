@@ -28,9 +28,11 @@
 const { execFile } = require('child_process');
 const fsp = require('fs').promises;
 const os = require('os');
+const { createAppIcons } = require('./linux-app-icons.js');
 // Shared with darwin-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
+const { parsePingCounts, countsFromFailure } = require('./packet-loss');
 
 // --- Memory: /proc/meminfo, because os.freemem() means something else here ---
 // os.freemem() is MemFree, which excludes the page cache the kernel would hand
@@ -275,20 +277,33 @@ async function sysfsGpu() {
   return best;
 }
 
-async function gpu() {
+// A PC with no NVIDIA driver has no nvidia-smi. Remembered for a while, so an AMD or
+// Intel machine does not try the spawn at every sensor read.
+const NVIDIA_SMI_RETRY_MS = 5 * 60 * 1000;
+let nvidiaSmiMissingAt = 0;
+
+async function nvidiaGpu() {
+  if (Date.now() - nvidiaSmiMissingAt < NVIDIA_SMI_RETRY_MS) return null;
   try {
     return parseGpu(await run('nvidia-smi',
       ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.gr,clocks.mem,name',
        '--format=csv,noheader,nounits'], 5000));
-  } catch {
-    // No NVIDIA driver (or no nvidia-smi): fall through to the kernel's own
-    // files, which is the whole AMD story and half of the Intel one.
-    try {
-      const fromSysfs = await sysfsGpu();
-      if (fromSysfs) return fromSysfs;
-    } catch { /* fall through to empty */ }
-    return { ...EMPTY_GPU };
+  } catch (err) {
+    if (err && err.code === 'ENOENT') nvidiaSmiMissingAt = Date.now();
+    return null;
   }
+}
+
+async function gpu() {
+  const nvidia = await nvidiaGpu();
+  if (nvidia) return nvidia;
+  // No NVIDIA driver (or no nvidia-smi): fall through to the kernel's own
+  // files, which is the whole AMD story and half of the Intel one.
+  try {
+    const fromSysfs = await sysfsGpu();
+    if (fromSysfs) return fromSysfs;
+  } catch { /* fall through to empty */ }
+  return { ...EMPTY_GPU };
 }
 
 // --- Disks: df, matching getAllDisksInfo()'s drive object shape --------------
@@ -323,7 +338,7 @@ function parseDisks(out) {
     const c = line.trim().split(/\s+/);
     if (c.length < 6) continue;
     // Parse from BOTH ends, never by fixed index. `df` prints the mount point
-    // with its literal spaces, so a drive at /media/marci/My Passport shifted
+    // with its literal spaces, so a drive at /media/alex/My Passport shifted
     // every column after it: Number(c[3]) was NaN and `!(total > 0)` discarded
     // the row without a word. Source is first, the size/used/avail trio and the
     // fstype are last, and whatever sits between them IS the mount point. (A
@@ -814,6 +829,7 @@ async function readNetBytes() {
 }
 // ping's summary line gives min/avg/max/mdev; ping=avg, latency=jitter (max-min),
 // the same two numbers network.ps1 derives from its three echoes.
+const PING_ECHOES = 3;
 function parsePing(out) {
   const m = String(out || '').match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms/);
   if (!m) return { ping: null, latency: null };
@@ -821,14 +837,15 @@ function parsePing(out) {
 }
 async function pingStats() {
   try {
-    return parsePing(await run('ping', ['-c', '3', '-W', '1', '-n', '1.1.1.1'], 5000));
-  } catch {
-    return { ping: null, latency: null };
+    const out = await run('ping', ['-c', String(PING_ECHOES), '-W', '1', '-n', '1.1.1.1'], 5000);
+    return { ...parsePing(out), counts: parsePingCounts(out) };
+  } catch (err) {
+    return { ping: null, latency: null, counts: countsFromFailure(err, PING_ECHOES) };
   }
 }
 async function network() {
-  const [{ ping, latency }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
-  return { ping, latency, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
+  const [{ ping, latency, counts }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
+  return { ping, latency, pingSent: counts ? counts.sent : 0, pingLost: counts ? counts.lost : 0, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
 }
 
 // --- Open windows / app switcher: wmctrl + xdotool (X11) --------------------
@@ -955,6 +972,8 @@ async function listRowsViaXprop() {
   return rows;
 }
 
+const appIcon = createAppIcons();
+
 async function listWindows() {
   const [raw, activeRaw] = await Promise.all([
     runX('wmctrl', ['-lp'], 5000),
@@ -991,9 +1010,10 @@ async function listWindows() {
       path: r.exe.path,
       active: r.active,
       minimized: p.minimized,
-      icon: null, // no icon extraction on Linux; the UI falls back to an initial
+      icon: null, // filled below from the app's .desktop file; a name alone when there is none
     });
   });
+  await Promise.all(windows.map(async (w) => { w.icon = await appIcon(w.app); }));
 
   // Re-sort on the final labels (WM_CLASS is nicer than the binary name), which
   // is the ordering the PowerShell path emits: active first, then app, then title.
@@ -1120,6 +1140,7 @@ function parsePwDump(raw) {
       binary: p['application.process.binary'] || '',
       pid: p['application.process.id'] || '',
       mediaName: p['media.name'] || '',
+      running: info.state === 'running',
       volume,
       muted,
     };
@@ -1184,10 +1205,28 @@ function buildAudioRows(n) {
   return rows;
 }
 
+// A stopped stream is an app with its output open and no sound: paused, as on Windows.
+function markStopped(rows, outStreams) {
+  const stopped = new Set(outStreams.filter((stream) => !stream.running).map((stream) => String(stream.id)));
+  return rows.map((row) => {
+    if (row[F.TYPE] !== 'Application' || row[F.DIR] !== 'Render' || !stopped.has(row[F.CLI_ID])) return row;
+    const copy = [...row];
+    copy[F.STATE] = 'Inactive';
+    return copy;
+  });
+}
+
 // Rows are rebuilt at most this often: several dashboard surfaces can ask for
 // audio on the same tick, and each rebuild forks pw-dump.
 const AUDIO_ROWS_TTL_MS = 900;
 let audioRowsCache = { rows: null, at: 0 };
+
+// A paused player keeps its stream open and the mixer still lists it; only a running
+// stream is sound coming out.
+async function soundingRows() {
+  const nodes = await pwNodes();
+  return markStopped(buildAudioRows(nodes), nodes.outStreams);
+}
 
 async function audioRows() {
   const now = Date.now();
@@ -1465,7 +1504,7 @@ function parseProcStat(text) {
   const name = line.slice(open + 1, close);
   if (!Number.isInteger(pid) || pid <= 0 || !name) return null;
   // After the closing paren the first token is field 3 (state), so field N sits
-  // at index N-3: utime=14 -> 11, stime=15 -> 12, rss=24 -> 21.
+  // at index N-3: ppid=4 -> 1, utime=14 -> 11, stime=15 -> 12, starttime=22 -> 19, rss=24 -> 21.
   const rest = line.slice(close + 1).trim().split(/\s+/);
   const utime = Number(rest[11]);
   const stime = Number(rest[12]);
@@ -1473,7 +1512,9 @@ function parseProcStat(text) {
   if (!Number.isFinite(utime) || !Number.isFinite(stime)) return null;
   return {
     pid,
+    ppid: Number(rest[1]) || 0,
     name,
+    startTicks: Number(rest[19]) || 0,
     cpuMs: ((utime + stime) / USER_HZ) * 1000,
     rssPages: Number.isFinite(rssPages) && rssPages > 0 ? rssPages : 0,
   };
@@ -1515,6 +1556,24 @@ async function sampleProcesses() {
     if (row) sample.set(row.pid, { name: row.name, cpuMs: row.cpuMs, rss: row.rssPages * size });
   });
   return sample.size ? sample : null;
+}
+
+// Every process for Performance Mode, the rows process-table-windows.js gives. The owner
+// is the uid: a process of another user is not this person's to move.
+async function processTable() {
+  const size = await pageSize();
+  let entries = [];
+  try { entries = await fsp.readdir('/proc'); } catch { return null; }
+  const rows = [];
+  await mapLimit(entries.filter((e) => /^\d+$/.test(e)), 64, async (dir) => {
+    let raw = null;
+    let info = null;
+    try { [raw, info] = await Promise.all([fsp.readFile('/proc/' + dir + '/stat', 'utf8'), fsp.stat('/proc/' + dir)]); } catch { return; }
+    const row = parseProcStat(raw);
+    if (!row) return;
+    rows.push({ pid: row.pid, ppid: row.ppid, name: row.name.toLowerCase(), cpuMs: row.cpuMs, memBytes: row.rssPages * size, startedAt: row.startTicks, owner: info.uid });
+  });
+  return rows.length ? rows : null;
 }
 
 const PROC_STALE_MS = 30000;
@@ -1604,14 +1663,24 @@ async function idleSeconds() {
   } catch { return null; }
 }
 
+// The machine's own id, for pc-id.js. Containers often have only the dbus copy.
+async function machineId() {
+  for (const file of ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
+    const id = await fsp.readFile(file, 'utf8').then((t) => t.trim()).catch(() => '');
+    if (/^[0-9a-f]{32}$/i.test(id)) return id.toLowerCase();
+  }
+  return '';
+}
+
 module.exports = {
-  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  sendKeys, keysAvailable, hideWindows, hideWindowsTool, notify, processes, idleSeconds, parseLoginctlIdle, parseXprintidle,
+  machineId,
+  gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, soundingRows, audioCommand, audioAvailable, lock,
+  sendKeys, keysAvailable, hideWindows, hideWindowsTool, notify, processes, processTable, idleSeconds, parseLoginctlIdle, parseXprintidle,
   // exported for unit tests
   parseProcStat,
   parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseHwmonReading, hwmonDevKey, hwmonKind, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseDiskstats, parseMountsFor,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
-  parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
+  parsePwDump, buildAudioRows, markStopped, resolveTargets, cubicToLinear,
   ydotoolArgs, linuxSession, pickHideTool,
 };

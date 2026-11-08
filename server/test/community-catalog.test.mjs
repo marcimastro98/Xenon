@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const cat = require('../community-catalog.js');
 
 const entry = (over) => Object.assign({
-  id: 'neon-theme', kind: 'theme', name: 'Neon', author: 'Marci',
+  id: 'neon-theme', kind: 'theme', name: 'Neon', author: 'Luca',
   code: 'eyJ4IjoxfQ', addedAt: '2026-07-09',
 }, over || {});
 

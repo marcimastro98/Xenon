@@ -122,7 +122,7 @@ test('the bootstrap asks for the startup task without going through cmd', () => 
   assert.match(text, /\$ErrorActionPreference = 'Continue'/, 'an absent task must stay an answer, not a crash');
 });
 
-// %TEMP% is an 8.3 short path when the user name has a dot (C:\Users\MRC777~1.ELE),
+// %TEMP% is an 8.3 short path when the user name has a dot (C:\Users\MARIO~1.ROS),
 // and Windows PowerShell 5.1's Remove-Item -Recurse fails on one. The leftover
 // extract folder then stopped every later "Complete setup" before the install.
 test('the bootstrap never deletes its temp folders with Remove-Item -Recurse', () => {

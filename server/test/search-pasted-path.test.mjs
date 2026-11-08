@@ -19,7 +19,7 @@ test('Windows paths: plain, quoted, forward slashes, ~ and file:// URLs', () => 
   assert.equal(pastedPath('C:\\Users\\me\\Desktop\\a.pdf', win), 'C:\\Users\\me\\Desktop\\a.pdf');
   assert.equal(pastedPath('"C:\\Users\\me\\My Files\\a b.pdf"', win), 'C:\\Users\\me\\My Files\\a b.pdf');
   assert.equal(pastedPath('  c:/Users/me/x.txt ', win), 'c:\\Users\\me\\x.txt');
-  assert.equal(pastedPath('~\\Desktop\\Marci Progetti', win), 'C:\\Users\\me\\Desktop\\Marci Progetti');
+  assert.equal(pastedPath('~\\Desktop\\My Projects', win), 'C:\\Users\\me\\Desktop\\My Projects');
   assert.equal(pastedPath('file:///C:/Users/me/a%20b.txt', win), 'C:\\Users\\me\\a b.txt');
 });
 

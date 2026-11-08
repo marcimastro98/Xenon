@@ -209,7 +209,8 @@ function Invoke-UpdaterHandoff($fromVer) {
 
 function Stop-Server {
   try {
-    $p = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess
+    # RemotePort 0 marks the listener, as in start-hidden.vbs: -State is not stable on every Windows build.
+    $p = (Get-NetTCPConnection -LocalPort $port -RemotePort 0 -ErrorAction SilentlyContinue).OwningProcess
     if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }
   } catch {}
   Start-Sleep -Milliseconds 900

@@ -46,6 +46,7 @@ const path = require('path');
 // Shared with linux-collectors.js: the delta/aggregation half of the
 // `processes` stream is identical on both, and lives in one tested place.
 const procStats = require('./process-stats');
+const { parsePingCounts, countsFromFailure } = require('./packet-loss');
 
 // Promise wrapper around execFile with a hard timeout; resolves stdout.
 function run(cmd, args, timeoutMs) {
@@ -59,9 +60,9 @@ function run(cmd, args, timeoutMs) {
 
 // Same as run(), but a failure resolves null instead of rejecting -- for the
 // probes where "the tool is not installed" is an ordinary answer.
-function runSoft(cmd, args, timeoutMs) {
+function runSoft(cmd, args, timeoutMs, env) {
   return new Promise((resolve) => {
-    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true }, (err, stdout) => {
+    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true, env: env || process.env }, (err, stdout) => {
       resolve(err ? null : String(stdout || ''));
     });
   });
@@ -182,10 +183,8 @@ function parseMacmon(raw) {
 }
 
 // One macmon sample costs its own interval (it measures over a window), so it
-// must never sit on the request path. We serve the last sample and refresh in
-// the background when it goes stale: the first poll after boot reports null,
-// every later one reports a reading at most MACMON_TTL_MS old.
-const MACMON_TTL_MS = 2500;
+// must never sit on the request path: the sensor cache below serves the last
+// sample and refreshes in the background when it goes stale.
 const MACMON_SAMPLE_MS = 300;
 // Give up only after this many consecutive failures. One is not enough: a cold
 // first spawn can lose the race with the timeout, and marking macmon missing on
@@ -217,11 +216,6 @@ function refreshMacmon() {
     })
     .finally(() => { macmonInFlight = null; });
   return macmonInFlight;
-}
-
-function macmonSample() {
-  if (Date.now() - macmonCache.at > MACMON_TTL_MS) refreshMacmon();
-  return macmonCache.data;
 }
 
 // --- the native helper: the same three numbers, with nothing to install -----
@@ -575,6 +569,7 @@ async function diskIo() {
 //
 // BSD ping prints the same "min/avg/max/stddev = a/b/c/d ms" summary iputils
 // does, so this parser is deliberately the twin of the Linux one.
+const PING_ECHOES = 3;
 function parsePing(out) {
   const m = String(out || '').match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms/);
   if (!m) return { ping: null, latency: null };
@@ -584,9 +579,10 @@ function parsePing(out) {
 async function pingStats() {
   try {
     // macOS ping takes -t (total timeout in seconds); -W is per-packet on Linux.
-    return parsePing(await run('/sbin/ping', ['-c', '3', '-t', '5', '-n', '1.1.1.1'], 8000));
-  } catch {
-    return { ping: null, latency: null };
+    const out = await run('/sbin/ping', ['-c', String(PING_ECHOES), '-t', '5', '-n', '1.1.1.1'], 8000);
+    return { ...parsePing(out), counts: parsePingCounts(out) };
+  } catch (err) {
+    return { ping: null, latency: null, counts: countsFromFailure(err, PING_ECHOES) };
   }
 }
 
@@ -641,8 +637,8 @@ async function readNetBytes() {
 }
 
 async function network() {
-  const [{ ping, latency }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
-  return { ping, latency, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
+  const [{ ping, latency, counts }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
+  return { ping, latency, pingSent: counts ? counts.sent : 0, pingLost: counts ? counts.lost : 0, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
 }
 
 // --- Open applications / app switcher: System Events -----------------------
@@ -1208,6 +1204,32 @@ function parsePsProcesses(text) {
   return out;
 }
 
+// Every process for Performance Mode, the rows process-table-windows.js gives. lstart is
+// five words in the C locale and only ever compared, so it tells a reused pid apart. The
+// owner is the uid: a process of another user is not this person's to move.
+const PS_TABLE_ROW_RE = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+\s+\S+\s+\S+\s+\S+\s+\S+)\s+(.+)$/;
+
+function parsePsTable(text) {
+  const rows = [];
+  for (const line of splitLines(text)) {
+    const m = PS_TABLE_ROW_RE.exec(line);
+    if (!m) continue;
+    const cpuMs = parsePsTime(m[5]);
+    const name = String(m[7]).trim().split('/').pop().toLowerCase();
+    if (cpuMs === null || !name) continue;
+    rows.push({ pid: Number(m[1]), ppid: Number(m[2]), name, cpuMs, memBytes: Number(m[4]) * 1024, startedAt: Date.parse(m[6]) || 0, owner: Number(m[3]) });
+  }
+  return rows;
+}
+
+async function processTable() {
+  const columns = ['pid=', 'ppid=', 'uid=', 'rss=', 'time=', 'lstart=', 'comm='].flatMap((c) => ['-o', c]);
+  const out = await runSoft('/bin/ps', ['-A', ...columns], 6000, { ...process.env, LC_ALL: 'C' });
+  if (out === null) return null;
+  const rows = parsePsTable(out);
+  return rows.length ? rows : null;
+}
+
 const PROC_STALE_MS = 30000;
 const PROC_PRIME_MS = 250;
 let _procPrev = null;
@@ -1348,11 +1370,22 @@ async function idleSeconds() {
   return out == null ? null : parseHidIdleTime(out);
 }
 
+// The machine's own id, for pc-id.js.
+function parsePlatformUuid(text) {
+  const m = /"IOPlatformUUID"\s*=\s*"([0-9A-Fa-f-]{16,64})"/.exec(String(text || ''));
+  return m ? m[1].toLowerCase() : '';
+}
+
+async function machineId() {
+  return parsePlatformUuid(await runSoft('/usr/sbin/ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice'], 4000));
+}
+
 module.exports = {
+  machineId, parsePlatformUuid,
   gpu, disks, diskIo, cpuTemp, listSensors, readSensors, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  hideWindows, hideWindowsTool, notify, processes, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
+  hideWindows, hideWindowsTool, notify, processes, processTable, fullDiskAccess, rootReachesHome, idleSeconds, parseHidIdleTime,
   // exported for unit tests
-  quitAppArgs, parsePsTime, parsePsProcesses,
+  quitAppArgs, parsePsTime, parsePsProcesses, parsePsTable,
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
   parseIoregDisks, parseHideResult,

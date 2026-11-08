@@ -21,8 +21,10 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { lowerPriority } = require('./child-priority');
 
 const POLL_MS = 2000;            // child polling cadence
+const POLL_GAME_MS = 5000;       // through a game, see setPace()
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 const FEED_MAX = 30;
@@ -49,6 +51,7 @@ let _linuxFlushTimer = null;     // idle flush for the last dbus-monitor block
 let _consecutiveFastFails = 0;
 let _helperDisabled = false;
 let _lastSpawnWasHelper = false;
+let _pollMs = POLL_MS;
 
 let _state = 'off';              // 'off'|'starting'|'allowed'|'denied'|'unavailable'
 let _seq = 0;
@@ -244,7 +247,7 @@ function _start() {
   let child;
   try {
     child = useHelper
-      ? spawn(HELPER_EXE, ['notifications-serve', String(POLL_MS)], { windowsHide: true })
+      ? spawn(HELPER_EXE, ['notifications-serve', String(_pollMs)], { windowsHide: true })
       : spawn('powershell.exe', [
           '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
           '-File', PS_SCRIPT, '-IntervalMs', String(POLL_MS),
@@ -255,12 +258,16 @@ function _start() {
     return;
   }
   _proc = child;
+  lowerPriority(child.pid);
   // Every handler checks identity against the child it was registered on: a
   // stop→start bounce (dashboard reload while the old child's async close is
   // still queued) would otherwise null out — and leave orphaned + duplicated —
   // the replacement listener. Mirrors wakeword.js.
   child.stdout.on('data', d => { if (_proc === child) _onData(d.toString('utf8')); });
   child.stderr.on('data', () => { /* probe warnings; ignore */ });
+  // setPace() writes here: a pipe that breaks raises 'error' on the stream, and an
+  // unhandled one takes the server down. 'close' below is what handles the exit.
+  child.stdin.on('error', () => {});
   const onGone = () => { if (_proc === child) { _proc = null; _scheduleRestart(startedAt); } };
   child.on('error', onGone);
   child.on('close', onGone);
@@ -310,6 +317,18 @@ function sync(want) {
   }
 }
 
+// Through a game the reader looks less often: every look is a call into the Windows
+// notification service. Only the helper listens. The PowerShell fallback keeps its
+// pace, and Linux has nothing to slow: dbus-monitor is told, it does not ask.
+function setPace(slow) {
+  const ms = slow ? POLL_GAME_MS : POLL_MS;
+  if (ms === _pollMs) return;
+  _pollMs = ms;
+  if (_proc && _lastSpawnWasHelper) {
+    try { _proc.stdin.write(`${ms}\n`); } catch { /* the child is going away */ }
+  }
+}
+
 // Re-filter the stored feed after the excluded-apps list changed; announces
 // only when something was actually dropped.
 function applyExclusions() {
@@ -340,7 +359,7 @@ function stop() {
 }
 
 module.exports = {
-  init, sync, applyExclusions, getState, getFeed, stop,
+  init, sync, setPace, applyExclusions, getState, getFeed, stop,
   isSupported, reportedState,
   // Test hook: the exact line handler the child reader drives, so the
   // seed/push/filter/cap behaviour is testable without spawning a process.
@@ -350,5 +369,5 @@ module.exports = {
   // flush directly so the "last block delivered without waiting for the next"
   // fix is testable without real timers or a live bus.
   _onDbusData, _flushLinuxTail,
-  _setProcForTest: (v) => { _proc = v; },
+  _setProcForTest: (v, helper = false) => { _proc = v; _lastSpawnWasHelper = helper; },
 };

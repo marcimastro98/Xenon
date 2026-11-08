@@ -137,6 +137,8 @@ test('lighting: lights off shows in the status; Settings master on ends it', () 
   const src = read('../lighting.js');
   assert.match(src, /if \(next\.enabled === true\) keyLook\.setOut\(false\);/);
   assert.match(src, /lightsOut: keyLook\.isOut\(\),/);
+  // Saved dark by a key: a restart keeps it dark, and only while the master is off.
+  assert.match(src, /else if \(next\.enabled === false && next\.lightsOut === true\) keyLook\.setOut\(true\);/);
   const apply = src.slice(src.indexOf('async function apply()'), src.indexOf('// --- data feeds'));
   assert.match(apply, /if \(keyLook\.isOut\(\)\) \{[\s\S]*?writeDevice\(dev\.id, OFF_COLOR\)[\s\S]*?external\.writeWith\(\(\) => OFF_COLOR\)/);
   const wants = src.slice(src.indexOf('function wantsPaint()'), src.indexOf('function active()'));

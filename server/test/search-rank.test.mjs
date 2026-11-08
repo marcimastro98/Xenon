@@ -116,7 +116,7 @@ test('zoneFactor: OS litter is noise, user folders boost, rest neutral', () => {
   assert.ok(z('c:\\users\\u\\desktop\\proj\\target\\release') < 1, 'build output is noise even under Desktop');
   assert.ok(z('c:\\users\\u\\desktop\\proj\\.git\\objects') < 1, 'dot-dirs are noise even under Desktop');
   assert.ok(z('c:\\users\\u\\downloads') > 1);
-  assert.ok(z('c:\\users\\u\\desktop\\marci progetti') > 1);
+  assert.ok(z('c:\\users\\u\\desktop\\my projects') > 1);
   const pf = z('c:\\program files (x86)\\steam\\resource\\styles');
   assert.ok(pf < 1 && pf > z('c:\\windows\\prefetch'), 'Program Files sits between noise and neutral');
   assert.equal(z('d:\\archivio\\fatture'), 1);

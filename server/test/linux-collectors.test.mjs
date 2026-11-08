@@ -109,11 +109,11 @@ test('parseDisks: keeps udisks2 removable media under /run/media', () => {
   const df = [
     'Filesystem Mounted-on Type 1B-blocks Used Avail',
     '/dev/sda1 / ext4 100 40 60',
-    '/dev/sdb1 /run/media/marci/KINGSTON vfat 200 50 150',
+    '/dev/sdb1 /run/media/alex/KINGSTON vfat 200 50 150',
     'tmpfs /run/user/1000 tmpfs 100 0 100',
   ].join('\n');
   const drives = lc.parseDisks(df);
-  assert.deepEqual(drives.map((d) => d.drive), ['/', '/run/media/marci/KINGSTON']);
+  assert.deepEqual(drives.map((d) => d.drive), ['/', '/run/media/alex/KINGSTON']);
   assert.equal(drives[1].driveType, 'Removable');
   assert.equal(drives[1].label, 'KINGSTON');
 });
@@ -136,10 +136,10 @@ test('parseDisks: a mount point with spaces keeps its columns', () => {
   // column after it: Number(c[3]) was NaN and the row was dropped in silence.
   const df = [
     'Filesystem Mounted-on Type 1B-blocks Used Avail',
-    '/dev/sdb1 /media/marci/My Passport ext4 1000 400 600',
+    '/dev/sdb1 /media/alex/My Passport ext4 1000 400 600',
   ].join('\n');
   const [d] = lc.parseDisks(df);
-  assert.equal(d.drive, '/media/marci/My Passport');
+  assert.equal(d.drive, '/media/alex/My Passport');
   assert.equal(d.total, 1000);
   assert.equal(d.free, 600);
   assert.equal(d.used, 400);
@@ -322,6 +322,15 @@ test('parsePwDump: rejects unparseable output instead of pretending it is empty'
 });
 
 // --- SoundVolumeView row layout ---------------------------------------------
+
+test('parsePwDump: a stream is running only when PipeWire says so', () => {
+  const stream = (id, state) => ({
+    id, type: 'PipeWire:Interface:Node',
+    info: { state, props: { 'media.class': 'Stream/Output/Audio', 'application.name': 'mpv', 'application.process.binary': 'mpv' } },
+  });
+  const { outStreams } = lc.parsePwDump(JSON.stringify([stream(1, 'running'), stream(2, 'idle'), stream(3, 'suspended'), stream(4)]));
+  assert.deepEqual(outStreams.map((s) => s.running), [true, false, false, false]);
+});
 
 test('buildAudioRows: devices land in SoundVolumeView column positions', () => {
   const n = lc.parsePwDump(fixture('linux-pw-dump.json'));
@@ -645,4 +654,13 @@ test('every ydotool code is a plausible evdev keycode', () => {
     }
   }
   assert.ok(seen.size >= 8);
+});
+
+test('markStopped: a stopped player reads as paused, a running one and the mixer stay as they are', () => {
+  const stream = (id, running) => ({ id, running, appName: 'Tape', binary: 'tape', volume: 50 });
+  const nodes = { sinks: [], sources: [], outStreams: [stream(7, false), stream(8, true)], inStreams: [] };
+  const STATE = 7;
+  const rows = lc.buildAudioRows(nodes);
+  assert.deepEqual(lc.markStopped(rows, nodes.outStreams).map((r) => r[STATE]), ['Inactive', 'Active']);
+  assert.deepEqual(rows.map((r) => r[STATE]), ['Active', 'Active'], 'the mixer keeps listing it as before');
 });

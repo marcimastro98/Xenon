@@ -26,7 +26,7 @@ function loadFix() {
 }
 
 const fix = loadFix();
-const HERE = 'C:\\Users\\stimo\\AppData\\Local\\Programs\\Xenon\\server\\open-dashboard.vbs';
+const HERE = 'C:\\Users\\luca\\AppData\\Local\\Programs\\Xenon\\server\\open-dashboard.vbs';
 
 test('a task pointing at the launcher we ship is left alone', () => {
   assert.equal(fix({ taskScript: `"${HERE}"`, scriptPath: HERE, launcherPresent: true }), 'none');
@@ -46,7 +46,7 @@ test('a task left behind by an install that moved is repointed, not removed', ()
   // The engine used to live directly under %LOCALAPPDATA%\Xenon; it is under
   // Programs\Xenon now, and a task registered before the move still carries the
   // old path — which is exactly the "can not find script file" report.
-  const old = 'C:\\Users\\stimo\\AppData\\Local\\Xenon\\server\\open-dashboard.vbs';
+  const old = 'C:\\Users\\luca\\AppData\\Local\\Xenon\\server\\open-dashboard.vbs';
   assert.equal(fix({ taskScript: `"${old}"`, scriptPath: HERE, launcherPresent: true }), 'repair');
 });
 
@@ -77,8 +77,9 @@ test('a missing launcher is refused at registration, not discovered at logon', (
 });
 
 test('the reconcile runs at boot, so a broken task cannot survive a restart', () => {
-  assert.match(SRC, /setTimeout\(\(\) => \{ reconcileBrowserAutoOpenTask\(\)\.catch\(\(\) => \{\}\); \}, \d+\);/,
-    'reconcileBrowserAutoOpenTask must be scheduled from the listen callback');
+  assert.match(SRC, /setTimeout\(tidyLeftoverTasks, LEFTOVER_TASKS_DELAY_MS\)\.unref\(\);/,
+    'the tidy-up must be scheduled from the listen callback');
+  assert.match(SRC, /function tidyLeftoverTasks\(\) \{[\s\S]{0,400}reconcileBrowserAutoOpenTask\(\)\.catch\(\(\) => \{\}\);/);
 });
 
 // Chrome opened at every logon beside the Xenon app (3 Nov 2026): the app's own

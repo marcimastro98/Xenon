@@ -11,9 +11,8 @@ const { refusedCrossSite, refusedSocketOrigin, isPage } = require('../cross-site
 const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
 
 const req = (method, headers = {}) => ({ method, headers });
-// The JSONP routes as server.js defines them.
-const JSONP = new Set(['/system', '/network', '/notes', '/media', '/audio', '/status', '/toggle', '/mic/volume', '/volume/set', '/speaker/mute']);
-const opts = { jsonp: (p) => JSONP.has(p) || p.startsWith('/media/') };
+// The one JSONP route, as server.js defines it.
+const opts = { jsonp: (p) => p === '/status' };
 const refused = (r, path = '/', port = 3030) => refusedCrossSite(r, port, path, opts);
 
 // What browsers send, written out once so each test reads as a scenario.
@@ -43,7 +42,7 @@ test('an <img> or <script> elsewhere cannot reach a route with side effects', ()
   // The whole class at once: a route added tomorrow is covered too.
   for (const path of ['/deck/app-icon', '/events', '/api/stocks', '/stream/youtube/broadcast', '/api/ai/cli/status',
     '/obs/scenes', '/api/ai-local/scan', '/weather', '/update/check', '/api/ha/camera/snapshot/camera.front', '/a-route-added-later']) {
-    assert.equal(refused(req('GET', IMG), path), !JSONP.has(path), 'img ' + path);
+    assert.equal(refused(req('GET', IMG), path), true, 'img ' + path);
   }
   assert.equal(refused(req('GET', SCRIPT), '/settings'), true, 'settings never ship as a script');
 });
@@ -69,10 +68,9 @@ test('the dashboard, every page of ours and local programs keep working', () => 
   assert.equal(refused(req('POST', { origin: 'http://127.0.0.1:4040' }), '/actions/run', 4040), false, 'XENON_PORT is honoured');
 });
 
-test('the iCUE widgets keep working', () => {
-  // JSONP <script> on the polled routes, an <img> probe, the dashboard in an iframe.
+test('the iCUE widget keeps working', () => {
+  // JSONP <script> on /status, an <img> probe, the dashboard in an iframe.
   assert.equal(refused(req('GET', SCRIPT), '/status'), false);
-  assert.equal(refused(req('GET', SCRIPT), '/media/abc'), false);
   assert.equal(refused(req('GET', IMG), '/ping'), false);
   assert.equal(refused(req('GET', { ...XSITE, 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'iframe' }), '/'), false);
   // Qt WebEngine builds that send no Fetch Metadata are not touched at all.
@@ -121,6 +119,22 @@ test('the rule runs on the loopback door for every path, before any route', () =
   assert.match(SERVER.slice(at, at + 200), /res\.writeHead\(403/);
 });
 
+test('a website reads one thing over JSONP: that Xenon is on', () => {
+  const list = SERVER.slice(SERVER.indexOf('const JSONP_PATHS'), SERVER.indexOf('function isJsonpAllowed'));
+  assert.deepEqual([...list.matchAll(/'([^']+)'/g)].map((m) => m[1]), ['/status']);
+  const allowed = SERVER.slice(SERVER.indexOf('function isJsonpAllowed'), SERVER.indexOf('// State-mutating endpoints'));
+  assert.doesNotMatch(allowed, /startsWith/, 'no prefix opens a whole family of routes');
+  for (const path of ['/system', '/network', '/notes', '/media', '/media/next', '/audio', '/toggle', '/volume/set']) {
+    assert.equal(refused(req('GET', SCRIPT), path), true, path);
+  }
+  assert.equal(refused(req('GET', SCRIPT), '/status'), false, 'the iCUE widget checks Xenon is on with it');
+});
+
+test('over JSONP /status names no game, no app and no activity', () => {
+  const route = SERVER.slice(SERVER.indexOf("reqPath === '/status' && req.method === 'GET'"), SERVER.indexOf("reqPath === '/system/theme'"));
+  assert.ok(route.includes('json(jsonpCb ? { ok: true } : statusPayload())'));
+});
+
 test('the socket upgrade applies its rule after the loopback check', () => {
   const up = SERVER.slice(SERVER.indexOf("server.on('upgrade'"));
   const loop = up.indexOf('if (!isAllowedRequest(req)) { socket.destroy(); return; }');
@@ -136,18 +150,10 @@ test('every HTML page the server answers is one a link may open', () => {
   const pages = [];
   for (const chunk of routes) {
     const m = chunk.match(/reqPath === '([^']+)'/);
-    if (m && /text\/html/.test(chunk.slice(0, 6000)) && /req\.method === 'GET'|method === 'GET'/.test(chunk.slice(0, 300))) pages.push(m[1]);
+    if (m && /text\/html|sendPage\(/.test(chunk.slice(0, 6000)) && /req\.method === 'GET'|method === 'GET'/.test(chunk.slice(0, 300))) pages.push(m[1]);
   }
   assert.ok(pages.length >= 5, 'found the HTML routes: ' + pages.join(' '));
   for (const p of pages) assert.equal(isPage(p), true, p + ' answers HTML but is not in PAGES');
-});
-
-test('the JSONP list matches the server, and personal data stays off it', () => {
-  const at = SERVER.indexOf('const JSONP_PATHS = new Set([');
-  const list = new Set([...SERVER.slice(at, SERVER.indexOf(']);', at)).matchAll(/'([^']+)'/g)].map((m) => m[1]));
-  assert.deepEqual([...list].sort(), [...JSONP].sort(), 'keep the test copy in step with server.js');
-  assert.equal(list.has('/events'), false, 'a calendar is personal: any page could read it with a <script>');
-  assert.match(SERVER, /\(k === 'win' \|\| k === 'hostname'\) \? undefined : v/, 'window titles and the computer name stay out of JSONP');
 });
 
 test('the calendar is saved by POST only, never by a link', () => {
@@ -161,6 +167,7 @@ test('no site can frame a page of ours, and no answer is ever type-sniffed', () 
   // Deck key. Only our own pages and the iCUE widget (a local file) may frame.
   const csp = SERVER.indexOf(`res.setHeader('Content-Security-Policy', [\n    "frame-ancestors 'self' file: qrc:",`);
   assert.match(SERVER, /"frame-src 'self' https:\/\/www\.youtube-nocookie\.com/, 'frames: ours and the players only');
+  assert.doesNotMatch(SERVER, /"frame-src [^"]*\*\.google\.com/, 'no wildcard on google.com: Apps Script and Forms collect what is in the URL');
   assert.match(SERVER, /"object-src 'none'",/);
   const sniff = SERVER.indexOf(`res.setHeader('X-Content-Type-Options', 'nosniff');`);
   assert.ok(csp > 0 && sniff > 0, 'both headers are set');

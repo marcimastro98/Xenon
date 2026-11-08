@@ -326,62 +326,6 @@ function createFileSearch(opts) {
     return pasted ? pasted.name : String(rawQuery == null ? '' : rawQuery).slice(0, QUERY_MAX);
   }
 
-  // AI mode: the provider translated the phrase into a structured spec. The
-  // spec is UNTRUSTED model output — explicit known-key rebuild at this
-  // boundary (anything malformed is dropped, never thrown), then the exact
-  // same engine as a typed query. Chips are rebuilt from what SURVIVED, so
-  // the UI shows precisely the filter that will run.
-  function normalizeStructured(spec) {
-    const s = (spec && typeof spec === 'object' && !Array.isArray(spec)) ? spec : {};
-    const q = { terms: [], kind: null, exts: null, after: null, before: null, minBytes: null, maxBytes: null, chips: [] };
-    for (const term of Array.isArray(s.terms) ? s.terms.slice(0, 8) : []) {
-      if (typeof term !== 'string') continue;
-      const v = term.trim().slice(0, 80);
-      if (v.length >= 2) q.terms.push(v);
-    }
-    if (typeof s.kind === 'string' && SearchQuery.KIND_EXTS[s.kind]) q.kind = s.kind;
-    // "app": the AI understood the user wants an installed APPLICATION (the
-    // offline parser never sets this) — forces the Applications tier on even
-    // though an exts filter would normally read as a files-only query.
-    if (s.app === true) q.wantApps = true;
-    if (Array.isArray(s.exts)) {
-      const list = [...new Set(s.exts
-        .filter((e) => typeof e === 'string')
-        .map((e) => e.trim().toLowerCase().replace(/^\./, ''))
-        .filter((e) => /^[a-z0-9]{1,6}$/.test(e)))].slice(0, 8);
-      if (list.length) q.exts = list;
-    }
-    // Dates arrive as YYYY-MM-DD (local midnight) or epoch ms; a string
-    // `before` means "through that day", so its bound is end-of-day exclusive.
-    const toMs = (v) => {
-      if (Number.isFinite(v) && v > 0) return v;
-      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        const [y, m, d] = v.split('-').map(Number);
-        const t = new Date(y, m - 1, d).getTime();
-        return Number.isFinite(t) ? t : null;
-      }
-      return null;
-    };
-    q.after = toMs(s.after);
-    q.before = toMs(s.before);
-    if (q.before != null && typeof s.before === 'string') q.before += 86400000;
-    const toBytes = (v) => (Number.isFinite(v) && v > 0) ? Math.round(v) : null;
-    q.minBytes = toBytes(s.minBytes);
-    q.maxBytes = toBytes(s.maxBytes);
-    if (q.minBytes != null) q.chips.push({ type: 'size', dir: 'min', bytes: q.minBytes });
-    if (q.maxBytes != null) q.chips.push({ type: 'size', dir: 'max', bytes: q.maxBytes });
-    if (q.after != null || q.before != null) q.chips.push({ type: 'date', key: 'range', after: q.after, before: q.before });
-    if (q.exts) q.chips.push({ type: 'ext', exts: q.exts.slice() });
-    if (q.kind) q.chips.push({ type: 'kind', kind: q.kind });
-    return q;
-  }
-
-  async function searchStructured(spec, options) {
-    const opt = options || {};
-    const now = Number.isFinite(opt.now) ? opt.now : Date.now();
-    return execQuery(normalizeStructured(spec), opt, now);
-  }
-
   // ── The catalog half, decoupled from the answer ──────────────────────────
   // Windows Search is the slow source (a powershell host, an ADODB query) and
   // the only one that reads file CONTENT. The answer used to wait for it on
@@ -505,11 +449,9 @@ function createFileSearch(opts) {
     const plain = content && !q.exts && !q.kind
       && q.after == null && q.before == null && q.minBytes == null && q.maxBytes == null;
     // Applications: only for plain name queries (a kind/date/size filter means
-    // the user is after FILES), unless the AI explicitly said the user wants
-    // an installed application (q.wantApps). Matching quality gates at
-    // word/prefix level — a bare substring must not surface half the app list.
-    const wantApps = q.wantApps === true ? q.terms.length > 0 : plain;
-    const appsPromise = (wantApps && typeof appsProvider === 'function')
+    // the user is after FILES). Matching quality gates at word/prefix level:
+    // a bare substring must not surface half the app list.
+    const appsPromise = (plain && typeof appsProvider === 'function')
       ? Promise.resolve().then(() => appsProvider()).catch(() => [])
       : Promise.resolve([]);
     const catalogP = startCatalog(q);
@@ -750,7 +692,7 @@ function createFileSearch(opts) {
   }
 
   return {
-    search, searchStructured, catalog, recent, thumbTarget, warm, open, reveal, iconTarget, usageSnapshot, stop,
+    search, catalog, recent, thumbTarget, warm, open, reveal, iconTarget, usageSnapshot, stop,
     _setHostRunner(fn) { hostRunner = typeof fn === 'function' ? fn : null; },
     _resultsCacheSize() { return results.size; },
   };
