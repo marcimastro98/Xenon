@@ -81,6 +81,8 @@ function _project(raw) {
     srcId: Number.isFinite(r.id) ? Math.floor(r.id) : null,
     app: String(r.app || '').slice(0, TEXT_MAX),
     aumid: String(r.aumid || '').slice(0, TEXT_MAX),
+    // Linux only: the .desktop id the notification named (linux-notif.js).
+    desktopEntry: typeof r.desktopEntry === 'string' && /^[A-Za-z0-9][\w.-]{0,119}$/.test(r.desktopEntry) ? r.desktopEntry : '',
     title: String(r.title || '').slice(0, TEXT_MAX),
     body: String(r.body || '').slice(0, BODY_MAX),
     at: Number.isFinite(r.at) && r.at > 0 ? Math.floor(r.at) : Date.now(),

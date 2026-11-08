@@ -58,7 +58,9 @@ const SERVER = readFileSync(new URL('../server.js', import.meta.url), 'utf8')
   // …and a sound it plays on the PC itself, with its own two.
   + readFileSync(new URL('../deck-sound-player.js', import.meta.url), 'utf8')
   // The Vitals key passes on Bit's own refill answer (vitals_off, vital_off).
-  + readFileSync(new URL('../vitals-ai-tools.js', import.meta.url), 'utf8');
+  + readFileSync(new URL('../vitals-ai-tools.js', import.meta.url), 'utf8')
+  // A notification whose app cannot be started from it (not_launchable).
+  + readFileSync(new URL('../notification-open/index.js', import.meta.url), 'utf8');
 
 const KEYS = [
   'deck_err_title', 'deck_err_not_found', 'deck_err_bad_app_path',

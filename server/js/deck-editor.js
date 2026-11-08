@@ -2110,6 +2110,7 @@
       perfMode: _ai('<path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/>'),
       dnd: _ai('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
       sensorHistory: _ai('<path d="M3 3v18h18"/><path d="m7 14 3-3 3 2 4-5"/><circle cx="18" cy="17" r="3"/><path d="M18 15.8V17l.8.6"/>'),
+      notificationOpen: _ai('<path d="M6 16V11a6 6 0 0 1 9-5.2"/><path d="M18 11v5l1.5 2h-15"/><path d="M10 21h4"/><path d="M15 3h6v6M21 3l-6 6"/>'),
       stutterWhy: _ai('<path d="M2 16h4l2-9 2.5 9H14"/><path d="M16.5 8.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.1.9-1.1 1.8M19 16.5h.01"/>'),
       record: _ai('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/>'),
       timelapse: _ai('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/><path d="M5 5.5l1.5 1.5"/>'),

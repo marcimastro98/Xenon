@@ -1212,6 +1212,21 @@ const CAPABILITIES = [
     },
   },
 
+  // The app a notification came from (server/notification-open/): its window
+  // comes forward, or it starts. The id is the feed's own; no id = the newest.
+  {
+    type: 'notificationOpen', group: 'system', labelKey: 'deck_act_notificationOpen',
+    params: [{ name: 'id', kind: 'hidden', maxLen: 16, optional: true }],
+    capability: {
+      domain: 'deck', risk: 'safe', requires: 'notificationOpen',
+      ai: {
+        name: 'open_notification_app',
+        description: 'Bring forward the app that sent a notification on this PC, or start it when it is not open: for "open WhatsApp from that message", "answer the last notification". Without "id" it is the newest notification in the Notifications widget. Returns "how": "focused" (its window came to the front) or "opened" (the app was started), with "app". Errors: "no_notification" (there is none, or the Notifications widget is off), "not_launchable" (the app is not open and cannot be started from the notification, e.g. a web page\'s notification: tell the user to open it by hand), "launch_failed" (it would not start).',
+        params: { id: 'optional: a notification id; leave it out for the newest' },
+      },
+    },
+  },
+
   // Keyboard shortcuts on Deck keys (js/deck-shortcuts.js). The Deck editor has
   // its own card for them, so neither is a key action.
   {

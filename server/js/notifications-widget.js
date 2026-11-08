@@ -108,6 +108,8 @@
       iconUrl,
       duration: 6000,
     };
+    const open = window.NotificationOpen && window.NotificationOpen.toastAction(item);
+    if (open) opts.actions = [open];
     if (iconUrl) {
       iconAccent(iconUrl).then(rgb => { if (rgb) opts.rgb = rgb; window.XenonToast.show(opts); });
     } else {
@@ -198,6 +200,8 @@
     } else {
       if (n.title) txt.appendChild(el('div', 'wn-item-title', n.title));
       if (n.body) txt.appendChild(el('div', 'wn-item-body', n.body));
+      // A tap opens the app it came from (notification-open.js).
+      if (window.NotificationOpen) window.NotificationOpen.bind(txt, n);
     }
     row.appendChild(txt);
     // Per-app mute: one tap adds the app to the excluded list (the server prunes

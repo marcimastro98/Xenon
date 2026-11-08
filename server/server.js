@@ -46,6 +46,8 @@ const { createFpsDemand } = require('./fps-demand');
 // Single-screen capabilities (js/capability-catalog.js): one declaration, run
 // through deckRegistry, offered to the Deck editor and Xenon AI from there.
 const capabilities = require('./capabilities');
+const { createNotificationOpener, platformDeps: notificationOpenDeps } = require('./notification-open/index.js');
+const { readStartApps } = require('./notification-open/start-apps.js');
 const layersHost = require('./layers-host').createLayersHost();
 // Edit mode of the layer windows (layers-edit.js): runtime only, told to every
 // open window over SSE `layers-edit`.
@@ -222,6 +224,11 @@ const capabilityRunner = capabilities.createCapabilities({
   },
   // kWh from the sensor history (capabilities/energy.js); guardian is defined later.
   energy: { summary: () => guardian.getEnergySummary() },
+  // Tap a notification, get its app (notification-open/).
+  notificationOpen: createNotificationOpener(notificationOpenDeps({
+    platform: process.platform, execFile, getInstalledApps, launchLinuxApp, feed: () => winNotif.getFeed(),
+    listWindows: () => runWindowsTool(['list'], 8000), focusWindow: (id) => runWindowsTool(['focus', String(id)], 5000),
+  })),
   // What the Game performance tile shows (capabilities/perf-hud.js).
   perfHud: {
     get: () => PerfHud.normalizePerfHud(_serverHubSettings && _serverHubSettings.perfHud),
@@ -1370,25 +1377,9 @@ async function _enumStartMenuLnks() {
 }
 
 function _enumStoreApps() {
-  return new Promise((resolve) => {
-    execFile('powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
-        "Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name,AppID | ConvertTo-Json -Compress"],
-      { timeout: 9000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
-      (e, stdout) => {
-        const apps = [];
-        try {
-          const parsed = JSON.parse(String(stdout || '').trim() || '[]');
-          for (const a of Array.isArray(parsed) ? parsed : [parsed]) {
-            const aumid = a && a.AppID ? String(a.AppID) : '';
-            // Same strict AUMID shape the Deck's storeapp action validates.
-            if (!/^[\w.-]+![\w.-]+$/.test(aumid)) continue;
-            apps.push({ name: a && a.Name ? String(a.Name) : aumid, kind: 'store', target: aumid });
-          }
-        } catch { /* store enumeration is best-effort */ }
-        resolve(apps);
-      });
-  });
+  // Packaged apps only, by the same strict AUMID shape the Deck's storeapp action validates.
+  return readStartApps(execFile).then((apps) => apps.filter((a) => /^[\w.-]+![\w.-]+$/.test(a.id))
+    .map((a) => ({ name: a.name, kind: 'store', target: a.id })));
 }
 
 function getInstalledApps() {

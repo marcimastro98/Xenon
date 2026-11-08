@@ -68,6 +68,10 @@
 }
 .wn-item-ico--ph svg { width: 15px; height: 15px; }
 .wn-item-txt { flex: 1 1 auto; min-width: 0; }
+/* The text opens the app it came from (js/notification-open.js). */
+.wn-item-txt.is-openable { cursor: pointer; border-radius: 6px; }
+.wn-item:has(.is-openable):hover { background: rgba(var(--accent-rgb), 0.1); }
+.wn-item-txt.is-openable:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.9); outline-offset: 2px; }
 .wn-item-head { display: flex; align-items: baseline; gap: 8px; }
 .wn-item-app {
   flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

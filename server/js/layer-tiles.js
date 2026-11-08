@@ -78,7 +78,7 @@
     football: tile('football', 'FootballWidget', ['js/tile-tab-memory.js', 'js/football-widget.js'], { football: 'onSSE' }),
     news: tile('news', 'NewsWidget', ['js/news-widget.js'], { news: 'onSSE' }),
     slideshow: tile('slideshow', 'SlideshowWidget', ['js/slideshow-widget.js'], {}),
-    notifications: tile('notifications', 'NotificationsWidget', ['js/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
+    notifications: tile('notifications', 'NotificationsWidget', ['js/notification-open.js', 'js/notifications-widget.js'], { windows_notifications: 'onState', windows_notification: 'onItem' }),
     wavelink: tile('wavelink', 'WaveLinkWidget', ['js/wavelink-widget.js'], { wavelink: 'onSSE' }),
     obs: tile('obs', 'ObsWidget', ['js/obs-widget.js'], { obs: 'onObs', obs_preview: 'onObsPreview' }),
     discord: tile('discord', 'DiscordWidget', ['js/tile-tab-memory.js', 'js/discord-widget.js'], { discord: 'onSSE', discord_notification: 'onNotification' }),

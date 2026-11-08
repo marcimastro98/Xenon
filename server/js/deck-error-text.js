@@ -22,6 +22,8 @@
     pc_only: ['deck_err_pc_only', 'this works only on the PC itself'],
     bad_app_path: ['deck_err_bad_app_path', 'that is not something this system can launch'],
     launch_failed: ['deck_err_launch_failed', 'the app would not start'],
+    no_notification: ['deck_err_no_notification', 'there is no notification to open'],
+    not_launchable: ['deck_err_not_launchable', 'that app cannot be opened from here, open it yourself'],
     blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
     unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
     vitals_off: ['deck_err_vitals_off', 'Vitals is off: turn it on in Settings'],

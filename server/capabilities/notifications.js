@@ -45,4 +45,14 @@ async function setSwitches(d, action) {
   return { ok: true, ...view(state) };
 }
 
-module.exports = { setQuiet, setSwitches, changeFrom, QUIET };
+// The app a notification came from, to the front or started
+// (notification-open/). Only the feed's own id travels; none = the newest.
+async function openApp(d, action) {
+  const opener = d && d.notificationOpen;
+  if (!opener || typeof opener.open !== 'function') return { ok: false, error: 'unavailable' };
+  const id = action && action.id != null ? String(action.id) : '';
+  if (id && !/^[1-9][0-9]{0,14}$/.test(id)) return { ok: false, error: 'no_notification' };
+  return opener.open(id || 'latest');
+}
+
+module.exports = { setQuiet, setSwitches, openApp, changeFrom, QUIET };

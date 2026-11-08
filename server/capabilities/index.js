@@ -117,6 +117,7 @@ function createCapabilities(deps) {
       powerStatus: power.readable(d.power),
       powerMode: power.settable(d.power),
       notifications: !!d.notifications,
+      notificationOpen: !!(d.notificationOpen && d.notificationOpen.available()),
       // The setting exists everywhere; detection itself degrades per OS (gamedetect.js).
       gameMode: !!d.settingKeys,
       sensorHistory: !!d.settingKeys,
@@ -251,6 +252,7 @@ function createCapabilities(deps) {
       case 'screenAlerts': return usageMode.setScreenAlerts({ host: d.layersHost, settings: d.settings }, action);
       case 'dnd': return notifications.setQuiet(d, action);
       case 'notifications': return notifications.setSwitches(d, action);
+      case 'notificationOpen': return notifications.openApp(d, action);
       case 'gameMode': return gameMode.setGameMode(d, action);
       case 'gameIgnore': return gameMode.editIgnore(d, action);
       case 'sensorHistory': return gameMode.setSensorHistory(d, action);

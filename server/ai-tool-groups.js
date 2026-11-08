@@ -30,8 +30,8 @@ const GROUPS = Object.freeze({
     tools: ['place_widget', 'attach_widget_to_app', 'remove_layer_widget', 'move_layer_widget', 'group_layer_widgets', 'list_layer_widgets', 'edit_layer_widgets', 'toggle_layer_widgets', 'set_overlay_shortcut', 'set_widget_key', 'switch_widget_page', 'manage_widget_pages'],
   },
   desktop: {
-    about: 'the PC desktop and Xenon around it: wallpaper, screensaver, do not disturb, notifications, screen alerts, keyboard shortcuts, the Xenon menu, usage mode, the voice edge glow',
-    tools: ['set_voice_edge_glow', 'set_usage_mode', 'open_xenon_menu', 'set_desktop_wallpaper', 'set_pc_screensaver', 'set_screen_alerts', 'set_do_not_disturb', 'set_notifications', 'set_key_shortcut', 'set_widget_function_key', 'list_key_shortcuts'],
+    about: 'the PC desktop and Xenon around it: wallpaper, screensaver, do not disturb, notifications and opening the app one came from, screen alerts, keyboard shortcuts, the Xenon menu, usage mode, the voice edge glow',
+    tools: ['set_voice_edge_glow', 'set_usage_mode', 'open_xenon_menu', 'set_desktop_wallpaper', 'set_pc_screensaver', 'set_screen_alerts', 'set_do_not_disturb', 'set_notifications', 'open_notification_app', 'set_key_shortcut', 'set_widget_function_key', 'list_key_shortcuts'],
   },
   lighting_effects: {
     about: 'RGB effects and animations, lights that react to events, the lighting bridge (a plain colour or lights off need no group)',
