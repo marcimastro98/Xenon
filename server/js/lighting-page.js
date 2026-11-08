@@ -111,40 +111,37 @@
   // --- Dispositivi ----------------------------------------------------------------
   function devicesPanel(rerender, status, goConnections) {
     const box = panel();
-    const problem = icueProblem(status);
-    if (problem) box.appendChild(problem);
     const perLed = Array.isArray(status.devices) ? status.devices : [];
     perLed.forEach(d => box.appendChild(window.LightingDevice.card(rerender, status, d, d.source === 'native' ? d.maker : 'iCUE')));
     (status.providers || []).forEach((p) => {
       (p.devices || []).filter(d => !(d.needsPairing && !d.paired) && d.optedIn !== false)
         .forEach(d => box.appendChild(window.LightingDevice.card(rerender, status, { ...d, model: d.name || d.host }, p.name)));
     });
-    if (!box.querySelector('.lighting-device')) {
-      const empty = UI().card();
-      empty.classList.add('lighting-empty');
-      empty.body.appendChild(UI().hintP('', 'lighting_devices_empty'));
-      empty.body.appendChild(UI().button('settings-btn primary', 'lighting_go_connections', 'Apri Connessioni', goConnections));
-      box.appendChild(empty);
+    const none = !box.querySelector('.lighting-device');
+    const lines = icueProblem(status);
+    if (none) lines.unshift(UI().hintP('', 'lighting_devices_empty'));
+    if (lines.length) {
+      const notice = UI().card();
+      notice.body.appendChild(UI().noteRow(lines,
+        UI().button(none ? 'settings-btn primary' : 'settings-btn', 'lighting_go_connections', 'Apri Connessioni', goConnections)));
+      box.prepend(notice);
     }
     return box;
   }
 
-  // Why Corsair lights are missing, when they are: no SDK component, or a
-  // session that something wants but iCUE refused.
+  // Why Corsair lights are missing, when they are: no SDK component (the ordinary
+  // case since iCUE 5.48), or a session that something wants but iCUE refused.
   function icueProblem(status) {
-    const lines = [];
     if (!status.available) {
-      lines.push(UI().hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing'));
-    } else if (wantsSession(status) && !status.connected) {
-      lines.push(UI().hintP('', 'lighting_icue_off_hint'));
-      // The bridge's own reason stays visible: it is what tells a real failure apart.
-      if (status.reason) lines.push(UI().hintP(String(status.reason)));
+      return [UI().hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing')];
     }
-    if (!lines.length) return null;
-    const card = UI().card();
-    card.classList.add('lighting-warn');
-    card.body.append(...lines);
-    return card;
+    if (wantsSession(status) && !status.connected) {
+      const off = UI().hintP('', 'lighting_icue_off_hint');
+      off.classList.add('lighting-warn');
+      // The bridge's own reason stays visible: it is what tells a real failure apart.
+      return status.reason ? [off, UI().hintP(String(status.reason))] : [off];
+    }
+    return [];
   }
 
   // --- Effetti ----------------------------------------------------------------------
@@ -153,13 +150,12 @@
   function effectsPanel(rerender, status) {
     const box = panel();
     const manual = UI().card('lighting_manual', 'Colore manuale');
-    manual.body.appendChild(UI().hintP('', 'lighting_manual_hint'));
-    const colorRow = UI().el('div', 'lighting-inline');
-    colorRow.append(
+    const color = UI().el('div', 'lighting-inline');
+    color.append(
       UI().hexColorControl(status.manualColor || '#1ed760', (v) => UI().post('/api/lighting/manual', { color: v })),
       UI().button('settings-btn', 'lighting_manual_clear', 'Reset', () => UI().post('/api/lighting/manual', { clear: true })),
     );
-    manual.body.appendChild(colorRow);
+    manual.body.appendChild(UI().noteRow(UI().hintP('', 'lighting_manual_hint'), color));
     box.appendChild(manual);
 
     const anim = UI().card('lighting_anim', 'Animazione');
@@ -215,7 +211,7 @@
       row.appendChild(cell);
     });
     if (pal.length < 5) {
-      row.appendChild(UI().button('settings-btn', 'lighting_palette_add', '+ Colore',
+      row.appendChild(UI().button('settings-btn', 'lighting_palette_add', 'Aggiungi colore',
         () => push(pal.concat(pal[pal.length - 1]))));
     }
     return UI().labeledRow('lighting_palette_colors', row);
@@ -225,7 +221,7 @@
   function reactionsPanel(rerender, status) {
     const box = panel();
     const eff = status.effects || {};
-    const auto = UI().card('lighting_tab_reactions', 'Reazioni');
+    const auto = UI().card();
     auto.body.append(
       UI().toggleRow('lighting_effect_temperature', eff.temperature !== false,
         (on) => UI().post('/api/lighting/effects', { effects: { temperature: on } }), 'lighting_effect_temperature_hint'),
@@ -241,8 +237,8 @@
     return box;
   }
 
-  // Event flash (timer / notification / reminder): a toggle, and while it is on
-  // its colour, style and duration (0.5–10 s).
+  // Event flash (timer / notification / reminder): a toggle, and while it is on its
+  // colour, style and duration (0.5–10 s) closed under it.
   function eventBlock(rerender, type, ev) {
     const cfg = (ev && typeof ev === 'object') ? ev : { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
     const send = (patch) => UI().post('/api/lighting/effects', { effects: { [type]: patch } });
@@ -253,7 +249,7 @@
     }));
     if (cfg.enabled === false) return block;
 
-    const opts = UI().el('div', 'lighting-event-opts');
+    const opts = UI().el('div', 'settings-grid');
     opts.appendChild(UI().labeledRow('lighting_show_color', UI().hexColorControl(cfg.color || '#ff0000', (v) => send({ color: v }))));
     opts.appendChild(UI().segmentedRow('lighting_event_style', [
       ['blink', 'lighting_style_blink', 'Blink'], ['pulse', 'lighting_style_pulse', 'Pulse'], ['solid', 'lighting_style_solid', 'Solid'],
@@ -272,7 +268,11 @@
     dur.addEventListener('input', () => { durVal.textContent = fmtSecs(Number(dur.value)); });
     dur.addEventListener('change', () => send({ durationMs: Number(dur.value) }));
     opts.appendChild(durRow);
-    block.appendChild(opts);
+    const look = UI().el('details', 'settings-expander');
+    const name = UI().el('summary');
+    name.appendChild(UI().el('span', 'settings-label-line', 'lighting_event_look', 'Colore, stile e durata'));
+    look.append(name, opts);
+    block.appendChild(look);
     return block;
   }
 

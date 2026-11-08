@@ -1,81 +1,67 @@
-/* Lighting hub (Settings → Illuminazione). The page is a stack of Settings cards
-   (.settings-group, built by lighting-ui.js) and uses the shared settings-*
-   controls; this file only adds the layout around them and the LED map. */
-.lighting-page { display: flex; flex-direction: column; gap: 12px; }
+/* Lighting hub (Settings → Lighting). The page is a stack of Settings sections
+   (.settings-group, built by lighting-ui.js) with the shared rows and controls; this
+   file only adds the layout around them and the LED map. */
+.lighting-page, .lighting-panel-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; min-width: 0; }
 .lighting-tabpanel[hidden] { display: none; }
-.lighting-panel-body { display: flex; flex-direction: column; gap: 12px; }
 
 /* ── Tabs: the settings segmented control, four across ── */
 .settings-seg.lighting-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .lighting-tabs .settings-seg-btn { min-height: 40px; overflow-wrap: anywhere; }
 
-/* ── Card body: the 16px inset of every Settings card, rows 12px apart. The
-   bottom padding is 0 because the card's last child already gets 12px of
-   margin from the shared .settings-group > :last-child rule. ── */
-.lighting-card-body { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 0; min-width: 0; }
-.lighting-card-body > .settings-toggle-row { margin: 0 -7px; }
-.lighting-card-body .settings-hint { margin: 0; line-height: 1.4; }
-.lighting-warn .settings-hint:first-child { color: var(--color-warn); }
-.lighting-empty .lighting-card-body { align-items: center; text-align: center; padding-top: 20px; }
-.lighting-device-brand { color: var(--muted-text); font-size: 11.5px; font-weight: 750; }
+/* ── The rows of a section, straight in its well ── */
+.lighting-card-body { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.lighting-card-body > .settings-hint { margin: 0; padding: 12px 16px; }
+.lighting-card-body > .settings-hint + .settings-hint { padding-top: 0; }
+.lighting-card-body > .streaming-copy-row { padding: 0 16px 12px; }
+#settings-overlay .settings-hint.lighting-warn { color: var(--color-warn); }
+#settings-overlay .settings-hint.lighting-provider-ok { color: var(--color-success); }
+#settings-overlay .settings-note:empty { display: none; }
+.lighting-device-brand, .lighting-provider-ok, .lighting-provider-off { color: var(--cst-muted); font-size: 13.5px; font-weight: 500; }
+.lighting-provider-ok { color: var(--color-success); }
 .lighting-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lighting-inline .settings-note { margin: 0; }
 
 /* ── Segmented choices: the settings control with a column count per use ── */
-.settings-segmented.lighting-seg[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.settings-segmented.lighting-seg[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.settings-segmented.lighting-seg[data-cols="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.lighting-seg .settings-segment-btn { height: auto; min-height: 34px; padding: 4px 6px; overflow-wrap: anywhere; }
+#settings-overlay .settings-segmented.lighting-seg { display: grid; grid-auto-flow: row; }
+#settings-overlay .settings-segmented.lighting-seg[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#settings-overlay .settings-segmented.lighting-seg[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#settings-overlay .settings-segmented.lighting-seg[data-cols="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#settings-overlay .lighting-seg .settings-segment-btn { padding: 4px 12px; overflow-wrap: anywhere; white-space: normal; }
+.lighting-card-body > .lighting-seg { margin: 12px 16px; }
 
 /* ── Colours ── */
-.lighting-color-ctl { max-width: 220px; }
+#settings-overlay .lighting-color-ctl { width: 200px; }
 .lighting-color-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.lighting-color-choice .lighting-color-ctl { flex: 1 1 160px; }
 .lighting-quick-color {
-  width: 34px; height: 34px; border-radius: 9px; cursor: pointer; padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--cst-sep);
 }
-.lighting-quick-color:focus-visible, .lighting-part-name:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.lighting-quick-color:focus-visible, .lighting-part-name:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 2px; }
 .lighting-palette-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lighting-palette-cell { display: inline-flex; align-items: center; gap: 4px; }
-.lighting-palette-cell .lighting-color-ctl { width: 150px; }
-.lighting-remove { min-width: 34px; padding: 0; }
+#settings-overlay .lighting-palette-cell .lighting-color-ctl { width: 150px; }
+#settings-overlay .lighting-remove { width: 40px; padding: 0; color: var(--cst-muted); background: none; }
+#settings-overlay .lighting-remove:hover:not(:disabled) { color: var(--cst-text); background: var(--cst-well); }
 
-/* ── Event flashes: each a toggle, its options indented under it while on ── */
-.lighting-event + .lighting-event { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 8px; }
-.lighting-event > .settings-toggle-row { margin: 0 -7px; }
-.lighting-event-opts { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px 26px; }
+/* ── Event flashes: each a switch, its look closed under it ── */
+.lighting-event { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 
-/* ── Connections: providers are sections of one card, not cards in a card ── */
-.lighting-scan { align-self: flex-start; }
-.lighting-provider {
-  display: flex; flex-direction: column; gap: 8px;
-  padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-.lighting-provider-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.lighting-provider-name { font-size: 12.5px; font-weight: 850; }
-.lighting-provider-ok { color: var(--color-success); font-size: 11.5px; font-weight: 800; }
-.lighting-provider-off { color: var(--muted-text); font-size: 11.5px; font-weight: 800; }
-.lighting-ext-device { display: flex; flex-direction: column; gap: 6px; }
-.lighting-ext-device-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 750; overflow-wrap: anywhere; }
-.lighting-ext-device-actions { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.lighting-addip { display: flex; align-items: center; gap: 8px; }
-.lighting-addip .settings-text-input { flex: 1 1 auto; max-width: 240px; }
-.lighting-addip .settings-text-input.invalid { border-color: rgba(var(--danger-rgb), 0.6); }
-.lighting-advanced summary {
-  cursor: pointer; min-height: 40px; display: flex; align-items: center;
-  font-size: 12.5px; font-weight: 850; border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
+/* ── Connections ── */
+.lighting-ext-device-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 12px; }
+.lighting-addip { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#settings-overlay .lighting-addip .settings-text-input { width: 200px; flex: 1 1 auto; }
+#settings-overlay .lighting-addip .settings-text-input.invalid { outline: 2px solid var(--cst-danger); outline-offset: -2px; }
 
 /* ── Fans and LEDs of one device (lighting-device.js + lighting-map.js) ── */
-.lighting-parts { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
-.lighting-map { display: flex; flex-direction: column; gap: 12px; }
+.lighting-parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; padding: 0 16px 14px; }
+.lighting-parts > .settings-hint { margin: 0; }
+.lighting-map { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; padding-top: 4px; }
 .lighting-map-parts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
 .lighting-part {
   margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%;
-  padding: 8px; border: 1px solid transparent; border-radius: 12px;
+  padding: 8px; border-radius: 10px;
 }
-.lighting-part.is-selected { border-color: rgba(var(--accent-rgb), 0.45); background: rgba(var(--accent-rgb), 0.08); }
+.lighting-part.is-selected { background: var(--cst-well); box-shadow: inset 0 0 0 2px var(--cst-text); }
 .lighting-part-leds {
   display: block; max-width: 100%; height: auto;
   touch-action: none; /* a drag across the LEDs selects, it must not scroll the page */
@@ -98,52 +84,41 @@
 .lighting-led.is-neutral { fill: var(--text); fill-opacity: 0.22; }
 .lighting-led.is-selected { stroke: var(--text); stroke-width: 2.5; }
 .lighting-part-name {
-  min-height: 34px; padding: 0 10px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 9px;
-  background: rgba(255, 255, 255, 0.05); color: var(--text);
-  font: inherit; font-size: 12px; font-weight: 850; cursor: pointer;
+  min-height: 36px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: var(--cst-well); color: var(--cst-text);
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
 }
-.lighting-part-name:hover { background: rgba(255, 255, 255, 0.09); }
-.lighting-part-model { margin-left: 6px; color: var(--muted-text); font-weight: 750; }
+.lighting-part-name:hover { background: var(--cst-on); }
+.lighting-part-model { margin-left: 6px; color: var(--cst-muted); font-weight: 500; }
 
-/* The editor of the chosen LEDs: a tinted panel under the map, only while
-   something is chosen. */
+/* The editor of the chosen LEDs: more rows under the map, only while something is chosen. */
 .lighting-sel-slot:empty { display: none; }
-.lighting-sel {
-  display: flex; flex-direction: column; gap: 10px; padding: 12px;
-  border: 1px solid rgba(var(--accent-rgb), 0.28); border-radius: 12px;
-  background: rgba(var(--accent-rgb), 0.06);
-}
-.lighting-sel-head .settings-btn { min-height: 32px; }
-.lighting-sel-body, .lighting-sel-extras { display: flex; flex-direction: column; gap: 10px; }
+.lighting-sel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 12px; border-top: 1px solid var(--cst-sep); }
+#settings-overlay .lighting-sel .settings-row { min-height: 0; padding: 4px 0; background: none; }
+.lighting-sel-body, .lighting-sel-extras { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .lighting-sel-body:empty, .lighting-sel-extras:empty { display: none; }
 
 /* ── A board Xenon drives itself: one map group per output, with its setup (lighting-setup.js) ── */
-.lighting-map-groups { display: flex; flex-direction: column; }
-.lighting-map-group { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
-.lighting-map-group + .lighting-map-group { border-top: 1px solid rgba(255, 255, 255, 0.06); }
-.lighting-output-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 36px; }
-.lighting-output-name { font-size: 12.5px; font-weight: 750; }
+.lighting-map-groups { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.lighting-map-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px 0; }
+.lighting-map-group + .lighting-map-group { border-top: 1px solid var(--cst-sep); }
+.lighting-output-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 40px; }
+.lighting-output-name { color: var(--cst-text); font-size: 15px; font-weight: 600; }
 .lighting-output-head .settings-hint { margin: 0; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-.lighting-output-tools { display: flex; flex-wrap: wrap; gap: 6px; }
-.lighting-setup {
-  display: flex; flex-direction: column; gap: 10px; padding: 12px;
-  border: 1px solid rgba(var(--accent-rgb), 0.28); border-radius: 12px;
-  background: rgba(var(--accent-rgb), 0.06);
-}
+.lighting-output-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.lighting-setup { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 12px; padding-top: 4px; }
 .lighting-setup-done:empty { display: none; }
 .lighting-stepper { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.lighting-stepper .settings-btn { min-width: 40px; min-height: 36px; font-size: 16px; font-weight: 800; }
-.lighting-stepper-value { min-width: 3ch; text-align: center; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#settings-overlay .lighting-stepper .settings-btn { min-width: 44px; padding: 0 10px; font-variant-numeric: tabular-nums; }
+.lighting-stepper-value { min-width: 4ch; color: var(--cst-text); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
 
-@media (max-width: 560px) {
-  .lighting-stepper .settings-btn, .lighting-output-head .settings-btn, .lighting-setup .lighting-inline .settings-btn { min-height: 44px; }
-  .lighting-stepper .settings-btn { min-width: 44px; }
+@container settings-page (max-width: 640px) {
   .settings-seg.lighting-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .settings-segmented.lighting-seg[data-cols="4"],
-  .settings-segmented.lighting-seg[data-cols="5"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lighting-seg .settings-segment-btn, .lighting-part-name, .lighting-quick-color, .lighting-sel-head .settings-btn { min-height: 44px; }
-  .lighting-quick-color { width: 44px; }
-  .lighting-event-opts { padding-left: 0; }
+  #settings-overlay .settings-segmented.lighting-seg[data-cols="4"],
+  #settings-overlay .settings-segmented.lighting-seg[data-cols="5"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #settings-overlay .lighting-seg .settings-segment-btn, .lighting-part-name, .lighting-quick-color { min-height: 44px; }
+  .lighting-quick-color { width: 44px; height: 44px; }
+  .lighting-addip { flex: 1 1 100%; }
 }
 
 /* The Settings select style, used by other Settings pages too. */

@@ -69,13 +69,13 @@
   const sum = (list) => list.reduce((s, n) => s + n, 0);
   const layoutTotal = (layout) => (layout && layout.parts ? sum(layout.parts.map(p => p.count)) : 0);
 
-  // "40 LED", "3 pezzi · 40 LED", "Niente collegato", "Da configurare".
+  // "40 LED", "40 LED in 3 pezzi", "Niente collegato", "Da configurare".
   function stateText(layout) {
     if (!layout) return UI().tr('lighting_output_unset', 'Da configurare');
     if (layout.empty) return UI().tr('lighting_output_empty', 'Niente collegato');
     const n = String(layoutTotal(layout));
     if (layout.parts.length > 1) {
-      return UI().tr('lighting_output_pieces', '{p} pezzi · {n} LED').replace('{p}', String(layout.parts.length)).replace('{n}', n);
+      return UI().tr('lighting_output_pieces', '{n} LED in {p} pezzi').replace('{p}', String(layout.parts.length)).replace('{n}', n);
     }
     return UI().tr('lighting_output_leds', '{n} LED').replace('{n}', n);
   }
@@ -184,11 +184,11 @@
     const number = UI().tr('lighting_output_n', 'Uscita {n}').replace('{n}', String(output + 1));
     const named = layout && layout.name;
     name.textContent = named || number;
-    h.append(name, UI().el('span', 'settings-hint', '', (named ? number + ' · ' : '') + stateText(layout)));
+    h.append(name, UI().el('span', 'settings-hint', '', (named ? number + ', ' : '') + stateText(layout)));
     if (isOpen) return h;
     const tools = UI().el('div', 'lighting-output-tools');
     if (!layout) {
-      tools.appendChild(UI().button('settings-btn primary', 'lighting_output_count', 'Conta i LED',
+      tools.appendChild(UI().button('settings-btn', 'lighting_output_count', 'Conta i LED',
         () => open(dev, output, 'count', null, rerender)));
     } else {
       if (!layout.empty) {

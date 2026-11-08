@@ -15,6 +15,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const GEN2_SCAN_WAIT_MS = 700;   // the controller needs this long to walk the chain
 const GEN2_SETTLE_MS = 20;       // after a scan, before the next command
 const ZONE_MAX_DEFER_MS = 500;   // board lights keep up at least this often during fast effects
+const WAKE_SETTLE_MS = 50;       // after effects-off, as a first frame waits
 const BLACK = { r: 0, g: 0, b: 0 };
 
 class Fusion2Controller {
@@ -191,6 +192,20 @@ class Fusion2Controller {
     const frames = Array.from({ length: this.headers }, (_, s) =>
       new Array(Math.max(1, lengths[s] || 0, this.counts[s] || 0)).fill(BLACK));
     return this.write(frames, this.zones.map(() => BLACK));
+  }
+
+  // For a board iCUE paints, not us. Seen on an IT5711: after a power-on with
+  // GIGABYTE's app not running, the chip plays a colour cycle on every output and
+  // ignores iCUE's plugin until an onboard zone gets a static effect.
+  // Black, because iCUE repaints what it reaches and the rest stays dark. RAM only.
+  wake() {
+    return this.run(async () => {
+      await this.send(P.effectsOffPacket([]));
+      await sleep(WAKE_SETTLE_MS);
+      for (const z of this.zones) await this.send(P.zoneColorPacket(z, BLACK));
+      await this.send(P.applyPacket(this.hidInfo.productId));
+      this.forget();
+    });
   }
 
   // Forget what the controller was told (LED counts, frames, who owns the

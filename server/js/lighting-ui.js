@@ -146,6 +146,24 @@
     return row;
   }
 
+  // A row whose name is a sentence: the words on the left, what they lead to on the
+  // right. `words` is one node or a list; `control` is optional.
+  function noteRow(words, control) {
+    const row = el('div', 'settings-row lighting-row');
+    const line = el('div', 'settings-label-line');
+    line.append(...[].concat(words));
+    row.appendChild(line);
+    if (control) row.appendChild(control);
+    return row;
+  }
+
+  // Keys with nothing to name: a row of their own.
+  function keysRow(...keys) {
+    const row = el('div', 'settings-row settings-row-keys');
+    row.append(...keys);
+    return row;
+  }
+
   // Hex colour input + live swatch (the native colour picker is unreliable on the
   // Xeneon Edge WebView — tapping the swatch opens the in-app ColorPicker instead).
   // Accepts "#rrggbb" or "rrggbb". Returns the box; box.setValue(hex) updates it
@@ -225,7 +243,7 @@
 
   window.LightingUI = {
     lightingFromStatus, fetchStatus, post, tr, localizeSubtree,
-    el, button, card, toggleRow, segmented, segmentedRow, speedSlider, labeledRow, hexColorControl, colorChoice, hintP,
+    el, button, card, toggleRow, segmented, segmentedRow, speedSlider, labeledRow, noteRow, keysRow, hexColorControl, colorChoice, hintP,
     EFFECTS, effectExtras,
   };
 })();

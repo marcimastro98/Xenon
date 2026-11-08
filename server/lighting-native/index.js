@@ -21,6 +21,7 @@ const NO_PERMISSION = 'no-permission';   // hid-linux.js: the OS keeps the devic
 const state = {
   enabled: false,
   layouts: {},
+  scanned: {},       // { deviceId: ['h0', ...] }: outputs a Gen2 scan already looked at
   controllers: [],   // [{ id, ctl, info }]
   error: '',
   starting: null,
@@ -38,7 +39,8 @@ function controllerId(info, index) {
   return 'fusion2-' + (info.chipId >>> 0).toString(16) + (index ? '-' + index : '');
 }
 
-async function start() {
+// rescan: the user asked to look again, so outputs already scanned are scanned once more.
+async function start({ rescan = false } = {}) {
   if (state.starting) return state.starting;
   state.starting = (async () => {
     state.error = '';
@@ -51,7 +53,7 @@ async function start() {
           const entry = { id: controllerId(info, i), ctl, info };
           state.controllers.push(entry);
           state.cache = null;
-          await prefillFromGen2(entry);
+          await prefillFromGen2(entry, { rescan });
         } catch (e) {
           state.error = e.message;
           await ctl.close().catch(() => {});
@@ -68,25 +70,44 @@ async function start() {
 }
 
 // Gen2 fans and strips report their own LED count: an output they hang on gets
-// its parts without any setup. Only outputs nobody set up are scanned, so once
-// every output has an answer the controller is never scanned again.
-async function prefillFromGen2(entry) {
+// its parts without any setup. A scan makes the chip write its own flash, so each
+// output is scanned once: only the user's "Search again" asks again.
+// A scan that failed is not remembered, the next start tries it again.
+async function prefillFromGen2(entry, { rescan = false } = {}) {
   const setUp = state.layouts[entry.id] || {};
-  const unset = Array.from({ length: entry.ctl.headers }, (_, o) => o).filter(o => !setUp['h' + o]);
+  const seen = state.scanned[entry.id] || [];
+  const unset = Array.from({ length: entry.ctl.headers }, (_, o) => o)
+    .filter(o => !setUp['h' + o] && (rescan || !seen.includes('h' + o)));
   if (!unset.length) return;
-  const counts = await entry.ctl.scanGen2(unset).catch(() => []);
+  const counts = await entry.ctl.scanGen2(unset).catch(() => null);
+  if (!counts) return;
   const dev = { ...(state.layouts[entry.id] || {}) };   // read after the scan: the user may have set one up meanwhile
-  let changed = false;
   counts.forEach((list, output) => {
     const zone = 'h' + output;
     if (!list.length || dev[zone]) return;
     dev[zone] = { parts: list.map(count => ({ kind: 'piece', count })) };
-    changed = true;
   });
-  if (!changed) return;
   state.layouts = layoutsLib.normalizeLayouts({ ...state.layouts, [entry.id]: dev });
+  state.scanned = layoutsLib.normalizeScanned({ ...state.scanned, [entry.id]: [...seen, ...unset.map(o => 'h' + o)] });
   state.cache = null;
   if (state.onChange) state.onChange();
+}
+
+// The board comes through iCUE and Xenon does not own the controller: open it just
+// long enough to wake it (see Fusion2Controller.wake), and leave the headers alone.
+// Resolves true when a controller was woken. With native control on, it does nothing.
+async function wakeForVendor() {
+  if (state.enabled || !hid.available) return false;
+  const found = await fusion2.discover();
+  for (const ctl of found) {
+    try {
+      await ctl.open();
+      await ctl.wake();
+    } finally {
+      await ctl.close({ handBack: false }).catch(() => {});
+    }
+  }
+  return found.length > 0;
 }
 
 async function stop() {
@@ -100,8 +121,9 @@ async function stop() {
   await Promise.all(list.map(c => c.ctl.close({ handBack }).catch(() => {})));
 }
 
-async function configure({ enabled, layouts }) {
+async function configure({ enabled, layouts, scanned }) {
   if (layouts !== undefined) { state.layouts = layoutsLib.normalizeLayouts(layouts); state.cache = null; }
+  if (scanned !== undefined) state.scanned = layoutsLib.normalizeScanned(scanned);
   if (typeof enabled !== 'boolean' || enabled === state.enabled) return;
   state.enabled = enabled;
   if (!hid.available) return;
@@ -252,6 +274,7 @@ function setLayout(id, zone, layout) {
 }
 
 function getLayouts() { return JSON.parse(JSON.stringify(state.layouts)); }
+function getScanned() { return JSON.parse(JSON.stringify(state.scanned)); }
 
 function status() {
   return {
@@ -268,7 +291,7 @@ function status() {
 }
 
 module.exports = {
-  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, setPreview, clearPreview,
-  setLayout, getLayouts, status, setChangeHook, setWriteErrorHook, _previewFrame: previewFrame, _framesFor: framesFor, _zoneColorsFor: zoneColorsFor,
+  configure, start, stop, devices, hasDevices, owns, write, release, powerDown, resume, setPreview, clearPreview, wakeForVendor,
+  setLayout, getLayouts, getScanned, status, setChangeHook, setWriteErrorHook, _previewFrame: previewFrame, _framesFor: framesFor, _zoneColorsFor: zoneColorsFor,
   _prefillFromGen2: prefillFromGen2,
 };

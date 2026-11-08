@@ -93,6 +93,7 @@ let lastError = null;
 let dllPath = null;
 let devices = [];                 // [{ id, model, type, ledCount, ledIds:[uint32] }]
 let lastWrite = new Map();        // deviceId → "r,g,b" of the last colour written (on-change guard)
+const wokenBoards = new Set();    // motherboards already woken in this iCUE session (see wakeVendorBoard)
 
 const gameDetect = require('./gamedetect');
 
@@ -225,6 +226,7 @@ function connect() {
       const now = (state === CSS_CONNECTED);
       if (now && !connected) {
         connected = true; connecting = false;
+        wokenBoards.clear();
         // Defer ALL SDK calls out of this callback. The SDK invokes us from its
         // own worker thread and blocks that thread until we return; making a
         // synchronous SDK call here (enumerate → CorsairGetDevices) would wait on
@@ -328,6 +330,7 @@ function noteSdkFailure(e) {
   if (e instanceof SdkError && e.rc === CE_NOT_CONNECTED) {
     connected = false;
     devices = [];
+    wokenBoards.clear();
     lastWrite.clear();
   }
 }
@@ -379,6 +382,7 @@ async function enumerateOnce() {
       });
     }
     devices = list;
+    wakeVendorBoard();
     // A complete enumeration (every device answered with real LED ids) clears the
     // partial-retry budget, so a later 0-LED reappearance (e.g. an iCUE LINK
     // hot-replug) gets its own fresh round of retries.
@@ -393,6 +397,23 @@ async function enumerateOnce() {
     enumerating = false;
     enumeratePending = null;
   }
+}
+
+// A motherboard reaching us through iCUE may need its chip woken before it takes
+// colours (see Fusion2Controller.wake). Once per appearance: after a boot, a new
+// iCUE session or a wake from sleep. A board Xenon was told to leave alone is left
+// alone, and so is any board that has no Fusion 2 chip (wakeForVendor finds none).
+function boardsToWake(list, optOuts, woken) {
+  return list.filter(d => (Number(d.type) & CDT_MOTHERBOARD) && d.ledIds.length && optOuts[d.id] !== false && !woken.has(d.id));
+}
+
+function wakeVendorBoard() {
+  const fresh = boardsToWake(devices, config.devices, wokenBoards);
+  if (!fresh.length || !wantsPaint()) return;
+  for (const d of fresh) wokenBoards.add(d.id);
+  native.wakeForVendor()
+    .then((woken) => { if (woken) { lastWrite.clear(); apply(); } })
+    .catch((e) => { lastError = e.message; for (const d of fresh) wokenBoards.delete(d.id); });
 }
 
 // --- Channel layout (which LEDs are which fan / pump / RAM stick) ------------
@@ -479,7 +500,7 @@ async function getBatteryLevels() {
       }
       const percent = buf.readInt32LE(8);
       if (percent < 0 || percent > 100) continue;
-      out.push({ name: String(dev.model || '').trim(), percent });
+      out.push({ name: String(dev.model || '').trim(), percent, unit: String(dev.id || '') });
     } catch { /* per-device failure: skip, never fail the batch */ }
   }
   return { ok: true, devices: out.filter(d => d.name) };
@@ -1216,6 +1237,8 @@ function powerUp() {
   if (!poweredDown) return;
   poweredDown = false;
   native.resume();
+  wokenBoards.clear();
+  wakeVendorBoard();
   lastWrite.clear();
   apply();
 }
@@ -1253,6 +1276,7 @@ function applyConfig(next) {
   if (!next || typeof next !== 'object') return;
   if (typeof next.enabled === 'boolean') config.enabled = next.enabled;
   if (next.enabled === true) keyLook.setOut(false);   // switching the lights on in Settings ends a key's "lights off"
+  else if (next.enabled === false && next.lightsOut === true) keyLook.setOut(true);   // saved dark by a key: still dark after a restart
   if (typeof next.brightness === 'number') config.brightness = Math.max(0, Math.min(1, next.brightness));
   if (typeof next.pauseDuringGame === 'boolean') config.pauseDuringGame = next.pauseDuringGame;
   if (next.devices && typeof next.devices === 'object') config.devices = next.devices;
@@ -1319,7 +1343,7 @@ function applyConfig(next) {
 function configureNative(next) {
   const enabled = typeof next.enabled === 'boolean' ? next.enabled : undefined;
   lastWrite.clear();
-  native.configure({ enabled, layouts: next.layouts })
+  native.configure({ enabled, layouts: next.layouts, scanned: next.scanned })
     .catch((e) => { lastError = e.message; })
     .then(() => { lastWrite.clear(); apply(); });
 }
@@ -1342,7 +1366,7 @@ async function setNativePreview(id, output, opts) {
 
 async function scanNative() {
   await native.stop();
-  await native.start();
+  await native.start({ rescan: true });
   lastWrite.clear();
   apply();
   return native.status();
@@ -1377,6 +1401,7 @@ function setExternalRuntime(providerId, hooks) { external.setRuntime(providerId,
 function getConfig() {
   return {
     enabled: config.enabled,
+    lightsOut: keyLook.isOut(),
     brightness: config.brightness,
     pauseDuringGame: config.pauseDuringGame,
     devices: { ...config.devices },
@@ -1385,7 +1410,7 @@ function getConfig() {
     manualColor: config.manualColor || '',
     deviceModes: JSON.parse(JSON.stringify(config.deviceModes)),
     providers: external.getConfig(),
-    native: { enabled: native.status().enabled, layouts: native.getLayouts() },
+    native: { enabled: native.status().enabled, layouts: native.getLayouts(), scanned: native.getScanned() },
   };
 }
 
@@ -1428,5 +1453,6 @@ module.exports = {
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
   setPartLook, holdKeyLook, releaseKeyLook, setLightsOut, isLightsOut, powerDown, powerUp, setNativeEnabled, setNativeLayout, setNativePreview, scanNative, setNativeChangeHook: native.setChangeHook, closeNative: native.stop,
   _fx: fx,
+  _boardsToWake: boardsToWake,
   _enumerationComplete: enumerationComplete, // pure predicate — unit-tested in lighting-enumeration.test.mjs
 };

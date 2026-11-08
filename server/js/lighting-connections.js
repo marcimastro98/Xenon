@@ -7,6 +7,7 @@
   'use strict';
   const UI = () => window.LightingUI;
   const NATIVE_OPEN_WAIT_MS = 1500;   // USB open + init before the card shows what was found
+  const NO_ADDRESS = ['chroma'];      // one local session: nothing to type, no host to show
 
   // --- Corsair iCUE --------------------------------------------------------------
   function icueCard(rerender, status) {
@@ -20,8 +21,7 @@
     if (!status.available) {
       // Since iCUE 5.48 stopped installing the SDK component, this is the
       // ordinary case rather than a broken iCUE — so offer to fetch it.
-      card.body.appendChild(UI().hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing'));
-      card.body.appendChild(sdkInstallRow(rerender));
+      card.body.append(...sdkInstall(rerender));
     } else if (!status.connected) {
       card.body.appendChild(UI().hintP('', 'lighting_icue_off_hint'));
     } else {
@@ -34,11 +34,10 @@
   // Deliberately NOT automatic: it downloads native code the server then loads,
   // so the user starts it. The server pins the version and verifies the archive's
   // SHA-256 before anything is extracted (icue-sdk-update.ps1).
-  function sdkInstallRow(rerender) {
-    const row = UI().el('div', 'lighting-inline lighting-sdk-install');
+  function sdkInstall(rerender) {
     const state = UI().hintP('');
     state.hidden = true;
-    const btn = UI().button('settings-btn primary', 'lighting_sdk_install', 'Scarica componente', async () => {
+    const btn = UI().button('settings-btn', 'lighting_sdk_install', 'Scarica componente', async () => {
       btn.disabled = true;
       state.hidden = false;
       state.removeAttribute('data-i18n');
@@ -56,8 +55,7 @@
       state.textContent = UI().tr('lighting_sdk_failed', 'Download non riuscito.') + (r && r.error ? ' ' + r.error : '');
       btn.disabled = false;
     });
-    row.append(btn, state);
-    return row;
+    return [UI().noteRow(UI().hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing'), btn), state];
   }
 
   // Linux keeps the controller for root until a udev rule says otherwise: the chip
@@ -113,90 +111,91 @@
       await UI().post('/api/lighting/native/scan', {});
       rerender();
     });
-    card.body.appendChild(rescan);
+    card.body.appendChild(UI().keysRow(rescan));
     return card;
   }
 
   // --- Razer Chroma --------------------------------------------------------------
   // The enable flag lives in the client settings (hubSettings.chroma) and is saved
   // by settings.js; the element ids are the ones settings.js syncs and reports to.
-  function chromaCard() {
+  function chromaCard(rerender, status) {
     const card = UI().card('settings_chroma_title', 'Razer Chroma');
+    const provider = (status.providers || []).find(p => p.id === 'chroma');
     card.body.appendChild(UI().hintP('', 'settings_chroma_hint'));
     const enabled = typeof hubSettings === 'object' && hubSettings && hubSettings.chroma && hubSettings.chroma.enabled === true;
     const toggle = UI().toggleRow('settings_chroma_enable', enabled, (on) => {
       if (typeof window.updateChromaEnabled === 'function') window.updateChromaEnabled(on);
     }, 'settings_chroma_enable_hint');
     toggle.querySelector('input').id = 'settings-chroma-enabled';
-    const test = UI().el('div', 'lighting-inline');
     const btn = UI().button('settings-btn', 'settings_chroma_test', 'Verifica connessione', () => {
       if (typeof window.testChromaConnection === 'function') window.testChromaConnection(btn);
     });
     const out = UI().el('p', 'settings-note');
     out.id = 'settings-chroma-status';
-    test.append(btn, out);
-    card.body.append(toggle, test);
+    const keys = UI().keysRow(btn);
+    if (provider && provider.download) keys.appendChild(downloadKey(provider));
+    keys.appendChild(out);
+    card.body.append(toggle, keys);
     return card;
   }
 
   // --- network providers (Govee / LIFX / WLED / Hue / Nanoleaf / OpenRGB …) ------
   function externalSection(rerender, status) {
     const box = UI().card('lighting_external_title', 'Sistemi esterni');
-    const scanBtn = UI().button('settings-btn primary lighting-scan', 'lighting_scan', 'Cerca dispositivi sulla rete', async () => {
+    const scanBtn = UI().button('settings-btn', 'lighting_scan', 'Cerca dispositivi sulla rete', async () => {
       scanBtn.disabled = true;
       scanBtn.removeAttribute('data-i18n');
       scanBtn.textContent = UI().tr('lighting_scanning', 'Ricerca…');
       await UI().post('/api/lighting/scan', {});
       rerender();
     });
-    box.body.appendChild(scanBtn);
-    const providers = status.providers || [];
-    providers.filter(p => !p.advanced).forEach(p => box.body.appendChild(providerBlock(rerender, p)));
-    // Power-user providers (OpenRGB) live in a collapsed group so the main list
-    // stays approachable; they are add-by-IP only (never auto-scanned).
-    const advanced = providers.filter(p => p.advanced);
-    if (advanced.length) {
-      const det = UI().el('details', 'lighting-advanced');
-      det.appendChild(UI().el('summary', '', 'lighting_advanced', 'Avanzate'));
-      advanced.forEach(p => det.appendChild(providerBlock(rerender, p)));
-      box.body.appendChild(det);
-    }
+    box.body.appendChild(UI().keysRow(scanBtn));
+    // Power-user providers (OpenRGB) go last; they are add-by-IP only (never auto-scanned).
+    // Razer has its own card above; it joins this list only with lights to show.
+    const providers = (status.providers || []).filter(p => p.id !== 'chroma' || (p.devices || []).length);
+    [...providers.filter(p => !p.advanced), ...providers.filter(p => p.advanced)]
+      .forEach(p => box.body.appendChild(providerBlock(rerender, p)));
     return box;
   }
 
-  // One provider inside the Sistemi esterni card: a section, not a card in a card.
+  // One provider: a row that opens, already open when it has lights to show.
   function providerBlock(rerender, p) {
-    const card = UI().el('div', 'lighting-provider');
-    const head = UI().el('div', 'lighting-provider-head');
-    head.appendChild(UI().el('span', 'lighting-provider-name', '', p.name));
-    if (p.download) {
-      // Official setup/info page; the URL is resolved server-side from the
-      // catalogue, never taken from here.
-      head.appendChild(UI().button('settings-btn', 'lighting_download', 'Scarica',
-        () => UI().post('/api/lighting/open-download', { provider: p.id })));
-    }
-    card.appendChild(head);
-    const descKey = 'lighting_desc_' + p.id;
-    if (UI().tr(descKey, '')) card.appendChild(UI().hintP('', descKey));
     const devices = Array.isArray(p.devices) ? p.devices : [];
-    if (!devices.length) card.appendChild(UI().hintP('Nessun dispositivo. Premi "Cerca" o aggiungi un IP manualmente.', 'lighting_no_devices'));
-    devices.forEach(d => card.appendChild(externalDeviceRow(rerender, p, d)));
-    card.appendChild(addIpRow(rerender, p));
-    return card;
+    const box = UI().el('details', 'settings-expander');
+    box.open = devices.length > 0;
+    const name = UI().el('summary');
+    name.appendChild(UI().el('span', 'settings-label-line', '', p.name));
+    const body = UI().el('div', 'settings-grid');
+    const descKey = 'lighting_desc_' + p.id;
+    const download = p.download ? downloadKey(p) : null;
+    if (UI().tr(descKey, '')) body.appendChild(UI().noteRow(UI().hintP('', descKey), download));
+    else if (download) body.appendChild(UI().keysRow(download));
+    devices.forEach(d => body.appendChild(externalDeviceRow(rerender, p, d)));
+    if (!NO_ADDRESS.includes(p.id)) body.appendChild(addIpRow(rerender, p));
+    box.append(name, body);
+    return box;
+  }
+
+  // Official setup/info page; the URL is resolved server-side from the catalogue,
+  // never taken from here.
+  function downloadKey(p) {
+    return UI().button('settings-btn', 'lighting_download', 'Scarica',
+      () => UI().post('/api/lighting/open-download', { provider: p.id }));
   }
 
   function deviceLabel(d) {
-    return d.host && d.name !== d.host ? `${d.name} — ${d.host}` : (d.name || d.host);
+    return d.host && d.name !== d.host ? `${d.name}, ${d.host}` : (d.name || d.host);
   }
 
   // One configured device: pairing when the provider needs it and the device has
   // no token yet; otherwise its on/off switch and remove button.
   function externalDeviceRow(rerender, p, d) {
-    const row = UI().el('div', 'lighting-ext-device');
-    const title = UI().el('div', 'lighting-ext-device-name');
+    const row = UI().el('div', 'settings-row');
+    const title = UI().el('span', 'settings-label-line');
+    title.appendChild(UI().el('span', '', '', d.name || d.host));
+    if (d.host && d.name !== d.host && !NO_ADDRESS.includes(p.id)) title.appendChild(UI().el('span', 'settings-hint', '', d.host));
     const actions = UI().el('span', 'lighting-ext-device-actions');
-    title.append(UI().el('span', '', '', deviceLabel(d)), actions);
-    row.appendChild(title);
+    row.append(title, actions);
     if (d.needsPairing && !d.paired) {
       const hint = UI().hintP('', 'lighting_pair_hint_' + p.id);
       const pairBtn = UI().button('settings-btn primary', 'lighting_pair', 'Associa', async () => {
@@ -232,7 +231,7 @@
   // Manual add by IP — or by entity id for Home Assistant (probe-validated
   // server-side; rejected hosts mark the input).
   function addIpRow(rerender, p) {
-    const row = UI().el('div', 'lighting-addip');
+    const field = UI().el('div', 'lighting-addip');
     const input = document.createElement('input');
     input.type = 'text'; input.className = 'settings-text-input';
     input.placeholder = p.id === 'homeassistant' ? 'light.nome_luce' : '192.168.1.50';
@@ -247,8 +246,8 @@
       else input.classList.add('invalid');
     });
     input.addEventListener('input', () => input.classList.remove('invalid'));
-    row.append(input, btn);
-    return row;
+    field.append(input, btn);
+    return UI().labeledRow('lighting_add_light', field);
   }
 
   // --- SignalRGB -----------------------------------------------------------------
@@ -276,7 +275,7 @@
 
   function build(rerender, status) {
     const box = UI().el('div', 'lighting-panel-body');
-    box.append(icueCard(rerender, status), motherboardCard(rerender, status), chromaCard());
+    box.append(icueCard(rerender, status), motherboardCard(rerender, status), chromaCard(rerender, status));
     if (Array.isArray(status.providers) && status.providers.length) {
       box.appendChild(externalSection(rerender, status));
     }

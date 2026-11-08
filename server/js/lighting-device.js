@@ -9,6 +9,9 @@
   'use strict';
   const UI = () => window.LightingUI;
 
+  // Open or closed per device: a redraw after a paint must not shut it under the finger.
+  const partsOpen = new Map();
+
   // The server modes, folded into the four choices a person makes.
   function kindOf(dev) {
     const mode = dev.mode || 'follow';
@@ -56,11 +59,11 @@
     }, kinds.length));
 
     if (kind === 'color') {
-      box.body.appendChild(UI().colorChoice(dev.modeColor || '#1ed760', (v) => {
+      box.body.appendChild(UI().labeledRow('lighting_show_color', UI().colorChoice(dev.modeColor || '#1ed760', (v) => {
         dev.modeColor = v;
         if (hasMap) window.LightingMap.paintColors(box.body, dev, null);
         return setMode({ mode: 'color', color: v });
-      }));
+      })));
     } else if (kind === 'effect') {
       effectControls(rerender, dev, setMode).forEach(n => box.body.appendChild(n));
     }
@@ -81,7 +84,7 @@
     // No 'wave' for a whole device: one device-wide sample would look like the
     // rainbow. A selection of LEDs gets it (lighting-map.js).
     const styles = UI().EFFECTS.filter(([s]) => s !== 'wave');
-    const out = [UI().segmented(styles, a.style, async (style) => {
+    const out = [UI().segmentedRow('lighting_show_effect', styles, a.style, async (style) => {
       if (style === 'temperature' || style === 'album') await setMode({ mode: style });
       else await setMode({ mode: 'animation', anim: { ...a, style } });
       rerender();
@@ -94,9 +97,14 @@
   }
 
   function partsSection(rerender, status, dev, setMode, native) {
-    const box = UI().el('div', 'lighting-parts');
-    box.append(UI().el('span', 'settings-label-line', 'lighting_parts_title', 'Parti e LED'),
-      UI().hintP('', native ? 'lighting_native_parts_hint' : 'lighting_parts_hint'));
+    const box = UI().el('details', 'settings-expander');
+    // A board is set up here and a per-part device lives here: those start open.
+    box.open = partsOpen.has(dev.id) ? partsOpen.get(dev.id) : native || dev.mode === 'custom';
+    box.addEventListener('toggle', () => partsOpen.set(dev.id, box.open));
+    const name = UI().el('summary');
+    name.appendChild(UI().el('span', 'settings-label-line', 'lighting_parts_title', 'Parti e LED'));
+    const body = UI().el('div', 'lighting-parts');
+    body.appendChild(UI().hintP('', native ? 'lighting_native_parts_hint' : 'lighting_parts_hint'));
     const allIds = (dev.segments || []).flatMap(s => s.ledIds || []);
     const fx = status.effects || {};
     const map = window.LightingMap.build(dev, {
@@ -126,7 +134,8 @@
       liveColor: fx.musicAlbum || fx.temperature ? null : (status.manualColor || 'var(--accent)'),
       groups: native ? window.LightingSetup.groups(dev, status, rerender) : null,
     });
-    if (map) box.appendChild(map);
+    if (map) body.appendChild(map);
+    box.append(name, body);
     return box;
   }
 

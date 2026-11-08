@@ -363,6 +363,46 @@ test('Gen2 prefill: only outputs nobody set up are scanned, a finished setup nev
   assert.equal(asked.length, 1, 'every output has an answer now');
 });
 
+// A scan makes the chip write its own flash, read from firmware 1.0.25.6.
+test('Gen2 prefill: an output with nothing to report is not scanned at every start', async () => {
+  await native.configure({ layouts: {}, scanned: {} });
+  const asked = [];
+  const ctl = { headers: 2, scanGen2: async (slots) => { asked.push(slots); return [[], []]; } };
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  assert.deepEqual(asked, [[0, 1]]);
+  assert.deepEqual(native.getScanned(), { dev: ['h0', 'h1'] });
+  assert.deepEqual(native.getLayouts(), {}, 'a scan that found nothing is not a setup');
+});
+
+test('Gen2 prefill: what was scanned survives a restart, Search again scans once more', async () => {
+  await native.configure({ layouts: {}, scanned: { dev: ['h0', 'h1'] } });
+  const asked = [];
+  const ctl = { headers: 2, scanGen2: async (slots) => { asked.push(slots); return [[8], []]; } };
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  assert.deepEqual(asked, []);
+  await native._prefillFromGen2({ id: 'dev', ctl }, { rescan: true });
+  assert.deepEqual(asked, [[0, 1]]);
+  assert.deepEqual(native.getLayouts().dev.h0.parts.map(p => p.count), [8]);
+  assert.deepEqual(native.getScanned(), { dev: ['h0', 'h1'] });
+});
+
+test('Gen2 prefill: a scan that failed is tried again at the next start', async () => {
+  await native.configure({ layouts: {}, scanned: {} });
+  let calls = 0;
+  const ctl = { headers: 1, scanGen2: async () => { calls++; throw new Error('usb'); } };
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  await native._prefillFromGen2({ id: 'dev', ctl });
+  assert.equal(calls, 2);
+  assert.deepEqual(native.getScanned(), {});
+});
+
+test('scanned outputs: only well formed zones are kept', () => {
+  assert.deepEqual(L.normalizeScanned({ dev: ['h0', 'h0', 5, 'BAD ZONE'], none: [], bad: 'h0' }), { dev: ['h0'] });
+  assert.deepEqual(L.normalizeScanned(null), {});
+  assert.deepEqual(L.normalizeScanned(['h0']), {});
+});
+
 test('controller: what reaches the header is the limited frame', async () => {
   const { ctl, sent } = fakeController();
   await ctl.write([new Array(256).fill({ r: 255, g: 255, b: 255 }), null, null, null]);
@@ -643,4 +683,59 @@ test('the line to paste writes the rule early enough and applies it now, and nam
   assert.match(file, /^\/etc\/udev\/rules\.d\/[0-6]\d-/);
   assert.match(line, /udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw$/);
   assert.equal(line.includes(process.cwd()), false);
+});
+
+// A board iCUE paints: Xenon only opens the chip to wake it, and takes nothing over.
+async function withWake(run) {
+  const dev = fakeDevice({ productId: 0x5711, strips: [0x10002, 0x10002], extra: ALL_HEADERS });
+  const real = { list: hid.list, open: hid.open, available: hid.available };
+  let closed = 0;
+  dev.close = async () => { closed += 1; };
+  hid.available = true;
+  hid.list = async () => [{ path: 'node', vendorId: P.VENDOR_ID, productId: 0x5711, usagePage: P.USAGE_PAGE, usage: P.USAGE }];
+  hid.open = async () => dev;
+  try {
+    await run(dev, () => closed);
+  } finally {
+    Object.assign(hid, real);
+  }
+}
+
+test('waking a board sends static black on the onboard zones only, then apply', async () => {
+  await withWake(async (dev, closed) => {
+    assert.equal(await native.wakeForVendor(), true);
+    const cmds = dev.sent.map(p => p[1]);
+    const start = cmds.indexOf(P.CMD.EFFECTS_OFF);
+    assert.equal(dev.sent[start][2], 0, 'effects stay with the board, no header taken');
+    assert.deepEqual(cmds.slice(start + 1), [0x20, 0x21, 0x22, 0x23, 0x24, 0x91, 0x92, P.CMD.APPLY]);
+    for (const p of dev.sent.slice(start + 1, -1)) assert.deepEqual([p[14], p[15], p[16]], [0, 0, 0]);
+    assert.equal(closed(), 1, 'the chip is left free for iCUE');
+    assert.equal(native.hasDevices(), false);
+  });
+});
+
+test('waking a board never sends a command that reaches flash', async () => {
+  await withWake(async (dev) => {
+    await native.wakeForVendor();
+    const cmds = dev.sent.map(p => p[1]);
+    for (const banned of [0x5E, 0x33, 0x47, 0x35, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D]) assert.equal(cmds.includes(banned), false);
+  });
+});
+
+test('no Fusion 2 chip on this PC: nothing to wake', async () => {
+  await withWake(async (dev) => {
+    hid.list = async () => [];
+    assert.equal(await native.wakeForVendor(), false);
+    assert.equal(dev.sent.length, 0);
+  });
+});
+
+test('with native control on, the wake stays out of the way', async () => {
+  await withWake(async (dev) => {
+    await native.configure({ enabled: true });
+    const before = dev.sent.length;
+    assert.equal(await native.wakeForVendor(), false);
+    assert.equal(dev.sent.length, before);
+    await native.configure({ enabled: false });
+  });
 });

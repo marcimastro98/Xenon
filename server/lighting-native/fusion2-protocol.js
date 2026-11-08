@@ -9,8 +9,10 @@
 // the commands below, each one also sent by GIGABYTE's own software in the same
 // form (test/lighting-native.test.mjs pins the list). Never 0x5E (save to the
 // controller's flash), 0x33 (colour calibration) or 0x47 (keep the LED settings
-// through power off). The firmware is closed: that nothing outlives a power cycle
-// rests on which commands are sent, not on having read what the chip does.
+// through power off). That does not mean nothing outlives a power cycle: read
+// offline, IT5711 firmware 1.0.25.6 rewrites its settings sector by itself at every
+// power-down and after every Gen2 scan, so a scan is a flash write and runs once
+// per output (index.js). Colours are not in what it keeps: they need 0x47.
 
 const VENDOR_ID = 0x048D;
 const PRODUCT_IDS = [0x5702, 0x5711, 0x8297, 0x8950];
@@ -172,7 +174,7 @@ function zoneColorPacket(zone, c) {
 // Start-up: hand the controller to direct control.
 function initPackets(info) {
   const out = [];
-  if (info.supportFlags & 0x02) out.push(packet([CMD.LAMP_ARRAY, 0]));   // Windows Dynamic Lighting off
+  if (info.supportFlags & 0x02) out.push(packet([CMD.LAMP_ARRAY, 0]));   // the same bytes GIGABYTE's software sends at every start
   out.push(packet([CMD.BEAT, 0]));                                        // audio "beat" mode off
   return out;
 }

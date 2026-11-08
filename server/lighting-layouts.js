@@ -100,11 +100,24 @@ function boardSegment(zones) {
   return [{ kind: 'board', model: '', zone: 'board', ledIds: zones.map(z => luidOf(BOARD_OUTPUT, z)) }];
 }
 
+// Outputs a Gen2 scan already looked at, per device. Kept apart from the layouts:
+// they say what hangs on an output, this only says not to ask the chip again.
+function normalizeScanned(value) {
+  const out = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [id, zones] of Object.entries(value).slice(0, MAX_DEVICES)) {
+    if (!Array.isArray(zones)) continue;
+    const list = [...new Set(zones.filter(z => typeof z === 'string' && ZONE_KEY.test(z)))].slice(0, MAX_ZONES);
+    if (list.length) out[String(id).slice(0, 160)] = list;
+  }
+  return out;
+}
+
 function layoutLeds(layout) {
   return layout && layout.parts ? layout.parts.reduce((s, p) => s + p.count, 0) : 0;
 }
 
 module.exports = {
   PART_KINDS, MAX_PARTS, MAX_PART_LEDS, WHOLE_OUTPUT, BOARD_OUTPUT,
-  normalizeLayouts, normalizeZoneLayout, outputSegments, boardSegment, layoutLeds, luidOf, outputOfLuid, indexOfLuid,
+  normalizeLayouts, normalizeZoneLayout, normalizeScanned, outputSegments, boardSegment, layoutLeds, luidOf, outputOfLuid, indexOfLuid,
 };

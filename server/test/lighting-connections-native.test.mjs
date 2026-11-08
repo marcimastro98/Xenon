@@ -44,6 +44,21 @@ function render(native) {
       return c;
     },
     toggleRow: (key) => new FakeNode('label', 'toggle', key),
+    labeledRow(key, control) {
+      const row = new FakeNode('div', 'row', key);
+      row.children.push(control);
+      return row;
+    },
+    noteRow(words, control) {
+      const row = new FakeNode('div', 'row');
+      row.children.push(...[words, control].filter(Boolean));
+      return row;
+    },
+    keysRow(...keys) {
+      const row = new FakeNode('div', 'row');
+      row.children.push(...keys);
+      return row;
+    },
   };
   const window = { LightingUI: ui };
   const document = { createElement: (tag) => new FakeNode(tag) };
