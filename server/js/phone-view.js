@@ -302,7 +302,8 @@
   // `dot` names an indicator that lives on the real button and would otherwise
   // be invisible here: the topbar copy is hidden on a phone, so whatever it was
   // telling the user was being told to nobody. It is MIRRORED rather than moved,
-  // so the code that owns it keeps writing to exactly one element.
+  // so the code that owns it keeps writing to exactly one element. `count` is the
+  // same for a number the owner adds to the button and takes away (by class).
   //
   // Bit's fallback is its pixel outline (eyes and mouth cut out), the same one
   // the static topbar button wears, never a sparkle: the button is Bit.
@@ -311,7 +312,7 @@
     { sel: '.qbtn-search', glyph: '⌕', key: 'ph_search' },
     { sel: '.topbtn-xenon', icon: BIT_ICON, key: 'ph_ai' },
     { sel: '.qbtn-apps', glyph: '▦', key: 'ph_apps' },
-    { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings', dot: 'settings-update-dot' },
+    { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings', dot: 'settings-update-dot', count: 'cgal-store-dot' },
   ];
 
   // Actions registered by a feature that has no topbar button to forward to.
@@ -394,6 +395,28 @@
     dotWatchers.push(mo);
   }
 
+  // A count the owner ADDS to the real button and removes again (the Store's
+  // updates on the gear, community-gallery.js refreshStoreDot), so the button is
+  // watched for it rather than one element. The copy wears the same class, so it
+  // looks and reads the same: red for updates, the accent for new things.
+  function mirrorCount(btn, realSel, cls) {
+    const real = document.querySelector(realSel);
+    if (!real) return;
+    const copy = document.createElement('span');
+    copy.setAttribute('aria-hidden', 'true');
+    btn.appendChild(copy);
+    const sync = () => {
+      const src = real.querySelector('.' + cls);
+      copy.className = src ? src.className + ' ph-count' : 'ph-count';
+      copy.textContent = src ? src.textContent : '';
+      copy.hidden = !src || !src.textContent;
+    };
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(real, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+    dotWatchers.push(mo);
+  }
+
   function pageDots() {
     return [...document.querySelectorAll('.pager-dots .pager-dot')];
   }
@@ -472,6 +495,7 @@
       b.title = name;
       b.setAttribute('aria-label', name);
       if (spec.dot) mirrorDot(b, spec.dot);
+      if (spec.count) mirrorCount(b, spec.sel, spec.count);
       if (spec.id) b.dataset.phAction = spec.id;
       // Names the topbar button this one stands in for, so the first-run tour
       // (js/onboarding.js) can point here when that button is hidden.

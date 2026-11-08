@@ -509,6 +509,10 @@
   animation: upd-dot-pulse 2s ease-in-out infinite;
 }
 .ph-dot[hidden] { display: none; }
+/* The Store's count from the gear (mirrorCount in phone-view.js): the gear's own
+   badge class, moved to the icon's corner; the app-update dot keeps the key's. */
+.ph-btn.ph-act .ph-count { top: 1px; left: calc(50% + 3px); right: auto; }
+.ph-btn.ph-act .ph-count[hidden] { display: none; }
 
 /* The pager's steps stay square: a chevron needs no caption, and the two of
    them are what buys the actions their width. */

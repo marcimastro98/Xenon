@@ -1,7 +1,8 @@
 'use strict';
 
 // What Bit has to tell the person: an announcement from the hub, the month's
-// drops, the Sparks running low, the one-time asks. This is the inbox behind the
+// drops, the Sparks running low, an update for something from the Store, the
+// one-time asks. This is the inbox behind the
 // card in the corner (js/bit-messages.js), kept here and not in a page because
 // "widgets only" has no dashboard and a phone has its own storage: a message read
 // on one screen must be gone from all of them, and the one-a-day limit has to be
@@ -23,12 +24,15 @@ const { normalizeAction, normalizeMedia, normalizePoll } = require('./community-
 
 const ID_RE = /^[a-z0-9][a-z0-9:_.-]{0,95}$/i;
 const ENTRY_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-const KINDS = new Set(['hub', 'drop', 'sparks', 'support', 'share', 'rate']);
+const KINDS = new Set(['hub', 'drop', 'sparks', 'updates', 'support', 'share', 'rate']);
 // Highest first, when several wait for the same day. A vote never takes the day
 // from anything else.
-const PRIORITY = { hub: 5, drop: 4, sparks: 3, support: 2, share: 1, rate: 0 };
+const PRIORITY = { hub: 6, drop: 5, sparks: 4, updates: 3, support: 2, share: 1, rate: 0 };
 // Actions a message made by the app itself may carry, besides the feed's own.
-const APP_ACTIONS = new Set(['sparks', 'share']);
+const APP_ACTIONS = new Set(['sparks', 'share', 'installed']);
+// What an update message is about: one Store entry at one version.
+const STAMP_RE = /^[a-z0-9][a-z0-9_-]{0,60}@[0-9A-Za-z.+-]{1,40}$/;
+const MAX_STAMPS = 60;
 const SURFACES = new Set(['any', 'dashboard']);
 
 const DAY = 24 * 3600 * 1000;
@@ -77,6 +81,11 @@ function cleanMessage(raw, now) {
     shownAt: 0,
     readAt: 0,
   };
+  if (raw.kind === 'updates') {
+    const stamps = Array.isArray(raw.stamps) ? raw.stamps.filter((s) => typeof s === 'string' && STAMP_RE.test(s)).slice(0, MAX_STAMPS) : [];
+    if (!stamps.length) return null;
+    msg.stamps = stamps;
+  }
   const entryId = typeof raw.entryId === 'string' && ENTRY_RE.test(raw.entryId) ? raw.entryId : '';
   if (entryId) msg.entryId = entryId;
   const expires = cleanTime(raw.expires);
@@ -199,8 +208,14 @@ function createBitMessages({ file, settings = () => ({}), onChange = () => {}, n
 
   // A drop and an announcement about the same creation are one message, and the
   // words someone wrote for it win over the ones made from the catalog.
+  // An update is news once: a list with nothing the person has not read about
+  // already is not told again.
   function place(msg) {
     if (state.gone.includes(msg.id) || state.messages.some((m) => m.id === msg.id)) return false;
+    if (msg.kind === 'updates') {
+      const read = new Set(state.messages.filter((m) => m.kind === 'updates' && m.readAt).flatMap((m) => m.stamps));
+      if (msg.stamps.every((s) => read.has(s))) return false;
+    }
     if (!msg.entryId || msg.kind === 'rate') { state.messages.push(msg); return true; }
     if (state.gone.includes(`drop:${msg.entryId}`)) return false;
     const twin = state.messages.find((m) => m.entryId === msg.entryId && m.kind !== 'rate');
@@ -210,10 +225,11 @@ function createBitMessages({ file, settings = () => ({}), onChange = () => {}, n
     return true;
   }
 
-  // What the feed or the catalog no longer offers is taken back, unless it was read.
+  // What the feed or the catalog no longer offers is taken back, unless it was read;
+  // an unread list of updates gives way to the fresher one.
   function withdraw(live) {
     let changed = false;
-    for (const kind of ['hub', 'drop']) {
+    for (const kind of ['hub', 'drop', 'updates']) {
       const ids = live && live[kind];
       if (!Array.isArray(ids)) continue;
       const still = new Set(ids.slice(0, GONE_CAP));

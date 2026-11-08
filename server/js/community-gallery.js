@@ -1310,36 +1310,14 @@
   // saves it, exactly like a first install. "Update" is always a normal
   // re-import: full preview + permission re-approval by construction, never a
   // silent swap.
-  // Fail-CLOSED semver parse (mirrors server/semver.js, which is server-only):
-  // coercing junk to 0.0.0 would show a false "update available" badge inviting a
-  // downgrade-reinstall. A malformed side must never produce an update hint — nor
-  // mark an entry "installed" against a junk version.
-  //
-  // The accepted shape has to match what actually gets INSTALLED, not what the
-  // catalog accepts. sdk-widgets.js normalizeManifest allows [0-9A-Za-z._-], so
-  // 'v1.2.3' and '2.0.0-beta' are real installed versions — and the old
-  // numeric-dotted-only test parsed them as null, which fail-closed into "never
-  // updatable". A prerelease package was stuck on its beta forever, silently:
-  // no badge, no toast, no error. So parse the numeric core plus an optional
-  // -prerelease / +build, and keep returning null for genuine junk.
-  const verParse = (v) => {
-    const m = /^v?([0-9]+(?:\.[0-9]+)*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(String(v == null ? '' : v).trim());
-    return m ? { core: m[1].split('.').map(Number), pre: m[2] || '' } : null;
-  };
-  const verLess = (a, b) => {
-    const pa = verParse(a), pb = verParse(b);
-    if (!pa || !pb) return false;
-    for (let i = 0; i < Math.max(pa.core.length, pb.core.length); i++) {
-      if ((pa.core[i] || 0) !== (pb.core[i] || 0)) return (pa.core[i] || 0) < (pb.core[i] || 0);
-    }
-    // Same numeric core: a prerelease precedes its release (2.0.0-beta < 2.0.0),
-    // which is the case that matters — it lets a beta tester land on the stable
-    // build. Two prereleases of the same core fall back to a plain string
-    // compare (beta.1 < beta.2); that is not full semver precedence and does not
-    // pretend to be, it just has to be a stable ordering that never regresses.
-    if (!pa.pre !== !pb.pre) return !!pa.pre;
-    return pa.pre < pb.pre;
-  };
+  // Versions and the owned-item join are ONE implementation, shared with the
+  // server's count for the Xenon menu (packages/core/src/store-updates.js):
+  // fail-closed on junk, the catalog stamp over the manifest, numbered copies
+  // joined by their edition. Missing (a broken install), nothing reads as
+  // installed or updatable, and the console says why.
+  const storeUpdates = (window.Xenon && window.Xenon.storeUpdates) || null;
+  if (!storeUpdates) console.warn('[store] shared/src/store-updates.js is missing: no install state or updates');
+  const verLess = (a, b) => !!storeUpdates && storeUpdates.verLess(a, b);
 
   // What this machine has installed, joined two ways (same joins findUpdates
   // uses): SDK packages by pkgId, everything else by contentInstalls receipt id.
@@ -1400,56 +1378,16 @@
     return t('gallery_unlock', 'Unlock with a code');
   }
   async function refreshInstallIndex() {
-    let pkg = new Map();
-    // catalogVersion is what the CATALOG called the install; version is what the
-    // package's own manifest says. They are set by different people and routinely
-    // differ ('0.1.2' vs '0.1.2-sdk3e'), and comparing a catalog number against a
-    // manifest number made a permanent phantom update: offered on every open,
-    // installed fine, offered again. Prefer the catalog stamp when the server has
-    // one, fall back to the manifest for packages installed before it existed.
+    let packages = [];
+    try { const inst = await api('/sdk/widgets'); packages = (inst && inst.packages) || []; }
+    catch { /* SDK off / offline: the package join contributes nothing */ }
+    // hubSettings is a shared-script-scope `let` from settings.js: bare name, and
+    // guarded, since even typeof throws on it before settings.js has run.
+    let installs = [];
     try {
-      const inst = await api('/sdk/widgets');
-      pkg = new Map(((inst && inst.packages) || []).map((p) => [p.id, {
-        manifest: String(p.version || '0.0.0'),
-        catalog: typeof p.catalogVersion === 'string' ? p.catalogVersion : '',
-      }]));
-    } catch { /* SDK off / offline → pkg join contributes nothing */ }
-    // Newest receipt per catalog entry id. Receipts are appended chronologically,
-    // so a forward walk leaves the latest version in the map — an update re-import
-    // "wins" and clears the badge. hubSettings is a shared-script-scope global
-    // from settings.js (bare name, guarded — same access pattern preset-share uses).
-    const receipts = new Map();
-    // Numbered limited copies install under their COPY id ('vanguard-50-01')
-    // while the catalog publishes one entry per edition ('vanguard-50'), so a
-    // copy receipt never matches an entry id directly. Index the base id too
-    // (copy id minus its trailing -digits); consulted ONLY for entries that are
-    // limited drops, so a plain entry can never be joined by accident.
-    const dropReceipts = new Map();
-    const dropCopyIds = new Map();   // 'vanguard-50' → 'vanguard-50-01': what the hub calls the copy
-    try {
-      const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
-        ? hubSettings.contentInstalls : [];
-      for (const rec of list) {
-        // Index every catalog receipt by id — even one with an EMPTY sourceVersion.
-        // Most non-widget kinds (themes, backgrounds, pages, decks) publish no
-        // version, so their install records sourceVersion:'', and the old
-        // `&& rec.sourceVersion` guard dropped them here — so the card never
-        // flipped to "Installed" even though it was (#6: only widgets showed it).
-        // entryInstallState treats a present-but-versionless receipt as 'current'
-        // (installed), and findUpdates already skips versionless entries, so this
-        // can never produce a false "Update" badge.
-        // The normalizer OMITS an empty sourceVersion (content-installs.js), so a
-        // versionless receipt arrives with no property at all. Requiring a string here
-        // dropped exactly the receipts the comment above promises to index.
-        if (rec && typeof rec.sourceId === 'string' && rec.sourceId) {
-          const sv = typeof rec.sourceVersion === 'string' ? rec.sourceVersion : '';
-          receipts.set(rec.sourceId, sv);
-          const m = /^(.+)-(\d{1,4})$/.exec(rec.sourceId);
-          if (m) { dropReceipts.set(m[1], sv); dropCopyIds.set(m[1], rec.sourceId); }
-        }
-      }
-    } catch { /* settings unavailable → receipts join contributes nothing */ }
-    installIndex = { pkg, receipts, dropReceipts, dropCopyIds };
+      if (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls)) installs = hubSettings.contentInstalls;
+    } catch { /* settings not loaded yet: the receipt join contributes nothing */ }
+    installIndex = storeUpdates ? storeUpdates.buildIndex(packages, installs) : null;
     return installIndex;
   }
 
@@ -1459,13 +1397,8 @@
   // read as installed too, and offer Update (re-unlock) only when a newer version
   // ships. 'none' = not installed · 'current' = installed & up to date ·
   // 'update' = installed at an older version than the catalog now lists.
-  // The version to compare an installed PACKAGE against the catalog with. The
-  // catalog stamp wins when present: it is the only one written in the same
-  // numbering as entry.version.
-  function installedPkgVersion(rec) {
-    if (!rec) return null;
-    return rec.catalog || rec.manifest || null;
-  }
+  // The catalog stamp over the manifest (store-updates.js says why).
+  const installedPkgVersion = (rec) => (storeUpdates ? storeUpdates.installedPkgVersion(rec) : null);
 
   // What to tell the hub when the owner of an installed entry asks for its update:
   // the id the hub knows this install by (a numbered copy is not the catalog id) and
@@ -1496,17 +1429,7 @@
 
   async function findUpdates(entries) {
     const idx = await refreshInstallIndex();
-    if (!idx.pkg.size && !idx.receipts.size) return [];
-    return entries.filter((e) => {
-      if (!e || !e.version) return false;
-      if (e.pkgId) return idx.pkg.has(e.pkgId) && verLess(installedPkgVersion(idx.pkg.get(e.pkgId)), e.version);
-      // Owned numbered copies join through the drop-id index (see
-      // refreshInstallIndex) — without it a numbered edition's owner never saw
-      // an update offer, because the copy receipt never matches the entry id.
-      const have = idx.receipts.has(e.id) ? idx.receipts.get(e.id)
-        : (e.limited && idx.dropReceipts && idx.dropReceipts.has(e.id)) ? idx.dropReceipts.get(e.id) : null;
-      return have != null && verLess(have, e.version);
-    });
+    return idx ? storeUpdates.findUpdates(entries, idx) : [];
   }
 
   function matchesBrowse(entry) {

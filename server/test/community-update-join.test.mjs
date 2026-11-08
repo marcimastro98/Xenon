@@ -2,25 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
+import { createRequire } from 'node:module';
 
-// community-gallery.js is a browser IIFE that assigns to `window`, so it cannot
-// be required. The version-compare pair is self-contained, so lift it out of the
-// source and exercise it directly — the alternative is leaving the single piece
-// of logic that decides "is an update available" completely untested.
+// The join that decides "is an update available" lives in one shared module,
+// read by the Store in the browser and by the server for the Xenon menu
+// (packages/core/src/store-updates.js), so it is required here directly.
+const require = createRequire(import.meta.url);
+const SU = require('../../packages/core/src/store-updates.js');
 const SRC = readFileSync(fileURLToPath(new URL('../js/community-gallery.js', import.meta.url)), 'utf8');
-
-function loadVersionCompare() {
-  const start = SRC.indexOf('  const verParse =');
-  assert.ok(start > 0, 'verParse not found — did community-gallery.js move it?');
-  const lessAt = SRC.indexOf('const verLess =', start);
-  assert.ok(lessAt > start, 'verLess not found next to verParse');
-  const close = SRC.indexOf('\n  };', lessAt);
-  assert.ok(close > lessAt, 'verLess block not delimited as expected');
-  const ctx = vm.createContext({});
-  vm.runInContext(SRC.slice(start, close + 5) + '\nthis.verParse = verParse; this.verLess = verLess;', ctx);
-  return ctx;
-}
+const loadVersionCompare = () => SU;
 
 test('update join: a prerelease install is not stranded on its beta', () => {
   const { verLess } = loadVersionCompare();
@@ -67,16 +57,7 @@ test('update join: the Installed tab keys updates by pkgId AND by entry id', () 
   assert.match(src, /function updateFor/, 'rows must resolve updates through both joins');
 });
 
-// Lift installedPkgVersion() out of the same source, next to the compare pair.
-function loadInstalledPkgVersion() {
-  const at = SRC.indexOf('  function installedPkgVersion(rec) {');
-  assert.ok(at > 0, 'installedPkgVersion not found — did community-gallery.js move it?');
-  const close = SRC.indexOf('\n  }', at);
-  assert.ok(close > at, 'installedPkgVersion block not delimited as expected');
-  const ctx = vm.createContext({});
-  vm.runInContext(SRC.slice(at, close + 4) + '\nthis.installedPkgVersion = installedPkgVersion;', ctx);
-  return ctx.installedPkgVersion;
-}
+const loadInstalledPkgVersion = () => SU.installedPkgVersion;
 
 test('update join: a catalog stamp is preferred over the package manifest', () => {
   const installedPkgVersion = loadInstalledPkgVersion();
@@ -112,21 +93,15 @@ test('update join: a catalog stamp is preferred over the package manifest', () =
 // the import dialog, which unlocks with the saved pass or asks for the code once.
 // It used to be skipped here, so owners of a locked pack never saw a badge.
 function loadFindUpdates(idx) {
-  const { verLess } = loadVersionCompare();
-  const start = SRC.indexOf('  async function findUpdates(entries) {');
-  assert.ok(start > 0, 'findUpdates not found');
-  const end = SRC.indexOf('\n  }', start);   // the 2-space close of the function, CRLF-safe
-  assert.ok(end > start, 'findUpdates block not delimited as expected');
-  const ctx = vm.createContext({ verLess, refreshInstallIndex: async () => idx, installedPkgVersion: (r) => r });
-  vm.runInContext(SRC.slice(start, end + 4) + '\nthis.findUpdates = findUpdates;', ctx);
-  return ctx.findUpdates;
+  return async (entries) => SU.findUpdates(entries, idx);
 }
 
 test('update join: a locked entry you own offers its update', async () => {
   const findUpdates = loadFindUpdates({
-    pkg: new Map([['workload-river', '1.0.0']]),
+    pkg: new Map([['workload-river', { manifest: '1.0.0', catalog: '' }]]),
     receipts: new Map([['nitrato', '1.0.0'], ['cards', '2.0.0']]),
     dropReceipts: new Map(),
+    dropCopyIds: new Map(),
   });
   const out = await findUpdates([
     { id: 'nitrato', version: '1.1.0', locked: true },
@@ -144,5 +119,46 @@ test('update action: a protected drop goes to the import dialog, not a silent in
   const body = mgr.slice(at, mgr.indexOf('function renderRow', at));
   assert.ok(body.indexOf('peekLocked') > 0 && body.indexOf('peekLocked') < body.indexOf('decodePreset'),
     'the locked check must come before decodePreset, which returns null for a locked code');
-  assert.match(SRC, /async function findUpdates[\s\S]{0,200}!e \|\| !e\.version\) return false;/);
+  const shared = readFileSync(fileURLToPath(new URL('../../packages/core/src/store-updates.js', import.meta.url)), 'utf8');
+  assert.match(shared, /function findUpdates[\s\S]{0,300}!e \|\| !e\.version\) return false;/);
+});
+
+test('update join: the Store keeps no second copy of it', () => {
+  // Two copies are how the menu window and the Store came to disagree. The Store
+  // reads the shared module, and the page loads it before the Store.
+  assert.doesNotMatch(SRC, /const verParse =|function verParse/, 'a version parser is back in community-gallery.js');
+  assert.match(SRC, /storeUpdates\.findUpdates\(entries, idx\)/);
+  assert.match(SRC, /storeUpdates\.buildIndex\(packages, installs\)/);
+  const html = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
+  const shared = html.indexOf('<script src="shared/src/store-updates.js">');
+  assert.ok(shared > 0 && shared < html.indexOf('<script src="js/community-gallery.js">'), 'store-updates.js must load before the Store');
+});
+
+test('update join: packages by id, receipts by entry, edition copies by their base', () => {
+  const idx = SU.buildIndex(
+    [{ id: 'orbit-clock', version: '1.0.2-sdk3', catalogVersion: '1.0.2' }, { id: 'desk-notes', version: '0.3.0' }, null, { id: '' }],
+    [
+      { sourceId: 'ember-nights' },                                  // a theme: no version, still installed
+      { sourceId: 'nitrato', sourceVersion: '1.0.0' },
+      { sourceId: 'nitrato', sourceVersion: '1.1.0' },               // a later re-import wins
+      { sourceId: 'vanguard-50-01', sourceVersion: '2.0' },          // a numbered copy
+      { sourceVersion: '9.9' }, null,
+    ],
+  );
+  assert.deepEqual([...idx.pkg.keys()], ['orbit-clock', 'desk-notes']);
+  assert.equal(SU.installedPkgVersion(idx.pkg.get('orbit-clock')), '1.0.2');
+  assert.equal(SU.installedPkgVersion(idx.pkg.get('desk-notes')), '0.3.0');
+  assert.equal(idx.receipts.get('ember-nights'), '');
+  assert.equal(idx.receipts.get('nitrato'), '1.1.0');
+  assert.equal(idx.dropCopyIds.get('vanguard-50'), 'vanguard-50-01');
+  const ups = SU.findUpdates([
+    { id: 'orbit-clock', pkgId: 'orbit-clock', version: '1.1.0' },
+    { id: 'desk-notes', pkgId: 'desk-notes', version: '0.3.0' },
+    { id: 'ember-nights', version: '' },
+    { id: 'nitrato', version: '1.1.0' },
+    { id: 'vanguard-50', version: '2.1', limited: { dropId: 'vanguard-50' } },
+    { id: 'vanguard', version: '3.0' },                              // not limited: never joined by a copy
+  ], idx);
+  assert.deepEqual(ups.map((e) => e.id), ['orbit-clock', 'vanguard-50']);
+  assert.deepEqual(SU.findUpdates([{ id: 'x', version: '1.0.0' }], SU.buildIndex([], [])), [], 'nothing installed, nothing to update');
 });

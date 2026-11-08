@@ -7023,61 +7023,6 @@ function syncSdkWidgetsControls() {
   if (safe) safe.checked = hubSettings.safeMode === true;
 }
 
-// ── Available-update lookup (feeds the daily toast) ────────────────────────
-// The list of installed packages itself now lives in the Store's "Installed"
-// tab (js/installed-manager.js) — this is only the catalog JOIN behind the
-// once-a-day "{n} widgets have updates" toast. The JOIN itself lives in
-// community-gallery.js (CommunityGallery.findUpdates) — ONE implementation for
-// the gallery, the installed manager and this toast, so the surfaces can never
-// disagree about whether an update exists.
-
-// Once-a-day update check, client-driven (no server timer): on load, when
-// anything from the catalog is installed, one catalog GET (absorbed by the
-// server's 45-min TTL cache) surfaces available updates as a gentle toast.
-//
-// It counts EVERYTHING findUpdates returns, not just SDK packages. The old
-// version gated on `sdkWidgets.enabled` and bailed unless a widget package was
-// installed, so a user whose themes, decks and icon packs all had updates
-// waiting was told nothing — and with the SDK off, never told anything at all.
-// The gallery had the answer the whole time; only this notice was narrow.
-async function checkSdkUpdatesDaily() {
-  try {
-    const KEY = 'xeneonedge.sdkUpdateCheck';
-    const last = Number(localStorage.getItem(KEY) || 0);
-    if (Date.now() - last < 24 * 3600 * 1000) return;
-    if (!window.CommunityGallery || !window.CommunityGallery.findUpdates) return;
-    const cat = await fetch('/api/community/catalog').then((r) => r.json()).catch(() => null);
-    const entries = (cat && cat.entries) || [];
-    if (!entries.length) return;
-    // Stamp only once the check actually ran end-to-end — an offline attempt
-    // must not burn the day's slot and hide a real update until tomorrow.
-    const updates = await window.CommunityGallery.findUpdates(entries);
-    localStorage.setItem(KEY, String(Date.now()));
-    if (!updates.length || !window.XenonToast) return;
-    // Name the thing when there is only one — "1 aggiornamento" is a riddle,
-    // "Aggiornamento per Nocturne" is an answer.
-    const title = updates.length === 1
-      ? t('settings_updates_toast_one', 'Aggiornamento per {name}').replace('{name}', updates[0].name || '')
-      : t('settings_updates_toast_n', '{n} contenuti hanno un aggiornamento').replace('{n}', String(updates.length));
-    window.XenonToast.show({
-      type: 'notification',
-      kicker: t('settings_sdk_title', 'Widget della community'),
-      title,
-      message: updates.length === 1 && updates[0].changelog
-        ? updates[0].changelog
-        : t('settings_updates_toast_sub', 'Apri lo Store → Installati per aggiornare'),
-      duration: 7000,
-      // '__installed' is the gallery's own deep-link to the Installed tab, where
-      // every update has its button. A notice you can't act on is just noise.
-      onClick: () => {
-        try { if (window.CommunityGallery) window.CommunityGallery.open('__installed'); }
-        catch { /* the toast is a hint, never a hard dependency */ }
-      },
-    });
-  } catch { /* best-effort */ }
-}
-setTimeout(checkSdkUpdatesDaily, 15000);
-
 // ── Master notifications switch (Settings → Notifiche) ──────────────────────
 // `enabled` off silences every source and stops the background watchers (server
 // re-arms on save); `popups` toggles the on-screen toasts only. Saving posts to

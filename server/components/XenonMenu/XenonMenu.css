@@ -107,6 +107,7 @@ body.low-power-gpu .xm-frame { -webkit-backdrop-filter: none; backdrop-filter: n
 #xm-root.xm-pad :is(.xm-nav-btn, .xm-settings, .xm-bit):focus { outline: 2px solid var(--cst-key); outline-offset: -2px; box-shadow: none; }
 .xm-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .xm-nav-value { flex: none; margin-left: auto; color: var(--cst-text); font-variant-numeric: tabular-nums; }
+.xm-nav-value.is-update { color: var(--cst-danger); }
 .xm-nav-foot { flex: none; display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid var(--cst-sep); }
 
 /* ── One section ── */

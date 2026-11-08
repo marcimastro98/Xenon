@@ -4097,13 +4097,15 @@
         message: t('widget_autoupdate_toast_sub', 'Updated on their own, with no new permissions'),
       });
     }
+    // Waiting = asks for a permission or a code: approved in the Store's Installed tab.
     if (waiting.length) {
       window.XenonToast.show({
         type: 'info', duration: 9000,
         title: waiting.length === 1
           ? t('widget_autoupdate_wait_one', '{name} has an update waiting for you').replace('{name}', waiting[0])
           : t('widget_autoupdate_wait_n', '{n} widgets have an update waiting for you').replace('{n}', String(waiting.length)),
-        message: t('widget_autoupdate_wait_sub', 'Open Settings, Community widgets, Manage installed'),
+        message: t('widget_autoupdate_wait_sub', 'Open the Store, Installed'),
+        onClick: () => { if (window.CommunityGallery) window.CommunityGallery.open('__installed'); },
       });
     }
   }

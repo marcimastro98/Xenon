@@ -4843,10 +4843,10 @@
 <script src="js/remote-surface.js"></script>
 <script src="shared/src/constants.js"></script>
 <script src="shared/src/format.js"></script>
-<!-- The storefront layout contract, shared with the website catalog and the hub
-     admin so the two Store fronts cannot disagree about what shows where.
-     community-gallery.js degrades to its own default order if this is absent. -->
+<!-- Shared so no two fronts disagree: the Store layout (with the website and the hub)
+     and the update join (with the Xenon menu). community-gallery.js degrades without them. -->
 <script src="shared/src/storefront-layout.js"></script>
+<script src="shared/src/store-updates.js"></script>
 <!-- Bit, the assistant's pixel face: one engine for the app, the site, the
      Maker and the export tool (js/bit-app.js mounts it here). -->
 <script src="shared/src/bit-clips.js"></script>
@@ -5154,6 +5154,7 @@
 <script src="js/sparks-store.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
+<script src="js/store-update-mail.js"></script>
 <!-- The 7-day pass trial: reminders, the end-of-trial clean-up and card. Uses
      PresetShare / CommunityGallery / CustomWidget at call time only. -->
 <script src="js/trial-pass-ui.js"></script>

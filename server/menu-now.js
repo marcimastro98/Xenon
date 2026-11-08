@@ -45,7 +45,17 @@ function dndTile(st, tile, act) {
   return { ...tile, sub: k(st.quiet === 'always' ? 'xmenu_sub_dnd_on' : 'xmenu_sub_dnd'), act, closes: false };
 }
 
-const TILE_STATE = Object.freeze({ marker: markerTile, record: recordTile, companion: companionTile, dnd: dndTile });
+// Something this PC got from the Store has a newer version there: the tile says so
+// in words, and leads to the Installed page, where each one has its button. The
+// count is the Store's own (menu-store.js); unknown (null) reads as none.
+function storeTile(st, tile, act) {
+  const n = Number.isInteger(st.storeUpdates) && st.storeUpdates > 0 ? st.storeUpdates : 0;
+  if (!n) return { ...tile, sub: k('xmenu_sub_store'), act, closes: true };
+  const sub = n === 1 ? k('installed_update_one') : k('installed_update_n', { n });
+  return { ...tile, sub, updates: n, act: open('store:__installed'), closes: true };
+}
+
+const TILE_STATE = Object.freeze({ marker: markerTile, record: recordTile, companion: companionTile, dnd: dndTile, store: storeTile });
 
 // One meaning per label: with the HUD placed the tile shows and hides the
 // overlay (its shortcut's job), without it it puts the HUD there.

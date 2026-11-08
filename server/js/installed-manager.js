@@ -511,7 +511,26 @@
     if (issues.length) info.appendChild(issuesBlock(issues));
   }
 
-  function renderRow(row, cat, repaint) {
+  // What a row waits on from the person: a new version, or a permission without
+  // which an installed widget never runs. Said in words under the name, so the
+  // list answers "does anything need me?" without reading the keys.
+  function needsYou(row, cat) {
+    const upd = updateFor(row, cat);
+    if (upd) return { kind: 'update', text: t('installed_state_update', 'Versione {v} disponibile').replace('{v}', String(upd.version)) };
+    if (row.pkg && window.CustomWidget && typeof CustomWidget.packageGranted === 'function' && !CustomWidget.packageGranted(row.pkg)) {
+      return { kind: 'allow', text: t('installed_state_allow', 'Spento finché non dai i permessi') };
+    }
+    return null;
+  }
+
+  // One green key per page, for the next thing to do: "Update all" when it is
+  // offered, otherwise the first shown row that waits on the person.
+  function greenRow(shown, cat, sweeping) {
+    if (sweeping) return null;
+    return shown.find((row) => needsYou(row, cat)) || null;
+  }
+
+  function renderRow(row, cat, repaint, isGreen) {
     const wrap = el('div', 'inst-row' + (row.record && row.record.legacy ? ' is-legacy' : ''));
     wrap.appendChild(thumbFor(row, entryFor(row, cat)));
     const info = el('div', 'inst-row-info');
@@ -555,6 +574,8 @@
     wrap.appendChild(info);
 
     const upd = updateFor(row, cat);
+    const need = needsYou(row, cat);
+    if (need) info.appendChild(el('span', 'inst-row-state is-' + need.kind, need.text));
     // What the new version changes, straight from the publisher. Before this the
     // prompt asked for a permission re-approval while explaining nothing, so
     // "should I?" had no answerable form.
@@ -565,8 +586,10 @@
     }
 
     const btns = el('div', 'inst-row-btns');
+    // The row's first key is green only when it is the page's next thing to do.
+    const keyClass = isGreen ? 'settings-btn primary' : 'settings-btn';
     if (upd) {
-      const b = el('button', 'settings-btn primary', t('settings_sdk_update', 'Aggiorna') + ' v' + upd.version);
+      const b = el('button', keyClass, t('settings_sdk_update', 'Aggiorna'));
       b.type = 'button';
       b.addEventListener('click', async () => {
         b.disabled = true;
@@ -607,7 +630,7 @@
     // how a package could install, look right here, and never appear anywhere.
     if (row.pkg && window.CustomWidget && typeof CustomWidget.packageGranted === 'function'
         && !CustomWidget.packageGranted(row.pkg)) {
-      const gr = el('button', 'settings-btn primary', t('settings_sdk_grant_btn', 'Permessi'));
+      const gr = el('button', upd ? 'settings-btn' : keyClass, t('settings_sdk_grant_btn', 'Permessi'));
       gr.type = 'button';
       gr.addEventListener('click', () => {
         if (CustomWidget.requestGrant) CustomWidget.requestGrant(row.pkg, repaint);
@@ -757,7 +780,7 @@
         ? t('installed_update_one', '1 aggiornamento disponibile')
         : t('installed_update_n', '{n} aggiornamenti disponibili').replace('{n}', String(updatable.length));
       bar.appendChild(el('span', 'inst-updbar-txt', otherUpdates
-        ? label + ' · ' + t('installed_update_others', '{n} altri da aggiornare singolarmente').replace('{n}', String(otherUpdates))
+        ? label + ', ' + t('installed_update_others', '{n} altri da aggiornare singolarmente').replace('{n}', String(otherUpdates))
         : label));
       const go = el('button', 'settings-btn primary', t('installed_update_all', 'Aggiorna tutti'));
       go.type = 'button';
@@ -784,7 +807,10 @@
     const shown = activeKind ? rows.filter((row) => kindOf(row) === activeKind) : rows;
     const list = el('div', 'inst-list');
     if (!shown.length) list.appendChild(el('div', 'cgal-status', t('installed_filter_empty', 'Nessun contenuto di questo tipo.')));
-    else shown.forEach((row) => list.appendChild(renderRow(row, cat, repaint)));
+    else {
+      const green = greenRow(shown, cat, updatable.length > 0);
+      shown.forEach((row) => list.appendChild(renderRow(row, cat, repaint, row === green)));
+    }
     frag.appendChild(list);
 
     const foot = el('div', 'inst-foot');

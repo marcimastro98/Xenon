@@ -410,8 +410,8 @@ body.low-power-gpu .preset-modal.cst { backdrop-filter: none; }
 /* Installed and Sparks clear the close key. */
 .cst-view.is-own { padding-right: 54px; }
 
-/* Installed: rows on the page's wells, the keys quiet. A filled key is the one thing
-   a row needs from you, an update or a permission; removing is words in red. */
+/* Installed: rows on the page's wells, the keys quiet. One filled key per page, the
+   next thing to do (Update all, or the first row waiting on you); removing is words in red. */
 .cst-overlay .cst-view.is-own .inst-chip {
   height: 36px; padding: 0 12px;
   border: 0; border-radius: 6px;
@@ -424,6 +424,8 @@ body.low-power-gpu .preset-modal.cst { backdrop-filter: none; }
 .cst-overlay .cst-view.is-own .inst-thumb.is-glyph { color: var(--cst-muted); background: var(--cst-on); }
 .cst-overlay .cst-view.is-own .inst-row-name { font-size: 15.5px; color: var(--cst-text); }
 .cst-overlay .cst-view.is-own .inst-row-meta { font-size: 13.5px; color: var(--cst-muted); }
+.cst-overlay .cst-view.is-own .inst-row-state { font-size: 14px; color: var(--cst-text); }
+.cst-overlay .cst-view.is-own .inst-row-changelog { font-size: 13.5px; color: var(--cst-muted); }
 .cst-overlay .cst-view.is-own :is(.inst-kind, .inst-origin, .inst-activity) {
   padding: 0; border: 0; border-radius: 0;
   font-size: 13.5px; font-weight: 500; letter-spacing: 0; text-transform: none;

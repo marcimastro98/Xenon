@@ -157,7 +157,7 @@ const screenMenu = require('./screen-menu').createScreenMenu({
   holding: () => layersEdit.get(),
 });
 const XenonMenu = require('./xenon-menu');
-const MenuWidgets = require('./menu-widgets');
+const MenuStore = require('./menu-store.js');
 // Tiles that make no sense alone on the desktop: the bare custom shell (a Store
 // widget is placed by its package instead) and the second-screen mirror.
 const LAYER_TILE_EXCLUDED = new Set(['custom', 'secondscreen', 'screen']);
@@ -209,7 +209,7 @@ const capabilityRunner = capabilities.createCapabilities({
     get: () => _serverHubSettings && _serverHubSettings.layers,
     update: (edit) => updateLayersSetting(edit),
     catalog: () => _layerCatalog(),
-    shots: () => _storeShots(),
+    shots: async () => (await _menuStore()).shots,
   },
   // The log of games played (game-sessions.js) and its on/off setting.
   sessions: {
@@ -12622,14 +12622,12 @@ async function _appAudioAvailable() {
 
 // What the Xenon menu shows (xenon-menu.js): read from the settings and the
 // runtime state, never a path, a window title or a file name.
-// The Store pictures come from the kept catalog; a first fetch that is slow must not
-// hold the menu back, so the cards then show their initials until the next opening.
-const MENU_CATALOG_WAIT_MS = 500;
-async function _storeShots() {
-  const wait = new Promise((done) => { setTimeout(done, MENU_CATALOG_WAIT_MS, null).unref(); });
-  const out = await Promise.race([communityCatalog.fetchVisibleCatalog(false).catch(() => null), wait]);
-  return out && out.ok ? MenuWidgets.storeShots(out.entries) : {};
-}
+// The Store's pictures and its count of updates (menu-store.js).
+const _menuStore = () => MenuStore.read({
+  catalog: () => communityCatalog.fetchVisibleCatalog(false),
+  packages: async () => (await sdkPackagesCached()).packages.map((p) => ({ id: p.id, version: p.version, catalogVersion: widgetCatalogVersionOf(p.id) })),
+  installs: (_serverHubSettings || {}).contentInstalls,
+});
 
 // A widget key with no row in the hotkey table lost it: to a combination already
 // held by another key, or to a full table.
@@ -12648,7 +12646,7 @@ function _widgetKeyStates(held) {
 async function _xenonMenuState() {
   const hs = _serverHubSettings || {};
   const catalog = await _layerCatalog();
-  const shots = await _storeShots();
+  const store = await _menuStore();
   const last = await _captures.last(null).catch(() => null);
   const slots = _hotkey.slots || {};
   const held = (slot) => slots[slot] || (_hotkey.bindings.some((b) => b.slot === slot) ? (_hotkey.state || 'off') : 'off');
@@ -12664,7 +12662,8 @@ async function _xenonMenuState() {
     perfHud: hs.perfHud,
     tiles: catalog.tiles,
     packages: catalog.packages,
-    shots,
+    shots: store.shots,
+    storeUpdates: store.updates,
     deckKeys: LayerKey.choices(await readDeckConfigs()),
     scenes: catalog.scenes,
     capture: captureOptions(),

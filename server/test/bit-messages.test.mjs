@@ -269,6 +269,60 @@ test('the feed says where a message appears', () => {
   assert.equal(normalizeMessage({ id: 'a', where: 'wall', title: 'T' }).where, 'corner');
 });
 
+const updates = (stamps, more = {}) => ({ id: `updates:${stamps.join('-').replace(/[@.]/g, '')}`, kind: 'updates', title: 'Updates', stamps, action: { type: 'installed', label: 'Open Installed' }, ...more });
+
+test('a list of updates names what it is about, or is refused', () => {
+  const msg = cleanMessage(updates(['night-drive@1.2.0', '../x@1', 'keyring@1.1.0'], { id: 'updates:mixed' }), NOON);
+  assert.deepEqual(msg.stamps, ['night-drive@1.2.0', 'keyring@1.1.0']);
+  assert.deepEqual(msg.action, { type: 'installed', label: 'Open Installed' });
+  assert.equal(cleanMessage(updates([]), NOON), null);
+  assert.equal(cleanMessage(updates(['no-version@']), NOON), null);
+  assert.equal(cleanMessage({ ...hub('a'), stamps: ['night-drive@1.2.0'] }, NOON).stamps, undefined, 'only an update list keeps them');
+});
+
+test('an update is news once: a list with nothing new since the last one read is not told', async () => {
+  const { inbox, clock } = box();
+  await inbox.post({ messages: [updates(['a@2', 'b@2'])], live: { updates: [updates(['a@2', 'b@2']).id] } });
+  await inbox.read(updates(['a@2', 'b@2']).id);
+  clock.now += DAY;
+  // b was updated, a was not: the shorter list brings nothing new.
+  assert.equal(await inbox.post({ messages: [updates(['a@2'])], live: { updates: [updates(['a@2']).id] } }), false);
+  assert.equal((await inbox.view()).next, null);
+  // A new version of something is.
+  await inbox.post({ messages: [updates(['a@2', 'c@1'])], live: { updates: [updates(['a@2', 'c@1']).id] } });
+  assert.equal((await inbox.view()).next.id, updates(['a@2', 'c@1']).id);
+});
+
+test('only a list the person read silences the same updates', async () => {
+  const { inbox } = box();
+  await inbox.post({ messages: [updates(['a@2', 'b@2'])] });
+  assert.equal(await inbox.post({ messages: [updates(['a@2'])] }), true, 'the first one was never read');
+});
+
+test('an unread list of updates gives way to the fresher one, and goes when nothing is left', async () => {
+  const { inbox, clock } = box();
+  const first = updates(['a@2', 'b@2']);
+  await inbox.post({ messages: [first], live: { updates: [first.id] } });
+  await inbox.shown(first.id);
+  clock.now += DAY;
+  const fresher = updates(['a@2']);
+  await inbox.post({ messages: [fresher], live: { updates: [fresher.id] } });
+  assert.equal((await inbox.view()).next.id, fresher.id);
+  await inbox.post({ messages: [], live: { updates: [] } });
+  const view = await inbox.view();
+  assert.equal(view.next, null);
+  assert.deepEqual(view.messages, [], 'never read, so not something Bit told');
+});
+
+test('updates wait behind the news, the drops and the Sparks, and go before the asks', async () => {
+  const { inbox, clock } = box();
+  await inbox.post({ messages: [{ id: 'support:ask', kind: 'support', title: 'Support' }, updates(['a@2'])] });
+  assert.equal((await inbox.view()).next.kind, 'updates');
+  clock.now += 1000;
+  await inbox.post({ messages: [{ id: 'sparks:low:2026-11', kind: 'sparks', title: 'Few Sparks left' }] });
+  assert.equal((await inbox.view()).next.kind, 'sparks');
+});
+
 test('a vote asked for keeps its entry and date, and never counts as told', () => {
   const msg = cleanMessage({ id: 'rate:neon:1', kind: 'rate', title: 'Neon', entryId: 'neon', since: NOON - 5 * DAY }, NOON);
   assert.equal(msg.kind, 'rate');

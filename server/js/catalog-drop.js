@@ -164,8 +164,8 @@
   }
 
   window.CatalogDrop = { checkOnStart, isRecent, isOwned, openSwitch };
-  // Twenty seconds after the page opens (after the SDK daily check, so the two
-  // catalog reads do not race the first paint), then a retry every half hour and
+  // Twenty seconds after the page opens (clear of the first paint; the update
+  // message, store-update-mail.js, reads the catalog after it), then a retry every half hour and
   // when the page comes back into view, until the session's one check has
   // succeeded. A chain of timeouts, not setInterval. A layer window shows no messages.
   if (window.BitMessages && window.BitMessages.surface !== 'screen' && typeof isLayerPage === 'function' && isLayerPage()) return;

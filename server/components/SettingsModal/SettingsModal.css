@@ -1603,6 +1603,9 @@ a.settings-btn { display: inline-flex; align-items: center; justify-content: cen
 .inst-activity.is-heavy { color: var(--red, #ff5b6a); background: rgba(255, 91, 106, 0.1); border-color: rgba(255, 91, 106, 0.32); }
 .inst-activity.is-paused { color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.08); border-style: dashed; }
 .inst-row-btns { display: flex; align-items: center; gap: 8px; flex: none; }
+/* What the row waits on from you (installed-manager.js needsYou): full ink and
+   weight among the dim lines, so a scan of the list finds it. */
+.inst-row-state { font-size: 0.8rem; line-height: 1.35; font-weight: 600; color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
 /* The publisher's note about what a pending update changes. */
 .inst-row-changelog {
   font-size: 0.76rem; line-height: 1.4; color: var(--accent, #35e08e);

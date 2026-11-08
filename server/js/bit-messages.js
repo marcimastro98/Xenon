@@ -3,7 +3,7 @@
 // limit (server/bit-messages.js); this asks it what may be shown now, waits for a
 // moment nobody is busy, and hands the message to the card (js/bit-message-card.js).
 // Filing goes through here too, for every channel: hub-messages.js, catalog-drop.js,
-// sparks-mail.js, support-card.js, share-nudge.js.
+// sparks-mail.js, store-update-mail.js, support-card.js, share-nudge.js.
 //
 // It runs on the dashboard and on a phone, and in the alerts window of "widgets
 // only" (js/screen-alerts.js starts it there). A layer page or a sheet shows
@@ -62,6 +62,7 @@
 
   const ON_SCREEN = {
     store: (msg) => sheet({ open: 'store', entry: msg.entryId }),
+    installed: () => sheet({ open: 'store', kind: '__installed' }),
     sparks: () => sheet({ open: 'sparks' }),
     url: (msg) => post('/actions/run', { type: 'openUrl', url: msg.action.url }),
   };
@@ -69,6 +70,7 @@
   // Every Store button funnels into the Store's own detail view, never an import.
   const ON_DASHBOARD = {
     store: (msg) => window.CommunityGallery && window.CommunityGallery.openEntryById(msg.entryId),
+    installed: () => window.CommunityGallery && window.CommunityGallery.open('__installed'),
     sparks: () => window.XenonCredits && window.XenonCredits.openShop(),
     share: () => window.ShareCard && window.ShareCard.open({ source: 'setup' }),
     url: (msg) => window.open(msg.action.url, '_blank', 'noopener,noreferrer'),

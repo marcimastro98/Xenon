@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
 
 // The Store's side of the owner update: which id the hub knows this install by,
 // and which version is installed. community-gallery.js is a browser IIFE, so the
@@ -19,14 +20,19 @@ function lift(src, header) {
   return src.slice(at, end + 4);
 }
 
+// The join itself is the shared module the Store reads (packages/core/src/store-updates.js).
+const SU = createRequire(import.meta.url)('../../packages/core/src/store-updates.js');
+const liftLine = (src, header) => { const at = src.indexOf(header); assert.ok(at > 0, header + ' not found'); return src.slice(at, src.indexOf('\n', at)); };
+
 function load({ packages = [], installs = [] } = {}) {
   const ctx = vm.createContext({
     api: async () => ({ packages }),
     hubSettings: { contentInstalls: installs },
+    storeUpdates: SU,
   });
   vm.runInContext([
     'let installIndex = null;',
-    lift(SRC, '  function installedPkgVersion(rec) {'),
+    liftLine(SRC, '  const installedPkgVersion = '),
     lift(SRC, '  function ownedTargetFor(entry) {'),
     lift(SRC, '  async function refreshInstallIndex() {'),
     'this.refresh = refreshInstallIndex; this.ownedTargetFor = ownedTargetFor; this.index = () => installIndex;',

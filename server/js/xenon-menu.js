@@ -511,6 +511,12 @@
       b.dataset.row = 'nav-' + r.id;
       b.append(icon(r.icon) || '', el('span', 'xm-nav-label', text(r.label, tt)));
       if (r.id === 'sparks') b.appendChild(el('span', 'xm-nav-value', balanceText()));
+      // Updates waiting in the Store: the count, red like the Store's own rails; the
+      // words ("2 updates available") are the tile's line, read out with the name.
+      if (r.id === 'store' && r.updates > 0) {
+        b.appendChild(el('span', 'xm-nav-value is-update', String(r.updates)));
+        b.setAttribute('aria-label', text(r.label, tt) + ', ' + text(r.sub, tt));
+      }
       b.addEventListener('click', () => perform(r, r.act));
       return b;
     }
