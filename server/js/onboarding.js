@@ -1,7 +1,6 @@
 // First-run guided tour. A lightweight coachmark walkthrough that spotlights the
-// real topbar/dashboard controls one at a time, so a new user discovers Bit, the
-// chat, search, the layout editor, pages and Settings (with the Store) without
-// reading a manual. Shown ONCE — the finished/skipped version is persisted in
+// real topbar controls one at a time, so a new user finds Bit, search, the layout
+// editor and Settings without reading a manual. Shown ONCE — the finished/skipped version is persisted in
 // settings (server-backed, so a WebView storage wipe can't make it reappear) —
 // and can be replayed any time from Settings → General.
 (function () {
@@ -11,21 +10,22 @@
   // auto-start only fires when the user's saved seenVersion is BELOW this.
   const ONBOARDING_VERSION = 1;
 
-  // Each step spotlights the first of its `targets` that is on screen (or shows a
-  // centered card when it has none). A step whose targets are all hidden is
-  // skipped, so a hidden button, a collapsed rail or a single-page layout never
-  // leaves a spotlight on empty space. `path` names the Settings category a body
-  // points to; it is filled from the live labels so the text can't drift.
+  // Four stops, no welcome or goodbye card: the person asked Bit for the tour, and
+  // vendor data puts the drop-off after about four steps (Chameleon, Intercom).
+  // Pages are taught by the gesture hint at the first touch, and the way back to
+  // this tour is said on the last stop. Each step spotlights the first of its
+  // `targets` that is on screen; a step whose targets are all hidden is skipped,
+  // so a hidden button or a collapsed rail never leaves a spotlight on empty
+  // space. `path` names the Settings category a body points to; it is filled
+  // from the live labels so the text can't drift.
   const STEPS = [
-    { targets: null, titleKey: 'onb_welcome_title', bodyKey: 'onb_welcome_body' },
     { targets: ['.topbtn-xenon'], titleKey: 'onb_ai_title', bodyKey: 'onb_ai_body', path: 'settings_cat_bit' },
-    { targets: ['.chat-panel', '#media-panel'], titleKey: 'onb_chat_title', bodyKey: 'onb_chat_body' },
     { targets: ['.qbtn-search'], titleKey: 'onb_search_title', bodyKey: 'onb_search_body' },
     { targets: ['#layout-edit-toggle'], titleKey: 'onb_layout_title', bodyKey: 'onb_layout_body' },
-    { targets: ['#pager-dots', '.ph-dock.has-pages .ph-pages'], titleKey: 'onb_pager_title', bodyKey: 'onb_pager_body' },
-    { targets: ['.qbtn-settings'], titleKey: 'onb_settings_title', bodyKey: 'onb_settings_body' },
-    { targets: null, titleKey: 'onb_done_title', bodyKey: 'onb_done_body', path: 'settings_cat_general' },
+    { targets: ['.qbtn-settings'], titleKey: 'onb_settings_title', bodyKey: 'onb_settings_body', path: 'settings_cat_general' },
   ];
+
+  const CARD_W = 340;     // layout px, clamped to the viewport in position()
 
   let overlay = null;     // root .onb-overlay (portaled to body)
   let spot = null;        // .onb-spotlight cutout
@@ -63,14 +63,12 @@
     return !!el.closest('.edge-rail') || (r.right > 0 && r.left / zoom() < window.innerWidth);
   }
 
-  // The element a step spotlights, or null. A tile that is a tab of a group is
-  // spotlit as the whole group, tabs included, which is what the user sees. On a
-  // phone the topbar buttons are hidden and the thumb dock stands in for them.
+  // The element a step spotlights, or null. On a phone the topbar buttons are
+  // hidden and the thumb dock stands in for them.
   function targetOf(step) {
-    if (!step.targets) return null;
     for (const sel of step.targets) {
       const el = document.querySelector(sel);
-      if (el && isShown(el)) return el.closest('.tabgroup') || el;
+      if (el && isShown(el)) return el;
       const stand = document.querySelector('.ph-dock [data-ph-for="' + sel + '"]');
       if (stand && isShown(stand)) return stand;
     }
@@ -78,7 +76,7 @@
   }
 
   function resolveSteps() {
-    return STEPS.filter(s => !s.targets || targetOf(s));
+    return STEPS.filter((s) => targetOf(s));
   }
 
   function bodyText(step) {
@@ -187,9 +185,11 @@
     card.append(dots, title, body, actions);
   }
 
-  // Place the spotlight over the current target and the card beside it. Centered
-  // (no target) steps hide the spotlight and pin the card to the middle.
+  // Place the spotlight over the current target and the card beside it. A target
+  // gone since the tour started hides the spotlight and pins the card to the middle.
   function position() {
+    // Placing waits two frames: a tour ended in between has nothing left to place.
+    if (!active || !card) return;
     const step = steps[index];
     const z = zoom();
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -201,25 +201,12 @@
     // clamp works in and pushing a button off the right edge. Driving width from
     // window.innerWidth (layout px, like the Deck menu does) makes it impossible to
     // overflow: cw is guaranteed ≤ vw − 2·margin, so the clamp always fits it.
-    const wantW = step.targets ? 340 : 380;
     card.style.maxWidth = 'none';
-    card.style.width = Math.max(160, Math.min(wantW, vw - margin * 2)) + 'px';
-
-    if (!step.targets) {
-      spot.style.opacity = '0';
-      spot.style.width = spot.style.height = '0px';
-      card.classList.add('onb-card-center');
-      overlay.classList.add('onb-dim'); // no spotlight here — dim the page behind the card
-      card.style.left = card.style.top = '';
-      return;
-    }
+    card.style.width = Math.max(160, Math.min(CARD_W, vw - margin * 2)) + 'px';
 
     overlay.classList.remove('onb-dim'); // spotlight box-shadow does the dimming
     const el = targetOf(step);
     if (!el) { spot.style.opacity = '0'; card.classList.add('onb-card-center'); overlay.classList.add('onb-dim'); return; }
-    // On a phone the dashboard scrolls, and the tile may sit below the fold.
-    const seen = el.getBoundingClientRect();
-    if (seen.top < 0 || seen.bottom / z > vh) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const r = el.getBoundingClientRect();
     const pad = 8;
     const left = r.left / z - pad, top = r.top / z - pad;

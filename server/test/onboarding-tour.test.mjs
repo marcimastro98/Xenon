@@ -50,10 +50,10 @@ function target(rect, { group = null, rail = null } = {}) {
 
 const IT = {
   ui_settings: 'Impostazioni', settings_cat_general: 'Generale', settings_cat_bit: 'Bit',
-  onb_done_body: 'Puoi rivederlo da {path}.', onb_ai_body: 'Scegli chi risponde in {path}.',
+  onb_settings_body: 'Puoi rivederlo da {path}.', onb_ai_body: 'Scegli chi risponde in {path}.',
 };
 
-function runTour(targets, extraWindow = {}) {
+function runTour(targets, extraWindow = {}, frames = null) {
   const body = fakeEl('body');
   const docListeners = {};
   const document = {
@@ -66,7 +66,7 @@ function runTour(targets, extraWindow = {}) {
   let endOnEsc = null;
   const DialogFocus = { hold: (root, { onEsc }) => { endOnEsc = onEsc; return () => { endOnEsc = null; }; } };
   const window = { innerWidth: 1440, innerHeight: 900, addEventListener() {}, removeEventListener() {}, DialogFocus, ...extraWindow };
-  const ctx = { window, document, requestAnimationFrame: (fn) => fn(), setTimeout, t: (k) => IT[k] || '<' + k + '>' };
+  const ctx = { window, document, requestAnimationFrame: frames ? (fn) => frames.push(fn) : (fn) => fn(), setTimeout, t: (k) => IT[k] || '<' + k + '>' };
   vm.createContext(ctx);
   vm.runInContext(TOUR, ctx);
   window.Onboarding.start();
@@ -89,11 +89,12 @@ const HIDDEN = [0, 0, 0, 0];
 function fullBar() {
   return {
     '.topbtn-xenon': target(SHOWN),
-    '.chat-panel': target([500, 100, 450, 700]),
     '.qbtn-search': target(SHOWN),
     '#layout-edit-toggle': target(SHOWN),
-    '#pager-dots': target([700, 10, 200, 40]),
     '.qbtn-settings': target(SHOWN),
+    // A tile is never a stop any more: pages and the chat are found without the tour.
+    '.chat-panel': target([500, 100, 450, 700]),
+    '#pager-dots': target([700, 10, 200, 40]),
   };
 }
 
@@ -106,6 +107,14 @@ test('Enter turns the page, unless it is on one of the keys', () => {
   assert.notEqual(tour.state().title, first);
 });
 
+test('a tour ended before its card is placed leaves nothing to place', () => {
+  const frames = [];
+  const tour = runTour(fullBar(), {}, frames);
+  for (let i = 0; i < 4; i++) tour.next();
+  assert.equal(tour.held(), false, 'ended on the last stop');
+  assert.doesNotThrow(() => { while (frames.length) frames.shift()(); });
+});
+
 test('the keyboard stays in the card for the tour and comes back when it ends', () => {
   const tour = runTour(fullBar());
   assert.equal(tour.held(), true);
@@ -113,36 +122,29 @@ test('the keyboard stays in the card for the tour and comes back when it ends', 
   assert.equal(tour.held(), false);
 });
 
-test('every step shows on the full top bar, and the last card names the real place of the replay', () => {
+test('four stops on the full top bar, Bit first, and the last names the real place of the replay', () => {
   const tour = runTour(fullBar());
-  assert.equal(tour.state().steps, 8);
-  for (let i = 0; i < 7; i++) tour.next();
+  assert.equal(tour.state().steps, 4);
+  assert.equal(tour.state().title, '<onb_ai_title>', 'no welcome card: the person asked for the tour');
+  for (let i = 0; i < 3; i++) tour.next();
+  assert.equal(tour.state().title, '<onb_settings_title>');
   assert.equal(tour.state().text, 'Puoi rivederlo da Impostazioni → Generale.');
+  tour.next();
+  assert.equal(tour.held(), false, 'no goodbye card after it');
 });
 
-test('a step whose button is hidden, or whose tile is on another page, is skipped', () => {
+test('a step whose button is hidden, or beside the viewport, is skipped', () => {
   const t = fullBar();
   t['.qbtn-search'] = target(HIDDEN);
-  t['.chat-panel'] = target([1600, 100, 450, 700]); // the next dashboard page, beside the viewport
-  assert.equal(runTour(t).state().steps, 6);
-});
-
-test('a tile that is a tab of a group is spotlit as the whole group', () => {
-  const t = fullBar();
-  t['.chat-panel'] = target(HIDDEN);
-  t['#media-panel'] = target([510, 160, 430, 640], { group: target([500, 100, 450, 700]) });
-  const tour = runTour(t);
-  tour.next(); tour.next();
-  assert.equal(tour.state().title, '<onb_chat_title>');
-  assert.equal(tour.state().spot.width, (450 + 16) + 'px');
-  assert.equal(tour.state().spot.height, (700 + 16) + 'px');
+  t['#layout-edit-toggle'] = target([1600, 100, 58, 58]);
+  assert.equal(runTour(t).state().steps, 2);
 });
 
 test('a button in a rail sliding in still counts; one in a rail the user closed does not', () => {
   const t = fullBar();
   t['.topbtn-xenon'] = target([-60, 350, 58, 58], { rail: { collapsed: false } });
   t['.qbtn-search'] = target([-60, 420, 58, 58], { rail: { collapsed: true } });
-  assert.equal(runTour(t).state().steps, 7);
+  assert.equal(runTour(t).state().steps, 3);
 });
 
 test('the tour holds the minimal bar\'s rails out and open, and lets go when it ends', () => {
@@ -161,16 +163,14 @@ test('on a phone the thumb dock stands in for the hidden topbar buttons', () => 
   const t = {
     '.topbtn-xenon': target(HIDDEN),
     '.ph-dock [data-ph-for=".topbtn-xenon"]': target([110, 744, 68, 68]),
-    '.chat-panel': target([2, 900, 386, 690]), // below the fold: scrolled into view
-    '#pager-dots': target(HIDDEN),
-    '.ph-dock.has-pages .ph-pages': target([276, 744, 114, 68]),
+    '.qbtn-settings': target(HIDDEN),
+    '.ph-dock [data-ph-for=".qbtn-settings"]': target([310, 744, 68, 68]),
   };
   const tour = runTour(t, { innerWidth: 390, innerHeight: 844 });
-  assert.equal(tour.state().steps, 5);
-  tour.next();
+  assert.equal(tour.state().steps, 2);
   assert.equal(tour.state().spot.left, (110 - 8) + 'px');
   tour.next();
-  assert.ok(t['.chat-panel'].scrolled, 'the chat tile was brought on screen');
+  assert.equal(tour.state().spot.left, (310 - 8) + 'px');
 });
 
 test('the dock names the button each forwarder stands in for', () => {
@@ -207,10 +207,10 @@ test('every language carries the tour, translated, with the Settings path left t
   for (const l of langs) {
     const d = ctx.__i18n[l];
     for (const k of keys) assert.ok(d[k] && d[k].trim(), `${l}.${k}`);
-    for (const k of ['onb_search_body', 'onb_layout_body', 'onb_pager_body', 'onb_settings_body']) {
+    for (const k of ['onb_search_body', 'onb_layout_body', 'onb_settings_body']) {
       if (l !== 'en') assert.notEqual(d[k], en[k], `${l}.${k} is still English`);
     }
-    for (const k of ['onb_ai_body', 'onb_done_body']) assert.match(d[k], /\{path\}/, `${l}.${k}`);
+    for (const k of ['onb_ai_body', 'onb_settings_body']) assert.match(d[k], /\{path\}/, `${l}.${k}`);
     assert.doesNotMatch(d.onb_layout_body, /drag|trascina/i, `${l}: "+" is a tap, not a drag`);
   }
 });
